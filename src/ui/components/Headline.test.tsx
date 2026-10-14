@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '../../core/pipeline'
-import type { ComparisonPoint } from '../../core/types'
+import type { ComparisonPoint, EffortCheck } from '../../core/types'
 import type { UnitSystem } from '../../core/units'
 import { comparisonPoint, interval, makeActivity, makeResult } from './fixtures'
 import { Headline } from './Headline'
@@ -92,6 +92,83 @@ describe('Headline wording', () => {
         'Range based on population averages. Add more runs and rides with heart rate to narrow it',
       ),
     ).toBeInTheDocument()
+  })
+})
+
+describe('Headline effort notice', () => {
+  function renderWithEffort(effort: EffortCheck | null | undefined) {
+    return render(
+      <Headline
+        result={withRatio(interval(1.05, 1.12, 1.2))}
+        units="metric"
+        massKg={75}
+        effort={effort}
+      />,
+    )
+  }
+
+  it('explains that a low cycling effort probably was not all-out', () => {
+    renderWithEffort({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
+    expect(
+      screen.getByText(
+        'Your best cycling effort over 20 min reached 80% of your highest heart rate, so it was probably not all-out. Your cycling may be stronger than shown.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('explains that a low running effort probably was not all-out', () => {
+    renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
+    expect(
+      screen.getByText(
+        'Your best running effort over 20 min reached 70% of your highest heart rate, so it was probably not all-out. Your running may be stronger than shown.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says neither effort was all-out when both are low', () => {
+    renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
+    expect(
+      screen.getByText(
+        'Neither best effort over 20 min was close to all-out (running 70%, cycling 80% of your highest heart rate), so treat this comparison as rough.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a warning icon drawn with currentColor and the text', () => {
+    const { container } = renderWithEffort({
+      durationS: 1200,
+      runHrFraction: 0.95,
+      rideHrFraction: 0.8,
+    })
+    const icon = container.querySelector('.headline__effort svg')
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon?.querySelector('path')).toHaveAttribute('stroke', 'currentColor')
+  })
+
+  it('shows a muted line when both efforts are at or above 0.9 of the highest heart rate', () => {
+    const { container } = renderWithEffort({
+      durationS: 1200,
+      runHrFraction: 0.9,
+      rideHrFraction: 0.95,
+    })
+    expect(
+      screen.getByText('Both best efforts were close to all-out by heart rate'),
+    ).toBeInTheDocument()
+    expect(container.querySelector('.headline__effort')).toBeNull()
+  })
+
+  it('renders nothing extra when the effort check is missing', () => {
+    const { container, unmount } = renderWithEffort(undefined)
+    expect(container.querySelector('.headline__effort')).toBeNull()
+    expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
+    unmount()
+    renderWithEffort(null)
+    expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
+  })
+
+  it('renders nothing extra when neither heart-rate fraction is known', () => {
+    renderWithEffort({ durationS: 1200, runHrFraction: null, rideHrFraction: null })
+    expect(screen.queryByText(/all-out/)).not.toBeInTheDocument()
   })
 })
 

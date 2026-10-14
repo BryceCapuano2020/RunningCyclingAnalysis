@@ -23,6 +23,10 @@ uploaded. There is no backend and no AI model in the product.
 - **Virtual power meter.** For rides without a power meter, power on climbs is estimated from
   speed, gradient and mass. The bike model is calibrated on rides that do have a power meter and
   scored leave-one-ride-out, so the accuracy figure is out-of-sample.
+- **Was it really all-out?** A best effort far below your highest recorded heart rate was probably
+  not maximal, which understates that sport. The headline says so when it happens.
+- **Period filter.** Fitness changes, so the comparison can be limited to the last 6 weeks, 3
+  months or year.
 - **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
   example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
 
@@ -49,6 +53,8 @@ pipeline on that data and assert that it recovers the truth.
 ## Limits
 
 - Best-effort curves are only as good as the hardest efforts on file.
+- Only heart-rate blocks below 93% of the highest recorded heart rate enter the regression,
+  because heart rate stops tracking power linearly near maximum.
 - The heart-rate check assumes heart rate maps to metabolic power the same way in both sports. A
   fixed model-discrepancy term keeps the updated range from becoming over-confident.
 - Heat, altitude, fatigue and cardiac drift shift heart rate and are not modelled.
@@ -64,14 +70,15 @@ npm install
 npm run dev
 ```
 
-| Command                 | What it does                                                   |
-| ----------------------- | -------------------------------------------------------------- |
-| `npm run check`         | Format check, lint, typecheck, unit tests with coverage, build |
-| `npm test`              | Unit and component tests (Vitest)                              |
-| `npm run test:coverage` | Same, enforcing coverage thresholds on `src/core`              |
-| `npm run e2e`           | End-to-end tests against the production build (Playwright)     |
-| `npm run lint`          | oxlint, warnings are errors                                    |
-| `npm run format`        | Prettier                                                       |
+| Command                            | What it does                                                     |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| `npm run check`                    | Format check, lint, typecheck, unit tests with coverage, build   |
+| `npm test`                         | Unit and component tests (Vitest)                                |
+| `npm run test:coverage`            | Same, enforcing coverage thresholds on `src/core`                |
+| `npm run e2e`                      | End-to-end tests against the production build (Playwright)       |
+| `npm run lint`                     | oxlint, warnings are errors                                      |
+| `npx tsx scripts/make-fixtures.ts` | Regenerates the deterministic FIT fixtures used by the e2e suite |
+| `npm run format`                   | Prettier                                                         |
 
 ### Layout
 
@@ -85,6 +92,7 @@ src/core/         analysis library: pure TypeScript, no DOM, runs in a Web Worke
   virtualPower/   physics power estimate, calibration, accuracy scoring
   hr/             heart-rate block regression and cross-check
   compare/        Monte Carlo comparison and Bayesian update
+  effort/         heart-rate check that best efforts were close to maximal
   synthetic/      ground-truth activity simulator
   pipeline.ts     ties the modules together
 src/worker/       Web Worker wrapper

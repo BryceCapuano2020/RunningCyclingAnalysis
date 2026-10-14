@@ -133,7 +133,9 @@ export function generateActivity(
   const altitude = new Float64Array(n)
   const power = new Float64Array(n).fill(NaN)
   const heartRate = new Float64Array(n).fill(NaN)
-  let hr = athlete.hrIntercept + athlete.hrSlope * (motion.metabolic[0] ?? 0)
+  const hrTarget = (metabolic: number) =>
+    Math.min(athlete.hrMax, athlete.hrIntercept + athlete.hrSlope * metabolic)
+  let hr = hrTarget(motion.metabolic[0] ?? 0)
 
   for (let i = 0; i < n; i++) {
     speed[i] = motion.speed[i]! * (1 + uniform(rand, SPEED_NOISE))
@@ -142,7 +144,7 @@ export function generateActivity(
       power[i] = Math.round(motion.power[i]! * (1 + uniform(rand, POWER_NOISE)))
     }
     if (hasHeartRate) {
-      hr += hrAlpha * (athlete.hrIntercept + athlete.hrSlope * motion.metabolic[i]! - hr)
+      hr += hrAlpha * (hrTarget(motion.metabolic[i]!) - hr)
       let reading = Math.round(hr + uniform(rand, HR_NOISE_BPM))
       if (spec.hrGlitch && i >= glitchStart && i < glitchEnd) {
         reading = GLITCH_MIN_BPM + Math.floor(rand() * GLITCH_RANGE_BPM)

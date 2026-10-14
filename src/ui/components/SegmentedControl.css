@@ -1,0 +1,77 @@
+.segmented-control {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.segmented-control__legend {
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.segmented-control__options {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+/* Each visible label is the click target, and at least 40 px tall. */
+.segmented-control__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--control-border);
+  background: var(--surface-1);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.segmented-control__option:first-of-type {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.segmented-control__option:last-of-type {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-left: -1px;
+}
+
+.segmented-control__option:not(.segmented-control__option--selected):hover {
+  background: var(--surface-2);
+}
+
+/* The checked state uses weight and a check mark, not colour alone. */
+.segmented-control__option--selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.segmented-control__check {
+  visibility: hidden;
+}
+
+.segmented-control__option--selected .segmented-control__check {
+  visibility: visible;
+}
+
+/* The focus ring is drawn on the visible label, since the radio itself is hidden. */
+.segmented-control__option:has(.segmented-control__radio:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.segmented-control__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}

@@ -178,7 +178,7 @@ describe('generateActivity', () => {
     for (let i = descentStart + 300; i < coastEnd; i++) expect(act.power[i]).toBe(0)
     const restingHr = A.hrIntercept + A.hrSlope * RESTING_W_PER_KG
     expect(mean(act.heartRate.subarray(descentStart + 600, coastEnd))).toBeLessThan(restingHr + 5)
-    expect(act.heartRate[descentStart - 1]!).toBeGreaterThan(300)
+    expect(act.heartRate[descentStart - 1]!).toBeGreaterThan(A.hrMax - 3)
   })
 
   it('coasts on a steep descent that would exceed 18 m/s', () => {
@@ -205,6 +205,18 @@ describe('generateActivity', () => {
     expect(peak).toBeGreaterThan(300)
     expect(act.altitude[act.n - 1]!).toBeLessThan(peak)
     expect(act.altitude[0]).toBe(200)
+  })
+
+  it('heart rate saturates at hrMax during a maximal 3-minute effort', () => {
+    const act = generateActivity(A, spec({ effort: 'test', durationS: 5200 }), 101)
+    const window = act.heartRate.subarray(900, 1080)
+    expect(Math.max(...window)).toBeLessThanOrEqual(A.hrMax + 1)
+    expect(Math.max(...window)).toBeGreaterThanOrEqual(A.hrMax - 3)
+  })
+
+  it('mean heart rate over a maximal 20-minute effort is at least 93% of hrMax', () => {
+    const act = generateActivity(A, spec({ effort: 'test', durationS: 5200 }), 102)
+    expect(mean(act.heartRate.subarray(3960, 5160))).toBeGreaterThanOrEqual(0.93 * A.hrMax)
   })
 
   it('altitude is recorded in 0.2 m steps', () => {

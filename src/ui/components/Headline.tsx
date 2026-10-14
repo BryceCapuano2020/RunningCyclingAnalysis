@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react'
 import { PRIORS } from '../../core/constants'
 import type { AnalysisResult } from '../../core/pipeline'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../../core/metabolic'
-import type { Interval } from '../../core/types'
+import type { EffortCheck, Interval } from '../../core/types'
 import type { UnitSystem } from '../../core/units'
 import { formatDuration, formatPace, formatPercent, formatPower, formatWkg } from '../../core/units'
 import { pickHeadline } from './pickHeadline'
@@ -13,6 +14,8 @@ export interface HeadlineProps {
   units: UnitSystem
   /** Body mass, kg. Converts the cycling threshold from W/kg to watts. */
   massKg: number
+  /** Heart-rate check for the headline duration. Null or missing when it is unavailable. */
+  effort?: EffortCheck | null
 }
 
 interface Tile {
@@ -20,6 +23,9 @@ interface Tile {
   value: string
   sub: string
 }
+
+/** Best efforts below this share of the highest heart rate were probably not all-out. */
+const ALL_OUT = 0.9
 
 function headlineTitle(ratio: Interval): string {
   const d = ratio.p50 - 1
@@ -73,7 +79,71 @@ function buildTiles(result: AnalysisResult, units: UnitSystem, massKg: number): 
   return tiles
 }
 
-export function Headline({ result, units, massKg }: HeadlineProps) {
+function WarningIcon() {
+  return (
+    <svg className="headline__effort-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        d="M8 2 14.5 13.5h-13Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 6.5v3.25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <circle cx="8" cy="11.6" r="0.9" fill="currentColor" />
+    </svg>
+  )
+}
+
+function noticeBlock(text: string): ReactNode {
+  return (
+    <div className="headline__effort">
+      <WarningIcon />
+      <p>{text}</p>
+    </div>
+  )
+}
+
+/** The effort notice, or nothing when heart rate cannot say how hard the efforts were. */
+function effortNotice(effort: EffortCheck | null | undefined): ReactNode {
+  if (!effort) return null
+  const { durationS, runHrFraction: run, rideHrFraction: ride } = effort
+  const duration = formatDuration(durationS)
+  if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
+    return noticeBlock(
+      `Neither best effort over ${duration} was close to all-out (running ${Math.round(run * 100)}%, ` +
+        `cycling ${Math.round(ride * 100)}% of your highest heart rate), so treat this comparison as rough.`,
+    )
+  }
+  if (ride !== null && ride < ALL_OUT) {
+    return noticeBlock(
+      `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of your highest ` +
+        `heart rate, so it was probably not all-out. Your cycling may be stronger than shown.`,
+    )
+  }
+  if (run !== null && run < ALL_OUT) {
+    return noticeBlock(
+      `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of your highest ` +
+        `heart rate, so it was probably not all-out. Your running may be stronger than shown.`,
+    )
+  }
+  if (run !== null && ride !== null) {
+    return (
+      <p className="headline__effort-ok muted">
+        Both best efforts were close to all-out by heart rate
+      </p>
+    )
+  }
+  return null
+}
+
+export function Headline({ result, units, massKg, effort }: HeadlineProps) {
   const pick = pickHeadline(result.comparison)
   if (pick === null) {
     return (
@@ -104,6 +174,7 @@ export function Headline({ result, units, massKg }: HeadlineProps) {
         {headlineTitle(point.ratio)}
       </h1>
       <p className="headline__detail">{summary}</p>
+      {effortNotice(effort)}
       <p className="headline__basis muted">{basis}</p>
       <ul className="headline__tiles">
         {tiles.map((tile) => (

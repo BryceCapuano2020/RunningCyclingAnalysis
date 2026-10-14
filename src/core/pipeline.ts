@@ -1,6 +1,8 @@
 import { compareSports, weightedQuantile } from './compare'
 import { DURATIONS_S, FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from './constants'
 import { fitCriticalPower } from './cp'
+import type { HeartRateSource } from './effort'
+import { checkEfforts, maxHeartRate } from './effort'
 import { meanMaximal, mergeCurves, monotoneEnvelope } from './curves'
 import { blockPoints, crossCheck } from './hr'
 import { mulberry32, truncatedNormal } from './math'
@@ -14,6 +16,7 @@ import type {
   CriticalPowerFit,
   Curve,
   DerivedStreams,
+  EffortCheck,
   HrCrossCheck,
   HrPoint,
   Interval,
@@ -58,6 +61,10 @@ export interface AnalysisResult {
   hr: HrCrossCheck
   comparison: Comparison
   equivalents: Equivalence[]
+  /** Highest sustained heart rate on file, bpm; null without heart-rate data. */
+  maxHeartRate: number | null
+  /** Whether each compared best effort was close to all-out, one entry per comparison duration. */
+  effort: EffortCheck[]
   bikeModel: BikeModel
   /** Leave-one-ride-out accuracy of the virtual power meter; null with no power-meter rides. */
   virtualAccuracy: VirtualPowerAccuracy | null
@@ -222,7 +229,21 @@ export function analyze(activities: Activity[], settings: AthleteSettings): Anal
     value: p.value / (PRIORS.grossEfficiency.mean * settings.massKg),
   }))
 
-  const hr = crossCheck(runPoints, ridePoints)
+  const sources = new Map<string, HeartRateSource>(
+    prepared.map((p) => [
+      p.activity.id,
+      { activity: p.activity, validHeartRate: p.quality.validHeartRate },
+    ]),
+  )
+  const maxHr = maxHeartRate([...sources.values()])
+  // Heart rate tracks metabolic power linearly only while the effort is aerobic; above
+  // critical power it flattens toward maximum. Blocks are selected on power, never on
+  // heart rate, because truncating the dependent variable would bias the slopes.
+  const runCp = fitCriticalPower(runCurve)
+  const rideCp = fitCriticalPower(rideMetabolicCurve)
+  const below = (cp: CriticalPowerFit | null) => (p: HrPoint) =>
+    cp === null || p.metabolicPower <= cp.cp
+  const hr = crossCheck(runPoints.filter(below(runCp)), ridePoints.filter(below(rideCp)))
   const comparison = compareSports(runCurve, rideCurve, settings.massKg, hr, {
     draws: DRAWS,
     seed: SEED,
@@ -240,17 +261,27 @@ export function analyze(activities: Activity[], settings: AthleteSettings): Anal
     }
   }
 
+  const effort = checkEfforts(
+    runCurve,
+    rideCurve,
+    sources,
+    maxHr,
+    comparison.prior.map((p) => p.durationS),
+  )
+
   summaries.sort((a, b) => b.startMs - a.startMs)
   return {
     activities: summaries,
     runCurve,
     rideCurve,
     rideMetabolicCurve,
-    runCp: fitCriticalPower(runCurve),
-    rideCp: fitCriticalPower(rideMetabolicCurve),
+    runCp,
+    rideCp,
     hr,
     comparison,
     equivalents,
+    maxHeartRate: maxHr,
+    effort,
     bikeModel,
     virtualAccuracy,
   }

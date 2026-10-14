@@ -226,3 +226,43 @@ describe('equivalentRunSpeed', () => {
     expect(calibrated.p95 - calibrated.p05).toBeLessThan(prior.p95 - prior.p05)
   })
 })
+
+describe('effort check', () => {
+  const effortAt = (r: AnalysisResult, t: number) => r.effort.find((e) => e.durationS === t)
+
+  it('finds a maximum heart rate within 3 bpm of the simulated athlete', () => {
+    expect(result.maxHeartRate).not.toBeNull()
+    expect(Math.abs(result.maxHeartRate! - athlete.hrMax)).toBeLessThan(3)
+  })
+
+  it('has one effort entry per comparison duration, in the same order', () => {
+    expect(result.effort.map((e) => e.durationS)).toEqual(
+      result.comparison.prior.map((p) => p.durationS),
+    )
+  })
+
+  it('finds both 20 minute efforts close to all-out for the sample data', () => {
+    const effort = effortAt(result, 1200)!
+    expect(effort.runHrFraction!).toBeGreaterThanOrEqual(0.93)
+    expect(effort.rideHrFraction!).toBeGreaterThanOrEqual(0.9)
+  })
+
+  it('finds the cycling 20 minute effort submaximal once the Power Test is removed', () => {
+    const without = activities.filter((a) => a.name !== 'Power Test')
+    const r = analyze(without, settings)
+    const effort = effortAt(r, 1200)!
+    expect(effort.rideHrFraction!).toBeLessThan(0.9)
+    expect(effort.runHrFraction!).toBeGreaterThanOrEqual(0.9)
+  })
+
+  it("regresses heart rate only on blocks at or below each sport's critical power", () => {
+    expect(result.hr.run!.points.length).toBeGreaterThan(0)
+    expect(result.hr.ride!.points.length).toBeGreaterThan(0)
+    for (const p of result.hr.run!.points) {
+      expect(p.metabolicPower).toBeLessThanOrEqual(result.runCp!.cp)
+    }
+    for (const p of result.hr.ride!.points) {
+      expect(p.metabolicPower).toBeLessThanOrEqual(result.rideCp!.cp)
+    }
+  })
+})

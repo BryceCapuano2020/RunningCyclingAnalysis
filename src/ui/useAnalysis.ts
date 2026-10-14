@@ -11,10 +11,18 @@ export interface AnalysisController {
   error: string | null
   addFiles: (files: File[]) => void
   loadSample: () => void
+  setRange: (rangeDays: number | null) => void
   clear: () => void
 }
 
-const EMPTY: SessionState = { result: null, rejected: [], unsupportedFiles: 0, isSample: false }
+const EMPTY: SessionState = {
+  result: null,
+  rejected: [],
+  unsupportedFiles: 0,
+  isSample: false,
+  totalActivities: 0,
+  rangeDays: null,
+}
 
 export function useAnalysis(settings: AthleteSettings): AnalysisController {
   const workerRef = useRef<Worker | null>(null)
@@ -83,7 +91,12 @@ export function useAnalysis(settings: AthleteSettings): AnalysisController {
     () => send({ type: 'loadSample', settings: settingsRef.current }),
     [send],
   )
+  const setRange = useCallback(
+    (rangeDays: number | null) =>
+      send({ type: 'setRange', rangeDays, settings: settingsRef.current }),
+    [send],
+  )
   const clear = useCallback(() => send({ type: 'clear' }), [send])
 
-  return { state, busy, progress, error, addFiles, loadSample, clear }
+  return { state, busy, progress, error, addFiles, loadSample, setRange, clear }
 }

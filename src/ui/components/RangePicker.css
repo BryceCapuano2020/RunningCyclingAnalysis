@@ -1,0 +1,11 @@
+.range-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+}
+
+.range-picker__count {
+  padding-bottom: var(--space-2);
+  font-size: 0.875rem;
+}

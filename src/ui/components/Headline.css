@@ -39,3 +39,31 @@
 .headline__tile-sub {
   font-size: 0.875rem;
 }
+
+/* A notice that the best efforts may not have been all-out. */
+.headline__effort {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 68ch;
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--status-warning);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.headline__effort p {
+  margin: 0;
+}
+
+.headline__effort-icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1em;
+  color: var(--text-primary);
+}
+
+.headline__effort-ok {
+  font-size: 0.875rem;
+}

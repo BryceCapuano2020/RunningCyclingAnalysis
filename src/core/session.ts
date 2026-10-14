@@ -17,6 +17,10 @@ export interface SessionState {
   /** Activity files in formats this app does not read (GPX, TCX) that were skipped. */
   unsupportedFiles: number
   isSample: boolean
+  /** Activities loaded, before the period filter. */
+  totalActivities: number
+  /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
+  rangeDays: number | null
 }
 
 /**
@@ -29,6 +33,7 @@ export class AnalysisSession {
   private rejected = new Map<string, string>()
   private unsupported = new Map<string, number>()
   private isSample = false
+  private rangeDays: number | null = null
 
   async addFiles(
     sources: FitSource[],
@@ -70,20 +75,35 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  setRange(rangeDays: number | null, settings: AthleteSettings): SessionState {
+    this.rangeDays = rangeDays
+    return this.state(settings)
+  }
+
   clear(): SessionState {
     this.activities.clear()
     this.rejected.clear()
     this.unsupported.clear()
     this.isSample = false
-    return { result: null, rejected: [], unsupportedFiles: 0, isSample: false }
+    return this.state({ massKg: 0, bikeMassKg: 0 })
   }
 
   private state(settings: AthleteSettings): SessionState {
+    const all = [...this.activities.values()]
+    let selected = all
+    if (this.rangeDays !== null && all.length > 0) {
+      // Anchored to the newest activity, not today, so an old export still shows its last weeks.
+      const newest = all.reduce((latest, a) => Math.max(latest, a.startMs), -Infinity)
+      const cutoff = newest - this.rangeDays * 86_400_000
+      selected = all.filter((a) => a.startMs >= cutoff)
+    }
     return {
-      result: this.activities.size > 0 ? analyze([...this.activities.values()], settings) : null,
+      result: selected.length > 0 ? analyze(selected, settings) : null,
       rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
+      totalActivities: all.length,
+      rangeDays: this.rangeDays,
     }
   }
 }

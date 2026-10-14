@@ -8,8 +8,10 @@ import {
   Header,
   Headline,
   Methodology,
+  RangePicker,
   RejectedFiles,
   SettingsBar,
+  pickHeadline,
 } from './ui/components'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
@@ -18,7 +20,10 @@ export function App() {
   const [preferences, setPreferences] = usePreferences()
   const { settings, units } = preferences
   const analysis = useAnalysis(settings)
-  const { result, rejected, unsupportedFiles, isSample } = analysis.state
+  const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
+    analysis.state
+  const headlineDuration = result ? pickHeadline(result.comparison)?.point.durationS : undefined
+  const headlineEffort = result?.effort.find((e) => e.durationS === headlineDuration) ?? null
 
   // Swapping between the landing and results views unmounts whatever had focus,
   // so send focus to the new view's heading.
@@ -111,6 +116,12 @@ export function App() {
               units={units}
               onChange={(next) => setPreferences({ ...preferences, settings: next })}
             />
+            <RangePicker
+              rangeDays={rangeDays}
+              onChange={analysis.setRange}
+              shown={result.activities.length}
+              total={totalActivities}
+            />
             <button type="button" className="btn" onClick={analysis.clear} disabled={analysis.busy}>
               Start over
             </button>
@@ -118,7 +129,12 @@ export function App() {
           <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
 
           <section className="card">
-            <Headline result={result} units={units} massKg={settings.massKg} />
+            <Headline
+              result={result}
+              units={units}
+              massKg={settings.massKg}
+              effort={headlineEffort}
+            />
           </section>
 
           <section className="card">

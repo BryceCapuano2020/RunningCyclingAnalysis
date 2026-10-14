@@ -16,6 +16,8 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return session.loadSample(request.settings)
     case 'setSettings':
       return session.setSettings(request.settings)
+    case 'setRange':
+      return session.setRange(request.rangeDays, request.settings)
     case 'clear':
       return session.clear()
   }

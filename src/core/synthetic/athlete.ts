@@ -18,6 +18,8 @@ export interface SyntheticAthlete {
   hrIntercept: number
   /** Heart rate per W/kg of gross metabolic power, bpm. */
   hrSlope: number
+  /** Maximum heart rate, bpm. Heart rate saturates here. */
+  hrMax: number
   /** Drag area, m^2. */
   cda: number
   /** Rolling resistance coefficient. */
@@ -34,6 +36,7 @@ export const DEFAULT_ATHLETE: SyntheticAthlete = {
   wPrime: 1200,
   hrIntercept: 55,
   hrSlope: 7,
+  hrMax: 182,
   cda: 0.32,
   crr: 0.005,
 }

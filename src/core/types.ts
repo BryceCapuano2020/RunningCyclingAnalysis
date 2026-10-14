@@ -184,3 +184,16 @@ export interface Comparison {
   /** After the heart-rate cross-check, or null when it was unavailable. */
   calibrated: ComparisonPoint[] | null
 }
+
+/**
+ * How hard the best effort at one duration really was, judged by heart rate.
+ * A best effort well below the athlete's highest heart rate was probably not
+ * all-out, so that sport is understated at that duration.
+ */
+export interface EffortCheck {
+  durationS: number
+  /** Mean heart rate in the best running window divided by maxHeartRate; null if unknown. */
+  runHrFraction: number | null
+  /** Same for the best cycling window. */
+  rideHrFraction: number | null
+}

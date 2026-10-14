@@ -166,7 +166,69 @@ describe('AnalysisSession', () => {
       rejected: [],
       unsupportedFiles: 0,
       isSample: false,
+      totalActivities: 0,
+      rangeDays: null,
     })
+  })
+
+  it('setRange analyses only activities within the period of the newest one', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    const state = session.setRange(42, SETTINGS)
+
+    const newest = Math.max(...sample.map((activity) => activity.startMs))
+    const cutoff = newest - 42 * 86_400_000
+    const inside = sample.filter((activity) => activity.startMs >= cutoff)
+    expect(inside.length).toBeGreaterThan(0)
+    expect(inside.length).toBeLessThan(sample.length)
+    expect(state.result?.activities).toHaveLength(inside.length)
+    expect(state.result?.activities.every((activity) => activity.startMs >= cutoff)).toBe(true)
+    expect(state.totalActivities).toBe(sample.length)
+    expect(state.rangeDays).toBe(42)
+  })
+
+  it('setRange(null) restores every activity', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    session.setRange(42, SETTINGS)
+    const state = session.setRange(null, SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(sample.length)
+    expect(state.totalActivities).toBe(sample.length)
+    expect(state.rangeDays).toBeNull()
+  })
+
+  it('setRange with nothing loaded gives no result and no activities', () => {
+    const session = new AnalysisSession()
+    expect(session.setRange(42, SETTINGS)).toEqual({
+      result: null,
+      rejected: [],
+      unsupportedFiles: 0,
+      isSample: false,
+      totalActivities: 0,
+      rangeDays: 42,
+    })
+  })
+
+  it('importing the same garbage file twice does not double-count it as rejected', async () => {
+    const session = new AnalysisSession()
+    const junk = (): File => textFile('junk.fit', 'this is plainly not a FIT file')
+    const sameCall = await session.addFiles([junk(), junk()], SETTINGS)
+    expect(sameCall.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+
+    const laterCall = await session.addFiles([junk()], SETTINGS)
+    expect(laterCall.rejected).toHaveLength(1)
+  })
+
+  it('importing the same zip twice does not double-count its unsupported files', async () => {
+    const session = new AnalysisSession()
+    const sameCall = await session.addFiles([exportZip(), exportZip()], SETTINGS)
+    expect(sameCall.unsupportedFiles).toBe(1)
+    expect(sameCall.result?.activities).toHaveLength(2)
+
+    const laterCall = await session.addFiles([exportZip()], SETTINGS)
+    expect(laterCall.unsupportedFiles).toBe(1)
+    expect(laterCall.result?.activities).toHaveLength(2)
   })
 
   it('clear leaves the session ready for new files and exits sample mode', async () => {

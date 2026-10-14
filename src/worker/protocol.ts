@@ -5,6 +5,7 @@ export type WorkerRequest =
   | { type: 'addFiles'; files: File[]; settings: AthleteSettings }
   | { type: 'loadSample'; settings: AthleteSettings }
   | { type: 'setSettings'; settings: AthleteSettings }
+  | { type: 'setRange'; rangeDays: number | null; settings: AthleteSettings }
   | { type: 'clear' }
 
 export type WorkerResponse =
