@@ -8,6 +8,17 @@ honest uncertainty range.
 It runs entirely in the browser. Activity files are read and analysed on your device and are never
 uploaded. There is no backend and no AI model in the product.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png" />
+    <img
+      src="docs/screenshot-light.png"
+      width="640"
+      alt="Results page with sample data. The headline reads 'Your running is 10% stronger than your cycling', followed by the Best efforts in one unit chart, where running and cycling power curves are plotted in gross metabolic watts per kilogram against duration from 1 minute to 2 hours."
+    />
+  </picture>
+</p>
+
 ## What it does
 
 - **Reads FIT files** from Garmin, Wahoo and similar devices, singly, gzipped, or inside a Strava
@@ -43,6 +54,10 @@ uploaded. There is no backend and no AI model in the product.
 
 `M` is gross metabolic power in W/kg, `P` is mechanical power in W, and `rest` is 1.22 W/kg.
 
+![Heart-rate check and virtual power meter accuracy cards for the sample data](docs/screenshot-checks.png)
+
+The heart-rate check plots each five-minute block for both sports, and the virtual power meter is scored only on rides it was not tuned on.
+
 ## Validation
 
 The repository includes a deterministic simulator (`src/core/synthetic`) that generates
@@ -76,6 +91,7 @@ npm run dev
 | `npm test`                         | Unit and component tests (Vitest)                                |
 | `npm run test:coverage`            | Same, enforcing coverage thresholds on `src/core`                |
 | `npm run e2e`                      | End-to-end tests against the production build (Playwright)       |
+| `npm run screenshots`              | Rebuilds, then regenerates the README screenshots in `docs/`     |
 | `npm run lint`                     | oxlint, warnings are errors                                      |
 | `npx tsx scripts/make-fixtures.ts` | Regenerates the deterministic FIT fixtures used by the e2e suite |
 | `npm run format`                   | Prettier                                                         |
