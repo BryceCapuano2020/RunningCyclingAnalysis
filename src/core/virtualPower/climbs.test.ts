@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { climbMask, findSegments } from './climbs'
+import { climbMask, findSegments, splitSegment } from './climbs'
 
 function maskWithRuns(n: number, runs: [number, number][]): Uint8Array {
   const m = new Uint8Array(n)
@@ -104,6 +104,58 @@ describe('findSegments', () => {
     expect(findSegments(mask)).toEqual([
       { start: 0, end: 150 },
       { start: 151, end: 300 },
+    ])
+  })
+})
+
+describe('splitSegment', () => {
+  it('returns a segment shorter than one section whole', () => {
+    expect(splitSegment({ start: 0, end: 119 })).toEqual([{ start: 0, end: 119 }])
+  })
+
+  it('returns one section for exactly 300 s', () => {
+    expect(splitSegment({ start: 0, end: 300 })).toEqual([{ start: 0, end: 300 }])
+  })
+
+  it('merges a 119 s remainder into the first section', () => {
+    expect(splitSegment({ start: 0, end: 419 })).toEqual([{ start: 0, end: 419 }])
+  })
+
+  it('keeps a 120 s remainder as its own section', () => {
+    expect(splitSegment({ start: 0, end: 420 })).toEqual([
+      { start: 0, end: 300 },
+      { start: 300, end: 420 },
+    ])
+  })
+
+  it('splits exact multiples into equal sections', () => {
+    expect(splitSegment({ start: 0, end: 900 })).toEqual([
+      { start: 0, end: 300 },
+      { start: 300, end: 600 },
+      { start: 600, end: 900 },
+    ])
+  })
+
+  it('merges a short remainder into the last full section', () => {
+    expect(splitSegment({ start: 0, end: 1000 })).toEqual([
+      { start: 0, end: 300 },
+      { start: 300, end: 600 },
+      { start: 600, end: 1000 },
+    ])
+  })
+
+  it('is offset by the segment start', () => {
+    expect(splitSegment({ start: 1000, end: 1420 })).toEqual([
+      { start: 1000, end: 1300 },
+      { start: 1300, end: 1420 },
+    ])
+  })
+
+  it('accepts custom section and minimum lengths', () => {
+    // 250 s with 100 s sections: 100, 100, remainder 50 < 60 merges into the second.
+    expect(splitSegment({ start: 0, end: 250 }, 100, 60)).toEqual([
+      { start: 0, end: 100 },
+      { start: 100, end: 250 },
     ])
   })
 })

@@ -41,14 +41,14 @@ function buildTiles(result: AnalysisResult, units: UnitSystem, massKg: number): 
   const tiles: Tile[] = []
   if (result.runCp) {
     tiles.push({
-      label: 'Running threshold',
+      label: 'Running threshold pace',
       value: formatPace(metabolicToFlatSpeed(result.runCp.cp), units),
       sub: formatWkg(result.runCp.cp),
     })
   }
   if (result.rideCp) {
     tiles.push({
-      label: 'Cycling threshold',
+      label: 'Cycling threshold power',
       value: formatPower(
         metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean),
       ),
@@ -58,7 +58,7 @@ function buildTiles(result: AnalysisResult, units: UnitSystem, massKg: number): 
   const accuracy = result.virtualAccuracy
   if (accuracy && accuracy.nSegments > 0) {
     tiles.push({
-      label: 'Virtual power accuracy',
+      label: 'Virtual power meter error',
       value: `±${formatPercent(accuracy.mape)}`,
       sub: `${plural(accuracy.nSegments, 'climb')} tested`,
     })
@@ -66,7 +66,7 @@ function buildTiles(result: AnalysisResult, units: UnitSystem, massKg: number): 
   const runs = result.activities.filter((a) => a.sport === 'run').length
   const rides = result.activities.length - runs
   tiles.push({
-    label: 'Activities',
+    label: 'Activities analysed',
     value: String(result.activities.length),
     sub: `${plural(runs, 'run')}, ${plural(rides, 'ride')}`,
   })
@@ -77,8 +77,10 @@ export function Headline({ result, units, massKg }: HeadlineProps) {
   const pick = pickHeadline(result.comparison)
   if (pick === null) {
     return (
-      <section className="headline card">
-        <h1 className="headline__title">Add at least one run and one ride</h1>
+      <section className="headline">
+        <h1 id="results-heading" tabIndex={-1} className="headline__title">
+          Add at least one run and one ride
+        </h1>
         <p className="headline__detail secondary">{missingSportCopy(result)}</p>
       </section>
     )
@@ -86,10 +88,10 @@ export function Headline({ result, units, massKg }: HeadlineProps) {
 
   const { point, calibrated } = pick
   const summary =
-    `Over ${formatDuration(point.durationS)}, your best running costs ` +
-    `${formatWkg(point.runMetabolic.p50)} of metabolic power and your best cycling ` +
+    `Over ${formatDuration(point.durationS)}, your best running burns ` +
+    `${formatWkg(point.runMetabolic.p50)} and your best cycling burns ` +
     `${formatWkg(point.rideMetabolic.p50)}. ` +
-    `Likely range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
+    `The gap is probably between ${formatPercent(point.ratio.p05 - 1, true)} and ` +
     `${formatPercent(point.ratio.p95 - 1, true)}.`
   const basis = calibrated
     ? 'Range narrowed using your heart-rate data'
@@ -97,8 +99,10 @@ export function Headline({ result, units, massKg }: HeadlineProps) {
   const tiles = buildTiles(result, units, massKg)
 
   return (
-    <section className="headline card">
-      <h1 className="headline__title">{headlineTitle(point.ratio)}</h1>
+    <section className="headline">
+      <h1 id="results-heading" tabIndex={-1} className="headline__title">
+        {headlineTitle(point.ratio)}
+      </h1>
       <p className="headline__detail">{summary}</p>
       <p className="headline__basis muted">{basis}</p>
       <ul className="headline__tiles">

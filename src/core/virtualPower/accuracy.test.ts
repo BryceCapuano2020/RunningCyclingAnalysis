@@ -99,6 +99,26 @@ describe('scoreAccuracy', () => {
     expect(scoreAccuracy([ride], 100, ZERO_MODEL).nSegments).toBe(0)
   })
 
+  it('scores a long climb in 300 s sections, so one climb can give several points', () => {
+    // 1000 s steep climb -> sections of 300, 300 and 400 s, each with the same error.
+    const ride: CalibrationRide = {
+      activityId: 'long',
+      speed: new Float64Array(1000).fill(5),
+      grade: new Float64Array(1000).fill(0.75),
+      power: new Float64Array(1000).fill(3000),
+      valid: new Uint8Array(1000).fill(1),
+    }
+    const acc = scoreAccuracy([ride], 100, ZERO_MODEL)
+    expect(acc.segments.map((s) => [s.start, s.end])).toEqual([
+      [0, 300],
+      [300, 600],
+      [600, 1000],
+    ])
+    expect(acc.nSegments).toBe(3)
+    expect(acc.bias).toBeCloseTo(0.0058103, 6)
+    expect(acc.mape).toBeCloseTo(0.0058103, 6)
+  })
+
   it('has no segments on flat ground', () => {
     const flat: CalibrationRide = {
       activityId: 'flat',

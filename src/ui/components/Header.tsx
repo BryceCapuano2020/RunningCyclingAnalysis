@@ -37,6 +37,10 @@ export function Header({ units, onUnitsChange }: HeaderProps) {
                 checked={selected}
                 onChange={() => onUnitsChange(option.value)}
               />
+              {/* The check mark shows the selection without relying on colour. */}
+              <span className="header__check" aria-hidden="true">
+                ✓
+              </span>
               <span>{option.label}</span>
             </label>
           )

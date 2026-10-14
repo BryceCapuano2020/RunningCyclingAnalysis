@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { extent, linearScale, logScale, niceDomain, niceTicks } from './scale'
+import { extent, linearScale, logScale, niceDomain, niceTicks, tickDecimals } from './scale'
 
 describe('linearScale', () => {
   it('maps the domain ends onto the range ends', () => {
@@ -101,5 +101,23 @@ describe('niceDomain', () => {
       domain: [0, 10],
       ticks: [0, 2, 4, 6, 8, 10],
     })
+  })
+})
+
+describe('tickDecimals', () => {
+  it('shows the step exactly', () => {
+    expect(tickDecimals([4, 4.05, 4.1])).toBe(2)
+    expect(tickDecimals([0, 0.2, 0.4])).toBe(1)
+    expect(tickDecimals([1, 1.5, 2])).toBe(1)
+    expect(tickDecimals([0, 2, 4])).toBe(0)
+  })
+
+  it('caps at three decimals', () => {
+    expect(tickDecimals([0, 0.0001])).toBe(3)
+  })
+
+  it('needs no decimals without a step', () => {
+    expect(tickDecimals([5])).toBe(0)
+    expect(tickDecimals([])).toBe(0)
   })
 })

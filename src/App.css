@@ -34,10 +34,13 @@
 .app__toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-4) var(--space-5);
   align-items: flex-end;
-  justify-content: space-between;
   padding: var(--space-4) var(--space-5);
+}
+
+.app__toolbar > :last-child {
+  margin-left: auto;
 }
 
 .app__sample,
@@ -55,6 +58,6 @@
   text-align: center;
 }
 
-.card figure {
+.card > figure {
   margin: var(--space-4) 0 0;
 }

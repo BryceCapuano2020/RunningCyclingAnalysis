@@ -38,3 +38,29 @@ export function findSegments(mask: Uint8Array, minLengthS = 120): { start: numbe
   }
   return out
 }
+
+/**
+ * Cuts a segment into consecutive sectionS-long pieces. A remainder of at least minS
+ * becomes its own piece; a shorter remainder is merged into the piece before it.
+ * A segment shorter than sectionS is returned whole.
+ */
+export function splitSegment(
+  segment: { start: number; end: number },
+  sectionS = 300,
+  minS = 120,
+): { start: number; end: number }[] {
+  const { start, end } = segment
+  const length = end - start
+  if (length < sectionS) return [{ start, end }]
+  const full = Math.floor(length / sectionS)
+  const out: { start: number; end: number }[] = []
+  for (let k = 0; k < full; k++) {
+    out.push({ start: start + k * sectionS, end: start + (k + 1) * sectionS })
+  }
+  if (length - full * sectionS >= minS) {
+    out.push({ start: start + full * sectionS, end })
+  } else {
+    out[out.length - 1]!.end = end
+  }
+  return out
+}

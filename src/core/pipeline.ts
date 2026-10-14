@@ -229,7 +229,7 @@ export function analyze(activities: Activity[], settings: AthleteSettings): Anal
   })
 
   const equivalents: Equivalence[] = []
-  for (const durationS of [300, 1200, 3600]) {
+  for (const durationS of [180, 300, 600, 1200, 1800, 3600]) {
     const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
       equivalents.push({

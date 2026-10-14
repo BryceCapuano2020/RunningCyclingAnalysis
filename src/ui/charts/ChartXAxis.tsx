@@ -5,10 +5,12 @@ export interface ChartXAxisProps {
   ticks: AxisTick[]
   plot: PlotBox
   title: string
+  /** Tick text size in px. */
+  fontSize?: number
 }
 
 /** Vertical hairline gridlines, tick labels under the plot, and the axis title. */
-export function ChartXAxis({ ticks, plot, title }: ChartXAxisProps) {
+export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProps) {
   return (
     <g className="chart-x-axis">
       {ticks.map((tick) => (
@@ -22,6 +24,7 @@ export function ChartXAxis({ ticks, plot, title }: ChartXAxisProps) {
           />
           <text
             className="chart-x-axis__tick"
+            style={{ fontSize }}
             x={tick.position}
             y={plot.bottom + 18}
             textAnchor="middle"

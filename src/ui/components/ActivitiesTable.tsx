@@ -1,4 +1,4 @@
-import { Fragment, useId, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import type { ActivitySummary } from '../../core/pipeline'
 import type { UnitSystem } from '../../core/units'
 import { formatDistance, formatDuration, formatElevation } from '../../core/units'
@@ -30,6 +30,12 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
   const baseId = useId()
   const [openIssues, setOpenIssues] = useState<ReadonlySet<string>>(() => new Set())
   const [showAll, setShowAll] = useState(false)
+  // The "Show all" button is removed when clicked, so focus moves to the first row it revealed.
+  const firstRevealedRef = useRef<HTMLTableRowElement>(null)
+
+  useEffect(() => {
+    if (showAll) firstRevealedRef.current?.focus()
+  }, [showAll])
 
   if (activities.length === 0) {
     return <p className="muted">No activities yet</p>
@@ -61,11 +67,15 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
               <th scope="col" className="num">
                 Distance
               </th>
-              <th scope="col" className="num">
+              <th scope="col" className="num activities-table__optional">
                 Climb
               </th>
-              <th scope="col">Power</th>
-              <th scope="col">Heart rate</th>
+              <th scope="col" className="activities-table__optional">
+                Power
+              </th>
+              <th scope="col" className="activities-table__optional">
+                Heart rate
+              </th>
               <th scope="col">Data issues</th>
             </tr>
           </thead>
@@ -74,9 +84,13 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
               const panelId = `${baseId}-issues-${index}`
               const open = openIssues.has(activity.id)
               const issueCount = activity.flags.length
+              const isFirstRevealed = showAll && index === PREVIEW_ROWS
               return (
                 <Fragment key={activity.id}>
-                  <tr>
+                  <tr
+                    ref={isFirstRevealed ? firstRevealedRef : undefined}
+                    tabIndex={isFirstRevealed ? -1 : undefined}
+                  >
                     <td>{utcDate(activity.startMs)}</td>
                     <td>{activity.name}</td>
                     <td>
@@ -85,9 +99,15 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
                     </td>
                     <td className="num">{formatDuration(activity.durationS)}</td>
                     <td className="num">{formatDistance(activity.distanceM, units)}</td>
-                    <td className="num">{formatElevation(activity.elevationGainM, units)}</td>
-                    <td>{POWER_LABEL[activity.powerSource]}</td>
-                    <td>{activity.hasHeartRate ? 'Yes' : 'No'}</td>
+                    <td className="num activities-table__optional">
+                      {formatElevation(activity.elevationGainM, units)}
+                    </td>
+                    <td className="activities-table__optional">
+                      {POWER_LABEL[activity.powerSource]}
+                    </td>
+                    <td className="activities-table__optional">
+                      {activity.hasHeartRate ? 'Yes' : 'No'}
+                    </td>
                     <td>
                       {issueCount === 0 ? (
                         'None'
@@ -96,7 +116,7 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
                           type="button"
                           className="btn"
                           aria-expanded={open}
-                          aria-controls={open ? panelId : undefined}
+                          aria-controls={panelId}
                           onClick={() => toggleIssues(activity.id)}
                         >
                           {plural(issueCount, 'issue')}
@@ -104,19 +124,18 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
                       )}
                     </td>
                   </tr>
-                  {open && (
-                    <tr id={panelId}>
-                      <td colSpan={COLUMN_COUNT} className="activities-table__issues">
-                        <ul className="activities-table__flags">
-                          {activity.flags.map((flag, flagIndex) => (
-                            <li key={flagIndex}>
-                              {`${flag.message} (${formatDuration(flag.start)} to ${formatDuration(flag.end)})`}
-                            </li>
-                          ))}
-                        </ul>
-                      </td>
-                    </tr>
-                  )}
+                  {/* Stays mounted so that aria-controls always names a real element. */}
+                  <tr id={panelId} hidden={!open}>
+                    <td colSpan={COLUMN_COUNT} className="activities-table__issues">
+                      <ul className="activities-table__flags">
+                        {activity.flags.map((flag, flagIndex) => (
+                          <li key={flagIndex}>
+                            {`${flag.message} (${formatDuration(flag.start)} to ${formatDuration(flag.end)})`}
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                  </tr>
                 </Fragment>
               )
             })}

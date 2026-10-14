@@ -1,0 +1,5 @@
+/* Let long cells wrap rather than widen the table past a half-width card. */
+.equivalence-table th,
+.equivalence-table td {
+  white-space: normal;
+}

@@ -11,8 +11,8 @@ export function useSize(): [(node: HTMLElement | null) => void, number] {
   useEffect(() => {
     if (node === null || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver((entries) => {
-      const measured = entries[0]?.contentRect.width
-      if (measured !== undefined && measured > 0) setWidth(Math.floor(measured))
+      const measured = entries[0] === undefined ? 0 : Math.floor(entries[0].contentRect.width)
+      if (measured > 0) setWidth(measured)
     })
     observer.observe(node)
     return () => observer.disconnect()

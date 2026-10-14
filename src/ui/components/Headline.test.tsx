@@ -63,9 +63,21 @@ describe('Headline wording', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
     expect(
       screen.getByText(
-        'Over 20 min, your best running costs 3.4 W/kg of metabolic power and your best cycling 3.0 W/kg. Likely range: +5% to +20%.',
+        'Over 20 min, your best running burns 3.4 W/kg and your best cycling burns 3.0 W/kg. The gap is probably between +5% and +20%.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('makes the heading a programmatic focus target for the page', () => {
+    renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading).toHaveAttribute('id', 'results-heading')
+    expect(heading).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('draws no card of its own, since the page supplies the card', () => {
+    const { container } = renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
+    expect(container.querySelector('.card')).toBeNull()
   })
 
   it('says the range is narrowed when the heart-rate comparison was used', () => {
@@ -132,19 +144,19 @@ function tileFor(label: string): HTMLElement {
 describe('Headline stat tiles', () => {
   it('shows the running and cycling thresholds, accuracy and activity counts', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)), 'metric', 75)
-    const running = within(tileFor('Running threshold'))
+    const running = within(tileFor('Running threshold pace'))
     expect(running.getByText('21:35 /km')).toBeInTheDocument()
     expect(running.getByText('4.0 W/kg')).toBeInTheDocument()
 
-    const cycling = within(tileFor('Cycling threshold'))
+    const cycling = within(tileFor('Cycling threshold power'))
     expect(cycling.getByText('48 W')).toBeInTheDocument()
     expect(cycling.getByText('3.0 W/kg')).toBeInTheDocument()
 
-    const accuracy = within(tileFor('Virtual power accuracy'))
+    const accuracy = within(tileFor('Virtual power meter error'))
     expect(accuracy.getByText('±6%')).toBeInTheDocument()
     expect(accuracy.getByText('3 climbs tested')).toBeInTheDocument()
 
-    const activities = within(tileFor('Activities'))
+    const activities = within(tileFor('Activities analysed'))
     expect(activities.getByText('2')).toBeInTheDocument()
     expect(activities.getByText('1 run, 1 ride')).toBeInTheDocument()
   })
@@ -156,18 +168,18 @@ describe('Headline stat tiles', () => {
 
   it('omits the running threshold tile when there is no running threshold', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2), false, { runCp: null }))
-    expect(screen.queryByText('Running threshold')).not.toBeInTheDocument()
-    expect(screen.getByText('Cycling threshold')).toBeInTheDocument()
+    expect(screen.queryByText('Running threshold pace')).not.toBeInTheDocument()
+    expect(screen.getByText('Cycling threshold power')).toBeInTheDocument()
   })
 
   it('omits the cycling threshold tile when there is no cycling threshold', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2), false, { rideCp: null }))
-    expect(screen.queryByText('Cycling threshold')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cycling threshold power')).not.toBeInTheDocument()
   })
 
   it('omits the accuracy tile when there is no virtual power accuracy', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2), false, { virtualAccuracy: null }))
-    expect(screen.queryByText('Virtual power accuracy')).not.toBeInTheDocument()
+    expect(screen.queryByText('Virtual power meter error')).not.toBeInTheDocument()
   })
 
   it('omits the accuracy tile when no climbs were scored', () => {
@@ -176,7 +188,7 @@ describe('Headline stat tiles', () => {
         virtualAccuracy: { nSegments: 0, mape: 0, bias: 0, segments: [] },
       }),
     )
-    expect(screen.queryByText('Virtual power accuracy')).not.toBeInTheDocument()
+    expect(screen.queryByText('Virtual power meter error')).not.toBeInTheDocument()
   })
 
   it('uses singular words for one climb, run and ride', () => {

@@ -84,3 +84,24 @@ export function niceDomain(
   for (let k = first; k <= last; k++) ticks.push(roundTo(k * step))
   return { domain: [ticks[0] ?? lo, ticks[ticks.length - 1] ?? hi], ticks }
 }
+
+/**
+ * Decimal places needed to label these ticks so that neighbours differ: enough to show the
+ * smallest step exactly, capped at three.
+ */
+export function tickDecimals(ticks: number[]): number {
+  let step = Infinity
+  for (let i = 1; i < ticks.length; i++) {
+    const gap = Math.abs((ticks[i] ?? 0) - (ticks[i - 1] ?? 0))
+    if (gap > 0 && gap < step) step = gap
+  }
+  if (!Number.isFinite(step)) return 0
+  let decimals = 0
+  while (
+    decimals < 3 &&
+    Math.abs(Math.round(step * 10 ** decimals) - step * 10 ** decimals) > 1e-9
+  ) {
+    decimals++
+  }
+  return decimals
+}

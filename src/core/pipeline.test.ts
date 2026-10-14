@@ -120,7 +120,7 @@ describe('analyze on simulated ground truth', () => {
       expect(eq.runSpeed.p05).toBeLessThan(trueSpeed)
       expect(eq.runSpeed.p95).toBeGreaterThan(trueSpeed)
     }
-    expect(result.equivalents.map((e) => e.durationS)).toEqual([300, 1200, 3600])
+    expect(result.equivalents.map((e) => e.durationS)).toEqual([180, 300, 600, 1200, 1800, 3600])
   })
 
   it('is deterministic', () => {

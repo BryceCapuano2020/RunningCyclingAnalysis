@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import './App.css'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from './ui/charts'
 import {
@@ -19,6 +20,18 @@ export function App() {
   const analysis = useAnalysis(settings)
   const { result, rejected, unsupportedFiles, isSample } = analysis.state
 
+  // Swapping between the landing and results views unmounts whatever had focus,
+  // so send focus to the new view's heading.
+  const hasResult = result !== null
+  const previousHasResult = useRef(hasResult)
+  const landingHeading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (previousHasResult.current === hasResult) return
+    previousHasResult.current = hasResult
+    if (hasResult) document.getElementById('results-heading')?.focus()
+    else landingHeading.current?.focus()
+  }, [hasResult])
+
   return (
     <div className="page">
       <Header
@@ -35,7 +48,9 @@ export function App() {
       {!result && (
         <main className="app__intro">
           <section className="app__pitch">
-            <h1>Are you a stronger runner or cyclist?</h1>
+            <h1 ref={landingHeading} tabIndex={-1}>
+              Are you a stronger runner or cyclist?
+            </h1>
             <p className="secondary">
               Watts on the bike and pace on the run cannot be compared directly. This tool converts
               both into the energy your body burns per kilogram, then tells you which engine is
@@ -117,6 +132,7 @@ export function App() {
               rideMetabolicCurve={result.rideMetabolicCurve}
               rideCurve={result.rideCurve}
               units={units}
+              activityNames={Object.fromEntries(result.activities.map((a) => [a.id, a.name]))}
             />
           </section>
 

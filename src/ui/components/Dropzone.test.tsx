@@ -29,6 +29,43 @@ function fitFile(name: string): File {
 }
 
 describe('Dropzone', () => {
+  it('compact: accepts files dropped anywhere on the page', () => {
+    const { onFiles } = renderDropzone({ compact: true })
+    const files = [fitFile('ride.fit')]
+    fireEvent.drop(window, { dataTransfer: { files, types: ['Files'] } })
+    expect(onFiles).toHaveBeenCalledWith(files)
+  })
+
+  it('compact: shows a page overlay while a file is dragged over the window', () => {
+    renderDropzone({ compact: true })
+    expect(screen.queryByText('Drop to add files')).not.toBeInTheDocument()
+    fireEvent.dragEnter(window, { dataTransfer: { types: ['Files'], files: [] } })
+    expect(screen.getByText('Drop to add files')).toBeInTheDocument()
+    fireEvent.dragLeave(window)
+    expect(screen.queryByText('Drop to add files')).not.toBeInTheDocument()
+  })
+
+  it('compact: ignores drags that carry no files', () => {
+    renderDropzone({ compact: true })
+    fireEvent.dragEnter(window, { dataTransfer: { types: ['text/plain'], files: [] } })
+    expect(screen.queryByText('Drop to add files')).not.toBeInTheDocument()
+  })
+
+  it('compact: hides the overlay and ignores drops while busy', () => {
+    const { onFiles } = renderDropzone({ compact: true, busy: true, progress: null })
+    fireEvent.dragEnter(window, { dataTransfer: { types: ['Files'], files: [] } })
+    expect(screen.queryByText('Drop to add files')).not.toBeInTheDocument()
+    fireEvent.drop(window, { dataTransfer: { types: ['Files'], files: [fitFile('run.fit')] } })
+    expect(onFiles).not.toHaveBeenCalled()
+  })
+
+  it('compact: stops listening to the window once unmounted', () => {
+    const { onFiles } = renderDropzone({ compact: true })
+    cleanup()
+    fireEvent.drop(window, { dataTransfer: { types: ['Files'], files: [fitFile('run.fit')] } })
+    expect(onFiles).not.toHaveBeenCalled()
+  })
+
   it('shows the drop instructions, the choose text and the privacy line', () => {
     renderDropzone()
     expect(screen.getByText('Drop FIT files or a Strava export zip here')).toBeInTheDocument()

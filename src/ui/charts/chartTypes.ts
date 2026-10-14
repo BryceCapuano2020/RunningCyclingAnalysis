@@ -10,6 +10,8 @@ export interface ChartSize {
   width: number
   height: number
   plot: PlotBox
+  /** Id of the tooltip's status element, for aria-describedby on the plot surface. */
+  tooltipId: string
 }
 
 export interface Point {
@@ -28,6 +30,8 @@ export interface TooltipRow {
   label: string
   value: string
   kind?: SeriesKind
+  /** Muted line shown under the row. */
+  note?: string
 }
 
 /** Anchor is in SVG pixels, the same space as the plot. */

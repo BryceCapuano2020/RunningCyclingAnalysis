@@ -49,6 +49,27 @@ describe('sampleDataset', () => {
     }
   })
 
+  it('gives each name the sport of its session', () => {
+    const sportByName: Record<string, string> = {
+      'Morning Run': 'run',
+      'Lunch Run': 'run',
+      'Sunday Long Run': 'run',
+      'Tempo Run': 'run',
+      'Track Intervals': 'run',
+      '5K and 10K Time Trials': 'run',
+      'Saturday Long Ride': 'ride',
+      'Tempo Ride': 'ride',
+      'VO2 Intervals': 'ride',
+      'Power Test': 'ride',
+      'Mountain Climb': 'ride',
+      'Evening Ride': 'ride',
+      'Canyon Climb': 'ride',
+      'Hill Repeats': 'ride',
+    }
+    expect(activities.map((a) => a.name).sort()).toEqual(Object.keys(sportByName).sort())
+    for (const a of activities) expect(a.sport).toBe(sportByName[a.name])
+  })
+
   it('has eight rides, exactly one of them without power', () => {
     const rides = activities.filter((a) => a.sport === 'ride')
     expect(rides).toHaveLength(8)

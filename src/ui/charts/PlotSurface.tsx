@@ -6,26 +6,27 @@ export type NavigationKey = 'ArrowLeft' | 'ArrowRight' | 'Escape'
 
 export interface PlotSurfaceProps {
   size: ChartSize
-  /** Names the plot for screen readers and says how to use the keyboard. */
-  label: string
   /** Pointer position in SVG pixels, or null when the pointer leaves. */
   onPoint: (point: Point | null) => void
   onKey: (key: NavigationKey) => void
   onBlur: () => void
 }
 
+const LABEL = 'Chart data. Use left and right arrow keys to read values'
+
 function isNavigationKey(key: string): key is NavigationKey {
   return key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Escape'
 }
 
 /**
- * The transparent, focusable layer over the plot. It receives pointer and keyboard input, so
- * the marks underneath never need their own handlers. Sits last in the SVG so it is on top.
+ * The focusable, interactive layer over the plot. It is a sibling of the static drawing rather
+ * than part of it, so screen readers announce the chart image and the data separately. Its
+ * description is the tooltip, which announces the values as they change.
  */
-export function PlotSurface({ size, label, onPoint, onKey, onBlur }: PlotSurfaceProps) {
+export function PlotSurface({ size, onPoint, onKey, onBlur }: PlotSurfaceProps) {
   const { plot } = size
 
-  const handleMove = (event: PointerEvent<SVGRectElement>) => {
+  const handleMove = (event: PointerEvent<SVGGElement>) => {
     const svg = event.currentTarget.ownerSVGElement
     if (svg === null) return
     const box = svg.getBoundingClientRect()
@@ -34,7 +35,7 @@ export function PlotSurface({ size, label, onPoint, onKey, onBlur }: PlotSurface
     onPoint({ x: (event.clientX - box.left) * scaleX, y: (event.clientY - box.top) * scaleY })
   }
 
-  const handleKeyDown = (event: KeyboardEvent<SVGRectElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<SVGGElement>) => {
     const { key } = event
     if (!isNavigationKey(key)) return
     event.preventDefault()
@@ -42,21 +43,26 @@ export function PlotSurface({ size, label, onPoint, onKey, onBlur }: PlotSurface
   }
 
   return (
-    <rect
+    <g
       data-testid="plot-surface"
       className="plot-surface"
-      x={plot.left}
-      y={plot.top}
-      width={plot.right - plot.left}
-      height={plot.bottom - plot.top}
-      tabIndex={0}
       role="group"
+      tabIndex={0}
       aria-roledescription="chart"
-      aria-label={label}
+      aria-label={LABEL}
+      aria-describedby={size.tooltipId}
       onPointerMove={handleMove}
       onPointerLeave={() => onPoint(null)}
       onKeyDown={handleKeyDown}
       onBlur={onBlur}
-    />
+    >
+      <rect
+        className="plot-surface__hit"
+        x={plot.left}
+        y={plot.top}
+        width={plot.right - plot.left}
+        height={plot.bottom - plot.top}
+      />
+    </g>
   )
 }

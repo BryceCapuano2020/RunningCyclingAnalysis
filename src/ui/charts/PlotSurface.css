@@ -1,10 +1,13 @@
 .plot-surface {
-  fill: transparent;
-  cursor: crosshair;
   outline: none;
 }
 
-.plot-surface:focus-visible {
+.plot-surface__hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.plot-surface:focus-visible .plot-surface__hit {
   stroke: var(--focus);
   stroke-width: 2px;
 }

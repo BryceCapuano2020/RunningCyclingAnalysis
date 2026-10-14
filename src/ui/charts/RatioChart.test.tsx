@@ -6,6 +6,9 @@ import { RatioChart } from './RatioChart'
 
 const TITLE = 'Running compared with cycling by duration'
 
+/** The static chart image is named by its title, then its description. */
+const named = (title: string) => (name: string) => name.startsWith(title)
+
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
@@ -21,7 +24,7 @@ describe('RatioChart', () => {
 
   it('draws the prior band and its median when there is no heart-rate check', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
-    expect(screen.getByRole('img', { name: TITLE })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(1)
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)
@@ -41,9 +44,10 @@ describe('RatioChart', () => {
   it('layers the calibrated band over the prior one and adds both legend entries', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(true)} />)
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(within(legend).getByText('Before heart-rate check (90% range)')).toBeInTheDocument()
+    expect(within(legend).getByText('Before heart-rate check')).toBeInTheDocument()
+    expect(within(legend).getByText('After heart-rate check')).toBeInTheDocument()
     expect(
-      within(legend).getByText('After heart-rate check (90% range and median)'),
+      screen.getByText('Shaded areas cover 90% of plausible values. The line is the median'),
     ).toBeInTheDocument()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(2)
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)
@@ -67,6 +71,6 @@ describe('RatioChart', () => {
     expect(
       screen.getByText('Add at least one run and one ride to compare them'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: TITLE })).toBeNull()
+    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
   })
 })

@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { HrCrossCheck } from '../../core/types'
 import { hrFixture, hrRunOnlyFixture } from './fixtures'
 import { HrScatter } from './HrScatter'
 
 const TITLE = 'Heart rate against gross metabolic power'
+
+/** The static chart image is named by its title, then its description. */
+const named = (title: string) => (name: string) => name.startsWith(title)
 const EMPTY =
   'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks per sport across a range of efforts'
 
@@ -23,10 +27,13 @@ describe('HrScatter', () => {
 
   it('draws a dot per block, a fitted line per sport, and the legend', () => {
     render(<HrScatter hr={hrFixture} />)
-    expect(screen.getByRole('img', { name: TITLE })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
     expect(screen.getAllByTestId('hr-dot')).toHaveLength(5)
     expect(screen.getAllByTestId('hr-fit')).toHaveLength(2)
     expect(screen.queryByText(/Not enough steady/)).toBeNull()
+    expect(
+      screen.getByText('Slopes: running 10.0 and cycling 12.0 bpm per W/kg'),
+    ).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(legend).toHaveTextContent('Running')
     expect(legend).toHaveTextContent('Cycling')
@@ -62,9 +69,36 @@ describe('HrScatter', () => {
     ).toBeInTheDocument()
   })
 
+  it('lists only the sports that are drawn, so one sport has no legend', () => {
+    render(<HrScatter hr={hrRunOnlyFixture} />)
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('gives distinct tick labels when the data span is narrow', () => {
+    const narrow: HrCrossCheck = {
+      run: {
+        points: [
+          { metabolicPower: 14, heartRate: 150, activityId: 'run-1' },
+          { metabolicPower: 14.05, heartRate: 155, activityId: 'run-1' },
+          { metabolicPower: 14.1, heartRate: 160, activityId: 'run-1' },
+        ],
+        fit: { slope: 100, intercept: -1250, slopeSe: 1, r2: 0.9, n: 3 },
+      },
+      ride: null,
+      kappa: null,
+      lnKappaSe: null,
+    }
+    const { container } = render(<HrScatter hr={narrow} />)
+    const labels = Array.from(container.querySelectorAll('.chart-x-axis__tick')).map(
+      (tick) => tick.textContent,
+    )
+    expect(labels).toContain('14.02')
+    expect(new Set(labels).size).toBe(labels.length)
+  })
+
   it('shows an empty state when neither sport has enough data', () => {
     render(<HrScatter hr={{ run: null, ride: null, kappa: null, lnKappaSe: null }} />)
     expect(screen.getByText(EMPTY)).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: TITLE })).toBeNull()
+    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
   })
 })

@@ -13,7 +13,7 @@
   stroke: var(--series-ride);
 }
 
-/* 8px+ marker with a surface ring, so it stays legible where it crosses a line. */
+/* Marker with a surface ring, so it stays legible where it crosses a line. */
 .curve-chart__marker {
   stroke: var(--surface-1);
   stroke-width: 2;
@@ -32,8 +32,13 @@
   stroke-width: 1;
 }
 
+/* Surface-coloured halo keeps the label legible over gridlines and lines. */
 .curve-chart__end-label {
   fill: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }

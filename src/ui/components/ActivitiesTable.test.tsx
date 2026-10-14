@@ -40,6 +40,14 @@ describe('ActivitiesTable', () => {
     expect(row.getByText('Yes')).toBeInTheDocument()
   })
 
+  it('marks Climb, Power and Heart rate as hidden on narrow screens, keeping the cells', () => {
+    const { container } = renderTable([makeActivity({ name: 'Narrow run' })])
+    const optional = container.querySelectorAll('.activities-table__optional')
+    // One header cell and one body cell each for Climb, Power and Heart rate.
+    expect(optional).toHaveLength(6)
+    expect(within(rowFor('Narrow run')).getByText('120 m')).toBeInTheDocument()
+  })
+
   it('labels the sport swatch with text, not only colour', () => {
     renderTable([makeActivity({ name: 'Hill ride', sport: 'ride' })])
     const row = within(rowFor('Hill ride'))
@@ -85,22 +93,25 @@ describe('ActivitiesTable', () => {
     ])
     const toggle = within(rowFor('Noisy run')).getByRole('button', { name: '2 issues' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(
-      screen.queryByText('Heart rate read zero for over ten seconds (1 min 5 s to 2 min 5 s)'),
-    ).not.toBeInTheDocument()
-
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    // The panel stays mounted and is hidden until expanded.
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).not.toBeNull()
     expect(
       screen.getByText('Heart rate read zero for over ten seconds (1 min 5 s to 2 min 5 s)'),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Speed jumped to 40 m/s (5 min to 5 min 1 s)')).toBeInTheDocument()
+    ).not.toBeVisible()
+
+    toggle.focus()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    // The button stays mounted, so it keeps focus.
+    expect(toggle).toHaveFocus()
+    expect(
+      screen.getByText('Heart rate read zero for over ten seconds (1 min 5 s to 2 min 5 s)'),
+    ).toBeVisible()
+    expect(screen.getByText('Speed jumped to 40 m/s (5 min to 5 min 1 s)')).toBeVisible()
 
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(
-      screen.queryByText('Speed jumped to 40 m/s (5 min to 5 min 1 s)'),
-    ).not.toBeInTheDocument()
+    expect(screen.getByText('Speed jumped to 40 m/s (5 min to 5 min 1 s)')).not.toBeVisible()
   })
 
   it('uses the singular for one issue', () => {
@@ -126,6 +137,8 @@ describe('ActivitiesTable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show all 25' }))
     expect(screen.getAllByRole('row')).toHaveLength(26)
     expect(screen.queryByRole('button', { name: 'Show all 25' })).not.toBeInTheDocument()
+    // The button is removed, so focus moves to the first revealed row rather than the body.
+    expect(document.activeElement).toBe(rowFor('Run number 20'))
   })
 
   it('shows no Show all button for 20 or fewer activities', () => {

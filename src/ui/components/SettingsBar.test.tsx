@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteSettings } from '../../core/types'
 import type { UnitSystem } from '../../core/units'
@@ -22,11 +23,39 @@ function renderBar(units: UnitSystem = 'metric', settings: AthleteSettings = SET
   }
 }
 
+/** Holds settings in state, so a committed value is shown back as the real app would. */
+function Harness({ initial, units }: { initial: AthleteSettings; units: UnitSystem }) {
+  const [settings, setSettings] = useState(initial)
+  return <SettingsBar settings={settings} units={units} onChange={setSettings} />
+}
+
 describe('SettingsBar', () => {
+  it('shows 75 kg as 165.3 lb', () => {
+    render(
+      <SettingsBar settings={{ massKg: 75, bikeMassKg: 9 }} units="imperial" onChange={vi.fn()} />,
+    )
+    expect(screen.getByLabelText('Body weight')).toHaveValue('165.3')
+  })
+
+  it('keeps a whole-pound value as typed, without a decimal', async () => {
+    const user = userEvent.setup()
+    render(<Harness initial={{ massKg: 80, bikeMassKg: 9 }} units="imperial" />)
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '165')
+    await user.tab()
+    expect(body).toHaveValue('165')
+  })
+
+  it('places the unit inside the input area', () => {
+    renderBar('metric')
+    expect(screen.getByLabelText('Body weight').parentElement).toHaveTextContent('kg')
+  })
+
   it('shows both weights in kilograms with a kg suffix for metric', () => {
     const { body, bike } = renderBar('metric')
-    expect(body).toHaveValue('80.0')
-    expect(bike).toHaveValue('9.0')
+    expect(body).toHaveValue('80')
+    expect(bike).toHaveValue('9')
     expect(screen.getAllByText('kg')).toHaveLength(2)
   })
 
@@ -107,7 +136,7 @@ describe('SettingsBar', () => {
     await user.type(body, 'heavy')
     await user.tab()
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a number')
-    expect(body).toHaveValue('80.0')
+    expect(body).toHaveValue('80')
     expect(body).toHaveAttribute('aria-invalid', 'true')
     expect(onChange).not.toHaveBeenCalled()
   })
@@ -119,7 +148,7 @@ describe('SettingsBar', () => {
     await user.type(body, '250')
     await user.tab()
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a weight from 30 to 200 kg')
-    expect(body).toHaveValue('80.0')
+    expect(body).toHaveValue('80')
     expect(onChange).not.toHaveBeenCalled()
   })
 
@@ -140,7 +169,7 @@ describe('SettingsBar', () => {
     await user.type(bike, '40')
     await user.tab()
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a weight from 3 to 30 kg')
-    expect(bike).toHaveValue('9.0')
+    expect(bike).toHaveValue('9')
     expect(onChange).not.toHaveBeenCalled()
   })
 

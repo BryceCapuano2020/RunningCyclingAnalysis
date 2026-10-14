@@ -66,7 +66,7 @@ const SAMPLE_ENTRIES: readonly SampleEntry[] = [
     daysBefore: 43,
   },
   {
-    name: 'Track Intervals',
+    name: 'VO2 Intervals',
     sport: 'ride',
     effort: 'intervals',
     terrain: 'flat',
@@ -74,10 +74,10 @@ const SAMPLE_ENTRIES: readonly SampleEntry[] = [
     daysBefore: 40,
   },
   {
-    name: 'VO2 Intervals',
+    name: 'Track Intervals',
     sport: 'run',
     effort: 'intervals',
-    terrain: 'rolling',
+    terrain: 'flat',
     minutes: 55,
     daysBefore: 37,
   },

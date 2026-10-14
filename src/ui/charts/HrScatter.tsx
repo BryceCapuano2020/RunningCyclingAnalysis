@@ -8,7 +8,8 @@ import { ChartYAxis } from './ChartYAxis'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { nearestByPoint, stepActive } from './hover'
 import { PlotSurface } from './PlotSurface'
-import { linearScale, niceDomain } from './scale'
+import { linearScale, niceDomain, tickDecimals } from './scale'
+import { axisFontSize, fitTicks } from './ticks'
 import './HrScatter.css'
 
 export interface HrScatterProps {
@@ -57,10 +58,21 @@ function sportsOf(hr: HrCrossCheck): SportData[] {
   return sports
 }
 
+/** Slope note when both sports are present; otherwise a note naming the missing sport. */
+function noteFor(hr: HrCrossCheck): string | undefined {
+  if (hr.run && hr.ride) {
+    return `Slopes: running ${hr.run.fit.slope.toFixed(1)} and cycling ${hr.ride.fit.slope.toFixed(1)} bpm per W/kg`
+  }
+  if (hr.run === null && hr.ride === null) return undefined
+  const missing = hr.run === null ? 'running' : 'cycling'
+  const shown = missing === 'running' ? 'cycling' : 'running'
+  return `Not enough steady heart-rate data for ${missing} yet, so only ${shown} is shown.`
+}
+
 function layout(sports: SportData[], size: ChartSize): Layout | null {
   const all = sports.flatMap((data) => data.points)
   if (all.length === 0) return null
-  const { plot } = size
+  const { plot, width } = size
   const xDomain = niceDomain(
     all.map((point) => point.metabolicPower),
     4,
@@ -101,11 +113,20 @@ function layout(sports: SportData[], size: ChartSize): Layout | null {
   return {
     dots,
     fits,
-    xTicks: xDomain.ticks.map((value) => ({ position: x(value), label: value.toFixed(1) })),
-    yTicks: yDomain.ticks.map((value) => ({
-      position: y(value),
-      label: String(Math.round(value)),
-    })),
+    xTicks: fitTicks(
+      xDomain.ticks.map((value) => ({
+        position: x(value),
+        label: value.toFixed(tickDecimals(xDomain.ticks)),
+      })),
+      { axis: 'x', width },
+    ),
+    yTicks: fitTicks(
+      yDomain.ticks.map((value) => ({
+        position: y(value),
+        label: value.toFixed(tickDecimals(yDomain.ticks)),
+      })),
+      { axis: 'y', width },
+    ),
   }
 }
 
@@ -126,20 +147,13 @@ export function HrScatter({ hr }: HrScatterProps) {
   const clipId = `hr-scatter-clip-${useId().replace(/:/g, '')}`
   const [active, setActive] = useState<number | null>(null)
 
-  const missing = hr.run === null ? 'running' : hr.ride === null ? 'cycling' : null
-  const note =
-    missing === null
-      ? undefined
-      : `Not enough steady heart-rate data for ${missing} yet, so only ${missing === 'running' ? 'cycling' : 'running'} is shown.`
+  const note = noteFor(hr)
 
   return (
     <ChartFrame
       title="Heart rate against gross metabolic power"
       description="Average heart rate against gross metabolic power for each block of steady effort, with a fitted line for each sport."
-      legend={[
-        { label: 'Running', kind: 'run' },
-        { label: 'Cycling', kind: 'ride' },
-      ]}
+      legend={sports.map((data) => ({ label: SPORT_LABEL[data.sport], kind: data.sport }))}
       table={{
         columns: ['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'],
         rows: sports.map((data) => [
@@ -158,6 +172,24 @@ export function HrScatter({ hr }: HrScatterProps) {
           <ChartTooltip
             bounds={{ width: size.width, height: size.height }}
             content={dot ? tooltipFor(dot) : null}
+            id={size.tooltipId}
+          />
+        )
+      }}
+      surface={(size) => {
+        const m = layout(sports, size)
+        if (m === null) return null
+        return (
+          <PlotSurface
+            size={size}
+            onPoint={(point) =>
+              setActive(point === null ? null : nearestByPoint(m.dots, point, HIT_RADIUS))
+            }
+            onKey={(key) => {
+              const next = stepActive(active, m.dots.length, key)
+              if (next) setActive(next.index)
+            }}
+            onBlur={() => setActive(null)}
           />
         )
       }}
@@ -166,10 +198,16 @@ export function HrScatter({ hr }: HrScatterProps) {
         const m = layout(sports, size)
         if (m === null) return null
         const { plot } = size
+        const fontSize = axisFontSize(size.width)
         return (
           <>
-            <ChartXAxis ticks={m.xTicks} plot={plot} title="Gross metabolic power (W/kg)" />
-            <ChartYAxis ticks={m.yTicks} plot={plot} title="Heart rate (bpm)" />
+            <ChartXAxis
+              ticks={m.xTicks}
+              plot={plot}
+              title="Gross metabolic power (W/kg)"
+              fontSize={fontSize}
+            />
+            <ChartYAxis ticks={m.yTicks} plot={plot} title="Heart rate (bpm)" fontSize={fontSize} />
             <clipPath id={clipId}>
               <rect
                 x={plot.left}
@@ -190,30 +228,18 @@ export function HrScatter({ hr }: HrScatterProps) {
                   y2={fit.y2}
                 />
               ))}
+              {m.dots.map((dot, i) => (
+                <circle
+                  key={`${dot.sport}-${i}`}
+                  data-testid="hr-dot"
+                  data-sport={dot.sport}
+                  className={`hr-scatter__dot hr-scatter__dot--${dot.sport}`}
+                  cx={dot.x}
+                  cy={dot.y}
+                  r={i === active ? ACTIVE_DOT_R : DOT_R}
+                />
+              ))}
             </g>
-            {m.dots.map((dot, i) => (
-              <circle
-                key={`${dot.sport}-${i}`}
-                data-testid="hr-dot"
-                data-sport={dot.sport}
-                className={`hr-scatter__dot hr-scatter__dot--${dot.sport}`}
-                cx={dot.x}
-                cy={dot.y}
-                r={i === active ? ACTIVE_DOT_R : DOT_R}
-              />
-            ))}
-            <PlotSurface
-              size={size}
-              label="Heart rate points. Use the left and right arrow keys to move between points, Escape to clear"
-              onPoint={(point) =>
-                setActive(point === null ? null : nearestByPoint(m.dots, point, HIT_RADIUS))
-              }
-              onKey={(key) => {
-                const next = stepActive(active, m.dots.length, key)
-                if (next) setActive(next.index)
-              }}
-              onBlur={() => setActive(null)}
-            />
           </>
         )
       }}

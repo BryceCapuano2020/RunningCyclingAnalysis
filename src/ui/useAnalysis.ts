@@ -19,15 +19,18 @@ const EMPTY: SessionState = { result: null, rejected: [], unsupportedFiles: 0, i
 export function useAnalysis(settings: AthleteSettings): AnalysisController {
   const workerRef = useRef<Worker | null>(null)
   const settingsRef = useRef(settings)
+  const pendingRef = useRef(0)
   const [state, setState] = useState<SessionState>(EMPTY)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<AnalysisController['progress']>(null)
   const [error, setError] = useState<string | null>(null)
 
   const send = useCallback((request: WorkerRequest) => {
+    if (!workerRef.current) return
+    pendingRef.current += 1
     setBusy(true)
     setError(null)
-    workerRef.current?.postMessage(request)
+    workerRef.current.postMessage(request)
   }, [])
 
   useEffect(() => {
@@ -40,18 +43,25 @@ export function useAnalysis(settings: AthleteSettings): AnalysisController {
         setProgress(message.filesRead)
         return
       }
-      setBusy(false)
+      // Replies arrive in request order; stay busy until the last outstanding one.
+      pendingRef.current = Math.max(0, pendingRef.current - 1)
+      if (pendingRef.current === 0) setBusy(false)
       setProgress(null)
       if (message.type === 'state') setState(message.state)
       else setError(message.message)
     }
     worker.onerror = (event) => {
+      pendingRef.current = 0
       setBusy(false)
       setProgress(null)
       setError(event.message || 'The analysis worker failed')
     }
     workerRef.current = worker
-    return () => worker.terminate()
+    return () => {
+      worker.terminate()
+      workerRef.current = null
+      pendingRef.current = 0
+    }
   }, [])
 
   const { massKg, bikeMassKg } = settings

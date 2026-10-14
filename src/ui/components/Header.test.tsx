@@ -24,6 +24,16 @@ describe('Header', () => {
     expect(screen.getByRole('radio', { name: 'Metric' })).not.toBeChecked()
   })
 
+  it('marks the selected unit with a check mark hidden from assistive technology', () => {
+    const { container } = render(<Header units="metric" onUnitsChange={vi.fn()} />)
+    const checks = container.querySelectorAll('.header__check')
+    expect(checks).toHaveLength(2)
+    checks.forEach((check) => expect(check).toHaveAttribute('aria-hidden', 'true'))
+    const selected = screen.getByRole('radio', { name: 'Metric' }).closest('label')
+    expect(selected).toHaveClass('header__option--selected')
+    expect(selected?.querySelector('.header__check')).not.toBeNull()
+  })
+
   it('reports the unit the user picks', async () => {
     const user = userEvent.setup()
     const onUnitsChange = vi.fn()

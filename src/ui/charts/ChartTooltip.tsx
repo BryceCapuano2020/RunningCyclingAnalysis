@@ -6,6 +6,8 @@ export interface ChartTooltipProps {
   content: TooltipContent | null
   /** Area the tooltip must stay inside, in SVG pixels. */
   bounds: { width: number; height: number }
+  /** Id the plot surface points at with aria-describedby. */
+  id: string
 }
 
 const OFFSET = 12
@@ -15,7 +17,7 @@ function keyClass(kind: SeriesKind | undefined): string {
 }
 
 /** Hidden while there is no content. Stays in the DOM so that its updates are announced. */
-export function ChartTooltip({ content, bounds }: ChartTooltipProps) {
+export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   // Runs after every render: the box's own size is only known once it has content.
@@ -30,7 +32,7 @@ export function ChartTooltip({ content, bounds }: ChartTooltipProps) {
   })
 
   return (
-    <div ref={ref} role="status" hidden={content === null} className="chart-tooltip">
+    <div ref={ref} id={id} role="status" hidden={content === null} className="chart-tooltip">
       {content === null ? null : (
         <>
           <div className="chart-tooltip__title">{content.title}</div>
@@ -39,6 +41,7 @@ export function ChartTooltip({ content, bounds }: ChartTooltipProps) {
               <span aria-hidden="true" className={keyClass(row.kind)} />
               <span className="chart-tooltip__value">{row.value}</span>{' '}
               <span className="chart-tooltip__label">{row.label}</span>
+              {row.note ? <div className="chart-tooltip__note">{row.note}</div> : null}
             </div>
           ))}
         </>

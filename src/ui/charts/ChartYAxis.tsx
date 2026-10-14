@@ -4,11 +4,14 @@ import './ChartYAxis.css'
 export interface ChartYAxisProps {
   ticks: AxisTick[]
   plot: PlotBox
-  title: string
+  /** Optional axis title above the plot. Leave it out when the card heading says what is shown. */
+  title?: string
+  /** Tick text size in px. */
+  fontSize?: number
 }
 
-/** Horizontal hairline gridlines, tick labels to the left, and the axis title above the plot. */
-export function ChartYAxis({ ticks, plot, title }: ChartYAxisProps) {
+/** Horizontal hairline gridlines, tick labels to the left, and an optional title above the plot. */
+export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProps) {
   return (
     <g className="chart-y-axis">
       {ticks.map((tick) => (
@@ -22,6 +25,7 @@ export function ChartYAxis({ ticks, plot, title }: ChartYAxisProps) {
           />
           <text
             className="chart-y-axis__tick"
+            style={{ fontSize }}
             x={plot.left - 8}
             y={tick.position}
             textAnchor="end"
@@ -31,9 +35,11 @@ export function ChartYAxis({ ticks, plot, title }: ChartYAxisProps) {
           </text>
         </g>
       ))}
-      <text className="chart-y-axis__title" x={plot.left} y={plot.top - 12} textAnchor="start">
-        {title}
-      </text>
+      {title ? (
+        <text className="chart-y-axis__title" x={plot.left} y={plot.top - 12} textAnchor="start">
+          {title}
+        </text>
+      ) : null}
     </g>
   )
 }

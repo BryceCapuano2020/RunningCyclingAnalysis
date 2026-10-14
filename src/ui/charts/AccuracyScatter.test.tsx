@@ -6,6 +6,9 @@ import { accuracyFixture, emptyAccuracyFixture } from './fixtures'
 
 const TITLE = 'Estimated against measured power on climbs'
 
+/** The static chart image is named by its title, then its description. */
+const named = (title: string) => (name: string) => name.startsWith(title)
+
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
@@ -21,10 +24,29 @@ describe('AccuracyScatter', () => {
 
   it('draws one dot per climb and the labelled perfect-estimate line', () => {
     render(<AccuracyScatter accuracy={accuracyFixture} />)
-    expect(screen.getByRole('img', { name: TITLE })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
     expect(screen.getAllByTestId('accuracy-dot')).toHaveLength(2)
     expect(screen.getByTestId('accuracy-reference')).toBeInTheDocument()
     expect(screen.getByText('Perfect estimate')).toBeInTheDocument()
+    expect(screen.getByText('2 climbs. Average error ±5%, bias 0%')).toBeInTheDocument()
+  })
+
+  it('keeps each axis to at most five tick labels', () => {
+    const many = {
+      ...accuracyFixture,
+      nSegments: 40,
+      segments: Array.from({ length: 40 }, (_, i) => ({
+        activityId: 'ride-1',
+        start: i * 300,
+        end: i * 300 + 240,
+        measuredW: 150 + i * 7,
+        estimatedW: 155 + i * 6.5,
+      })),
+    }
+    const { container } = render(<AccuracyScatter accuracy={many} />)
+    expect(container.querySelectorAll('.chart-x-axis__tick').length).toBeLessThanOrEqual(5)
+    expect(container.querySelectorAll('.chart-y-axis__tick').length).toBeLessThanOrEqual(5)
+    expect(screen.getByText('40 climbs. Average error ±5%, bias 0%')).toBeInTheDocument()
   })
 
   it('formats measured, estimated and signed error in the table view', () => {
@@ -53,6 +75,6 @@ describe('AccuracyScatter', () => {
     expect(
       screen.getByText('No climbs of two minutes or more with power-meter data yet'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: TITLE })).toBeNull()
+    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
   })
 })

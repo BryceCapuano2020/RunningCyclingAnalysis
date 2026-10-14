@@ -34,9 +34,8 @@
   font-size: 0.875rem;
 }
 
+/* Layout (flex row, disclosure triangle, 40 px height) comes from the global summary rule. */
 .chart-frame__details summary {
-  width: max-content;
-  cursor: pointer;
   color: var(--text-secondary);
   font-size: 0.875rem;
 }

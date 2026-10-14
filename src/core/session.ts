@@ -25,8 +25,9 @@ export interface SessionState {
  */
 export class AnalysisSession {
   private activities = new Map<string, Activity>()
-  private rejected: RejectedFile[] = []
-  private unsupportedFiles = 0
+  // Keyed by file name so importing the same export twice does not double-count.
+  private rejected = new Map<string, string>()
+  private unsupported = new Map<string, number>()
   private isSample = false
 
   async addFiles(
@@ -46,13 +47,13 @@ export class AnalysisSession {
             this.activities.set(key, activity)
           }
         } else {
-          this.rejected.push({ fileName: parsed.fileName, reason: parsed.reason })
+          this.rejected.set(parsed.fileName, parsed.reason)
         }
         onProgress?.(++filesRead)
       })
-      this.unsupportedFiles += summary.otherActivityFiles
+      this.unsupported.set(source.name, summary.otherActivityFiles)
       if (summary.fitFiles === 0 && summary.otherActivityFiles === 0) {
-        this.rejected.push({ fileName: source.name, reason: 'No FIT files found' })
+        this.rejected.set(source.name, 'No FIT files found')
       }
     }
     return this.state(settings)
@@ -71,8 +72,8 @@ export class AnalysisSession {
 
   clear(): SessionState {
     this.activities.clear()
-    this.rejected = []
-    this.unsupportedFiles = 0
+    this.rejected.clear()
+    this.unsupported.clear()
     this.isSample = false
     return { result: null, rejected: [], unsupportedFiles: 0, isSample: false }
   }
@@ -80,8 +81,8 @@ export class AnalysisSession {
   private state(settings: AthleteSettings): SessionState {
     return {
       result: this.activities.size > 0 ? analyze([...this.activities.values()], settings) : null,
-      rejected: [...this.rejected],
-      unsupportedFiles: this.unsupportedFiles,
+      rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
+      unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
     }
   }

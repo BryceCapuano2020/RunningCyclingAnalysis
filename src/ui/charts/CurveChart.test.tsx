@@ -6,6 +6,9 @@ import { curveOf, rideCurveFixture, rideMetabolicCurveFixture, runCurveFixture }
 
 const TITLE = 'Running and cycling gross metabolic power by duration'
 
+/** The static chart image is named by its title, then its description. */
+const named = (title: string) => (name: string) => name.startsWith(title)
+
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
@@ -28,13 +31,31 @@ describe('CurveChart', () => {
         units="metric"
       />,
     )
-    expect(screen.getByRole('img', { name: TITLE })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Running')).toBeInTheDocument()
     expect(within(legend).getByText('Cycling')).toBeInTheDocument()
     // Once in the legend, once as the end label of the line.
     expect(screen.getAllByText('Running')).toHaveLength(2)
     expect(screen.getAllByText('Cycling')).toHaveLength(2)
+  })
+
+  it('exposes one image per chart and a plot surface described by the tooltip', () => {
+    const { container } = render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+      />,
+    )
+    expect(container.querySelectorAll('figure [role="img"]')).toHaveLength(1)
+    const plot = screen.getByTestId('plot-surface')
+    expect(plot).toHaveAttribute('role', 'group')
+    expect(plot).toHaveAttribute('tabindex', '0')
+    const describedBy = plot.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(document.getElementById(describedBy ?? '')).toHaveAttribute('role', 'status')
   })
 
   it('places one marker per finite point for each sport', () => {
@@ -68,13 +89,33 @@ describe('CurveChart', () => {
       'Flat pace',
       'Cycling (W/kg)',
       'Cycling power',
+      'Running from',
+      'Cycling from',
     ])
     expect(rows).toEqual([
-      ['1 min', '17.0 W/kg', '3:48 /km', '18.5 W/kg', '1400 W'],
-      ['5 min', '15.6 W/kg', '4:10 /km', '16.4 W/kg', '1230 W'],
-      ['20 min', '14.2 W/kg', '4:37 /km', '14.0 W/kg', '1050 W'],
-      ['1 h', '12.8 W/kg', '5:11 /km', '—', '—'],
+      ['1 min', '17.0 W/kg', '3:48 /km', '18.5 W/kg', '1400 W', 'activity-1', 'activity-1'],
+      ['5 min', '15.6 W/kg', '4:10 /km', '16.4 W/kg', '1230 W', 'activity-1', 'activity-1'],
+      ['20 min', '14.2 W/kg', '4:37 /km', '14.0 W/kg', '1050 W', 'activity-1', 'activity-1'],
+      ['1 h', '12.8 W/kg', '5:11 /km', '—', '—', 'activity-1', '—'],
     ])
+  })
+
+  it('names the source activity in the table and tooltip when names are given', () => {
+    const { container } = render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+        activityNames={{ 'activity-1': 'Morning run' }}
+      />,
+    )
+    const { rows } = tableOf(container)
+    expect(rows[0]?.slice(5)).toEqual(['Morning run', 'Morning run'])
+
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    const tooltip = screen.getByRole('status')
+    expect(tooltip).toHaveTextContent('from Morning run')
   })
 
   it('shows the values for a duration when the arrow keys move the active point', () => {
@@ -113,7 +154,7 @@ describe('CurveChart', () => {
         units="metric"
       />,
     )
-    expect(screen.getByRole('img', { name: TITLE })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
     const markers = screen.getAllByTestId('curve-marker')
     expect(markers).toHaveLength(3)
     expect(markers.every((m) => m.getAttribute('data-series') === 'ride')).toBe(true)
@@ -131,6 +172,6 @@ describe('CurveChart', () => {
     expect(
       screen.getByText('Add at least one run and one ride to see both curves'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: TITLE })).toBeNull()
+    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
   })
 })

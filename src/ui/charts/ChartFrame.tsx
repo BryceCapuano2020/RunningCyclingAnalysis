@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { ReactNode } from 'react'
 import { ChartLegend } from './ChartLegend'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -18,8 +19,12 @@ export interface ChartFrameProps {
   empty?: string
   /** Muted text under the plot. */
   note?: string
-  /** Draws the marks, axes and hit surface inside the SVG. */
+  /** Right margin of the plot, as a function of width. Default 16 px. */
+  plotRightMargin?: (width: number) => number
+  /** The static drawing: gridlines, axes and marks. Exposed to screen readers as one image. */
   children: (size: ChartSize) => ReactNode
+  /** Interactive layer, drawn above the drawing: the focusable plot surface. */
+  surface?: (size: ChartSize) => ReactNode
   /** HTML laid over the plot, such as a tooltip. */
   overlay?: (size: ChartSize) => ReactNode
 }
@@ -35,19 +40,25 @@ export function ChartFrame({
   table,
   empty,
   note,
+  plotRightMargin,
   children,
+  surface,
   overlay,
 }: ChartFrameProps) {
   const [stageRef, width] = useSize()
+  const id = useId()
+  const titleId = `${id}-title`
+  const rightMargin = plotRightMargin ? plotRightMargin(width) : MARGIN.right
   const size: ChartSize = {
     width,
     height,
     plot: {
       left: MARGIN.left,
-      right: Math.max(MARGIN.left + 1, width - MARGIN.right),
+      right: Math.max(MARGIN.left + 1, width - rightMargin),
       top: MARGIN.top,
       bottom: height - MARGIN.bottom,
     },
+    tooltipId: `${id}-tooltip`,
   }
 
   return (
@@ -64,15 +75,17 @@ export function ChartFrame({
           <>
             <svg
               className="chart-frame__svg"
-              role="img"
-              aria-label={title}
+              aria-labelledby={titleId}
               width={width}
               height={height}
               viewBox={`0 0 ${width} ${height}`}
             >
-              <title>{title}</title>
+              <title id={titleId}>{title}</title>
               <desc>{description}</desc>
-              {children(size)}
+              <g role="img" aria-label={`${title}. ${description}`}>
+                {children(size)}
+              </g>
+              {surface?.(size)}
             </svg>
             <div className="chart-frame__overlay">{overlay?.(size)}</div>
           </>

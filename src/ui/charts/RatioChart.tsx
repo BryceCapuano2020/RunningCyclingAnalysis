@@ -10,7 +10,8 @@ import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './c
 import { nearestByX, stepActive } from './hover'
 import { bandPath, linePath } from './paths'
 import { PlotSurface } from './PlotSurface'
-import { linearScale, logScale, niceDomain } from './scale'
+import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
+import { axisFontSize, fitTicks } from './ticks'
 import './RatioChart.css'
 
 export interface RatioChartProps {
@@ -20,11 +21,14 @@ export interface RatioChartProps {
 const MIN_DURATION_S = 60
 const TICK_DURATIONS_S = [60, 300, 1200, 3600, 7200, 10800]
 const ACTIVE_MARKER_R = 5
+/** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
+const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them'
+const NOTE = 'Shaded areas cover 90% of plausible values. The line is the median'
 
 const LEGEND_CALIBRATED: ChartLegendEntry[] = [
-  { label: 'Before heart-rate check (90% range)', kind: 'neutral' },
-  { label: 'After heart-rate check (90% range and median)', kind: 'neutral' },
+  { label: 'Before heart-rate check', kind: 'neutral', swatch: 'band' },
+  { label: 'After heart-rate check', kind: 'neutral', swatch: 'band-strong' },
 ]
 
 interface RatioRow {
@@ -38,6 +42,12 @@ interface RatioRow {
 const delta = (ratio: number): string => formatPercent(ratio - 1, true)
 
 const rangeOf = (interval: Interval): string => `${delta(interval.p05)} to ${delta(interval.p95)}`
+
+/** Axis label for an offset from equal, with as many decimals as the tick step needs. */
+function percentTick(offset: number, decimals: number): string {
+  const digits = (offset * 100).toFixed(decimals)
+  return offset > 0 ? `+${digits}%` : `${digits}%`
+}
 
 function buildRows(comparison: Comparison): RatioRow[] {
   const calibrated = new Map(
@@ -95,7 +105,7 @@ function layout(rows: RatioRow[], hasCalibrated: boolean, size: ChartSize): Layo
   const first = rows[0]
   const last = rows[rows.length - 1]
   if (first === undefined || last === undefined) return null
-  const { plot } = size
+  const { plot, width } = size
   const x = logScale([first.durationS, last.durationS], [plot.left, plot.right])
 
   // Offsets from equal (ratio minus one). Zero is always included so the reference line exists.
@@ -105,15 +115,24 @@ function layout(rows: RatioRow[], hasCalibrated: boolean, size: ChartSize): Layo
       if (interval) offsets.push(interval.p05 - 1, interval.p95 - 1)
     }
   }
-  const { domain, ticks } = niceDomain(offsets, 4)
+  const low = Math.min(...offsets) - HEADROOM
+  const high = Math.max(...offsets) + HEADROOM
+  const { domain, ticks } = niceDomain([low, high], 4, 0)
+  const decimals = tickDecimals(ticks.map((value) => value * 100))
   const y = linearScale(domain, [plot.bottom, plot.top])
 
   return {
     xs: rows.map((row) => x(row.durationS)),
-    xTicks: TICK_DURATIONS_S.filter(
-      (durationS) => durationS >= first.durationS && durationS <= last.durationS,
-    ).map((durationS) => ({ position: x(durationS), label: formatDuration(durationS) })),
-    yTicks: ticks.map((value) => ({ position: y(value), label: formatPercent(value, true) })),
+    xTicks: fitTicks(
+      TICK_DURATIONS_S.filter(
+        (durationS) => durationS >= first.durationS && durationS <= last.durationS,
+      ).map((durationS) => ({ position: x(durationS), label: formatDuration(durationS) })),
+      { axis: 'x', width },
+    ),
+    yTicks: fitTicks(
+      ticks.map((value) => ({ position: y(value), label: percentTick(value, decimals) })),
+      { axis: 'y', width },
+    ),
     zeroY: y(0),
     prior: seriesOf(rows, (row) => row.prior.ratio, x, y),
     calibrated: hasCalibrated ? seriesOf(rows, (row) => row.calibrated?.ratio ?? null, x, y) : null,
@@ -185,6 +204,22 @@ export function RatioChart({ comparison }: RatioChartProps) {
       legend={rows.length > 0 && hasCalibrated ? LEGEND_CALIBRATED : undefined}
       table={tableFor(rows, hasCalibrated)}
       empty={rows.length > 0 ? undefined : EMPTY}
+      note={rows.length > 0 ? NOTE : undefined}
+      surface={(size) => {
+        const m = layout(rows, hasCalibrated, size)
+        if (m === null) return null
+        return (
+          <PlotSurface
+            size={size}
+            onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
+            onKey={(key) => {
+              const next = stepActive(active, m.xs.length, key)
+              if (next) setActive(next.index)
+            }}
+            onBlur={() => setActive(null)}
+          />
+        )
+      }}
       overlay={(size) => {
         const m = layout(rows, hasCalibrated, size)
         const row = active === null ? undefined : rows[active]
@@ -194,7 +229,11 @@ export function RatioChart({ comparison }: RatioChartProps) {
             : null
         const content = row && anchor ? tooltipFor(row, anchor.x, anchor.y) : null
         return (
-          <ChartTooltip bounds={{ width: size.width, height: size.height }} content={content} />
+          <ChartTooltip
+            bounds={{ width: size.width, height: size.height }}
+            content={content}
+            id={size.tooltipId}
+          />
         )
       }}
     >
@@ -207,8 +246,13 @@ export function RatioChart({ comparison }: RatioChartProps) {
         const activeMedian = active === null ? null : (primary.median[active] ?? null)
         return (
           <>
-            <ChartXAxis ticks={m.xTicks} plot={plot} title="Duration" />
-            <ChartYAxis ticks={m.yTicks} plot={plot} title="Running compared with cycling" />
+            <ChartXAxis
+              ticks={m.xTicks}
+              plot={plot}
+              title="Duration"
+              fontSize={axisFontSize(size.width)}
+            />
+            <ChartYAxis ticks={m.yTicks} plot={plot} fontSize={axisFontSize(size.width)} />
             <path
               data-testid="ratio-band"
               className="ratio-chart__band"
@@ -264,16 +308,6 @@ export function RatioChart({ comparison }: RatioChartProps) {
                 r={ACTIVE_MARKER_R}
               />
             ) : null}
-            <PlotSurface
-              size={size}
-              label="Running compared with cycling. Use the left and right arrow keys to move between durations, Escape to clear"
-              onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
-              onKey={(key) => {
-                const next = stepActive(active, m.xs.length, key)
-                if (next) setActive(next.index)
-              }}
-              onBlur={() => setActive(null)}
-            />
           </>
         )
       }}

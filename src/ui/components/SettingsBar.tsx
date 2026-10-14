@@ -30,8 +30,12 @@ function kgOf(settings: AthleteSettings, field: Field): number {
   return field === 'body' ? settings.massKg : settings.bikeMassKg
 }
 
+/** One decimal, or a whole number when the value is within 0.05 of one. */
 function displayValue(kg: number, units: UnitSystem): string {
-  return (units === 'imperial' ? kgToLb(kg) : kg).toFixed(1)
+  const value = units === 'imperial' ? kgToLb(kg) : kg
+  const whole = Math.round(value)
+  if (Math.abs(value - whole) < 0.05) return String(whole)
+  return value.toFixed(1)
 }
 
 /** Whole display-unit limits, inside the kg limits. */
@@ -123,7 +127,7 @@ export function SettingsBar({ settings, units, onChange }: SettingsBarProps) {
                   onBlur={() => commit(field)}
                   onKeyDown={(event) => handleKeyDown(field, event)}
                 />
-                <span id={unitId} className="settings-bar__unit muted">
+                <span id={unitId} className="settings-bar__unit">
                   {unit}
                 </span>
               </div>

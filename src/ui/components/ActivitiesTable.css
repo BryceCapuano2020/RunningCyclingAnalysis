@@ -9,6 +9,13 @@
   background: var(--surface-2);
 }
 
+/* Below 640 px, Climb, Power and Heart rate are hidden. The cells stay in the DOM. */
+@media (max-width: 639px) {
+  .activities-table__optional {
+    display: none;
+  }
+}
+
 .activities-table__flags {
   margin: 0;
   padding-left: var(--space-4);

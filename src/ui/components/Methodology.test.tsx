@@ -18,6 +18,14 @@ describe('Methodology', () => {
     ).toBeInTheDocument()
   })
 
+  it('puts the title in an h2 inside the summary, with no custom summary class', () => {
+    const { container } = render(<Methodology />)
+    const summary = container.querySelector('details > summary')
+    expect(summary).not.toBeNull()
+    expect(summary?.className).toBe('')
+    expect(summary?.querySelector('h2')).toHaveTextContent('How this works and what it assumes')
+  })
+
   it('has a plain-language section for each assumption', () => {
     render(<Methodology />)
     for (const title of [

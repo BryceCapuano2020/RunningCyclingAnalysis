@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
 export function Methodology() {
   return (
     <details className="methodology card">
-      <summary className="methodology__summary">
+      <summary>
         <h2>How this works and what it assumes</h2>
       </summary>
       <div className="methodology__sections">

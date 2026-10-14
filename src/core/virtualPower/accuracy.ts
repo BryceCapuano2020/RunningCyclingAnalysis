@@ -2,7 +2,7 @@ import { mean } from '../math'
 import type { BikeModel, VirtualPowerAccuracy } from '../types'
 import type { CalibrationRide } from './calibrate'
 import { addStats, emptyStats, rideStats, solveBikeModel, subtractStats } from './calibrate'
-import { climbMask, findSegments } from './climbs'
+import { climbMask, findSegments, splitSegment } from './climbs'
 import { estimatePower } from './estimatePower'
 
 type Segment = VirtualPowerAccuracy['segments'][number]
@@ -28,16 +28,18 @@ function scoreRide(ride: CalibrationRide, totalMassKg: number, model: BikeModel)
 
   const estimated = estimatePower(ride.speed, ride.grade, totalMassKg, model)
   const out: Segment[] = []
-  for (const { start, end } of findSegments(mask)) {
-    const measuredW = mean(ride.power.subarray(start, end))
-    if (measuredW < MIN_MEASURED_W) continue
-    out.push({
-      activityId: ride.activityId,
-      start,
-      end,
-      measuredW,
-      estimatedW: mean(estimated.subarray(start, end)),
-    })
+  for (const climb of findSegments(mask)) {
+    for (const { start, end } of splitSegment(climb)) {
+      const measuredW = mean(ride.power.subarray(start, end))
+      if (measuredW < MIN_MEASURED_W) continue
+      out.push({
+        activityId: ride.activityId,
+        start,
+        end,
+        measuredW,
+        estimatedW: mean(estimated.subarray(start, end)),
+      })
+    }
   }
   return out
 }
