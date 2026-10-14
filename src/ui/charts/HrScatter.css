@@ -1,0 +1,28 @@
+.hr-scatter__fit {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.hr-scatter__fit--run {
+  stroke: var(--series-run);
+}
+
+.hr-scatter__fit--ride {
+  stroke: var(--series-ride);
+}
+
+/* Dots are 70% opaque with a surface ring, so overlapping dots stay separate. */
+.hr-scatter__dot {
+  fill-opacity: 0.7;
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.hr-scatter__dot--run {
+  fill: var(--series-run);
+}
+
+.hr-scatter__dot--ride {
+  fill: var(--series-ride);
+}

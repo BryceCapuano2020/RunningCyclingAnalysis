@@ -1,0 +1,15 @@
+.chart-x-axis__grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.chart-x-axis__tick {
+  fill: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-x-axis__title {
+  fill: var(--text-secondary);
+  font-size: 12px;
+}

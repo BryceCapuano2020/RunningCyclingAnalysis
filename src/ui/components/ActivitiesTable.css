@@ -1,0 +1,19 @@
+.activities-table {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.activities-table__issues {
+  white-space: normal;
+  background: var(--surface-2);
+}
+
+.activities-table__flags {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.activities-table__flags li + li {
+  margin-top: var(--space-1);
+}

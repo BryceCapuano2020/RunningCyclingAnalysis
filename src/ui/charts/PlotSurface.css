@@ -1,0 +1,10 @@
+.plot-surface {
+  fill: transparent;
+  cursor: crosshair;
+  outline: none;
+}
+
+.plot-surface:focus-visible {
+  stroke: var(--focus);
+  stroke-width: 2px;
+}

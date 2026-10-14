@@ -33,3 +33,4 @@ data/
 *.fit
 *.fit.gz
 !src/**/fixtures/*.fit
+.claude/

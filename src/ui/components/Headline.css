@@ -1,0 +1,41 @@
+.headline {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.headline__detail {
+  max-width: 68ch;
+}
+
+.headline__tiles {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.headline__tile {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.headline__tile-label {
+  font-size: 0.875rem;
+}
+
+.headline__tile-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.headline__tile-sub {
+  font-size: 0.875rem;
+}

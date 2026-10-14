@@ -1,0 +1,23 @@
+.rejected-files {
+  font-size: 0.875rem;
+}
+
+.rejected-files summary {
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.rejected-files__unsupported {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.rejected-files__group {
+  margin-top: var(--space-2);
+}
+
+.rejected-files__list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  overflow-wrap: anywhere;
+}

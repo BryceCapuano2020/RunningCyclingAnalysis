@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest'
+import { meanMaximal } from './meanMaximal'
+
+const ones = (n: number) => new Uint8Array(n).fill(1)
+
+describe('meanMaximal', () => {
+  it('finds the best mean window for each duration on a hand-computed array', () => {
+    const values = new Float64Array([10, 20, 30, 40, 50])
+    const curve = meanMaximal(values, ones(5), [1, 2, 3, 5], 'a')
+    expect(curve).toEqual([
+      { durationS: 1, value: 50, activityId: 'a', startIndex: 4 },
+      { durationS: 2, value: 45, activityId: 'a', startIndex: 3 },
+      { durationS: 3, value: 40, activityId: 'a', startIndex: 2 },
+      { durationS: 5, value: 30, activityId: 'a', startIndex: 0 },
+    ])
+  })
+
+  it('skips windows that contain an invalid sample', () => {
+    const values = new Float64Array([100, 200, 300, 400, 500, 600])
+    const valid = new Uint8Array([1, 1, 0, 1, 1, 1])
+    const curve = meanMaximal(values, valid, [1, 2, 3, 4], 'a')
+    expect(curve).toEqual([
+      { durationS: 1, value: 600, activityId: 'a', startIndex: 5 },
+      { durationS: 2, value: 550, activityId: 'a', startIndex: 4 },
+      { durationS: 3, value: 500, activityId: 'a', startIndex: 3 },
+      { durationS: 4, value: NaN, activityId: null, startIndex: -1 },
+    ])
+  })
+
+  it('treats a valid-flagged NaN sample as unusable', () => {
+    const values = new Float64Array([100, NaN, 300, 400])
+    const curve = meanMaximal(values, ones(4), [1, 2], 'a')
+    expect(curve).toEqual([
+      { durationS: 1, value: 400, activityId: 'a', startIndex: 3 },
+      { durationS: 2, value: 350, activityId: 'a', startIndex: 2 },
+    ])
+  })
+
+  it('keeps the earliest window on ties', () => {
+    const values = new Float64Array([5, 10, 10, 5, 10])
+    const curve = meanMaximal(values, ones(5), [1, 2, 3], 'a')
+    expect(curve[0]).toEqual({ durationS: 1, value: 10, activityId: 'a', startIndex: 1 })
+    expect(curve[1]).toEqual({ durationS: 2, value: 10, activityId: 'a', startIndex: 1 })
+    expect(curve[2]!.value).toBeCloseTo(25 / 3, 12)
+    expect(curve[2]!.startIndex).toBe(0)
+  })
+
+  it('returns the constant value at the first index for a constant array', () => {
+    const values = new Float64Array(10).fill(250)
+    const curve = meanMaximal(values, ones(10), [5, 10], 'ride')
+    expect(curve).toEqual([
+      { durationS: 5, value: 250, activityId: 'ride', startIndex: 0 },
+      { durationS: 10, value: 250, activityId: 'ride', startIndex: 0 },
+    ])
+  })
+
+  it('returns a no-window point when the duration exceeds the sample count', () => {
+    const values = new Float64Array([1, 2, 3])
+    const curve = meanMaximal(values, ones(3), [4, 3], 'a')
+    expect(curve).toEqual([
+      { durationS: 4, value: NaN, activityId: null, startIndex: -1 },
+      { durationS: 3, value: 2, activityId: 'a', startIndex: 0 },
+    ])
+  })
+
+  it('returns no-window points when every sample is invalid', () => {
+    const curve = meanMaximal(new Float64Array([1, 5]), new Uint8Array(2), [1, 2], 'a')
+    expect(curve).toEqual([
+      { durationS: 1, value: NaN, activityId: null, startIndex: -1 },
+      { durationS: 2, value: NaN, activityId: null, startIndex: -1 },
+    ])
+  })
+
+  it('returns no-window points for empty input', () => {
+    const curve = meanMaximal(new Float64Array(0), new Uint8Array(0), [1, 2], 'a')
+    expect(curve.map((p) => p.value)).toEqual([NaN, NaN])
+    expect(curve.map((p) => p.startIndex)).toEqual([-1, -1])
+  })
+
+  it('returns an empty curve for no durations', () => {
+    expect(meanMaximal(new Float64Array([1, 2]), ones(2), [], 'a')).toEqual([])
+  })
+
+  it('treats non-integer and non-positive durations as having no window', () => {
+    const curve = meanMaximal(new Float64Array([1, 2, 3]), ones(3), [0, 2.5], 'a')
+    expect(curve).toEqual([
+      { durationS: 0, value: NaN, activityId: null, startIndex: -1 },
+      { durationS: 2.5, value: NaN, activityId: null, startIndex: -1 },
+    ])
+  })
+})

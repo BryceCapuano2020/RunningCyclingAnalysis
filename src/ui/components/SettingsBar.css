@@ -1,0 +1,56 @@
+.settings-bar {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.settings-bar__fields {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.settings-bar__field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  align-content: start;
+}
+
+.settings-bar__label {
+  font-weight: 500;
+}
+
+.settings-bar__input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-bar__input input {
+  min-height: 40px;
+  width: 100%;
+  max-width: 9rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-bar__input input[aria-invalid='true'] {
+  border-color: var(--status-critical);
+}
+
+.settings-bar__unit {
+  min-width: 2ch;
+}
+
+.settings-bar__error {
+  color: var(--status-critical);
+  font-size: 0.875rem;
+}
+
+.settings-bar__hint {
+  font-size: 0.875rem;
+}

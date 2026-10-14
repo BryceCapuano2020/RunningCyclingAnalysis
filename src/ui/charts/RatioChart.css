@@ -1,0 +1,34 @@
+/* Both bands use the same fill; the calibrated band sits on the prior one, so it reads stronger. */
+.ratio-chart__band {
+  fill: var(--neutral-band);
+  stroke: none;
+}
+
+.ratio-chart__median {
+  fill: none;
+  stroke: var(--neutral-mark);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ratio-chart__zero {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.ratio-chart__crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.ratio-chart__marker {
+  fill: var(--neutral-mark);
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.ratio-chart__label {
+  fill: var(--text-muted);
+  font-size: 12px;
+}

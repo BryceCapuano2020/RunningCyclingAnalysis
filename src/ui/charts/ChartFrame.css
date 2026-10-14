@@ -1,0 +1,46 @@
+.chart-frame {
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.chart-frame__stage {
+  position: relative;
+  min-width: 0;
+}
+
+.chart-frame__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart-frame__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.chart-frame__empty {
+  display: flex;
+  align-items: center;
+  max-width: 52ch;
+  color: var(--text-secondary);
+}
+
+.chart-frame__note {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.chart-frame__details summary {
+  width: max-content;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.chart-frame__details .table-scroll {
+  margin-top: var(--space-2);
+}

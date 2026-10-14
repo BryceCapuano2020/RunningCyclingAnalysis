@@ -1,0 +1,19 @@
+.methodology__summary {
+  cursor: pointer;
+}
+
+.methodology__summary h2 {
+  display: inline;
+}
+
+.methodology__sections {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  max-width: 68ch;
+}
+
+.methodology__section {
+  display: grid;
+  gap: var(--space-1);
+}

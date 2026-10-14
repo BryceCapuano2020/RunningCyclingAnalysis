@@ -1,0 +1,16 @@
+.accuracy-scatter__dot {
+  fill: var(--neutral-mark);
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.accuracy-scatter__reference {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.accuracy-scatter__reference-label {
+  fill: var(--text-muted);
+  font-size: 12px;
+}

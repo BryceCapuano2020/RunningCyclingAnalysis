@@ -1,32 +1,110 @@
-# React + TypeScript + Vite
+# RunningCyclingAnalysis
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Are you a stronger runner or cyclist? Watts on the bike and pace on the run cannot be compared
+directly. This app converts both into **gross metabolic power** (watts of energy burned per
+kilogram of body weight), compares your best efforts in each sport, and reports the gap with an
+honest uncertainty range.
 
-Currently, two official plugins are available:
+It runs entirely in the browser. Activity files are read and analysed on your device and are never
+uploaded. There is no backend and no AI model in the product.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What it does
 
-## React Compiler
+- **Reads FIT files** from Garmin, Wahoo and similar devices, singly, gzipped, or inside a Strava
+  account-export zip.
+- **One unit for both sports.** Cycling power is divided by gross efficiency. Running speed and
+  gradient go through the Minetti et al. (2002) energy-cost-of-running curve. Both become W/kg.
+- **Uncertainty, not a single number.** Efficiency and running economy differ between people and
+  cannot be read from a file, so they are sampled from population priors and the result is a 90%
+  range.
+- **Heart-rate cross-check.** Heart rate rises linearly with metabolic power. If it rises faster
+  per estimated watt in one sport, the efficiency assumptions are wrong for that athlete. The app
+  measures that slope ratio and uses it as evidence to update the priors, which narrows the range.
+- **Virtual power meter.** For rides without a power meter, power on climbs is estimated from
+  speed, gradient and mass. The bike model is calibrated on rides that do have a power meter and
+  scored leave-one-ride-out, so the accuracy figure is out-of-sample.
+- **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
+  example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## The model
 
-## Expanding the Oxlint configuration
+| Step             | Formula                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| Cycling          | `M = P / (GE × mass)`, with `GE ~ N(0.215, 0.012)`                                 |
+| Running          | `M = rest + s × C(grade) × speed`, with `C` from Minetti 2002 and `s ~ N(1, 0.06)` |
+| Comparison       | `ratio(t) = M_run(t) / M_ride(t)` over 4,000 seeded Monte Carlo draws              |
+| Heart-rate check | `κ = slope_ride / slope_run` of heart rate against `M`, on 5-minute block means    |
+| Update           | each draw is weighted by the likelihood of the observed `κ` (importance sampling)  |
+| Virtual power    | `P = (m g (sin θ + Crr cos θ) v + ½ ρ CdA v³ + m a v) / η`, climbs only            |
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+`M` is gross metabolic power in W/kg, `P` is mechanical power in W, and `rest` is 1.22 W/kg.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Validation
+
+The repository includes a deterministic simulator (`src/core/synthetic`) that generates
+physically consistent activities for an athlete whose true efficiency, running economy and
+critical power are known. The integration tests in `src/core/pipeline.test.ts` run the whole
+pipeline on that data and assert that it recovers the truth.
+
+## Limits
+
+- Best-effort curves are only as good as the hardest efforts on file.
+- The heart-rate check assumes heart rate maps to metabolic power the same way in both sports. A
+  fixed model-discrepancy term keeps the updated range from becoming over-confident.
+- Heat, altitude, fatigue and cardiac drift shift heart rate and are not modelled.
+- Treadmill and indoor activities have no gradient.
+- Virtual power is used on climbs only, because wind and drafting dominate on flat roads.
+
+## Development
+
+Requires Node 22.
+
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+| Command                 | What it does                                                   |
+| ----------------------- | -------------------------------------------------------------- |
+| `npm run check`         | Format check, lint, typecheck, unit tests with coverage, build |
+| `npm test`              | Unit and component tests (Vitest)                              |
+| `npm run test:coverage` | Same, enforcing coverage thresholds on `src/core`              |
+| `npm run e2e`           | End-to-end tests against the production build (Playwright)     |
+| `npm run lint`          | oxlint, warnings are errors                                    |
+| `npm run format`        | Prettier                                                       |
+
+### Layout
+
+```
+src/core/         analysis library: pure TypeScript, no DOM, runs in a Web Worker or Node
+  fit/            FIT decoding, 1 Hz resampling, zip and gzip extraction
+  quality/        sensor data-quality rules
+  metabolic/      gradient smoothing, Minetti cost, metabolic power
+  curves/         mean-maximal duration curves
+  cp/             critical power fit
+  virtualPower/   physics power estimate, calibration, accuracy scoring
+  hr/             heart-rate block regression and cross-check
+  compare/        Monte Carlo comparison and Bayesian update
+  synthetic/      ground-truth activity simulator
+  pipeline.ts     ties the modules together
+src/worker/       Web Worker wrapper
+src/ui/           React components and hand-written SVG charts
+e2e/              Playwright tests
+```
+
+CI (GitHub Actions) runs the full check, the end-to-end suite on desktop and mobile viewports, and
+a dependency audit on every push and pull request.
+
+## Built with
+
+TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. Written with Claude
+Code; no language model runs in the product.
+
+## References
+
+- Minetti AE, Moia C, Roi GS, Susta D, Ferretti G. Energy cost of walking and running at extreme
+  uphill and downhill slopes. _J Appl Physiol._ 2002;93(3):1039-1046.
+- Monod H, Scherrer J. The work capacity of a synergic muscular group. _Ergonomics._
+  1965;8(3):329-338.
+- Martin JC, Milliken DL, Cobb JE, McFadden KL, Coggan AR. Validation of a mathematical model for
+  road cycling power. _J Appl Biomech._ 1998;14(3):276-291.

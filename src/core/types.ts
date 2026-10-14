@@ -27,9 +27,16 @@ export interface Activity {
   heartRate: Float64Array
   /** Measured mechanical power, W. All NaN when the device had no power meter. */
   power: Float64Array
+  /**
+   * 1 where the device was not recording (auto-pause or a stop). Speed and power
+   * are 0 there, so duration curves treat a pause as rest in elapsed time.
+   */
+  paused: Uint8Array
   hasPower: boolean
   hasHeartRate: boolean
   hasAltitude: boolean
+  /** Treadmill, trainer or virtual activity: gradient and GPS speed are not real. */
+  indoor: boolean
 }
 
 export interface AthleteSettings {

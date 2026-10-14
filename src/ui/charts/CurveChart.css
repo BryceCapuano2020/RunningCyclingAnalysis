@@ -1,0 +1,39 @@
+.curve-chart__line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.curve-chart__line--run {
+  stroke: var(--series-run);
+}
+
+.curve-chart__line--ride {
+  stroke: var(--series-ride);
+}
+
+/* 8px+ marker with a surface ring, so it stays legible where it crosses a line. */
+.curve-chart__marker {
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.curve-chart__marker--run {
+  fill: var(--series-run);
+}
+
+.curve-chart__marker--ride {
+  fill: var(--series-ride);
+}
+
+.curve-chart__crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.curve-chart__end-label {
+  fill: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}

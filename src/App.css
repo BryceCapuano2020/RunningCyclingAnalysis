@@ -1,0 +1,60 @@
+.app__intro,
+.app__results {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.app__pitch {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 62ch;
+  padding-top: var(--space-5);
+}
+
+.app__pitch p {
+  font-size: 1.0625rem;
+}
+
+.app__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+
+.app__steps li {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+}
+
+.app__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+}
+
+.app__sample,
+.app__error {
+  padding: var(--space-3) var(--space-5);
+  border-left: 4px solid var(--status-warning);
+}
+
+.app__error {
+  border-left-color: var(--status-critical);
+}
+
+.app__footer {
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.card figure {
+  margin: var(--space-4) 0 0;
+}

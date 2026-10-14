@@ -1,0 +1,8 @@
+export { extractFitFiles } from './archive'
+export type { ExtractSummary, FitFile, FitFileHandler, FitSource } from './archive'
+export { encodeFit } from './encode'
+export type { EncodeOptions } from './encode'
+export { parseFit } from './parse'
+export type { ParseResult } from './parse'
+export { resample } from './resample'
+export type { RawRecord, Resampled } from './resample'

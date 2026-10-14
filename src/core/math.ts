@@ -81,7 +81,10 @@ export function linearRegression(x: ArrayLike<number>, y: ArrayLike<number>): Li
   return { slope, intercept, slopeSe, r2, n }
 }
 
-/** Centred moving average over `window` samples that skips NaN. NaN when the window is all NaN. */
+/**
+ * Centred moving average that skips NaN; NaN when the window is all NaN. The window is symmetric,
+ * floor(window / 2) samples each side, so an even `window` spans window + 1 samples.
+ */
 export function rollingMean(xs: ArrayLike<number>, window: number): Float64Array {
   const n = xs.length
   const out = new Float64Array(n)
