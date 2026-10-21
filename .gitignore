@@ -32,7 +32,7 @@ test-results
 data/
 *.fit
 *.fit.gz
-!src/**/fixtures/*.fit
-!e2e/fixtures/*.fit
-!e2e/fixtures/*.zip
+!**/fixtures/*.fit
+!**/e2e/fixtures/*.fit
+!**/e2e/fixtures/*.zip
 .claude/

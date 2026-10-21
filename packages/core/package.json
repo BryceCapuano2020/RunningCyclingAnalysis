@@ -1,0 +1,33 @@
+{
+  "name": "@rca/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Analysis library: FIT decoding, metabolic model, duration curves and the run-versus-ride comparison. Pure TypeScript, no DOM.",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./constants": "./src/constants.ts",
+    "./math": "./src/math.ts",
+    "./pipeline": "./src/pipeline.ts",
+    "./session": "./src/session.ts",
+    "./compare": "./src/compare/index.ts",
+    "./cp": "./src/cp/index.ts",
+    "./curves": "./src/curves/index.ts",
+    "./effort": "./src/effort/index.ts",
+    "./fit": "./src/fit/index.ts",
+    "./hr": "./src/hr/index.ts",
+    "./metabolic": "./src/metabolic/index.ts",
+    "./quality": "./src/quality/index.ts",
+    "./synthetic": "./src/synthetic/index.ts",
+    "./units": "./src/units/index.ts",
+    "./virtualPower": "./src/virtualPower/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@garmin/fitsdk": "^21.218.0",
+    "fflate": "^0.8.2"
+  }
+}

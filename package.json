@@ -3,44 +3,33 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "dev": "npm run dev -w @rca/web",
+    "dev:api": "npm run dev -w @rca/api",
+    "build": "npm run build -w @rca/web",
     "lint": "oxlint --deny-warnings",
-    "typecheck": "tsc -b",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "e2e": "playwright test",
-    "screenshots": "npm run build && tsx scripts/screenshots.ts",
+    "e2e": "npm run e2e -w @rca/web",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build"
   },
-  "dependencies": {
-    "@garmin/fitsdk": "^21.218.0",
-    "fflate": "^0.8.3",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
-  },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.64.0",
-    "@testing-library/jest-dom": "^7.0.1",
-    "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
-    "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@types/node": "^22.15.0",
     "@vitest/coverage-v8": "^5.0.4",
-    "jsdom": "^29.1.1",
     "oxlint": "^1.81.0",
     "prettier": "^3.9.10",
-    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0",
     "vitest": "^5.0.4"
   }
 }
