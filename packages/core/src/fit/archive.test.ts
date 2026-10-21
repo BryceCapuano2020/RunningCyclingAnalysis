@@ -36,12 +36,21 @@ function chunkedSource(name: string, bytes: Uint8Array, size: number): FitSource
   }
 }
 
+const DECOMPRESS = 'Could not decompress this file'
+
 async function collect(source: FitSource) {
   const files: FitFile[] = []
-  const summary = await extractFitFiles(source, (file) => {
-    files.push(file)
-  })
-  return { files, summary }
+  const errors: { fileName: string; reason: string }[] = []
+  const summary = await extractFitFiles(
+    source,
+    (file) => {
+      files.push(file)
+    },
+    (fileName, reason) => {
+      errors.push({ fileName, reason })
+    },
+  )
+  return { files, summary, errors }
 }
 
 function namesOf(files: FitFile[]): string[] {
@@ -90,10 +99,23 @@ describe('extractFitFiles on single files', () => {
     expect(files.map((f) => f.fileName)).toEqual(['RIDE.FIT'])
   })
 
-  it('skips a .fit.gz whose content is not gzip', async () => {
-    const { files, summary } = await collect(new File([NOT_GZIP], 'bad.fit.gz'))
+  it('skips a .fit.gz whose content is not gzip and reports it', async () => {
+    const { files, summary, errors } = await collect(new File([NOT_GZIP], 'bad.fit.gz'))
     expect(files).toEqual([])
     expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(errors).toEqual([{ fileName: 'bad.fit.gz', reason: DECOMPRESS }])
+  })
+
+  it('reports a .fit.gz cut short part way through', async () => {
+    const truncated = gzipSync(FIT_A).slice(0, 12)
+    const { files, errors } = await collect(new File([truncated], 'cut.fit.gz'))
+    expect(files).toEqual([])
+    expect(errors).toEqual([{ fileName: 'cut.fit.gz', reason: DECOMPRESS }])
+  })
+
+  it('reports nothing for a .fit.gz that decompresses', async () => {
+    const { errors } = await collect(new File([gzipSync(FIT_A)], 'ride.fit.gz'))
+    expect(errors).toEqual([])
   })
 
   it('counts a top-level GPX or TCX file as skipped', async () => {
@@ -153,15 +175,25 @@ describe('extractFitFiles on zip archives', () => {
     expect(chunked.summary).toEqual(whole.summary)
   })
 
-  it('keeps entries completed before a truncated zip ends', async () => {
+  it('keeps entries completed before a truncated zip ends and reports the cut one', async () => {
     const first = noise(100)
     const second = noise(20000)
     const zip = zipSync({ 'a.fit': first, 'b.fit': second }, { level: 0 })
     const truncated = zip.slice(0, zip.length - 15000)
-    const { files, summary } = await collect(chunkedSource('cut.zip', truncated, 512))
+    const { files, summary, errors } = await collect(chunkedSource('cut.zip', truncated, 512))
     expect(namesOf(files)).toEqual(['a.fit'])
     expect(bytesOf(files, 'a.fit')).toEqual(first)
     expect(summary.fitFiles).toBe(1)
+    expect(errors).toEqual([{ fileName: 'b.fit', reason: 'File is incomplete or corrupt' }])
+  })
+
+  it('reports an entry whose compressed data is corrupt', async () => {
+    const zip = zipSync({ 'x.fit': noise(500) })
+    // The first byte of the deflate data (offset 30 plus the 5-byte name) with an invalid block type.
+    zip[35] = 0xff
+    const { files, errors } = await collect(new File([zip], 'corrupt-deflate.zip'))
+    expect(files).toEqual([])
+    expect(errors).toEqual([{ fileName: 'x.fit', reason: DECOMPRESS }])
   })
 
   it('resolves with zero counts for a corrupt zip', async () => {
@@ -170,11 +202,23 @@ describe('extractFitFiles on zip archives', () => {
     expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
   })
 
-  it('skips a corrupt nested .fit.gz and keeps the other entries', async () => {
+  it('skips a corrupt nested .fit.gz, reports it, and keeps the other entries', async () => {
     const zip = zipSync({ 'bad.fit.gz': NOT_GZIP, 'good.fit': FIT_A })
-    const { files, summary } = await collect(new File([zip], 'mixed.zip'))
+    const { files, summary, errors } = await collect(new File([zip], 'mixed.zip'))
     expect(files).toEqual([{ fileName: 'good.fit', bytes: FIT_A }])
     expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(errors).toEqual([{ fileName: 'bad.fit.gz', reason: DECOMPRESS }])
+  })
+
+  it('reports a nested .fit.gz under its path inside the zip', async () => {
+    const zip = zipSync({ 'rides/2024/bad.fit.gz': NOT_GZIP, 'rides/ok.fit': FIT_A })
+    const { errors } = await collect(new File([zip], 'paths.zip'))
+    expect(errors).toEqual([{ fileName: 'rides/2024/bad.fit.gz', reason: DECOMPRESS }])
+  })
+
+  it('reports no errors for a clean export', async () => {
+    const { errors } = await collect(new File([exportZip()], 'export.zip'))
+    expect(errors).toEqual([])
   })
 
   it('skips an entry with an unsupported compression method', async () => {

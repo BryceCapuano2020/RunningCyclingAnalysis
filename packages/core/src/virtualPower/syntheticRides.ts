@@ -1,6 +1,14 @@
-import type { BikeModel } from '../types'
-import type { CalibrationRide } from './calibrate'
 import { estimatePower } from './estimatePower'
+import type { BikeModel } from '../types'
+
+/** One ride of 1 Hz samples, as the calibration tests need it. */
+export interface SyntheticRide {
+  activityId: string
+  speed: Float64Array
+  grade: Float64Array
+  power: Float64Array
+  valid: Uint8Array
+}
 
 /** Sinusoidal 1 Hz profile: mean + amp * sin(2 pi t / period + phase). */
 export function wave(
@@ -22,7 +30,7 @@ export function makeRide(
   grade: Float64Array,
   model: BikeModel,
   totalMassKg: number,
-): CalibrationRide {
+): SyntheticRide {
   return {
     activityId,
     speed,

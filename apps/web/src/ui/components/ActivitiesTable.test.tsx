@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { makeActivity } from './fixtures'
 import { ActivitiesTable } from './ActivitiesTable'
+
+beforeAll(() => {
+  // Pins the viewer's zone so the date assertions do not depend on the machine running them.
+  vi.stubEnv('TZ', 'America/Los_Angeles')
+})
+
+afterAll(() => {
+  vi.unstubAllEnvs()
+})
 
 afterEach(() => {
   cleanup()
@@ -18,7 +27,7 @@ function rowFor(name: string): HTMLElement {
 }
 
 describe('ActivitiesTable', () => {
-  it('shows the date in UTC, the sport, time, distance, climb and heart-rate columns', () => {
+  it('shows the date in the local zone, the sport, time, distance, climb and heart-rate columns', () => {
     renderTable([
       makeActivity({
         id: 'run',
@@ -38,6 +47,14 @@ describe('ActivitiesTable', () => {
     expect(row.getByText('10.00 km')).toBeInTheDocument()
     expect(row.getByText('120 m')).toBeInTheDocument()
     expect(row.getByText('Yes')).toBeInTheDocument()
+  })
+
+  it('shows the local date of an evening activity, not the UTC date', () => {
+    // 02:30 UTC on 1 June is 19:30 on 31 May in Los Angeles.
+    renderTable([makeActivity({ name: 'Evening run', startMs: Date.UTC(2025, 5, 1, 2, 30) })])
+    const row = within(rowFor('Evening run'))
+    expect(row.getByText('2025-05-31')).toBeInTheDocument()
+    expect(row.queryByText('2025-06-01')).not.toBeInTheDocument()
   })
 
   it('marks Climb, Power and Heart rate as hidden on narrow screens, keeping the cells', () => {

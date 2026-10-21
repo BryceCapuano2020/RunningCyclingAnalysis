@@ -1,5 +1,5 @@
 import { rollingMean } from '../math'
-import type { Activity, Curve, CurvePoint, EffortCheck } from '../types'
+import type { Activity, CurvePoint, EffortCheck } from '../types'
 
 export interface HeartRateSource {
   activity: Activity
@@ -73,37 +73,35 @@ export function windowHeartRate(
   return sum / count
 }
 
-function findPoint(curve: Curve, durationS: number): CurvePoint | undefined {
+/** A curve point that also carries the mean heart rate over the window it was taken from. */
+export interface EffortPoint extends CurvePoint {
+  /** Mean usable heart rate over the window, or null when unknown. */
+  heartRate: number | null
+}
+
+function findPoint(curve: EffortPoint[], durationS: number): EffortPoint | undefined {
   return curve.find((p) => p.durationS === durationS)
 }
 
-function heartRateFraction(
-  point: CurvePoint | undefined,
-  sourcesById: Map<string, HeartRateSource>,
-  maxHr: number | null,
-): number | null {
+function heartRateFraction(point: EffortPoint | undefined, maxHr: number | null): number | null {
   if (maxHr === null || !(maxHr > 0) || point === undefined) return null
-  if (Number.isNaN(point.value) || point.activityId === null) return null
-  const source = sourcesById.get(point.activityId)
-  if (source === undefined) return null
-  // After monotone-envelope processing point.durationS can be shorter than the window it was
-  // copied from, so the window is always point.durationS long from point.startIndex.
-  const hr = windowHeartRate(source, point.startIndex, point.durationS)
-  return hr === null ? null : hr / maxHr
+  if (Number.isNaN(point.value) || point.activityId === null || point.heartRate === null) {
+    return null
+  }
+  return point.heartRate / maxHr
 }
 
 /** One check per requested duration, in the order given. */
 export function checkEfforts(
-  runCurve: Curve,
-  rideCurve: Curve,
-  sourcesById: Map<string, HeartRateSource>,
+  runCurve: EffortPoint[],
+  rideCurve: EffortPoint[],
   maxHr: number | null,
   durations: readonly number[],
 ): EffortCheck[] {
   return durations.map((durationS) => ({
     durationS,
-    runHrFraction: heartRateFraction(findPoint(runCurve, durationS), sourcesById, maxHr),
-    rideHrFraction: heartRateFraction(findPoint(rideCurve, durationS), sourcesById, maxHr),
+    runHrFraction: heartRateFraction(findPoint(runCurve, durationS), maxHr),
+    rideHrFraction: heartRateFraction(findPoint(rideCurve, durationS), maxHr),
   }))
 }
 

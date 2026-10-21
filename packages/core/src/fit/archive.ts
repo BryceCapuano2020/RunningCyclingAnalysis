@@ -21,20 +21,34 @@ export interface ExtractSummary {
 
 export type FitFileHandler = (file: FitFile) => void | Promise<void>
 
+/** Called with the name of an entry that could not be read, as it appears in the source. */
+export type FitErrorHandler = (fileName: string, reason: string) => void
+
+const DECOMPRESS_FAILED = 'Could not decompress this file'
+const INCOMPLETE = 'File is incomplete or corrupt'
+
+interface PendingEntry {
+  name: string
+  state: 'open' | 'done' | 'failed'
+}
+
 const OTHER_ACTIVITY = /\.(gpx|tcx)(\.gz)?$/i
 const FIT = /\.fit(\.gz)?$/i
 
 /**
  * Calls onFile for every FIT file in the source: a .fit, a .fit.gz, or the FIT entries of a zip,
  * which is read as a stream so a large export never has to fit in memory. Resolves with counts
- * once the source is exhausted. Corrupt or truncated archives resolve with what was extracted
- * before the damage. Never rejects for bad data; errors thrown by onFile propagate.
+ * once the source is exhausted. A .fit.gz that cannot be decompressed is passed to onError and
+ * skipped. Corrupt or truncated archives resolve with what was extracted before the damage.
+ * Never rejects for bad data; errors thrown by the handlers propagate.
  */
 export async function extractFitFiles(
   source: FitSource,
   onFile: FitFileHandler,
+  onError: FitErrorHandler = () => undefined,
 ): Promise<ExtractSummary> {
   const summary: ExtractSummary = { fitFiles: 0, otherActivityFiles: 0 }
+  const sink: Sink = { summary, onFile, onError }
   const name = source.name
   if (OTHER_ACTIVITY.test(name)) {
     summary.otherActivityFiles = 1
@@ -45,36 +59,45 @@ export async function extractFitFiles(
     } catch {
       return summary
     }
-    await emitFit(name, bytes, summary, onFile)
+    await emitFit(name, bytes, sink)
   } else if (/\.zip$/i.test(name)) {
-    await streamZip(source, summary, onFile)
+    await streamZip(source, sink)
   }
   return summary
 }
 
-async function streamZip(
-  source: FitSource,
-  summary: ExtractSummary,
-  onFile: FitFileHandler,
-): Promise<void> {
+interface Sink {
+  summary: ExtractSummary
+  onFile: FitFileHandler
+  onError: FitErrorHandler
+}
+
+async function streamZip(source: FitSource, sink: Sink): Promise<void> {
   const ready: { name: string; bytes: Uint8Array }[] = []
+  const started: PendingEntry[] = []
   const unzip = new Unzip((file) => {
     const entry = file.name
     if (isIgnored(entry)) return
     if (OTHER_ACTIVITY.test(entry)) {
-      summary.otherActivityFiles++
+      sink.summary.otherActivityFiles++
       return
     }
     if (!FIT.test(entry)) return
+    const pending: PendingEntry = { name: entry, state: 'open' }
+    started.push(pending)
     const chunks: Uint8Array[] = []
-    let failed = false
     file.ondata = (err, data, final) => {
+      if (pending.state !== 'open') return
       if (err) {
-        failed = true
+        pending.state = 'failed'
+        sink.onError(entry, DECOMPRESS_FAILED)
         return
       }
       chunks.push(data.slice())
-      if (final && !failed) ready.push({ name: entry, bytes: concat(chunks) })
+      if (final) {
+        pending.state = 'done'
+        ready.push({ name: entry, bytes: concat(chunks) })
+      }
     }
     try {
       file.start()
@@ -107,31 +130,32 @@ async function streamZip(
       broken = true
     }
     for (const entry of ready.splice(0)) {
-      await emitFit(entry.name, entry.bytes, summary, onFile)
+      await emitFit(entry.name, entry.bytes, sink)
     }
+  }
+  // An entry still open here was cut off before its last byte, by a truncated file or a dropped
+  // connection.
+  for (const pending of started) {
+    if (pending.state === 'open') sink.onError(pending.name, INCOMPLETE)
   }
   if (broken) void reader.cancel().catch(() => undefined)
 }
 
-/** Delivers one FIT file, gunzipping it first when it is a .fit.gz. Skips corrupt gzip data. */
-async function emitFit(
-  name: string,
-  bytes: Uint8Array,
-  summary: ExtractSummary,
-  onFile: FitFileHandler,
-): Promise<void> {
+/** Delivers one FIT file, gunzipping it first when it is a .fit.gz. Reports corrupt gzip data. */
+async function emitFit(name: string, bytes: Uint8Array, sink: Sink): Promise<void> {
   let fileName = name
   let fitBytes = bytes
   if (/\.gz$/i.test(name)) {
     try {
       fitBytes = gunzipSync(bytes)
     } catch {
+      sink.onError(name, DECOMPRESS_FAILED)
       return
     }
     fileName = name.slice(0, -'.gz'.length)
   }
-  summary.fitFiles++
-  await onFile({ fileName, bytes: fitBytes })
+  sink.summary.fitFiles++
+  await sink.onFile({ fileName, bytes: fitBytes })
 }
 
 /** Directory entries and macOS resource-fork metadata. */

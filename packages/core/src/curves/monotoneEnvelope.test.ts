@@ -54,6 +54,20 @@ describe('monotoneEnvelope', () => {
     ])
   })
 
+  it('carries the window fields of the point it takes its value from', () => {
+    type Windowed = CurvePoint & { windowS: number; heartRate: number }
+    const curve: Windowed[] = [
+      { durationS: 5, value: NaN, activityId: null, startIndex: -1, windowS: 5, heartRate: NaN },
+      { durationS: 10, value: 300, activityId: 'a', startIndex: 40, windowS: 10, heartRate: 150 },
+      { durationS: 20, value: 320, activityId: 'a', startIndex: 0, windowS: 20, heartRate: 160 },
+    ]
+    expect(monotoneEnvelope(curve)).toEqual([
+      { durationS: 5, value: 320, activityId: 'a', startIndex: 0, windowS: 20, heartRate: 160 },
+      { durationS: 10, value: 320, activityId: 'a', startIndex: 0, windowS: 20, heartRate: 160 },
+      { durationS: 20, value: 320, activityId: 'a', startIndex: 0, windowS: 20, heartRate: 160 },
+    ])
+  })
+
   it('does not mutate its input', () => {
     const curve = [point(5, 300, 'a', 0), point(10, NaN)]
     const snapshot = curve.map((p) => ({ ...p }))

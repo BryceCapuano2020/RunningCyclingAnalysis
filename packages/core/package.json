@@ -7,6 +7,7 @@
   "exports": {
     "./types": "./src/types.ts",
     "./constants": "./src/constants.ts",
+    "./digest": "./src/digest/index.ts",
     "./math": "./src/math.ts",
     "./pipeline": "./src/pipeline.ts",
     "./session": "./src/session.ts",

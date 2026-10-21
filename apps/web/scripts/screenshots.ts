@@ -8,7 +8,8 @@ import type { Browser, Locator, Page } from '@playwright/test'
 import { preview } from 'vite'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const DOCS_DIR = join(ROOT, 'docs')
+// Screenshots live in the repository-level docs/ so the README can reference them.
+const DOCS_DIR = fileURLToPath(new URL('../../../docs/', import.meta.url))
 const PORT = 4321
 const BASE_URL = `http://localhost:${PORT}/`
 /** Space kept around the captured cards, in CSS pixels. */

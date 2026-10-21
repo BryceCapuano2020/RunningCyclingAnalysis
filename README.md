@@ -5,8 +5,9 @@ directly. This app converts both into **gross metabolic power** (watts of energy
 kilogram of body weight), compares your best efforts in each sport, and reports the gap with an
 honest uncertainty range.
 
-It runs entirely in the browser. Activity files are read and analysed on your device and are never
-uploaded. There is no backend and no AI model in the product.
+Analysis always runs in your browser: activity files are parsed and analysed on your device. An
+account is optional. With one, your profile and activity library are stored on Cloudflare so they
+follow you between devices (see [Accounts and sync](#what-it-does)).
 
 <p align="center">
   <picture>
@@ -40,6 +41,12 @@ uploaded. There is no backend and no AI model in the product.
   months or year.
 - **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
   example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
+- **Accounts and sync.** Sign in with Google to keep your profile and activity library on
+  Cloudflare. Per-activity digests are stored in D1 and original files in R2, only if you choose to
+  keep them. Each user sees only their own data, and deleting the account removes it.
+
+The system design is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and planned work is
+in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## The model
 
@@ -56,20 +63,23 @@ uploaded. There is no backend and no AI model in the product.
 
 ![Heart-rate check and virtual power meter accuracy cards for the sample data](docs/screenshot-checks.png)
 
-The heart-rate check plots each five-minute block for both sports, and the virtual power meter is scored only on rides it was not tuned on.
+The heart-rate check plots each five-minute block for both sports, and the virtual power meter is
+scored only on rides it was not tuned on.
 
 ## Validation
 
-The repository includes a deterministic simulator (`src/core/synthetic`) that generates
+The repository includes a deterministic simulator (`packages/core/src/synthetic`) that generates
 physically consistent activities for an athlete whose true efficiency, running economy and
-critical power are known. The integration tests in `src/core/pipeline.test.ts` run the whole
-pipeline on that data and assert that it recovers the truth.
+critical power are known. The integration tests in `packages/core/src/pipeline.test.ts` run the
+whole pipeline on that data and assert that it recovers the truth.
 
 ## Limits
 
 - Best-effort curves are only as good as the hardest efforts on file.
-- Only heart-rate blocks below 93% of the highest recorded heart rate enter the regression,
-  because heart rate stops tracking power linearly near maximum.
+- Heart-rate blocks enter the regression only when their power is at or below each sport's critical
+  power, because heart rate stops rising linearly with power above it. Blocks are selected on power,
+  not heart rate, so the selection cannot bias the slope. The first 10 minutes of each activity are
+  skipped as warm-up.
 - The heart-rate check assumes heart rate maps to metabolic power the same way in both sports. A
   fixed model-discrepancy term keeps the updated range from becoming over-confident.
 - Heat, altitude, fatigue and cardiac drift shift heart rate and are not modelled.
@@ -85,35 +95,43 @@ npm install
 npm run dev
 ```
 
-| Command                            | What it does                                                     |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| `npm run check`                    | Format check, lint, typecheck, unit tests with coverage, build   |
-| `npm test`                         | Unit and component tests (Vitest)                                |
-| `npm run test:coverage`            | Same, enforcing coverage thresholds on `src/core`                |
-| `npm run e2e`                      | End-to-end tests against the production build (Playwright)       |
-| `npm run screenshots`              | Rebuilds, then regenerates the README screenshots in `docs/`     |
-| `npm run lint`                     | oxlint, warnings are errors                                      |
-| `npx tsx scripts/make-fixtures.ts` | Regenerates the deterministic FIT fixtures used by the e2e suite |
-| `npm run format`                   | Prettier                                                         |
+| Command                           | What it does                                                             |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `npm run dev`                     | Web app dev server (Vite)                                                |
+| `npm run dev:api`                 | Local API Worker (in progress)                                           |
+| `npm run build`                   | Production build of the web app into `apps/web/dist`                     |
+| `npm test`                        | Unit and component tests across all packages (Vitest)                    |
+| `npm run test:coverage`           | Same, with coverage thresholds                                           |
+| `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first |
+| `npm run check`                   | Format check, lint, typecheck, tests with coverage, and build            |
+| `npm run fixtures -w @rca/web`    | Regenerates the deterministic FIT fixtures used by the e2e suite         |
+| `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`               |
 
 ### Layout
 
+npm workspaces monorepo. Shared TypeScript, Vitest, Prettier and oxlint config live at the root.
+
 ```
-src/core/         analysis library: pure TypeScript, no DOM, runs in a Web Worker or Node
-  fit/            FIT decoding, 1 Hz resampling, zip and gzip extraction
-  quality/        sensor data-quality rules
-  metabolic/      gradient smoothing, Minetti cost, metabolic power
-  curves/         mean-maximal duration curves
-  cp/             critical power fit
-  virtualPower/   physics power estimate, calibration, accuracy scoring
-  hr/             heart-rate block regression and cross-check
-  compare/        Monte Carlo comparison and Bayesian update
-  effort/         heart-rate check that best efforts were close to maximal
-  synthetic/      ground-truth activity simulator
-  pipeline.ts     ties the modules together
-src/worker/       Web Worker wrapper
-src/ui/           React components and hand-written SVG charts
-e2e/              Playwright tests
+packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
+  fit/               FIT decoding, 1 Hz resampling, zip and gzip extraction
+  quality/           sensor data-quality rules
+  metabolic/         gradient smoothing, Minetti cost, metabolic power
+  curves/            mean-maximal duration curves
+  cp/                critical power fit
+  virtualPower/      physics power estimate, calibration, accuracy scoring
+  hr/                heart-rate block regression and cross-check
+  compare/           Monte Carlo comparison and Bayesian update
+  effort/            heart-rate check that best efforts were close to maximal
+  synthetic/         ground-truth activity simulator
+  pipeline.ts        ties the modules together
+packages/contract/   zod schemas shared by the API and the web app (in progress)
+apps/web/            @rca/web: React + Vite app
+  src/worker/        Web Worker that runs the analysis
+  src/ui/            React components and hand-written SVG charts
+  e2e/               Playwright tests
+  scripts/           FIT fixture and README screenshot generators
+apps/api/            @rca/api: Cloudflare Worker API with Hono, D1 and R2 (in progress)
+docs/                architecture, roadmap and README screenshots
 ```
 
 CI (GitHub Actions) runs the full check, the end-to-end suite on desktop and mobile viewports, and
@@ -121,8 +139,9 @@ a dependency audit on every push and pull request.
 
 ## Built with
 
-TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. Written with Claude
-Code; no language model runs in the product.
+TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. The API uses Cloudflare
+Workers, D1 and R2 with Hono, Drizzle and arctic. Written with Claude Code; no language model runs
+in the product.
 
 ## References
 

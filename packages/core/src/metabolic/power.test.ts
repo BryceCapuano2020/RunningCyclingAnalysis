@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { minettiCost, rideMetabolicPower, runMetabolicPower } from './power'
+import { minettiCost, runMetabolicPower } from './power'
 
 describe('minettiCost', () => {
   it('equals the flat running cost at zero grade', () => {
@@ -53,18 +53,5 @@ describe('runMetabolicPower', () => {
 
   it('returns an empty array for empty input', () => {
     expect(runMetabolicPower(new Float64Array(0), new Float64Array(0)).length).toBe(0)
-  })
-})
-
-describe('rideMetabolicPower', () => {
-  it('divides power by efficiency times mass and floors at resting rate', () => {
-    // 75 kg at 25% efficiency: 18.75 J/s per W/kg.
-    const powerW = Float64Array.from([300, 0, NaN, 50, 10])
-    const out = rideMetabolicPower(powerW, 75, 0.25)
-    expect(out[0]).toBeCloseTo(16, 10)
-    expect(out[1]).toBe(1.22)
-    expect(out[2]).toBeNaN()
-    expect(out[3]).toBeCloseTo(8 / 3, 10)
-    expect(out[4]).toBe(1.22)
   })
 })

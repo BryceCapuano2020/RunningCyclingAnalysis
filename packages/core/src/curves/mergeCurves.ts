@@ -1,10 +1,11 @@
-import type { Curve } from '../types'
+import type { CurvePoint } from '../types'
 
 /**
  * Pointwise best across curves that share the same durations in the same order. A NaN value
- * loses to any non-NaN value; ties keep the earlier curve.
+ * loses to any non-NaN value; ties keep the earlier curve. The winning point is copied whole, so
+ * extra fields it carries come along.
  */
-export function mergeCurves(curves: Curve[]): Curve {
+export function mergeCurves<P extends CurvePoint>(curves: P[][]): P[] {
   const [first, ...rest] = curves
   if (first === undefined) return []
   const durations = first.map((p) => p.durationS)

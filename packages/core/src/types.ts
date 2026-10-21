@@ -197,3 +197,91 @@ export interface EffortCheck {
   /** Same for the best cycling window. */
   rideHrFraction: number | null
 }
+
+/**
+ * Power-model terms for a stretch of riding, normalised so they do not depend on
+ * mass or the bike model. Mean mechanical power for that stretch under total mass
+ * m (kg) and a BikeModel is (m * (gravityAccel + crr * rolling) + cda * aero) / DRIVETRAIN_EFFICIENCY.
+ */
+export interface PowerTerms {
+  /** Mean of (G sin(theta) + accel) * v, W per kg. */
+  gravityAccel: number
+  /** Mean of G cos(theta) * v, W per kg per unit crr. */
+  rolling: number
+  /** Mean of 0.5 * RHO_AIR * v^3, W per m^2 of CdA. */
+  aero: number
+}
+
+/** Mass-independent sufficient statistics for calibrating the bike model on one ride. */
+export interface CalibrationSums {
+  blocks: number
+  /** Sums over qualifying 30 s blocks of products of block means; P is measured power x efficiency. */
+  rr: number
+  ra: number
+  aa: number
+  rP: number
+  rG: number
+  aP: number
+  aG: number
+}
+
+export interface DigestCurvePoint {
+  durationS: number
+  /**
+   * Runs: best gross metabolic W/kg at the prior-mean economy. Rides with a power
+   * meter: best measured mechanical W. Rides without: NaN here, see `terms`.
+   */
+  value: number
+  startIndex: number
+  /** Length of the window this value really came from (>= durationS after the monotone envelope). */
+  windowS: number
+  /** Mean valid heart rate over that window, or null. */
+  heartRate: number | null
+  /** Virtual-power rides only: power terms of the chosen climb window. */
+  terms: PowerTerms | null
+}
+
+export interface DigestHrBlock {
+  heartRate: number
+  /** Runs: mean gross metabolic W/kg. Rides with power: mean measured W. Otherwise NaN. */
+  value: number
+  /** Virtual-power rides only. */
+  terms: PowerTerms | null
+}
+
+export interface DigestClimbSection {
+  start: number
+  end: number
+  measuredW: number
+  terms: PowerTerms
+}
+
+/**
+ * Everything the cross-activity analysis needs from one activity, independent of
+ * the athlete's settings, so it can be computed once at import, stored on the
+ * server as JSON, and combined later in the browser. Non-finite numbers are
+ * serialised as null by the transport layer and restored to NaN.
+ */
+export interface ActivityDigest {
+  version: 1
+  id: string
+  name: string
+  sport: Sport
+  startMs: number
+  durationS: number
+  distanceM: number
+  elevationGainM: number
+  hasHeartRate: boolean
+  indoor: boolean
+  powerSource: DerivedStreams['powerSource']
+  flags: QualityFlag[]
+  /** Highest sustained (30 s smoothed) valid heart rate in this activity, or null. */
+  maxHeartRate: number | null
+  /** One point per DURATIONS_S entry, monotone envelope already applied. */
+  curve: DigestCurvePoint[]
+  hrBlocks: DigestHrBlock[]
+  /** Power-meter rides outdoors only. */
+  calibration: CalibrationSums | null
+  /** Power-meter rides outdoors only: climb sections for scoring the virtual power meter. */
+  climbSections: DigestClimbSection[]
+}

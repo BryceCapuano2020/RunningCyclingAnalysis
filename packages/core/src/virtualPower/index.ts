@@ -1,5 +1,4 @@
-export { estimatePower } from './estimatePower'
+export { accelerationOf, estimatePower } from './estimatePower'
 export { climbMask, findSegments, splitSegment } from './climbs'
-export type { CalibrationRide } from './calibrate'
-export { calibrateBikeModel } from './calibrate'
-export { scoreAccuracy, leaveOneOutAccuracy } from './accuracy'
+export type { CalibrationStats } from './calibrate'
+export { solveBikeModel } from './calibrate'

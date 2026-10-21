@@ -131,10 +131,49 @@ describe('parseFit round trip', () => {
     expect(maxAbsDiff(a.altitude, original.altitude)).toBeLessThanOrEqual(0.1)
   })
 
-  it('reports an indoor activity when the file has no position, and outdoor with one', () => {
+  it('reads a file with no position as outdoor when its sport is not an indoor one', () => {
     const original = makeActivity('ride', 60)
-    expect(firstActivity(parseFit(encodeFit(original), 'a.fit')).indoor).toBe(true)
+    expect(firstActivity(parseFit(encodeFit(original), 'a.fit')).indoor).toBe(false)
     expect(firstActivity(parseFit(encodeFit(original, { gps: true }), 'a.fit')).indoor).toBe(false)
+  })
+
+  it('keeps the climb of a hilly run recorded without GPS, so it is not treated as flat', () => {
+    // Altitude rises 0.2 m per second, about 12 m a minute, with no position written.
+    const original = makeActivity('run', 300)
+    const a = firstActivity(parseFit(encodeFit(original), 'hills.fit'))
+    expect(a.indoor).toBe(false)
+    expect(a.hasAltitude).toBe(true)
+    expect(a.altitude[299]! - a.altitude[0]!).toBeCloseTo(59.8, 1)
+  })
+
+  it('marks a trainer ride with no position and no altitude indoor, though it is plain cycling', () => {
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'cycling',
+          startMs: START_MS,
+          durationS: 70,
+          records: secondly(START_MS, 70, { speed: 8, power: 200 }),
+        },
+      ],
+    })
+    const a = firstActivity(parseFit(bytes, 'trainer.fit'))
+    expect(a.indoor).toBe(true)
+    expect(a.hasAltitude).toBe(false)
+  })
+
+  it('keeps a run outdoors when a file from a watch has records without positions', () => {
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 120,
+          records: secondly(START_MS, 120, { speed: 3, altitude: 50 }),
+        },
+      ],
+    })
+    expect(firstActivity(parseFit(bytes, 'gps-off.fit')).indoor).toBe(false)
   })
 })
 

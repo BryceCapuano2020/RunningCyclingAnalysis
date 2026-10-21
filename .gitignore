@@ -36,3 +36,7 @@ data/
 !**/e2e/fixtures/*.fit
 !**/e2e/fixtures/*.zip
 .claude/
+
+# local Worker secrets and Wrangler state
+.dev.vars
+.wrangler

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Activity, Curve, Sport } from '../types'
-import type { HeartRateSource } from './effort'
+import type { Activity, Sport } from '../types'
+import type { EffortPoint, HeartRateSource } from './effort'
 import {
   ALL_OUT_FRACTION,
   checkEfforts,
@@ -186,63 +186,66 @@ describe('windowHeartRate', () => {
 })
 
 describe('checkEfforts', () => {
-  // Run: 162 bpm for the first 600 s, then 90 bpm for 600 s.
-  const runHr = constant(1200, 162).fill(90, 600)
-  const runSource = source(makeActivity('run1', 'run', runHr))
-  // Ride: a steady 153 bpm.
-  const rideSource = source(makeActivity('ride1', 'ride', constant(1200, 153)))
-  // Only the first 10 of 2000 samples are usable, so a 1800 s window is far below 80%.
-  const sparseSource = source(
-    makeActivity('sparse', 'run', constant(2000, 162)),
-    new Uint8Array(2000).fill(1, 0, 10),
-  )
-  const sourcesById = new Map<string, HeartRateSource>([
-    ['run1', runSource],
-    ['ride1', rideSource],
-    ['sparse', sparseSource],
-  ])
+  const point = (
+    durationS: number,
+    value: number,
+    activityId: string | null,
+    heartRate: number | null,
+  ): EffortPoint => ({ durationS, value, activityId, startIndex: 0, heartRate })
   const maxHr = 180
 
-  const runCurve: Curve = [
-    { durationS: 60, value: 162, activityId: 'run1', startIndex: 100 },
-    // startIndex belongs to a longer window in the raw curve. Only the 300 samples from 500 count:
-    // 100 at 162 and 200 at 90, mean 114. A 360-sample window would give 110.
-    { durationS: 300, value: 114, activityId: 'run1', startIndex: 500 },
-    { durationS: 600, value: NaN, activityId: null, startIndex: -1 },
-    { durationS: 900, value: 150, activityId: 'nope', startIndex: 0 },
-    { durationS: 1200, value: 162, activityId: 'run1', startIndex: 1195 },
-    { durationS: 1800, value: 160, activityId: 'sparse', startIndex: 0 },
+  // Each point carries the mean heart rate of the window it came from, so the check never
+  // re-derives a window. The 300 s run point below is backed by a longer window, so its
+  // heart rate is that window's mean, not the mean of the first 300 s.
+  const runCurve: EffortPoint[] = [
+    point(60, 162, 'run1', 162),
+    point(300, 114, 'run1', 110),
+    point(600, NaN, null, null),
+    point(900, 150, 'run1', null),
+    point(1200, 162, 'run1', null),
+    point(1800, 160, 'sparse', null),
   ]
-  const rideCurve: Curve = [
-    { durationS: 60, value: 153, activityId: 'ride1', startIndex: 0 },
-    { durationS: 300, value: 153, activityId: 'ride1', startIndex: 900 },
-    { durationS: 600, value: 150, activityId: null, startIndex: -1 },
-    { durationS: 1200, value: 153, activityId: 'ride1', startIndex: 0 },
+  const rideCurve: EffortPoint[] = [
+    point(60, 153, 'ride1', 153),
+    point(300, 153, 'ride1', 153),
+    point(600, 150, null, 150),
+    point(1200, 153, 'ride1', 153),
   ]
   const durations = [60, 300, 600, 900, 1200, 1800, 3600]
 
   it('computes exact fractions of max heart rate with null where data is missing', () => {
-    const result = checkEfforts(runCurve, rideCurve, sourcesById, maxHr, durations)
+    const result = checkEfforts(runCurve, rideCurve, maxHr, durations)
     expect(result).toHaveLength(durations.length)
     expect(result[0]).toEqual({ durationS: 60, runHrFraction: 0.9, rideHrFraction: 153 / 180 })
     expect(result[1]!.durationS).toBe(300)
-    expect(result[1]!.runHrFraction).toBeCloseTo(114 / 180, 12)
+    expect(result[1]!.runHrFraction).toBeCloseTo(110 / 180, 12)
     expect(result[1]!.rideHrFraction).toBeCloseTo(0.85, 12)
     // Run value NaN; ride point has no activity.
     expect(result[2]).toEqual({ durationS: 600, runHrFraction: null, rideHrFraction: null })
-    // Run activity not in the map; ride point missing.
+    // Heart rate unknown for the run window; ride point missing.
     expect(result[3]).toEqual({ durationS: 900, runHrFraction: null, rideHrFraction: null })
-    // Run window out of bounds; ride is the full 1200 s at 153.
     expect(result[4]!.runHrFraction).toBeNull()
     expect(result[4]!.rideHrFraction).toBeCloseTo(0.85, 12)
-    // Run point is backed by too few valid samples; ride point missing.
     expect(result[5]).toEqual({ durationS: 1800, runHrFraction: null, rideHrFraction: null })
     // Neither curve has the point.
     expect(result[6]).toEqual({ durationS: 3600, runHrFraction: null, rideHrFraction: null })
   })
 
+  it('ignores a heart rate when the point has no value or no activity', () => {
+    const result = checkEfforts(
+      [point(600, NaN, 'run1', 150), point(900, 150, null, 150)],
+      [],
+      maxHr,
+      [600, 900],
+    )
+    expect(result).toEqual([
+      { durationS: 600, runHrFraction: null, rideHrFraction: null },
+      { durationS: 900, runHrFraction: null, rideHrFraction: null },
+    ])
+  })
+
   it('returns one entry per duration in the order requested, even when both are null', () => {
-    const result = checkEfforts([], [], sourcesById, maxHr, [1800, 60])
+    const result = checkEfforts([], [], maxHr, [1800, 60])
     expect(result).toEqual([
       { durationS: 1800, runHrFraction: null, rideHrFraction: null },
       { durationS: 60, runHrFraction: null, rideHrFraction: null },
@@ -251,7 +254,7 @@ describe('checkEfforts', () => {
 
   it('returns null fractions when max heart rate is unknown or not positive', () => {
     for (const bad of [null, 0, -5, NaN]) {
-      const result = checkEfforts(runCurve, rideCurve, sourcesById, bad, [60])
+      const result = checkEfforts(runCurve, rideCurve, bad, [60])
       expect(result).toEqual([{ durationS: 60, runHrFraction: null, rideHrFraction: null }])
     }
   })

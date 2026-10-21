@@ -19,11 +19,12 @@ const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
   none: '—',
 }
 
-function utcDate(ms: number): string {
+/** The viewer's local calendar date as YYYY-MM-DD, so an evening ride keeps its day. */
+function localDate(ms: number): string {
   const date = new Date(ms)
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  return `${date.getUTCFullYear()}-${month}-${day}`
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
 }
 
 export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
@@ -91,7 +92,7 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
                     ref={isFirstRevealed ? firstRevealedRef : undefined}
                     tabIndex={isFirstRevealed ? -1 : undefined}
                   >
-                    <td>{utcDate(activity.startMs)}</td>
+                    <td>{localDate(activity.startMs)}</td>
                     <td>{activity.name}</td>
                     <td>
                       <span className={`swatch swatch-${activity.sport}`} aria-hidden="true" />

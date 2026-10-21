@@ -50,6 +50,21 @@ describe('mergeCurves', () => {
     expect(mergeCurves([a, b, c])).toEqual([point(5, 200, 'b', 1)])
   })
 
+  it('copies the winning point whole, including extra fields', () => {
+    type Windowed = CurvePoint & { heartRate: number }
+    const a: Windowed[] = [
+      { durationS: 5, value: 100, activityId: 'a', startIndex: 0, heartRate: 1 },
+    ]
+    const b: Windowed[] = [
+      { durationS: 5, value: 200, activityId: 'b', startIndex: 3, heartRate: 2 },
+    ]
+    const merged = mergeCurves([a, b])
+    expect(merged).toEqual([
+      { durationS: 5, value: 200, activityId: 'b', startIndex: 3, heartRate: 2 },
+    ])
+    expect(merged[0]).not.toBe(b[0])
+  })
+
   it('throws when durations differ', () => {
     const a = [point(5, 1), point(10, 2)]
     const b = [point(5, 1), point(15, 2)]

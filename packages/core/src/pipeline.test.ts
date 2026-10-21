@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DURATIONS_S, PRIORS, RESTING_W_PER_KG } from './constants'
 import type { AnalysisResult } from './pipeline'
+import { combine, digestActivity } from './digest'
 import { analyze, equivalentRunSpeed } from './pipeline'
 import { generateActivity, sampleDataset } from './synthetic'
 import type { ComparisonPoint } from './types'
@@ -264,5 +265,12 @@ describe('effort check', () => {
     for (const p of result.hr.ride!.points) {
       expect(p.metabolicPower).toBeLessThanOrEqual(result.rideCp!.cp)
     }
+  })
+})
+
+describe('analyze as digest then combine', () => {
+  it('equals combining the digest of each activity, exactly', () => {
+    const digests = activities.map((a) => digestActivity(a))
+    expect(analyze(activities, settings)).toEqual(combine(digests, settings))
   })
 })

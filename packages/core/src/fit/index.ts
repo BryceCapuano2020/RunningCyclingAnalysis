@@ -1,5 +1,5 @@
 export { extractFitFiles } from './archive'
-export type { ExtractSummary, FitFile, FitFileHandler, FitSource } from './archive'
+export type { ExtractSummary, FitErrorHandler, FitFile, FitFileHandler, FitSource } from './archive'
 export { encodeFit } from './encode'
 export type { EncodeOptions } from './encode'
 export { parseFit } from './parse'

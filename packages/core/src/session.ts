@@ -43,21 +43,33 @@ export class AnalysisSession {
     if (this.isSample) this.clear()
     let filesRead = 0
     for (const source of sources) {
-      const summary = await extractFitFiles(source, (file) => {
-        const parsed = parseFit(file.bytes, file.fileName)
-        if (parsed.ok) {
-          for (const activity of parsed.activities) {
-            // The same workout exported twice has the same sport and start second.
-            const key = `${activity.sport}-${Math.round(activity.startMs / 1000)}`
-            this.activities.set(key, activity)
+      let undecodable = 0
+      const summary = await extractFitFiles(
+        source,
+        (file) => {
+          const parsed = parseFit(file.bytes, file.fileName)
+          if (parsed.ok) {
+            for (const activity of parsed.activities) {
+              // The same workout exported twice has the same sport and start second.
+              const key = `${activity.sport}-${Math.round(activity.startMs / 1000)}`
+              this.activities.set(key, activity)
+            }
+            // A file that now reads cleanly replaces an earlier rejection under the same name.
+            this.rejected.delete(file.fileName)
+            this.rejected.delete(`${file.fileName}.gz`)
+          } else {
+            this.rejected.set(parsed.fileName, parsed.reason)
           }
-        } else {
-          this.rejected.set(parsed.fileName, parsed.reason)
-        }
-        onProgress?.(++filesRead)
-      })
+          onProgress?.(++filesRead)
+        },
+        (fileName, reason) => {
+          undecodable++
+          this.rejected.set(fileName, reason)
+        },
+      )
       this.unsupported.set(source.name, summary.otherActivityFiles)
-      if (summary.fitFiles === 0 && summary.otherActivityFiles === 0) {
+      // A corrupt file is already reported under its own name, so do not also call it empty.
+      if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
         this.rejected.set(source.name, 'No FIT files found')
       }
     }

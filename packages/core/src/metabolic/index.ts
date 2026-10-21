@@ -1,5 +1,5 @@
 export { smoothGrade } from './grade'
-export { minettiCost, rideMetabolicPower, runMetabolicPower } from './power'
+export { minettiCost, runMetabolicPower } from './power'
 export {
   flatSpeedToMetabolic,
   metabolicToFlatSpeed,

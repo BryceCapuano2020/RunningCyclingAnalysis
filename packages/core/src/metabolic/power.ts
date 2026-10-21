@@ -30,18 +30,3 @@ export function runMetabolicPower(
   }
   return out
 }
-
-/** Gross metabolic power of cycling, W/kg, from mechanical power in watts. */
-export function rideMetabolicPower(
-  powerW: Float64Array,
-  massKg: number,
-  grossEfficiency: number,
-): Float64Array {
-  const out = new Float64Array(powerW.length)
-  const denominator = grossEfficiency * massKg
-  for (let i = 0; i < powerW.length; i++) {
-    const p = powerW[i]!
-    out[i] = Number.isNaN(p) ? NaN : Math.max(RESTING_W_PER_KG, p / denominator)
-  }
-  return out
-}

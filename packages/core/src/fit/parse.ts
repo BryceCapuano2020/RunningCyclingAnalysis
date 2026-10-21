@@ -91,13 +91,17 @@ function evaluate(
     return { ok: false, reason: SHORT_REASON, skipped: 'session shorter than one minute' }
   }
 
+  // A trainer ride saved as plain cycling has neither a position nor altitude, so it is indoor too.
   const hasPosition = unit.records.some((t) => t.mesg.positionLat !== undefined)
+  const hasAltitude = unit.records.some(
+    (t) => t.mesg.enhancedAltitude !== undefined || t.mesg.altitude !== undefined,
+  )
   const base = baseName(fileName)
   const activity: Activity = {
     id: multi ? `${resampled.startMs}-${fileName}#${index}` : `${resampled.startMs}-${fileName}`,
     name: multi ? `${base} (${mapping.sport})` : base,
     sport: mapping.sport,
-    indoor: mapping.indoor || !hasPosition,
+    indoor: mapping.indoor || (!hasPosition && !hasAltitude),
     ...resampled,
   }
   return { ok: true, activity }

@@ -120,16 +120,77 @@ describe('Dropzone', () => {
     expect(onFiles).toHaveBeenCalledWith(files)
   })
 
+  it('passes a drop on the drop target to onFiles exactly once', () => {
+    const { target, onFiles } = renderDropzone()
+    if (!target) throw new Error('drop target missing')
+    fireEvent.drop(target, { dataTransfer: { files: [fitFile('run.fit')], types: ['Files'] } })
+    expect(onFiles).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts files dropped anywhere on the page, outside the drop box', () => {
+    const { onFiles } = renderDropzone()
+    const files = [fitFile('ride.fit')]
+    fireEvent.drop(window, { dataTransfer: { files, types: ['Files'] } })
+    expect(onFiles).toHaveBeenCalledTimes(1)
+    expect(onFiles).toHaveBeenCalledWith(files)
+  })
+
+  it('ignores a drop anywhere on the page while busy', () => {
+    const { onFiles } = renderDropzone({ busy: true, progress: null })
+    fireEvent.drop(window, { dataTransfer: { files: [fitFile('ride.fit')], types: ['Files'] } })
+    expect(onFiles).not.toHaveBeenCalled()
+  })
+
+  it('clears the drop highlight when a file is dropped outside the box', () => {
+    const { container, target } = renderDropzone()
+    const zone = container.querySelector('.dropzone')
+    if (!target || !zone) throw new Error('drop zone missing')
+    fireEvent.dragEnter(target, { dataTransfer: { types: ['Files'], files: [] } })
+    expect(zone).toHaveClass('dropzone--over')
+    fireEvent.drop(window, { dataTransfer: { files: [fitFile('ride.fit')], types: ['Files'] } })
+    expect(zone).not.toHaveClass('dropzone--over')
+  })
+
+  it.each([
+    { compact: false, label: 'landing page' },
+    { compact: true, label: 'results toolbar' },
+  ])('never lets the browser open a file dropped on the page ($label)', ({ compact }) => {
+    renderDropzone({ compact })
+    const dataTransfer = { types: ['Files'], files: [fitFile('ride.fit')] }
+    // fireEvent returns false when the event was cancelled with preventDefault.
+    expect(fireEvent.dragOver(window, { dataTransfer })).toBe(false)
+    expect(fireEvent.drop(window, { dataTransfer })).toBe(false)
+  })
+
   it('shows a different look while a file is dragged over it', () => {
     const { container, target } = renderDropzone()
     const zone = container.querySelector('.dropzone')
     if (!target || !zone) throw new Error('drop zone missing')
+    const files = { types: ['Files'], files: [] }
 
     expect(zone).not.toHaveClass('dropzone--over')
-    fireEvent.dragEnter(target)
+    fireEvent.dragEnter(target, { dataTransfer: files })
     expect(zone).toHaveClass('dropzone--over')
     fireEvent.dragLeave(target)
     expect(zone).not.toHaveClass('dropzone--over')
+  })
+
+  it('does not highlight for text or a link dragged across the drop box', () => {
+    const { container, target } = renderDropzone()
+    const zone = container.querySelector('.dropzone')
+    if (!target || !zone) throw new Error('drop zone missing')
+
+    fireEvent.dragEnter(target, { dataTransfer: { types: ['text/plain'], files: [] } })
+    expect(zone).not.toHaveClass('dropzone--over')
+    fireEvent.dragEnter(target, { dataTransfer: { types: ['text/uri-list'], files: [] } })
+    expect(zone).not.toHaveClass('dropzone--over')
+  })
+
+  it('still prevents the default for a text or link drag over the box, so the browser stays put', () => {
+    const { target } = renderDropzone()
+    if (!target) throw new Error('drop target missing')
+    const dataTransfer = { types: ['text/uri-list'], files: [] }
+    expect(fireEvent.dragOver(target, { dataTransfer })).toBe(false)
   })
 
   it('disables the controls and reports progress while busy', () => {

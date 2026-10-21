@@ -20,8 +20,8 @@ export interface EncodeOptions {
   /** Written to the session, for example `treadmill` or `eBikeMountain`. */
   subSport?: Types.SubSport
   /**
-   * Writes a placeholder position (0, 0) to every record so the file reads as outdoor. The
-   * Activity has no coordinates, so this carries no location.
+   * Writes a placeholder position (0, 0) to every record, as a watch with GPS would. The Activity
+   * has no coordinates, so this carries no location. Not needed for the file to read as outdoor.
    */
   gps?: boolean
 }

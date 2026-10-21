@@ -18,7 +18,7 @@ function statusText(progress: number | null): string {
   return `Read ${plural(progress, 'file')} so far`
 }
 
-function isFileDrag(event: DragEvent): boolean {
+function isFileDrag(event: Pick<DragEvent, 'dataTransfer'>): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files')
 }
 
@@ -33,23 +33,16 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
     latest.current = { busy, onFiles }
   })
 
+  // Always on, in both modes: a file dropped anywhere on the page is read here, and the browser
+  // never navigates to it.
   useEffect(() => {
-    if (!compact) return
-
-    function handleEnter(event: DragEvent) {
-      if (!isFileDrag(event)) return
-      setWindowDragging(true)
-    }
     function handleOver(event: DragEvent) {
       // Required for the page to accept a drop, and stops the browser opening the file.
       event.preventDefault()
     }
-    function handleLeave(event: DragEvent) {
-      // relatedTarget is empty when the pointer leaves the window.
-      if (!event.relatedTarget) setWindowDragging(false)
-    }
     function handleDrop(event: DragEvent) {
       event.preventDefault()
+      setDragging(false)
       setWindowDragging(false)
       const current = latest.current
       if (current.busy) return
@@ -57,15 +50,32 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
       if (files.length > 0) current.onFiles(files)
     }
 
-    window.addEventListener('dragenter', handleEnter)
     window.addEventListener('dragover', handleOver)
-    window.addEventListener('dragleave', handleLeave)
     window.addEventListener('drop', handleDrop)
     return () => {
-      window.removeEventListener('dragenter', handleEnter)
       window.removeEventListener('dragover', handleOver)
-      window.removeEventListener('dragleave', handleLeave)
       window.removeEventListener('drop', handleDrop)
+    }
+  }, [])
+
+  // The compact toolbar shows an overlay while files are dragged over the window.
+  useEffect(() => {
+    if (!compact) return
+
+    function handleEnter(event: DragEvent) {
+      if (!isFileDrag(event)) return
+      setWindowDragging(true)
+    }
+    function handleLeave(event: DragEvent) {
+      // relatedTarget is empty when the pointer leaves the window.
+      if (!event.relatedTarget) setWindowDragging(false)
+    }
+
+    window.addEventListener('dragenter', handleEnter)
+    window.addEventListener('dragleave', handleLeave)
+    return () => {
+      window.removeEventListener('dragenter', handleEnter)
+      window.removeEventListener('dragleave', handleLeave)
     }
   }, [compact])
 
@@ -83,21 +93,13 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
     event.preventDefault()
-    if (!busy) setDragging(true)
+    if (!busy && isFileDrag(event)) setDragging(true)
   }
 
   function handleDragLeave(event: ReactDragEvent<HTMLDivElement>) {
     const next = event.relatedTarget
     if (next instanceof Node && event.currentTarget.contains(next)) return
     setDragging(false)
-  }
-
-  function handleDrop(event: ReactDragEvent<HTMLDivElement>) {
-    event.preventDefault()
-    setDragging(false)
-    if (busy) return
-    const files = Array.from(event.dataTransfer.files)
-    if (files.length > 0) onFiles(files)
   }
 
   function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
@@ -144,7 +146,6 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
       onDragEnter={handleDragOver}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
     >
       <div
         className="dropzone__target"

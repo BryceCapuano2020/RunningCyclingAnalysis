@@ -98,6 +98,69 @@ describe('AnalysisSession', () => {
     ])
   })
 
+  it('reports a corrupt .fit.gz as rejected for decompression, not as no FIT files', async () => {
+    const session = new AnalysisSession()
+    const corrupt = new File([new Uint8Array([1, 2, 3, 4, 5])], 'bad.fit.gz')
+    const state = await session.addFiles([corrupt, fitFile('ride.fit', ride)], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.rejected).toEqual([
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file' },
+    ])
+  })
+
+  it('reports a corrupt .fit.gz inside a zip under its path and keeps the other files in it', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1.fit': encodeFit(run, { gps: true }),
+      'activities/2.fit.gz': new Uint8Array([9, 9, 9, 9]),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.rejected).toEqual([
+      { fileName: 'activities/2.fit.gz', reason: 'Could not decompress this file' },
+    ])
+  })
+
+  it('reports a truncated .fit.gz when it is the only file', async () => {
+    const session = new AnalysisSession()
+    const truncated = gzipSync(encodeFit(ride, { gps: true })).slice(0, 40)
+    const state = await session.addFiles([new File([truncated], 'cut.fit.gz')], SETTINGS)
+
+    expect(state.result).toBeNull()
+    expect(state.rejected).toEqual([
+      { fileName: 'cut.fit.gz', reason: 'Could not decompress this file' },
+    ])
+  })
+
+  it('clears a rejection when a valid file later arrives under the same name', async () => {
+    const session = new AnalysisSession()
+    const broken = await session.addFiles(
+      [new File([new Uint8Array([1, 2, 3, 4, 5])], 'bad.fit.gz')],
+      SETTINGS,
+    )
+    expect(broken.rejected).toEqual([
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file' },
+    ])
+
+    const fixed = await session.addFiles(
+      [new File([gzipSync(encodeFit(ride, { gps: true }))], 'bad.fit.gz')],
+      SETTINGS,
+    )
+    expect(fixed.rejected).toEqual([])
+    expect(fixed.result?.activities).toHaveLength(1)
+  })
+
+  it('clears a Not a FIT rejection when the same name is later read as a FIT file', async () => {
+    const session = new AnalysisSession()
+    const junk = await session.addFiles([textFile('ride.fit', 'plainly not a FIT file')], SETTINGS)
+    expect(junk.rejected).toEqual([{ fileName: 'ride.fit', reason: 'Not a FIT file' }])
+
+    const fixed = await session.addFiles([fitFile('ride.fit', ride)], SETTINGS)
+    expect(fixed.rejected).toEqual([])
+  })
+
   it('calls onProgress once per FIT file with an increasing count', async () => {
     const session = new AnalysisSession()
     const counts: number[] = []
