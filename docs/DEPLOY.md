@@ -197,9 +197,10 @@ GitHub workflow in section 10 reads the same file from the repository.
    ```
 
 2. Open `<worker-url>` in a browser. The app loads.
-3. Click **Sign in with Google** and choose a test user account. Google may warn that the app is
-   not verified, because it is in Testing mode. Click **Advanced**, then **Go to RunningCycling
-   (unsafe)**. This is expected for an app used only by you.
+3. Click **Sign in with Google** and choose your Google account. With only the basic identity
+   scopes configured above, Google may display a Testing notice. Confirm that the requested
+   scopes and destination match this app. An unexpected unsafe-app screen or broader permissions
+   should prompt a review of the OAuth configuration before continuing.
 4. Open `<worker-url>/api/me` in the same browser. It should show your profile as JSON. Without
    signing in it returns `401`.
 
