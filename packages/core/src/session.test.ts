@@ -432,6 +432,30 @@ describe('AnalysisSession', () => {
     expect(again.result?.activities).toHaveLength(1)
   })
 
+  it('can sync an existing duplicate when original-file retention is enabled', async () => {
+    const session = new AnalysisSession()
+    const first = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    const synced: SyncItem[] = []
+    const again = await session.addFiles(
+      [fitFile('run again.fit', run)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        synced.push(item)
+      },
+      true,
+    )
+
+    expect(synced).toHaveLength(1)
+    expect(synced[0]?.digest.id).toBe(first.result?.activities[0]?.id)
+    expect(synced[0]?.digest.startMs).toBe(first.result?.activities[0]?.startMs)
+    expect(synced[0]?.digest.sport).toBe(first.result?.activities[0]?.sport)
+    expect(synced[0]?.fileName).toBe('run again.fit')
+    expect(synced[0]?.fileHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(again.result?.activities).toHaveLength(1)
+    expect(again.syncFailures).toBe(0)
+  })
+
   it('counts a failed sink call without failing the import', async () => {
     const session = new AnalysisSession()
     const state = await session.addFiles(

@@ -8,6 +8,8 @@ export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailabl
 export interface AccountController {
   status: AccountStatus
   me: Me | null
+  /** Waits for submitted profile writes and returns the current server-backed account. */
+  flushProfileWrites: () => Promise<Me | null>
   signIn: () => void
   /** Rejects with the failure as well as setting `error`, so the caller can show it in place. */
   signOut: () => Promise<void>
@@ -31,6 +33,8 @@ export function useAccount(): AccountController {
   const [status, setStatus] = useState<AccountStatus>('loading')
   const [me, setMe] = useState<Me | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const meRef = useRef<Me | null>(null)
+  const profileWriteFailureRef = useRef<unknown>(null)
   // Profile writes replace the whole profile on the server, so keep them in call order.
   const profileWritesRef = useRef<Promise<void>>(Promise.resolve())
   const endingSessionRef = useRef(false)
@@ -40,11 +44,14 @@ export function useAccount(): AccountController {
     api.getMe().then(
       (found) => {
         if (!current) return
+        meRef.current = found
+        profileWriteFailureRef.current = null
         setMe(found)
         setStatus(found ? 'signed-in' : 'signed-out')
       },
       (failure: unknown) => {
         if (!current) return
+        meRef.current = null
         setMe(null)
         setStatus('unavailable')
         setError(messageOf(failure))
@@ -59,6 +66,12 @@ export function useAccount(): AccountController {
     location.assign(signInUrl)
   }, [])
 
+  const flushProfileWrites = useCallback(async () => {
+    await profileWritesRef.current
+    if (profileWriteFailureRef.current !== null) throw profileWriteFailureRef.current
+    return meRef.current
+  }, [])
+
   const signOut = useCallback(async () => {
     if (endingSessionRef.current) return
     endingSessionRef.current = true
@@ -66,6 +79,8 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.logout(userId)
+      meRef.current = null
+      profileWriteFailureRef.current = null
       setMe(null)
       setStatus('signed-out')
       setError(null)
@@ -83,6 +98,8 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.deleteAccount(userId)
+      meRef.current = null
+      profileWriteFailureRef.current = null
       setMe(null)
       setStatus('signed-out')
       setError(null)
@@ -100,9 +117,16 @@ export function useAccount(): AccountController {
       const write = profileWritesRef.current.then(async () => {
         try {
           const profile = await api.updateProfile(input, userId)
-          setMe((previous) => (previous === null ? null : { ...previous, profile }))
+          profileWriteFailureRef.current = null
+          const current = meRef.current
+          if (current !== null) {
+            const updated = { ...current, profile }
+            meRef.current = updated
+            setMe(updated)
+          }
           setError(null)
         } catch (failure) {
+          profileWriteFailureRef.current = failure
           setError(messageOf(failure))
           throw failure
         }
@@ -115,7 +139,16 @@ export function useAccount(): AccountController {
   )
 
   return useMemo(
-    () => ({ status, me, signIn, signOut, deleteAccount, updateProfile, error }),
-    [status, me, signIn, signOut, deleteAccount, updateProfile, error],
+    () => ({
+      status,
+      me,
+      signIn,
+      signOut,
+      deleteAccount,
+      updateProfile,
+      flushProfileWrites,
+      error,
+    }),
+    [status, me, signIn, signOut, deleteAccount, updateProfile, flushProfileWrites, error],
   )
 }

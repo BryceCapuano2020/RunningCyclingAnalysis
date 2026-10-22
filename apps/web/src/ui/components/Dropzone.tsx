@@ -11,6 +11,8 @@ export interface DropzoneProps {
   progress: number | null
   /** Single inline button for use above results. Drops are accepted anywhere on the page. */
   compact?: boolean
+  /** Whether imports upload originals to the signed-in library. */
+  retainsOriginals?: boolean
 }
 
 function statusText(progress: number | null): string {
@@ -26,7 +28,14 @@ function isFileDrag(event: Pick<DragEvent, 'dataTransfer'>): boolean {
  * Files are accepted even while busy: the analysis worker handles requests in order, so a file
  * chosen during a load is queued rather than lost. Only the sample stays off while busy.
  */
-export function Dropzone({ onFiles, onSample, busy, progress, compact = false }: DropzoneProps) {
+export function Dropzone({
+  onFiles,
+  onSample,
+  busy,
+  progress,
+  compact = false,
+  retainsOriginals = false,
+}: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [windowDragging, setWindowDragging] = useState(false)
@@ -164,7 +173,9 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
         </button>
       </div>
       <p className="dropzone__privacy muted">
-        Your files never leave this device. All analysis runs in your browser
+        {retainsOriginals
+          ? 'Original files are saved to your private library. Analysis runs in your browser.'
+          : 'Your files never leave this device. All analysis runs in your browser'}
       </p>
       {bar}
       <p className="dropzone__status" aria-live="polite">

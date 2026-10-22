@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import type { Me } from '@rca/contract'
@@ -53,11 +53,13 @@ function meAs(id: string): Me {
 interface Account {
   status: AccountStatus
   me: Me | null
+  flushProfileWrites?: () => Promise<Me | null>
 }
 
 const LOADING: Account = { status: 'loading', me: null }
 const SIGNED_OUT: Account = { status: 'signed-out', me: null }
 const SIGNED_IN_KEEP: Account = { status: 'signed-in', me: meWith(true) }
+const SIGNED_IN_NO_KEEP: Account = { status: 'signed-in', me: meWith(false) }
 
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
@@ -247,6 +249,100 @@ describe('useAnalysis account handling', () => {
         sync: { keepFiles: false, userId: USER_ID },
       },
     ])
+  })
+
+  it('waits for submitted profile writes before choosing the import retention setting', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const { result } = setup(account)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(result.current.busy).toBe(true)
+
+    await act(async () => {
+      const saved = meWith(true)
+      finish({ ...saved, profile: { ...saved.profile, massKg: 83, bikeMassKg: 12 } })
+      await Promise.resolve()
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: { massKg: 83, bikeMassKg: 12 },
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
+  it('reports a profile-write failure and does not silently import with retention off', async () => {
+    const failure = new Error('profile save failed')
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => Promise.reject(failure),
+    }
+    const { result } = setup(account)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    await waitFor(() =>
+      expect(result.current.error).toMatch(
+        /Retry saving your settings, then re-import these files/,
+      ),
+    )
+
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(result.current.busy).toBe(false)
+  })
+
+  it('cancels a profile-waiting import when the signed-in account changes', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const { result, rerender } = setup(account)
+    const oldWorker = worker()
+
+    act(() => result.current.addFiles([FILE]))
+    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
+    const nextWorker = worker()
+    await act(async () => {
+      finish(meWith(true))
+      await Promise.resolve()
+    })
+
+    expect(oldWorker.terminated).toBe(true)
+    expect(nextWorker.posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: 'u2' }])
+    await waitFor(() => expect(result.current.error).toMatch(/account changed/))
+  })
+
+  it('does not dispatch a profile-waiting import after Stop restarts the worker', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const { result } = setup(account)
+    const oldWorker = worker()
+
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.stop())
+    const restartedWorker = worker()
+    await act(async () => {
+      finish(meWith(true))
+      await Promise.resolve()
+    })
+
+    expect(oldWorker.terminated).toBe(true)
+    expect(restartedWorker.posted).toEqual([
+      { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
+    ])
+    expect(restartedWorker.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
+    expect(result.current.error).toMatch(/Analysis stopped/)
   })
 
   it('keeps syncing digests without uploading files when file retention is unavailable', () => {

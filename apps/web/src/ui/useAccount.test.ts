@@ -208,6 +208,47 @@ describe('useAccount', () => {
     expect(result.current.me?.profile).toEqual(secondStored)
   })
 
+  it('flushProfileWrites waits and returns the authoritative updated account', async () => {
+    const stored = { ...INPUT, updatedAt: 2000 }
+    let finish: (profile: typeof stored) => void = () => undefined
+    mocked.updateProfile.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+    const { result } = await renderSignedIn()
+    let update: Promise<void> = Promise.resolve()
+    let flushed: Promise<Me | null> = Promise.resolve(null)
+    act(() => {
+      update = result.current.updateProfile(INPUT)
+      flushed = result.current.flushProfileWrites()
+    })
+
+    let flushFinished = false
+    void flushed.then(() => {
+      flushFinished = true
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(flushFinished).toBe(false)
+
+    await act(async () => {
+      finish(stored)
+      await update
+      expect(await flushed).toEqual({ user: ME.user, profile: stored })
+    })
+  })
+
+  it('flushProfileWrites rejects when the latest submitted profile write fails', async () => {
+    const failure = new ApiRequestError(503, 'http_error', 'Profile save failed')
+    mocked.updateProfile.mockRejectedValueOnce(failure)
+    const { result } = await renderSignedIn()
+    let flush: Promise<Me | null> = Promise.resolve(null)
+    act(() => {
+      void result.current.updateProfile(INPUT).catch(() => undefined)
+      flush = result.current.flushProfileWrites()
+    })
+
+    await expect(flush).rejects.toBe(failure)
+  })
+
   it('finishes queued profile writes before logging out', async () => {
     let finishUpdate: (profile: typeof ME.profile) => void = () => undefined
     mocked.updateProfile

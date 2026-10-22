@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
@@ -24,7 +24,8 @@ export interface AnalysisController {
   clear: () => void
 }
 
-type Account = Pick<AccountController, 'status' | 'me'>
+type Account = Pick<AccountController, 'status' | 'me'> &
+  Partial<Pick<AccountController, 'flushProfileWrites'>>
 
 const EMPTY: SessionState = {
   result: null,
@@ -46,11 +47,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   const workerRef = useRef<Worker | null>(null)
   const settingsRef = useRef(settings)
   const accountRef = useRef<Account>(account)
+  const accountEpochRef = useRef(0)
   // Starts as 'loading' so an account that is already known on mount counts as a sign-in.
   const previousStatusRef = useRef<AccountStatus>('loading')
   const previousUserIdRef = useRef<string | null>(null)
   const workerGenerationRef = useRef(0)
   const pendingRef = useRef(0)
+  const pendingAsyncImportsRef = useRef(0)
   // A file dropped before getMe resolves must not be analyzed and then overwritten by the
   // initial server hydration. Keep it until the account state is known, then send it after the
   // hydration request (the worker processes requests in order).
@@ -69,6 +72,12 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
   const [workerGeneration, setWorkerGeneration] = useState(0)
 
+  // Keep the latest committed account available to async import preparation without waiting for
+  // the account-transition effect to run.
+  useLayoutEffect(() => {
+    accountRef.current = account
+  }, [account])
+
   const restartWorker = useCallback(() => {
     const next = workerGenerationRef.current + 1
     workerGenerationRef.current = next
@@ -83,6 +92,75 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     if (request.type !== 'loadServer') setError(null)
     workerRef.current.postMessage(request)
   }, [])
+
+  const queueSignedInImport = useCallback(
+    (files: File[], submittedUserId: string) => {
+      const generation = workerGenerationRef.current
+      const accountEpoch = accountEpochRef.current
+      const submittedAccount = accountRef.current
+      const flushProfileWrites = submittedAccount.flushProfileWrites
+      pendingAsyncImportsRef.current += 1
+      setBusy(true)
+      setStorageBudgetExceeded(false)
+
+      void (async () => {
+        try {
+          // The returned Me is updated synchronously by useAccount when the last queued profile
+          // write succeeds, even before React commits the corresponding render.
+          const savedMe = flushProfileWrites ? await flushProfileWrites() : submittedAccount.me
+          const current = accountRef.current
+          if (workerGenerationRef.current !== generation) {
+            if (accountEpochRef.current !== accountEpoch && current.status !== 'loading') {
+              setError('The account changed before this import started. Select the files again.')
+            }
+            return
+          }
+          if (
+            accountEpochRef.current !== accountEpoch ||
+            current.status !== 'signed-in' ||
+            current.me?.user.id !== submittedUserId ||
+            savedMe?.user.id !== submittedUserId
+          ) {
+            setError('The account changed before this import started. Select the files again.')
+            return
+          }
+          if (!workerRef.current) {
+            setError(
+              'The analysis worker is unavailable. Restart analysis, then select the files again.',
+            )
+            return
+          }
+          send({
+            type: 'addFiles',
+            files,
+            settings: {
+              massKg: savedMe.profile.massKg,
+              bikeMassKg: savedMe.profile.bikeMassKg,
+            },
+            sync: {
+              keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,
+              userId: submittedUserId,
+            },
+          })
+        } catch {
+          if (
+            workerGenerationRef.current === generation &&
+            accountEpochRef.current === accountEpoch
+          ) {
+            setError(
+              'Could not confirm your saved account settings. Retry saving your settings, then re-import these files; no activities were imported.',
+            )
+          }
+        } finally {
+          pendingAsyncImportsRef.current = Math.max(0, pendingAsyncImportsRef.current - 1)
+          if (pendingAsyncImportsRef.current === 0 && pendingRef.current === 0) {
+            setBusy(deferredImportsRef.current.length > 0)
+          }
+        }
+      })()
+    },
+    [send],
+  )
 
   useEffect(() => {
     const generation = workerGeneration
@@ -106,7 +184,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       // Replies arrive in request order; stay busy until the last outstanding one.
       const pending = pendingRepliesRef.current.shift()
       pendingRef.current = Math.max(0, pendingRef.current - 1)
-      if (pendingRef.current === 0) setBusy(deferredImportsRef.current.length > 0)
+      if (pendingRef.current === 0) {
+        setBusy(pendingAsyncImportsRef.current > 0 || deferredImportsRef.current.length > 0)
+      }
       if (pending?.ignoreResult) return
       automaticRestartCountRef.current = 0
       setWorkerStopped(false)
@@ -139,7 +219,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         pendingRepliesRef.current.length > 0 &&
         pendingRepliesRef.current.every((pending) => pending.ignoreResult)
       pendingRepliesRef.current = []
-      setBusy(false)
+      setBusy(pendingAsyncImportsRef.current > 0)
       setProgress(null)
       setUploading(null)
       if (!ignoreError) {
@@ -190,7 +270,6 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
 
   const { status: accountStatus, me } = account
   useEffect(() => {
-    accountRef.current = { status: accountStatus, me }
     const userId = me?.user.id ?? null
     const before = previousStatusRef.current
     const previousUserId = previousUserIdRef.current
@@ -199,14 +278,21 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     const accountChanged =
       before === 'signed-in' && (accountStatus !== 'signed-in' || userId !== previousUserId)
     if (accountChanged) {
+      const canceledPendingImport = pendingAsyncImportsRef.current > 0
+      accountEpochRef.current += 1
       // Stop A's queued sync operations before a later sign-in can give them B's cookie. The new
       // worker starts empty; a signed-in account will be hydrated by the next effect pass.
       pendingRepliesRef.current = pendingRepliesRef.current.map(() => ({ ignoreResult: true }))
       deferredImportsRef.current = []
+      setBusy(canceledPendingImport)
       setState(EMPTY)
       setProgress(null)
       setUploading(null)
-      setError(null)
+      setError(
+        canceledPendingImport
+          ? 'An import was canceled because the account changed while saved settings were being confirmed. Select the files again.'
+          : null,
+      )
       setRebuildNotice(null)
       setStorageBudgetExceeded(false)
       setWorkerStopped(false)
@@ -224,20 +310,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       const deferredImports = deferredImportsRef.current
       deferredImportsRef.current = []
       for (const files of deferredImports) {
-        const current = accountRef.current
-        send({
-          type: 'addFiles',
-          files,
-          settings: settingsRef.current,
-          sync:
-            current.status === 'signed-in' && current.me !== null
-              ? {
-                  keepFiles:
-                    current.me.profile.keepFiles && current.me.fileRetentionAvailable !== false,
-                  userId: current.me.user.id,
-                }
-              : null,
-        })
+        queueSignedInImport(files, currentUserId)
       }
     } else if (before === 'loading' && accountStatus !== 'loading') {
       const deferredImports = deferredImportsRef.current
@@ -246,7 +319,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         send({ type: 'addFiles', files, settings: settingsRef.current, sync: null })
       }
     }
-  }, [accountStatus, me, send, restartWorker, workerGeneration])
+  }, [accountStatus, me, send, restartWorker, workerGeneration, queueSignedInImport])
 
   const addFiles = useCallback(
     (files: File[]) => {
@@ -259,18 +332,14 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         setBusy(true)
         return
       }
-      const sync =
-        current.status === 'signed-in' && current.me !== null
-          ? {
-              keepFiles:
-                current.me.profile.keepFiles && current.me.fileRetentionAvailable !== false,
-              userId: current.me.user.id,
-            }
-          : null
       setStorageBudgetExceeded(false)
-      send({ type: 'addFiles', files, settings: settingsRef.current, sync })
+      if (current.status === 'signed-in' && current.me !== null) {
+        queueSignedInImport(files, current.me.user.id)
+        return
+      }
+      send({ type: 'addFiles', files, settings: settingsRef.current, sync: null })
     },
-    [send],
+    [queueSignedInImport, send],
   )
   const loadSample = useCallback(
     () => send({ type: 'loadSample', settings: settingsRef.current }),

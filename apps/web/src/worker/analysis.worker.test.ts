@@ -163,6 +163,36 @@ describe('analysis worker', () => {
     expect(messages).toContainEqual({ type: 'progress', filesRead: 1, uploaded: 1 })
   })
 
+  it('uploads a previously saved duplicate when original-file retention is enabled', async () => {
+    const { send } = await startWorker()
+    await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    const [digest] = mocked.createActivity.mock.calls[1] ?? []
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(mocked.uploadFile).toHaveBeenCalledWith(
+      `rec-${digest?.id}`,
+      expect.any(Uint8Array),
+      USER_ID,
+    )
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { totalActivities: 1, syncFailures: 0 },
+    })
+  })
+
   it('reports a storage allowance failure and does not retry remaining original uploads', async () => {
     mocked.uploadFile.mockRejectedValueOnce(
       new ApiRequestError(429, 'storage_budget_exhausted', 'Storage allowance reached'),

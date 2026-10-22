@@ -76,6 +76,7 @@ export class AnalysisSession {
     settings: AthleteSettings,
     onProgress?: (filesRead: number) => void,
     sink?: SyncSink,
+    syncExisting = false,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     let filesRead = 0
@@ -92,6 +93,7 @@ export class AnalysisSession {
                 activity,
                 { fileName: file.fileName, fileHash, bytes: file.bytes },
                 sink,
+                syncExisting,
               )
             }
             // A file that now reads cleanly replaces an earlier rejection under the same name.
@@ -165,16 +167,19 @@ export class AnalysisSession {
 
   /**
    * Digests one parsed activity and hands it to the sink. An activity already held and saved is
-   * left alone, so a duplicate import is not sent again. A sink failure is counted, not thrown.
+   * left alone unless syncExisting requests a sink call for an existing activity (for example,
+   * to retain an original after that preference is enabled). A sink failure is counted, not thrown.
    */
   private async keep(
     activity: Activity,
     file: { fileName: string; fileHash: string; bytes: Uint8Array },
     sink: SyncSink | undefined,
+    syncExisting: boolean,
   ): Promise<void> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
-    if (held !== undefined && (sink === undefined || !this.unsynced.has(key))) return
+    if (held !== undefined && (sink === undefined || (!this.unsynced.has(key) && !syncExisting)))
+      return
     const digest = held ?? digestActivity(activity)
     this.digests.set(key, digest)
     this.outdatedKeys.delete(key)

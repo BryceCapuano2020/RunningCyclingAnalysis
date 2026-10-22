@@ -44,6 +44,13 @@ async function profileMassKg(page: Page): Promise<number> {
   return me.profile.massKg
 }
 
+async function profileKeepsFiles(page: Page): Promise<boolean> {
+  const response = await page.request.get('/api/me')
+  expect(response.status()).toBe(200)
+  const me = (await response.json()) as Me
+  return me.profile.keepFiles
+}
+
 async function storedFileCount(page: Page): Promise<number> {
   return (await apiActivities(page.request)).filter((record) => record.hasFile).length
 }
@@ -204,6 +211,7 @@ test('an import started on the landing page shows the saved notice', async ({ pa
 test('new accounts save summaries without retaining original files by default', async ({
   page,
 }) => {
+  test.setTimeout(120_000)
   await signInAs(page.request, uniqueEmail(), NAME)
   await page.goto('/')
   await expect(accountButton(page)).toBeVisible()
@@ -213,7 +221,29 @@ test('new accounts save summaries without retaining original files by default', 
   const me = (await (await page.request.get('/api/me')).json()) as Me
   expect(me.profile.keepFiles).toBe(false)
   expect((await apiActivities(page.request)).map((record) => record.hasFile)).toEqual([false])
-  await expect(page.getByRole('checkbox', { name: KEEP_FILES })).not.toBeChecked()
+  const keep = page.getByRole('checkbox', { name: KEEP_FILES })
+  await expect(keep).not.toBeChecked()
+
+  const [summaryOnly] = await apiActivities(page.request)
+  if (summaryOnly === undefined) throw new Error('the import saved no activities')
+
+  await keep.click()
+  await expect(keep).toBeChecked()
+  await expect.poll(() => profileKeepsFiles(page)).toBe(true)
+  await uploadFixtures(page, ['one-run.fit'])
+
+  await expect(activitiesRows(page)).toHaveCount(1)
+  await expect.poll(() => storedFileCount(page), IMPORT).toBe(1)
+  const retained = await apiActivities(page.request)
+  expect(retained).toHaveLength(1)
+  expect(retained[0]).toMatchObject({ id: summaryOnly.id, hasFile: true })
+
+  await page.reload()
+  await expect(activitiesRows(page)).toHaveCount(1)
+  await expect(page.getByRole('checkbox', { name: KEEP_FILES })).toBeChecked()
+  const afterReload = await apiActivities(page.request)
+  expect(afterReload).toHaveLength(1)
+  expect(afterReload[0]).toMatchObject({ id: summaryOnly.id, hasFile: true })
 })
 
 test('rebuilds a legacy saved activity from its original file without changing its library identity', async ({

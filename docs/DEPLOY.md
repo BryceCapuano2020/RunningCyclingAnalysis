@@ -27,7 +27,7 @@ Run the npm commands from the repository root. Run the `wrangler` commands from 
 
 - Node.js 22 (the version in `.nvmrc`). Check with `node --version`.
 - A Cloudflare account on the Workers Free plan: <https://dash.cloudflare.com/sign-up>
-- A Google account, to create the OAuth client.
+- A Google account with access to the existing RunningCycling Google Cloud project and OAuth client.
 - The repository, with dependencies installed:
 
   ```bash
@@ -108,8 +108,11 @@ Copy that address. It is your `<worker-url>`. Sign-in does not work yet, which i
 
 ## 5. Create the Google OAuth client
 
-Google sign-in needs a client that Google trusts for your Worker's address. Use the Google Cloud
-Console at <https://console.cloud.google.com/>.
+The current Cloudflare account already has a RunningCycling Google Cloud project and web OAuth
+client. Reuse them; do not create a duplicate project or client. The current production callback
+has been smoke-tested only with the owner's Google account. For a new Cloudflare account, follow
+these steps to create a project and client in the Google Cloud Console at
+<https://console.cloud.google.com/>.
 
 1. **Create a project.** Use the project picker in the top bar, then **New project**. Name it
    `RunningCycling`.
@@ -117,9 +120,11 @@ Console at <https://console.cloud.google.com/>.
    shows a **Get started** button, click it.
    - **Branding:** app name `RunningCycling`, user support email your own address, developer
      contact email your own address.
-   - **Audience:** choose **External**. Leave the publishing status as **Testing**. Under
-     **Test users**, add every Google account that may sign in (up to 100). While the app is in
-     Testing, only these accounts can sign in.
+   - **Audience:** choose **External**. Leave the publishing status as **Testing** while testing.
+     Add the accounts you will test under **Test users**. Google documents an exception: when an
+     External app requests only the basic identity scopes `openid`, `email`, and `profile`, other
+     Google users can also access it while it is in Testing, but they see a testing warning. See
+     Google's [OAuth app state guidance](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview).
    - **Data Access:** add the scopes `openid`, `.../auth/userinfo.email` and
      `.../auth/userinfo.profile`. These are the `openid`, `email` and `profile` scopes the API
      asks for.
@@ -164,6 +169,14 @@ APP_URL = "https://rca-api.<your-subdomain>.workers.dev"
 
 Use your `<worker-url>` with no trailing slash. The API sends Google back to
 `APP_URL` + `/api/auth/google/callback`, and it sends the browser to `APP_URL` after sign-in.
+
+For an External app in Production, Google's OAuth policy requires a public homepage describing the
+app and linking to its privacy policy and terms of service, hosted on a verified domain you own.
+Google's [OAuth policies](https://developers.google.com/identity/protocols/oauth2/policies) and
+[branding requirements](https://support.google.com/cloud/answer/15549049?hl=en) describe these
+requirements. The current `workers.dev` deployment remains in Testing; only the owner's Google
+account has been used for the live sign-in smoke test. A public launch with verified branding still
+requires the public policy pages and domain verification to be completed.
 
 Deploy again from the repository root:
 

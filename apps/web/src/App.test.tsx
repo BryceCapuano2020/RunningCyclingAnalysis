@@ -18,7 +18,7 @@ const { updateProfile, analysisMock, accountMock } = vi.hoisted(() => ({
     retryWorker: vi.fn(),
     stop: vi.fn(),
   },
-  accountMock: { fileRetentionAvailable: true },
+  accountMock: { fileRetentionAvailable: true, keepFiles: true },
 }))
 
 vi.mock('./ui/useAccount', () => ({
@@ -31,7 +31,7 @@ vi.mock('./ui/useAccount', () => ({
         massKg: 75,
         bikeMassKg: 9,
         units: 'imperial',
-        keepFiles: true,
+        keepFiles: accountMock.keepFiles,
         updatedAt: 1000,
       },
     },
@@ -119,6 +119,7 @@ afterEach(() => {
   analysisMock.result = { activities: [], comparison: null, effort: [] }
   analysisMock.rebuildSavedActivities.mockClear()
   accountMock.fileRetentionAvailable = true
+  accountMock.keepFiles = true
 })
 
 describe('App profile persistence', () => {
@@ -228,6 +229,23 @@ describe('outdated saved activities', () => {
 })
 
 describe('file retention availability', () => {
+  it('lets a new library opt into original files before its first import', () => {
+    analysisMock.result = null
+    accountMock.keepFiles = false
+    render(<App />)
+
+    const retention = screen.getByRole('checkbox', { name: 'Keep original files in my library' })
+    expect(retention).not.toBeChecked()
+    expect(retention).toHaveAccessibleDescription(/Turning this off deletes saved originals/)
+    fireEvent.click(retention)
+    expect(updateProfile).toHaveBeenCalledWith({
+      massKg: 75,
+      bikeMassKg: 9,
+      units: 'imperial',
+      keepFiles: true,
+    })
+  })
+
   it('disables retention without changing the saved preference when storage is unavailable', () => {
     accountMock.fileRetentionAvailable = false
     render(<App />)

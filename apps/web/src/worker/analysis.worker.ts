@@ -62,6 +62,7 @@ function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promis
       report()
     },
     sync === null ? undefined : save,
+    sync?.keepFiles === true,
   )
 }
 

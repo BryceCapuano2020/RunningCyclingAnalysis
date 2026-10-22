@@ -105,6 +105,31 @@ export function App() {
   }
 
   const analysis = useAnalysis(settings, account)
+  const fileRetentionControls = signedIn && (
+    <>
+      <label className="app__keep-files">
+        <input
+          type="checkbox"
+          checked={keepFiles}
+          disabled={!fileRetentionAvailable}
+          aria-describedby="file-retention-help"
+          onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
+        />
+        Keep original files in my library
+      </label>
+      <p id="file-retention-help" className="app__retention-help muted">
+        Originals let you rebuild saved analyses later. Turning this off deletes saved originals;
+        activity summaries remain.
+      </p>
+      {!fileRetentionAvailable && (
+        <p role="status">
+          Original file storage is unavailable on this deployment. Your saved preference is
+          preserved; new imports save summaries only and original files stay on this device.
+          Existing saved originals are not deleted.
+        </p>
+      )}
+    </>
+  )
   const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
     analysis.state
   const headlineDuration = result ? pickHeadline(result.comparison)?.point.durationS : undefined
@@ -217,11 +242,13 @@ export function App() {
               range that reflects the model assumptions.
             </p>
           </section>
+          {fileRetentionControls}
           <Dropzone
             onFiles={analysis.addFiles}
             onSample={analysis.loadSample}
             busy={analysis.busy}
             progress={analysis.progress}
+            retainsOriginals={signedIn && keepFiles && fileRetentionAvailable}
           />
           <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
           {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
@@ -267,30 +294,14 @@ export function App() {
               onSample={analysis.loadSample}
               busy={analysis.busy}
               progress={analysis.progress}
+              retainsOriginals={signedIn && keepFiles && fileRetentionAvailable}
             />
             <SettingsBar
               settings={settings}
               units={units}
               onChange={(next) => saveProfile({ settings: next })}
             />
-            {signedIn && (
-              <label className="app__keep-files">
-                <input
-                  type="checkbox"
-                  checked={keepFiles}
-                  disabled={!fileRetentionAvailable}
-                  onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
-                />
-                Keep original files in my library
-              </label>
-            )}
-            {signedIn && !fileRetentionAvailable && (
-              <p role="status">
-                Original file storage is unavailable on this deployment. Your saved preference is
-                preserved; new imports save summaries only and original files stay on this device.
-                Existing saved originals are not deleted.
-              </p>
-            )}
+            {fileRetentionControls}
             <RangePicker
               rangeDays={rangeDays}
               onChange={analysis.setRange}
