@@ -24,7 +24,8 @@ const ACTIVE_MARKER_R = 5
 /** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them'
-const NOTE = 'Shaded areas cover 90% of plausible values. The line is the median'
+const NOTE =
+  'Shading shows the 90% model range; other errors are not included. The line is the median'
 
 const LEGEND_CALIBRATED: ChartLegendEntry[] = [
   { label: 'Before heart-rate check', kind: 'neutral', swatch: 'band' },
@@ -286,10 +287,10 @@ export function RatioChart({ comparison }: RatioChartProps) {
               Equal
             </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.top + 14}>
-              Running stronger
+              Higher running energy rate
             </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.bottom - 8}>
-              Cycling stronger
+              Higher cycling energy rate
             </text>
             {activeX !== undefined ? (
               <line

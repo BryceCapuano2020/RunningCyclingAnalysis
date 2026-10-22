@@ -1,4 +1,4 @@
-export { smoothGrade } from './grade'
+export { GRADE_SMOOTHING_MARGIN_S, smoothGrade } from './grade'
 export { minettiCost, runMetabolicPower } from './power'
 export {
   flatSpeedToMetabolic,

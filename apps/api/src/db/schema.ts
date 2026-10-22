@@ -79,4 +79,12 @@ export const activities = sqliteTable(
   ],
 )
 
-export const schema = { users, oauthAccounts, sessions, profiles, activities }
+/** One deployment-wide meter for billable R2 writes and operations. */
+export const r2StorageBudget = sqliteTable('r2_storage_budget', {
+  id: integer('id').primaryKey(),
+  lifetimePutBytes: integer('lifetime_put_bytes').notNull().default(0),
+  monthlyPeriod: text('monthly_period').notNull(),
+  monthlyOperations: integer('monthly_operations').notNull().default(0),
+})
+
+export const schema = { users, oauthAccounts, sessions, profiles, activities, r2StorageBudget }

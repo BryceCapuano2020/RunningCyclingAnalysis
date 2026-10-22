@@ -5,7 +5,7 @@ import { assessQuality } from '../quality'
 import { sampleDataset } from '../synthetic'
 import type { Activity, AthleteSettings } from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
-import { combine } from './combine'
+import { combine, equivalentRunSpeed } from './combine'
 import { digestActivity } from './digestActivity'
 import type { RideInputs } from './test/reference'
 import { referenceRideStats, sumReferenceStats } from './test/reference'
@@ -16,6 +16,21 @@ const digests = activities.map((a) => digestActivity(a))
 const result = combine(digests, settings)
 
 const constant = (n: number, value: number) => new Float64Array(n).fill(value)
+
+it('uses the same finite prior fallback for equivalent pace when heart-rate evidence conflicts', () => {
+  const prior = equivalentRunSpeed(240, 75, null)
+  for (const kappa of [3, 10]) {
+    expect(equivalentRunSpeed(240, 75, { run: null, ride: null, kappa, lnKappaSe: 0.05 })).toEqual(
+      prior,
+    )
+  }
+})
+
+it('never mixes stored digests from an older model revision into current results', () => {
+  const current = digests[0]!
+  const stale = { ...current, modelRevision: 1 }
+  expect(combine([stale, ...digests], settings)).toEqual(combine(digests, settings))
+})
 
 /** The per-sample inputs of an outdoor ride, as the calibration and the reference see them. */
 function rideInputs(a: Activity): RideInputs {

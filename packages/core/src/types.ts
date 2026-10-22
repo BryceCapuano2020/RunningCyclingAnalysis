@@ -68,8 +68,12 @@ export interface QualityFlag {
 
 export interface QualityReport {
   flags: QualityFlag[]
-  /** 1 where the speed/altitude/power sample is usable for curves, else 0. Length n. */
+  /** 1 where speed is usable by motion and virtual-power models, else 0. Length n. */
   validMotion: Uint8Array
+  /** 1 where measured power is usable, independent of GPS and altitude quality, else 0. Length n. */
+  validPower: Uint8Array
+  /** 1 where grade derived from altitude is usable, else 0. Length n. */
+  validGrade: Uint8Array
   /** 1 where the heart-rate sample is usable, else 0. Length n. */
   validHeartRate: Uint8Array
 }
@@ -181,8 +185,10 @@ export interface ComparisonPoint {
 export interface Comparison {
   /** Using population priors only. */
   prior: ComparisonPoint[]
-  /** After the heart-rate cross-check, or null when it was unavailable. */
+  /** After the heart-rate cross-check, or null when unavailable or unsupported by the draws. */
   calibrated: ComparisonPoint[] | null
+  /** Sampling diagnostic, present when a heart-rate adjustment was attempted. */
+  calibration?: { effectiveSamples: number; draws: number; accepted: boolean }
 }
 
 /**
@@ -264,6 +270,8 @@ export interface DigestClimbSection {
  */
 export interface ActivityDigest {
   version: 1
+  /** Analysis model revision; missing on the wire means legacy revision 1. */
+  modelRevision: number
   id: string
   name: string
   sport: Sport

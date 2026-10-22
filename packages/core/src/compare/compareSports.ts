@@ -1,6 +1,6 @@
 import { PRIORS, RESTING_W_PER_KG } from '../constants'
-import { mulberry32, truncatedNormal } from '../math'
 import type { Comparison, ComparisonPoint, Curve, HrCrossCheck } from '../types'
+import { calibrationWeights, drawPriors } from './sampling'
 import { weightedInterval } from './weightedQuantile'
 
 export interface CompareOptions {
@@ -8,36 +8,7 @@ export interface CompareOptions {
   seed?: number
 }
 
-const GE_PRIOR = PRIORS.grossEfficiency
 const S_PRIOR = PRIORS.runEconomyScale
-
-function drawPriors(draws: number, seed: number): { ge: Float64Array; s: Float64Array } {
-  const rand = mulberry32(seed)
-  const ge = new Float64Array(draws)
-  const s = new Float64Array(draws)
-  for (let d = 0; d < draws; d++) {
-    ge[d] = truncatedNormal(rand, GE_PRIOR.mean, GE_PRIOR.sd, GE_PRIOR.min, GE_PRIOR.max)
-    s[d] = truncatedNormal(rand, S_PRIOR.mean, S_PRIOR.sd, S_PRIOR.min, S_PRIOR.max)
-  }
-  return { ge, s }
-}
-
-/** Importance weight of each prior draw given the heart-rate estimate of kappa. */
-function importanceWeights(
-  ge: Float64Array,
-  s: Float64Array,
-  kappa: number,
-  lnKappaSe: number,
-): Float64Array {
-  const w = new Float64Array(ge.length)
-  const lnKappa = Math.log(kappa)
-  for (let d = 0; d < ge.length; d++) {
-    const kappaDraw = GE_PRIOR.mean / ge[d]! / (s[d]! / S_PRIOR.mean)
-    const z = (lnKappa - Math.log(kappaDraw)) / lnKappaSe
-    w[d] = Math.exp(-0.5 * z * z)
-  }
-  return w
-}
 
 /**
  * Converts run and ride duration curves to gross metabolic W/kg and compares them. Efficiency and
@@ -63,10 +34,8 @@ export function compareSports(
   const { ge, s } = drawPriors(opts.draws ?? 4000, opts.seed ?? 1)
   const draws = ge.length
   const equal = new Float64Array(draws).fill(1)
-  const kappa = hr?.kappa ?? null
-  const lnKappaSe = hr?.lnKappaSe ?? null
-  const weights =
-    kappa === null || lnKappaSe === null ? null : importanceWeights(ge, s, kappa, lnKappaSe)
+  const calibration = calibrationWeights(ge, s, hr)
+  const weights = calibration?.accepted ? calibration.weights : null
 
   const runM = new Float64Array(draws)
   const rideM = new Float64Array(draws)
@@ -93,5 +62,17 @@ export function compareSports(
     if (weights !== null) calibrated.push(summarise(weights))
   }
 
-  return { prior, calibrated: weights === null ? null : calibrated }
+  return {
+    prior,
+    calibrated: weights === null ? null : calibrated,
+    ...(calibration === null
+      ? {}
+      : {
+          calibration: {
+            effectiveSamples: calibration.effectiveSamples,
+            draws: calibration.draws,
+            accepted: calibration.accepted,
+          },
+        }),
+  }
 }

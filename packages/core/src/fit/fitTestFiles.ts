@@ -1,5 +1,12 @@
 import { Encoder } from '@garmin/fitsdk'
-import type { FileIdMesg, RecordMesg, SessionMesg, SportMesg, Types } from '@garmin/fitsdk'
+import type {
+  EventMesg,
+  FileIdMesg,
+  RecordMesg,
+  SessionMesg,
+  SportMesg,
+  Types,
+} from '@garmin/fitsdk'
 
 /** Test-only builder for FIT files with several sessions, loose records and odd sport fields. */
 
@@ -29,6 +36,8 @@ export interface TestFile {
   /** Records written with no session message after them. */
   looseRecords?: TestRecord[]
   sessions?: TestSession[]
+  /** Timer events written independently of records, for pause-boundary parser fixtures. */
+  timerEvents?: Array<{ tMs: number; eventType: EventMesg['eventType'] }>
 }
 
 export function buildFit(file: TestFile): Uint8Array {
@@ -56,6 +65,14 @@ export function buildFit(file: TestFile): Uint8Array {
       totalTimerTime: session.durationS,
     }
     encoder.onMesg(18, mesg)
+  }
+  for (const timerEvent of file.timerEvents ?? []) {
+    const mesg: EventMesg = {
+      timestamp: new Date(timerEvent.tMs),
+      event: 'timer',
+      eventType: timerEvent.eventType,
+    }
+    encoder.onMesg(21, mesg)
   }
   return encoder.close()
 }

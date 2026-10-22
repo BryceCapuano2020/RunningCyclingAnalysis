@@ -1,11 +1,12 @@
 import { compareSports, weightedQuantile } from '../compare'
+import { calibrationWeights, drawPriors } from '../compare/sampling'
 import { DURATIONS_S, FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '../constants'
 import { mergeCurves, monotoneEnvelope } from '../curves'
 import { fitCriticalPower } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts } from '../effort'
 import { crossCheck } from '../hr'
-import { mean, mulberry32, truncatedNormal } from '../math'
+import { mean } from '../math'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -25,6 +26,7 @@ import type {
   Sport,
   VirtualPowerAccuracy,
 } from '../types'
+import { MODEL_REVISION } from './modelRevision'
 import { solveBikeModel } from '../virtualPower'
 import {
   addCalibrationSums,
@@ -92,23 +94,13 @@ export function equivalentRunSpeed(
   opts: { draws?: number; seed?: number } = {},
 ): Interval {
   const draws = opts.draws ?? DRAWS
-  const rand = mulberry32(opts.seed ?? SEED)
-  const ge = PRIORS.grossEfficiency
-  const econ = PRIORS.runEconomyScale
+  const { ge, s } = drawPriors(draws, opts.seed ?? SEED)
+  const calibration = calibrationWeights(ge, s, hr)
   const speeds = new Float64Array(draws)
-  const weights = new Float64Array(draws)
+  const weights = calibration?.accepted ? calibration.weights : new Float64Array(draws).fill(1)
   for (let i = 0; i < draws; i++) {
-    const g = truncatedNormal(rand, ge.mean, ge.sd, ge.min, ge.max)
-    const s = truncatedNormal(rand, econ.mean, econ.sd, econ.min, econ.max)
-    const metabolic = ridePowerW / (g * massKg)
-    speeds[i] = Math.max(0, (metabolic - RESTING_W_PER_KG) / (s * FLAT_RUN_COST))
-    if (hr && hr.kappa !== null && hr.lnKappaSe !== null) {
-      const kappaDraw = ge.mean / g / (s / econ.mean)
-      const z = (Math.log(hr.kappa) - Math.log(kappaDraw)) / hr.lnKappaSe
-      weights[i] = Math.exp(-0.5 * z * z)
-    } else {
-      weights[i] = 1
-    }
+    const metabolic = ridePowerW / (ge[i]! * massKg)
+    speeds[i] = Math.max(0, (metabolic - RESTING_W_PER_KG) / (s[i]! * FLAT_RUN_COST))
   }
   return {
     p05: weightedQuantile(speeds, weights, 0.05),
@@ -228,7 +220,11 @@ function leaveOneOutAccuracy(
  * bike masses and the efficiency priors enter here, so the work per settings change is small.
  */
 export function combine(digests: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
-  const ordered = [...digests].sort(canonicalOrder)
+  // A digest contains model-dependent derived values. Mixing revisions would combine stale and
+  // current assumptions into one result, so only the active model revision is analysable.
+  const ordered = digests
+    .filter((digest) => digest.modelRevision === MODEL_REVISION)
+    .sort(canonicalOrder)
   const massKg = settings.massKg
   const totalMassKg = settings.massKg + settings.bikeMassKg
   const geKg = PRIORS.grossEfficiency.mean * massKg

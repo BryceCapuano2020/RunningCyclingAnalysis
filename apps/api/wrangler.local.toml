@@ -1,0 +1,52 @@
+name = "rca-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-20"
+
+# Approximate edge limits; admission/storage quotas remain atomic in D1.
+# Keep namespace ids unique within this Cloudflare account if other Workers use rate limiting.
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "27101"
+simple = { limit = 1200, period = 60 }
+
+[[ratelimits]]
+name = "AUTH_RATE_LIMITER"
+namespace_id = "27102"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "WRITE_RATE_LIMITER"
+namespace_id = "27103"
+simple = { limit = 600, period = 60 }
+
+# The Worker serves the whole app: the built React app as static assets and the Hono API under
+# /api, so both share one origin and session cookies need no custom domain.
+# Local development and tests use this configuration. Miniflare stores D1 and R2 state locally;
+# it does not create Cloudflare resources. Production uses the provisioned resources in wrangler.toml.
+[[d1_databases]]
+binding = "DB"
+database_name = "rca"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "rca-files"
+
+# Production defaults, so a deploy fails closed. Local development overrides both values in
+# .dev.vars, which the local Wrangler configuration reads and which takes precedence over [vars].
+# APP_URL must be the public origin the app is served from, for example
+# https://rca-api.<your-subdomain>.workers.dev (see docs/DEPLOY.md). Google OAuth redirects to
+# APP_URL + /api/auth/google/callback.
+[vars]
+ENVIRONMENT = "production"
+APP_URL = "https://example.invalid"
+
+# Requests under /api run the Worker; everything else is served from the built web app, with
+# unknown paths falling back to index.html so client-side routes work on reload.
+# The directory is relative to this file. `npm run build` must have run first.
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api", "/api/*"]

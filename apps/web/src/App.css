@@ -70,3 +70,9 @@
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
+
+.app__retention-help {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8125rem;
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ACCOUNT_SCOPE_HEADER } from '@rca/contract'
 import {
   countingDb,
   createHarness,
@@ -109,6 +110,31 @@ describe('sessions', () => {
     expect(res.status).toBe(204)
     expect(res.headers.get('set-cookie')).toMatch(/^rca_session=;/)
     expect((await h.send({ path: '/api/me', cookies: { rca_session: token } })).status).toBe(401)
+  })
+
+  it('does not let a stale account-scoped logout clear a different session', async () => {
+    const h = createHarness()
+    const alice = await h.signIn('alice@example.com')
+    const aliceMe = (await (
+      await h.send({ path: '/api/me', cookies: { rca_session: alice } })
+    ).json()) as {
+      user: { id: string }
+    }
+    const bob = await h.signIn('bob@example.com')
+    const mismatch = await h.send({
+      method: 'POST',
+      path: '/api/auth/logout',
+      cookies: { rca_session: bob },
+      headers: { [ACCOUNT_SCOPE_HEADER]: aliceMe.user.id },
+    })
+    expect(mismatch.status).toBe(409)
+    expect(await mismatch.json()).toMatchObject({ error: { code: 'account_changed' } })
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: bob } })).status).toBe(200)
+
+    expect(
+      (await h.send({ method: 'POST', path: '/api/auth/logout', cookies: { rca_session: bob } }))
+        .status,
+    ).toBe(204)
   })
 
   it('logout without a session still succeeds', async () => {

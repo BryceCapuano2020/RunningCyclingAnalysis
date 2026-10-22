@@ -82,9 +82,10 @@ describe('GET /api/auth/google/callback', () => {
         massKg: 75,
         bikeMassKg: 9,
         units: 'imperial',
-        keepFiles: true,
+        keepFiles: false,
         updatedAt: h.clock.now,
       },
+      fileRetentionAvailable: true,
     })
     const cleared = res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))
     expect(cleared).toHaveLength(2)
@@ -219,6 +220,37 @@ describe('GET /api/auth/google/callback', () => {
     ).toEqual({ n: 1 })
   })
 
+  it('allows only one Google identity to link when callbacks race for the same email', async () => {
+    const google = {
+      authorizationUrl: async (state: string) =>
+        new URL(`https://accounts.google.test/o/oauth2/v2/auth?state=${state}`),
+      exchangeCode: async (code: string) => fakeIdToken(googleClaims({ sub: `google-${code}` })),
+    }
+    const h = createHarness({ google: () => google })
+    await h.signIn('rider@example.com', 'Dev Rider')
+    const first = await startSignIn(h)
+    const second = await startSignIn(h)
+
+    const [one, two] = await Promise.all([
+      h.send({
+        path: callbackParams(first.state, 'one'),
+        cookies: { rca_oauth_state: first.state, rca_oauth_verifier: first.verifier },
+      }),
+      h.send({
+        path: callbackParams(second.state, 'two'),
+        cookies: { rca_oauth_state: second.state, rca_oauth_verifier: second.verifier },
+      }),
+    ])
+    expect([one.status, two.status].sort()).toEqual([302, 409])
+    expect(
+      await h.env.DB.prepare(
+        'SELECT COUNT(*) AS n FROM oauth_accounts WHERE user_id = (SELECT id FROM users WHERE email = ?)',
+      )
+        .bind('rider@example.com')
+        .first<{ n: number }>(),
+    ).toEqual({ n: 1 })
+  })
+
   it('rejects a callback with no state cookie', async () => {
     const h = createHarness({ google: () => fakeGoogle({ idToken }) })
     const res = await h.send({ path: callbackParams('s') })
@@ -294,7 +326,8 @@ describe('POST /api/auth/dev-login', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({
       user: { email: 'dev@example.com', name: 'Dev', pictureUrl: null },
-      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false },
+      fileRetentionAvailable: true,
     })
     expect(sessionCookie(res)).toBeTruthy()
   })

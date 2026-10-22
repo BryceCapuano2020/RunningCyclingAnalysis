@@ -222,6 +222,11 @@ export function parseDigest(json: string): ActivityDigest {
   if (o.version !== DIGEST_VERSION) {
     fail('version', `must be ${DIGEST_VERSION}, got ${JSON.stringify(o.version)}`)
   }
+  const modelRevision =
+    o.modelRevision === undefined ? 1 : asInteger(o.modelRevision, 'modelRevision')
+  if (modelRevision < 1 || !Number.isSafeInteger(modelRevision)) {
+    fail('modelRevision', `must be a positive safe integer, got ${modelRevision}`)
+  }
   const curve = asArray(o.curve, 'curve')
   if (curve.length !== DURATIONS_S.length) {
     fail('curve', `must have ${DURATIONS_S.length} points, got ${curve.length}`)
@@ -231,6 +236,7 @@ export function parseDigest(json: string): ActivityDigest {
   if (distanceM < 0) fail('distanceM', 'must not be negative')
   return {
     version: DIGEST_VERSION,
+    modelRevision,
     id: asString(o.id, 'id'),
     name: asString(o.name, 'name'),
     sport: asOneOf(o.sport, SPORTS, 'sport'),

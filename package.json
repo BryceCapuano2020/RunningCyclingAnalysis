@@ -21,9 +21,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "benchmark:core": "node --import tsx packages/core/benchmarks/library.ts",
     "e2e": "npm run e2e -w @rca/web",
-    "deploy": "npm run build -w @rca/web && npm run deploy -w @rca/api",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build"
+    "deploy": "npm run verify:release && npm run deploy:built -w @rca/api",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run test:deploy-config && npm run build",
+    "test:deploy-config": "node --test apps/api/scripts/check-deploy-config.test.mjs apps/api/scripts/prepare-d1-restore.test.mjs",
+    "verify:release": "npm run check && npm run e2e && npm run e2e:worker -w @rca/web",
+    "deploy:bootstrap": "npm run build && npm run deploy:bootstrap -w @rca/api"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
@@ -32,5 +36,10 @@
     "prettier": "^3.9.10",
     "typescript": "~6.0.2",
     "vitest": "^5.0.4"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.28.2"
+    }
   }
 }

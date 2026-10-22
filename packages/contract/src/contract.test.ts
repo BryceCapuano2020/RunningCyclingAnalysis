@@ -5,6 +5,7 @@ import {
   DevLoginSchema,
   ProfileInputSchema,
 } from './index.ts'
+import { DURATIONS_S } from '@rca/core/constants'
 
 const digestWire = {
   version: 1,
@@ -36,6 +37,40 @@ describe('ActivityDigestSchema', () => {
     expect(digest.curve[0]?.heartRate).toBeNull()
     expect(digest.flags[0]?.kind).toBe('power-spike')
     expect(digest.flagCounts).toEqual({ 'power-spike': 1 })
+    expect(digest.modelRevision).toBe(1)
+  })
+
+  it('validates the current model revision shape and accepts missing legacy revision', () => {
+    const current = {
+      ...digestWire,
+      modelRevision: 2,
+      durationS: 3600,
+      curve: DURATIONS_S.map((durationS) => ({
+        durationS,
+        value: null,
+        startIndex: -1,
+        windowS: durationS,
+        heartRate: null,
+        terms: null,
+      })),
+    }
+    expect(ActivityDigestSchema.safeParse(current).success).toBe(true)
+    expect(
+      ActivityDigestSchema.safeParse({ ...current, curve: current.curve.slice(1) }).success,
+    ).toBe(false)
+    expect(ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: 0 }).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: 3 }).success).toBe(true)
+    expect(
+      ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: Number.MAX_SAFE_INTEGER + 1 })
+        .success,
+    ).toBe(false)
+    expect(
+      ActivityCreateSchema.safeParse({
+        digest: { ...digestWire, modelRevision: 3 },
+        fileName: 'ride.fit',
+        fileHash: 'a'.repeat(64),
+      }).success,
+    ).toBe(false)
   })
 
   it('rejects infinities, which JSON cannot carry', () => {

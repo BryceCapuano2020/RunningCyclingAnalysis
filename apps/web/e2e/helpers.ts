@@ -4,10 +4,10 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
 import type { APIRequestContext, ConsoleMessage, Locator, Page } from '@playwright/test'
-import type { ActivityPage, ActivityRecord } from '@rca/contract'
+import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
-export const LANDING_TITLE = 'Are you a stronger runner or cyclist?'
+export const LANDING_TITLE = 'How do your running and cycling energy estimates compare?'
 
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa']
 
@@ -86,6 +86,25 @@ export async function signInAs(
     data: { email, name },
   })
   expect(response.status()).toBe(200)
+}
+
+/** Turns on original-file storage for tests that explicitly exercise the R2 path. */
+export async function enableFileRetention(request: APIRequestContext): Promise<void> {
+  const response = await request.get('/api/me')
+  expect(response.status()).toBe(200)
+  const me = (await response.json()) as Me
+  expect(me.fileRetentionAvailable).not.toBe(false)
+  if (me.profile.keepFiles) return
+  const updated = await request.put('/api/profile', {
+    headers: CLIENT_HEADERS,
+    data: {
+      massKg: me.profile.massKg,
+      bikeMassKg: me.profile.bikeMassKg,
+      units: me.profile.units,
+      keepFiles: true,
+    },
+  })
+  expect(updated.status()).toBe(200)
 }
 
 /** Every activity the signed-in user has on the server, read page by page. */

@@ -18,13 +18,22 @@ test('choosing 6 weeks narrows the activities and All time restores them all', a
   await expect(page.getByText(/of 14 activities/)).toHaveCount(0)
 })
 
-test('the headline says both best efforts were close to all-out for the sample data', async ({
+test('period labels remain clickable at a narrow viewport with enlarged text', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 })
+  await openSample(page)
+  await page.addStyleTag({ content: ':root { font-size: 20px; }' })
+  const period = page.getByRole('group', { name: 'Period' })
+  await period.getByText('6 weeks', { exact: true }).click()
+  await expect(page.getByText(/^\d+ of 14 activities$/)).toBeVisible()
+  await period.getByText('All time', { exact: true }).click()
+  await expect(activitiesRows(page)).toHaveCount(14)
+})
+
+test('the headline does not infer maximal effort from the uploaded maximum heart rate', async ({
   page,
 }) => {
   await openSample(page)
-  await expect(
-    page.getByText('Both best efforts were close to all-out by heart rate'),
-  ).toBeVisible()
+  await expect(page.getByText(/This does not establish that either was all-out/)).toBeVisible()
 })
 
 test('focus moves to the results heading after sample data and back to the landing heading after start over', async ({

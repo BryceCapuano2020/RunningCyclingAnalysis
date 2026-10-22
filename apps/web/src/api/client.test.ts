@@ -7,6 +7,7 @@ import {
   createActivity,
   deleteAccount,
   deleteActivity,
+  downloadActivityFile,
   getMe,
   listActivities,
   logout,
@@ -61,6 +62,7 @@ const RECORD_WIRE = {
 /** The same digest as the in-memory type, with NaN in the places the wire writes null. */
 const DIGEST: ActivityDigest = {
   version: 1,
+  modelRevision: 2,
   id: 'a1',
   name: 'Morning run',
   sport: 'run',
@@ -112,6 +114,7 @@ function callOf(fetchMock: ReturnType<typeof stubFetch>, index = 0) {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -139,7 +142,10 @@ describe('getMe', () => {
   })
 
   it('throws the server error code and message for other failures', async () => {
-    stubFetch(respond(500, { error: { code: 'internal_error', message: 'Something went wrong' } }))
+    stubFetch(
+      respond(500, { error: { code: 'internal_error', message: 'Something went wrong' } }),
+      respond(500, { error: { code: 'internal_error', message: 'Something went wrong' } }),
+    )
     const error = await getMe().catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiRequestError)
     expect(error).toMatchObject({
@@ -176,6 +182,93 @@ describe('getMe', () => {
     })
   })
 
+  it('retries a transient network failure once on a safe read', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('offline'))
+      .mockResolvedValueOnce(respond(200, ME))
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await getMe()).toEqual(ME)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('bounds a stalled request and retries it once', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn((_: string, init: RequestInit) => {
+      if (fetchMock.mock.calls.length > 1) return Promise.resolve(respond(200, ME))
+      return new Promise<Response>((_, reject) => {
+        init.signal?.addEventListener('abort', () =>
+          reject(new DOMException('aborted', 'AbortError')),
+        )
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const request = getMe()
+    await vi.advanceTimersByTimeAsync(15_000)
+    await expect(request).resolves.toEqual(ME)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
+  it('does not retry a 503 that advertises Retry-After', async () => {
+    const fetchMock = stubFetch(
+      new Response(JSON.stringify({ error: { code: 'service_unavailable', message: 'busy' } }), {
+        status: 503,
+        headers: { 'content-type': 'application/json', 'retry-after': '60' },
+      }),
+    )
+    await expect(getMe()).rejects.toMatchObject({ status: 503, code: 'service_unavailable' })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('allows original-file transfers to outlast the shorter metadata request deadline', async () => {
+    vi.useFakeTimers()
+    let finish!: () => void
+    let signal: AbortSignal | null | undefined
+    const fetchMock = vi.fn((_: string, init: RequestInit) => {
+      signal = init.signal
+      return new Promise<Response>((resolve, reject) => {
+        finish = () => resolve(new Response(new Uint8Array([1, 2, 3])))
+        init.signal?.addEventListener('abort', () =>
+          reject(new DOMException('aborted', 'AbortError')),
+        )
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const transfer = downloadActivityFile('a1')
+      await vi.advanceTimersByTimeAsync(15_001)
+      expect(signal?.aborted).toBe(false)
+      finish()
+      expect(await transfer).toEqual(new Uint8Array([1, 2, 3]))
+      expect(fetchMock).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the timeout active while reading an error response body', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn((_: string, init: RequestInit) =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              init.signal?.addEventListener('abort', () => controller.error(new Error('aborted')))
+            },
+          }),
+          { status: 503, headers: { 'retry-after': '60' } },
+        ),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const request = getMe()
+    const rejection = expect(request).rejects.toMatchObject({ status: 503 })
+    await vi.advanceTimersByTimeAsync(15_000)
+    await rejection
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it('rejects a body that does not match the contract', async () => {
     stubFetch(respond(200, { user: { id: 'u1' } }))
     await expect(getMe()).rejects.toMatchObject({ status: 200, code: 'invalid_response' })
@@ -191,12 +284,13 @@ describe('updateProfile', () => {
   it('sends the profile as JSON with the client header and returns the stored profile', async () => {
     const stored = { ...PROFILE_INPUT, updatedAt: 3000 }
     const fetchMock = stubFetch(respond(200, stored))
-    expect(await updateProfile(PROFILE_INPUT)).toEqual(stored)
+    expect(await updateProfile(PROFILE_INPUT, 'u1')).toEqual(stored)
 
     const { path, init, headers } = callOf(fetchMock)
     expect(path).toBe('/api/profile')
     expect(init.method).toBe('PUT')
     expect(headers.get(CLIENT_HEADER)).toBe(CLIENT_HEADER_VALUE)
+    expect(headers.get('X-RCA-User')).toBe('u1')
     expect(headers.get('Content-Type')).toBe('application/json')
     expect(JSON.parse(init.body as string)).toEqual(PROFILE_INPUT)
   })
@@ -245,7 +339,7 @@ describe('listActivities', () => {
     const fetchMock = stubFetch(respond(200, { items: [RECORD_WIRE], nextCursor: null }))
     const records = await listActivities()
 
-    expect(callOf(fetchMock).path).toBe('/api/activities?limit=1000')
+    expect(callOf(fetchMock).path).toBe('/api/activities?limit=25')
     expect(callOf(fetchMock).init.method).toBe('GET')
     expect(records).toHaveLength(1)
     const [record] = records
@@ -254,6 +348,7 @@ describe('listActivities', () => {
     expect(record?.digest.distanceM).toBeNaN()
     expect(record?.digest.curve[0]?.value).toBeNaN()
     expect(record?.digest.curve[0]?.heartRate).toBeNull()
+    expect(record?.digest.modelRevision).toBe(1)
   })
 
   it('follows nextCursor until a page says there is no more', async () => {
@@ -267,34 +362,32 @@ describe('listActivities', () => {
     const records = await listActivities()
 
     expect(records.map((r) => r.id)).toEqual(['rec-1', 'rec-2', 'rec-3'])
-    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=1000')
-    expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=1000&cursor=c1')
-    expect(callOf(fetchMock, 2).path).toBe('/api/activities?limit=1000&cursor=c2')
+    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=25')
+    expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=25&cursor=c1')
+    expect(callOf(fetchMock, 2).path).toBe('/api/activities?limit=25&cursor=c2')
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('keeps since on every page request', async () => {
     const fetchMock = stubFetch(
-      respond(200, { items: [], nextCursor: 'c1' }),
-      respond(200, { items: [], nextCursor: null }),
+      respond(200, { items: [RECORD_WIRE], nextCursor: 'c1' }),
+      respond(200, { items: [{ ...RECORD_WIRE, id: 'rec-2' }], nextCursor: null }),
     )
     await listActivities(1_700_000_000_000)
-    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=1000&since=1700000000000')
-    expect(callOf(fetchMock, 1).path).toBe(
-      '/api/activities?limit=1000&since=1700000000000&cursor=c1',
-    )
+    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=25&since=1700000000000')
+    expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=25&since=1700000000000&cursor=c1')
   })
 
   it('treats since of 0 as a parameter, not as missing', async () => {
     const fetchMock = stubFetch(respond(200, { items: [], nextCursor: null }))
     await listActivities(0)
-    expect(callOf(fetchMock).path).toBe('/api/activities?limit=1000&since=0')
+    expect(callOf(fetchMock).path).toBe('/api/activities?limit=25&since=0')
   })
 
   it('stops with an error when the server repeats a cursor instead of looping forever', async () => {
     stubFetch(
-      respond(200, { items: [], nextCursor: 'same' }),
-      respond(200, { items: [], nextCursor: 'same' }),
+      respond(200, { items: [RECORD_WIRE], nextCursor: 'same' }),
+      respond(200, { items: [RECORD_WIRE], nextCursor: 'same' }),
     )
     await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
@@ -303,18 +396,24 @@ describe('listActivities', () => {
     stubFetch(respond(200, [RECORD_WIRE]))
     await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
+
+  it('rejects an empty page that claims more pages remain', async () => {
+    stubFetch(respond(200, { items: [], nextCursor: 'cursor' }))
+    await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
 })
 
 describe('createActivity', () => {
   it('posts the digest, name and hash as JSON and reports a new record as created', async () => {
     const fetchMock = stubFetch(respond(201, RECORD_WIRE))
     const hash = 'a'.repeat(64)
-    const { record, created } = await createActivity(DIGEST, 'run.fit', hash)
+    const { record, created } = await createActivity(DIGEST, 'run.fit', hash, 'u1')
 
     const { path, init, headers } = callOf(fetchMock)
     expect(path).toBe('/api/activities')
     expect(init.method).toBe('POST')
     expect(headers.get(CLIENT_HEADER)).toBe(CLIENT_HEADER_VALUE)
+    expect(headers.get('X-RCA-User')).toBe('u1')
     expect(headers.get('Content-Type')).toBe('application/json')
     const body = JSON.parse(init.body as string) as {
       digest: { durationS: unknown; curve: { value: unknown }[] }
@@ -368,6 +467,28 @@ describe('uploadFile', () => {
       status: 422,
       code: 'hash_mismatch',
     })
+  })
+})
+
+describe('downloadActivityFile', () => {
+  it('downloads original bytes from the encoded activity path', async () => {
+    const bytes = new Uint8Array([1, 2, 3])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(bytes, { status: 200, headers: { 'content-length': '3' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await downloadActivityFile('rec 1/x')).toEqual(bytes)
+    expect(callOf(fetchMock).path).toBe('/api/activities/rec%201%2Fx/file')
+  })
+
+  it('rejects a file that exceeds the allowed size', async () => {
+    stubFetch(
+      new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'content-length': '52428801' },
+      }),
+    )
+    await expect(downloadActivityFile('rec-1')).rejects.toMatchObject({ code: 'file_too_large' })
   })
 })
 

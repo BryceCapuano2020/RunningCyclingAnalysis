@@ -13,22 +13,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Verify the deployment commit
+    uses: ./.github/workflows/ci.yml
+
   deploy:
-    name: Build, migrate and deploy
+    name: Migrate and deploy verified build
+    needs: verify
+    if: github.ref == 'refs/heads/main'
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npm run build -w @rca/web
+      - run: npm ci --no-audit
+      - name: Use the exact assets produced by verification
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: apps/web/dist
       - name: Apply D1 migrations to the production database
         run: npm run db:migrate:remote -w @rca/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy the Worker
-        run: npm run deploy -w @rca/api
+        run: npm run deploy:built -w @rca/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

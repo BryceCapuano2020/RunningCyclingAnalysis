@@ -1,6 +1,7 @@
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef } from 'react'
+import type { Profile, ProfileInput } from '@rca/contract'
 import './App.css'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from './ui/charts'
 import {
@@ -23,11 +24,43 @@ import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
 
+function profileInput(profile: Profile): ProfileInput {
+  return {
+    massKg: profile.massKg,
+    bikeMassKg: profile.bikeMassKg,
+    units: profile.units,
+    keepFiles: profile.keepFiles,
+  }
+}
+
 export function App() {
   const [preferences, setPreferences] = usePreferences()
   const account = useAccount()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
+  const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
+  const userId = account.me?.user.id ?? null
+  const profileEditRef = useRef<{ userId: string | null; input: ProfileInput | null }>({
+    userId,
+    input: profile ? profileInput(profile) : null,
+  })
+  const profileSavedRef = useRef<{ userId: string | null; input: ProfileInput | null }>({
+    userId,
+    input: profile ? profileInput(profile) : null,
+  })
+  useEffect(() => {
+    if (profileEditRef.current.userId !== userId) {
+      const input = profile ? profileInput(profile) : null
+      profileEditRef.current = { userId, input }
+      profileSavedRef.current = { userId, input }
+    } else if (profile && profileEditRef.current.input === null) {
+      const input = profileInput(profile)
+      profileEditRef.current.input = input
+      profileSavedRef.current = { userId, input }
+    } else if (profile) {
+      profileSavedRef.current = { userId, input: profileInput(profile) }
+    }
+  }, [profile, userId])
 
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
   const settings: AthleteSettings = profile
@@ -39,12 +72,30 @@ export function App() {
     next: Partial<{ settings: AthleteSettings; units: UnitSystem; keepFiles: boolean }>,
   ) => {
     if (profile) {
-      void account.updateProfile({
-        massKg: next.settings?.massKg ?? profile.massKg,
-        bikeMassKg: next.settings?.bikeMassKg ?? profile.bikeMassKg,
-        units: next.units ?? profile.units,
-        keepFiles: next.keepFiles ?? profile.keepFiles,
-      })
+      const current = profileEditRef.current.input ?? profileInput(profile)
+      const input = {
+        massKg: next.settings?.massKg ?? current.massKg,
+        bikeMassKg: next.settings?.bikeMassKg ?? current.bikeMassKg,
+        units: next.units ?? current.units,
+        keepFiles: next.keepFiles ?? current.keepFiles,
+      }
+      profileEditRef.current.input = input
+      const editUserId = profileEditRef.current.userId
+      void account
+        .updateProfile(input)
+        .then(() => {
+          if (profileSavedRef.current.userId === editUserId) {
+            profileSavedRef.current.input = input
+          }
+        })
+        .catch(() => {
+          if (
+            profileEditRef.current.userId === editUserId &&
+            profileEditRef.current.input === input
+          ) {
+            profileEditRef.current.input = profileSavedRef.current.input
+          }
+        })
     } else {
       setPreferences({
         settings: next.settings ?? preferences.settings,
@@ -54,6 +105,31 @@ export function App() {
   }
 
   const analysis = useAnalysis(settings, account)
+  const fileRetentionControls = signedIn && (
+    <>
+      <label className="app__keep-files">
+        <input
+          type="checkbox"
+          checked={keepFiles}
+          disabled={!fileRetentionAvailable}
+          aria-describedby="file-retention-help"
+          onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
+        />
+        Keep original files in my library
+      </label>
+      <p id="file-retention-help" className="app__retention-help muted">
+        Originals let you rebuild saved analyses later. Turning this off deletes saved originals;
+        activity summaries remain.
+      </p>
+      {!fileRetentionAvailable && (
+        <p role="status">
+          Original file storage is unavailable on this deployment. Your saved preference is
+          preserved; new imports save summaries only and original files stay on this device.
+          Existing saved originals are not deleted.
+        </p>
+      )}
+    </>
+  )
   const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
     analysis.state
   const headlineDuration = result ? pickHeadline(result.comparison)?.point.durationS : undefined
@@ -90,8 +166,46 @@ export function App() {
       <SyncStatus
         uploading={analysis.uploading}
         failures={analysis.state.syncFailures}
+        storageBudgetExceeded={analysis.storageBudgetExceeded}
         signedIn={signedIn}
       />
+      {signedIn && analysis.state.outdatedActivities > 0 && (
+        <section className="card" aria-label="Saved activity updates">
+          <p role="status">
+            {analysis.state.outdatedActivities} saved{' '}
+            {analysis.state.outdatedActivities === 1 ? 'activity uses' : 'activities use'} an older
+            analysis model and {analysis.state.outdatedActivities === 1 ? 'is' : 'are'} excluded
+            from these results.
+          </p>
+          {analysis.rebuildNotice && <p role="status">{analysis.rebuildNotice}</p>}
+          {!fileRetentionAvailable && (
+            <p>
+              Original file storage is unavailable on this deployment, so saved activities cannot be
+              rebuilt from the library. Import the original FIT files to update them; existing saved
+              originals are not deleted.
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn"
+            onClick={analysis.rebuildSavedActivities}
+            disabled={analysis.busy || !fileRetentionAvailable}
+          >
+            {analysis.busy ? 'Rebuilding saved activities…' : 'Rebuild saved activities'}
+          </button>
+        </section>
+      )}
+      {analysis.state.incompatibleActivities > 0 && (
+        <section className="card" aria-label="Incompatible saved activities">
+          <p role="status">
+            {analysis.state.incompatibleActivities} saved{' '}
+            {analysis.state.incompatibleActivities === 1 ? 'activity was' : 'activities were'}{' '}
+            created with a newer app version and{' '}
+            {analysis.state.incompatibleActivities === 1 ? 'is' : 'are'} excluded from analysis.
+            {' Use a compatible app version to analyze them.'}
+          </p>
+        </section>
+      )}
 
       {account.error && account.status !== 'unavailable' && (
         <p className="app__error card" role="alert">
@@ -100,28 +214,41 @@ export function App() {
       )}
 
       {analysis.error && (
-        <p className="app__error card" role="alert">
-          Something went wrong: {analysis.error}
-        </p>
+        <div className="app__error card" role="alert">
+          <p>Something went wrong: {analysis.error}</p>
+          {analysis.workerStopped && (
+            <button type="button" className="btn" onClick={analysis.retryWorker}>
+              Restart analysis
+            </button>
+          )}
+        </div>
+      )}
+
+      {analysis.busy && (
+        <button type="button" className="btn" onClick={analysis.stop}>
+          Stop current analysis
+        </button>
       )}
 
       {!result && (
         <main className="app__intro">
           <section className="app__pitch">
             <h1 ref={landingHeading} tabIndex={-1}>
-              Are you a stronger runner or cyclist?
+              How do your running and cycling energy estimates compare?
             </h1>
             <p className="secondary">
               Watts on the bike and pace on the run cannot be compared directly. This tool converts
-              both into the energy your body burns per kilogram, then tells you which engine is
-              bigger and how sure it can be.
+              both into the energy your body burns per kilogram, then compares the estimates with a
+              range that reflects the model assumptions.
             </p>
           </section>
+          {fileRetentionControls}
           <Dropzone
             onFiles={analysis.addFiles}
             onSample={analysis.loadSample}
             busy={analysis.busy}
             progress={analysis.progress}
+            retainsOriginals={signedIn && keepFiles && fileRetentionAvailable}
           />
           <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
           {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
@@ -143,8 +270,9 @@ export function App() {
             <li>
               <h3>3. Your heart rate checks the maths</h3>
               <p className="secondary">
-                Heart rate is an independent measure of effort, so it corrects the estimate for your
-                body and narrows the range.
+                The model assumes heart rate responds similarly to energy use in both sports. When
+                the data support it, fitted slopes adjust the energy estimates; otherwise, the
+                population-based range is kept.
               </p>
             </li>
           </ol>
@@ -166,22 +294,14 @@ export function App() {
               onSample={analysis.loadSample}
               busy={analysis.busy}
               progress={analysis.progress}
+              retainsOriginals={signedIn && keepFiles && fileRetentionAvailable}
             />
             <SettingsBar
               settings={settings}
               units={units}
               onChange={(next) => saveProfile({ settings: next })}
             />
-            {signedIn && (
-              <label className="app__keep-files">
-                <input
-                  type="checkbox"
-                  checked={keepFiles}
-                  onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
-                />
-                Keep original files in my library
-              </label>
-            )}
+            {fileRetentionControls}
             <RangePicker
               rangeDays={rangeDays}
               onChange={analysis.setRange}
@@ -274,7 +394,11 @@ export function App() {
       )}
 
       <footer className="app__footer muted">
-        <PrivacyNote signedIn={signedIn} keepFiles={keepFiles} />
+        <PrivacyNote
+          signedIn={signedIn}
+          keepFiles={keepFiles}
+          fileRetentionAvailable={fileRetentionAvailable}
+        />
       </footer>
     </div>
   )

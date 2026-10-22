@@ -65,7 +65,7 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: null, failures: 1 })} />)
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent(
-      '1 activity could not be saved. It is still analysed on this device.',
+      '1 activity could not be fully saved. It is still analysed on this device. Re-import to retry; if an original exceeds 50 MiB, turn off file retention first.',
     )
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -74,8 +74,29 @@ describe('SyncStatus', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: null, failures: 3 })} />)
     expect(screen.getByRole('status')).toHaveTextContent(
-      '3 activities could not be saved. They are still analysed on this device.',
+      '3 activities could not be fully saved. They are still analysed on this device. Re-import to retry; if an original exceeds 50 MiB, turn off file retention first.',
     )
+  })
+
+  it('explains storage allowance failures without suggesting an immediate retry', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 1 })} />)
+    rerender(<SyncStatus {...props({ uploading: 1, storageBudgetExceeded: true })} />)
+
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(/deployment reached its storage allowance/)
+    expect(status).toHaveTextContent(/Activity summaries still sync and analysis continues/)
+    expect(status).toHaveTextContent(/Turn off file retention to continue with summaries only/)
+    expect(status).toHaveTextContent(/re-importing now will not bypass this allowance/)
+    expect(status).toHaveClass('sync-status__message--failed')
+  })
+
+  it('clears a prior allowance notice when a new import begins', () => {
+    const { rerender } = render(
+      <SyncStatus {...props({ uploading: 1, storageBudgetExceeded: true })} />,
+    )
+    rerender(<SyncStatus {...props({ uploading: 1, storageBudgetExceeded: false })} />)
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('does not announce a start or finish for an upload that was already running on mount', () => {

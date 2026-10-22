@@ -75,6 +75,12 @@ describe('Dropzone', () => {
     expect(screen.getByText(/Your files never leave this device/)).toBeInTheDocument()
   })
 
+  it('discloses original uploads instead of promising local-only files after opt-in', () => {
+    renderDropzone({ retainsOriginals: true })
+    expect(screen.getByText(/Original files are saved to your private library/)).toBeInTheDocument()
+    expect(screen.queryByText(/Your files never leave this device/)).not.toBeInTheDocument()
+  })
+
   it('calls onSample from the sample button', async () => {
     const user = userEvent.setup()
     const { onSample } = renderDropzone()

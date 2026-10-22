@@ -6,6 +6,12 @@ describe('response headers', () => {
   it('sets nosniff on a raw file download too', async () => {
     const h = createHarness()
     const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      cookies: { rca_session: token },
+    })
     const content = new TextEncoder().encode('<html>not really</html>')
     const created = await h.send({
       method: 'POST',
@@ -48,9 +54,16 @@ describe('response headers', () => {
     expect(logout.headers.get('cache-control')).toBe('no-store')
   })
 
-  it('does not mark unrelated routes no-store', async () => {
+  it('marks all API responses no-store, including activity/profile responses and errors', async () => {
     const h = createHarness()
-    expect((await h.send({ path: '/api/health' })).headers.get('cache-control')).toBeNull()
+    for (const path of ['/api/health', '/api/profile', '/api/activities', '/api/unknown']) {
+      const response = await h.send({ path })
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+      expect(response.headers.get('x-frame-options')).toBe('DENY')
+      expect(response.headers.get('content-security-policy')).toContain("default-src 'none'")
+      expect(response.headers.get('x-request-id')).toMatch(/^[a-f0-9-]{36}$/)
+    }
   })
 })
 
@@ -118,6 +131,12 @@ describe('malformed Content-Length', () => {
   it('rejects a malformed length on the upload route with 400, not 500', async () => {
     const h = createHarness()
     const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      cookies: { rca_session: token },
+    })
     const created = await h.send({
       method: 'POST',
       path: '/api/activities',

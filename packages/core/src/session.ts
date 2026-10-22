@@ -1,4 +1,5 @@
 import { combine, digestActivity } from './digest'
+import { MODEL_REVISION } from './digest/modelRevision'
 import type { AnalysisResult } from './digest'
 import type { FitSource } from './fit'
 import { extractFitFiles, parseFit } from './fit'
@@ -19,6 +20,10 @@ export interface SessionState {
   isSample: boolean
   /** Activities loaded, before the period filter. */
   totalActivities: number
+  /** Stored activities excluded because their digest model is older than this app's. */
+  outdatedActivities: number
+  /** Stored activities excluded because their digest model is from a newer app version. */
+  incompatibleActivities: number
   /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
   rangeDays: number | null
   /** Activities the sink could not save and that have not been saved since. */
@@ -58,6 +63,8 @@ export class AnalysisSession {
   private digests = new Map<string, ActivityDigest>()
   // Keys of activities whose last sink call failed. Re-importing the file tries them again.
   private unsynced = new Set<string>()
+  private outdatedKeys = new Set<string>()
+  private incompatibleKeys = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
   private rejected = new Map<string, string>()
   private unsupported = new Map<string, number>()
@@ -69,6 +76,7 @@ export class AnalysisSession {
     settings: AthleteSettings,
     onProgress?: (filesRead: number) => void,
     sink?: SyncSink,
+    syncExisting = false,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     let filesRead = 0
@@ -85,6 +93,7 @@ export class AnalysisSession {
                 activity,
                 { fileName: file.fileName, fileHash, bytes: file.bytes },
                 sink,
+                syncExisting,
               )
             }
             // A file that now reads cleanly replaces an earlier rejection under the same name.
@@ -112,8 +121,22 @@ export class AnalysisSession {
   /** Replaces the whole library with digests that were stored elsewhere (the server). */
   loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
     this.reset()
+    const outdatedKeys = new Set<string>()
+    const incompatibleKeys = new Set<string>()
     for (const digest of digests) {
-      this.digests.set(dedupeKey(digest.sport, digest.startMs), digest)
+      const key = dedupeKey(digest.sport, digest.startMs)
+      if (digest.modelRevision !== MODEL_REVISION) {
+        if (digest.modelRevision < MODEL_REVISION) outdatedKeys.add(key)
+        else incompatibleKeys.add(key)
+        continue
+      }
+      this.digests.set(key, digest)
+    }
+    for (const key of outdatedKeys) {
+      if (!this.digests.has(key)) this.outdatedKeys.add(key)
+    }
+    for (const key of incompatibleKeys) {
+      if (!this.digests.has(key)) this.incompatibleKeys.add(key)
     }
     return this.state(settings)
   }
@@ -138,23 +161,29 @@ export class AnalysisSession {
 
   clear(): SessionState {
     this.reset()
+    this.rangeDays = null
     return this.state({ massKg: 0, bikeMassKg: 0 })
   }
 
   /**
    * Digests one parsed activity and hands it to the sink. An activity already held and saved is
-   * left alone, so a duplicate import is not sent again. A sink failure is counted, not thrown.
+   * left alone unless syncExisting requests a sink call for an existing activity (for example,
+   * to retain an original after that preference is enabled). A sink failure is counted, not thrown.
    */
   private async keep(
     activity: Activity,
     file: { fileName: string; fileHash: string; bytes: Uint8Array },
     sink: SyncSink | undefined,
+    syncExisting: boolean,
   ): Promise<void> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
-    if (held !== undefined && (sink === undefined || !this.unsynced.has(key))) return
+    if (held !== undefined && (sink === undefined || (!this.unsynced.has(key) && !syncExisting)))
+      return
     const digest = held ?? digestActivity(activity)
     this.digests.set(key, digest)
+    this.outdatedKeys.delete(key)
+    this.incompatibleKeys.delete(key)
     if (sink === undefined) return
     try {
       await sink({ digest, ...file })
@@ -167,6 +196,8 @@ export class AnalysisSession {
   private reset(): void {
     this.digests.clear()
     this.unsynced.clear()
+    this.outdatedKeys.clear()
+    this.incompatibleKeys.clear()
     this.rejected.clear()
     this.unsupported.clear()
     this.isSample = false
@@ -187,6 +218,8 @@ export class AnalysisSession {
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
       totalActivities: all.length,
+      outdatedActivities: this.outdatedKeys.size,
+      incompatibleActivities: this.incompatibleKeys.size,
       rangeDays: this.rangeDays,
       syncFailures: this.unsynced.size,
     }

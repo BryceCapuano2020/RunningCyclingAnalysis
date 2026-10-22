@@ -4,10 +4,19 @@ export interface PrivacyNoteProps {
   signedIn: boolean
   /** Whether the signed-in user keeps original files in the library. */
   keepFiles: boolean
+  /** Absent means the API predates capability reporting and file retention is available. */
+  fileRetentionAvailable?: boolean
 }
 
-function privacyText(signedIn: boolean, keepFiles: boolean): string {
+function privacyText(
+  signedIn: boolean,
+  keepFiles: boolean,
+  fileRetentionAvailable: boolean,
+): string {
   if (!signedIn) return 'Nothing is uploaded. Files are read and analysed in your browser only.'
+  if (!fileRetentionAvailable) {
+    return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files stay on this device; existing saved originals are not deleted. Analysis runs in your browser.'
+  }
   if (keepFiles) {
     return 'Your activity summaries and original files are stored in your private library. Analysis runs in your browser.'
   }
@@ -15,6 +24,10 @@ function privacyText(signedIn: boolean, keepFiles: boolean): string {
 }
 
 /** The one-line privacy statement that says exactly what is stored for this visitor. */
-export function PrivacyNote({ signedIn, keepFiles }: PrivacyNoteProps) {
-  return <p className="privacy-note">{privacyText(signedIn, keepFiles)}</p>
+export function PrivacyNote({
+  signedIn,
+  keepFiles,
+  fileRetentionAvailable = true,
+}: PrivacyNoteProps) {
+  return <p className="privacy-note">{privacyText(signedIn, keepFiles, fileRetentionAvailable)}</p>
 }

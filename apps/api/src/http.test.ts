@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { contentDisposition, readBody, validationMessage } from './http.ts'
 import { HttpError } from './errors.ts'
@@ -22,6 +22,30 @@ async function expectTooLarge(promise: Promise<unknown>): Promise<void> {
 }
 
 describe('readBody', () => {
+  it('times out a stalled body, cancels without waiting, and releases its reader lock', async () => {
+    vi.useFakeTimers()
+    const cancel = vi.fn(() => new Promise<void>(() => undefined))
+    const stream = new ReadableStream<Uint8Array>({ cancel })
+    try {
+      const result = readBody({ headers: new Headers(), body: stream } as Request, 100, {
+        idleTimeoutMs: 100,
+        maxDurationMs: 500,
+      }).catch((error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(await result).toMatchObject({ status: 408, code: 'body_timeout' })
+      expect(cancel).toHaveBeenCalled()
+      expect(stream.locked).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('releases the reader after a successful read', async () => {
+    const stream = streamOf([new Uint8Array([1])])
+    await readBody({ headers: new Headers(), body: stream } as Request, 10)
+    expect(stream.locked).toBe(false)
+  })
+
   it('concatenates streamed chunks in order', async () => {
     const request = new Request('http://t/x', {
       method: 'POST',

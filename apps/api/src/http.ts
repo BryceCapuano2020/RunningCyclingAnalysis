@@ -17,50 +17,84 @@ export function declaredLength(request: Request): number | undefined {
   return Number(declared)
 }
 
-export async function readBody(request: Request, maxBytes: number): Promise<Uint8Array> {
+/** Bounds byte count, idle time, and total upload duration, always releasing the stream reader. */
+export async function readBody(
+  request: Request,
+  maxBytes: number,
+  options: { idleTimeoutMs?: number; maxDurationMs?: number } = {},
+): Promise<Uint8Array> {
   const expected = declaredLength(request)
   if (expected !== undefined && expected > maxBytes) throw tooLarge(maxBytes)
   if (!request.body) return new Uint8Array(0)
-
   const reader = request.body.getReader()
-  if (expected !== undefined) {
-    const body = new Uint8Array(expected)
-    let offset = 0
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      if (offset + value.byteLength > expected) {
-        await reader.cancel()
-        throw new HttpError(400, 'length_mismatch', 'Body is longer than its Content-Length')
-      }
-      body.set(value, offset)
-      offset += value.byteLength
+  const idleTimeoutMs = options.idleTimeoutMs ?? 15_000
+  const deadline = Date.now() + (options.maxDurationMs ?? 120_000)
+  let complete = false
+  const next = async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const remaining = Math.min(idleTimeoutMs, deadline - Date.now())
+    if (remaining <= 0) throw new HttpError(408, 'body_timeout', 'Request body took too long')
+    try {
+      return await Promise.race([
+        reader.read(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new HttpError(408, 'body_timeout', 'Request body took too long')),
+            remaining,
+          )
+        }),
+      ])
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
     }
-    if (offset !== expected) {
-      throw new HttpError(400, 'length_mismatch', 'Body is shorter than its Content-Length')
+  }
+  try {
+    if (expected !== undefined) {
+      const body = new Uint8Array(expected)
+      let offset = 0
+      for (;;) {
+        const { done, value } = await next()
+        if (done) {
+          complete = true
+          break
+        }
+        if (offset + value.byteLength > expected) {
+          throw new HttpError(400, 'length_mismatch', 'Body is longer than its Content-Length')
+        }
+        body.set(value, offset)
+        offset += value.byteLength
+      }
+      if (offset !== expected)
+        throw new HttpError(400, 'length_mismatch', 'Body is shorter than its Content-Length')
+      return body
+    }
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await next()
+      if (done) {
+        complete = true
+        break
+      }
+      total += value.byteLength
+      if (total > maxBytes) throw tooLarge(maxBytes)
+      // Own the retained bytes even if a producer reuses its input buffer.
+      chunks.push(value.slice())
+    }
+    const body = new Uint8Array(total)
+    let offset = 0
+    for (const chunk of chunks) {
+      body.set(chunk, offset)
+      offset += chunk.byteLength
     }
     return body
-  }
-
-  const chunks: Uint8Array[] = []
-  let total = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    total += value.byteLength
-    if (total > maxBytes) {
-      await reader.cancel()
-      throw tooLarge(maxBytes)
+  } finally {
+    if (!complete) {
+      // Cancellation may itself stall: release our reader without awaiting untrusted source code.
+      void reader.cancel().catch(() => undefined)
     }
-    chunks.push(value)
+    reader.releaseLock()
   }
-  const body = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    body.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return body
 }
 
 /** Caps a route's body before it is parsed: rejects on Content-Length, or while streaming. */

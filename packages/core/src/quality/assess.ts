@@ -1,4 +1,5 @@
 import { rollingMean } from '../math'
+import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
 
 /** Every threshold used by assessQuality. Samples are 1 Hz, so samples and seconds are the same. */
@@ -12,6 +13,8 @@ export const QUALITY_THRESHOLDS = {
   powerDropout: { minDurationS: 5, minSpeedMs: 3 },
   speedSpike: { maxSpeedMs: { run: 12.5, ride: 30 }, maxStepMs: 5, marginS: 3 },
   altitudeJump: { maxStepM: 10, marginS: 10 },
+  /** smoothGrade spreads an altitude error across its rolling mean and grade difference. */
+  gradeContaminationMarginS: GRADE_SMOOTHING_MARGIN_S,
   /** Same-kind flags closer than this, in seconds, are one flag, so noisy sensors do not multiply flags. */
   flagMergeGapS: 10,
 } as const
@@ -120,14 +123,14 @@ function heartRateRules(
   }
 }
 
-function powerRules(a: Activity, validMotion: Uint8Array, raw: RawFlag[]): void {
+function powerRules(a: Activity, validPower: Uint8Array, raw: RawFlag[]): void {
   if (!a.hasPower) return
   const { n, speed, power } = a
   const t = QUALITY_THRESHOLDS
 
   for (let i = 0; i < n; i++) {
     if (power[i]! > t.powerSpike.maxW) {
-      markRange(raw, validMotion, 'power-spike', around(i, t.powerSpike.marginS, n))
+      markRange(raw, validPower, 'power-spike', around(i, t.powerSpike.marginS, n))
     }
   }
 
@@ -135,13 +138,14 @@ function powerRules(a: Activity, validMotion: Uint8Array, raw: RawFlag[]): void 
   const fast = (i: number): boolean => speed[i]! > t.powerDropout.minSpeedMs
   for (const run of runsWhere(n, missing)) {
     if (run.end - run.start < t.powerDropout.minDurationS) continue
-    if (every(run, fast)) markRange(raw, validMotion, 'power-dropout', run)
+    if (every(run, fast)) markRange(raw, validPower, 'power-dropout', run)
   }
 }
 
 function motionRules(
   a: Activity,
   validMotion: Uint8Array,
+  validGrade: Uint8Array,
   raw: RawFlag[],
   steady: Uint8Array,
 ): void {
@@ -164,7 +168,13 @@ function motionRules(
   for (let i = 1; i < n; i++) {
     const jump = Math.abs(altitude[i]! - altitude[i - 1]!) > t.altitudeJump.maxStepM
     if (steady[i] === 1 && jump) {
-      markRange(raw, validMotion, 'altitude-jump', around(i, t.altitudeJump.marginS, n))
+      const flagRange = around(i, t.altitudeJump.marginS, n)
+      raw.push({ kind: 'altitude-jump', ...flagRange })
+      validGrade.fill(
+        0,
+        Math.max(0, i - t.gradeContaminationMarginS),
+        Math.min(n, i + t.gradeContaminationMarginS + 1),
+      )
     }
   }
 }
@@ -222,6 +232,8 @@ function messageFor(kind: QualityKind, durationS: number): string {
 export function assessQuality(activity: Activity): QualityReport {
   const { n, speed } = activity
   const validMotion = new Uint8Array(n).fill(1)
+  const validPower = new Uint8Array(n).fill(activity.hasPower ? 1 : 0)
+  const validGrade = new Uint8Array(n).fill(1)
   const validHeartRate = new Uint8Array(n).fill(activity.hasHeartRate ? 1 : 0)
   const raw: RawFlag[] = []
 
@@ -230,8 +242,8 @@ export function assessQuality(activity: Activity): QualityReport {
   }
   const steady = steadyMask(activity.paused, n)
   if (activity.hasHeartRate) heartRateRules(activity, validHeartRate, raw, steady)
-  powerRules(activity, validMotion, raw)
-  motionRules(activity, validMotion, raw, steady)
+  powerRules(activity, validPower, raw)
+  motionRules(activity, validMotion, validGrade, raw, steady)
 
   const flags: QualityFlag[] = mergeFlags(raw)
     .sort((a, b) => a.start - b.start || compareKinds(a.kind, b.kind))
@@ -242,5 +254,5 @@ export function assessQuality(activity: Activity): QualityReport {
       message: messageFor(f.kind, f.end - f.start),
     }))
 
-  return { flags, validMotion, validHeartRate }
+  return { flags, validMotion, validPower, validGrade, validHeartRate }
 }

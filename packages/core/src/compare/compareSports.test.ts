@@ -72,6 +72,19 @@ describe('compareSports', () => {
     expect(compareSports(run, ride, MASS_KG, hrCheck(null, 0.05)).calibrated).toBeNull()
   })
 
+  it('keeps the finite prior when heart-rate evidence conflicts with the sampled model', () => {
+    const { run, ride } = equalCurves([60], [20])
+    const prior = compareSports(run, ride, MASS_KG, null).prior
+    for (const kappa of [3, 10]) {
+      const result = compareSports(run, ride, MASS_KG, hrCheck(kappa, 0.05))
+      expect(result.prior).toEqual(prior)
+      expect(result.calibrated).toBeNull()
+      expect(result.calibration?.accepted).toBe(false)
+      expect(result.calibration?.effectiveSamples).toBeLessThan(40)
+      expect(Number.isFinite(result.prior[0]!.ratio.p50)).toBe(true)
+    }
+  })
+
   it('omits durations where either curve is NaN', () => {
     const durations = [60, 300, 1200]
     const run = curve(durations, [20, Number.NaN, 20])

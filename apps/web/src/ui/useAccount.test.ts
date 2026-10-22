@@ -160,22 +160,126 @@ describe('useAccount', () => {
 
   it('updateProfile replaces the profile in place and clears an earlier error', async () => {
     const stored = { ...INPUT, updatedAt: 2000 }
-    mocked.updateProfile.mockRejectedValueOnce(new Error('first try failed'))
-    mocked.updateProfile.mockResolvedValueOnce(stored)
     const { result } = await renderSignedIn()
 
-    await act(async () => {
-      await result.current.updateProfile(INPUT)
-    })
+    const failure = new Error('first try failed')
+    mocked.updateProfile.mockRejectedValueOnce(failure).mockResolvedValueOnce(stored)
+    expect(await attempt(() => result.current.updateProfile(INPUT))).toBe(failure)
     expect(result.current.error).toBe('first try failed')
 
     await act(async () => {
       await result.current.updateProfile(INPUT)
     })
-    expect(mocked.updateProfile).toHaveBeenLastCalledWith(INPUT)
+    expect(mocked.updateProfile).toHaveBeenLastCalledWith(INPUT, ME.user.id)
     expect(result.current.me).toEqual({ user: ME.user, profile: stored })
     expect(result.current.error).toBeNull()
     expect(result.current.status).toBe('signed-in')
+  })
+
+  it('serializes full-profile writes so a late response cannot overwrite a later edit', async () => {
+    const firstStored = { ...INPUT, updatedAt: 2000 }
+    const secondInput = { ...INPUT, units: 'metric' as const }
+    const secondStored = { ...secondInput, updatedAt: 3000 }
+    let finishFirst: (profile: typeof firstStored) => void = () => undefined
+    mocked.updateProfile
+      .mockImplementationOnce(() => new Promise((resolve) => (finishFirst = resolve)))
+      .mockResolvedValueOnce(secondStored)
+    const { result } = await renderSignedIn()
+
+    let first: Promise<void> = Promise.resolve()
+    let second: Promise<void> = Promise.resolve()
+    act(() => {
+      first = result.current.updateProfile(INPUT)
+      second = result.current.updateProfile(secondInput)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mocked.updateProfile).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      finishFirst(firstStored)
+      await Promise.all([first, second])
+    })
+
+    expect(mocked.updateProfile).toHaveBeenCalledTimes(2)
+    expect(mocked.updateProfile).toHaveBeenNthCalledWith(1, INPUT, ME.user.id)
+    expect(mocked.updateProfile).toHaveBeenNthCalledWith(2, secondInput, ME.user.id)
+    expect(result.current.me?.profile).toEqual(secondStored)
+  })
+
+  it('flushProfileWrites waits and returns the authoritative updated account', async () => {
+    const stored = { ...INPUT, updatedAt: 2000 }
+    let finish: (profile: typeof stored) => void = () => undefined
+    mocked.updateProfile.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+    const { result } = await renderSignedIn()
+    let update: Promise<void> = Promise.resolve()
+    let flushed: Promise<Me | null> = Promise.resolve(null)
+    act(() => {
+      update = result.current.updateProfile(INPUT)
+      flushed = result.current.flushProfileWrites()
+    })
+
+    let flushFinished = false
+    void flushed.then(() => {
+      flushFinished = true
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(flushFinished).toBe(false)
+
+    await act(async () => {
+      finish(stored)
+      await update
+      expect(await flushed).toEqual({ user: ME.user, profile: stored })
+    })
+  })
+
+  it('flushProfileWrites rejects when the latest submitted profile write fails', async () => {
+    const failure = new ApiRequestError(503, 'http_error', 'Profile save failed')
+    mocked.updateProfile.mockRejectedValueOnce(failure)
+    const { result } = await renderSignedIn()
+    let flush: Promise<Me | null> = Promise.resolve(null)
+    act(() => {
+      void result.current.updateProfile(INPUT).catch(() => undefined)
+      flush = result.current.flushProfileWrites()
+    })
+
+    await expect(flush).rejects.toBe(failure)
+  })
+
+  it('finishes queued profile writes before logging out', async () => {
+    let finishUpdate: (profile: typeof ME.profile) => void = () => undefined
+    mocked.updateProfile
+      .mockImplementationOnce(() => new Promise((resolve) => (finishUpdate = resolve)))
+      .mockResolvedValueOnce({ ...INPUT, units: 'metric', updatedAt: 3000 })
+    mocked.logout.mockResolvedValue(undefined)
+    const { result } = await renderSignedIn()
+    let update: Promise<void> = Promise.resolve()
+    let secondUpdate: Promise<void> = Promise.resolve()
+    let logout: Promise<void> = Promise.resolve()
+
+    act(() => {
+      update = result.current.updateProfile(INPUT)
+      secondUpdate = result.current.updateProfile({ ...INPUT, units: 'metric' })
+      logout = result.current.signOut()
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mocked.updateProfile).toHaveBeenCalledOnce()
+    expect(mocked.logout).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishUpdate({ ...INPUT, updatedAt: 2000 })
+      await Promise.all([update, secondUpdate, logout])
+    })
+
+    expect(mocked.updateProfile).toHaveBeenCalledTimes(2)
+    expect(mocked.logout).toHaveBeenCalledOnce()
+    expect(mocked.logout).toHaveBeenCalledWith(ME.user.id)
+    expect(result.current.status).toBe('signed-out')
   })
 
   it('updateProfile leaves a signed-out account without a profile', async () => {

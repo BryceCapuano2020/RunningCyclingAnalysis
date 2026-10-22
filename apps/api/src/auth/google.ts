@@ -47,6 +47,7 @@ export function createGoogleOAuth(env: Bindings): GoogleOAuth {
     async exchangeCode(code, codeVerifier) {
       const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'authorization_code',

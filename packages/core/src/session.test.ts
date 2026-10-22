@@ -96,7 +96,7 @@ describe('AnalysisSession', () => {
     expect(state.result).toBeNull()
     expect(state.rejected).toEqual([
       { fileName: 'empty.zip', reason: 'No FIT files found' },
-      { fileName: 'notes.txt', reason: 'No FIT files found' },
+      { fileName: 'notes.txt', reason: 'Unsupported file format' },
     ])
   })
 
@@ -232,6 +232,8 @@ describe('AnalysisSession', () => {
       unsupportedFiles: 0,
       isSample: false,
       totalActivities: 0,
+      outdatedActivities: 0,
+      incompatibleActivities: 0,
       rangeDays: null,
       syncFailures: 0,
     })
@@ -272,9 +274,54 @@ describe('AnalysisSession', () => {
       unsupportedFiles: 0,
       isSample: false,
       totalActivities: 0,
+      outdatedActivities: 0,
+      incompatibleActivities: 0,
       rangeDays: 42,
       syncFailures: 0,
     })
+  })
+
+  it('excludes stale stored digests and clears their count when the original file is re-imported', async () => {
+    const session = new AnalysisSession()
+    const current = digestActivity(run)
+    const stale = { ...current, modelRevision: 1 }
+    const loaded = session.loadDigests([stale], SETTINGS)
+    expect(loaded.result).toBeNull()
+    expect(loaded.totalActivities).toBe(0)
+    expect(loaded.outdatedActivities).toBe(1)
+    expect(loaded.incompatibleActivities).toBe(0)
+
+    const refreshed = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(refreshed.result?.activities).toHaveLength(1)
+    expect(refreshed.totalActivities).toBe(1)
+    expect(refreshed.outdatedActivities).toBe(0)
+    expect(refreshed.incompatibleActivities).toBe(0)
+  })
+
+  it('tolerates but excludes digests from a newer model revision until the file is re-imported', async () => {
+    const session = new AnalysisSession()
+    const future = { ...digestActivity(run), modelRevision: 3 }
+    const state = session.loadDigests([future], SETTINGS)
+    expect(state.result).toBeNull()
+    expect(state.totalActivities).toBe(0)
+    expect(state.outdatedActivities).toBe(0)
+    expect(state.incompatibleActivities).toBe(1)
+
+    const refreshed = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(refreshed.result?.activities).toHaveLength(1)
+    expect(refreshed.incompatibleActivities).toBe(0)
+  })
+
+  it('keeps future-revision activities out of a mixed library analysis', () => {
+    const session = new AnalysisSession()
+    const current = digestActivity(run)
+    const future = { ...digestActivity(ride), modelRevision: 3 }
+    const state = session.loadDigests([current, future], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.totalActivities).toBe(1)
+    expect(state.incompatibleActivities).toBe(1)
+    expect(state.outdatedActivities).toBe(0)
   })
 
   it('importing the same garbage file twice does not double-count it as rejected', async () => {
@@ -385,6 +432,30 @@ describe('AnalysisSession', () => {
     expect(again.result?.activities).toHaveLength(1)
   })
 
+  it('can sync an existing duplicate when original-file retention is enabled', async () => {
+    const session = new AnalysisSession()
+    const first = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    const synced: SyncItem[] = []
+    const again = await session.addFiles(
+      [fitFile('run again.fit', run)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        synced.push(item)
+      },
+      true,
+    )
+
+    expect(synced).toHaveLength(1)
+    expect(synced[0]?.digest.id).toBe(first.result?.activities[0]?.id)
+    expect(synced[0]?.digest.startMs).toBe(first.result?.activities[0]?.startMs)
+    expect(synced[0]?.digest.sport).toBe(first.result?.activities[0]?.sport)
+    expect(synced[0]?.fileName).toBe('run again.fit')
+    expect(synced[0]?.fileHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(again.result?.activities).toHaveLength(1)
+    expect(again.syncFailures).toBe(0)
+  })
+
   it('counts a failed sink call without failing the import', async () => {
     const session = new AnalysisSession()
     const state = await session.addFiles(
@@ -440,6 +511,18 @@ describe('AnalysisSession', () => {
       Promise.reject(new Error('offline')),
     )
     expect(session.clear().syncFailures).toBe(0)
+  })
+
+  it('clear resets the selected range before the next library is loaded', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    session.setRange(42, SETTINGS)
+    const cleared = session.clear()
+    expect(cleared.rangeDays).toBeNull()
+
+    const next = session.loadSample(SETTINGS)
+    expect(next.rangeDays).toBeNull()
+    expect(next.result?.activities).toHaveLength(sample.length)
   })
 
   it('does not call the sink when the file cannot be read', async () => {

@@ -15,8 +15,9 @@ test('landing page shows the heading, drop zone and privacy statement without co
 
 test('landing page and results page have no horizontal scroll on a phone', async ({
   page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'Checked at the mobile viewport only')
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'Checked at mobile viewports only')
 
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
