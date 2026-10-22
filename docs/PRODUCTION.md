@@ -14,7 +14,7 @@ API together; a Vite preview alone cannot verify Cloudflare's `_headers` behavio
 
 `npm run deploy` runs the release gate before deployment. The manual GitHub deployment workflow
 runs the reusable CI checks against the selected commit, then downloads the exact verified static
-build. It deploys only from `main`; Cloudflare credentials are scoped to the deployment job.
+build. It deploys only from `main`; Cloudflare credentials are scoped to migration/deployment steps.
 Actions are pinned by commit, and a retried/flaky browser test fails CI rather than being hidden.
 
 The initial `npm run deploy:bootstrap` is an explicit exception for discovering the Worker address.

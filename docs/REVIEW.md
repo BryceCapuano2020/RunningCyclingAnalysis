@@ -116,6 +116,13 @@ should follow reliable ingestion, persistence, model communication, and independ
 - README screenshots regenerated and visually inspected.
 
 The browser run with these results used a stable build directory. An earlier run overlapped with
-screenshot rebuilding and was discarded after two asset-loading failures. These are local results;
-GitHub CI must independently verify the published commit before release. See
+screenshot rebuilding and was discarded after two asset-loading failures.
+
+Independent Linux CI also passed fresh installation, formatting/lint/types, configuration tests,
+unit coverage/build and both browser suites in
+[run 39713543394](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39713543394).
+The dedicated full dependency audit timed out at npm's advisory endpoint and returned no report;
+that run is therefore not a green release gate. An earlier full audit of the same dependency tree
+reported zero vulnerabilities. Installation and auditing are now separate, and audit network waits
+are bounded without bypassing the required check. Recheck the current PR head before release. See
 [PRODUCTION.md](PRODUCTION.md) for operational behavior and the remaining launch evidence.
