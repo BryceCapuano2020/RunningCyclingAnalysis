@@ -2,8 +2,11 @@
 
 How do your running and cycling energy estimates compare? Watts on the bike and pace on the run
 cannot be compared directly. This app converts both into **gross metabolic power** (watts of energy burned per
-kilogram of body weight), compares your best efforts in each sport, and reports the gap with an
+kilogram of body weight), compares your best efforts in each sport, and reports the gap with a
 model range. This estimates energy use; it does not rank sporting ability.
+
+[Open the live app](https://rca-api.nutritioncoachapp.workers.dev) ·
+[Engineering review](docs/REVIEW.md) · [Operations and verification](docs/PRODUCTION.md)
 
 Analysis always runs in your browser: activity files are parsed and analysed on your device. An
 account is optional. With one, your profile and activity library are stored on Cloudflare so they

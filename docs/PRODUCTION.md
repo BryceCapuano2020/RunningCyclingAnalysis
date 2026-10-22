@@ -109,22 +109,90 @@ class; they do not include request bodies, query strings, original files, tokens
 error messages. Use the id to correlate a reported failure with Worker logs. Do not enable verbose
 request/body logging around personal activity files or OAuth callbacks.
 
-An export of the empty production D1 database was restored into an isolated local Miniflare
-database. The restore retained all three applied migrations and reported zero users, zero activities,
-and a zeroed R2 budget ledger. This verifies an empty-database export/restore path only; it does not
-verify recovery of retained user data or R2 objects, nor a Worker rollback against production data.
+## Live verification — 22 October 2026
 
-## Evidence still required before public launch
+The application is deployed at <https://rca-api.nutritioncoachapp.workers.dev>. The application
+code at `493ce15` is served by Worker version `1143a60d-5562-43c2-95a2-4807b9073c93` with production
+D1, the private Standard-class `rca-files` bucket, rate-limit bindings and Google secrets. Public
+`r2.dev` access is disabled. Workers and D1 remain on their Free plans.
 
-- Configure the actual Cloudflare resources, Google client, secrets and HTTPS origin. Exercise a
-  real Google sign-in and cookie lifecycle on that origin. Local development login does not prove
-  the external OAuth integration.
+The live Chrome smoke used the repository's synthetic `one-run.fit`, not real device data:
+
+- Real Google sign-in, sign-out and sign-in again restored the same account and library. OAuth
+  state/verifier cookies carried Secure, HttpOnly, SameSite=Lax and the restricted OAuth path.
+- Importing with retention off saved one summary. Enabling retention and re-importing the exact
+  file preserved its activity id and stored its original without a duplicate activity. The upload
+  charged 65,536 lifetime bytes for a 31,433-byte file, as intended.
+- The authenticated original download matched the fixture byte for byte. Signed-out original
+  requests returned 401, and the development-login POST returned 404 in production. Actual HTML,
+  module-worker assets, CSP and API no-store/request-id headers were checked.
+- Retention opt-out cleared file metadata while preserving the summary, and the R2 object was
+  confirmed absent. The synthetic summary was then removed with an id/hash-guarded operator
+  cleanup. The account remains, retention is back to its default off, and the deployment ledger
+  still records 65,536 lifetime bytes and four application R2 operations. Cleanup did not refund it.
+- A populated D1 export and a matching original were restored into isolated local D1/R2. The
+  restored app authenticated locally and returned identical original bytes. No production database
+  was overwritten. The original child-before-parent export failed this drill; the schema-first
+  preparation helper below corrected the restore order.
+- Production was rolled back to the preceding release and then returned to the fixed release.
+  Sign-in and the saved library survived. Both releases use the same schema/model revision; this
+  does not establish compatibility with future migrations or model revisions.
+
+A $0.01 R2 billing alert was saved for the account owner. This is a notification, not a spending
+cap. Application code budgets still cover only traffic through this Worker. Google Auth remains
+External + Testing; only the owner's login was exercised. See [DEPLOY.md](DEPLOY.md) for Google's
+basic-identity Testing exception and the separate public-brand requirements.
+
+## Backup and isolated restore
+
+Use Node 22.17 or later for the offline preparation helper. Run these commands from the repository
+root. The temporary directory is an example for validation, not durable backup storage:
+
+```bash
+umask 077
+RCA_BACKUP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rca-backup.XXXXXX")"
+npm exec -w @rca/api -- wrangler d1 export rca --remote \
+  --output "$RCA_BACKUP_DIR/database.sql" > "$RCA_BACKUP_DIR/export.log" 2>&1
+node apps/api/scripts/prepare-d1-restore.mjs \
+  "$RCA_BACKUP_DIR/database.sql" "$RCA_BACKUP_DIR/restore.sql"
+npm exec -w @rca/api -- wrangler d1 execute rca --local \
+  --config wrangler.local.toml --persist-to "$RCA_BACKUP_DIR/validation-state" \
+  --file "$RCA_BACKUP_DIR/restore.sql"
+```
+
+Keep exports and logs private: they can contain identity data, session hashes and a temporary
+signed export URL. The helper accepts only trusted SQL exports of this application's known schema,
+up to 64 MiB. It checks integrity and foreign keys in an isolated SQLite database, creates all tables
+before rows, orders rows by foreign-key dependencies, and preserves migration and budget data.
+It does not disable foreign keys in its output. It rejects unknown tables, dependency cycles and
+existing output paths, and creates the new output with mode 0600. Larger exports need a separately
+validated procedure. Do not execute arbitrary third-party SQL with this helper.
+
+D1 exports do not contain R2 originals. Capture matching originals separately through authenticated
+app downloads or private operator access, preserve their object keys, and verify their SHA-256
+against `activities.file_hash`. Coordinate writes/deletions while taking a matching snapshot;
+a database dump and an uncoordinated bucket copy are not an atomic backup. Restore originals to
+isolated local R2 and verify them through the restored app, as in the smoke above. Move verified
+backups to private durable storage according to an explicit retention/deletion policy; no recurring
+backup job has been configured.
+
+Before any production cutover, validate schema/model compatibility and the matching originals.
+**Never rewind the global R2 budget ledger to an older snapshot.** Preserve the higher live lifetime
+counter and relevant monthly capacity usage. If post-snapshot usage cannot be established, treat
+file capacity as exhausted until an operator reviews it. Restoring an old ledger is an operator
+change outside the application's admission protection. Worker rollback does not undo D1 migrations
+or R2 changes.
+
+## Evidence still required before a broader launch
+
 - Test representative real device exports, including pauses, multisport, indoor rides, missing
-  sensors and corrupt files. Synthetic fixtures establish internal consistency, not device
-  compatibility across manufacturers or model accuracy on athletes.
+  sensors and corrupt files. Synthetic fixtures establish internal consistency, not manufacturer
+  compatibility or model accuracy on athletes.
 - Measure large-library behavior on actual target phones and production Worker CPU. The
-  [Node benchmark](PERFORMANCE.md) is a useful baseline, not a mobile or free-tier guarantee.
-- Verify a backup/restore procedure and a deployment rollback against retained data. D1 migrations
-  are not automatically rolled back with Worker code. Test revisions newer than a rolled-back app.
-- Set an operating budget and monitor Cloudflare usage/errors before opening sign-up. Per-user
-  quotas do not cap aggregate storage across an unlimited number of accounts.
+  [Node benchmark](PERFORMANCE.md) is a baseline, not a mobile or free-tier guarantee.
+- Validate larger backups and coordinated multi-user recovery, define durable backup retention,
+  and test future schema/model rollback compatibility. The populated recovery drill covered one
+  synthetic activity, not maximum database size or disaster recovery of an active multi-user service.
+- Complete Google's public-brand requirements before representing the app as a verified public
+  production brand. Continue checking Cloudflare usage/errors; code caps and alerts do not cap
+  traffic from other bucket clients or account-level charges.

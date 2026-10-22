@@ -1,9 +1,10 @@
 # Continuation review
 
 Reviewed the full-stack handoff at `a5e03b9` from the perspective of a staff engineer evaluating
-mid-level ownership. This remains a pre-deployment review. The continuation has provisioned D1,
-applied its migrations, verified the Workers address and prepared the Google project. R2 activation
-and Google OAuth configuration still need completion before a live application can be verified.
+mid-level ownership. The continuation now includes a live deployment and a synthetic production
+smoke on 22 October 2026. D1, private R2 and Google sign-in are configured; live persistence,
+original-file recovery and rollback were exercised. Real device and model validation remain
+separate open questions.
 
 ## Assessment
 
@@ -82,6 +83,21 @@ The next pass addressed the operational gaps identified above:
   behavior. Imports keep saving summaries when originals cannot be uploaded, without repeatedly
   attempting more uploads in the same exhausted batch.
 
+## Findings from the live acceptance path
+
+- Enabling original-file retention and re-importing an already-saved activity skipped the sync
+  sink, so no original was uploaded. Re-imports now use the idempotent, hash-guarded API when
+  retention is enabled, preserving the activity id and avoiding an extra PUT for an existing file.
+- A file selected immediately after a profile edit could capture the old retention or weight
+  settings. Signed-in imports now await submitted profile writes and use their authoritative
+  snapshot. Failed writes, account changes and Stop cancel preparation with recovery guidance.
+  The retention choice is also available before the first import, with accurate upload wording.
+- The empty-database backup drill missed a real restore failure: a populated export inserted child
+  rows before creating the users table. The offline restore helper validates the snapshot and emits
+  schema-first, parent-first SQL. Its output was then restored through Wrangler and the recovered
+  original read through the app. This is why empty or isolated success cases cannot establish
+  operational readiness.
+
 ## Important remaining work
 
 1. **Independent model validation.** The deterministic simulator shares assumptions with the
@@ -91,12 +107,12 @@ The next pass addressed the operational gaps identified above:
 2. **Large-library and free-tier measurements.** The five-year synthetic Node benchmark is a
    baseline, not evidence of target-phone memory or production Worker CPU. Measure real exports
    on target devices and Cloudflare. Aggregate account/storage costs still require monitoring.
-3. **Release verification.** No live deployment or real Google callback was exercised in this
-   session. Validate production cookies, callback origins, migrations, assets, deletion, and
-   rollback and backup restoration on the configured account before calling deployment complete.
-   Cloudflare authentication is refreshed, the new D1 schema is applied, and production identifiers
-   are configured. R2 activation and Google OAuth setup are still incomplete; those prevent a live
-   release.
+3. **Broader release evidence.** The live synthetic smoke now covers Google callbacks, cookie
+   flags, persistence, original uploads/downloads and deletion, a populated isolated restore, and
+   rollback across the retention hotfix. It exposed missing acceptance paths despite the earlier
+   green suites. Broader device coverage, coordinated multi-user recovery, larger exports and future
+   migration compatibility still require evidence. Google Auth remains in Testing and verified
+   public branding is not complete; see [PRODUCTION.md](PRODUCTION.md).
 4. **Model changes require evidence.** Running drag, different efficiency priors, and a larger
    heart-rate discrepancy term need independent sources and validation. In particular, reconcile
    gross versus net efficiency before adding resting energy to the cycling conversion. Treat the
@@ -110,8 +126,8 @@ should follow reliable ingestion, persistence, model communication, and independ
 
 ## Verification
 
-- `npm run verify:release`: passed, including 1,152 unit tests across 82 files, coverage thresholds,
-  seven deployment-configuration tests, formatting, lint, all workspace typechecks, production build,
+- `npm run verify:release`: passed, including 1,162 unit tests across 82 files, coverage thresholds,
+  eleven deployment/restore tests, formatting, lint, all workspace typechecks, production build,
   and both browser suites.
 - Main browser suite: 74 passed, one intentionally skipped desktop-only duplicate of the phone
   overflow check. Tests cover desktop/mobile Chromium and mobile WebKit, accessibility, account
@@ -122,7 +138,8 @@ should follow reliable ingestion, persistence, model communication, and independ
   module worker, API security headers and immutable assets.
 - Full production and development dependency audit: no vulnerabilities reported after removing
   the vulnerable development-tooling transitive dependency.
-- Wrangler deployment bundle dry-run: passed. No upload or deployment was performed.
+- Wrangler bundle dry-run and live deployment: passed. Production sign-in and synthetic D1/R2
+  persistence, file recovery, deletion and rollback were checked; see [PRODUCTION.md](PRODUCTION.md).
 - README screenshots regenerated and visually inspected.
 
 The browser run with these results used a stable build directory. An earlier run overlapped with
