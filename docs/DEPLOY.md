@@ -46,15 +46,16 @@ A browser window opens. Approve Wrangler, then check with `npx wrangler whoami`.
 
 ## 3. Create the database and bucket
 
-Continue in `apps/api` from the previous step:
+For the existing deployment, reuse the provisioned `rca` database and the ID already recorded in
+`apps/api/wrangler.toml`. Do not run `d1 create` again. Only create a database when setting up a
+different Cloudflare account or replacing the current database:
 
 ```bash
 npx wrangler d1 create rca
 ```
 
-The output contains a `database_id`. Set `database_id` under the `DB` binding in
-`apps/api/wrangler.toml` to the printed value. The checked-in configuration already contains the id
-for the currently provisioned `rca` database; update it if replacing that database.
+When creating a replacement, the output contains a `database_id`. Set `database_id` under the `DB`
+binding in `apps/api/wrangler.toml` to that printed value.
 
 Create the dedicated Standard-class R2 bucket used by the `FILES` binding:
 
@@ -81,15 +82,22 @@ command asks for confirmation interactively and still captures a backup when run
 
 ## 4. First deploy
 
-This bootstrap step builds the web app into `apps/web/dist` and deploys it to discover the public
-address. It explicitly allows the not-yet-configured `APP_URL`; sign-in will not work yet:
+The existing account already uses `nutritioncoachapp.workers.dev`, and the checked-in `APP_URL`
+already points to `https://rca-api.nutritioncoachapp.workers.dev`. Do not rename the subdomain; an
+unrelated Worker already uses it. No address-discovery bootstrap is needed for this known origin;
+use the URL in section 5, then deploy normally in section 7 after the Google client and secrets are
+configured.
+
+For a new Cloudflare account or a new origin that is not yet known, the bootstrap command builds the
+web app into `apps/web/dist` and deploys it to discover the public address. It allows the
+not-yet-configured `APP_URL`; sign-in will not work yet:
 
 ```bash
 npm run deploy:bootstrap
 ```
 
-The first time, Wrangler may ask you to register a `workers.dev` subdomain. Pick one; it becomes
-part of your address. The output ends with a line like:
+If the new account has no `workers.dev` subdomain, Wrangler may ask you to register one. The output
+ends with a line like:
 
 ```
 Published rca-api

@@ -109,6 +109,11 @@ class; they do not include request bodies, query strings, original files, tokens
 error messages. Use the id to correlate a reported failure with Worker logs. Do not enable verbose
 request/body logging around personal activity files or OAuth callbacks.
 
+An export of the empty production D1 database was restored into an isolated local Miniflare
+database. The restore retained all three applied migrations and reported zero users, zero activities,
+and a zeroed R2 budget ledger. This verifies an empty-database export/restore path only; it does not
+verify recovery of retained user data or R2 objects, nor a Worker rollback against production data.
+
 ## Evidence still required before public launch
 
 - Configure the actual Cloudflare resources, Google client, secrets and HTTPS origin. Exercise a

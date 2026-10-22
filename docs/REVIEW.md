@@ -128,9 +128,10 @@ should follow reliable ingestion, persistence, model communication, and independ
 The browser run with these results used a stable build directory. An earlier run overlapped with
 screenshot rebuilding and was discarded after two asset-loading failures.
 
-The preceding hardening commit passed independent Linux CI, including the full dependency audit,
-in [run 39714176397](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39714176397)
-after an advisory-endpoint timeout was retried. The R2 budget follow-up above has passed the local
-release suite; recheck the current PR head before release. Installation and auditing are separate,
-and audit network waits are bounded without bypassing the required check. See
+The R2 budget implementation passed independent Linux CI at commit `0c2530c`, including the full
+dependency audit, code/build checks and both browser suites, in
+[run 39734938177](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39734938177).
+Later documentation-only updates clarify reuse of existing resources and record the empty-database
+restore; recheck the current PR head before release. Installation and auditing are separate, and
+audit network waits are bounded without bypassing the required check. See
 [PRODUCTION.md](PRODUCTION.md) for operational behavior and the remaining launch evidence.
