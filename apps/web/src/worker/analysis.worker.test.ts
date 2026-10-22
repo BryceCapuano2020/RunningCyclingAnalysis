@@ -141,7 +141,7 @@ describe('analysis worker', () => {
 
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(mocked.uploadFile).not.toHaveBeenCalled()
-    expect(messages.every((m) => m.type !== 'progress' || m.uploaded === undefined)).toBe(true)
+    expect(messages).toContainEqual({ type: 'progress', filesRead: 1, uploaded: 1 })
   })
 
   it('does not upload when the saved activity already has its file', async () => {

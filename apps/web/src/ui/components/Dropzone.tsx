@@ -22,15 +22,19 @@ function isFileDrag(event: Pick<DragEvent, 'dataTransfer'>): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files')
 }
 
+/**
+ * Files are accepted even while busy: the analysis worker handles requests in order, so a file
+ * chosen during a load is queued rather than lost. Only the sample stays off while busy.
+ */
 export function Dropzone({ onFiles, onSample, busy, progress, compact = false }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [windowDragging, setWindowDragging] = useState(false)
-  // The window listeners read the latest values without being rebound on every render.
-  const latest = useRef({ busy, onFiles })
+  // The window listeners read the latest callback without being rebound on every render.
+  const latestOnFiles = useRef(onFiles)
 
   useEffect(() => {
-    latest.current = { busy, onFiles }
+    latestOnFiles.current = onFiles
   })
 
   // Always on, in both modes: a file dropped anywhere on the page is read here, and the browser
@@ -44,10 +48,8 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
       event.preventDefault()
       setDragging(false)
       setWindowDragging(false)
-      const current = latest.current
-      if (current.busy) return
       const files = Array.from(event.dataTransfer?.files ?? [])
-      if (files.length > 0) current.onFiles(files)
+      if (files.length > 0) latestOnFiles.current(files)
     }
 
     window.addEventListener('dragover', handleOver)
@@ -80,7 +82,7 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
   }, [compact])
 
   function openPicker() {
-    if (!busy) inputRef.current?.click()
+    inputRef.current?.click()
   }
 
   function handleTargetKey(event: KeyboardEvent<HTMLDivElement>) {
@@ -93,7 +95,7 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
     event.preventDefault()
-    if (!busy && isFileDrag(event)) setDragging(true)
+    if (isFileDrag(event)) setDragging(true)
   }
 
   function handleDragLeave(event: ReactDragEvent<HTMLDivElement>) {
@@ -106,7 +108,7 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
     const files = Array.from(event.target.files ?? [])
     // Clear the input so that choosing the same file again still fires a change.
     event.target.value = ''
-    if (files.length > 0 && !busy) onFiles(files)
+    if (files.length > 0) onFiles(files)
   }
 
   const status = busy ? statusText(progress) : ''
@@ -119,7 +121,7 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
   if (compact) {
     return (
       <div className="dropzone dropzone--compact">
-        <button type="button" className="btn" onClick={openPicker} disabled={busy}>
+        <button type="button" className="btn" onClick={openPicker}>
           Add more files
         </button>
         {bar}
@@ -132,10 +134,9 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
           multiple
           accept=".fit,.gz,.zip"
           hidden
-          disabled={busy}
           onChange={handleInputChange}
         />
-        {windowDragging && !busy && <div className="dropzone__overlay">Drop to add files</div>}
+        {windowDragging && <div className="dropzone__overlay">Drop to add files</div>}
       </div>
     )
   }
@@ -150,8 +151,7 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
       <div
         className="dropzone__target"
         role="button"
-        tabIndex={busy ? -1 : 0}
-        aria-disabled={busy || undefined}
+        tabIndex={0}
         onClick={openPicker}
         onKeyDown={handleTargetKey}
       >
@@ -176,7 +176,6 @@ export function Dropzone({ onFiles, onSample, busy, progress, compact = false }:
         multiple
         accept=".fit,.gz,.zip"
         hidden
-        disabled={busy}
         onChange={handleInputChange}
       />
     </div>

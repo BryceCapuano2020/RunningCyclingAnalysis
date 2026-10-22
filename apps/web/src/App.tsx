@@ -86,6 +86,12 @@ export function App() {
           />
         }
       />
+      {/* One instance for both views: its live region must stay mounted to announce uploads. */}
+      <SyncStatus
+        uploading={analysis.uploading}
+        failures={analysis.state.syncFailures}
+        signedIn={signedIn}
+      />
 
       {account.error && account.status !== 'unavailable' && (
         <p className="app__error card" role="alert">
@@ -181,11 +187,6 @@ export function App() {
               onChange={analysis.setRange}
               shown={result.activities.length}
               total={totalActivities}
-            />
-            <SyncStatus
-              uploading={analysis.uploading}
-              failures={analysis.state.syncFailures}
-              signedIn={signedIn}
             />
             {!signedIn && (
               <button

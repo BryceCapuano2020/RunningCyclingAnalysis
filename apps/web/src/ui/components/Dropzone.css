@@ -25,11 +25,6 @@
   cursor: pointer;
 }
 
-.dropzone__target[aria-disabled='true'] {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 .dropzone__title {
   font-size: 1.125rem;
   font-weight: 600;

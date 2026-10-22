@@ -28,9 +28,10 @@ function finishNotice(saved: number, failures: number): Notice {
 }
 
 /**
- * Toolbar status for uploads. One live region stays mounted and is empty when there is nothing to
- * say. It announces only the start and the finish of an upload. The running count is visual only,
- * since announcing every change would be noisy.
+ * Status line for uploads. Render it once, outside the landing and results views, so its live
+ * region stays mounted: a region that mounts with the content is not announced. It is empty when
+ * there is nothing to say, and announces only the start and the finish of an upload. The running
+ * count is visual only, since announcing every change would be noisy.
  */
 export function SyncStatus({ uploading, failures, signedIn }: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)

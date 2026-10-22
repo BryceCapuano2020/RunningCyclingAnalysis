@@ -13,18 +13,20 @@ const post = (message: WorkerResponse) => self.postMessage(message)
 function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promise<SessionState> {
   const { sync } = request
   let filesRead = 0
+  // Activities saved to the library, counting the digest alone when files are not kept.
   let uploaded = 0
   const report = () =>
     post({
       type: 'progress',
       filesRead,
-      ...(sync?.keepFiles ? { uploaded } : {}),
+      ...(sync ? { uploaded } : {}),
     })
 
   const save = async (item: SyncItem): Promise<void> => {
     const { record } = await createActivity(item.digest, item.fileName, item.fileHash)
-    if (!sync?.keepFiles || record.hasFile || item.bytes.byteLength > MAX_FILE_BYTES) return
-    await uploadFile(record.id, item.bytes)
+    if (sync?.keepFiles && !record.hasFile && item.bytes.byteLength <= MAX_FILE_BYTES) {
+      await uploadFile(record.id, item.bytes)
+    }
     uploaded++
     report()
   }
