@@ -1,0 +1,83 @@
+.delete-dialog {
+  width: min(28rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: var(--shadow);
+}
+
+.delete-dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.delete-dialog__form {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.delete-dialog__body {
+  color: var(--text-secondary);
+}
+
+.delete-dialog__field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.delete-dialog__field label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.delete-dialog__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.delete-dialog__hint {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.delete-dialog__error {
+  color: var(--status-critical-text);
+  font-size: 0.875rem;
+}
+
+.delete-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Text uses the surface colour so it keeps contrast in both themes. The button is aria-disabled,
+   not disabled, so it stays focusable and looks disabled through the attribute. */
+.btn.delete-dialog__confirm {
+  background: var(--status-critical-text);
+  border-color: var(--status-critical-text);
+  color: var(--surface-1);
+}
+
+.btn.delete-dialog__confirm[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.delete-dialog__confirm:hover {
+  background: var(--status-critical-text);
+  filter: brightness(1.1);
+}
+
+.btn.delete-dialog__confirm[aria-disabled='true']:hover {
+  filter: none;
+}

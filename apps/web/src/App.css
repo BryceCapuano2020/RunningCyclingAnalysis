@@ -61,3 +61,12 @@
 .card > figure {
   margin: var(--space-4) 0 0;
 }
+
+.app__keep-files {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}

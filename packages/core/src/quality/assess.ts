@@ -12,6 +12,8 @@ export const QUALITY_THRESHOLDS = {
   powerDropout: { minDurationS: 5, minSpeedMs: 3 },
   speedSpike: { maxSpeedMs: { run: 12.5, ride: 30 }, maxStepMs: 5, marginS: 3 },
   altitudeJump: { maxStepM: 10, marginS: 10 },
+  /** Same-kind flags closer than this, in seconds, are one flag, so noisy sensors do not multiply flags. */
+  flagMergeGapS: 10,
 } as const
 
 interface Range {
@@ -171,13 +173,16 @@ function compareKinds(a: QualityKind, b: QualityKind): number {
   return a === b ? 0 : a < b ? -1 : 1
 }
 
-/** Joins overlapping or touching flags of the same kind. Input is not modified. */
+/**
+ * Joins flags of the same kind that overlap or lie less than flagMergeGapS apart. Input is not
+ * modified.
+ */
 function mergeFlags(raw: RawFlag[]): RawFlag[] {
   const sorted = [...raw].sort((a, b) => compareKinds(a.kind, b.kind) || a.start - b.start)
   const merged: RawFlag[] = []
   for (const f of sorted) {
     const last = merged[merged.length - 1]
-    if (last && last.kind === f.kind && f.start <= last.end) {
+    if (last && last.kind === f.kind && f.start - last.end < QUALITY_THRESHOLDS.flagMergeGapS) {
       last.end = Math.max(last.end, f.end)
     } else {
       merged.push({ ...f })

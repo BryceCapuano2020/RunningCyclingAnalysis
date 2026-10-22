@@ -274,7 +274,10 @@ export interface ActivityDigest {
   hasHeartRate: boolean
   indoor: boolean
   powerSource: DerivedStreams['powerSource']
+  /** The first 50 quality flags, earliest first. */
   flags: QualityFlag[]
+  /** True number of flags of each kind, including those beyond the 50 kept in `flags`. */
+  flagCounts: Partial<Record<QualityKind, number>>
   /** Highest sustained (30 s smoothed) valid heart rate in this activity, or null. */
   maxHeartRate: number | null
   /** One point per DURATIONS_S entry, monotone envelope already applied. */

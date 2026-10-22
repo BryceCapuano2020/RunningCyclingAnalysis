@@ -1,7 +1,9 @@
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
+import { digestActivity } from './digest'
 import { AnalysisSession } from './session'
+import type { SyncItem } from './session'
 import { sampleDataset } from './synthetic'
 import type { Activity, AthleteSettings, Sport } from './types'
 
@@ -231,6 +233,7 @@ describe('AnalysisSession', () => {
       isSample: false,
       totalActivities: 0,
       rangeDays: null,
+      syncFailures: 0,
     })
   })
 
@@ -270,6 +273,7 @@ describe('AnalysisSession', () => {
       isSample: false,
       totalActivities: 0,
       rangeDays: 42,
+      syncFailures: 0,
     })
   })
 
@@ -303,4 +307,158 @@ describe('AnalysisSession', () => {
     expect(state.isSample).toBe(false)
     expect(state.result?.activities).toHaveLength(1)
   })
+
+  it('loadDigests replaces the library with the stored digests and keeps nothing local', async () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    await session.addFiles([exportZip()], SETTINGS)
+    const state = session.loadDigests([digestActivity(ride)], SETTINGS)
+
+    expect(state.result?.activities.map((activity) => activity.sport)).toEqual(['ride'])
+    expect(state.totalActivities).toBe(1)
+    expect(state.isSample).toBe(false)
+    expect(state.rejected).toEqual([])
+    expect(state.unsupportedFiles).toBe(0)
+    expect(state.syncFailures).toBe(0)
+  })
+
+  it('loadDigests with no digests gives no result', () => {
+    const session = new AnalysisSession()
+    const state = session.loadDigests([], SETTINGS)
+    expect(state.result).toBeNull()
+    expect(state.totalActivities).toBe(0)
+  })
+
+  it('loadDigests keeps a digest and a file import of the same workout as one activity', async () => {
+    const session = new AnalysisSession()
+    session.loadDigests([digestActivity(run)], SETTINGS)
+    const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+
+    expect(state.totalActivities).toBe(1)
+    expect(state.result?.activities).toHaveLength(1)
+  })
+
+  it('loadDigests keeps the period setting', () => {
+    const session = new AnalysisSession()
+    session.setRange(42, SETTINGS)
+    const state = session.loadDigests(sampleDataset().activities.map(digestActivity), SETTINGS)
+    expect(state.rangeDays).toBe(42)
+    expect(state.result?.activities.length).toBeLessThan(sample.length)
+  })
+
+  it('calls the sink once per new activity with its digest, file name, hash and bytes', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), exportZip()],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        items.push(item)
+      },
+    )
+
+    expect(state.syncFailures).toBe(0)
+    // The zip's first entry is the same run as run.fit, so only the ride is new.
+    expect(items.map((item) => item.fileName)).toEqual(['run.fit', 'activities/2.fit'])
+    expect(items.map((item) => item.digest.sport)).toEqual(['run', 'ride'])
+
+    const runBytes = new Uint8Array(encodeFit(run, { gps: true }))
+    const rideBytes = new Uint8Array(encodeFit(ride, { gps: true }))
+    expect(items[0]?.bytes).toEqual(runBytes)
+    expect(items[1]?.bytes).toEqual(rideBytes)
+    expect(items[0]?.fileHash).toBe(await sha256Hex(runBytes))
+    expect(items[1]?.fileHash).toBe(await sha256Hex(rideBytes))
+    expect(items[0]?.fileHash).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('does not call the sink for a duplicate of an activity already saved', async () => {
+    const session = new AnalysisSession()
+    let calls = 0
+    const sink = async () => {
+      calls++
+    }
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, sink)
+    const again = await session.addFiles([fitFile('run copy.fit', run)], SETTINGS, undefined, sink)
+
+    expect(calls).toBe(1)
+    expect(again.result?.activities).toHaveLength(1)
+  })
+
+  it('counts a failed sink call without failing the import', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        if (item.digest.sport === 'run') throw new Error('offline')
+      },
+    )
+
+    expect(state.syncFailures).toBe(1)
+    expect(state.result?.activities.map((activity) => activity.sport).sort()).toEqual([
+      'ride',
+      'run',
+    ])
+    expect(state.rejected).toEqual([])
+  })
+
+  it('retries a failed save when the same file is imported again, and clears the count on success', async () => {
+    const session = new AnalysisSession()
+    const failed = await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new Error('offline')),
+    )
+    expect(failed.syncFailures).toBe(1)
+
+    const seen: string[] = []
+    const retried = await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        seen.push(item.digest.id)
+      },
+    )
+    expect(seen).toHaveLength(1)
+    expect(retried.syncFailures).toBe(0)
+    expect(retried.result?.activities).toHaveLength(1)
+  })
+
+  it('keeps a failed save counted when a later import without a sink does not touch it', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new Error('offline')),
+    )
+    const state = await session.addFiles([fitFile('ride.fit', ride)], SETTINGS)
+    expect(state.syncFailures).toBe(1)
+  })
+
+  it('clear forgets failed saves', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new Error('offline')),
+    )
+    expect(session.clear().syncFailures).toBe(0)
+  })
+
+  it('does not call the sink when the file cannot be read', async () => {
+    const session = new AnalysisSession()
+    let calls = 0
+    const state = await session.addFiles(
+      [textFile('junk.fit', 'not a FIT file, not even close')],
+      SETTINGS,
+      undefined,
+      async () => {
+        calls++
+      },
+    )
+    expect(calls).toBe(0)
+    expect(state.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+  })
 })
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}

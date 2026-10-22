@@ -1,0 +1,42 @@
+/*
+ * Google's neutral sign-in button spec. The literal colours below are the documented exception
+ * to the token rule: Google's branding guidelines fix them, so they do not follow --surface tokens.
+ */
+.google-sign-in {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid #747775;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #1f1f1f;
+  cursor: pointer;
+  font-family: 'Roboto', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.google-sign-in:hover {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+
+.google-sign-in__mark {
+  flex: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .google-sign-in {
+    border-color: #8e918f;
+    background: #131314;
+    color: #e3e3e3;
+  }
+}
+
+:root[data-theme='dark'] .google-sign-in {
+  border-color: #8e918f;
+  background: #131314;
+  color: #e3e3e3;
+}

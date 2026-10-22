@@ -1,4 +1,4 @@
-import { DRIVETRAIN_EFFICIENCY, G, RHO_AIR } from '../../constants'
+import { DEFAULT_BIKE_MODEL, DRIVETRAIN_EFFICIENCY, G, RHO_AIR } from '../../constants'
 import type { CalibrationStats } from '../../virtualPower'
 import { accelerationOf } from '../../virtualPower'
 
@@ -10,10 +10,14 @@ export interface RideInputs {
   valid: Uint8Array
 }
 
+/** Mass, kg, of the default-model screen in the calibration. */
+const SCREEN_MASS_KG = 84
+
 /**
  * Direct least-squares statistics for a ride at a fixed total mass, the way the calibration worked
  * before the digest split. Each 30 s block is regressed with the mass in place, so these are the
- * reference the mass-free sums must reproduce.
+ * reference the mass-free sums must reproduce. Blocks are screened the same way as the digest:
+ * measured power must be above zero and the default-model estimate at or above zero.
  */
 export function referenceRideStats(ride: RideInputs, totalMassKg: number): CalibrationStats {
   const stats: CalibrationStats = { blocks: 0, s11: 0, s12: 0, s22: 0, s1y: 0, s2y: 0 }
@@ -35,6 +39,12 @@ export function referenceRideStats(ride: RideInputs, totalMassKg: number): Calib
         Number.isFinite(p)
       if (!usable) break
       const theta = Math.atan(g)
+      const modelled =
+        SCREEN_MASS_KG * G * (Math.sin(theta) + DEFAULT_BIKE_MODEL.crr * Math.cos(theta)) * v +
+        SCREEN_MASS_KG * accel[i]! * v +
+        0.5 * DEFAULT_BIKE_MODEL.cda * RHO_AIR * v * v * v
+      usable = p > 0 && modelled >= 0
+      if (!usable) break
       sy +=
         p * DRIVETRAIN_EFFICIENCY -
         totalMassKg * G * Math.sin(theta) * v -

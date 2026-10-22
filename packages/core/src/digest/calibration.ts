@@ -1,7 +1,8 @@
-import { DRIVETRAIN_EFFICIENCY } from '../constants'
+import { DEFAULT_BIKE_MODEL, DRIVETRAIN_EFFICIENCY } from '../constants'
 import type { CalibrationSums } from '../types'
 import type { CalibrationStats } from '../virtualPower'
 import type { SampleTerms } from './terms'
+import { SELECTION_MASS_KG } from './terms'
 
 const BLOCK_SAMPLES = 30
 const MIN_SPEED_MS = 2
@@ -55,8 +56,10 @@ export function calibrationStatsAt(sums: CalibrationSums, massKg: number): Calib
 }
 
 /**
- * Sums over the 30 s blocks of one outdoor ride with a power meter. A block counts only when
- * every sample is valid, moving faster than 2 m/s, and has finite power and terms.
+ * Sums over the 30 s blocks of one outdoor ride with a power meter. A block counts only when every
+ * sample is valid, moving faster than 2 m/s, has finite terms, and has measured power above zero
+ * and a default-model estimate at or above zero. Coasting reads 0 W while the physics needs
+ * negative power, so those blocks would pull the fit to its bounds.
  */
 export function calibrationSums(
   terms: SampleTerms,
@@ -78,13 +81,18 @@ export function calibrationSums(
       const ri = terms.rolling[i]!
       const ai = terms.aero[i]!
       const pi = power[i]!
+      const modelled =
+        (SELECTION_MASS_KG * (gi + DEFAULT_BIKE_MODEL.crr * ri) + DEFAULT_BIKE_MODEL.cda * ai) /
+        DRIVETRAIN_EFFICIENCY
       if (
         valid[i] !== 1 ||
         !(speed[i]! > MIN_SPEED_MS) ||
         !Number.isFinite(pi) ||
+        !(pi > 0) ||
         !Number.isFinite(gi) ||
         !Number.isFinite(ri) ||
-        !Number.isFinite(ai)
+        !Number.isFinite(ai) ||
+        !(modelled >= 0)
       ) {
         usable = false
         break

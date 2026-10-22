@@ -1,0 +1,8 @@
+# Copy to .dev.vars (git-ignored). `wrangler dev` reads it and it overrides [vars] in wrangler.toml.
+ENVIRONMENT=development
+APP_URL=http://localhost:5183
+
+# Google OAuth client (Web application type). Authorized redirect URI must be:
+#   http://localhost:5183/api/auth/google/callback
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=

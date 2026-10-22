@@ -44,7 +44,19 @@ export function termsOver(terms: SampleTerms, start: number, end: number): Power
   return { gravityAccel: gravityAccel / count, rolling: rolling / count, aero: aero / count }
 }
 
-/** Mean mechanical power, W, of a stretch with these terms, at total mass massKg. */
+/**
+ * Mass, kg, at which virtual-power climb windows are chosen with DEFAULT_BIKE_MODEL. Fixed, so
+ * digests do not depend on the athlete's settings.
+ */
+export const SELECTION_MASS_KG = 84
+
+/**
+ * Mean mechanical power, W, of a stretch with these terms, at total mass massKg.
+ *
+ * Not clamped at zero per sample, unlike estimatePower, so this is at or below the clamped mean.
+ * The gap is about 0.01% on a gentle surge and about 3% at 3 m/s surges with a 20 s period, and
+ * grows with surge size. Descents never enter climb windows, so the clamp only matters inside them.
+ */
 export function powerAt(terms: PowerTerms, massKg: number, model: BikeModel): number {
   const force = massKg * (terms.gravityAccel + model.crr * terms.rolling) + model.cda * terms.aero
   return force / DRIVETRAIN_EFFICIENCY

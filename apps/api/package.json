@@ -1,0 +1,28 @@
+{
+  "name": "@rca/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker API: accounts, sessions, profiles, activity digests and files. Runs on Workers + D1 + R2, and fully locally with wrangler dev.",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply rca --local",
+    "db:migrate:remote": "wrangler d1 migrations apply rca --remote",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261021.1",
+    "drizzle-kit": "^0.31.11",
+    "wrangler": "^4.151.3"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
+    "@rca/core": "^0.0.0",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "zod": "^4.6.7"
+  }
+}

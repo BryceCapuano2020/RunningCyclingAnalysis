@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { UnitSystem } from '@rca/core/units'
 import { SegmentedControl } from './SegmentedControl'
 import './Header.css'
@@ -5,6 +6,8 @@ import './Header.css'
 export interface HeaderProps {
   units: UnitSystem
   onUnitsChange: (units: UnitSystem) => void
+  /** Rendered at the end of the header, e.g. the account menu. */
+  actions?: ReactNode
 }
 
 const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
@@ -12,7 +15,7 @@ const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
   { value: 'metric', label: 'Metric' },
 ]
 
-export function Header({ units, onUnitsChange }: HeaderProps) {
+export function Header({ units, onUnitsChange, actions }: HeaderProps) {
   return (
     <header className="header">
       <div>
@@ -26,6 +29,7 @@ export function Header({ units, onUnitsChange }: HeaderProps) {
         selected={units}
         onSelect={onUnitsChange}
       />
+      {actions}
     </header>
   )
 }

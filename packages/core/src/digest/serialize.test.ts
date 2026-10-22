@@ -179,7 +179,9 @@ describe('serializeDigest and parseDigest', () => {
       /flags\[0\] must be an object/,
     )
     expect(() =>
-      parseDigest(edited(ride, (o) => (o.flags = [{ kind: 'x', start: 0, end: 1, message: 3 }]))),
+      parseDigest(
+        edited(ride, (o) => (o.flags = [{ kind: 'power-spike', start: 0, end: 1, message: 3 }])),
+      ),
     ).toThrow(/flags\[0\]\.message must be a string/)
     expect(() => parseDigest(edited(ride, (o) => (o.calibration = 4)))).toThrow(
       /calibration must be an object/,
@@ -199,6 +201,75 @@ describe('serializeDigest and parseDigest', () => {
     ).toThrow(/climbSections\[0\]\.terms must be an object/)
     expect(() => parseDigest(edited(ride, (o) => delete o.climbSections))).toThrow(
       /climbSections must be an array/,
+    )
+  })
+
+  it('rejects a climb section that is not positive or lies outside the ride', () => {
+    const ride = digests.find((d) => d.climbSections.length > 0)!
+    expect(ride).toBeDefined()
+    const section = (o: Record<string, unknown>) =>
+      (o.climbSections as Record<string, unknown>[])[0]!
+    expect(() =>
+      parseDigest(
+        edited(ride, (o) => {
+          section(o).measuredW = 0
+        }),
+      ),
+    ).toThrow(/climbSections\[0\]\.measuredW must be positive/)
+    expect(() =>
+      parseDigest(
+        edited(ride, (o) => {
+          section(o).end = ride.durationS + 1
+        }),
+      ),
+    ).toThrow(/climbSections\[0\] must satisfy 0 <= start < end <= durationS/)
+  })
+
+  it('rejects flags with bad ranges or unknown kinds', () => {
+    const range = (start: number, end: number) => [
+      { kind: 'power-spike', start, end, message: 'x' },
+    ]
+    expect(() => parseDigest(edited(digests[0]!, (o) => (o.flags = range(5, 3))))).toThrow(
+      /flags\[0\] must satisfy 0 <= start < end <= durationS/,
+    )
+    expect(() =>
+      parseDigest(edited(digests[0]!, (o) => (o.flags = range(0, digests[0]!.durationS + 1)))),
+    ).toThrow(/flags\[0\] must satisfy 0 <= start < end <= durationS/)
+    expect(() =>
+      parseDigest(
+        edited(
+          digests[0]!,
+          (o) => (o.flags = [{ kind: 'gremlin', start: 0, end: 1, message: 'x' }]),
+        ),
+      ),
+    ).toThrow(/flags\[0\]\.kind must be one of/)
+  })
+
+  it('rejects negative durations and distances and windows shorter than their duration', () => {
+    expect(() => parseDigest(edited(digests[0]!, (o) => (o.durationS = -1)))).toThrow(
+      /durationS must not be negative/,
+    )
+    expect(() => parseDigest(edited(digests[0]!, (o) => (o.distanceM = -5)))).toThrow(
+      /distanceM must not be negative/,
+    )
+    expect(() =>
+      parseDigest(
+        edited(digests[0]!, (o) => {
+          curveOf(o)[3]!.windowS = 1
+        }),
+      ),
+    ).toThrow(/curve\[3\]\.windowS must be at least durationS/)
+  })
+
+  it('validates flag counts by kind and value', () => {
+    expect(() => parseDigest(edited(digests[0]!, (o) => (o.flagCounts = { gremlin: 1 })))).toThrow(
+      /flagCounts\.gremlin is not a quality kind/,
+    )
+    expect(() =>
+      parseDigest(edited(digests[0]!, (o) => (o.flagCounts = { 'power-spike': -1 }))),
+    ).toThrow(/flagCounts\.power-spike must be a non-negative integer/)
+    expect(() => parseDigest(edited(digests[0]!, (o) => delete o.flagCounts))).toThrow(
+      /flagCounts must be an object/,
     )
   })
 })

@@ -4,6 +4,7 @@ import { smoothGrade } from '../metabolic'
 import type { Activity, Sport } from '../types'
 import { climbMask, estimatePower } from '../virtualPower'
 import { digestActivity } from './digestActivity'
+import { serializeDigest } from './serialize'
 import { powerAt } from './terms'
 
 const TRUE_MODEL = { crr: 0.006, cda: 0.35 }
@@ -340,5 +341,85 @@ describe('digestActivity: rides without a power meter', () => {
     for (const p of chosen) {
       for (let i = p.startIndex; i < p.startIndex + p.windowS; i++) expect(valid[i]).toBe(1)
     }
+  })
+})
+
+describe('digestActivity: flags', () => {
+  it('keeps at most 50 flags, earliest first, and the true count of every kind', () => {
+    // 2 h at 250 W with a 2500 W spike every 20 s: each spike is its own flag, 17 s apart.
+    const n = 7200
+    const power = constant(n, 250)
+    const spikes: number[] = []
+    for (let i = 60; i < n - 2; i += 20) {
+      power[i] = 2500
+      spikes.push(i)
+    }
+    const d = digestActivity(activity({ n, sport: 'ride', speed: constant(n, 8), power }))
+    expect(d.flagCounts).toEqual({ 'power-spike': spikes.length })
+    expect(spikes.length).toBeGreaterThan(50)
+    expect(d.flags).toHaveLength(50)
+    expect(d.flags.map((f) => f.start)).toEqual(spikes.slice(0, 50).map((i) => i - 1))
+  })
+
+  it('stays small for a 2 h ride with a 2500 W spike every 4 s', () => {
+    // Spikes 4 s apart merge into one flag for the whole ride, so the digest stays well under the
+    // server's cap and the count is the number of merged flags.
+    const n = 7200
+    const power = constant(n, 250)
+    for (let i = 60; i < n - 2; i += 4) power[i] = 2500
+    const d = digestActivity(activity({ n, sport: 'ride', speed: constant(n, 8), power }))
+    expect(d.flagCounts).toEqual({ 'power-spike': 1 })
+    expect(d.flags).toHaveLength(1)
+    expect(serializeDigest(d).length).toBeLessThan(16 * 1024)
+  })
+
+  it('reports no flag counts for a clean activity', () => {
+    expect(digestActivity(activity({ n: 300 })).flagCounts).toEqual({})
+  })
+})
+
+describe('digestActivity: surging climbs', () => {
+  /** Mean power of each virtual window over the clamped estimate, relative to the stored terms. */
+  function biasByWindow(amplitudeMs: number, periodS: number): number[] {
+    const n = 1800
+    const speed = Float64Array.from(
+      { length: n },
+      (_, i) => 8 + amplitudeMs * Math.sin((2 * Math.PI * i) / periodS),
+    )
+    const ride = activity({
+      id: 'surge',
+      sport: 'ride',
+      n,
+      speed,
+      grade: 0.05,
+      heartRate: constant(n, 140),
+    })
+    const d = digestActivity(ride)
+    const grade = smoothGrade(ride.altitude, ride.distance)
+    const estimate = estimatePower(ride.speed, grade, 84, DEFAULT_BIKE_MODEL)
+    return d.curve
+      .filter((p) => p.terms !== null)
+      .map((p) => {
+        const clamped = estimate.subarray(p.startIndex, p.startIndex + p.windowS)
+        const mean = clamped.reduce((a, b) => a + b, 0) / p.windowS
+        return (powerAt(p.terms!, 84, DEFAULT_BIKE_MODEL) - mean) / mean
+      })
+  }
+
+  it('understates a 2 m/s surge (20 s period, 5% climb) by under 3%', () => {
+    // Power terms are linear and the estimate used to choose windows is clamped at zero. Clamping
+    // only raises the mean, so the stored value is at or below it. For this surge the bias is
+    // about 0.01%, the size of the clamp effect on a climb where gravity dominates.
+    const biases = biasByWindow(2, 20)
+    expect(biases.length).toBeGreaterThan(5)
+    expect(Math.max(...biases)).toBeLessThanOrEqual(1e-9)
+    expect(Math.min(...biases)).toBeGreaterThan(-0.03)
+  })
+
+  it('shows the clamp bias exceeds 3% for a hard 4 m/s surge, so the bias is not always negligible', () => {
+    // Deceleration on a surge drives the modelled power below zero for part of each period. Read
+    // this as the limit of the linear approximation rather than a fixed bias.
+    const biases = biasByWindow(4, 20)
+    expect(Math.min(...biases)).toBeLessThan(-0.03)
   })
 })

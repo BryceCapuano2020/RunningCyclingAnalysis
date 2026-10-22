@@ -8,6 +8,7 @@ import type {
   DigestHrBlock,
   PowerTerms,
   QualityFlag,
+  QualityKind,
   Sport,
 } from '../types'
 import { DIGEST_VERSION } from './digestActivity'
@@ -64,6 +65,25 @@ function asNumberOrNaN(value: unknown, path: string): number {
   return value
 }
 
+function asNonNegativeInteger(value: unknown, path: string): number {
+  const n = asInteger(value, path)
+  if (n < 0) fail(path, 'must not be negative')
+  return n
+}
+
+function asPositive(value: unknown, path: string): number {
+  const n = asFinite(value, path)
+  if (!(n > 0)) fail(path, 'must be positive')
+  return n
+}
+
+/** Fails unless 0 <= start < end <= durationS. */
+function checkRange(start: number, end: number, durationS: number, path: string): void {
+  if (!(0 <= start && start < end && end <= durationS)) {
+    fail(path, 'must satisfy 0 <= start < end <= durationS')
+  }
+}
+
 function asFiniteOrNull(value: unknown, path: string): number | null {
   return value === null ? null : asFinite(value, path)
 }
@@ -103,14 +123,44 @@ function asCalibration(value: unknown, path: string): CalibrationSums | null {
   }
 }
 
-function asFlag(value: unknown, path: string): QualityFlag {
+/** Every quality kind. The record type makes this list exhaustive over QualityKind. */
+const QUALITY_KIND_SET: Record<QualityKind, true> = {
+  'hr-dropout': true,
+  'hr-spike': true,
+  'hr-implausible-for-power': true,
+  'power-spike': true,
+  'power-dropout': true,
+  'speed-spike': true,
+  'altitude-jump': true,
+  'missing-altitude': true,
+}
+const QUALITY_KINDS = Object.keys(QUALITY_KIND_SET) as QualityKind[]
+
+function asFlag(value: unknown, path: string, durationS: number): QualityFlag {
   const o = asObject(value, path)
+  const start = asInteger(o.start, `${path}.start`)
+  const end = asInteger(o.end, `${path}.end`)
+  checkRange(start, end, durationS, path)
   return {
-    kind: asString(o.kind, `${path}.kind`) as QualityFlag['kind'],
-    start: asInteger(o.start, `${path}.start`),
-    end: asInteger(o.end, `${path}.end`),
+    kind: asOneOf(o.kind, QUALITY_KINDS, `${path}.kind`),
+    start,
+    end,
     message: asString(o.message, `${path}.message`),
   }
+}
+
+function asFlagCounts(value: unknown, path: string): Partial<Record<QualityKind, number>> {
+  const o = asObject(value, path)
+  const counts: Partial<Record<QualityKind, number>> = {}
+  for (const [key, count] of Object.entries(o)) {
+    const kind = QUALITY_KINDS.find((k) => k === key)
+    if (kind === undefined) fail(`${path}.${key}`, 'is not a quality kind')
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) {
+      fail(`${path}.${key}`, 'must be a non-negative integer')
+    }
+    counts[kind] = count
+  }
+  return counts
 }
 
 function asCurvePoint(value: unknown, index: number, path: string): DigestCurvePoint {
@@ -119,11 +169,13 @@ function asCurvePoint(value: unknown, index: number, path: string): DigestCurveP
   if (durationS !== DURATIONS_S[index]) {
     fail(`${path}.durationS`, `must be ${DURATIONS_S[index]}, got ${durationS}`)
   }
+  const windowS = asInteger(o.windowS, `${path}.windowS`)
+  if (windowS < durationS) fail(`${path}.windowS`, 'must be at least durationS')
   return {
     durationS,
     value: asNumberOrNaN(o.value, `${path}.value`),
     startIndex: asInteger(o.startIndex, `${path}.startIndex`),
-    windowS: asInteger(o.windowS, `${path}.windowS`),
+    windowS,
     heartRate: asFiniteOrNull(o.heartRate, `${path}.heartRate`),
     terms: asTermsOrNull(o.terms, `${path}.terms`),
   }
@@ -138,12 +190,15 @@ function asHrBlock(value: unknown, path: string): DigestHrBlock {
   }
 }
 
-function asClimbSection(value: unknown, path: string): DigestClimbSection {
+function asClimbSection(value: unknown, path: string, durationS: number): DigestClimbSection {
   const o = asObject(value, path)
+  const start = asInteger(o.start, `${path}.start`)
+  const end = asInteger(o.end, `${path}.end`)
+  checkRange(start, end, durationS, path)
   return {
-    start: asInteger(o.start, `${path}.start`),
-    end: asInteger(o.end, `${path}.end`),
-    measuredW: asFinite(o.measuredW, `${path}.measuredW`),
+    start,
+    end,
+    measuredW: asPositive(o.measuredW, `${path}.measuredW`),
     terms: asTerms(o.terms, `${path}.terms`),
   }
 }
@@ -171,25 +226,29 @@ export function parseDigest(json: string): ActivityDigest {
   if (curve.length !== DURATIONS_S.length) {
     fail('curve', `must have ${DURATIONS_S.length} points, got ${curve.length}`)
   }
+  const durationS = asNonNegativeInteger(o.durationS, 'durationS')
+  const distanceM = asNumberOrNaN(o.distanceM, 'distanceM')
+  if (distanceM < 0) fail('distanceM', 'must not be negative')
   return {
     version: DIGEST_VERSION,
     id: asString(o.id, 'id'),
     name: asString(o.name, 'name'),
     sport: asOneOf(o.sport, SPORTS, 'sport'),
     startMs: asFinite(o.startMs, 'startMs'),
-    durationS: asInteger(o.durationS, 'durationS'),
-    distanceM: asNumberOrNaN(o.distanceM, 'distanceM'),
+    durationS,
+    distanceM,
     elevationGainM: asFinite(o.elevationGainM, 'elevationGainM'),
     hasHeartRate: asBoolean(o.hasHeartRate, 'hasHeartRate'),
     indoor: asBoolean(o.indoor, 'indoor'),
     powerSource: asOneOf(o.powerSource, POWER_SOURCES, 'powerSource'),
-    flags: asArray(o.flags, 'flags').map((f, i) => asFlag(f, `flags[${i}]`)),
+    flags: asArray(o.flags, 'flags').map((f, i) => asFlag(f, `flags[${i}]`, durationS)),
+    flagCounts: asFlagCounts(o.flagCounts, 'flagCounts'),
     maxHeartRate: asFiniteOrNull(o.maxHeartRate, 'maxHeartRate'),
     curve: curve.map((p, i) => asCurvePoint(p, i, `curve[${i}]`)),
     hrBlocks: asArray(o.hrBlocks, 'hrBlocks').map((b, i) => asHrBlock(b, `hrBlocks[${i}]`)),
     calibration: asCalibration(o.calibration, 'calibration'),
     climbSections: asArray(o.climbSections, 'climbSections').map((s, i) =>
-      asClimbSection(s, `climbSections[${i}]`),
+      asClimbSection(s, `climbSections[${i}]`, durationS),
     ),
   }
 }

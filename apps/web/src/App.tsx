@@ -1,25 +1,59 @@
+import type { AthleteSettings } from '@rca/core/types'
+import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef } from 'react'
 import './App.css'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from './ui/charts'
 import {
+  AccountMenu,
   ActivitiesTable,
   Dropzone,
   EquivalenceTable,
   Header,
   Headline,
   Methodology,
+  PrivacyNote,
   RangePicker,
   RejectedFiles,
   SettingsBar,
+  SignInCallout,
+  SyncStatus,
   pickHeadline,
 } from './ui/components'
+import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
 
 export function App() {
   const [preferences, setPreferences] = usePreferences()
-  const { settings, units } = preferences
-  const analysis = useAnalysis(settings)
+  const account = useAccount()
+  const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
+  const signedIn = profile !== null
+
+  // Signed in, the saved profile is the source of truth; signed out, local preferences are.
+  const settings: AthleteSettings = profile
+    ? { massKg: profile.massKg, bikeMassKg: profile.bikeMassKg }
+    : preferences.settings
+  const units: UnitSystem = profile ? profile.units : preferences.units
+  const keepFiles = profile?.keepFiles ?? false
+  const saveProfile = (
+    next: Partial<{ settings: AthleteSettings; units: UnitSystem; keepFiles: boolean }>,
+  ) => {
+    if (profile) {
+      void account.updateProfile({
+        massKg: next.settings?.massKg ?? profile.massKg,
+        bikeMassKg: next.settings?.bikeMassKg ?? profile.bikeMassKg,
+        units: next.units ?? profile.units,
+        keepFiles: next.keepFiles ?? profile.keepFiles,
+      })
+    } else {
+      setPreferences({
+        settings: next.settings ?? preferences.settings,
+        units: next.units ?? preferences.units,
+      })
+    }
+  }
+
+  const analysis = useAnalysis(settings, account)
   const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
     analysis.state
   const headlineDuration = result ? pickHeadline(result.comparison)?.point.durationS : undefined
@@ -41,8 +75,23 @@ export function App() {
     <div className="page">
       <Header
         units={units}
-        onUnitsChange={(next) => setPreferences({ ...preferences, units: next })}
+        onUnitsChange={(next) => saveProfile({ units: next })}
+        actions={
+          <AccountMenu
+            status={account.status}
+            me={account.me}
+            onSignIn={account.signIn}
+            onSignOut={() => void account.signOut().catch(() => undefined)}
+            onDeleteAccount={account.deleteAccount}
+          />
+        }
       />
+
+      {account.error && account.status !== 'unavailable' && (
+        <p className="app__error card" role="alert">
+          {account.error}
+        </p>
+      )}
 
       {analysis.error && (
         <p className="app__error card" role="alert">
@@ -69,6 +118,7 @@ export function App() {
             progress={analysis.progress}
           />
           <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
+          {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
           <ol className="app__steps">
             <li>
               <h3>1. Add your files</h3>
@@ -114,18 +164,43 @@ export function App() {
             <SettingsBar
               settings={settings}
               units={units}
-              onChange={(next) => setPreferences({ ...preferences, settings: next })}
+              onChange={(next) => saveProfile({ settings: next })}
             />
+            {signedIn && (
+              <label className="app__keep-files">
+                <input
+                  type="checkbox"
+                  checked={keepFiles}
+                  onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
+                />
+                Keep original files in my library
+              </label>
+            )}
             <RangePicker
               rangeDays={rangeDays}
               onChange={analysis.setRange}
               shown={result.activities.length}
               total={totalActivities}
             />
-            <button type="button" className="btn" onClick={analysis.clear} disabled={analysis.busy}>
-              Start over
-            </button>
+            <SyncStatus
+              uploading={analysis.uploading}
+              failures={analysis.state.syncFailures}
+              signedIn={signedIn}
+            />
+            {!signedIn && (
+              <button
+                type="button"
+                className="btn"
+                onClick={analysis.clear}
+                disabled={analysis.busy}
+              >
+                Start over
+              </button>
+            )}
           </section>
+          {account.status === 'signed-out' && !isSample && (
+            <SignInCallout onSignIn={account.signIn} />
+          )}
           <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
 
           <section className="card">
@@ -198,7 +273,7 @@ export function App() {
       )}
 
       <footer className="app__footer muted">
-        Nothing is uploaded. Files are read and analysed in your browser only.
+        <PrivacyNote signedIn={signedIn} keepFiles={keepFiles} />
       </footer>
     </div>
   )

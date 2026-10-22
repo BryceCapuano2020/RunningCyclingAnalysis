@@ -13,19 +13,21 @@ import type {
   DigestClimbSection,
   DigestCurvePoint,
   DigestHrBlock,
+  QualityFlag,
+  QualityKind,
   QualityReport,
 } from '../types'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
 import { calibrationSums } from './calibration'
 import type { SampleTerms } from './terms'
-import { sampleTerms, termsOver } from './terms'
+import { SELECTION_MASS_KG, sampleTerms, termsOver } from './terms'
 
 export const DIGEST_VERSION = 1
 
 /** Climbs whose measured mean power is below this are too easy to score meaningfully, W. */
 const MIN_MEASURED_W = 50
-/** Virtual-power climb windows are picked with the default bike model at this total mass, kg. */
-const SELECTION_MASS_KG = 84
+/** Most flags kept per activity. The true count of each kind is kept in flagCounts. */
+const MAX_FLAGS = 50
 
 /** The settings-independent parts of a digest, produced per sport and power source. */
 interface Parts {
@@ -55,6 +57,12 @@ function elevationGain(altitude: Float64Array): number {
     }
   }
   return gain
+}
+
+function countFlags(flags: QualityFlag[]): Partial<Record<QualityKind, number>> {
+  const counts: Partial<Record<QualityKind, number>> = {}
+  for (const flag of flags) counts[flag.kind] = (counts[flag.kind] ?? 0) + 1
+  return counts
 }
 
 function and(a: Uint8Array, b: Uint8Array): Uint8Array {
@@ -185,12 +193,16 @@ function virtualParts(
   const valid = outdoorClimbs
     ? and(quality.validMotion, climbMask(grade, activity.speed))
     : new Uint8Array(activity.n)
+  // Windows are picked with the default model at a fixed mass, so the digest is independent of the
+  // athlete's settings. Combine then evaluates the stored terms at the real mass and fitted bike.
   const selection = windowedEnvelope(
     estimatePower(activity.speed, grade, SELECTION_MASS_KG, DEFAULT_BIKE_MODEL),
     valid,
     activity.id,
   )
   const terms = sampleTerms(activity.speed, grade)
+  // The stored terms are linear, so they omit the clamp at zero that estimatePower applies per
+  // sample. See powerAt in terms.ts for the size of that bias.
   const curve: DigestCurvePoint[] = selection.map((w) => ({
     durationS: w.durationS,
     value: NaN,
@@ -247,7 +259,8 @@ export function digestActivity(activity: Activity): ActivityDigest {
     hasHeartRate: activity.hasHeartRate,
     indoor: activity.indoor,
     powerSource: parts.powerSource,
-    flags: quality.flags,
+    flags: quality.flags.slice(0, MAX_FLAGS),
+    flagCounts: countFlags(quality.flags),
     maxHeartRate: maxHeartRate([source]),
     curve: parts.curve,
     hrBlocks: parts.hrBlocks,

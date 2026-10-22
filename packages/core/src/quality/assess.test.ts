@@ -305,10 +305,8 @@ describe('assessQuality: hr-spike', () => {
     a.heartRate[0] = 240
     a.heartRate[19] = 240
     const report = assessQuality(a)
-    expect(report.flags.map((f) => [f.start, f.end])).toEqual([
-      [0, 7],
-      [14, 20],
-    ])
+    // The two flags are 8 s apart, under the 10 s merge gap, so they become one flag.
+    expect(report.flags.map((f) => [f.start, f.end])).toEqual([[0, 20]])
     expect(zeroIndices(report.validHeartRate)).toEqual([...span(0, 7), ...span(14, 20)])
   })
 })
@@ -419,6 +417,27 @@ describe('assessQuality: power-spike', () => {
     expect(report.flags.map((f) => [f.start, f.end])).toEqual([
       [19, 22],
       [59, 62],
+    ])
+  })
+})
+
+describe('assessQuality: flag merging by gap', () => {
+  it('merges same-kind flags whose gap is under 10 s', () => {
+    const a = withPower(120)
+    a.power[20] = 2500
+    a.power[25] = 2500
+    // Flags [19, 22) and [24, 27) are 2 s apart.
+    expect(assessQuality(a).flags.map((f) => [f.start, f.end])).toEqual([[19, 27]])
+  })
+
+  it('keeps same-kind flags 10 s or more apart separate', () => {
+    const a = withPower(120)
+    a.power[20] = 2500
+    a.power[33] = 2500
+    // Flags [19, 22) and [32, 35) leave a gap of exactly 10 s.
+    expect(assessQuality(a).flags.map((f) => [f.start, f.end])).toEqual([
+      [19, 22],
+      [32, 35],
     ])
   })
 })

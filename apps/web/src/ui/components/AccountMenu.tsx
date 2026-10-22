@@ -1,0 +1,157 @@
+import { useEffect, useId, useRef, useState } from 'react'
+import type { FocusEvent, KeyboardEvent } from 'react'
+import type { Me } from '@rca/contract'
+import { DeleteAccountDialog } from './DeleteAccountDialog'
+import { GoogleSignInButton } from './GoogleSignInButton'
+import './AccountMenu.css'
+
+export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
+
+export interface AccountMenuProps {
+  status: AccountStatus
+  me: Me | null
+  onSignIn: () => void
+  onSignOut: () => void
+  onDeleteAccount: () => Promise<void>
+}
+
+/** The first word of the name, or the part of the email before the @ when there is no name. */
+function firstNameOf(me: Me): string {
+  const [first] = me.user.name.trim().split(/\s+/)
+  if (first) return first
+  const [local] = me.user.email.split('@')
+  return local || me.user.email
+}
+
+/** First and last initials of the name, or the first letter of the email when there is no name. */
+function initialsOf(me: Me): string {
+  const words = me.user.name
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word !== '')
+  const ends = words.length > 1 ? [words.at(0), words.at(-1)] : [words.at(0)]
+  const letters = ends.map((word) => word?.charAt(0) ?? '').join('')
+  return (letters || me.user.email.charAt(0)).toUpperCase()
+}
+
+/**
+ * The header's account control. Signed out it offers Google sign-in. Signed in it is a disclosure
+ * button that opens the email, sign out and account deletion. A placeholder of the same height
+ * holds the space while the session loads, and nothing renders when accounts are unavailable.
+ */
+export function AccountMenu({
+  status,
+  me,
+  onSignIn,
+  onSignOut,
+  onDeleteAccount,
+}: AccountMenuProps) {
+  const panelId = `${useId()}-panel`
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const signInRef = useRef<HTMLButtonElement>(null)
+  const previousStatus = useRef(status)
+  const [open, setOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const menuOpen = open && status === 'signed-in' && me !== null
+
+  // Signing out or deleting the account removes the trigger, which would drop focus to the body.
+  // Put it on the sign-in button that replaces it.
+  useEffect(() => {
+    const was = previousStatus.current
+    previousStatus.current = status
+    if (was === 'signed-in' && status === 'signed-out') signInRef.current?.focus()
+  }, [status])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function handlePointerDown(event: PointerEvent) {
+      const wrapper = wrapperRef.current
+      if (wrapper !== null && event.target instanceof Node && !wrapper.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [menuOpen])
+
+  if (status === 'unavailable') return null
+  if (status === 'loading') return <span className="account-menu__placeholder" aria-hidden="true" />
+  if (status === 'signed-out' || me === null) {
+    return <GoogleSignInButton onClick={onSignIn} buttonRef={signInRef} />
+  }
+
+  const { email } = me.user
+  const firstName = firstNameOf(me)
+  const initials = initialsOf(me)
+  const pictureUrl = me.user.pictureUrl
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Escape' || !menuOpen) return
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+
+  // Tabbing out of the menu closes it. A null related target is a click on inert space, which
+  // the pointer handler above already covers, so it is ignored here.
+  function handleBlur(event: FocusEvent<HTMLDivElement>) {
+    const next = event.relatedTarget
+    if (next instanceof Node && !event.currentTarget.contains(next)) setOpen(false)
+  }
+
+  function handleSignOut() {
+    setOpen(false)
+    onSignOut()
+  }
+
+  function openDeleteDialog() {
+    setOpen(false)
+    setDialogOpen(true)
+  }
+
+  function closeDeleteDialog() {
+    setDialogOpen(false)
+    triggerRef.current?.focus()
+  }
+
+  return (
+    <>
+      <div ref={wrapperRef} className="account-menu" onKeyDown={handleKeyDown} onBlur={handleBlur}>
+        <button
+          ref={triggerRef}
+          type="button"
+          className="account-menu__trigger"
+          aria-expanded={menuOpen}
+          aria-controls={panelId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="account-menu__avatar" aria-hidden="true">
+            {pictureUrl ? <img src={pictureUrl} alt="" referrerPolicy="no-referrer" /> : initials}
+          </span>
+          <span className="account-menu__name">{firstName}</span>
+          <span className="account-menu__chevron" aria-hidden="true" />
+        </button>
+        <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
+          <p className="account-menu__email">{email}</p>
+          <button type="button" className="account-menu__item" onClick={handleSignOut}>
+            Sign out
+          </button>
+          <button
+            type="button"
+            className="account-menu__item account-menu__item--danger"
+            onClick={openDeleteDialog}
+          >
+            Delete account…
+          </button>
+        </div>
+      </div>
+      <DeleteAccountDialog
+        open={dialogOpen}
+        email={email}
+        onConfirm={onDeleteAccount}
+        onClose={closeDeleteDialog}
+      />
+    </>
+  )
+}

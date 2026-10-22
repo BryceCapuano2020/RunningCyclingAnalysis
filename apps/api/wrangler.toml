@@ -1,0 +1,24 @@
+name = "rca-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-20"
+
+# Local development needs no Cloudflare account: `wrangler dev` simulates D1 and R2 on disk.
+# Before deploying, create the real resources and replace the placeholder id:
+#   npx wrangler d1 create rca     (copy the printed database_id here)
+#   npx wrangler r2 bucket create rca-files
+[[d1_databases]]
+binding = "DB"
+database_name = "rca"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "rca-files"
+
+# Production defaults, so a deploy fails closed. Local development overrides both values in
+# .dev.vars, which `wrangler dev` reads and which takes precedence over [vars].
+# APP_URL must be set to the real web origin before deploying (see README steps).
+[vars]
+ENVIRONMENT = "production"
+APP_URL = "https://example.invalid"

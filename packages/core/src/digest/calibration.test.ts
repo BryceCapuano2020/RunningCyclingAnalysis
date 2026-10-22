@@ -169,4 +169,44 @@ describe('calibration sums', () => {
     const short = makeRide('s', wave(20, 7, 1, 400, 0), wave(20, 0, 0, 500, 0), TRUE_MODEL, MASS)
     expect(sumsOf(short)).toEqual(emptyCalibrationSums())
   })
+
+  it('recovers crr and cda when coasting descents are present', () => {
+    // 84 kg rider, 20 min each: a 6% climb at 5 m/s, an 8% descent at 12 m/s, a flat at 9 m/s and
+    // another descent. Physics needs negative power on the descents, but the meter reads 0 W
+    // while coasting, so those blocks must not enter the fit.
+    const coastMass = 84
+    const n = 1200
+    const rides = [
+      makeRide('climb', constant(n, 5), constant(n, 0.06), TRUE_MODEL, coastMass),
+      makeRide('descent', constant(n, 12), constant(n, -0.08), TRUE_MODEL, coastMass),
+      makeRide('flat', constant(n, 9), constant(n, 0), TRUE_MODEL, coastMass),
+      makeRide('descent2', constant(n, 12), constant(n, -0.08), TRUE_MODEL, coastMass),
+    ]
+    expect(rides[1]!.power.every((p) => p === 0)).toBe(true)
+    expect(sumsOf(rides[1]!).blocks).toBe(0)
+    const total = rides.reduce(
+      (acc, ride) => addCalibrationSums(acc, sumsOf(ride)),
+      emptyCalibrationSums(),
+    )
+    const fit = solveBikeModel(calibrationStatsAt(total, coastMass))
+    expect(Math.abs(fit.crr / TRUE_MODEL.crr - 1)).toBeLessThan(0.05)
+    expect(Math.abs(fit.cda / TRUE_MODEL.cda - 1)).toBeLessThan(0.05)
+  })
+
+  it('excludes blocks whose default-model estimate is negative even when the meter reads power', () => {
+    // A descent at 12 m/s with 100 W on the meter: the default model says the rider cannot be
+    // making that power on this grade, so the block is not trusted.
+    const n = 900
+    const ride = {
+      ...makeRide('pedal', constant(n, 12), constant(n, -0.08), TRUE_MODEL, 84),
+      power: constant(n, 100),
+    }
+    expect(sumsOf(ride).blocks).toBe(0)
+    const flat = { ...makeRide('f', constant(n, 9), constant(n, 0), TRUE_MODEL, 84) }
+    expect(sumsOf(flat).blocks).toBe(30)
+  })
 })
+
+function constant(n: number, value: number): Float64Array {
+  return new Float64Array(n).fill(value)
+}

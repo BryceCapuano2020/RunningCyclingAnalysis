@@ -1,9 +1,9 @@
+import { combine, digestActivity } from './digest'
+import type { AnalysisResult } from './digest'
 import type { FitSource } from './fit'
 import { extractFitFiles, parseFit } from './fit'
-import type { AnalysisResult } from './pipeline'
-import { analyze } from './pipeline'
 import { sampleDataset } from './synthetic'
-import type { Activity, AthleteSettings } from './types'
+import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
 
 export interface RejectedFile {
   fileName: string
@@ -21,14 +21,43 @@ export interface SessionState {
   totalActivities: number
   /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
   rangeDays: number | null
+  /** Activities the sink could not save and that have not been saved since. */
+  syncFailures: number
+}
+
+/** What the sink receives for each newly digested activity. */
+export interface SyncItem {
+  digest: ActivityDigest
+  /** The FIT file's name inside its source (a zip entry path, or the file name). */
+  fileName: string
+  /** Lowercase hex SHA-256 of bytes. */
+  fileHash: string
+  /** The FIT file's bytes. The session drops its reference once the sink returns. */
+  bytes: Uint8Array
+}
+
+export type SyncSink = (item: SyncItem) => Promise<void>
+
+/** The same workout exported twice has the same sport and start second. */
+function dedupeKey(sport: Sport, startMs: number): string {
+  return `${sport}-${Math.round(startMs / 1000)}`
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  // Every FIT byte array here is backed by a plain ArrayBuffer, never a SharedArrayBuffer.
+  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 /**
- * Holds parsed activities between requests so that changing a setting re-runs
- * the analysis without re-reading files. Lives inside the Web Worker.
+ * Holds one digest per activity between requests, so that changing a setting re-runs the
+ * analysis without re-reading files. Raw activities are digested on arrival and then dropped.
+ * Lives inside the Web Worker.
  */
 export class AnalysisSession {
-  private activities = new Map<string, Activity>()
+  private digests = new Map<string, ActivityDigest>()
+  // Keys of activities whose last sink call failed. Re-importing the file tries them again.
+  private unsynced = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
   private rejected = new Map<string, string>()
   private unsupported = new Map<string, number>()
@@ -39,6 +68,7 @@ export class AnalysisSession {
     sources: FitSource[],
     settings: AthleteSettings,
     onProgress?: (filesRead: number) => void,
+    sink?: SyncSink,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     let filesRead = 0
@@ -46,13 +76,16 @@ export class AnalysisSession {
       let undecodable = 0
       const summary = await extractFitFiles(
         source,
-        (file) => {
+        async (file) => {
           const parsed = parseFit(file.bytes, file.fileName)
           if (parsed.ok) {
+            const fileHash = sink === undefined ? '' : await sha256Hex(file.bytes)
             for (const activity of parsed.activities) {
-              // The same workout exported twice has the same sport and start second.
-              const key = `${activity.sport}-${Math.round(activity.startMs / 1000)}`
-              this.activities.set(key, activity)
+              await this.keep(
+                activity,
+                { fileName: file.fileName, fileHash, bytes: file.bytes },
+                sink,
+              )
             }
             // A file that now reads cleanly replaces an earlier rejection under the same name.
             this.rejected.delete(file.fileName)
@@ -76,10 +109,21 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /** Replaces the whole library with digests that were stored elsewhere (the server). */
+  loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
+    this.reset()
+    for (const digest of digests) {
+      this.digests.set(dedupeKey(digest.sport, digest.startMs), digest)
+    }
+    return this.state(settings)
+  }
+
   loadSample(settings: AthleteSettings): SessionState {
-    this.clear()
+    this.reset()
     this.isSample = true
-    for (const activity of sampleDataset().activities) this.activities.set(activity.id, activity)
+    for (const activity of sampleDataset().activities) {
+      this.digests.set(activity.id, digestActivity(activity))
+    }
     return this.state(settings)
   }
 
@@ -93,29 +137,58 @@ export class AnalysisSession {
   }
 
   clear(): SessionState {
-    this.activities.clear()
-    this.rejected.clear()
-    this.unsupported.clear()
-    this.isSample = false
+    this.reset()
     return this.state({ massKg: 0, bikeMassKg: 0 })
   }
 
+  /**
+   * Digests one parsed activity and hands it to the sink. An activity already held and saved is
+   * left alone, so a duplicate import is not sent again. A sink failure is counted, not thrown.
+   */
+  private async keep(
+    activity: Activity,
+    file: { fileName: string; fileHash: string; bytes: Uint8Array },
+    sink: SyncSink | undefined,
+  ): Promise<void> {
+    const key = dedupeKey(activity.sport, activity.startMs)
+    const held = this.digests.get(key)
+    if (held !== undefined && (sink === undefined || !this.unsynced.has(key))) return
+    const digest = held ?? digestActivity(activity)
+    this.digests.set(key, digest)
+    if (sink === undefined) return
+    try {
+      await sink({ digest, ...file })
+      this.unsynced.delete(key)
+    } catch {
+      this.unsynced.add(key)
+    }
+  }
+
+  private reset(): void {
+    this.digests.clear()
+    this.unsynced.clear()
+    this.rejected.clear()
+    this.unsupported.clear()
+    this.isSample = false
+  }
+
   private state(settings: AthleteSettings): SessionState {
-    const all = [...this.activities.values()]
+    const all = [...this.digests.values()]
     let selected = all
     if (this.rangeDays !== null && all.length > 0) {
       // Anchored to the newest activity, not today, so an old export still shows its last weeks.
-      const newest = all.reduce((latest, a) => Math.max(latest, a.startMs), -Infinity)
+      const newest = all.reduce((latest, d) => Math.max(latest, d.startMs), -Infinity)
       const cutoff = newest - this.rangeDays * 86_400_000
-      selected = all.filter((a) => a.startMs >= cutoff)
+      selected = all.filter((d) => d.startMs >= cutoff)
     }
     return {
-      result: selected.length > 0 ? analyze(selected, settings) : null,
+      result: selected.length > 0 ? combine(selected, settings) : null,
       rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
       totalActivities: all.length,
       rangeDays: this.rangeDays,
+      syncFailures: this.unsynced.size,
     }
   }
 }
