@@ -30,11 +30,11 @@
     "deploy:bootstrap": "npm run build && npm run deploy:bootstrap -w @rca/api"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
+    "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.4",
     "oxlint": "^1.81.0",
     "prettier": "^3.9.10",
-    "typescript": "~6.0.2",
+    "typescript": "~7.0.2",
     "vitest": "^5.0.4"
   },
   "overrides": {
