@@ -1,11 +1,16 @@
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import type { Me } from '@rca/contract'
+import { digestActivity } from '@rca/core/digest'
+import { parseFit } from '@rca/core/fit'
 import {
   CLIENT_HEADERS,
   LANDING_TITLE,
   activitiesRows,
   apiActivities,
+  fixturePath,
   signInAs,
   uniqueEmail,
   uploadFixtures,
@@ -13,7 +18,7 @@ import {
 
 const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
-const RUNNING_HEADLINE = /Your running is .* stronger/
+const RUNNING_HEADLINE = /Your best running uses .* more energy per kg/
 const SAVED_NOTICE = 'Saved 14 activities to your library'
 const KEEP_FILES = 'Keep original files in my library'
 /** An import saves each activity and its file in turn, which takes longer than the default. */
@@ -42,18 +47,13 @@ async function storedFileCount(page: Page): Promise<number> {
   return (await apiActivities(page.request)).filter((record) => record.hasFile).length
 }
 
-/**
- * Signs in on a fresh page, waits for the account to load, then imports the export. The app drops
- * a file chosen while the library is still loading, so the upload is retried until results appear.
- */
+/** Imports once: retrying the upload would hide a file lost during library hydration. */
 async function signedInWithExport(page: Page, email: string): Promise<void> {
   await signInAs(page.request, email, NAME)
   await page.goto('/')
   await expect(accountButton(page)).toBeVisible()
-  await expect(async () => {
-    await uploadFixtures(page, ['sample-export.zip'])
-    await expect(headline(page)).toHaveText(RUNNING_HEADLINE, { timeout: 10_000 })
-  }).toPass(IMPORT)
+  await uploadFixtures(page, ['sample-export.zip'])
+  await expect(headline(page)).toHaveText(RUNNING_HEADLINE, IMPORT)
 }
 
 test('the account menu shows the first name once signed in', async ({ page }) => {
@@ -161,23 +161,81 @@ test('a second user cannot see, fetch or delete the first user activities', asyn
   expect(await apiActivities(page.request)).toHaveLength(14)
 })
 
-test('a file chosen while the library loads is not silently dropped', async ({ page }) => {
+test('a file chosen before account lookup completes is imported and saved once', async ({
+  page,
+}) => {
   test.setTimeout(120_000)
-  // Hold the library request so the app is still busy when the file is chosen.
-  await page.route('**/api/activities', async (route) => {
-    if (route.request().method() === 'GET') await new Promise((done) => setTimeout(done, 4000))
+  let releaseLookup!: () => void
+  let lookupStarted!: () => void
+  const lookupGate = new Promise<void>((resolve) => {
+    releaseLookup = resolve
+  })
+  const lookupRequest = new Promise<void>((resolve) => {
+    lookupStarted = resolve
+  })
+  await page.route('**/api/me', async (route) => {
+    lookupStarted()
+    await lookupGate
     await route.continue()
   })
   await signInAs(page.request, uniqueEmail(), NAME)
   await page.goto('/')
+  await lookupRequest
+  try {
+    await uploadFixtures(page, ['sample-export.zip'])
+    await expect(accountButton(page)).toHaveCount(0)
+  } finally {
+    releaseLookup()
+  }
   await expect(accountButton(page)).toBeVisible()
-
-  await uploadFixtures(page, ['sample-export.zip'])
-  await expect(headline(page)).toHaveText(RUNNING_HEADLINE, { timeout: 20_000 })
+  await expect(headline(page)).toHaveText(RUNNING_HEADLINE, IMPORT)
+  await expect.poll(() => storedFileCount(page), IMPORT).toBe(14)
 })
 
 test('an import started on the landing page shows the saved notice', async ({ page }) => {
   test.setTimeout(120_000)
   await signedInWithExport(page, uniqueEmail())
   await expect(page.getByText(SAVED_NOTICE)).toBeVisible({ timeout: 5_000 })
+})
+
+test('rebuilds a legacy saved activity from its original file without changing its library identity', async ({
+  page,
+}) => {
+  const email = uniqueEmail()
+  await signInAs(page.request, email, NAME)
+
+  const bytes = await readFile(fixturePath('one-run.fit'))
+  const parsed = parseFit(new Uint8Array(bytes), 'one-run.fit')
+  if (!parsed.ok) throw new Error(`Could not parse rebuild fixture: ${parsed.reason}`)
+  const activity = parsed.activities[0]
+  if (!activity) throw new Error('Rebuild fixture contains no activities')
+  const digest = { ...digestActivity(activity), modelRevision: 1 }
+  const fileHash = createHash('sha256').update(bytes).digest('hex')
+  const created = await page.request.post('/api/activities', {
+    headers: CLIENT_HEADERS,
+    data: { digest, fileName: 'one-run.fit', fileHash },
+  })
+  expect(created.status()).toBe(201)
+  const legacyRecord = await created.json()
+  const upload = await page.request.put(`/api/activities/${legacyRecord.id}/file`, {
+    headers: { ...CLIENT_HEADERS, 'Content-Type': 'application/octet-stream' },
+    data: bytes,
+  })
+  expect(upload.status()).toBe(200)
+  expect(await upload.json()).toMatchObject({ id: legacyRecord.id, hasFile: true })
+
+  await page.goto('/')
+  const savedActivityNotice = page
+    .getByRole('region', { name: 'Saved activity updates' })
+    .getByRole('status')
+  await expect(savedActivityNotice).toContainText('1 saved activity uses an older analysis model')
+  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
+  await page.getByRole('button', { name: 'Rebuild saved activities' }).click()
+
+  await expect(savedActivityNotice).toBeHidden()
+  await expect(activitiesRows(page)).toHaveCount(1)
+  const records = await apiActivities(page.request)
+  expect(records).toHaveLength(1)
+  expect(records[0]).toMatchObject({ id: legacyRecord.id, hasFile: true })
+  expect(records[0]?.digest.modelRevision).toBe(2)
 })

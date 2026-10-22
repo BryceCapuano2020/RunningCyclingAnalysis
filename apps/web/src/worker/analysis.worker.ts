@@ -1,9 +1,11 @@
 /// <reference lib="webworker" />
 import { MAX_FILE_BYTES } from '@rca/contract'
+import { parseFit } from '@rca/core/fit'
+import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession } from '@rca/core/session'
 import type { SessionState, SyncItem } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
-import { createActivity, listActivities, uploadFile } from '../api/client'
+import { createActivity, downloadActivityFile, listActivities, uploadFile } from '../api/client'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 const session = new AnalysisSession()
@@ -23,9 +25,12 @@ function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promis
     })
 
   const save = async (item: SyncItem): Promise<void> => {
-    const { record } = await createActivity(item.digest, item.fileName, item.fileHash)
-    if (sync?.keepFiles && !record.hasFile && item.bytes.byteLength <= MAX_FILE_BYTES) {
-      await uploadFile(record.id, item.bytes)
+    const { record } = await createActivity(item.digest, item.fileName, item.fileHash, sync?.userId)
+    if (sync?.keepFiles && !record.hasFile) {
+      if (item.bytes.byteLength > MAX_FILE_BYTES) {
+        throw new Error('Original exceeds the upload limit; digest saved without its file')
+      }
+      await uploadFile(record.id, item.bytes, sync.userId)
     }
     uploaded++
     report()
@@ -49,7 +54,9 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
     case 'loadSample':
       return session.loadSample(request.settings)
     case 'loadServer':
-      return loadServer(request.settings)
+      return loadServer(request.settings, request.userId)
+    case 'rebuildStale':
+      return (await rebuildStale(request.settings, request.userId)).state
     case 'setSettings':
       return session.setSettings(request.settings)
     case 'setRange':
@@ -60,12 +67,75 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
 }
 
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
-async function loadServer(settings: AthleteSettings): Promise<SessionState> {
-  const records = await listActivities()
+async function loadServer(settings: AthleteSettings, userId: string): Promise<SessionState> {
+  const records = await listActivities(undefined, userId)
   return session.loadDigests(
     records.map((record) => record.digest),
     settings,
   )
+}
+
+async function hashHex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** Rebuild stale digests only from their exact stored original file, retaining partial successes. */
+async function rebuildStale(settings: AthleteSettings, userId: string) {
+  const records = await listActivities(undefined, userId)
+  const stale = records.filter((record) => record.digest.modelRevision < MODEL_REVISION)
+  let rebuilt = 0
+  let missing = 0
+  let failed = 0
+  for (const record of stale) {
+    if (!record.hasFile) {
+      missing++
+      continue
+    }
+    try {
+      const bytes = await downloadActivityFile(record.id, userId)
+      const parsed = parseFit(bytes, record.fileName)
+      if (!parsed.ok) {
+        missing++
+        continue
+      }
+      const activity = parsed.activities.find(
+        (candidate) =>
+          candidate.sport === record.digest.sport &&
+          Math.round(candidate.startMs / 1000) === Math.round(record.digest.startMs / 1000),
+      )
+      if (!activity) {
+        missing++
+        continue
+      }
+      const fileHash = await hashHex(bytes)
+      const { record: upgraded } = await createActivity(
+        digestActivity(activity),
+        record.fileName,
+        fileHash,
+        userId,
+      )
+      const recordIndex = records.findIndex((candidate) => candidate.id === record.id)
+      if (recordIndex >= 0) records[recordIndex] = upgraded
+      rebuilt++
+    } catch (error) {
+      if (error instanceof Error && 'status' in error && error.status === 404) missing++
+      else failed++
+    }
+  }
+  let refreshed
+  try {
+    refreshed = await listActivities(undefined, userId)
+  } catch {
+    // Rebuild successes remain usable even if the final refresh is interrupted.
+    failed++
+    refreshed = records
+  }
+  const state = session.loadDigests(
+    refreshed.map((record) => record.digest),
+    settings,
+  )
+  return { state, rebuilt, missing, failed }
 }
 
 // Requests are handled strictly in order so a settings change cannot overtake a file import.
@@ -73,7 +143,14 @@ let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
-      post({ type: 'state', state: await handle(event.data) })
+      if (event.data.type === 'rebuildStale') {
+        post({
+          type: 'rebuildComplete',
+          ...(await rebuildStale(event.data.settings, event.data.userId)),
+        })
+      } else {
+        post({ type: 'state', state: await handle(event.data) })
+      }
     } catch (error) {
       post({ type: 'error', message: error instanceof Error ? error.message : String(error) })
     }

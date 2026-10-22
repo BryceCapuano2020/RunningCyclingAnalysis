@@ -34,7 +34,7 @@ describe('Headline wording', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Your running is 12% stronger than your cycling',
+        name: 'Your best running uses 12% more energy per kg than your best cycling',
       }),
     ).toBeInTheDocument()
   })
@@ -44,17 +44,24 @@ describe('Headline wording', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Your cycling is 10% stronger than your running',
+        name: 'Your best cycling uses 11% more energy per kg than your best running',
       }),
     ).toBeInTheDocument()
   })
 
-  it('says the two are too close to call when the interval spans 1', () => {
+  it('uses running as the denominator when cycling has the higher energy rate', () => {
+    renderHeadline(withRatio(interval(0.75, 0.8, 0.9)))
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Your best cycling uses 25% more energy per kg than your best running',
+    )
+  })
+
+  it('says the two estimates overlap when the interval spans 1', () => {
     renderHeadline(withRatio(interval(0.95, 1.0, 1.05)))
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Your running and cycling are too close to call',
+        name: 'Your running and cycling energy estimates overlap',
       }),
     ).toBeInTheDocument()
   })
@@ -63,7 +70,7 @@ describe('Headline wording', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
     expect(
       screen.getByText(
-        'Over 20 min, your best running burns 3.4 W/kg and your best cycling burns 3.0 W/kg. The gap is probably between +5% and +20%.',
+        'Over 20 min, your estimated running energy rate is 3.4 W/kg and your cycling energy rate is 3.0 W/kg. The 90% model range for running relative to cycling is +5% to +20%.',
       ),
     ).toBeInTheDocument()
   })
@@ -82,16 +89,22 @@ describe('Headline wording', () => {
 
   it('says the range is narrowed when the heart-rate comparison was used', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2), true))
-    expect(screen.getByText('Range narrowed using your heart-rate data')).toBeInTheDocument()
+    expect(screen.getByText('Model range adjusted using your heart-rate data.')).toBeInTheDocument()
   })
 
   it('says the range uses population averages without heart-rate data', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2), false))
+    expect(screen.getByText('Model range based on population assumptions.')).toBeInTheDocument()
+  })
+  it('explains a rejected adjustment and does not present it as narrowed or calibrated', () => {
+    const result = withRatio(interval(1.05, 1.12, 1.2))
+    result.comparison.calibration = { effectiveSamples: 1, draws: 4000, accepted: false }
+    renderHeadline(result)
+    expect(screen.getByText(/could not support a reliable adjustment/)).toBeInTheDocument()
     expect(
-      screen.getByText(
-        'Range based on population averages. Add more runs and rides with heart rate to narrow it',
-      ),
-    ).toBeInTheDocument()
+      screen.queryByText('Model range adjusted using your heart-rate data.'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/not sporting ability/)).toBeInTheDocument()
   })
 })
 
@@ -111,7 +124,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
     expect(
       screen.getByText(
-        'Your best cycling effort over 20 min reached 80% of your highest heart rate, so it was probably not all-out. Your cycling may be stronger than shown.',
+        'Your best cycling effort over 20 min reached 80% of your highest heart rate on file. Your library may be missing a harder cycling effort.',
       ),
     ).toBeInTheDocument()
   })
@@ -120,7 +133,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
     expect(
       screen.getByText(
-        'Your best running effort over 20 min reached 70% of your highest heart rate, so it was probably not all-out. Your running may be stronger than shown.',
+        'Your best running effort over 20 min reached 70% of your highest heart rate on file. Your library may be missing a harder running effort.',
       ),
     ).toBeInTheDocument()
   })
@@ -129,7 +142,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
     expect(
       screen.getByText(
-        'Neither best effort over 20 min was close to all-out (running 70%, cycling 80% of your highest heart rate), so treat this comparison as rough.',
+        'Both best efforts over 20 min were below 90% of your highest heart rate on file (running 70%, cycling 80%). Your library may be missing harder efforts.',
       ),
     ).toBeInTheDocument()
   })
@@ -152,7 +165,9 @@ describe('Headline effort notice', () => {
       rideHrFraction: 0.95,
     })
     expect(
-      screen.getByText('Both best efforts were close to all-out by heart rate'),
+      screen.getByText(
+        'Both best efforts reached at least 90% of your highest heart rate on file. This does not establish that either was all-out.',
+      ),
     ).toBeInTheDocument()
     expect(container.querySelector('.headline__effort')).toBeNull()
   })
@@ -229,8 +244,8 @@ describe('Headline stat tiles', () => {
     expect(cycling.getByText('48 W')).toBeInTheDocument()
     expect(cycling.getByText('3.0 W/kg')).toBeInTheDocument()
 
-    const accuracy = within(tileFor('Virtual power meter error'))
-    expect(accuracy.getByText('±6%')).toBeInTheDocument()
+    const accuracy = within(tileFor('Mean absolute virtual power error'))
+    expect(accuracy.getByText('6%')).toBeInTheDocument()
     expect(accuracy.getByText('3 climbs tested')).toBeInTheDocument()
 
     const activities = within(tileFor('Activities analysed'))
@@ -256,7 +271,7 @@ describe('Headline stat tiles', () => {
 
   it('omits the accuracy tile when there is no virtual power accuracy', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2), false, { virtualAccuracy: null }))
-    expect(screen.queryByText('Virtual power meter error')).not.toBeInTheDocument()
+    expect(screen.queryByText('Mean absolute virtual power error')).not.toBeInTheDocument()
   })
 
   it('omits the accuracy tile when no climbs were scored', () => {
@@ -265,7 +280,7 @@ describe('Headline stat tiles', () => {
         virtualAccuracy: { nSegments: 0, mape: 0, bias: 0, segments: [] },
       }),
     )
-    expect(screen.queryByText('Virtual power meter error')).not.toBeInTheDocument()
+    expect(screen.queryByText('Mean absolute virtual power error')).not.toBeInTheDocument()
   })
 
   it('uses singular words for one climb, run and ride', () => {

@@ -13,6 +13,10 @@ export interface Bindings {
   APP_URL: string
   GOOGLE_CLIENT_ID: string
   GOOGLE_CLIENT_SECRET: string
+  /** Cloudflare edge bindings; required outside local development. */
+  API_RATE_LIMITER?: RateLimit
+  AUTH_RATE_LIMITER?: RateLimit
+  WRITE_RATE_LIMITER?: RateLimit
 }
 
 export type Db = DrizzleD1Database<typeof schema>

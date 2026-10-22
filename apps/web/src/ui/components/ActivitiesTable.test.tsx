@@ -143,27 +143,75 @@ describe('ActivitiesTable', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the first 20 rows, then reveals the rest with Show all', () => {
+  it('pages through activities and moves focus to the first row on the new page', () => {
     const activities = Array.from({ length: 25 }, (_, i) =>
       makeActivity({ id: `a-${i}`, name: `Run number ${i}` }),
     )
     renderTable(activities)
     // One header row plus 20 data rows.
     expect(screen.getAllByRole('row')).toHaveLength(21)
+    expect(screen.getByText('Showing 1–20 of 25 activities. Page 1 of 2.')).toBeVisible()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show all 25' }))
-    expect(screen.getAllByRole('row')).toHaveLength(26)
-    expect(screen.queryByRole('button', { name: 'Show all 25' })).not.toBeInTheDocument()
-    // The button is removed, so focus moves to the first revealed row rather than the body.
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getAllByRole('row')).toHaveLength(6)
+    expect(screen.getByText('Showing 21–25 of 25 activities. Page 2 of 2.')).toBeVisible()
+    expect(rowFor('Run number 20')).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Run number 0/ })).not.toBeInTheDocument()
     expect(document.activeElement).toBe(rowFor('Run number 20'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
+    expect(screen.getAllByRole('row')).toHaveLength(21)
+    expect(rowFor('Run number 0')).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Run number 20/ })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(rowFor('Run number 0'))
   })
 
-  it('shows no Show all button for 20 or fewer activities', () => {
+  it('keeps the activity DOM bounded to one page for a 5,000-activity library', () => {
+    const flags = Array.from({ length: 50 }, (_, i) => ({
+      kind: 'power-spike' as const,
+      start: i,
+      end: i + 1,
+      message: `Power spike ${i}`,
+    }))
+    const activities = Array.from({ length: 5000 }, (_, i) =>
+      makeActivity({ id: `a-${i}`, name: `Run number ${i}`, flags }),
+    )
+    const { container } = renderTable(activities)
+
+    expect(screen.getAllByRole('row')).toHaveLength(21)
+    expect(container.querySelectorAll('tbody > tr')).toHaveLength(40)
+    expect(container.querySelectorAll('.activities-table__flags li')).toHaveLength(1000)
+    expect(screen.getByText('Showing 1–20 of 5000 activities. Page 1 of 250.')).toBeVisible()
+    for (const button of screen.getAllByRole('button', { name: '50 issues' })) {
+      expect(document.getElementById(button.getAttribute('aria-controls') ?? '')).not.toBeNull()
+    }
+  })
+
+  it('resets to page one when the selected activity library shrinks', () => {
+    const activities = Array.from({ length: 45 }, (_, i) =>
+      makeActivity({ id: `a-${i}`, name: `Run number ${i}` }),
+    )
+    const view = renderTable(activities)
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByText('Showing 41–45 of 45 activities. Page 3 of 3.')).toBeVisible()
+
+    view.rerender(<ActivitiesTable activities={activities.slice(0, 25)} units="metric" />)
+    expect(screen.getByText('Showing 1–20 of 25 activities. Page 1 of 2.')).toBeVisible()
+    expect(rowFor('Run number 0')).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Run number 40/ })).not.toBeInTheDocument()
+
+    view.rerender(<ActivitiesTable activities={activities.slice(0, 15)} units="metric" />)
+    expect(screen.queryByRole('navigation', { name: 'Activity pages' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('row')).toHaveLength(16)
+  })
+
+  it('shows no pagination for 20 or fewer activities', () => {
     const activities = Array.from({ length: 20 }, (_, i) =>
       makeActivity({ id: `a-${i}`, name: `Run number ${i}` }),
     )
     renderTable(activities)
-    expect(screen.queryByRole('button', { name: /Show all/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Activity pages' })).not.toBeInTheDocument()
   })
 
   it('says there are no activities when the list is empty', () => {

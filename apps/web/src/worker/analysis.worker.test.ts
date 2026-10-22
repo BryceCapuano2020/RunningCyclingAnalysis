@@ -21,11 +21,13 @@ vi.mock('@rca/contract', async (importOriginal) => {
 
 vi.mock('../api/client', () => ({
   createActivity: vi.fn(),
+  downloadActivityFile: vi.fn(),
   listActivities: vi.fn(),
   uploadFile: vi.fn(),
 }))
 
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
+const USER_ID = 'u1'
 const [sampleActivity] = sampleDataset().activities
 if (sampleActivity === undefined) throw new Error('The sample has no activities')
 const RUN_FILE_BYTES = new Uint8Array(encodeFit(sampleActivity, { gps: true }))
@@ -62,7 +64,10 @@ async function startWorker() {
     fakeSelf.onmessage?.({ data: request } as MessageEvent<WorkerRequest>)
     await vi.waitFor(() => {
       const last = posted.at(-1)
-      if (posted.length === start || (last?.type !== 'state' && last?.type !== 'error')) {
+      if (
+        posted.length === start ||
+        (last?.type !== 'state' && last?.type !== 'error' && last?.type !== 'rebuildComplete')
+      ) {
         throw new Error('still working')
       }
     })
@@ -88,6 +93,7 @@ beforeEach(() => {
     ...recordFor(SAMPLE_DIGEST, true),
     id,
   }))
+  mocked.downloadActivityFile.mockResolvedValue(RUN_FILE_BYTES)
 })
 
 describe('analysis worker', () => {
@@ -114,16 +120,21 @@ describe('analysis worker', () => {
       type: 'addFiles',
       files: [fitFile()],
       settings: SETTINGS,
-      sync: { keepFiles: true },
+      sync: { keepFiles: true, userId: USER_ID },
     })
 
     expect(mocked.createActivity).toHaveBeenCalledWith(
       expect.objectContaining({ sport: sampleActivity.sport }),
       'run.fit',
       expect.stringMatching(/^[0-9a-f]{64}$/),
+      USER_ID,
     )
     const [digest] = mocked.createActivity.mock.calls[0] ?? []
-    expect(mocked.uploadFile).toHaveBeenCalledWith(`rec-${digest?.id}`, expect.any(Uint8Array))
+    expect(mocked.uploadFile).toHaveBeenCalledWith(
+      `rec-${digest?.id}`,
+      expect.any(Uint8Array),
+      USER_ID,
+    )
     // The upload is reported as it happens, before the file itself counts as read.
     expect(messages).toContainEqual({ type: 'progress', filesRead: 0, uploaded: 1 })
     expect(messages).toContainEqual({ type: 'progress', filesRead: 1, uploaded: 1 })
@@ -136,7 +147,7 @@ describe('analysis worker', () => {
       type: 'addFiles',
       files: [fitFile()],
       settings: SETTINGS,
-      sync: { keepFiles: false },
+      sync: { keepFiles: false, userId: USER_ID },
     })
 
     expect(mocked.createActivity).toHaveBeenCalledOnce()
@@ -154,25 +165,29 @@ describe('analysis worker', () => {
       type: 'addFiles',
       files: [fitFile()],
       settings: SETTINGS,
-      sync: { keepFiles: true },
+      sync: { keepFiles: true, userId: USER_ID },
     })
 
     expect(mocked.uploadFile).not.toHaveBeenCalled()
   })
 
-  it('does not upload a file larger than the upload limit', async () => {
+  it('reports a partial save when a retained original exceeds the upload limit', async () => {
     limits.maxFileBytes = 10
     const { send } = await startWorker()
     const messages = await send({
       type: 'addFiles',
       files: [fitFile()],
       settings: SETTINGS,
-      sync: { keepFiles: true },
+      sync: { keepFiles: true, userId: USER_ID },
     })
 
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(mocked.uploadFile).not.toHaveBeenCalled()
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { syncFailures: 0 } })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncFailures: 1, totalActivities: 1 },
+    })
+    expect(messages).not.toContainEqual(expect.objectContaining({ uploaded: 1 }))
   })
 
   it('counts a failed save and still finishes the import', async () => {
@@ -182,7 +197,7 @@ describe('analysis worker', () => {
       type: 'addFiles',
       files: [fitFile()],
       settings: SETTINGS,
-      sync: { keepFiles: true },
+      sync: { keepFiles: true, userId: USER_ID },
     })
 
     expect(messages.at(-1)).toMatchObject({
@@ -199,7 +214,7 @@ describe('analysis worker', () => {
       type: 'addFiles',
       files: [fitFile()],
       settings: SETTINGS,
-      sync: { keepFiles: true },
+      sync: { keepFiles: true, userId: USER_ID },
     })
 
     expect(messages.at(-1)).toMatchObject({ type: 'state', state: { syncFailures: 1 } })
@@ -208,13 +223,60 @@ describe('analysis worker', () => {
   it('loads the account digests and replies with the analysis', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     const { send } = await startWorker()
-    const messages = await send({ type: 'loadServer', settings: SETTINGS })
+    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
 
-    expect(mocked.listActivities).toHaveBeenCalledWith()
+    expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID)
     expect(messages).toEqual([
       {
         type: 'state',
         state: expect.objectContaining({ totalActivities: 1, isSample: false }),
+      },
+    ])
+  })
+
+  it('rebuilds stale digests from their stored originals and refreshes the active analysis', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(stale, true)])
+      .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.downloadActivityFile).toHaveBeenCalledWith(`rec-${stale.id}`, USER_ID)
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ modelRevision: 2, sport: stale.sport }),
+      'run.fit',
+      expect.stringMatching(/^[0-9a-f]{64}$/),
+      USER_ID,
+    )
+    expect(messages).toEqual([
+      {
+        type: 'rebuildComplete',
+        rebuilt: 1,
+        missing: 0,
+        failed: 0,
+        state: expect.objectContaining({ totalActivities: 1, outdatedActivities: 0 }),
+      },
+    ])
+  })
+
+  it('keeps stale activities excluded and reports originals that must be re-imported', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(stale, false)])
+      .mockResolvedValueOnce([recordFor(stale, false)])
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(messages).toEqual([
+      {
+        type: 'rebuildComplete',
+        rebuilt: 0,
+        missing: 1,
+        failed: 0,
+        state: expect.objectContaining({ totalActivities: 0, outdatedActivities: 1 }),
       },
     ])
   })
@@ -237,7 +299,7 @@ describe('analysis worker', () => {
     expect(cleared).toEqual([
       {
         type: 'state',
-        state: expect.objectContaining({ isSample: false, totalActivities: 0, rangeDays: 42 }),
+        state: expect.objectContaining({ isSample: false, totalActivities: 0, rangeDays: null }),
       },
     ])
   })
@@ -245,7 +307,7 @@ describe('analysis worker', () => {
   it('posts the message of a request that fails', async () => {
     mocked.listActivities.mockRejectedValue(new Error('Sign in required'))
     const { send } = await startWorker()
-    expect(await send({ type: 'loadServer', settings: SETTINGS })).toEqual([
+    expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
       { type: 'error', message: 'Sign in required' },
     ])
   })
@@ -253,7 +315,7 @@ describe('analysis worker', () => {
   it('posts a non-Error failure as text', async () => {
     mocked.listActivities.mockRejectedValue('offline')
     const { send } = await startWorker()
-    expect(await send({ type: 'loadServer', settings: SETTINGS })).toEqual([
+    expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
       { type: 'error', message: 'offline' },
     ])
   })

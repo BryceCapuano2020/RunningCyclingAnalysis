@@ -25,6 +25,12 @@ describe('resample', () => {
     expect(Array.from(r.speed)).toEqual([2])
   })
 
+  it('guards the 1 Hz grid before allocating streams', () => {
+    expect(() => resample([{ tMs: 0 }, { tMs: 5000 }], [], 4)).toThrow(
+      'Activity exceeds the 4-second time-grid limit',
+    )
+  })
+
   it('sorts by time and lets the later record win when two land on one index', () => {
     const r = resample([
       { tMs: 1000, speed: 5 },
@@ -84,6 +90,63 @@ describe('resample', () => {
     for (let i = 0; i < 12; i++) {
       expect(altitude[i]).toBeCloseTo(100 + (10 * i) / 11, 10)
     }
+  })
+
+  it('uses explicit timer events and leaves other long gaps as dropouts', () => {
+    const r = resample(
+      [
+        { tMs: 0, speed: 4, distance: 10, altitude: 100, heartRate: 120, power: 200 },
+        { tMs: 20000, speed: 6, distance: 40, altitude: 110, heartRate: 130, power: 240 },
+      ],
+      [
+        { tMs: 0, eventType: 'start' },
+        { tMs: 5000, eventType: 'stop' },
+        { tMs: 10000, eventType: 'start' },
+        { tMs: 21000, eventType: 'stop' },
+      ],
+    )
+
+    expect(Array.from(r.paused)).toEqual([
+      ...Array.from({ length: 5 }, () => 0),
+      ...Array.from({ length: 5 }, () => 1),
+      ...Array.from({ length: 11 }, () => 0),
+    ])
+    expect(Array.from(r.speed.slice(1, 5))).toEqual(Array.from({ length: 4 }, () => NaN))
+    expect(Array.from(r.speed.slice(5, 10))).toEqual([0, 0, 0, 0, 0])
+    expect(Array.from(r.speed.slice(10, 20))).toEqual(Array.from({ length: 10 }, () => NaN))
+    expect(Array.from(r.power.slice(1, 5))).toEqual(Array.from({ length: 4 }, () => NaN))
+    expect(Array.from(r.power.slice(5, 10))).toEqual([0, 0, 0, 0, 0])
+  })
+
+  it('treats stop timestamps as the first paused second and normalizes numeric FIT event types', () => {
+    const records = Array.from({ length: 20 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 5,
+      power: 200,
+    }))
+    const r = resample(records, [
+      { tMs: 0, eventType: 0 },
+      { tMs: 5_000, eventType: 1 },
+      { tMs: 10_000, eventType: 0 },
+    ])
+    expect(Array.from(r.paused)).toEqual([
+      ...Array.from({ length: 5 }, () => 0),
+      ...Array.from({ length: 5 }, () => 1),
+      ...Array.from({ length: 10 }, () => 0),
+    ])
+    expect(Array.from(r.speed.slice(5, 10))).toEqual([0, 0, 0, 0, 0])
+    expect(Array.from(r.power.slice(5, 10))).toEqual([0, 0, 0, 0, 0])
+  })
+
+  it('ignores unrelated event types when choosing timer-event pause handling', () => {
+    const r = resample(
+      [
+        { tMs: 0, speed: 4, power: 200 },
+        { tMs: 20_000, speed: 6, power: 240 },
+      ],
+      [{ tMs: 2_000, eventType: 'marker' }],
+    )
+    expect(Array.from(r.paused.slice(1, 20))).toEqual([...Array.from({ length: 19 }, () => 1)])
   })
 
   it('uses the nearest known value before the first and after the last sample', () => {

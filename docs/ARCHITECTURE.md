@@ -1,11 +1,8 @@
 # Architecture
 
 RunningCyclingAnalysis is browser-first with an optional account. The browser parses activity files
-and does all of the physics. The server stores a small per-activity digest and serves it back. The
-server never runs the analysis, which keeps every API request inside the free tier's CPU budget.
-
-> Status: the analysis core and web app are built. `apps/api` and `packages/contract` are in
-> progress, so the API sections describe the target design.
+and runs the analysis. When a user signs in, the API stores per-activity digests in D1 and optional
+original FIT files in R2. The API and built web app run on the same Cloudflare Worker.
 
 ## Components
 
@@ -15,18 +12,18 @@ flowchart LR
     UI["apps/web<br/>React + Vite"] <-->|messages| W["Web Worker<br/>@rca/core"]
   end
   subgraph Cloudflare
-    Pages["Pages<br/>static assets"]
-    API["apps/api<br/>Worker + Hono"]
+    Worker["apps/api<br/>Worker + Hono"]
+    Assets["apps/web<br/>static assets"]
     D1[("D1<br/>SQLite via Drizzle")]
     R2[("R2<br/>original files")]
   end
   Google["Google OAuth"]
 
-  UI -->|"app assets"| Pages
-  UI -->|"JSON + session cookie"| API
-  API --> D1
-  API --> R2
-  API <-->|"code exchange"| Google
+  UI -->|"app assets"| Assets
+  UI -->|"JSON + session cookie"| Worker
+  Worker --> D1
+  Worker --> R2
+  Worker <-->|"code exchange"| Google
 ```
 
 | Part            | Package                       | Role                                                                                                                   |
@@ -38,23 +35,24 @@ flowchart LR
 | Database        | D1, accessed through Drizzle  | Users, sessions, profiles and activity rows holding digests.                                                           |
 | File store      | R2                            | Original FIT files, optional, one object per activity.                                                                 |
 
-The web app and the API share one site. A route sends `/api/*` to the Worker and everything else
-to Pages, so the session cookie is first-party and `SameSite=Lax` applies.
+The web app and API share one origin. Cloudflare serves static files directly and runs the Worker
+for `/api/*`, so the session cookie is first-party and `SameSite=Lax` applies.
 
 ## Request flows
 
 **Sign-in**
 
-1. `GET /api/auth/google` creates a random `state` and a PKCE verifier with arctic, keeps both in
-   short-lived HttpOnly cookies, and redirects to Google.
+1. `GET /api/auth/google` creates a random `state` and PKCE verifier, keeps both in short-lived
+   HttpOnly cookies, and redirects to Google's OAuth endpoint.
 2. Google redirects to `GET /api/auth/google/callback`. The API checks `state`, exchanges the code
-   with the verifier, and reads the account's stable `sub` identifier.
+   with the verifier, and validates the returned ID token claims, including the account's stable
+   `sub` identifier.
 3. The API creates the user on first sign-in, issues a 256-bit session token, stores only its
    SHA-256 hash with an expiry, sets the token as a cookie, and redirects back to the app.
 
 **Import** (parse, digest, upload)
 
-1. The worker parses the FIT file with `@rca/core/fit` and computes the activity digest.
+1. A browser Web Worker parses the FIT file with `@rca/core/fit` and computes the activity digest.
 2. `POST /api/activities` sends metadata and digest as JSON. The API validates them against the
    contract schema, inserts the row, and returns its id.
 3. If the user keeps the original, `PUT /api/activities/:id/file` streams the bytes to R2 under a
@@ -65,7 +63,7 @@ to Pages, so the session cookie is first-party and `SameSite=Lax` applies.
 1. The web app calls `GET /api/activities?since=...` for the selected period.
 2. The API returns that user's digests only. The user id comes from the session, never from the
    request.
-3. The worker combines the digests with the profile settings (mass, priors) and runs the Monte
+3. A browser Web Worker combines the digests with the profile settings (mass, priors) and runs the Monte
    Carlo comparison. The server does one indexed D1 read and serialises JSON.
 
 ## Data model
@@ -96,9 +94,12 @@ CdA and efficiency are applied in the browser. The calibration sums hold the sam
 needed to fit the bike model against power-meter rides, so it can be refitted without the files.
 
 The trade-off: a model change that needs a per-sample quantity the digest does not hold requires
-re-digesting the original. The `digest_version` column marks stale digests, and keeping originals
-in R2 makes the re-digest possible. Server-side re-analysis is on the roadmap for the paid Workers
-plan.
+re-digesting the original. Each digest carries a `modelRevision` inside its JSON; this is separate
+from the `digest_version` column, which remains the schema version. Revision 2 digests are analysed
+on their own, while older digests are shown as outdated and excluded until the original FIT file is
+re-imported. If its hash matches the stored activity, the API atomically replaces only the derived
+digest and preserves the activity id, original-file metadata and quota reservation. Retained R2
+files can be downloaded by the browser to drive that recovery; no database migration is needed.
 
 ## Security
 
@@ -121,15 +122,16 @@ plan.
 
 ## Cost model
 
-Sized against Cloudflare's free tiers. Limits are as published when this was written; check the
-pricing pages before relying on them.
+Cloudflare's plans and limits can change. Check the current [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/),
+[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [R2 pricing](https://developers.cloudflare.com/r2/pricing/)
+before relying on a cost estimate.
 
-| Service | Free allowance                                                                                 | What the app uses                                |
-| ------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Pages   | Unlimited static requests and bandwidth                                                        | The web app build                                |
-| Workers | 100,000 requests/day; 10 ms CPU per request                                                    | A few D1 queries and JSON per call. No analysis. |
-| D1      | 5 million rows read/day; 100,000 rows written/day; 5 GB storage                                | One row per activity, mostly digest JSON         |
-| R2      | 10 GB-month storage; 1 million Class A and 10 million Class B operations/month; no egress fees | Original files, the largest item when kept       |
+| Service       | Pricing reference | What the app uses                              |
+| ------------- | ----------------- | ---------------------------------------------- |
+| Static assets | Workers pricing   | The web app build                              |
+| Workers       | Workers pricing   | API calls and JSON responses; no analysis      |
+| D1            | D1 pricing        | Users, sessions, profiles and activity digests |
+| R2            | R2 pricing        | Original files, only when a user keeps them    |
 
 CPU time per request is the binding constraint. The open risk is `GET /api/activities` for a large
 library, which serialises hundreds of digests in one request. Measure it with a realistic library

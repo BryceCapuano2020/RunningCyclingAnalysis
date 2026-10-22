@@ -1,6 +1,6 @@
 import { gzipSync, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { extractFitFiles } from './archive'
+import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
 import type { FitFile, FitSource } from './archive'
 
 const FIT_A = new Uint8Array([14, 16, 0, 0, 1, 2, 3, 4, 46, 70, 73, 84, 9, 9])
@@ -38,7 +38,7 @@ function chunkedSource(name: string, bytes: Uint8Array, size: number): FitSource
 
 const DECOMPRESS = 'Could not decompress this file'
 
-async function collect(source: FitSource) {
+async function collect(source: FitSource, limits: Partial<typeof DEFAULT_EXTRACT_LIMITS> = {}) {
   const files: FitFile[] = []
   const errors: { fileName: string; reason: string }[] = []
   const summary = await extractFitFiles(
@@ -49,6 +49,7 @@ async function collect(source: FitSource) {
     (fileName, reason) => {
       errors.push({ fileName, reason })
     },
+    { ...DEFAULT_EXTRACT_LIMITS, ...limits },
   )
   return { files, summary, errors }
 }
@@ -134,11 +135,104 @@ describe('extractFitFiles on single files', () => {
     const source: FitSource = {
       name: 'broken.fit',
       arrayBuffer: () => Promise.reject(new Error('read failed')),
-      stream: () => new ReadableStream<Uint8Array>(),
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.error(new Error('read failed'))
+          },
+        }),
     }
-    const { files, summary } = await collect(source)
+    const { files, summary, errors } = await collect(source)
     expect(files).toEqual([])
     expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(errors).toEqual([{ fileName: 'broken.fit', reason: 'Could not read this file' }])
+  })
+
+  it('reports unsupported source formats', async () => {
+    const { errors } = await collect(new File([FIT_A], 'activity.bin'))
+    expect(errors).toEqual([{ fileName: 'activity.bin', reason: 'Unsupported file format' }])
+  })
+
+  it('bounds source, entry, decompressed, count and retained-buffer sizes', async () => {
+    const bomb = gzipSync(noise(10_000))
+    const { files: sourceFiles, errors: sourceErrors } = await collect(
+      new File([FIT_A], 'source.fit'),
+      { maxSourceBytes: 5 },
+    )
+    expect(sourceFiles).toEqual([])
+    expect(sourceErrors).toEqual([
+      { fileName: 'source.fit', reason: 'Source exceeds the 5-byte limit' },
+    ])
+
+    const { files: gzipFiles, errors: gzipErrors } = await collect(
+      new File([bomb], 'bomb.fit.gz'),
+      { maxEntryBytes: 1024 },
+    )
+    expect(gzipFiles).toEqual([])
+    expect(gzipErrors).toEqual([
+      { fileName: 'bomb.fit.gz', reason: 'Decompressed file exceeds the 1024-byte limit' },
+    ])
+
+    const zip = zipSync({ 'a.fit': noise(40), 'b.fit': noise(40) }, { level: 0 })
+    const { files, errors } = await collect(new File([zip], 'limited.zip'), { maxEntryBytes: 32 })
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'a.fit', reason: 'Archive entry exceeds the 32-byte limit' },
+      { fileName: 'b.fit', reason: 'Archive entry exceeds the 32-byte limit' },
+    ])
+  })
+
+  it('enforces a small per-source file-count quota', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B })
+    const { files, errors } = await collect(new File([zip], 'count.zip'), {
+      ...DEFAULT_EXTRACT_LIMITS,
+      maxFitFiles: 1,
+    })
+    expect(files).toHaveLength(1)
+    expect(errors).toEqual([{ fileName: 'b.fit', reason: 'Archive exceeds the 1-FIT-file limit' }])
+  })
+
+  it('bounds all ZIP headers, including non-FIT entries', async () => {
+    const zip = zipSync({ 'notes.txt': TEXT, 'ride.fit': FIT_A })
+    const { files, errors } = await collect(new File([zip], 'headers.zip'), {
+      maxArchiveEntries: 1,
+    })
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'headers.zip', reason: 'Archive exceeds the 1-entry limit' },
+    ])
+  })
+
+  it('enforces aggregate decompressed and retained-buffer quotas', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B })
+    const total = await collect(new File([zip], 'total.zip'), {
+      maxTotalDecompressedBytes: FIT_A.length,
+    })
+    expect(total.files).toHaveLength(1)
+    expect(total.errors).toEqual([
+      {
+        fileName: 'b.fit',
+        reason: `Total decompressed data exceeds the ${FIT_A.length}-byte limit`,
+      },
+    ])
+
+    const buffered = await collect(new File([zip], 'buffered.zip'), { maxBufferedBytes: 5 })
+    expect(buffered.files).toEqual([])
+    expect(buffered.errors).toEqual([
+      { fileName: 'a.fit', reason: 'Buffered data exceeds the 5-byte limit' },
+      { fileName: 'b.fit', reason: 'Buffered data exceeds the 5-byte limit' },
+    ])
+
+    const singleGzip = await collect(new File([gzipSync(FIT_A)], 'single.fit.gz'), {
+      maxTotalDecompressedBytes: 8,
+    })
+    expect(singleGzip.files).toEqual([])
+    expect(singleGzip.errors).toEqual([
+      {
+        fileName: 'single.fit.gz',
+        reason: 'Total decompressed data exceeds the 8-byte limit',
+      },
+    ])
   })
 
   it('propagates an error thrown by the onFile callback', async () => {
@@ -147,6 +241,34 @@ describe('extractFitFiles on single files', () => {
         throw new Error('storage full')
       }),
     ).rejects.toThrow('storage full')
+  })
+
+  it('cancels and releases an archive reader when a sink throws', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A })
+    let stream: ReadableStream<Uint8Array> | undefined
+    let canceled = false
+    const source: FitSource = {
+      name: 'sink.zip',
+      stream: () => {
+        stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(zip)
+          },
+          cancel() {
+            canceled = true
+          },
+        })
+        return stream
+      },
+      arrayBuffer: async () => zip.slice().buffer,
+    }
+    await expect(
+      extractFitFiles(source, () => {
+        throw new Error('storage full')
+      }),
+    ).rejects.toThrow('storage full')
+    expect(canceled).toBe(true)
+    expect(stream?.locked).toBe(false)
   })
 })
 
@@ -184,7 +306,10 @@ describe('extractFitFiles on zip archives', () => {
     expect(namesOf(files)).toEqual(['a.fit'])
     expect(bytesOf(files, 'a.fit')).toEqual(first)
     expect(summary.fitFiles).toBe(1)
-    expect(errors).toEqual([{ fileName: 'b.fit', reason: 'File is incomplete or corrupt' }])
+    expect(errors).toEqual([
+      { fileName: 'b.fit', reason: 'File is incomplete or corrupt' },
+      { fileName: 'cut.zip', reason: 'Could not read archive' },
+    ])
   })
 
   it('reports an entry whose compressed data is corrupt', async () => {
@@ -197,9 +322,10 @@ describe('extractFitFiles on zip archives', () => {
   })
 
   it('resolves with zero counts for a corrupt zip', async () => {
-    const { files, summary } = await collect(new File([NOT_GZIP], 'broken.zip'))
+    const { files, summary, errors } = await collect(new File([NOT_GZIP], 'broken.zip'))
     expect(files).toEqual([])
     expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(errors).toEqual([{ fileName: 'broken.zip', reason: 'Could not read archive' }])
   })
 
   it('skips a corrupt nested .fit.gz, reports it, and keeps the other entries', async () => {
@@ -225,9 +351,10 @@ describe('extractFitFiles on zip archives', () => {
     const zip = zipSync({ 'x.fit': noise(200), 'y.fit': FIT_B }, { level: 0 })
     // Change the local header method of the first entry (offset 8) to an unknown value.
     zip[8] = 99
-    const { files, summary } = await collect(new File([zip], 'method.zip'))
+    const { files, summary, errors } = await collect(new File([zip], 'method.zip'))
     expect(namesOf(files)).toEqual(['y.fit'])
     expect(summary.fitFiles).toBe(1)
+    expect(errors).toEqual([{ fileName: 'x.fit', reason: 'Unsupported compression method' }])
   })
 
   it('resolves with an empty summary when the zip has no FIT entries', async () => {
@@ -255,9 +382,10 @@ describe('extractFitFiles on zip archives', () => {
           },
         }),
     }
-    const { files, summary } = await collect(source)
+    const { files, summary, errors } = await collect(source)
     expect(files).toEqual([])
     expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(errors).toEqual([{ fileName: 'failing.zip', reason: 'Could not read this file' }])
   })
 
   it('resolves with zero counts when the stream cannot be opened', async () => {

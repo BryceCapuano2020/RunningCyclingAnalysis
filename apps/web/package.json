@@ -10,7 +10,8 @@
     "typecheck": "tsc -b",
     "e2e": "playwright test",
     "screenshots": "npm run build && tsx scripts/screenshots.ts",
-    "fixtures": "tsx scripts/make-fixtures.ts"
+    "fixtures": "tsx scripts/make-fixtures.ts",
+    "e2e:worker": "playwright test --config playwright.worker.config.ts"
   },
   "dependencies": {
     "@rca/contract": "*",

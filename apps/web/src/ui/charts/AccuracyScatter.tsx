@@ -86,7 +86,7 @@ function layout(accuracy: VirtualPowerAccuracy, size: ChartSize): Layout {
 /** Summary of the scored climbs, from the scores the core computed. */
 function noteFor(accuracy: VirtualPowerAccuracy): string {
   const climbs = accuracy.nSegments === 1 ? 'climb' : 'climbs'
-  return `${accuracy.nSegments} ${climbs}. Average error ±${Math.round(accuracy.mape * 100)}%, bias ${formatPercent(accuracy.bias, true)}`
+  return `${accuracy.nSegments} ${climbs}. Mean absolute error ${Math.round(accuracy.mape * 100)}%, bias ${formatPercent(accuracy.bias, true)}`
 }
 
 const errorOf = (dot: Dot): number => (dot.estimatedW - dot.measuredW) / dot.measuredW

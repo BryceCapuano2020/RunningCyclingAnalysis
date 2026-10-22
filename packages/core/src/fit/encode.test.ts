@@ -134,6 +134,14 @@ describe('encodeFit', () => {
       new Date(START_MS + 4000),
       new Date(START_MS + 5000),
     ])
+    expect(
+      decode(encodeFit(a)).messages.eventMesgs?.map((event) => [event.timestamp, event.eventType]),
+    ).toEqual([
+      [new Date(START_MS), 'start'],
+      [new Date(START_MS + 2000), 'stop'],
+      [new Date(START_MS + 4000), 'start'],
+      [new Date(START_MS + 6000), 'stop'],
+    ])
     expect(decode(encodeFit(a)).messages.sessionMesgs?.[0]?.totalElapsedTime).toBe(6)
   })
 

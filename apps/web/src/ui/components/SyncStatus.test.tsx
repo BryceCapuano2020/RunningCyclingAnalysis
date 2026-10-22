@@ -65,7 +65,7 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: null, failures: 1 })} />)
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent(
-      '1 activity could not be saved. It is still analysed on this device.',
+      '1 activity could not be fully saved. It is still analysed on this device. Re-import to retry; if an original exceeds 50 MiB, turn off file retention first.',
     )
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -74,7 +74,7 @@ describe('SyncStatus', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: null, failures: 3 })} />)
     expect(screen.getByRole('status')).toHaveTextContent(
-      '3 activities could not be saved. They are still analysed on this device.',
+      '3 activities could not be fully saved. They are still analysed on this device. Re-import to retry; if an original exceeds 50 MiB, turn off file retention first.',
     )
   })
 

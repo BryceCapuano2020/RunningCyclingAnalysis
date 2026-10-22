@@ -2,7 +2,8 @@
 
 The whole app runs as one Cloudflare Worker. The Worker serves the built web app as static files
 and the API under `/api`, so both share one origin: `https://<worker>.<your-subdomain>.workers.dev`.
-Session cookies work without a custom domain, and everything here fits the free plan.
+Session cookies work without a custom domain. The architecture targets the free plan, but
+large-library CPU and storage usage still need measurement before relying on that budget.
 
 Names used below (from `apps/api/wrangler.toml`):
 
@@ -20,7 +21,8 @@ Run the npm commands from the repository root. Run the `wrangler` commands from 
 - The repository, with dependencies installed:
 
   ```bash
-  npm install
+  npm ci
+  npm exec -w @rca/web -- playwright install chromium webkit
   ```
 
 ## 2. Log in to Cloudflare
@@ -34,8 +36,9 @@ A browser window opens. Approve Wrangler, then check with `npx wrangler whoami`.
 
 ## 3. Create the database and the file bucket
 
+Continue in `apps/api` from the previous step:
+
 ```bash
-cd apps/api
 npx wrangler d1 create rca
 ```
 
@@ -46,6 +49,9 @@ database_id = "00000000-0000-0000-0000-000000000000"
 ```
 
 with the id that was printed, for example `database_id = "1234abcd-..."`.
+
+The deploy command checks that this is no longer the all-zero placeholder and stops with a clear
+error if it is. This avoids publishing a Worker that cannot connect to D1.
 
 Create the R2 bucket:
 
@@ -68,10 +74,11 @@ file is added.
 
 ## 4. First deploy
 
-This builds the web app into `apps/web/dist` and deploys the Worker:
+This bootstrap step builds the web app into `apps/web/dist` and deploys it to discover the public
+address. It explicitly allows the not-yet-configured `APP_URL`; sign-in will not work yet:
 
 ```bash
-npm run deploy
+npm run deploy:bootstrap
 ```
 
 The first time, Wrangler may ask you to register a `workers.dev` subdomain. Pick one; it becomes
@@ -171,6 +178,16 @@ GitHub workflow in section 10 reads the same file from the repository.
 If sign-in fails with `redirect_uri_mismatch`, the redirect URI in the Google client does not match
 `<worker-url>/api/auth/google/callback` exactly, or `APP_URL` in `wrangler.toml` is wrong.
 
+Activity digests are derived when an activity is imported; deployment and database migrations do not
+recompute existing rows. The JSON `modelRevision` tracks analysis changes independently of the
+`digest_version` schema column. Revision 2 excludes older digests from current analysis and reports
+them as outdated. Re-importing the original FIT file upgrades that row only when its SHA-256 matches;
+the API preserves its id, original-file metadata and quota reservation. When original files are
+retained in R2, the browser can download and reprocess them. Rows without a matching original file
+remain safely excluded until that file is supplied; no mass reset or broad library deletion is
+required. Test this recovery with a saved library containing both retained and missing originals
+before release.
+
 ## 9. Local development with real Google sign-in
 
 Local development uses a local D1 database and local R2 storage, so it never touches production
@@ -213,8 +230,10 @@ Vite dev server does not need this.
 ## 10. Deploy from GitHub Actions (optional)
 
 The workflow `.github/workflows/deploy.yml` runs only when you start it by hand: in the GitHub
-repository, open **Actions**, choose **Deploy**, then **Run workflow**. It builds the web app,
-applies remote migrations and deploys the Worker. It never runs on a push.
+repository, open **Actions**, choose **Deploy**, select **main**, then **Run workflow**. It runs
+the complete reusable CI gate first, downloads the exact verified web build, applies remote
+migrations and deploys the Worker. It never deploys on a push or from another branch. The
+`production` GitHub environment can be configured with reviewer rules in repository settings.
 
 Create a Cloudflare API token:
 
@@ -239,13 +258,15 @@ names the permission to add.
 
 ## 11. Costs and free-tier limits
 
-Figures below are the free-plan allowances as this guide was written. Check current pricing before
-relying on them: <https://www.cloudflare.com/plans/>, and each product's pricing page.
+Figures below are the documented free-plan allowances at review time. See
+[Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and
+[Workers limits](https://developers.cloudflare.com/workers/platform/limits/), plus each storage
+product's pricing page, before relying on them.
 
 | Service       | Free allowance (check current pricing)                                                              | What the app uses                                            |
 | ------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Workers       | 100,000 requests per day. 10 ms of CPU time per request. Script size limit 3 MB compressed.         | Every `/api` call                                            |
-| Static assets | Free to serve (check current pricing; confirm whether requests count against Worker requests).      | The web app's HTML, JavaScript and CSS                       |
+| Workers       | 100,000 requests per day. 10 ms of CPU time per request; see current bundle limits.                 | Every `/api` call                                            |
+| Static assets | Requests served directly as static assets are free and unlimited.                                   | The web app's HTML, JavaScript and CSS                       |
 | D1            | 5 million rows read per day. 100,000 rows written per day. 5 GB total storage.                      | Accounts, sessions, profiles, activity digests               |
 | R2            | 10 GB-month storage. 1 million Class A and 10 million Class B operations per month. No egress fees. | Original activity files, only if a user chooses to keep them |
 
@@ -293,11 +314,14 @@ Then, in the Google Cloud Console, delete the OAuth client under **Google Auth P
 Finally, delete the GitHub repository secrets and the Cloudflare API token if you created them, and
 delete `apps/api/.dev.vars` on your machine.
 
+See [PRODUCTION.md](PRODUCTION.md) for rate limits, model upgrades, recovery, diagnostics and
+release evidence still required. Normal `npm run deploy` includes `npm run verify:release`.
+
 ## Reference
 
 | Command                                               | What it does                                         |
 | ----------------------------------------------------- | ---------------------------------------------------- |
-| `npm run deploy`                                      | Builds the web app, then deploys the Worker          |
+| `npm run deploy`                                      | Runs release verification, then deploys the Worker   |
 | `npm run db:migrate:remote -w @rca/api`               | Applies migrations to the production D1 database     |
 | `npm run db:migrate:local -w @rca/api`                | Applies migrations to the local D1 database          |
 | `npm run dev:api`                                     | Local API on port 8787                               |

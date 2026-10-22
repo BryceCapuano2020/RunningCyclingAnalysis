@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_ACTIVITIES_PER_USER, MAX_STORED_BYTES_PER_USER } from '@rca/contract'
+import {
+  ACCOUNT_SCOPE_HEADER,
+  MAX_ACTIVITIES_PER_USER,
+  MAX_PAGE_BODY_BYTES,
+  MAX_PAGE_DIGEST_BYTES,
+  MAX_STORED_BYTES_PER_USER,
+} from '@rca/contract'
 import { activityFileKey } from '../storage.ts'
-import { createHarness, digestFixture, START, type Harness } from '../test/harness.ts'
+import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
 import { sha256Hex, toBase64Url } from '../util.ts'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
@@ -93,6 +99,87 @@ describe('POST /api/activities', () => {
     ).toEqual({ n: 1 })
   })
 
+  it('upgrades a stale digest only for the same original file and preserves file metadata', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const uploaded = await h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    expect(uploaded.status).toBe(200)
+    const staleRow = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
+      .bind(id)
+      .first<{ digest_json: string }>()
+    const legacyDigest = JSON.parse(staleRow!.digest_json) as Record<string, unknown>
+    delete legacyDigest.modelRevision
+    await h.env.DB.prepare('UPDATE activities SET digest_json = ? WHERE id = ?')
+      .bind(JSON.stringify(legacyDigest), id)
+      .run()
+    const before = await h.env.DB.prepare(
+      'SELECT id, file_name, file_hash, file_key, file_size, created_at FROM activities WHERE id = ?',
+    )
+      .bind(id)
+      .first<Record<string, unknown>>()
+
+    const upgrade = await createActivity(
+      h,
+      token,
+      { fileName: 'replacement-name.fit' },
+      { modelRevision: 2, name: 'Current analysis' },
+    )
+    expect(upgrade.status).toBe(200)
+    expect(await upgrade.json()).toMatchObject({
+      id,
+      fileName: 'ride.fit',
+      hasFile: true,
+      fileSize: CONTENT.byteLength,
+      digest: { modelRevision: 2, name: 'Current analysis' },
+    })
+    const after = await h.env.DB.prepare(
+      'SELECT id, file_name, file_hash, file_key, file_size, created_at FROM activities WHERE id = ?',
+    )
+      .bind(id)
+      .first<Record<string, unknown>>()
+    expect(after).toEqual(before)
+
+    const downgrade = await createActivity(h, token, {}, { modelRevision: 1, name: 'Stale retry' })
+    expect(downgrade.status).toBe(200)
+    expect(
+      ((await downgrade.json()) as { digest: { modelRevision: number } }).digest.modelRevision,
+    ).toBe(2)
+
+    const conflict = await createActivity(
+      h,
+      token,
+      { fileHash: 'a'.repeat(64) },
+      { modelRevision: 2 },
+    )
+    expect(conflict.status).toBe(409)
+    expect(await conflict.json()).toMatchObject({ error: { code: 'activity_conflict' } })
+  })
+
+  it('atomically upgrades concurrent matching retries without downgrading the digest', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
+    const [first, second] = await Promise.all([
+      createActivity(h, token, {}, { modelRevision: 2, name: 'Current A' }),
+      createActivity(h, token, {}, { modelRevision: 2, name: 'Current B' }),
+    ])
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(await idOf(first)).toBe(id)
+    expect(await idOf(second)).toBe(id)
+    const row = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
+      .bind(id)
+      .first<{ digest_json: string }>()
+    expect(JSON.parse(row!.digest_json).modelRevision).toBe(2)
+    expect(await h.env.DB.prepare('SELECT COUNT(*) AS n FROM activities').first()).toEqual({ n: 1 })
+  })
+
   it('treats a different sport or a different second as a new activity', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -173,6 +260,30 @@ describe('POST /api/activities', () => {
     const res = await h.send({ method: 'POST', path: '/api/activities', json: {} })
     expect(res.status).toBe(401)
   })
+
+  it('rejects a stale account scope before writing and preserves unscoped compatibility', async () => {
+    const h = createHarness()
+    const alice = await h.signIn('alice@example.com')
+    const aliceId = await userId(h, alice)
+    const bob = await h.signIn('bob@example.com')
+    const mismatch = await h.send({
+      method: 'POST',
+      path: '/api/activities',
+      json: {
+        digest: digestFixture(),
+        fileName: 'ride.fit',
+        fileHash: HASH_OF_CONTENT,
+      },
+      headers: { [ACCOUNT_SCOPE_HEADER]: aliceId },
+      ...as(bob),
+    })
+    expect(mismatch.status).toBe(409)
+    expect(await mismatch.json()).toMatchObject({ error: { code: 'account_changed' } })
+    expect(await h.env.DB.prepare('SELECT COUNT(*) AS n FROM activities').first()).toEqual({ n: 0 })
+
+    const unscoped = await createActivity(h, bob)
+    expect(unscoped.status).toBe(201)
+  })
 })
 
 describe('GET /api/activities', () => {
@@ -196,6 +307,44 @@ describe('GET /api/activities', () => {
       items: { id: string }[]
     }
     expect(list.items.map((r) => r.id)).toEqual([third, second, first])
+  })
+
+  it('parses legacy rows with no modelRevision as revision 1', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const row = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
+      .bind(id)
+      .first<{ digest_json: string }>()
+    const digest = JSON.parse(row!.digest_json) as Record<string, unknown>
+    delete digest.modelRevision
+    await h.env.DB.prepare('UPDATE activities SET digest_json = ? WHERE id = ?')
+      .bind(JSON.stringify(digest), id)
+      .run()
+
+    const response = await h.send({ path: '/api/activities', ...as(token) })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ items: [{ id, digest: { modelRevision: 1 } }] })
+  })
+
+  it('lists but does not analyse a row from a newer model revision', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const row = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
+      .bind(id)
+      .first<{ digest_json: string }>()
+    const future = JSON.parse(row!.digest_json) as Record<string, unknown>
+    future.modelRevision = 3
+    await h.env.DB.prepare('UPDATE activities SET digest_json = ? WHERE id = ?')
+      .bind(JSON.stringify(future), id)
+      .run()
+
+    const response = await h.send({ path: '/api/activities', ...as(token) })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ items: [{ id, digest: { modelRevision: 3 } }] })
+    const unsupportedPost = await createActivity(h, token, {}, { modelRevision: 3 })
+    expect(unsupportedPost.status).toBe(400)
   })
 
   it('returns only records created at or after since, for incremental sync', async () => {
@@ -272,6 +421,157 @@ describe('original file upload and download', () => {
       ...as(token),
     })
     expect(again.status).toBe(200)
+  })
+
+  it('removes an R2 object when deleting an activity races an in-flight upload', async () => {
+    let markPutStarted!: () => void
+    const putStarted = new Promise<void>((resolve) => {
+      markPutStarted = resolve
+    })
+    let releasePut!: () => void
+    const putGate = new Promise<void>((resolve) => {
+      releasePut = resolve
+    })
+    const files = new Proxy(testEnv().FILES, {
+      get(target, property) {
+        if (property === 'put') {
+          return async (...args: Parameters<R2Bucket['put']>) => {
+            markPutStarted()
+            await putGate
+            return target.put(...args)
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: files })
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const uid = await userId(h, token)
+
+    const upload = h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    await putStarted
+    const deletion = await h.send({ method: 'DELETE', path: `/api/activities/${id}`, ...as(token) })
+    expect(deletion.status).toBe(204)
+    releasePut()
+
+    const uploaded = await upload
+    expect(uploaded.status).toBe(404)
+    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+  })
+
+  it('does not restore file metadata when files are disabled during an in-flight upload', async () => {
+    let markPutStarted!: () => void
+    const putStarted = new Promise<void>((resolve) => {
+      markPutStarted = resolve
+    })
+    let releasePut!: () => void
+    const putGate = new Promise<void>((resolve) => {
+      releasePut = resolve
+    })
+    const files = new Proxy(testEnv().FILES, {
+      get(target, property) {
+        if (property === 'put') {
+          return async (...args: Parameters<R2Bucket['put']>) => {
+            markPutStarted()
+            await putGate
+            return target.put(...args)
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: files })
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const uid = await userId(h, token)
+
+    const upload = h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    await putStarted
+    const disabled = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false },
+      ...as(token),
+    })
+    expect(disabled.status).toBe(200)
+    releasePut()
+
+    expect((await upload).status).toBe(409)
+    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(
+      await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
+        .bind(id)
+        .first(),
+    ).toEqual({ file_key: null, file_size: null })
+  })
+
+  it('does not roll back a successful same-activity upload when a parallel R2 write fails', async () => {
+    let markFirstPutStarted!: () => void
+    const firstPutStarted = new Promise<void>((resolve) => {
+      markFirstPutStarted = resolve
+    })
+    let failFirstPut!: () => void
+    const firstPutGate = new Promise<void>((resolve) => {
+      failFirstPut = resolve
+    })
+    let puts = 0
+    const files = new Proxy(testEnv().FILES, {
+      get(target, property) {
+        if (property === 'put') {
+          return async (...args: Parameters<R2Bucket['put']>) => {
+            puts += 1
+            if (puts === 1) {
+              markFirstPutStarted()
+              await firstPutGate
+              throw new Error('simulated R2 write failure')
+            }
+            return target.put(...args)
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: files })
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const uid = await userId(h, token)
+    const failed = h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    await firstPutStarted
+
+    const succeeded = await h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    expect(succeeded.status).toBe(200)
+    failFirstPut()
+    expect((await failed).status).toBe(500)
+    expect(await h.env.FILES.get(activityFileKey(uid, id))).not.toBeNull()
+    expect(
+      await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
+        .bind(id)
+        .first(),
+    ).toEqual({ file_key: activityFileKey(uid, id), file_size: CONTENT.byteLength })
   })
 
   it('refuses the upload with 409 when keepFiles is off, and stores nothing', async () => {
@@ -533,11 +833,16 @@ describe('GET /api/activities paging', () => {
     expect(new Set(seen).size).toBe(3)
   })
 
-  it('defaults to 500 records a page and rejects limits outside 1 to 1000', async () => {
+  it('defaults to 25 records a page and rejects limits outside 1 to 25', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    expect((await pageOf(h, token, '')).items).toEqual([])
-    for (const limit of ['0', '1001', 'abc', '1.5']) {
+    for (let index = 0; index < 26; index += 1) {
+      await createActivity(h, token, {}, { startMs: START + index * 60_000 })
+    }
+    const defaultPage = await pageOf(h, token, '')
+    expect(defaultPage.items).toHaveLength(25)
+    expect(defaultPage.nextCursor).not.toBeNull()
+    for (const limit of ['0', '26', '1001', 'abc', '1.5']) {
       const res = await h.send({
         path: `/api/activities?limit=${limit}`,
         cookies: { rca_session: token },
@@ -545,9 +850,53 @@ describe('GET /api/activities paging', () => {
       expect(res.status, limit).toBe(400)
     }
     expect(
-      (await h.send({ path: '/api/activities?limit=1000', cookies: { rca_session: token } }))
-        .status,
+      (await h.send({ path: '/api/activities?limit=25', cookies: { rca_session: token } })).status,
     ).toBe(200)
+  })
+
+  it('caps digest bytes per response without skipping, duplicating, or reordering records', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const ids: string[] = []
+    const largeMessage = 'x'.repeat(259_000)
+    for (let index = 0; index < 7; index += 1) {
+      h.clock.now += 1_000
+      ids.push(
+        await idOf(
+          await createActivity(
+            h,
+            token,
+            { fileName: 'é'.repeat(255) },
+            {
+              startMs: START + index * 60_000,
+              flags: [{ kind: 'hr-spike', start: 0, end: 1, message: largeMessage }],
+            },
+          ),
+        ),
+      )
+    }
+
+    const seen: string[] = []
+    let cursor: string | null = null
+    const pageSizes: number[] = []
+    do {
+      const page = await pageOf(h, token, `?limit=25${cursor ? `&cursor=${cursor}` : ''}`)
+      expect(new TextEncoder().encode(JSON.stringify(page)).byteLength).toBeLessThanOrEqual(
+        MAX_PAGE_BODY_BYTES,
+      )
+      pageSizes.push(page.items.length)
+      const digestBytes = page.items.reduce(
+        (sum, record) => sum + new TextEncoder().encode(JSON.stringify(record.digest)).byteLength,
+        0,
+      )
+      expect(digestBytes).toBeLessThanOrEqual(MAX_PAGE_DIGEST_BYTES)
+      seen.push(...page.items.map((record) => record.id))
+      cursor = page.nextCursor
+    } while (cursor)
+
+    expect(pageSizes[0]).toBeLessThan(7)
+    expect(seen).toEqual([...ids].reverse())
+    expect(new Set(seen).size).toBe(ids.length)
   })
 
   it('rejects cursors that were not issued by the server', async () => {
@@ -598,6 +947,41 @@ describe('per-user quotas', () => {
     expect(await idOf(again)).toBe(existing)
   })
 
+  it('checks the activity count atomically when another request takes the last slot', async () => {
+    let harness: Harness | undefined
+    let racing = false
+    let competitorInsert: Promise<unknown> | undefined
+    const h = createHarness({
+      randomUUID: () => {
+        if (racing && harness) {
+          racing = false
+          competitorInsert = harness.env.DB.prepare(
+            `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+              digest_json, file_name, file_hash, created_at)
+             SELECT 'last-slot-winner', id, 'last-slot-winner', 'run', 1, 'winner', 1, '{}',
+               'winner.fit', 'hash', 0 FROM users LIMIT 1`,
+          ).run()
+        }
+        return 'quota-racer'
+      },
+    })
+    harness = h
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    await seedActivities(h, uid, MAX_ACTIVITIES_PER_USER - 1)
+
+    racing = true
+    const refused = await createActivity(h, token, {}, { startMs: START + 3_600_000 })
+    await competitorInsert
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ error: { code: 'activity_quota' } })
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM activities WHERE user_id = ?')
+        .bind(uid)
+        .first<{ n: number }>(),
+    ).toEqual({ n: MAX_ACTIVITIES_PER_USER })
+  })
+
   it('refuses a file that would take the user past the byte cap, and counts a replacement once', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -646,12 +1030,157 @@ describe('per-user quotas', () => {
     })
     expect(replaced.status).toBe(200)
   })
+
+  it('reserves storage before R2 so concurrent uploads cannot exceed the byte cap', async () => {
+    let markPutStarted!: () => void
+    const putStarted = new Promise<void>((resolve) => {
+      markPutStarted = resolve
+    })
+    let releasePut!: () => void
+    const putGate = new Promise<void>((resolve) => {
+      releasePut = resolve
+    })
+    const files = new Proxy(testEnv().FILES, {
+      get(target, property) {
+        if (property === 'put') {
+          return async (...args: Parameters<R2Bucket['put']>) => {
+            markPutStarted()
+            await putGate
+            return target.put(...args)
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: files })
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    const firstId = await idOf(await createActivity(h, token))
+    const secondId = await idOf(await createActivity(h, token, {}, { startMs: START + 3_600_000 }))
+    await h.env.DB.prepare(
+      `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+        digest_json, file_name, file_hash, file_size, created_at)
+       VALUES ('filler', ?, 'filler', 'run', 1, 'filler', 1, '{}', 'f.fit', 'h', ?, 0)`,
+    )
+      .bind(uid, MAX_STORED_BYTES_PER_USER - CONTENT.byteLength)
+      .run()
+
+    const first = h.send({
+      method: 'PUT',
+      path: `/api/activities/${firstId}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    await putStarted
+    const second = await h.send({
+      method: 'PUT',
+      path: `/api/activities/${secondId}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    expect(second.status).toBe(403)
+    expect(await second.json()).toMatchObject({ error: { code: 'storage_quota' } })
+    releasePut()
+    expect((await first).status).toBe(200)
+  })
+
+  it('keeps a failed upload reservation while a parallel same-activity retry is pending', async () => {
+    let markFirstPutStarted!: () => void
+    const firstPutStarted = new Promise<void>((resolve) => {
+      markFirstPutStarted = resolve
+    })
+    let failFirstPut!: () => void
+    const firstPutGate = new Promise<void>((resolve) => {
+      failFirstPut = resolve
+    })
+    let markSecondPutStarted!: () => void
+    const secondPutStarted = new Promise<void>((resolve) => {
+      markSecondPutStarted = resolve
+    })
+    let finishSecondPut!: () => void
+    const secondPutGate = new Promise<void>((resolve) => {
+      finishSecondPut = resolve
+    })
+    let puts = 0
+    const files = new Proxy(testEnv().FILES, {
+      get(target, property) {
+        if (property === 'put') {
+          return async (...args: Parameters<R2Bucket['put']>) => {
+            puts += 1
+            if (puts === 1) {
+              markFirstPutStarted()
+              await firstPutGate
+              throw new Error('simulated R2 failure')
+            }
+            if (puts === 2) {
+              markSecondPutStarted()
+              await secondPutGate
+            }
+            return target.put(...args)
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: files })
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    const firstId = await idOf(await createActivity(h, token))
+    const thirdId = await idOf(await createActivity(h, token, {}, { startMs: START + 3_600_000 }))
+    await h.env.DB.prepare(
+      `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+        digest_json, file_name, file_hash, file_size, created_at)
+       VALUES ('filler', ?, 'filler', 'run', 1, 'filler', 1, '{}', 'f.fit', 'h', ?, 0)`,
+    )
+      .bind(uid, MAX_STORED_BYTES_PER_USER - CONTENT.byteLength)
+      .run()
+
+    const first = h.send({
+      method: 'PUT',
+      path: `/api/activities/${firstId}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    await firstPutStarted
+    const retry = h.send({
+      method: 'PUT',
+      path: `/api/activities/${firstId}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    await secondPutStarted
+    failFirstPut()
+    expect((await first).status).toBe(500)
+
+    const third = await h.send({
+      method: 'PUT',
+      path: `/api/activities/${thirdId}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    finishSecondPut()
+    expect((await retry).status).toBe(200)
+
+    expect(third.status).toBe(403)
+    expect(await third.json()).toMatchObject({ error: { code: 'storage_quota' } })
+    expect(puts).toBe(2)
+    expect(
+      await h.env.DB.prepare('SELECT sum(file_size) AS total FROM activities WHERE user_id = ?')
+        .bind(uid)
+        .first<{ total: number }>(),
+    ).toEqual({ total: MAX_STORED_BYTES_PER_USER })
+  })
 })
 
 async function pageOf(h: Harness, token: string, query: string) {
   const res = await h.send({ path: `/api/activities${query}`, cookies: { rca_session: token } })
   expect(res.status).toBe(200)
-  return (await res.json()) as { items: { id: string }[]; nextCursor: string | null }
+  return (await res.json()) as {
+    items: { id: string; digest: unknown }[]
+    nextCursor: string | null
+  }
 }
 
 /** Inserts filler activities in one statement. Only the count matters to the quota. */

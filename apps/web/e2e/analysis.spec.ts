@@ -26,7 +26,9 @@ test('uploading the Strava export zip shows the results, skipping the GPX file',
   await page.goto('/')
   await uploadFixtures(page, ['sample-export.zip'])
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Your running is .* stronger/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    /Your best running uses .* more energy per kg/,
+  )
   await expect(activitiesRows(page)).toHaveCount(14)
   await expect(page.getByText('1 GPX or TCX file was skipped')).toBeVisible()
   await expect(page.getByText('You are looking at simulated sample data')).toHaveCount(0)

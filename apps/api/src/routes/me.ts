@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { ProfileInputSchema } from '@rca/contract'
-import { eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { AppEnv } from '../env.ts'
 import { buildMe, ensureProfile, toProfile } from '../auth/accounts.ts'
 import { clearSessionCookie } from '../auth/session.ts'
@@ -49,6 +49,17 @@ meRoutes.put(
     if (turningFilesOff) {
       // An upload that passed the keepFiles check before the change can still land its object.
       await deleteByPrefix(c.env.FILES, userFilePrefix(userId))
+      // A pending upload may have completed after the first row clear but before this sweep.
+      // Clear metadata for any objects the second sweep just removed.
+      await db
+        .update(activities)
+        .set({ fileKey: null, fileSize: null })
+        .where(
+          and(
+            eq(activities.userId, userId),
+            sql`EXISTS (SELECT 1 FROM profiles WHERE user_id = ${userId} AND keep_files = 0)`,
+          ),
+        )
     }
     return c.json(toProfile({ userId, ...values }), 200)
   },

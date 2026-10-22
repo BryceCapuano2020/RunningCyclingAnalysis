@@ -10,8 +10,20 @@ export interface ActivitiesTableProps {
   units: UnitSystem
 }
 
-const PREVIEW_ROWS = 20
+const PAGE_SIZE = 20
 const COLUMN_COUNT = 9
+const NO_OPEN_ISSUES: ReadonlySet<string> = new Set()
+const activityCollectionIds = new WeakMap<ActivitySummary[], number>()
+let nextActivityCollectionId = 0
+
+function activityCollectionId(activities: ActivitySummary[]): number {
+  let id = activityCollectionIds.get(activities)
+  if (id === undefined) {
+    id = ++nextActivityCollectionId
+    activityCollectionIds.set(activities, id)
+  }
+  return id
+}
 
 const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
   measured: 'Measured',
@@ -29,28 +41,54 @@ function localDate(ms: number): string {
 
 export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
   const baseId = useId()
-  const [openIssues, setOpenIssues] = useState<ReadonlySet<string>>(() => new Set())
-  const [showAll, setShowAll] = useState(false)
-  // The "Show all" button is removed when clicked, so focus moves to the first row it revealed.
-  const firstRevealedRef = useRef<HTMLTableRowElement>(null)
+  const collectionId = activityCollectionId(activities)
+  const [issuesState, setIssuesState] = useState({
+    collectionId,
+    openIssues: new Set<string>(),
+  })
+  const [pageState, setPageState] = useState({ collectionId, page: 0 })
+  const openIssues =
+    issuesState.collectionId === collectionId ? issuesState.openIssues : NO_OPEN_ISSUES
+  const page = pageState.collectionId === collectionId ? pageState.page : 0
+  const firstVisibleRef = useRef<HTMLTableRowElement>(null)
+  const previousCollectionIdRef = useRef(collectionId)
+  const paginationHadFocusRef = useRef(false)
+  const focusTargetPageRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (showAll) firstRevealedRef.current?.focus()
-  }, [showAll])
+    if (previousCollectionIdRef.current === collectionId) return
+    previousCollectionIdRef.current = collectionId
+    if (paginationHadFocusRef.current) {
+      firstVisibleRef.current?.focus()
+      paginationHadFocusRef.current = false
+    }
+  }, [collectionId])
+
+  const pageCount = Math.max(1, Math.ceil(activities.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount - 1)
+  const firstIndex = currentPage * PAGE_SIZE
+  const visible = activities.slice(firstIndex, firstIndex + PAGE_SIZE)
+
+  useEffect(() => {
+    if (focusTargetPageRef.current !== currentPage) return
+    firstVisibleRef.current?.focus()
+    focusTargetPageRef.current = null
+  }, [currentPage])
 
   if (activities.length === 0) {
     return <p className="muted">No activities yet</p>
   }
 
-  const visible = showAll ? activities : activities.slice(0, PREVIEW_ROWS)
-
   function toggleIssues(id: string) {
-    setOpenIssues((previous) => {
-      const next = new Set(previous)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    const next = new Set(openIssues)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setIssuesState({ collectionId, openIssues: next })
+  }
+
+  function changePage(nextPage: number) {
+    focusTargetPageRef.current = nextPage
+    setPageState({ collectionId, page: nextPage })
   }
 
   return (
@@ -82,15 +120,15 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
           </thead>
           <tbody>
             {visible.map((activity, index) => {
-              const panelId = `${baseId}-issues-${index}`
+              const panelId = `${baseId}-issues-${encodeURIComponent(activity.id)}`
               const open = openIssues.has(activity.id)
               const issueCount = activity.flags.length
-              const isFirstRevealed = showAll && index === PREVIEW_ROWS
+              const isFirstVisible = index === 0
               return (
                 <Fragment key={activity.id}>
                   <tr
-                    ref={isFirstRevealed ? firstRevealedRef : undefined}
-                    tabIndex={isFirstRevealed ? -1 : undefined}
+                    ref={isFirstVisible ? firstVisibleRef : undefined}
+                    tabIndex={isFirstVisible ? -1 : undefined}
                   >
                     <td>{localDate(activity.startMs)}</td>
                     <td>{activity.name}</td>
@@ -143,10 +181,39 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
           </tbody>
         </table>
       </div>
-      {!showAll && activities.length > PREVIEW_ROWS && (
-        <button type="button" className="btn" onClick={() => setShowAll(true)}>
-          {`Show all ${activities.length}`}
-        </button>
+      {pageCount > 1 && (
+        <nav
+          className="activities-table__pagination"
+          aria-label="Activity pages"
+          onFocusCapture={() => {
+            paginationHadFocusRef.current = true
+          }}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              paginationHadFocusRef.current = false
+            }
+          }}
+        >
+          <button
+            type="button"
+            className="btn"
+            onClick={() => changePage(currentPage - 1)}
+            disabled={currentPage === 0}
+          >
+            Previous page
+          </button>
+          <p role="status" aria-live="polite">
+            {`Showing ${firstIndex + 1}–${Math.min(firstIndex + PAGE_SIZE, activities.length)} of ${activities.length} activities. Page ${currentPage + 1} of ${pageCount}.`}
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => changePage(currentPage + 1)}
+            disabled={currentPage >= pageCount - 1}
+          >
+            Next page
+          </button>
+        </nav>
       )}
     </div>
   )

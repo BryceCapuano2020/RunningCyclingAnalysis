@@ -2,6 +2,23 @@ name = "rca-api"
 main = "src/index.ts"
 compatibility_date = "2026-09-20"
 
+# Approximate edge limits; admission/storage quotas remain atomic in D1.
+# Keep namespace ids unique within this Cloudflare account if other Workers use rate limiting.
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "27101"
+simple = { limit = 1200, period = 60 }
+
+[[ratelimits]]
+name = "AUTH_RATE_LIMITER"
+namespace_id = "27102"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "WRITE_RATE_LIMITER"
+namespace_id = "27103"
+simple = { limit = 600, period = 60 }
+
 # The Worker serves the whole app: the built React app as static assets and the Hono API under
 # /api, so both share one origin and session cookies need no custom domain.
 # Local development needs no Cloudflare account: `wrangler dev` simulates D1 and R2 on disk.

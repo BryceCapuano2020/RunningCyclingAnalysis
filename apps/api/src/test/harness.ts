@@ -8,6 +8,7 @@ import type { GoogleOAuth } from '../auth/google.ts'
 import type { Bindings } from '../env.ts'
 import { deleteByPrefix } from '../storage.ts'
 import { toHex } from '../util.ts'
+import { DURATIONS_S } from '@rca/core/constants'
 
 const APP_DIR = fileURLToPath(new URL('../..', import.meta.url))
 const START_MS = Date.UTC(2026, 0, 15, 12, 0, 0)
@@ -43,6 +44,9 @@ export function testEnv(overrides: Partial<Bindings> = {}): Bindings {
     APP_URL: 'http://localhost:5183',
     GOOGLE_CLIENT_ID: TEST_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: 'test-secret',
+    API_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    AUTH_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    WRITE_RATE_LIMITER: { limit: async () => ({ success: true }) },
     ...overrides,
   }
 }
@@ -201,6 +205,7 @@ export function digestFixture(
 ): Record<string, unknown> {
   return {
     version: 1,
+    modelRevision: 2,
     id: 'source-1',
     name: 'Morning ride',
     sport: 'ride',
@@ -214,24 +219,14 @@ export function digestFixture(
     flags: [],
     flagCounts: {},
     maxHeartRate: 178,
-    curve: [
-      {
-        durationS: 60,
-        value: 350,
-        startIndex: 10,
-        windowS: 60,
-        heartRate: 160,
-        terms: null,
-      },
-      {
-        durationS: 300,
-        value: Number.NaN,
-        startIndex: 0,
-        windowS: 300,
-        heartRate: null,
-        terms: { gravityAccel: 1.5, rolling: 0.2, aero: Number.NaN },
-      },
-    ],
+    curve: DURATIONS_S.map((durationS, index) => ({
+      durationS,
+      value: index === 0 ? 350 : index === 1 ? Number.NaN : 300,
+      startIndex: index === 0 ? 10 : 0,
+      windowS: durationS,
+      heartRate: index === 0 ? 160 : null,
+      terms: index === 1 ? { gravityAccel: 1.5, rolling: 0.2, aero: Number.NaN } : null,
+    })),
     hrBlocks: [{ heartRate: 150, value: 210, terms: null }],
     calibration: null,
     climbSections: [],

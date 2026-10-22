@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createHarness, digestFixture, racingBucket, START } from '../test/harness.ts'
+import { createHarness, digestFixture, racingBucket, START, testEnv } from '../test/harness.ts'
 import { activityFileKey, userFilePrefix } from '../storage.ts'
 import { sha256Hex } from '../util.ts'
 
@@ -432,6 +432,63 @@ describe('DELETE /api/me', () => {
     })
     expect(res.status).toBe(204)
     expect(await h.env.FILES.list({ prefix: userFilePrefix(id) })).toMatchObject({ objects: [] })
+  })
+
+  it('cleans up a real R2 upload that finishes after account deletion', async () => {
+    let markPutStarted!: () => void
+    const putStarted = new Promise<void>((resolve) => {
+      markPutStarted = resolve
+    })
+    let releasePut!: () => void
+    const putGate = new Promise<void>((resolve) => {
+      releasePut = resolve
+    })
+    const files = new Proxy(testEnv().FILES, {
+      get(target, property) {
+        if (property === 'put') {
+          return async (...args: Parameters<R2Bucket['put']>) => {
+            markPutStarted()
+            await putGate
+            return target.put(...args)
+          }
+        }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: files })
+    const token = await h.signIn()
+    const uid = await userIdOf(h, token)
+    const content = new TextEncoder().encode('racing account deletion upload')
+    const created = await h.send({
+      method: 'POST',
+      path: '/api/activities',
+      json: {
+        digest: digestFixture(),
+        fileName: 'pending.fit',
+        fileHash: await sha256Hex(content),
+      },
+      cookies: { rca_session: token },
+    })
+    const { id: activityId } = (await created.json()) as { id: string }
+    const upload = h.send({
+      method: 'PUT',
+      path: `/api/activities/${activityId}/file`,
+      raw: content,
+      cookies: { rca_session: token },
+    })
+    await putStarted
+
+    const deleted = await h.send({
+      method: 'DELETE',
+      path: '/api/me',
+      cookies: { rca_session: token },
+    })
+    expect(deleted.status).toBe(204)
+    releasePut()
+
+    expect((await upload).status).toBe(404)
+    expect(await h.env.FILES.list({ prefix: userFilePrefix(uid) })).toMatchObject({ objects: [] })
   })
 
   it('keeps the account when its files cannot be removed, so the deletion can be retried', async () => {

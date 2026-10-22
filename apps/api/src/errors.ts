@@ -1,6 +1,6 @@
 import type { ApiError } from '@rca/contract'
 
-export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 413 | 422 | 500 | 502
+export type ErrorStatus = 400 | 401 | 403 | 404 | 408 | 409 | 413 | 422 | 429 | 500 | 502 | 503
 
 /** An error the client should see: rendered as ApiError with this status and code. */
 export class HttpError extends Error {

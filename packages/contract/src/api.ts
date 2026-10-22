@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { ActivityDigestSchema } from './digest.ts'
 
 export const ProfileInputSchema = z.object({
@@ -29,12 +30,22 @@ export const MeSchema = z.object({
 })
 export type Me = z.infer<typeof MeSchema>
 
-export const ActivityCreateSchema = z.object({
-  digest: ActivityDigestSchema,
-  fileName: z.string().min(1).max(255),
-  /** Lowercase hex SHA-256 of the original file. */
-  fileHash: z.string().regex(/^[0-9a-f]{64}$/),
-})
+export const ActivityCreateSchema = z
+  .object({
+    digest: ActivityDigestSchema,
+    fileName: z.string().min(1).max(255),
+    /** Lowercase hex SHA-256 of the original file. */
+    fileHash: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .superRefine(({ digest }, ctx) => {
+    if (digest.modelRevision > MODEL_REVISION) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['digest', 'modelRevision'],
+        message: `This server supports model revisions through ${MODEL_REVISION}`,
+      })
+    }
+  })
 export type ActivityCreate = z.input<typeof ActivityCreateSchema>
 
 export const ActivityRecordSchema = z.object({

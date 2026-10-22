@@ -21,14 +21,16 @@ const SECTIONS: Section[] = [
     title: 'Why there is a range',
     body:
       'Efficiency and running economy vary between people by several percent, and a FIT file ' +
-      'cannot show either one. The result is therefore a 90% range rather than a single number.',
+      'cannot show either one. The 90% range summarises those model assumptions. It does not include ' +
+      'every source of sensor error, missing effort, or error in virtual power, and it is not a fitness percentile.',
   },
   {
     title: 'Heart-rate check',
     body:
-      'Heart rate rises in step with the energy you burn. If your heart rate climbs faster per ' +
-      'estimated watt in one sport, the estimates for that sport are corrected, and the range ' +
-      'narrows.',
+      'The model assumes heart rate responds to energy use similarly in both sports. Under that ' +
+      'assumption, differences in the fitted slopes can adjust the energy estimates. This is not an ' +
+      'independent measurement of efficiency. If too few model samples support an adjustment, the ' +
+      'population-based range is kept instead.',
   },
   {
     title: 'Virtual power meter',

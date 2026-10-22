@@ -28,10 +28,13 @@ interface Tile {
 const ALL_OUT = 0.9
 
 function headlineTitle(ratio: Interval): string {
-  const d = ratio.p50 - 1
-  if (ratio.p05 > 1) return `Your running is ${formatPercent(d)} stronger than your cycling`
-  if (ratio.p95 < 1) return `Your cycling is ${formatPercent(-d)} stronger than your running`
-  return 'Your running and cycling are too close to call'
+  if (ratio.p05 > 1) {
+    return `Your best running uses ${formatPercent(ratio.p50 - 1)} more energy per kg than your best cycling`
+  }
+  if (ratio.p95 < 1) {
+    return `Your best cycling uses ${formatPercent(1 / ratio.p50 - 1)} more energy per kg than your best running`
+  }
+  return 'Your running and cycling energy estimates overlap'
 }
 
 function missingSportCopy(result: AnalysisResult): string {
@@ -64,8 +67,8 @@ function buildTiles(result: AnalysisResult, units: UnitSystem, massKg: number): 
   const accuracy = result.virtualAccuracy
   if (accuracy && accuracy.nSegments > 0) {
     tiles.push({
-      label: 'Virtual power meter error',
-      value: `±${formatPercent(accuracy.mape)}`,
+      label: 'Mean absolute virtual power error',
+      value: formatPercent(accuracy.mape),
       sub: `${plural(accuracy.nSegments, 'climb')} tested`,
     })
   }
@@ -117,26 +120,27 @@ function effortNotice(effort: EffortCheck | null | undefined): ReactNode {
   const duration = formatDuration(durationS)
   if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
     return noticeBlock(
-      `Neither best effort over ${duration} was close to all-out (running ${Math.round(run * 100)}%, ` +
-        `cycling ${Math.round(ride * 100)}% of your highest heart rate), so treat this comparison as rough.`,
+      `Both best efforts over ${duration} were below 90% of your highest heart rate on file ` +
+        `(running ${Math.round(run * 100)}%, cycling ${Math.round(ride * 100)}%). Your library may be missing harder efforts.`,
     )
   }
   if (ride !== null && ride < ALL_OUT) {
     return noticeBlock(
       `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of your highest ` +
-        `heart rate, so it was probably not all-out. Your cycling may be stronger than shown.`,
+        `heart rate on file. Your library may be missing a harder cycling effort.`,
     )
   }
   if (run !== null && run < ALL_OUT) {
     return noticeBlock(
       `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of your highest ` +
-        `heart rate, so it was probably not all-out. Your running may be stronger than shown.`,
+        `heart rate on file. Your library may be missing a harder running effort.`,
     )
   }
   if (run !== null && ride !== null) {
     return (
       <p className="headline__effort-ok muted">
-        Both best efforts were close to all-out by heart rate
+        Both best efforts reached at least 90% of your highest heart rate on file. This does not
+        establish that either was all-out.
       </p>
     )
   }
@@ -158,14 +162,17 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
 
   const { point, calibrated } = pick
   const summary =
-    `Over ${formatDuration(point.durationS)}, your best running burns ` +
-    `${formatWkg(point.runMetabolic.p50)} and your best cycling burns ` +
+    `Over ${formatDuration(point.durationS)}, your estimated running energy rate is ` +
+    `${formatWkg(point.runMetabolic.p50)} and your cycling energy rate is ` +
     `${formatWkg(point.rideMetabolic.p50)}. ` +
-    `The gap is probably between ${formatPercent(point.ratio.p05 - 1, true)} and ` +
+    `The 90% model range for running relative to cycling is ${formatPercent(point.ratio.p05 - 1, true)} to ` +
     `${formatPercent(point.ratio.p95 - 1, true)}.`
-  const basis = calibrated
-    ? 'Range narrowed using your heart-rate data'
-    : 'Range based on population averages. Add more runs and rides with heart rate to narrow it'
+  const basis =
+    result.comparison.calibration?.accepted === false
+      ? 'The heart-rate check could not support a reliable adjustment; showing the population-based model range.'
+      : calibrated
+        ? 'Model range adjusted using your heart-rate data.'
+        : 'Model range based on population assumptions.'
   const tiles = buildTiles(result, units, massKg)
 
   return (
@@ -176,6 +183,10 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
       <p className="headline__detail">{summary}</p>
       {effortNotice(effort)}
       <p className="headline__basis muted">{basis}</p>
+      <p className="headline__basis muted">
+        This compares estimated energy use, not sporting ability. The range does not include every
+        source of error.
+      </p>
       <ul className="headline__tiles">
         {tiles.map((tile) => (
           <li key={tile.label} className="headline__tile">

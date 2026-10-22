@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { Me, Profile, ProfileInput, User } from '@rca/contract'
 import type { Deps } from '../deps.ts'
 import type { Db } from '../env.ts'
@@ -96,39 +96,52 @@ export async function signInWithGoogle(
   // linked only when that account has no Google identity yet; otherwise a second Google account
   // could take it over by claiming the same address.
   const existing = await db.select().from(users).where(eq(users.email, profile.email)).get()
-  let user: UserRow
-  if (existing) {
-    const otherGoogle = await db
-      .select({ userId: oauthAccounts.userId })
-      .from(oauthAccounts)
-      .where(
-        and(eq(oauthAccounts.userId, existing.id), eq(oauthAccounts.provider, GOOGLE_PROVIDER)),
-      )
-      .get()
-    if (otherGoogle) {
-      throw new HttpError(
-        409,
-        'account_conflict',
-        'This email is already linked to a different Google account. Sign in with that account.',
-      )
+  let user = existing
+  if (!user) {
+    try {
+      user = await createUser(db, deps, {
+        email: profile.email,
+        name: profile.name,
+        pictureUrl: profile.pictureUrl,
+      })
+    } catch (error) {
+      // A simultaneous first sign-in may have created the same verified email. Continue through
+      // the atomic identity-link path so competing Google identities cannot both claim it.
+      user = await db.select().from(users).where(eq(users.email, profile.email)).get()
+      if (!user) throw error
     }
-    user = await refreshUser(db, existing.id, {
-      name: profile.name,
-      pictureUrl: profile.pictureUrl,
-    })
-  } else {
-    user = await createUser(db, deps, {
-      email: profile.email,
-      name: profile.name,
-      pictureUrl: profile.pictureUrl,
-    })
   }
-  await db.insert(oauthAccounts).values({
-    provider: GOOGLE_PROVIDER,
-    providerUserId: profile.sub,
-    userId: user.id,
-  })
-  return user
+
+  // Linking is a check-then-write unless the existing-Google check participates in the same D1
+  // statement. This conditional insert lets SQLite serialize concurrent callbacks for different
+  // Google subjects that report the same verified email: only the first identity can be attached.
+  await db.run(sql`INSERT INTO oauth_accounts (provider, provider_user_id, user_id)
+    SELECT ${GOOGLE_PROVIDER}, ${profile.sub}, ${user.id}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM oauth_accounts
+      WHERE provider = ${GOOGLE_PROVIDER} AND user_id = ${user.id}
+    )
+    ON CONFLICT(provider, provider_user_id) DO NOTHING`)
+
+  const linked = await db
+    .select()
+    .from(oauthAccounts)
+    .where(
+      and(
+        eq(oauthAccounts.provider, GOOGLE_PROVIDER),
+        eq(oauthAccounts.providerUserId, profile.sub),
+      ),
+    )
+    .get()
+  if (linked) {
+    return refreshUser(db, linked.userId, { name: profile.name, pictureUrl: profile.pictureUrl })
+  }
+
+  throw new HttpError(
+    409,
+    'account_conflict',
+    'This email is already linked to a different Google account. Sign in with that account.',
+  )
 }
 
 /** Local development sign-in. Routes refuse to reach this outside ENVIRONMENT=development. */

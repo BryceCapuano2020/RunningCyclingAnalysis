@@ -28,7 +28,7 @@ describe('AccuracyScatter', () => {
     expect(screen.getAllByTestId('accuracy-dot')).toHaveLength(2)
     expect(screen.getByTestId('accuracy-reference')).toBeInTheDocument()
     expect(screen.getByText('Perfect estimate')).toBeInTheDocument()
-    expect(screen.getByText('2 climbs. Average error ±5%, bias 0%')).toBeInTheDocument()
+    expect(screen.getByText('2 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
   })
 
   it('keeps each axis to at most five tick labels', () => {
@@ -46,7 +46,7 @@ describe('AccuracyScatter', () => {
     const { container } = render(<AccuracyScatter accuracy={many} />)
     expect(container.querySelectorAll('.chart-x-axis__tick').length).toBeLessThanOrEqual(5)
     expect(container.querySelectorAll('.chart-y-axis__tick').length).toBeLessThanOrEqual(5)
-    expect(screen.getByText('40 climbs. Average error ±5%, bias 0%')).toBeInTheDocument()
+    expect(screen.getByText('40 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
   })
 
   it('formats measured, estimated and signed error in the table view', () => {

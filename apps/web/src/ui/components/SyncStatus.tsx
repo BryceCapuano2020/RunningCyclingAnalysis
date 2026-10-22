@@ -5,7 +5,7 @@ import './SyncStatus.css'
 export interface SyncStatusProps {
   /** Activities saved so far in the current import, or null when no upload is running. */
   uploading: number | null
-  /** Activities from the latest import that could not be saved. */
+  /** Activities from the latest import whose digest or requested original could not be saved. */
   failures: number
   signedIn: boolean
 }
@@ -20,7 +20,7 @@ function finishNotice(saved: number, failures: number): Notice {
     const pronoun = failures === 1 ? 'It is' : 'They are'
     const count = plural(failures, 'activity', 'activities')
     return {
-      text: `${count} could not be saved. ${pronoun} still analysed on this device.`,
+      text: `${count} could not be fully saved. ${pronoun} still analysed on this device. Re-import to retry; if an original exceeds 50 MiB, turn off file retention first.`,
       failed: true,
     }
   }

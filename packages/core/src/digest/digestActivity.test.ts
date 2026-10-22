@@ -133,6 +133,15 @@ describe('digestActivity: summary', () => {
     expect(d.hrBlocks).toEqual([])
     expect(d.curve.every((p) => p.heartRate === null)).toBe(true)
   })
+
+  it('does not let an altitude spike smear into run power or elevation gain', () => {
+    const altitude = constant(180, 100)
+    altitude[90] = 115
+    const d = digestActivity(activity({ n: 180, altitude }))
+    expect(d.flags.map((flag) => flag.kind)).toContain('altitude-jump')
+    expect(d.elevationGainM).toBe(0)
+    expect(d.curve[0]!.value).toBeCloseTo(flatMetabolic(4), 9)
+  })
 })
 
 describe('digestActivity: runs', () => {
@@ -189,6 +198,14 @@ describe('digestActivity: runs', () => {
 })
 
 describe('digestActivity: rides with a power meter', () => {
+  it('keeps measured power when a GPS speed spike is flagged', () => {
+    const speed = constant(120, 8)
+    speed[60] = 16
+    const d = digestActivity(activity({ n: 120, sport: 'ride', speed, power: constant(120, 250) }))
+    expect(d.flags.map((flag) => flag.kind)).toContain('speed-spike')
+    expect(d.curve[0]!.value).toBe(250)
+  })
+
   it('stores measured watts and a calibration of the outdoor ride', () => {
     const n = 1800
     const power = constant(n, climbPower(84))

@@ -2,14 +2,15 @@ import { Hono } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
 import { zValidator } from '@hono/zod-validator'
-import { DevLoginSchema } from '@rca/contract'
+import { ACCOUNT_SCOPE_HEADER, DevLoginSchema } from '@rca/contract'
 import type { AppEnv } from '../env.ts'
 import { HttpError } from '../errors.ts'
 import { parseGoogleIdToken } from '../auth/google.ts'
 import { buildMe, signInDev, signInWithGoogle } from '../auth/accounts.ts'
-import { createSession, endSession, isSecure } from '../auth/session.ts'
+import { createSession, endSession, isSecure, loadSession } from '../auth/session.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { toBase64Url, toHex } from '../util.ts'
+import { assertAccountScope } from '../middleware.ts'
 
 const STATE_COOKIE = 'rca_oauth_state'
 const VERIFIER_COOKIE = 'rca_oauth_verifier'
@@ -92,6 +93,12 @@ authRoutes.post(
 )
 
 authRoutes.post('/logout', async (c) => {
+  // Keep logout idempotent for an absent/expired session, but do not let an old tab clear a
+  // different account's current session after the browser cookie has changed.
+  if (c.req.header(ACCOUNT_SCOPE_HEADER) !== undefined) {
+    const user = await loadSession(c)
+    if (user) assertAccountScope(c, user)
+  }
   await endSession(c)
   return c.body(null, 204)
 })

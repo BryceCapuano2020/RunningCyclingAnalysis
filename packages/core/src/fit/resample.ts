@@ -1,5 +1,6 @@
 /** Longest gap, in seconds, bridged by interpolation. Longer gaps are treated as pauses or dropouts. */
 const MAX_INTERPOLATED_GAP_S = 10
+export const MAX_ACTIVITY_GRID_SECONDS = 7 * 24 * 60 * 60
 
 /** Records further than this from the median timestamp are treated as clock errors. */
 const STRAY_TIMESTAMP_MS = 24 * 60 * 60 * 1000
@@ -22,6 +23,11 @@ export interface RawRecord {
   power?: number
 }
 
+export interface RawTimerEvent {
+  tMs: number
+  eventType: string | number
+}
+
 /** Streams on a 1 Hz grid. Index i is i seconds after `startMs`. */
 export interface Resampled {
   startMs: number
@@ -31,14 +37,18 @@ export interface Resampled {
   altitude: Float64Array
   heartRate: Float64Array
   power: Float64Array
-  /** 1 inside a gap longer than 10 s in which no record of any kind exists, else 0. */
+  /** 1 while an explicit timer pause is active, or inside a long record gap when events are absent. */
   paused: Uint8Array
   hasPower: boolean
   hasHeartRate: boolean
   hasAltitude: boolean
 }
 
-export function resample(records: RawRecord[]): Resampled {
+export function resample(
+  records: RawRecord[],
+  timerEvents: RawTimerEvent[] = [],
+  maxGridSeconds = MAX_ACTIVITY_GRID_SECONDS,
+): Resampled {
   const sorted = withinDayOfMedian(records.filter((r) => Number.isFinite(r.tMs)))
   const first = sorted[0]
   if (first === undefined) return emptyResample()
@@ -47,6 +57,9 @@ export function resample(records: RawRecord[]): Resampled {
   const indexOf = (r: RawRecord): number => Math.round((r.tMs - startMs) / 1000)
   let n = 0
   for (const r of sorted) n = Math.max(n, indexOf(r) + 1)
+  if (n > maxGridSeconds) {
+    throw new RangeError(`Activity exceeds the ${maxGridSeconds}-second time-grid limit`)
+  }
 
   const speedKnown = new Float64Array(n).fill(NaN)
   const distanceKnown = new Float64Array(n).fill(NaN)
@@ -63,7 +76,14 @@ export function resample(records: RawRecord[]): Resampled {
     put(heartRateKnown, i, r.heartRate)
     put(powerKnown, i, r.power)
   }
-  const paused = markPauses(recorded)
+  // FIT timer events distinguish actual pauses from a dropout in the record stream. Older or
+  // stripped files may have no timer events, so retain the long-gap heuristic for those files.
+  const hasRecognizedTimerEvents = timerEvents.some((event) =>
+    normalizeTimerEventType(event.eventType),
+  )
+  const paused = hasRecognizedTimerEvents
+    ? markTimerPauses(n, startMs, timerEvents)
+    : markPauses(recorded)
 
   const hasSpeed = speedKnown.some(isFiniteValue)
   const hasDistance = distanceKnown.some(isFiniteValue)
@@ -88,6 +108,12 @@ export function resample(records: RawRecord[]): Resampled {
   }
   enforceNonDecreasing(distance)
   if (!hasSpeed && hasDistance) speed = speedFromDistance(distance)
+  for (let i = 0; i < n; i++) {
+    if (paused[i] !== 1) continue
+    speed[i] = 0
+    heartRate[i] = NaN
+    if (hasPower) power[i] = 0
+  }
 
   return {
     startMs,
@@ -145,6 +171,58 @@ function markPauses(recorded: Uint8Array): Uint8Array {
   return paused
 }
 
+function markTimerPauses(n: number, startMs: number, events: RawTimerEvent[]): Uint8Array {
+  const paused = new Uint8Array(n)
+  const ordered = events.filter((event) => Number.isFinite(event.tMs)).sort((a, b) => a.tMs - b.tMs)
+  let pauseStart: number | null = null
+  for (const event of ordered) {
+    const eventType = normalizeTimerEventType(event.eventType)
+    if (!eventType) continue
+    if (isTimerStop(eventType)) {
+      if (pauseStart === null) pauseStart = Math.round((event.tMs - startMs) / 1000)
+    } else if (isTimerStart(eventType) && pauseStart !== null) {
+      const resume = Math.round((event.tMs - startMs) / 1000)
+      paused.fill(1, Math.max(0, pauseStart), Math.min(n, Math.max(pauseStart, resume)))
+      pauseStart = null
+    }
+  }
+  if (pauseStart !== null) paused.fill(1, Math.max(0, pauseStart), n)
+  return paused
+}
+
+type TimerEventType = 'start' | 'stop' | 'stopAll' | 'stopDisable' | 'stopDisableAll'
+
+function normalizeTimerEventType(eventType: string | number): TimerEventType | null {
+  if (
+    eventType === 'start' ||
+    eventType === 'stop' ||
+    eventType === 'stopAll' ||
+    eventType === 'stopDisable' ||
+    eventType === 'stopDisableAll'
+  ) {
+    return eventType
+  }
+  if (eventType === 0) return 'start'
+  if (eventType === 1) return 'stop'
+  if (eventType === 4) return 'stopAll'
+  if (eventType === 8) return 'stopDisable'
+  if (eventType === 9) return 'stopDisableAll'
+  return null
+}
+
+function isTimerStop(eventType: TimerEventType): boolean {
+  return (
+    eventType === 'stop' ||
+    eventType === 'stopAll' ||
+    eventType === 'stopDisable' ||
+    eventType === 'stopDisableAll'
+  )
+}
+
+function isTimerStart(eventType: TimerEventType): boolean {
+  return eventType === 'start'
+}
+
 function isFiniteValue(value: number): boolean {
   return Number.isFinite(value)
 }
@@ -191,7 +269,7 @@ function fillStream(
     out[b] = vb
     for (let i = a + 1; i < b; i++) {
       const gap =
-        span <= MAX_INTERPOLATED_GAP_S ? 'interpolate' : paused[i] === 1 ? pausedFill : dropoutFill
+        paused[i] === 1 ? pausedFill : span <= MAX_INTERPOLATED_GAP_S ? 'interpolate' : dropoutFill
       if (gap === 'interpolate') {
         out[i] = va + ((vb - va) * (i - a)) / span
       } else if (gap === 'hold') {

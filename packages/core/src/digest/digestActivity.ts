@@ -17,6 +17,7 @@ import type {
   QualityKind,
   QualityReport,
 } from '../types'
+import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
 import { calibrationSums } from './calibration'
 import type { SampleTerms } from './terms'
@@ -41,10 +42,14 @@ interface Parts {
 /** A curve point together with the length of the window its value came from. */
 type WindowedPoint = CurvePoint & { windowS: number }
 
-function elevationGain(altitude: Float64Array): number {
+function elevationGain(altitude: Float64Array, validGrade: Uint8Array): number {
   let gain = 0
   let anchor = NaN
   for (let i = 0; i < altitude.length; i++) {
+    if (validGrade[i] !== 1) {
+      anchor = NaN
+      continue
+    }
     const a = altitude[i]!
     if (Number.isNaN(a)) continue
     if (Number.isNaN(anchor)) anchor = a
@@ -119,10 +124,11 @@ function runParts(
   source: HeartRateSource,
 ): Parts {
   const metabolic = runMetabolicPower(activity.speed, grade, PRIORS.runEconomyScale.mean)
+  const valid = and(quality.validMotion, quality.validGrade)
   return {
     powerSource: 'none',
-    curve: valueCurve(metabolic, quality.validMotion, source),
-    hrBlocks: valueBlocks(metabolic, quality.validMotion, source),
+    curve: valueCurve(metabolic, valid, source),
+    hrBlocks: valueBlocks(metabolic, valid, source),
     calibration: null,
     climbSections: [],
   }
@@ -140,6 +146,8 @@ function climbSectionsOf(
   for (let i = 0; i < activity.n; i++) {
     const usable =
       quality.validMotion[i] === 1 &&
+      quality.validGrade[i] === 1 &&
+      quality.validPower[i] === 1 &&
       Number.isFinite(power[i]!) &&
       Number.isFinite(terms.gravityAccel[i]!)
     scorable[i] = usable ? 1 : 0
@@ -163,8 +171,8 @@ function measuredParts(
 ): Parts {
   const parts: Parts = {
     powerSource: 'measured',
-    curve: valueCurve(activity.power, quality.validMotion, source),
-    hrBlocks: valueBlocks(activity.power, quality.validMotion, source),
+    curve: valueCurve(activity.power, quality.validPower, source),
+    hrBlocks: valueBlocks(activity.power, quality.validPower, source),
     calibration: null,
     climbSections: [],
   }
@@ -173,7 +181,12 @@ function measuredParts(
   const terms = sampleTerms(activity.speed, grade)
   return {
     ...parts,
-    calibration: calibrationSums(terms, activity.speed, activity.power, quality.validMotion),
+    calibration: calibrationSums(
+      terms,
+      activity.speed,
+      activity.power,
+      and(quality.validMotion, and(quality.validGrade, quality.validPower)),
+    ),
     climbSections: climbSectionsOf(activity, quality, grade, terms),
   }
 }
@@ -191,7 +204,7 @@ function virtualParts(
 ): Parts {
   const outdoorClimbs = activity.hasAltitude && !activity.indoor
   const valid = outdoorClimbs
-    ? and(quality.validMotion, climbMask(grade, activity.speed))
+    ? and(and(quality.validMotion, quality.validGrade), climbMask(grade, activity.speed))
     : new Uint8Array(activity.n)
   // Windows are picked with the default model at a fixed mass, so the digest is independent of the
   // athlete's settings. Combine then evaluates the stored terms at the real mass and fitted bike.
@@ -249,13 +262,14 @@ export function digestActivity(activity: Activity): ActivityDigest {
 
   return {
     version: DIGEST_VERSION,
+    modelRevision: MODEL_REVISION,
     id: activity.id,
     name: activity.name,
     sport: activity.sport,
     startMs: activity.startMs,
     durationS: activity.n,
     distanceM: activity.n > 0 ? activity.distance[activity.n - 1]! : 0,
-    elevationGainM: elevationGain(activity.altitude),
+    elevationGainM: elevationGain(activity.altitude, quality.validGrade),
     hasHeartRate: activity.hasHeartRate,
     indoor: activity.indoor,
     powerSource: parts.powerSource,

@@ -84,6 +84,18 @@ describe('serializeDigest and parseDigest', () => {
     expect(() => parseDigest(missing)).toThrow(/version must be 1/)
   })
 
+  it('reads legacy digests without modelRevision as revision 1', () => {
+    const legacy = edited(digests[0]!, (o) => delete o.modelRevision)
+    expect(parseDigest(legacy).modelRevision).toBe(1)
+    expect(() => parseDigest(edited(digests[0]!, (o) => (o.modelRevision = 0)))).toThrow(
+      /modelRevision must be a positive safe integer/,
+    )
+    expect(parseDigest(edited(digests[0]!, (o) => (o.modelRevision = 3))).modelRevision).toBe(3)
+    expect(() =>
+      parseDigest(edited(digests[0]!, (o) => (o.modelRevision = Number.MAX_SAFE_INTEGER + 1))),
+    ).toThrow(/modelRevision must be a positive safe integer/)
+  })
+
   it('rejects a curve of the wrong length or with the wrong durations', () => {
     const short = edited(digests[0]!, (o) => (o.curve = curveOf(o).slice(1)))
     expect(() => parseDigest(short)).toThrow(/curve must have 21 points, got 20/)

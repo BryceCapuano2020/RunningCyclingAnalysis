@@ -79,6 +79,7 @@ describe('assessQuality: pauses, sprints and indoor activities', () => {
     const report = assessQuality(a)
     expect(report.flags).toEqual([])
     expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validPower)).toEqual([])
   })
 
   it('a real 9 m/s speed jump with no pause is still flagged', () => {
@@ -151,6 +152,8 @@ describe('assessQuality: clean and degenerate activities', () => {
     expect(report.flags).toEqual([])
     expect(report.validMotion.length).toBe(120)
     expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validPower)).toEqual(span(0, 120))
+    expect(zeroIndices(report.validGrade)).toEqual([])
     expect(zeroIndices(report.validHeartRate)).toEqual([])
   })
 
@@ -161,6 +164,8 @@ describe('assessQuality: clean and degenerate activities', () => {
     const report = assessQuality(ride)
     expect(report.flags).toEqual([])
     expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validPower)).toEqual([])
+    expect(zeroIndices(report.validGrade)).toEqual([])
     expect(zeroIndices(report.validHeartRate)).toEqual([])
   })
 
@@ -373,7 +378,8 @@ describe('assessQuality: power-spike', () => {
         message: 'Power meter reported an impossible spike',
       },
     ])
-    expect(zeroIndices(report.validMotion)).toEqual(span(49, 52))
+    expect(zeroIndices(report.validPower)).toEqual(span(49, 52))
+    expect(zeroIndices(report.validMotion)).toEqual([])
     expect(zeroIndices(report.validHeartRate)).toEqual([])
   })
 
@@ -382,7 +388,7 @@ describe('assessQuality: power-spike', () => {
     a.power[50] = 2000
     const report = assessQuality(a)
     expect(report.flags).toEqual([])
-    expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validPower)).toEqual([])
   })
 
   it('merges touching spikes into one flag', () => {
@@ -398,7 +404,7 @@ describe('assessQuality: power-spike', () => {
         message: 'Power meter reported an impossible spike',
       },
     ])
-    expect(zeroIndices(report.validMotion)).toEqual(span(49, 55))
+    expect(zeroIndices(report.validPower)).toEqual(span(49, 55))
   })
 
   it('merges overlapping spikes into one flag', () => {
@@ -455,7 +461,7 @@ describe('assessQuality: power-dropout', () => {
         message: 'Power meter stopped reporting for 5 seconds while moving',
       },
     ])
-    expect(zeroIndices(report.validMotion)).toEqual(span(20, 25))
+    expect(zeroIndices(report.validPower)).toEqual(span(20, 25))
   })
 
   it('does not fire on 4 s of missing power', () => {
@@ -463,7 +469,7 @@ describe('assessQuality: power-dropout', () => {
     a.power.fill(NaN, 20, 24)
     const report = assessQuality(a)
     expect(report.flags).toEqual([])
-    expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validPower)).toEqual([])
   })
 
   it('does not fire when one second of the run is not above 3 m/s', () => {
@@ -472,7 +478,7 @@ describe('assessQuality: power-dropout', () => {
     a.speed.fill(3, 22, 23)
     const report = assessQuality(a)
     expect(report.flags).toEqual([])
-    expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validPower)).toEqual([])
   })
 })
 
@@ -507,7 +513,7 @@ describe('assessQuality: speed-spike', () => {
   })
 
   it('fires on a step of more than 5 m/s between samples, masking 3 s either side', () => {
-    const a = makeActivity(120)
+    const a = withPower(120)
     a.speed[50] = 11
     const report = assessQuality(a)
     expect(report.flags).toEqual([
@@ -519,6 +525,7 @@ describe('assessQuality: speed-spike', () => {
       },
     ])
     expect(zeroIndices(report.validMotion)).toEqual(span(47, 55))
+    expect(zeroIndices(report.validPower)).toEqual([])
   })
 
   it('does not fire on a step of exactly 5 m/s', () => {
@@ -539,7 +546,7 @@ describe('assessQuality: speed-spike', () => {
 })
 
 describe('assessQuality: altitude-jump and missing-altitude', () => {
-  it('fires on a 15 m altitude step, masking 10 s either side', () => {
+  it('flags a 15 m altitude step and masks the full smoothed-grade footprint', () => {
     const a = makeActivity(120)
     a.altitude[50] = 115
     const report = assessQuality(a)
@@ -551,7 +558,8 @@ describe('assessQuality: altitude-jump and missing-altitude', () => {
         message: 'Altitude changed by more than 10 m in a single second',
       },
     ])
-    expect(zeroIndices(report.validMotion)).toEqual(span(40, 62))
+    expect(zeroIndices(report.validMotion)).toEqual([])
+    expect(zeroIndices(report.validGrade)).toEqual(span(20, 82))
   })
 
   it('does not fire on an altitude step of exactly 10 m', () => {

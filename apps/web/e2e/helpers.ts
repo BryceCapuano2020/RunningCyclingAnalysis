@@ -7,7 +7,7 @@ import type { APIRequestContext, ConsoleMessage, Locator, Page } from '@playwrig
 import type { ActivityPage, ActivityRecord } from '@rca/contract'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
-export const LANDING_TITLE = 'Are you a stronger runner or cyclist?'
+export const LANDING_TITLE = 'How do your running and cycling energy estimates compare?'
 
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa']
 

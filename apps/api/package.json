@@ -9,10 +9,12 @@
     "e2e:api": "rm -rf .wrangler/e2e-state && mkdir -p ../web/dist && (test -f .dev.vars || cp .dev.vars.example .dev.vars) && wrangler d1 migrations apply rca --local --persist-to .wrangler/e2e-state && wrangler dev --port 8787 --persist-to .wrangler/e2e-state --var APP_URL:http://localhost:4319 --show-interactive-dev-session=false",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply rca --local",
-    "db:migrate:remote": "wrangler d1 migrations apply rca --remote",
-    "deploy": "wrangler deploy",
+    "db:migrate:remote": "node scripts/check-deploy-config.mjs --bootstrap && wrangler d1 migrations apply rca --remote",
+    "deploy": "npm run deploy --prefix ../..",
+    "deploy:built": "node scripts/check-deploy-config.mjs && wrangler deploy",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy:bootstrap": "node scripts/check-deploy-config.mjs --bootstrap && wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261021.1",

@@ -29,8 +29,8 @@ describe('RatioChart', () => {
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(1)
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)
     expect(screen.getByText('Equal')).toBeInTheDocument()
-    expect(screen.getByText('Running stronger')).toBeInTheDocument()
-    expect(screen.getByText('Cycling stronger')).toBeInTheDocument()
+    expect(screen.getByText('Higher running energy rate')).toBeInTheDocument()
+    expect(screen.getByText('Higher cycling energy rate')).toBeInTheDocument()
 
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual(['Duration', 'Median', '90% range'])
@@ -47,7 +47,9 @@ describe('RatioChart', () => {
     expect(within(legend).getByText('Before heart-rate check')).toBeInTheDocument()
     expect(within(legend).getByText('After heart-rate check')).toBeInTheDocument()
     expect(
-      screen.getByText('Shaded areas cover 90% of plausible values. The line is the median'),
+      screen.getByText(
+        'Shading shows the 90% model range; other errors are not included. The line is the median',
+      ),
     ).toBeInTheDocument()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(2)
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)

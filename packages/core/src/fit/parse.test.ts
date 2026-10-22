@@ -3,7 +3,7 @@ import type { FileIdMesg, RecordMesg, SessionMesg } from '@garmin/fitsdk'
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
-import { parseFit } from './parse'
+import { DEFAULT_PARSE_LIMITS, parseFit } from './parse'
 import type { ParseResult } from './parse'
 import { buildFit, secondly } from './fitTestFiles'
 
@@ -131,6 +131,53 @@ describe('parseFit round trip', () => {
     expect(maxAbsDiff(a.altitude, original.altitude)).toBeLessThanOrEqual(0.1)
   })
 
+  it('uses timer events to preserve a short pause that gap inference would interpolate', () => {
+    const original = makeActivity('ride', 90, { pauseFrom: 40, pauseTo: 45 })
+    const a = firstActivity(parseFit(encodeFit(original), 'short-pause.fit'))
+    expect(Array.from(a.paused)).toEqual(Array.from(original.paused))
+    expect(Array.from(a.speed.slice(39, 46))).toEqual([
+      original.speed[39],
+      0,
+      0,
+      0,
+      0,
+      0,
+      original.speed[45],
+    ])
+    expect(Array.from(a.power.slice(39, 46))).toEqual([
+      original.power[39],
+      0,
+      0,
+      0,
+      0,
+      0,
+      original.power[45],
+    ])
+  })
+
+  it('starts an independently encoded timer pause at the stop timestamp, including interior records', () => {
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'cycling',
+          startMs: START_MS,
+          durationS: 60,
+          records: secondly(START_MS, 60, { speed: 8, power: 220, altitude: 100 }),
+        },
+      ],
+      timerEvents: [
+        { tMs: START_MS, eventType: 'start' },
+        { tMs: START_MS + 30_000, eventType: 'stop' },
+        { tMs: START_MS + 36_000, eventType: 'start' },
+        { tMs: START_MS + 60_000, eventType: 'stop' },
+      ],
+    })
+    const activity = firstActivity(parseFit(bytes, 'timer-stop.fit'))
+    expect(Array.from(activity.paused.slice(27, 39))).toEqual([0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+    expect(Array.from(activity.speed.slice(30, 36))).toEqual([0, 0, 0, 0, 0, 0])
+    expect(Array.from(activity.power.slice(30, 36))).toEqual([0, 0, 0, 0, 0, 0])
+  })
+
   it('reads a file with no position as outdoor when its sport is not an indoor one', () => {
     const original = makeActivity('ride', 60)
     expect(firstActivity(parseFit(encodeFit(original), 'a.fit')).indoor).toBe(false)
@@ -216,6 +263,34 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'cut.fit',
       reason: 'Could not decode FIT file',
+    })
+  })
+
+  it('rejects files and sessions over configured ingestion quotas with clear reasons', () => {
+    const bytes = encodeFit(makeActivity('ride', 60))
+    expect(
+      parseFit(bytes, 'large.fit', { ...DEFAULT_PARSE_LIMITS, maxFileBytes: bytes.length - 1 }),
+    ).toEqual({
+      ok: false,
+      fileName: 'large.fit',
+      reason: `FIT file exceeds the ${bytes.length - 1}-byte limit`,
+    })
+    expect(
+      parseFit(bytes, 'many-records.fit', {
+        ...DEFAULT_PARSE_LIMITS,
+        maxRecordMessages: 10,
+      }),
+    ).toEqual({
+      ok: false,
+      fileName: 'many-records.fit',
+      reason: 'FIT file exceeds the 10-record limit',
+    })
+    expect(
+      parseFit(bytes, 'long.fit', { ...DEFAULT_PARSE_LIMITS, maxActivitySeconds: 30 }),
+    ).toEqual({
+      ok: false,
+      fileName: 'long.fit',
+      reason: 'Activity exceeds the 30-second time-grid limit',
     })
   })
 

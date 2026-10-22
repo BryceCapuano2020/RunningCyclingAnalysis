@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Me, ProfileInput } from '@rca/contract'
 import * as api from '../api/client'
 import { signInUrl } from '../api/client'
@@ -13,6 +13,7 @@ export interface AccountController {
   signOut: () => Promise<void>
   /** Rejects with the failure as well as setting `error`, so the caller can keep its dialog open. */
   deleteAccount: () => Promise<void>
+  /** Rejects with the failure after setting `error`, so the caller can restore its pending edit. */
   updateProfile: (input: ProfileInput) => Promise<void>
   /** The last account action's failure, or why the account is unavailable. */
   error: string | null
@@ -30,6 +31,9 @@ export function useAccount(): AccountController {
   const [status, setStatus] = useState<AccountStatus>('loading')
   const [me, setMe] = useState<Me | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Profile writes replace the whole profile on the server, so keep them in call order.
+  const profileWritesRef = useRef<Promise<void>>(Promise.resolve())
+  const endingSessionRef = useRef(false)
 
   useEffect(() => {
     let current = true
@@ -56,38 +60,59 @@ export function useAccount(): AccountController {
   }, [])
 
   const signOut = useCallback(async () => {
+    if (endingSessionRef.current) return
+    endingSessionRef.current = true
+    const userId = me?.user.id
     try {
-      await api.logout()
+      await profileWritesRef.current
+      await api.logout(userId)
       setMe(null)
       setStatus('signed-out')
       setError(null)
     } catch (failure) {
+      endingSessionRef.current = false
       setError(messageOf(failure))
       throw failure
     }
-  }, [])
+  }, [me])
 
   const deleteAccount = useCallback(async () => {
+    if (endingSessionRef.current) return
+    endingSessionRef.current = true
+    const userId = me?.user.id
     try {
-      await api.deleteAccount()
+      await profileWritesRef.current
+      await api.deleteAccount(userId)
       setMe(null)
       setStatus('signed-out')
       setError(null)
     } catch (failure) {
+      endingSessionRef.current = false
       setError(messageOf(failure))
       throw failure
     }
-  }, [])
+  }, [me])
 
-  const updateProfile = useCallback(async (input: ProfileInput) => {
-    try {
-      const profile = await api.updateProfile(input)
-      setMe((previous) => (previous === null ? null : { ...previous, profile }))
-      setError(null)
-    } catch (failure) {
-      setError(messageOf(failure))
-    }
-  }, [])
+  const updateProfile = useCallback(
+    async (input: ProfileInput) => {
+      if (endingSessionRef.current) return
+      const userId = me?.user.id
+      const write = profileWritesRef.current.then(async () => {
+        try {
+          const profile = await api.updateProfile(input, userId)
+          setMe((previous) => (previous === null ? null : { ...previous, profile }))
+          setError(null)
+        } catch (failure) {
+          setError(messageOf(failure))
+          throw failure
+        }
+      })
+      // Keep the queue usable after a failed write while returning that failure to the caller.
+      profileWritesRef.current = write.catch(() => undefined)
+      await write
+    },
+    [me],
+  )
 
   return useMemo(
     () => ({ status, me, signIn, signOut, deleteAccount, updateProfile, error }),

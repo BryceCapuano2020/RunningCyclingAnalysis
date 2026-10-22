@@ -1,12 +1,24 @@
 import { Decoder, Stream } from '@garmin/fitsdk'
-import type { RecordMesg, SessionMesg, SportMesg, Types } from '@garmin/fitsdk'
+import type { EventMesg, RecordMesg, SessionMesg, SportMesg, Types } from '@garmin/fitsdk'
 import type { Activity, Sport } from '../types'
-import { resample } from './resample'
-import type { RawRecord } from './resample'
+import { MAX_ACTIVITY_GRID_SECONDS, resample } from './resample'
+import type { RawRecord, RawTimerEvent } from './resample'
 
 export type ParseResult =
   | { ok: true; activities: Activity[]; skipped: string[] }
   | { ok: false; fileName: string; reason: string }
+
+export interface ParseLimits {
+  maxFileBytes: number
+  maxRecordMessages: number
+  maxActivitySeconds: number
+}
+
+export const DEFAULT_PARSE_LIMITS: Readonly<ParseLimits> = {
+  maxFileBytes: 64 * 1024 ** 2,
+  maxRecordMessages: 2_000_000,
+  maxActivitySeconds: MAX_ACTIVITY_GRID_SECONDS,
+}
 
 /** A FIT header is 12 bytes at minimum; the signature sits at bytes 8 to 11. */
 const MIN_HEADER_BYTES = 12
@@ -38,33 +50,46 @@ interface Unit {
 type Outcome = { ok: true; activity: Activity } | { ok: false; reason: string; skipped: string }
 
 /** Decodes every session of a FIT file into 1 Hz Activities. Never throws. */
-export function parseFit(bytes: Uint8Array, fileName: string): ParseResult {
+export function parseFit(
+  bytes: Uint8Array,
+  fileName: string,
+  limits: ParseLimits = DEFAULT_PARSE_LIMITS,
+): ParseResult {
   try {
-    return parseUnchecked(bytes, fileName)
+    return parseUnchecked(bytes, fileName, limits)
   } catch {
     return failure(fileName, 'Could not decode FIT file')
   }
 }
 
-function parseUnchecked(bytes: Uint8Array, fileName: string): ParseResult {
+function parseUnchecked(bytes: Uint8Array, fileName: string, limits: ParseLimits): ParseResult {
+  if (bytes.length > limits.maxFileBytes) {
+    return failure(fileName, `FIT file exceeds the ${limits.maxFileBytes}-byte limit`)
+  }
   if (bytes.length < MIN_HEADER_BYTES) return failure(fileName, 'Not a FIT file')
   const decoder = new Decoder(Stream.fromByteArray(bytes))
   if (!decoder.isFIT()) return failure(fileName, 'Not a FIT file')
 
   const { messages, errors } = decoder.read()
+  if ((messages.recordMesgs?.length ?? 0) > limits.maxRecordMessages) {
+    return failure(fileName, `FIT file exceeds the ${limits.maxRecordMessages}-record limit`)
+  }
   const timed = timedRecords(messages.recordMesgs ?? [])
   if (errors.length > 0 && timed.length < MIN_SAMPLES) {
     return failure(fileName, 'Could not decode FIT file')
   }
 
   const sessions = messages.sessionMesgs ?? []
+  const timerEvents = timerMessages(messages.eventMesgs ?? [])
   const sportMesg = messages.sportMesgs?.[0]
   const multi = sessions.length > 1
   const units: Unit[] = multi
     ? assignToSessions(sessions, timed)
     : [{ session: sessions[0], records: timed }]
 
-  const outcomes = units.map((unit, index) => evaluate(unit, index, sportMesg, multi, fileName))
+  const outcomes = units.map((unit, index) =>
+    evaluate(unit, index, sportMesg, multi, fileName, timerEvents, limits),
+  )
   const activities: Activity[] = []
   const skipped: string[] = []
   for (const outcome of outcomes) {
@@ -81,12 +106,29 @@ function evaluate(
   sportMesg: SportMesg | undefined,
   multi: boolean,
   fileName: string,
+  timerEvents: RawTimerEvent[],
+  limits: ParseLimits,
 ): Outcome {
   const { sport, subSport } = resolveSport(unit.session, sportMesg)
   const mapping = mapSport(sport, subSport)
   if (!mapping.ok) return { ok: false, reason: mapping.reason, skipped: mapping.skipped }
 
-  const resampled = resample(unit.records.map(toRaw))
+  const events = unit.session
+    ? timerEvents.filter((event) => inWindow(unit.session, event.tMs))
+    : timerEvents
+  let resampled: ReturnType<typeof resample>
+  try {
+    resampled = resample(unit.records.map(toRaw), events, limits.maxActivitySeconds)
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return {
+        ok: false,
+        reason: error.message,
+        skipped: 'activity exceeds the supported time range',
+      }
+    }
+    throw error
+  }
   if (resampled.n < MIN_SAMPLES) {
     return { ok: false, reason: SHORT_REASON, skipped: 'session shorter than one minute' }
   }
@@ -156,6 +198,16 @@ function timedRecords(records: RecordMesg[]): Timed[] {
     if (mesg.timestamp instanceof Date) out.push({ tMs: mesg.timestamp.getTime(), mesg })
   }
   return out
+}
+
+function timerMessages(messages: EventMesg[]): RawTimerEvent[] {
+  return messages.flatMap((message) =>
+    message.event === 'timer' &&
+    message.timestamp instanceof Date &&
+    message.eventType !== undefined
+      ? [{ tMs: message.timestamp.getTime(), eventType: message.eventType }]
+      : [],
+  )
 }
 
 /** Gives each record to the first session whose [start, start + elapsed] window contains it. */

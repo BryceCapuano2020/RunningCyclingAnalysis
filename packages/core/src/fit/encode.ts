@@ -1,6 +1,7 @@
 import { Encoder } from '@garmin/fitsdk'
 import type {
   ActivityMesg,
+  EventMesg,
   FileIdMesg,
   LapMesg,
   RecordMesg,
@@ -14,6 +15,7 @@ const MESG_FILE_ID = 0
 const MESG_SESSION = 18
 const MESG_LAP = 19
 const MESG_RECORD = 20
+const MESG_EVENT = 21
 const MESG_ACTIVITY = 34
 
 export interface EncodeOptions {
@@ -34,7 +36,7 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
   const encoder = new Encoder()
   const { n } = activity
   const startSec = Math.floor(activity.startMs / 1000)
-  const endSec = startSec + Math.max(0, n - 1)
+  const endSec = startSec + n
   const startTime = new Date(startSec * 1000)
   const endTime = new Date(endSec * 1000)
   const sport = activity.sport === 'run' ? 'running' : 'cycling'
@@ -48,8 +50,23 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
   }
   encoder.onMesg(MESG_FILE_ID, fileId)
 
-  for (let i = 0; i < n; i++) {
-    if (activity.paused[i] === 1) continue
+  const timer = (timestampS: number, eventType: EventMesg['eventType']) => {
+    const event: EventMesg = {
+      timestamp: new Date(timestampS * 1000),
+      event: 'timer',
+      eventType,
+    }
+    encoder.onMesg(MESG_EVENT, event)
+  }
+  timer(startSec, 'start')
+  for (let i = 0; i < n;) {
+    if (activity.paused[i] === 1) {
+      const pauseStart = i
+      while (i < n && activity.paused[i] === 1) i++
+      timer(startSec + pauseStart, 'stop')
+      if (i < n) timer(startSec + i, 'start')
+      continue
+    }
     const record: RecordMesg = { timestamp: new Date((startSec + i) * 1000) }
     if (opts.gps) {
       record.positionLat = 0
@@ -66,7 +83,9 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
     const power = sample(activity.power, i)
     if (power !== undefined) record.power = Math.round(power)
     encoder.onMesg(MESG_RECORD, record)
+    i++
   }
+  timer(endSec, 'stop')
 
   const lap: LapMesg = {
     messageIndex: 0,
