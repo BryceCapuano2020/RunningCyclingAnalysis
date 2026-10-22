@@ -112,6 +112,17 @@ describe('parseGoogleIdToken', () => {
     )
   })
 
+  it('accepts an azp that matches the client and rejects one that does not', () => {
+    const matching = fakeIdToken(googleClaims({ azp: TEST_CLIENT_ID }))
+    expect(parseGoogleIdToken(matching, TEST_CLIENT_ID, START).sub).toBe('google-sub-1')
+    const other = fakeIdToken(googleClaims({ azp: 'another-client' }))
+    expectHttpError(
+      () => parseGoogleIdToken(other, TEST_CLIENT_ID, START),
+      502,
+      'oauth_bad_id_token',
+    )
+  })
+
   it('rejects an expired token', () => {
     const token = fakeIdToken(googleClaims({ exp: START / 1000 }))
     expectHttpError(

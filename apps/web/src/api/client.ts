@@ -1,8 +1,10 @@
 import {
+  ActivityPageSchema,
   ActivityRecordSchema,
   ApiErrorSchema,
   CLIENT_HEADER,
   CLIENT_HEADER_VALUE,
+  MAX_PAGE_SIZE,
   MeSchema,
   ProfileSchema,
 } from '@rca/contract'
@@ -103,11 +105,33 @@ export async function deleteAccount(): Promise<void> {
   await request('DELETE', '/api/me')
 }
 
-/** The user's activities, newest first. With `since` (epoch ms), only those created at or after it. */
+/**
+ * Every activity the user has, newest first, following the server's pages to the end. With
+ * `since` (epoch ms), only those created at or after it.
+ */
 export async function listActivities(since?: number): Promise<ActivityRecord[]> {
-  const query = since === undefined ? '' : `?${new URLSearchParams({ since: String(since) })}`
-  const response = await request('GET', `/api/activities${query}`)
-  return readJson(response, ActivityRecordSchema.array())
+  const records: ActivityRecord[] = []
+  const seenCursors = new Set<string>()
+  let cursor: string | undefined
+  do {
+    const params = new URLSearchParams({ limit: String(MAX_PAGE_SIZE) })
+    if (since !== undefined) params.set('since', String(since))
+    if (cursor !== undefined) params.set('cursor', cursor)
+    const page = await readJson(
+      await request('GET', `/api/activities?${params}`),
+      ActivityPageSchema,
+    )
+    records.push(...page.items)
+    cursor = page.nextCursor ?? undefined
+    // A server that repeats a cursor would make this loop forever.
+    if (cursor !== undefined) {
+      if (seenCursors.has(cursor)) {
+        throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
+      }
+      seenCursors.add(cursor)
+    }
+  } while (cursor !== undefined)
+  return records
 }
 
 export async function createActivity(

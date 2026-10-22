@@ -47,6 +47,13 @@ export const ActivityRecordSchema = z.object({
 })
 export type ActivityRecord = z.infer<typeof ActivityRecordSchema>
 
+/** One page of GET /api/activities. nextCursor is null on the last page. */
+export const ActivityPageSchema = z.object({
+  items: z.array(ActivityRecordSchema),
+  nextCursor: z.string().nullable(),
+})
+export type ActivityPage = z.infer<typeof ActivityPageSchema>
+
 export const ApiErrorSchema = z.object({
   error: z.object({
     code: z.string(),

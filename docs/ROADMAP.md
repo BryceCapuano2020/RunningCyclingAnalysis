@@ -108,3 +108,5 @@ These depend on population-relative scoring (section 1, item 1) so that the numb
 2. **Strength.** Estimate one-rep max relative to body weight and show it on a separate fitness
    radar axis. The metabolic-power unit does not apply to lifting, so it should not be compared
    directly with running or cycling.
+3. **Edge rate limiting.** The API has no per-IP or per-account request limiter. Add Cloudflare rate
+   limiting rules in front of `/api/auth/*` and the upload routes before opening sign-up.

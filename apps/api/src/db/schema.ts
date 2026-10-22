@@ -35,6 +35,11 @@ export const sessions = sqliteTable('sessions', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   expiresAt: integer('expires_at').notNull(),
+  /**
+   * Absolute lifetime starts here; refreshes never extend past createdAt + 90 days. The default
+   * makes rows that predate this column read as created at epoch, so they are already expired.
+   */
+  createdAt: integer('created_at').notNull().default(0),
 })
 
 export const profiles = sqliteTable('profiles', {
@@ -70,6 +75,7 @@ export const activities = sqliteTable(
   (t) => [
     unique('activities_user_dedupe_unique').on(t.userId, t.dedupeKey),
     index('activities_user_start_idx').on(t.userId, t.startMs),
+    index('activities_user_created_idx').on(t.userId, t.createdAt),
   ],
 )
 

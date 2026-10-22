@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { Bindings } from '../env.ts'
 import { HttpError } from '../errors.ts'
-import { toBase64Url } from '../util.ts'
+import { fromBase64UrlUtf8, toBase64Url } from '../util.ts'
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
@@ -68,6 +68,7 @@ export function createGoogleOAuth(env: Bindings): GoogleOAuth {
 const claimsSchema = z.object({
   iss: z.string(),
   aud: z.union([z.string(), z.array(z.string())]),
+  azp: z.string().optional(),
   exp: z.number(),
   sub: z.string().min(1),
   email: z.email(),
@@ -81,15 +82,6 @@ export interface GoogleProfile {
   email: string
   name: string
   pictureUrl: string | null
-}
-
-function decodeBase64UrlUtf8(input: string): string {
-  const base64 = input
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-    .padEnd(Math.ceil(input.length / 4) * 4, '=')
-  const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0))
-  return new TextDecoder().decode(bytes)
 }
 
 /**
@@ -107,7 +99,7 @@ export function parseGoogleIdToken(
 
   let json: unknown
   try {
-    json = JSON.parse(decodeBase64UrlUtf8(payload))
+    json = JSON.parse(fromBase64UrlUtf8(payload))
   } catch {
     throw malformed()
   }
@@ -118,6 +110,8 @@ export function parseGoogleIdToken(
   if (!GOOGLE_ISSUERS.has(claims.iss)) throw malformed()
   const audiences = typeof claims.aud === 'string' ? [claims.aud] : claims.aud
   if (!audiences.includes(clientId)) throw malformed()
+  // Google sets azp (the authorized party) to the client when the token has several audiences.
+  if (claims.azp !== undefined && claims.azp !== clientId) throw malformed()
   if (claims.exp * 1000 <= nowMs) {
     throw new HttpError(400, 'oauth_token_expired', 'Google ID token has expired')
   }

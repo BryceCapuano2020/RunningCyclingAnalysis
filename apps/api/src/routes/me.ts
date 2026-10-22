@@ -6,9 +6,11 @@ import type { AppEnv } from '../env.ts'
 import { buildMe, ensureProfile, toProfile } from '../auth/accounts.ts'
 import { clearSessionCookie } from '../auth/session.ts'
 import { currentUser, requireUser } from '../middleware.ts'
-import { invalidRequest } from '../http.ts'
+import { invalidRequest, limitBody } from '../http.ts'
 import { deleteByPrefix, userFilePrefix } from '../storage.ts'
 import { activities, profiles, users } from '../db/schema.ts'
+
+const PROFILE_BODY_BYTES = 4 * 1024
 
 export const meRoutes = new Hono<AppEnv>()
 
@@ -19,6 +21,7 @@ meRoutes.get('/me', requireUser, async (c) => {
 
 meRoutes.put(
   '/profile',
+  limitBody(PROFILE_BODY_BYTES),
   requireUser,
   zValidator('json', ProfileInputSchema, (result, c) => {
     if (!result.success) return c.json(invalidRequest(result.error), 400)
@@ -29,8 +32,9 @@ meRoutes.put(
     const userId = currentUser(c).id
     const updatedAt = deps.now()
     const before = await ensureProfile(db, userId, updatedAt)
-    if (before.keepFiles && !input.keepFiles) {
-      // Files go first and the rows second: if R2 fails, nothing has changed and the request can be retried.
+    const turningFilesOff = before.keepFiles && !input.keepFiles
+    if (turningFilesOff) {
+      // Files go first and the rows second, so a failed R2 delete leaves the profile unchanged.
       await deleteByPrefix(c.env.FILES, userFilePrefix(userId))
       await db
         .update(activities)
@@ -42,6 +46,10 @@ meRoutes.put(
       .insert(profiles)
       .values({ userId, ...values })
       .onConflictDoUpdate({ target: profiles.userId, set: values })
+    if (turningFilesOff) {
+      // An upload that passed the keepFiles check before the change can still land its object.
+      await deleteByPrefix(c.env.FILES, userFilePrefix(userId))
+    }
     return c.json(toProfile({ userId, ...values }), 200)
   },
 )
@@ -51,6 +59,8 @@ meRoutes.delete('/me', requireUser, async (c) => {
   const userId = currentUser(c).id
   await deleteByPrefix(c.env.FILES, userFilePrefix(userId))
   await c.var.db.delete(users).where(eq(users.id, userId))
+  // Sweep again: an upload that was in flight during the first sweep may have landed since.
+  await deleteByPrefix(c.env.FILES, userFilePrefix(userId))
   clearSessionCookie(c)
   return c.body(null, 204)
 })

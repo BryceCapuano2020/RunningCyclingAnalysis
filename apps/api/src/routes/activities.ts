@@ -1,12 +1,17 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gte, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   ActivityCreateSchema,
   ActivityDigestSchema,
+  DEFAULT_PAGE_SIZE,
+  MAX_ACTIVITIES_PER_USER,
   MAX_DIGEST_BYTES,
   MAX_FILE_BYTES,
+  MAX_PAGE_SIZE,
+  MAX_STORED_BYTES_PER_USER,
+  type ActivityPage,
   type ActivityRecord,
 } from '@rca/contract'
 import type { Sport } from '@rca/core/types'
@@ -14,7 +19,8 @@ import type { AppEnv, Db } from '../env.ts'
 import { HttpError } from '../errors.ts'
 import { ensureProfile } from '../auth/accounts.ts'
 import { currentUser, requireUser } from '../middleware.ts'
-import { contentDisposition, invalidRequest, readBody } from '../http.ts'
+import { contentDisposition, invalidRequest, limitBody, readBody } from '../http.ts'
+import { decodeCursor, encodeCursor } from '../cursor.ts'
 import { activityFileKey } from '../storage.ts'
 import { activities } from '../db/schema.ts'
 import { must, sha256Hex } from '../util.ts'
@@ -23,8 +29,11 @@ import { must, sha256Hex } from '../util.ts'
 const MAX_CREATE_BODY_BYTES = MAX_DIGEST_BYTES + 16 * 1024
 
 const listQuery = z.object({
-  /** Epoch ms. Returns records created at or after this time, so clients dedupe by id. */
+  /** Epoch ms. Returns records created at or after this time. */
   since: z.coerce.number().int().nonnegative().optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
+  /** Opaque, from a previous page's nextCursor. */
+  cursor: z.string().max(256).optional(),
 })
 
 type ActivityRow = typeof activities.$inferSelect
@@ -66,23 +75,37 @@ activityRoutes.get(
   }),
   async (c) => {
     const { db } = c.var
-    const { since } = c.req.valid('query')
+    const query = c.req.valid('query')
     const userId = currentUser(c).id
+    const limit = query.limit ?? DEFAULT_PAGE_SIZE
+    const filters: (SQL | undefined)[] = [eq(activities.userId, userId)]
+    if (query.since !== undefined) filters.push(gte(activities.createdAt, query.since))
+    if (query.cursor !== undefined) {
+      const after = decodeCursor(query.cursor)
+      filters.push(
+        or(
+          lt(activities.createdAt, after.createdAt),
+          and(eq(activities.createdAt, after.createdAt), lt(activities.id, after.id)),
+        ),
+      )
+    }
+    // One extra row tells us whether another page exists.
     const rows = await db
       .select()
       .from(activities)
-      .where(
-        and(
-          eq(activities.userId, userId),
-          since === undefined ? undefined : gte(activities.createdAt, since),
-        ),
-      )
-      .orderBy(desc(activities.startMs))
-    return c.json(rows.map(toRecord), 200)
+      .where(and(...filters))
+      .orderBy(desc(activities.createdAt), desc(activities.id))
+      .limit(limit + 1)
+    const pageRows = rows.slice(0, limit)
+    const last = pageRows.at(-1)
+    const nextCursor =
+      rows.length > limit && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null
+    const page: ActivityPage = { items: pageRows.map(toRecord), nextCursor }
+    return c.json(page, 200)
   },
 )
 
-activityRoutes.post('/', requireUser, async (c) => {
+activityRoutes.post('/', limitBody(MAX_CREATE_BODY_BYTES), requireUser, async (c) => {
   const { db, deps } = c.var
   const userId = currentUser(c).id
   const body = await readBody(c.req.raw, MAX_CREATE_BODY_BYTES)
@@ -112,6 +135,19 @@ activityRoutes.post('/', requireUser, async (c) => {
 
   const existing = await selectExisting()
   if (existing) return c.json(toRecord(existing), 200)
+
+  const count = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(activities)
+    .where(eq(activities.userId, userId))
+    .get()
+  if ((count?.total ?? 0) >= MAX_ACTIVITIES_PER_USER) {
+    throw new HttpError(
+      403,
+      'activity_quota',
+      `You can store at most ${MAX_ACTIVITIES_PER_USER} activities`,
+    )
+  }
 
   const inserted = await db
     .insert(activities)
@@ -153,6 +189,17 @@ activityRoutes.put('/:id/file', requireUser, async (c) => {
   if (body.byteLength === 0) throw new HttpError(400, 'empty_file', 'File body is empty')
   if ((await sha256Hex(body)) !== row.fileHash) {
     throw new HttpError(422, 'hash_mismatch', 'File does not match the digest it was uploaded for')
+  }
+
+  const stored = await db
+    .select({ total: sql<number>`coalesce(sum(${activities.fileSize}), 0)` })
+    .from(activities)
+    .where(eq(activities.userId, userId))
+    .get()
+  // This file replaces the activity's current one, so that file's bytes do not count twice.
+  const otherBytes = (stored?.total ?? 0) - (row.fileSize ?? 0)
+  if (otherBytes + body.byteLength > MAX_STORED_BYTES_PER_USER) {
+    throw new HttpError(403, 'storage_quota', 'Storing this file would exceed your storage limit')
   }
 
   const key = activityFileKey(userId, row.id)

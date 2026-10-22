@@ -1,4 +1,7 @@
+import { bodyLimit } from 'hono/body-limit'
+import { createMiddleware } from 'hono/factory'
 import type { z } from 'zod'
+import type { AppEnv } from './env.ts'
 import { apiError, HttpError } from './errors.ts'
 
 /**
@@ -6,9 +9,16 @@ import { apiError, HttpError } from './errors.ts'
  * With a Content-Length the body is read into one buffer of that size, so a 50 MB upload
  * costs 50 MB rather than twice that. Without one, chunks are collected and joined.
  */
-export async function readBody(request: Request, maxBytes: number): Promise<Uint8Array> {
+/** The Content-Length as a number, or undefined when absent. Anything but digits is a client error. */
+export function declaredLength(request: Request): number | undefined {
   const declared = request.headers.get('content-length')
-  const expected = declared === null ? undefined : Number(declared)
+  if (declared === null) return undefined
+  if (!/^\d+$/.test(declared)) throw new HttpError(400, 'bad_request', 'Malformed Content-Length')
+  return Number(declared)
+}
+
+export async function readBody(request: Request, maxBytes: number): Promise<Uint8Array> {
+  const expected = declaredLength(request)
   if (expected !== undefined && expected > maxBytes) throw tooLarge(maxBytes)
   if (!request.body) return new Uint8Array(0)
 
@@ -51,6 +61,19 @@ export async function readBody(request: Request, maxBytes: number): Promise<Uint
     offset += chunk.byteLength
   }
   return body
+}
+
+/** Caps a route's body before it is parsed: rejects on Content-Length, or while streaming. */
+export function limitBody(maxBytes: number) {
+  const limit = bodyLimit({
+    maxSize: maxBytes,
+    onError: (c) =>
+      c.json(apiError('payload_too_large', `Body is larger than ${maxBytes} bytes`), 413),
+  })
+  return createMiddleware<AppEnv>(async (c, next) => {
+    declaredLength(c.req.raw)
+    return limit(c, next)
+  })
 }
 
 function tooLarge(maxBytes: number): HttpError {

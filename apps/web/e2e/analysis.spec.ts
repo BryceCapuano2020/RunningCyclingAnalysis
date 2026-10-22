@@ -62,9 +62,10 @@ test('a chart plot responds to the arrow keys with a tooltip', async ({ page }) 
   await plot.focus()
   await page.keyboard.press('ArrowRight')
 
-  await expect(
-    page.getByRole('status').filter({ hasNotText: 'simulated sample data' }).first(),
-  ).toBeVisible()
+  // The toolbar has its own status region, so follow the plot's aria-describedby to its tooltip.
+  const tooltipId = await plot.getAttribute('aria-describedby')
+  expect(tooltipId).toBeTruthy()
+  await expect(page.locator(`[id="${tooltipId}"]`)).toBeVisible()
 })
 
 test('start over returns to the landing page', async ({ page }) => {

@@ -10,6 +10,9 @@ export default defineConfig({
     // The API runs under `wrangler dev`; proxying keeps cookies same-origin in development.
     proxy: { '/api': 'http://localhost:8787' },
   },
+  preview: {
+    proxy: { '/api': 'http://localhost:8787' },
+  },
   test: {
     name: 'web',
     globals: true,

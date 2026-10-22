@@ -167,9 +167,13 @@ describe('GET /api/auth/google/callback', () => {
       path: callbackParams(prodStart.state),
       cookies: { rca_oauth_state: prodStart.state, rca_oauth_verifier: prodStart.verifier },
     })
-    const prodSession = prodRes.headers.getSetCookie().find((c) => c.startsWith('rca_session='))
+    const prodSession = prodRes.headers
+      .getSetCookie()
+      .find((c) => c.startsWith('__Host-rca_session='))
     expect(prodSession).toContain('Secure')
     expect(prodSession).toContain('SameSite=Lax')
+    expect(prodSession).toContain('Path=/')
+    expect(prodSession).not.toContain('Domain')
   })
 
   it('rejects a callback whose state does not match the cookie', async () => {
@@ -182,6 +186,37 @@ describe('GET /api/auth/google/callback', () => {
     expect(res.status).toBe(400)
     expect(await res.json()).toMatchObject({ error: { code: 'oauth_state_mismatch' } })
     expect(res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))).toHaveLength(2)
+  })
+
+  it('refuses to link a Google login to an account that already has a different Google identity', async () => {
+    let google = fakeGoogle({ idToken: fakeIdToken(googleClaims({ sub: 'other-google-sub' })) })
+    const h = createHarness({ google: () => google })
+    const first = await startSignIn(h)
+    await h.send({
+      path: callbackParams(first.state),
+      cookies: { rca_oauth_state: first.state, rca_oauth_verifier: first.verifier },
+    })
+
+    google = fakeGoogle({ idToken })
+    const second = await startSignIn(h)
+    const res = await h.send({
+      path: callbackParams(second.state),
+      cookies: { rca_oauth_state: second.state, rca_oauth_verifier: second.verifier },
+    })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({
+      error: {
+        code: 'account_conflict',
+        message: expect.stringContaining('different Google account'),
+      },
+    })
+    expect(sessionCookie(res)).toBeUndefined()
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM oauth_accounts').first<{ n: number }>(),
+    ).toEqual({ n: 1 })
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>(),
+    ).toEqual({ n: 1 })
   })
 
   it('rejects a callback with no state cookie', async () => {

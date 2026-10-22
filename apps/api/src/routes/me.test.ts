@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createHarness, digestFixture, START } from '../test/harness.ts'
+import { createHarness, digestFixture, racingBucket, START } from '../test/harness.ts'
 import { activityFileKey, userFilePrefix } from '../storage.ts'
 import { sha256Hex } from '../util.ts'
 
@@ -233,9 +233,34 @@ describe('turning keepFiles off', () => {
     const list = (await (
       await h.send({ path: '/api/activities', cookies: { rca_session: alice } })
     ).json()) as {
-      hasFile: boolean
-    }[]
-    expect(list.every((r) => !r.hasFile)).toBe(true)
+      items: { hasFile: boolean }[]
+    }
+    expect(list.items.every((r) => !r.hasFile)).toBe(true)
+  })
+
+  it('sweeps again after the rows change, so an upload that raced the change is removed', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await userIdOf(h, token)
+    await createWithFile(h, token, 'a.fit', START)
+    const racing = createHarness(
+      {},
+      {
+        FILES: racingBucket(h.env.FILES, () =>
+          h.env.FILES.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep').then(
+            () => undefined,
+          ),
+        ),
+      },
+    )
+    const res = await racing.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: off,
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await h.env.FILES.get(`${userFilePrefix(id)}late-upload`)).toBeNull()
   })
 
   it('does nothing when keepFiles stays off or stays on', async () => {
@@ -383,6 +408,30 @@ describe('DELETE /api/me', () => {
 
     expect((await h.send({ path: '/api/me', cookies: { rca_session: alice } })).status).toBe(401)
     expect((await h.send({ path: '/api/me', cookies: { rca_session: bob } })).status).toBe(200)
+  })
+
+  it('sweeps again after the account row is gone, so a racing upload leaves nothing behind', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await userIdOf(h, token)
+    await createWithFile(h, token, 'a.fit', START)
+    const racing = createHarness(
+      {},
+      {
+        FILES: racingBucket(h.env.FILES, () =>
+          h.env.FILES.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep').then(
+            () => undefined,
+          ),
+        ),
+      },
+    )
+    const res = await racing.send({
+      method: 'DELETE',
+      path: '/api/me',
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(204)
+    expect(await h.env.FILES.list({ prefix: userFilePrefix(id) })).toMatchObject({ objects: [] })
   })
 
   it('keeps the account when its files cannot be removed, so the deletion can be retried', async () => {

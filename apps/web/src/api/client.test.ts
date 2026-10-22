@@ -242,10 +242,10 @@ describe('deleteAccount', () => {
 
 describe('listActivities', () => {
   it('lists every activity with no since parameter and restores NaN in the digests', async () => {
-    const fetchMock = stubFetch(respond(200, [RECORD_WIRE]))
+    const fetchMock = stubFetch(respond(200, { items: [RECORD_WIRE], nextCursor: null }))
     const records = await listActivities()
 
-    expect(callOf(fetchMock).path).toBe('/api/activities')
+    expect(callOf(fetchMock).path).toBe('/api/activities?limit=1000')
     expect(callOf(fetchMock).init.method).toBe('GET')
     expect(records).toHaveLength(1)
     const [record] = records
@@ -256,20 +256,51 @@ describe('listActivities', () => {
     expect(record?.digest.curve[0]?.heartRate).toBeNull()
   })
 
-  it('passes since as an epoch-millisecond query parameter', async () => {
-    const fetchMock = stubFetch(respond(200, []))
-    expect(await listActivities(1_700_000_000_000)).toEqual([])
-    expect(callOf(fetchMock).path).toBe('/api/activities?since=1700000000000')
+  it('follows nextCursor until a page says there is no more', async () => {
+    const second = { ...RECORD_WIRE, id: 'rec-2' }
+    const third = { ...RECORD_WIRE, id: 'rec-3' }
+    const fetchMock = stubFetch(
+      respond(200, { items: [RECORD_WIRE], nextCursor: 'c1' }),
+      respond(200, { items: [second], nextCursor: 'c2' }),
+      respond(200, { items: [third], nextCursor: null }),
+    )
+    const records = await listActivities()
+
+    expect(records.map((r) => r.id)).toEqual(['rec-1', 'rec-2', 'rec-3'])
+    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=1000')
+    expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=1000&cursor=c1')
+    expect(callOf(fetchMock, 2).path).toBe('/api/activities?limit=1000&cursor=c2')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps since on every page request', async () => {
+    const fetchMock = stubFetch(
+      respond(200, { items: [], nextCursor: 'c1' }),
+      respond(200, { items: [], nextCursor: null }),
+    )
+    await listActivities(1_700_000_000_000)
+    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=1000&since=1700000000000')
+    expect(callOf(fetchMock, 1).path).toBe(
+      '/api/activities?limit=1000&since=1700000000000&cursor=c1',
+    )
   })
 
   it('treats since of 0 as a parameter, not as missing', async () => {
-    const fetchMock = stubFetch(respond(200, []))
+    const fetchMock = stubFetch(respond(200, { items: [], nextCursor: null }))
     await listActivities(0)
-    expect(callOf(fetchMock).path).toBe('/api/activities?since=0')
+    expect(callOf(fetchMock).path).toBe('/api/activities?limit=1000&since=0')
   })
 
-  it('rejects a list that is not an array of records', async () => {
-    stubFetch(respond(200, { records: [] }))
+  it('stops with an error when the server repeats a cursor instead of looping forever', async () => {
+    stubFetch(
+      respond(200, { items: [], nextCursor: 'same' }),
+      respond(200, { items: [], nextCursor: 'same' }),
+    )
+    await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('rejects a list that is not a page of records', async () => {
+    stubFetch(respond(200, [RECORD_WIRE]))
     await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })

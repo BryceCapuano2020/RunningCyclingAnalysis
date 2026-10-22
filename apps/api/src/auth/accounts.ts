@@ -5,6 +5,7 @@ import type { Db } from '../env.ts'
 import { must } from '../util.ts'
 import { oauthAccounts, profiles, users } from '../db/schema.ts'
 import type { GoogleProfile } from './google.ts'
+import { HttpError } from '../errors.ts'
 
 export const GOOGLE_PROVIDER = 'google'
 
@@ -48,24 +49,19 @@ export async function buildMe(db: Db, deps: Deps, user: User): Promise<Me> {
   }
 }
 
-/** Creates the user with this email, or refreshes the existing one. */
-async function upsertUserByEmail(
+async function refreshUser(
+  db: Db,
+  id: string,
+  values: { name: string; pictureUrl: string | null },
+): Promise<UserRow> {
+  return must(await db.update(users).set(values).where(eq(users.id, id)).returning().get(), 'user')
+}
+
+async function createUser(
   db: Db,
   deps: Deps,
   values: { email: string; name: string; pictureUrl: string | null },
 ): Promise<UserRow> {
-  const found = await db.select().from(users).where(eq(users.email, values.email)).get()
-  if (found) {
-    return must(
-      await db
-        .update(users)
-        .set({ name: values.name, pictureUrl: values.pictureUrl })
-        .where(eq(users.id, found.id))
-        .returning()
-        .get(),
-      'user',
-    )
-  }
   return must(
     await db
       .insert(users)
@@ -92,25 +88,41 @@ export async function signInWithGoogle(
       ),
     )
     .get()
-
   if (link) {
-    return must(
-      await db
-        .update(users)
-        .set({ name: profile.name, pictureUrl: profile.pictureUrl })
-        .where(eq(users.id, link.userId))
-        .returning()
-        .get(),
-      'user',
-    )
+    return refreshUser(db, link.userId, { name: profile.name, pictureUrl: profile.pictureUrl })
   }
 
-  // The email is verified by Google, so an existing account with that email is the same person.
-  const user = await upsertUserByEmail(db, deps, {
-    email: profile.email,
-    name: profile.name,
-    pictureUrl: profile.pictureUrl,
-  })
+  // Google verifies the email, so an existing account with it is probably the same person. It is
+  // linked only when that account has no Google identity yet; otherwise a second Google account
+  // could take it over by claiming the same address.
+  const existing = await db.select().from(users).where(eq(users.email, profile.email)).get()
+  let user: UserRow
+  if (existing) {
+    const otherGoogle = await db
+      .select({ userId: oauthAccounts.userId })
+      .from(oauthAccounts)
+      .where(
+        and(eq(oauthAccounts.userId, existing.id), eq(oauthAccounts.provider, GOOGLE_PROVIDER)),
+      )
+      .get()
+    if (otherGoogle) {
+      throw new HttpError(
+        409,
+        'account_conflict',
+        'This email is already linked to a different Google account. Sign in with that account.',
+      )
+    }
+    user = await refreshUser(db, existing.id, {
+      name: profile.name,
+      pictureUrl: profile.pictureUrl,
+    })
+  } else {
+    user = await createUser(db, deps, {
+      email: profile.email,
+      name: profile.name,
+      pictureUrl: profile.pictureUrl,
+    })
+  }
   await db.insert(oauthAccounts).values({
     provider: GOOGLE_PROVIDER,
     providerUserId: profile.sub,
@@ -125,5 +137,7 @@ export async function signInDev(
   deps: Deps,
   input: { email: string; name: string },
 ): Promise<UserRow> {
-  return upsertUserByEmail(db, deps, { email: input.email, name: input.name, pictureUrl: null })
+  const existing = await db.select().from(users).where(eq(users.email, input.email)).get()
+  if (existing) return refreshUser(db, existing.id, { name: input.name, pictureUrl: null })
+  return createUser(db, deps, { email: input.email, name: input.name, pictureUrl: null })
 }

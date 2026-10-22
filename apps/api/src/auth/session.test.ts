@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createHarness, sessionCookie, sha256Token } from '../test/harness.ts'
+import {
+  countingDb,
+  createHarness,
+  sessionCookie,
+  sha256Token,
+  START,
+  testEnv,
+} from '../test/harness.ts'
 import { SESSION_REFRESH_WITHIN_MS, SESSION_TTL_MS } from './session.ts'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -120,5 +127,75 @@ describe('sessions', () => {
     })
     expect(res.status).toBe(204)
     expect((await h.send({ path: '/api/me', cookies: { rca_session: token } })).status).toBe(200)
+  })
+
+  it.each([
+    ['uppercase hex', 'A'.repeat(64)],
+    ['too short', 'a'.repeat(63)],
+    ['too long', 'a'.repeat(65)],
+    ['non-hex characters', 'z'.repeat(64)],
+    ['path traversal', '../../etc/passwd'],
+    ['empty', ''],
+  ])('reads a %s cookie without touching D1', async (_label, value) => {
+    const counted = countingDb(testEnv().DB)
+    const h = createHarness({}, { DB: counted.db })
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: value } })
+    expect(me.status).toBe(401)
+    const logout = await h.send({
+      method: 'POST',
+      path: '/api/auth/logout',
+      cookies: { rca_session: value },
+    })
+    expect(logout.status).toBe(204)
+    expect(counted.count()).toBe(0)
+  })
+
+  it('still looks up a well-formed token, which proves the counter sees D1 calls', async () => {
+    const counted = countingDb(testEnv().DB)
+    const h = createHarness({}, { DB: counted.db })
+    const token = await h.signIn()
+    counted.reset()
+    await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(counted.count()).toBeGreaterThan(0)
+  })
+
+  it('ends a session 90 days after creation, however regularly it is used', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const useAt = async (day: number) => {
+      h.clock.now = START + day * DAY
+      return (await h.send({ path: '/api/me', cookies: { rca_session: token } })).status
+    }
+    // Each use falls inside the 15-day refresh window, so the 30-day window keeps moving forward.
+    expect(await useAt(20)).toBe(200)
+    expect(await useAt(40)).toBe(200)
+    expect(await useAt(60)).toBe(200)
+    expect(await useAt(85)).toBe(200)
+    expect(await useAt(90)).toBe(401)
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first<{ n: number }>(),
+    ).toEqual({ n: 0 })
+  })
+
+  it('stops extending a session once the absolute end is reached', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const useAt = (day: number) => {
+      h.clock.now = START + day * DAY
+      return h.send({ path: '/api/me', cookies: { rca_session: token } })
+    }
+    await useAt(20)
+    await useAt(40)
+    const at60 = await useAt(60)
+    expect(sessionCookie(at60)).toBe(token)
+    const at80 = await useAt(80)
+    expect(at80.status).toBe(200)
+    expect(sessionCookie(at80)).toBeUndefined()
+    const row = await h.env.DB.prepare('SELECT expires_at, created_at FROM sessions').first<{
+      expires_at: number
+      created_at: number
+    }>()
+    expect(row?.created_at).toBe(START)
+    expect(row?.expires_at).toBe(START + 90 * DAY)
   })
 })

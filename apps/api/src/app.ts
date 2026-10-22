@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type Context, type Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { drizzle } from 'drizzle-orm/d1'
 import { apiError, HttpError } from './errors.ts'
@@ -21,6 +21,17 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
     c.set('user', null)
     await next()
   })
+  app.use('*', async (c, next) => {
+    await next()
+    c.res.headers.set('X-Content-Type-Options', 'nosniff')
+  })
+  // Session and account responses must never be cached by a browser or proxy.
+  const noStore = async (c: Context<AppEnv>, next: Next) => {
+    await next()
+    c.res.headers.set('Cache-Control', 'no-store')
+  }
+  app.use('/api/auth/*', noStore)
+  app.use('/api/me', noStore)
   app.use('/api/*', csrfGuard)
 
   app.onError((err, c) => {

@@ -8,13 +8,14 @@ import { HttpError } from '../errors.ts'
 import { parseGoogleIdToken } from '../auth/google.ts'
 import { buildMe, signInDev, signInWithGoogle } from '../auth/accounts.ts'
 import { createSession, endSession, isSecure } from '../auth/session.ts'
-import { invalidRequest } from '../http.ts'
+import { invalidRequest, limitBody } from '../http.ts'
 import { toBase64Url, toHex } from '../util.ts'
 
 const STATE_COOKIE = 'rca_oauth_state'
 const VERIFIER_COOKIE = 'rca_oauth_verifier'
 const OAUTH_COOKIE_PATH = '/api/auth/google'
 const OAUTH_COOKIE_MAX_AGE_S = 10 * 60
+const DEV_LOGIN_BODY_BYTES = 4 * 1024
 
 export const authRoutes = new Hono<AppEnv>()
 
@@ -72,6 +73,7 @@ authRoutes.get('/google/callback', async (c) => {
 authRoutes.post(
   '/dev-login',
   devOnly,
+  limitBody(DEV_LOGIN_BODY_BYTES),
   zValidator('json', DevLoginSchema, (result, c) => {
     if (!result.success) return c.json(invalidRequest(result.error), 400)
   }),

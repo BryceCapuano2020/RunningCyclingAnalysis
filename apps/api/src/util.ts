@@ -18,3 +18,12 @@ export function must<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new Error(`${what} missing after write`)
   return value
 }
+
+export function fromBase64UrlUtf8(input: string): string {
+  const base64 = input
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(Math.ceil(input.length / 4) * 4, '=')
+  const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}

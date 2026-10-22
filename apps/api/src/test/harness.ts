@@ -184,7 +184,7 @@ export function createHarness(
 /** Extracts the rca_session value from a response's Set-Cookie headers. */
 export function sessionCookie(res: Response): string | undefined {
   for (const line of res.headers.getSetCookie()) {
-    const match = /^rca_session=([^;]*)/.exec(line)
+    const match = /^(?:__Host-)?rca_session=([^;]*)/.exec(line)
     if (match?.[1]) return match[1]
   }
   return undefined
@@ -240,3 +240,43 @@ export function digestFixture(
 }
 
 export const START = START_MS
+
+/** Wraps a D1 binding and counts calls that reach the database. */
+export function countingDb(target: D1Database): { db: D1Database; count(): number; reset(): void } {
+  let calls = 0
+  const counted = new Set(['prepare', 'batch', 'exec', 'dump'])
+  const db = new Proxy(target, {
+    get(obj, prop) {
+      const value: unknown = Reflect.get(obj, prop, obj)
+      if (typeof prop === 'string' && counted.has(prop) && typeof value === 'function') {
+        return (...args: unknown[]) => {
+          calls += 1
+          return Reflect.apply(value, obj, args)
+        }
+      }
+      return typeof value === 'function' ? value.bind(obj) : value
+    },
+  })
+  return { db, count: () => calls, reset: () => (calls = 0) }
+}
+
+/** Runs onFirstDelete once, right after the first R2 delete: a stand-in for an upload that races it. */
+export function racingBucket(target: R2Bucket, onFirstDelete: () => Promise<void>): R2Bucket {
+  let fired = false
+  return new Proxy(target, {
+    get(obj, prop) {
+      const value: unknown = Reflect.get(obj, prop, obj)
+      if (prop === 'delete' && typeof value === 'function') {
+        return async (keys: string | string[]) => {
+          const result: unknown = await Reflect.apply(value, obj, [keys])
+          if (!fired) {
+            fired = true
+            await onFirstDelete()
+          }
+          return result
+        }
+      }
+      return typeof value === 'function' ? value.bind(obj) : value
+    },
+  })
+}
