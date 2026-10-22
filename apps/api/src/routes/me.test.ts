@@ -21,6 +21,13 @@ async function createWithFile(
   fileName: string,
   startMs: number,
 ): Promise<string> {
+  const enabled = await h.send({
+    method: 'PUT',
+    path: '/api/profile',
+    json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+    cookies: { rca_session: token },
+  })
+  expect(enabled.status).toBe(200)
   const content = new TextEncoder().encode(`ride ${fileName}`)
   const created = await h.send({
     method: 'POST',
@@ -65,7 +72,8 @@ describe('GET /api/me', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       user: { id: expect.any(String), email: 'rider@example.com', name: 'Rider', pictureUrl: null },
-      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true, updatedAt: START },
+      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false, updatedAt: START },
+      fileRetentionAvailable: true,
     })
   })
 
@@ -74,12 +82,116 @@ describe('GET /api/me', () => {
     const token = await h.signIn()
     await h.env.DB.prepare('DELETE FROM profiles').run()
     const res = await h.send({ path: '/api/me', cookies: { rca_session: token } })
-    expect(await res.json()).toMatchObject({ profile: { massKg: 75, keepFiles: true } })
+    expect(await res.json()).toMatchObject({ profile: { massKg: 75, keepFiles: false } })
     expect(await countRows(h, 'profiles')).toBe(1)
+  })
+
+  it('reports unavailable retention and keeps new profiles off in a D1-only deployment', async () => {
+    const h = createHarness({}, { FILES: undefined })
+    const token = await h.signIn()
+    const res = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      profile: { keepFiles: false },
+      fileRetentionAvailable: false,
+    })
   })
 })
 
 describe('PUT /api/profile', () => {
+  it('rejects enabling retention without R2 but accepts unrelated edits to a legacy enabled profile', async () => {
+    const r2 = createHarness()
+    const token = await r2.signIn()
+    const enabled = await r2.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...profileInput, keepFiles: true },
+      cookies: { rca_session: token },
+    })
+    expect(enabled.status).toBe(200)
+
+    const d1Only = createHarness({}, { FILES: undefined })
+    const noR2Enable = await d1Only.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...profileInput, keepFiles: true },
+      cookies: { rca_session: token },
+    })
+    // This account is already enabled, so an unchanged preference remains editable.
+    expect(noR2Enable.status).toBe(200)
+
+    const fresh = await d1Only.signIn('fresh@example.com')
+    const refused = await d1Only.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...profileInput, keepFiles: true },
+      cookies: { rca_session: fresh },
+    })
+    expect(refused.status).toBe(503)
+    expect(await refused.json()).toMatchObject({ error: { code: 'file_storage_unavailable' } })
+    const me = await d1Only.send({ path: '/api/me', cookies: { rca_session: fresh } })
+    expect(await me.json()).toMatchObject({ profile: { keepFiles: false } })
+  })
+
+  it('preserves existing files and profile when a D1-only deployment cannot turn retention off', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const file = await createWithFile(h, token, 'a.fit', START)
+    const id = await userIdOf(h, token)
+    const d1Only = createHarness({}, { FILES: undefined })
+    const refused = await d1Only.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...profileInput, keepFiles: false },
+      cookies: { rca_session: token },
+    })
+    expect(refused.status).toBe(503)
+    const me = await d1Only.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({ profile: { keepFiles: true } })
+    expect(await h.env.FILES!.get(activityFileKey(id, file))).not.toBeNull()
+
+    const download = await d1Only.send({
+      path: `/api/activities/${file}/file`,
+      cookies: { rca_session: token },
+    })
+    expect(download.status).toBe(503)
+    expect(await download.json()).toMatchObject({ error: { code: 'file_storage_unavailable' } })
+
+    const deletion = await d1Only.send({
+      method: 'DELETE',
+      path: '/api/me',
+      cookies: { rca_session: token },
+    })
+    expect(deletion.status).toBe(503)
+    expect(await countRows(d1Only, 'users')).toBe(1)
+  })
+
+  it('leaves the profile and files unchanged when global cleanup headroom is exhausted', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const file = await createWithFile(h, token, 'a.fit', START)
+    const id = await userIdOf(h, token)
+    await h.env.DB.prepare(
+      'UPDATE r2_storage_budget SET monthly_period = ?, monthly_operations = ?',
+    )
+      .bind('2026-01', 100_000)
+      .run()
+
+    const refused = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false },
+      cookies: { rca_session: token },
+    })
+    expect(refused.status).toBe(429)
+    expect(await refused.json()).toMatchObject({
+      error: { code: 'storage_budget_exhausted' },
+    })
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({ profile: { keepFiles: true } })
+    expect(await h.env.FILES!.get(activityFileKey(id, file))).not.toBeNull()
+  })
+
   it('saves the profile and stamps updatedAt', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -183,7 +295,7 @@ describe('PUT /api/profile', () => {
       cookies: { rca_session: alice },
     })
     const bobMe = await h.send({ path: '/api/me', cookies: { rca_session: bob } })
-    expect(await bobMe.json()).toMatchObject({ profile: { massKg: 75, keepFiles: true } })
+    expect(await bobMe.json()).toMatchObject({ profile: { massKg: 75, keepFiles: false } })
   })
 })
 
@@ -210,9 +322,9 @@ describe('turning keepFiles off', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ keepFiles: false })
 
-    expect(await h.env.FILES.get(activityFileKey(aliceId, first))).toBeNull()
-    expect(await h.env.FILES.get(activityFileKey(aliceId, second))).toBeNull()
-    expect(await h.env.FILES.get(activityFileKey(bobId, bobFile))).not.toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(aliceId, first))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(aliceId, second))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(bobId, bobFile))).not.toBeNull()
 
     const rows = await h.env.DB.prepare(
       'SELECT file_key, file_size FROM activities WHERE user_id = ?',
@@ -246,10 +358,10 @@ describe('turning keepFiles off', () => {
     const racing = createHarness(
       {},
       {
-        FILES: racingBucket(h.env.FILES, () =>
-          h.env.FILES.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep').then(
-            () => undefined,
-          ),
+        FILES: racingBucket(h.env.FILES!, () =>
+          h.env
+            .FILES!.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep')
+            .then(() => undefined),
         ),
       },
     )
@@ -260,7 +372,7 @@ describe('turning keepFiles off', () => {
       cookies: { rca_session: token },
     })
     expect(res.status).toBe(200)
-    expect(await h.env.FILES.get(`${userFilePrefix(id)}late-upload`)).toBeNull()
+    expect(await h.env.FILES!.get(`${userFilePrefix(id)}late-upload`)).toBeNull()
   })
 
   it('does nothing when keepFiles stays off or stays on', async () => {
@@ -274,7 +386,7 @@ describe('turning keepFiles off', () => {
       json: off,
       cookies: { rca_session: token },
     })
-    await h.env.FILES.put(`${userFilePrefix(id)}stray`, 'keep me')
+    await h.env.FILES!.put(`${userFilePrefix(id)}stray`, 'keep me')
 
     expect(
       (
@@ -306,7 +418,7 @@ describe('turning keepFiles off', () => {
         })
       ).status,
     ).toBe(200)
-    expect(await h.env.FILES.get(`${userFilePrefix(id)}stray`)).not.toBeNull()
+    expect(await h.env.FILES!.get(`${userFilePrefix(id)}stray`)).not.toBeNull()
   })
 
   it('does not touch storage at all when keepFiles was already off', async () => {
@@ -351,7 +463,7 @@ describe('turning keepFiles off', () => {
       profile: { keepFiles: boolean }
     }
     expect(me.profile.keepFiles).toBe(true)
-    expect(await h.env.FILES.get(activityFileKey(id, file))).not.toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(id, file))).not.toBeNull()
     const download = await h.send({
       path: `/api/activities/${file}/file`,
       cookies: { rca_session: token },
@@ -365,7 +477,7 @@ describe('turning keepFiles off', () => {
       cookies: { rca_session: token },
     })
     expect(retry.status).toBe(200)
-    expect(await h.env.FILES.get(activityFileKey(id, file))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(id, file))).toBeNull()
     spy.mockRestore()
   })
 })
@@ -392,14 +504,14 @@ describe('DELETE /api/me', () => {
     const bobId = await userIdOf(h, bob)
     const aliceAct = await createWithFile(h, alice, 'a.fit', START)
     const bobAct = await createWithFile(h, bob, 'b.fit', START + 3_600_000)
-    expect(await h.env.FILES.get(activityFileKey(aliceId, aliceAct))).not.toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(aliceId, aliceAct))).not.toBeNull()
 
     const res = await h.send({ method: 'DELETE', path: '/api/me', cookies: { rca_session: alice } })
     expect(res.status).toBe(204)
     expect(res.headers.get('set-cookie')).toMatch(/^rca_session=;/)
 
-    expect(await h.env.FILES.get(activityFileKey(aliceId, aliceAct))).toBeNull()
-    expect(await h.env.FILES.get(activityFileKey(bobId, bobAct))).not.toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(aliceId, aliceAct))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(bobId, bobAct))).not.toBeNull()
     expect(await countRows(h, 'users')).toBe(1)
     expect(await countRows(h, 'activities', aliceId)).toBe(0)
     expect(await countRows(h, 'sessions', aliceId)).toBe(0)
@@ -418,10 +530,10 @@ describe('DELETE /api/me', () => {
     const racing = createHarness(
       {},
       {
-        FILES: racingBucket(h.env.FILES, () =>
-          h.env.FILES.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep').then(
-            () => undefined,
-          ),
+        FILES: racingBucket(h.env.FILES!, () =>
+          h.env
+            .FILES!.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep')
+            .then(() => undefined),
         ),
       },
     )
@@ -431,7 +543,7 @@ describe('DELETE /api/me', () => {
       cookies: { rca_session: token },
     })
     expect(res.status).toBe(204)
-    expect(await h.env.FILES.list({ prefix: userFilePrefix(id) })).toMatchObject({ objects: [] })
+    expect(await h.env.FILES!.list({ prefix: userFilePrefix(id) })).toMatchObject({ objects: [] })
   })
 
   it('cleans up a real R2 upload that finishes after account deletion', async () => {
@@ -443,7 +555,7 @@ describe('DELETE /api/me', () => {
     const putGate = new Promise<void>((resolve) => {
       releasePut = resolve
     })
-    const files = new Proxy(testEnv().FILES, {
+    const files = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {
@@ -459,6 +571,13 @@ describe('DELETE /api/me', () => {
     const h = createHarness({}, { FILES: files })
     const token = await h.signIn()
     const uid = await userIdOf(h, token)
+    const enabled = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      cookies: { rca_session: token },
+    })
+    expect(enabled.status).toBe(200)
     const content = new TextEncoder().encode('racing account deletion upload')
     const created = await h.send({
       method: 'POST',
@@ -488,7 +607,7 @@ describe('DELETE /api/me', () => {
     releasePut()
 
     expect((await upload).status).toBe(404)
-    expect(await h.env.FILES.list({ prefix: userFilePrefix(uid) })).toMatchObject({ objects: [] })
+    expect(await h.env.FILES!.list({ prefix: userFilePrefix(uid) })).toMatchObject({ objects: [] })
   })
 
   it('keeps the account when its files cannot be removed, so the deletion can be retried', async () => {

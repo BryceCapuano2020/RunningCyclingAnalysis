@@ -22,7 +22,7 @@ import { ensureProfile } from '../auth/accounts.ts'
 import { currentUser, requireUser } from '../middleware.ts'
 import { contentDisposition, invalidRequest, limitBody, readBody } from '../http.ts'
 import { decodeCursor, encodeCursor } from '../cursor.ts'
-import { activityFileKey } from '../storage.ts'
+import { activityFileKey, getOriginalFile, putOriginalFile } from '../storage.ts'
 import { activities } from '../db/schema.ts'
 import { must, sha256Hex } from '../util.ts'
 
@@ -287,6 +287,15 @@ activityRoutes.put('/:id/file', requireUser, async (c) => {
   const userId = currentUser(c).id
   const row = await findOwnedActivity(db, userId, c.req.param('id'))
 
+  // Do not reserve quota or create a default profile in deployments without file storage.
+  if (!c.env.FILES) {
+    throw new HttpError(
+      503,
+      'file_storage_unavailable',
+      'Original-file storage is not available in this deployment',
+    )
+  }
+
   const profile = await ensureProfile(db, userId, deps.now())
   if (!profile.keepFiles) {
     throw new HttpError(409, 'files_disabled', 'Original files are turned off in your profile')
@@ -330,9 +339,17 @@ activityRoutes.put('/:id/file', requireUser, async (c) => {
   // and size, so it reuses this reservation; releasing it here could let another activity take
   // the quota while a parallel retry is still in flight. Deleting the activity or disabling
   // file retention releases the reservation.
-  await c.env.FILES.put(key, body, {
-    httpMetadata: { contentType: 'application/octet-stream' },
-  })
+  await putOriginalFile(
+    c.env.DB,
+    c.env.FILES,
+    key,
+    body,
+    {
+      httpMetadata: { contentType: 'application/octet-stream' },
+      storageClass: 'Standard',
+    },
+    deps.now,
+  )
   const updated = await db
     .update(activities)
     .set({ fileKey: key, fileSize: body.byteLength })
@@ -369,8 +386,15 @@ activityRoutes.get('/:id/file', requireUser, async (c) => {
   const { db } = c.var
   const row = await findOwnedActivity(db, currentUser(c).id, c.req.param('id'))
   if (!row.fileKey) throw new HttpError(404, 'no_file', 'This activity has no stored file')
+  if (!c.env.FILES) {
+    throw new HttpError(
+      503,
+      'file_storage_unavailable',
+      'Original-file storage is not available in this deployment',
+    )
+  }
 
-  const object = await c.env.FILES.get(row.fileKey)
+  const object = await getOriginalFile(c.env.DB, c.env.FILES, row.fileKey, c.var.deps.now)
   if (!object) throw new HttpError(404, 'no_file', 'The stored file is missing')
 
   return new Response(object.body, {
@@ -387,9 +411,16 @@ activityRoutes.delete('/:id', requireUser, async (c) => {
   const { db } = c.var
   const userId = currentUser(c).id
   const row = await findOwnedActivity(db, userId, c.req.param('id'))
+  if (!c.env.FILES && (row.fileKey !== null || row.fileSize !== null)) {
+    throw new HttpError(
+      503,
+      'file_storage_unavailable',
+      'Original files must be available before this activity can be deleted',
+    )
+  }
   // The deterministic key also cleans up an object if R2 accepted a write but its request failed
   // before the database row recorded fileKey.
-  await c.env.FILES.delete(activityFileKey(userId, row.id))
+  if (c.env.FILES) await c.env.FILES.delete(activityFileKey(userId, row.id))
   await db.delete(activities).where(eq(activities.id, row.id))
   return c.body(null, 204)
 })

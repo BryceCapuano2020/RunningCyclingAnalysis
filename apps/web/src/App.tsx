@@ -38,6 +38,7 @@ export function App() {
   const account = useAccount()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
+  const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
   const userId = account.me?.user.id ?? null
   const profileEditRef = useRef<{ userId: string | null; input: ProfileInput | null }>({
     userId,
@@ -140,6 +141,7 @@ export function App() {
       <SyncStatus
         uploading={analysis.uploading}
         failures={analysis.state.syncFailures}
+        storageBudgetExceeded={analysis.storageBudgetExceeded}
         signedIn={signedIn}
       />
       {signedIn && analysis.state.outdatedActivities > 0 && (
@@ -151,11 +153,18 @@ export function App() {
             from these results.
           </p>
           {analysis.rebuildNotice && <p role="status">{analysis.rebuildNotice}</p>}
+          {!fileRetentionAvailable && (
+            <p>
+              Original file storage is unavailable on this deployment, so saved activities cannot be
+              rebuilt from the library. Import the original FIT files to update them; existing saved
+              originals are not deleted.
+            </p>
+          )}
           <button
             type="button"
             className="btn"
             onClick={analysis.rebuildSavedActivities}
-            disabled={analysis.busy}
+            disabled={analysis.busy || !fileRetentionAvailable}
           >
             {analysis.busy ? 'Rebuilding saved activities…' : 'Rebuild saved activities'}
           </button>
@@ -269,10 +278,18 @@ export function App() {
                 <input
                   type="checkbox"
                   checked={keepFiles}
+                  disabled={!fileRetentionAvailable}
                   onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
                 />
                 Keep original files in my library
               </label>
+            )}
+            {signedIn && !fileRetentionAvailable && (
+              <p role="status">
+                Original file storage is unavailable on this deployment. Your saved preference is
+                preserved; new imports save summaries only and original files stay on this device.
+                Existing saved originals are not deleted.
+              </p>
             )}
             <RangePicker
               rangeDays={rangeDays}
@@ -366,7 +383,11 @@ export function App() {
       )}
 
       <footer className="app__footer muted">
-        <PrivacyNote signedIn={signedIn} keepFiles={keepFiles} />
+        <PrivacyNote
+          signedIn={signedIn}
+          keepFiles={keepFiles}
+          fileRetentionAvailable={fileRetentionAvailable}
+        />
       </footer>
     </div>
   )

@@ -27,6 +27,8 @@ export type User = z.infer<typeof UserSchema>
 export const MeSchema = z.object({
   user: UserSchema,
   profile: ProfileSchema,
+  /** False when this deployment has no original-file storage binding; absent means legacy available. */
+  fileRetentionAvailable: z.boolean().optional(),
 })
 export type Me = z.infer<typeof MeSchema>
 

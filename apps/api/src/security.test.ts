@@ -6,6 +6,12 @@ describe('response headers', () => {
   it('sets nosniff on a raw file download too', async () => {
     const h = createHarness()
     const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      cookies: { rca_session: token },
+    })
     const content = new TextEncoder().encode('<html>not really</html>')
     const created = await h.send({
       method: 'POST',
@@ -125,6 +131,12 @@ describe('malformed Content-Length', () => {
   it('rejects a malformed length on the upload route with 400, not 500', async () => {
     const h = createHarness()
     const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      cookies: { rca_session: token },
+    })
     const created = await h.send({
       method: 'POST',
       path: '/api/activities',

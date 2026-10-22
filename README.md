@@ -44,8 +44,10 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
 - **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
   example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
 - **Accounts and sync.** Sign in with Google to keep your profile and activity library on
-  Cloudflare. Per-activity digests are stored in D1 and original files in R2, only if you choose to
-  keep them. Each user sees only their own data, and deleting the account removes it.
+  Cloudflare. Per-activity digests are stored in D1; original files stay on your device by default.
+  Users can opt in to R2 retention subject to per-user and application-wide limits. Direct bucket
+  access outside the app is not covered by those limits and could incur charges. Each user sees
+  only their own data, and deleting the account removes it.
 
 The system design is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and planned work is
 in [docs/ROADMAP.md](docs/ROADMAP.md). Operational limits, release gates and remaining launch
@@ -138,7 +140,7 @@ apps/web/            @rca/web: React + Vite app
   src/ui/            React components and hand-written SVG charts
   e2e/               Playwright tests
   scripts/           FIT fixture and README screenshot generators
-apps/api/            @rca/api: Cloudflare Worker API with Hono, D1 and R2 (in progress)
+apps/api/            @rca/api: Cloudflare Worker API with Hono, D1 and R2
 docs/                architecture, roadmap and README screenshots
 ```
 
@@ -147,9 +149,12 @@ a dependency audit on every push and pull request.
 
 ## Deploy
 
-The whole app runs as one Cloudflare Worker on the free tier: the web app is served as static
-assets and the API lives under `/api`, so everything shares one `workers.dev` origin. Setup,
-Google sign-in, local development with real sign-in, costs and rollback are in
+The deployment uses Cloudflare Workers Free and D1 Free, plus a dedicated R2 Standard bucket; it
+does not enroll in Workers Paid. The web app is served as static assets and the API lives under
+`/api`, so everything shares one `workers.dev` origin. Worker and D1 limits are hard quotas: when
+exceeded, requests fail until limits reset or storage is freed. Application-level R2 limits cap
+app-handled traffic, but do not protect against direct bucket access or guarantee zero charges.
+Setup, Google sign-in, local development with real sign-in, costs and rollback are in
 [docs/DEPLOY.md](docs/DEPLOY.md). Deploys run with `npm run deploy`, or manually from the
 **Deploy** workflow in GitHub Actions.
 

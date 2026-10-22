@@ -30,6 +30,17 @@ async function createActivity(
   overrides: Record<string, unknown> = {},
   digest: Record<string, unknown> = {},
 ): Promise<Response> {
+  // Most activity route tests exercise the paired R2 deployment. D1-only cases below opt out
+  // explicitly by constructing a harness without FILES.
+  if (h.env.FILES) {
+    const enabled = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      ...as(token),
+    })
+    expect(enabled.status).toBe(200)
+  }
   return h.send({
     method: 'POST',
     path: '/api/activities',
@@ -380,6 +391,47 @@ describe('GET /api/activities', () => {
 })
 
 describe('original file upload and download', () => {
+  it('blocks file writes and destructive operations that would discard file references without R2', async () => {
+    const h = createHarness({}, { FILES: undefined })
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const uid = await userId(h, token)
+
+    const upload = await h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    expect(upload.status).toBe(503)
+    expect(await upload.json()).toMatchObject({ error: { code: 'file_storage_unavailable' } })
+    expect(
+      await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
+        .bind(id)
+        .first(),
+    ).toEqual({ file_key: null, file_size: null })
+
+    const key = activityFileKey(uid, id)
+    await h.env.DB.prepare('UPDATE activities SET file_key = ?, file_size = ? WHERE id = ?')
+      .bind(key, CONTENT.byteLength, id)
+      .run()
+    const download = await h.send({ path: `/api/activities/${id}/file`, ...as(token) })
+    expect(download.status).toBe(503)
+    const deletion = await h.send({ method: 'DELETE', path: `/api/activities/${id}`, ...as(token) })
+    expect(deletion.status).toBe(503)
+    expect(
+      await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
+        .bind(id)
+        .first(),
+    ).toEqual({ file_key: key, file_size: CONTENT.byteLength })
+
+    const metadataOnly = await idOf(await createActivity(h, token, {}, { startMs: START + 60_000 }))
+    expect(
+      (await h.send({ method: 'DELETE', path: `/api/activities/${metadataOnly}`, ...as(token) }))
+        .status,
+    ).toBe(204)
+  })
+
   it('stores the file in R2 under the user prefix and serves it back', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -394,7 +446,7 @@ describe('original file upload and download', () => {
     })
     expect(put.status).toBe(200)
     expect(await put.json()).toMatchObject({ id, hasFile: true, fileSize: CONTENT.byteLength })
-    const stored = await h.env.FILES.get(activityFileKey(uid, id))
+    const stored = await h.env.FILES!.get(activityFileKey(uid, id))
     expect(stored).not.toBeNull()
     expect(new Uint8Array((await stored?.arrayBuffer()) ?? [])).toEqual(CONTENT)
 
@@ -432,7 +484,7 @@ describe('original file upload and download', () => {
     const putGate = new Promise<void>((resolve) => {
       releasePut = resolve
     })
-    const files = new Proxy(testEnv().FILES, {
+    const files = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {
@@ -463,7 +515,7 @@ describe('original file upload and download', () => {
 
     const uploaded = await upload
     expect(uploaded.status).toBe(404)
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).toBeNull()
   })
 
   it('does not restore file metadata when files are disabled during an in-flight upload', async () => {
@@ -475,7 +527,7 @@ describe('original file upload and download', () => {
     const putGate = new Promise<void>((resolve) => {
       releasePut = resolve
     })
-    const files = new Proxy(testEnv().FILES, {
+    const files = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {
@@ -510,7 +562,7 @@ describe('original file upload and download', () => {
     releasePut()
 
     expect((await upload).status).toBe(409)
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).toBeNull()
     expect(
       await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
         .bind(id)
@@ -528,7 +580,7 @@ describe('original file upload and download', () => {
       failFirstPut = resolve
     })
     let puts = 0
-    const files = new Proxy(testEnv().FILES, {
+    const files = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {
@@ -566,7 +618,7 @@ describe('original file upload and download', () => {
     expect(succeeded.status).toBe(200)
     failFirstPut()
     expect((await failed).status).toBe(500)
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).not.toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).not.toBeNull()
     expect(
       await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
         .bind(id)
@@ -593,7 +645,7 @@ describe('original file upload and download', () => {
     })
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ error: { code: 'files_disabled' } })
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).toBeNull()
   })
 
   it('rejects content whose SHA-256 does not match the digest with 422, and stores nothing', async () => {
@@ -609,7 +661,7 @@ describe('original file upload and download', () => {
     })
     expect(res.status).toBe(422)
     expect(await res.json()).toMatchObject({ error: { code: 'hash_mismatch' } })
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).toBeNull()
     const list = (await (await h.send({ path: '/api/activities', ...as(token) })).json()) as {
       items: { hasFile: boolean }[]
     }
@@ -675,7 +727,7 @@ describe('original file upload and download', () => {
     })
     expect(res.status).toBe(413)
     expect(await res.json()).toMatchObject({ error: { code: 'payload_too_large' } })
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).toBeNull()
   })
 
   it('returns 404 for an unknown activity on upload, download and delete', async () => {
@@ -698,7 +750,7 @@ describe('original file upload and download', () => {
     expect(await none.json()).toMatchObject({ error: { code: 'no_file' } })
 
     await h.send({ method: 'PUT', path: `/api/activities/${id}/file`, raw: CONTENT, ...as(token) })
-    await h.env.FILES.delete(activityFileKey(await userId(h, token), id))
+    await h.env.FILES!.delete(activityFileKey(await userId(h, token), id))
     const gone = await h.send({ path: `/api/activities/${id}/file`, ...as(token) })
     expect(gone.status).toBe(404)
     expect(await gone.json()).toMatchObject({ error: { code: 'no_file' } })
@@ -713,7 +765,7 @@ describe('original file upload and download', () => {
 
     const res = await h.send({ method: 'DELETE', path: `/api/activities/${id}`, ...as(token) })
     expect(res.status).toBe(204)
-    expect(await h.env.FILES.get(activityFileKey(uid, id))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, id))).toBeNull()
     expect(await (await h.send({ path: '/api/activities', ...as(token) })).json()).toEqual({
       items: [],
       nextCursor: null,
@@ -774,7 +826,7 @@ describe('cross-user isolation', () => {
       items: { id: string; hasFile: boolean }[]
     }
     expect(alicesList.items).toMatchObject([{ id, hasFile: true }])
-    expect(await h.env.FILES.get(activityFileKey(aliceId, id))).not.toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(aliceId, id))).not.toBeNull()
     const download = await h.send({ path: `/api/activities/${id}/file`, ...as(alice) })
     expect(download.status).toBe(200)
   })
@@ -1013,7 +1065,7 @@ describe('per-user quotas', () => {
     })
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ error: { code: 'storage_quota' } })
-    expect(await h.env.FILES.get(activityFileKey(uid, over))).toBeNull()
+    expect(await h.env.FILES!.get(activityFileKey(uid, over))).toBeNull()
 
     const stored = await h.send({
       method: 'PUT',
@@ -1040,7 +1092,7 @@ describe('per-user quotas', () => {
     const putGate = new Promise<void>((resolve) => {
       releasePut = resolve
     })
-    const files = new Proxy(testEnv().FILES, {
+    const files = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {
@@ -1103,7 +1155,7 @@ describe('per-user quotas', () => {
       finishSecondPut = resolve
     })
     let puts = 0
-    const files = new Proxy(testEnv().FILES, {
+    const files = new Proxy(testEnv().FILES!, {
       get(target, property) {
         if (property === 'put') {
           return async (...args: Parameters<R2Bucket['put']>) => {

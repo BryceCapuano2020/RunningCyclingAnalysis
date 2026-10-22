@@ -47,3 +47,8 @@ decoded message collection from `Decoder.read()`; the two-million-record check h
 after that call, so the 64 MiB FIT-file ceiling—not the record-count ceiling—bounds the SDK's
 transient decoded-message allocation. These are remaining implementation limits; a stream with
 small source chunks and a streaming FIT decoder would tighten them.
+
+This benchmark covers local digest construction and combination, not Cloudflare D1 or R2 request
+costs, latency, or quota behavior. Production per-user retention limits and app-wide R2 byte and
+operation budgets are documented in [PRODUCTION.md](PRODUCTION.md); they do not constrain direct
+bucket access outside the application.

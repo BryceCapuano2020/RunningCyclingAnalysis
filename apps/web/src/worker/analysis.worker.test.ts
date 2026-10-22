@@ -2,9 +2,10 @@ import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { sampleDataset } from '@rca/core/synthetic'
-import type { ActivityDigest } from '@rca/core/types'
+import type { Activity, ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
+import { ApiRequestError } from '../api/client'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 const limits = vi.hoisted(() => ({ maxFileBytes: 50 * 1024 * 1024 }))
@@ -19,17 +20,22 @@ vi.mock('@rca/contract', async (importOriginal) => {
   }
 })
 
-vi.mock('../api/client', () => ({
-  createActivity: vi.fn(),
-  downloadActivityFile: vi.fn(),
-  listActivities: vi.fn(),
-  uploadFile: vi.fn(),
-}))
+vi.mock('../api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/client')>()
+  return {
+    ...actual,
+    createActivity: vi.fn(),
+    downloadActivityFile: vi.fn(),
+    listActivities: vi.fn(),
+    uploadFile: vi.fn(),
+  }
+})
 
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
-const [sampleActivity] = sampleDataset().activities
+const [sampleActivity, secondSampleActivity] = sampleDataset().activities
 if (sampleActivity === undefined) throw new Error('The sample has no activities')
+if (secondSampleActivity === undefined) throw new Error('The sample has fewer than two activities')
 const RUN_FILE_BYTES = new Uint8Array(encodeFit(sampleActivity, { gps: true }))
 const SAMPLE_DIGEST = digestActivity(sampleActivity)
 
@@ -76,8 +82,10 @@ async function startWorker() {
   return { send }
 }
 
-function fitFile(): File {
-  return new File([RUN_FILE_BYTES], 'run.fit')
+function fitFile(activity?: Activity, name = 'run.fit'): File {
+  const source = activity ?? sampleActivity
+  if (source === undefined) throw new Error('The sample has no activities')
+  return new File([new Uint8Array(encodeFit(source, { gps: true }))], name)
 }
 
 beforeEach(() => {
@@ -153,6 +161,27 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages).toContainEqual({ type: 'progress', filesRead: 1, uploaded: 1 })
+  })
+
+  it('reports a storage allowance failure and does not retry remaining original uploads', async () => {
+    mocked.uploadFile.mockRejectedValueOnce(
+      new ApiRequestError(429, 'storage_budget_exhausted', 'Storage allowance reached'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(messages).toContainEqual({ type: 'storageBudgetExceeded' })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncFailures: 2, totalActivities: 2 },
+    })
   })
 
   it('does not upload when the saved activity already has its file', async () => {

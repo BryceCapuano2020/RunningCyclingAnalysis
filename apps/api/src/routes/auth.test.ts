@@ -82,9 +82,10 @@ describe('GET /api/auth/google/callback', () => {
         massKg: 75,
         bikeMassKg: 9,
         units: 'imperial',
-        keepFiles: true,
+        keepFiles: false,
         updatedAt: h.clock.now,
       },
+      fileRetentionAvailable: true,
     })
     const cleared = res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))
     expect(cleared).toHaveLength(2)
@@ -325,7 +326,8 @@ describe('POST /api/auth/dev-login', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({
       user: { email: 'dev@example.com', name: 'Dev', pictureUrl: null },
-      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false },
+      fileRetentionAvailable: true,
     })
     expect(sessionCookie(res)).toBeTruthy()
   })

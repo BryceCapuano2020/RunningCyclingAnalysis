@@ -1,22 +1,32 @@
 # Deploying RunningCycling to Cloudflare
 
-The whole app runs as one Cloudflare Worker. The Worker serves the built web app as static files
-and the API under `/api`, so both share one origin: `https://<worker>.<your-subdomain>.workers.dev`.
-Session cookies work without a custom domain. The architecture targets the free plan, but
-large-library CPU and storage usage still need measurement before relying on that budget.
+The deployment runs on Cloudflare Workers Free and D1 Free with a dedicated R2 Standard bucket. It
+does not enroll in Workers Paid. The Worker serves the built web app as static files and the API under
+`/api`, so both share one origin: `https://<worker>.<your-subdomain>.workers.dev`. Session cookies
+work without a custom domain. Static asset requests are free; API requests and database queries use
+the free plan's hard quotas. Requests and queries fail when those quotas are exceeded, rather than
+automatically upgrading the account. This is a usage-capped deployment, not a guarantee of
+continuous availability.
 
 Names used below (from `apps/api/wrangler.toml`):
 
 - Worker: `rca-api`. Its public address is `https://rca-api.<your-subdomain>.workers.dev`. Wherever
   this guide says `<worker-url>`, use that address, with no trailing slash.
-- D1 database: `rca`. R2 bucket: `rca-files`.
+- D1 database: `rca`.
+- R2 bucket: `rca-files` (private and dedicated to this application).
+
+Original activity files stay on the user's device by default. Users can opt in to retaining
+originals in R2, subject to per-user limits and app-wide R2 operation and byte budgets. Those code
+limits apply only to requests made through this Worker; they do not constrain other clients,
+dashboard access, or direct bucket/API usage. R2 may be billed above its free allowance, so these
+limits do not guarantee zero charges.
 
 Run the npm commands from the repository root. Run the `wrangler` commands from `apps/api`.
 
 ## 1. Prerequisites
 
 - Node.js 22 (the version in `.nvmrc`). Check with `node --version`.
-- A Cloudflare account, free: <https://dash.cloudflare.com/sign-up>
+- A Cloudflare account on the Workers Free plan: <https://dash.cloudflare.com/sign-up>
 - A Google account, to create the OAuth client.
 - The repository, with dependencies installed:
 
@@ -34,7 +44,7 @@ npx wrangler login
 
 A browser window opens. Approve Wrangler, then check with `npx wrangler whoami`.
 
-## 3. Create the database and the file bucket
+## 3. Create the database and bucket
 
 Continue in `apps/api` from the previous step:
 
@@ -42,25 +52,22 @@ Continue in `apps/api` from the previous step:
 npx wrangler d1 create rca
 ```
 
-The output contains a `database_id`. Open `apps/api/wrangler.toml` and replace the placeholder:
+The output contains a `database_id`. Set `database_id` under the `DB` binding in
+`apps/api/wrangler.toml` to the printed value. The checked-in configuration already contains the id
+for the currently provisioned `rca` database; update it if replacing that database.
 
-```toml
-database_id = "00000000-0000-0000-0000-000000000000"
-```
-
-with the id that was printed, for example `database_id = "1234abcd-..."`.
-
-The deploy command checks that this is no longer the all-zero placeholder and stops with a clear
-error if it is. This avoids publishing a Worker that cannot connect to D1.
-
-Create the R2 bucket:
+Create the dedicated Standard-class R2 bucket used by the `FILES` binding:
 
 ```bash
-npx wrangler r2 bucket create rca-files
+npx wrangler r2 bucket create rca-files --storage-class Standard
 ```
 
-If Cloudflare asks you to enable R2 first, do it in the dashboard under R2. R2 asks for a payment
-method even though usage within the free allowance is not billed (check current pricing).
+Keep this bucket private and dedicated to this application. The application budgets cannot limit
+manual dashboard operations or requests made by other credentials.
+
+The deploy command checks that this is no longer the all-zero placeholder and stops with a clear
+error if it is. This avoids publishing a Worker that cannot connect to D1. The R2 bucket must also
+exist before deploying because production binds it as `FILES`.
 
 Create the tables in the production database:
 
@@ -69,8 +76,8 @@ cd ../..
 npm run db:migrate:remote -w @rca/api
 ```
 
-Confirm the prompt. Migrations only ever move forward, so run this again after each new migration
-file is added.
+Migrations only ever move forward, so run this again after each new migration file is added. The
+command asks for confirmation interactively and still captures a backup when run non-interactively.
 
 ## 4. First deploy
 
@@ -183,15 +190,17 @@ recompute existing rows. The JSON `modelRevision` tracks analysis changes indepe
 `digest_version` schema column. Revision 2 excludes older digests from current analysis and reports
 them as outdated. Re-importing the original FIT file upgrades that row only when its SHA-256 matches;
 the API preserves its id, original-file metadata and quota reservation. When original files are
-retained in R2, the browser can download and reprocess them. Rows without a matching original file
-remain safely excluded until that file is supplied; no mass reset or broad library deletion is
-required. Test this recovery with a saved library containing both retained and missing originals
-before release.
+retained in R2, the browser can download and reprocess them. Otherwise, original files stay on the
+device and must be re-imported to reprocess. Rows without a matching original file remain safely
+excluded until that file is supplied; no mass reset or broad library deletion is required. Test
+this recovery with a saved library containing both retained and missing originals before release.
 
 ## 9. Local development with real Google sign-in
 
-Local development uses a local D1 database and local R2 storage, so it never touches production
-data. It needs its own `.dev.vars` file, which Git ignores.
+Local development uses the dedicated `apps/api/wrangler.local.toml` configuration with local D1
+and R2 storage, so it never touches production data or creates Cloudflare resources. Production
+uses `wrangler.toml` with the provisioned D1 database and R2 bucket. Local development needs its
+own `.dev.vars` file, which Git ignores.
 
 One-time setup:
 
@@ -202,7 +211,8 @@ cp apps/api/.dev.vars.example apps/api/.dev.vars
 Edit `apps/api/.dev.vars`, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. You can use the
 same client as production, because the `http://localhost:5183` redirect URI is already registered.
 The file also sets `ENVIRONMENT=development` and `APP_URL=http://localhost:5183`, which override the
-production values in `wrangler.toml` while you develop.
+production values while you develop. Local Wrangler scripts select `wrangler.local.toml` so
+retained-file tests use Miniflare's local R2.
 
 Then, from the repository root:
 
@@ -256,22 +266,33 @@ variables**, then **Actions**, then **New repository secret**. Create `CLOUDFLAR
 Token permission names change from time to time. If a run fails with a permission error, the error
 names the permission to add.
 
-## 11. Costs and free-tier limits
+## 11. Costs and hard free-plan limits
 
 Figures below are the documented free-plan allowances at review time. See
 [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and
 [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), plus each storage
 product's pricing page, before relying on them.
 
-| Service       | Free allowance (check current pricing)                                                              | What the app uses                                            |
-| ------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Workers       | 100,000 requests per day. 10 ms of CPU time per request; see current bundle limits.                 | Every `/api` call                                            |
-| Static assets | Requests served directly as static assets are free and unlimited.                                   | The web app's HTML, JavaScript and CSS                       |
-| D1            | 5 million rows read per day. 100,000 rows written per day. 5 GB total storage.                      | Accounts, sessions, profiles, activity digests               |
-| R2            | 10 GB-month storage. 1 million Class A and 10 million Class B operations per month. No egress fees. | Original activity files, only if a user chooses to keep them |
+| Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                             |
+| Static assets | Requests and storage are free; asset delivery does not use the Worker request quota.                                                                | The web app's HTML, JavaScript, CSS and images                                                                                                |
+| D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                             |
+| R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; app code applies a 4 GiB lifetime put-byte budget and 100,000 chargeable operations per UTC calendar month. |
 
-On the free plan, going over a daily limit makes requests fail until the limit resets. It does not
-bill your card. Watch usage in the dashboard under **Workers & Pages** and under **D1** and **R2**.
+Cloudflare documents that Workers Free and D1 Free operations fail when daily usage limits are
+exceeded; D1 queries stay unavailable until the daily reset and writes also fail if the storage cap
+is reached. This setup does not enroll the account in Workers Paid. The application-level R2
+budgets reserve bytes and operation capacity before requests and limit only traffic handled by this
+application. They cannot cap direct bucket access, other clients, dashboard actions, or
+provider-side charges. Keep the bucket private and dedicated, and monitor usage; R2's free
+allowance is not a hard account spending cap. See
+[Workers pricing and limits](https://developers.cloudflare.com/workers/platform/pricing/), [D1
+pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [Static Assets billing and
+limits](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/) for
+current details and [R2 pricing](https://developers.cloudflare.com/r2/pricing/).
+
+Monitor usage in the dashboard under **Workers & Pages**, **D1**, and **R2**.
 
 Google sign-in with the basic `openid email profile` scopes has no usage charge for this app.
 
@@ -292,8 +313,8 @@ migration file and run `npm run db:migrate:remote -w @rca/api`.
 
 ## 13. Delete everything
 
-This is permanent. All accounts, sessions, activity data and kept files are lost, and nothing can
-be recovered. Each step asks for confirmation.
+This is permanent. All accounts, sessions, activity data and any kept files are lost, and nothing
+can be recovered. Each step asks for confirmation.
 
 ```bash
 cd apps/api
@@ -301,8 +322,8 @@ npx wrangler delete                   # removes the Worker, its secrets and its 
 npx wrangler d1 delete rca            # deletes the database
 ```
 
-Empty the R2 bucket before deleting it: in the dashboard, open **R2**, then **rca-files**, select
-all objects and delete them. Then:
+Empty the R2 bucket before deleting it: in the dashboard, open **R2**, select the bucket, and delete
+its objects. Then:
 
 ```bash
 npx wrangler r2 bucket delete rca-files

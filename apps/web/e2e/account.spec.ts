@@ -10,6 +10,7 @@ import {
   LANDING_TITLE,
   activitiesRows,
   apiActivities,
+  enableFileRetention,
   fixturePath,
   signInAs,
   uniqueEmail,
@@ -50,6 +51,7 @@ async function storedFileCount(page: Page): Promise<number> {
 /** Imports once: retrying the upload would hide a file lost during library hydration. */
 async function signedInWithExport(page: Page, email: string): Promise<void> {
   await signInAs(page.request, email, NAME)
+  await enableFileRetention(page.request)
   await page.goto('/')
   await expect(accountButton(page)).toBeVisible()
   await uploadFixtures(page, ['sample-export.zip'])
@@ -173,12 +175,13 @@ test('a file chosen before account lookup completes is imported and saved once',
   const lookupRequest = new Promise<void>((resolve) => {
     lookupStarted = resolve
   })
+  await signInAs(page.request, uniqueEmail(), NAME)
+  await enableFileRetention(page.request)
   await page.route('**/api/me', async (route) => {
     lookupStarted()
     await lookupGate
     await route.continue()
   })
-  await signInAs(page.request, uniqueEmail(), NAME)
   await page.goto('/')
   await lookupRequest
   try {
@@ -198,11 +201,27 @@ test('an import started on the landing page shows the saved notice', async ({ pa
   await expect(page.getByText(SAVED_NOTICE)).toBeVisible({ timeout: 5_000 })
 })
 
+test('new accounts save summaries without retaining original files by default', async ({
+  page,
+}) => {
+  await signInAs(page.request, uniqueEmail(), NAME)
+  await page.goto('/')
+  await expect(accountButton(page)).toBeVisible()
+  await uploadFixtures(page, ['one-run.fit'])
+
+  await expect(activitiesRows(page)).toHaveCount(1)
+  const me = (await (await page.request.get('/api/me')).json()) as Me
+  expect(me.profile.keepFiles).toBe(false)
+  expect((await apiActivities(page.request)).map((record) => record.hasFile)).toEqual([false])
+  await expect(page.getByRole('checkbox', { name: KEEP_FILES })).not.toBeChecked()
+})
+
 test('rebuilds a legacy saved activity from its original file without changing its library identity', async ({
   page,
 }) => {
   const email = uniqueEmail()
   await signInAs(page.request, email, NAME)
+  await enableFileRetention(page.request)
 
   const bytes = await readFile(fixturePath('one-run.fit'))
   const parsed = parseFit(new Uint8Array(bytes), 'one-run.fit')

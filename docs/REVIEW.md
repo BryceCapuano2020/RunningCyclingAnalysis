@@ -1,9 +1,9 @@
 # Continuation review
 
 Reviewed the full-stack handoff at `a5e03b9` from the perspective of a staff engineer evaluating
-mid-level ownership. This is a pre-deployment review: production configuration still contains
-placeholders, and no live Cloudflare resources or Google OAuth credentials were configured in
-this session.
+mid-level ownership. This remains a pre-deployment review. The continuation has provisioned D1,
+applied its migrations, verified the Workers address and prepared the Google project. R2 activation
+and Google OAuth configuration still need completion before a live application can be verified.
 
 ## Assessment
 
@@ -73,6 +73,14 @@ The next pass addressed the operational gaps identified above:
   pinned, flaky retries fail the build, and deployment consumes verified assets from the same run.
 - Removed the vulnerable transitive esbuild version used by development tooling and verified a
   fresh dependency install. Added a reproducible five-year core benchmark and documented its limits.
+- Added persistent deployment-wide R2 budgets: 4 GiB of lifetime write-attempt charges (at least
+  64 KiB per attempt), 90,000 ordinary monthly operations and 100,000 total monthly operations
+  including cleanup lists. Failed attempts remain charged; account deletion cannot reset the
+  ledger. Delayed month-boundary and concurrent near-cap regressions verify admission behavior.
+  These constrain this application's traffic, not another client using the bucket or account.
+- Made original-file retention opt-in and added explicit unavailable-storage and exhausted-budget
+  behavior. Imports keep saving summaries when originals cannot be uploaded, without repeatedly
+  attempting more uploads in the same exhausted batch.
 
 ## Important remaining work
 
@@ -86,8 +94,9 @@ The next pass addressed the operational gaps identified above:
 3. **Release verification.** No live deployment or real Google callback was exercised in this
    session. Validate production cookies, callback origins, migrations, assets, deletion, and
    rollback and backup restoration on the configured account before calling deployment complete.
-   Cloudflare authentication is expired in this session and deployment configuration contains
-   placeholders; those prevent a live release.
+   Cloudflare authentication is refreshed, the new D1 schema is applied, and production identifiers
+   are configured. R2 activation and Google OAuth setup are still incomplete; those prevent a live
+   release.
 4. **Model changes require evidence.** Running drag, different efficiency priors, and a larger
    heart-rate discrepancy term need independent sources and validation. In particular, reconcile
    gross versus net efficiency before adding resting energy to the cycling conversion. Treat the
@@ -101,13 +110,14 @@ should follow reliable ingestion, persistence, model communication, and independ
 
 ## Verification
 
-- `npm run verify:release`: passed, including 1,127 unit tests across 82 files, coverage thresholds,
-  six deployment-configuration tests, formatting, lint, all workspace typechecks, production build,
+- `npm run verify:release`: passed, including 1,152 unit tests across 82 files, coverage thresholds,
+  seven deployment-configuration tests, formatting, lint, all workspace typechecks, production build,
   and both browser suites.
-- Main browser suite: 71 passed, one intentionally skipped desktop-only duplicate of the phone
+- Main browser suite: 74 passed, one intentionally skipped desktop-only duplicate of the phone
   overflow check. Tests cover desktop/mobile Chromium and mobile WebKit, accessibility, account
   persistence and isolation, file retention/deletion, imports during account lookup, legacy-library
-  rebuilding, and enlarged text. Upload retries that could conceal dropped files were removed.
+  rebuilding, opt-in file retention, and enlarged text. Upload retries that could conceal dropped
+  files were removed.
 - Worker browser suite: two passed, on Chromium and mobile WebKit, with the actual static CSP,
   module worker, API security headers and immutable assets.
 - Full production and development dependency audit: no vulnerabilities reported after removing
@@ -118,11 +128,9 @@ should follow reliable ingestion, persistence, model communication, and independ
 The browser run with these results used a stable build directory. An earlier run overlapped with
 screenshot rebuilding and was discarded after two asset-loading failures.
 
-Independent Linux CI also passed fresh installation, formatting/lint/types, configuration tests,
-unit coverage/build and both browser suites in
-[run 39713543394](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39713543394).
-The dedicated full dependency audit timed out at npm's advisory endpoint and returned no report;
-that run is therefore not a green release gate. An earlier full audit of the same dependency tree
-reported zero vulnerabilities. Installation and auditing are now separate, and audit network waits
-are bounded without bypassing the required check. Recheck the current PR head before release. See
+The preceding hardening commit passed independent Linux CI, including the full dependency audit,
+in [run 39714176397](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39714176397)
+after an advisory-endpoint timeout was retried. The R2 budget follow-up above has passed the local
+release suite; recheck the current PR head before release. Installation and auditing are separate,
+and audit network waits are bounded without bypassing the required check. See
 [PRODUCTION.md](PRODUCTION.md) for operational behavior and the remaining launch evidence.

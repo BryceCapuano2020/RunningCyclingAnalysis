@@ -13,7 +13,7 @@ export const DEFAULT_PROFILE: ProfileInput = {
   massKg: 75,
   bikeMassKg: 9,
   units: 'imperial',
-  keepFiles: true,
+  keepFiles: false,
 }
 
 type UserRow = typeof users.$inferSelect
@@ -42,10 +42,16 @@ export async function ensureProfile(db: Db, userId: string, now: number): Promis
   return toProfile(created)
 }
 
-export async function buildMe(db: Db, deps: Deps, user: User): Promise<Me> {
+export async function buildMe(
+  db: Db,
+  deps: Deps,
+  user: User,
+  fileRetentionAvailable = true,
+): Promise<Me> {
   return {
     user,
     profile: await ensureProfile(db, user.id, deps.now()),
+    fileRetentionAvailable,
   }
 }
 

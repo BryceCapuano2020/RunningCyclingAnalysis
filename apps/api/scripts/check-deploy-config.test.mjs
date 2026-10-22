@@ -3,6 +3,9 @@ import { test } from 'node:test'
 import { validateDeployConfig } from './check-deploy-config.mjs'
 
 const valid = `database_id = "12345678-1234-1234-1234-123456789abc"
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "rca-files"
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.owner.workers.dev"`
@@ -19,6 +22,14 @@ test('blocks placeholder, absent, and malformed database ids, including bootstra
       /database_id/,
     )
   }
+})
+test('requires the dedicated production R2 binding and bucket', () => {
+  assert.throws(() => validateDeployConfig(valid.replace('rca-files', 'other-bucket')), /rca-files/)
+  assert.throws(
+    () => validateDeployConfig(valid.replace('binding = "FILES"', 'binding = "OTHER"')),
+    /FILES/,
+  )
+  assert.throws(() => validateDeployConfig(valid.replace('[[r2_buckets]]\n', '')), /FILES/)
 })
 test('rejects missing, placeholder, insecure, local, and non-origin callback settings', () => {
   for (const origin of [

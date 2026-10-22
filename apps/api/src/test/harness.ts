@@ -23,7 +23,7 @@ let proxy: Proxy | undefined
 /** Starts Miniflare with real local D1 and R2 bindings and applies the migrations. */
 export async function startTestEnv(): Promise<void> {
   proxy = await getPlatformProxy<Bindings>({
-    configPath: `${APP_DIR}wrangler.toml`,
+    configPath: `${APP_DIR}wrangler.local.toml`,
     persist: false,
     remoteBindings: false,
   })
@@ -35,11 +35,13 @@ export async function stopTestEnv(): Promise<void> {
   proxy = undefined
 }
 
+export function testEnv(): Bindings & { FILES: R2Bucket }
+export function testEnv(overrides: Partial<Bindings>): Bindings
 export function testEnv(overrides: Partial<Bindings> = {}): Bindings {
   if (!proxy) throw new Error('startTestEnv() has not run')
   return {
     DB: proxy.env.DB,
-    FILES: proxy.env.FILES,
+    FILES: proxy.env.FILES!,
     ENVIRONMENT: 'development',
     APP_URL: 'http://localhost:5183',
     GOOGLE_CLIENT_ID: TEST_CLIENT_ID,
@@ -55,11 +57,11 @@ export function testEnv(overrides: Partial<Bindings> = {}): Bindings {
 export async function resetTestEnv(): Promise<void> {
   const env = testEnv()
   await env.DB.batch(
-    ['activities', 'sessions', 'oauth_accounts', 'profiles', 'users'].map((table) =>
-      env.DB.prepare(`DELETE FROM ${table}`),
+    ['activities', 'sessions', 'oauth_accounts', 'profiles', 'users', 'r2_storage_budget'].map(
+      (table) => env.DB.prepare(`DELETE FROM ${table}`),
     ),
   )
-  await deleteByPrefix(env.FILES, '')
+  await deleteByPrefix(env.FILES!, '')
 }
 
 export interface FakeGoogle extends GoogleOAuth {

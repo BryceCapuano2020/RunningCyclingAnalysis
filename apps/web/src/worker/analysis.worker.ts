@@ -5,7 +5,13 @@ import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession } from '@rca/core/session'
 import type { SessionState, SyncItem } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
-import { createActivity, downloadActivityFile, listActivities, uploadFile } from '../api/client'
+import {
+  ApiRequestError,
+  createActivity,
+  downloadActivityFile,
+  listActivities,
+  uploadFile,
+} from '../api/client'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 const session = new AnalysisSession()
@@ -17,6 +23,7 @@ function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promis
   let filesRead = 0
   // Activities saved to the library, counting the digest alone when files are not kept.
   let uploaded = 0
+  let storageBudgetExceeded = false
   const report = () =>
     post({
       type: 'progress',
@@ -30,7 +37,18 @@ function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promis
       if (item.bytes.byteLength > MAX_FILE_BYTES) {
         throw new Error('Original exceeds the upload limit; digest saved without its file')
       }
-      await uploadFile(record.id, item.bytes, sync.userId)
+      if (storageBudgetExceeded) {
+        throw new Error('Original-file storage allowance is exhausted')
+      }
+      try {
+        await uploadFile(record.id, item.bytes, sync.userId)
+      } catch (error) {
+        if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
+          storageBudgetExceeded = true
+          post({ type: 'storageBudgetExceeded' })
+        }
+        throw error
+      }
     }
     uploaded++
     report()

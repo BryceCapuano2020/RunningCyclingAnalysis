@@ -21,14 +21,13 @@ simple = { limit = 600, period = 60 }
 
 # The Worker serves the whole app: the built React app as static assets and the Hono API under
 # /api, so both share one origin and session cookies need no custom domain.
-# Local development needs no Cloudflare account: `wrangler dev` simulates D1 and R2 on disk.
-# Before deploying, create the real resources and replace the placeholder id:
-#   npx wrangler d1 create rca     (copy the printed database_id here)
-#   npx wrangler r2 bucket create rca-files
+# Local development uses wrangler.local.toml, which supplies local R2 for tests.
+# The production R2 bucket is private and dedicated to this app. Application-level limits do not
+# constrain bucket traffic from other clients or dashboard/API access.
 [[d1_databases]]
 binding = "DB"
 database_name = "rca"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "6b0d0ada-beab-4c0b-b43a-936a6fd481a8"
 migrations_dir = "migrations"
 
 [[r2_buckets]]
@@ -36,13 +35,13 @@ binding = "FILES"
 bucket_name = "rca-files"
 
 # Production defaults, so a deploy fails closed. Local development overrides both values in
-# .dev.vars, which `wrangler dev` reads and which takes precedence over [vars].
+# .dev.vars, which the local Wrangler configuration reads and which takes precedence over [vars].
 # APP_URL must be the public origin the app is served from, for example
 # https://rca-api.<your-subdomain>.workers.dev (see docs/DEPLOY.md). Google OAuth redirects to
 # APP_URL + /api/auth/google/callback.
 [vars]
 ENVIRONMENT = "production"
-APP_URL = "https://example.invalid"
+APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
 
 # Requests under /api run the Worker; everything else is served from the built web app, with
 # unknown paths falling back to index.html so client-side routes work on reload.

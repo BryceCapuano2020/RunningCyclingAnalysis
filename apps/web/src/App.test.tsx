@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
-const { updateProfile, analysisMock } = vi.hoisted(() => ({
+const { updateProfile, analysisMock, accountMock } = vi.hoisted(() => ({
   updateProfile: vi.fn(async () => undefined),
   analysisMock: {
     outdatedActivities: 0,
@@ -18,12 +18,14 @@ const { updateProfile, analysisMock } = vi.hoisted(() => ({
     retryWorker: vi.fn(),
     stop: vi.fn(),
   },
+  accountMock: { fileRetentionAvailable: true },
 }))
 
 vi.mock('./ui/useAccount', () => ({
   useAccount: () => ({
     status: 'signed-in',
     me: {
+      fileRetentionAvailable: accountMock.fileRetentionAvailable,
       user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
       profile: {
         massKg: 75,
@@ -116,6 +118,7 @@ afterEach(() => {
   analysisMock.incompatibleActivities = 0
   analysisMock.result = { activities: [], comparison: null, effort: [] }
   analysisMock.rebuildSavedActivities.mockClear()
+  accountMock.fileRetentionAvailable = true
 })
 
 describe('App profile persistence', () => {
@@ -221,5 +224,38 @@ describe('outdated saved activities', () => {
     expect(
       screen.queryByRole('button', { name: 'Rebuild saved activities' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('file retention availability', () => {
+  it('disables retention without changing the saved preference when storage is unavailable', () => {
+    accountMock.fileRetentionAvailable = false
+    render(<App />)
+
+    const retention = screen.getByRole('checkbox', { name: 'Keep original files in my library' })
+    expect(retention).toBeChecked()
+    expect(retention).toBeDisabled()
+    expect(
+      screen.getByText(/Your saved preference is preserved; new imports save summaries only/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/existing saved originals are not deleted/i)).toBeInTheDocument()
+    expect(updateProfile).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change weight' }))
+    expect(updateProfile).toHaveBeenCalledWith({
+      massKg: 80,
+      bikeMassKg: 10,
+      units: 'imperial',
+      keepFiles: true,
+    })
+  })
+
+  it('disables saved-activity rebuilding when original file storage is unavailable', () => {
+    accountMock.fileRetentionAvailable = false
+    analysisMock.outdatedActivities = 2
+    render(<App />)
+
+    expect(screen.getByRole('button', { name: 'Rebuild saved activities' })).toBeDisabled()
+    expect(screen.getByText(/Import the original FIT files to update them/)).toBeInTheDocument()
   })
 })

@@ -18,6 +18,7 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { type: 'progress'; filesRead: number; uploaded?: number }
+  | { type: 'storageBudgetExceeded' }
   | { type: 'state'; state: SessionState }
   | {
       type: 'rebuildComplete'

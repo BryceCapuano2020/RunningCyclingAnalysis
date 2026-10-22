@@ -82,12 +82,17 @@ authRoutes.post(
     const { deps, db } = c.var
     const row = await signInDev(db, deps, c.req.valid('json'))
     await createSession(c, row.id)
-    const me = await buildMe(db, deps, {
-      id: row.id,
-      email: row.email,
-      name: row.name,
-      pictureUrl: row.pictureUrl,
-    })
+    const me = await buildMe(
+      db,
+      deps,
+      {
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        pictureUrl: row.pictureUrl,
+      },
+      Boolean(c.env.FILES),
+    )
     return c.json(me, 200)
   },
 )

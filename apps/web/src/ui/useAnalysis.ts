@@ -11,6 +11,7 @@ export interface AnalysisController {
   progress: number | null
   /** Number of files uploaded so far during an import that keeps files, otherwise null. */
   uploading: number | null
+  storageBudgetExceeded: boolean
   error: string | null
   workerStopped: boolean
   stop: () => void
@@ -62,6 +63,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<AnalysisController['progress']>(null)
   const [uploading, setUploading] = useState<AnalysisController['uploading']>(null)
+  const [storageBudgetExceeded, setStorageBudgetExceeded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [workerStopped, setWorkerStopped] = useState(false)
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
@@ -94,6 +96,11 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         if (pendingRepliesRef.current[0]?.ignoreResult) return
         setProgress(message.filesRead)
         setUploading(message.uploaded ?? null)
+        return
+      }
+      if (message.type === 'storageBudgetExceeded') {
+        if (pendingRepliesRef.current[0]?.ignoreResult) return
+        setStorageBudgetExceeded(true)
         return
       }
       // Replies arrive in request order; stay busy until the last outstanding one.
@@ -201,6 +208,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       setUploading(null)
       setError(null)
       setRebuildNotice(null)
+      setStorageBudgetExceeded(false)
       setWorkerStopped(false)
       automaticRestartCountRef.current = 0
       // Make the next effect pass hydrate the new signed-in identity even for a direct A → B
@@ -223,7 +231,11 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
           settings: settingsRef.current,
           sync:
             current.status === 'signed-in' && current.me !== null
-              ? { keepFiles: current.me.profile.keepFiles, userId: current.me.user.id }
+              ? {
+                  keepFiles:
+                    current.me.profile.keepFiles && current.me.fileRetentionAvailable !== false,
+                  userId: current.me.user.id,
+                }
               : null,
         })
       }
@@ -242,14 +254,20 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       if (files.length === 0) return
       const current = accountRef.current
       if (current.status === 'loading') {
+        setStorageBudgetExceeded(false)
         deferredImportsRef.current.push(files)
         setBusy(true)
         return
       }
       const sync =
         current.status === 'signed-in' && current.me !== null
-          ? { keepFiles: current.me.profile.keepFiles, userId: current.me.user.id }
+          ? {
+              keepFiles:
+                current.me.profile.keepFiles && current.me.fileRetentionAvailable !== false,
+              userId: current.me.user.id,
+            }
           : null
+      setStorageBudgetExceeded(false)
       send({ type: 'addFiles', files, settings: settingsRef.current, sync })
     },
     [send],
@@ -263,14 +281,22 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       send({ type: 'setRange', rangeDays, settings: settingsRef.current }),
     [send],
   )
-  const clear = useCallback(() => send({ type: 'clear' }), [send])
+  const clear = useCallback(() => {
+    setStorageBudgetExceeded(false)
+    send({ type: 'clear' })
+  }, [send])
   const rebuildSavedActivities = useCallback(() => {
     setRebuildNotice(null)
     const current = accountRef.current
     const userId = current.status === 'signed-in' ? current.me?.user.id : undefined
-    if (userId !== undefined) {
-      send({ type: 'rebuildStale', settings: settingsRef.current, userId })
+    if (userId === undefined || current.me === null) return
+    if (current.me.fileRetentionAvailable === false) {
+      setRebuildNotice(
+        'Saved originals cannot be accessed on this deployment. Import the original FIT files to rebuild these activities; existing saved originals are not deleted.',
+      )
+      return
     }
+    send({ type: 'rebuildStale', settings: settingsRef.current, userId })
   }, [send])
   const stop = useCallback(() => {
     pendingRepliesRef.current = []
@@ -302,6 +328,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     busy,
     progress,
     uploading,
+    storageBudgetExceeded,
     error,
     workerStopped,
     stop,

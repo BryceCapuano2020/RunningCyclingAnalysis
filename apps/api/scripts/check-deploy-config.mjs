@@ -16,6 +16,15 @@ export function validateDeployConfig(config, { allowUnconfiguredOrigin = false }
       'Set the real D1 database_id in apps/api/wrangler.toml before any remote operation.',
     )
   }
+  if (
+    !/^\[\[r2_buckets\]\]\s*\n(?:(?!\[\[).)*?^binding\s*=\s*["']FILES["']\s*\n(?:(?!\[\[).)*?^bucket_name\s*=\s*["']rca-files["']/ms.test(
+      config,
+    )
+  ) {
+    throw new Error(
+      'Configure the dedicated production R2 bucket as binding="FILES" and bucket_name="rca-files" in apps/api/wrangler.toml.',
+    )
+  }
   if (allowUnconfiguredOrigin) return
   const origin = readString('APP_URL')
   let url

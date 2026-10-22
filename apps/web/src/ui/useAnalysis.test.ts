@@ -37,11 +37,12 @@ class FakeWorker {
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
 
-function meWith(keepFiles: boolean): Me {
-  return {
+function meWith(keepFiles: boolean, fileRetentionAvailable?: boolean): Me {
+  const me: Me = {
     user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
     profile: { massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles, updatedAt: 1000 },
   }
+  return fileRetentionAvailable === undefined ? me : { ...me, fileRetentionAvailable }
 }
 
 function meAs(id: string): Me {
@@ -248,6 +249,29 @@ describe('useAnalysis account handling', () => {
     ])
   })
 
+  it('keeps syncing digests without uploading files when file retention is unavailable', () => {
+    const account = { status: 'signed-in' as const, me: meWith(true, false) }
+    const { result } = setup(account)
+
+    act(() => result.current.addFiles([FILE]))
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+  })
+
+  it('preserves file sync for an older API that omits retention capability', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.addFiles([FILE]))
+    expect(worker().posted.at(-1)).toMatchObject({
+      type: 'addFiles',
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
   it('defers imports while the account is loading, then sends them without sync when signed out', () => {
     const { result, rerender } = setup(LOADING)
     act(() => result.current.addFiles([FILE]))
@@ -325,6 +349,34 @@ describe('useAnalysis requests', () => {
 })
 
 describe('useAnalysis state', () => {
+  it('tracks storage allowance failures and resets the notice state for a new import or clear', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.addFiles([FILE]))
+    const firstImport = worker()
+    act(() => firstImport.reply({ type: 'storageBudgetExceeded' }))
+    expect(result.current.storageBudgetExceeded).toBe(true)
+    act(() => firstImport.reply({ type: 'state', state: { ...STATE, syncFailures: 1 } }))
+    expect(result.current.storageBudgetExceeded).toBe(true)
+
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.storageBudgetExceeded).toBe(false)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'storageBudgetExceeded' }))
+    expect(result.current.storageBudgetExceeded).toBe(true)
+    act(() => result.current.clear())
+    expect(result.current.storageBudgetExceeded).toBe(false)
+  })
+
+  it('ignores a storage allowance message from a prior account worker', () => {
+    const { result, rerender } = setup(SIGNED_IN_KEEP)
+    const workerA = worker()
+    act(() => result.current.addFiles([FILE]))
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() => workerA.reply({ type: 'storageBudgetExceeded' }))
+    expect(result.current.storageBudgetExceeded).toBe(false)
+  })
+
   it('reports busy until the reply arrives and exposes the state it carries', () => {
     const { result } = setup(SIGNED_OUT)
     act(() => result.current.loadSample())
@@ -422,6 +474,15 @@ describe('useAnalysis state', () => {
     )
     expect(result.current.rebuildNotice).toMatch(/re-import those original FIT files/)
     expect(result.current.rebuildNotice).toMatch(/2 could not be rebuilt; try again/)
+  })
+
+  it('does not request a rebuild when file retention is unavailable', () => {
+    const account = { status: 'signed-in' as const, me: meWith(true, false) }
+    const { result } = setup(account)
+    act(() => result.current.rebuildSavedActivities())
+
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(result.current.rebuildNotice).toMatch(/cannot be accessed on this deployment/i)
   })
 
   it('rehydrates the signed-in library after a fatal worker error', () => {

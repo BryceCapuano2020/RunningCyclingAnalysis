@@ -51,6 +51,19 @@ retries from freeing quota that another upload still needs. The activity respons
 file only after finalization. Original uploads are capped at 50 MiB. Body reads have a 15-second
 idle timeout and a two-minute total limit, and release readers on all exit paths.
 
+Application-wide R2 admission limits are separate from per-account quotas. All users share a
+4 GiB lifetime put-byte budget and a 100,000-operation budget per UTC calendar month. Each put
+reserves its full byte count and one monthly operation atomically before calling R2; reservations
+are not refunded after an R2 failure or retry. Each get/list attempt consumes one monthly operation
+when admitted. Ordinary puts and gets stop at 90,000 operations, reserving the final 10,000 for
+prefix-list cleanup; list calls share the same total and may use that headroom. Deletes and aborts do
+not consume operations. Exhausted byte or operation capacity returns `429
+storage_budget_exhausted`; cleanup refuses before changing D1 state if its list budget is exhausted.
+Retrying does not restore the lifetime byte budget, and monthly capacity returns at the next UTC
+month. These limits cover calls through this Worker only. Keep
+`rca-files` private and dedicated: direct bucket/API access, other clients and dashboard operations
+can bypass the application limits, and Cloudflare may bill R2 usage above its free allowance.
+
 Activity listing uses at most 25 records per page, a 1 MiB digest JSON budget and 64 KiB envelope
 headroom. The API scans small metadata before fetching the selected digests. Cursors are based on
 delivered rows so byte-limited pages do not skip activities. Browser readers bound JSON/download

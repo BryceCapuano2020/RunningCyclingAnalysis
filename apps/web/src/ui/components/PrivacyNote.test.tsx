@@ -39,4 +39,22 @@ describe('PrivacyNote', () => {
       ),
     ).toBeInTheDocument()
   })
+
+  it('explains unavailable retention without implying existing originals were deleted', () => {
+    render(<PrivacyNote signedIn keepFiles fileRetentionAvailable={false} />)
+    expect(
+      screen.getByText(
+        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files stay on this device; existing saved originals are not deleted. Analysis runs in your browser.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('treats an omitted capability as available for older APIs', () => {
+    render(<PrivacyNote signedIn keepFiles />)
+    expect(
+      screen.getByText(
+        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser.',
+      ),
+    ).toBeInTheDocument()
+  })
 })
