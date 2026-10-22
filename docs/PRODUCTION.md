@@ -52,15 +52,20 @@ file only after finalization. Original uploads are capped at 50 MiB. Body reads 
 idle timeout and a two-minute total limit, and release readers on all exit paths.
 
 Application-wide R2 admission limits are separate from per-account quotas. All users share a
-4 GiB lifetime put-byte budget and a 100,000-operation budget per UTC calendar month. Each put
-reserves its full byte count and one monthly operation atomically before calling R2; reservations
-are not refunded after an R2 failure or retry. Each get/list attempt consumes one monthly operation
+4 GiB lifetime PUT charge budget and a 100,000-operation budget per UTC calendar month. Each PUT
+attempt reserves `max(actual body bytes, 64 KiB)` and one monthly operation atomically before
+calling R2. Failed attempts and retries keep their byte and operation charges; nothing is refunded
+or automatically reset in the lifetime ledger. A fresh ledger therefore allows at most 65,536 PUT
+attempts, and fewer when objects are larger than 64 KiB. The migration initializes the ledger from
+the sum of recorded activity file sizes. This includes rows that may only be reservations for
+failed older uploads, but it cannot reconstruct repeated historical retries or identify untracked
+R2 objects that predate the ledger; the starting ledger may undercount prior PUT charges and
+existing objects. Each get/list attempt consumes one monthly operation
 when admitted. Ordinary puts and gets stop at 90,000 operations, reserving the final 10,000 for
 prefix-list cleanup; list calls share the same total and may use that headroom. Deletes and aborts do
 not consume operations. Exhausted byte or operation capacity returns `429
 storage_budget_exhausted`; cleanup refuses before changing D1 state if its list budget is exhausted.
-Retrying does not restore the lifetime byte budget, and monthly capacity returns at the next UTC
-month. These limits cover calls through this Worker only. Keep
+Monthly capacity returns at the next UTC month. These limits cover calls through this Worker only. Keep
 `rca-files` private and dedicated: direct bucket/API access, other clients and dashboard operations
 can bypass the application limits, and Cloudflare may bill R2 usage above its free allowance.
 

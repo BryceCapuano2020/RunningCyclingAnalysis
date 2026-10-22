@@ -273,19 +273,21 @@ Figures below are the documented free-plan allowances at review time. See
 [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), plus each storage
 product's pricing page, before relying on them.
 
-| Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                             |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                             |
-| Static assets | Requests and storage are free; asset delivery does not use the Worker request quota.                                                                | The web app's HTML, JavaScript, CSS and images                                                                                                |
-| D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                             |
-| R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; app code applies a 4 GiB lifetime put-byte budget and 100,000 chargeable operations per UTC calendar month. |
+| Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                                                             |
+| Static assets | Requests and storage are free; asset delivery does not use the Worker request quota.                                                                | The web app's HTML, JavaScript, CSS and images                                                                                                                                |
+| D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                                                             |
+| R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; app code applies a 4 GiB lifetime PUT charge budget (at least 64 KiB per attempt) and 100,000 chargeable operations per UTC calendar month. |
 
 Cloudflare documents that Workers Free and D1 Free operations fail when daily usage limits are
 exceeded; D1 queries stay unavailable until the daily reset and writes also fail if the storage cap
 is reached. This setup does not enroll the account in Workers Paid. The application-level R2
-budgets reserve bytes and operation capacity before requests and limit only traffic handled by this
-application. They cannot cap direct bucket access, other clients, dashboard actions, or
-provider-side charges. Keep the bucket private and dedicated, and monitor usage; R2's free
+budgets reserve bytes and operation capacity before requests. Failed PUTs and retries retain their
+charges; a fresh lifetime ledger can admit at most 65,536 PUT attempts and fewer for larger files.
+The limits cover only traffic handled by this application. They cannot cap direct bucket access,
+other clients, dashboard actions, or provider-side charges. Keep the bucket private and dedicated,
+and monitor usage; R2's free
 allowance is not a hard account spending cap. See
 [Workers pricing and limits](https://developers.cloudflare.com/workers/platform/pricing/), [D1
 pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [Static Assets billing and
