@@ -7,6 +7,9 @@ export default defineConfig({
   plugins: [react()],
   worker: { format: 'es' },
   server: {
+    // Must match the local Google OAuth redirect URI (see docs/DEPLOY.md).
+    port: 5183,
+    strictPort: true,
     // The API runs under `wrangler dev`; proxying keeps cookies same-origin in development.
     proxy: { '/api': 'http://localhost:8787' },
   },

@@ -1,0 +1,305 @@
+# Deploying RunningCycling to Cloudflare
+
+The whole app runs as one Cloudflare Worker. The Worker serves the built web app as static files
+and the API under `/api`, so both share one origin: `https://<worker>.<your-subdomain>.workers.dev`.
+Session cookies work without a custom domain, and everything here fits the free plan.
+
+Names used below (from `apps/api/wrangler.toml`):
+
+- Worker: `rca-api`. Its public address is `https://rca-api.<your-subdomain>.workers.dev`. Wherever
+  this guide says `<worker-url>`, use that address, with no trailing slash.
+- D1 database: `rca`. R2 bucket: `rca-files`.
+
+Run the npm commands from the repository root. Run the `wrangler` commands from `apps/api`.
+
+## 1. Prerequisites
+
+- Node.js 22 (the version in `.nvmrc`). Check with `node --version`.
+- A Cloudflare account, free: <https://dash.cloudflare.com/sign-up>
+- A Google account, to create the OAuth client.
+- The repository, with dependencies installed:
+
+  ```bash
+  npm install
+  ```
+
+## 2. Log in to Cloudflare
+
+```bash
+cd apps/api
+npx wrangler login
+```
+
+A browser window opens. Approve Wrangler, then check with `npx wrangler whoami`.
+
+## 3. Create the database and the file bucket
+
+```bash
+cd apps/api
+npx wrangler d1 create rca
+```
+
+The output contains a `database_id`. Open `apps/api/wrangler.toml` and replace the placeholder:
+
+```toml
+database_id = "00000000-0000-0000-0000-000000000000"
+```
+
+with the id that was printed, for example `database_id = "1234abcd-..."`.
+
+Create the R2 bucket:
+
+```bash
+npx wrangler r2 bucket create rca-files
+```
+
+If Cloudflare asks you to enable R2 first, do it in the dashboard under R2. R2 asks for a payment
+method even though usage within the free allowance is not billed (check current pricing).
+
+Create the tables in the production database:
+
+```bash
+cd ../..
+npm run db:migrate:remote -w @rca/api
+```
+
+Confirm the prompt. Migrations only ever move forward, so run this again after each new migration
+file is added.
+
+## 4. First deploy
+
+This builds the web app into `apps/web/dist` and deploys the Worker:
+
+```bash
+npm run deploy
+```
+
+The first time, Wrangler may ask you to register a `workers.dev` subdomain. Pick one; it becomes
+part of your address. The output ends with a line like:
+
+```
+Published rca-api
+  https://rca-api.<your-subdomain>.workers.dev
+```
+
+Copy that address. It is your `<worker-url>`. Sign-in does not work yet, which is expected.
+
+## 5. Create the Google OAuth client
+
+Google sign-in needs a client that Google trusts for your Worker's address. Use the Google Cloud
+Console at <https://console.cloud.google.com/>.
+
+1. **Create a project.** Use the project picker in the top bar, then **New project**. Name it
+   `RunningCycling`.
+2. **Set up the Google Auth Platform.** Open **Google Auth Platform** from the left menu. If it
+   shows a **Get started** button, click it.
+   - **Branding:** app name `RunningCycling`, user support email your own address, developer
+     contact email your own address.
+   - **Audience:** choose **External**. Leave the publishing status as **Testing**. Under
+     **Test users**, add every Google account that may sign in (up to 100). While the app is in
+     Testing, only these accounts can sign in.
+   - **Data Access:** add the scopes `openid`, `.../auth/userinfo.email` and
+     `.../auth/userinfo.profile`. These are the `openid`, `email` and `profile` scopes the API
+     asks for.
+3. **Create the client.** Open **Clients**, then **Create client**.
+   - Application type: **Web application**. Name: `RunningCycling web`.
+   - **Authorized JavaScript origins**, add both:
+     - `<worker-url>` (for example `https://rca-api.<your-subdomain>.workers.dev`)
+     - `http://localhost:5183`
+   - **Authorized redirect URIs**, add both. They must match exactly:
+     - `<worker-url>/api/auth/google/callback`
+     - `http://localhost:5183/api/auth/google/callback`
+   - Google only accepts `http://` for `localhost`. Origins take no path, so do not add
+     `/api/...` to them.
+4. **Copy the credentials.** Click **Create**. Copy the **Client ID** and the **Client secret**.
+   Treat the secret like a password and never commit it.
+
+## 6. Store the Google credentials as Worker secrets
+
+```bash
+cd apps/api
+npx wrangler secret put GOOGLE_CLIENT_ID
+```
+
+Paste the Client ID and press Enter. Then:
+
+```bash
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+```
+
+Paste the client secret and press Enter. Secrets are encrypted by Cloudflare, are not stored in
+the repository, and survive later deploys.
+
+## 7. Set APP_URL and deploy again
+
+Open `apps/api/wrangler.toml` and set the `[vars]` value:
+
+```toml
+[vars]
+ENVIRONMENT = "production"
+APP_URL = "https://rca-api.<your-subdomain>.workers.dev"
+```
+
+Use your `<worker-url>` with no trailing slash. The API sends Google back to
+`APP_URL` + `/api/auth/google/callback`, and it sends the browser to `APP_URL` after sign-in.
+
+Deploy again from the repository root:
+
+```bash
+cd ../..
+npm run deploy
+```
+
+Commit the `wrangler.toml` change. Each deploy writes the `[vars]` values from that file, and the
+GitHub workflow in section 10 reads the same file from the repository.
+
+## 8. Smoke test
+
+1. Health check. It should print `{"status":"ok"}`:
+
+   ```bash
+   curl -i <worker-url>/api/health
+   ```
+
+2. Open `<worker-url>` in a browser. The app loads.
+3. Click **Sign in with Google** and choose a test user account. Google may warn that the app is
+   not verified, because it is in Testing mode. Click **Advanced**, then **Go to RunningCycling
+   (unsafe)**. This is expected for an app used only by you.
+4. Open `<worker-url>/api/me` in the same browser. It should show your profile as JSON. Without
+   signing in it returns `401`.
+
+If sign-in fails with `redirect_uri_mismatch`, the redirect URI in the Google client does not match
+`<worker-url>/api/auth/google/callback` exactly, or `APP_URL` in `wrangler.toml` is wrong.
+
+## 9. Local development with real Google sign-in
+
+Local development uses a local D1 database and local R2 storage, so it never touches production
+data. It needs its own `.dev.vars` file, which Git ignores.
+
+One-time setup:
+
+```bash
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+```
+
+Edit `apps/api/.dev.vars`, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. You can use the
+same client as production, because the `http://localhost:5183` redirect URI is already registered.
+The file also sets `ENVIRONMENT=development` and `APP_URL=http://localhost:5183`, which override the
+production values in `wrangler.toml` while you develop.
+
+Then, from the repository root:
+
+```bash
+npm run build                                  # wrangler dev serves apps/web/dist, so build once
+npm run db:migrate:local -w @rca/api           # create the local tables
+```
+
+Run two terminals from the repository root:
+
+```bash
+# Terminal 1: the API, on http://localhost:8787
+npm run dev:api
+
+# Terminal 2: the web app, on http://localhost:5183
+npm run dev -w @rca/web -- --port 5183 --strictPort
+```
+
+Open <http://localhost:5183> and sign in. Vite forwards `/api` to port 8787, so the session cookie
+stays on one origin, as it does in production.
+
+Rebuild the web app with `npm run build` if you want `wrangler dev` to serve the latest build. The
+Vite dev server does not need this.
+
+## 10. Deploy from GitHub Actions (optional)
+
+The workflow `.github/workflows/deploy.yml` runs only when you start it by hand: in the GitHub
+repository, open **Actions**, choose **Deploy**, then **Run workflow**. It builds the web app,
+applies remote migrations and deploys the Worker. It never runs on a push.
+
+Create a Cloudflare API token:
+
+1. In the Cloudflare dashboard, open **My Profile**, then **API Tokens**, then **Create Token**,
+   then **Create Custom Token**.
+2. Add these permissions, all at the **Account** level:
+   - **Workers Scripts**: Edit
+   - **D1**: Edit
+   - **Account Settings**: Read
+3. Under account resources, select only your account. Create the token and copy it. It is shown
+   once.
+
+Find your account ID: in the dashboard, open **Workers & Pages**. The **Account ID** is in the
+right-hand panel.
+
+Add both values as repository secrets: in GitHub, open **Settings**, then **Secrets and
+variables**, then **Actions**, then **New repository secret**. Create `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID`.
+
+Token permission names change from time to time. If a run fails with a permission error, the error
+names the permission to add.
+
+## 11. Costs and free-tier limits
+
+Figures below are the free-plan allowances as this guide was written. Check current pricing before
+relying on them: <https://www.cloudflare.com/plans/>, and each product's pricing page.
+
+| Service       | Free allowance (check current pricing)                                                              | What the app uses                                            |
+| ------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Workers       | 100,000 requests per day. 10 ms of CPU time per request. Script size limit 3 MB compressed.         | Every `/api` call                                            |
+| Static assets | Free to serve (check current pricing; confirm whether requests count against Worker requests).      | The web app's HTML, JavaScript and CSS                       |
+| D1            | 5 million rows read per day. 100,000 rows written per day. 5 GB total storage.                      | Accounts, sessions, profiles, activity digests               |
+| R2            | 10 GB-month storage. 1 million Class A and 10 million Class B operations per month. No egress fees. | Original activity files, only if a user chooses to keep them |
+
+On the free plan, going over a daily limit makes requests fail until the limit resets. It does not
+bill your card. Watch usage in the dashboard under **Workers & Pages** and under **D1** and **R2**.
+
+Google sign-in with the basic `openid email profile` scopes has no usage charge for this app.
+
+## 12. Roll back a deploy
+
+Every deploy creates a version. To list them and roll back:
+
+```bash
+cd apps/api
+npx wrangler deployments list
+npx wrangler rollback                 # back to the previous version
+npx wrangler rollback <version-id>    # or to a specific version from the list
+```
+
+A rollback changes only the Worker code and the web app. It does not undo database migrations, so
+data written by a newer version stays. If a migration is the problem, fix forward with a new
+migration file and run `npm run db:migrate:remote -w @rca/api`.
+
+## 13. Delete everything
+
+This is permanent. All accounts, sessions, activity data and kept files are lost, and nothing can
+be recovered. Each step asks for confirmation.
+
+```bash
+cd apps/api
+npx wrangler delete                   # removes the Worker, its secrets and its address
+npx wrangler d1 delete rca            # deletes the database
+```
+
+Empty the R2 bucket before deleting it: in the dashboard, open **R2**, then **rca-files**, select
+all objects and delete them. Then:
+
+```bash
+npx wrangler r2 bucket delete rca-files
+```
+
+Then, in the Google Cloud Console, delete the OAuth client under **Google Auth Platform**, then
+**Clients**, or shut down the whole project under **IAM & Admin**, then **Settings**.
+
+Finally, delete the GitHub repository secrets and the Cloudflare API token if you created them, and
+delete `apps/api/.dev.vars` on your machine.
+
+## Reference
+
+| Command                                               | What it does                                         |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| `npm run deploy`                                      | Builds the web app, then deploys the Worker          |
+| `npm run db:migrate:remote -w @rca/api`               | Applies migrations to the production D1 database     |
+| `npm run db:migrate:local -w @rca/api`                | Applies migrations to the local D1 database          |
+| `npm run dev:api`                                     | Local API on port 8787                               |
+| `npm run dev -w @rca/web -- --port 5183 --strictPort` | Local web app on port 5183, which proxies `/api`     |
+| `npm run build`                                       | Production build of the web app into `apps/web/dist` |

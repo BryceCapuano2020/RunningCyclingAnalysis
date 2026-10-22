@@ -137,6 +137,14 @@ docs/                architecture, roadmap and README screenshots
 CI (GitHub Actions) runs the full check, the end-to-end suite on desktop and mobile viewports, and
 a dependency audit on every push and pull request.
 
+## Deploy
+
+The whole app runs as one Cloudflare Worker on the free tier: the web app is served as static
+assets and the API lives under `/api`, so everything shares one `workers.dev` origin. Setup,
+Google sign-in, local development with real sign-in, costs and rollback are in
+[docs/DEPLOY.md](docs/DEPLOY.md). Deploys run with `npm run deploy`, or manually from the
+**Deploy** workflow in GitHub Actions.
+
 ## Built with
 
 TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. The API uses Cloudflare
