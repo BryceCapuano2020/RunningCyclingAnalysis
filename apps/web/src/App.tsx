@@ -1,47 +1,18 @@
-import { weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef, useState } from 'react'
 import type { ProfileInput } from '@rca/contract'
 import './App.css'
-import { AccuracyScatter, CurveChart, HrScatter, RatioChart, TrendChart } from './ui/charts'
-import {
-  AccountMenu,
-  ActivitiesTable,
-  Dropzone,
-  EquivalenceTable,
-  Header,
-  Headline,
-  Methodology,
-  PrivacyNote,
-  RangePicker,
-  RejectedFiles,
-  SettingsBar,
-  ShareImageButton,
-  SignInCallout,
-  SyncStatus,
-  SavedLibrary,
-  pickHeadline,
-} from './ui/components'
+import { AccountMenu, Header, PrivacyNote, SyncStatus } from './ui/components'
 import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
-import { plural } from './ui/components/plural'
+import { FilesToolbar, type ProfilePatch } from './ui/views/FilesToolbar'
+import { LandingPitch, LandingView } from './ui/views/LandingView'
+import { LibraryNotices } from './ui/views/LibraryNotices'
+import { ResultsView } from './ui/views/ResultsView'
+import { SavedLibraryCard } from './ui/views/SavedLibraryCard'
 
-/** Note for saved activities left out of the analysis because another file holds their workout. */
-function hiddenCopiesText(count: number): string {
-  const copies = count === 1 ? 'is a copy' : 'are copies'
-  const counted = count === 1 ? 'is' : 'are'
-  return (
-    `${plural(count, 'saved activity', 'saved activities')} ${copies} of the same workout ` +
-    `from another file and ${counted} not counted twice.`
-  )
-}
-
-const RETENTION_UNAVAILABLE =
-  'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
-const LIBRARY_UNAVAILABLE =
-  'Your library is unavailable right now. Analysis still runs in your browser and nothing is being saved.'
 const SAMPLE_NOTICE = 'You are looking at simulated sample data. Add your own files to replace it.'
 
 export function App() {
@@ -56,9 +27,7 @@ export function App() {
     : preferences.settings
   const units: UnitSystem = profile ? profile.units : preferences.units
   const keepFiles = profile?.keepFiles ?? false
-  const saveProfile = (
-    next: Partial<{ settings: AthleteSettings; units: UnitSystem; keepFiles: boolean }>,
-  ) => {
+  const saveProfile = (next: ProfilePatch) => {
     if (profile) {
       // Only the fields the user changed are sent. The account merges them onto the latest saved
       // profile, so a change made in another tab is not reverted.
@@ -80,37 +49,8 @@ export function App() {
   }
 
   const analysis = useAnalysis(settings, account)
-  const fileRetentionControls = signedIn && (
-    <>
-      <label className="app__keep-files">
-        <input
-          type="checkbox"
-          checked={keepFiles}
-          disabled={!fileRetentionAvailable}
-          aria-describedby="file-retention-help"
-          onChange={(event) => saveProfile({ keepFiles: event.target.checked })}
-        />
-        Keep original files in my library
-      </label>
-      <p id="file-retention-help" className="app__retention-help muted">
-        Originals let you rebuild saved analyses later. Turning this off deletes saved originals;
-        activity summaries remain.
-      </p>
-      {/* Always mounted, so the notice is announced when it appears. */}
-      <p role="status" className={fileRetentionAvailable ? 'app__quiet' : undefined}>
-        {fileRetentionAvailable ? '' : RETENTION_UNAVAILABLE}
-      </p>
-    </>
-  )
-  const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
-    analysis.state
-  const originalsMissing = analysis.missingOriginals
-  const missingText =
-    originalsMissing === 1
-      ? '1 activity is missing its original file. Re-import it to restore the original.'
-      : `${originalsMissing} activities are missing their original file. Re-import them to restore the originals.`
-  const headlineDuration = result ? pickHeadline(result.comparison)?.point.durationS : undefined
-  const headlineEffort = result?.effort.find((e) => e.durationS === headlineDuration) ?? null
+  const { result, isSample } = analysis.state
+  const signedOut = account.status === 'signed-out'
 
   // Swapping between the landing and results views unmounts whatever had focus,
   // so send focus to the new view's heading.
@@ -142,29 +82,6 @@ export function App() {
     else landingHeading.current?.focus()
   })
 
-  // The rebuild button is disabled while it runs, and its card goes once nothing is outdated, so
-  // the outcome is announced from the notice region, which is always mounted.
-  const rebuildRequested = useRef(false)
-  const rebuildNoticeRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (analysis.busy || !rebuildRequested.current) return
-    rebuildRequested.current = false
-    rebuildNoticeRef.current?.focus()
-  }, [analysis.busy])
-
-  const libraryUnavailable = account.status === 'unavailable'
-  const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
-  const outdatedCount = analysis.state.outdatedActivities
-  const outdatedShown = signedIn && outdatedCount > 0
-  const outdatedText =
-    `${outdatedCount} saved ${outdatedCount === 1 ? 'activity uses' : 'activities use'} an older ` +
-    `analysis model and ${outdatedCount === 1 ? 'is' : 'are'} excluded from these results.`
-  const incompatibleCount = analysis.state.incompatibleActivities
-  const incompatibleShown = incompatibleCount > 0
-  const incompatibleText =
-    `${incompatibleCount} saved ${incompatibleCount === 1 ? 'activity was' : 'activities were'} ` +
-    `created with a newer app version and ${incompatibleCount === 1 ? 'is' : 'are'} excluded ` +
-    'from analysis. Use a compatible app version to analyze them.'
   const sampleShown = result !== null && isSample
 
   return (
@@ -189,63 +106,14 @@ export function App() {
         issues={analysis.state.syncIssues}
         signedIn={signedIn}
       />
-      {/* Always mounted, so a message put in it is announced. It takes no room while empty. */}
-      <p role="status" className={libraryUnavailable ? 'card' : 'app__quiet'}>
-        {libraryUnavailable ? LIBRARY_UNAVAILABLE : ''}
-      </p>
-      {signedIn && analysis.libraryStatus === 'failed' && (
-        <section className="card app__error" aria-label="Library">
-          <p role="alert">Your library could not be loaded.</p>
-          <button type="button" className="btn" onClick={() => runThenFocus(analysis.retryLibrary)}>
-            Retry
-          </button>
-        </section>
-      )}
-      <section
-        className={missingShown ? 'card' : 'app__quiet'}
-        aria-label={missingShown ? 'Missing original files' : undefined}
-      >
-        <p role="status">{missingShown ? missingText : ''}</p>
-      </section>
-      <section
-        className={outdatedShown ? 'card' : 'app__quiet'}
-        aria-label={outdatedShown ? 'Saved activity updates' : undefined}
-      >
-        <p role="status">{outdatedShown ? outdatedText : ''}</p>
-        {outdatedShown && !fileRetentionAvailable && (
-          <p>
-            Original file storage is unavailable on this deployment, so saved activities cannot be
-            rebuilt from the library. Import the original files to update them; existing saved
-            originals are not deleted.
-          </p>
-        )}
-        {outdatedShown && (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => {
-              rebuildRequested.current = true
-              analysis.rebuildSavedActivities()
-            }}
-            disabled={analysis.busy || !fileRetentionAvailable}
-          >
-            {analysis.busy ? 'Rebuilding saved activities…' : 'Rebuild saved activities'}
-          </button>
-        )}
-      </section>
-      {/* Always mounted, so the outcome of a rebuild is announced and stays after the card above unmounts. */}
-      <div role="status" ref={rebuildNoticeRef} tabIndex={-1}>
-        {analysis.rebuildNotice}
-      </div>
-      <section
-        className={incompatibleShown ? 'card' : 'app__quiet'}
-        aria-label={incompatibleShown ? 'Incompatible saved activities' : undefined}
-      >
-        <p role="status">{incompatibleShown ? incompatibleText : ''}</p>
-      </section>
-      {analysis.state.hiddenDuplicates > 0 && (
-        <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
-      )}
+      <LibraryNotices
+        analysis={analysis}
+        signedIn={signedIn}
+        keepFiles={keepFiles}
+        fileRetentionAvailable={fileRetentionAvailable}
+        libraryUnavailable={account.status === 'unavailable'}
+        onRetry={() => runThenFocus(analysis.retryLibrary)}
+      />
 
       {account.error && account.status !== 'unavailable' && (
         <p className="app__error card" role="alert">
@@ -279,214 +147,35 @@ export function App() {
       )}
 
       <main className={result ? 'app__results' : 'app__intro'}>
-        {!result && (
-          <section className="app__pitch">
-            <h1 ref={landingHeading} tabIndex={-1}>
-              How do your running and cycling energy estimates compare?
-            </h1>
-            <p className="secondary">
-              Watts on the bike and pace on the run cannot be compared directly. This tool converts
-              both into an estimated energy rate per kilogram, then compares the estimates with a
-              range that reflects the model assumptions.
-            </p>
-          </section>
-        )}
+        {!result && <LandingPitch headingRef={landingHeading} />}
+        {/* Always mounted, so a message put in it is announced. */}
         <p role="status" className={sampleShown ? 'app__sample card' : 'app__quiet'}>
           {sampleShown ? SAMPLE_NOTICE : ''}
         </p>
-        <section
-          className={result ? 'card app__toolbar' : undefined}
-          aria-label="Files and settings"
-        >
-          {!result && fileRetentionControls}
-          <Dropzone
-            compact={result !== null}
-            onFiles={analysis.addFiles}
-            onSample={analysis.loadSample}
-            busy={analysis.busy}
-            waiting={analysis.waitingReason}
-            progress={analysis.progress}
-            signedIn={signedIn}
-            outcome={analysis.importOutcome}
+        <FilesToolbar
+          analysis={analysis}
+          settings={settings}
+          units={units}
+          signedIn={signedIn}
+          keepFiles={keepFiles}
+          fileRetentionAvailable={fileRetentionAvailable}
+          onSaveProfile={saveProfile}
+        />
+        {result ? (
+          <ResultsView
+            analysis={analysis}
+            result={result}
+            settings={settings}
+            units={units}
+            signedOut={signedOut}
+            onSignIn={account.signIn}
           />
-          {result && (
-            <>
-              <SettingsBar
-                settings={settings}
-                units={units}
-                onChange={(next) => saveProfile({ settings: next })}
-              />
-              {fileRetentionControls}
-              <RangePicker
-                rangeDays={rangeDays}
-                onChange={analysis.setRange}
-                shown={result.activities.length}
-                total={totalActivities}
-              />
-              {!signedIn && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={analysis.clear}
-                  disabled={analysis.busy}
-                >
-                  Start over
-                </button>
-              )}
-            </>
-          )}
-        </section>
-        {!result && (
-          <>
-            <RejectedFiles
-              rejected={rejected}
-              unsupportedFiles={unsupportedFiles}
-              duplicates={analysis.importOutcome?.duplicates ?? []}
-            />
-            {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
-            <ol className="app__steps">
-              <li>
-                <h3>1. Add your files</h3>
-                <p className="secondary">
-                  FIT, GPX or TCX files from a Garmin, Wahoo or similar device, or the zip from
-                  Strava&rsquo;s account export.
-                </p>
-              </li>
-              <li>
-                <h3>2. Both sports become one unit</h3>
-                <p className="secondary">
-                  Cycling power and running speed on any gradient are converted to one energy rate,
-                  in watts per kilogram.
-                </p>
-              </li>
-              <li>
-                <h3>3. Your heart rate checks the maths</h3>
-                <p className="secondary">
-                  The model assumes heart rate responds similarly to energy rate in both sports.
-                  When the data support it, fitted slopes adjust the energy estimates; otherwise,
-                  the population-based range is kept.
-                </p>
-              </li>
-            </ol>
-            <Methodology />
-          </>
-        )}
-        {result && (
-          <>
-            {account.status === 'signed-out' && !isSample && (
-              <SignInCallout onSignIn={account.signIn} />
-            )}
-            <RejectedFiles
-              rejected={rejected}
-              unsupportedFiles={unsupportedFiles}
-              duplicates={analysis.importOutcome?.duplicates ?? []}
-            />
-
-            <section className="card">
-              <Headline
-                result={result}
-                units={units}
-                massKg={settings.massKg}
-                effort={headlineEffort}
-              />
-              <ShareImageButton
-                result={result}
-                settings={settings}
-                units={units}
-                rangeDays={rangeDays}
-                isSample={isSample}
-                effort={headlineEffort}
-                disabled={analysis.busy}
-              />
-            </section>
-
-            <section className="card">
-              <h2>Best efforts in one unit</h2>
-              <p>
-                The highest estimated energy rate per kilogram for each length of effort. Where the
-                lines cross, the two sports are equal.
-              </p>
-              <CurveChart
-                runCurve={result.runCurve}
-                rideMetabolicCurve={result.rideMetabolicCurve}
-                rideCurve={result.rideCurve}
-                units={units}
-                activityNames={Object.fromEntries(result.activities.map((a) => [a.id, a.name]))}
-              />
-            </section>
-
-            {weeksWithValue(analysis.state.trend) >= 2 && (
-              <section className="card">
-                <h2>Fitness over time</h2>
-                <p>
-                  Your best estimated energy rate over 20 min in the previous 6 weeks, each week.
-                </p>
-                <TrendChart points={analysis.state.trend} />
-              </section>
-            )}
-
-            <div className="grid-2">
-              <section className="card">
-                <h2>Running compared with cycling</h2>
-                <p>
-                  How far your running sits above or below your cycling at each length of effort.
-                </p>
-                <RatioChart comparison={result.comparison} />
-              </section>
-              <section className="card">
-                <h2>What your cycling is worth on foot</h2>
-                <p>
-                  Your best cycling efforts, and the flat running pace estimated to use the same
-                  energy (90% model range).
-                </p>
-                <EquivalenceTable equivalents={result.equivalents} units={units} />
-              </section>
-            </div>
-
-            <div className="grid-2">
-              <section className="card">
-                <h2>Heart-rate check</h2>
-                <p>
-                  Each dot is five steady minutes. If the model is right for you, the two lines rise
-                  at the same rate.
-                </p>
-                <HrScatter hr={result.hr} />
-              </section>
-              {result.virtualAccuracy && (
-                <section className="card">
-                  <h2>Virtual power meter accuracy</h2>
-                  <p>
-                    Power estimated from speed, gradient and weight on climbs, tuned on your other
-                    power-meter rides and scored on each ride it was not tuned on.
-                  </p>
-                  <AccuracyScatter accuracy={result.virtualAccuracy} />
-                </section>
-              )}
-            </div>
-
-            <section className="card">
-              <h2>Activities</h2>
-              <ActivitiesTable activities={result.activities} units={units} />
-            </section>
-
-            <Methodology />
-          </>
+        ) : (
+          <LandingView analysis={analysis} signedOut={signedOut} onSignIn={account.signIn} />
         )}
       </main>
 
-      {signedIn && analysis.libraryStatus === 'loaded' && (
-        <section className="card" aria-label="Saved library">
-          <h2>Saved library</h2>
-          <SavedLibrary
-            activities={analysis.savedActivities}
-            busy={analysis.busy || analysis.libraryAction !== null}
-            onDelete={analysis.deleteActivity}
-            status={analysis.libraryNotice}
-            error={analysis.libraryError}
-            unreadable={analysis.libraryUnreadable}
-          />
-        </section>
-      )}
+      <SavedLibraryCard analysis={analysis} signedIn={signedIn} />
 
       <footer className="app__footer muted">
         <PrivacyNote
