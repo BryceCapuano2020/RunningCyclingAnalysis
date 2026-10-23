@@ -444,8 +444,25 @@ describe('listActivities', () => {
     await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 
-  it('rejects an empty page that claims more pages remain', async () => {
-    stubFetch(respond(200, { items: [], nextCursor: 'cursor' }))
+  // The server caps how many rows one request scans, so a run of unreadable rows can yield an
+  // empty page that still carries a cursor.
+  it('follows an empty page that carries a cursor to the next page', async () => {
+    const fetchMock = stubFetch(
+      respond(200, { items: [], nextCursor: 'after-unreadable', unreadable: 3 }),
+      respond(200, { items: [RECORD_WIRE], nextCursor: null }),
+    )
+    const onUnreadable = vi.fn()
+    const records = await listActivities(undefined, undefined, onUnreadable)
+    expect(records).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(onUnreadable).toHaveBeenCalledWith(3)
+  })
+
+  it('still rejects a server that repeats an empty page cursor', async () => {
+    stubFetch(
+      respond(200, { items: [], nextCursor: 'same' }),
+      respond(200, { items: [], nextCursor: 'same' }),
+    )
     await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
   })
 })

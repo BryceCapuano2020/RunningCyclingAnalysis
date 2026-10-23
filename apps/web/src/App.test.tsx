@@ -25,6 +25,7 @@ const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted((
       effort: unknown[]
     },
     syncIssues: [] as { code: string; count: number }[],
+    isSample: false,
     trend: [] as TrendPoint[],
     libraryStatus: 'loaded' as 'idle' | 'loading' | 'loaded' | 'failed',
     missingOriginals: 0,
@@ -87,7 +88,7 @@ vi.mock('./ui/useAnalysis', () => ({
       result: analysisMock.result,
       rejected: [],
       unsupportedFiles: 0,
-      isSample: false,
+      isSample: analysisMock.isSample,
       totalActivities: 0,
       rangeDays: null,
       syncIssues: analysisMock.syncIssues,
@@ -147,7 +148,11 @@ vi.mock('./ui/components', () => ({
       Change units
     </button>
   ),
-  Headline: () => null,
+  Headline: () => (
+    <h1 id="results-heading" tabIndex={-1}>
+      Results
+    </h1>
+  ),
   Methodology: () => null,
   PrivacyNote: () => null,
   RangePicker: () => null,
@@ -186,6 +191,7 @@ afterEach(() => {
   analysisMock.missingOriginals = 0
   analysisMock.rebuildNotice = null
   analysisMock.busy = false
+  analysisMock.isSample = false
   analysisMock.error = null
   analysisMock.errorIssue = null
   analysisMock.libraryAction = null
@@ -441,5 +447,148 @@ describe('library actions and notices', () => {
       busy: true,
       waiting: 'Waiting for your library to load',
     })
+  })
+})
+
+/** The status regions in the page right now, before a message is put into one of them. */
+function mountedStatusRegions(): Element[] {
+  return Array.from(document.querySelectorAll('[role="status"]'))
+}
+
+/** Asserts that the message sits in a region that was mounted before the message appeared. */
+function expectAnnouncedFromMountedRegion(regions: Element[], text: RegExp) {
+  const message = screen.getByText(text)
+  expect(regions).toContain(message.closest('[role="status"]'))
+}
+
+describe('status messages', () => {
+  it('goes into a region that was already mounted for the retention notice', () => {
+    const view = render(<App />)
+    const regions = mountedStatusRegions()
+    accountMock.fileRetentionAvailable = false
+    view.rerender(<App />)
+    expectAnnouncedFromMountedRegion(
+      regions,
+      /Original file storage is unavailable on this deployment\. Your saved/,
+    )
+  })
+
+  it('goes into a region that was already mounted for the unavailable library', () => {
+    const view = render(<App />)
+    const regions = mountedStatusRegions()
+    accountMock.status = 'unavailable'
+    view.rerender(<App />)
+    expectAnnouncedFromMountedRegion(regions, /Your library is unavailable right now/)
+  })
+
+  it('goes into a region that was already mounted for missing original files', () => {
+    const view = render(<App />)
+    const regions = mountedStatusRegions()
+    analysisMock.missingOriginals = 2
+    view.rerender(<App />)
+    expectAnnouncedFromMountedRegion(regions, /2 activities are missing their original file/)
+  })
+
+  it('goes into a region that was already mounted for outdated saved activities', () => {
+    const view = render(<App />)
+    const regions = mountedStatusRegions()
+    analysisMock.outdatedActivities = 2
+    view.rerender(<App />)
+    expectAnnouncedFromMountedRegion(regions, /2 saved activities use an older analysis model/)
+  })
+
+  it('goes into a region that was already mounted for incompatible saved activities', () => {
+    const view = render(<App />)
+    const regions = mountedStatusRegions()
+    analysisMock.incompatibleActivities = 1
+    view.rerender(<App />)
+    expectAnnouncedFromMountedRegion(
+      regions,
+      /1 saved activity was created with a newer app version/,
+    )
+  })
+
+  it('goes into a region that was already mounted for the sample notice', () => {
+    const view = render(<App />)
+    const regions = mountedStatusRegions()
+    analysisMock.isSample = true
+    view.rerender(<App />)
+    expectAnnouncedFromMountedRegion(regions, /simulated sample data/)
+  })
+})
+
+describe('focus after an action completes', () => {
+  afterEach(() => {
+    analysisMock.stop = vi.fn()
+    analysisMock.retryWorker = vi.fn()
+    analysisMock.retryLibrary = vi.fn()
+    analysisMock.rebuildSavedActivities = vi.fn()
+  })
+
+  it('moves focus to the landing heading when a stopped import ends, not to the page body', () => {
+    analysisMock.result = null
+    analysisMock.busy = true
+    analysisMock.stop = vi.fn(() => {
+      analysisMock.busy = false
+    })
+    render(<App />)
+    const stop = screen.getByRole('button', { name: 'Stop current analysis' })
+    stop.focus()
+    fireEvent.click(stop)
+
+    expect(screen.queryByRole('button', { name: 'Stop current analysis' })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: /How do your running and cycling/ }),
+    ).toHaveFocus()
+  })
+
+  it('moves focus to the results heading when a restart clears its error', () => {
+    analysisMock.error = 'Analysis stopped. Re-import your files to continue.'
+    analysisMock.workerStopped = true
+    analysisMock.retryWorker = vi.fn(() => {
+      analysisMock.error = null
+      analysisMock.workerStopped = false
+    })
+    render(<App />)
+    const restart = screen.getByRole('button', { name: 'Restart analysis' })
+    restart.focus()
+    fireEvent.click(restart)
+
+    expect(screen.queryByRole('button', { name: 'Restart analysis' })).not.toBeInTheDocument()
+    expect(document.getElementById('results-heading')).toHaveFocus()
+  })
+
+  it('moves focus to the landing heading when a library retry starts loading', () => {
+    analysisMock.result = null
+    analysisMock.libraryStatus = 'failed'
+    analysisMock.retryLibrary = vi.fn(() => {
+      analysisMock.libraryStatus = 'loading'
+    })
+    render(<App />)
+    const retry = screen.getByRole('button', { name: 'Retry' })
+    retry.focus()
+    fireEvent.click(retry)
+
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 1, name: /How do your running and cycling/ }),
+    ).toHaveFocus()
+  })
+
+  it('moves focus to the rebuild notice when a rebuild ends and its card goes away', () => {
+    analysisMock.outdatedActivities = 2
+    analysisMock.rebuildSavedActivities = vi.fn(() => {
+      analysisMock.busy = true
+    })
+    const view = render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild saved activities' }))
+    view.rerender(<App />)
+
+    analysisMock.busy = false
+    analysisMock.outdatedActivities = 0
+    analysisMock.rebuildNotice = 'Rebuilt 2 saved activities.'
+    view.rerender(<App />)
+
+    expect(screen.getByText('Rebuilt 2 saved activities.')).toHaveFocus()
   })
 })

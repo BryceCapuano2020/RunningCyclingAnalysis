@@ -1,7 +1,7 @@
 import { weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ProfileInput } from '@rca/contract'
 import './App.css'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart, TrendChart } from './ui/charts'
@@ -37,6 +37,12 @@ function hiddenCopiesText(count: number): string {
     `from another file and ${counted} not counted twice.`
   )
 }
+
+const RETENTION_UNAVAILABLE =
+  'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
+const LIBRARY_UNAVAILABLE =
+  'Your library is unavailable right now. Analysis still runs in your browser and nothing is being saved.'
+const SAMPLE_NOTICE = 'You are looking at simulated sample data. Add your own files to replace it.'
 
 export function App() {
   const [preferences, setPreferences] = usePreferences()
@@ -90,13 +96,10 @@ export function App() {
         Originals let you rebuild saved analyses later. Turning this off deletes saved originals;
         activity summaries remain.
       </p>
-      {!fileRetentionAvailable && (
-        <p role="status">
-          Original file storage is unavailable on this deployment. Your saved preference is
-          preserved; new imports save summaries only and original files stay on this device.
-          Existing saved originals are not deleted.
-        </p>
-      )}
+      {/* Always mounted, so the notice is announced when it appears. */}
+      <p role="status" className={fileRetentionAvailable ? 'app__quiet' : undefined}>
+        {fileRetentionAvailable ? '' : RETENTION_UNAVAILABLE}
+      </p>
     </>
   )
   const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
@@ -121,6 +124,49 @@ export function App() {
     else landingHeading.current?.focus()
   }, [hasResult])
 
+  // Stop, restart and retry unmount their own button when they finish. Once the page has rendered
+  // without it, focus moves to the view's heading. Focus still on a control is left where it is.
+  const focusWhenDone = useRef(false)
+  const [, setFocusTick] = useState(0)
+  function runThenFocus(action: () => void) {
+    action()
+    focusWhenDone.current = true
+    setFocusTick((tick) => tick + 1)
+  }
+  useEffect(() => {
+    if (!focusWhenDone.current) return
+    focusWhenDone.current = false
+    const active = document.activeElement
+    if (active !== null && active !== document.body) return
+    if (hasResult) document.getElementById('results-heading')?.focus()
+    else landingHeading.current?.focus()
+  })
+
+  // The rebuild button is disabled while it runs, and its card goes once nothing is outdated, so
+  // the outcome is announced from the notice region, which is always mounted.
+  const rebuildRequested = useRef(false)
+  const rebuildNoticeRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (analysis.busy || !rebuildRequested.current) return
+    rebuildRequested.current = false
+    rebuildNoticeRef.current?.focus()
+  }, [analysis.busy])
+
+  const libraryUnavailable = account.status === 'unavailable'
+  const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
+  const outdatedCount = analysis.state.outdatedActivities
+  const outdatedShown = signedIn && outdatedCount > 0
+  const outdatedText =
+    `${outdatedCount} saved ${outdatedCount === 1 ? 'activity uses' : 'activities use'} an older ` +
+    `analysis model and ${outdatedCount === 1 ? 'is' : 'are'} excluded from these results.`
+  const incompatibleCount = analysis.state.incompatibleActivities
+  const incompatibleShown = incompatibleCount > 0
+  const incompatibleText =
+    `${incompatibleCount} saved ${incompatibleCount === 1 ? 'activity was' : 'activities were'} ` +
+    `created with a newer app version and ${incompatibleCount === 1 ? 'is' : 'are'} excluded ` +
+    'from analysis. Use a compatible app version to analyze them.'
+  const sampleShown = result !== null && isSample
+
   return (
     <div className="page">
       <Header
@@ -143,63 +189,60 @@ export function App() {
         issues={analysis.state.syncIssues}
         signedIn={signedIn}
       />
-      {account.status === 'unavailable' && (
-        <p className="card" role="status">
-          Your library is unavailable right now. Analysis still runs in your browser and nothing is
-          being saved.
-        </p>
-      )}
+      {/* Always mounted, so a message put in it is announced. It takes no room while empty. */}
+      <p role="status" className={libraryUnavailable ? 'card' : 'app__quiet'}>
+        {libraryUnavailable ? LIBRARY_UNAVAILABLE : ''}
+      </p>
       {signedIn && analysis.libraryStatus === 'failed' && (
         <section className="card app__error" aria-label="Library">
           <p role="alert">Your library could not be loaded.</p>
-          <button type="button" className="btn" onClick={analysis.retryLibrary}>
+          <button type="button" className="btn" onClick={() => runThenFocus(analysis.retryLibrary)}>
             Retry
           </button>
         </section>
       )}
-      {signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0 && (
-        <section className="card" aria-label="Missing original files">
-          <p role="status">{missingText}</p>
-        </section>
-      )}
-      {signedIn && analysis.state.outdatedActivities > 0 && (
-        <section className="card" aria-label="Saved activity updates">
-          <p role="status">
-            {analysis.state.outdatedActivities} saved{' '}
-            {analysis.state.outdatedActivities === 1 ? 'activity uses' : 'activities use'} an older
-            analysis model and {analysis.state.outdatedActivities === 1 ? 'is' : 'are'} excluded
-            from these results.
+      <section
+        className={missingShown ? 'card' : 'app__quiet'}
+        aria-label={missingShown ? 'Missing original files' : undefined}
+      >
+        <p role="status">{missingShown ? missingText : ''}</p>
+      </section>
+      <section
+        className={outdatedShown ? 'card' : 'app__quiet'}
+        aria-label={outdatedShown ? 'Saved activity updates' : undefined}
+      >
+        <p role="status">{outdatedShown ? outdatedText : ''}</p>
+        {outdatedShown && !fileRetentionAvailable && (
+          <p>
+            Original file storage is unavailable on this deployment, so saved activities cannot be
+            rebuilt from the library. Import the original files to update them; existing saved
+            originals are not deleted.
           </p>
-          {!fileRetentionAvailable && (
-            <p>
-              Original file storage is unavailable on this deployment, so saved activities cannot be
-              rebuilt from the library. Import the original files to update them; existing saved
-              originals are not deleted.
-            </p>
-          )}
+        )}
+        {outdatedShown && (
           <button
             type="button"
             className="btn"
-            onClick={analysis.rebuildSavedActivities}
+            onClick={() => {
+              rebuildRequested.current = true
+              analysis.rebuildSavedActivities()
+            }}
             disabled={analysis.busy || !fileRetentionAvailable}
           >
             {analysis.busy ? 'Rebuilding saved activities…' : 'Rebuild saved activities'}
           </button>
-        </section>
-      )}
+        )}
+      </section>
       {/* Always mounted, so the outcome of a rebuild is announced and stays after the card above unmounts. */}
-      <div role="status">{analysis.rebuildNotice}</div>
-      {analysis.state.incompatibleActivities > 0 && (
-        <section className="card" aria-label="Incompatible saved activities">
-          <p role="status">
-            {analysis.state.incompatibleActivities} saved{' '}
-            {analysis.state.incompatibleActivities === 1 ? 'activity was' : 'activities were'}{' '}
-            created with a newer app version and{' '}
-            {analysis.state.incompatibleActivities === 1 ? 'is' : 'are'} excluded from analysis.
-            {' Use a compatible app version to analyze them.'}
-          </p>
-        </section>
-      )}
+      <div role="status" ref={rebuildNoticeRef} tabIndex={-1}>
+        {analysis.rebuildNotice}
+      </div>
+      <section
+        className={incompatibleShown ? 'card' : 'app__quiet'}
+        aria-label={incompatibleShown ? 'Incompatible saved activities' : undefined}
+      >
+        <p role="status">{incompatibleShown ? incompatibleText : ''}</p>
+      </section>
       {analysis.state.hiddenDuplicates > 0 && (
         <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
       )}
@@ -218,7 +261,11 @@ export function App() {
             <p>Something went wrong: {analysis.error}</p>
           )}
           {analysis.workerStopped && (
-            <button type="button" className="btn" onClick={analysis.retryWorker}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => runThenFocus(analysis.retryWorker)}
+            >
               Restart analysis
             </button>
           )}
@@ -226,7 +273,7 @@ export function App() {
       )}
 
       {analysis.busy && (
-        <button type="button" className="btn" onClick={analysis.stop}>
+        <button type="button" className="btn" onClick={() => runThenFocus(analysis.stop)}>
           Stop current analysis
         </button>
       )}
@@ -239,16 +286,14 @@ export function App() {
             </h1>
             <p className="secondary">
               Watts on the bike and pace on the run cannot be compared directly. This tool converts
-              both into estimated energy use per kilogram, then compares the estimates with a range
-              that reflects the model assumptions.
+              both into an estimated energy rate per kilogram, then compares the estimates with a
+              range that reflects the model assumptions.
             </p>
           </section>
         )}
-        {result && isSample && (
-          <p className="app__sample card" role="status">
-            You are looking at simulated sample data. Add your own files to replace it.
-          </p>
-        )}
+        <p role="status" className={sampleShown ? 'app__sample card' : 'app__quiet'}>
+          {sampleShown ? SAMPLE_NOTICE : ''}
+        </p>
         <section
           className={result ? 'card app__toolbar' : undefined}
           aria-label="Files and settings"
@@ -317,9 +362,9 @@ export function App() {
               <li>
                 <h3>3. Your heart rate checks the maths</h3>
                 <p className="secondary">
-                  The model assumes heart rate responds similarly to energy use in both sports. When
-                  the data support it, fitted slopes adjust the energy estimates; otherwise, the
-                  population-based range is kept.
+                  The model assumes heart rate responds similarly to energy rate in both sports.
+                  When the data support it, fitted slopes adjust the energy estimates; otherwise,
+                  the population-based range is kept.
                 </p>
               </li>
             </ol>

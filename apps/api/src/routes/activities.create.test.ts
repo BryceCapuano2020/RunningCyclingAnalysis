@@ -8,7 +8,14 @@ import {
 } from '@rca/contract'
 import { utcDay } from '../budget.ts'
 import { encodeCursor } from '../cursor.ts'
-import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
+import {
+  countingDb,
+  createHarness,
+  digestFixture,
+  START,
+  testEnv,
+  type Harness,
+} from '../test/harness.ts'
 import { sha256Hex } from '../util.ts'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
@@ -365,6 +372,42 @@ describe('database size guard', () => {
     expect((await createActivity(h, token, {}, second)).status).toBe(201)
   })
 
+  it('refuses an upgrade that grows the digest while the database is over the limit, with 503', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    const before = await storedDigestBytesOf(h, id)
+    await setDatabaseBytes(h, DATABASE_SOFT_LIMIT_BYTES + 1)
+
+    const refused = await createActivity(
+      h,
+      token,
+      {},
+      { modelRevision: MODEL_REVISION, name: 'a much longer name for the same ride' },
+    )
+    expect(refused.status).toBe(503)
+    expect(await refused.json()).toMatchObject({ error: { code: 'database_full' } })
+    expect(await storedDigestBytesOf(h, id)).toBe(before)
+    expect(await digestBytes(h, uid)).toEqual({ counter: before, actual: before })
+  })
+
+  it('records the database size after an upgrade, so the guard sees the growth', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await idOf(await createActivity(h, token, {}, { modelRevision: 1, name: 'a' }))
+    await setDatabaseBytes(h, 0)
+
+    const upgrade = await createActivity(
+      h,
+      token,
+      {},
+      { modelRevision: MODEL_REVISION, name: 'a much longer name for the same ride' },
+    )
+    expect(upgrade.status).toBe(200)
+    expect(await databaseBytes(h)).toBeGreaterThan(0)
+  })
+
   it('still returns an existing activity and accepts upgrades while the database is over the limit', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -636,6 +679,31 @@ describe('GET /api/activities read budget', () => {
     expect(aliceSecond.status).toBe(200)
     expect((await readsUsed(h, aliceId)) - aliceBaseline).toBe(1)
   })
+
+  it('refuses a cross-site request for a cursor without spending the cursor or a read unit', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    for (let i = 0; i < 3; i += 1) {
+      await createActivity(h, token, {}, { startMs: START + i * 60_000 })
+    }
+    const first = await pageOf(h, token, '?limit=1')
+    const cursor = nextOf(first.body)
+    const baseline = await readsUsed(h, uid)
+
+    const crossSite = await h.send({
+      path: `/api/activities?limit=1&cursor=${cursor}`,
+      headers: { 'Sec-Fetch-Site': 'cross-site' },
+      cookies: { rca_session: token },
+    })
+    expect(crossSite.status).toBe(403)
+    expect(await readsUsed(h, uid)).toBe(baseline)
+
+    // The cursor the app issued is still free to spend once.
+    const second = await pageOf(h, token, `?limit=1&cursor=${cursor}`)
+    expect(second.status).toBe(200)
+    expect(await readsUsed(h, uid)).toBe(baseline)
+  })
 })
 
 /** Stores a row exactly as an older deployment could have, bypassing the create route. */
@@ -704,4 +772,54 @@ describe('GET /api/activities with unreadable stored rows', () => {
     expect(seen).toEqual([newValid, oldValid])
     expect(unreadable).toBe(2)
   })
+
+  it('caps the rows one request scans, and returns a cursor after the last row it examined', async () => {
+    const counted = countingDb(testEnv().DB)
+    const h = createHarness({}, { DB: counted.db })
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    const valid = await idOf(await createActivity(h, token, {}, { startMs: START }))
+    // Unreadable rows that are newer than the valid one, so a listing meets them first.
+    await seedUnreadableActivities(h, uid, 650, START + 1_000)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    counted.reset()
+    const first = await pageOf(h, token, '?limit=25')
+    expect(counted.count()).toBeLessThanOrEqual(50)
+    // Eight database pages, each selecting a full page of 25 unreadable rows, and no item.
+    expect(first.body).toMatchObject({ items: [], unreadable: 200 })
+    expect(nextOf(first.body)).not.toBeNull()
+
+    const seen: string[] = []
+    let cursor = nextOf(first.body)
+    let pages = 1
+    while (cursor !== null) {
+      const page = await pageOf(h, token, `?limit=25&cursor=${cursor}`)
+      seen.push(...itemsOf(page.body).map((r) => r.id))
+      cursor = nextOf(page.body)
+      pages += 1
+      expect(pages).toBeLessThan(100)
+    }
+    warn.mockRestore()
+    expect(seen).toEqual([valid])
+    expect(await readsUsed(h, uid)).toBe(1)
+  })
 })
+
+/** Inserts rows whose digest does not validate, in one statement. */
+async function seedUnreadableActivities(
+  h: Harness,
+  uid: string,
+  count: number,
+  firstCreatedAt: number,
+): Promise<void> {
+  await h.env.DB.prepare(
+    `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+     INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+       digest_json, file_name, file_hash, created_at)
+     SELECT 'bad-' || i, ?, 'bad-' || i, 'ride', i, 'legacy', 1, '{"version":1}', 'ride.fit',
+       'h', ? + i FROM n`,
+  )
+    .bind(count, uid, firstCreatedAt)
+    .run()
+}

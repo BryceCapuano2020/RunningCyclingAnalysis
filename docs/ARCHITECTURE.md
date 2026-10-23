@@ -5,10 +5,8 @@ and runs the analysis. When a user signs in, the API stores per-activity digests
 original activity files (FIT, GPX or TCX) in R2. One Cloudflare Worker serves both the built web app
 and the API.
 
-This page describes the hardening branch's source. The live runtime was verified at commit
-`493ce15`; the current `main` tree at `310264a` has no runtime changes beyond that evidence. The
-branch's session signing, deletion retry, quota and model-revision changes are not live until
-deployed.
+This page describes the hardening branch's source. For what is deployed and when it was verified,
+see the release state and live verification sections of [PRODUCTION.md](PRODUCTION.md).
 
 ## Components
 
@@ -45,8 +43,10 @@ flowchart LR
 
 The app is deployed as a single Worker with Workers Static Assets, not as a Cloudflare Pages
 project. `apps/api/wrangler.toml` points `[assets]` at `apps/web/dist`. Requests under `/api` run
-the Worker first. Every other request is served from the built files, and unknown paths fall back to
-`index.html` (`not_found_handling = "single-page-application"`). The web app and API therefore share
+the Worker first. Every other request is served from the built files when a file matches. A path that
+matches no file falls through to the Worker, which returns a JSON 404 (plain text under `/assets/`).
+The web app has no client-side routes and `not_found_handling = "none"`, so nothing falls back to
+`index.html`. The web app and API therefore share
 one origin, `https://rca-api.nutritioncoachapp.workers.dev`, so the session cookie is first-party
 and `SameSite=Lax` applies. `npm run build` must run before a deploy, because the assets come from
 the build output.
@@ -98,17 +98,17 @@ the build output.
 The tables below mirror `apps/api/src/db/schema.ts`. Wrangler also keeps a `d1_migrations` table
 of applied migrations, and the migrations live in `apps/api/migrations`.
 
-| Table                       | Columns                                                                                                                                                                        | Keys, constraints and notes                                                                                                                                                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                     | `id`, `email`, `name`, `picture_url` (nullable), `created_at`, `activity_count`, `deleting_at`                                                                                 | Primary key `id`. `email` is unique. `activity_count` enforces the stored-activity limit; `deleting_at` prevents new sign-ins or writes while account deletion is pending.                                                                        |
-| `oauth_accounts`            | `provider`, `provider_user_id`, `user_id`                                                                                                                                      | Primary key `(provider, provider_user_id)`. `user_id` references `users` with cascade delete. One Google identity per row.                                                                                                                        |
-| `sessions`                  | `id`, `user_id`, `expires_at`, `created_at`                                                                                                                                    | `id` is the SHA-256 hex of the session token; the token is never stored. `user_id` references `users` with cascade delete. `created_at` starts the absolute 90-day lifetime.                                                                      |
-| `profiles`                  | `user_id`, `mass_kg`, `bike_mass_kg`, `units` (`imperial` or `metric`), `keep_files`, `updated_at`                                                                             | Primary key `user_id`, which references `users` with cascade delete. `keep_files` says whether originals are retained.                                                                                                                            |
-| `activities`                | `id`, `user_id`, `dedupe_key`, `sport` (`run` or `ride`), `start_ms`, `name`, `digest_version`, `digest_json`, `file_name`, `file_hash`, `file_key`, `file_size`, `created_at` | Primary key `id`. `user_id` references `users` with cascade delete. Unique `(user_id, dedupe_key)`. Indexes on `(user_id, start_ms)` and `(user_id, created_at)`. `file_key` and `file_size` are null when no original is stored.                 |
-| `daily_budget`              | `user_id`, `day`, `action`, `used`                                                                                                                                             | Per-user, per-action UTC daily request counters; rows older than seven days are pruned.                                                                                                                                                           |
-| `upload_slots`              | `user_id`, `slot_id`, `expires_at`                                                                                                                                             | Leases that cap concurrent original-file uploads; expired slots are pruned by maintenance.                                                                                                                                                        |
-| `pending_account_deletions` | `user_id`, `requested_at`, `sweep_pending`                                                                                                                                     | Tombstones that block access and let interrupted file cleanup be retried. The row is removed after cleanup finishes.                                                                                                                              |
-| `r2_storage_budget`         | `id`, `lifetime_put_bytes`, `monthly_period`, `monthly_operations`, `monthly_put_bytes`, `orphan_sweep_cursor`, health-probe counters                                          | Single deployment-wide row for monthly R2 budgets, bounded deep-health probes and the orphan-sweep cursor. The lifetime PUT field also enforces a nonrefundable 4 GiB write cap. See [PRODUCTION.md](PRODUCTION.md#request-isolation-and-limits). |
+| Table                       | Columns                                                                                                                                                                        | Keys, constraints and notes                                                                                                                                                                                                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                     | `id`, `email`, `name`, `picture_url` (nullable), `created_at`, `activity_count`, `deleting_at`, `digest_bytes`, `list_cursor`                                                  | Primary key `id`. `email` is unique. `activity_count` enforces the stored-activity limit; `digest_bytes` is the stored digest JSON total, capped per user; `list_cursor` is the last library continuation cursor issued, spent once; `deleting_at` prevents new sign-ins or writes while account deletion is pending.             |
+| `oauth_accounts`            | `provider`, `provider_user_id`, `user_id`                                                                                                                                      | Primary key `(provider, provider_user_id)`. `user_id` references `users` with cascade delete. One Google identity per row.                                                                                                                                                                                                        |
+| `sessions`                  | `id`, `user_id`, `expires_at`, `created_at`                                                                                                                                    | `id` is the SHA-256 hex of the session token; the token is never stored. `user_id` references `users` with cascade delete. `created_at` starts the absolute 90-day lifetime.                                                                                                                                                      |
+| `profiles`                  | `user_id`, `mass_kg`, `bike_mass_kg`, `units` (`imperial` or `metric`), `keep_files`, `updated_at`                                                                             | Primary key `user_id`, which references `users` with cascade delete. `keep_files` says whether originals are retained.                                                                                                                                                                                                            |
+| `activities`                | `id`, `user_id`, `dedupe_key`, `sport` (`run` or `ride`), `start_ms`, `name`, `digest_version`, `digest_json`, `file_name`, `file_hash`, `file_key`, `file_size`, `created_at` | Primary key `id`. `user_id` references `users` with cascade delete. Unique `(user_id, dedupe_key)`. Indexes on `(user_id, start_ms)` and `(user_id, created_at)`. `file_key` and `file_size` are null when no original is stored.                                                                                                 |
+| `daily_budget`              | `user_id`, `day`, `action`, `used`                                                                                                                                             | Per-user, per-action UTC daily request counters; rows older than seven days are pruned.                                                                                                                                                                                                                                           |
+| `upload_slots`              | `user_id`, `slot_id`, `expires_at`                                                                                                                                             | Leases that cap concurrent original-file uploads; expired slots are pruned by maintenance.                                                                                                                                                                                                                                        |
+| `pending_account_deletions` | `user_id`, `requested_at`, `sweep_pending`                                                                                                                                     | Tombstones that block access and let interrupted file cleanup be retried. The row is removed after cleanup finishes.                                                                                                                                                                                                              |
+| `r2_storage_budget`         | `id`, `lifetime_put_bytes`, `monthly_period`, `monthly_operations`, `monthly_put_bytes`, `orphan_sweep_cursor`, health-probe counters, `d1_size_bytes`                         | Single deployment-wide row for monthly R2 budgets, bounded deep-health probes and the orphan-sweep cursor. `d1_size_bytes` is the last-seen database size, which the database guard reads. The lifetime PUT field also enforces a nonrefundable 4 GiB write cap. See [PRODUCTION.md](PRODUCTION.md#request-isolation-and-limits). |
 
 Every query on a user's data filters on `user_id`, which comes from the session. Deleting a user
 cascades to `oauth_accounts`, `sessions`, `profiles` and `activities`.
@@ -121,9 +121,9 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
 1. **Archive extraction** (`extractFitFiles` in `packages/core/src/fit/archive.ts`). A source is
    one file, optionally gzipped, or a zip. Zips are streamed, and zips nested inside them are read
    up to two levels deep. Only `.fit`, `.gpx` and `.tcx` entries, each optionally `.gz`, are
-   delivered. `.kml`, `.kmz`, `.pwx` and `.hrm` entries are counted and skipped. Entry counts,
-   entry sizes and total decompressed bytes are all capped, so an oversized archive stops with a
-   reason instead of exhausting memory.
+   delivered. `.kml`, `.kmz`, `.pwx` and `.hrm` entries are counted and skipped. Skipped entries are
+   drained, not buffered. Entry counts, entry sizes and total decompressed bytes are all capped, so
+   an oversized archive stops with a reason instead of exhausting memory.
 2. **Dispatch** (`parseActivityFile` in `packages/core/src/import/index.ts`). The extension, after
    any `.gz`, selects `parseFit`, `parseGpx` or `parseTcx`. Other names are refused. The bytes must
    already be decompressed.
@@ -143,10 +143,12 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    of each fix. Distance is integrated over time, and a gap longer than 30 seconds credits no
    distance. GPX always uses it. TCX uses it for distance when a file has no `DistanceMeters`, and
    for speed when the file has neither device speed nor device distance.
-6. **Near-duplicate rule** (specified for `packages/core/src/session.ts`). Two activities are
-   near-duplicates when they have the same sport, start within 60 seconds of each other, and have
-   durations within 10% of each other. Of a near-duplicate pair, the copy from the richer format is
-   kept: FIT, then TCX, then GPX.
+6. **Near-duplicate rule** (`packages/core/src/session.ts`). Two activities are near-duplicates when
+   they have the same sport, start within 60 seconds of each other, and have durations within 10%
+   or within 60 seconds of each other. Groups are transitive: if A matches B and B matches C, all
+   three are one group. From a group, the copy from the richest format is kept: FIT, then TCX, then
+   GPX. Within one format, the copy with a power meter is kept, then the copy with heart rate, then
+   the longer duration.
 
 ## Why the digest exists
 
@@ -168,9 +170,9 @@ needed to fit the bike model against power-meter rides, so it can be refitted wi
 
 The trade-off: a model change that needs a per-sample quantity the digest does not hold requires
 re-digesting the original. Each digest carries a `modelRevision` inside its JSON; this is separate
-from the `digest_version` column, which remains the schema version. Revision 3 digests are analysed
-on their own, while older digests are shown as outdated and excluded until the original activity
-file is re-imported. If its hash matches the stored activity, the API atomically replaces only the
+from the `digest_version` column, which remains the schema version. Digests at `MODEL_REVISION`
+(currently 4, in `packages/core/src/digest/modelRevision.ts`) are analysed on their own, while older
+digests are shown as outdated and excluded until the original activity file is re-imported. If its hash matches the stored activity, the API atomically replaces only the
 derived digest and preserves the activity id, original-file metadata and quota reservation. Retained
 R2 files can be downloaded by the browser to drive that recovery; no database migration is needed.
 
@@ -210,19 +212,11 @@ statistics can and cannot show, are in the [README](../README.md#limits).
 
 ## Client bundle
 
-Measured from the build output on the `hardening` working tree, 22 October 2026. Sizes are the
-build output's, with kB meaning 1,000 bytes. The worker chunk changed size between two builds on
-the same day, so re-measure with `npm run build -w @rca/web` before quoting these figures again.
-
-| Output                                                             | Raw       | Gzip                                   |
-| ------------------------------------------------------------------ | --------- | -------------------------------------- |
-| `assets/index-*.js` (app entry)                                    | 388.24 kB | 118.86 kB, as reported by Vite         |
-| `assets/analysis.worker-*.js` (Web Worker, which runs `@rca/core`) | 166.83 kB | about 50.9 kB, measured with `gzip -9` |
-| `assets/index-*.css`                                               | 22.33 kB  | 4.90 kB, as reported by Vite           |
-| `index.html`                                                       | 0.71 kB   | 0.41 kB, as reported by Vite           |
+The app has three main build outputs: the app entry, the analysis Web Worker (which runs `@rca/core`), and the stylesheet. Their sizes change with each build, so read them from the output of `npm run build -w @rca/web` rather than from this page.
 
 The analysis runs in the Web Worker, so the worker bundle is the second download on a first visit.
-The app makes no requests to third-party hosts from the bundle.
+The only third-party request the app makes is for a signed-in user's profile picture, from
+`lh3.googleusercontent.com`.
 
 ## Cost model
 

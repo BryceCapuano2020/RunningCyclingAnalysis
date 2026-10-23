@@ -5,7 +5,12 @@ import type { AthleteSettings, EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPercent, formatPower } from '@rca/core/units'
 import { APP_NAME } from '../appName'
-import { effortCaveat, headlineBasis, headlineText } from '../ui/components/headlineText'
+import {
+  COMPARISON_DISCLAIMER,
+  effortCaveat,
+  headlineBasis,
+  headlineText,
+} from '../ui/components/headlineText'
 import { pickHeadline } from '../ui/components/pickHeadline'
 import { plural } from '../ui/components/plural'
 import { rangePeriod } from '../ui/components/rangeOptions'
@@ -38,8 +43,7 @@ export interface ShareCardModel {
 }
 
 /** The disclaimer the results page gives for the headline comparison. */
-const FOOTER =
-  'Estimated from heart rate, pace and power files. This compares estimated energy use, not sporting ability.'
+const FOOTER = `Estimated from heart rate, pace and power files. ${COMPARISON_DISCLAIMER}`
 
 /** Figures are shown up to this many; the card has room for one row of them. */
 const MAX_FIGURES = 3

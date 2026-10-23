@@ -20,7 +20,10 @@ export interface DropzoneProps {
   compact?: boolean
   /** Signed-in imports are saved to the library, so the copy and the sample button change. */
   signedIn: boolean
-  /** Result of the run that just ended. Give a new object per run; its text is announced when it appears while not busy. */
+  /**
+   * Result of the run that just ended. Give a new object per run. Its text is announced when it
+   * appears while not busy, unless signed in: the sync status announces the end of a signed-in import.
+   */
   outcome?: DropzoneOutcome | null
   /** Neutral reason shown while busy in place of analysis progress, e.g. while imports wait for the library. */
   waiting?: string | null
@@ -151,10 +154,12 @@ export function Dropzone({
   }
   if (outcome !== announcedOutcome) {
     setAnnouncedOutcome(outcome)
-    if (outcome !== null && !busy) setAnnouncement(outcomeSentence(outcome))
+    // Signed in, the sync status announces how the import ended, so this stays silent.
+    if (outcome !== null && !busy && !signedIn) setAnnouncement(outcomeSentence(outcome))
   }
 
   const status = busy ? (waiting ?? statusText(progress)) : ''
+  // Rendered beside whichever view is shown, never inside it, so it is mounted before a run starts.
   const liveRegion = (
     <p role="status" className="sr-only">
       {announcement}
@@ -166,72 +171,73 @@ export function Dropzone({
     </div>
   )
 
+  const input = (
+    <input
+      ref={inputRef}
+      type="file"
+      multiple
+      accept=".fit,.gpx,.tcx,.gz,.zip"
+      hidden
+      onChange={handleInputChange}
+    />
+  )
+
   if (compact) {
     return (
-      <div className="dropzone dropzone--compact">
-        <button type="button" className="btn" onClick={openPicker}>
-          Add more files
-        </button>
-        {bar}
-        <p className="dropzone__status" aria-hidden="true">
-          {status}
-        </p>
+      <>
+        <div className="dropzone dropzone--compact">
+          <button type="button" className="btn" onClick={openPicker}>
+            Add more files
+          </button>
+          {bar}
+          <p className="dropzone__status" aria-hidden="true">
+            {status}
+          </p>
+          {input}
+          {windowDragging && <div className="dropzone__overlay">Drop to add files</div>}
+        </div>
         {liveRegion}
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept=".fit,.gpx,.tcx,.gz,.zip"
-          hidden
-          onChange={handleInputChange}
-        />
-        {windowDragging && <div className="dropzone__overlay">Drop to add files</div>}
-      </div>
+      </>
     )
   }
 
   return (
-    <div
-      className={dragging ? 'dropzone dropzone--over' : 'dropzone'}
-      onDragEnter={handleDragOver}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-    >
+    <>
       <div
-        className="dropzone__target"
-        role="button"
-        tabIndex={0}
-        onClick={openPicker}
-        onKeyDown={handleTargetKey}
+        className={dragging ? 'dropzone dropzone--over' : 'dropzone'}
+        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
       >
-        <p className="dropzone__title">Drop FIT, GPX or TCX files, or a Strava export zip here</p>
-        <p className="dropzone__hint">or choose files</p>
-      </div>
-      {signedIn ? null : (
-        <div className="dropzone__actions">
-          <button type="button" className="btn" onClick={onSample} disabled={busy}>
-            Try sample data
-          </button>
+        <div
+          className="dropzone__target"
+          role="button"
+          tabIndex={0}
+          onClick={openPicker}
+          onKeyDown={handleTargetKey}
+        >
+          <p className="dropzone__title">Drop FIT, GPX or TCX files, or a Strava export zip here</p>
+          <p className="dropzone__hint">or choose files</p>
         </div>
-      )}
-      <p className="dropzone__privacy muted">
-        {signedIn
-          ? 'Analysis runs in your browser. Activity summaries are saved to your library; original files only if you keep them.'
-          : 'Your files never leave this device. All analysis runs in your browser.'}
-      </p>
-      {bar}
-      <p className="dropzone__status" aria-hidden="true">
-        {status}
-      </p>
+        {signedIn ? null : (
+          <div className="dropzone__actions">
+            <button type="button" className="btn" onClick={onSample} disabled={busy}>
+              Try sample data
+            </button>
+          </div>
+        )}
+        <p className="dropzone__privacy muted">
+          {signedIn
+            ? 'Analysis runs in your browser. Activity summaries are saved to your library; original files only if you keep them.'
+            : 'Your files never leave this device. All analysis runs in your browser.'}
+        </p>
+        {bar}
+        <p className="dropzone__status" aria-hidden="true">
+          {status}
+        </p>
+        {input}
+      </div>
       {liveRegion}
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept=".fit,.gpx,.tcx,.gz,.zip"
-        hidden
-        onChange={handleInputChange}
-      />
-    </div>
+    </>
   )
 }

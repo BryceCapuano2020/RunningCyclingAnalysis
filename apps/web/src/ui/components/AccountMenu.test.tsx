@@ -415,6 +415,30 @@ describe('AccountMenu data download', () => {
     await waitFor(() => expect(saveAccountExport).toHaveBeenCalledTimes(1))
   })
 
+  it('keeps the export status outside the menu, so a closed menu still shows the result', async () => {
+    const user = userEvent.setup()
+    let finish: (file: Blob) => void = () => undefined
+    const onDownloadData = vi.fn(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finish = resolve
+        }),
+    )
+    renderMenu({ onDownloadData })
+    // Mounted with the menu closed, so the message is announced when it arrives.
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+
+    await user.click(trigger())
+    await user.click(screen.getByRole('button', { name: DOWNLOAD }))
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('button', { name: DOWNLOAD })).not.toBeInTheDocument()
+
+    await act(async () => finish(FILE))
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Your data was downloaded'),
+    )
+  })
+
   it('announces a failed export, saves nothing and makes the item available again', async () => {
     const user = userEvent.setup()
     const onDownloadData = vi.fn(async () => {

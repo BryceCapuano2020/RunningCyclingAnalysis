@@ -119,18 +119,23 @@ describe('DeleteAccountDialog', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('shows the hint as an inline alert when the confirm button is activated without a match', async () => {
+  it('explains a mismatch in the hint, which is always a status region and never an alert', async () => {
     const user = userEvent.setup()
     const onConfirm = vi.fn(async () => {})
     render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
+    const hint = screen.getByRole('status')
+    expect(hint).toHaveTextContent(HINT)
     await user.type(emailInput(), 'nope')
     await user.click(confirmButton())
 
     expect(onConfirm).not.toHaveBeenCalled()
-    const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent(HINT)
-    expect(alert).toHaveClass('delete-dialog__error')
-    expect(confirmButton()).toHaveAccessibleDescription(HINT)
+    // The same node, so the changed instruction is announced rather than mounted with its text.
+    expect(screen.getByRole('status')).toBe(hint)
+    expect(hint).toHaveTextContent(HINT)
+    expect(hint).toHaveTextContent('The email does not match yet.')
+    expect(hint).toHaveClass('delete-dialog__error')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(confirmButton()).toHaveAccessibleDescription(`${HINT}. The email does not match yet.`)
   })
 
   it('shows the same alert when Enter is pressed in the email field without a match', async () => {
@@ -139,16 +144,16 @@ describe('DeleteAccountDialog', () => {
     render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
     await user.type(emailInput(), 'nope{Enter}')
     expect(onConfirm).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent(HINT)
+    expect(screen.getByRole('status')).toHaveTextContent('The email does not match yet.')
   })
 
-  it('clears the mismatch alert once the user edits the email', async () => {
+  it('clears the mismatch explanation once the user edits the email', async () => {
     const user = userEvent.setup()
     render(<DeleteAccountDialog open email={EMAIL} onConfirm={vi.fn()} onClose={vi.fn()} />)
     await user.click(confirmButton())
-    expect(screen.getByRole('alert')).toHaveTextContent(HINT)
+    expect(screen.getByRole('status')).toHaveTextContent('The email does not match yet.')
     await user.type(emailInput(), 'b')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).not.toHaveTextContent('does not match')
     expect(screen.getByText(HINT)).toHaveClass('delete-dialog__hint')
   })
 
@@ -248,7 +253,7 @@ describe('DeleteAccountDialog', () => {
     )
     await user.type(emailInput(), 'nope')
     await user.click(confirmButton())
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('does not match')
 
     rerender(
       <DeleteAccountDialog open={false} email={EMAIL} onConfirm={vi.fn()} onClose={vi.fn()} />,
@@ -256,6 +261,7 @@ describe('DeleteAccountDialog', () => {
     rerender(<DeleteAccountDialog open email={EMAIL} onConfirm={vi.fn()} onClose={vi.fn()} />)
     expect(emailInput()).toHaveValue('')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).not.toHaveTextContent('does not match')
     expect(confirmButton()).toHaveAttribute('aria-disabled', 'true')
   })
 

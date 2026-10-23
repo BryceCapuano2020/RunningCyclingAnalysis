@@ -30,6 +30,13 @@ function equalCurves(durations: number[], v: number[]): { run: Curve; ride: Curv
 }
 
 describe('compareSports', () => {
+  it('rejects a body mass that is not a positive finite number', () => {
+    const { run, ride } = equalCurves([60], [4])
+    for (const massKg of [0, -70, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => compareSports(run, ride, massKg, null)).toThrow(RangeError)
+    }
+  })
+
   it('has a prior median ratio of 1 when the curves agree in metabolic terms', () => {
     const { run, ride } = equalCurves([60], [4])
     const result = compareSports(run, ride, MASS_KG, null)

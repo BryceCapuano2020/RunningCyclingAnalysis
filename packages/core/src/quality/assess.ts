@@ -146,6 +146,7 @@ function motionRules(
   a: Activity,
   validMotion: Uint8Array,
   validGrade: Uint8Array,
+  validAltitude: Uint8Array,
   raw: RawFlag[],
   steady: Uint8Array,
 ): void {
@@ -175,6 +176,7 @@ function motionRules(
     if (paused[i] !== 1 && jump) {
       const flagRange = around(i, t.altitudeJump.marginS, n)
       raw.push({ kind: 'altitude-jump', ...flagRange })
+      validAltitude.fill(0, flagRange.start, flagRange.end)
       validGrade.fill(
         0,
         Math.max(0, i - t.gradeContaminationMarginS),
@@ -243,6 +245,10 @@ export function assessQuality(activity: Activity): QualityReport {
   const validPower = new Uint8Array(n).fill(activity.hasPower ? 1 : 0)
   const validGrade = new Uint8Array(n).fill(1)
   const validHeartRate = new Uint8Array(n).fill(activity.hasHeartRate ? 1 : 0)
+  const validAltitude = new Uint8Array(n)
+  if (activity.hasAltitude) {
+    for (let i = 0; i < n; i++) validAltitude[i] = Number.isFinite(activity.altitude[i]!) ? 1 : 0
+  }
   const raw: RawFlag[] = []
 
   for (let i = 0; i < n; i++) {
@@ -251,7 +257,7 @@ export function assessQuality(activity: Activity): QualityReport {
   const steady = steadyMask(activity.paused, n)
   if (activity.hasHeartRate) heartRateRules(activity, validHeartRate, raw, steady)
   powerRules(activity, validPower, raw)
-  motionRules(activity, validMotion, validGrade, raw, steady)
+  motionRules(activity, validMotion, validGrade, validAltitude, raw, steady)
 
   const flags: QualityFlag[] = mergeFlags(raw)
     .sort((a, b) => a.start - b.start || compareKinds(a.kind, b.kind))
@@ -262,5 +268,5 @@ export function assessQuality(activity: Activity): QualityReport {
       message: messageFor(f.kind, f.end - f.start),
     }))
 
-  return { flags, validMotion, validPower, validGrade, validHeartRate }
+  return { flags, validMotion, validPower, validGrade, validAltitude, validHeartRate }
 }

@@ -22,7 +22,7 @@ import type { Sport } from '@rca/core/types'
 import type { AppEnv, Db } from '../env.ts'
 import { apiError, HttpError } from '../errors.ts'
 import { ensureProfile } from '../auth/accounts.ts'
-import { currentUser, requireUser } from '../middleware.ts'
+import { currentUser, requireUser, sameOriginReadGuard } from '../middleware.ts'
 import {
   contentDisposition,
   declaredLength,
@@ -52,6 +52,14 @@ import { must, sha256Hex } from '../util.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
 const MAX_CREATE_BODY_BYTES = MAX_DIGEST_BYTES + 16 * 1024
+
+/**
+ * Database pages one listing request may scan. Unreadable rows fill no page, so without this cap a
+ * long run of them would take an unbounded number of D1 queries in one request.
+ */
+const MAX_SCAN_PAGES = 8
+
+const DATABASE_FULL_MESSAGE = 'Activities cannot be saved while the database is full'
 
 const listQuery = z.object({
   /** Epoch ms. Returns records created at or after this time. */
@@ -122,11 +130,7 @@ async function createRefusal(
 ): Promise<HttpError> {
   const state = await accountState(db, userId)
   if (state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
-    return new HttpError(
-      503,
-      'database_full',
-      'Activities cannot be saved while the database is full',
-    )
+    return new HttpError(503, 'database_full', DATABASE_FULL_MESSAGE)
   }
   if (state.digestBytes + digestBytes > MAX_DIGEST_BYTES_PER_USER) {
     return new HttpError(403, 'digest_quota', DIGEST_QUOTA_MESSAGE)
@@ -156,7 +160,7 @@ async function upgradeDigest(
     fileHash: string
   },
 ): Promise<ActivityRow | null> {
-  const { db } = c.var
+  const { db, deps } = c.var
   // Only a newer model revision upgrades. Check it before reserving quota, so a request that cannot
   // upgrade is never refused for quota it does not need.
   const stored = await db
@@ -168,25 +172,30 @@ async function upgradeDigest(
     .get()
   if (!stored || stored.revision >= next.modelRevision) return null
   const delta = digestByteLength(next.digestJson) - digestByteLength(existing.digestJson)
-  // A shrinking digest is always admitted, even by an account already above the cap.
+  // A shrinking digest is always admitted, even by an account already above the cap, and so is one
+  // that does not grow while the database is over its soft limit.
   const reserved = await c.env.DB.prepare(
     `UPDATE users SET digest_bytes = digest_bytes + ?1
      WHERE id = ?2 AND deleting_at IS NULL AND (?1 <= 0 OR digest_bytes + ?1 <= ?3)
+       AND (?1 <= 0 OR coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) <= ?4)
      RETURNING id`,
   )
-    .bind(delta, userId, MAX_DIGEST_BYTES_PER_USER)
+    .bind(delta, userId, MAX_DIGEST_BYTES_PER_USER, DATABASE_SOFT_LIMIT_BYTES)
     .first()
   if (!reserved) {
     const state = await accountState(c.env.DB, userId)
     if (state.deletingAt !== null) {
       throw new HttpError(409, 'account_deleting', 'This account is being deleted')
     }
+    if (delta > 0 && state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
+      throw new HttpError(503, 'database_full', DATABASE_FULL_MESSAGE)
+    }
     throw new HttpError(403, 'digest_quota', DIGEST_QUOTA_MESSAGE)
   }
   // The reservation is undone unless the digest was replaced, including when the update itself fails.
   let replaced = false
   try {
-    const upgraded = await db
+    const updated = await db
       .update(activities)
       .set({ digestJson: next.digestJson, digestVersion: next.digestVersion, name: next.name })
       .where(
@@ -199,10 +208,17 @@ async function upgradeDigest(
           sql`coalesce(json_extract(digest_json, '$.modelRevision'), 1) < ${next.modelRevision}`,
         ),
       )
-      .returning()
-      .get()
-    replaced = upgraded !== undefined
-    return upgraded ?? null
+      .run()
+    replaced = updated.meta.changes === 1
+    if (!replaced) return null
+    // The write may have grown the database, so the size the create guard reads is recorded.
+    await recordDatabaseSize(c.env.DB, deps.now(), updated.meta.size_after)
+    return {
+      ...existing,
+      digestJson: next.digestJson,
+      digestVersion: next.digestVersion,
+      name: next.name,
+    }
   } finally {
     if (!replaced) {
       await c.env.DB.prepare('UPDATE users SET digest_bytes = digest_bytes - ? WHERE id = ?')
@@ -261,6 +277,7 @@ export const activityRoutes = new Hono<AppEnv>()
 
 activityRoutes.get(
   '/',
+  sameOriginReadGuard,
   requireUser,
   zValidator('query', listQuery, (result, c) => {
     if (!result.success) return c.json(invalidRequest(result.error), 400)
@@ -289,7 +306,12 @@ activityRoutes.get(
 
     // Digest JSON is capped at 256 KiB per activity. Scan only small metadata first, then fetch
     // the rows that fit the page byte budget; a large library cannot create a huge JSON response.
-    while (pageItems.length < limit) {
+    for (let scans = 0; pageItems.length < limit; scans += 1) {
+      if (scans === MAX_SCAN_PAGES) {
+        // The rows examined so far are behind the cursor, so the next request resumes after them.
+        hasMore = true
+        break
+      }
       const pageFilters = [...filters]
       if (scanAfter !== undefined) {
         const after = scanAfter
@@ -573,14 +595,17 @@ async function chargeUploadBytes(
  * length is checked before the body is read: the R2 ledgers, the daily allowances and the stored
  * bytes are charged first, and only then is the body read and hashed. A refusal before the body
  * is read gives everything back, and so does a refusal of the deployment's R2 ledger. Once reading
- * the body has started, its daily charges stand, even when the read or the hash then fails. A failed R2 write keeps the
- * reservation so a same-activity retry can finish.
+ * the body has started, its daily charges stand, even when the read or the hash then fails. A
+ * failed R2 write keeps the reservation so a same-activity retry can finish. `slot` is this
+ * request's upload slot, and it is the reservation token: only this request gives the reservation
+ * back.
  */
 async function storeOriginalFile(
   c: Context<AppEnv>,
   row: ActivityRow,
   userId: string,
   declared: number,
+  slot: string,
 ): Promise<Response> {
   const { db, deps } = c.var
   const bucket = c.env.FILES
@@ -607,7 +632,13 @@ async function storeOriginalFile(
   const reservedSize = declared
   const stored = await db
     .update(activities)
-    .set({ fileSize: reservedSize })
+    .set({
+      fileSize: reservedSize,
+      // A reservation that a live upload holds keeps its token, so only that upload can release it.
+      fileReservationToken: sql`CASE WHEN ${activities.fileReservationToken} IN (
+          SELECT slot_id FROM upload_slots WHERE user_id = ${userId} AND expires_at > ${deps.now()}
+        ) THEN ${activities.fileReservationToken} ELSE ${slot} END`,
+    })
     .where(
       and(
         eq(activities.id, row.id),
@@ -641,17 +672,18 @@ async function storeOriginalFile(
   }
 
   const key = activityFileKey(userId, row.id)
-  // The size is restored only while the row still has the file key this request started with. A
-  // concurrent upload that completed in the meantime keeps the size it stored.
+  // The size is restored only by the request that holds the reservation, and only while the row
+  // still has the file key this request started with. A concurrent upload that completed in the
+  // meantime keeps the size it stored.
   const releaseReservation = async () => {
     await db
       .update(activities)
-      .set({ fileSize: row.fileSize })
+      .set({ fileSize: row.fileSize, fileReservationToken: null })
       .where(
         and(
           eq(activities.id, row.id),
           eq(activities.userId, userId),
-          eq(activities.fileSize, reservedSize),
+          eq(activities.fileReservationToken, slot),
           row.fileKey === null ? isNull(activities.fileKey) : eq(activities.fileKey, row.fileKey),
         ),
       )
@@ -688,7 +720,7 @@ async function storeOriginalFile(
   // this request just wrote is removed here, so nothing is left behind.
   const updated = await db
     .update(activities)
-    .set({ fileKey: key, fileSize: reservedSize })
+    .set({ fileKey: key, fileSize: reservedSize, fileReservationToken: null })
     .where(
       and(
         eq(activities.id, row.id),
@@ -710,7 +742,7 @@ async function storeOriginalFile(
 
     await db
       .update(activities)
-      .set({ fileKey: null, fileSize: null })
+      .set({ fileKey: null, fileSize: null, fileReservationToken: null })
       .where(and(eq(activities.id, row.id), eq(activities.userId, userId)))
     throw new HttpError(409, 'files_disabled', 'Original files are turned off in your profile')
   }
@@ -758,13 +790,13 @@ activityRoutes.put('/:id/file', requireUser, async (c) => {
   const slot = deps.randomUUID()
   await acquireUploadSlot(c.env.DB, userId, slot, deps.now())
   try {
-    return await storeOriginalFile(c, row, userId, declared)
+    return await storeOriginalFile(c, row, userId, declared, slot)
   } finally {
     await releaseUploadSlot(c.env.DB, userId, slot)
   }
 })
 
-activityRoutes.get('/:id/file', requireUser, async (c) => {
+activityRoutes.get('/:id/file', sameOriginReadGuard, requireUser, async (c) => {
   const { db, deps } = c.var
   const userId = currentUser(c).id
   const row = await findOwnedActivity(db, userId, c.req.param('id'))

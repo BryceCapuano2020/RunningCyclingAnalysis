@@ -118,17 +118,18 @@ npm install
 npm run dev
 ```
 
-| Command                           | What it does                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------------- |
-| `npm run dev`                     | Web app dev server (Vite)                                                     |
-| `npm run dev:api`                 | Local API Worker on port 8787 (`wrangler dev`)                                |
-| `npm run build`                   | Production build of the web app into `apps/web/dist`                          |
-| `npm test`                        | Unit and component tests across all packages (Vitest)                         |
-| `npm run test:coverage`           | Same, with coverage thresholds                                                |
-| `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first      |
-| `npm run check`                   | Format check, lint, typecheck, tests with coverage, and build                 |
-| `npm run fixtures -w @rca/web`    | Regenerates the deterministic e2e fixtures (FIT, GPX, TCX and the Strava zip) |
-| `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`                    |
+| Command                           | What it does                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run dev`                     | Web app dev server (Vite)                                                                  |
+| `npm run dev:api`                 | Local API Worker on port 8787 (`wrangler dev`)                                             |
+| `npm run build`                   | Production build of the web app into `apps/web/dist`                                       |
+| `npm test`                        | Unit and component tests across all packages (Vitest)                                      |
+| `npm run test:coverage`           | Same, with coverage thresholds                                                             |
+| `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first                   |
+| `npm run check`                   | Format check, lint, typecheck, tests with coverage, deploy-config and ops tests, and build |
+| `npm run test:perf`               | Performance tests for `@rca/core` (`vitest.perf.config.ts`)                                |
+| `npm run fixtures -w @rca/web`    | Regenerates the deterministic e2e fixtures (FIT, GPX, TCX and the Strava zip)              |
+| `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`                                 |
 
 ### Layout
 
@@ -141,6 +142,9 @@ packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
   import/            file dispatch by extension, shared pipeline, GPS speed
   xml/               streaming XML scanner for GPX and TCX
   quality/           sensor data-quality rules
+  digest/            per-activity digests, combining digests, serialisation and the fitness trend
+  physics/           air density for the aerodynamic terms
+  units/             unit conversion and formatting for imperial and metric
   metabolic/         gradient smoothing, Minetti cost, metabolic power
   curves/            mean-maximal duration curves
   cp/                critical power fit
@@ -149,6 +153,7 @@ packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
   compare/           Monte Carlo comparison and Bayesian update
   effort/            heart-rate check that best efforts were close to maximal
   synthetic/         ground-truth activity simulator
+  session.ts         analysis session: holds digests between requests and hides lower-format copies of a workout
   pipeline.ts        ties the modules together
 packages/contract/   zod schemas shared by the API and the web app
 apps/web/            @rca/web: React + Vite app

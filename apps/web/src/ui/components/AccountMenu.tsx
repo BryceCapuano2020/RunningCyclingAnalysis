@@ -176,10 +176,11 @@ export function AccountMenu({
           <span className="account-menu__name">{firstName}</span>
           <span className="account-menu__chevron" aria-hidden="true" />
         </button>
-        <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
-          <p className="account-menu__email">{email}</p>
-          {onDownloadData && (
-            <>
+        {/* One dropdown holds the menu and the status below it, so the status is never covered by the menu. */}
+        <div className="account-menu__dropdown">
+          <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
+            <p className="account-menu__email">{email}</p>
+            {onDownloadData && (
               <button
                 type="button"
                 className="account-menu__item"
@@ -188,21 +189,22 @@ export function AccountMenu({
               >
                 Download my data
               </button>
-              <p className="account-menu__status" role="status">
-                {exportStatus}
-              </p>
-            </>
-          )}
-          <button type="button" className="account-menu__item" onClick={handleSignOut}>
-            Sign out
-          </button>
-          <button
-            type="button"
-            className="account-menu__item account-menu__item--danger"
-            onClick={openDeleteDialog}
-          >
-            Delete account…
-          </button>
+            )}
+            <button type="button" className="account-menu__item" onClick={handleSignOut}>
+              Sign out
+            </button>
+            <button
+              type="button"
+              className="account-menu__item account-menu__item--danger"
+              onClick={openDeleteDialog}
+            >
+              Delete account…
+            </button>
+          </div>
+          {/* Outside the panel and always mounted, so a result still shows, and is announced, after the menu closes. */}
+          <p className="account-menu__status" role="status">
+            {exportStatus}
+          </p>
         </div>
       </div>
       <DeleteAccountDialog

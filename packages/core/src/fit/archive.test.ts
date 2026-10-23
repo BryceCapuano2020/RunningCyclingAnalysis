@@ -1,7 +1,27 @@
 import { gzipSync, Zip, ZipDeflate, zipSync } from 'fflate'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, expandsReason, extractFitFiles } from './archive'
 import type { FitFile, FitSource } from './archive'
+
+// Records the entries whose start() ran. start() is what drains an entry the archive skips.
+const unzipSpy = vi.hoisted(() => ({ started: [] as string[] }))
+
+vi.mock('fflate', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fflate')>()
+  class SpyUnzip extends actual.Unzip {
+    constructor(onFile: (file: import('fflate').UnzipFile) => void) {
+      super((file) => {
+        const start = file.start.bind(file)
+        file.start = () => {
+          unzipSpy.started.push(file.name)
+          start()
+        }
+        onFile(file)
+      })
+    }
+  }
+  return { ...actual, Unzip: SpyUnzip }
+})
 
 const FIT_A = new Uint8Array([14, 16, 0, 0, 1, 2, 3, 4, 46, 70, 73, 84, 9, 9])
 const FIT_B = new Uint8Array([14, 16, 0, 0, 5, 6, 7, 8, 46, 70, 73, 84, 1, 1])
@@ -821,5 +841,33 @@ describe('extractFitFiles on zip archives', () => {
     const { files, errors } = await collect(new File([zip], 'no-end.zip'))
     expect(namesOf(files)).toEqual(['a.fit'])
     expect(errors).toEqual([{ fileName: 'no-end.zip', reason: DAMAGED }])
+  })
+})
+
+describe('extractFitFiles drains skipped zip entries', () => {
+  it('starts a skipped non-activity entry so its bytes are discarded, not buffered', async () => {
+    unzipSpy.started.length = 0
+    const zip = zipSync({
+      'media/x.jpg': [noise(20 * 1024 * 1024), { level: 0 }],
+      'activities/a.fit': FIT_A,
+    })
+    const { files, summary, errors } = await collect(new File([zip], 'export.zip'))
+    expect(namesOf(files)).toEqual(['activities/a.fit'])
+    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(errors).toEqual([])
+    expect(unzipSpy.started).toContain('media/x.jpg')
+  })
+
+  it('starts an oversized activity entry it rejects, so it is drained too', async () => {
+    unzipSpy.started.length = 0
+    const zip = zipSync({ 'activities/big.fit': [noise(20 * 1024), { level: 0 }] })
+    const { errors } = await collect(new File([zip], 'big.zip'), { maxEntryBytes: 1024 })
+    expect(errors).toEqual([
+      {
+        fileName: 'activities/big.fit',
+        reason: 'Archive entry exceeds the 1024-byte limit',
+      },
+    ])
+    expect(unzipSpy.started).toContain('activities/big.fit')
   })
 })

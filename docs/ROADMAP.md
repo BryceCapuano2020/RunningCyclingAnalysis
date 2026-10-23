@@ -87,10 +87,11 @@ Cheap changes that reduce the risk of the rest of the list.
 
 9. **Done: edge rate limits.** Public, auth and per-account write bindings return bounded retry
    responses. These approximate abuse controls supplement atomic D1 storage/admission quotas.
-10. **Done: gated releases and encrypted backups.** Production deploys need owner approval, run the
-    release gate on the exact commit, smoke-test the live origin and roll back on failure. Daily
-    backups are encrypted and kept for 90 days, and an external probe opens an issue on outage. See
-    [PRODUCTION.md](PRODUCTION.md). Restores are not yet drilled.
+10. **Partly done: gated releases and encrypted backups.** The Deploy workflow requires owner approval,
+    runs the release gate on the exact commit and smoke-tests the live origin. It rolls back only when
+    a verified rollback version is configured. The backup and uptime workflows exist, but they are
+    disabled until the owner adds the age recipient, the environment secrets and the repository
+    variables. Restores are not yet drilled. See [PRODUCTION.md](PRODUCTION.md).
 
 ## 5. Product
 

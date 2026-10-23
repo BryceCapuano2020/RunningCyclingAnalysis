@@ -307,6 +307,136 @@ describe('repeat uploads', () => {
   })
 })
 
+/**
+ * A D1 binding that holds the first statement matching `pattern` until `release` resolves. `reached`
+ * runs as the statement is about to execute, so a test can start a rival request while it waits.
+ */
+function holdFirstMatch(
+  target: D1Database,
+  pattern: RegExp,
+  release: Promise<void>,
+  reached: () => void,
+): D1Database {
+  let holding = false
+  return new Proxy(target, {
+    get(obj, prop) {
+      if (prop !== 'prepare') {
+        const value: unknown = Reflect.get(obj, prop, obj)
+        return typeof value === 'function' ? value.bind(obj) : value
+      }
+      return (query: string) => {
+        const statement = obj.prepare(query)
+        if (!pattern.test(query)) return statement
+        return new Proxy(statement, {
+          get(stmt, method) {
+            const value: unknown = Reflect.get(stmt, method, stmt)
+            if (method !== 'bind' || typeof value !== 'function') return value
+            return (...args: unknown[]) => {
+              const bound: unknown = Reflect.apply(value, stmt, args)
+              return new Proxy(bound as object, {
+                get(bound, run) {
+                  const execute: unknown = Reflect.get(bound, run, bound)
+                  if (typeof execute !== 'function') return execute
+                  if (run !== 'run' && run !== 'all' && run !== 'raw' && run !== 'first') {
+                    return execute.bind(bound)
+                  }
+                  return async (...runArgs: unknown[]) => {
+                    if (!holding) {
+                      holding = true
+                      reached()
+                      await release
+                    }
+                    return Reflect.apply(execute, bound, runArgs)
+                  }
+                },
+              })
+            }
+          },
+        })
+      }
+    },
+  })
+}
+
+describe('upload reservations', () => {
+  it('does not let a same-length upload with other bytes clear a reservation that is still in use', async () => {
+    let reachHeld!: () => void
+    const held = new Promise<void>((resolve) => (reachHeld = resolve))
+    let releaseHeld!: () => void
+    const heldGate = new Promise<void>((resolve) => (releaseHeld = resolve))
+    const h = createHarness(
+      {},
+      { DB: holdFirstMatch(testEnv().DB, /^update\b.*\bfile_size\b/i, heldGate, reachHeld) },
+    )
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const uid = await userId(h, token)
+
+    // The wrong-bytes request snapshots the activity before any reservation, then stops just
+    // before it reserves the size.
+    const tampered = new Uint8Array(CONTENT.byteLength).fill(0x58)
+    const wrong = putFile(h, token, id, tampered, lengthOf(tampered))
+    await held
+
+    // The correct-bytes request reserves the same size, then waits while its body arrives.
+    let openGate: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => (openGate = resolve))
+    let reachGate: () => void = () => undefined
+    const reached = new Promise<void>((resolve) => (reachGate = resolve))
+    const slowBody = new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          reachGate()
+          await gate
+          controller.enqueue(CONTENT)
+          controller.close()
+        },
+      },
+      { highWaterMark: 0 },
+    )
+    const correct = putFile(h, token, id, slowBody, lengthOf(CONTENT))
+    await reached
+    expect(await storedRow(h, id)).toEqual({
+      file_key: null,
+      file_size: CONTENT.byteLength,
+    })
+
+    // The wrong-bytes request now reserves, reads its body, fails the hash, and gives back.
+    releaseHeld()
+    expect((await wrong).status).toBe(422)
+    expect(await storedRow(h, id)).toEqual({
+      file_key: null,
+      file_size: CONTENT.byteLength,
+    })
+
+    openGate()
+    expect((await correct).status).toBe(200)
+    expect(await storedRow(h, id)).toEqual({
+      file_key: activityFileKey(uid, id),
+      file_size: CONTENT.byteLength,
+    })
+  })
+
+  it('lets an upload take over a reservation whose upload slot has expired', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const uid = await userId(h, token)
+    // A request that reserved and then crashed: its reservation token names a slot that is gone.
+    await h.env.DB.prepare(
+      "UPDATE activities SET file_size = ?, file_reservation_token = 'crashed-request' WHERE id = ?",
+    )
+      .bind(CONTENT.byteLength, id)
+      .run()
+
+    expect((await putFile(h, token, id, CONTENT, lengthOf(CONTENT))).status).toBe(200)
+    expect(await storedRow(h, id)).toEqual({
+      file_key: activityFileKey(uid, id),
+      file_size: CONTENT.byteLength,
+    })
+  })
+})
+
 describe('refusals happen before the body is read or hashed', () => {
   it('refuses an upload past the stored-bytes quota before reading the body', async () => {
     const h = createHarness()

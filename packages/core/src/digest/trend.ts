@@ -1,4 +1,5 @@
 import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
+import { requirePositiveFinite } from '../math'
 import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 import {
   centralWkgFromWatts,
@@ -91,6 +92,8 @@ export function fitnessTrend(
   settings: AthleteSettings,
   opts: TrendOptions = {},
 ): TrendPoint[] {
+  requirePositiveFinite('massKg', settings.massKg)
+  requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const durationS = opts.durationS ?? HEADLINE_DURATION_S
   const windowMs = (opts.windowDays ?? DEFAULT_WINDOW_DAYS) * DAY_MS
   const ordered = orderedCurrent(digests)

@@ -1,4 +1,5 @@
 import { PRIORS, RESTING_W_PER_KG } from '../constants'
+import { requirePositiveFinite } from '../math'
 import type { Comparison, ComparisonPoint, Curve, HrCrossCheck } from '../types'
 import { calibrationWeights, drawPriors } from './sampling'
 import { weightedInterval } from './weightedQuantile'
@@ -22,6 +23,7 @@ export function compareSports(
   hr: HrCrossCheck | null,
   opts: CompareOptions = {},
 ): Comparison {
+  requirePositiveFinite('massKg', massKg)
   if (runCurve.length !== rideCurve.length) {
     throw new Error('compareSports: run and ride curves have different lengths')
   }

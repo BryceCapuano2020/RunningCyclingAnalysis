@@ -10,6 +10,9 @@ export interface HeadlineText {
   range: string
 }
 
+/** The disclaimer for the headline comparison, on the results page and on the share card. */
+export const COMPARISON_DISCLAIMER = 'This compares estimated energy rates, not sporting ability.'
+
 /** Best efforts below this share of the highest heart rate were probably not all-out. */
 const ALL_OUT = 0.9
 

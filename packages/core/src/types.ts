@@ -74,6 +74,11 @@ export interface QualityReport {
   validPower: Uint8Array
   /** 1 where grade derived from altitude is usable, else 0. Length n. */
   validGrade: Uint8Array
+  /**
+   * 1 where the altitude sample is finite and not inside an altitude-jump flag, else 0. Unlike
+   * validGrade, it does not depend on the grade, so it is the mask for air density. Length n.
+   */
+  validAltitude: Uint8Array
   /** 1 where the heart-rate sample is usable, else 0. Length n. */
   validHeartRate: Uint8Array
 }

@@ -85,6 +85,11 @@ export const activities = sqliteTable(
     fileHash: text('file_hash').notNull(),
     fileKey: text('file_key'),
     fileSize: integer('file_size'),
+    /**
+     * The upload slot of the request that holds the file_size reservation. Only that request
+     * releases it. A slot that has expired no longer holds it.
+     */
+    fileReservationToken: text('file_reservation_token'),
     createdAt: integer('created_at').notNull(),
   },
   (t) => [
@@ -97,7 +102,7 @@ export const activities = sqliteTable(
 /** One deployment-wide meter for billable R2 writes and operations, reset each UTC month. */
 export const r2StorageBudget = sqliteTable('r2_storage_budget', {
   id: integer('id').primaryKey(),
-  /** Audit total of every PUT charge since the table was created. No longer enforced. */
+  /** Every PUT charge since the table was created. Never reset; enforced against the 4 GiB cap. */
   lifetimePutBytes: integer('lifetime_put_bytes').notNull().default(0),
   monthlyPeriod: text('monthly_period').notNull(),
   monthlyOperations: integer('monthly_operations').notNull().default(0),

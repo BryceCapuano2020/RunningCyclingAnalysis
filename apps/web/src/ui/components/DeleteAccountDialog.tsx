@@ -12,6 +12,7 @@ export interface DeleteAccountDialogProps {
 }
 
 const HINT = 'Type your email to confirm'
+const MISMATCH = 'The email does not match yet.'
 
 interface Failure {
   message: string
@@ -142,12 +143,13 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
             }}
           />
         </div>
+        {/* Always a status region, so the explanation is announced when it appears. */}
         <p
           id={hintId}
-          role={blocked ? 'alert' : undefined}
+          role="status"
           className={blocked ? 'delete-dialog__error' : 'delete-dialog__hint'}
         >
-          {HINT}
+          {blocked ? `${HINT}. ${MISMATCH}` : HINT}
         </p>
         {failure && (
           <p

@@ -583,6 +583,23 @@ describe('assessQuality: altitude-jump and missing-altitude', () => {
     expect(zeroIndices(report.validGrade)).toEqual(span(20, 82))
   })
 
+  it('keeps the altitude of samples valid when only their grade is masked by a step', () => {
+    const a = makeActivity(120)
+    a.altitude[50] = 115
+    const report = assessQuality(a)
+    // The grade mask covers the whole smoothing footprint; the altitude mask covers only the flag.
+    expect(zeroIndices(report.validAltitude)).toEqual(span(40, 62))
+    expect(zeroIndices(report.validGrade)).toEqual(span(20, 82))
+  })
+
+  it('marks a sample with no recorded altitude as not valid altitude', () => {
+    const a = makeActivity(120)
+    a.altitude[10] = NaN
+    const report = assessQuality(a)
+    expect(report.validAltitude[10]).toBe(0)
+    expect(report.validAltitude[11]).toBe(1)
+  })
+
   it('does not fire on an altitude step of exactly 10 m', () => {
     const a = makeActivity(120)
     a.altitude[50] = 110

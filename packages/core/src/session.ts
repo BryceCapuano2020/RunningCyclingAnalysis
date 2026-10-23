@@ -8,6 +8,7 @@ import { extractFitFiles } from './fit'
 import { parseActivityFile } from './import'
 import { sampleDataset } from './synthetic'
 import { DAY_MS } from './constants'
+import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
 
 export interface RejectedFile {
@@ -74,7 +75,7 @@ export interface SessionState {
   /** Activity files in formats this app does not read (e.g. KML) that were skipped. */
   unsupportedFiles: number
   isSample: boolean
-  /** Activities loaded, before the period filter. */
+  /** Activities analysed or eligible, not counting hidden duplicates, before the period filter. */
   totalActivities: number
   /** Stored activities excluded because their digest model is older than this app's. */
   outdatedActivities: number
@@ -142,9 +143,56 @@ interface Workout {
   durationS: number
 }
 
-interface RankedDigest {
-  digest: ActivityDigest
+/** The fields that decide which copy of a workout is kept. */
+interface Copy {
+  id: string
   rank: number
+  hasPower: boolean
+  hasHeartRate: boolean
+  durationS: number
+}
+
+/** The copy of a digest, with its format rank taken from its id. */
+function copyOfDigest(digest: ActivityDigest): Copy {
+  return {
+    id: digest.id,
+    rank: formatRank(digest.id),
+    hasPower: digest.powerSource === 'measured',
+    hasHeartRate: digest.hasHeartRate,
+    durationS: digest.durationS,
+  }
+}
+
+/** The copy of an activity read from a file, before it is digested. Matches copyOfDigest. */
+function copyOfActivity(activity: Activity, fileName: string): Copy {
+  return {
+    id: activity.id,
+    rank: formatRank(fileName),
+    hasPower: activity.sport === 'ride' && activity.hasPower,
+    hasHeartRate: activity.hasHeartRate,
+    durationS: activity.n,
+  }
+}
+
+/**
+ * Whether copy a is richer than copy b: format rank first, then a power meter, heart-rate data and
+ * the longer duration. Equally rich copies are not richer than each other.
+ */
+function richer(a: Copy, b: Copy): boolean {
+  if (a.rank !== b.rank) return a.rank > b.rank
+  if (a.hasPower !== b.hasPower) return a.hasPower
+  if (a.hasHeartRate !== b.hasHeartRate) return a.hasHeartRate
+  return a.durationS > b.durationS
+}
+
+/**
+ * Whether the analysis keeps copy a over copy b: the richer one, and between equally rich copies
+ * the smaller id, so the choice does not depend on the order the files arrive in.
+ */
+function outranks(a: Copy, b: Copy): boolean {
+  if (richer(a, b)) return true
+  if (richer(b, a)) return false
+  return a.id < b.id
 }
 
 /** The same workout exported twice has the same sport and start second. */
@@ -185,22 +233,45 @@ function isSameWorkout(a: Workout, b: Workout): boolean {
 }
 
 /**
- * The digests the analysis leaves out: each has a copy of the same workout in a higher format in
- * the set. Digests are visited from the highest rank down, so only a kept digest can hide another,
- * and the best copy of every workout always stays. Copies of equal rank never hide each other.
+ * The digests the analysis leaves out. Near-duplicates link into groups, and links are followed
+ * transitively (union-find), so a copy linked to the best one only through another copy is also a
+ * copy of that workout. Each group keeps its best copy by outranks and hides the rest. Digests are
+ * sorted by start, so each one is compared only with those that start within NEAR_START_MS of it.
  */
 function hiddenDigests(digests: ActivityDigest[]): Set<ActivityDigest> {
-  const ranked = digests.map((digest) => ({ digest, rank: formatRank(digest.id) }))
-  ranked.sort((a, b) => b.rank - a.rank)
-  const kept: RankedDigest[] = []
-  const hidden = new Set<ActivityDigest>()
-  for (const entry of ranked) {
-    const better = kept.some(
-      (other) => other.rank > entry.rank && isSameWorkout(other.digest, entry.digest),
-    )
-    if (better) hidden.add(entry.digest)
-    else kept.push(entry)
+  const sorted = [...digests].sort((a, b) => a.startMs - b.startMs)
+  const parent = sorted.map((_, i) => i)
+  const root = (i: number): number => {
+    let x = i
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]!]!
+      x = parent[x]!
+    }
+    return x
   }
+  let first = 0
+  for (let j = 0; j < sorted.length; j++) {
+    const later = sorted[j]!
+    while (later.startMs - sorted[first]!.startMs > NEAR_START_MS) first++
+    for (let i = first; i < j; i++) {
+      if (isSameWorkout(sorted[i]!, later)) parent[root(i)] = root(j)
+    }
+  }
+  const best = new Map<number, number>()
+  for (let i = 0; i < sorted.length; i++) {
+    const group = root(i)
+    const current = best.get(group)
+    if (
+      current === undefined ||
+      outranks(copyOfDigest(sorted[i]!), copyOfDigest(sorted[current]!))
+    ) {
+      best.set(group, i)
+    }
+  }
+  const hidden = new Set<ActivityDigest>()
+  sorted.forEach((digest, i) => {
+    if (best.get(root(i)) !== i) hidden.add(digest)
+  })
   return hidden
 }
 
@@ -260,9 +331,8 @@ export class AnalysisSession {
             outcome.activities += parsed.activities.length
             const fileHash = sink === undefined ? '' : await sha256Hex(file.bytes)
             const imported: ImportedFile = { fileName: file.fileName, fileHash, bytes: file.bytes }
-            const rank = formatRank(file.fileName)
             for (const activity of parsed.activities) {
-              await this.consider(activity, rank, imported, sink, syncExisting, batch)
+              await this.consider(activity, imported, sink, syncExisting, batch)
             }
             // A file that now reads cleanly replaces an earlier rejection under the same name.
             this.rejected.delete(file.fileName)
@@ -334,7 +404,10 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /** Throws a RangeError for a body or bike mass that is not a positive finite number. */
   setSettings(settings: AthleteSettings): SessionState {
+    requirePositiveFinite('massKg', settings.massKg)
+    requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
     return this.state(settings)
   }
 
@@ -346,17 +419,16 @@ export class AnalysisSession {
   clear(): SessionState {
     this.reset()
     this.rangeDays = null
-    return this.state({ massKg: 0, bikeMassKg: 0 })
+    return this.state(null)
   }
 
   /**
-   * Keeps one activity of an import, unless a higher-ranked copy of the same workout is already
-   * held. That copy is reported as a duplicate and is not synced. A higher-ranked copy that arrives
-   * after a lower one is saved too; the lower one stays saved but hidden from the analysis.
+   * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
+   * copy is reported as a duplicate and is not synced. Equally rich copies are both saved, and the
+   * analysis hides one of them. A poorer copy is saved but hidden from the analysis.
    */
   private async consider(
     activity: Activity,
-    rank: number,
     file: ImportedFile,
     sink: SyncSink | undefined,
     syncExisting: boolean,
@@ -367,8 +439,9 @@ export class AnalysisSession {
       startMs: activity.startMs,
       durationS: activity.n,
     }
+    const candidate = copyOfActivity(activity, file.fileName)
     for (const held of this.digests.values()) {
-      if (isSameWorkout(held, workout) && formatRank(held.id) > rank) {
+      if (isSameWorkout(held, workout) && richer(copyOfDigest(held), candidate)) {
         batch.duplicates.push({
           fileName: file.fileName,
           reason: `Same workout as ${fileNameOf(held.id)}`,
@@ -382,8 +455,8 @@ export class AnalysisSession {
   /**
    * Digests one parsed activity and hands it to the sink. An activity already held and saved is
    * left alone unless syncExisting requests a sink call for an existing activity (for example,
-   * to retain an original after that preference is enabled). A copy in a higher format than the
-   * held one for the same start second replaces it. A sink failure is counted, not thrown.
+   * to retain an original after that preference is enabled). A copy that outranks the held one for
+   * the same start second replaces it. A sink failure is counted, not thrown.
    * After a halting failure, the rest of the batch is digested but not sent to the sink.
    */
   private async keep(
@@ -395,7 +468,8 @@ export class AnalysisSession {
   ): Promise<void> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
-    const replaces = held !== undefined && formatRank(file.fileName) > formatRank(held.id)
+    const replaces =
+      held !== undefined && richer(copyOfActivity(activity, file.fileName), copyOfDigest(held))
     if (
       held !== undefined &&
       !replaces &&
@@ -465,7 +539,8 @@ export class AnalysisSession {
     return [...counts].map(([code, count]) => ({ code, count }))
   }
 
-  private state(settings: AthleteSettings): SessionState {
+  /** Null settings only after clear, when the library is empty and nothing needs analysing. */
+  private state(settings: AthleteSettings | null): SessionState {
     const all = [...this.digests.values()]
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
@@ -477,12 +552,12 @@ export class AnalysisSession {
       selected = visible.filter((d) => d.startMs >= cutoff)
     }
     return {
-      result: selected.length > 0 ? combine(selected, settings) : null,
-      trend: this.trendFor(visible, settings),
+      result: settings !== null && selected.length > 0 ? combine(selected, settings) : null,
+      trend: settings === null ? [] : this.trendFor(visible, settings),
       rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
-      totalActivities: all.length,
+      totalActivities: visible.length,
       outdatedActivities: this.outdatedKeys.size,
       incompatibleActivities: this.incompatibleKeys.size,
       hiddenDuplicates: hidden.size,
