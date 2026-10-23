@@ -145,18 +145,78 @@ describe('ImportStatus: progress', () => {
   })
 
   it('says it is analysing when busy with zero files read', () => {
-    renderStatus({ busy: true, progress: 0 })
+    renderStatus({ busy: true, progress: { filesRead: 0, filesTotal: null } })
     expect(screen.getByText('Analysing')).toBeInTheDocument()
   })
 
   it('reports the files read so far, hidden from screen readers so it never announces per file', () => {
-    renderStatus({ busy: true, progress: 12 })
+    renderStatus({ busy: true, progress: { filesRead: 12, filesTotal: null } })
     expect(screen.getByText('Read 12 files so far')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('uses the singular when one file has been read', () => {
-    renderStatus({ busy: true, progress: 1 })
+    renderStatus({ busy: true, progress: { filesRead: 1, filesTotal: null } })
     expect(screen.getByText('Read 1 file so far')).toBeInTheDocument()
+  })
+
+  it('says how many of the files are read when the total is known', () => {
+    renderStatus({ busy: true, progress: { filesRead: 214, filesTotal: 1032 } })
+    expect(screen.getByText('Reading 214 of 1,032 files')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('uses the singular for a total of one file', () => {
+    renderStatus({ busy: true, progress: { filesRead: 1, filesTotal: 1 } })
+    expect(screen.getByText('Reading 1 of 1 file')).toBeInTheDocument()
+  })
+
+  it('fills the bar to the share of the total that is read, and keeps it hidden from screen readers', () => {
+    const { container } = renderStatus({
+      busy: true,
+      progress: { filesRead: 214, filesTotal: 1032 },
+    })
+    const bar = container.querySelector('.import-status__bar')
+    const fill = container.querySelector('.import-status__fill')
+    expect(bar).toHaveAttribute('aria-hidden', 'true')
+    expect(fill).toHaveClass('import-status__fill--measured')
+    expect(fill).toHaveStyle({ width: '21%' })
+  })
+
+  it('keeps the bar indeterminate until the first file is read, not an empty measure at 0 of N', () => {
+    const { container } = renderStatus({ busy: true, progress: { filesRead: 0, filesTotal: 10 } })
+    const fill = container.querySelector('.import-status__fill')
+    expect(fill).not.toHaveClass('import-status__fill--measured')
+    expect(fill).not.toHaveStyle({ width: '0%' })
+    expect(screen.getByText('Analysing')).toBeInTheDocument()
+  })
+
+  it('hides the progress strip once the import has ended, even when its count fell short', () => {
+    const { container } = renderStatus({ busy: false, progress: { filesRead: 9, filesTotal: 10 } })
+    expect(container.querySelector('.import-status')).toBeNull()
+    expect(screen.queryByText(/Reading/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the indeterminate bar and the count alone when the total is not known', () => {
+    const { container } = renderStatus({
+      busy: true,
+      progress: { filesRead: 12, filesTotal: null },
+    })
+    expect(container.querySelector('.import-status__fill')).not.toHaveClass(
+      'import-status__fill--measured',
+    )
+    expect(screen.getByText('Read 12 files so far')).toBeInTheDocument()
+  })
+
+  it('shows the count alone when more files are read than the total said there were', () => {
+    renderStatus({ busy: true, progress: { filesRead: 5, filesTotal: 4 } })
+    expect(screen.getByText('Read 5 files so far')).toBeInTheDocument()
+  })
+
+  it('does not announce the total as progress, so the live region stays as it was', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} />)
+    rerender(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} busy progress={{ filesRead: 2, filesTotal: 9 }} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+    expect(screen.getByRole('status')).not.toHaveTextContent('of 9')
   })
 
   it('shows why busy imports are waiting, instead of saying it is analysing', () => {
@@ -174,8 +234,8 @@ describe('ImportStatus: announcements', () => {
 
     rerender(<ImportStatus {...baseProps()} busy progress={null} />)
     expect(screen.getByRole('status')).toHaveTextContent('Reading files')
-    rerender(<ImportStatus {...baseProps()} busy progress={1} />)
-    rerender(<ImportStatus {...baseProps()} busy progress={2} />)
+    rerender(<ImportStatus {...baseProps()} busy progress={{ filesRead: 1, filesTotal: null }} />)
+    rerender(<ImportStatus {...baseProps()} busy progress={{ filesRead: 2, filesTotal: null }} />)
     expect(screen.getByRole('status')).toHaveTextContent('Reading files')
     expect(screen.getByRole('status')).not.toHaveTextContent('so far')
 
@@ -259,5 +319,79 @@ describe('ImportStatus: announcements', () => {
   it('does not announce an outcome that is already there when the page loads', () => {
     render(<ImportStatus {...baseProps()} outcome={{ activities: 4, rejected: 0 }} />)
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+})
+
+describe('ImportStatus: the summary of an import', () => {
+  const MARCH_2023 = new Date(2023, 2, 4, 9).getTime()
+  const OCTOBER_THIS_YEAR = new Date(new Date().getFullYear(), 9, 20, 7).getTime()
+  const ADDED = {
+    activities: 800,
+    rejected: 0,
+    runs: 412,
+    rides: 388,
+    firstStartMs: MARCH_2023,
+    lastStartMs: OCTOBER_THIS_YEAR,
+  }
+  const SENTENCE = `Added 412 runs and 388 rides, from Mar 2023 to Oct ${new Date().getFullYear()}.`
+
+  it('shows what an import added as a visible notice, not only to screen readers', () => {
+    renderStatus({ outcome: ADDED })
+    const notice = screen.getByText(SENTENCE)
+    expect(notice.closest('[role="status"]')).toBeNull()
+  })
+
+  it('links to the balance from the other pages, but not from the balance page', () => {
+    const { rerender } = render(<Page {...baseProps()} view="results" outcome={ADDED} />)
+    expect(screen.getByRole('link', { name: 'See your balance' })).toHaveAttribute('href', '#/')
+
+    rerender(<Page {...baseProps()} view="results" outcome={ADDED} atBalance />)
+    expect(screen.queryByRole('link', { name: 'See your balance' })).not.toBeInTheDocument()
+  })
+
+  it('hides the notice while an import is still running', () => {
+    renderStatus({ busy: true, progress: null, outcome: ADDED })
+    expect(screen.queryByText(SENTENCE)).not.toBeInTheDocument()
+  })
+
+  it('does not show a notice for an import that added no run or ride', () => {
+    renderStatus({ outcome: { activities: 3, rejected: 0, runs: 0, rides: 0 } })
+    expect(screen.queryByRole('button', { name: 'Dismiss import summary' })).not.toBeInTheDocument()
+  })
+
+  it('dismisses the notice, and keeps the sentence for screen readers', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} outcome={ADDED} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    expect(screen.queryByRole('button', { name: 'Dismiss import summary' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(SENTENCE)
+  })
+
+  it('shows the notice again for the outcome of a later run', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} outcome={ADDED} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    rerender(<ImportStatus {...baseProps()} outcome={{ ...ADDED }} />)
+    expect(screen.getByRole('button', { name: 'Dismiss import summary' })).toBeInTheDocument()
+  })
+
+  it('moves focus to the page heading when the dismiss button had it', () => {
+    render(
+      <>
+        <h1 id="page-heading" tabIndex={-1}>
+          Balance
+        </h1>
+        <ImportStatus {...baseProps()} outcome={ADDED} />
+      </>,
+    )
+    const dismiss = screen.getByRole('button', { name: 'Dismiss import summary' })
+    dismiss.focus()
+    fireEvent.click(dismiss)
+    expect(screen.getByRole('heading', { name: 'Balance' })).toHaveFocus()
+  })
+
+  it('announces the same sentence when the run ends', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} outcome={ADDED} />)
+    expect(screen.getByRole('status')).toHaveTextContent(SENTENCE)
   })
 })

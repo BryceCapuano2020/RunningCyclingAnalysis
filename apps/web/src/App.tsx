@@ -177,6 +177,7 @@ export function App() {
         waiting={analysis.waitingReason ?? (accountWait ? WAITING_FOR_ACCOUNT : null)}
         signedIn={signedIn}
         outcome={analysis.importOutcome}
+        atBalance={route.page === 'balance'}
       />
 
       <AppNotices

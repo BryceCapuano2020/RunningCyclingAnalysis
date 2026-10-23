@@ -1,5 +1,13 @@
 import { Gunzip, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import type { UnzipFile } from 'fflate'
+import {
+  ACTIVITY,
+  DIRECTORY_TAIL_BYTES,
+  isIgnored,
+  listedEntries,
+  OTHER_ACTIVITY,
+  ZIP,
+} from './zipDirectory'
 
 export interface FitFile {
   fileName: string
@@ -61,11 +69,6 @@ const TOO_DEEP = 'Nested archives are too deep'
 const DECOMPRESS_INPUT_CHUNK_BYTES = 16 * 1024
 /** A zip may hold zips this many levels down. A zip inside the deepest level is rejected. */
 const MAX_NESTED_ARCHIVE_DEPTH = 2
-/** End of the archive that can hold an End of Central Directory record and its ZIP64 companions. */
-const DIRECTORY_TAIL_BYTES = 64 * 1024 + 22
-const EOCD_SIGNATURE = 0x06054b50
-const ZIP64_EOCD_SIGNATURE = 0x06064b50
-const ZIP64_LOCATOR_SIGNATURE = 0x07064b50
 const DAMAGED_DIRECTORY = 'Archive is damaged; some activities may be missing'
 
 interface PendingEntry {
@@ -96,15 +99,9 @@ interface ZipBudget {
   bufferedBytes: number
   fitEntries: number
   archiveEntries: number
-  /** Why the whole archive stopped at a shared limit. Reported once, for the top-level zip. */
+  /** Why the whole archive stopped at a shared limit. The entry that hit it reports the reason. */
   abort: string | null
 }
-
-/** Activity formats this app reads: FIT, GPX and TCX, each optionally gzipped. */
-const ACTIVITY = /\.(fit|gpx|tcx)(\.gz)?$/i
-/** Activity formats this app does not read. They are counted, not delivered. */
-const OTHER_ACTIVITY = /\.(kml|kmz|pwx|hrm)(\.gz)?$/i
-const ZIP = /\.zip$/i
 
 /**
  * Calls onFile for each FIT, GPX or TCX file in a source, gunzipped and named without its .gz.
@@ -442,8 +439,11 @@ async function streamZip(
       throw error
     }
   }
+  // Once the archive has stopped, a zip inside it is not read: the abort reason covers it.
   const dispatchReady = async () => {
-    for (const entry of ready.splice(0)) await dispatch(entry)
+    for (const entry of ready.splice(0)) {
+      if (budget.abort === null || !entry.nested) await dispatch(entry)
+    }
   }
 
   try {
@@ -495,11 +495,10 @@ async function streamZip(
   } else if (!sawEntry && !isEmptyZip(archivePrefix)) {
     sink.onError(source.name, ARCHIVE_FAILED)
   }
-  if (depth === 0 && budget.abort !== null) sink.onError(source.name, budget.abort)
   // A corrupt local header ends fflate's scan silently, so compare with the central directory.
   if (budget.abort === null && interruption === null && (sawEntry || isEmptyZip(archivePrefix))) {
     const tail = tailBytes()
-    const listed = directoryEntryCount(tail, streamedBytes - tail.length)
+    const listed = await listedEntries(tail, streamedBytes - tail.length)
     if (listed === null) {
       sink.onError(source.name, DAMAGED_DIRECTORY)
     } else if (listed > seenEntries) {
@@ -525,31 +524,6 @@ async function streamZip(
     const all = concat(tailChunks, tailLength)
     return all.subarray(Math.max(0, all.length - DIRECTORY_TAIL_BYTES))
   }
-}
-
-/**
- * The entry count the central directory lists, read from the end of an archive. `tail` starts at
- * byte `tailStart` of the archive. Returns null when no readable directory is there.
- */
-function directoryEntryCount(tail: Uint8Array, tailStart: number): number | null {
-  const view = new DataView(tail.buffer, tail.byteOffset, tail.byteLength)
-  let eocd = -1
-  for (let p = tail.length - 22; p >= 0 && eocd < 0; p--) {
-    const commentLength = p + 22 <= tail.length ? view.getUint16(p + 20, true) : 0
-    if (view.getUint32(p, true) === EOCD_SIGNATURE && p + 22 + commentLength <= tail.length) {
-      eocd = p
-    }
-  }
-  if (eocd < 0) return null
-  const count = view.getUint16(eocd + 10, true)
-  if (count !== 0xffff && view.getUint32(eocd + 16, true) !== 0xffffffff) return count
-  // ZIP64: the locator sits just before the EOCD and gives the absolute offset of the ZIP64 record.
-  const locator = eocd - 20
-  if (locator < 0 || view.getUint32(locator, true) !== ZIP64_LOCATOR_SIGNATURE) return null
-  const record = Number(view.getBigUint64(locator + 8, true)) - tailStart
-  if (record < 0 || record + 56 > tail.length) return null
-  if (view.getUint32(record, true) !== ZIP64_EOCD_SIGNATURE) return null
-  return Number(view.getBigUint64(record + 32, true))
 }
 
 async function deliver(name: string, bytes: Uint8Array, sink: Sink): Promise<void> {
@@ -654,17 +628,7 @@ function concat(chunks: Uint8Array[], total: number): Uint8Array<ArrayBuffer> {
 }
 
 /** A zip with no entries starts with its end-of-central-directory record. */
+const EMPTY_ZIP_SIGNATURE = [0x50, 0x4b, 0x05, 0x06]
 function isEmptyZip(prefix: Uint8Array): boolean {
-  return (
-    prefix.length === 4 &&
-    prefix[0] === 0x50 &&
-    prefix[1] === 0x4b &&
-    prefix[2] === 0x05 &&
-    prefix[3] === 0x06
-  )
-}
-
-/** Directory entries and macOS resource-fork metadata. */
-function isIgnored(name: string): boolean {
-  return name.endsWith('/') || /(^|\/)__MACOSX\//.test(name) || /(^|\/)\._/.test(name)
+  return prefix.length === 4 && EMPTY_ZIP_SIGNATURE.every((byte, i) => prefix[i] === byte)
 }

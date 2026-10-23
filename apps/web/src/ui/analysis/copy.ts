@@ -2,7 +2,8 @@ import { DAILY_LIMITS } from '@rca/contract'
 import type { SavedActivity, WorkerResponse } from '../../worker/protocol'
 import { limitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
-import { formatDay } from '../format/date'
+import { formatDay, formatMonth } from '../format/date'
+import type { ImportSummary } from '../../worker/importSummary'
 
 export const WAITING_FOR_LIBRARY = 'Waiting for your library to load'
 export const WAITING_FOR_ACCOUNT = 'Waiting for your account…'
@@ -71,6 +72,32 @@ export function rebuildNoticeText(outcome: RebuildOutcome): string {
     notice.push(limitedSentence(outcome.limited, outcome.limitKind, outcome.limitResetsAtMs))
   }
   return notice.join(' ')
+}
+
+/**
+ * The sentence for what an import added, such as "Added 412 runs and 388 rides, from Mar 2023 to
+ * Oct.". Null when the import added no runs or rides, so the caller says something else.
+ */
+export function addedSentence(summary: ImportSummary, nowMs = Date.now()): string | null {
+  const { runs = 0, rides = 0, firstStartMs, lastStartMs } = summary
+  if (runs + rides === 0 || firstStartMs === undefined || lastStartMs === undefined) return null
+  const counts = [
+    runs > 0 ? countText(runs, 'run') : '',
+    rides > 0 ? countText(rides, 'ride') : '',
+  ].filter((text) => text !== '')
+  // The year is shown on both ends when they fall in different years, or when either is not this year.
+  const firstYear = new Date(firstStartMs).getFullYear()
+  const withYear =
+    firstYear !== new Date(lastStartMs).getFullYear() || firstYear !== new Date(nowMs).getFullYear()
+  const first = formatMonth(firstStartMs, withYear)
+  const last = formatMonth(lastStartMs, withYear)
+  const span = first === last ? `in ${first}` : `from ${first} to ${last}`
+  return `Added ${counts.join(' and ')}, ${span}.`
+}
+
+/** "412 runs" or "1 ride", with thousands separated. */
+function countText(count: number, singular: string): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? singular : `${singular}s`}`
 }
 
 export function deleteFailureText(message: ErrorReply): string {

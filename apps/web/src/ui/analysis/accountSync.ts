@@ -156,6 +156,7 @@ function startSession(deps: AccountTransitionDeps): void {
   // A new sign-in starts with a new session, so earlier sync issues are cleared. The new
   // worker's account pass loads the library and sends the deferred imports.
   deps.imports.setState(EMPTY_SESSION)
+  deps.imports.setImportOutcome(null)
   deps.setError(null)
   deps.transport.restartWorker()
 }

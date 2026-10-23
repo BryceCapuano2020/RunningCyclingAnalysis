@@ -8,7 +8,7 @@ import { useImportActions } from './analysis/importActions'
 import { useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
-import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/model'
+import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
 import { EMPTY_SESSION, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
@@ -22,8 +22,8 @@ export interface AnalysisController {
   busy: boolean
   /** Why held imports are waiting, or null when nothing is waiting. */
   waitingReason: string | null
-  /** Number of activity files read so far during an import. */
-  progress: number | null
+  /** Activity files read so far during an import, with the total when it is known. */
+  progress: ImportProgress | null
   /** Number of files uploaded so far during an import that keeps files, otherwise null. */
   uploading: number | null
   error: string | null
@@ -112,6 +112,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setProgress,
     setUploading,
     setRebuildNotice,
+    setImportOutcome,
   } = imports
 
   /** Recomputes what the page shows as busy, waiting, and in a library change. */
@@ -162,8 +163,23 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       if (request.type === 'loadServer' || request.type === 'rebuildStale') {
         setLibraryUnreadable(0)
       }
+      // The summary describes the last import only, so it goes once another import, a clear or the sample is sent.
+      if (
+        request.type === 'addFiles' ||
+        request.type === 'clear' ||
+        request.type === 'loadSample'
+      ) {
+        setImportOutcome(null)
+      }
     },
-    [refreshBusy, setError, setLibraryError, setLibraryNotice, setLibraryUnreadable],
+    [
+      refreshBusy,
+      setError,
+      setImportOutcome,
+      setLibraryError,
+      setLibraryNotice,
+      setLibraryUnreadable,
+    ],
   )
 
   const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
@@ -222,6 +238,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setProgress(null)
     setUploading(null)
     setState(EMPTY_SESSION)
+    setImportOutcome(null)
     setRebuildNotice(null)
     setWorkerStopped(false)
     automaticRestartCountRef.current = 0
@@ -237,6 +254,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     clearQueues,
     restartWorker,
     setError,
+    setImportOutcome,
     setProgress,
     setRebuildNotice,
     setState,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatDay, formatTimeOfDay } from './date'
+import { formatDay, formatMonth, formatTimeOfDay } from './date'
 
 // Local constructors keep these cases independent of the zone the suite runs in. The only test
 // that changes the zone says so.
@@ -37,6 +37,13 @@ describe('formatDay', () => {
     vi.stubEnv('TZ', 'Pacific/Auckland')
     // 20:00 UTC on 2 June is 08:00 on 3 June in Auckland, which is in winter time (UTC+12).
     expect(formatDay(Date.UTC(2026, 5, 2, 20, 0), JUNE_10_2026)).toBe('Wed 3 Jun')
+  })
+})
+
+describe('formatMonth', () => {
+  it('names the month, and adds the year only when asked for it', () => {
+    expect(formatMonth(new Date(2026, 9, 2).getTime(), false)).toBe('Oct')
+    expect(formatMonth(new Date(2023, 2, 30).getTime(), true)).toBe('Mar 2023')
   })
 })
 

@@ -1,6 +1,8 @@
 import type { UnitSystem } from '@rca/core/units'
 import { Methodology } from '../components'
 import { Dropzone } from '../components/Dropzone'
+import { ExportGuides } from '../components/ExportGuides'
+import { EXPORT_GUIDES_HEADING_ID } from '../exportGuides'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -11,6 +13,11 @@ export interface LandingPageProps {
   units: UnitSystem
   /** Receives dropped or chosen files. The app asks the setup questions first, when they are due. */
   onFiles: (files: File[]) => void
+}
+
+/** Moves focus to the export guides, which the browser scrolls to; a fragment link would break the hash routes. */
+function showExportGuides() {
+  document.getElementById(EXPORT_GUIDES_HEADING_ID)?.focus()
 }
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
@@ -39,9 +46,12 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
         <li>
           <h2>1. Add your files</h2>
           <p className="secondary">
-            FIT, GPX or TCX files from Garmin, Wahoo, Coros or Zwift, or the zip from Strava&rsquo;s
+            FIT, GPX or TCX files from Garmin, Wahoo, COROS or Zwift, or the zip from Strava&rsquo;s
             account export.
           </p>
+          <button type="button" className="btn" onClick={showExportGuides}>
+            How to get your files
+          </button>
         </li>
         <li>
           <h2>2. Both sports on one scale</h2>
@@ -57,6 +67,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
           </p>
         </li>
       </ol>
+      <ExportGuides />
       <Methodology />
     </div>
   )

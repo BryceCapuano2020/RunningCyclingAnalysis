@@ -79,11 +79,13 @@ describe('LandingPage', () => {
   })
 
   it('lists the three steps in order, each with its explanation', () => {
-    render(
+    const { container } = render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
 
-    const steps = screen.getAllByRole('listitem')
+    const list = container.querySelector('.app__steps')
+    if (!list) throw new Error('No steps list')
+    const steps = within(list as HTMLElement).getAllByRole('listitem')
     expect(steps).toHaveLength(3)
     expect(
       within(steps[0]!).getByRole('heading', { level: 2, name: '1. Add your files' }),
@@ -95,8 +97,25 @@ describe('LandingPage', () => {
       within(steps[2]!).getByRole('heading', { level: 2, name: '3. See your balance' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/FIT, GPX or TCX files from Garmin, Wahoo, Coros or Zwift/),
+      screen.getByText(/FIT, GPX or TCX files from Garmin, Wahoo, COROS or Zwift/),
     ).toBeInTheDocument()
+  })
+
+  it('moves focus to the export guides from step 1, without changing the hash route', () => {
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
+    const hash = window.location.hash
+    fireEvent.click(screen.getByRole('button', { name: 'How to get your files' }))
+    expect(screen.getByRole('heading', { level: 2, name: 'How to get your files' })).toHaveFocus()
+    expect(window.location.hash).toBe(hash)
+  })
+
+  it('offers how to get the files after the steps, in a section of its own', () => {
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
+    expect(screen.getByRole('region', { name: 'How to get your files' })).toBeInTheDocument()
   })
 
   it('shows the example result with its meter and the example pace and power', () => {

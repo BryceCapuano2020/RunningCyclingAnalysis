@@ -92,6 +92,22 @@ describe('AnalysisSession', () => {
     expect(state.unsupportedFiles).toBe(0)
   })
 
+  it('reads a Strava-shaped export zip as it is: gzipped FIT and GPX files in activities/', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities/1002.gpx.gz': gzipSync(encodeGpx(ride)),
+      'activities.csv': strToU8('Activity ID,Activity Name\n1001,Morning Run\n'),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((activity) => activity.sport).sort()).toEqual([
+      'ride',
+      'run',
+    ])
+    expect(state.rejected).toEqual([])
+  })
+
   it('loads a GPX file and a TCX file given on their own', async () => {
     const session = new AnalysisSession()
     const state = await session.addFiles(
@@ -132,6 +148,63 @@ describe('AnalysisSession', () => {
 
     const again = await session.addFiles([fitFile('run again.fit', run)], SETTINGS)
     expect(again.result?.activities).toHaveLength(1)
+  })
+
+  it('reports the digests an import adds, leaving out copies it skips and what it replaces', async () => {
+    const session = new AnalysisSession()
+    const added: ActivityDigest[][] = []
+    const record = (outcome: { added: ActivityDigest[] }) => {
+      added.push(outcome.added)
+    }
+    const import_ = (files: File[]) =>
+      session.addFiles(files, SETTINGS, undefined, undefined, false, record)
+
+    await import_([fitFile('run.fit', run), fitFile('run copy.fit', run)])
+    await import_([fitFile('run again.fit', run)])
+    await import_([fitFile('ride.fit', later(ride))])
+
+    expect(added.map((digests) => digests.map((digest) => digest.sport))).toEqual([
+      ['run'],
+      [],
+      ['ride'],
+    ])
+  })
+
+  it('reports progress for an activity file that cannot be read, so the count reaches the total', async () => {
+    const session = new AnalysisSession()
+    const progress: number[] = []
+    await session.addFiles(
+      [fitFile('run.fit', run), new File([new Uint8Array([9, 9, 9, 9])], 'broken.fit.gz')],
+      SETTINGS,
+      (count) => progress.push(count),
+    )
+    expect(progress).toEqual([1, 2])
+  })
+
+  it('reaches the count of activity files an archive lists, even for an entry it lost unread', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync(
+      {
+        'activities/1.fit': encodeFit(run, { gps: true }),
+        'activities/2.fit': encodeFit(ride, { gps: true }),
+        'activities/3.fit': encodeFit(later(run), { gps: true }),
+      },
+      { level: 0 },
+    )
+    // Break the second local header's signature, so the archive skips that entry without reporting it.
+    const locals: number[] = []
+    for (let i = 0; i + 3 < bytes.length; i++) {
+      if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 3 && bytes[i + 3] === 4) {
+        locals.push(i)
+      }
+    }
+    bytes[locals[1]! + 2] = 0
+    const progress: number[] = []
+    await session.addFiles([new File([bytes], 'mid.zip')], SETTINGS, (count) =>
+      progress.push(count),
+    )
+
+    expect(progress.at(-1)).toBe(3)
   })
 
   it('reports a garbage file as rejected with its reason and still loads the others', async () => {
@@ -786,6 +859,22 @@ describe('the same workout in more than one format', () => {
     const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
 
     expect(state.trend.at(-1)?.runCount).toBe(1)
+  })
+
+  it('counts a workout as added once, whichever copy of it an import is given first', async () => {
+    const addedSports = async (files: File[]) => {
+      const session = new AnalysisSession()
+      let sports: string[] = []
+      await session.addFiles(files, SETTINGS, undefined, undefined, false, (outcome) => {
+        sports = outcome.added.map((digest) => digest.sport)
+      })
+      return sports
+    }
+    const gpx = new File([new Uint8Array(encodeGpx(shifted(run, 2_000)))], 'run.gpx')
+    const fit = fitFile('run.fit', run)
+
+    expect(await addedSports([gpx, fit])).toEqual(['run'])
+    expect(await addedSports([fit, gpx])).toEqual(['run'])
   })
 
   it('skips a GPX copy that arrives after its FIT in the same zip, and does not sync it', async () => {

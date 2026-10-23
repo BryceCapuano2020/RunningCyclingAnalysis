@@ -818,7 +818,7 @@ describe('useAnalysis state', () => {
     expect(result.current.uploading).toBeNull()
 
     act(() => worker().reply({ type: 'progress', filesRead: 3, uploaded: 2 }))
-    expect(result.current.progress).toBe(3)
+    expect(result.current.progress).toEqual({ filesRead: 3, filesTotal: null })
     expect(result.current.uploading).toBe(2)
 
     act(() => worker().reply({ type: 'state', state: STATE }))
@@ -826,12 +826,72 @@ describe('useAnalysis state', () => {
     expect(result.current.uploading).toBeNull()
   })
 
+  it('drops the summary of the last import when the library is cleared or replaced by the sample', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.clear())
+    expect(result.current.importOutcome).toBeNull()
+
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    act(() => result.current.loadSample())
+    expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('clears the summary of the last import as soon as the next one is sent', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('leaves no summary behind when an import fails', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'error', message: 'Could not read the file' }))
+    expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('clears the summary when the worker stops on its own', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    act(() => worker().onerror?.({ message: 'failed' } as ErrorEvent))
+    expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('clears the summary when the user stops the analysis', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    act(() => result.current.stop())
+    expect(result.current.importOutcome).toBeNull()
+  })
+
   it('reports no uploads for a progress message that carries none', () => {
     const { result } = setup(SIGNED_OUT)
     act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'progress', filesRead: 1 }))
-    expect(result.current.progress).toBe(1)
+    expect(result.current.progress).toEqual({ filesRead: 1, filesTotal: null })
     expect(result.current.uploading).toBeNull()
+  })
+
+  it('carries the total of activity files an import holds with its progress', () => {
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'progress', filesRead: 2, filesTotal: 9 }))
+    expect(result.current.progress).toEqual({ filesRead: 2, filesTotal: 9 })
   })
 
   it('shows a worker error message and stops being busy', () => {

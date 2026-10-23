@@ -25,6 +25,13 @@ export function formatDay(ms: number, nowMs = Date.now()): string {
   return sameYear ? day : `${day} ${date.getFullYear()}`
 }
 
+/** A month in the viewer's local zone, such as "Mar", or "Mar 2023" when withYear is set. */
+export function formatMonth(ms: number, withYear: boolean): string {
+  const date = new Date(ms)
+  const month = MONTHS[date.getMonth()]!
+  return withYear ? `${month} ${date.getFullYear()}` : month
+}
+
 /** The local time of day in twelve-hour form, such as "6:42 am". */
 export function formatTimeOfDay(ms: number): string {
   const date = new Date(ms)

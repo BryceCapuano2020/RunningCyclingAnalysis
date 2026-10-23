@@ -147,13 +147,57 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).not.toHaveBeenCalled()
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages).toEqual([
-      { type: 'progress', filesRead: 1 },
+      { type: 'progress', filesRead: 1, filesTotal: 1 },
       {
         type: 'state',
         state: expect.objectContaining({ totalActivities: 1, syncIssues: [] }),
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
+        outcome: expect.objectContaining({ activities: 1, rejected: 0, duplicates: [] }),
       },
     ])
+  })
+
+  it('tells each progress message how many activity files the import holds', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [
+        fitFile(),
+        fitFile(secondSampleActivity, 'other.fit'),
+        new File(['not an activity'], 'notes.txt'),
+      ],
+      settings: SETTINGS,
+      sync: null,
+    })
+
+    expect(messages.filter((message) => message.type === 'progress')).toEqual([
+      { type: 'progress', filesRead: 1, filesTotal: 2 },
+      { type: 'progress', filesRead: 2, filesTotal: 2 },
+    ])
+  })
+
+  it('reports the runs and rides an import added, with the span of their starts', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(), fitFile(secondSampleActivity, 'other.fit')],
+      settings: SETTINGS,
+      sync: null,
+    })
+    const digests = [sampleActivity, secondSampleActivity].map((activity) =>
+      digestActivity(activity),
+    )
+    const starts = digests.map((digest) => digest.startMs)
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: {
+        activities: 2,
+        runs: digests.filter((digest) => digest.sport === 'run').length,
+        rides: digests.filter((digest) => digest.sport === 'ride').length,
+        firstStartMs: Math.min(...starts),
+        lastStartMs: Math.max(...starts),
+      },
+    })
   })
 
   it('saves each new activity and uploads its file when files are kept', async () => {
@@ -178,8 +222,8 @@ describe('analysis worker', () => {
       USER_ID,
     )
     // The upload is reported as it happens, before the file itself counts as read.
-    expect(messages).toContainEqual({ type: 'progress', filesRead: 0, uploaded: 1 })
-    expect(messages).toContainEqual({ type: 'progress', filesRead: 1, uploaded: 1 })
+    expect(messages).toContainEqual({ type: 'progress', filesRead: 0, filesTotal: 1, uploaded: 1 })
+    expect(messages).toContainEqual({ type: 'progress', filesRead: 1, filesTotal: 1, uploaded: 1 })
     expect(messages.at(-1)).toMatchObject({ type: 'state' })
   })
 
@@ -193,7 +237,7 @@ describe('analysis worker', () => {
     })
 
     expect(mocked.createActivity).not.toHaveBeenCalled()
-    expect(messages).toContainEqual({ type: 'progress', filesRead: 0, uploaded: 0 })
+    expect(messages).toContainEqual({ type: 'progress', filesRead: 0, filesTotal: 0, uploaded: 0 })
     expect(messages.at(-1)).toMatchObject({ type: 'state' })
   })
 
@@ -208,7 +252,7 @@ describe('analysis worker', () => {
 
     expect(mocked.createActivity).toHaveBeenCalledOnce()
     expect(mocked.uploadFile).not.toHaveBeenCalled()
-    expect(messages).toContainEqual({ type: 'progress', filesRead: 1, uploaded: 1 })
+    expect(messages).toContainEqual({ type: 'progress', filesRead: 1, filesTotal: 1, uploaded: 1 })
   })
 
   it('uploads a previously saved duplicate when original-file retention is enabled', async () => {
@@ -900,7 +944,7 @@ describe('device library', () => {
 
     expect(mocked.createActivity).not.toHaveBeenCalled()
     expect(messages).toEqual([
-      { type: 'progress', filesRead: 1 },
+      { type: 'progress', filesRead: 1, filesTotal: 1 },
       {
         type: 'libraryActivities',
         activities: [expect.objectContaining({ sport: sampleActivity.sport })],
@@ -908,7 +952,7 @@ describe('device library', () => {
       {
         type: 'state',
         state: expect.objectContaining({ totalActivities: 1 }),
-        outcome: { activities: 1, rejected: 0, duplicates: [] },
+        outcome: expect.objectContaining({ activities: 1, rejected: 0, duplicates: [] }),
       },
     ])
     expect(await keptDevice().all()).toHaveLength(1)

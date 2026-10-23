@@ -1,0 +1,58 @@
+.export-guides {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 68ch;
+}
+
+.export-guides h2 {
+  margin: 0 0 var(--space-1);
+}
+
+.export-guide {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.export-guide__name {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.export-guide__body {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+/* A plain list, so screen readers keep its numbered-list semantics. */
+.export-guide ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.export-guide li + li {
+  margin-top: var(--space-2);
+}
+
+.export-guide__note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.export-guide__note .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.export-guide__body p {
+  margin: 0;
+}

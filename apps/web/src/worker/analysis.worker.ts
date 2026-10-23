@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
+import { countActivityFiles } from '@rca/core/fit'
 import { parseActivityFile } from '@rca/core/import'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
@@ -19,6 +20,7 @@ import { exportActivitiesJson, exportFooterJson, exportHeaderJson } from '../exp
 import { deviceActions, workoutKeyOf as activityKey } from './device'
 import { openDeviceLibrary } from './deviceLibrary'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
+import { summarizeAdded } from './importSummary'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 
@@ -67,10 +69,13 @@ async function addFiles(
   let storageBudgetExhausted = false
   let haltedBy: SyncIssueCode | null = null
   let outcome: ImportOutcome = { activities: 0, rejected: 0, duplicates: [] }
+  // Read from the zips' directories before any entry is, so every progress message can show a total.
+  const filesTotal = await countActivityFiles(request.files)
   const report = () =>
     post({
       type: 'progress',
       filesRead,
+      ...(filesTotal === null ? {} : { filesTotal }),
       ...(sync ? { uploaded } : {}),
     })
   // Reported before any file is read, so an import that saves nothing still starts and ends.
@@ -134,8 +139,8 @@ async function addFiles(
     },
     sync !== null ? save : request.saveToDevice ? device.save : undefined,
     sync?.keepFiles === true,
-    (completed) => {
-      outcome = completed
+    ({ added, ...completed }) => {
+      outcome = { ...completed, ...summarizeAdded(added) }
     },
   )
   if (sync !== null) {

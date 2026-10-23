@@ -59,7 +59,10 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       if (generation !== current.transport.workerGenerationRef.current) return
       const message = event.data
       if (message.type === 'progress') {
-        current.imports.setProgress(message.filesRead)
+        current.imports.setProgress({
+          filesRead: message.filesRead,
+          filesTotal: message.filesTotal ?? null,
+        })
         current.imports.setUploading(message.uploaded ?? null)
         return
       }
@@ -179,6 +182,7 @@ function handleWorkerError(deps: WorkerEventDeps, worker: Worker, event: ErrorEv
   imports.setUploading(null)
   const current = accountRef.current
   if (current.status !== 'signed-in') imports.setState(EMPTY_SESSION)
+  imports.setImportOutcome(null)
   const willRestart = transport.automaticRestartCountRef.current < 1
   setError(workerFailureText(current.status, willRestart, event.message))
   if (willRestart) {

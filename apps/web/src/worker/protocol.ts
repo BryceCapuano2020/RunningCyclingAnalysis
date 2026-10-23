@@ -15,6 +15,12 @@ export interface ImportOutcome {
   rejected: number
   /** Files skipped because a better copy of the same workout is already saved. */
   duplicates: RejectedFile[]
+  /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
+  runs?: number
+  rides?: number
+  /** The earliest and latest start, in epoch ms, of the activities the import added. */
+  firstStartMs?: number
+  lastStartMs?: number
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */
@@ -51,7 +57,8 @@ export type WorkerRequest =
   | { type: 'exportData'; userId: string; account: ExportAccount; profile: Profile }
 
 export type WorkerResponse =
-  | { type: 'progress'; filesRead: number; uploaded?: number }
+  /** `filesTotal` is the activity files the request holds, when that is known before they are read. */
+  | { type: 'progress'; filesRead: number; filesTotal?: number; uploaded?: number }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   /** The account's saved activities when signed in, or the ones kept in this browser when not. */
