@@ -102,8 +102,26 @@
   text-align: left;
 }
 
-.account-menu__item:hover {
+.account-menu__item:hover:not([aria-disabled='true']) {
   background: var(--surface-2);
+}
+
+.account-menu__item[aria-disabled='true'] {
+  color: var(--text-muted);
+  cursor: progress;
+}
+
+/* Announces the data download. Empty until a download starts. */
+.account-menu__status {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.account-menu__status:empty {
+  padding: 0;
 }
 
 .account-menu__item--danger {

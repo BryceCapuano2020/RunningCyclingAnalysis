@@ -230,16 +230,22 @@ export async function deleteAccount(userId?: string): Promise<void> {
  * `since` (epoch ms), only those created at or after it. `onUnreadable` receives the number of
  * stored activities the server could not read; it is called once, and only when that number is
  * above zero.
+ *
+ * With `onPage`, each page's records are handed over as they arrive and are not kept, so a large
+ * library never sits in memory whole; the promise then resolves to an empty array. Without it the
+ * promise resolves to every record.
  */
 export async function listActivities(
   since?: number,
   userId?: string,
   onUnreadable?: (count: number) => void,
+  onPage?: (items: ActivityRecord[]) => void,
 ): Promise<ActivityRecord[]> {
   const records: ActivityRecord[] = []
   const seenCursors = new Set<string>()
   let cursor: string | undefined
   let pages = 0
+  let total = 0
   let unreadable = 0
   do {
     if (pages >= MAX_ACTIVITIES_PER_USER) {
@@ -254,13 +260,15 @@ export async function listActivities(
       ActivityPageSchema,
       PAGE_BODY_LIMIT,
     )
-    if (records.length + page.items.length > MAX_ACTIVITIES_PER_USER) {
+    if (total + page.items.length > MAX_ACTIVITIES_PER_USER) {
       throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
     }
     if (page.items.length === 0 && page.nextCursor !== null) {
       throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
     }
-    records.push(...page.items)
+    total += page.items.length
+    if (onPage) onPage(page.items)
+    else records.push(...page.items)
     unreadable += page.unreadable ?? 0
     cursor = page.nextCursor ?? undefined
     // A server that repeats a cursor would make this loop forever.

@@ -1,5 +1,7 @@
+import type { Profile } from '@rca/contract'
 import type { RejectedFile, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
+import type { ExportAccount } from '../export/accountExport'
 
 export interface SavedActivity {
   id: string
@@ -30,12 +32,16 @@ export type WorkerRequest =
   | { type: 'setRange'; rangeDays: number | null; settings: AthleteSettings }
   | { type: 'clear' }
   | { type: 'deleteActivity'; id: string; userId: string; settings: AthleteSettings }
+  /** Builds the account's data export from its library. The account and profile come from the page. */
+  | { type: 'exportData'; userId: string; account: ExportAccount; profile: Profile }
 
 export type WorkerResponse =
   | { type: 'progress'; filesRead: number; uploaded?: number }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   | { type: 'libraryActivities'; activities: SavedActivity[] }
+  /** The account's export, as the JSON file to save. */
+  | { type: 'exportReady'; file: Blob }
   /** Stored activities the server could not read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
   /** The import stopped because the account ended or changed. Sent before its state. */

@@ -22,6 +22,8 @@ const DAILY_LIMIT =
   'You have reached the daily limit for this account. The limit resets at 00:00 UTC.'
 const DELETE_DAILY_LIMIT = `You can delete up to ${DAILY_LIMITS.activityDelete} activities per day. The limit resets at 00:00 UTC.`
 const LIBRARY_DAILY_LIMIT = `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`
+const EXPORT_DAILY_LIMIT = `You have reached today's limit for loading your library, which the export also uses (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`
+const EXPORT_INTERRUPTED = 'The download was interrupted. Download your data again.'
 
 /** The sentence for saved activities a rebuild could not reach because of a limit. */
 function limitedSentence(
@@ -75,6 +77,11 @@ export interface AnalysisController {
   /** Says why the last library change failed. */
   libraryError: string | null
   deleteActivity: (id: string) => void
+  /**
+   * The signed-in account's data as a JSON file, built from the server by the worker. Rejects with
+   * the reason when it cannot be made. An export does not make the page busy.
+   */
+  exportData: () => Promise<Blob>
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
   addFiles: (files: File[]) => void
@@ -106,6 +113,8 @@ const EMPTY: SessionState = {
 interface Pending {
   kind: WorkerRequest['type']
   notice?: string
+  /** Receives the worker's answer, or null when the worker is dropped before answering. */
+  settle?: (message: WorkerResponse | null) => void
 }
 
 interface ErrorNotice {
@@ -196,7 +205,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       replies.some((pending) => pending.kind === 'deleteActivity') ? 'deleting' : null,
     )
     setBusy(
-      replies.some((pending) => pending.kind !== 'deleteActivity') ||
+      replies.some(
+        (pending) => pending.kind !== 'deleteActivity' && pending.kind !== 'exportData',
+      ) ||
         pendingAsyncImportsRef.current > 0 ||
         deferredImportsRef.current.length > 0 ||
         libraryWaitRef.current.length > 0,
@@ -208,8 +219,15 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     )
   }, [])
 
+  /** Forgets the requests the worker still owes. Any export among them ends without a file. */
+  const dropPendingReplies = useCallback(() => {
+    const dropped = pendingRepliesRef.current
+    pendingRepliesRef.current = []
+    for (const pending of dropped) pending.settle?.(null)
+  }, [])
+
   const send = useCallback(
-    (request: WorkerRequest, notice?: string) => {
+    (request: WorkerRequest, notice?: string, settle?: Pending['settle']) => {
       const worker = workerRef.current
       if (worker === null) {
         // Once the worker has stopped for good, nothing is queued for a later restart, so the
@@ -221,9 +239,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         unsentRef.current.push(request)
         return
       }
-      pendingRepliesRef.current.push({ kind: request.type, notice })
+      pendingRepliesRef.current.push({ kind: request.type, notice, settle })
       refreshBusy()
-      if (request.type !== 'loadServer') setError(null)
+      // A download does not touch the import or library error, so it is not cleared here.
+      if (request.type !== 'loadServer' && request.type !== 'exportData') setError(null)
       // A new import or rebuild replaces the outcome of the last library change.
       if (request.type === 'addFiles' || request.type === 'rebuildStale') {
         setLibraryNotice(null)
@@ -422,6 +441,16 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       setWorkerStopped(false)
       setProgress(null)
       setUploading(null)
+      if (message.type === 'exportReady') {
+        pending?.settle?.(message)
+        return
+      }
+      if (pending?.kind === 'exportData') {
+        pending.settle?.(message)
+        if (message.type === 'error' && message.issue !== undefined)
+          handleAccountIssue(message.issue)
+        return
+      }
       if (message.type === 'error') {
         if (pending?.kind === 'loadServer') {
           const dropped = failLibrary()
@@ -475,7 +504,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     }
     worker.onerror = (event) => {
       if (generation !== workerGenerationRef.current) return
-      pendingRepliesRef.current = []
+      dropPendingReplies()
       refreshBusy()
       setProgress(null)
       setUploading(null)
@@ -509,13 +538,14 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     return () => {
       worker.terminate()
       workerRef.current = null
-      pendingRepliesRef.current = []
+      dropPendingReplies()
       // In React StrictMode, effects are cleaned up and set up again on mount. The first
       // worker is terminated, so its initial account-load request must be sent to the new one.
       previousStatusRef.current = 'loading'
       previousUserIdRef.current = null
     }
   }, [
+    dropPendingReplies,
     failLibrary,
     flushUnsent,
     handleAccountIssue,
@@ -572,7 +602,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       libraryWaitRef.current = []
       unsentRef.current = []
       // The old worker's replies are ignored by the generation check, so forget what it owes.
-      pendingRepliesRef.current = []
+      dropPendingReplies()
       refreshBusy()
       setState(EMPTY)
       setProgress(null)
@@ -623,12 +653,51 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     sessionExpired,
     addFiles,
     loadLibrary,
+    dropPendingReplies,
     refreshBusy,
     restartWorker,
     setError,
     setLibrary,
     workerGeneration,
   ])
+
+  const exportData = useCallback(
+    () =>
+      new Promise<Blob>((resolve, reject) => {
+        const current = accountRef.current
+        const signedIn = current.status === 'signed-in' ? current.me : null
+        if (signedIn === null) {
+          reject(new Error('Sign in to download your data.'))
+          return
+        }
+        if (workerRef.current === null) {
+          reject(new Error(EXPORT_INTERRUPTED))
+          return
+        }
+        send(
+          {
+            type: 'exportData',
+            userId: signedIn.user.id,
+            account: { name: signedIn.user.name, email: signedIn.user.email },
+            profile: signedIn.profile,
+          },
+          undefined,
+          (message) => {
+            if (message?.type === 'exportReady') resolve(message.file)
+            else if (message?.type === 'error') {
+              reject(
+                new Error(
+                  message.issue === 'daily-limit'
+                    ? EXPORT_DAILY_LIMIT
+                    : `Could not download your data. ${message.message}`,
+                ),
+              )
+            } else reject(new Error(EXPORT_INTERRUPTED))
+          },
+        )
+      }),
+    [send],
+  )
 
   const loadSample = useCallback(() => {
     if (accountRef.current.status === 'signed-in') {
@@ -659,7 +728,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     send({ type: 'rebuildStale', settings: settingsRef.current, userId })
   }, [send])
   const stop = useCallback(() => {
-    pendingRepliesRef.current = []
+    dropPendingReplies()
     deferredImportsRef.current = []
     libraryWaitRef.current = []
     unsentRef.current = []
@@ -676,7 +745,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         : 'Analysis stopped. Re-import your files to continue.',
     )
     restartWorker()
-  }, [refreshBusy, restartWorker, setError])
+  }, [dropPendingReplies, refreshBusy, restartWorker, setError])
   const retryWorker = useCallback(() => {
     setWorkerStopped(false)
     automaticRestartCountRef.current = 0
@@ -738,6 +807,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryNotice,
     libraryError,
     deleteActivity,
+    exportData,
     rebuildNotice,
     rebuildSavedActivities,
     addFiles,

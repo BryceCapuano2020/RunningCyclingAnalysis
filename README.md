@@ -1,8 +1,8 @@
 # RunningCyclingAnalysis
 
 How do your running and cycling energy estimates compare? Watts on the bike and pace on the run
-cannot be compared directly. This app converts both into **gross metabolic power** (watts of energy burned per
-kilogram of body weight), compares your best efforts in each sport, and reports the gap with a
+cannot be compared directly. This app converts both into an **energy rate** (gross metabolic power in
+watts of energy burned per kilogram of body weight, W/kg), compares your best efforts in each sport, and reports the gap with a
 model range. This estimates energy use; it does not rank sporting ability.
 
 [Open the live app](https://rca-api.nutritioncoachapp.workers.dev) ·
@@ -22,7 +22,7 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
     <img
       src="docs/screenshot-light.png"
       width="640"
-      alt="Results page with sample data. The headline compares estimated running and cycling energy use, followed by the Best efforts in one unit chart, where running and cycling power curves are plotted in gross metabolic watts per kilogram against duration from 1 minute to 2 hours."
+      alt="Results page with sample data. The headline compares estimated running and cycling energy use, followed by the Best efforts in one unit chart, where running and cycling power curves are plotted as energy rate in watts per kilogram against duration from 1 minute to 2 hours."
     />
   </picture>
 </p>
@@ -101,7 +101,7 @@ device-file validation is still outstanding.
   power, because heart rate stops rising linearly with power above it. Blocks are selected on power,
   not heart rate, to avoid directly truncating the dependent variable. Other sources of bias remain. The first 10 minutes of each activity are
   skipped as warm-up.
-- The heart-rate check assumes heart rate maps to metabolic power the same way in both sports. A
+- The heart-rate check assumes heart rate maps to energy rate the same way in both sports. A
   fixed model-discrepancy term allows some disagreement, but its calibration has not been validated.
 - The 90% model range samples efficiency and running economy; it does not include every sensor,
   virtual-power, terrain, effort-coverage or physiological error.

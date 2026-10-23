@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { Me } from '@rca/contract'
+import { saveAccountExport } from '../../export/saveExport'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import './AccountMenu.css'
@@ -12,6 +13,8 @@ export interface AccountMenuProps {
   onSignIn: () => void
   onSignOut: () => void
   onDeleteAccount: () => Promise<void>
+  /** Resolves with the account's data as a JSON file. Without it the menu has no download item. */
+  onDownloadData?: () => Promise<Blob>
 }
 
 /** The first word of the name, or the part of the email before the @ when there is no name. */
@@ -20,6 +23,10 @@ function firstNameOf(me: Me): string {
   if (first) return first
   const [local] = me.user.email.split('@')
   return local || me.user.email
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : 'Could not download your data.'
 }
 
 /** First and last initials of the name, or the first letter of the email when there is no name. */
@@ -35,8 +42,9 @@ function initialsOf(me: Me): string {
 
 /**
  * The header's account control. Signed out it offers Google sign-in. Signed in it is a disclosure
- * button that opens the email, sign out and account deletion. A placeholder of the same height
- * holds the space while the session loads, and nothing renders when accounts are unavailable.
+ * button that opens the email, sign out, the data download and account deletion. A placeholder of
+ * the same height holds the space while the session loads, and nothing renders when accounts are
+ * unavailable.
  */
 export function AccountMenu({
   status,
@@ -44,6 +52,7 @@ export function AccountMenu({
   onSignIn,
   onSignOut,
   onDeleteAccount,
+  onDownloadData,
 }: AccountMenuProps) {
   const panelId = `${useId()}-panel`
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -52,6 +61,11 @@ export function AccountMenu({
   const previousStatus = useRef(status)
   const [open, setOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [exportStatus, setExportStatus] = useState('')
+  // State updates are not visible until the next render, so a second click in the same render
+  // would still start an export. The ref is set at once.
+  const exportingRef = useRef(false)
 
   const menuOpen = open && status === 'signed-in' && me !== null
 
@@ -115,6 +129,26 @@ export function AccountMenu({
     onSignOut()
   }
 
+  /**
+   * The menu stays open, so the item shows it is busy and the status line can say how it ended. The
+   * item is marked aria-disabled rather than disabled, so it keeps keyboard focus while busy.
+   */
+  async function handleDownloadData(download: () => Promise<Blob>) {
+    if (exportingRef.current) return
+    exportingRef.current = true
+    setExporting(true)
+    setExportStatus('Preparing your download…')
+    try {
+      saveAccountExport(await download(), new Date())
+      setExportStatus('Your data was downloaded')
+    } catch (failure) {
+      setExportStatus(messageOf(failure))
+    } finally {
+      exportingRef.current = false
+      setExporting(false)
+    }
+  }
+
   function openDeleteDialog() {
     setOpen(false)
     setDialogOpen(true)
@@ -144,6 +178,21 @@ export function AccountMenu({
         </button>
         <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
           <p className="account-menu__email">{email}</p>
+          {onDownloadData && (
+            <>
+              <button
+                type="button"
+                className="account-menu__item"
+                aria-disabled={exporting}
+                onClick={() => void handleDownloadData(onDownloadData)}
+              >
+                Download my data
+              </button>
+              <p className="account-menu__status" role="status">
+                {exportStatus}
+              </p>
+            </>
+          )}
           <button type="button" className="account-menu__item" onClick={handleSignOut}>
             Sign out
           </button>

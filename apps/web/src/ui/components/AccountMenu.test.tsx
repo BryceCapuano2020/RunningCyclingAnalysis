@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Me } from '@rca/contract'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { saveAccountExport } from '../../export/saveExport'
 import { AccountMenu } from './AccountMenu'
 import type { AccountMenuProps } from './AccountMenu'
+
+vi.mock('../../export/saveExport', () => ({ saveAccountExport: vi.fn() }))
 
 afterEach(() => {
   cleanup()
@@ -330,5 +333,104 @@ describe('AccountMenu actions', () => {
     const { rerender } = renderMenu({ status: 'loading', me: null })
     rerender(<AccountMenu {...props({ status: 'signed-out', me: null })} />)
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).not.toHaveFocus()
+  })
+})
+
+describe('AccountMenu data download', () => {
+  const DOWNLOAD = 'Download my data'
+  const FILE = new Blob(['{"format":"rca-export"}'], { type: 'application/json' })
+
+  beforeEach(() => {
+    vi.mocked(saveAccountExport).mockClear()
+  })
+
+  it('offers Download my data in the open menu when there is an export to run', async () => {
+    const user = userEvent.setup()
+    renderMenu({ onDownloadData: vi.fn(async () => FILE) })
+    await user.click(trigger())
+    expect(screen.getByRole('button', { name: DOWNLOAD })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
+  it('leaves the item out when the menu has no export to run', async () => {
+    const user = userEvent.setup()
+    renderMenu()
+    await user.click(trigger())
+    expect(screen.queryByRole('button', { name: DOWNLOAD })).not.toBeInTheDocument()
+  })
+
+  it('marks the item busy while the export is in flight, then saves the file and says so', async () => {
+    const user = userEvent.setup()
+    let finish: (file: Blob) => void = () => undefined
+    const onDownloadData = vi.fn(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finish = resolve
+        }),
+    )
+    renderMenu({ onDownloadData })
+    await user.click(trigger())
+    const item = screen.getByRole('button', { name: DOWNLOAD })
+    await user.click(item)
+
+    expect(onDownloadData).toHaveBeenCalledTimes(1)
+    expect(item).toHaveAttribute('aria-disabled', 'true')
+    expect(saveAccountExport).not.toHaveBeenCalled()
+
+    await act(async () => finish(FILE))
+    await waitFor(() => expect(item).not.toHaveAttribute('aria-disabled', 'true'))
+    expect(saveAccountExport).toHaveBeenCalledWith(FILE, expect.any(Date))
+    expect(screen.getByRole('status')).toHaveTextContent('Your data was downloaded')
+  })
+
+  it('keeps keyboard focus on the item while the export is in flight', async () => {
+    const user = userEvent.setup()
+    const onDownloadData = vi.fn(() => new Promise<Blob>(() => undefined))
+    renderMenu({ onDownloadData })
+    await user.click(trigger())
+    const item = screen.getByRole('button', { name: DOWNLOAD })
+    await user.click(item)
+
+    expect(item).toHaveAttribute('aria-disabled', 'true')
+    expect(item).toHaveFocus()
+  })
+
+  it('starts one export for a double click', async () => {
+    const user = userEvent.setup()
+    let finish: (file: Blob) => void = () => undefined
+    const onDownloadData = vi.fn(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finish = resolve
+        }),
+    )
+    renderMenu({ onDownloadData })
+    await user.click(trigger())
+    await user.dblClick(screen.getByRole('button', { name: DOWNLOAD }))
+
+    expect(onDownloadData).toHaveBeenCalledTimes(1)
+    await act(async () => finish(FILE))
+    await waitFor(() => expect(saveAccountExport).toHaveBeenCalledTimes(1))
+  })
+
+  it('announces a failed export, saves nothing and makes the item available again', async () => {
+    const user = userEvent.setup()
+    const onDownloadData = vi.fn(async () => {
+      throw new Error('Could not download your data. Offline')
+    })
+    renderMenu({ onDownloadData })
+    await user.click(trigger())
+    await user.click(screen.getByRole('button', { name: DOWNLOAD }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Could not download your data. Offline'),
+    )
+    expect(saveAccountExport).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: DOWNLOAD })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 })

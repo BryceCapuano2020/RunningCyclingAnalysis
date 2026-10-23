@@ -15,6 +15,7 @@ import {
   listActivities,
   uploadFile,
 } from '../api/client'
+import { exportActivitiesJson, exportFooterJson, exportHeaderJson } from '../export/accountExport'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { syncIssueFor } from './syncIssue'
 
@@ -159,6 +160,9 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return session.setRange(request.rangeDays, request.settings)
     case 'clear':
       return session.clear()
+    case 'exportData':
+      // Answered by exportAccount with the export file, not with a session state.
+      throw new Error('An export is not a session request')
     case 'deleteActivity': {
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
@@ -201,6 +205,37 @@ async function loadServer(settings: AthleteSettings, userId: string): Promise<Se
     records.map((record) => record.digest),
     settings,
   )
+}
+
+/**
+ * Lists the account's library and writes its export as it goes. Each page is written to the file
+ * as soon as it arrives, so the library is never held as one text. The file is a Blob, so only its
+ * parts, not one large string, cross back to the page. The listing costs one read.
+ */
+async function exportAccount(
+  request: Extract<WorkerRequest, { type: 'exportData' }>,
+): Promise<Blob> {
+  const parts: BlobPart[] = [
+    exportHeaderJson({ now: new Date(), account: request.account, profile: request.profile }),
+  ]
+  let unreadable = 0
+  let firstPage = true
+  await listActivities(
+    undefined,
+    request.userId,
+    (count) => {
+      unreadable += count
+    },
+    (items) => {
+      const text = exportActivitiesJson(items)
+      if (text === '') return
+      if (!firstPage) parts.push(',')
+      firstPage = false
+      parts.push(new Blob([text]))
+    },
+  )
+  parts.push(exportFooterJson(unreadable))
+  return new Blob(parts, { type: 'application/json' })
 }
 
 async function hashHex(bytes: Uint8Array): Promise<string> {
@@ -318,6 +353,8 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
           type: 'rebuildComplete',
           ...(await rebuildStale(event.data.settings, event.data.userId)),
         })
+      } else if (event.data.type === 'exportData') {
+        post({ type: 'exportReady', file: await exportAccount(event.data) })
       } else {
         post({ type: 'state', state: await handle(event.data) })
       }

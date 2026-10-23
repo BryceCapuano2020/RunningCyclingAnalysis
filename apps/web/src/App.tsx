@@ -133,6 +133,7 @@ export function App() {
             onSignIn={account.signIn}
             onSignOut={() => void account.signOut().catch(() => undefined)}
             onDeleteAccount={account.deleteAccount}
+            onDownloadData={analysis.exportData}
           />
         }
       />
@@ -309,8 +310,8 @@ export function App() {
               <li>
                 <h3>2. Both sports become one unit</h3>
                 <p className="secondary">
-                  Cycling power and running speed on any gradient are converted to metabolic watts
-                  per kilogram.
+                  Cycling power and running speed on any gradient are converted to one energy rate,
+                  in watts per kilogram.
                 </p>
               </li>
               <li>

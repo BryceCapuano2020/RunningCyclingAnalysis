@@ -1,8 +1,7 @@
+import { saveBlob } from '../download/saveBlob'
+
 /** The file name of the saved card. */
 export const SHARE_FILE_NAME = 'rca-summary.png'
-
-/** Long enough for the browser to start the download before the object URL is freed. */
-const REVOKE_DELAY_MS = 1000
 
 /**
  * Saves the canvas as a PNG on this device. Nothing is uploaded. Resolves false when the browser
@@ -19,14 +18,7 @@ export function saveCanvasPng(canvas: HTMLCanvasElement): Promise<boolean> {
         resolve(false)
         return
       }
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = SHARE_FILE_NAME
-      document.body.append(link)
-      link.click()
-      link.remove()
-      setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS)
+      saveBlob(blob, SHARE_FILE_NAME)
       resolve(true)
     }, 'image/png')
   })

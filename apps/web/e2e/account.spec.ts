@@ -332,3 +332,27 @@ test('the footer privacy link points to the canonical /privacy page', async ({ p
     '/privacy',
   )
 })
+
+test('Download my data saves the account as one rca-export file', async ({ page }) => {
+  await signInAs(page.request, uniqueEmail(), NAME)
+  await page.goto('/')
+  await expect(accountButton(page)).toBeVisible()
+  await uploadFixtures(page, ['one-run.fit'])
+  await expect(activitiesRows(page)).toHaveCount(1, IMPORT)
+  await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(1)
+
+  await accountButton(page).click()
+  const saved = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download my data' }).click()
+  const download = await saved
+
+  expect(download.suggestedFilename()).toMatch(/^rca-export-\d{4}-\d{2}-\d{2}\.json$/)
+  const exported = JSON.parse(await readFile(await download.path(), 'utf8')) as {
+    format: string
+    version: number
+    activities: unknown[]
+  }
+  expect(exported).toMatchObject({ format: 'rca-export', version: 1 })
+  expect(exported.activities).toHaveLength(1)
+  await expect(page.getByText('Your data was downloaded')).toBeVisible()
+})

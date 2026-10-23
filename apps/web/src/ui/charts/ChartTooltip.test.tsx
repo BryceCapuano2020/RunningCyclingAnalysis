@@ -15,7 +15,7 @@ const content: TooltipContent = {
   y: 50,
   title: 'Running',
   rows: [
-    { kind: 'run', value: '3.4 W/kg', label: 'Gross metabolic power' },
+    { kind: 'run', value: '3.4 W/kg', label: 'Energy rate' },
     { kind: 'ride', value: '150 bpm', label: 'Heart rate' },
     { value: '+5%', label: 'median' },
   ],

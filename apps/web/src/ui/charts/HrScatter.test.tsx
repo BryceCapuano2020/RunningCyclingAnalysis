@@ -8,7 +8,7 @@ import { readStylesheet, ruleBody } from '../components/stylesheet'
 
 const hrCss = await readStylesheet(import.meta.url, './HrScatter.css')
 
-const TITLE = 'Heart rate against gross metabolic power'
+const TITLE = 'Heart rate against energy rate'
 
 /** The static chart image is named by its title, then its description. */
 const named = (title: string) => (name: string) => name.startsWith(title)
@@ -77,7 +77,7 @@ describe('HrScatter', () => {
   it('lists one row per plotted block with its sport, W/kg and bpm, after the summary', () => {
     const { container } = render(<HrScatter hr={hrFixture} />)
     const { headers, rows } = tableAt(container, 1)
-    expect(headers).toEqual(['Sport', 'Gross metabolic power (W/kg)', 'Heart rate (bpm)'])
+    expect(headers).toEqual(['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'])
     expect(rows).toEqual([
       ['Running', '13.5', '150'],
       ['Running', '14.5', '160'],

@@ -15,7 +15,8 @@ const SECTIONS: Section[] = [
       `Cycling power is divided by gross efficiency, the share of the metabolic energy used that ` +
       `reaches the pedals, which averages about ${EFFICIENCY_PERCENT}%. Running speed and ` +
       `gradient are converted with the Minetti et al. 2002 energy-cost-of-running curve. Both ` +
-      `become watts of energy burned per kilogram of body weight.`,
+      `become an energy rate (gross metabolic power, W/kg): watts of energy burned per kilogram ` +
+      `of body weight.`,
   },
   {
     title: 'Why there is a range',
@@ -28,7 +29,7 @@ const SECTIONS: Section[] = [
     title: 'Fitness over time',
     body:
       'Each point is a week ending on a Sunday, in UTC. It takes the best 20-minute energy rate of ' +
-      'each sport in the 42 days up to that week’s end, in gross metabolic W/kg. The trend uses ' +
+      'each sport in the 42 days up to that week’s end, in W/kg. The trend uses ' +
       'prior-mean efficiency and running economy. The headline reports the median of the model ' +
       'draws, which heart-rate calibration can shift, so the two can differ. The model range shown ' +
       'with the headline is not drawn for each week. A gap means no run or ride with a 20-minute ' +
