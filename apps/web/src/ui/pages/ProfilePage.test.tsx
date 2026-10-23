@@ -20,29 +20,37 @@ const KEPT_RUN: SavedActivity = {
   startMs: new Date(2026, 9, 20, 12).getTime(),
   sport: 'run',
 }
+const EMAIL = 'ada@example.com'
 
-/** Renders the profile with a signed-out visitor by default, and returns the two callbacks. */
+/** Renders the profile with a signed-out visitor by default, and returns the callbacks. */
 function renderProfile(
   overrides: Partial<Omit<ProfilePageProps, 'analysis'>> = {},
   analysis: AnalysisStubOverrides = {},
 ) {
   const onSaveProfile = vi.fn()
   const onStartOver = vi.fn()
+  const onDownloadData = vi.fn(async () => new Blob())
+  const onDeleteAccount = vi.fn(async () => {})
   render(
     <ProfilePage
       analysis={analysisStub(analysis)}
       settings={SETTINGS}
       units="metric"
+      birthYear={1990}
+      sex="female"
       signedIn={false}
       accountsAvailable
+      email={null}
       keepFiles={false}
       fileRetentionAvailable
       onSaveProfile={onSaveProfile}
+      onDownloadData={onDownloadData}
+      onDeleteAccount={onDeleteAccount}
       onStartOver={onStartOver}
       {...overrides}
     />,
   )
-  return { onSaveProfile, onStartOver }
+  return { onSaveProfile, onStartOver, onDownloadData, onDeleteAccount }
 }
 
 describe('ProfilePage settings', () => {
@@ -71,6 +79,56 @@ describe('ProfilePage settings', () => {
 
     expect(onSaveProfile).toHaveBeenCalledOnce()
     expect(onSaveProfile).toHaveBeenCalledWith({ settings: { massKg: 80, bikeMassKg: 9 } })
+  })
+
+  it('shows the year of birth and sex, and saves a year when it is left', () => {
+    const { onSaveProfile } = renderProfile()
+    const year = screen.getByLabelText('Year of birth')
+    expect(year).toHaveValue('1990')
+    expect(screen.getByRole('radio', { name: 'Female' })).toBeChecked()
+
+    fireEvent.change(year, { target: { value: '1985' } })
+    expect(onSaveProfile).not.toHaveBeenCalled()
+    fireEvent.blur(year)
+    expect(onSaveProfile).toHaveBeenCalledWith({ birthYear: 1985 })
+  })
+
+  it('saves a year on Enter as well', () => {
+    const { onSaveProfile } = renderProfile()
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.keyDown(year, { key: 'Enter' })
+    expect(onSaveProfile).toHaveBeenCalledWith({ birthYear: 1985 })
+  })
+
+  it('rejects a year outside the plausible range, and saves nothing', () => {
+    const { onSaveProfile } = renderProfile()
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1800' } })
+    fireEvent.blur(year)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Enter a year from \d{4} to \d{4}$/)
+    expect(year).toHaveAttribute('aria-invalid', 'true')
+    expect(onSaveProfile).not.toHaveBeenCalled()
+  })
+
+  it('clears the year when the field is emptied, and saves a null year', () => {
+    const { onSaveProfile } = renderProfile()
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '' } })
+    fireEvent.blur(year)
+    expect(onSaveProfile).toHaveBeenCalledWith({ birthYear: null })
+  })
+
+  it('saves the sex chosen, and clears it with Prefer not to say', () => {
+    const { onSaveProfile } = renderProfile({ sex: 'male' })
+    expect(screen.getByRole('radio', { name: 'Male' })).toBeChecked()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Prefer not to say' }))
+    expect(onSaveProfile).toHaveBeenLastCalledWith({ sex: null })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Female' }))
+    expect(onSaveProfile).toHaveBeenLastCalledWith({ sex: 'female' })
   })
 
   it('marks the unit system in use and offers both as one radio group', () => {
@@ -106,10 +164,22 @@ describe('ProfilePage account', () => {
     expect(screen.queryByRole('region', { name: 'Account' })).not.toBeInTheDocument()
   })
 
-  it('leaves the account section out once the visitor is signed in', () => {
-    renderProfile({ signedIn: true })
+  it('shows the email, data download and deletion once signed in, in place of the sign-in text', () => {
+    renderProfile({ signedIn: true, email: EMAIL })
 
-    expect(screen.queryByRole('region', { name: 'Account' })).not.toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Account' })
+    expect(within(section).getByText(EMAIL, { selector: '.account-section__email' })).toBeVisible()
+    expect(within(section).getByRole('button', { name: 'Download my data' })).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Delete account…' })).toBeInTheDocument()
+    expect(within(section).queryByText(/Sign in with Google/)).not.toBeInTheDocument()
+  })
+
+  it('asks for the email before deleting, and does not delete on opening the dialog', () => {
+    const { onDeleteAccount } = renderProfile({ signedIn: true, email: EMAIL })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }))
+    expect(screen.getByRole('dialog', { name: 'Delete your account?' })).toBeInTheDocument()
+    expect(onDeleteAccount).not.toHaveBeenCalled()
   })
 })
 

@@ -22,10 +22,25 @@ const mocked = vi.mocked(api)
 
 const ME: Me = {
   user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
-  profile: { massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles: true, updatedAt: 1000 },
+  profile: {
+    massKg: 75,
+    bikeMassKg: 9,
+    units: 'metric',
+    keepFiles: true,
+    birthYear: null,
+    sex: null,
+    updatedAt: 1000,
+  },
 }
 
-const INPUT = { massKg: 80, bikeMassKg: 10, units: 'imperial', keepFiles: false } as const
+const INPUT = {
+  massKg: 80,
+  bikeMassKg: 10,
+  units: 'imperial',
+  keepFiles: false,
+  birthYear: null,
+  sex: null,
+} as const
 
 /** Renders the hook signed in (or in the given state) and waits for the first lookup. */
 async function renderSignedIn() {
@@ -36,7 +51,7 @@ async function renderSignedIn() {
 }
 
 /** Runs an action that may reject, and returns what it rejected with (undefined on success). */
-async function attempt(action: () => Promise<void>): Promise<unknown> {
+async function attempt(action: () => Promise<unknown>): Promise<unknown> {
   let thrown: unknown = undefined
   await act(async () => {
     await action().catch((failure: unknown) => {
@@ -194,8 +209,8 @@ describe('useAccount', () => {
       .mockResolvedValueOnce(secondStored)
     const { result } = await renderSignedIn()
 
-    let first: Promise<void> = Promise.resolve()
-    let second: Promise<void> = Promise.resolve()
+    let first: Promise<unknown> = Promise.resolve()
+    let second: Promise<unknown> = Promise.resolve()
     act(() => {
       first = result.current.updateProfile(INPUT)
       second = result.current.updateProfile(secondInput)
@@ -218,7 +233,7 @@ describe('useAccount', () => {
     let finish: (profile: typeof stored) => void = () => undefined
     mocked.updateProfile.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
     const { result } = await renderSignedIn()
-    let update: Promise<void> = Promise.resolve()
+    let update: Promise<unknown> = Promise.resolve()
     let flushed: Promise<Me | null> = Promise.resolve(null)
     act(() => {
       update = result.current.updateProfile(INPUT)
@@ -282,8 +297,8 @@ describe('useAccount', () => {
       .mockResolvedValueOnce({ ...INPUT, units: 'metric', updatedAt: 3000 })
     mocked.logout.mockResolvedValue(undefined)
     const { result } = await renderSignedIn()
-    let update: Promise<void> = Promise.resolve()
-    let secondUpdate: Promise<void> = Promise.resolve()
+    let update: Promise<unknown> = Promise.resolve()
+    let secondUpdate: Promise<unknown> = Promise.resolve()
     let logout: Promise<void> = Promise.resolve()
 
     act(() => {
@@ -305,16 +320,30 @@ describe('useAccount', () => {
     expect(result.current.status).toBe('signed-out')
   })
 
-  it('updateProfile leaves a signed-out account without a profile', async () => {
+  it('updateProfile refuses a signed-out account, so nothing is taken to be saved', async () => {
     mocked.getMe.mockResolvedValue(null)
     mocked.updateProfile.mockResolvedValue({ ...INPUT, updatedAt: 2000 })
     const { result } = renderHook(() => useAccount())
     await waitFor(() => expect(result.current.status).toBe('signed-out'))
 
-    await act(async () => {
-      await result.current.updateProfile(INPUT)
-    })
+    const failure = await attempt(() => result.current.updateProfile(INPUT))
+
+    expect(failure).toMatchObject({ status: 401, message: 'Sign in required' })
+    expect(mocked.updateProfile).not.toHaveBeenCalled()
     expect(result.current.me).toBeNull()
+  })
+
+  it('updateProfile resolves with the profile the server stored', async () => {
+    const stored = { ...INPUT, updatedAt: 2000 }
+    mocked.updateProfile.mockResolvedValueOnce(stored)
+    const { result } = await renderSignedIn()
+
+    let saved: unknown
+    await act(async () => {
+      saved = await result.current.updateProfile({ massKg: 80 })
+    })
+
+    expect(saved).toEqual(stored)
   })
 
   it('reports a failure that is not an Error as text, and rethrows the original value', async () => {
@@ -345,13 +374,76 @@ describe('useAccount', () => {
     expect(result.current.error).toBeNull()
     expect(result.current.status).toBe('signed-out')
   })
+
+  it('refuses a profile edit made while signing out, and says why', async () => {
+    let finishLogout: () => void = () => undefined
+    mocked.logout.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishLogout = () => resolve()
+      }),
+    )
+    const { result } = await renderSignedIn()
+    act(() => {
+      void result.current.signOut()
+    })
+
+    expect(await attempt(() => result.current.updateProfile(INPUT))).toBeInstanceOf(ApiRequestError)
+    expect(result.current.error).toBe(
+      'This change was not saved, because the account is being signed out or deleted.',
+    )
+    expect(mocked.updateProfile).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishLogout()
+    })
+    expect(result.current.status).toBe('signed-out')
+  })
+
+  it('sends year of birth and sex only in a write that sets them, so the server keeps the rest', async () => {
+    mocked.updateProfile.mockReset()
+    mocked.getMe.mockResolvedValue({
+      ...ME,
+      profile: { ...ME.profile, birthYear: 1990, sex: 'female' },
+    })
+    mocked.updateProfile.mockImplementation(async (input) => ({
+      ...input,
+      birthYear: input.birthYear ?? 1990,
+      sex: input.sex ?? 'female',
+      updatedAt: 2000,
+    }))
+    const { result } = renderHook(() => useAccount())
+    await waitFor(() => expect(result.current.status).toBe('signed-in'))
+
+    await act(async () => {
+      await result.current.updateProfile({ units: 'metric' })
+    })
+    const [unrelated] = mocked.updateProfile.mock.calls.at(-1) ?? []
+    expect(unrelated).toEqual({ massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles: true })
+    expect(unrelated).not.toHaveProperty('birthYear')
+    expect(unrelated).not.toHaveProperty('sex')
+
+    await act(async () => {
+      await result.current.updateProfile({ birthYear: null })
+    })
+    expect(mocked.updateProfile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ birthYear: null }),
+      ME.user.id,
+    )
+    expect(mocked.updateProfile.mock.calls.at(-1)?.[0]).not.toHaveProperty('sex')
+  })
+
   it('merges an edit onto the latest saved profile, so a stale tab cannot revert another tab', async () => {
     mocked.getMe.mockReset()
     mocked.updateProfile.mockReset()
     let saved: Profile = { ...ME.profile, keepFiles: false }
     mocked.getMe.mockImplementation(async () => ({ user: ME.user, profile: saved }))
     mocked.updateProfile.mockImplementation(async (input) => {
-      saved = { ...input, updatedAt: saved.updatedAt + 1 }
+      saved = {
+        ...input,
+        birthYear: input.birthYear ?? null,
+        sex: input.sex ?? null,
+        updatedAt: saved.updatedAt + 1,
+      }
       return saved
     })
     const tabA = renderHook(() => useAccount())

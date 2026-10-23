@@ -2,16 +2,30 @@ import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
 
+export const SexSchema = z.enum(['female', 'male'])
+export type Sex = z.infer<typeof SexSchema>
+
+/** Year of birth: only the year is asked, for age grading. */
+export const BirthYearSchema = z.number().int().min(1900).max(2100)
+
+/**
+ * A profile write. Year of birth and sex are optional and only used for age grading: left out, the
+ * saved value is kept, so a client that predates them cannot clear them; null clears them.
+ */
 export const ProfileInputSchema = z.object({
   massKg: z.number().min(30).max(200),
   bikeMassKg: z.number().min(3).max(30),
   units: z.enum(['imperial', 'metric']),
   keepFiles: z.boolean(),
+  birthYear: BirthYearSchema.nullable().optional(),
+  sex: SexSchema.nullable().optional(),
 })
 export type ProfileInput = z.infer<typeof ProfileInputSchema>
 
-/** Timestamps are epoch milliseconds. */
+/** Timestamps are epoch milliseconds. A profile saved before age and sex existed reads them as null. */
 export const ProfileSchema = ProfileInputSchema.extend({
+  birthYear: BirthYearSchema.nullable().default(null),
+  sex: SexSchema.nullable().default(null),
   updatedAt: z.number().int(),
 })
 export type Profile = z.infer<typeof ProfileSchema>

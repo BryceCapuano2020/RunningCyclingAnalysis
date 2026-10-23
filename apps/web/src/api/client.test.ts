@@ -20,7 +20,15 @@ import {
 
 const ME: Me = {
   user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
-  profile: { massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles: true, updatedAt: 1000 },
+  profile: {
+    massKg: 75,
+    bikeMassKg: 9,
+    units: 'metric',
+    keepFiles: true,
+    birthYear: null,
+    sex: null,
+    updatedAt: 1000,
+  },
 }
 
 const PROFILE_INPUT: ProfileInput = {
@@ -291,7 +299,7 @@ describe('getMe', () => {
 
 describe('updateProfile', () => {
   it('sends the profile as JSON with the client header and returns the stored profile', async () => {
-    const stored = { ...PROFILE_INPUT, updatedAt: 3000 }
+    const stored = { ...PROFILE_INPUT, birthYear: null, sex: null, updatedAt: 3000 }
     const fetchMock = stubFetch(respond(200, stored))
     expect(await updateProfile(PROFILE_INPUT, 'u1')).toEqual(stored)
 

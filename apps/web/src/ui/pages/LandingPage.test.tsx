@@ -17,7 +17,9 @@ function exampleFigure(): HTMLElement {
 
 describe('LandingPage', () => {
   it('asks how balanced the visitor is, as the focusable page heading', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} units="metric" />)
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
 
     const heading = screen.getByRole('heading', {
       level: 1,
@@ -28,7 +30,9 @@ describe('LandingPage', () => {
   })
 
   it('says what the app gives back for the files', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} units="metric" />)
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
     expect(
       screen.getByText(
         'Add your run and ride files to see your running and cycling side by side, how your balance leans, and what your bike fitness is worth on foot.',
@@ -38,7 +42,14 @@ describe('LandingPage', () => {
 
   it('offers the sample athlete to a signed-out visitor and loads it on click', () => {
     const loadSample = vi.fn()
-    render(<LandingPage analysis={analysisStub({ loadSample })} signedIn={false} units="metric" />)
+    render(
+      <LandingPage
+        analysis={analysisStub({ loadSample })}
+        signedIn={false}
+        units="metric"
+        onFiles={vi.fn()}
+      />,
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'See a sample athlete' }))
 
@@ -52,6 +63,7 @@ describe('LandingPage', () => {
         analysis={analysisStub({ busy: true, loadSample })}
         signedIn={false}
         units="metric"
+        onFiles={vi.fn()}
       />,
     )
 
@@ -62,12 +74,14 @@ describe('LandingPage', () => {
   })
 
   it('leaves the sample out for a signed-in user', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn units="metric" />)
+    render(<LandingPage analysis={analysisStub()} signedIn units="metric" onFiles={vi.fn()} />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
   })
 
   it('lists the three steps in order, each with its explanation', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} units="metric" />)
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
 
     const steps = screen.getAllByRole('listitem')
     expect(steps).toHaveLength(3)
@@ -86,7 +100,9 @@ describe('LandingPage', () => {
   })
 
   it('shows the example result with its meter and the example pace and power', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} units="metric" />)
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
 
     const example = exampleFigure()
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
@@ -99,12 +115,16 @@ describe('LandingPage', () => {
   })
 
   it('gives the example pace per mile for imperial', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} units="imperial" />)
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="imperial" onFiles={vi.fn()} />,
+    )
     expect(within(exampleFigure()).getByText('6:39 /mi')).toBeInTheDocument()
   })
 
   it('explains how the result is worked out, with the methodology closed under it', () => {
-    render(<LandingPage analysis={analysisStub()} signedIn={false} units="metric" />)
+    render(
+      <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
+    )
     expect(
       screen.getByRole('heading', { level: 2, name: 'How this works and what it assumes' }),
     ).toBeInTheDocument()

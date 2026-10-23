@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm'
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -57,16 +59,23 @@ export const sessions = sqliteTable(
   (t) => [index('sessions_user_idx').on(t.userId)],
 )
 
-export const profiles = sqliteTable('profiles', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  massKg: real('mass_kg').notNull(),
-  bikeMassKg: real('bike_mass_kg').notNull(),
-  units: text('units', { enum: ['imperial', 'metric'] }).notNull(),
-  keepFiles: integer('keep_files', { mode: 'boolean' }).notNull(),
-  updatedAt: integer('updated_at').notNull(),
-})
+export const profiles = sqliteTable(
+  'profiles',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    massKg: real('mass_kg').notNull(),
+    bikeMassKg: real('bike_mass_kg').notNull(),
+    units: text('units', { enum: ['imperial', 'metric'] }).notNull(),
+    keepFiles: integer('keep_files', { mode: 'boolean' }).notNull(),
+    /** Only used for age grading. Null until the rider sets it. */
+    birthYear: integer('birth_year'),
+    sex: text('sex', { enum: ['female', 'male'] }),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [check('profiles_sex_check', sql`${t.sex} IS NULL OR ${t.sex} IN ('female', 'male')`)],
+)
 
 export const activities = sqliteTable(
   'activities',

@@ -11,6 +11,7 @@ import {
   LANDING_TITLE,
   activitiesRows,
   apiActivities,
+  completeSetup,
   enableFileRetention,
   fixturePath,
   goTo,
@@ -169,9 +170,8 @@ test('a saved library survives reloads and sign-out, and deleting the account re
     await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
   })
 
-  await test.step('deleting the account from the menu removes it and its data', async () => {
-    await goTo(page, 'Balance')
-    await accountButton(page).click()
+  await test.step('deleting the account on the Profile page removes it and its data', async () => {
+    await goTo(page, 'Profile')
     await page.getByRole('button', { name: 'Delete account…' }).click()
 
     const dialog = page.getByRole('dialog', { name: 'Delete your account?' })
@@ -226,12 +226,15 @@ test('a file chosen before account lookup completes is imported and saved once',
   await page.goto('/')
   await lookupRequest
   try {
-    await uploadFixtures(page, ['sample-export.zip'])
+    // The file waits for the account, and the lookup is still gated, so this does not use the helper:
+    // the helper waits for the lookup to settle first.
+    await page.locator('input[type="file"]').first().setInputFiles(fixturePath('sample-export.zip'))
     await expect(accountButton(page)).toHaveCount(0)
   } finally {
     releaseLookup()
   }
   await expect(accountButton(page)).toBeVisible()
+  await completeSetup(page, IMPORT.timeout)
   await expect(headline(page)).toHaveText(RUNNING_HEADLINE, IMPORT)
   await expect.poll(() => storedFileCount(page), IMPORT).toBe(15)
 })
@@ -355,7 +358,9 @@ test('the footer privacy link points to the canonical /privacy page', async ({ p
   )
 })
 
-test('Download my data saves the account as one rca-export file', async ({ page }) => {
+test('Download my data on the Profile page saves the account as one rca-export file', async ({
+  page,
+}) => {
   await signInAs(page.request, uniqueEmail(), NAME)
   await page.goto('/')
   await expect(accountButton(page)).toBeVisible()
@@ -363,7 +368,7 @@ test('Download my data saves the account as one rca-export file', async ({ page 
   await expect(await activitiesRows(page)).toHaveCount(1, IMPORT)
   await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(1)
 
-  await accountButton(page).click()
+  await goTo(page, 'Profile')
   const saved = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download my data' }).click()
   const download = await saved

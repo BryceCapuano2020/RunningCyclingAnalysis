@@ -1,0 +1,9 @@
+.athlete-fields {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.athlete-fields__hint {
+  font-size: 0.875rem;
+}

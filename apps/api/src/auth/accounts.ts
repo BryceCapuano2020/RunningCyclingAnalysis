@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm'
-import type { Me, Profile, ProfileInput, User } from '@rca/contract'
+import type { Me, Profile, User } from '@rca/contract'
 import type { Deps } from '../deps.ts'
 import type { Db } from '../env.ts'
 import { must } from '../util.ts'
@@ -9,15 +9,18 @@ import { HttpError } from '../errors.ts'
 
 export const GOOGLE_PROVIDER = 'google'
 
-export const DEFAULT_PROFILE: ProfileInput = {
+type UserRow = typeof users.$inferSelect
+type ProfileRow = typeof profiles.$inferSelect
+
+/** A new profile. Age and sex are unset until the rider saves them. */
+export const DEFAULT_PROFILE: Omit<ProfileRow, 'userId' | 'updatedAt'> = {
   massKg: 75,
   bikeMassKg: 9,
   units: 'imperial',
   keepFiles: false,
+  birthYear: null,
+  sex: null,
 }
-
-type UserRow = typeof users.$inferSelect
-type ProfileRow = typeof profiles.$inferSelect
 
 export function toUser(row: UserRow): User {
   return { id: row.id, email: row.email, name: row.name, pictureUrl: row.pictureUrl }
@@ -29,6 +32,8 @@ export function toProfile(row: ProfileRow): Profile {
     bikeMassKg: row.bikeMassKg,
     units: row.units,
     keepFiles: row.keepFiles,
+    birthYear: row.birthYear,
+    sex: row.sex,
     updatedAt: row.updatedAt,
   }
 }

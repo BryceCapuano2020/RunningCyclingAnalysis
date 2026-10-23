@@ -154,6 +154,39 @@ describe('migrations', () => {
     }
   })
 
+  it('adds year of birth and sex as nullable profile columns that reject any other sex', () => {
+    const tags = journalTags()
+    const cut = tags.indexOf('0005_upload_reservation_token')
+    expect(cut).toBeGreaterThan(0)
+    const db = new DatabaseSync(':memory:')
+    try {
+      db.exec('PRAGMA foreign_keys = ON')
+      for (const tag of tags.slice(0, cut + 1)) applyMigration(db, tag)
+      db.exec(`
+        INSERT INTO users (id, email, name, picture_url, created_at)
+          VALUES ('u1', 'a@example.test', 'A', NULL, 1);
+        INSERT INTO profiles (user_id, mass_kg, bike_mass_kg, units, keep_files, updated_at)
+          VALUES ('u1', 75, 9, 'imperial', 0, 1);
+      `)
+      for (const tag of tags.slice(cut + 1)) applyMigration(db, tag)
+
+      expect(db.prepare('SELECT birth_year, sex FROM profiles').get()).toEqual({
+        birth_year: null,
+        sex: null,
+      })
+      db.exec("UPDATE profiles SET birth_year = 1980, sex = 'female' WHERE user_id = 'u1'")
+      db.exec("UPDATE profiles SET sex = NULL WHERE user_id = 'u1'")
+      expect(() => db.exec("UPDATE profiles SET sex = 'other' WHERE user_id = 'u1'")).toThrow(
+        /CHECK constraint/,
+      )
+      expect(() => db.exec("UPDATE profiles SET sex = 'Male' WHERE user_id = 'u1'")).toThrow(
+        /CHECK constraint/,
+      )
+    } finally {
+      db.close()
+    }
+  })
+
   it('creates the indexes and tables that the new code relies on', () => {
     const db = new DatabaseSync(':memory:')
     try {

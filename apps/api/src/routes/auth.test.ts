@@ -84,6 +84,8 @@ describe('GET /api/auth/google/callback', () => {
         bikeMassKg: 9,
         units: 'imperial',
         keepFiles: false,
+        birthYear: null,
+        sex: null,
         updatedAt: h.clock.now,
       },
       fileRetentionAvailable: true,

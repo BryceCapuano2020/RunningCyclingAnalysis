@@ -9,6 +9,9 @@ const KEY = 'rca.preferences.v1'
 const SAVED: Preferences = {
   settings: { massKg: 82.5, bikeMassKg: 11 },
   units: 'metric',
+  birthYear: 1990,
+  sex: 'female',
+  setupDone: true,
 }
 
 describe('parsePreferences', () => {
@@ -70,6 +73,46 @@ describe('parsePreferences', () => {
 
   it('round-trips valid preferences', () => {
     expect(parsePreferences(JSON.stringify(SAVED))).toEqual(SAVED)
+  })
+
+  it('reads preferences saved before the athlete fields and setup existed', () => {
+    const parsed = parsePreferences(
+      JSON.stringify({ settings: { massKg: 82.5, bikeMassKg: 11 }, units: 'metric' }),
+    )
+    expect(parsed).toEqual({
+      settings: { massKg: 82.5, bikeMassKg: 11 },
+      units: 'metric',
+      birthYear: null,
+      sex: null,
+      setupDone: false,
+    })
+  })
+
+  it('keeps a plausible year of birth and drops any other', () => {
+    const withYear = (birthYear: unknown) =>
+      parsePreferences(JSON.stringify({ settings: SAVED.settings, birthYear })).birthYear
+
+    expect(withYear(1990)).toBe(1990)
+    expect(withYear(1800)).toBeNull()
+    expect(withYear(2100)).toBeNull()
+    expect(withYear(1990.5)).toBeNull()
+    expect(withYear('1990')).toBeNull()
+    expect(withYear(null)).toBeNull()
+  })
+
+  it('keeps female or male, and reads anything else as not given', () => {
+    const withSex = (sex: unknown) => parsePreferences(JSON.stringify({ sex })).sex
+
+    expect(withSex('female')).toBe('female')
+    expect(withSex('male')).toBe('male')
+    expect(withSex('other')).toBeNull()
+    expect(withSex(null)).toBeNull()
+  })
+
+  it('reads setup as done only when it is stored as true', () => {
+    expect(parsePreferences(JSON.stringify({ setupDone: true })).setupDone).toBe(true)
+    expect(parsePreferences(JSON.stringify({ setupDone: 'yes' })).setupDone).toBe(false)
+    expect(parsePreferences(JSON.stringify({ setupDone: 1 })).setupDone).toBe(false)
   })
 })
 

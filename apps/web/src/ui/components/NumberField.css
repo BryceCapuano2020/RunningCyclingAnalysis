@@ -1,0 +1,47 @@
+.number-field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.number-field__label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.number-field__input {
+  position: relative;
+  width: 11ch;
+}
+
+/* The unit sits inside the right edge of the input. */
+.number-field__input input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 4ch 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.number-field__input input[aria-invalid='true'] {
+  border-color: var(--status-critical);
+}
+
+.number-field__unit {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+.number-field__error {
+  color: var(--status-critical);
+  font-size: 0.875rem;
+}

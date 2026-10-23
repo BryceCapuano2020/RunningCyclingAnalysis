@@ -1,7 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { Me } from '@rca/contract'
-import { saveAccountExport } from '../../export/saveExport'
-import { DeleteAccountDialog } from './DeleteAccountDialog'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import './AccountMenu.css'
 
@@ -12,9 +10,6 @@ export interface AccountMenuProps {
   me: Me | null
   onSignIn: () => void
   onSignOut: () => void
-  onDeleteAccount: () => Promise<void>
-  /** Resolves with the account's data as a JSON file. Without it the menu has no download item. */
-  onDownloadData?: () => Promise<Blob>
 }
 
 /** The first word of the name, or the part of the email before the @ when there is no name. */
@@ -23,10 +18,6 @@ function firstNameOf(me: Me): string {
   if (first) return first
   const [local] = me.user.email.split('@')
   return local || me.user.email
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : 'Could not download your data.'
 }
 
 /** First and last initials of the name, or the first letter of the email when there is no name. */
@@ -42,48 +33,27 @@ function initialsOf(me: Me): string {
 
 /**
  * The header's account control. Signed out it offers Google sign-in. Signed in it is a disclosure
- * button that opens the email, sign out, the data download and account deletion. A placeholder of
- * the same height holds the space while the session loads, and nothing renders when accounts are
- * unavailable.
+ * button whose menu shows the email and sign out; the header's Profile link holds the rest,
+ * including the data download and account deletion. A placeholder of the same height holds the space while the session
+ * loads, and nothing renders when accounts are unavailable.
  */
-export function AccountMenu({
-  status,
-  me,
-  onSignIn,
-  onSignOut,
-  onDeleteAccount,
-  onDownloadData,
-}: AccountMenuProps) {
+export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProps) {
   const panelId = `${useId()}-panel`
   const wrapperRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const signInRef = useRef<HTMLButtonElement>(null)
   const previousStatus = useRef(status)
   const [open, setOpen] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const previousDialogOpen = useRef(dialogOpen)
-  const [exporting, setExporting] = useState(false)
-  const [exportStatus, setExportStatus] = useState('')
-  // State updates are not visible until the next render, so a second click in the same render
-  // would still start an export. The ref is set at once.
-  const exportingRef = useRef(false)
 
   const menuOpen = open && status === 'signed-in' && me !== null
 
-  // Signing out or deleting the account removes the trigger, which would drop focus to the body.
-  // Put it on the sign-in button that replaces it.
+  // Signing out removes the trigger, which would drop focus to the body. Put it on the sign-in
+  // button that replaces it.
   useEffect(() => {
     const was = previousStatus.current
     previousStatus.current = status
     if (was === 'signed-in' && status === 'signed-out') signInRef.current?.focus()
   }, [status])
-
-  // The dialog is modal while open, which makes the trigger inert. Focus it once the dialog closes.
-  useEffect(() => {
-    const was = previousDialogOpen.current
-    previousDialogOpen.current = dialogOpen
-    if (was && !dialogOpen) triggerRef.current?.focus()
-  }, [dialogOpen])
 
   // While the menu is open, the document handles the ways it closes: a press outside, focus moving
   // out, and Escape. Escape returns focus to the trigger. The wrapper itself has no role, so it
@@ -128,8 +98,6 @@ export function AccountMenu({
   }
 
   const { email } = me.user
-  const firstName = firstNameOf(me)
-  const initials = initialsOf(me)
   const pictureUrl = me.user.pictureUrl
 
   function handleSignOut() {
@@ -137,85 +105,32 @@ export function AccountMenu({
     onSignOut()
   }
 
-  /**
-   * The menu stays open, so the item shows it is busy and the status line can say how it ended. The
-   * item is marked aria-disabled rather than disabled, so it keeps keyboard focus while busy.
-   */
-  async function handleDownloadData(download: () => Promise<Blob>) {
-    if (exportingRef.current) return
-    exportingRef.current = true
-    setExporting(true)
-    setExportStatus('Preparing your download…')
-    try {
-      saveAccountExport(await download(), new Date())
-      setExportStatus('Your data was downloaded')
-    } catch (failure) {
-      setExportStatus(messageOf(failure))
-    } finally {
-      exportingRef.current = false
-      setExporting(false)
-    }
-  }
-
-  function openDeleteDialog() {
-    setOpen(false)
-    setDialogOpen(true)
-  }
-
   return (
-    <>
-      <div ref={wrapperRef} className="account-menu">
-        <button
-          ref={triggerRef}
-          type="button"
-          className="account-menu__trigger"
-          aria-expanded={menuOpen}
-          aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span className="account-menu__avatar" aria-hidden="true">
-            {pictureUrl ? <img src={pictureUrl} alt="" referrerPolicy="no-referrer" /> : initials}
-          </span>
-          <span className="account-menu__name">{firstName}</span>
-          <span className="account-menu__chevron" aria-hidden="true" />
+    <div ref={wrapperRef} className="account-menu">
+      <button
+        ref={triggerRef}
+        type="button"
+        className="account-menu__trigger"
+        aria-expanded={menuOpen}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="account-menu__avatar" aria-hidden="true">
+          {pictureUrl ? (
+            <img src={pictureUrl} alt="" referrerPolicy="no-referrer" />
+          ) : (
+            initialsOf(me)
+          )}
+        </span>
+        <span className="account-menu__name">{firstNameOf(me)}</span>
+        <span className="account-menu__chevron" aria-hidden="true" />
+      </button>
+      <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
+        <p className="account-menu__email">{email}</p>
+        <button type="button" className="account-menu__item" onClick={handleSignOut}>
+          Sign out
         </button>
-        {/* One dropdown holds the menu and the status below it, so the status is never covered by the menu. */}
-        <div className="account-menu__dropdown">
-          <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
-            <p className="account-menu__email">{email}</p>
-            {onDownloadData && (
-              <button
-                type="button"
-                className="account-menu__item"
-                aria-disabled={exporting}
-                onClick={() => void handleDownloadData(onDownloadData)}
-              >
-                Download my data
-              </button>
-            )}
-            <button type="button" className="account-menu__item" onClick={handleSignOut}>
-              Sign out
-            </button>
-            <button
-              type="button"
-              className="account-menu__item account-menu__item--danger"
-              onClick={openDeleteDialog}
-            >
-              Delete account…
-            </button>
-          </div>
-          {/* Outside the panel and always mounted, so a result still shows, and is announced, after the menu closes. */}
-          <p className="account-menu__status" role="status">
-            {exportStatus}
-          </p>
-        </div>
       </div>
-      <DeleteAccountDialog
-        open={dialogOpen}
-        email={email}
-        onConfirm={onDeleteAccount}
-        onClose={() => setDialogOpen(false)}
-      />
-    </>
+    </div>
   )
 }

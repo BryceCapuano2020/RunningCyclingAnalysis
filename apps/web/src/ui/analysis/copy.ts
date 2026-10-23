@@ -5,6 +5,7 @@ import type { AccountStatus } from '../useAccount'
 import { formatDay } from '../format/date'
 
 export const WAITING_FOR_LIBRARY = 'Waiting for your library to load'
+export const WAITING_FOR_ACCOUNT = 'Waiting for your account…'
 export const LIBRARY_NOT_LOADED =
   'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
 export const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'

@@ -41,17 +41,27 @@
         uploaded, and nothing from them is stored on our servers. So that your results are still
         there when you come back, the app keeps a summary of each activity in your browser's
         IndexedDB storage. It is the analysis summary described below for accounts, without the
-        original file: the activity name, the name of the file it came from (which is part of its
-        identifier), the start time and distances, the heart-rate and power figures, the best
-        efforts, climb sections and data-quality flags. It holds no GPS coordinates and no
-        per-second recording, and it does not expire. The app also saves your body mass, bike mass
-        and unit preference in your browser's local storage. Nothing else is written there.
+        original file and without any file hash: the activity name and sport, the start time,
+        distance, duration and elevation gain, the heart-rate and power figures, the best efforts,
+        climb sections and data-quality flags. Its identifier includes the name of the file it came
+        from. It holds no GPS coordinates and no per-second recording, and it does not expire. The
+        app also saves your body mass, bike mass, unit preference, and your year of birth and sex if
+        you give them, in your browser's local storage, and records there that the first-analysis
+        questions were answered, so they are not asked again. The settings copy in local storage is
+        kept whether or not you have an account. Nothing else is written there.
       </p>
       <p>
-        <em>Start over</em> removes every kept summary, and so does clearing this site's data in
-        your browser. You can also delete one activity from the <em>Kept in this browser</em> list
-        on your <em>Profile</em> page. Signing out does not remove the summaries. Anyone using the
-        same browser profile can see them, so use <em>Start over</em> on a shared computer.
+        <em>Start over</em>, offered only when you are signed out, removes every summary kept in
+        this browser, and so does clearing this site's data in your browser. You can also delete one
+        activity from the <em>Kept in this browser</em> list on your <em>Profile</em> page. Signing
+        out does not remove the summaries. Anyone using the same browser profile can see them, so
+        use <em>Start over</em> on a shared computer.
+      </p>
+      <p>
+        Year of birth and sex are optional. They are used only to grade your results against age
+        standards. Without an account they stay in your browser; with an account they are kept in
+        your profile. Clear the year, or choose Prefer not to say for sex, on the Profile page to
+        remove them.
       </p>
 
       <h2>With an account</h2>
@@ -72,8 +82,8 @@
           in an HttpOnly cookie.
         </li>
         <li>
-          <strong>Profile settings:</strong> body mass, bike mass, your unit system, and whether you
-          keep original files.
+          <strong>Profile settings:</strong> body mass, bike mass, your unit system, whether you
+          keep original files, and your year of birth and sex if you give them.
         </li>
         <li>
           <strong>Activity summaries:</strong> for each saved activity, its name, start time and
@@ -88,6 +98,13 @@
           on. Turning it off deletes the stored originals and keeps the summaries.
         </li>
       </ul>
+      <p>
+        Signed in, your settings are also kept in the local copy described under
+        <em>Without an account</em>: your body mass, bike mass, unit preference, year of birth and
+        sex, and the record that the first-analysis questions were answered on this device. That
+        copy is updated when you change those settings, so signing out shows your latest values. It
+        stays in your browser; the account keeps its own copy in your profile.
+      </p>
       <p>
         Google's own privacy policy governs what Google does with your account. We do not receive
         your Google password.
@@ -158,7 +175,11 @@
           summaries kept in your browser.
         </li>
         <li>
-          Choose <em>Delete account</em> in the account menu. This removes your account, sessions,
+          Clear your year of birth or choose Prefer not to say for sex on the Profile page to remove
+          them from your profile.
+        </li>
+        <li>
+          Choose <em>Delete account</em> on the Profile page. This removes your account, sessions,
           profile, all activity summaries and all stored original files. Deleted data can remain in
           encrypted backups, if backups are enabled, until those backups expire.
         </li>
@@ -171,15 +192,15 @@
         your account in the app is always available without a request.
       </p>
       <p>
-        If you are signed in, you can download your saved data at any time. Open the account menu
-        and choose <em>Download my data</em>. The file is one JSON document. It contains:
+        If you are signed in, you can download your saved data at any time. On the Profile page,
+        choose <em>Download my data</em>. The file is one JSON document. It contains:
       </p>
       <ul>
         <li>the export's format name and version, and when it was made;</li>
         <li>your account name and email address;</li>
         <li>
           your profile settings: body mass, bike mass, unit system, whether you keep original files,
-          and when the settings last changed;
+          your year of birth and sex, and when the settings last changed;
         </li>
         <li>
           for each saved activity: its library identifier, sport, start time, name, the name of the

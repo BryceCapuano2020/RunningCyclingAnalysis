@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
+  SETUP_DIALOG_NAME,
   activitiesRows,
+  fixturePath,
   goTo,
   openSample,
   trackErrors,
@@ -59,6 +61,80 @@ test('the cross-sport card names the ride behind its effort and opens to every d
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()
   await expect(details.getByRole('columnheader', { name: 'Cycling effort' })).toBeVisible()
+})
+
+test('the first upload asks for the athlete once, and a later upload after a reload does not', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
+  await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
+  await expect(setup).toBeVisible()
+  await setup.getByRole('button', { name: 'Analyse my files' }).click()
+  await expect(setup).toBeHidden()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+  ).toBeVisible()
+
+  // The kept summaries bring the result back on reload, and the next file joins it without a dialog.
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+  ).toBeVisible()
+  await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-ride.gpx'))
+  await expect(await activitiesRows(page)).toHaveCount(2)
+  await expect(setup).toHaveCount(0)
+})
+
+test('the weight entered in the setup dialog is the one the results use', async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.setTimeout(90_000)
+  // The same export, answered with the default weight in another context, is the baseline.
+  const baseline = await browser.newContext({ baseURL: testInfo.project.use.baseURL })
+  const defaults = await baseline.newPage()
+  await defaults.goto('/')
+  await uploadFixtures(defaults, ['sample-export.zip'])
+  await expect(defaults.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
+    timeout: 30_000,
+  })
+  const defaultRide = await defaults.getByRole('region', { name: 'Ride', exact: true }).innerText()
+  await baseline.close()
+
+  await page.goto('/')
+  const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
+  await page.locator('input[type="file"]').first().setInputFiles(fixturePath('sample-export.zip'))
+  await expect(setup).toBeVisible()
+  // The units are imperial by default, so this is 185 lb, about 83.9 kg.
+  await setup.getByLabel('Body weight').fill('185')
+  await setup.getByRole('button', { name: 'Analyse my files' }).click()
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
+    timeout: 30_000,
+  })
+  const ride = page.getByRole('region', { name: 'Ride', exact: true })
+  await expect(ride).toContainText('W/kg')
+  await expect.poll(() => ride.innerText()).not.toBe(defaultRide)
+  await goTo(page, 'Profile')
+  await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
+})
+
+test('skipping the setup dialog keeps the default weight', async ({ page }) => {
+  await page.goto('/')
+  const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
+  await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
+  await expect(setup).toBeVisible()
+  await setup.getByLabel('Body weight').fill('185')
+  await setup.getByRole('button', { name: 'Skip for now' }).click()
+
+  await expect(setup).toBeHidden()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+  ).toBeVisible()
+  await goTo(page, 'Profile')
+  // 75 kg, the default, in the imperial units the athlete starts with.
+  await expect(page.getByLabel('Body weight')).toHaveValue('165.3')
 })
 
 test('uploading the Strava export zip shows the results, including its GPX run', async ({

@@ -53,7 +53,15 @@ const DEVICE_LOAD: WorkerRequest = { type: 'loadDevice', settings: SETTINGS }
 function meWith(keepFiles: boolean, fileRetentionAvailable?: boolean): Me {
   const me: Me = {
     user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
-    profile: { massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles, updatedAt: 1000 },
+    profile: {
+      massKg: 75,
+      bikeMassKg: 9,
+      units: 'metric',
+      keepFiles,
+      birthYear: null,
+      sex: null,
+      updatedAt: 1000,
+    },
   }
   return fileRetentionAvailable === undefined ? me : { ...me, fileRetentionAvailable }
 }

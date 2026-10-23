@@ -1,0 +1,18 @@
+.account-section__email {
+  overflow-wrap: anywhere;
+}
+
+.account-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.account-section__delete {
+  color: var(--status-critical);
+}
+
+.account-section__status {
+  margin: 0;
+  font-size: 0.875rem;
+}

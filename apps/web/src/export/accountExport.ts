@@ -61,6 +61,8 @@ function headerFields(input: AccountExportHeaderInput) {
       bikeMassKg: profile.bikeMassKg,
       units: profile.units,
       keepFiles: profile.keepFiles,
+      birthYear: profile.birthYear,
+      sex: profile.sex,
       updatedAt: profile.updatedAt,
     },
   }

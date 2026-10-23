@@ -16,10 +16,14 @@ import { analysisStub } from './analysisStub'
 const DEFAULT_PREFERENCES: Preferences = {
   settings: { massKg: 75, bikeMassKg: 9 },
   units: 'imperial',
+  birthYear: null,
+  sex: null,
+  setupDone: false,
 }
 
-export const updateProfile = vi.fn<(patch: Partial<ProfileInput>) => Promise<void>>(
-  async () => undefined,
+/** Resolves with the profile the account now holds: the current signed-in profile with the patch applied. */
+export const updateProfile = vi.fn<(patch: Partial<ProfileInput>) => Promise<Profile>>(
+  async (patch) => ({ ...(app.account.me?.profile ?? meFor().profile), ...patch, updatedAt: 2000 }),
 )
 export const setPreferences = vi.fn<(next: Preferences) => void>()
 
@@ -37,7 +41,15 @@ export function meFor({
 }: AccountOptions = {}): Me {
   return {
     user: { id: 'user-1', email: 'ada@example.com', name: 'Ada Lovelace', pictureUrl: null },
-    profile: { massKg: 75, bikeMassKg: 9, units, keepFiles, updatedAt: 1000 },
+    profile: {
+      massKg: 75,
+      bikeMassKg: 9,
+      units,
+      keepFiles,
+      birthYear: null,
+      sex: null,
+      updatedAt: 1000,
+    },
     fileRetentionAvailable,
   }
 }
