@@ -5,23 +5,23 @@
 Each figure was read from Cloudflare's documentation on 2026-10-22. The "page dated" column is the
 "last updated" date the page shows.
 
-| Service | Limit | Figure | Source (page dated) |
-| --- | --- | --- | --- |
-| Workers | Requests per day | 100,000; counter resets 00:00 UTC; excess returns Error 1027 | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Oct 12, 2026) |
-| Workers | CPU time | 10 ms per HTTP request; 10 ms per Cron Trigger invocation | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Oct 12, 2026) |
-| Workers | Subrequests, memory, cron triggers | 50 per invocation; 128 MB per isolate; 5 cron triggers, 15-minute wall time | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Oct 12, 2026) |
-| Workers Logs | Log events | 200,000 per day; 3-day retention | [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) (Oct 2, 2026) |
-| D1 | Rows read | 5,000,000 per day | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (Apr 21, 2026) |
-| D1 | Rows written | 100,000 per day | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (Apr 21, 2026) |
-| D1 | Storage | 5 GB total for the account (pricing page) | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (Apr 21, 2026) |
-| D1 | Database size | 500 MB per database on Free (the stricter figure; the limits page and the pricing page both list storage, and this is the per-database cap) | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) (Apr 21, 2026) |
-| D1 | Queries per Worker invocation | 50 on Free (1,000 on Paid); each statement in a batch counts | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) (Apr 21, 2026) |
-| D1 | Bound parameters per query | 100 | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) (Apr 21, 2026) |
-| R2 | Storage | 10 GB-month per month (Standard storage only) | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026) |
-| R2 | Class A operations | 1,000,000 per month. Includes PutObject, ListObjects, CreateMultipartUpload | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026) |
-| R2 | Class B operations | 10,000,000 per month. Includes GetObject, HeadObject | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026) |
-| R2 | DeleteObject | Not billed as Class A or B | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026) |
-| Web Crypto | Streaming digest | `crypto.DigestStream` exists as a non-standard Workers extension; `crypto.subtle.digest` takes a single buffer | [Workers Web Crypto](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/) (checked 2026-10-22) |
+| Service      | Limit                              | Figure                                                                                                                                      | Source (page dated)                                                                                           |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Workers      | Requests per day                   | 100,000; counter resets 00:00 UTC; excess returns Error 1027                                                                                | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Oct 12, 2026)                   |
+| Workers      | CPU time                           | 10 ms per HTTP request; 10 ms per Cron Trigger invocation                                                                                   | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Oct 12, 2026)                   |
+| Workers      | Subrequests, memory, cron triggers | 50 per invocation; 128 MB per isolate; 5 cron triggers, 15-minute wall time                                                                 | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (Oct 12, 2026)                   |
+| Workers Logs | Log events                         | 200,000 per day; 3-day retention                                                                                                            | [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) (Oct 2, 2026)                  |
+| D1           | Rows read                          | 5,000,000 per day                                                                                                                           | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (Apr 21, 2026)                           |
+| D1           | Rows written                       | 100,000 per day                                                                                                                             | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (Apr 21, 2026)                           |
+| D1           | Storage                            | 5 GB total for the account (pricing page)                                                                                                   | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (Apr 21, 2026)                           |
+| D1           | Database size                      | 500 MB per database on Free (the stricter figure; the limits page and the pricing page both list storage, and this is the per-database cap) | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) (Apr 21, 2026)                             |
+| D1           | Queries per Worker invocation      | 50 on Free (1,000 on Paid). The limits page does not say how batches count; this code assumes each batched statement counts                 | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) (Apr 21, 2026)                             |
+| D1           | Bound parameters per query         | 100                                                                                                                                         | [D1 limits](https://developers.cloudflare.com/d1/platform/limits/) (Apr 21, 2026)                             |
+| R2           | Storage                            | 10 GB-month per month (Standard storage only)                                                                                               | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026)                                     |
+| R2           | Class A operations                 | 1,000,000 per month. Includes PutObject, ListObjects, CreateMultipartUpload                                                                 | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026)                                     |
+| R2           | Class B operations                 | 10,000,000 per month. Includes GetObject, HeadObject                                                                                        | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026)                                     |
+| R2           | DeleteObject                       | Not billed as Class A or B                                                                                                                  | [R2 pricing](https://developers.cloudflare.com/r2/pricing/) (Oct 1, 2026)                                     |
+| Web Crypto   | Streaming digest                   | `crypto.DigestStream` exists as a non-standard Workers extension; `crypto.subtle.digest` takes a single buffer                              | [Workers Web Crypto](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/) (checked 2026-10-22) |
 
 Static assets are served without using the Worker request quota, as `docs/DEPLOY.md` states. That
 statement was not re-verified on 2026-10-22.
@@ -34,14 +34,14 @@ exceed the limit. Over-budget requests return **429 `daily_limit`** with `Retry-
 seconds until the next 00:00 UTC. The per-minute limiter still returns `rate_limited`. The values are
 exported as `DAILY_LIMITS` from `@rca/contract`.
 
-| Action | Limit per user per UTC day | Notes |
-| --- | --- | --- |
-| File downloads | 50 | Refunded if R2 refuses the read before it starts. |
-| Profile writes | 50 | Includes keepFiles toggles. |
-| Activity deletions | 50 | |
-| Activity creates | **2,000** | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not. |
-| Original-file uploads | **2,000** | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses. |
-| Authenticated reads (`GET /api/activities`, `GET /api/me`) | 1,000 | |
+| Action                                                     | Limit per user per UTC day | Notes                                                                                                     |
+| ---------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| File downloads                                             | 50                         | Refunded if R2 refuses the read before it starts.                                                         |
+| Profile writes                                             | 50                         | Includes keepFiles toggles.                                                                               |
+| Activity deletions                                         | 50                         |                                                                                                           |
+| Activity creates                                           | **2,000**                  | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not. |
+| Original-file uploads                                      | **2,000**                  | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                   |
+| Authenticated reads (`GET /api/activities`, `GET /api/me`) | 1,000                      |                                                                                                           |
 
 **Deviation from the owner's default of 50.** A first Strava export import is hundreds to thousands
 of activities, so activity creates and uploads need a higher daily allowance. The lifetime cap of
@@ -51,12 +51,12 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 ## Other per-user limits
 
-| Limit | Value | Enforcement |
-| --- | --- | --- |
-| Activities stored | 5,000 | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row. |
-| Original-file bytes stored | 1 GiB | Reserved in the activity row before R2 is called. |
-| Concurrent original uploads | 2 | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job. |
-| Request body | 256 KB digest; 50 MB file | Checked before parsing and while streaming. |
+| Limit                       | Value                     | Enforcement                                                                                                                   |
+| --------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Activities stored           | 5,000                     | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                   |
+| Original-file bytes stored  | 1 GiB                     | Reserved in the activity row before R2 is called.                                                                             |
+| Concurrent original uploads | 2                         | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job. |
+| Request body                | 256 KB digest; 50 MB file | Checked before parsing and while streaming.                                                                                   |
 
 ## Deployment R2 ledger
 
@@ -130,7 +130,7 @@ cookies were valid, so existing users must sign in again after the first deploy.
 - Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 
-The run stays under the Workers Free limits: about 10 ms CPU, and under 50 D1 queries.
+The run is designed to stay under the Workers Free limits. CPU is not measured. The D1 query count is estimated at about 40 in the worst case (three deletions with files, two orphan pages), against a limit of 50.
 
 ## Health
 
@@ -142,14 +142,14 @@ The run stays under the Workers Free limits: about 10 ms CPU, and under 50 D1 qu
 
 ## Error codes
 
-| Status | Code | Meaning |
-| --- | --- | --- |
-| 401 | `unauthenticated` | No valid session. Also returned for an account being deleted, except for its own deletion. |
-| 409 | `account_changed` | The browser's expected account no longer matches the cookie. |
-| 409 | `account_deleting` | Sign-in or upload while the account is being deleted. New. |
-| 403 | `activity_quota` | 5,000 activities reached. |
-| 403 | `storage_quota` | 1 GiB of original files reached. |
-| 429 | `rate_limited` | Per-minute limiter. |
-| 429 | `daily_limit` | Daily budget spent. New. `Retry-After` is set. |
-| 429 | `upload_in_progress` | Two uploads already in progress. New. `Retry-After: 5`. |
-| 429 | `storage_budget_exhausted` | Deployment R2 ledger refused the call. Code unchanged. |
+| Status | Code                       | Meaning                                                                                    |
+| ------ | -------------------------- | ------------------------------------------------------------------------------------------ |
+| 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion. |
+| 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                               |
+| 409    | `account_deleting`         | Sign-in or upload while the account is being deleted. New.                                 |
+| 403    | `activity_quota`           | 5,000 activities reached.                                                                  |
+| 403    | `storage_quota`            | 1 GiB of original files reached.                                                           |
+| 429    | `rate_limited`             | Per-minute limiter.                                                                        |
+| 429    | `daily_limit`              | Daily budget spent. New. `Retry-After` is set.                                             |
+| 429    | `upload_in_progress`       | Two uploads already in progress. New. `Retry-After: 5`.                                    |
+| 429    | `storage_budget_exhausted` | Deployment R2 ledger refused the call. Code unchanged.                                     |
