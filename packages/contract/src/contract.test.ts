@@ -1,20 +1,38 @@
+import { digestActivity, serializeDigest } from '@rca/core/digest'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
+import { DURATIONS_S } from '@rca/core/constants'
+import { sampleDataset } from '@rca/core/synthetic'
 import { describe, expect, it } from 'vitest'
+import { MAX_DIGEST_BYTES } from './limits.ts'
 import {
   ActivityCreateSchema,
   ActivityDigestSchema,
+  ActivityPageSchema,
+  ActivityRecordSchema,
+  ApiErrorSchema,
   DevLoginSchema,
   ProfileInputSchema,
+  StoredActivityDigestSchema,
+  UserSchema,
 } from './index.ts'
-import { DURATIONS_S } from '@rca/core/constants'
 
+const curve = DURATIONS_S.map((durationS) => ({
+  durationS,
+  value: null,
+  startIndex: -1,
+  windowS: durationS,
+  heartRate: null,
+  terms: null,
+}))
+
+/** A valid one-hour digest with no HR blocks. Revision-less, so it reads as the oldest revision. */
 const digestWire = {
   version: 1,
   id: 'a',
   name: 'Ride',
   sport: 'ride',
   startMs: 1_700_000_000_000,
-  durationS: null,
+  durationS: 3600,
   distanceM: 1000,
   elevationGainM: 0,
   hasHeartRate: false,
@@ -23,16 +41,32 @@ const digestWire = {
   flags: [{ kind: 'power-spike', start: 1, end: 2, message: 'Spike' }],
   flagCounts: { 'power-spike': 1 },
   maxHeartRate: null,
-  curve: [{ durationS: 5, value: null, startIndex: -1, windowS: 5, heartRate: null, terms: null }],
+  curve,
   hrBlocks: [],
   calibration: null,
   climbSections: [],
 }
 
+const hrBlock = { heartRate: 150, value: 210, terms: null }
+
+/** Stored digests from every revision a row can carry. */
+const REVISIONS = [1, 2, MODEL_REVISION] as const
+
+function atRevision(revision: number, overrides: Record<string, unknown> = {}) {
+  return { ...digestWire, modelRevision: revision, ...overrides }
+}
+
+/** Real digests of the core sample dataset, as the API receives them: JSON with null for NaN. */
+const sampleWires = sampleDataset()
+  .activities.slice(0, 3)
+  .map(
+    (activity) => JSON.parse(serializeDigest(digestActivity(activity))) as Record<string, unknown>,
+  )
+
 describe('ActivityDigestSchema', () => {
   it('restores null to NaN for number fields and keeps null for nullable ones', () => {
-    const digest = ActivityDigestSchema.parse(digestWire)
-    expect(Number.isNaN(digest.durationS)).toBe(true)
+    const digest = ActivityDigestSchema.parse({ ...digestWire, distanceM: null })
+    expect(Number.isNaN(digest.distanceM)).toBe(true)
     expect(Number.isNaN(digest.curve[0]?.value)).toBe(true)
     expect(digest.maxHeartRate).toBeNull()
     expect(digest.curve[0]?.heartRate).toBeNull()
@@ -42,19 +76,7 @@ describe('ActivityDigestSchema', () => {
   })
 
   it('validates the current model revision shape and accepts missing legacy revision', () => {
-    const current = {
-      ...digestWire,
-      modelRevision: MODEL_REVISION,
-      durationS: 3600,
-      curve: DURATIONS_S.map((durationS) => ({
-        durationS,
-        value: null,
-        startIndex: -1,
-        windowS: durationS,
-        heartRate: null,
-        terms: null,
-      })),
-    }
+    const current = atRevision(MODEL_REVISION)
     expect(ActivityDigestSchema.safeParse(current).success).toBe(true)
     expect(
       ActivityDigestSchema.safeParse({ ...current, curve: current.curve.slice(1) }).success,
@@ -99,6 +121,172 @@ describe('ActivityDigestSchema', () => {
     expect(ActivityDigestSchema.safeParse({ ...digestWire, version: 2 }).success).toBe(false)
     const badFlag = { ...digestWire, flags: [{ kind: 'nope', start: 0, end: 1, message: 'm' }] }
     expect(ActivityDigestSchema.safeParse(badFlag).success).toBe(false)
+  })
+
+  it('rejects a duration that is not a whole number of seconds', () => {
+    for (const revision of REVISIONS) {
+      expect(
+        ActivityDigestSchema.safeParse(atRevision(revision, { durationS: null })).success,
+      ).toBe(false)
+      expect(ActivityDigestSchema.safeParse(atRevision(revision, { durationS: 1.5 })).success).toBe(
+        false,
+      )
+    }
+  })
+
+  it('rejects flag counts that are not non-negative whole numbers', () => {
+    for (const revision of REVISIONS) {
+      const fractional = { 'power-spike': 1.5 }
+      const negative = { 'power-spike': -1 }
+      expect(
+        ActivityDigestSchema.safeParse(atRevision(revision, { flagCounts: fractional })).success,
+      ).toBe(false)
+      expect(
+        ActivityDigestSchema.safeParse(atRevision(revision, { flagCounts: negative })).success,
+      ).toBe(false)
+    }
+  })
+})
+
+describe('bounds apply to every accepted revision', () => {
+  it.each(REVISIONS)('accepts the HR blocks a one-hour digest can hold (revision %i)', (rev) => {
+    // Blocks start after a 600 s warm-up and take 300 s each: 10 fit in one hour.
+    const hrBlocks = Array.from({ length: 10 }, () => hrBlock)
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { hrBlocks })).success).toBe(true)
+  })
+
+  it.each(REVISIONS)('rejects 6,386 HR blocks in a one-hour digest (revision %i)', (rev) => {
+    const hrBlocks = Array.from({ length: 6386 }, () => hrBlock)
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { hrBlocks })).success).toBe(false)
+  })
+
+  it.each(REVISIONS)('rejects HR blocks beyond the absolute cap (revision %i)', (rev) => {
+    // A claimed duration of 1e9 s would otherwise allow millions of blocks.
+    const hrBlocks = Array.from({ length: 2015 }, () => hrBlock)
+    expect(
+      ActivityDigestSchema.safeParse(atRevision(rev, { durationS: 1e9, hrBlocks })).success,
+    ).toBe(false)
+  })
+
+  it.each(REVISIONS)('rejects a curve of the wrong length or durations (revision %i)', (rev) => {
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { curve: curve.slice(1) })).success).toBe(
+      false,
+    )
+    const extra = [...curve, { ...curve[0]! }]
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { curve: extra })).success).toBe(false)
+    const shifted = curve.map((p, i) => (i === 0 ? { ...p, durationS: 6 } : p))
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { curve: shifted })).success).toBe(false)
+  })
+
+  it.each(REVISIONS)('rejects more flags than the digest keeps (revision %i)', (rev) => {
+    const flags = Array.from({ length: 51 }, () => digestWire.flags[0])
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { flags })).success).toBe(false)
+  })
+
+  it.each(REVISIONS)('rejects more climb sections than the cap (revision %i)', (rev) => {
+    const section = { start: 0, end: 300, measuredW: 200, terms: digestSectionTerms }
+    const climbSections = Array.from({ length: 5041 }, () => section)
+    expect(
+      ActivityDigestSchema.safeParse(atRevision(rev, { durationS: 1e9, climbSections })).success,
+    ).toBe(false)
+  })
+
+  it.each(REVISIONS)('rejects over-long strings (revision %i)', (rev) => {
+    const long = 'x'.repeat(MAX_DIGEST_BYTES + 1)
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { name: long })).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { id: long })).success).toBe(false)
+    const flags = [{ kind: 'power-spike', start: 1, end: 2, message: long }]
+    expect(ActivityDigestSchema.safeParse(atRevision(rev, { flags })).success).toBe(false)
+  })
+})
+
+const digestSectionTerms = { gravityAccel: 1, rolling: 0.1, aero: 0.2 }
+
+describe('realistic digests from the sample dataset', () => {
+  it('still parse at revisions 1, 2 and the current revision', () => {
+    expect(sampleWires.length).toBeGreaterThan(0)
+    for (const wire of sampleWires) {
+      for (const revision of REVISIONS) {
+        const result = ActivityDigestSchema.safeParse({ ...wire, modelRevision: revision })
+        expect(result.success, `${String(wire.id)} at revision ${revision}`).toBe(true)
+      }
+    }
+  })
+
+  it('still parse when the revision field is absent, as in the oldest rows', () => {
+    for (const wire of sampleWires) {
+      const { modelRevision: _omitted, ...legacy } = wire
+      const parsed = ActivityDigestSchema.safeParse(legacy)
+      expect(parsed.success).toBe(true)
+      expect(parsed.data?.modelRevision).toBe(1)
+    }
+  })
+})
+
+describe('stored digests', () => {
+  it('reads an old-revision digest with a null duration and an off-grid curve, which create rejects', () => {
+    const legacy = {
+      ...digestWire,
+      modelRevision: 1,
+      durationS: null,
+      curve: curve.slice(0, 3).map((point) => ({ ...point, durationS: 7 })),
+    }
+    expect(ActivityDigestSchema.safeParse(legacy).success).toBe(false)
+    const stored = StoredActivityDigestSchema.safeParse(legacy)
+    expect(stored.success).toBe(true)
+    expect(stored.data?.durationS).toBeNaN()
+  })
+
+  it('still bounds the array lengths of stored digests', () => {
+    const oversized = {
+      ...digestWire,
+      modelRevision: 1,
+      curve: Array.from({ length: DURATIONS_S.length * 4 + 1 }, () => curve[0]),
+    }
+    expect(StoredActivityDigestSchema.safeParse(oversized).success).toBe(false)
+  })
+})
+
+describe('string bounds on API payloads', () => {
+  const user = { id: 'u1', email: 'rider@example.com', name: 'Rider', pictureUrl: null }
+  const record = {
+    id: 'a1',
+    digest: digestWire,
+    fileName: 'ride.fit',
+    hasFile: false,
+    fileSize: null,
+    createdAt: 1,
+  }
+
+  it('bounds the user fields', () => {
+    expect(UserSchema.safeParse(user).success).toBe(true)
+    expect(UserSchema.safeParse({ ...user, id: 'x'.repeat(65) }).success).toBe(false)
+    expect(UserSchema.safeParse({ ...user, name: 'x'.repeat(513) }).success).toBe(false)
+    expect(UserSchema.safeParse({ ...user, pictureUrl: 'x'.repeat(2049) }).success).toBe(false)
+    expect(UserSchema.safeParse({ ...user, email: `${'x'.repeat(310)}@example.com` }).success).toBe(
+      false,
+    )
+  })
+
+  it('bounds the activity record and page fields', () => {
+    expect(ActivityRecordSchema.safeParse(record).success).toBe(true)
+    expect(ActivityRecordSchema.safeParse({ ...record, id: 'x'.repeat(65) }).success).toBe(false)
+    expect(ActivityRecordSchema.safeParse({ ...record, fileName: 'x'.repeat(256) }).success).toBe(
+      false,
+    )
+    const cursor = 'c'.repeat(257)
+    expect(ActivityPageSchema.safeParse({ items: [], nextCursor: cursor }).success).toBe(false)
+  })
+
+  it('bounds the error code and message', () => {
+    const error = { error: { code: 'invalid_request', message: 'body: Required' } }
+    expect(ApiErrorSchema.safeParse(error).success).toBe(true)
+    expect(
+      ApiErrorSchema.safeParse({ error: { code: 'x'.repeat(65), message: 'm' } }).success,
+    ).toBe(false)
+    expect(
+      ApiErrorSchema.safeParse({ error: { code: 'c', message: 'x'.repeat(4097) } }).success,
+    ).toBe(false)
   })
 })
 
@@ -161,7 +349,7 @@ describe('shared limits', () => {
       activityDelete: 50,
       activityCreate: 2000,
       fileUpload: 2000,
-      read: 1000,
+      read: 100,
     })
     expect(MAX_CONCURRENT_UPLOADS_PER_USER).toBe(2)
     expect(MAX_GLOBAL_R2_WRITE_BYTES).toBe(4 * 1024 * 1024 * 1024)

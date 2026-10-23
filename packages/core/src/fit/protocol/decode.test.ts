@@ -80,6 +80,23 @@ describe('decodeFit records', () => {
     expect(r?.timestampMs).toBeUndefined()
   })
 
+  it('reads a time of exactly 0x10000000 as a date', () => {
+    const data = [...RECORD_DEF, ...recordBytes(0x10000000, 100, 200, 3000)]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.timestampMs).toBe(epochMs(0x10000000))
+  })
+
+  it('applies the 500 m offset to the altitude field, as to enhanced altitude', () => {
+    // Raw 3000 at scale 5 is 600 m, less the 500 m offset, so 100 m.
+    const ALTITUDE_FIELD = [2, 4, 0x86] as const
+    const data = [
+      ...definition(0, MESG.record, [TIMESTAMP, ALTITUDE_FIELD]),
+      ...record([...int(RAW, 4), ...int(3000, 4)]),
+    ]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.altitude).toBe(100)
+  })
+
   it('reports when decoding stops at the record limit, counting while it decodes', () => {
     const data = [...RECORD_DEF]
     for (let i = 0; i < 10; i++) data.push(...recordBytes(RAW + i, 100, 200, 3000))

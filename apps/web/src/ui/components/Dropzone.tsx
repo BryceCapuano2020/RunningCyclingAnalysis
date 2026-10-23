@@ -22,6 +22,8 @@ export interface DropzoneProps {
   signedIn: boolean
   /** Result of the run that just ended. Give a new object per run; its text is announced when it appears while not busy. */
   outcome?: DropzoneOutcome | null
+  /** Neutral reason shown while busy in place of analysis progress, e.g. while imports wait for the library. */
+  waiting?: string | null
 }
 
 function statusText(progress: number | null): string {
@@ -52,6 +54,7 @@ export function Dropzone({
   compact = false,
   signedIn,
   outcome = null,
+  waiting = null,
 }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -144,14 +147,14 @@ export function Dropzone({
   // Detect the start and the end of a run during render, not in an effect.
   if (busy !== announcedBusy) {
     setAnnouncedBusy(busy)
-    if (busy) setAnnouncement('Reading files')
+    if (busy) setAnnouncement(waiting ?? 'Reading files')
   }
   if (outcome !== announcedOutcome) {
     setAnnouncedOutcome(outcome)
     if (outcome !== null && !busy) setAnnouncement(outcomeSentence(outcome))
   }
 
-  const status = busy ? statusText(progress) : ''
+  const status = busy ? (waiting ?? statusText(progress)) : ''
   const liveRegion = (
     <p role="status" className="sr-only">
       {announcement}

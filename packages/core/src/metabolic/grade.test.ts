@@ -53,6 +53,14 @@ describe('smoothGrade', () => {
     expect(smoothGrade(descent, distance)[50]).toBe(-0.35)
   })
 
+  it('measures a distance span of exactly 5 m rather than treating it as too short', () => {
+    // Sample 15 spans samples 0 to 30. Only the end sample carries distance, so that span is 5 m.
+    const altitude = new Float64Array(31).fill(100)
+    const distance = new Float64Array(31)
+    distance[30] = 5
+    expect(smoothGrade(altitude, distance)[15]).toBe(0)
+  })
+
   it('gives NaN, not flat ground, where the distance span is under 5 m', () => {
     // 0.1 m per sample makes every 30-sample span 3 m long.
     const { altitude, distance } = route(100, 0.1, 0.5)

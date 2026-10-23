@@ -15,6 +15,9 @@ export function syncIssueFor(error: unknown): SyncIssueCode {
   if (error.status === 409 && error.code === 'account_changed') return 'account-changed'
   if (error.status === 403 && error.code === 'activity_quota') return 'activity-quota'
   if (error.status === 403 && error.code === 'storage_quota') return 'storage-quota'
+  if (error.status === 403 && error.code === 'digest_quota') return 'digest-quota'
+  if (error.status === 503 && error.code === 'database_full') return 'database-full'
+  if (error.status === 409 && error.code === 'activity_conflict') return 'activity-conflict'
   if (error.status === 429) return 'rate-limited'
   return 'server'
 }

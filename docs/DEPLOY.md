@@ -1,13 +1,16 @@
 # Deploying RunningCycling to Cloudflare
 
-The live Worker was verified at commit `493ce15` on 22 October 2026. The current `main` tree is
-`310264a`; this hardening branch has not been deployed. The deployment and limit details below
-describe the branch's intended behavior and are not evidence that its runtime changes are live.
+The current live version was deployed with the Wrangler CLI, not by the Deploy workflow. This guide
+does not record which version is live. To see it, run `npx wrangler deployments list` from
+`apps/api`, and check the live origin with `scripts/ops/smoke.mjs`. Future production deploys should
+go through `.github/workflows/deploy.yml` once the `production` environment and its secrets exist
+(section 10). The limits and behavior below describe the current code in this repository.
 
 The deployment runs on Cloudflare Workers Free and D1 Free with a dedicated R2 Standard bucket. It
 does not enroll in Workers Paid. The Worker serves the built web app as static files and the API under
 `/api`, so both share one origin: `https://<worker>.<your-subdomain>.workers.dev`. Session cookies
-work without a custom domain. Static asset requests are free; API requests and database queries use
+work without a custom domain. Requests for existing static files do not run the Worker and are free. API requests, requests for
+unknown paths and database queries use
 the free plan's hard quotas. Requests and queries fail when those quotas are exceeded, rather than
 automatically upgrading the account. This is a usage-capped deployment, not a guarantee of
 continuous availability.
@@ -329,21 +332,24 @@ One-time setup for the repository owner:
    - Under **Deployment branches and tags**, choose **Selected branches** and allow only `main`.
    - Add environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
    - Set `RCA_SAFE_ROLLBACK_VERSION` only after verifying a Worker version against the current D1
-     schema and deletion state. The historical Worker `1143a60d-5562-43c2-95a2-4807b9073c93`
-     predates signed cookies and deletion tombstones and is not a safe rollback target.
+     schema and deletion state. A Worker version deployed before signed cookies and deletion
+     tombstones existed is not a safe rollback target.
 
    Environment secrets are available only to jobs that name the environment, and only after the
    approval. They are not repository secrets, so workflows on other branches cannot read them.
 
 4. **Set branch protection on `main`** as described in the repository settings checklist in
-   [PRODUCTION.md](PRODUCTION.md#release-gate). The workflow checks the ref, but protection stops
-   unreviewed code from reaching `main` in the first place.
+   [PRODUCTION.md](PRODUCTION.md#repository-settings-checklist-owner). Changes reach `main` through a
+   pull request that passes the three CI checks. No approval is required, because the owner is the
+   sole maintainer.
+5. **Set up backups and uptime monitoring** in the order given in
+   [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner). The two enabling variables are set last.
 
-Scheduled backup and uptime jobs are disabled unless the repository variables `RCA_BACKUP_ENABLED`
-and `RCA_UPTIME_ENABLED` respectively equal the exact string `true`. Manual runs remain available;
-backup still refuses to export unless its recipient check passes. No backup recipient/key, GitHub
-backup environment secrets, or remote variables/workflow setup was configured or verified as part of
-this work. See [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner) before enabling either job.
+Scheduled backup and uptime jobs run only when the repository variables `RCA_BACKUP_ENABLED` and
+`RCA_UPTIME_ENABLED` each equal the exact string `true`. Manual runs of either workflow remain
+available. Backup still refuses to export until `ops/backup-recipient.txt` holds a valid age public
+key. The uptime probe uses the repository variable `PRODUCTION_ORIGIN` when it is set, and otherwise
+the production `workers.dev` origin.
 
 ## 11. Costs and hard free-plan limits
 
@@ -355,7 +361,7 @@ product's pricing page, before relying on them.
 | Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                                                                                                                                                                                 |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                                                                                                                                                                                 |
-| Static assets | Requests and storage are free; asset delivery does not use the Worker request quota.                                                                | The web app's HTML, JavaScript, CSS and images                                                                                                                                                                                                                                                    |
+| Static assets | Storage is free, and requests for existing files are served without running the Worker. Requests for unknown paths run it.                          | The web app's HTML, JavaScript, CSS and images                                                                                                                                                                                                                                                    |
 | D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                                                                                                                                                                                 |
 | R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; code caps charged PUT bytes at 4 GiB lifetime and 2 GiB per UTC month (at least 64 KiB per attempt), standard operations at 90,000/month with 10,000 reserved for cleanup, and deep-health probes at 300/day and 9,300/month (plus one per minute per address). |
 
@@ -392,9 +398,9 @@ npx wrangler rollback <compatible-version-id>
 The Deploy workflow rolls back only when its smoke test fails and
 `RCA_SAFE_ROLLBACK_VERSION` is explicitly configured; otherwise it records that no rollback target
 was configured and fails. A rollback changes only Worker code. It does not undo database migrations
-or newer data. Worker `1143a60d-5562-43c2-95a2-4807b9073c93` cannot safely serve the hardening
-schema and deletion tombstones and cannot read signed session cookies, so do not use it as a rollback
-target. If a migration is the problem, fix forward with a new migration file, following the expand,
+or newer data. A Worker version deployed before signed cookies and deletion tombstones existed cannot
+safely serve the current schema and cannot read signed session cookies, so do not use it as a
+rollback target. If a migration is the problem, fix forward with a new migration file, following the expand,
 deploy, contract rule in [PRODUCTION.md](PRODUCTION.md#migrations-order-of-operations).
 
 ## 13. Delete everything

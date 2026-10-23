@@ -197,6 +197,26 @@ describe('SyncStatus', () => {
       1,
       '1 activity was not fully saved because of a server error. Re-import it to retry.',
     ],
+    [
+      'digest-quota',
+      2,
+      'Your saved analyses have reached the storage limit. Delete some saved activities to save more.',
+    ],
+    [
+      'database-full',
+      2,
+      'Saving is paused because the service is near its storage capacity. Your analysis still works on this device.',
+    ],
+    [
+      'activity-conflict',
+      1,
+      'This workout is already saved from a different file. Delete the saved copy first to replace it.',
+    ],
+    [
+      'activity-conflict',
+      2,
+      '2 workouts are already saved from different files. Delete the saved copies first to replace them.',
+    ],
   ])('says what happened and what works for %s with %i affected', (code, count, text) => {
     render(<SyncStatus {...props({ issues: [issue(code, count)] })} />)
     expect(screen.getByRole('status')).toHaveTextContent(text)

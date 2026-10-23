@@ -8,9 +8,9 @@ model range. This estimates energy use; it does not rank sporting ability.
 [Open the live app](https://rca-api.nutritioncoachapp.workers.dev) ·
 [Engineering review](docs/REVIEW.md) · [Operations and verification](docs/PRODUCTION.md)
 
-The live Worker was verified at commit `493ce15` on 22 October 2026. The current `main` tree is
-`310264a`; the hardening changes described in this branch have not been deployed. Branch-specific
-limits and operations below describe source behavior, not live production behavior.
+The current live version was deployed with the Wrangler CLI. This README does not record which commit
+or version is live; [docs/PRODUCTION.md](docs/PRODUCTION.md) explains how to check it. The limits and
+operations described below reflect the current source, not necessarily the live deployment.
 
 Analysis always runs in your browser: activity files are parsed and analysed on your device. An
 account is optional. With one, your profile and activity library are stored on Cloudflare so they

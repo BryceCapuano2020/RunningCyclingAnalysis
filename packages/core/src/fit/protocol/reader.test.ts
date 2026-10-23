@@ -106,6 +106,27 @@ describe('record headers', () => {
     expect(times).toEqual([1000, 1002, 1029])
   })
 
+  it('uses bit 4 of the compressed-header offset, so an offset of 20 is 12 s after 8', () => {
+    // Full timestamp 1000 (low five bits 8). Offset 20 uses bit 4, so the step is (20 - 8) = 12.
+    const data = [
+      ...definition(0, RECORD, [TIMESTAMP_FIELD]),
+      ...definition(1, RECORD, [HEART_RATE]),
+      0,
+      ...int(1000, 4),
+      0xa0 | 20,
+      140,
+    ]
+    const times = scan(fitFile(data)).messages.map((m) => m.values.get(253))
+    expect(times).toEqual([1000, 1012])
+  })
+
+  it('reads a definition whose fields end exactly at the end of the data', () => {
+    const { messages, report } = scan(fitFile(definition(0, RECORD, [HEART_RATE])))
+    expect(report.errors).toEqual([])
+    expect(report.crcValid).toBe(true)
+    expect(messages).toEqual([])
+  })
+
   it('reads a compressed header only after a full timestamp has been seen', () => {
     const data = [...definition(1, RECORD, [HEART_RATE]), 0xa0 | 4, 140]
     const { messages, report } = scan(fitFile(data))

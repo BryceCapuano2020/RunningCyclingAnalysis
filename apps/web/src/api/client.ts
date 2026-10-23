@@ -227,13 +227,20 @@ export async function deleteAccount(userId?: string): Promise<void> {
 
 /**
  * Every activity the user has, newest first, following the server's pages to the end. With
- * `since` (epoch ms), only those created at or after it.
+ * `since` (epoch ms), only those created at or after it. `onUnreadable` receives the number of
+ * stored activities the server could not read; it is called once, and only when that number is
+ * above zero.
  */
-export async function listActivities(since?: number, userId?: string): Promise<ActivityRecord[]> {
+export async function listActivities(
+  since?: number,
+  userId?: string,
+  onUnreadable?: (count: number) => void,
+): Promise<ActivityRecord[]> {
   const records: ActivityRecord[] = []
   const seenCursors = new Set<string>()
   let cursor: string | undefined
   let pages = 0
+  let unreadable = 0
   do {
     if (pages >= MAX_ACTIVITIES_PER_USER) {
       throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
@@ -254,6 +261,7 @@ export async function listActivities(since?: number, userId?: string): Promise<A
       throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
     }
     records.push(...page.items)
+    unreadable += page.unreadable ?? 0
     cursor = page.nextCursor ?? undefined
     // A server that repeats a cursor would make this loop forever.
     if (cursor !== undefined) {
@@ -263,18 +271,26 @@ export async function listActivities(since?: number, userId?: string): Promise<A
       seenCursors.add(cursor)
     }
   } while (cursor !== undefined)
+  if (unreadable > 0) onUnreadable?.(unreadable)
   return records
 }
 
+/**
+ * Stores an activity digest. With `replaceId`, the server updates that exact activity instead of
+ * inserting one, and answers 404 not_found if it was deleted. Without it, an activity that already
+ * exists is returned as it is (created false).
+ */
 export async function createActivity(
   digest: ActivityDigest,
   fileName: string,
   fileHash: string,
   userId?: string,
+  replaceId?: string,
 ): Promise<CreatedActivity> {
+  const query = replaceId === undefined ? '' : `?${new URLSearchParams({ replace: replaceId })}`
   const response = await request(
     'POST',
-    '/api/activities',
+    `/api/activities${query}`,
     {
       json: { digest, fileName, fileHash },
     },

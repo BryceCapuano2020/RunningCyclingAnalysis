@@ -127,9 +127,44 @@ describe('GET /api/health/deep', () => {
     expect(reservations.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
 
     const res = await h.send({ path: '/api/health/deep' })
-    expect(res.status).toBe(429)
-    expect(res.headers.get('retry-after')).toBe(String((Date.UTC(2026, 1, 1) - START) / 1000))
-    expect(await res.json()).toMatchObject({ error: { code: 'health_probe_limit' } })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(await res.json()).toEqual({
+      status: 'ok',
+      deep: 'skipped',
+      reason: 'deep health budget reached',
+    })
+    expect(head).not.toHaveBeenCalled()
+  })
+
+  it('reports a skipped deep check with 200 once the monthly ceiling is reached, so uptime does not read it as an outage', async () => {
+    const head = vi.fn(async () => null)
+    const bucket = new Proxy(testEnv().FILES!, {
+      get(target, property) {
+        if (property === 'head') return head
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: bucket })
+    const month = new Date(START).toISOString().slice(0, 7)
+    await h.env.DB.prepare(
+      `INSERT INTO r2_storage_budget (
+         id, lifetime_put_bytes, monthly_period, monthly_operations, monthly_put_bytes,
+         health_probe_day, health_probe_day_count, health_probe_month, health_probe_month_count
+       ) VALUES (1, 0, ?, 0, 0, '2000-01-01', 0, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         health_probe_day = excluded.health_probe_day,
+         health_probe_day_count = excluded.health_probe_day_count,
+         health_probe_month = excluded.health_probe_month,
+         health_probe_month_count = excluded.health_probe_month_count`,
+    )
+      .bind(month, month, MAX_HEALTH_PROBES_PER_MONTH)
+      .run()
+
+    const res = await h.send({ path: '/api/health/deep' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ status: 'ok', deep: 'skipped' })
     expect(head).not.toHaveBeenCalled()
   })
 

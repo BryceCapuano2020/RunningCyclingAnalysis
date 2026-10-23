@@ -23,6 +23,9 @@ export type SyncIssueCode =
   | 'daily-limit'
   | 'upload-in-progress'
   | 'account-deleting'
+  | 'digest-quota'
+  | 'database-full'
+  | 'activity-conflict'
   | 'network'
   | 'server'
 
@@ -47,11 +50,14 @@ const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
   'signed-out',
   'account-changed',
   'account-deleting',
+  'digest-quota',
+  'database-full',
 ])
 
 /**
- * Whether a failure ends the import: once the account is signed out or changed, later saves in the
- * same import would fail the same way, so they are not attempted.
+ * Whether a failure ends the import: once the account is signed out or changed, or the saved-analysis
+ * storage or the database is full, later saves in the same import would fail the same way, so they
+ * are not attempted.
  */
 export function haltsImport(code: SyncIssueCode): boolean {
   return HALTING_CODES.has(code)

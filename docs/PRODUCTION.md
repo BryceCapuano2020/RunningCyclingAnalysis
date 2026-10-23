@@ -4,22 +4,17 @@ This document records the operational behavior, the release and migration rules,
 remaining release evidence. It is not a claim of perfect reliability or of validated physiological
 accuracy.
 
-**Hardening release, 22 October 2026:** reviewed application code from `deaf6ba` and release
-controls at `4444ab0` were initially deployed as Worker `c99ae81c-bd7d-471a-b483-4111af9fb63e`.
-The follow-up cost review restored the 4 GiB lifetime PUT cap alongside the monthly limits.
-Use `wrangler deployments list` to identify the active version and its tagged source commit.
-Migration 0003 is applied and a new random `SESSION_SIGNING_KEY` is installed. The application
-assets are byte-identical to the build from passing CI run
-[39882125936](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39882125936).
-Live health, D1/R2 deep health, HTML/CSP, unauthenticated denial and the OAuth redirect passed
-`scripts/ops/smoke.mjs`. Real Google sign-in with the new cookie format was verified in Chrome.
-A private snapshot taken after migration restored into isolated local D1; production originals
-were empty, so this drill does not establish larger or populated-original recovery.
+**Current release state.** The hardening release described here was deployed with the Wrangler CLI,
+not by the Deploy workflow. This document does not record the live version or its commit. To see the
+active version and its tagged source commit, run `npx wrangler deployments list` in `apps/api`, and
+check the live origin with `scripts/ops/smoke.mjs`. Future production deploys should go through
+`.github/workflows/deploy.yml` once the `production` environment and its secrets exist.
 
-Backup and uptime schedules remain disabled by default. GitHub deployment/backup credentials and
-an encryption recipient are not configured. No compatible automatic rollback target has been set;
-the older signed-session-incompatible Worker must not be chosen as a default. Repository updates
-are committed directly to `main` after review; automatic dependency-version PRs are disabled.
+Backup and uptime schedules stay disabled until their repository variables are set. The owner setup
+order is under [Setting up backups (owner)](#setting-up-backups-owner). No automatic rollback target
+is configured, and a Worker that predates signed session cookies must not be chosen as one. A
+snapshot taken after a migration was restored into isolated local D1. Production originals were
+empty, so that drill does not establish recovery of populated originals.
 
 ## Release gate
 
@@ -58,10 +53,13 @@ intended order:
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
 the same release, without the approval and smoke-test steps, so use the workflow for production.
 
-Actions are pinned by commit SHA with the release tag in a comment. At review time the pins were
-checked against the upstream tags for `actions/checkout` v7.0.1, `actions/setup-node` v7.1.0,
-`actions/upload-artifact` v7.0.2 and `actions/download-artifact` v8.0.2. Dependabot proposes
-updates weekly, grouped. A retried or flaky browser test fails CI rather than being hidden.
+Every `uses:` reference in `.github/workflows` is pinned to a full commit SHA, with the release tag in
+a comment. Repository settings do not enforce SHA pinning, and GitHub does not block a workflow that
+names a tag or branch instead, so review workflow changes for this. Dependabot version updates are
+scheduled weekly in `.github/dependabot.yml` with `open-pull-requests-limit: 0`, so they open no
+routine version-update pull requests. Dependabot security updates for vulnerable dependencies are
+controlled by a repository setting, not by that file. A retried or flaky browser test fails CI rather
+than being hidden.
 
 The initial `npm run deploy:bootstrap` is an explicit exception for discovering the Worker address.
 It builds assets and requires a valid D1 id, but allows the initial unconfigured `APP_URL`.
@@ -70,25 +68,28 @@ Normal deployment additionally requires a real HTTPS origin and production mode.
 
 ### Repository settings checklist (owner)
 
-These settings live in GitHub, not in the repository. Apply them when the repository becomes public.
+These settings live in GitHub, not in the repository.
 The status-check names are the job names shown on pull requests and must match exactly.
 
-**Branch protection rule for `main`:**
+**Branch protection on `main` requires:**
 
-- Require a pull request before merging. Required approvals: 1 once a second reviewer exists. With
-  the owner as the only writer, GitHub does not count an author's own approval; keep the review
-  requirement and rely on the required checks until then.
-- Require review from Code Owners (`.github/CODEOWNERS` assigns every path to the owner).
-- Dismiss stale approvals when new commits are pushed.
-- Require status checks to pass before merging, and require branches to be up to date. Add these
-  checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)`, `Dependency audit`.
-- Require conversation resolution before merging.
-- Do not allow force pushes or deletion of `main`. Include administrators in these rules.
+- A pull request before merging, with 0 required approvals, because the owner is the sole
+  maintainer. The required status checks are the gate.
+- Passing status checks: `Lint, typecheck, unit tests, build`, `End-to-end (Playwright)` and
+  `Dependency audit`.
+- The branch to be up to date with `main` before merging.
+- All review conversations resolved; stale approvals are dismissed on new commits.
+- Linear history (merges are squash-only and merged branches are deleted).
+- The same rules for administrators.
+- No Code Owners review is required. `.github/CODEOWNERS` assigns every path to the owner and is kept
+  for a future second maintainer.
+- No force pushes and no deletion of `main`.
 
 **Actions:**
 
-- Settings, Actions, General. Allow actions created by GitHub and selected actions only, and require
-  every action to be pinned to a full commit SHA (`actions/*` is the only publisher in use).
+- Settings, Actions, General. Allow actions created by GitHub and selected actions only (`actions/*`
+  is the only publisher in use). SHA pinning is done in the workflow files and is not enforced by
+  these settings.
 - Workflow permissions: read repository contents by default. Do not allow Actions to create or approve
   pull requests.
 - Fork pull requests: require approval for all outside collaborators before their workflows run.
@@ -98,9 +99,8 @@ The status-check names are the job names shown on pull requests and must match e
 - `production`: required reviewer is the owner. Deployment branches: selected branches, `main` only.
   Secrets: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (the deploy token needs Workers
   Scripts Edit, D1 Edit and Account Settings Read). Set `RCA_SAFE_ROLLBACK_VERSION` only to a
-  Worker version verified against the current schema and data state. The historical Worker
-  `1143a60d-5562-43c2-95a2-4807b9073c93` is not compatible with signed cookies or deletion
-  tombstones and must not be selected.
+  Worker version verified against the current schema and data state. A Worker version deployed
+  before signed cookies and deletion tombstones existed is not compatible and must not be selected.
 - `backup`: no reviewers, because scheduled runs cannot wait for approval. Deployment branches:
   `main` only. Secrets: `CLOUDFLARE_BACKUP_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
   `R2_BACKUP_ACCESS_KEY_ID` and `R2_BACKUP_SECRET_ACCESS_KEY`.
@@ -113,11 +113,10 @@ The status-check names are the job names shown on pull requests and must match e
 - Enable Dependabot alerts and security updates. Version updates are configured in
   `.github/dependabot.yml`.
 - Turn on notifications for failed workflow runs and for issues labelled `outage`.
-- Scheduled workflows run only from the default branch. Backup and uptime schedules are disabled
-  unless repository variables `RCA_BACKUP_ENABLED` and `RCA_UPTIME_ENABLED` respectively equal
-  `true`; manual runs remain available. No remote variables or workflow setup were configured or
-  verified as part of this work. GitHub disables scheduled workflows in public repositories after
-  60 days without repository activity. Check configured schedules to confirm they still run.
+- Scheduled workflows run only from the default branch. Backup and uptime schedules run only when the
+  repository variables `RCA_BACKUP_ENABLED` and `RCA_UPTIME_ENABLED` each equal `true`. Manual runs
+  remain available. GitHub disables scheduled workflows in public repositories after 60 days without
+  repository activity, so check that the schedules still run.
 
 ## Migrations: order of operations
 
@@ -168,11 +167,12 @@ an intent binding, not a replacement for session authentication or owner-scoped 
 
 Cloudflare rate-limit bindings apply outside local development:
 
-| Binding              | Threshold per minute | Key                                        |
-| -------------------- | -------------------: | ------------------------------------------ |
-| `API_RATE_LIMITER`   |                1,200 | Cloudflare-supplied client address         |
-| `AUTH_RATE_LIMITER`  |                   30 | Client address, OAuth/sign-in routes       |
-| `WRITE_RATE_LIMITER` |                  600 | Authenticated user id, account data writes |
+| Binding               | Threshold per minute | Key                                        |
+| --------------------- | -------------------: | ------------------------------------------ |
+| `API_RATE_LIMITER`    |                1,200 | Cloudflare-supplied client address         |
+| `AUTH_RATE_LIMITER`   |                   30 | Client address, OAuth/sign-in routes       |
+| `WRITE_RATE_LIMITER`  |                  600 | Authenticated user id, account data writes |
+| `HEALTH_RATE_LIMITER` |                    1 | Client address, `GET /api/health/deep`     |
 
 Counters are approximate and local to a Cloudflare location; they are abuse controls, not strict
 billing quotas. Requests denied by the limiter return `429` and `Retry-After: 60`. Missing or failing
@@ -186,7 +186,7 @@ until the same-file retry, activity deletion, or file-retention opt-out. This pr
 retries from freeing quota that another upload still needs. The activity response reports a stored
 file only after finalization. Original uploads are capped at 50 MiB. Body reads have a 15-second
 idle timeout and a two-minute total limit, and release readers on all exit paths.
-The branch's per-user UTC daily budgets allow 2,000 new activities and 2,000 original-file uploads,
+Per-user UTC daily budgets allow 2,000 new activities and 2,000 original-file uploads,
 with a separate 1,000 authenticated reads, 50 profile writes, 50 activity deletes and 50 file
 downloads. Contract constants and detailed behavior are listed in
 [LIMITS.md](../apps/api/LIMITS.md).
@@ -253,11 +253,10 @@ file downloads. Both surfaces set nosniff, framing and referrer controls. Header
 covered by the Worker browser smoke test. See Cloudflare's
 [static-asset headers documentation](https://developers.cloudflare.com/workers/static-assets/headers/).
 
-Cloudflare's `_headers` syntax allows only a trailing `*`, so `/assets/*` cannot be narrowed to
-JavaScript and CSS files. The single-page fallback answers an unknown `/assets/...` path with
-`index.html`, and that response also receives the one-year immutable cache header. The risk is
-limited to a URL nothing links to, which a browser caches once. Removing it would need the Worker
-to answer missing `/assets/` paths with 404, which the current asset routing does not do.
+Cloudflare's `_headers` syntax allows only a trailing `*`, so the `/assets/*` rule also matches
+missing `/assets/` paths. Such a path is not answered with `index.html`: the web app has no
+client-side routes and `not_found_handling` is `none`. The Worker answers it with a plain-text 404
+that sends `Cache-Control: no-store` (`apps/api/src/app.ts`).
 
 API responses include `X-Request-ID`. Unexpected-error logs contain that id and the exception
 class; they do not include request bodies, query strings, original files, tokens, or raw database
@@ -266,12 +265,25 @@ request/body logging around personal activity files or OAuth callbacks.
 
 ## Observability
 
-- **External uptime probe (source only).** `.github/workflows/uptime.yml` defines a 15-minute probe
-  from GitHub-hosted runners, independent of the Worker. It checks `/api/health`,
-  `/api/health/deep`, the web app, and the Google sign-in redirect's `redirect_uri`. Each check gets
-  one retry after 20 seconds. A failure opens or updates an issue labelled `outage`; the next
-  passing run closes open outage issues. This workflow has not been enabled from the default branch,
-  so no active monitor is claimed.
+- **External uptime probe.** `.github/workflows/uptime.yml` probes from GitHub-hosted runners every 15
+  minutes, independent of the Worker. It checks `/api/health`, `/api/health/deep`, the web app's `/`,
+  and the Google sign-in redirect's `redirect_uri`. Each check gets one retry after 20 seconds. A
+  failing run opens or updates an issue labelled `outage` and fails. A passing run closes open outage
+  issues. Scheduled runs happen only when the repository variable `RCA_UPTIME_ENABLED` is `true`.
+- **Skipped deep check.** Once the deployment's daily deep-health budget is spent, the API answers
+  `/api/health/deep` with 200 and `"deep":"skipped"` rather than probing D1 and R2. The probe records this as
+  a warning annotation (`Deep health skipped`) and neither opens nor closes an outage issue because of it.
+  The run still passes or fails on the other checks. A skipped deep check therefore leaves D1 and R2 unmeasured
+  until the budget resets at 00:00 UTC, so an operator should check the Worker dashboard. A failing deep check
+  (a 503) still opens an outage issue, and the budget is shared by all callers, so the warning can also come
+  from someone else's requests.
+- **Probe origin.** The repository variable `PRODUCTION_ORIGIN` sets the origin the probe checks, with
+  no trailing slash. When it is not set, the probe uses `https://rca-api.nutritioncoachapp.workers.dev`.
+- **Testing the outage path.** Start the Uptime workflow by hand with `simulate_outage` set to `true`.
+  The probe then targets `https://simulated-outage.invalid`, which does not resolve, so the run should
+  fail and open an outage issue. Then start it by hand with `simulate_outage` set to `false`. If
+  production is healthy, the probe passes and closes the open outage issues. The input has no effect on
+  scheduled runs.
 - **Limits of that probe.** GitHub may delay or skip scheduled runs under load. GitHub also disables
   scheduled workflows in public repositories after 60 days without repository activity, so an
   occasional commit or a manual run keeps it active. The probe sees only what a public client sees;
@@ -283,10 +295,10 @@ request/body logging around personal activity files or OAuth callbacks.
 
 ## Live verification, historical (22 October 2026)
 
-The live verification below was recorded for runtime commit `493ce15`, served by Worker version
-`1143a60d-5562-43c2-95a2-4807b9073c93`. Commit `310264a` later recorded
-operations documentation and tooling without runtime changes. This subsection preserves that
-earlier evidence; the release-state section above records the current deployment.
+The live verification below was recorded for an earlier runtime version. Its commit and Worker
+version identifiers are omitted, because this document does not track the live version. This section
+preserves that earlier evidence. The release state section at the top describes the current
+deployment.
 
 The deployment ran with production D1, the private Standard-class `rca-files` bucket,
 rate-limit bindings and Google secrets. Public `r2.dev` access was disabled. Workers and D1 remain
@@ -324,9 +336,9 @@ basic-identity Testing exception and the separate public-brand requirements.
 
 ### Backup workflow source
 
-`.github/workflows/backup.yml` defines a daily 04:05 UTC backup and a manual trigger. It is source
-only at this review: no age recipient/key, backup environment secrets or remote workflow setup were
-configured, and no active or verified backup job is claimed. Its intended steps are:
+`.github/workflows/backup.yml` runs a backup every day at 04:05 UTC, and it can be started by hand at
+any time. Scheduled runs happen only when the repository variable `RCA_BACKUP_ENABLED` is `true`. A
+run has these steps:
 
 1. refuses to run unless `ops/backup-recipient.txt` holds a real age public key;
 2. exports the production D1 database with `wrangler d1 export rca --remote`, and checks it with the
@@ -362,21 +374,36 @@ restored database lacks their references.
   reconciling them.
 - **Anything after the backup time.** Changes after the newest backup are lost.
 
-When configured, backups hold sessions (as hashes), account identifiers, email addresses and
-activity summaries, and are deleted after 90 days.
+A backup holds the whole D1 database: account identifiers, email addresses, session hashes and activity
+summaries. It also holds the manifest of original-file objects. Each archive is kept as a GitHub
+Actions artifact for 90 days and then deleted. Data deleted from the app can remain in backups until
+those backups expire.
 
 ### Setting up backups (owner)
 
-1. Generate an age key pair on your own machine with `age-keygen`. Put the public key in
-   `ops/backup-recipient.txt` and commit it. Store the private key offline. Until this is done, the
-   workflow fails before exporting anything.
-2. Create a Cloudflare API token for backups, separate from the deploy token: Account, D1, Edit, and
-   Account Settings, Read. Create an R2 API token with Object Read on `rca-files`, and note its access
-   key ID and secret.
-3. Create a GitHub environment named `backup` (no reviewers, because scheduled runs cannot be
-   approved). Restrict it to the `main` branch. Store `CLOUDFLARE_BACKUP_API_TOKEN`,
-   `CLOUDFLARE_ACCOUNT_ID`, `R2_BACKUP_ACCESS_KEY_ID` and `R2_BACKUP_SECRET_ACCESS_KEY` as its
-   secrets.
+This section also covers the uptime probe. Complete the steps in order. Set the two enabling variables
+last, because they start scheduled runs.
+
+1. **Create the environments.** In **Settings**, then **Environments**, create `production`, with the
+   owner as required reviewer and deployment branches limited to `main`. Create `backup`, with no
+   reviewers, because scheduled runs cannot wait for approval, and deployment branches limited to
+   `main`.
+2. **Add the environment secrets.**
+   - `production`: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, for the deploy workflow.
+   - `backup`: `CLOUDFLARE_BACKUP_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `R2_BACKUP_ACCESS_KEY_ID` and
+     `R2_BACKUP_SECRET_ACCESS_KEY`. The backup token is separate from the deploy token, with Account,
+     D1, Edit, and Account Settings, Read. The R2 token needs Object Read on `rca-files`.
+3. **Create the age key pair** on your own machine, never in CI, with `age-keygen -o backup-key.txt`.
+   Copy the public key (the line starting `age1`) onto the placeholder line in
+   `ops/backup-recipient.txt`, and commit it through a pull request. Check it with
+   `node scripts/ops/check-backup-recipient.mjs ops/backup-recipient.txt`. Until a valid key is
+   present, the backup workflow stops before exporting anything. Store `backup-key.txt`, which holds
+   the private key, offline and separately. Never add it to the repository or to GitHub secrets. Without
+   it, no backup can be decrypted.
+4. **Set the probe origin** (optional). If the uptime probe should check an origin other than the
+   default, set the repository variable `PRODUCTION_ORIGIN`, without a trailing slash.
+5. **Enable.** Set the repository variables `RCA_BACKUP_ENABLED` and `RCA_UPTIME_ENABLED` to `true`.
+   Do this last. Manual runs of either workflow are available at any time.
 
 ### Isolated manual check
 

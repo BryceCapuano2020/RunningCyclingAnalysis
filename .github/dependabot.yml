@@ -4,7 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    # Updates are reviewed and committed directly to main; CI still audits dependencies.
+    # No routine version-update PRs. Security updates arrive as PRs through the normal PR gate,
+    # and CI audits dependencies on every run.
     open-pull-requests-limit: 0
     groups:
       production-dependencies:

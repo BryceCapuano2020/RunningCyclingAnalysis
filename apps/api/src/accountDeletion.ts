@@ -1,7 +1,7 @@
 import type { Bindings } from './env.ts'
 import { HttpError } from './errors.ts'
 import type { Deps } from './deps.ts'
-import { sweepUserFiles } from './storage.ts'
+import { recordDatabaseSize, sweepUserFiles } from './storage.ts'
 
 /**
  * Starts an account deletion. The account stops accepting writes and sign-ins at once, and a
@@ -66,7 +66,12 @@ export async function finishAccountDeletion(
 
   try {
     if (sweep) await sweepBeforeDelete(env, deps, userId)
-    await db.prepare('DELETE FROM pending_account_deletions WHERE user_id = ?').bind(userId).run()
+    const cleared = await db
+      .prepare('DELETE FROM pending_account_deletions WHERE user_id = ?')
+      .bind(userId)
+      .run()
+    // The account's rows are gone, so the size after this statement is the size without them.
+    await recordDatabaseSize(db, deps.now(), cleared.meta.size_after)
   } catch (error) {
     console.error(
       JSON.stringify({ event: 'account_deletion_left_pending', errorClass: errorClass(error) }),

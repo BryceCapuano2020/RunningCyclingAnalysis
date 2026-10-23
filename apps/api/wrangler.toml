@@ -59,9 +59,12 @@ bucket_name = "rca-files"
 ENVIRONMENT = "production"
 APP_URL = "https://rca-api.nutritioncoachapp.workers.dev"
 
-# Requests under /api run the Worker; everything else is served from the built web app. The web app
-# has no client-side routes, so an unknown path (including a missing /assets/ file) is a plain 404
-# from the asset platform, not index.html, and it never reaches the Worker or its request quota.
+# Requests under /api always run the Worker. Other requests are served from the built web app when a
+# file matches. The web app has no client-side routes and not_found_handling is "none", so nothing
+# falls back to index.html. A path that matches no file (including a missing /assets/ file) falls
+# through to the Worker, which returns a 404: JSON for other paths, plain text under /assets/ (see
+# apps/api/src/app.ts). Those requests run the Worker, so they count toward the daily request quota.
+# They are not counted by API_RATE_LIMITER, which is applied only to /api/* (app.ts, rateLimit.ts).
 # The directory is relative to this file. `npm run build` must have run first.
 [assets]
 directory = "../web/dist"

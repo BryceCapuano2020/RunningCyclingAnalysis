@@ -28,6 +28,12 @@ it('uses the same finite prior fallback for equivalent pace when heart-rate evid
   }
 })
 
+it('prices equivalent run speed from 4000 draws by default', () => {
+  expect(equivalentRunSpeed(240, 75, null)).toEqual(
+    equivalentRunSpeed(240, 75, null, { draws: 4000 }),
+  )
+})
+
 it('never mixes stored digests from an older model revision into current results', () => {
   const current = digests[0]!
   const stale = { ...current, modelRevision: 1 }

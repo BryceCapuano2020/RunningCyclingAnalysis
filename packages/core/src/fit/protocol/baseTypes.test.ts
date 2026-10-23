@@ -34,6 +34,11 @@ describe('base types', () => {
     expect(readField(view([0xfe, 0xff, 0xff, 0xff]), 0, 4, BASE.sint32, true)).toBe(-2)
   })
 
+  it('reads a uint16z field in the byte order of its message', () => {
+    expect(readField(view([0x01, 0x00]), 0, 2, BASE.uint16z, false)).toBe(0x0100)
+    expect(readField(view([0x00, 0x01]), 0, 2, BASE.uint16z, true)).toBe(0x0100)
+  })
+
   it('reads an array field as its first element', () => {
     expect(readField(view([7, 8, 9, 10]), 0, 4, BASE.uint8, true)).toBe(7)
   })

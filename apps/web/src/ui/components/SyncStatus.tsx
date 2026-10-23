@@ -45,6 +45,14 @@ function issueSentence({ code, count }: SyncIssue): string {
       return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then re-import ${them}.`
     case 'account-deleting':
       return `This account is being deleted, so ${activities} ${wereOrWas} not saved. Account deletion must finish before you can sign in again.`
+    case 'digest-quota':
+      return 'Your saved analyses have reached the storage limit. Delete some saved activities to save more.'
+    case 'database-full':
+      return 'Saving is paused because the service is near its storage capacity. Your analysis still works on this device.'
+    case 'activity-conflict':
+      return count === 1
+        ? 'This workout is already saved from a different file. Delete the saved copy first to replace it.'
+        : `${count} workouts are already saved from different files. Delete the saved copies first to replace them.`
     case 'network':
       return `${activities} ${wereOrWas} not fully saved because the connection dropped. Re-import ${them} to retry.`
     case 'server':

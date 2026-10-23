@@ -34,6 +34,8 @@ export type WorkerResponse =
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   | { type: 'libraryActivities'; activities: SavedActivity[] }
+  /** Stored activities the server could not read in the last library load, sent when above zero. */
+  | { type: 'libraryUnreadable'; count: number }
   /** The import stopped because the account ended or changed. Sent before its state. */
   | { type: 'accountIssue'; issue: SyncIssueCode }
   | { type: 'state'; state: SessionState; outcome?: ImportOutcome }
@@ -43,6 +45,12 @@ export type WorkerResponse =
       rebuilt: number
       missing: number
       failed: number
+      /** Stale activities skipped at a daily or rate limit; try again after the limit resets. */
+      limited: number
+      /** Which limit stopped the rebuild: the daily download limit wins over a plain rate limit. */
+      limitKind: 'daily' | 'rate' | null
+      /** When the limit resets, in epoch ms; null when no limit was reached. */
+      limitResetsAtMs: number | null
     }
   /** `issue` is set when the failure means the account ended or changed, so the app can act on it. */
   | { type: 'error'; message: string; issue?: SyncIssueCode }

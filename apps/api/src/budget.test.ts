@@ -166,16 +166,16 @@ describe('daily budgets', () => {
     expect(await deletion.json()).toMatchObject({ error: { code: 'daily_limit' } })
   })
 
-  it('caps authenticated reads at 1,000 a day across the activity list and /api/me', async () => {
+  it('caps library listings at the daily read limit but never charges /api/me', async () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
     await setUsed(h, uid, 'read', DAILY_LIMITS.read)
     const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
-    expect(me.status).toBe(429)
-    expect(await me.json()).toMatchObject({ error: { code: 'daily_limit' } })
+    expect(me.status).toBe(200)
     const list = await h.send({ path: '/api/activities', cookies: { rca_session: token } })
     expect(list.status).toBe(429)
+    expect(await list.json()).toMatchObject({ error: { code: 'daily_limit' } })
   })
 
   it('allows 2,000 activity creates a day rather than the 50 used for other actions', async () => {

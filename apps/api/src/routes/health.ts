@@ -34,6 +34,9 @@ export const healthRoutes = new Hono<AppEnv>()
 /**
  * Deep health: D1 answers SELECT 1 and R2 answers a HEAD. 200 when both pass, 503 otherwise, with
  * a JSON body of per-check timings. Rate limited on its own, and never cached.
+ *
+ * When the global probe budget is spent the deep check is skipped with 200, not failed: the uptime
+ * monitor probes this route, and a spent budget is not an outage. Shallow /api/health still decides.
  */
 healthRoutes.get('/deep', healthRateLimit, async (c) => {
   const { deps } = c.var
@@ -41,13 +44,26 @@ healthRoutes.get('/deep', healthRateLimit, async (c) => {
     await c.env.DB.prepare('SELECT 1').first()
   })
   const files = c.env.FILES
+  let budgetSpent = false
   const r2 = files
     ? await timed(async () => {
-        await reserveHealthProbe(c.env.DB, deps.now())
+        try {
+          await reserveHealthProbe(c.env.DB, deps.now())
+        } catch (error) {
+          if (error instanceof HttpError && error.code === 'health_probe_limit') {
+            budgetSpent = true
+            return
+          }
+          throw error
+        }
         await files.head(HEALTH_SENTINEL_KEY)
       })
     : { ok: false, ms: 0 }
-  const healthy = d1.ok && r2.ok
   c.header('Cache-Control', 'no-store')
+  // A spent probe budget only skips this check. A failing D1 check is still reported as an outage.
+  if (budgetSpent && d1.ok) {
+    return c.json({ status: 'ok', deep: 'skipped', reason: 'deep health budget reached' }, 200)
+  }
+  const healthy = d1.ok && r2.ok
   return c.json({ status: healthy ? 'ok' : 'unavailable', checks: { d1, r2 } }, healthy ? 200 : 503)
 })

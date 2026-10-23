@@ -341,6 +341,20 @@ describe('Dropzone', () => {
     expect(screen.getByText('Analysing')).toHaveAttribute('aria-hidden', 'true')
   })
 
+  it('shows why busy imports are waiting, instead of saying it is analysing', () => {
+    renderDropzone({ busy: true, progress: null, waiting: 'Waiting for your library to load' })
+    expect(screen.getByText('Waiting for your library to load')).toBeInTheDocument()
+    expect(screen.queryByText('Analysing')).not.toBeInTheDocument()
+  })
+
+  it('announces the reason when an import starts waiting', () => {
+    const { rerender } = render(<Dropzone {...baseProps()} />)
+    rerender(
+      <Dropzone {...baseProps()} busy progress={null} waiting="Waiting for your library to load" />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting for your library to load')
+  })
+
   it('says it is analysing when busy with zero files read', () => {
     renderDropzone({ busy: true, progress: 0 })
     expect(screen.getByText('Analysing')).toBeInTheDocument()

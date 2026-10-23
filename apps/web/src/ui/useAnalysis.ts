@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { DAILY_LIMITS } from '@rca/contract'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type {
@@ -12,24 +13,67 @@ import type { AccountController, AccountStatus } from './useAccount'
 /** 'loaded' is the only state in which an import may be sent to the signed-in library. */
 export type LibraryStatus = 'idle' | 'loading' | 'loaded' | 'failed'
 
+const WAITING_FOR_LIBRARY = 'Waiting for your library to load'
+const LIBRARY_NOT_LOADED =
+  'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
+const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'
+const INTERRUPTED = 'Your import was interrupted. Add the files again.'
+const DAILY_LIMIT =
+  'You have reached the daily limit for this account. The limit resets at 00:00 UTC.'
+const DELETE_DAILY_LIMIT = `You can delete up to ${DAILY_LIMITS.activityDelete} activities per day. The limit resets at 00:00 UTC.`
+const LIBRARY_DAILY_LIMIT = `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`
+
+/** The sentence for saved activities a rebuild could not reach because of a limit. */
+function limitedSentence(
+  count: number,
+  kind: 'daily' | 'rate' | null,
+  resetsAtMs: number | null,
+): string {
+  const noun = count === 1 ? 'activity was' : 'activities were'
+  if (kind === 'rate') {
+    return `${count} ${noun} not rebuilt. The server asked us to slow down; try again in a minute.`
+  }
+  const resetText =
+    resetsAtMs === null
+      ? 'Try again later.'
+      : `Try again after ${new Date(resetsAtMs).toLocaleString()}.`
+  if (kind === 'daily') {
+    return `${count} ${noun} not rebuilt because the daily download limit (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetText}`
+  }
+  return `${count} ${noun} not rebuilt. ${resetText}`
+}
+
 export interface AnalysisController {
   state: SessionState
+  /** Import work is in progress or waiting. A library change such as a delete is not counted. */
   busy: boolean
+  /** Why held imports are waiting, or null when nothing is waiting. */
+  waitingReason: string | null
   /** Number of FIT files read so far during an import. */
   progress: number | null
   /** Number of files uploaded so far during an import that keeps files, otherwise null. */
   uploading: number | null
   error: string | null
+  /** The worker's reason for `error`, when the page words that error specially. */
+  errorIssue: SyncIssueCode | null
   workerStopped: boolean
   stop: () => void
   retryWorker: () => void
   libraryStatus: LibraryStatus
-  /** Reads the signed-in library again. Imports made meanwhile run once it has loaded. */
+  /** Reads the signed-in library again. Imports are not held for a failed load; they must be added again. */
   retryLibrary: () => void
   /** Saved activities whose original file is not in the library. */
   missingOriginals: number
+  /** Stored activities the server could not read in the last library load, and so are hidden. */
+  libraryUnreadable: number
   importOutcome: ImportOutcome | null
   savedActivities: SavedActivity[]
+  /** A library change in progress. It does not make the import dropzone busy. */
+  libraryAction: 'deleting' | null
+  /** Confirms the last library change. */
+  libraryNotice: string | null
+  /** Says why the last library change failed. */
+  libraryError: string | null
   deleteActivity: (id: string) => void
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
@@ -56,9 +100,15 @@ const EMPTY: SessionState = {
   incompatibleActivities: 0,
 }
 
-/** A request the worker has not answered yet. */
+/** A request the worker has not answered yet. `notice` is the confirmation shown on success. */
 interface Pending {
   kind: WorkerRequest['type']
+  notice?: string
+}
+
+interface ErrorNotice {
+  message: string
+  issue: SyncIssueCode | null
 }
 
 /**
@@ -75,9 +125,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   const previousStatusRef = useRef<AccountStatus>('loading')
   const previousUserIdRef = useRef<string | null>(null)
   const workerGenerationRef = useRef(0)
+  // Set when the worker has stopped for good. Imports are refused, not queued, until a restart.
+  const stoppedRef = useRef(false)
   // Requests made while there is no worker (during a restart) wait here, in order.
   const unsentRef = useRef<WorkerRequest[]>([])
-  const pendingRef = useRef(0)
   const pendingRepliesRef = useRef<Pending[]>([])
   const pendingAsyncImportsRef = useRef(0)
   // A file dropped before the account is known must not be analysed and then overwritten by the
@@ -87,19 +138,31 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   // an import would replace the whole library with only the new files.
   const libraryWaitRef = useRef<File[][]>([])
   const libraryStatusRef = useRef<LibraryStatus>('idle')
+  const savedActivitiesRef = useRef<SavedActivity[]>([])
   const automaticRestartCountRef = useRef(0)
   const [state, setState] = useState<SessionState>(EMPTY)
   const [busy, setBusy] = useState(false)
+  const [waitingReason, setWaitingReason] = useState<string | null>(null)
   const [progress, setProgress] = useState<AnalysisController['progress']>(null)
   const [uploading, setUploading] = useState<AnalysisController['uploading']>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [errorNotice, setErrorNotice] = useState<ErrorNotice | null>(null)
   const [workerStopped, setWorkerStopped] = useState(false)
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('idle')
+  const [libraryAction, setLibraryAction] = useState<AnalysisController['libraryAction']>(null)
+  const [libraryNotice, setLibraryNotice] = useState<string | null>(null)
+  const [libraryError, setLibraryError] = useState<string | null>(null)
   const [missingOriginals, setMissingOriginals] = useState(0)
+  const [libraryUnreadable, setLibraryUnreadable] = useState(0)
   const [importOutcome, setImportOutcome] = useState<ImportOutcome | null>(null)
   const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([])
   const [workerGeneration, setWorkerGeneration] = useState(0)
+
+  const setError = useCallback((message: string | null, issue: SyncIssueCode | null = null) => {
+    setErrorNotice(message === null ? null : { message, issue })
+  }, [])
+  const error = errorNotice?.message ?? null
+  const errorIssue = errorNotice?.issue ?? null
 
   // Keep the latest committed account available to async import preparation without waiting for
   // the account-transition effect to run.
@@ -107,9 +170,15 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     accountRef.current = account
   }, [account])
 
+  useLayoutEffect(() => {
+    savedActivitiesRef.current = savedActivities
+  }, [savedActivities])
+
   const restartWorker = useCallback(() => {
     const next = workerGenerationRef.current + 1
     workerGenerationRef.current = next
+    // A new worker runs nothing that was refused while the old one was stopped.
+    stoppedRef.current = false
     setWorkerGeneration(next)
   }, [])
 
@@ -118,27 +187,54 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setLibraryStatus(next)
   }, [])
 
-  /** Busy while a request is outstanding or an import is still being prepared. */
+  /** Recomputes what the page shows as busy, waiting, and in a library change. */
   const refreshBusy = useCallback(() => {
+    const replies = pendingRepliesRef.current
+    setLibraryAction(
+      replies.some((pending) => pending.kind === 'deleteActivity') ? 'deleting' : null,
+    )
     setBusy(
-      pendingRef.current > 0 ||
+      replies.some((pending) => pending.kind !== 'deleteActivity') ||
         pendingAsyncImportsRef.current > 0 ||
-        deferredImportsRef.current.length > 0,
+        deferredImportsRef.current.length > 0 ||
+        libraryWaitRef.current.length > 0,
+    )
+    setWaitingReason(
+      libraryWaitRef.current.length > 0 || deferredImportsRef.current.length > 0
+        ? WAITING_FOR_LIBRARY
+        : null,
     )
   }, [])
 
-  const send = useCallback((request: WorkerRequest) => {
-    const worker = workerRef.current
-    if (worker === null) {
-      unsentRef.current.push(request)
-      return
-    }
-    pendingRef.current += 1
-    pendingRepliesRef.current.push({ kind: request.type })
-    setBusy(true)
-    if (request.type !== 'loadServer') setError(null)
-    worker.postMessage(request)
-  }, [])
+  const send = useCallback(
+    (request: WorkerRequest, notice?: string) => {
+      const worker = workerRef.current
+      if (worker === null) {
+        // Once the worker has stopped for good, nothing is queued for a later restart, so the
+        // user is told to act again. Settings still queue: they must reach the next worker.
+        if (stoppedRef.current && request.type !== 'setSettings') {
+          setError(STOPPED)
+          return
+        }
+        unsentRef.current.push(request)
+        return
+      }
+      pendingRepliesRef.current.push({ kind: request.type, notice })
+      refreshBusy()
+      if (request.type !== 'loadServer') setError(null)
+      // A new import or rebuild replaces the outcome of the last library change.
+      if (request.type === 'addFiles' || request.type === 'rebuildStale') {
+        setLibraryNotice(null)
+        setLibraryError(null)
+      }
+      // A library load or rebuild reports the unreadable count afresh, so an old one is cleared.
+      if (request.type === 'loadServer' || request.type === 'rebuildStale') {
+        setLibraryUnreadable(0)
+      }
+      worker.postMessage(request)
+    },
+    [refreshBusy, setError],
+  )
 
   const flushUnsent = useCallback(() => {
     for (const request of unsentRef.current.splice(0)) send(request)
@@ -151,6 +247,31 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     },
     [send, setLibrary],
   )
+
+  /** Imports wait for a loading library; otherwise there is no library for them to join. */
+  const holdForLibrary = useCallback(
+    (files: File[]) => {
+      if (libraryStatusRef.current === 'loading') {
+        libraryWaitRef.current.push(files)
+        refreshBusy()
+      } else {
+        setError(LIBRARY_NOT_LOADED)
+      }
+    },
+    [refreshBusy, setError],
+  )
+
+  /**
+   * Marks the library failed. Imports held for it cannot run later, so they are dropped. Returns
+   * whether any were dropped; the caller words that, so a worker-stopped message is not replaced.
+   */
+  const failLibrary = useCallback(() => {
+    setLibrary('failed')
+    const dropped = libraryWaitRef.current.length > 0
+    libraryWaitRef.current = []
+    refreshBusy()
+    return dropped
+  }, [refreshBusy, setLibrary])
 
   const queueSignedInImport = useCallback(
     (files: File[], submittedUserId: string) => {
@@ -168,8 +289,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
           const savedMe = flushProfileWrites ? await flushProfileWrites() : submittedAccount.me
           const current = accountRef.current
           if (workerGenerationRef.current !== generation) {
-            if (accountEpochRef.current !== accountEpoch && current.status !== 'loading') {
-              setError('The account changed before this import started. Select the files again.')
+            if (accountEpochRef.current !== accountEpoch) {
+              if (current.status !== 'loading') {
+                setError('The account changed before this import started. Select the files again.')
+              }
+            } else {
+              // Keep a message that is already shown, such as a stop, rather than replacing it.
+              setErrorNotice((notice) => notice ?? { message: INTERRUPTED, issue: null })
             }
             return
           }
@@ -182,8 +308,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
             return
           }
           if (libraryStatusRef.current !== 'loaded') {
-            // The library is reloading or failed to load; hold the import until it has loaded.
-            libraryWaitRef.current.push(files)
+            holdForLibrary(files)
             return
           }
           send({
@@ -213,7 +338,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         }
       })()
     },
-    [refreshBusy, send],
+    [holdForLibrary, refreshBusy, send, setError],
   )
 
   /** Reloads the account's library after the server reports a different account for it. */
@@ -250,16 +375,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         return
       }
       if (current.status === 'signed-in' && current.me !== null) {
-        if (libraryStatusRef.current === 'loaded') {
-          queueSignedInImport(files, current.me.user.id)
-        } else {
-          libraryWaitRef.current.push(files)
-        }
+        if (libraryStatusRef.current === 'loaded') queueSignedInImport(files, current.me.user.id)
+        else holdForLibrary(files)
         return
       }
       send({ type: 'addFiles', files, settings: settingsRef.current, sync: null })
     },
-    [queueSignedInImport, refreshBusy, send],
+    [holdForLibrary, queueSignedInImport, refreshBusy, send],
   )
 
   useEffect(() => {
@@ -283,22 +405,39 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         setSavedActivities(message.activities)
         return
       }
+      if (message.type === 'libraryUnreadable') {
+        setLibraryUnreadable(message.count)
+        return
+      }
       if (message.type === 'accountIssue') {
         handleAccountIssue(message.issue)
         return
       }
-      // Replies arrive in request order; stay busy until the last outstanding one.
+      // Replies arrive in request order; the first pending request is the one this answers.
       const pending = pendingRepliesRef.current.shift()
-      pendingRef.current = Math.max(0, pendingRef.current - 1)
       refreshBusy()
       automaticRestartCountRef.current = 0
       setWorkerStopped(false)
       setProgress(null)
       setUploading(null)
       if (message.type === 'error') {
-        // A failed library load is shown by its own message, not as a generic error.
-        if (pending?.kind === 'loadServer') setLibrary('failed')
-        else setError(message.message)
+        if (pending?.kind === 'loadServer') {
+          const dropped = failLibrary()
+          if (message.issue === 'daily-limit') setError(LIBRARY_DAILY_LIMIT, 'daily-limit')
+          else if (dropped) setError(LIBRARY_NOT_LOADED)
+        } else if (pending?.kind === 'deleteActivity') {
+          setLibraryError(
+            message.issue === 'daily-limit'
+              ? DELETE_DAILY_LIMIT
+              : `Could not delete the activity. ${message.message}`,
+          )
+        } else if (message.issue === 'daily-limit') {
+          // A rebuild fails outright only when its first library listing is refused.
+          setError(
+            pending?.kind === 'rebuildStale' ? LIBRARY_DAILY_LIMIT : DAILY_LIMIT,
+            'daily-limit',
+          )
+        } else setError(message.message)
         if (message.issue !== undefined) handleAccountIssue(message.issue)
         return
       }
@@ -309,7 +448,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
           setLibrary('loaded')
           // Imports made while the library loaded join it now, in the order they were made.
           for (const files of libraryWaitRef.current.splice(0)) addFiles(files)
+          refreshBusy()
         }
+        if (pending?.kind === 'deleteActivity') setLibraryNotice(pending.notice ?? null)
         return
       }
       const notice = [
@@ -325,11 +466,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
           `${message.failed} could not be rebuilt; try again when the server is available.`,
         )
       }
+      if (message.limited > 0) {
+        notice.push(limitedSentence(message.limited, message.limitKind, message.limitResetsAtMs))
+      }
       setRebuildNotice(notice.join(' '))
     }
     worker.onerror = (event) => {
       if (generation !== workerGenerationRef.current) return
-      pendingRef.current = 0
       pendingRepliesRef.current = []
       refreshBusy()
       setProgress(null)
@@ -354,8 +497,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       } else {
         worker.terminate()
         workerRef.current = null
+        stoppedRef.current = true
         setWorkerStopped(true)
-        if (current.status === 'signed-in') setLibrary('failed')
+        if (current.status === 'signed-in') failLibrary()
       }
     }
     workerRef.current = worker
@@ -363,7 +507,6 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     return () => {
       worker.terminate()
       workerRef.current = null
-      pendingRef.current = 0
       pendingRepliesRef.current = []
       // In React StrictMode, effects are cleaned up and set up again on mount. The first
       // worker is terminated, so its initial account-load request must be sent to the new one.
@@ -371,11 +514,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       previousUserIdRef.current = null
     }
   }, [
+    failLibrary,
     flushUnsent,
     handleAccountIssue,
     addFiles,
     refreshBusy,
     restartWorker,
+    setError,
     setLibrary,
     workerGeneration,
   ])
@@ -402,6 +547,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       // that were waiting for the library are analysed locally.
       accountEpochRef.current += 1
       setLibrary('idle')
+      setLibraryNotice(null)
+      setLibraryError(null)
       for (const files of libraryWaitRef.current.splice(0)) addFiles(files)
       return
     }
@@ -413,7 +560,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       deferredImportsRef.current = []
       libraryWaitRef.current = []
       unsentRef.current = []
-      setBusy(pendingAsyncImportsRef.current > 0)
+      // The old worker's replies are ignored by the generation check, so forget what it owes.
+      pendingRepliesRef.current = []
+      refreshBusy()
       setState(EMPTY)
       setProgress(null)
       setUploading(null)
@@ -423,8 +572,11 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
           : null,
       )
       setRebuildNotice(null)
+      setLibraryNotice(null)
+      setLibraryError(null)
       setWorkerStopped(false)
       setMissingOriginals(0)
+      setLibraryUnreadable(0)
       setSavedActivities([])
       setImportOutcome(null)
       setLibrary('idle')
@@ -460,7 +612,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     sessionExpired,
     addFiles,
     loadLibrary,
+    refreshBusy,
     restartWorker,
+    setError,
     setLibrary,
     workerGeneration,
   ])
@@ -473,7 +627,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       return
     }
     send({ type: 'loadSample', settings: settingsRef.current })
-  }, [send])
+  }, [send, setError])
   const setRange = useCallback(
     (rangeDays: number | null) =>
       send({ type: 'setRange', rangeDays, settings: settingsRef.current }),
@@ -495,11 +649,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   }, [send])
   const stop = useCallback(() => {
     pendingRepliesRef.current = []
-    pendingRef.current = 0
     deferredImportsRef.current = []
     libraryWaitRef.current = []
     unsentRef.current = []
-    setBusy(false)
+    refreshBusy()
     setProgress(null)
     setUploading(null)
     setState(EMPTY)
@@ -512,13 +665,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         : 'Analysis stopped. Re-import your files to continue.',
     )
     restartWorker()
-  }, [restartWorker])
+  }, [refreshBusy, restartWorker, setError])
   const retryWorker = useCallback(() => {
     setWorkerStopped(false)
     automaticRestartCountRef.current = 0
     setError(null)
     restartWorker()
-  }, [restartWorker])
+  }, [restartWorker, setError])
   const retryLibrary = useCallback(() => {
     const current = accountRef.current
     if (current.status !== 'signed-in' || current.me === null) return
@@ -535,12 +688,20 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         libraryStatusRef.current !== 'loaded'
       )
         return
-      send({
-        type: 'deleteActivity',
-        id,
-        userId: current.me.user.id,
-        settings: settingsRef.current,
-      })
+      if (workerRef.current === null) {
+        setLibraryError(STOPPED)
+        return
+      }
+      const activity = savedActivitiesRef.current.find((saved) => saved.id === id)
+      const notice = activity
+        ? `Deleted ${activity.name} (${new Date(activity.startMs).toLocaleDateString()}).`
+        : 'Deleted the activity.'
+      setLibraryNotice(null)
+      setLibraryError(null)
+      send(
+        { type: 'deleteActivity', id, userId: current.me.user.id, settings: settingsRef.current },
+        notice,
+      )
     },
     [send],
   )
@@ -548,17 +709,23 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   return {
     state,
     busy,
+    waitingReason,
     progress,
     uploading,
     error,
+    errorIssue,
     workerStopped,
     stop,
     retryWorker,
     libraryStatus,
     retryLibrary,
     missingOriginals,
+    libraryUnreadable,
     importOutcome,
     savedActivities,
+    libraryAction,
+    libraryNotice,
+    libraryError,
     deleteActivity,
     rebuildNotice,
     rebuildSavedActivities,

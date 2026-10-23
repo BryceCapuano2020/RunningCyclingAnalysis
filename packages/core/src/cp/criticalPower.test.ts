@@ -89,6 +89,12 @@ describe('fitCriticalPower', () => {
     expect(fitCriticalPower(curve)).toBeNull()
   })
 
+  it('keeps a fit whose wPrime is exactly zero', () => {
+    // The values are symmetric about their mean in 1 / durationS, so the slope is zero.
+    const curve = [point(200, 100), point(1200, 50), point(1200, 150), point(200, 100)]
+    expect(fitCriticalPower(curve)?.wPrime).toBeCloseTo(0, 9)
+  })
+
   it('returns null when cp is not positive', () => {
     const curve = synthetic([200, 300, 600, 1200], -100, 20000)
     expect(fitCriticalPower(curve)).toBeNull()

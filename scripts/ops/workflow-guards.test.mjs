@@ -34,3 +34,31 @@ test('deployment checks Worker secret names before applying migrations', async (
   assert.ok(secretCheck >= 0)
   assert.ok(migrations > secretCheck)
 })
+
+test('manual uptime runs can simulate an outage without reading inputs in shell steps', async () => {
+  const uptime = await workflow('uptime')
+  assert.match(
+    uptime,
+    /workflow_dispatch:\n {4}inputs:\n {6}simulate_outage:\n {8}description: [^\n]*\n(?: {10}[^\n]+\n)*? {8}type: boolean\n {8}default: false/,
+  )
+  assert.match(
+    uptime,
+    /ORIGIN: \$\{\{ inputs\.simulate_outage == true && 'https:\/\/simulated-outage\.invalid' \|\| vars\.PRODUCTION_ORIGIN/,
+  )
+  const steps = uptime.slice(uptime.indexOf('steps:'))
+  assert.doesNotMatch(steps, /\$\{\{\s*inputs\./)
+})
+
+test('a skipped deep health check warns and neither opens nor closes the outage issue', async () => {
+  const uptime = await workflow('uptime')
+  assert.match(uptime, /::warning title=Deep health skipped::/)
+  assert.match(uptime, /echo "deep=\$deep_state" >> "\$GITHUB_OUTPUT"/)
+  assert.match(
+    uptime,
+    /name: Close outage issues after recovery\n {8}if: steps\.probe\.outputs\.failed == 'false' && steps\.probe\.outputs\.deep != 'skipped'/,
+  )
+  assert.match(
+    uptime,
+    /name: Open or update the outage issue\n {8}if: steps\.probe\.outputs\.failed == 'true'/,
+  )
+})

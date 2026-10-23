@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
+import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { describe, expect, it } from 'vitest'
+import { schema } from './db/schema.ts'
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url)
-const PREVIOUS_SCHEMA_LAST = '0002_r2_storage_budget'
+const PREVIOUS_SCHEMA_LAST = '0003_budgets_deletion_indexes'
 
 function journalTags(): string[] {
   const journal = JSON.parse(readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8')) as {
@@ -37,6 +39,7 @@ describe('migrations', () => {
           ('a1', 'u1', 'ride-1', 'ride', 1000, 'One', 1, '{"x":1}', 'one.fit', 'h1', 'users/u1/a1', 100, 1),
           ('a2', 'u1', 'ride-2', 'ride', 2000, 'Two', 1, '{"x":2}', 'two.fit', 'h2', NULL, NULL, 2),
           ('a3', 'u1', 'run-3', 'run', 3000, 'Three', 1, '{"x":3}', 'three.fit', 'h3', 'users/u1/a3', 200, 3);
+        UPDATE users SET activity_count = 3 WHERE id = 'u1';
         UPDATE r2_storage_budget SET lifetime_put_bytes = 300, monthly_period = '2026-10',
           monthly_operations = 5 WHERE id = 1;
       `)
@@ -57,6 +60,18 @@ describe('migrations', () => {
         { deleting_at: null },
         { deleting_at: null },
       ])
+      // The digest counter starts at the bytes each user's existing rows already hold.
+      expect(db.prepare('SELECT id, digest_bytes FROM users ORDER BY id').all()).toEqual([
+        { id: 'u1', digest_bytes: 21 },
+        { id: 'u2', digest_bytes: 0 },
+      ])
+      expect(db.prepare('SELECT list_cursor FROM users').all()).toEqual([
+        { list_cursor: null },
+        { list_cursor: null },
+      ])
+      expect(db.prepare('SELECT d1_size_bytes FROM r2_storage_budget').get()).toEqual({
+        d1_size_bytes: 0,
+      })
       expect(
         db
           .prepare(
@@ -108,6 +123,33 @@ describe('migrations', () => {
         'upload_slots_expires_idx',
       ]) {
         expect(names).toContain(expected)
+      }
+    } finally {
+      db.close()
+    }
+  })
+})
+
+describe('schema', () => {
+  it('declares every column the migrated database has, with the same nullability', () => {
+    const db = new DatabaseSync(':memory:')
+    try {
+      db.exec('PRAGMA foreign_keys = ON')
+      for (const tag of journalTags()) applyMigration(db, tag)
+      for (const table of Object.values(schema)) {
+        const config = getTableConfig(table)
+        const declared = config.columns.map((column) => ({
+          name: column.name,
+          notNull: column.notNull,
+        }))
+        const migrated = (
+          db.prepare(`PRAGMA table_info(\`${config.name}\`)`).all() as {
+            name: string
+            notnull: number
+          }[]
+        ).map((column) => ({ name: column.name, notNull: column.notnull === 1 }))
+        const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
+        expect(declared.sort(byName), config.name).toEqual(migrated.sort(byName))
       }
     } finally {
       db.close()
