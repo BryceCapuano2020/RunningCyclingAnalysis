@@ -31,7 +31,7 @@ test('backup validates recipients with age before exporting account data', async
   const backup = await workflow('backup')
   const ageInstall = backup.indexOf('name: Install age')
   const recipientValidation = backup.indexOf(
-    'age -R ops/backup-recipient.txt -o /dev/null /dev/null',
+    'age -R ops/backup-recipient.txt < /dev/null > /dev/null',
   )
   const exportData = backup.indexOf('name: Export D1 and list R2 objects')
   assert.ok(ageInstall >= 0)
