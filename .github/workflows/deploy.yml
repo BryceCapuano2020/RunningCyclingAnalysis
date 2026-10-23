@@ -60,6 +60,7 @@ jobs:
           name: production-dist
           path: apps/web/dist
           retention-days: 7
+          include-hidden-files: true
           if-no-files-found: error
       - name: Keep the Playwright report when a suite fails
         if: failure()

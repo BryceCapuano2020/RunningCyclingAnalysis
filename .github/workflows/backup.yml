@@ -44,6 +44,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends age
           age --version
+      - name: Validate the recipient with age before exporting
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Parse the actual Bech32 key and prove encryption works using empty input. No account
+          # data or credentials are involved in this check.
+          age -R ops/backup-recipient.txt < /dev/null > /dev/null
       - name: Export D1 and list R2 objects into private temporary files
         shell: bash
         env:

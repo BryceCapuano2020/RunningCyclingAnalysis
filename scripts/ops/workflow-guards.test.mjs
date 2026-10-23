@@ -27,12 +27,38 @@ test('backup and uptime schedules are opt-in while manual dispatch remains avail
   assert.match(backup, /check-backup-recipient\.mjs/)
 })
 
+test('backup validates recipients with age before exporting account data', async () => {
+  const backup = await workflow('backup')
+  const ageInstall = backup.indexOf('name: Install age')
+  const recipientValidation = backup.indexOf(
+    'age -R ops/backup-recipient.txt < /dev/null > /dev/null',
+  )
+  const exportData = backup.indexOf('name: Export D1 and list R2 objects')
+  assert.ok(ageInstall >= 0)
+  assert.ok(recipientValidation > ageInstall)
+  assert.ok(exportData > recipientValidation)
+})
+
 test('deployment checks Worker secret names before applying migrations', async () => {
   const source = await workflow('deploy')
   const secretCheck = source.indexOf('node scripts/ops/check-worker-secrets.mjs')
   const migrations = source.indexOf('wrangler d1 migrations apply rca --remote')
   assert.ok(secretCheck >= 0)
   assert.ok(migrations > secretCheck)
+})
+
+test('CI and Deploy preserve hidden files in the static build artifact', async () => {
+  const ci = await workflow('ci')
+  const deploy = await workflow('deploy')
+  assert.match(
+    ci,
+    /name: dist\n\s+path: apps\/web\/dist\n\s+retention-days: 7\n\s+include-hidden-files: true/,
+  )
+  assert.match(
+    deploy,
+    /name: production-dist\n\s+path: apps\/web\/dist\n\s+retention-days: 7\n\s+include-hidden-files: true/,
+  )
+  assert.match(ci, /- run: npm run test:ops/)
 })
 
 test('manual uptime runs can simulate an outage without reading inputs in shell steps', async () => {

@@ -30,6 +30,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:deploy-config
+      - run: npm run test:ops
       - run: npm run test:coverage
       - run: npm run test:perf
       - run: npm run build
@@ -44,6 +45,7 @@ jobs:
           name: dist
           path: apps/web/dist
           retention-days: 7
+          include-hidden-files: true
 
   e2e:
     name: End-to-end (Playwright)

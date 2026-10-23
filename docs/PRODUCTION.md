@@ -150,7 +150,21 @@ Each existing migration was reviewed against this rule:
 | `0001_session_created_at`       | Adds `sessions.created_at` with default `0` and `NOT NULL`, and an index on `activities(user_id, created_at)`.                                                                                  | Older Workers insert sessions without naming the column, so the default fills it and their inserts still succeed. Side effect: a session created by an older Worker after this migration has `created_at = 0`, which the current Worker treats as already past its 90-day absolute lifetime. Those users sign in again. That is a forced sign-in, not data loss. Shipping the Worker promptly keeps that window short.                                   |
 | `0002_r2_storage_budget`        | Creates `r2_storage_budget` and inserts one ledger row initialized from the sum of `activities.file_size`.                                                                                      | Older Workers never read or write the table, so it is invisible to them. Limitation: an original uploaded through an older Worker after this migration and before the new Worker is live is not counted in the ledger. The Deploy workflow applies the migration and deploys in one run, so the window is minutes. The ledger also cannot reconstruct historical PUT retries; [Request isolation and limits](#request-isolation-and-limits) covers that. |
 | `0003_budgets_deletion_indexes` | Adds daily budgets, upload leases, account-deletion tombstones, per-user activity counters, bounded health-probe counters, and cleanup indexes.                                                 | Additive columns and tables let the currently running Worker continue to read its existing schema. The first signed-session Worker deployment also requires `SESSION_SIGNING_KEY`; unsigned cookies from the prior runtime become invalid, so users sign in again.                                                                                                                                                                                       |
-| `0004_digest_bytes`             | Adds `users.digest_bytes` (not null, default 0), backfilled from each user's existing digest JSON, `users.list_cursor` (nullable), and `r2_storage_budget.d1_size_bytes` (not null, default 0). | Each new column has a default or allows null, so older Workers' inserts still succeed. Side effect: activities that an older Worker inserts or deletes before the new Worker is live do not change `digest_bytes`, so that count can drift for those users.                                                                                                                                                                                              |
+| `0004_digest_bytes`             | Adds `users.digest_bytes` (not null, default 0), backfilled from each user's existing digest JSON, `users.list_cursor` (nullable), and `r2_storage_budget.d1_size_bytes` (not null, default 0). | Each new column has a default or allows null, so older Workers' inserts still succeed. Older Workers can still create or delete activities after the backfill and before the new Worker is fully serving, which leaves `digest_bytes` out of sync. After the new Worker is fully serving, reconcile the counter with the SQL below before relying on the digest quota.                                                                                   |
+| `0005_upload_reservation_token` | Adds nullable `activities.file_reservation_token`, which identifies the upload holding a file-size reservation.                                                                                 | The column allows null and older Workers omit it from inserts and updates, so their SQL continues to work while the new Worker is being deployed.                                                                                                                                                                                                                                                                                                        |
+
+After the Worker version that maintains `digest_bytes` is fully serving, reconcile any writes made
+by the previous Worker between migration 0004 and deployment. Run this as one statement against the
+production D1 database:
+
+```sql
+UPDATE users
+SET digest_bytes = (
+  SELECT coalesce(sum(length(CAST(digest_json AS BLOB))), 0)
+  FROM activities
+  WHERE activities.user_id = users.id
+);
+```
 
 ## Limits
 

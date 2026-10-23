@@ -148,7 +148,9 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    or within 60 seconds of each other. Groups are transitive: if A matches B and B matches C, all
    three are one group. From a group, the copy from the richest format is kept: FIT, then TCX, then
    GPX. Within one format, the copy with a power meter is kept, then the copy with heart rate, then
-   the longer duration.
+   the longer duration. This preference applies to files analyzed together. A saved activity is tied
+   to the hash of its original file, so replacing it with a different file requires deleting that
+   activity and importing the preferred file again.
 
 ## Why the digest exists
 

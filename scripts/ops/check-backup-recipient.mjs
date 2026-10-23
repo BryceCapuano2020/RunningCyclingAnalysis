@@ -2,13 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/** An age X25519 recipient: "age1" followed by 58 bech32 characters. */
+/** A syntactic age X25519 recipient shape; `age` validates its checksum before any export. */
 const AGE_RECIPIENT = /^age1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$/
 
 /**
  * Returns the recipients in a recipients file. Blank lines and `#` comments are ignored. Throws
- * when there is no recipient or when any other line is not a valid age public key, so the backup
- * never encrypts to a placeholder or a typo.
+ * when there is no recipient or when any other line has the wrong shape. The workflow then asks
+ * `age` itself to parse and use these recipients before it exports any account data.
  */
 export function parseBackupRecipients(text) {
   const lines = text
@@ -33,7 +33,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const path = process.argv[2] ?? 'ops/backup-recipient.txt'
   try {
     const keys = parseBackupRecipients(await readFile(resolve(path), 'utf8'))
-    console.log(`Backup recipients: ${keys.length} valid age public key(s).`)
+    console.log(`Backup recipients: ${keys.length} age recipient-shaped line(s).`)
   } catch (error) {
     console.error(`Refusing to back up: ${error.message}`)
     process.exitCode = 1
