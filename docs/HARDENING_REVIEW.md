@@ -45,3 +45,8 @@ The check stages passed: formatting, lint, workspace types, 1,534 unit tests wit
 passed 77 main tests (one intentional skip) and both Worker-served tests across Chromium and
 mobile WebKit. Stale headline expectations and an ambiguous rejection-text selector were corrected
 before that rerun. The complete dependency audit reported zero vulnerabilities.
+
+The final cost review found that replacing the previous lifetime PUT cap with only a monthly
+limit allowed retained storage to grow across months. The 4 GiB lifetime cap is restored alongside
+the 2 GiB monthly budget. A cross-month regression confirms that a monthly reset does not reopen
+uploads after lifetime exhaustion, while reads and cleanup still work.

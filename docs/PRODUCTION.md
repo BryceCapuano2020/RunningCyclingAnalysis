@@ -4,8 +4,10 @@ This document records the operational behavior, the release and migration rules,
 remaining release evidence. It is not a claim of perfect reliability or of validated physiological
 accuracy.
 
-**Release state, 22 October 2026:** reviewed application code from `deaf6ba` and release
-controls at `4444ab0` are deployed as Worker `c99ae81c-bd7d-471a-b483-4111af9fb63e`.
+**Hardening release, 22 October 2026:** reviewed application code from `deaf6ba` and release
+controls at `4444ab0` were initially deployed as Worker `c99ae81c-bd7d-471a-b483-4111af9fb63e`.
+The follow-up cost review restored the 4 GiB lifetime PUT cap alongside the monthly limits.
+Use `wrangler deployments list` to identify the active version and its tagged source commit.
 Migration 0003 is applied and a new random `SESSION_SIGNING_KEY` is installed. The application
 assets are byte-identical to the build from passing CI run
 [39882125936](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39882125936).
@@ -190,10 +192,14 @@ downloads. Contract constants and detailed behavior are listed in
 [LIMITS.md](../apps/api/LIMITS.md).
 
 Application-wide R2 admission limits are separate from per-account quotas. In the deployed runtime,
-all users share a 2 GiB PUT-charge budget and a 100,000-operation budget per UTC month. Each PUT
+all users share a 4 GiB lifetime PUT-charge cap, a 2 GiB monthly PUT-charge budget, and a
+100,000-operation budget per UTC month. Each PUT
 attempt reserves `max(actual body bytes, 64 KiB)` and one operation atomically before calling R2.
-Failed attempts and retries keep their monthly charges. The monthly byte and operation counters
-reset at the next UTC month; `lifetime_put_bytes` remains an audit total and does not block uploads.
+Failed attempts and retries keep their charges in both byte counters. The monthly byte and operation
+counters reset at the next UTC month; `lifetime_put_bytes` never resets or refunds, and blocks further
+PUTs at 4 GiB even across months or accounts. Reads and cleanup remain available subject to their
+operation budgets. The lifetime cap conservatively bounds cumulative app-mediated original writes;
+a monthly write cap alone would allow retained storage to grow over successive months.
 The migration initializes the byte ledger from the sum of recorded activity file sizes. This
 includes rows that may only be reservations for failed older uploads, but it cannot reconstruct
 repeated historical retries or identify untracked R2 objects that predate the ledger; the starting

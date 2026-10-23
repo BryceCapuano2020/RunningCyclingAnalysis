@@ -70,20 +70,18 @@ application allowance. Counters reset at their UTC day or month boundary in `r2_
 - **Deep-health probes: 300 per UTC day and 9,300 per UTC month.** The public endpoint is also
   limited to one request per minute per address. The global ceiling allows at most 9,300 extra
   R2 HEAD operations monthly, even when probes come from many addresses.
-- **PUT bytes: 2 GiB per month**, `MAX_MONTHLY_R2_PUT_BYTES`. Each PUT attempt is charged at least
-  64 KiB. The sizing is a judgement. Standing storage is what the free 10 GB-month allowance
-  measures. At 2 GiB a month, stored data reaches 10 GB after about five months with no deletions,
-  so review usage monthly.
-- **`lifetime_put_bytes` is an audit total only and is never enforced.** The earlier lifetime cap
-  disabled uploads permanently once reached. It was the bug this ledger replaces.
-- **Known gap:** the ledger bounds monthly writes, not standing storage. A live stored-bytes counter
-  would close that gap. It is not implemented.
+- **PUT bytes: 2 GiB per month**, `MAX_MONTHLY_R2_PUT_BYTES`, and **4 GiB lifetime total**,
+  `MAX_GLOBAL_R2_WRITE_BYTES`. Both count each PUT attempt by at least 64 KiB, including failures.
+  The monthly counter resets automatically; the lifetime counter never resets or refunds. The
+  lifetime ceiling limits cumulative retained data to below the free 10 GB-month storage allowance.
 
 ### Operator reset
 
 The ledger resets itself at the start of each UTC month. To reopen uploads inside a month after
 reviewing usage, generate the SQL and run it against production. It applies only when the stored
-month matches `--period`, and it never touches the audit total:
+month matches `--period`, and it does not touch the lifetime PUT total. Reaching the lifetime cap
+requires an operator review and an explicit decision to adjust `lifetime_put_bytes` before uploads
+can resume:
 
 ```sh
 npx wrangler d1 execute rca --remote --command "$(node apps/api/scripts/reset-r2-budget.mjs --period 2026-10 --put-bytes 0 --operations 0)"

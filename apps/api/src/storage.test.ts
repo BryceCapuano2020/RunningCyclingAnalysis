@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_GLOBAL_R2_MONTHLY_OPERATIONS,
   MAX_GLOBAL_R2_STANDARD_OPERATIONS,
+  MAX_GLOBAL_R2_WRITE_BYTES,
   MAX_MONTHLY_R2_PUT_BYTES,
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
@@ -14,6 +15,7 @@ import {
   releaseR2CleanupBudget,
   reserveR2CleanupBudget,
   reserveR2Operation,
+  reserveR2Put,
   userFilePrefix,
 } from './storage.ts'
 import { resetTestEnv, testEnv } from './test/harness.ts'
@@ -217,6 +219,67 @@ describe('global R2 budgets', () => {
         'SELECT monthly_period, monthly_put_bytes FROM r2_storage_budget WHERE id = 1',
       ).first(),
     ).toEqual({ monthly_period: '2026-02', monthly_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES })
+  })
+
+  it('keeps the lifetime PUT cap across monthly resets while GET and cleanup remain available', async () => {
+    await resetTestEnv()
+    const env = testEnv()
+    const january = Date.UTC(2026, 0, 15)
+    const february = Date.UTC(2026, 1, 15)
+    const march = Date.UTC(2026, 2, 1)
+    // Simulate using the full monthly allowance in two successive months without allocating 4 GiB.
+    await reserveR2Put(env.DB, () => january, MAX_MONTHLY_R2_PUT_BYTES)
+    await reserveR2Put(env.DB, () => february, MAX_MONTHLY_R2_PUT_BYTES)
+    // A read in the new month resets the monthly byte allowance before the third-month PUT.
+    await reserveR2Operation(env.DB, march)
+    expect(
+      await env.DB.prepare(
+        'SELECT lifetime_put_bytes, monthly_period, monthly_put_bytes FROM r2_storage_budget WHERE id = 1',
+      ).first(),
+    ).toEqual({
+      lifetime_put_bytes: MAX_GLOBAL_R2_WRITE_BYTES,
+      monthly_period: '2026-03',
+      monthly_put_bytes: 0,
+    })
+    let putCalls = 0
+    const bucket = new Proxy(env.FILES, {
+      get(target, property) {
+        if (property === 'put')
+          return async () => {
+            putCalls += 1
+          }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+
+    await expect(
+      putOriginalFile(
+        env.DB,
+        bucket,
+        'users/new/new-activity',
+        new Uint8Array([1]),
+        {},
+        () => march,
+      ),
+    ).rejects.toMatchObject({ status: 429, code: 'storage_budget_exhausted' })
+    expect(putCalls).toBe(0)
+    expect(
+      await env.DB.prepare(
+        'SELECT lifetime_put_bytes, monthly_period, monthly_put_bytes FROM r2_storage_budget WHERE id = 1',
+      ).first(),
+    ).toEqual({
+      lifetime_put_bytes: MAX_GLOBAL_R2_WRITE_BYTES,
+      monthly_period: '2026-03',
+      monthly_put_bytes: 0,
+    })
+
+    expect(await getOriginalFile(env.DB, env.FILES, 'missing', () => march)).toBeNull()
+    await env.FILES.put('users/gone/activity', 'keep cleanup available')
+    const cleanup = await reserveR2CleanupBudget(env.DB, march)
+    await deleteByPrefixWithBudget(env.FILES, 'users/gone/', cleanup)
+    await releaseR2CleanupBudget(env.DB, cleanup)
+    expect(await env.FILES.get('users/gone/activity')).toBeNull()
   })
 
   it('blocks standard operations at 90,000 but reserves cleanup headroom up to 100,000', async () => {

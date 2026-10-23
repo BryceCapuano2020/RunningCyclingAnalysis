@@ -1,6 +1,7 @@
 import {
   MAX_GLOBAL_R2_MONTHLY_OPERATIONS,
   MAX_GLOBAL_R2_STANDARD_OPERATIONS,
+  MAX_GLOBAL_R2_WRITE_BYTES,
   MAX_MONTHLY_R2_PUT_BYTES,
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
@@ -34,7 +35,7 @@ function budgetError(message: string): HttpError {
   return new HttpError(429, 'storage_budget_exhausted', message)
 }
 
-/** Atomically reserves a global R2 PUT/GET/LIST operation and optional monthly PUT bytes. */
+/** Atomically reserves a global R2 operation and PUT bytes against both lifetime and monthly caps. */
 async function reserveR2Budget(
   db: D1Database,
   now: number,
@@ -53,8 +54,8 @@ async function reserveR2Budget(
     )
     .bind(period)
     .run()
-  // A new UTC month starts all three counters from zero. The month comparison is string order on
-  // YYYY-MM, which is chronological. lifetime_put_bytes is an audit total and is never enforced.
+  // A new UTC month starts its two counters from zero. The month comparison is string order on
+  // YYYY-MM, which is chronological. lifetime_put_bytes is never reset or refunded.
   const reserved = await db
     .prepare(
       `UPDATE r2_storage_budget
@@ -66,17 +67,40 @@ async function reserveR2Budget(
          AND monthly_period <= ?2
          AND (monthly_period < ?2 OR monthly_operations + ?3 <= ?4)
          AND (?1 = 0 OR CASE WHEN monthly_period < ?2 THEN 0 ELSE monthly_put_bytes END + ?1 <= ?5)
+         AND (?1 = 0 OR lifetime_put_bytes + ?1 <= ?6)
        RETURNING id`,
     )
-    .bind(putBytes, period, operations, operationCap, MAX_MONTHLY_R2_PUT_BYTES)
+    .bind(
+      putBytes,
+      period,
+      operations,
+      operationCap,
+      MAX_MONTHLY_R2_PUT_BYTES,
+      MAX_GLOBAL_R2_WRITE_BYTES,
+    )
     .first<{ id: number }>()
   if (reserved) return period
 
   const current = await db
     .prepare(
-      'SELECT monthly_period, monthly_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
+      `SELECT lifetime_put_bytes, monthly_period, monthly_put_bytes, monthly_operations
+       FROM r2_storage_budget WHERE id = 1`,
     )
-    .first<{ monthly_period: string; monthly_put_bytes: number; monthly_operations: number }>()
+    .first<{
+      lifetime_put_bytes: number
+      monthly_period: string
+      monthly_put_bytes: number
+      monthly_operations: number
+    }>()
+  if (
+    putBytes > 0 &&
+    current &&
+    current.lifetime_put_bytes + putBytes > MAX_GLOBAL_R2_WRITE_BYTES
+  ) {
+    throw budgetError(
+      'The deployment reached its 4 GiB lifetime original-file write limit. Further file writes are disabled until an operator reviews the storage budget.',
+    )
+  }
   const bytesThisMonth = current?.monthly_period === period ? current.monthly_put_bytes : 0
   if (putBytes > 0 && bytesThisMonth + putBytes > MAX_MONTHLY_R2_PUT_BYTES) {
     throw budgetError(

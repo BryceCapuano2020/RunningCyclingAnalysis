@@ -149,8 +149,12 @@ describe('DevLoginSchema', () => {
 
 describe('shared limits', () => {
   it('pins the owner-approved daily budgets, with the two deliberate import exceptions', async () => {
-    const { DAILY_LIMITS, MAX_CONCURRENT_UPLOADS_PER_USER, MAX_MONTHLY_R2_PUT_BYTES } =
-      await import('./index.ts')
+    const {
+      DAILY_LIMITS,
+      MAX_CONCURRENT_UPLOADS_PER_USER,
+      MAX_GLOBAL_R2_WRITE_BYTES,
+      MAX_MONTHLY_R2_PUT_BYTES,
+    } = await import('./index.ts')
     expect(DAILY_LIMITS).toEqual({
       fileDownload: 50,
       profileWrite: 50,
@@ -160,6 +164,7 @@ describe('shared limits', () => {
       read: 1000,
     })
     expect(MAX_CONCURRENT_UPLOADS_PER_USER).toBe(2)
+    expect(MAX_GLOBAL_R2_WRITE_BYTES).toBe(4 * 1024 * 1024 * 1024)
     expect(MAX_MONTHLY_R2_PUT_BYTES).toBe(2 * 1024 * 1024 * 1024)
   })
 })

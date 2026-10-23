@@ -9,7 +9,7 @@ const MAX_OPERATIONS = 100_000
  * SQL that sets the current UTC month's R2 counters, for an operator to run with
  * `wrangler d1 execute rca --remote --command "<sql>"` after reviewing usage in the dashboard.
  * It only applies when the stored month equals `period`, so it cannot rewind another month. The
- * lifetime audit total is never changed.
+ * lifetime charge total and its independent cap are never changed.
  */
 export function buildResetSql({ period, putBytes = 0, operations = 0 }) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) throw new Error('--period must be YYYY-MM (UTC).')

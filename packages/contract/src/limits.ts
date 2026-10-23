@@ -36,6 +36,9 @@ export type DailyLimitAction = keyof typeof DAILY_LIMITS
 /** Most original-file uploads one user may have in progress at once. */
 export const MAX_CONCURRENT_UPLOADS_PER_USER = 2
 
+/** Lifetime cap for R2 PUT charges across the deployment. Failed attempts are not refunded. */
+export const MAX_GLOBAL_R2_WRITE_BYTES = 4 * 1024 * 1024 * 1024
+
 /**
  * Most new R2 bytes the deployment may write (PUT attempts) in one UTC calendar month. Each
  * attempt is charged at least MIN_GLOBAL_R2_PUT_CHARGE_BYTES. The counter resets at month start.
