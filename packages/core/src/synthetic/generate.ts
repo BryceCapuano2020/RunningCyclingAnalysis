@@ -1,6 +1,6 @@
 import { DRIVETRAIN_EFFICIENCY, G, RESTING_W_PER_KG } from '../constants'
 import { mulberry32 } from '../math'
-import { minettiCost } from '../metabolic'
+import { runCost } from '../metabolic'
 import { airDensity } from '../physics/air'
 import type { Activity, Sport } from '../types'
 import type { SyntheticAthlete } from './athlete'
@@ -42,7 +42,7 @@ function uniform(rand: () => number, halfWidth: number): number {
 }
 
 function runSpeed(metabolicWPerKg: number, grade: number, economyScale: number): number {
-  const v = (metabolicWPerKg - RESTING_W_PER_KG) / (economyScale * minettiCost(grade))
+  const v = (metabolicWPerKg - RESTING_W_PER_KG) / (economyScale * runCost(grade))
   return Math.min(MAX_RUN_SPEED_MS, Math.max(0, v))
 }
 
@@ -86,7 +86,7 @@ function simulate(
     if (sport === 'run') {
       v = runSpeed(m, grade, athlete.runEconomyScale)
       speed[i] = v
-      metabolic[i] = RESTING_W_PER_KG + athlete.runEconomyScale * minettiCost(grade) * v
+      metabolic[i] = RESTING_W_PER_KG + athlete.runEconomyScale * runCost(grade) * v
     } else {
       v = speed[i]!
       const demand = m * athlete.grossEfficiency * athlete.massKg

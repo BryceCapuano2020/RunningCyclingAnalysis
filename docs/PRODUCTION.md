@@ -255,7 +255,8 @@ body consumption. The activity table renders at most 20 activities at a time wit
 - Digest schema version and model revision are separate. The current model revision is
   `MODEL_REVISION` in `packages/core/src/digest/modelRevision.ts`. Revision 3 contains the corrected
   sensor validity/timer handling and preserves long run efforts across short unpaused stops.
-  Revision 4 uses altitude-dependent air density. Missing revision means legacy revision 1. Older
+  Revision 4 uses altitude-dependent air density. Revision 5 adds the running level correction
+  (+0.3 J/kg/m) and widens the efficiency and running-economy priors. Missing revision means legacy revision 1. Older
   analyses are excluded and can be rebuilt from retained original files; missing originals need
   re-importing. Newer revisions are excluded with a separate compatibility notice.
 - Upgrades require the same sport/start dedupe identity and SHA-256 of the exact original bytes.

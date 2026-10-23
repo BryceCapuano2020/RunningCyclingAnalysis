@@ -70,7 +70,7 @@ Do not add a drag term to the headline now. Three reasons: wind is unknown, `eta
 
 Proposed steps:
 
-1. Now: widen `runEconomyScale` standard deviation from 0.06 to 0.08, keeping mean 1.0 and the 0.82 to 1.18 bounds. This absorbs the K range without shifting the point estimate. Expected headline effect: about 0%.
+1. Done in model revision 5: `runEconomyScale` standard deviation widened from 0.06 to 0.08, mean kept at 1.0, bounds widened to 0.76 to 1.24 (±3 SD). The level correction is separate (headline-bias.md §5a).
 2. After validation: add Model A with `K = 0.8` for outdoor runs with a known still-air flag only. Expected effect on estimated gross running power: +3 to +5% at 4 to 5 m/s at sea level (+3 to +4% at 2,000 m), and 0% for treadmill runs. The headline moves by the outdoor share times this, which I did not trace through the digest pipeline.
 
 Validation data needed: matched-speed indirect calorimetry, outdoor still-air vs treadmill, at 3 to 6 m/s, with wind measured at 1.5 m, at sea level and at about 2,000 m. Wind-tunnel `CdA` for runners. At least 20 participants to narrow `K` below the current 0.5 to 0.9 range.
@@ -81,7 +81,7 @@ Validation data needed: matched-speed indirect calorimetry, outdoor still-air vs
 - Drafting: Pugh 1971 found about 6.5% lower VO2 one metre behind a runner at middle-distance speed. Group running cannot be detected from a single-runner file.
 - Treadmill runs carry no drag. A correction must be gated on an outdoor flag. I did not check whether the app records this.
 - The 1% grade convention (Jones and Doust 1996) bundles drag with other road effects, so applying both would double count. Its implied cost of about 0.20 J/kg/m is roughly constant, while the drag term at 3 m/s is only about 0.07 J/kg/m. The convention overcorrects at low speed.
-- Flat cost: the Minetti abstract reports level running cost 3.40 J/kg/m, while `FLAT_RUN_COST = 3.6` matches the polynomial constant. Check before finalizing.
+- Flat cost: `FLAT_RUN_COST` is now 3.9 (the Minetti polynomial intercept, 3.6, plus the 0.30 level correction; headline-bias.md §5a). The Minetti abstract reports a level value of 3.40 J/kg/m, with a net basis that is unverified.
 - Efficiency definition (gross vs net) must match roadmap item 2 before any `eta` is used.
 
 Confidence: moderate on the order of magnitude (air is roughly 2 to 8% of gross running power at 3 to 6 m/s). Low on the exact coefficients, since `eta` and `CdA` are unverified and only `K` is constrained.

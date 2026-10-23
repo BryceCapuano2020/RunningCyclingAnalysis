@@ -93,10 +93,10 @@ describe('CurveChart', () => {
       'Cycling from',
     ])
     expect(rows).toEqual([
-      ['1 min', '17.0 W/kg', '3:48 /km', '18.5 W/kg', '1400 W', 'activity-1', 'activity-1'],
-      ['5 min', '15.6 W/kg', '4:10 /km', '16.4 W/kg', '1230 W', 'activity-1', 'activity-1'],
-      ['20 min', '14.2 W/kg', '4:37 /km', '14.0 W/kg', '1050 W', 'activity-1', 'activity-1'],
-      ['1 h', '12.8 W/kg', '5:11 /km', '—', '—', 'activity-1', '—'],
+      ['1 min', '17.0 W/kg', '4:07 /km', '18.5 W/kg', '1400 W', 'activity-1', 'activity-1'],
+      ['5 min', '15.6 W/kg', '4:31 /km', '16.4 W/kg', '1230 W', 'activity-1', 'activity-1'],
+      ['20 min', '14.2 W/kg', '5:00 /km', '14.0 W/kg', '1050 W', 'activity-1', 'activity-1'],
+      ['1 h', '12.8 W/kg', '5:37 /km', '—', '—', 'activity-1', '—'],
     ])
   })
 
@@ -134,7 +134,7 @@ describe('CurveChart', () => {
     const tooltip = screen.getByRole('status')
     expect(tooltip).toHaveTextContent('1 min')
     expect(tooltip).toHaveTextContent('17.0 W/kg')
-    expect(tooltip).toHaveTextContent('3:48 /km')
+    expect(tooltip).toHaveTextContent('4:07 /km')
     expect(tooltip).toHaveTextContent('18.5 W/kg')
     expect(tooltip).toHaveTextContent('1400 W')
 

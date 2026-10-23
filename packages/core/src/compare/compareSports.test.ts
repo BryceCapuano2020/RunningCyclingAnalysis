@@ -47,13 +47,13 @@ describe('compareSports', () => {
   })
 
   it('has a prior 5 to 95 band of roughly the width the priors imply', () => {
-    // At 20 W/kg the log ratio has sd of about sqrt(0.0558^2 + 0.939^2 * 0.06^2) = 0.079,
-    // so the 5 to 95 band is about 2 * 1.645 * 0.079 = 0.26 of the median.
+    // At 20 W/kg the log ratio has sd of about sqrt(0.0698^2 + 0.939^2 * 0.08^2) = 0.103 (efficiency
+    // sd 0.015 on 0.215, economy sd 0.08), so the 5 to 95 band is about 2 * 1.645 * 0.103 = 0.34.
     const { run, ride } = equalCurves([60], [20])
     const ratio = compareSports(run, ride, MASS_KG, null).prior[0]!.ratio
     const relWidth = (ratio.p95 - ratio.p05) / ratio.p50
-    expect(relWidth).toBeGreaterThan(0.22)
-    expect(relWidth).toBeLessThan(0.3)
+    expect(relWidth).toBeGreaterThan(0.3)
+    expect(relWidth).toBeLessThan(0.38)
   })
 
   it('shifts the calibrated median down by about 9% and narrows the band for kappa 1.1', () => {

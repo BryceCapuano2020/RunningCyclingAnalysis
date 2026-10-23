@@ -11,16 +11,16 @@ describe('flatSpeedToMetabolic', () => {
     expect(flatSpeedToMetabolic(0)).toBe(1.22)
   })
 
-  it('adds 3.6 J/kg/m times speed to resting rate', () => {
-    expect(flatSpeedToMetabolic(4)).toBeCloseTo(15.62, 10)
-    expect(flatSpeedToMetabolic(4, 1.1)).toBeCloseTo(17.06, 10)
+  it('adds 3.9 J/kg/m times speed to resting rate', () => {
+    expect(flatSpeedToMetabolic(4)).toBeCloseTo(16.82, 10)
+    expect(flatSpeedToMetabolic(4, 1.1)).toBeCloseTo(18.38, 10)
   })
 })
 
 describe('metabolicToFlatSpeed', () => {
   it('inverts flatSpeedToMetabolic', () => {
-    expect(metabolicToFlatSpeed(15.62)).toBeCloseTo(4, 10)
-    expect(metabolicToFlatSpeed(17.06, 1.1)).toBeCloseTo(4, 10)
+    expect(metabolicToFlatSpeed(16.82)).toBeCloseTo(4, 10)
+    expect(metabolicToFlatSpeed(18.38, 1.1)).toBeCloseTo(4, 10)
   })
 
   it('returns zero at or below resting rate', () => {

@@ -1,2 +1,2 @@
 /** Revision of the analysis model encoded by each stored activity digest. */
-export const MODEL_REVISION = 4
+export const MODEL_REVISION = 5

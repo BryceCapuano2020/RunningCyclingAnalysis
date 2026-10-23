@@ -117,7 +117,7 @@ describe('analyze on simulated ground truth', () => {
   it('gives equivalents whose range brackets the true equal-cost running speed', () => {
     for (const eq of result.equivalents) {
       const metabolic = eq.ridePowerW / (athlete.grossEfficiency * athlete.massKg)
-      const trueSpeed = (metabolic - RESTING_W_PER_KG) / (athlete.runEconomyScale * 3.6)
+      const trueSpeed = (metabolic - RESTING_W_PER_KG) / (athlete.runEconomyScale * 3.9)
       expect(eq.runSpeed.p05).toBeLessThan(trueSpeed)
       expect(eq.runSpeed.p95).toBeGreaterThan(trueSpeed)
     }
@@ -210,7 +210,7 @@ describe('analyze with partial data', () => {
 describe('equivalentRunSpeed', () => {
   it('matches the closed form at the prior means', () => {
     const { p50 } = equivalentRunSpeed(250, 75, null)
-    const expected = (250 / (PRIORS.grossEfficiency.mean * 75) - RESTING_W_PER_KG) / 3.6
+    const expected = (250 / (PRIORS.grossEfficiency.mean * 75) - RESTING_W_PER_KG) / 3.9
     expect(p50 / expected).toBeGreaterThan(0.99)
     expect(p50 / expected).toBeLessThan(1.01)
   })

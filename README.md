@@ -45,7 +45,8 @@ they state the uncertainty and the evidence still missing. The plan is in
   original file hash; to replace it with a different file, delete the saved activity and import the
   preferred file again.
 - **One unit for both sports.** Cycling power is divided by gross efficiency. Running speed and
-  gradient go through the Minetti et al. (2002) energy-cost-of-running curve. Both become W/kg.
+  gradient go through the Minetti et al. (2002) energy-cost-of-running curve, raised by 0.3 J/kg/m
+  so that flat running costs 3.9 J/kg/m. Both become W/kg.
 - **Uncertainty, not a single number.** Efficiency and running economy differ between people and
   cannot be read from a file, so they are sampled from population priors and the result is a 90%
   range.
@@ -81,14 +82,14 @@ evidence are in [docs/PRODUCTION.md](docs/PRODUCTION.md); the local benchmark is
 
 ## The model
 
-| Step             | Formula                                                                            |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| Cycling          | `M = P / (GE × mass)`, with `GE ~ N(0.215, 0.012)`                                 |
-| Running          | `M = rest + s × C(grade) × speed`, with `C` from Minetti 2002 and `s ~ N(1, 0.06)` |
-| Comparison       | `ratio(t) = M_run(t) / M_ride(t)` over 4,000 seeded Monte Carlo draws              |
-| Heart-rate check | `κ = slope_ride / slope_run` of heart rate against `M`, on 5-minute block means    |
-| Update           | each draw is weighted by the likelihood of the observed `κ` (importance sampling)  |
-| Virtual power    | `P = (m g (sin θ + Crr cos θ) v + ½ ρ CdA v³ + m a v) / η`, climbs only            |
+| Step             | Formula                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Cycling          | `M = P / (GE × mass)`, with `GE ~ N(0.215, 0.015)`                                          |
+| Running          | `M = rest + s × C(grade) × speed`, with `C` from Minetti 2002 plus 0.3 and `s ~ N(1, 0.08)` |
+| Comparison       | `ratio(t) = M_run(t) / M_ride(t)` over 4,000 seeded Monte Carlo draws                       |
+| Heart-rate check | `κ = slope_ride / slope_run` of heart rate against `M`, on 5-minute block means             |
+| Update           | each draw is weighted by the likelihood of the observed `κ` (importance sampling)           |
+| Virtual power    | `P = (m g (sin θ + Crr cos θ) v + ½ ρ CdA v³ + m a v) / η`, climbs only                     |
 
 `M` is gross metabolic power in W/kg, `P` is mechanical power in W, and `rest` is 1.22 W/kg.
 

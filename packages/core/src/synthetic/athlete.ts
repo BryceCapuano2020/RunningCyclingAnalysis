@@ -6,7 +6,7 @@ export interface SyntheticAthlete {
   bikeMassKg: number
   /** True cycling gross efficiency. */
   grossEfficiency: number
-  /** True multiplier on the Minetti running cost. */
+  /** True multiplier on the running cost, Minetti's curve plus the level correction. */
   runEconomyScale: number
   /** Critical gross metabolic power running, W/kg. */
   cpRun: number

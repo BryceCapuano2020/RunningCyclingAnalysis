@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DRIVETRAIN_EFFICIENCY, FLAT_RUN_COST, G, RESTING_W_PER_KG } from '../constants'
+import { DRIVETRAIN_EFFICIENCY, G, RESTING_W_PER_KG } from '../constants'
 import { mean } from '../math'
 import { airDensity } from '../physics/air'
 import { DEFAULT_ATHLETE } from './athlete'
@@ -117,10 +117,10 @@ describe('generateActivity', () => {
     }
   })
 
-  it('a flat easy run has mean speed matching the Minetti formula within 2%', () => {
+  it('a flat easy run has mean speed matching the flat running cost within 2%', () => {
     const act = generateActivity(A, spec({ durationS: 2700 }), 11)
-    const expected = (0.65 * A.cpRun - RESTING_W_PER_KG) / (A.runEconomyScale * FLAT_RUN_COST)
-    expect(expected).toBeCloseTo(2.5634, 3)
+    const expected = (0.65 * A.cpRun - RESTING_W_PER_KG) / (A.runEconomyScale * 3.9)
+    expect(expected).toBeCloseTo(2.3662, 3)
     expect(Math.abs(mean(act.speed) / expected - 1)).toBeLessThan(0.02)
   })
 

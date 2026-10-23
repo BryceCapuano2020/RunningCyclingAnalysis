@@ -1,15 +1,18 @@
 # Physiology validation: app energy model against ACSM and independent sources
 
-Status: validation note. No model code was changed. The executable checks are in
+Status: validation note. The executable checks are in
 `packages/core/src/validation/physiology.test.ts`. Values marked **unverified** were not checked
-against the primary text.
+against the primary text. The model described here is revision 5 (`MODEL_REVISION` 5). Sections 4
+and 8 record the revision 4 results as they were before the correction. Section 10 gives the
+revision 4 and revision 5 results side by side.
 
 ## 1. Question
 
 Does the app's gross metabolic power agree with equations that were not used to build it?
 
 - Running: `runMetabolicPower` / `flatSpeedToMetabolic` in `packages/core/src/metabolic/power.ts` and
-  `converters.ts`. Gross W/kg = 1.22 + s × C(g) × v, with the Minetti cost C and economy scale s = 1.
+  `converters.ts`. Gross W/kg = 1.22 + s × C(g) × v, with the economy scale s = 1 at the prior mean.
+  Revision 4 used C = Minetti's cost. Revision 5 uses C = Minetti + 0.30 J/kg/m (`runCost`).
 - Cycling: `ridePowerToMetabolic` in `converters.ts`. Gross W/kg = P / (GE × m), with GE = 0.215
   (`PRIORS.grossEfficiency.mean`, `constants.ts`).
 
@@ -37,7 +40,7 @@ Does the app's gross metabolic power agree with equations that were not used to 
 
 Difference = app / reference − 1.
 
-## 4. Results
+## 4. Results (revision 4, before)
 
 ### 4.1 Flat running
 
@@ -157,32 +160,119 @@ because the 7 ml/kg/min baseline is fixed. A constant GE cannot match both ends.
 - di Prampero's rule as a primary source.
 - Gaesser & Brooks 1975 values, and the DOIs of the research-note references not listed in §2.
 
-## 8. Model findings (reported, not fixed)
+## 8. Model findings
 
-1. **Flat running is about 13% below ACSM (9% at E = 20.1).** The economy prior (mean 1.0, sd 0.06,
-   bounds 0.82–1.18) puts the ACSM-implied scale of about 1.16 in its upper tail. Either the prior
-   mean or the 3.6 J/kg/m slope needs review.
+Revision 4 findings. Findings 1 and 3 are addressed for running in §10.
+
+1. **Flat running was about 13% below ACSM (9% at E = 20.1).** The economy prior (mean 1.0, sd 0.06,
+   bounds 0.82–1.18) puts the ACSM-implied scale of about 1.16 in its upper tail. Fixed by the level
+   correction (§10): flat running is now 6% below ACSM.
 2. **Cycling reads 25% low at 1 W/kg** because the cycling side has no resting term. It is within
    about 10% at 2 to 5 W/kg. This is not addressed in `docs/research/cycling-efficiency.md`, which
    concludes that gross efficiency needs no resting term. That conclusion holds at moderate load,
-   not at low load.
+   not at low load. Still open.
 3. **The matched-effort running to cycling ratio excludes the reference 1.0** at all three speeds.
-   Finding 1 drives most of this.
+   Finding 1 drove most of this. Now 1.0 is inside the range at 3 and 4 m/s, but not at 5 m/s, because
+   constant efficiency reads cycling high at 5 W/kg (§10.3).
 
 ## 9. Tolerances in the test
 
-- Flat and graded running, −5%, 0% and +5%: ±15% of ACSM (20.9 and 20.1 bands). The current worst
-  case is −14.3%. The suggested ±10% would fail at every flat speed (−12.4% to −13.2%), so it is
-  not used. The 15% bound covers the structural slope gap, about 13% at 20.9 J/ml, whose worst
-  current value is −14.3% (−5% grade). Each energy equivalent is checked on its own. At 20.1 J/ml
-  flat running sits at about −9%, so the ±4% energy-equivalent band is not added to the slope gap.
-- +10%: ±5%. Current agreement is −1.5%.
-- Cycling 2 to 5 W/kg: ±15%. Current range is −6.6% to +13.8% across both energy equivalents.
-- Cycling at 1 W/kg: ±30%. The known resting-energy gap is −25%. This pins the gap and will flag a
-  change in either direction.
-- Matched-effort ratio: p50 in [0.75, 0.90] and p95 below 1. This pins the disagreement in
-  finding 3. Update it when the model changes.
-- Resting term: within 1% of ACSM 3.5 ml/kg/min at 20.9 J/ml.
+Revision 5 tests (`physiology.test.ts`). Each bound is an agreement bound against an independent
+reference, not a pin on a gap, except where the test documents a residual.
 
-Each tolerance is a bound on the current gap, not a claim of agreement. A change to the running slope
-or the cycling efficiency will move the numbers and fail the test.
+- Flat running at 3 to 5 m/s: within ±10% of ACSM at 20.9 and 20.1 J/ml, and within ±10% of
+  Léger & Mercier at 20.9 J/ml.
+- Flat running residual: between 4% and 10% below ACSM at 20.9 J/ml. The residual is documented,
+  not closed.
+- Graded running, −5%, 0% and +5%: within ±10% of ACSM. At +10%: within ±5%.
+- Cycling at 2 to 5 W/kg: within ±15% of ACSM at both energy equivalents. Unchanged.
+- Cycling at 1 W/kg: within ±30%. The resting-energy gap is documented, not closed.
+- Matched-effort ratio: 1.0 inside the 90% range at 3 and 4 m/s. At 5 m/s the test is marked as an
+  expected failure (§10.3). The median is documented to lie between 0.80 and 0.95.
+- Resting term: within 1% of ACSM 3.5 ml/kg/min at 20.9 J/ml.
+- Implied running economy scale against ACSM lies inside the prior bounds.
+
+## 10. Revision 5: before and after
+
+**Change.** Running cost is Minetti's curve plus a 0.30 J/kg/m level correction at every gradient
+(flat 3.6 → 3.9, `RUN_COST_CORRECTION`). Efficiency prior sd 0.012 → 0.015, bounds 0.17 to 0.26,
+mean 0.215 unchanged. Economy prior sd 0.06 → 0.08, bounds 0.76 to 1.24, mean 1.0 unchanged. The
+digest stores run values with the correction, so `MODEL_REVISION` moves from 4 to 5.
+
+**Why additive, not a scale.** A uniform scale of 1.083 gives the same flat and matched-effort
+numbers, but reads +6.3% against ACSM at +10% grade, where revision 4 read −1.5%. The additive form
+reads +3.3%. headline-bias.md §5(a) prefers the additive form for this reason.
+
+**Pace.** Flat pace conversions use `FLAT_RUN_COST` (3.9). A given energy rate now means a speed
+about 8% slower: 4:00 /km at the same energy rate becomes 4:20 /km.
+
+### 10.1 Flat running (W/kg, 20.9 J/ml)
+
+| Speed (m/s) | Before | After | ACSM  | Before vs ACSM | After vs ACSM | After vs Léger & Mercier |
+| ----------- | ------ | ----- | ----- | -------------- | ------------- | ------------------------ |
+| 3           | 12.02  | 12.92 | 13.76 | −12.6%         | −6.1%         | +2.0%                    |
+| 4           | 15.62  | 16.82 | 17.94 | −12.9%         | −6.2%         | +1.1%                    |
+| 5           | 19.22  | 20.72 | 22.12 | −13.1%         | −6.3%         | +0.6%                    |
+
+Before against Léger & Mercier was −5.1%, −6.1% and −6.7%. After energy equivalent 20.1 J/ml, flat
+running is −2.4% to −2.6% against ACSM.
+
+### 10.2 Graded running against ACSM at 20.9 J/ml (before → after, at 3, 4 and 5 m/s)
+
+| Grade | Before              | After            |
+| ----- | ------------------- | ---------------- |
+| −5%   | −13.5, −13.9, −14.2 | −5.3, −5.5, −5.6 |
+| 0%    | −12.6, −12.9, −13.1 | −6.1, −6.2, −6.3 |
+| +5%   | −7.9, −8.0, −8.1    | −2.4, −2.5, −2.5 |
+| +10%  | −1.4, −1.5, −1.5    | +3.2, +3.3, +3.3 |
+
+### 10.3 Matched effort (run against cycling, 90% range, 4,000 draws)
+
+| Speed (m/s) | Matched cycling W/kg | Before p05 / p50 / p95 | After p05 / p50 / p95 | 1.0 inside after? |
+| ----------- | -------------------- | ---------------------- | --------------------- | ----------------- |
+| 3           | 3.01                 | 0.750 / 0.857 / 0.970  | 0.773 / 0.920 / 1.079 | Yes               |
+| 4           | 4.12                 | 0.711 / 0.813 / 0.922  | 0.734 / 0.875 / 1.028 | Yes               |
+| 5           | 5.23                 | 0.688 / 0.788 / 0.894  | 0.711 / 0.848 / 0.998 | No                |
+
+At 5 m/s the upper bound is 0.998 with 4,000 draws and 0.999 with 80,000, so the miss is real, not
+sampling noise. The cause is the cycling side. Constant efficiency at 5.2 W/kg reads about 10% high
+against ACSM (§4.3), so the matched cycling cost is too high and the ratio sits below 1. The
+power-dependent efficiency slope GE(P) would close it, and headline-bias.md §5(b) proposes it, but it
+is not implemented. The 5 m/s test asserts this gap (0.95 < p95 < 1.0), and it should be revisited
+when GE(P) lands.
+
+The median stays 8 to 15% below 1 (0.85 to 0.92), because the running side is about 6% low and the
+cycling side is high at 4 to 5 W/kg.
+
+### 10.4 Cycling
+
+Unchanged at mean efficiency 0.215 (§4.3). The wider efficiency prior widens the matched-effort range
+but does not move any cycling value.
+
+### 10.5 Residual gaps, stated
+
+- Flat running is 6% below ACSM, within the documented 4 to 10% band, and within 2% of Léger &
+  Mercier. ACSM's 4.18 J/kg/m slope and Léger & Mercier's 3.97 differ, so no single level matches
+  both. The residual is not closed.
+- Matched effort at 5 m/s misses 1.0 by 0.1%, as in §10.3.
+- Cycling reads 25% low at 1 W/kg (no resting term), as in §8.2.
+- Centre sensitivity. The 3.9 centre rests partly on unverified values, and Margaria's 4.18 equals
+  ACSM's slope. The validators did not set the value. Without Margaria the centre is 3.73
+  (headline-bias.md §3). Flat running then reads −9.8 to −10.2% against ACSM, so the ±10% test fails
+  at 5 m/s, and the matched 90% range contains 1.0 only at 3 m/s.
+
+### 10.6 Downhill is unvalidated
+
+The additive correction adds 11%, 14% and 17% to Minetti's cost at −5%, −10% and −20% grade (cost
+2.75, 2.15 and 1.80 J/kg/m). A uniform 1.083 scale would add 8.3% at every grade. Only −5% has a
+reference. The app is 5.3 to 5.6% below ACSM there, and the tests check it. No test checks −10% or
+−20%. §4.2 notes that downhill is the least reliable part of both references, so these residuals
+are not a validated measurement.
+
+### 10.7 Heart-rate calibration shifts with the correction
+
+The observed heart-rate slope ratio κ in the cross-check moves with the correction, because run
+values rise by about 8% at flat. This is expected and correct. `calibrationWeights` normalises
+economy draws by the prior mean (`sampling.ts:33`), which stays 1.0, so the correction enters
+through the observed heart-rate data and not through the draws. The size of the shift was not
+measured separately. The κ test in `pipeline.test.ts` still brackets the true value.

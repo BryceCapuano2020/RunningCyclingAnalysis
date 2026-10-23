@@ -1,4 +1,4 @@
-import { PRIORS } from '@rca/core/constants'
+import { FLAT_RUN_COST, PRIORS, RUN_COST_CORRECTION } from '@rca/core/constants'
 import './Methodology.css'
 
 interface Section {
@@ -7,6 +7,8 @@ interface Section {
 }
 
 const EFFICIENCY_PERCENT = (PRIORS.grossEfficiency.mean * 100).toFixed(1)
+const spreadPercent = (prior: { mean: number; sd: number }) =>
+  Math.round((prior.sd / prior.mean) * 100)
 
 const SECTIONS: Section[] = [
   {
@@ -14,16 +16,19 @@ const SECTIONS: Section[] = [
     body:
       `Cycling power is divided by gross efficiency, the share of the metabolic energy used that ` +
       `reaches the pedals, which averages about ${EFFICIENCY_PERCENT}%. Running speed and ` +
-      `gradient are converted with the Minetti et al. 2002 energy-cost-of-running curve. Both ` +
-      `become an energy rate (gross metabolic power, W/kg): watts of energy burned per kilogram ` +
-      `of body weight.`,
+      `gradient are converted with the Minetti et al. 2002 energy-cost-of-running curve, raised by ` +
+      `${RUN_COST_CORRECTION} J/kg/m, so flat running costs ${FLAT_RUN_COST.toFixed(1)} J/kg/m, ` +
+      `near the middle of published estimates. Both become an energy rate (gross metabolic power, ` +
+      `W/kg): watts of energy burned per kilogram of body weight.`,
   },
   {
     title: 'Why there is a range',
     body:
-      'Efficiency and running economy vary between people by several percent, and a FIT file ' +
-      'cannot show either one. The 90% range summarises those model assumptions. It does not include ' +
-      'every source of sensor error, missing effort, or error in virtual power, and it is not a fitness percentile.',
+      `Efficiency varies between people by about ${spreadPercent(PRIORS.grossEfficiency)}%, and ` +
+      `running economy by about ${spreadPercent(PRIORS.runEconomyScale)}%. A FIT file cannot show ` +
+      'either one. The 90% range summarises those model assumptions. It does not include every ' +
+      'source of sensor error, missing effort, or error in virtual power, and it is not a fitness ' +
+      'percentile.',
   },
   {
     title: 'Fitness over time',
