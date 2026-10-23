@@ -8,6 +8,10 @@ model range. This estimates energy use; it does not rank sporting ability.
 [Open the live app](https://rca-api.nutritioncoachapp.workers.dev) ·
 [Engineering review](docs/REVIEW.md) · [Operations and verification](docs/PRODUCTION.md)
 
+The live Worker was verified at commit `493ce15` on 22 October 2026. The current `main` tree is
+`310264a`; the hardening changes described in this branch have not been deployed. Branch-specific
+limits and operations below describe source behavior, not live production behavior.
+
 Analysis always runs in your browser: activity files are parsed and analysed on your device. An
 account is optional. With one, your profile and activity library are stored on Cloudflare so they
 follow you between devices (see [Accounts and sync](#what-it-does)).
@@ -50,7 +54,8 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
   Cloudflare. Per-activity digests are stored in D1; original files stay on your device by default.
   Users can opt in to R2 retention subject to per-user and application-wide limits. Direct bucket
   access outside the app is not covered by those limits and could incur charges. Each user sees
-  only their own data, and deleting the account removes it. The
+  only their own data. Account deletion immediately blocks access and starts cleanup; if file
+  deletion is interrupted, a tombstone lets retries and scheduled maintenance finish it. The
   [privacy policy](https://rca-api.nutritioncoachapp.workers.dev/privacy.html) lists exactly what is
   stored.
 
@@ -150,11 +155,9 @@ apps/api/            @rca/api: Cloudflare Worker API with Hono, D1 and R2
 docs/                architecture, roadmap and README screenshots
 ```
 
-CI (GitHub Actions) runs on every push to `main` and on every pull request. The verification job
-checks formatting, lint, types, deployment-configuration tests, unit tests with coverage, and the
-build. The end-to-end job runs the Playwright suites in Chromium and WebKit, including the
-Worker-served suite. The audit job runs `npm audit`. A weekly workflow verifies registry signatures
-and audits production dependencies.
+The repository contains CI workflow definitions for formatting, lint, types, deployment and
+operations tests, unit tests with coverage, builds, Playwright, and dependency audits. The hardening
+branch has not run those workflows from the default branch.
 
 ## Deploy
 
@@ -164,14 +167,16 @@ does not enroll in Workers Paid. The web app is served as static assets and the 
 exceeded, requests fail until limits reset or storage is freed. Application-level R2 limits cap
 app-handled traffic, but do not protect against direct bucket access or guarantee zero charges.
 Setup, Google sign-in, local development with real sign-in, costs and rollback are in
-[docs/DEPLOY.md](docs/DEPLOY.md). Production releases run from the **Deploy** workflow only. It runs
-on `main`, runs the release gate, waits for owner approval, applies migrations, deploys, smoke-tests
-the live origin, and rolls back if the smoke test fails. Encrypted daily backups and an external
-uptime probe are described in [docs/PRODUCTION.md](docs/PRODUCTION.md).
+[docs/DEPLOY.md](docs/DEPLOY.md). The hardening branch adds source for a gated **Deploy** workflow;
+it has not been deployed or run from the default branch. The encrypted-backup and uptime workflow
+files are also source only: the age recipient, GitHub environments and secrets, and remote workflow
+setup are not configured, so there is no active backup job or uptime monitor yet. See
+[docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## Built with
 
-TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. The API runs on
+TypeScript, React, Vite, Vitest, Playwright, fflate and an in-house FIT decoder/encoder. The Garmin
+FIT SDK is a development-only reference for differential tests. The API runs on
 Cloudflare Workers with D1 and R2, using Hono, Drizzle ORM and zod. Written with Claude Code; no
 language model runs in the product.
 

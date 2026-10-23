@@ -1,3 +1,4 @@
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
@@ -19,7 +20,8 @@ import {
 
 const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
-const RUNNING_HEADLINE = /Your best running uses .* more energy per kg/
+const RUNNING_HEADLINE =
+  /Over .* your running is estimated to use .* more energy rate per kg than your cycling/
 const SAVED_NOTICE = 'Saved 14 activities to your library'
 const KEEP_FILES = 'Keep original files in my library'
 /** An import saves each activity and its file in turn, which takes longer than the default. */
@@ -286,5 +288,29 @@ test('rebuilds a legacy saved activity from its original file without changing i
   const records = await apiActivities(page.request)
   expect(records).toHaveLength(1)
   expect(records[0]).toMatchObject({ id: legacyRecord.id, hasFile: true })
-  expect(records[0]?.digest.modelRevision).toBe(2)
+  expect(records[0]?.digest.modelRevision).toBe(MODEL_REVISION)
+})
+
+test('saved activity deletion requires confirmation and persists after reload', async ({
+  page,
+}) => {
+  await signInAs(page.request, uniqueEmail(), NAME)
+  await enableFileRetention(page.request)
+  await page.goto('/')
+  await expect(accountButton(page)).toBeVisible()
+  await uploadFixtures(page, ['one-run.fit'])
+  await expect.poll(() => storedFileCount(page), IMPORT).toBe(1)
+  const [record] = await apiActivities(page.request)
+  if (!record) throw new Error('saved activity missing')
+  const library = page.getByRole('region', { name: 'Saved library', exact: true })
+  await library.getByRole('button', { name: `Delete ${record.digest.name}`, exact: true }).click()
+  await library.getByRole('button', { name: 'Cancel', exact: true }).click()
+  expect(await apiActivities(page.request)).toHaveLength(1)
+  await library.getByRole('button', { name: `Delete ${record.digest.name}`, exact: true }).click()
+  await library.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+  await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(0)
+  await page.reload()
+  await expect(accountButton(page)).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(LANDING_TITLE)
+  expect((await page.request.get(`/api/activities/${record.id}/file`)).status()).toBe(404)
 })

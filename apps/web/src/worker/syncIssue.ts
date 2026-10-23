@@ -7,6 +7,9 @@ export function syncIssueFor(error: unknown): SyncIssueCode {
   if (error instanceof SyncFailure) return error.code
   if (!(error instanceof ApiRequestError)) return 'server'
   if (error.code === 'storage_budget_exhausted') return 'storage-budget'
+  if (error.code === 'daily_limit') return 'daily-limit'
+  if (error.code === 'upload_in_progress') return 'upload-in-progress'
+  if (error.code === 'account_deleting') return 'account-deleting'
   if (error.status === 0) return 'network'
   if (error.status === 401) return 'signed-out'
   if (error.status === 409 && error.code === 'account_changed') return 'account-changed'

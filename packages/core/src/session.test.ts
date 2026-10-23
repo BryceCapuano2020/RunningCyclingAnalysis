@@ -300,7 +300,7 @@ describe('AnalysisSession', () => {
 
   it('tolerates but excludes digests from a newer model revision until the file is re-imported', async () => {
     const session = new AnalysisSession()
-    const future = { ...digestActivity(run), modelRevision: 3 }
+    const future = { ...digestActivity(run), modelRevision: 4 }
     const state = session.loadDigests([future], SETTINGS)
     expect(state.result).toBeNull()
     expect(state.totalActivities).toBe(0)
@@ -315,7 +315,7 @@ describe('AnalysisSession', () => {
   it('keeps future-revision activities out of a mixed library analysis', () => {
     const session = new AnalysisSession()
     const current = digestActivity(run)
-    const future = { ...digestActivity(ride), modelRevision: 3 }
+    const future = { ...digestActivity(ride), modelRevision: 4 }
     const state = session.loadDigests([current, future], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)

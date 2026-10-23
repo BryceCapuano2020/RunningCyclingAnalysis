@@ -114,7 +114,10 @@ export class FitWriter {
     for (const field of layout.fields) {
       this.data[cursor] = field.num
       this.data[cursor + 1] = writableOf(field.base).size
-      this.data[cursor + 2] = field.base
+      // FIT marks multi-byte base types as endian-capable in the base-type byte. The data
+      // architecture byte above selects little-endian for this file; the flag still belongs in
+      // each field definition (for example uint16 is 0x84, not just 0x04).
+      this.data[cursor + 2] = field.base | (writableOf(field.base).size > 1 ? 0x80 : 0)
       cursor += 3
     }
     this.length = cursor

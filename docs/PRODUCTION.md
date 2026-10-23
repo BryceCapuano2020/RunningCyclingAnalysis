@@ -4,17 +4,24 @@ This document records the operational behavior, the release and migration rules,
 remaining release evidence. It is not a claim of perfect reliability or of validated physiological
 accuracy.
 
+**Release state, 22 October 2026:** the running Worker was verified at code commit `493ce15`
+and version `1143a60d-5562-43c2-95a2-4807b9073c93`. The current `main` tree is `310264a` and
+contains follow-on operations documentation without runtime changes. The hardening branch has not
+been deployed; its new limits, signed sessions, deletion retries, and model revision are source
+behavior until a gated deployment succeeds.
+
 ## Release gate
 
 Install dependencies with `npm ci`, then install browser engines with
 `npm exec -w @rca/web -- playwright install chromium webkit`. Run `npm run verify:release`.
-It checks formatting, lint, all package types, unit coverage, deployment configuration tests,
-the production build, Chromium and WebKit browser behavior, and the Worker-served application.
+It checks formatting, lint, all package types, unit coverage, deployment configuration and
+operations tests, the production build, Chromium and WebKit browser behavior, and the
+Worker-served application.
 The last test exercises the actual static-asset security policy, module worker, and same-origin
 API together; a Vite preview alone cannot verify Cloudflare's `_headers` behavior.
 
-Production releases go through the **Deploy** workflow (`.github/workflows/deploy.yml`), in this
-order:
+The hardening branch defines a gated **Deploy** workflow (`.github/workflows/deploy.yml`) with this
+intended order:
 
 1. **Guard.** The run must start from `refs/heads/main`. Any other ref fails before anything else.
 2. **Release gate.** `npm run verify:release` runs on the exact commit. Its static build is kept
@@ -88,8 +95,10 @@ The status-check names are the job names shown on pull requests and must match e
 - Enable Dependabot alerts and security updates. Version updates are configured in
   `.github/dependabot.yml`.
 - Turn on notifications for failed workflow runs and for issues labelled `outage`.
-- Scheduled workflows (uptime, backup, supply chain) run from the default branch. GitHub disables
-  them in public repositories after 60 days without repository activity. Check that they still run.
+- Scheduled workflows run only from the default branch. The branch's backup and uptime source files
+  are not active jobs; configure them after merge before relying on them. GitHub disables scheduled
+  workflows in public repositories after 60 days without repository activity. Check configured
+  schedules to confirm they still run.
 
 ## Migrations: order of operations
 
@@ -117,11 +126,12 @@ backup below.
 
 Each existing migration was reviewed against this rule:
 
-| Migration                 | What it does                                                                                                   | Why it is safe to run before the code that reads it                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0000_init`               | Creates `users`, `oauth_accounts`, `sessions`, `profiles`, `activities` and their indexes.                     | Baseline for an empty database. It only creates tables, so every earlier Worker can use it. Production already has it applied.                                                                                                                                                                                                                                                                                                                           |
-| `0001_session_created_at` | Adds `sessions.created_at` with default `0` and `NOT NULL`, and an index on `activities(user_id, created_at)`. | Older Workers insert sessions without naming the column, so the default fills it and their inserts still succeed. Side effect: a session created by an older Worker after this migration has `created_at = 0`, which the current Worker treats as already past its 90-day absolute lifetime. Those users sign in again. That is a forced sign-in, not data loss. Shipping the Worker promptly keeps that window short.                                   |
-| `0002_r2_storage_budget`  | Creates `r2_storage_budget` and inserts one ledger row initialized from the sum of `activities.file_size`.     | Older Workers never read or write the table, so it is invisible to them. Limitation: an original uploaded through an older Worker after this migration and before the new Worker is live is not counted in the ledger. The Deploy workflow applies the migration and deploys in one run, so the window is minutes. The ledger also cannot reconstruct historical PUT retries; [Request isolation and limits](#request-isolation-and-limits) covers that. |
+| Migration                       | What it does                                                                                                                                    | Why it is safe to run before the code that reads it                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0000_init`                     | Creates `users`, `oauth_accounts`, `sessions`, `profiles`, `activities` and their indexes.                                                      | Baseline for an empty database. It only creates tables, so every earlier Worker can use it. Production already has it applied.                                                                                                                                                                                                                                                                                                                           |
+| `0001_session_created_at`       | Adds `sessions.created_at` with default `0` and `NOT NULL`, and an index on `activities(user_id, created_at)`.                                  | Older Workers insert sessions without naming the column, so the default fills it and their inserts still succeed. Side effect: a session created by an older Worker after this migration has `created_at = 0`, which the current Worker treats as already past its 90-day absolute lifetime. Those users sign in again. That is a forced sign-in, not data loss. Shipping the Worker promptly keeps that window short.                                   |
+| `0002_r2_storage_budget`        | Creates `r2_storage_budget` and inserts one ledger row initialized from the sum of `activities.file_size`.                                      | Older Workers never read or write the table, so it is invisible to them. Limitation: an original uploaded through an older Worker after this migration and before the new Worker is live is not counted in the ledger. The Deploy workflow applies the migration and deploys in one run, so the window is minutes. The ledger also cannot reconstruct historical PUT retries; [Request isolation and limits](#request-isolation-and-limits) covers that. |
+| `0003_budgets_deletion_indexes` | Adds daily budgets, upload leases, account-deletion tombstones, per-user activity counters, bounded health-probe counters, and cleanup indexes. | Additive columns and tables let the currently running Worker continue to read its existing schema. The first signed-session Worker deployment also requires `SESSION_SIGNING_KEY`; unsigned cookies from the prior runtime become invalid, so users sign in again.                                                                                                                                                                                       |
 
 ## Limits
 
@@ -157,24 +167,29 @@ until the same-file retry, activity deletion, or file-retention opt-out. This pr
 retries from freeing quota that another upload still needs. The activity response reports a stored
 file only after finalization. Original uploads are capped at 50 MiB. Body reads have a 15-second
 idle timeout and a two-minute total limit, and release readers on all exit paths.
+The branch's per-user UTC daily budgets allow 2,000 new activities and 2,000 original-file uploads,
+with a separate 1,000 authenticated reads, 50 profile writes, 50 activity deletes and 50 file
+downloads. Contract constants and detailed behavior are listed in
+[LIMITS.md](../apps/api/LIMITS.md).
 
-Application-wide R2 admission limits are separate from per-account quotas. All users share a
-4 GiB lifetime PUT charge budget and a 100,000-operation budget per UTC calendar month. Each PUT
-attempt reserves `max(actual body bytes, 64 KiB)` and one monthly operation atomically before
-calling R2. Failed attempts and retries keep their byte and operation charges; nothing is refunded
-or automatically reset in the lifetime ledger. A fresh ledger therefore allows at most 65,536 PUT
-attempts, and fewer when objects are larger than 64 KiB. The migration initializes the ledger from
-the sum of recorded activity file sizes. This includes rows that may only be reservations for
-failed older uploads, but it cannot reconstruct repeated historical retries or identify untracked
-R2 objects that predate the ledger; the starting ledger may undercount prior PUT charges and
-existing objects. Each get/list attempt consumes one monthly operation
-when admitted. Ordinary puts and gets stop at 90,000 operations, reserving the final 10,000 for
-prefix-list cleanup; list calls share the same total and may use that headroom. Deletes and aborts do
-not consume operations. Exhausted byte or operation capacity returns `429
-storage_budget_exhausted`; cleanup refuses before changing D1 state if its list budget is exhausted.
-Monthly capacity returns at the next UTC month. These limits cover calls through this Worker only. Keep
-`rca-files` private and dedicated: direct bucket/API access, other clients and dashboard operations
-can bypass the application limits, and Cloudflare may bill R2 usage above its free allowance.
+Application-wide R2 admission limits are separate from per-account quotas. In the hardening branch,
+all users share a 2 GiB PUT-charge budget and a 100,000-operation budget per UTC month. Each PUT
+attempt reserves `max(actual body bytes, 64 KiB)` and one operation atomically before calling R2.
+Failed attempts and retries keep their monthly charges. The monthly byte and operation counters
+reset at the next UTC month; `lifetime_put_bytes` remains an audit total and does not block uploads.
+The migration initializes the byte ledger from the sum of recorded activity file sizes. This
+includes rows that may only be reservations for failed older uploads, but it cannot reconstruct
+repeated historical retries or identify untracked R2 objects that predate the ledger; the starting
+ledger may undercount prior monthly PUT charges and existing objects. Deep-health `HEAD` probes use
+a separate global budget of 300 per UTC day and 9,300 per UTC month, in addition to a one-per-minute
+per-address limiter. Ordinary puts and gets stop at 90,000 monthly operations, preserving 10,000
+for cleanup LIST calls; list calls share that total and may use the cleanup headroom. Deletes and
+aborts do not consume operations. Exhausted capacity returns `429 storage_budget_exhausted`; cleanup
+refuses before changing D1 state if its reserved list headroom is exhausted. These values describe
+the hardening branch; they are not the limits of the currently deployed runtime. The limits cover
+calls through this Worker only. Keep `rca-files` private and dedicated: direct bucket/API access,
+other clients and dashboard operations can bypass application limits, and Cloudflare may bill R2
+usage above its free allowance.
 
 Activity listing uses at most 25 records per page, a 1 MiB digest JSON budget and 64 KiB envelope
 headroom. The API scans small metadata before fetching the selected digests. Cursors are based on
@@ -192,10 +207,11 @@ body consumption. The activity table renders at most 20 activities at a time wit
 - Failed saves remain locally analyzable and are counted. Re-importing the original retries them.
   A digest saved without a requested original is a partial failure. Originals above 50 MiB require
   turning off file retention before retrying; they can still be analysed locally within import limits.
-- Digest schema version and model revision are separate. Revision 2 contains the corrected sensor
-  validity/timer handling. Missing revision means legacy revision 1. Older analyses are excluded
-  and can be rebuilt from retained original files; missing originals need re-importing. Newer
-  revisions are excluded with a separate compatibility notice.
+- Digest schema version and model revision are separate. Revision 3 contains the corrected sensor
+  validity/timer handling and preserves long run efforts across short unpaused stops. Missing
+  revision means legacy revision 1. Older analyses are excluded and can be rebuilt from retained
+  original files; missing originals need re-importing. Newer revisions are excluded with a
+  separate compatibility notice.
 - Upgrades require the same sport/start dedupe identity and SHA-256 of the exact original bytes.
   They retain the activity id and stored-file metadata. Different file contents conflict rather
   than silently replacing an activity, and older clients cannot downgrade newer stored summaries.
@@ -227,11 +243,12 @@ request/body logging around personal activity files or OAuth callbacks.
 
 ## Observability
 
-- **External uptime probe.** `.github/workflows/uptime.yml` runs every 15 minutes from GitHub-hosted
-  runners, independent of the Worker. It checks `/api/health`, `/api/health/deep`, the web app, and
-  the Google sign-in redirect's `redirect_uri`. Each check gets one retry after 20 seconds. A failure
-  opens or updates an issue labelled `outage` and fails the run. The next passing run closes the
-  open outage issues.
+- **External uptime probe (source only).** `.github/workflows/uptime.yml` defines a 15-minute probe
+  from GitHub-hosted runners, independent of the Worker. It checks `/api/health`,
+  `/api/health/deep`, the web app, and the Google sign-in redirect's `redirect_uri`. Each check gets
+  one retry after 20 seconds. A failure opens or updates an issue labelled `outage`; the next
+  passing run closes open outage issues. This workflow has not been enabled from the default branch,
+  so no active monitor is claimed.
 - **Limits of that probe.** GitHub may delay or skip scheduled runs under load. GitHub also disables
   scheduled workflows in public repositories after 60 days without repository activity, so an
   occasional commit or a manual run keeps it active. The probe sees only what a public client sees;
@@ -243,10 +260,11 @@ request/body logging around personal activity files or OAuth callbacks.
 
 ## Live verification, historical (22 October 2026)
 
-The live verification below was recorded for commit `493ce15`, served by Worker version
-`1143a60d-5562-43c2-95a2-4807b9073c93`. That commit is not the current release. **The live commit
-and Worker version must be re-recorded after the next gated deploy**, from the Deploy workflow
-summary. Replace this paragraph with the new commit, Worker version, date and smoke-test result.
+The live verification below was recorded for runtime commit `493ce15`, served by Worker version
+`1143a60d-5562-43c2-95a2-4807b9073c93`. The current `main` tree is `310264a`, a follow-on containing
+operations documentation and tooling without runtime changes. The hardening branch is not deployed;
+none of its runtime changes below should be treated as live evidence. After a gated deployment,
+record the actual commit, Worker version, date and smoke-test result here.
 
 The deployment ran with production D1, the private Standard-class `rca-files` bucket,
 rate-limit bindings and Google secrets. Public `r2.dev` access was disabled. Workers and D1 remain
@@ -271,8 +289,9 @@ The live Chrome smoke used the repository's synthetic `one-run.fit`, not real de
   was overwritten. The original child-before-parent export failed this drill; the schema-first
   preparation helper below corrected the restore order.
 - Production was rolled back to the preceding release and then returned to the fixed release.
-  Sign-in and the saved library survived. Both releases use the same schema/model revision; this
-  does not establish compatibility with future migrations or model revisions.
+  Sign-in and the saved library survived. Both tested releases used the same schema/model revision;
+  this does not establish compatibility with migrations or model revisions added on the hardening
+  branch.
 
 A $0.01 R2 billing alert was saved for the account owner. This is a notification, not a spending
 cap. Application code budgets still cover only traffic through this Worker. Google Auth remains
@@ -281,9 +300,11 @@ basic-identity Testing exception and the separate public-brand requirements.
 
 ## Backup and restore
 
-### Scheduled backup
+### Backup workflow source
 
-`.github/workflows/backup.yml` runs daily at 04:05 UTC and can be started by hand. It:
+`.github/workflows/backup.yml` defines a daily 04:05 UTC backup and a manual trigger. It is source
+only at this review: no age recipient/key, backup environment secrets or remote workflow setup were
+configured, and no active or verified backup job is claimed. Its intended steps are:
 
 1. refuses to run unless `ops/backup-recipient.txt` holds a real age public key;
 2. exports the production D1 database with `wrangler d1 export rca --remote`, and checks it with the
@@ -301,9 +322,13 @@ in the runner's temporary directory and are deleted at the end of the run. The e
 withheld from the job log because it can contain a temporary signed URL. The job summary shows only
 the archive name, so it does not expose user counts or identifiers.
 
-**Targets:** RPO 24 hours; RTO 2 hours from the decision to restore to a verified preview Worker.
-The restore procedure, verification and cutover rules are in
+**Targets after setup and successful runs:** RPO 24 hours; RTO 2 hours from the decision to restore
+to a verified preview Worker. These targets are not met while the backup workflow is inactive. The
+restore procedure, verification and cutover rules are in
 [scripts/ops/restore.md](../scripts/ops/restore.md).
+The preview Worker in a restore drill must use a new scratch R2 bucket and have its cron trigger
+removed. Binding it to production `rca-files` could let orphan cleanup delete current files when the
+restored database lacks their references.
 
 **What the backup does not contain:**
 
@@ -315,8 +340,8 @@ The restore procedure, verification and cutover rules are in
   reconciling them.
 - **Anything after the backup time.** Changes after the newest backup are lost.
 
-Backups hold sessions (as hashes), account identifiers, email addresses and activity summaries. They
-are deleted after 90 days.
+When configured, backups hold sessions (as hashes), account identifiers, email addresses and
+activity summaries, and are deleted after 90 days.
 
 ### Setting up backups (owner)
 

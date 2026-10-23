@@ -27,7 +27,7 @@ test('uploading the Strava export zip shows the results, skipping the GPX file',
   await uploadFixtures(page, ['sample-export.zip'])
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    /Your best running uses .* more energy per kg/,
+    /Over .* your running is estimated to use .* more energy rate per kg than your cycling/,
   )
   await expect(activitiesRows(page)).toHaveCount(14)
   await expect(page.getByText('1 GPX or TCX file was skipped')).toBeVisible()
@@ -50,8 +50,8 @@ test('uploading a file that is not FIT lists it as unusable and keeps the landin
   await page.goto('/')
   await uploadFixtures(page, ['not-a-fit.fit'])
 
-  await expect(page.getByText('1 file could not be used')).toBeVisible()
-  await page.getByText('1 file could not be used').click()
+  await expect(page.getByText('1 file could not be used', { exact: true })).toBeVisible()
+  await page.getByText('1 file could not be used', { exact: true }).click()
   await page.getByText('Not a FIT file: 1 file').click()
   await expect(page.getByText('not-a-fit.fit')).toBeVisible()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()

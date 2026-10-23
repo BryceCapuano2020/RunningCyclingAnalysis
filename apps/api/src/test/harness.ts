@@ -1,3 +1,4 @@
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { fileURLToPath } from 'node:url'
 import { drizzle } from 'drizzle-orm/d1'
 import { migrate } from 'drizzle-orm/d1/migrator'
@@ -220,7 +221,7 @@ export function digestFixture(
 ): Record<string, unknown> {
   return {
     version: 1,
-    modelRevision: 2,
+    modelRevision: MODEL_REVISION,
     id: 'source-1',
     name: 'Morning ride',
     sport: 'ride',

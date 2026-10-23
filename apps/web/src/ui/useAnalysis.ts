@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
-import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
+import type {
+  ImportOutcome,
+  SavedActivity,
+  WorkerRequest,
+  WorkerResponse,
+} from '../worker/protocol'
 import type { AccountController, AccountStatus } from './useAccount'
 
 /** 'loaded' is the only state in which an import may be sent to the signed-in library. */
@@ -23,6 +28,9 @@ export interface AnalysisController {
   retryLibrary: () => void
   /** Saved activities whose original file is not in the library. */
   missingOriginals: number
+  importOutcome: ImportOutcome | null
+  savedActivities: SavedActivity[]
+  deleteActivity: (id: string) => void
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
   addFiles: (files: File[]) => void
@@ -89,6 +97,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
   const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>('idle')
   const [missingOriginals, setMissingOriginals] = useState(0)
+  const [importOutcome, setImportOutcome] = useState<ImportOutcome | null>(null)
+  const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([])
   const [workerGeneration, setWorkerGeneration] = useState(0)
 
   // Keep the latest committed account available to async import preparation without waiting for
@@ -269,6 +279,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         setMissingOriginals(message.count)
         return
       }
+      if (message.type === 'libraryActivities') {
+        setSavedActivities(message.activities)
+        return
+      }
       if (message.type === 'accountIssue') {
         handleAccountIssue(message.issue)
         return
@@ -290,6 +304,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       }
       setState(message.state)
       if (message.type === 'state') {
+        if (message.outcome) setImportOutcome(message.outcome)
         if (pending?.kind === 'loadServer') {
           setLibrary('loaded')
           // Imports made while the library loaded join it now, in the order they were made.
@@ -410,6 +425,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       setRebuildNotice(null)
       setWorkerStopped(false)
       setMissingOriginals(0)
+      setSavedActivities([])
+      setImportOutcome(null)
       setLibrary('idle')
       automaticRestartCountRef.current = 0
       // Make the next effect pass hydrate the new signed-in identity even for a direct A → B
@@ -509,6 +526,24 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     if (workerRef.current === null) restartWorker()
     else loadLibrary(current.me.user.id)
   }, [loadLibrary, restartWorker])
+  const deleteActivity = useCallback(
+    (id: string) => {
+      const current = accountRef.current
+      if (
+        current.status !== 'signed-in' ||
+        current.me === null ||
+        libraryStatusRef.current !== 'loaded'
+      )
+        return
+      send({
+        type: 'deleteActivity',
+        id,
+        userId: current.me.user.id,
+        settings: settingsRef.current,
+      })
+    },
+    [send],
+  )
 
   return {
     state,
@@ -522,6 +557,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryStatus,
     retryLibrary,
     missingOriginals,
+    importOutcome,
+    savedActivities,
+    deleteActivity,
     rebuildNotice,
     rebuildSavedActivities,
     addFiles,

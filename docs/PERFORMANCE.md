@@ -42,11 +42,13 @@ The input is fed to each decompressor in 16 KiB slices, including ZIP output sen
 decoders. A source stream may already have allocated a larger chunk before the importer can
 inspect and slice it. fflate can also expand a compressed slice internally before invoking its
 output callback, so configured decompressed-byte ceilings bound retained and accepted output but
-do not strictly cap that one transient callback allocation. The FIT SDK returns the complete
-decoded message collection from `Decoder.read()`; the two-million-record check happens immediately
-after that call, so the 64 MiB FIT-file ceiling—not the record-count ceiling—bounds the SDK's
-transient decoded-message allocation. These are remaining implementation limits; a stream with
-small source chunks and a streaming FIT decoder would tighten them.
+do not strictly cap that one transient callback allocation. Production FIT parsing uses the
+in-house scanner and decoder: it visits messages as it reads them and stops when it sees more than
+two million record messages. It still retains accepted decoded records for later activity
+processing, bounded by the record and file-byte limits. The Garmin FIT SDK is a development-only
+reference used by differential tests and is not part of the production bundle. These are remaining
+implementation limits; streaming decoded records directly into per-activity processing would
+further reduce retained intermediate data.
 
 This benchmark covers local digest construction and combination, not Cloudflare D1 or R2 request
 costs, latency, or quota behavior. Production per-user retention limits and app-wide R2 byte and

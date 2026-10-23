@@ -18,6 +18,7 @@ import {
   SettingsBar,
   SignInCallout,
   SyncStatus,
+  SavedLibrary,
   pickHeadline,
 } from './ui/components'
 import { useAccount } from './ui/useAccount'
@@ -208,8 +209,8 @@ export function App() {
         </button>
       )}
 
-      {!result && (
-        <main className="app__intro">
+      <main className={result ? 'app__results' : 'app__intro'}>
+        {!result && (
           <section className="app__pitch">
             <h1 ref={landingHeading} tabIndex={-1}>
               How do your running and cycling energy estimates compare?
@@ -220,156 +221,173 @@ export function App() {
               that reflects the model assumptions.
             </p>
           </section>
-          {fileRetentionControls}
+        )}
+        {result && isSample && (
+          <p className="app__sample card" role="status">
+            You are looking at simulated sample data. Add your own files to replace it.
+          </p>
+        )}
+        <section
+          className={result ? 'card app__toolbar' : undefined}
+          aria-label="Files and settings"
+        >
+          {!result && fileRetentionControls}
           <Dropzone
+            compact={result !== null}
             onFiles={analysis.addFiles}
             onSample={analysis.loadSample}
             busy={analysis.busy}
             progress={analysis.progress}
             signedIn={signedIn}
+            outcome={analysis.importOutcome}
           />
-          <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
-          {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
-          <ol className="app__steps">
-            <li>
-              <h3>1. Add your files</h3>
-              <p className="secondary">
-                FIT files from a Garmin, Wahoo or similar device, or the zip from Strava&rsquo;s
-                account export.
-              </p>
-            </li>
-            <li>
-              <h3>2. Both sports become one unit</h3>
-              <p className="secondary">
-                Cycling power and running speed on any gradient are converted to metabolic watts per
-                kilogram.
-              </p>
-            </li>
-            <li>
-              <h3>3. Your heart rate checks the maths</h3>
-              <p className="secondary">
-                The model assumes heart rate responds similarly to energy use in both sports. When
-                the data support it, fitted slopes adjust the energy estimates; otherwise, the
-                population-based range is kept.
-              </p>
-            </li>
-          </ol>
-          <Methodology />
-        </main>
-      )}
-
-      {result && (
-        <main className="app__results">
-          {isSample && (
-            <p className="app__sample card" role="status">
-              You are looking at simulated sample data. Add your own files to replace it.
-            </p>
+          {result && (
+            <>
+              <SettingsBar
+                settings={settings}
+                units={units}
+                onChange={(next) => saveProfile({ settings: next })}
+              />
+              {fileRetentionControls}
+              <RangePicker
+                rangeDays={rangeDays}
+                onChange={analysis.setRange}
+                shown={result.activities.length}
+                total={totalActivities}
+              />
+              {!signedIn && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={analysis.clear}
+                  disabled={analysis.busy}
+                >
+                  Start over
+                </button>
+              )}
+            </>
           )}
-          <section className="card app__toolbar" aria-label="Files and settings">
-            <Dropzone
-              compact
-              onFiles={analysis.addFiles}
-              onSample={analysis.loadSample}
-              busy={analysis.busy}
-              progress={analysis.progress}
-              signedIn={signedIn}
-            />
-            <SettingsBar
-              settings={settings}
-              units={units}
-              onChange={(next) => saveProfile({ settings: next })}
-            />
-            {fileRetentionControls}
-            <RangePicker
-              rangeDays={rangeDays}
-              onChange={analysis.setRange}
-              shown={result.activities.length}
-              total={totalActivities}
-            />
-            {!signedIn && (
-              <button
-                type="button"
-                className="btn"
-                onClick={analysis.clear}
-                disabled={analysis.busy}
-              >
-                Start over
-              </button>
-            )}
-          </section>
-          {account.status === 'signed-out' && !isSample && (
-            <SignInCallout onSignIn={account.signIn} />
-          )}
-          <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
-
-          <section className="card">
-            <Headline
-              result={result}
-              units={units}
-              massKg={settings.massKg}
-              effort={headlineEffort}
-            />
-          </section>
-
-          <section className="card">
-            <h2>Best efforts in one unit</h2>
-            <p>
-              The highest estimated energy rate per kilogram for each length of effort. Where the
-              lines cross, the two sports are equal.
-            </p>
-            <CurveChart
-              runCurve={result.runCurve}
-              rideMetabolicCurve={result.rideMetabolicCurve}
-              rideCurve={result.rideCurve}
-              units={units}
-              activityNames={Object.fromEntries(result.activities.map((a) => [a.id, a.name]))}
-            />
-          </section>
-
-          <div className="grid-2">
-            <section className="card">
-              <h2>Running compared with cycling</h2>
-              <p>How far your running sits above or below your cycling at each length of effort.</p>
-              <RatioChart comparison={result.comparison} />
-            </section>
-            <section className="card">
-              <h2>What your cycling is worth on foot</h2>
-              <p>
-                Your best cycling efforts, and the flat running pace estimated to use the same
-                energy (90% model range).
-              </p>
-              <EquivalenceTable equivalents={result.equivalents} units={units} />
-            </section>
-          </div>
-
-          <div className="grid-2">
-            <section className="card">
-              <h2>Heart-rate check</h2>
-              <p>
-                Each dot is five steady minutes. If the model is right for you, the two lines rise
-                at the same rate.
-              </p>
-              <HrScatter hr={result.hr} />
-            </section>
-            {result.virtualAccuracy && (
-              <section className="card">
-                <h2>Virtual power meter accuracy</h2>
-                <p>
-                  Power estimated from speed, gradient and weight on climbs, tuned on your other
-                  power-meter rides and scored on each ride it was not tuned on.
+        </section>
+        {!result && (
+          <>
+            <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
+            {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
+            <ol className="app__steps">
+              <li>
+                <h3>1. Add your files</h3>
+                <p className="secondary">
+                  FIT files from a Garmin, Wahoo or similar device, or the zip from Strava&rsquo;s
+                  account export.
                 </p>
-                <AccuracyScatter accuracy={result.virtualAccuracy} />
-              </section>
+              </li>
+              <li>
+                <h3>2. Both sports become one unit</h3>
+                <p className="secondary">
+                  Cycling power and running speed on any gradient are converted to metabolic watts
+                  per kilogram.
+                </p>
+              </li>
+              <li>
+                <h3>3. Your heart rate checks the maths</h3>
+                <p className="secondary">
+                  The model assumes heart rate responds similarly to energy use in both sports. When
+                  the data support it, fitted slopes adjust the energy estimates; otherwise, the
+                  population-based range is kept.
+                </p>
+              </li>
+            </ol>
+            <Methodology />
+          </>
+        )}
+        {result && (
+          <>
+            {account.status === 'signed-out' && !isSample && (
+              <SignInCallout onSignIn={account.signIn} />
             )}
-          </div>
+            <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
 
-          <section className="card">
-            <h2>Activities</h2>
-            <ActivitiesTable activities={result.activities} units={units} />
-          </section>
+            <section className="card">
+              <Headline
+                result={result}
+                units={units}
+                massKg={settings.massKg}
+                effort={headlineEffort}
+              />
+            </section>
 
-          <Methodology />
-        </main>
+            <section className="card">
+              <h2>Best efforts in one unit</h2>
+              <p>
+                The highest estimated energy rate per kilogram for each length of effort. Where the
+                lines cross, the two sports are equal.
+              </p>
+              <CurveChart
+                runCurve={result.runCurve}
+                rideMetabolicCurve={result.rideMetabolicCurve}
+                rideCurve={result.rideCurve}
+                units={units}
+                activityNames={Object.fromEntries(result.activities.map((a) => [a.id, a.name]))}
+              />
+            </section>
+
+            <div className="grid-2">
+              <section className="card">
+                <h2>Running compared with cycling</h2>
+                <p>
+                  How far your running sits above or below your cycling at each length of effort.
+                </p>
+                <RatioChart comparison={result.comparison} />
+              </section>
+              <section className="card">
+                <h2>What your cycling is worth on foot</h2>
+                <p>
+                  Your best cycling efforts, and the flat running pace estimated to use the same
+                  energy (90% model range).
+                </p>
+                <EquivalenceTable equivalents={result.equivalents} units={units} />
+              </section>
+            </div>
+
+            <div className="grid-2">
+              <section className="card">
+                <h2>Heart-rate check</h2>
+                <p>
+                  Each dot is five steady minutes. If the model is right for you, the two lines rise
+                  at the same rate.
+                </p>
+                <HrScatter hr={result.hr} />
+              </section>
+              {result.virtualAccuracy && (
+                <section className="card">
+                  <h2>Virtual power meter accuracy</h2>
+                  <p>
+                    Power estimated from speed, gradient and weight on climbs, tuned on your other
+                    power-meter rides and scored on each ride it was not tuned on.
+                  </p>
+                  <AccuracyScatter accuracy={result.virtualAccuracy} />
+                </section>
+              )}
+            </div>
+
+            <section className="card">
+              <h2>Activities</h2>
+              <ActivitiesTable activities={result.activities} units={units} />
+            </section>
+
+            <Methodology />
+          </>
+        )}
+      </main>
+
+      {signedIn && analysis.savedActivities.length > 0 && (
+        <section className="card" aria-label="Saved library">
+          <h2>Saved library</h2>
+          <SavedLibrary
+            activities={analysis.savedActivities}
+            busy={analysis.busy || analysis.libraryStatus !== 'loaded'}
+            onDelete={analysis.deleteActivity}
+          />
+        </section>
       )}
 
       <footer className="app__footer muted">

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createHarness, testEnv } from '../test/harness.ts'
+import {
+  MAX_HEALTH_PROBES_PER_DAY,
+  MAX_HEALTH_PROBES_PER_MONTH,
+  reserveHealthProbe,
+} from '../healthBudget.ts'
+import { createHarness, START, testEnv } from '../test/harness.ts'
 
 function failingDb(): D1Database {
   return new Proxy(testEnv().DB, {
@@ -76,13 +81,86 @@ describe('GET /api/health/deep', () => {
     expect((await h.send({ path: '/api/health/deep' })).status).toBe(503)
   })
 
-  it('returns 503 while the standard R2 operation budget is spent', async () => {
+  it('does not charge deep-health HEADs to the ordinary R2 operation budget', async () => {
     const h = createHarness()
     await h.env.DB.prepare(
       "INSERT INTO r2_storage_budget (id, lifetime_put_bytes, monthly_period, monthly_operations) VALUES (1, 0, '2026-01', 90000) ON CONFLICT(id) DO UPDATE SET monthly_period = '2026-01', monthly_operations = 90000",
     ).run()
     const res = await h.send({ path: '/api/health/deep' })
-    expect(res.status).toBe(503)
+    expect(res.status).toBe(200)
+    expect(
+      await h.env.DB.prepare(
+        'SELECT monthly_operations FROM r2_storage_budget WHERE id = 1',
+      ).first(),
+    ).toEqual({ monthly_operations: 90000 })
+  })
+
+  it('atomically enforces the global daily and monthly probe ceilings before calling R2', async () => {
+    const head = vi.fn(async () => null)
+    const bucket = new Proxy(testEnv().FILES!, {
+      get(target, property) {
+        if (property === 'head') return head
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const h = createHarness({}, { FILES: bucket })
+    const day = new Date(START).toISOString().slice(0, 10)
+    const month = day.slice(0, 7)
+    await h.env.DB.prepare(
+      `INSERT INTO r2_storage_budget (
+         id, lifetime_put_bytes, monthly_period, monthly_operations, monthly_put_bytes,
+         health_probe_day, health_probe_day_count, health_probe_month, health_probe_month_count
+       ) VALUES (1, 0, ?, 0, 0, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         health_probe_day = excluded.health_probe_day,
+         health_probe_day_count = excluded.health_probe_day_count,
+         health_probe_month = excluded.health_probe_month,
+         health_probe_month_count = excluded.health_probe_month_count`,
+    )
+      .bind(month, day, MAX_HEALTH_PROBES_PER_DAY - 1, month, MAX_HEALTH_PROBES_PER_MONTH - 1)
+      .run()
+
+    const reservations = await Promise.allSettled(
+      Array.from({ length: 12 }, () => reserveHealthProbe(h.env.DB, START)),
+    )
+    expect(reservations.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+
+    const res = await h.send({ path: '/api/health/deep' })
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe(String((Date.UTC(2026, 1, 1) - START) / 1000))
+    expect(await res.json()).toMatchObject({ error: { code: 'health_probe_limit' } })
+    expect(head).not.toHaveBeenCalled()
+  })
+
+  it('resets the probe allowance when the UTC month rolls over', async () => {
+    const h = createHarness()
+    const now = Date.UTC(2026, 1, 1, 0, 0, 1)
+    await h.env.DB.prepare(
+      `INSERT INTO r2_storage_budget (
+         id, lifetime_put_bytes, monthly_period, monthly_operations, monthly_put_bytes,
+         health_probe_day, health_probe_day_count, health_probe_month, health_probe_month_count
+       ) VALUES (1, 0, '2026-01', 0, 0, '2026-01-31', ?, '2026-01', ?)
+       ON CONFLICT(id) DO UPDATE SET
+         health_probe_day = excluded.health_probe_day,
+         health_probe_day_count = excluded.health_probe_day_count,
+         health_probe_month = excluded.health_probe_month,
+         health_probe_month_count = excluded.health_probe_month_count`,
+    )
+      .bind(MAX_HEALTH_PROBES_PER_DAY, MAX_HEALTH_PROBES_PER_MONTH)
+      .run()
+
+    await reserveHealthProbe(h.env.DB, now)
+    expect(
+      await h.env.DB.prepare(
+        'SELECT health_probe_day, health_probe_day_count, health_probe_month, health_probe_month_count FROM r2_storage_budget WHERE id = 1',
+      ).first(),
+    ).toEqual({
+      health_probe_day: '2026-02-01',
+      health_probe_day_count: 1,
+      health_probe_month: '2026-02',
+      health_probe_month_count: 1,
+    })
   })
 
   it('is rate limited on its own, with a retry delay', async () => {

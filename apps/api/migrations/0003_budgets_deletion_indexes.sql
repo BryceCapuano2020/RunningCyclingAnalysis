@@ -25,6 +25,10 @@ CREATE INDEX `upload_slots_expires_idx` ON `upload_slots` (`expires_at`);--> sta
 -- The monthly PUT ledger starts at zero: bytes written earlier this month were not recorded per month.
 ALTER TABLE `r2_storage_budget` ADD `monthly_put_bytes` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `r2_storage_budget` ADD `orphan_sweep_cursor` text;--> statement-breakpoint
+ALTER TABLE `r2_storage_budget` ADD `health_probe_day` text DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE `r2_storage_budget` ADD `health_probe_day_count` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE `r2_storage_budget` ADD `health_probe_month` text DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE `r2_storage_budget` ADD `health_probe_month_count` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `users` ADD `activity_count` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `users` ADD `deleting_at` integer;--> statement-breakpoint
 -- Backfill the activity counter from the rows that exist today, so the cap holds for populated data.

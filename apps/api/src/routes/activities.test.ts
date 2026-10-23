@@ -1,3 +1,4 @@
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ACCOUNT_SCOPE_HEADER,
@@ -142,7 +143,7 @@ describe('POST /api/activities', () => {
       h,
       token,
       { fileName: 'replacement-name.fit' },
-      { modelRevision: 2, name: 'Current analysis' },
+      { modelRevision: MODEL_REVISION, name: 'Current analysis' },
     )
     expect(upgrade.status).toBe(200)
     expect(await upgrade.json()).toMatchObject({
@@ -150,7 +151,7 @@ describe('POST /api/activities', () => {
       fileName: 'ride.fit',
       hasFile: true,
       fileSize: CONTENT.byteLength,
-      digest: { modelRevision: 2, name: 'Current analysis' },
+      digest: { modelRevision: MODEL_REVISION, name: 'Current analysis' },
     })
     const after = await h.env.DB.prepare(
       'SELECT id, file_name, file_hash, file_key, file_size, created_at FROM activities WHERE id = ?',
@@ -163,13 +164,13 @@ describe('POST /api/activities', () => {
     expect(downgrade.status).toBe(200)
     expect(
       ((await downgrade.json()) as { digest: { modelRevision: number } }).digest.modelRevision,
-    ).toBe(2)
+    ).toBe(MODEL_REVISION)
 
     const conflict = await createActivity(
       h,
       token,
       { fileHash: 'a'.repeat(64) },
-      { modelRevision: 2 },
+      { modelRevision: MODEL_REVISION },
     )
     expect(conflict.status).toBe(409)
     expect(await conflict.json()).toMatchObject({ error: { code: 'activity_conflict' } })
@@ -180,8 +181,8 @@ describe('POST /api/activities', () => {
     const token = await h.signIn()
     const id = await idOf(await createActivity(h, token, {}, { modelRevision: 1 }))
     const [first, second] = await Promise.all([
-      createActivity(h, token, {}, { modelRevision: 2, name: 'Current A' }),
-      createActivity(h, token, {}, { modelRevision: 2, name: 'Current B' }),
+      createActivity(h, token, {}, { modelRevision: MODEL_REVISION, name: 'Current A' }),
+      createActivity(h, token, {}, { modelRevision: MODEL_REVISION, name: 'Current B' }),
     ])
     expect(first.status).toBe(200)
     expect(second.status).toBe(200)
@@ -190,7 +191,7 @@ describe('POST /api/activities', () => {
     const row = await h.env.DB.prepare('SELECT digest_json FROM activities WHERE id = ?')
       .bind(id)
       .first<{ digest_json: string }>()
-    expect(JSON.parse(row!.digest_json).modelRevision).toBe(2)
+    expect(JSON.parse(row!.digest_json).modelRevision).toBe(MODEL_REVISION)
     expect(await h.env.DB.prepare('SELECT COUNT(*) AS n FROM activities').first()).toEqual({ n: 1 })
   })
 
@@ -349,15 +350,22 @@ describe('GET /api/activities', () => {
       .bind(id)
       .first<{ digest_json: string }>()
     const future = JSON.parse(row!.digest_json) as Record<string, unknown>
-    future.modelRevision = 3
+    future.modelRevision = MODEL_REVISION + 1
     await h.env.DB.prepare('UPDATE activities SET digest_json = ? WHERE id = ?')
       .bind(JSON.stringify(future), id)
       .run()
 
     const response = await h.send({ path: '/api/activities', ...as(token) })
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ items: [{ id, digest: { modelRevision: 3 } }] })
-    const unsupportedPost = await createActivity(h, token, {}, { modelRevision: 3 })
+    expect(await response.json()).toMatchObject({
+      items: [{ id, digest: { modelRevision: MODEL_REVISION + 1 } }],
+    })
+    const unsupportedPost = await createActivity(
+      h,
+      token,
+      {},
+      { modelRevision: MODEL_REVISION + 1 },
+    )
     expect(unsupportedPost.status).toBe(400)
   })
 

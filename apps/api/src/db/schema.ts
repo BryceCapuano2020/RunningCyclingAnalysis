@@ -101,6 +101,11 @@ export const r2StorageBudget = sqliteTable('r2_storage_budget', {
   monthlyPutBytes: integer('monthly_put_bytes').notNull().default(0),
   /** Where the orphaned-object sweep resumes listing, or null when it starts from the beginning. */
   orphanSweepCursor: text('orphan_sweep_cursor'),
+  /** Independent ceilings for unauthenticated deep-health HEAD probes. */
+  healthProbeDay: text('health_probe_day').notNull().default(''),
+  healthProbeDayCount: integer('health_probe_day_count').notNull().default(0),
+  healthProbeMonth: text('health_probe_month').notNull().default(''),
+  healthProbeMonthCount: integer('health_probe_month_count').notNull().default(0),
 })
 
 /** Requests of one kind by one user on one UTC day. Rows older than a week are pruned. */

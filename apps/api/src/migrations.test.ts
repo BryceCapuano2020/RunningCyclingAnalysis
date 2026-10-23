@@ -70,6 +70,19 @@ describe('migrations', () => {
         monthly_operations: 5,
       })
       expect(db.prepare('SELECT COUNT(*) AS n FROM sessions').get()).toEqual({ n: 1 })
+      expect(
+        db
+          .prepare(
+            `SELECT health_probe_day, health_probe_day_count, health_probe_month,
+                    health_probe_month_count FROM r2_storage_budget`,
+          )
+          .get(),
+      ).toEqual({
+        health_probe_day: '',
+        health_probe_day_count: 0,
+        health_probe_month: '',
+        health_probe_month_count: 0,
+      })
       expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
       expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
     } finally {

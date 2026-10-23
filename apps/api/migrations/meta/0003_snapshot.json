@@ -102,26 +102,17 @@
       "indexes": {
         "activities_user_start_idx": {
           "name": "activities_user_start_idx",
-          "columns": [
-            "user_id",
-            "start_ms"
-          ],
+          "columns": ["user_id", "start_ms"],
           "isUnique": false
         },
         "activities_user_created_idx": {
           "name": "activities_user_created_idx",
-          "columns": [
-            "user_id",
-            "created_at"
-          ],
+          "columns": ["user_id", "created_at"],
           "isUnique": false
         },
         "activities_user_dedupe_unique": {
           "name": "activities_user_dedupe_unique",
-          "columns": [
-            "user_id",
-            "dedupe_key"
-          ],
+          "columns": ["user_id", "dedupe_key"],
           "isUnique": true
         }
       },
@@ -130,12 +121,8 @@
           "name": "activities_user_id_users_id_fk",
           "tableFrom": "activities",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -183,23 +170,15 @@
           "name": "daily_budget_user_id_users_id_fk",
           "tableFrom": "daily_budget",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "daily_budget_user_id_day_action_pk": {
-          "columns": [
-            "user_id",
-            "day",
-            "action"
-          ],
+          "columns": ["user_id", "day", "action"],
           "name": "daily_budget_user_id_day_action_pk"
         }
       },
@@ -234,9 +213,7 @@
       "indexes": {
         "oauth_accounts_user_idx": {
           "name": "oauth_accounts_user_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -245,22 +222,15 @@
           "name": "oauth_accounts_user_id_users_id_fk",
           "tableFrom": "oauth_accounts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "oauth_accounts_provider_provider_user_id_pk": {
-          "columns": [
-            "provider",
-            "provider_user_id"
-          ],
+          "columns": ["provider", "provider_user_id"],
           "name": "oauth_accounts_provider_provider_user_id_pk"
         }
       },
@@ -351,12 +321,8 @@
           "name": "profiles_user_id_users_id_fk",
           "tableFrom": "profiles",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -412,6 +378,38 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "health_probe_day": {
+          "name": "health_probe_day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "health_probe_day_count": {
+          "name": "health_probe_day_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "health_probe_month": {
+          "name": "health_probe_month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "health_probe_month_count": {
+          "name": "health_probe_month_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {},
@@ -456,9 +454,7 @@
       "indexes": {
         "sessions_user_idx": {
           "name": "sessions_user_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -467,12 +463,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -509,9 +501,7 @@
       "indexes": {
         "upload_slots_expires_idx": {
           "name": "upload_slots_expires_idx",
-          "columns": [
-            "expires_at"
-          ],
+          "columns": ["expires_at"],
           "isUnique": false
         }
       },
@@ -520,22 +510,15 @@
           "name": "upload_slots_user_id_users_id_fk",
           "tableFrom": "upload_slots",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "upload_slots_user_id_slot_id_pk": {
-          "columns": [
-            "user_id",
-            "slot_id"
-          ],
+          "columns": ["user_id", "slot_id"],
           "name": "upload_slots_user_id_slot_id_pk"
         }
       },
@@ -599,9 +582,7 @@
       "indexes": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": true
         }
       },

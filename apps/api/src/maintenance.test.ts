@@ -108,15 +108,21 @@ describe('scheduled maintenance', () => {
     const files = testEnv().FILES!
     await files.put(`${userFilePrefix(uid)}ghost-activity`, 'no row')
     await files.put('users/deleted-user/whatever', 'owner is gone')
+    await files.put('health/sentinel', 'owned by another check')
+    await files.put('shared/report.csv', 'owned by another feature')
 
     const tooSoon = await runMaintenance(h.env, at(Date.now()))
     expect(tooSoon.orphansDeleted).toBe(0)
     expect(await files.get(`${userFilePrefix(uid)}ghost-activity`)).not.toBeNull()
+    expect(await files.get('health/sentinel')).not.toBeNull()
+    expect(await files.get('shared/report.csv')).not.toBeNull()
 
     const later = await runMaintenance(h.env, at(Date.now() + ORPHAN_GRACE_MS + HOUR))
     expect(later.orphansDeleted).toBe(2)
     expect(await files.get(`${userFilePrefix(uid)}ghost-activity`)).toBeNull()
     expect(await files.get('users/deleted-user/whatever')).toBeNull()
+    expect(await files.get('health/sentinel')).not.toBeNull()
+    expect(await files.get('shared/report.csv')).not.toBeNull()
     expect(await files.get(activityFileKey(uid, created.id))).not.toBeNull()
   })
 

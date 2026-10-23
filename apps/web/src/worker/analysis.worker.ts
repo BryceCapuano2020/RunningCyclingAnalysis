@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { MAX_FILE_BYTES } from '@rca/contract'
+import type { ActivityRecord } from '@rca/contract'
 import { parseFit } from '@rca/core/fit'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
@@ -9,17 +10,31 @@ import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import {
   ApiRequestError,
   createActivity,
+  deleteActivity,
   downloadActivityFile,
   listActivities,
   uploadFile,
 } from '../api/client'
-import type { WorkerRequest, WorkerResponse } from './protocol'
+import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { syncIssueFor } from './syncIssue'
 
 const session = new AnalysisSession()
 const post = (message: WorkerResponse) => self.postMessage(message)
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
+const savedRecords = new Map<string, ActivityRecord>()
+
+function reportLibrary() {
+  post({
+    type: 'libraryActivities',
+    activities: [...savedRecords.values()].map(({ id, digest }) => ({
+      id,
+      name: digest.name,
+      startMs: digest.startMs,
+      sport: digest.sport,
+    })),
+  })
+}
 
 /** The same key the session uses: one workout per sport and start second. */
 function activityKey(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
@@ -33,13 +48,14 @@ function messageOf(error: unknown): string {
 /** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
 async function addFiles(
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
-): Promise<SessionState> {
+): Promise<{ state: SessionState; outcome: ImportOutcome }> {
   const { sync } = request
   let filesRead = 0
   // Activities saved to the library, counting the digest alone when files are not kept.
   let uploaded = 0
   let storageBudgetExhausted = false
   let haltedBy: SyncIssueCode | null = null
+  let outcome: ImportOutcome = { activities: 0, rejected: 0 }
   const report = () =>
     post({
       type: 'progress',
@@ -56,7 +72,9 @@ async function addFiles(
         item.fileHash,
         sync?.userId,
       )
+      savedRecords.set(record.id, record)
       if (record.hasFile) missingOriginals.delete(key)
+      else missingOriginals.add(key)
       if (sync?.keepFiles && !record.hasFile) {
         // The limit is inclusive: a file of exactly MAX_FILE_BYTES is kept.
         if (item.bytes.byteLength > MAX_FILE_BYTES) {
@@ -69,7 +87,8 @@ async function addFiles(
           throw new SyncFailure('storage-budget', 'Original-file storage allowance is exhausted')
         }
         try {
-          await uploadFile(record.id, item.bytes, sync.userId)
+          const stored = await uploadFile(record.id, item.bytes, sync.userId)
+          savedRecords.set(record.id, stored)
         } catch (error) {
           if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
             storageBudgetExhausted = true
@@ -99,16 +118,22 @@ async function addFiles(
     },
     sync === null ? undefined : save,
     sync?.keepFiles === true,
+    (completed) => {
+      outcome = completed
+    },
   )
-  if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
+  if (sync !== null) {
+    post({ type: 'missingOriginals', count: missingOriginals.size })
+    reportLibrary()
+  }
   if (haltedBy !== null) post({ type: 'accountIssue', issue: haltedBy })
-  return state
+  return { state, outcome }
 }
 
 async function handle(request: WorkerRequest): Promise<SessionState> {
   switch (request.type) {
     case 'addFiles':
-      return addFiles(request)
+      return (await addFiles(request)).state
     case 'loadSample':
       return session.loadSample(request.settings)
     case 'loadServer':
@@ -121,12 +146,30 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return session.setRange(request.rangeDays, request.settings)
     case 'clear':
       return session.clear()
+    case 'deleteActivity': {
+      const record = savedRecords.get(request.id)
+      if (!record) throw new Error('Reload your library before deleting this activity.')
+      try {
+        await deleteActivity(request.id, request.userId)
+      } catch (error) {
+        // Another tab may already have deleted this exact record.
+        if (!(error instanceof ApiRequestError && error.status === 404)) throw error
+      }
+      savedRecords.delete(record.id)
+      missingOriginals.delete(activityKey(record.digest))
+      reportLibrary()
+      post({ type: 'missingOriginals', count: missingOriginals.size })
+      return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
+    }
   }
 }
 
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
 async function loadServer(settings: AthleteSettings, userId: string): Promise<SessionState> {
   const records = await listActivities(undefined, userId)
+  savedRecords.clear()
+  for (const record of records) savedRecords.set(record.id, record)
+  reportLibrary()
   missingOriginals.clear()
   for (const record of records) {
     if (!record.hasFile) missingOriginals.add(activityKey(record.digest))
@@ -200,6 +243,9 @@ async function rebuildStale(settings: AthleteSettings, userId: string) {
     refreshed.map((record) => record.digest),
     settings,
   )
+  savedRecords.clear()
+  for (const record of refreshed) savedRecords.set(record.id, record)
+  reportLibrary()
   return { state, rebuilt, missing, failed }
 }
 
@@ -208,7 +254,9 @@ let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
-      if (event.data.type === 'rebuildStale') {
+      if (event.data.type === 'addFiles') {
+        post({ type: 'state', ...(await addFiles(event.data)) })
+      } else if (event.data.type === 'rebuildStale') {
         post({
           type: 'rebuildComplete',
           ...(await rebuildStale(event.data.settings, event.data.userId)),

@@ -1,3 +1,4 @@
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { CLIENT_HEADER, CLIENT_HEADER_VALUE } from '@rca/contract'
 import type { ActivityRecord, Me, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
@@ -62,7 +63,7 @@ const RECORD_WIRE = {
 /** The same digest as the in-memory type, with NaN in the places the wire writes null. */
 const DIGEST: ActivityDigest = {
   version: 1,
-  modelRevision: 2,
+  modelRevision: MODEL_REVISION,
   id: 'a1',
   name: 'Morning run',
   sport: 'run',

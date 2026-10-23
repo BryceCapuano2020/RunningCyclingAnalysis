@@ -1,5 +1,5 @@
 export { GRADE_SMOOTHING_MARGIN_S, smoothGrade } from './grade'
-export { minettiCost, runMetabolicPower } from './power'
+export { MIN_RUN_SPEED_MS, minettiCost, runMetabolicPower } from './power'
 export {
   flatSpeedToMetabolic,
   metabolicToFlatSpeed,

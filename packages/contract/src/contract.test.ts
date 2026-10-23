@@ -1,3 +1,4 @@
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { describe, expect, it } from 'vitest'
 import {
   ActivityCreateSchema,
@@ -43,7 +44,7 @@ describe('ActivityDigestSchema', () => {
   it('validates the current model revision shape and accepts missing legacy revision', () => {
     const current = {
       ...digestWire,
-      modelRevision: 2,
+      modelRevision: MODEL_REVISION,
       durationS: 3600,
       curve: DURATIONS_S.map((durationS) => ({
         durationS,
@@ -59,14 +60,16 @@ describe('ActivityDigestSchema', () => {
       ActivityDigestSchema.safeParse({ ...current, curve: current.curve.slice(1) }).success,
     ).toBe(false)
     expect(ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: 0 }).success).toBe(false)
-    expect(ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: 3 }).success).toBe(true)
+    expect(
+      ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: MODEL_REVISION + 1 }).success,
+    ).toBe(true)
     expect(
       ActivityDigestSchema.safeParse({ ...digestWire, modelRevision: Number.MAX_SAFE_INTEGER + 1 })
         .success,
     ).toBe(false)
     expect(
       ActivityCreateSchema.safeParse({
-        digest: { ...digestWire, modelRevision: 3 },
+        digest: { ...digestWire, modelRevision: MODEL_REVISION + 1 },
         fileName: 'ride.fit',
         fileHash: 'a'.repeat(64),
       }).success,

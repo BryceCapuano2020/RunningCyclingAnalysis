@@ -60,12 +60,16 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 ## Deployment R2 ledger
 
-The ledger counts operations (all R2 calls the app makes) and PUT bytes per UTC calendar month.
-Each month starts from zero. Counters are in `r2_storage_budget`.
+The ledger counts ordinary R2 operations and PUT bytes per UTC calendar month. Deep-health HEAD
+probes have a separate global budget, because unauthenticated monitoring must not consume the normal
+application allowance. Counters reset at their UTC day or month boundary in `r2_storage_budget`.
 
-- **Operations: 100,000 per month hard cap**, 90,000 for ordinary traffic. That is 10% of the free
+- **Ordinary operations: 100,000 per month hard cap**, 90,000 for ordinary traffic. That is 10% of the free
   1,000,000 Class A, so it stays well below the free Class A and Class B allowances.
   Cleanup keeps 10,000 headroom.
+- **Deep-health probes: 300 per UTC day and 9,300 per UTC month.** The public endpoint is also
+  limited to one request per minute per address. The global ceiling allows at most 9,300 extra
+  R2 HEAD operations monthly, even when probes come from many addresses.
 - **PUT bytes: 2 GiB per month**, `MAX_MONTHLY_R2_PUT_BYTES`. Each PUT attempt is charged at least
   64 KiB. The sizing is a judgement. Standing storage is what the free 10 GB-month allowance
   measures. At 2 GiB a month, stored data reaches 10 GB after about five months with no deletions,
@@ -126,19 +130,20 @@ cookies were valid, so existing users must sign in again after the first deploy.
 
 - Deletes sessions that have expired or passed their 90-day end, up to 500 per run.
 - Prunes expired upload slots and daily rows older than seven days.
-- Finishes up to three interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts.
+- Finishes up to two interrupted account deletions. A deletion records a `pending_account_deletions` row before it starts.
 - Sweeps two pages of 90 keys per run for R2 objects with no activity row, older than one hour.
   The listing cursor persists in `r2_storage_budget.orphan_sweep_cursor`.
 
-The run is designed to stay under the Workers Free limits. CPU is not measured. The D1 query count is estimated at about 40 in the worst case (three deletions with files, two orphan pages), against a limit of 50.
+The run is designed to stay under the Workers Free limits. CPU is not measured. The D1 query count is estimated at up to about 47 in the worst case (two deletions with files, two orphan pages), against a limit of 50.
 
 ## Health
 
 - `GET /api/health`: static, no storage.
 - `GET /api/health/deep`: `SELECT 1` on D1 and a HEAD on a sentinel R2 key. Returns 200 when both pass,
   otherwise 503, with a JSON body of `{status, checks: {d1, r2}}` and per-check `ok` and `ms`. It sends
-  `Cache-Control: no-store`. It has its own limiter, `HEALTH_RATE_LIMITER`, at 10 requests per minute per address.
-  The limiter is bound in `wrangler.toml` with namespace id 27104, which must be unused in the account.
+  `Cache-Control: no-store`. It returns 429 after the global probe budget is spent, before calling
+  R2. It has its own limiter, `HEALTH_RATE_LIMITER`, at one request per minute per address. The
+  limiter is bound in `wrangler.toml` with namespace id 27104, which must be unused in the account.
 
 ## Error codes
 

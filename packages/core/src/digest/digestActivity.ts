@@ -4,7 +4,7 @@ import type { HeartRateSource } from '../effort'
 import { maxHeartRate, windowHeartRate } from '../effort'
 import { averageBlocks } from '../hr'
 import { mean } from '../math'
-import { runMetabolicPower, smoothGrade } from '../metabolic'
+import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade } from '../metabolic'
 import { assessQuality } from '../quality'
 import type {
   Activity,
@@ -77,18 +77,19 @@ function and(a: Uint8Array, b: Uint8Array): Uint8Array {
 }
 
 /**
- * Masks grade-dependent samples whose grade is unknown (NaN). Paused samples are exempt: they
- * record no motion, so the grade cannot change their power, and masking them would drop every
- * window that spans a pause.
+ * Masks grade-dependent samples whose grade is unknown (NaN). Paused and stationary samples are
+ * exempt because runMetabolicPower assigns them resting cost, independent of grade.
  */
 function withKnownGrade(
   quality: QualityReport,
   rawGrade: Float64Array,
   paused: Uint8Array,
+  speed: Float64Array,
 ): QualityReport {
   const validGrade = Uint8Array.from(quality.validGrade)
   for (let i = 0; i < validGrade.length; i++) {
-    if (Number.isNaN(rawGrade[i]!) && paused[i] !== 1) validGrade[i] = 0
+    const stationary = Number.isFinite(speed[i]!) && speed[i]! < MIN_RUN_SPEED_MS
+    if (Number.isNaN(rawGrade[i]!) && paused[i] !== 1 && !stationary) validGrade[i] = 0
   }
   return { ...quality, validGrade }
 }
@@ -265,9 +266,9 @@ export function digestActivity(activity: Activity): ActivityDigest {
   const rawGrade = activity.indoor
     ? new Float64Array(activity.n)
     : smoothGrade(activity.altitude, activity.distance)
-  const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused)
-  // Unknown grade becomes zero here. Where it matters it is masked by validGrade, and elsewhere
-  // (paused samples) the speed is zero, so the value is unaffected.
+  const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused, activity.speed)
+  // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
+  // stationary samples have grade-independent resting cost.
   const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))
   const source: HeartRateSource = { activity, validHeartRate: quality.validHeartRate }
 

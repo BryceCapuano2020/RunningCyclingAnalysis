@@ -1,3 +1,4 @@
+import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
@@ -27,6 +28,7 @@ vi.mock('../api/client', async (importOriginal) => {
     createActivity: vi.fn(),
     downloadActivityFile: vi.fn(),
     listActivities: vi.fn(),
+    deleteActivity: vi.fn(),
     uploadFile: vi.fn(),
   }
 })
@@ -118,7 +120,11 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages).toEqual([
       { type: 'progress', filesRead: 1 },
-      { type: 'state', state: expect.objectContaining({ totalActivities: 1, syncIssues: [] }) },
+      {
+        type: 'state',
+        state: expect.objectContaining({ totalActivities: 1, syncIssues: [] }),
+        outcome: { activities: 1, rejected: 0 },
+      },
     ])
   })
 
@@ -288,6 +294,7 @@ describe('analysis worker', () => {
 
     expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID)
     expect(messages).toEqual([
+      expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
       {
         type: 'state',
@@ -306,12 +313,13 @@ describe('analysis worker', () => {
 
     expect(mocked.downloadActivityFile).toHaveBeenCalledWith(`rec-${stale.id}`, USER_ID)
     expect(mocked.createActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ modelRevision: 2, sport: stale.sport }),
+      expect.objectContaining({ modelRevision: MODEL_REVISION, sport: stale.sport }),
       'run.fit',
       expect.stringMatching(/^[0-9a-f]{64}$/),
       USER_ID,
     )
     expect(messages).toEqual([
+      expect.objectContaining({ type: 'libraryActivities' }),
       {
         type: 'rebuildComplete',
         rebuilt: 1,
@@ -333,6 +341,7 @@ describe('analysis worker', () => {
     expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
     expect(mocked.createActivity).not.toHaveBeenCalled()
     expect(messages).toEqual([
+      expect.objectContaining({ type: 'libraryActivities' }),
       {
         type: 'rebuildComplete',
         rebuilt: 0,
@@ -502,6 +511,7 @@ describe('analysis worker', () => {
     const { send } = await startWorker()
     const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
     expect(loaded).toEqual([
+      expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
       { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
     ])
@@ -513,7 +523,7 @@ describe('analysis worker', () => {
       sync: { keepFiles: true, userId: USER_ID },
     })
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
-    expect(imported.at(-2)).toEqual({ type: 'missingOriginals', count: 0 })
+    expect(imported).toContainEqual({ type: 'missingOriginals', count: 0 })
     expect(imported.at(-1)).toMatchObject({ type: 'state' })
   })
 
@@ -564,4 +574,48 @@ describe('analysis worker', () => {
       { type: 'state', state: expect.objectContaining({ isSample: false }) },
     ])
   })
+})
+
+it('deletes by server record id without dropping another unsaved activity', async () => {
+  const saved = recordFor(SAMPLE_DIGEST)
+  mocked.listActivities.mockResolvedValue([saved])
+  mocked.deleteActivity.mockResolvedValue(undefined)
+  const { send } = await startWorker()
+  await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+  mocked.createActivity.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+  await send({
+    type: 'addFiles',
+    files: [fitFile(secondSampleActivity)],
+    settings: SETTINGS,
+    sync: { userId: USER_ID, keepFiles: false },
+  })
+  const messages = await send({
+    type: 'deleteActivity',
+    id: saved.id,
+    userId: USER_ID,
+    settings: SETTINGS,
+  })
+  expect(mocked.deleteActivity).toHaveBeenCalledWith(saved.id, USER_ID)
+  expect(messages).toContainEqual({ type: 'libraryActivities', activities: [] })
+  expect(messages.at(-1)).toMatchObject({
+    type: 'state',
+    state: { totalActivities: 1, syncIssues: [{ code: 'network', count: 1 }] },
+  })
+})
+
+it('keeps a saved activity after its deletion fails', async () => {
+  const saved = recordFor(SAMPLE_DIGEST)
+  mocked.listActivities.mockResolvedValue([saved])
+  mocked.deleteActivity.mockRejectedValue(new ApiRequestError(503, 'unavailable', 'Try later'))
+  const { send } = await startWorker()
+  await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+  const messages = await send({
+    type: 'deleteActivity',
+    id: saved.id,
+    userId: USER_ID,
+    settings: SETTINGS,
+  })
+  expect(messages).toEqual([{ type: 'error', message: 'Try later', issue: 'server' }])
+  const state = await send({ type: 'setSettings', settings: SETTINGS })
+  expect(state.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
 })

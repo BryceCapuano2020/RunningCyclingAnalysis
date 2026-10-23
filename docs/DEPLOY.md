@@ -1,5 +1,9 @@
 # Deploying RunningCycling to Cloudflare
 
+The live Worker was verified at commit `493ce15` on 22 October 2026. The current `main` tree is
+`310264a`; this hardening branch has not been deployed. The deployment and limit details below
+describe the branch's intended behavior and are not evidence that its runtime changes are live.
+
 The deployment runs on Cloudflare Workers Free and D1 Free with a dedicated R2 Standard bucket. It
 does not enroll in Workers Paid. The Worker serves the built web app as static files and the API under
 `/api`, so both share one origin: `https://<worker>.<your-subdomain>.workers.dev`. Session cookies
@@ -160,6 +164,19 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 Paste the client secret and press Enter. Secrets are encrypted by Cloudflare, are not stored in
 the repository, and survive later deploys.
 
+Before deploying the signed-session code from this branch, add its required signing key to the
+production Worker:
+
+```bash
+openssl rand -hex 32
+npx wrangler secret put SESSION_SIGNING_KEY
+```
+
+Paste the generated value when prompted. Keep it in the Cloudflare Worker secret store; it is not a
+GitHub Actions environment secret. The first deploy that verifies signed session cookies will
+invalidate all existing unsigned session cookies, so every user will need to sign in again. D1
+session rows may remain until their normal expiry and cleanup.
+
 ## 7. Set APP_URL and deploy again
 
 Open `apps/api/wrangler.toml` and set the `[vars]` value:
@@ -216,7 +233,7 @@ If sign-in fails with `redirect_uri_mismatch`, the redirect URI in the Google cl
 
 Activity digests are derived when an activity is imported; deployment and database migrations do not
 recompute existing rows. The JSON `modelRevision` tracks analysis changes independently of the
-`digest_version` schema column. Revision 2 excludes older digests from current analysis and reports
+`digest_version` schema column. Revision 3 excludes older digests from current analysis and reports
 them as outdated. Re-importing the original FIT file upgrades that row only when its SHA-256 matches;
 the API preserves its id, original-file metadata and quota reservation. When original files are
 retained in R2, the browser can download and reprocess them. Otherwise, original files stay on the
@@ -310,8 +327,11 @@ One-time setup for the repository owner:
    [PRODUCTION.md](PRODUCTION.md#release-gate). The workflow checks the ref, but protection stops
    unreviewed code from reaching `main` in the first place.
 
-Backups use a separate `backup` environment and separate credentials, so a leaked backup token
-cannot deploy the Worker. See [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner).
+The backup and uptime workflow files in this branch are not active jobs. No backup recipient/key,
+GitHub backup environment secrets, or remote workflow setup was configured as part of this work.
+The owner setup instructions in [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner) describe
+what is needed before encrypted backups can run; uptime monitoring also requires the source workflow
+to reach the default branch and complete a successful probe.
 
 ## 11. Costs and hard free-plan limits
 
@@ -320,18 +340,19 @@ Figures below are the documented free-plan allowances at review time. See
 [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), plus each storage
 product's pricing page, before relying on them.
 
-| Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                                                             |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                                                             |
-| Static assets | Requests and storage are free; asset delivery does not use the Worker request quota.                                                                | The web app's HTML, JavaScript, CSS and images                                                                                                                                |
-| D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                                                             |
-| R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; app code applies a 4 GiB lifetime PUT charge budget (at least 64 KiB per attempt) and 100,000 chargeable operations per UTC calendar month. |
+| Service       | Free-plan limit                                                                                                                                     | What the app uses                                                                                                                                                                                                                                                                     |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workers       | 100,000 requests per day; 10 ms CPU per invocation; 128 MB memory; 50 subrequests per invocation.                                                   | Every `/api` call                                                                                                                                                                                                                                                                     |
+| Static assets | Requests and storage are free; asset delivery does not use the Worker request quota.                                                                | The web app's HTML, JavaScript, CSS and images                                                                                                                                                                                                                                        |
+| D1            | 5 million rows read per day; 100,000 rows written per day; 5 GB total storage.                                                                      | Accounts, sessions, profiles and activity digests                                                                                                                                                                                                                                     |
+| R2            | Standard free allowance includes 10 GB-month storage, 1 million Class A and 10 million Class B operations per month; usage beyond it can be billed. | Optional original-file retention; branch code caps charged PUT bytes at 2 GiB per UTC month (at least 64 KiB per attempt), standard operations at 90,000/month with 10,000 reserved for cleanup, and deep-health probes at 300/day and 9,300/month (plus one per minute per address). |
 
 Cloudflare documents that Workers Free and D1 Free operations fail when daily usage limits are
 exceeded; D1 queries stay unavailable until the daily reset and writes also fail if the storage cap
 is reached. This setup does not enroll the account in Workers Paid. The application-level R2
 budgets reserve bytes and operation capacity before requests. Failed PUTs and retries retain their
-charges; a fresh lifetime ledger can admit at most 65,536 PUT attempts and fewer for larger files.
+charges for the month; the 2 GiB PUT budget resets at the next UTC month. The lifetime PUT counter
+is an audit total and does not block uploads.
 The limits cover only traffic handled by this application. They cannot cap direct bucket access,
 other clients, dashboard actions, or provider-side charges. Keep the bucket private and dedicated,
 and monitor usage; R2's free

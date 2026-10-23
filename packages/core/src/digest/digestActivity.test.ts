@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_BIKE_MODEL, DURATIONS_S, PRIORS, RESTING_W_PER_KG } from '../constants'
-import { smoothGrade } from '../metabolic'
+import { MIN_RUN_SPEED_MS, smoothGrade } from '../metabolic'
 import type { Activity, Sport } from '../types'
 import { climbMask, estimatePower } from '../virtualPower'
 import { digestActivity } from './digestActivity'
+import { MODEL_REVISION } from './modelRevision'
 import { serializeDigest } from './serialize'
 import { powerAt } from './terms'
 
@@ -84,6 +85,7 @@ describe('digestActivity: summary', () => {
   it('summarises identity, duration, distance and heart rate', () => {
     const d = digestActivity(activity({ n: 10, id: 'x', startMs: 1234 }))
     expect(d.version).toBe(1)
+    expect(d.modelRevision).toBe(MODEL_REVISION)
     expect(d.id).toBe('x')
     expect(d.name).toBe('x')
     expect(d.sport).toBe('run')
@@ -468,7 +470,7 @@ describe('digestActivity: altitude steps and missing altitude', () => {
     expect(d.curve.every((p) => p.terms === null)).toBe(true)
   })
 
-  it('gives a run without altitude no grade-dependent values, and flags the reason', () => {
+  it('still excludes moving outdoor running without altitude and flags the reason', () => {
     const d = digestActivity(activity({ n: 1500, noAltitude: true }))
     expect(d.curve.every((p) => Number.isNaN(p.value))).toBe(true)
     expect(d.hrBlocks).toEqual([])
@@ -503,12 +505,36 @@ describe('digestActivity: altitude steps and missing altitude', () => {
     expect(d.curve.find((p) => p.durationS === 600)!.value).toBeGreaterThan(0)
   })
 
-  it('does make a run window unusable when the same stop is not paused', () => {
+  it('uses resting cost across the same stop when it is not paused', () => {
     const n = 600
     const speed = constant(n, 4)
     speed.fill(0, 200, 260)
     const d = digestActivity(activity({ n, speed }))
-    expect(d.curve.find((p) => p.durationS === 600)!.value).toBeNaN()
+    const p = d.curve.find((point) => point.durationS === 600)!
+    const expected = (540 * flatMetabolic(4) + 60 * RESTING_W_PER_KG) / 600
+    expect(p.value).toBeCloseTo(expected, 8)
+  })
+
+  it('keeps long run windows across a brief unpaused stop and charges resting cost', () => {
+    const n = 40 * 60
+    const speed = constant(n, 4)
+    const stopStart = 19 * 60 + 50
+    // Smoothly decelerate for 10 s, stand for 25 s, then smoothly accelerate for 10 s.
+    for (let k = 0; k < 10; k++) speed[stopStart + k] = (4 * (9 - k)) / 10
+    speed.fill(0, stopStart + 10, stopStart + 35)
+    for (let k = 0; k < 10; k++) speed[stopStart + 35 + k] = (4 * (k + 1)) / 10
+    const d = digestActivity(activity({ n, speed }))
+    const p20 = d.curve.find((p) => p.durationS === 1200)!
+    const p30 = d.curve.find((p) => p.durationS === 1800)!
+    expect(Number.isFinite(p20.value)).toBe(true)
+    expect(Number.isFinite(p30.value)).toBe(true)
+    let expected30 = 0
+    for (let i = p30.startIndex; i < p30.startIndex + p30.windowS; i++) {
+      const v = speed[i]!
+      expected30 += v < MIN_RUN_SPEED_MS ? RESTING_W_PER_KG : flatMetabolic(v)
+    }
+    expect(p30.value).toBeCloseTo(expected30 / p30.windowS, 8)
+    expect(p30.value).toBeLessThan(flatMetabolic(4))
   })
 })
 

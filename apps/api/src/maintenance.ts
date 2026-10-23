@@ -12,7 +12,7 @@ export const ORPHAN_PAGE_SIZE = 90
 /** Bounds R2 LIST calls and D1 queries per scheduled run (Workers Free allows 50 D1 queries per run). */
 export const ORPHAN_PAGES_PER_RUN = 2
 /** Account deletions finished per run. */
-export const PENDING_DELETIONS_PER_RUN = 3
+export const PENDING_DELETIONS_PER_RUN = 2
 
 export interface MaintenanceReport {
   sessions: number
@@ -24,6 +24,7 @@ export interface MaintenanceReport {
 }
 
 const OBJECT_KEY = /^users\/([^/]+)\/([^/]+)$/
+const USER_FILES_PREFIX = 'users/'
 
 /**
  * The daily maintenance pass, run by the scheduled handler. Every step is bounded, so one run
@@ -99,7 +100,13 @@ async function sweepOrphanObjects(env: Bindings, deps: Deps): Promise<number> {
   let deleted = 0
   for (let page = 0; page < ORPHAN_PAGES_PER_RUN; page += 1) {
     await reserveR2Operation(db, deps.now(), { cleanup: true })
-    const listing = await bucket.list({ limit: ORPHAN_PAGE_SIZE, cursor })
+    // The bucket may contain objects owned by other features or operators. Restrict the sweep to
+    // this service's namespace so an unrelated key without an activity row is never deleted.
+    const listing = await bucket.list({
+      prefix: USER_FILES_PREFIX,
+      limit: ORPHAN_PAGE_SIZE,
+      cursor,
+    })
     const cutoff = deps.now() - ORPHAN_GRACE_MS
     const candidates = listing.objects
       .filter((object) => object.uploaded.getTime() <= cutoff)

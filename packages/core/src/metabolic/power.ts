@@ -1,7 +1,7 @@
 import { RESTING_W_PER_KG } from '../constants'
 
 /** Below this speed the runner is treated as standing still. */
-const MIN_RUN_SPEED_MS = 0.5
+export const MIN_RUN_SPEED_MS = 0.5
 /** The Minetti polynomial is fitted on gradients in [-0.45, 0.45]. */
 const MAX_ABS_COST_GRADE = 0.45
 

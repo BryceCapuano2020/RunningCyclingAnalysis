@@ -39,6 +39,12 @@ function issueSentence({ code, count }: SyncIssue): string {
       return `${originals} ${wereOrWas} too large to keep (over ${MAX_FILE_MB} MB). ${summaries}`
     case 'rate-limited':
       return `Too many requests at once, so ${activities} ${wereOrWas} not fully saved. Wait a minute, then re-import ${them}.`
+    case 'daily-limit':
+      return `Your daily save allowance was reached, so ${activities} ${wereOrWas} not fully saved. Try again after midnight UTC and re-import ${them}.`
+    case 'upload-in-progress':
+      return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then re-import ${them}.`
+    case 'account-deleting':
+      return `This account is being deleted, so ${activities} ${wereOrWas} not saved. Account deletion must finish before you can sign in again.`
     case 'network':
       return `${activities} ${wereOrWas} not fully saved because the connection dropped. Re-import ${them} to retry.`
     case 'server':

@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../env.ts'
+import { HttpError } from '../errors.ts'
+import { reserveHealthProbe } from '../healthBudget.ts'
 import { healthRateLimit } from '../rateLimit.ts'
-import { reserveR2Operation } from '../storage.ts'
 
 /** Never written; a HEAD on a missing key still proves the bucket answers. */
 export const HEALTH_SENTINEL_KEY = 'health/sentinel'
@@ -17,6 +18,7 @@ async function timed(run: () => Promise<void>): Promise<Check> {
     await run()
     return { ok: true, ms: Date.now() - started }
   } catch (error) {
+    if (error instanceof HttpError) throw error
     console.error(
       JSON.stringify({
         event: 'health_check_failed',
@@ -41,7 +43,7 @@ healthRoutes.get('/deep', healthRateLimit, async (c) => {
   const files = c.env.FILES
   const r2 = files
     ? await timed(async () => {
-        await reserveR2Operation(c.env.DB, deps.now())
+        await reserveHealthProbe(c.env.DB, deps.now())
         await files.head(HEALTH_SENTINEL_KEY)
       })
     : { ok: false, ms: 0 }

@@ -20,6 +20,9 @@ export type SyncIssueCode =
   | 'storage-budget'
   | 'file-too-large'
   | 'rate-limited'
+  | 'daily-limit'
+  | 'upload-in-progress'
+  | 'account-deleting'
   | 'network'
   | 'server'
 
@@ -43,6 +46,7 @@ export class SyncFailure extends Error {
 const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
   'signed-out',
   'account-changed',
+  'account-deleting',
 ])
 
 /**
@@ -124,10 +128,12 @@ export class AnalysisSession {
     onProgress?: (filesRead: number) => void,
     sink?: SyncSink,
     syncExisting = false,
+    onComplete?: (outcome: { activities: number; rejected: number }) => void,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     const batch: SaveBatch = { halt: null }
     let filesRead = 0
+    const outcome = { activities: 0, rejected: 0 }
     for (const source of sources) {
       let undecodable = 0
       const summary = await extractFitFiles(
@@ -135,6 +141,7 @@ export class AnalysisSession {
         async (file) => {
           const parsed = parseFit(file.bytes, file.fileName)
           if (parsed.ok) {
+            outcome.activities += parsed.activities.length
             const fileHash = sink === undefined ? '' : await sha256Hex(file.bytes)
             for (const activity of parsed.activities) {
               await this.keep(
@@ -149,21 +156,36 @@ export class AnalysisSession {
             this.rejected.delete(file.fileName)
             this.rejected.delete(`${file.fileName}.gz`)
           } else {
+            outcome.rejected++
             this.rejected.set(parsed.fileName, parsed.reason)
           }
           onProgress?.(++filesRead)
         },
         (fileName, reason) => {
           undecodable++
+          outcome.rejected++
           this.rejected.set(fileName, reason)
         },
       )
       this.unsupported.set(source.name, summary.otherActivityFiles)
+      outcome.rejected += summary.otherActivityFiles
       // A corrupt file is already reported under its own name, so do not also call it empty.
       if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
+        outcome.rejected++
         this.rejected.set(source.name, 'No FIT files found')
       }
     }
+    onComplete?.(outcome)
+    return this.state(settings)
+  }
+
+  /** Removes one saved workout after its owner-scoped server deletion succeeds. */
+  removeActivity(sport: Sport, startMs: number, settings: AthleteSettings): SessionState {
+    const key = dedupeKey(sport, startMs)
+    this.digests.delete(key)
+    this.unsynced.delete(key)
+    this.outdatedKeys.delete(key)
+    this.incompatibleKeys.delete(key)
     return this.state(settings)
   }
 

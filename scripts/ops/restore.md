@@ -131,13 +131,27 @@ jq -r '.r2.objects[].key' "$WORK/manifest.json" | sort > "$WORK/r2-keys-at-backu
 ## 7. Deploy a preview Worker against the restored database
 
 Write a restore configuration outside the repository, in `$WORK`. Copy `apps/api/wrangler.toml`
-and change only these values:
+and make these changes:
 
 - `name` to `rca-api-restore`, so production is not overwritten.
 - `database_id` in the `DB` binding to the id from step 3.
+- `bucket_name` in the `FILES` binding to a new, empty scratch bucket, for example
+  `rca-files-restore-YYYYMMDD`. Create it before the Worker:
+
+  ```bash
+  npm exec -w @rca/api -- wrangler r2 bucket create rca-files-restore-YYYYMMDD
+  ```
+
+  Never bind the preview to `rca-files`. The restored database may not reference every current
+  production object, and the Worker's scheduled orphan cleanup could permanently delete those
+  production files. The scratch bucket must be empty because the restore only backs up the list of
+  R2 objects, not their bytes.
+
 - `APP_URL` to the preview's own `https://rca-api-restore.<subdomain>.workers.dev`. Google sign-in
   will not work there because the redirect URI is not registered. Verify with the database checks
   above and with the Worker's public endpoints.
+- Remove the `[triggers]` section so the preview does not run scheduled maintenance during the
+  drill. The preview's R2 binding remains isolated even with its cron disabled.
 - `[assets] directory` and `main` to absolute paths in this repository, so the built app and entry
   point resolve from `$WORK`.
 
@@ -167,6 +181,7 @@ Delete the preview Worker and the scratch database once the drill or incident is
 ```bash
 npm exec -w @rca/api -- wrangler delete rca-api-restore
 npm exec -w @rca/api -- wrangler d1 delete rca-restore-YYYYMMDD
+npm exec -w @rca/api -- wrangler r2 bucket delete rca-files-restore-YYYYMMDD
 rm -rf "$WORK"
 ```
 
