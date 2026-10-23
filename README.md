@@ -146,6 +146,11 @@ npm run dev
 | `npm run fixtures -w @rca/web`    | Regenerates the deterministic e2e fixtures (FIT, GPX, TCX and the Strava zip)              |
 | `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`                                 |
 
+To run two e2e suites at once (for example from two worktrees, not one checkout), give each its own
+pair of free ports: `E2E_WEB_PORT` (default 4319, the preview server) and `E2E_API_PORT` (default 8787,
+`wrangler dev`). Each API port keeps its own local D1 state in `apps/api/.wrangler/e2e-state-<port>`.
+The defaults are what CI uses; `apps/web/e2e/ports.ts` holds them.
+
 ### Layout
 
 npm workspaces monorepo. Shared TypeScript, Vitest, Prettier and oxlint config live at the root.

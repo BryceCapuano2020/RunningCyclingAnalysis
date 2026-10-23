@@ -2,6 +2,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import type { Connect, Plugin } from 'vite'
+import { e2eApiPort } from './e2e/ports.ts'
 
 /** Workers Assets serves /privacy.html at /privacy; the Vite servers do the same for parity. */
 function cleanUrls(): Plugin {
@@ -30,7 +31,8 @@ export default defineConfig({
     proxy: { '/api': 'http://localhost:8787' },
   },
   preview: {
-    proxy: { '/api': 'http://localhost:8787' },
+    // The e2e web server; E2E_API_PORT selects the API it proxies to (default 8787).
+    proxy: { '/api': `http://localhost:${e2eApiPort}` },
   },
   test: {
     name: 'web',
