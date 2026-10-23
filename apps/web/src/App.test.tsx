@@ -152,6 +152,7 @@ vi.mock('./ui/components', () => ({
       Change weight
     </button>
   ),
+  ShareImageButton: () => null,
   SignInCallout: () => null,
   SyncStatus: (props: Record<string, unknown>) => {
     componentMock.syncStatus.push(props)

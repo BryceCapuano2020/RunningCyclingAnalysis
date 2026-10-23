@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { UnitSystem } from '@rca/core/units'
+import { APP_NAME } from '../../appName'
 import { SegmentedControl } from './SegmentedControl'
 import './Header.css'
 
@@ -19,7 +20,7 @@ export function Header({ units, onUnitsChange, actions }: HeaderProps) {
   return (
     <header className="header">
       <div>
-        <p className="header__brand">RunningCyclingAnalysis</p>
+        <p className="header__brand">{APP_NAME}</p>
         <p className="header__tagline">
           Compare your running and cycling energy estimates in one unit
         </p>
