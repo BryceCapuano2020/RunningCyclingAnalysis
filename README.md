@@ -103,8 +103,8 @@ The repository includes a deterministic simulator (`packages/core/src/synthetic`
 physically consistent activities for an athlete whose true efficiency, running economy and
 critical power are known. The integration tests in `packages/core/src/pipeline.test.ts` run the
 whole pipeline on that data and assert that it recovers the simulated parameters. These tests
-validate implementation consistency, not accuracy or interval coverage on real athletes. Real
-device-file validation is still outstanding.
+validate implementation consistency, not accuracy or interval coverage on real athletes. The
+importers are checked against real device files in [docs/validation/devices.md](docs/validation/devices.md) and [docs/validation/gpx-tcx.md](docs/validation/gpx-tcx.md).
 
 ## Limits
 

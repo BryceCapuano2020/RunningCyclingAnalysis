@@ -18,23 +18,34 @@ export interface DecodedSport {
 export interface DecodedSession {
   timestampMs: number | undefined
   startTimeMs: number | undefined
-  /** Seconds. */
+  /** Seconds, pauses included. */
   totalElapsedTime: number | undefined
+  /** Seconds, pauses excluded. */
+  totalTimerTime: number | undefined
+  /** Metres, as the device summarised it. */
+  totalDistance: number | undefined
+  /** Beats per minute, as the device averaged it over the timer time. */
+  avgHeartRate: number | undefined
+  /** Watts, as the device averaged it over the timer time, zeros included. */
+  avgPower: number | undefined
   sport: FitSportName | undefined
   subSport: FitSubSportName | undefined
 }
 
 export interface DecodedRecord {
+  /** Epoch milliseconds. Undefined for a system time (below 2^28 seconds), which has no date. */
   timestampMs: number | undefined
+  /** The timestamp as written: FIT seconds, system times included. */
+  timestampS: number | undefined
   /** Semicircles, as written in the file. */
   positionLat: number | undefined
   positionLong: number | undefined
   /** Metres. */
   altitude: number | undefined
   heartRate: number | undefined
-  /** Metres. */
+  /** Metres. Taken from the compressed distance field when the record has no distance field. */
   distance: number | undefined
-  /** Metres per second. */
+  /** Metres per second. Taken from the compressed speed field when the record has no speed field. */
   speed: number | undefined
   power: number | undefined
   /** Metres per second. */
@@ -83,6 +94,7 @@ export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeRe
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
   const messages: DecodedMessages = { sports: [], sessions: [], records: [], events: [] }
   const errors: string[] = []
+  const compressed = compressedReader()
   let recordCount = 0
   let warnings: string[] = []
   let crcValid = false
@@ -91,7 +103,10 @@ export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeRe
       if (message.globalNum === MESG.record) {
         recordCount++
         if (recordCount > maxRecords) return false
-        messages.records.push(toRecord(message.values))
+        const raw = message.arrays?.get(FIELD.compressedSpeedDistance)
+        // Each record with the field advances the distance counter, as the FIT SDK does.
+        const reading = raw === undefined ? undefined : compressed(raw)
+        messages.records.push(toRecord(message.values, reading))
       } else {
         collect(messages, message)
       }
@@ -124,6 +139,10 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
         timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
         startTimeMs: fitTimeToEpochMs(numberOf(v, 2)),
         totalElapsedTime: scaled(v, 7, 1000),
+        totalTimerTime: scaled(v, 8, 1000),
+        totalDistance: scaled(v, 9, 100),
+        avgHeartRate: numberOf(v, 16),
+        avgPower: numberOf(v, 20),
         sport: sportName(numberOf(v, 5) ?? -1),
         subSport: subSportName(numberOf(v, 6) ?? -1),
       })
@@ -140,18 +159,47 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
   }
 }
 
-function toRecord(v: Values): DecodedRecord {
+function toRecord(v: Values, compressed: CompressedReading | undefined): DecodedRecord {
+  const timestampS = numberOf(v, FIELD.timestamp)
   return {
-    timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+    timestampMs: fitTimeToEpochMs(timestampS),
+    timestampS,
     positionLat: numberOf(v, FIELD.positionLat),
     positionLong: numberOf(v, FIELD.positionLong),
     altitude: scaled(v, FIELD.altitude, 5, 500),
     heartRate: numberOf(v, FIELD.heartRate),
-    distance: scaled(v, FIELD.distance, 100),
-    speed: scaled(v, FIELD.speed, 1000),
+    distance: scaled(v, FIELD.distance, 100) ?? compressed?.distance,
+    speed: scaled(v, FIELD.speed, 1000) ?? compressed?.speed,
     power: numberOf(v, FIELD.power),
     enhancedSpeed: scaled(v, FIELD.enhancedSpeed, 1000),
     enhancedAltitude: scaled(v, FIELD.enhancedAltitude, 5, 500),
+  }
+}
+
+/** Speed (m/s) and cumulative distance (m) from one compressed speed and distance field. */
+interface CompressedReading {
+  speed: number
+  distance: number
+}
+
+/**
+ * Reads Garmin's compressed speed and distance: three bytes, least significant bit first, holding
+ * a 12-bit speed in 1/100 m/s and a 12-bit distance counter in 1/16 m that wraps at 4096. As in the
+ * FIT SDK, the distance is rebuilt by adding each step modulo 4096, starting at the first counter.
+ * The returned reader keeps that state across the records of one file.
+ */
+function compressedReader(): (bytes: Uint8Array) => CompressedReading | undefined {
+  let lastCounter: number | undefined
+  let distanceCounter = 0
+  return (bytes) => {
+    if (bytes.length < 3) return undefined
+    const bits = (bytes[0] ?? 0) | ((bytes[1] ?? 0) << 8) | ((bytes[2] ?? 0) << 16)
+    const speed = (bits & 0xfff) / 100
+    const counter = (bits >>> 12) & 0xfff
+    distanceCounter =
+      lastCounter === undefined ? counter : distanceCounter + ((counter - lastCounter) & 0xfff)
+    lastCounter = counter
+    return { speed, distance: distanceCounter / 16 }
   }
 }
 

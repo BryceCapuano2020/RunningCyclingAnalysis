@@ -1,50 +1,27 @@
-import type { Sport } from '../types'
-import { DEFAULT_PARSE_LIMITS } from '../fit/parse'
-import type { ParseLimits, ParseOptions, ParseResult } from '../fit/parse'
 import type { RawRecord } from '../fit/resample'
-import { trackFromFixes } from '../import/gps'
-import type { GpsFix } from '../import/gps'
 import { activitiesFromUnits, MAX_SPEED_MPS } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
+import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
+import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime } from '../import/time'
+import {
+  readNonNegative,
+  readNumber,
+  readPosition,
+  Refusal,
+  trackFromPoints,
+} from '../import/trackpoints'
+import type { LatLon } from '../import/trackpoints'
 import { scanXmlBytes, XmlError } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
+import { sportOf } from './sport'
 
 const NOT_GPX = 'Not a GPX file'
 const DECODE_FAILED = 'Could not decode GPX file'
-const NO_RECORDS = 'File contains no activity records'
-const NO_SPORT = 'This GPX file does not say whether it is a run or a ride'
-const E_BIKE_REASON =
-  'E-bike activities are not supported because motor assistance hides your own power'
 
-const RUN_TYPES = new Set(['run', 'running', 'trail_running', 'trailrun', '9'])
-const RIDE_TYPES = new Set([
-  'ride',
-  'cycling',
-  'biking',
-  'road_biking',
-  'mountain_biking',
-  'gravel_cycling',
-  '1',
-])
-const INDOOR_RIDE_TYPES = new Set(['virtual_ride', 'indoor_cycling'])
-/** Matched with spaces, dashes and underscores removed. Same e-bike names as FIT's sport and sub-sports. */
-const E_BIKE_KEYS = new Set([
-  'ebike',
-  'ebikeride',
-  'ebiking',
-  'ebikefitness',
-  'ebikemountain',
-  'ebikeenduro',
-])
 const POWER_NAMES = new Set(['power', 'PowerInWatts'])
 /** Elements whose own text is read when they close. */
 const TEXT_ROLES = new Set(['type', 'ele', 'time', 'heartRate', 'power'])
-
-interface LatLon {
-  lat: number
-  lon: number
-}
 
 /** One trkpt with a valid time. Position, altitude and extensions are optional. */
 interface Point {
@@ -85,16 +62,6 @@ interface Frame {
   text: string
 }
 
-interface SportChoice {
-  sport: Sport | null
-  indoor: boolean
-  sportLabel: string
-  refusal?: { reason: string; skipped: string }
-}
-
-/** Ends the scan early with the reason to report. */
-class Refusal extends Error {}
-
 /**
  * Parses a GPX 1.0 or 1.1 file into 1 Hz Activities, one per track. The file is streamed: each
  * trackpoint is kept until its track ends, and no document tree is built. Distance and speed come
@@ -127,7 +94,7 @@ function parseUnchecked(
   try {
     scanXmlBytes(bytes, reader)
   } catch (error) {
-    if (error instanceof Refusal) return failure(fileName, error.message)
+    if (error instanceof Refusal) return failure(fileName, error.reason)
     if (error instanceof XmlError) return failure(fileName, NOT_GPX)
     throw error
   }
@@ -184,18 +151,20 @@ class GpxReader implements XmlHandler {
         if (this.track !== undefined) this.track.type = nonBlank(frame.text)
         break
       case 'ele':
-        if (point !== undefined) point.altitude = toNumber(frame.text)
+        if (point !== undefined) point.altitude = readNumber(frame.text)
         break
       case 'time':
         if (point !== undefined) point.tMs = parseIsoTime(frame.text, 'utc')
         break
       case 'heartRate':
         if (point !== undefined && point.heartRate === undefined) {
-          point.heartRate = readCount(frame.text)
+          point.heartRate = readNonNegative(frame.text)
         }
         break
       case 'power':
-        if (point !== undefined && point.power === undefined) point.power = readCount(frame.text)
+        if (point !== undefined && point.power === undefined) {
+          point.power = readNonNegative(frame.text)
+        }
         break
       default:
         break
@@ -255,7 +224,7 @@ class GpxReader implements XmlHandler {
       throw new Refusal(`GPX file exceeds the ${this.maxPoints}-record limit`)
     }
     this.point = {
-      position: readPosition(attrs),
+      position: readPosition(attrs.lat, attrs.lon),
       tMs: undefined,
       altitude: undefined,
       heartRate: undefined,
@@ -337,13 +306,7 @@ function toRecords(
   points: Point[],
   maxSpeedMs: number,
 ): { records: RawRecord[]; rejected: number } {
-  const fixes: GpsFix[] = []
-  for (const point of points) {
-    if (point.position !== undefined) {
-      fixes.push({ t: point.tMs, lat: point.position.lat, lon: point.position.lon })
-    }
-  }
-  const track = trackFromFixes(fixes, { maxSpeedMs })
+  const track = trackFromPoints(points, maxSpeedMs)
 
   const records: RawRecord[] = []
   let nearest = 0
@@ -370,62 +333,8 @@ function toRecords(
   return { records, rejected: track.rejected }
 }
 
-function sportOf(type: string | undefined, creator: string | undefined): SportChoice {
-  if (type === undefined) {
-    return {
-      sport: null,
-      indoor: false,
-      sportLabel: 'unknown',
-      refusal: { reason: noSportReason(creator), skipped: 'track with no sport skipped' },
-    }
-  }
-  const key = type.toLowerCase()
-  if (RUN_TYPES.has(key)) return { sport: 'run', indoor: false, sportLabel: type }
-  if (RIDE_TYPES.has(key)) return { sport: 'ride', indoor: false, sportLabel: type }
-  if (INDOOR_RIDE_TYPES.has(key)) return { sport: 'ride', indoor: true, sportLabel: type }
-  if (E_BIKE_KEYS.has(key.replace(/[^a-z0-9]/g, ''))) {
-    const refusal = { reason: E_BIKE_REASON, skipped: 'e-bike session skipped' }
-    return { sport: null, indoor: false, sportLabel: type, refusal }
-  }
-  return { sport: null, indoor: false, sportLabel: type }
-}
-
-/** Refuses to guess: a run and a ride are compared differently, so a guess would corrupt the result. */
-function noSportReason(creator: string | undefined): string {
-  const name = creator?.replace(/\s+/g, ' ').trim().slice(0, 80)
-  return name ? `${NO_SPORT} (creator: ${name})` : NO_SPORT
-}
-
-/** A position needs a finite latitude in [-90, 90] and longitude in [-180, 180]. */
-function readPosition(attrs: Record<string, string>): LatLon | undefined {
-  const lat = toNumber(attrs.lat)
-  const lon = toNumber(attrs.lon)
-  if (lat === undefined || lon === undefined) return undefined
-  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return undefined
-  return { lat, lon }
-}
-
-/** A finite, non-negative value, or undefined. Used for heart rate and power. */
-function readCount(text: string): number | undefined {
-  const value = toNumber(text)
-  return value !== undefined && value >= 0 ? value : undefined
-}
-
-/** A finite number from XML text, or undefined. Blank text is not a number. */
-function toNumber(text: string | undefined): number | undefined {
-  if (text === undefined) return undefined
-  const trimmed = text.trim()
-  if (trimmed === '') return undefined
-  const value = Number(trimmed)
-  return Number.isFinite(value) ? value : undefined
-}
-
 /** The trimmed text, or undefined when it is blank. */
 function nonBlank(text: string): string | undefined {
   const trimmed = text.trim()
   return trimmed === '' ? undefined : trimmed
-}
-
-function failure(fileName: string, reason: string): ParseResult {
-  return { ok: false, fileName, reason }
 }

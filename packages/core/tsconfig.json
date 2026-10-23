@@ -4,5 +4,6 @@
     "lib": ["ES2023", "DOM"],
     "types": []
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/corpus"]
 }

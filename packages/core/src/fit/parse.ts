@@ -1,39 +1,19 @@
-import type { Activity, Sport } from '../types'
-import { activitiesFromUnits, MAX_FILE_SAMPLES } from '../import/pipeline'
+import type { Sport } from '../types'
+import { activitiesFromUnits } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
+import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
+import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { decodeFit } from './protocol/decode'
 import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
 import { isFitFile, TRUNCATED_ERROR } from './protocol/reader'
 import type { RawRecord, RawTimerEvent } from './resample'
 
-export type ParseResult =
-  | { ok: true; activities: Activity[]; skipped: string[]; droppedValues: number }
-  | { ok: false; fileName: string; reason: string }
-
-export interface ParseLimits {
-  maxFileBytes: number
-  maxRecordMessages: number
-  /** The longest single activity, in seconds. */
-  maxActivitySeconds: number
-}
-
-export interface ParseOptions {
-  /** The clock for the date check, in epoch milliseconds. Defaults to Date.now(). */
-  nowMs?: number
-}
-
-export const DEFAULT_PARSE_LIMITS: Readonly<ParseLimits> = {
-  maxFileBytes: 64 * 1024 ** 2,
-  maxRecordMessages: 2_000_000,
-  maxActivitySeconds: MAX_FILE_SAMPLES,
-}
-
 const NOT_FIT = 'Not a FIT file'
 const DECODE_FAILED = 'Could not decode FIT file'
 const CORRUPT = 'File is corrupt (checksum mismatch)'
 const INCOMPLETE = 'File is incomplete or corrupt'
-const NO_RECORDS = 'File contains no activity records'
+const NO_DATE = 'Records have no date, only device time'
 const OVERLAP = 'Sessions overlap; times were adjusted'
 const E_BIKE_REASON =
   'E-bike activities are not supported because motor assistance hides your own power'
@@ -104,17 +84,15 @@ function parseUnchecked(
   }
   const { messages } = decoded
   if (messages.records.length === 0) return failure(fileName, NO_RECORDS)
+  const timed = timedRecords(messages.records)
+  if (timed.length === 0) return failure(fileName, NO_DATE)
 
   const skipped: string[] = []
-  const units = assignUnits(
-    messages.sessions,
-    timedRecords(messages.records),
-    messages.events,
-    skipped,
-  )
+  const units = assignUnits(messages.sessions, timed, messages.events, skipped)
   const sportMesg = messages.sports[0]
+  const origins = distanceOrigins(units, timed)
   const result = activitiesFromUnits(
-    { fileName, units: units.map((unit) => toPipelineUnit(unit, sportMesg)) },
+    { fileName, units: units.map((unit) => toPipelineUnit(unit, sportMesg, origins.get(unit))) },
     limits,
     opts,
   )
@@ -123,7 +101,11 @@ function parseUnchecked(
 }
 
 /** Maps one session's FIT records and sport to the shared pipeline's input. */
-function toPipelineUnit(unit: Unit, sportMesg: DecodedSportMessage | undefined): PipelineUnit {
+function toPipelineUnit(
+  unit: Unit,
+  sportMesg: DecodedSportMessage | undefined,
+  distanceOrigin: number | undefined,
+): PipelineUnit {
   const { sport, subSport } = resolveSport(unit.session, sportMesg)
   const mapping = mapSport(sport, subSport)
   const shared = {
@@ -131,6 +113,7 @@ function toPipelineUnit(unit: Unit, sportMesg: DecodedSportMessage | undefined):
     timerEvents: unit.events,
     sportLabel: sport ?? 'unknown',
     hasPosition: unit.records.some((t) => t.record.positionLat !== undefined),
+    distanceOrigin,
   }
   if (!mapping.ok) {
     const refusal = { reason: mapping.reason, skipped: mapping.skipped }
@@ -200,6 +183,30 @@ function toRaw(t: Timed): RawRecord {
     heartRate: r.heartRate,
     power: r.power,
   }
+}
+
+/**
+ * For each unit, the device's running distance just before the unit's first record that has a
+ * distance: the distance of the latest earlier record that has one. Units with no such record, or
+ * where the counter went back (a device reset), get no origin and keep the device's own count.
+ */
+function distanceOrigins(units: Unit[], timed: Timed[]): Map<Unit, number> {
+  const latestBefore = new Map<Timed, number>()
+  let running: number | undefined
+  for (const t of timed) {
+    if (running !== undefined) latestBefore.set(t, running)
+    running = t.record.distance ?? running
+  }
+  const origins = new Map<Unit, number>()
+  for (const unit of units) {
+    const first = unit.records.find((t) => t.record.distance !== undefined)
+    const before = first === undefined ? undefined : latestBefore.get(first)
+    const firstDistance = first?.record.distance
+    if (before !== undefined && firstDistance !== undefined && before <= firstDistance) {
+      origins.set(unit, before)
+    }
+  }
+  return origins
 }
 
 /**
@@ -303,8 +310,4 @@ function ownersOf(windows: Window[], times: number[]): number[] {
 
 function inSet(set: Set<string>, value: unknown): boolean {
   return typeof value === 'string' && set.has(value)
-}
-
-function failure(fileName: string, reason: string): ParseResult {
-  return { ok: false, fileName, reason }
 }

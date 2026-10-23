@@ -127,6 +127,104 @@ describe('decodeFit records', () => {
   })
 })
 
+describe('decodeFit compressed speed and distance', () => {
+  /** Three bytes, least significant bit first: a 12-bit speed (1/100 m/s), then a 12-bit counter. */
+  const compressed = (speedRaw: number, counter: number) => {
+    const bits = speedRaw | (counter << 12)
+    return [bits & 0xff, (bits >> 8) & 0xff, (bits >> 16) & 0xff]
+  }
+  const COMPRESSED = [8, 3, 0x0d] as const
+  const COMPRESSED_DEF = definition(0, MESG.record, [TIMESTAMP, COMPRESSED])
+  const compressedRecord = (time: number, speedRaw: number, counter: number) => [
+    0,
+    ...int(time, 4),
+    ...compressed(speedRaw, counter),
+  ]
+
+  it('reads speed and distance from the compressed field when the record has neither', () => {
+    const data = [
+      ...COMPRESSED_DEF,
+      ...compressedRecord(RAW, 354, 0),
+      ...compressedRecord(RAW + 5, 0, 228),
+    ]
+    const [first, second] = decodeFit(fitFile(data)).messages.records
+    expect(first?.speed).toBeCloseTo(3.54, 10)
+    expect(first?.distance).toBe(0)
+    expect(second?.speed).toBe(0)
+    expect(second?.distance).toBe(14.25)
+  })
+
+  it('carries the counter across its 4096 wrap, as the FIT SDK does', () => {
+    // 4095 then 1 is a step of 2 counts: 4095 is 255.9375 m, plus 2/16 m.
+    const data = [
+      ...COMPRESSED_DEF,
+      ...compressedRecord(RAW, 100, 4095),
+      ...compressedRecord(RAW + 1, 100, 1),
+    ]
+    const [first, second] = decodeFit(fitFile(data)).messages.records
+    expect(first?.distance).toBe(4095 / 16)
+    expect(second?.distance).toBe((4095 + 2) / 16)
+  })
+
+  it('prefers the speed and distance fields when the record has them', () => {
+    const data = [
+      ...definition(0, MESG.record, [TIMESTAMP, COMPRESSED, DISTANCE, [6, 2, 0x84]]),
+      0,
+      ...int(RAW, 4),
+      ...compressed(354, 228),
+      ...int(500, 4),
+      ...int(2000, 2),
+    ]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.distance).toBe(5)
+    expect(r?.speed).toBe(2)
+  })
+
+  it('leaves speed and distance undefined for a record with no compressed field', () => {
+    const data = [...RECORD_DEF, ...recordBytes(RAW, 100, 200, 3000)]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.speed).toBeUndefined()
+    expect(r?.distance).toBeUndefined()
+  })
+})
+
+describe('decodeFit timestamps and session totals', () => {
+  it('keeps the raw timestamp of a system time, which has no date', () => {
+    const data = [
+      ...definition(0, MESG.record, [TIMESTAMP, HEART_RATE]),
+      0,
+      ...int(17_217_869, 4),
+      93,
+    ]
+    const [r] = decodeFit(fitFile(data)).messages.records
+    expect(r?.timestampS).toBe(17_217_869)
+    expect(r?.timestampMs).toBeUndefined()
+  })
+
+  it('reads the session timer time, distance and averages the device computed', () => {
+    const data = [
+      ...definition(0, MESG.session, [
+        TIMESTAMP,
+        [8, 4, 0x86],
+        [9, 4, 0x86],
+        [16, 1, 0x02],
+        [20, 2, 0x84],
+      ]),
+      0,
+      ...int(RAW + 60, 4),
+      ...int(59_500, 4),
+      ...int(1_865_160, 4),
+      150,
+      ...int(245, 2),
+    ]
+    const [session] = decodeFit(fitFile(data)).messages.sessions
+    expect(session?.totalTimerTime).toBe(59.5)
+    expect(session?.totalDistance).toBe(18651.6)
+    expect(session?.avgHeartRate).toBe(150)
+    expect(session?.avgPower).toBe(245)
+  })
+})
+
 describe('decodeFit other messages', () => {
   it('maps sport and sub-sport numbers to names', () => {
     const data = [

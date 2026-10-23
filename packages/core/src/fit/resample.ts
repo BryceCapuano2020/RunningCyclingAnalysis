@@ -1,5 +1,5 @@
 /** Longest gap, in seconds, bridged by interpolation. Longer gaps are treated as pauses or dropouts. */
-const MAX_INTERPOLATED_GAP_S = 10
+export const MAX_INTERPOLATED_GAP_S = 10
 export const MAX_ACTIVITY_GRID_SECONDS = 7 * 24 * 60 * 60
 
 /**

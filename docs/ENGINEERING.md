@@ -53,9 +53,7 @@ split this way in the refactor that introduced this document.
 | ------------------------------------- | ----- | ----------------------------------------------------------- |
 | `packages/core/src/fit/archive.ts`    | 670   | Separate zip, gzip and nesting from the per-entry policy    |
 | `packages/core/src/session.ts`        | 568   | Move near-duplicate grouping and library bookkeeping out    |
-| `packages/core/src/tcx/parse.ts`      | 438   | Separate trackpoint reading from unit assembly              |
 | `packages/core/src/xml/parse.ts`      | 438   | Separate entity decoding and the tree builder from the scan |
-| `packages/core/src/gpx/parse.ts`      | 431   | Share the format-neutral parts with TCX                     |
 | `packages/core/src/digest/combine.ts` | 407   | Move the virtual-power accuracy and summaries out           |
 
 Hooks and components compose many small parts, so their function bodies may exceed 60 lines;

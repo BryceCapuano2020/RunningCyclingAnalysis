@@ -130,7 +130,13 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
 3. **Shared pipeline** (`activitiesFromUnits` in `packages/core/src/import/pipeline.ts`). Each
    parser returns units: one per FIT session, one per GPX track and one per TCX activity. The
    pipeline drops impossible samples, such as speeds above the sport's maximum, and rejects
-   activities that are shorter than a minute, longer than 48 hours or dated implausibly. It splits a
+   activities that are shorter than a minute, longer than 48 hours or dated implausibly. A part is
+   measured by the seconds its records cover: one second per record, plus each gap of up to 10 s
+   (longer gaps are pauses), so "smart recording" passes in every format; it must also hold 60
+   seconds that are not paused. A track whose points are mostly more than 10 s apart is refused as
+   too sparse rather than as too short. A ride with no positions is indoor when it has no altitude,
+   or when it has power, its altitude spans under 10 m and it is under 0.5 m/s for 95% of its
+   recorded time. It splits a
    unit at gaps longer than four hours, resamples to 1 Hz, and applies one sample budget to the
    whole file.
 4. **Streaming XML** (`scanXmlBytes` in `packages/core/src/xml/parse.ts`). The GPX and TCX parsers

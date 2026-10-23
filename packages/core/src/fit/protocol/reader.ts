@@ -1,4 +1,4 @@
-import { readField } from './baseTypes'
+import { BASE, readField } from './baseTypes'
 import { crc16 } from './crc'
 
 export const NOT_FIT_ERROR = 'Not a FIT file'
@@ -13,6 +13,11 @@ const TIMESTAMP_FIELD = 253
 export interface FitMessage {
   globalNum: number
   values: Map<number, number | string>
+  /**
+   * Byte-array fields of more than one byte, by field number, with their raw bytes. Present only
+   * when the message has one. `values` holds just the first byte of such a field.
+   */
+  arrays?: Map<number, Uint8Array>
 }
 
 export interface FitFileScan {
@@ -123,14 +128,14 @@ function scanRecords(
         return false
       }
       if (pos + 1 + def.size > limit) return overrun()
-      const values = readValues(view, pos + 1, def)
+      const read = readValues(view, pos + 1, def)
       pos += 1 + def.size
       const offset = header & 0x1f
       if (lastTime !== undefined) {
         lastTime += (offset - (lastTime & 0x1f)) & 0x1f
-        values.set(TIMESTAMP_FIELD, lastTime)
+        read.values.set(TIMESTAMP_FIELD, lastTime)
       }
-      if (!visit({ globalNum: def.globalNum, values })) return false
+      if (!visit(message(def, read))) return false
     } else if ((header & 0x40) !== 0) {
       const parsed = readDefinition(bytes, view, pos, limit)
       if (parsed === undefined) return overrun()
@@ -143,11 +148,11 @@ function scanRecords(
         return false
       }
       if (pos + 1 + def.size > limit) return overrun()
-      const values = readValues(view, pos + 1, def)
+      const read = readValues(view, pos + 1, def)
       pos += 1 + def.size
-      const time = values.get(TIMESTAMP_FIELD)
+      const time = read.values.get(TIMESTAMP_FIELD)
       if (typeof time === 'number') lastTime = time
-      if (!visit({ globalNum: def.globalNum, values })) return false
+      if (!visit(message(def, read))) return false
     }
   }
   return true
@@ -189,14 +194,29 @@ function readDefinition(
   return { def: { globalNum, little, fields, size }, next: cursor }
 }
 
+/** The field values of one data message, and its byte-array fields when it has any. */
+type ReadValues = Pick<FitMessage, 'values' | 'arrays'>
+
+function message(def: MessageDef, read: ReadValues): FitMessage {
+  return read.arrays === undefined
+    ? { globalNum: def.globalNum, values: read.values }
+    : { globalNum: def.globalNum, values: read.values, arrays: read.arrays }
+}
+
 /** Reads the field values of the data message whose first field byte is at `start`. */
-function readValues(view: DataView, start: number, def: MessageDef): Map<number, number | string> {
+function readValues(view: DataView, start: number, def: MessageDef): ReadValues {
   const values = new Map<number, number | string>()
+  let arrays: Map<number, Uint8Array> | undefined
   let offset = start
   for (const field of def.fields) {
+    if (field.base === BASE.byte && field.size > 1) {
+      arrays ??= new Map<number, Uint8Array>()
+      const bytes = new Uint8Array(view.buffer, view.byteOffset + offset, field.size)
+      arrays.set(field.num, bytes.slice())
+    }
     const value = readField(view, offset, field.size, field.base, def.little)
     if (value !== undefined) values.set(field.num, value)
     offset += field.size
   }
-  return values
+  return { values, arrays }
 }

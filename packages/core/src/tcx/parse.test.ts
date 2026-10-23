@@ -3,7 +3,7 @@ import type { Activity, Sport } from '../types'
 import { digestActivity } from '../digest/digestActivity'
 import { encodeFit } from '../fit/encode'
 import { parseFit } from '../fit/parse'
-import type { ParseLimits, ParseResult } from '../fit/parse'
+import type { ParseLimits, ParseResult } from '../import/result'
 import { encodeTcx } from './encode'
 import { parseTcx } from './parse'
 
@@ -455,6 +455,17 @@ describe('parseTcx validation', () => {
   it('rejects XML that is not a TCX document', () => {
     const gpx = utf8('<?xml version="1.0"?><gpx version="1.1"><trk/></gpx>')
     expect(reasonOf(parseTcx(gpx, 'route.tcx'))).toBe('Not a TCX file')
+  })
+
+  it('reports no records when no trackpoint has a time, as GPX does', () => {
+    const untimed = Array.from(
+      { length: 90 },
+      (_, s) => `<Trackpoint><DistanceMeters>${s * 3.5}</DistanceMeters></Trackpoint>`,
+    )
+    const reason = reasonOf(
+      parseTcx(documentXml([activityXml('Running', [lapXml(untimed)])]), 'untimed.tcx'),
+    )
+    expect(reason).toBe('File contains no activity records')
   })
 
   it('rejects a TCX document with no activities', () => {

@@ -17,9 +17,7 @@ const LINE_BUDGET = 400
 const OVER_BUDGET = {
   'packages/core/src/fit/archive.ts': 670,
   'packages/core/src/session.ts': 568,
-  'packages/core/src/tcx/parse.ts': 438,
   'packages/core/src/xml/parse.ts': 438,
-  'packages/core/src/gpx/parse.ts': 431,
   'packages/core/src/digest/combine.ts': 407,
 }
 

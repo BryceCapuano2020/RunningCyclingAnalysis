@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { digestActivity } from '../digest'
 import { encodeFit } from '../fit/encode'
-import { DEFAULT_PARSE_LIMITS, parseFit } from '../fit/parse'
-import type { ParseResult } from '../fit/parse'
+import { parseFit } from '../fit/parse'
+import { DEFAULT_PARSE_LIMITS } from '../import/result'
+import type { ParseResult } from '../import/result'
 import { encodeGpx } from './encode'
 import { parseGpx } from './parse'
 import { parseIsoTime } from '../import/time'
@@ -523,6 +524,19 @@ describe('parseGpx GPS noise', () => {
     const expected = 3 * 1799
     expect(Math.abs(a.distance[a.n - 1]! - expected) / expected).toBeLessThan(0.02)
     expect(Math.abs(bestWindowSpeed(a.distance, 60) - 3) / 3).toBeLessThan(0.03)
+  })
+})
+
+describe('parseGpx coordinates', () => {
+  it('treats a hexadecimal coordinate as missing, as the XML decimal type does', () => {
+    const moving = Array.from(
+      { length: 120 },
+      (_, i) =>
+        `<trkpt lat="0x2A" lon="${(0.0001 * i).toFixed(6)}">` +
+        `<time>${new Date(START_MS + i * 1000).toISOString()}</time></trkpt>`,
+    )
+    const a = firstActivity(parseGpx(gpxFile(track('running', [moving])), 'hex.gpx'))
+    expect(a.distance[119]).toBe(0)
   })
 })
 
