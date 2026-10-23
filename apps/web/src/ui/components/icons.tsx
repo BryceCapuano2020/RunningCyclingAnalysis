@@ -3,6 +3,14 @@
  * it names it and its colour follows the text.
  */
 import type { ReactNode } from 'react'
+import {
+  BRAND_RIDING,
+  BRAND_RUNNING,
+  WARNING_DOT,
+  WARNING_STEM,
+  WARNING_TRIANGLE,
+  pathData,
+} from './iconPaths'
 import './icons.css'
 
 export type IconSport = 'run' | 'ride' | 'swim'
@@ -59,9 +67,9 @@ export function SportIcon({ sport, className }: IconProps & { sport: IconSport }
 export function WarningIcon({ className }: IconProps) {
   return (
     <Icon className={className}>
-      <path d="M12 3.5 22 20.5H2Z" />
-      <path d="M12 10v4.5" />
-      <circle cx="12" cy="17.4" r="0.6" fill="currentColor" />
+      <path d={pathData(WARNING_TRIANGLE)} />
+      <path d={pathData(WARNING_STEM)} />
+      <circle cx={WARNING_DOT.x} cy={WARNING_DOT.y} r={WARNING_DOT.r} fill="currentColor" />
     </Icon>
   )
 }
@@ -111,14 +119,14 @@ export function BrandMark({ className }: IconProps) {
     >
       <rect width="32" height="32" rx="7" fill="#0e1116" />
       <path
-        d="M5 22c5-1 8-5 11-9s6-6 11-6"
+        d={pathData(BRAND_RUNNING)}
         fill="none"
         stroke="#f0435f"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
-        d="M5 12c5 0 8 3 11 6s6 6 11 6"
+        d={pathData(BRAND_RIDING)}
         fill="none"
         stroke="#4d6ef5"
         strokeWidth="3"

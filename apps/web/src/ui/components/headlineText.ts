@@ -16,6 +16,9 @@ export interface HeadlineText {
 export const COMPARISON_DISCLAIMER =
   'Both sports are put on one energy scale from your own files. It compares your two sports; it does not rank you.'
 
+/** The title when both sports are on file but no efforts of the same length can be compared yet. */
+export const HARDER_EFFORTS_TITLE = 'Your balance needs harder efforts'
+
 /** Which way the balance leans: a sport is ahead only when the whole 90% range says so. */
 export type Lean = 'run' | 'ride' | 'even'
 

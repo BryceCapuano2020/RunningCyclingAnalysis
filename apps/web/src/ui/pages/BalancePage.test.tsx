@@ -100,20 +100,24 @@ describe('BalancePage', () => {
     expect(links[0]).toHaveAttribute('href', '#/method')
   })
 
-  it('offers the image download while the analysis is idle', () => {
+  it('offers the square and story image downloads while the analysis is idle', () => {
     renderPage()
-    expect(screen.getByRole('button', { name: 'Download image' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Download square image' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Download story image' })).toBeEnabled()
   })
 
-  it('holds the image download until the analysis finishes', () => {
+  it('holds the image downloads until the analysis finishes', () => {
     renderPage(makeResult(), { busy: true })
 
-    expect(screen.getByRole('button', { name: 'Download image' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Download square image' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Download story image' })).toBeDisabled()
     expect(screen.getByText('Available when the analysis finishes.')).toBeInTheDocument()
   })
 
-  it('offers no image when there is no comparison to draw', () => {
-    renderPage(makeResult({ comparison: { prior: [], calibrated: null } }))
-    expect(screen.queryByRole('button', { name: 'Download image' })).not.toBeInTheDocument()
+  it('offers no image when there is neither a comparison nor a sport estimate to draw', () => {
+    renderPage(
+      makeResult({ comparison: { prior: [], calibrated: null }, runCp: null, rideCp: null }),
+    )
+    expect(screen.queryByRole('button', { name: 'Download square image' })).not.toBeInTheDocument()
   })
 })

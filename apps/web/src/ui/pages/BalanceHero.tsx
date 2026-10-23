@@ -1,7 +1,7 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { HeadlinePick } from '../components'
 import { BalanceMeter } from '../components/BalanceMeter'
-import { headlineText } from '../components/headlineText'
+import { HARDER_EFFORTS_TITLE, headlineText } from '../components/headlineText'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { countSport } from '../records'
 
@@ -28,7 +28,7 @@ function missingText(result: AnalysisResult): { title: string; detail: string } 
     }
   }
   return {
-    title: 'Your balance needs harder efforts',
+    title: HARDER_EFFORTS_TITLE,
     detail:
       'Both sports are in your files, but no efforts of the same length could be compared yet.',
   }

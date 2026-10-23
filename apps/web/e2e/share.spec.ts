@@ -5,32 +5,47 @@ import { horizontalOverflow, openSample } from './helpers.js'
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 const NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
 
-test('sample data saves a PNG of the comparison from the results page', async ({
-  page,
-}, testInfo) => {
-  await openSample(page)
-  const button = page.getByRole('button', { name: 'Download image' })
-  await expect(button).toHaveAccessibleDescription(NOTE)
+/** The button, the file it saves, and the pixel size the PNG must have. */
+const SHAPES = [
+  { button: 'Download square image', file: 'rca-summary-square.png', width: 1080, height: 1080 },
+  { button: 'Download story image', file: 'rca-summary-story.png', width: 1080, height: 1920 },
+]
 
-  const downloaded = page.waitForEvent('download')
-  await button.click()
-  const download = await downloaded
-  expect(download.suggestedFilename()).toBe('rca-summary.png')
+for (const { button: name, file, width, height } of SHAPES) {
+  test(`sample data saves a ${width} by ${height} PNG of the balance as ${file}`, async ({
+    page,
+  }, testInfo) => {
+    await openSample(page)
+    const button = page.getByRole('button', { name })
+    await expect(button).toHaveAccessibleDescription(NOTE)
 
-  const path = await download.path()
-  // Kept with the test output so the picture can be looked at after the run.
-  await download.saveAs(testInfo.outputPath('rca-summary.png'))
-  expect(statSync(path).size).toBeGreaterThan(10 * 1024)
-  expect(readFileSync(path).subarray(0, PNG_SIGNATURE.length)).toEqual(PNG_SIGNATURE)
-  await expect(page.getByRole('status').filter({ hasText: 'Image saved' })).toBeVisible()
-})
+    const downloaded = page.waitForEvent('download')
+    await button.click()
+    const download = await downloaded
+    expect(download.suggestedFilename()).toBe(file)
 
-test('the download control and its note fit a 320 px screen without horizontal scroll', async ({
+    const path = await download.path()
+    // Kept with the test output so the picture can be looked at after the run.
+    await download.saveAs(testInfo.outputPath(file))
+    expect(statSync(path).size).toBeGreaterThan(10 * 1024)
+    const png = readFileSync(path)
+    expect(png.subarray(0, PNG_SIGNATURE.length)).toEqual(PNG_SIGNATURE)
+    // The IHDR chunk follows the signature: width and height, as 32-bit big-endian numbers.
+    expect(png.toString('ascii', 12, 16)).toBe('IHDR')
+    expect(png.readUInt32BE(16)).toBe(width)
+    expect(png.readUInt32BE(20)).toBe(height)
+    await expect(page.getByRole('status').filter({ hasText: 'Image saved' })).toBeVisible()
+  })
+}
+
+test('the download controls and their note fit a 320 px screen without horizontal scroll', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 800 })
   await openSample(page)
-  await expect(page.getByRole('button', { name: 'Download image' })).toBeVisible()
+  for (const { button } of SHAPES) {
+    await expect(page.getByRole('button', { name: button })).toBeVisible()
+  }
   const results = await horizontalOverflow(page)
   expect(results.scrollWidth).toBeLessThanOrEqual(results.innerWidth)
 })

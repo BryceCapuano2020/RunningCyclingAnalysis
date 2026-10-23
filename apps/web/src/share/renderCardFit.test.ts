@@ -1,0 +1,238 @@
+import { describe, expect, it } from 'vitest'
+import { CARD_FORMATS, type CardFormat } from './cardLayout'
+import { BAND_HEIGHT, DOT_RADIUS } from './cardMeter'
+import type { ShareCardModel } from './cardModel'
+import {
+  LONG_CAVEAT,
+  LONG_FOOTNOTE,
+  LONG_HEADLINE,
+  cardModel,
+  missingRideModel,
+  render,
+  type RecordedText,
+} from './fixtures'
+import { CAVEAT, CHIP_HEIGHT, MARK, NAME, ORIGIN, PERIOD } from './renderCard'
+
+const FORMATS: CardFormat[] = ['square', 'story']
+const ORIGIN_URL = 'https://example.test'
+/** Three lines of caveat in the card's measure: the caveat wraps rather than being cut. */
+const THREE_LINE_CAVEAT =
+  'Best cycling efforts over the full sixty minutes of the period may not have been all-out, so the figure may be low, and a recent race would sharpen it.'
+/** Far more caveat than any card has room for. */
+const TOO_LONG_CAVEAT = Array.from({ length: 12 }, () => LONG_CAVEAT).join(' ')
+
+/** The worst case the card must hold: a long title, a long caveat, the sample badge and long notes. */
+function worstCase(base: ShareCardModel): ShareCardModel {
+  return {
+    ...base,
+    headline: LONG_HEADLINE,
+    caveat: LONG_CAVEAT,
+    badge: 'Sample data',
+    footnote: LONG_FOOTNOTE,
+  }
+}
+
+const WORST = [
+  ['a full balance', worstCase(cardModel())],
+  ['a missing sport', worstCase(missingRideModel())],
+  ['a three-line caveat', { ...worstCase(cardModel()), caveat: THREE_LINE_CAVEAT }],
+] as const
+
+/** Runs the check with a format's height changed, and puts the height back afterwards. */
+function withHeight(format: CardFormat, height: number, check: () => void): void {
+  const layout = CARD_FORMATS[format]
+  const original = layout.height
+  layout.height = height
+  try {
+    check()
+  } finally {
+    layout.height = original
+  }
+}
+
+/** The rough box a line covers: its cap height above the baseline, or down from its top. */
+const CAP = 0.75
+function boxOf(text: RecordedText): { top: number; bottom: number } {
+  const top = text.baseline === 'alphabetic' ? text.y - text.size * CAP : text.y
+  return { top, bottom: top + text.size * CAP }
+}
+
+function overlaps(a: RecordedText, b: RecordedText): boolean {
+  const across = a.x < b.x + b.width && b.x < a.x + a.width
+  const boxA = boxOf(a)
+  const boxB = boxOf(b)
+  return across && boxA.top < boxB.bottom && boxB.top < boxA.bottom
+}
+
+function find(texts: RecordedText[], text: string): RecordedText {
+  const found = texts.find((candidate) => candidate.text === text)
+  if (found === undefined) throw new Error(`no text ${text}`)
+  return found
+}
+
+/** The caveat's lines: the 24 px medium text that is neither the origin nor the sample badge. */
+function caveatLines(texts: RecordedText[]): RecordedText[] {
+  return texts.filter(
+    (text) => text.size === CAVEAT.size && text.font.startsWith('500 ') && text.text !== ORIGIN_URL,
+  )
+}
+
+describe('a card with the worst text', () => {
+  it.each(FORMATS)('keeps the whole caveat on the %s card', (format) => {
+    for (const [, model] of WORST) {
+      const { ok, ctx } = render(model, format)
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      expect(ctx.texts.map((text) => text.text).join(' ')).toContain(model.caveat ?? '')
+    }
+  })
+
+  it.each(FORMATS)('keeps every line inside the margins on the %s card', (format) => {
+    const { width, height, marginX, marginY } = CARD_FORMATS[format]
+    for (const [, model] of WORST) {
+      const { ok, ctx } = render(model, format)
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      for (const text of ctx.texts) {
+        expect(text.x).toBeGreaterThanOrEqual(marginX)
+        expect(text.x + text.width).toBeLessThanOrEqual(width - marginX)
+        expect(text.y + text.size).toBeLessThanOrEqual(height - marginY)
+      }
+    }
+  })
+
+  it.each(FORMATS)('never draws two lines over each other on the %s card', (format) => {
+    for (const [, model] of WORST) {
+      const { ok, ctx } = render(model, format)
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      const { texts } = ctx
+      for (let i = 0; i < texts.length; i++) {
+        for (let j = i + 1; j < texts.length; j++) {
+          const a = texts[i]
+          const b = texts[j]
+          if (a === undefined || b === undefined) continue
+          expect(overlaps(a, b), `${a.text} over ${b.text}`).toBe(false)
+        }
+      }
+    }
+  })
+})
+
+describe('a caveat or footnote longer than two lines', () => {
+  it.each(FORMATS)(
+    'keeps all three lines of a caveat, with no ellipsis, on the %s card',
+    (format) => {
+      const { ok, ctx } = render(cardModel({ caveat: THREE_LINE_CAVEAT }), format)
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      expect(caveatLines(ctx.texts)).toHaveLength(3)
+      expect(ctx.texts.map((text) => text.text).join(' ')).toContain(THREE_LINE_CAVEAT)
+      expect(ctx.texts.some((text) => text.text.endsWith('…'))).toBe(false)
+    },
+  )
+
+  it.each(FORMATS)(
+    'keeps the whole footnote, however many lines it takes, on the %s card',
+    (format) => {
+      const { ok, ctx } = render(cardModel({ footnote: LONG_FOOTNOTE }), format)
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      expect(ctx.texts.map((text) => text.text).join(' ')).toContain(LONG_FOOTNOTE)
+      expect(ctx.texts.some((text) => text.text.endsWith('…'))).toBe(false)
+    },
+  )
+
+  it.each(FORMATS)(
+    'fails, rather than cutting the caveat, when it cannot fit on the %s card',
+    (format) => {
+      const { ok, ctx } = render(cardModel({ caveat: TOO_LONG_CAVEAT }), format)
+      expect(ok).toBe(false)
+      expect(ctx.texts).toEqual([])
+      expect(ctx.rects).toEqual([])
+    },
+  )
+})
+
+describe('a card that is too tall for its sizes', () => {
+  it('sheds the origin first, then steps the headline down, and keeps the caveat', () => {
+    // At 1000 px the square keeps its origin. At 900 px the origin has gone and the headline is
+    // still largest. At 860 px the headline has stepped down too. The caveat is there throughout.
+    withHeight('square', 1000, () => {
+      const { ok, ctx } = render(cardModel(), 'square')
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(true)
+      expect(find(ctx.texts, 'YOUR BALANCE LEANS').size).toBe(88)
+    })
+    withHeight('square', 900, () => {
+      const { ok, ctx } = render(cardModel(), 'square')
+      expect(ok).toBe(true)
+      expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(false)
+      expect(find(ctx.texts, 'YOUR BALANCE LEANS').size).toBe(88)
+    })
+    withHeight('square', 860, () => {
+      const { ok, ctx } = render(cardModel(), 'square')
+      expect(ok).toBe(true)
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(false)
+      expect(find(ctx.texts, 'YOUR BALANCE LEANS TOWARD').size).toBe(72)
+      expect(ctx.texts.some((text) => text.text.startsWith('Best efforts'))).toBe(true)
+    })
+  })
+
+  it('draws nothing and reports failure when even the smallest sizes do not fit', () => {
+    withHeight('square', 600, () => {
+      const { ok, ctx } = render(cardModel(), 'square')
+      expect(ok).toBe(false)
+      expect(ctx.texts).toEqual([])
+      expect(ctx.rects).toEqual([])
+    })
+  })
+})
+
+describe('the story layout', () => {
+  it('pins the brand row to the top margin and the footer to the bottom margin', () => {
+    const { marginY, height } = CARD_FORMATS.story
+    const { ok, ctx } = render(cardModel(), 'story')
+    expect(ok).toBe(true)
+    expect(ctx.texts.length).toBeGreaterThan(0)
+    expect(find(ctx.texts, 'RunningCyclingAnalysis').y).toBeCloseTo(
+      marginY + (MARK - NAME.lineHeight) / 2,
+      6,
+    )
+    expect(find(ctx.texts, ORIGIN_URL).y + ORIGIN.lineHeight).toBeCloseTo(height - marginY, 6)
+  })
+
+  it('centres the main block, so the same space sits above it as below it', () => {
+    const { marginY } = CARD_FORMATS.story
+    const { ok, ctx } = render(cardModel(), 'story')
+    expect(ok).toBe(true)
+    const headline = find(ctx.texts, 'YOUR BALANCE LEANS')
+    const period = find(ctx.texts, 'Last 6 weeks')
+    const caveat = caveatLines(ctx.texts)[0]
+    expect(caveat).toBeDefined()
+    const above = headline.y - (marginY + MARK)
+    const pillTop = (caveat?.y ?? 0) - (CHIP_HEIGHT - CAVEAT.lineHeight) / 2
+    const below = pillTop - (period.y + PERIOD.lineHeight)
+    expect(Math.abs(above - below)).toBeLessThan(1)
+  })
+})
+
+describe('the balance band', () => {
+  it('stays centred on the dot when a single value widens it to the minimum', () => {
+    const { ok, ctx } = render(
+      cardModel({
+        meter: { lean: 'run', ratio: { p05: 1.1, p50: 1.1, p95: 1.1 } },
+      }),
+      'square',
+    )
+    expect(ok).toBe(true)
+    expect(ctx.texts.length).toBeGreaterThan(0)
+    const dot = ctx.arcs.find((arc) => arc.r === DOT_RADIUS)
+    // A band of the minimum width is a circle the height of the band: its centre must be the dot's.
+    const band = ctx.arcs.find((arc) => arc.r === BAND_HEIGHT / 2)
+    expect(dot).toBeDefined()
+    expect(band?.x).toBeCloseTo(dot?.x ?? 0, 6)
+  })
+})

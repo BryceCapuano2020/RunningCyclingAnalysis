@@ -1,362 +1,187 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ShareCardModel } from './cardModel'
+import { describe, expect, it } from 'vitest'
+import { meterFraction } from '../ui/components/balanceScale'
+import { CARD_COLORS } from './cardColors'
+import { CARD_FORMATS, type CardFormat } from './cardLayout'
+import { DOT_RADIUS } from './cardMeter'
 import {
-  CARD_HEIGHT,
-  CARD_WIDTH,
-  MARGIN_X,
-  MARGIN_Y,
-  loadCardFonts,
-  renderShareCard,
-  wrapText,
-} from './renderCard'
+  FakeContext,
+  LONG_CAVEAT,
+  LONG_FOOTNOTE,
+  LONG_HEADLINE,
+  cardModel,
+  draw,
+  fakeCanvas,
+  missingRideModel,
+  type RecordedText,
+} from './fixtures'
+import { renderShareCard } from './renderCard'
 
-/** Ten pixels per character, so line breaks are easy to predict. */
-const fixedMeasure = (text: string) => text.length * 10
+const FORMATS: CardFormat[] = ['square', 'story']
 
-const BACKGROUND = '#ffffff'
-const ACCENT = '#0e1116'
-const HEADLINE_SIZES = [32, 40]
-const FIGURE_VALUE_SIZE = 46
-
-type Text = {
-  text: string
-  x: number
-  y: number
-  size: number
-  width: number
-  color: string
-  font: string
-}
-type Rect = { x: number; y: number; w: number; h: number; color: string }
-
-/**
- * Records what the renderer draws. Text is half an em per character, so wrapping at the card width
- * depends on the size the renderer chose.
- */
-class FakeContext {
-  fillStyle = ''
-  font = ''
-  textBaseline = ''
-  textAlign = ''
-  texts: Text[] = []
-  rects: Rect[] = []
-
-  private size(): number {
-    const match = /(\d+(?:\.\d+)?)px/.exec(this.font)
-    return Number(match?.[1] ?? 0)
-  }
-
-  measureText(text: string) {
-    return { width: text.length * this.size() * 0.5 }
-  }
-
-  fillRect(x: number, y: number, w: number, h: number) {
-    this.rects.push({ x, y, w, h, color: this.fillStyle })
-  }
-
-  fillText(text: string, x: number, y: number) {
-    const width = this.measureText(text).width
-    this.texts.push({
-      text,
-      x,
-      y,
-      size: this.size(),
-      width,
-      color: this.fillStyle,
-      font: this.font,
-    })
-  }
+/** The drawn text, in order, as one string. */
+function words(texts: RecordedText[]): string {
+  return texts.map((text) => text.text).join(' ')
 }
 
-/** A canvas stand-in whose 2D context is the recording one, or null when it has none. */
-function fakeCanvas(ctx: FakeContext | null) {
-  return { width: 0, height: 0, getContext: () => ctx }
+/** The headline's lines: capital letters in the extra-bold condensed face. */
+function isHeadline(text: RecordedText): boolean {
+  return (
+    text.font.startsWith('800 ') && /[A-Z]/.test(text.text) && text.text === text.text.toUpperCase()
+  )
 }
-
-function draw(model: ShareCardModel): FakeContext {
-  const ctx = new FakeContext()
-  const ok = renderShareCard(model, fakeCanvas(ctx) as unknown as HTMLCanvasElement)
-  expect(ok).toBe(true)
-  return ctx
-}
-
-function model(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
-  return {
-    title: 'RunningCyclingAnalysis',
-    headline: 'Over 20 min, your running is estimated to use 12% more energy rate',
-    summary: 'Over 20 min, your estimated running energy rate is 3.4 W/kg and your cycling is 3.0.',
-    range: 'Running against cycling, 90% model range: +5% to +20%.',
-    basis: 'Model range based on population assumptions.',
-    caveat: 'Best efforts over 20 min may not have been all-out.',
-    figures: [
-      { label: 'Running threshold pace', value: '21:35 /km' },
-      { label: 'Cycling threshold power', value: '48 W' },
-      { label: 'Running vs cycling, 20 min', value: '+12%' },
-    ],
-    period: 'Last 6 weeks: 1 run, 1 ride',
-    footer: 'Estimated from heart rate, pace and power files. Not a measure of sporting ability.',
-    origin: 'https://example.test',
-    badge: null,
-    ...overrides,
-  }
-}
-
-/** A headline long enough that it needs three lines at the smaller headline size. */
-const LONG_HEADLINE =
-  'Over 20 min, your running is estimated to use 12% more energy rate per kilogram than your cycling, with a range that depends on the population assumptions behind both sports and their efficiency'
-
-/** A summary that needs two lines at the summary size. */
-const LONG_SUMMARY =
-  'Over 20 min, your estimated running energy rate is 3.4 W/kg and your cycling energy rate is 3.0 W/kg, each estimated from the best efforts in your files for the period you selected, with the heart-rate check applied where the data support it.'
-
-/** A footer that needs two lines at the footer size. */
-const TWO_LINE_FOOTER =
-  'Estimated from heart rate, pace and power files, and the model assumes that heart rate responds to energy use in a similar way in both sports, so the comparison can move with your data.'
-
-/** The headline lines: the text drawn at a headline size. */
-function headlineLines(ctx: FakeContext): Text[] {
-  return ctx.texts.filter((text) => HEADLINE_SIZES.includes(text.size))
-}
-
-describe('wrapText', () => {
-  it('breaks lines at spaces so that no line is wider than the maximum', () => {
-    expect(wrapText('one two three four', 100, fixedMeasure)).toEqual(['one two', 'three four'])
-  })
-
-  it('keeps a word longer than the maximum on a line of its own', () => {
-    expect(wrapText('supercalifragilistic short', 50, fixedMeasure)).toEqual([
-      'supercalifragilistic',
-      'short',
-    ])
-  })
-
-  it('returns no lines for blank text', () => {
-    expect(wrapText('   ', 100, fixedMeasure)).toEqual([])
-  })
-
-  it('stops at the line limit and marks the cut with an ellipsis that fits', () => {
-    const lines = wrapText('a bb ccc dddd eeeee', 40, fixedMeasure, 2)
-    expect(lines).toEqual(['a bb', 'ccc…'])
-    for (const line of lines) expect(fixedMeasure(line)).toBeLessThanOrEqual(40)
-  })
-})
 
 describe('renderShareCard', () => {
-  it('sizes the canvas to 1200 by 630 for Open Graph style sharing', () => {
+  it.each([
+    ['square', 1080, 1080],
+    ['story', 1080, 1920],
+  ] as const)('sizes the canvas for the %s shape, %i by %i', (format, width, height) => {
     const canvas = fakeCanvas(new FakeContext())
-    renderShareCard(model(), canvas as unknown as HTMLCanvasElement)
-    expect(canvas.width).toBe(CARD_WIDTH)
-    expect(canvas.height).toBe(CARD_HEIGHT)
+    renderShareCard(cardModel(), canvas as unknown as HTMLCanvasElement, format)
+    expect({ width: canvas.width, height: canvas.height }).toEqual({ width, height })
   })
 
   it('returns false and draws nothing when the canvas has no 2D context', () => {
     const canvas = fakeCanvas(null)
-    expect(renderShareCard(model(), canvas as unknown as HTMLCanvasElement)).toBe(false)
+    expect(renderShareCard(cardModel(), canvas as unknown as HTMLCanvasElement, 'square')).toBe(
+      false,
+    )
   })
 
-  it('draws the title, headline, range, basis, caveat, figures, period, footer and origin', () => {
-    const ctx = draw(model())
-    const texts = ctx.texts.map((text) => text.text)
-    expect(texts.join(' ')).toContain(
-      'Over 20 min, your running is estimated to use 12% more energy rate',
-    )
+  it.each(FORMATS)('draws every element of the %s card', (format) => {
+    const drawn = words(draw(cardModel({ badge: 'Sample data' }), format).texts)
     for (const expected of [
       'RunningCyclingAnalysis',
-      'Running against cycling, 90% model range: +5% to +20%.',
-      'Model range based on population assumptions.',
+      'Sample data',
+      'YOUR BALANCE LEANS TOWARD RUNNING',
+      '← Leans cycling',
+      'Even',
+      'Leans running →',
+      'RUNNING THRESHOLD PACE',
+      '21:35',
+      '/km',
+      'CYCLING THRESHOLD POWER',
+      '48',
+      'W',
+      '0.6 W/kg',
+      'Last 6 weeks',
       'Best efforts over 20 min may not have been all-out.',
-      'Running threshold pace',
-      '21:35 /km',
-      'Cycling threshold power',
-      '48 W',
-      '+12%',
-      'Last 6 weeks: 1 run, 1 ride',
+      'Estimated from my own files. Compares my two sports; not a ranking.',
       'https://example.test',
     ]) {
-      expect(texts).toContain(expected)
+      expect(drawn).toContain(expected)
     }
   })
 
-  it('draws the basis and the effort caveat under the range, above the figures', () => {
-    const texts = draw(model()).texts
-    const range = texts.find((text) =>
-      text.text.startsWith('Running against cycling, 90% model range'),
-    )
-    const basis = texts.find((text) => text.text.startsWith('Model range based'))
-    const figure = texts.find((text) => text.text === '21:35 /km')
-    expect(basis?.y).toBeGreaterThan(range?.y ?? Infinity)
-    expect(figure?.y).toBeGreaterThan(basis?.y ?? Infinity)
-  })
-
-  it('draws a 12 px accent bar down the left edge in the accent colour', () => {
-    const bar = draw(model()).rects.find((rect) => rect.w === 12)
-    expect(bar).toEqual({ x: 0, y: 0, w: 12, h: CARD_HEIGHT, color: ACCENT })
-  })
-
-  it('paints the light background across the whole canvas first', () => {
-    const ctx = draw(model())
-    expect(ctx.rects[0]).toEqual({ x: 0, y: 0, w: CARD_WIDTH, h: CARD_HEIGHT, color: BACKGROUND })
-  })
+  it.each(FORMATS)(
+    'draws the brand mark, the balance and the sport edges on the %s card',
+    (format) => {
+      const ctx = draw(cardModel(), format)
+      const curves = (colour: string) =>
+        ctx.paths.some(
+          (path) =>
+            path.op === 'stroke' &&
+            path.color === colour &&
+            path.segments.includes('bezierCurveTo'),
+        )
+      expect(curves(CARD_COLORS.run)).toBe(true)
+      expect(curves(CARD_COLORS.ride)).toBe(true)
+      expect(
+        ctx.paths.some((path) => path.op === 'fill' && path.color === CARD_COLORS.runSoft),
+      ).toBe(true)
+      expect(
+        ctx.paths.some(
+          (path) =>
+            path.op === 'fill' && path.color === CARD_COLORS.run && path.segments.includes('arc'),
+        ),
+      ).toBe(true)
+      expect(ctx.rects).toContainEqual(expect.objectContaining({ w: 8, color: CARD_COLORS.run }))
+      expect(ctx.rects).toContainEqual(expect.objectContaining({ w: 8, color: CARD_COLORS.ride }))
+    },
+  )
 
   it('draws the sample badge only when the model has one', () => {
-    expect(draw(model({ badge: null })).texts.map((t) => t.text)).not.toContain('Sample data')
-    expect(draw(model({ badge: 'Sample data' })).texts.map((t) => t.text)).toContain('Sample data')
+    expect(words(draw(cardModel({ badge: null })).texts)).not.toContain('Sample data')
+    expect(words(draw(cardModel({ badge: 'Sample data' })).texts)).toContain('Sample data')
   })
 
-  it('draws no figure tiles when there are no figures', () => {
-    const ctx = draw(model({ figures: [] }))
-    const tiles = ctx.rects.filter((rect) => rect.w !== 12 && rect.w !== CARD_WIDTH)
-    expect(tiles).toHaveLength(0)
-    expect(ctx.texts.map((t) => t.text)).not.toContain('48 W')
+  it('omits the caveat and the origin when the model has none', () => {
+    const drawn = words(draw(cardModel({ caveat: null, origin: '' })).texts)
+    expect(drawn).not.toContain('Best efforts')
+    expect(drawn).not.toContain('https://example.test')
+    expect(drawn).toContain('Last 6 weeks')
   })
 
-  it('omits the origin and the caveat when the model has none', () => {
-    const texts = draw(model({ origin: '', caveat: null })).texts.map((t) => t.text)
-    expect(texts).not.toContain('https://example.test')
-    expect(texts).not.toContain('Best efforts over 20 min may not have been all-out.')
-    expect(texts).toContain('Model range based on population assumptions.')
+  it.each(FORMATS)(
+    'shows the available sport and a prompt for the other on the %s card',
+    (format) => {
+      const ctx = draw(missingRideModel(), format)
+      const drawn = words(ctx.texts)
+      expect(drawn).toContain('YOUR RUNNING SO FAR')
+      expect(drawn).toContain('21:35')
+      expect(drawn).toContain('CYCLING THRESHOLD POWER')
+      expect(drawn).toContain('Add rides to see the balance')
+      expect(drawn).not.toContain('48')
+      expect(drawn).not.toContain('Leans running')
+      expect(drawn).not.toContain('Leans cycling')
+      expect(ctx.rects).toContainEqual(expect.objectContaining({ w: 8, color: CARD_COLORS.rule }))
+    },
+  )
+
+  it('sets the hero columns side by side on a square and one above the other on a story', () => {
+    const square = draw(cardModel(), 'square').texts
+    const story = draw(cardModel(), 'story').texts
+    const at = (texts: RecordedText[], text: string) => texts.find((t) => t.text === text)?.y
+    expect(at(square, '21:35')).toBe(at(square, '48'))
+    expect(at(story, '48') ?? 0).toBeGreaterThan(at(story, '21:35') ?? Infinity)
   })
 
-  it('uses the large headline size when the headline fits in two lines', () => {
-    const lines = headlineLines(draw(model()))
-    expect(lines.length).toBe(2)
-    expect(new Set(lines.map((line) => line.size))).toEqual(new Set([40]))
+  it('steps the headline down until it fits on two lines of a square', () => {
+    const headline = draw(cardModel()).texts.filter(isHeadline)
+    expect(headline.map((text) => text.text)).toEqual(['YOUR BALANCE LEANS', 'TOWARD RUNNING'])
+    expect(new Set(headline.map((text) => text.size))).toEqual(new Set([88]))
   })
 
-  it('shrinks a headline that needs three lines at the large size to the smaller size in three lines', () => {
-    const lines = headlineLines(draw(model({ headline: LONG_HEADLINE })))
-    expect(lines.length).toBe(3)
-    expect(new Set(lines.map((line) => line.size))).toEqual(new Set([32]))
-  })
+  it.each(FORMATS)(
+    'cuts a headline too long for two lines, at the smallest size, on the %s card',
+    (format) => {
+      const headline = draw(cardModel({ headline: LONG_HEADLINE }), format).texts.filter(isHeadline)
+      const smallest = Math.min(...CARD_FORMATS[format].headline)
+      expect(new Set(headline.map((text) => text.y)).size).toBe(2)
+      expect(headline.every((text) => text.size === smallest)).toBe(true)
+      expect(headline[1]?.text.endsWith('…')).toBe(true)
+    },
+  )
 
-  it('keeps every line inside the left and right margins', () => {
-    const variants = [
-      model(),
-      model({ headline: LONG_HEADLINE, summary: LONG_SUMMARY, footer: TWO_LINE_FOOTER }),
-    ]
-    for (const variant of variants) {
-      for (const text of draw(variant).texts) {
-        expect(text.x).toBeGreaterThanOrEqual(MARGIN_X)
-        expect(text.x + text.width).toBeLessThanOrEqual(CARD_WIDTH - MARGIN_X)
+  it.each(FORMATS)(
+    'keeps every line inside the margins on the %s card, even with long text',
+    (format) => {
+      const { width, height, marginX, marginY } = CARD_FORMATS[format]
+      const ctx = draw(
+        cardModel({
+          headline: LONG_HEADLINE,
+          footnote: LONG_FOOTNOTE,
+          caveat: LONG_CAVEAT,
+        }),
+        format,
+      )
+      expect(ctx.texts.length).toBeGreaterThan(0)
+      for (const text of ctx.texts) {
+        expect(text.x).toBeGreaterThanOrEqual(marginX)
+        expect(text.x + text.width).toBeLessThanOrEqual(width - marginX)
+        expect(text.y + text.size).toBeLessThanOrEqual(height - marginY)
       }
-    }
+    },
+  )
+
+  it.each(FORMATS)('spreads the content down to the bottom margin on the %s card', (format) => {
+    const { height, marginY } = CARD_FORMATS[format]
+    const lowest = Math.max(...draw(cardModel(), format).texts.map((text) => text.y + text.size))
+    expect(lowest).toBeGreaterThanOrEqual(height - marginY - 40)
   })
 
-  it('keeps every line above the bottom margin, even with the longest headline and footer', () => {
-    const worst = model({
-      headline: LONG_HEADLINE,
-      summary: LONG_SUMMARY,
-      footer: TWO_LINE_FOOTER,
-    })
-    for (const text of draw(worst).texts) {
-      expect(text.y + text.size).toBeLessThanOrEqual(CARD_HEIGHT - MARGIN_Y)
-    }
-  })
-
-  it('stacks the sections top to bottom, with the footer after the figures', () => {
-    const texts = draw(model()).texts
-    const figure = texts.find((text) => text.text === '21:35 /km')
-    const period = texts.find((text) => text.text.startsWith('Last 6 weeks'))
-    const footer = texts.find((text) => text.text.startsWith('Estimated from'))
-    expect(period?.y).toBeGreaterThan(figure?.y ?? Infinity)
-    expect(footer?.y).toBeGreaterThan(period?.y ?? Infinity)
-    expect(texts[0]?.text).toBe('RunningCyclingAnalysis')
-  })
-
-  it('sets the figure values in Barlow Condensed and the other text in Barlow', () => {
-    const texts = draw(model()).texts
-    const value = texts.find((text) => text.text === '21:35 /km')
-    const label = texts.find((text) => text.text === 'Running threshold pace')
-    expect(value?.font).toContain('"Barlow Condensed"')
-    expect(label?.font).toContain('"Barlow"')
-  })
-
-  it('draws the figure values at the large tile size', () => {
-    const values = draw(model()).texts.filter((text) => text.size === FIGURE_VALUE_SIZE)
-    expect(values.map((text) => text.text)).toEqual(['21:35 /km', '48 W', '+12%'])
-  })
-
-  it('fills the frame so that the content reaches near the bottom margin', () => {
-    const lowest = Math.max(...draw(model()).texts.map((text) => text.y + text.size))
-    expect(lowest).toBeGreaterThanOrEqual(CARD_HEIGHT - MARGIN_Y - 40)
-  })
-
-  it('keeps the origin and caveat when the card has room for them', () => {
-    const texts = draw(model()).texts.map((text) => text.text)
-    expect(texts).toContain('https://example.test')
-    expect(texts).toContain('Best efforts over 20 min may not have been all-out.')
-  })
-
-  it('drops the origin first when a three-line headline and two-line summary leave no room for it', () => {
-    const texts = draw(model({ headline: LONG_HEADLINE, summary: LONG_SUMMARY })).texts.map(
-      (text) => text.text,
-    )
-    expect(texts).not.toContain('https://example.test')
-    expect(texts).toContain('Best efforts over 20 min may not have been all-out.')
-  })
-
-  it('drops the origin and caveat, and keeps the basis, for the longest headline and footer', () => {
-    const texts = draw(
-      model({ headline: LONG_HEADLINE, summary: LONG_SUMMARY, footer: TWO_LINE_FOOTER }),
-    ).texts.map((text) => text.text)
-    expect(texts).not.toContain('https://example.test')
-    expect(texts).not.toContain('Best efforts over 20 min may not have been all-out.')
-    expect(texts).toContain('Model range based on population assumptions.')
-    expect(texts.join(' ')).toContain('so the comparison can move with your data.')
-  })
-})
-
-describe('loadCardFonts', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  /** The Barlow weights docs/DESIGN.md imports, by family. */
-  const IMPORTED_WEIGHTS = { body: [400, 500, 600], condensed: [700, 800] }
-
-  /** Stubs document.fonts so that every face asked for is recorded, and returns those requests. */
-  function stubFontLoading(): string[] {
-    const requested: string[] = []
-    const load = (font: string) => {
-      requested.push(font)
-      return Promise.resolve<FontFace[]>([])
-    }
-    vi.stubGlobal('document', { fonts: { load } })
-    return requested
-  }
-
-  it('waits for every face the card draws, and only for weights that are imported', async () => {
-    const requested = stubFontLoading()
-    await loadCardFonts()
-    expect(
-      requested.some((font) => font.startsWith('800 ') && font.includes('Barlow Condensed')),
-    ).toBe(true)
-    for (const font of requested) {
-      const weight = Number(font.split(' ')[0])
-      const family = font.includes('Barlow Condensed') ? 'condensed' : 'body'
-      expect(IMPORTED_WEIGHTS[family]).toContain(weight)
-    }
-  })
-
-  it('requests every font the canvas is drawn with, so no text is measured in a fallback', async () => {
-    const requested = stubFontLoading()
-    await loadCardFonts()
-    const cards = [model(), model({ badge: 'Sample' }), model({ headline: LONG_HEADLINE })]
-    const drawn = new Set(cards.flatMap((card) => draw(card).texts.map((text) => text.font)))
-    expect(drawn.size).toBeGreaterThan(1)
-    expect([...drawn].some((font) => font.includes('32px'))).toBe(true)
-    for (const font of drawn) expect(requested).toContain(font)
-  })
-
-  it('still resolves when a face fails to load, so the card falls back rather than failing', async () => {
-    vi.stubGlobal('document', {
-      fonts: { load: () => Promise.reject(new Error('offline')) },
-    })
-    await expect(loadCardFonts()).resolves.toBeUndefined()
-  })
-
-  it('resolves at once where there is no document.fonts API', async () => {
-    vi.stubGlobal('document', {})
-    await expect(loadCardFonts()).resolves.toBeUndefined()
+  it('places the balance dot where the shared balance scale places the ratio', () => {
+    const ratio = cardModel().meter?.ratio.p50 ?? 1
+    const dot = draw(cardModel()).arcs.find((arc) => arc.r === DOT_RADIUS)
+    expect(dot?.x).toBeCloseTo(80 + meterFraction(ratio) * 920, 6)
   })
 })

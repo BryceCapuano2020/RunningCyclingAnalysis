@@ -19,6 +19,15 @@ function canvasReturning(blob: Blob | null): HTMLCanvasElement {
   } as unknown as HTMLCanvasElement
 }
 
+/** A canvas whose toBlob hands back the blob later, as browsers do, after the call has returned. */
+function canvasDeliveringLater(blob: Blob): HTMLCanvasElement {
+  return {
+    toBlob: (callback: BlobCallback) => {
+      setTimeout(() => callback(blob), 0)
+    },
+  } as unknown as HTMLCanvasElement
+}
+
 const createObjectURL = vi.fn(() => 'blob:rca-test')
 const revokeObjectURL = vi.fn()
 
@@ -36,29 +45,52 @@ afterEach(() => {
 })
 
 describe('saveCanvasPng', () => {
-  it('downloads the image as rca-summary.png and reports that it was saved', async () => {
-    const saved = await saveCanvasPng(canvasReturning(new Blob(['png'], { type: 'image/png' })))
+  it('downloads the image under the given name and reports that it was saved', async () => {
+    const saved = await saveCanvasPng(
+      canvasReturning(new Blob(['png'], { type: 'image/png' })),
+      'rca-summary-story.png',
+    )
     expect(saved).toBe(true)
     expect(createObjectURL).toHaveBeenCalledTimes(1)
-    expect(clicks).toEqual([{ href: 'blob:rca-test', download: 'rca-summary.png' }])
+    expect(clicks).toEqual([{ href: 'blob:rca-test', download: 'rca-summary-story.png' }])
   })
 
   it('frees the object URL after the download has had time to start', async () => {
     vi.useFakeTimers()
-    await saveCanvasPng(canvasReturning(new Blob(['png'], { type: 'image/png' })))
+    await saveCanvasPng(canvasReturning(new Blob(['png'], { type: 'image/png' })), 'a.png')
     expect(revokeObjectURL).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1000)
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:rca-test')
   })
 
   it('reports failure and downloads nothing when the browser produces no image', async () => {
-    expect(await saveCanvasPng(canvasReturning(null))).toBe(false)
+    expect(await saveCanvasPng(canvasReturning(null), 'a.png')).toBe(false)
     expect(clicks).toEqual([])
   })
 
   it('reports failure when the canvas cannot encode a blob at all', async () => {
     const canvas = {} as unknown as HTMLCanvasElement
-    expect(await saveCanvasPng(canvas)).toBe(false)
+    expect(await saveCanvasPng(canvas, 'a.png')).toBe(false)
+    expect(clicks).toEqual([])
+  })
+
+  it('reports failure, rather than hanging, when the browser refuses the download after the blob arrives', async () => {
+    createObjectURL.mockImplementationOnce(() => {
+      throw new Error('no blob URLs')
+    })
+    await expect(
+      saveCanvasPng(canvasDeliveringLater(new Blob(['png'], { type: 'image/png' })), 'a.png'),
+    ).resolves.toBe(false)
+    expect(clicks).toEqual([])
+  })
+
+  it('reports failure, rather than rejecting, when the canvas throws while it is asked for a blob', async () => {
+    const canvas = {
+      toBlob: () => {
+        throw new Error('the canvas is tainted')
+      },
+    } as unknown as HTMLCanvasElement
+    await expect(saveCanvasPng(canvas, 'a.png')).resolves.toBe(false)
     expect(clicks).toEqual([])
   })
 })

@@ -1,5 +1,6 @@
 import type { Interval } from '@rca/core/types'
 import { balanceSentence, leanOf } from './headlineText'
+import { METER_TRACK, bandSpan, meterFraction } from './balanceScale'
 import './BalanceMeter.css'
 
 export interface BalanceMeterProps {
@@ -7,17 +8,15 @@ export interface BalanceMeterProps {
   ratio: Interval
 }
 
-/** How far ahead a sport sits at the meter's edge: 30%; larger gaps are drawn at the edge. */
-const SPAN = 0.3
-const WIDTH = 320
+const WIDTH = METER_TRACK
 const MID = WIDTH / 2
 const TRACK_Y = 22
+/** The band is this tall, and never narrower, so a single-value range stays a round band. */
+const BAND_HEIGHT = 16
 
-/** Ratio above 1 means running is ahead; the meter is symmetric in log terms around even. */
+/** The x position of a ratio on the track. */
 function offset(ratio: number): number {
-  const gap = ratio >= 1 ? ratio - 1 : -(1 / ratio - 1)
-  const clamped = Math.max(-SPAN, Math.min(SPAN, gap))
-  return MID + (clamped / SPAN) * (MID - 8)
+  return meterFraction(ratio) * WIDTH
 }
 
 /**
@@ -28,6 +27,7 @@ export function BalanceMeter({ ratio }: BalanceMeterProps) {
   const lo = offset(ratio.p05)
   const hi = offset(ratio.p95)
   const centre = offset(ratio.p50)
+  const band = bandSpan(lo, hi, BAND_HEIGHT)
   const leader = leanOf(ratio)
   return (
     <figure className="balance-meter">
@@ -47,11 +47,11 @@ export function BalanceMeter({ ratio }: BalanceMeterProps) {
         />
         <rect
           className="balance-meter__band"
-          x={lo}
-          y={TRACK_Y - 8}
-          width={Math.max(2, hi - lo)}
-          height="16"
-          rx="8"
+          x={band.start}
+          y={TRACK_Y - BAND_HEIGHT / 2}
+          width={band.width}
+          height={BAND_HEIGHT}
+          rx={BAND_HEIGHT / 2}
         />
         <line
           className="balance-meter__even"
