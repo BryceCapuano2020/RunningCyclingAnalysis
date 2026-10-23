@@ -1,6 +1,8 @@
 import { useId, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
 import { formatWkg } from '@rca/core/units'
+import { keyByContent } from '../contentKeys'
 import { ChartFrame } from './ChartFrame'
 import { ChartTooltip } from './ChartTooltip'
 import { ChartXAxis } from './ChartXAxis'
@@ -229,6 +231,45 @@ function tooltipFor(dot: Dot): TooltipContent {
   }
 }
 
+function surfaceOf(
+  size: ChartSize,
+  layoutFor: (size: ChartSize) => Layout | null,
+  active: number | null,
+  setActive: (index: number | null) => void,
+): ReactNode {
+  const m = layoutFor(size)
+  if (m === null) return null
+  return (
+    <PlotSurface
+      size={size}
+      onPoint={(point) =>
+        setActive(point === null ? null : nearestByPoint(m.dots, point, HIT_RADIUS))
+      }
+      onKey={(key) => {
+        const next = stepActive(active, m.dots.length, key)
+        if (next) setActive(next.index)
+      }}
+      onBlur={() => setActive(null)}
+    />
+  )
+}
+
+function overlayOf(
+  size: ChartSize,
+  layoutFor: (size: ChartSize) => Layout | null,
+  active: number | null,
+): ReactNode {
+  const m = layoutFor(size)
+  const dot = m && active !== null ? m.dots[active] : undefined
+  return (
+    <ChartTooltip
+      bounds={{ width: size.width, height: size.height }}
+      content={dot ? tooltipFor(dot) : null}
+      id={size.tooltipId}
+    />
+  )
+}
+
 export function HrScatter({ hr }: HrScatterProps) {
   const sports = useMemo(() => sportsOf(hr), [hr])
   const blocks = useMemo(() => plotted(sports), [sports])
@@ -267,34 +308,8 @@ export function HrScatter({ hr }: HrScatterProps) {
       }}
       empty={sports.length > 0 ? undefined : EMPTY}
       note={note === '' ? undefined : note}
-      overlay={(size) => {
-        const m = layoutFor(size)
-        const dot = m && active !== null ? m.dots[active] : undefined
-        return (
-          <ChartTooltip
-            bounds={{ width: size.width, height: size.height }}
-            content={dot ? tooltipFor(dot) : null}
-            id={size.tooltipId}
-          />
-        )
-      }}
-      surface={(size) => {
-        const m = layoutFor(size)
-        if (m === null) return null
-        return (
-          <PlotSurface
-            size={size}
-            onPoint={(point) =>
-              setActive(point === null ? null : nearestByPoint(m.dots, point, HIT_RADIUS))
-            }
-            onKey={(key) => {
-              const next = stepActive(active, m.dots.length, key)
-              if (next) setActive(next.index)
-            }}
-            onBlur={() => setActive(null)}
-          />
-        )
-      }}
+      overlay={(size) => overlayOf(size, layoutFor, active)}
+      surface={(size) => surfaceOf(size, layoutFor, active, setActive)}
     >
       {(size) => {
         const m = layoutFor(size)
@@ -330,17 +345,19 @@ export function HrScatter({ hr }: HrScatterProps) {
                   y2={fit.y2}
                 />
               ))}
-              {m.dots.map((dot, i) => (
-                <circle
-                  key={`${dot.sport}-${i}`}
-                  data-testid="hr-dot"
-                  data-sport={dot.sport}
-                  className={`hr-scatter__dot hr-scatter__dot--${dot.sport}`}
-                  cx={dot.x}
-                  cy={dot.y}
-                  r={i === active ? ACTIVE_DOT_R : DOT_R}
-                />
-              ))}
+              {keyByContent(m.dots, (dot) => `${dot.sport}:${dot.bpm}:${dot.metabolicWkg}`).map(
+                ({ key, item: dot, index: i }) => (
+                  <circle
+                    key={key}
+                    data-testid="hr-dot"
+                    data-sport={dot.sport}
+                    className={`hr-scatter__dot hr-scatter__dot--${dot.sport}`}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={i === active ? ACTIVE_DOT_R : DOT_R}
+                  />
+                ),
+              )}
             </g>
           </>
         )

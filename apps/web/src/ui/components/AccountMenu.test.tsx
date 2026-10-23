@@ -175,6 +175,20 @@ describe('AccountMenu disclosure', () => {
     expect(trigger()).toHaveFocus()
   })
 
+  it('leaves an Escape that another control already handled alone', async () => {
+    const user = userEvent.setup()
+    const { container } = renderMenu()
+    await user.click(trigger())
+    const claim = (event: KeyboardEvent) => event.preventDefault()
+    document.addEventListener('keydown', claim, { capture: true })
+    try {
+      await user.keyboard('{Escape}')
+    } finally {
+      document.removeEventListener('keydown', claim, { capture: true })
+    }
+    expect(panel(container)).toBeVisible()
+  })
+
   it('ignores Escape and other keys while closed', async () => {
     const user = userEvent.setup()
     renderMenu()

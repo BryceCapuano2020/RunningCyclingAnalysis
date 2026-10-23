@@ -21,16 +21,16 @@ export function normal(rand: () => number): number {
 /** Normal draw rejected until it falls inside [min, max]. */
 export function truncatedNormal(
   rand: () => number,
-  mean: number,
+  center: number,
   sd: number,
   min: number,
   max: number,
 ): number {
   for (let i = 0; i < 1000; i++) {
-    const x = mean + sd * normal(rand)
+    const x = center + sd * normal(rand)
     if (x >= min && x <= max) return x
   }
-  return Math.min(max, Math.max(min, mean))
+  return Math.min(max, Math.max(min, center))
 }
 
 export function mean(xs: ArrayLike<number>): number {

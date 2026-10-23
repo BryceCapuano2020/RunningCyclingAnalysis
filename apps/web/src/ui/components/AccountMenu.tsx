@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { FocusEvent, KeyboardEvent } from 'react'
 import type { Me } from '@rca/contract'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
 import { GoogleSignInButton } from './GoogleSignInButton'
@@ -64,16 +63,40 @@ export function AccountMenu({
     if (was === 'signed-in' && status === 'signed-out') signInRef.current?.focus()
   }, [status])
 
+  // While the menu is open, the document handles the ways it closes: a press outside, focus moving
+  // out, and Escape. Escape returns focus to the trigger. The wrapper itself has no role, so it
+  // carries no key or focus handlers of its own.
   useEffect(() => {
     if (!menuOpen) return
-    function handlePointerDown(event: PointerEvent) {
+    const isOutside = (node: EventTarget | null) => {
       const wrapper = wrapperRef.current
-      if (wrapper !== null && event.target instanceof Node && !wrapper.contains(event.target)) {
-        setOpen(false)
+      return wrapper !== null && node instanceof Node && !wrapper.contains(node)
+    }
+    function handlePointerDown(event: PointerEvent) {
+      if (isOutside(event.target)) setOpen(false)
+    }
+    // A null related target is a click on inert space, which the pointer handler already covers.
+    function handleFocusOut(event: FocusEvent) {
+      if (isOutside(event.relatedTarget)) setOpen(false)
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      setOpen(false)
+      // Return focus to the trigger only when it was in the menu or nowhere in particular, so an
+      // Escape meant for another control does not pull focus away from it.
+      const active = document.activeElement
+      if (active === null || active === document.body || !isOutside(active)) {
+        triggerRef.current?.focus()
       }
     }
     document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('focusout', handleFocusOut)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('focusout', handleFocusOut)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [menuOpen])
 
   if (status === 'unavailable') return null
@@ -86,19 +109,6 @@ export function AccountMenu({
   const firstName = firstNameOf(me)
   const initials = initialsOf(me)
   const pictureUrl = me.user.pictureUrl
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== 'Escape' || !menuOpen) return
-    setOpen(false)
-    triggerRef.current?.focus()
-  }
-
-  // Tabbing out of the menu closes it. A null related target is a click on inert space, which
-  // the pointer handler above already covers, so it is ignored here.
-  function handleBlur(event: FocusEvent<HTMLDivElement>) {
-    const next = event.relatedTarget
-    if (next instanceof Node && !event.currentTarget.contains(next)) setOpen(false)
-  }
 
   function handleSignOut() {
     setOpen(false)
@@ -117,7 +127,7 @@ export function AccountMenu({
 
   return (
     <>
-      <div ref={wrapperRef} className="account-menu" onKeyDown={handleKeyDown} onBlur={handleBlur}>
+      <div ref={wrapperRef} className="account-menu">
         <button
           ref={triggerRef}
           type="button"

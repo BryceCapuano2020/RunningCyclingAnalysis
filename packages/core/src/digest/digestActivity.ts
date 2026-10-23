@@ -104,10 +104,10 @@ function windowedEnvelope(
   valid: Uint8Array,
   activityId: string,
 ): WindowedPoint[] {
-  const windows = meanMaximal(values, valid, DURATIONS_S, activityId).map((p) => ({
-    ...p,
-    windowS: p.durationS,
-  }))
+  // meanMaximal returns fresh points, so each one can take the window field in place.
+  const windows = meanMaximal(values, valid, DURATIONS_S, activityId).map((p) =>
+    Object.assign(p, { windowS: p.durationS }),
+  )
   return monotoneEnvelope(windows)
 }
 

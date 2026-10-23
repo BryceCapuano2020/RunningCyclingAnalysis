@@ -215,7 +215,7 @@ export async function prepareD1RestoreFile(inputPath, outputPath) {
     if (handle) await handle.close().catch(() => {})
     if (created) await rm(output, { force: true }).catch(() => {})
     if (error.code === 'EEXIST')
-      throw new Error('Output file already exists; refusing to overwrite it.')
+      throw new Error('Output file already exists; refusing to overwrite it.', { cause: error })
     throw error
   }
   return { input, output, bytes: Buffer.byteLength(restoreSql) }

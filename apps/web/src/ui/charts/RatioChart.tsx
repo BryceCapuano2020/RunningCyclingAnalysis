@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { ChartFrame } from './ChartFrame'
@@ -194,6 +195,48 @@ function tableFor(
   }
 }
 
+function surfaceOf(
+  size: ChartSize,
+  rows: RatioRow[],
+  hasCalibrated: boolean,
+  active: number | null,
+  setActive: (index: number | null) => void,
+): ReactNode {
+  const m = layout(rows, hasCalibrated, size)
+  if (m === null) return null
+  return (
+    <PlotSurface
+      size={size}
+      onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
+      onKey={(key) => {
+        const next = stepActive(active, m.xs.length, key)
+        if (next) setActive(next.index)
+      }}
+      onBlur={() => setActive(null)}
+    />
+  )
+}
+
+function overlayOf(
+  size: ChartSize,
+  rows: RatioRow[],
+  hasCalibrated: boolean,
+  active: number | null,
+): ReactNode {
+  const m = layout(rows, hasCalibrated, size)
+  const row = active === null ? undefined : rows[active]
+  const anchor =
+    m && active !== null ? (m.calibrated?.median[active] ?? m.prior.median[active] ?? null) : null
+  const content = row && anchor ? tooltipFor(row, anchor.x, anchor.y) : null
+  return (
+    <ChartTooltip
+      bounds={{ width: size.width, height: size.height }}
+      content={content}
+      id={size.tooltipId}
+    />
+  )
+}
+
 export function RatioChart({ comparison }: RatioChartProps) {
   const rows = buildRows(comparison)
   const hasCalibrated = comparison.calibrated !== null
@@ -207,37 +250,8 @@ export function RatioChart({ comparison }: RatioChartProps) {
       table={tableFor(rows, hasCalibrated)}
       empty={rows.length > 0 ? undefined : EMPTY}
       note={rows.length > 0 ? NOTE : undefined}
-      surface={(size) => {
-        const m = layout(rows, hasCalibrated, size)
-        if (m === null) return null
-        return (
-          <PlotSurface
-            size={size}
-            onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
-            onKey={(key) => {
-              const next = stepActive(active, m.xs.length, key)
-              if (next) setActive(next.index)
-            }}
-            onBlur={() => setActive(null)}
-          />
-        )
-      }}
-      overlay={(size) => {
-        const m = layout(rows, hasCalibrated, size)
-        const row = active === null ? undefined : rows[active]
-        const anchor =
-          m && active !== null
-            ? (m.calibrated?.median[active] ?? m.prior.median[active] ?? null)
-            : null
-        const content = row && anchor ? tooltipFor(row, anchor.x, anchor.y) : null
-        return (
-          <ChartTooltip
-            bounds={{ width: size.width, height: size.height }}
-            content={content}
-            id={size.tooltipId}
-          />
-        )
-      }}
+      surface={(size) => surfaceOf(size, rows, hasCalibrated, active, setActive)}
+      overlay={(size) => overlayOf(size, rows, hasCalibrated, active)}
     >
       {(size) => {
         const m = layout(rows, hasCalibrated, size)

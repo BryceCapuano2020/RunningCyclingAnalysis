@@ -1,4 +1,5 @@
 import type { RejectedFile } from '@rca/core/session'
+import { keyByContent } from '../contentKeys'
 import { plural } from './plural'
 import './RejectedFiles.css'
 
@@ -12,6 +13,7 @@ export interface RejectedFilesProps {
 
 /** File names listed per reason. The rest are summarised. */
 const NAMES_PER_GROUP = 50
+const NO_DUPLICATES: RejectedFile[] = []
 
 interface ReasonGroup {
   reason: string
@@ -43,8 +45,8 @@ function ReasonGroups({ files }: { files: RejectedFile[] }) {
       <details key={group.reason} className="rejected-files__group">
         <summary>{`${group.reason}: ${plural(group.fileNames.length, 'file')}`}</summary>
         <ul className="rejected-files__list">
-          {shown.map((name, index) => (
-            <li key={`${name}-${index}`}>{name}</li>
+          {keyByContent(shown, (name) => name).map(({ key, item: name }) => (
+            <li key={key}>{name}</li>
           ))}
           {more > 0 && <li>{`and ${more} more`}</li>}
         </ul>
@@ -53,7 +55,11 @@ function ReasonGroups({ files }: { files: RejectedFile[] }) {
   })
 }
 
-export function RejectedFiles({ rejected, unsupportedFiles, duplicates = [] }: RejectedFilesProps) {
+export function RejectedFiles({
+  rejected,
+  unsupportedFiles,
+  duplicates = NO_DUPLICATES,
+}: RejectedFilesProps) {
   if (rejected.length === 0 && unsupportedFiles === 0 && duplicates.length === 0) return null
   return (
     <section className="rejected-files">

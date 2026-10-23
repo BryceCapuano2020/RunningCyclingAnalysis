@@ -216,7 +216,7 @@ export function parseDigest(json: string): ActivityDigest {
     parsed = JSON.parse(json)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    throw new Error(`parseDigest: not JSON (${reason})`)
+    throw new Error(`parseDigest: not JSON (${reason})`, { cause: error })
   }
   const o = asObject(parsed, 'digest')
   if (o.version !== DIGEST_VERSION) {

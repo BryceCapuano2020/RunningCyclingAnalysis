@@ -25,6 +25,6 @@ export function mergeCurves<P extends CurvePoint>(curves: P[][]): P[] {
         best = candidate
       }
     }
-    return { ...best }
+    return Object.assign({}, best)
   })
 }

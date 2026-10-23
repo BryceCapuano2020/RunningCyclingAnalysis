@@ -1422,10 +1422,9 @@ describe('stored digests from older revisions', () => {
     const legacy = {
       ...base,
       durationS: null,
-      curve: (base.curve as Record<string, unknown>[]).slice(0, 3).map((point) => ({
-        ...point,
-        durationS: 7,
-      })),
+      curve: (base.curve as Record<string, unknown>[])
+        .slice(0, 3)
+        .map((point) => Object.assign({}, point, { durationS: 7 })),
     }
     await h.env.DB.prepare(
       `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,

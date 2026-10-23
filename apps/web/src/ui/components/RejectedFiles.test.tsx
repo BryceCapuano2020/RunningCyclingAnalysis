@@ -139,10 +139,9 @@ describe('RejectedFiles', () => {
       <RejectedFiles
         rejected={[
           ...manyRejected(51, 'Reason A'),
-          ...manyRejected(2, 'Reason B').map((file) => ({
-            ...file,
-            fileName: `b-${file.fileName}`,
-          })),
+          ...manyRejected(2, 'Reason B').map((file) =>
+            Object.assign({}, file, { fileName: `b-${file.fileName}` }),
+          ),
         ]}
         unsupportedFiles={0}
       />,

@@ -1,8 +1,33 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/exhaustive-deps": "error",
+    "react/exhaustive-effect-dependencies": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/no-unstable-nested-components": "error",
+    "react/no-object-type-as-default-prop": "error",
+    "react/no-array-index-key": "error",
+    "jsx-a11y/no-static-element-interactions": "error",
+    // Style only, so off rather than an error: a role is sometimes clearer than a tag.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "typescript/no-explicit-any": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-shadow": "error",
+    "preserve-caught-error": "error",
+    "oxc/no-map-spread": "error"
+  },
+  // Test code may reuse names for readability; production code may not.
+  "overrides": [
+    {
+      "files": ["**/*.test.*", "**/e2e*/**", "**/__tests__/**"],
+      "rules": {
+        "no-shadow": "off"
+      }
+    }
+  ]
+  // Deliberately not enabled:
+  // - react-in-jsx-scope: a false positive with the automatic JSX runtime.
+  // - no-await-in-loop: the awaits in loops are sequential I/O that must keep their order.
 }
