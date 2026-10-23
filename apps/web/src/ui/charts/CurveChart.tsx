@@ -262,8 +262,8 @@ export function CurveChart({
 
   return (
     <ChartFrame
-      title="Running and cycling gross metabolic power by duration"
-      description="Best gross metabolic power in watts per kilogram for running and for cycling, on one axis. Duration is on a log scale."
+      title="Running and cycling energy rate by duration"
+      description="Best energy rate in watts per kilogram for running and for cycling, on one axis. Duration is on a log scale."
       legend={hasData ? LEGEND : undefined}
       table={{
         columns: TABLE_COLUMNS,
@@ -291,7 +291,7 @@ export function CurveChart({
             <ChartYAxis
               ticks={m.yTicks}
               plot={size.plot}
-              title="Gross metabolic power (W/kg)"
+              title="Energy rate (W/kg)"
               fontSize={axisFontSize(size.width)}
             />
             {activeX !== undefined ? (

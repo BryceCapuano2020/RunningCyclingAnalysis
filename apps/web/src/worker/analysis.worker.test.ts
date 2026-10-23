@@ -7,6 +7,7 @@ import type { Activity, ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
 import { ApiRequestError } from '../api/client'
+import { buildAccountExport } from '../export/accountExport'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 const limits = vi.hoisted(() => ({ maxFileBytes: 50 * 1024 * 1024 }))
@@ -74,7 +75,10 @@ async function startWorker() {
       const last = posted.at(-1)
       if (
         posted.length === start ||
-        (last?.type !== 'state' && last?.type !== 'error' && last?.type !== 'rebuildComplete')
+        (last?.type !== 'state' &&
+          last?.type !== 'error' &&
+          last?.type !== 'rebuildComplete' &&
+          last?.type !== 'exportReady')
       ) {
         throw new Error('still working')
       }
@@ -821,4 +825,148 @@ it('reports a daily limit during a delete with the daily-limit cause', async () 
     settings: SETTINGS,
   })
   expect(messages).toEqual([{ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }])
+})
+
+describe('account export', () => {
+  const ACCOUNT = { name: 'Ada Lovelace', email: 'ada@example.com' }
+  const PROFILE = {
+    massKg: 75,
+    bikeMassKg: 9,
+    units: 'metric' as const,
+    keepFiles: false,
+    updatedAt: 1000,
+  }
+  const REQUEST = {
+    type: 'exportData' as const,
+    userId: USER_ID,
+    account: ACCOUNT,
+    profile: PROFILE,
+  }
+
+  /** The export file's text, or a failure if the worker replied with an error instead. */
+  async function exportedText(messages: WorkerResponse[]): Promise<string> {
+    const reply = messages.at(-1)
+    if (reply?.type !== 'exportReady')
+      throw new Error(`expected an export: ${JSON.stringify(reply)}`)
+    return reply.file.text()
+  }
+
+  it('lists the library once and returns the export as one JSON file', async () => {
+    const saved = recordFor(SAMPLE_DIGEST)
+    mocked.listActivities.mockImplementation(async (_since, _userId, _onUnreadable, onPage) => {
+      onPage?.([saved])
+      return []
+    })
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+
+    expect(mocked.listActivities).toHaveBeenCalledTimes(1)
+    expect(mocked.listActivities).toHaveBeenCalledWith(
+      undefined,
+      USER_ID,
+      expect.any(Function),
+      expect.any(Function),
+    )
+    const exported = JSON.parse(await exportedText(messages)) as {
+      format: string
+      version: number
+      account: unknown
+      profile: unknown
+      activities: { id: string; digest: unknown }[]
+    }
+    expect(exported).toMatchObject({
+      format: 'rca-export',
+      version: 1,
+      account: ACCOUNT,
+      profile: PROFILE,
+    })
+    // A digest can hold NaN, which JSON writes as null, so compare it as the file holds it.
+    expect(exported.activities).toEqual([
+      expect.objectContaining({
+        id: saved.id,
+        digest: JSON.parse(JSON.stringify(SAMPLE_DIGEST)),
+      }),
+    ])
+  })
+
+  it('exports a multi-page library as the same document the schema builder describes', async () => {
+    const actual = await vi.importActual<typeof client>('../api/client')
+    mocked.listActivities.mockImplementation(actual.listActivities)
+    const page = (id: string, nextCursor: string | null) => ({
+      items: [{ ...recordFor(SAMPLE_DIGEST), id }],
+      nextCursor,
+    })
+    const pages = [page('rec-a', 'c1'), page('rec-b', 'c2'), page('rec-c', null)]
+    const fetchMock = vi.fn(async () => {
+      const body = pages.shift()
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const written = JSON.parse(await exportedText(messages)) as { exportedAt: string }
+    // The worker stamps the export with the clock, so take that stamp from the file itself.
+    expect(written.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/)
+    const expected = buildAccountExport({
+      now: new Date(written.exportedAt),
+      account: ACCOUNT,
+      profile: PROFILE,
+      unreadable: 0,
+      activities: ['rec-a', 'rec-b', 'rec-c'].map((id) =>
+        Object.assign(recordFor(SAMPLE_DIGEST), { id }),
+      ),
+    })
+    expect(written).toEqual(JSON.parse(JSON.stringify(expected)))
+  })
+
+  it('writes the file compactly, with no pretty-printing', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    const text = await exportedText(await send(REQUEST))
+    expect(text).not.toContain('\n')
+    expect(text.startsWith('{"format":"rca-export","version":1,')).toBe(true)
+  })
+
+  it('counts the stored activities the server could not read', async () => {
+    mocked.listActivities.mockImplementation(async (_since, _userId, onUnreadable) => {
+      onUnreadable?.(2)
+      return []
+    })
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+
+    expect(JSON.parse(await exportedText(messages))).toMatchObject({ unreadable: 2 })
+  })
+
+  it('exports an unreadable count of zero when every row was read', async () => {
+    mocked.listActivities.mockResolvedValue([])
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+
+    expect(JSON.parse(await exportedText(messages))).toMatchObject({
+      unreadable: 0,
+      activities: [],
+    })
+  })
+
+  it('reports a daily limit on the library read as the daily-limit cause, with no export', async () => {
+    mocked.listActivities.mockRejectedValue(new ApiRequestError(429, 'daily_limit', 'Tomorrow'))
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+
+    expect(messages).toEqual([{ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }])
+  })
+
+  it('reports a failed library read as an error, with no export', async () => {
+    mocked.listActivities.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+    const { send } = await startWorker()
+    const messages = await send(REQUEST)
+
+    expect(messages).toEqual([{ type: 'error', message: 'Offline', issue: 'network' }])
+  })
 })

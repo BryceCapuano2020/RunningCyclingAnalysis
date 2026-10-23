@@ -1090,3 +1090,90 @@ describe('useAnalysis library messages', () => {
     )
   })
 })
+
+describe('useAnalysis account export', () => {
+  const EXPORT_REQUEST = {
+    type: 'exportData',
+    userId: USER_ID,
+    account: { name: 'Ada', email: 'a@example.com' },
+    profile: meWith(true).profile,
+  }
+
+  it('asks the worker for the export and resolves with its JSON', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    let exported: Promise<Blob> = Promise.resolve(new Blob())
+    act(() => {
+      exported = result.current.exportData()
+    })
+    expect(worker().posted.at(-1)).toEqual(EXPORT_REQUEST)
+    const file = new Blob(['{"format":"rca-export"}'], { type: 'application/json' })
+    act(() => worker().reply({ type: 'exportReady', file }))
+
+    await expect(exported).resolves.toBe(file)
+  })
+
+  it('does not make an export busy, and keeps an import error on screen', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => {
+      void result.current.exportData().catch(() => undefined)
+    })
+    expect(result.current.busy).toBe(false)
+
+    act(() => worker().reply({ type: 'error', message: 'Offline', issue: 'network' }))
+    expect(result.current.error).toBeNull()
+  })
+
+  it('rejects with the library daily-limit message when the listing is refused', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    let failure: unknown = null
+    let exported: Promise<Blob> = Promise.resolve(new Blob())
+    act(() => {
+      exported = result.current.exportData()
+    })
+    exported.catch((error: unknown) => {
+      failure = error
+    })
+    act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
+
+    await waitFor(() => expect(failure).toBeInstanceOf(Error))
+    expect((failure as Error).message).toBe(
+      `You have reached today's limit for loading your library, which the export also uses (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`,
+    )
+  })
+
+  it('rejects with the reason when the export fails for another cause', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    let exported: Promise<Blob> = Promise.resolve(new Blob())
+    act(() => {
+      exported = result.current.exportData()
+    })
+    act(() => worker().reply({ type: 'error', message: 'Offline', issue: 'network' }))
+
+    await expect(exported).rejects.toThrow('Could not download your data. Offline')
+  })
+
+  it('is refused without a worker call when nobody is signed in', async () => {
+    const { result } = setup(SIGNED_OUT)
+    await expect(result.current.exportData()).rejects.toThrow('Sign in to download your data.')
+    expect(worker().posted).toEqual([])
+  })
+
+  it('ends a pending export with a message when analysis is stopped', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    let exported: Promise<Blob> = Promise.resolve(new Blob())
+    act(() => {
+      exported = result.current.exportData()
+    })
+    act(() => result.current.stop())
+
+    await expect(exported).rejects.toThrow(
+      'The download was interrupted. Download your data again.',
+    )
+  })
+})

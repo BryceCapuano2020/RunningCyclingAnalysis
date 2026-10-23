@@ -93,6 +93,14 @@ describe('Methodology', () => {
     )
   })
 
+  it('defines the energy rate once, as gross metabolic power in W/kg, and uses it elsewhere', () => {
+    const { container } = render(<Methodology />)
+    const text = container.textContent ?? ''
+    expect(text.match(/gross metabolic/g)).toHaveLength(1)
+    expect(text).toContain('energy rate (gross metabolic power, W/kg)')
+    expect(text).not.toMatch(/gross metabolic W\/kg/)
+  })
+
   it('says the model is fitted to all power-meter rides and its accuracy is scored leave-one-out', () => {
     render(<Methodology />)
     const heading = screen.getByRole('heading', { level: 3, name: 'Virtual power meter' })

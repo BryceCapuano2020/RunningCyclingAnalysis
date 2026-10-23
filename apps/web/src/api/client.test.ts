@@ -395,6 +395,26 @@ describe('listActivities', () => {
     expect(onUnreadable).not.toHaveBeenCalled()
   })
 
+  it('hands each page to onPage as it arrives, and keeps no records when it is given', async () => {
+    const second = { ...RECORD_WIRE, id: 'rec-2' }
+    stubFetch(
+      respond(200, { items: [RECORD_WIRE], nextCursor: 'c1' }),
+      respond(200, { items: [second], nextCursor: null }),
+    )
+    const pages: string[][] = []
+    const records = await listActivities(undefined, undefined, undefined, (items) => {
+      pages.push(items.map((item) => item.id))
+    })
+
+    expect(pages).toEqual([['rec-1'], ['rec-2']])
+    expect(records).toEqual([])
+  })
+
+  it('still returns every record when onPage is not given', async () => {
+    stubFetch(respond(200, { items: [RECORD_WIRE], nextCursor: null }))
+    expect(await listActivities()).toHaveLength(1)
+  })
+
   it('keeps since on every page request', async () => {
     const fetchMock = stubFetch(
       respond(200, { items: [RECORD_WIRE], nextCursor: 'c1' }),

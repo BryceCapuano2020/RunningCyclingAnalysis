@@ -245,7 +245,7 @@ export function RatioChart({ comparison }: RatioChartProps) {
   return (
     <ChartFrame
       title="Running compared with cycling by duration"
-      description="Running gross metabolic power as a percentage of cycling at each duration, with 90% ranges. Zero means equal. Duration is on a log scale."
+      description="Running energy rate as a percentage of cycling at each duration, with 90% ranges. Zero means equal. Duration is on a log scale."
       legend={rows.length > 0 && hasCalibrated ? LEGEND_CALIBRATED : undefined}
       table={tableFor(rows, hasCalibrated)}
       empty={rows.length > 0 ? undefined : EMPTY}

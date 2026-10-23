@@ -225,7 +225,7 @@ function tooltipFor(dot: Dot): TooltipContent {
     y: dot.y,
     title: SPORT_LABEL[dot.sport],
     rows: [
-      { kind: dot.sport, value: formatWkg(dot.metabolicWkg), label: 'Gross metabolic power' },
+      { kind: dot.sport, value: formatWkg(dot.metabolicWkg), label: 'Energy rate' },
       { kind: dot.sport, value: `${Math.round(dot.bpm)} bpm`, label: 'Heart rate' },
     ],
   }
@@ -284,8 +284,8 @@ export function HrScatter({ hr }: HrScatterProps) {
 
   return (
     <ChartFrame
-      title="Heart rate against gross metabolic power"
-      description="Average heart rate against gross metabolic power for each block of steady effort, with a fitted line for each sport."
+      title="Heart rate against energy rate"
+      description="Average heart rate against energy rate for each block of steady effort, with a fitted line for each sport."
       legend={sports.map((data) => ({ label: SPORT_LABEL[data.sport], kind: data.sport }))}
       summary={{
         caption: 'Summary by sport',
@@ -299,7 +299,7 @@ export function HrScatter({ hr }: HrScatterProps) {
       }}
       table={{
         caption: 'Plotted blocks',
-        columns: ['Sport', 'Gross metabolic power (W/kg)', 'Heart rate (bpm)'],
+        columns: ['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'],
         rows: blocks.blocks.map(({ sport, point }) => [
           SPORT_LABEL[sport],
           point.metabolicPower.toFixed(1),
@@ -321,7 +321,7 @@ export function HrScatter({ hr }: HrScatterProps) {
             <ChartXAxis
               ticks={m.xTicks}
               plot={plot}
-              title="Gross metabolic power (W/kg)"
+              title="Energy rate (W/kg)"
               fontSize={fontSize}
             />
             <ChartYAxis ticks={m.yTicks} plot={plot} title="Heart rate (bpm)" fontSize={fontSize} />
