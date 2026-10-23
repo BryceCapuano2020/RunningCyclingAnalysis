@@ -1,4 +1,4 @@
-import type { SessionState, SyncIssueCode } from '@rca/core/session'
+import type { RejectedFile, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 
 export interface SavedActivity {
@@ -11,6 +11,8 @@ export interface SavedActivity {
 export interface ImportOutcome {
   activities: number
   rejected: number
+  /** Files skipped because a better copy of the same workout is already saved. */
+  duplicates: RejectedFile[]
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */

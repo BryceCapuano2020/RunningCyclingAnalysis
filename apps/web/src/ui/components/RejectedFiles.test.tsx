@@ -29,28 +29,26 @@ describe('RejectedFiles', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('says how many GPX or TCX files were skipped, singular', () => {
+  it('says how many unsupported files were skipped, singular', () => {
     render(<RejectedFiles rejected={[]} unsupportedFiles={1} />)
     expect(
-      screen.getByText(
-        '1 GPX or TCX file was skipped. Only FIT files carry the detail this analysis needs',
-      ),
+      screen.getByText('1 file was skipped. Only FIT, GPX and TCX files can be read'),
     ).toBeInTheDocument()
   })
 
-  it('says how many GPX or TCX files were skipped, plural', () => {
+  it('says how many unsupported files were skipped, plural', () => {
     render(<RejectedFiles rejected={[]} unsupportedFiles={3} />)
     expect(
-      screen.getByText(
-        '3 GPX or TCX files were skipped. Only FIT files carry the detail this analysis needs',
-      ),
+      screen.getByText('3 files were skipped. Only FIT, GPX and TCX files can be read'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/could not be used/)).not.toBeInTheDocument()
   })
 
   it('shows the skipped-files sentence alongside rejected files', () => {
     render(<RejectedFiles rejected={manyRejected(1)} unsupportedFiles={2} />)
-    expect(screen.getByText(/2 GPX or TCX files were skipped/)).toBeInTheDocument()
+    expect(
+      screen.getByText('2 files were skipped. Only FIT, GPX and TCX files can be read'),
+    ).toBeInTheDocument()
     expect(screen.getByText('1 file could not be used')).toBeInTheDocument()
   })
 
@@ -156,5 +154,20 @@ describe('RejectedFiles', () => {
   it('uses the singular for one file', () => {
     render(<RejectedFiles rejected={[makeRejectedFile()]} unsupportedFiles={0} />)
     expect(screen.getByText('1 file could not be used')).toBeInTheDocument()
+  })
+
+  it('lists skipped duplicates under their reason, apart from the rejected files', () => {
+    render(
+      <RejectedFiles
+        rejected={[]}
+        unsupportedFiles={0}
+        duplicates={[
+          makeRejectedFile({ fileName: 'ride.gpx', reason: 'Same workout as ride.fit' }),
+        ]}
+      />,
+    )
+    expect(screen.getByText('1 file skipped as a copy of a better file')).toBeInTheDocument()
+    expect(screen.queryByText(/could not be used/)).not.toBeInTheDocument()
+    expect(groupFor('Same workout as ride.fit: 1 file')).toBeInTheDocument()
   })
 })

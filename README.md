@@ -29,8 +29,10 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
 
 ## What it does
 
-- **Reads FIT files** from Garmin, Wahoo and similar devices, singly, gzipped, or inside a Strava
-  account-export zip.
+- **Reads FIT, GPX and TCX files** from Garmin, Wahoo, Strava and similar devices, singly, gzipped,
+  or inside a Strava account-export zip. GPX files never carry device speed, and TCX files only
+  sometimes do. Where a file has no speed, speed is worked out from distance or from GPS positions.
+  Short best efforts from GPS-only files, under about 30 seconds, are less reliable than from FIT.
 - **One unit for both sports.** Cycling power is divided by gross efficiency. Running speed and
   gradient go through the Minetti et al. (2002) energy-cost-of-running curve. Both become W/kg.
 - **Uncertainty, not a single number.** Efficiency and running economy differ between people and
@@ -116,17 +118,17 @@ npm install
 npm run dev
 ```
 
-| Command                           | What it does                                                             |
-| --------------------------------- | ------------------------------------------------------------------------ |
-| `npm run dev`                     | Web app dev server (Vite)                                                |
-| `npm run dev:api`                 | Local API Worker on port 8787 (`wrangler dev`)                           |
-| `npm run build`                   | Production build of the web app into `apps/web/dist`                     |
-| `npm test`                        | Unit and component tests across all packages (Vitest)                    |
-| `npm run test:coverage`           | Same, with coverage thresholds                                           |
-| `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first |
-| `npm run check`                   | Format check, lint, typecheck, tests with coverage, and build            |
-| `npm run fixtures -w @rca/web`    | Regenerates the deterministic FIT fixtures used by the e2e suite         |
-| `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`               |
+| Command                           | What it does                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run dev`                     | Web app dev server (Vite)                                                     |
+| `npm run dev:api`                 | Local API Worker on port 8787 (`wrangler dev`)                                |
+| `npm run build`                   | Production build of the web app into `apps/web/dist`                          |
+| `npm test`                        | Unit and component tests across all packages (Vitest)                         |
+| `npm run test:coverage`           | Same, with coverage thresholds                                                |
+| `npm run e2e`                     | Playwright tests against the production build; run `npm run build` first      |
+| `npm run check`                   | Format check, lint, typecheck, tests with coverage, and build                 |
+| `npm run fixtures -w @rca/web`    | Regenerates the deterministic e2e fixtures (FIT, GPX, TCX and the Strava zip) |
+| `npm run screenshots -w @rca/web` | Builds, then regenerates the README screenshots in `docs/`                    |
 
 ### Layout
 
@@ -135,6 +137,9 @@ npm workspaces monorepo. Shared TypeScript, Vitest, Prettier and oxlint config l
 ```
 packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
   fit/               FIT decoding, 1 Hz resampling, zip and gzip extraction
+  gpx/, tcx/         GPX and TCX parsing; test-only encoders in encode.ts
+  import/            file dispatch by extension, shared pipeline, GPS speed
+  xml/               streaming XML scanner for GPX and TCX
   quality/           sensor data-quality rules
   metabolic/         gradient smoothing, Minetti cost, metabolic power
   curves/            mean-maximal duration curves
@@ -150,7 +155,7 @@ apps/web/            @rca/web: React + Vite app
   src/worker/        Web Worker that runs the analysis
   src/ui/            React components and hand-written SVG charts
   e2e/               Playwright tests
-  scripts/           FIT fixture and README screenshot generators
+  scripts/           fixture and README screenshot generators
 apps/api/            @rca/api: Cloudflare Worker API with Hono, D1 and R2
 docs/                architecture, roadmap and README screenshots
 ```

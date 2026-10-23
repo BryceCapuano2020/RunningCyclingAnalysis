@@ -20,9 +20,9 @@ export interface ExtractLimits {
   maxEntryBytes: number
   /** Total bytes emitted by decompressors for one source, including nested zips. Reaching it stops extraction. */
   maxTotalDecompressedBytes: number
-  /** FIT and FIT.GZ entries allowed in one source. */
+  /** FIT, GPX and TCX entries (each optionally gzipped) allowed in one source. */
   maxFitFiles: number
-  /** All archive entry headers allowed, including ignored, non-FIT and nested-zip entries. */
+  /** All archive entry headers allowed, including ignored, non-activity and nested-zip entries. */
   maxArchiveEntries: number
   /** Maximum retained output bytes while ZIP entries are being streamed. */
   maxBufferedBytes: number
@@ -41,9 +41,9 @@ export const DEFAULT_EXTRACT_LIMITS: Readonly<ExtractLimits> = {
 }
 
 export interface ExtractSummary {
-  /** FIT files delivered to onFile. */
+  /** Activity files (FIT, GPX or TCX) delivered to onFile. */
   fitFiles: number
-  /** GPX and TCX files seen and skipped. */
+  /** Activity files in formats this app does not read, seen and skipped. */
   otherActivityFiles: number
 }
 
@@ -78,7 +78,7 @@ interface PendingEntry {
 interface ReadyEntry {
   name: string
   bytes: Uint8Array<ArrayBuffer>
-  /** A zip to extract, rather than a FIT file to deliver. */
+  /** A zip to extract, rather than an activity file to deliver. */
   nested: boolean
 }
 
@@ -99,15 +99,17 @@ interface ZipBudget {
   abort: string | null
 }
 
-const OTHER_ACTIVITY = /\.(gpx|tcx)(\.gz)?$/i
-const FIT = /\.fit(\.gz)?$/i
+/** Activity formats this app reads: FIT, GPX and TCX, each optionally gzipped. */
+const ACTIVITY = /\.(fit|gpx|tcx)(\.gz)?$/i
+/** Activity formats this app does not read. They are counted, not delivered. */
+const OTHER_ACTIVITY = /\.(kml|kmz|pwx|hrm)(\.gz)?$/i
 const ZIP = /\.zip$/i
 
 /**
- * Calls onFile for each FIT file in a source. FIT, gzip and ZIP content is streamed and bounded;
- * completed activities are handed to onFile one at a time. Zips nested up to two levels deep are
- * read too. Invalid and over-limit data is reported through onError and skipped. Errors thrown by
- * handlers propagate after stream cleanup.
+ * Calls onFile for each FIT, GPX or TCX file in a source, gunzipped and named without its .gz.
+ * Content is streamed and bounded; completed files are handed to onFile one at a time. Zips nested
+ * up to two levels deep are read too. Invalid and over-limit data is reported through onError and
+ * skipped. Errors thrown by handlers propagate after stream cleanup.
  */
 export async function extractFitFiles(
   source: FitSource,
@@ -124,7 +126,7 @@ export async function extractFitFiles(
   }
   if (OTHER_ACTIVITY.test(name)) {
     summary.otherActivityFiles = 1
-  } else if (FIT.test(name)) {
+  } else if (ACTIVITY.test(name)) {
     await extractSingle(source, sink)
   } else if (ZIP.test(name)) {
     await streamZip(source, sink, 0, {
@@ -292,7 +294,7 @@ async function streamZip(
       return
     }
     const nested = ZIP.test(entry)
-    if (!nested && !FIT.test(entry)) return
+    if (!nested && !ACTIVITY.test(entry)) return
     if (nested && depth >= MAX_NESTED_ARCHIVE_DEPTH) {
       reportEntryError(name, TOO_DEEP)
       return
@@ -300,7 +302,7 @@ async function streamZip(
     if (!nested) {
       budget.fitEntries++
       if (budget.fitEntries > sink.limits.maxFitFiles) {
-        reportEntryError(name, `Archive exceeds the ${sink.limits.maxFitFiles}-FIT-file limit`)
+        reportEntryError(name, `Archive exceeds the ${sink.limits.maxFitFiles}-activity-file limit`)
         return
       }
     }
@@ -409,7 +411,7 @@ async function streamZip(
   unzip.register(UnzipPassThrough)
   unzip.register(UnzipInflate)
 
-  // Completed entries leave the buffer here: FIT files go to onFile, nested zips are read in turn.
+  // Completed entries leave the buffer here: activity files go to onFile, nested zips are read in turn.
   const dispatch = async (entry: ReadyEntry): Promise<void> => {
     try {
       if (entry.nested) {

@@ -1,11 +1,14 @@
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
+import { encodeGpx } from './gpx/encode'
+import { encodeTcx } from './tcx/encode'
 import { digestActivity } from './digest'
+import { parseActivityFile } from './import'
 import { AnalysisSession, SyncFailure } from './session'
-import type { SyncIssueCode, SyncItem } from './session'
-import { sampleDataset } from './synthetic'
-import type { Activity, AthleteSettings, Sport } from './types'
+import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
+import { DEFAULT_ATHLETE, generateActivity, sampleDataset } from './synthetic'
+import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
@@ -28,12 +31,17 @@ function textFile(name: string, text: string): File {
   return new File([new TextEncoder().encode(text)], name)
 }
 
-/** A zip with two FIT files (one gzipped), one GPX file and one non-activity file. */
+/** The same workout two days later, so that it is not a duplicate of the original. */
+function later(activity: Activity): Activity {
+  return { ...activity, startMs: activity.startMs + 2 * 24 * 3_600_000 }
+}
+
+/** A zip with two FIT files (one gzipped), one KML file and one non-activity file. */
 function exportZip(): File {
   const bytes = zipSync({
     'activities/1.fit': encodeFit(run, { gps: true }),
     'activities/2.fit.gz': gzipSync(encodeFit(ride, { gps: true })),
-    'activities/3.gpx.gz': gzipSync(strToU8('<gpx version="1.1"/>')),
+    'activities/3.kml': strToU8('<kml/>'),
     'activities.csv': strToU8('Activity ID,Activity Name\n1,Morning Run\n'),
   })
   return new File([bytes], 'export.zip')
@@ -56,13 +64,61 @@ describe('AnalysisSession', () => {
     expect(state.isSample).toBe(false)
   })
 
-  it('loads the FIT files from a zip and counts the GPX file as unsupported', async () => {
+  it('loads the FIT files from a zip and counts the KML file as unsupported', async () => {
     const session = new AnalysisSession()
     const state = await session.addFiles([exportZip()], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(2)
     expect(state.unsupportedFiles).toBe(1)
     expect(state.rejected).toEqual([])
+  })
+
+  it('loads the FIT, GPX and TCX files inside one zip as three activities', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1.fit': encodeFit(run, { gps: true }),
+      'activities/2.gpx.gz': gzipSync(encodeGpx(ride)),
+      'activities/3.tcx': encodeTcx(later(run), { gps: true }),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((activity) => activity.sport).sort()).toEqual([
+      'ride',
+      'run',
+      'run',
+    ])
+    expect(state.rejected).toEqual([])
+    expect(state.unsupportedFiles).toBe(0)
+  })
+
+  it('loads a GPX file and a TCX file given on their own', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        new File([new Uint8Array(encodeGpx(ride))], 'ride.gpx'),
+        new File([new Uint8Array(encodeTcx(later(run)))], 'run.tcx'),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities.map((activity) => activity.sport).sort()).toEqual([
+      'ride',
+      'run',
+    ])
+    expect(state.rejected).toEqual([])
+  })
+
+  it('rejects a GPX file with no activity records, under its own name', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [textFile('empty.gpx', '<gpx version="1.1"></gpx>'), fitFile('ride.fit', ride)],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.rejected).toEqual([
+      { fileName: 'empty.gpx', reason: 'File contains no activity records' },
+    ])
   })
 
   it('de-duplicates the same workout supplied twice in one call or across calls', async () => {
@@ -95,7 +151,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result).toBeNull()
     expect(state.rejected).toEqual([
-      { fileName: 'empty.zip', reason: 'No FIT files found' },
+      { fileName: 'empty.zip', reason: 'No supported activity files found (FIT, GPX or TCX)' },
       { fileName: 'notes.txt', reason: 'Unsupported file format' },
     ])
   })
@@ -173,7 +229,7 @@ describe('AnalysisSession', () => {
         counts.push(filesRead)
       },
     )
-    // One run file, two FIT files inside the zip, one ride file. The GPX is not counted.
+    // One run file, two FIT files inside the zip, one ride file. The KML file is not counted.
     expect(counts).toEqual([1, 2, 3, 4])
   })
 
@@ -234,6 +290,7 @@ describe('AnalysisSession', () => {
       totalActivities: 0,
       outdatedActivities: 0,
       incompatibleActivities: 0,
+      hiddenDuplicates: 0,
       rangeDays: null,
       syncIssues: [],
     })
@@ -276,6 +333,7 @@ describe('AnalysisSession', () => {
       totalActivities: 0,
       outdatedActivities: 0,
       incompatibleActivities: 0,
+      hiddenDuplicates: 0,
       rangeDays: 42,
       syncIssues: [],
     })
@@ -657,6 +715,183 @@ describe('AnalysisSession', () => {
     )
     expect(calls).toBe(0)
     expect(state.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+  })
+})
+
+/** The activity starting `ms` later, as GPS lag makes a GPX or TCX copy start after its FIT. */
+function shifted(activity: Activity, ms: number): Activity {
+  return { ...activity, startMs: activity.startMs + ms }
+}
+
+/** A run of `durationS` seconds from the synthetic generator. */
+function runOf(startMs: number, durationS: number): Activity {
+  return generateActivity(
+    DEFAULT_ATHLETE,
+    {
+      id: `run-${durationS}`,
+      name: 'Run',
+      sport: 'run',
+      startMs,
+      durationS,
+      effort: 'easy',
+      terrain: 'flat',
+    },
+    7,
+  )
+}
+
+/** The digest a library holds after a GPX or TCX file was imported earlier. */
+function digestOf(bytes: Uint8Array, fileName: string): ActivityDigest {
+  const parsed = parseActivityFile(bytes, fileName)
+  if (!parsed.ok) throw new Error(parsed.reason)
+  const [activity] = parsed.activities
+  if (activity === undefined) throw new Error(`${fileName} has no activity`)
+  return digestActivity(activity)
+}
+
+describe('the same workout in more than one format', () => {
+  it('analyses the FIT when a GPX copy that starts a few seconds later comes first in the zip', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1.gpx.gz': gzipSync(encodeGpx(shifted(run, 4_000))),
+      'activities/1.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('1.fit')
+    expect(state.hiddenDuplicates).toBe(1)
+  })
+
+  it('skips a GPX copy that arrives after its FIT in the same zip, and does not sync it', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities/1.gpx.gz': gzipSync(encodeGpx(shifted(run, 4_000))),
+    })
+    const synced: string[] = []
+    let duplicates: RejectedFile[] = []
+    const state = await session.addFiles(
+      [new File([bytes], 'export.zip')],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        synced.push(item.fileName)
+      },
+      false,
+      (outcome) => {
+        duplicates = outcome.duplicates
+      },
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('1.fit')
+    expect(state.hiddenDuplicates).toBe(0)
+    expect(synced).toEqual(['activities/1.fit'])
+    expect(duplicates).toEqual([
+      { fileName: 'activities/1.gpx', reason: 'Same workout as activities/1.fit' },
+    ])
+  })
+
+  it('prefers a TCX copy over a GPX copy of the same workout when there is no FIT', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'a.gpx': encodeGpx(shifted(run, 4_000)),
+      'b.tcx': encodeTcx(shifted(run, 2_000), { gps: true }),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('b.tcx')
+  })
+
+  it('counts a FIT imported after a saved GPX copy once, and hides the GPX copy', async () => {
+    const session = new AnalysisSession()
+    session.loadDigests([digestOf(encodeGpx(shifted(run, 4_000)), 'run.gpx')], SETTINGS)
+    const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.hiddenDuplicates).toBe(1)
+  })
+
+  it('skips a GPX imported after a saved FIT copy of the same workout, and does not sync it', async () => {
+    const session = new AnalysisSession()
+    const fit = digestOf(new Uint8Array(encodeFit(run, { gps: true })), 'run.fit')
+    session.loadDigests([fit], SETTINGS)
+    let synced = 0
+    const state = await session.addFiles(
+      [new File([new Uint8Array(encodeGpx(shifted(run, 4_000)))], 'run.gpx')],
+      SETTINGS,
+      undefined,
+      async () => {
+        synced++
+      },
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.hiddenDuplicates).toBe(0)
+    expect(synced).toBe(0)
+  })
+
+  it('saves a higher-ranked copy that arrives after a saved GPX, and hides the GPX', async () => {
+    const session = new AnalysisSession()
+    session.loadDigests([digestOf(encodeGpx(shifted(run, 4_000)), 'run.gpx')], SETTINGS)
+    let synced = 0
+    const state = await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      async () => {
+        synced++
+      },
+    )
+
+    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.hiddenDuplicates).toBe(1)
+    expect(synced).toBe(1)
+  })
+
+  it('uses the FIT when a saved GPX copy starts in the same second', async () => {
+    const session = new AnalysisSession()
+    session.loadDigests([digestOf(encodeGpx(run), 'run.gpx')], SETTINGS)
+    const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('run.fit')
+    expect(state.hiddenDuplicates).toBe(0)
+  })
+
+  it('keeps two runs 50 s apart when one lasts 10 minutes and the other 60', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        fitFile('short.fit', runOf(run.startMs, 600)),
+        fitFile('long.fit', runOf(run.startMs + 50_000, 3600)),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities).toHaveLength(2)
+    expect(state.hiddenDuplicates).toBe(0)
+  })
+
+  it('keeps two FITs of a near-duplicate workout as they were before, both counted', async () => {
+    const session = new AnalysisSession()
+    let synced = 0
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('run again.fit', shifted(run, 2_000))],
+      SETTINGS,
+      undefined,
+      async () => {
+        synced++
+      },
+    )
+
+    expect(state.result?.activities).toHaveLength(2)
+    expect(state.hiddenDuplicates).toBe(0)
+    expect(synced).toBe(2)
   })
 })
 

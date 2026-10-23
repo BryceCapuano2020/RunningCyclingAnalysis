@@ -181,7 +181,7 @@ export function Dropzone({
           ref={inputRef}
           type="file"
           multiple
-          accept=".fit,.gz,.zip"
+          accept=".fit,.gpx,.tcx,.gz,.zip"
           hidden
           onChange={handleInputChange}
         />
@@ -204,7 +204,7 @@ export function Dropzone({
         onClick={openPicker}
         onKeyDown={handleTargetKey}
       >
-        <p className="dropzone__title">Drop FIT files or a Strava export zip here</p>
+        <p className="dropzone__title">Drop FIT, GPX or TCX files, or a Strava export zip here</p>
         <p className="dropzone__hint">or choose files</p>
       </div>
       {signedIn ? null : (
@@ -228,7 +228,7 @@ export function Dropzone({
         ref={inputRef}
         type="file"
         multiple
-        accept=".fit,.gz,.zip"
+        accept=".fit,.gpx,.tcx,.gz,.zip"
         hidden
         onChange={handleInputChange}
       />

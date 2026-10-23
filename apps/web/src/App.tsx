@@ -24,6 +24,17 @@ import {
 import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
+import { plural } from './ui/components/plural'
+
+/** Note for saved activities left out of the analysis because another file holds their workout. */
+function hiddenCopiesText(count: number): string {
+  const copies = count === 1 ? 'is a copy' : 'are copies'
+  const counted = count === 1 ? 'is' : 'are'
+  return (
+    `${plural(count, 'saved activity', 'saved activities')} ${copies} of the same workout ` +
+    `from another file and ${counted} not counted twice.`
+  )
+}
 
 export function App() {
   const [preferences, setPreferences] = usePreferences()
@@ -159,7 +170,7 @@ export function App() {
           {!fileRetentionAvailable && (
             <p>
               Original file storage is unavailable on this deployment, so saved activities cannot be
-              rebuilt from the library. Import the original FIT files to update them; existing saved
+              rebuilt from the library. Import the original files to update them; existing saved
               originals are not deleted.
             </p>
           )}
@@ -185,6 +196,9 @@ export function App() {
             {' Use a compatible app version to analyze them.'}
           </p>
         </section>
+      )}
+      {analysis.state.hiddenDuplicates > 0 && (
+        <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
       )}
 
       {account.error && account.status !== 'unavailable' && (
@@ -276,14 +290,18 @@ export function App() {
         </section>
         {!result && (
           <>
-            <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
+            <RejectedFiles
+              rejected={rejected}
+              unsupportedFiles={unsupportedFiles}
+              duplicates={analysis.importOutcome?.duplicates ?? []}
+            />
             {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
             <ol className="app__steps">
               <li>
                 <h3>1. Add your files</h3>
                 <p className="secondary">
-                  FIT files from a Garmin, Wahoo or similar device, or the zip from Strava&rsquo;s
-                  account export.
+                  FIT, GPX or TCX files from a Garmin, Wahoo or similar device, or the zip from
+                  Strava&rsquo;s account export.
                 </p>
               </li>
               <li>
@@ -310,7 +328,11 @@ export function App() {
             {account.status === 'signed-out' && !isSample && (
               <SignInCallout onSignIn={account.signIn} />
             )}
-            <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
+            <RejectedFiles
+              rejected={rejected}
+              unsupportedFiles={unsupportedFiles}
+              duplicates={analysis.importOutcome?.duplicates ?? []}
+            />
 
             <section className="card">
               <Headline

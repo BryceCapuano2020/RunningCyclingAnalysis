@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
-import { parseFit } from '@rca/core/fit'
+import { parseActivityFile } from '@rca/core/import'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
@@ -68,7 +68,7 @@ async function addFiles(
   let uploaded = 0
   let storageBudgetExhausted = false
   let haltedBy: SyncIssueCode | null = null
-  let outcome: ImportOutcome = { activities: 0, rejected: 0 }
+  let outcome: ImportOutcome = { activities: 0, rejected: 0, duplicates: [] }
   const report = () =>
     post({
       type: 'progress',
@@ -233,7 +233,7 @@ async function rebuildStale(settings: AthleteSettings, userId: string) {
     }
     try {
       const bytes = await downloadActivityFile(record.id, userId)
-      const parsed = parseFit(bytes, record.fileName)
+      const parsed = parseActivityFile(bytes, record.fileName)
       if (!parsed.ok) {
         missing++
         continue

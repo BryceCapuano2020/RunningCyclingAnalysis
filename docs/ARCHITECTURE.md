@@ -2,7 +2,8 @@
 
 RunningCyclingAnalysis is browser-first with an optional account. The browser parses activity files
 and runs the analysis. When a user signs in, the API stores per-activity digests in D1 and optional
-original FIT files in R2. One Cloudflare Worker serves both the built web app and the API.
+original activity files (FIT, GPX or TCX) in R2. One Cloudflare Worker serves both the built web app
+and the API.
 
 This page describes the hardening branch's source. The live runtime was verified at commit
 `493ce15`; the current `main` tree at `310264a` has no runtime changes beyond that evidence. The
@@ -33,22 +34,22 @@ flowchart LR
 
 | Part            | Package                       | Role                                                                                                                   |
 | --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Analysis core   | `packages/core` (`@rca/core`) | Pure TypeScript, no DOM: FIT decoding, metabolic model, curves, heart-rate check, Monte Carlo comparison.              |
+| Analysis core   | `packages/core` (`@rca/core`) | Pure TypeScript, no DOM: FIT, GPX and TCX decoding, metabolic model, curves, heart-rate check, Monte Carlo comparison. |
 | Web app         | `apps/web` (`@rca/web`)       | React UI. Parses and digests files in a Web Worker and combines digests for the profile view. Static build.            |
 | Shared contract | `packages/contract`           | zod schemas for every request and response, imported by the API and the web app so the wire format has one definition. |
 | API             | `apps/api` (`@rca/api`)       | Hono app on a Cloudflare Worker: Google sign-in, sessions, activity and file endpoints, account deletion.              |
 | Database        | D1, accessed through Drizzle  | Users, OAuth identities, sessions, profiles, activity digests and the deployment-wide R2 budget ledger.                |
-| File store      | R2                            | Original FIT files, optional, one object per activity under a per-user prefix.                                         |
+| File store      | R2                            | Original activity files, optional, one object per activity under a per-user prefix.                                    |
 
 ## Hosting
 
 The app is deployed as a single Worker with Workers Static Assets, not as a Cloudflare Pages
-project. `apps/api/wrangler.toml` points `[assets]` at `apps/web/dist`. Requests under `/api` run the
-Worker first. Every other request is served from the built files, and unknown paths fall back to
+project. `apps/api/wrangler.toml` points `[assets]` at `apps/web/dist`. Requests under `/api` run
+the Worker first. Every other request is served from the built files, and unknown paths fall back to
 `index.html` (`not_found_handling = "single-page-application"`). The web app and API therefore share
-one origin, `https://rca-api.nutritioncoachapp.workers.dev`, so the session cookie is first-party and
-`SameSite=Lax` applies. `npm run build` must run before a deploy, because the assets come from the
-build output.
+one origin, `https://rca-api.nutritioncoachapp.workers.dev`, so the session cookie is first-party
+and `SameSite=Lax` applies. `npm run build` must run before a deploy, because the assets come from
+the build output.
 
 ## Request flows
 
@@ -61,12 +62,13 @@ build output.
    `email_verified`. It uses the stable `sub` claim as the identity.
 3. The API finds the user by that Google identity. If there is none, it links an existing account
    with the same verified email when that account has no Google identity yet, and otherwise creates
-   the user. It issues a 256-bit session token, stores only its SHA-256 hash with an expiry, sets the
-   token as a cookie, and redirects to `APP_URL`.
+   the user. It issues a 256-bit session token, stores only its SHA-256 hash with an expiry, sets
+   the token as a cookie, and redirects to `APP_URL`.
 
 **Import** (parse, digest, upload)
 
-1. A browser Web Worker parses the FIT file with `@rca/core/fit` and computes the activity digest.
+1. A browser Web Worker parses the activity file with `@rca/core/import`, which picks FIT, GPX or
+   TCX by extension, and computes the activity digest.
 2. `POST /api/activities` sends metadata and digest as JSON. The API validates them against the
    contract schema, admits the row atomically against the per-account activity limit, inserts it,
    and returns its id.
@@ -111,6 +113,41 @@ of applied migrations, and the migrations live in `apps/api/migrations`.
 Every query on a user's data filters on `user_id`, which comes from the session. Deleting a user
 cascades to `oauth_accounts`, `sessions`, `profiles` and `activities`.
 
+## Import
+
+Every activity file goes through the same path, whether it is dropped on the page or found inside a
+Strava export zip. The stages are in the browser Web Worker, and none of them need the network.
+
+1. **Archive extraction** (`extractFitFiles` in `packages/core/src/fit/archive.ts`). A source is
+   one file, optionally gzipped, or a zip. Zips are streamed, and zips nested inside them are read
+   up to two levels deep. Only `.fit`, `.gpx` and `.tcx` entries, each optionally `.gz`, are
+   delivered. `.kml`, `.kmz`, `.pwx` and `.hrm` entries are counted and skipped. Entry counts,
+   entry sizes and total decompressed bytes are all capped, so an oversized archive stops with a
+   reason instead of exhausting memory.
+2. **Dispatch** (`parseActivityFile` in `packages/core/src/import/index.ts`). The extension, after
+   any `.gz`, selects `parseFit`, `parseGpx` or `parseTcx`. Other names are refused. The bytes must
+   already be decompressed.
+3. **Shared pipeline** (`activitiesFromUnits` in `packages/core/src/import/pipeline.ts`). Each
+   parser returns units: one per FIT session, one per GPX track and one per TCX activity. The
+   pipeline drops impossible samples, such as speeds above the sport's maximum, and rejects
+   activities that are shorter than a minute, longer than 48 hours or dated implausibly. It splits a
+   unit at gaps longer than four hours, resamples to 1 Hz, and applies one sample budget to the
+   whole file.
+4. **Streaming XML** (`scanXmlBytes` in `packages/core/src/xml/parse.ts`). The GPX and TCX parsers
+   read a small strict XML scanner that emits events and builds no tree. Its memory follows the
+   nesting depth, plus the decoded source text and the points of the track being read. Entity
+   declarations are never expanded, so any entity other than the five predefined ones is an error.
+5. **GPS helper** (`trackFromFixes` in `packages/core/src/import/gps.ts`). It turns positions into
+   distance and speed. It drops invalid and duplicate-time fixes, and rejects fixes that imply more
+   than twice the sport's maximum speed. Speed is a centred difference over 10 seconds either side
+   of each fix. Distance is integrated over time, and a gap longer than 30 seconds credits no
+   distance. GPX always uses it. TCX uses it for distance when a file has no `DistanceMeters`, and
+   for speed when the file has neither device speed nor device distance.
+6. **Near-duplicate rule** (specified for `packages/core/src/session.ts`). Two activities are
+   near-duplicates when they have the same sport, start within 60 seconds of each other, and have
+   durations within 10% of each other. Of a near-duplicate pair, the copy from the richer format is
+   kept: FIT, then TCX, then GPX.
+
 ## Why the digest exists
 
 The comparison depends on settings (mass, efficiency and economy priors, period) and on the model
@@ -132,10 +169,10 @@ needed to fit the bike model against power-meter rides, so it can be refitted wi
 The trade-off: a model change that needs a per-sample quantity the digest does not hold requires
 re-digesting the original. Each digest carries a `modelRevision` inside its JSON; this is separate
 from the `digest_version` column, which remains the schema version. Revision 3 digests are analysed
-on their own, while older digests are shown as outdated and excluded until the original FIT file is
-re-imported. If its hash matches the stored activity, the API atomically replaces only the derived
-digest and preserves the activity id, original-file metadata and quota reservation. Retained R2
-files can be downloaded by the browser to drive that recovery; no database migration is needed.
+on their own, while older digests are shown as outdated and excluded until the original activity
+file is re-imported. If its hash matches the stored activity, the API atomically replaces only the
+derived digest and preserves the activity id, original-file metadata and quota reservation. Retained
+R2 files can be downloaded by the browser to drive that recovery; no database migration is needed.
 
 ## Security
 
@@ -162,8 +199,8 @@ files can be downloaded by the browser to drive that recovery; no database migra
   bounded batches. Completion may be delayed when storage is unavailable or retries keep failing.
 - **Secrets**: the Google client secret is a Worker secret, never in the repository.
 - **Headers**: static files carry a Content Security Policy, `frame-ancestors 'none'`, COOP and CORP
-  `same-origin`, `nosniff`, `no-referrer`, and HSTS. API responses are `no-store`. The details are in
-  [PRODUCTION.md](PRODUCTION.md#security-headers-and-diagnostics).
+  `same-origin`, `nosniff`, `no-referrer`, and HSTS. API responses are `no-store`. The details are
+  in [PRODUCTION.md](PRODUCTION.md#security-headers-and-diagnostics).
 
 ## Limits
 
@@ -189,9 +226,10 @@ The app makes no requests to third-party hosts from the bundle.
 
 ## Cost model
 
-Cloudflare's plans and limits can change. Check the current [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/),
-[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [R2 pricing](https://developers.cloudflare.com/r2/pricing/)
-before relying on a cost estimate.
+Cloudflare's plans and limits can change. Check the current [Workers
+pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1
+pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [R2
+pricing](https://developers.cloudflare.com/r2/pricing/) before relying on a cost estimate.
 
 | Service       | Pricing reference | What the app uses                                  |
 | ------------- | ----------------- | -------------------------------------------------- |
@@ -208,10 +246,12 @@ before launch.
 
 - **Hono** handlers use fetch-style request and response objects, so the same app runs on Node,
   Bun or Deno with a different entry point. Only the bindings (D1, R2, secrets) change.
-- **Drizzle** schemas are TypeScript. The SQLite dialect can move to Postgres (`drizzle-orm/pg-core`)
-  with a Postgres driver, but migrations and column types need rewriting. The schema is not a drop-in.
+- **Drizzle** schemas are TypeScript. The SQLite dialect can move to Postgres
+  (`drizzle-orm/pg-core`) with a Postgres driver, but migrations and column types need rewriting.
+  The schema is not a drop-in.
 - **R2** is S3-compatible for the operations used here. Putting storage behind a small interface
   (put, get, delete) lets S3 or MinIO replace it.
-- **Auth** uses Web Crypto and `fetch` for the Google OAuth exchange and token checks, so it should run
-  on any runtime that provides them.
-- **Core and web app** have no Cloudflare dependency. The web app is static and can be hosted anywhere.
+- **Auth** uses Web Crypto and `fetch` for the Google OAuth exchange and token checks, so it should
+  run on any runtime that provides them.
+- **Core and web app** have no Cloudflare dependency. The web app is static and can be hosted
+  anywhere.
