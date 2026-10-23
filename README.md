@@ -6,7 +6,7 @@ watts of energy burned per kilogram of body weight, W/kg), compares your best ef
 model range. This estimates energy use; it does not rank sporting ability.
 
 [Open the live app](https://rca-api.nutritioncoachapp.workers.dev) ·
-[Engineering review](docs/REVIEW.md) · [Operations and verification](docs/PRODUCTION.md)
+[Reviews](docs/REVIEWS.md) · [Operations and verification](docs/PRODUCTION.md)
 
 The current live version was deployed with the Wrangler CLI. This README does not record which commit
 or version is live; [docs/PRODUCTION.md](docs/PRODUCTION.md) explains how to check it. The limits and
@@ -26,6 +26,14 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
     />
   </picture>
 </p>
+
+## Where this is going
+
+The app is becoming a platform that estimates an athlete's evolving performance in running, cycling,
+strength and swimming from the activity files and simple logs people already have. Each sport gets
+its own model and units. Results always separate what was demonstrated from what is estimated, and
+they state the uncertainty and the evidence still missing. The plan is in
+[docs/VISION.md](docs/VISION.md).
 
 ## What it does
 
@@ -68,7 +76,8 @@ The system design is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), 
 in [docs/ROADMAP.md](docs/ROADMAP.md). Operational limits, release gates and remaining launch
 evidence are in [docs/PRODUCTION.md](docs/PRODUCTION.md); the local benchmark is in
 [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Service and storage limits are in
-[apps/api/LIMITS.md](apps/api/LIMITS.md).
+[apps/api/LIMITS.md](apps/api/LIMITS.md). Engineering rules are in
+[docs/ENGINEERING.md](docs/ENGINEERING.md); that file arrives with the refactor PR.
 
 ## The model
 
@@ -180,11 +189,11 @@ does not enroll in Workers Paid. The web app is served as static assets and the 
 exceeded, requests fail until limits reset or storage is freed. Application-level R2 limits cap
 app-handled traffic, but do not protect against direct bucket access or guarantee zero charges.
 Setup, Google sign-in, local development with real sign-in, costs and rollback are in
-[docs/DEPLOY.md](docs/DEPLOY.md). The hardening branch adds source for a gated **Deploy** workflow;
-it has not been deployed or run from the default branch. The encrypted-backup and uptime workflow
-files are also source only: the age recipient, GitHub environments and secrets, and remote workflow
-setup are not configured, so there is no active backup job or uptime monitor yet. See
-[docs/PRODUCTION.md](docs/PRODUCTION.md).
+[docs/DEPLOY.md](docs/DEPLOY.md). A gated **Deploy** workflow exists, but releases so far have been
+deployed from a local, authorised Wrangler session because the workflow's Cloudflare secrets are not
+yet configured. The encrypted-backup and uptime workflows are likewise present but switched off
+until the age recipient and their secrets are set up, so there is no active backup job or uptime
+monitor yet. See [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## Built with
 

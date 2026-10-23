@@ -4,7 +4,7 @@ Status: research note. It changes no model code. Values marked "unverified" were
 
 ## 1. Question
 
-ROADMAP section 2, items 2 and 3: is `M = P / (GE * m)` consistent with the running side, which adds resting energy (1.22 W/kg)? What GE range do primary sources report? Should the prior (mean 0.215, sd 0.012, bounds [0.18, 0.25]; `packages/core/src/constants.ts:28`) be widened, and how does that change the 20-minute headline's 90% range? Does GE depend enough on power to bias other durations?
+ROADMAP, Model accuracy (cycling efficiency definitions and prior width): is `M = P / (GE * m)` consistent with the running side, which adds resting energy (1.22 W/kg)? What GE range do primary sources report? Should the prior (mean 0.215, sd 0.012, bounds [0.18, 0.25]; `packages/core/src/constants.ts:28`) be widened, and how does that change the 20-minute headline's 90% range? Does GE depend enough on power to bias other durations?
 
 ## 2. Definitions
 
