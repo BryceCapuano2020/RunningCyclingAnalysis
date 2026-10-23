@@ -8,7 +8,9 @@ test('landing page shows the heading, drop zone and privacy statement without co
   await page.goto('/')
 
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
-  await expect(page.getByText('Drop FIT files or a Strava export zip here')).toBeVisible()
+  await expect(
+    page.getByText('Drop FIT, GPX or TCX files, or a Strava export zip here'),
+  ).toBeVisible()
   await expect(page.getByText('Your files never leave this device')).toBeVisible()
   expect(errors).toEqual([])
 })

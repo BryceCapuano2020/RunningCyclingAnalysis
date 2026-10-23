@@ -101,6 +101,7 @@ const STATE = {
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
+  hiddenDuplicates: 0,
 }
 
 beforeEach(() => {
@@ -724,7 +725,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.state.outdatedActivities).toBe(2)
-    expect(result.current.rebuildNotice).toMatch(/re-import those original FIT files/)
+    expect(result.current.rebuildNotice).toMatch(/re-import those original files/)
   })
 
   it('keeps the missing-file and retry guidance when both rebuild outcomes occur', () => {
@@ -742,7 +743,7 @@ describe('useAnalysis state', () => {
         limitResetsAtMs: null,
       }),
     )
-    expect(result.current.rebuildNotice).toMatch(/re-import those original FIT files/)
+    expect(result.current.rebuildNotice).toMatch(/re-import those original files/)
     expect(result.current.rebuildNotice).toMatch(/2 could not be rebuilt; try again/)
   })
 

@@ -17,15 +17,22 @@
     "./curves": "./src/curves/index.ts",
     "./effort": "./src/effort/index.ts",
     "./fit": "./src/fit/index.ts",
+    "./gpx": "./src/gpx/index.ts",
+    "./gpx/encode": "./src/gpx/encode.ts",
     "./hr": "./src/hr/index.ts",
+    "./import": "./src/import/index.ts",
     "./metabolic": "./src/metabolic/index.ts",
     "./quality": "./src/quality/index.ts",
     "./synthetic": "./src/synthetic/index.ts",
+    "./tcx": "./src/tcx/index.ts",
+    "./tcx/encode": "./src/tcx/encode.ts",
     "./units": "./src/units/index.ts",
-    "./virtualPower": "./src/virtualPower/index.ts"
+    "./virtualPower": "./src/virtualPower/index.ts",
+    "./xml": "./src/xml/index.ts"
   },
   "scripts": {
     "test": "vitest run",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -47,8 +47,10 @@ These change the numbers the headline is built from.
 
 Most people do not have only FIT files, and the decoder is a licensing problem for distribution.
 
-1. **More file types.** Add GPX (heart rate and power through extensions), TCX, Strava CSV summaries
-   and the Apple Health export. Each format removes a reason people cannot compare their sports.
+1. **More file types.** Done: GPX (heart rate and power through extensions) and TCX. Speed in those
+   files is derived from GPS positions, so short best efforts are less reliable than from FIT.
+   Remaining: Strava CSV summaries and the Apple Health export. Each format removes a reason people
+   cannot compare their sports.
 2. **FIT decoder distribution and resource review.** Confirm the SDK terms for the intended
    distribution and benchmark decoder memory before replacing it. An in-house streaming decoder
    could reduce bundle size and peak allocations, but needs independent device fixtures, including

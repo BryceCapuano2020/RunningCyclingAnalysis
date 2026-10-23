@@ -124,7 +124,7 @@ describe('analysis worker', () => {
       {
         type: 'state',
         state: expect.objectContaining({ totalActivities: 1, syncIssues: [] }),
-        outcome: { activities: 1, rejected: 0 },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
       },
     ])
   })

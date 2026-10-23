@@ -40,6 +40,20 @@ describe('Methodology', () => {
     }
   })
 
+  it('says which speed a GPX, TCX or GPS-only file uses, and where GPS is less reliable', () => {
+    render(<Methodology />)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Where speed comes from' })
+    const body = heading.nextElementSibling
+    expect(body).toHaveTextContent('A TCX file with device speed uses that speed.')
+    expect(body).toHaveTextContent('centred difference over 10 seconds either side of each point')
+    expect(body).toHaveTextContent('GPX files never carry device speed')
+    expect(body).toHaveTextContent('a centred window of 20 seconds')
+    expect(body).toHaveTextContent('more than twice the sport’s maximum speed rejected')
+    expect(body).toHaveTextContent('a gap longer than 30 seconds crediting no distance')
+    expect(body).toHaveTextContent('Speeds below 0.5 m/s count as still.')
+    expect(body).toHaveTextContent('Short best efforts under about 30 seconds from GPS-only files')
+  })
+
   it('states the average gross efficiency and the 90% range', () => {
     render(<Methodology />)
     expect(screen.getByText(/about 21\.5%/)).toBeInTheDocument()

@@ -157,8 +157,8 @@ export function SavedLibrary({
             Delete “{confirming.name}”?
           </h3>
           <p id={`${baseId}-confirm-description`}>
-            This permanently deletes the activity’s original FIT file and saved summary. This cannot
-            be undone.
+            This permanently deletes the activity’s original file and saved summary. This cannot be
+            undone.
           </p>
           <div className="saved-library__confirmation-actions">
             <button type="button" className="btn" onClick={closeConfirmation}>

@@ -21,7 +21,7 @@ function renderDropzone(overrides: Partial<DropzoneProps> = {}) {
   const view = render(<Dropzone {...props} />)
   const input = view.container.querySelector<HTMLInputElement>('input[type="file"]')
   if (!input) throw new Error('file input missing')
-  const target = screen.queryByRole('button', { name: /drop fit files/i })
+  const target = screen.queryByRole('button', { name: /drop fit, gpx or tcx files/i })
   return { ...props, container: view.container, input, target }
 }
 
@@ -155,7 +155,9 @@ describe('Dropzone', () => {
 
   it('shows the drop instructions, the choose text and the privacy line', () => {
     renderDropzone()
-    expect(screen.getByText('Drop FIT files or a Strava export zip here')).toBeInTheDocument()
+    expect(
+      screen.getByText('Drop FIT, GPX or TCX files, or a Strava export zip here'),
+    ).toBeInTheDocument()
     expect(screen.getByText('or choose files')).toBeInTheDocument()
     expect(screen.getByText(/Your files never leave this device/)).toBeInTheDocument()
   })
@@ -395,7 +397,9 @@ describe('Dropzone', () => {
 
     expect(screen.queryByRole('button', { name: 'Try sample data' })).not.toBeInTheDocument()
     expect(screen.queryByText(/Your files never leave this device/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /drop fit files/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /drop fit, gpx or tcx files/i }),
+    ).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Add more files' }))
     expect(pick).toHaveBeenCalledTimes(1)

@@ -71,7 +71,7 @@ describe('SavedLibrary', () => {
     fireEvent.click(deleteButtonFor(0))
     const confirmation = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 0”?' })
     expect(confirmation).toHaveAccessibleDescription(
-      /permanently deletes the activity’s original FIT file and saved summary/,
+      /permanently deletes the activity’s original file and saved summary/,
     )
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
 

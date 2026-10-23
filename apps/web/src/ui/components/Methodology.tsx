@@ -46,6 +46,17 @@ const SECTIONS: Section[] = [
       'its problems with the time they occurred.',
   },
   {
+    title: 'Where speed comes from',
+    body:
+      'A TCX file with device speed uses that speed. A TCX file with device distance but no speed ' +
+      'derives speed from the distance, as a centred difference over 10 seconds either side of each ' +
+      'point. GPX files never carry device speed, and neither does a TCX file with only positions, ' +
+      'so their speed comes from the GPS track: a centred window of 20 seconds, with fixes that imply ' +
+      'more than twice the sport’s maximum speed rejected, and a gap longer than 30 seconds crediting ' +
+      'no distance. Speeds below 0.5 m/s count as still. Short best efforts under about 30 seconds ' +
+      'from GPS-only files are less reliable than from a device.',
+  },
+  {
     title: 'Limits',
     body:
       'Best efforts are only as good as the hardest efforts on file. Heat, altitude and fatigue ' +

@@ -20,7 +20,7 @@ test('try sample data shows the results, four charts, the activities and the sam
   expect(errors).toEqual([])
 })
 
-test('uploading the Strava export zip shows the results, skipping the GPX file', async ({
+test('uploading the Strava export zip shows the results, including its GPX run', async ({
   page,
 }) => {
   await page.goto('/')
@@ -29,9 +29,22 @@ test('uploading the Strava export zip shows the results, skipping the GPX file',
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     /Over .* your running is estimated to use .* more energy rate per kg than your cycling/,
   )
-  await expect(activitiesRows(page)).toHaveCount(14)
-  await expect(page.getByText('1 GPX or TCX file was skipped')).toBeVisible()
+  // Fourteen FIT activities and one GPX run.
+  await expect(activitiesRows(page)).toHaveCount(15)
+  await expect(page.getByText(/files? (was|were) skipped/)).toHaveCount(0)
   await expect(page.getByText('You are looking at simulated sample data')).toHaveCount(0)
+})
+
+test('uploading a GPX ride and a TCX run shows the results', async ({ page }) => {
+  await page.goto('/')
+  await uploadFixtures(page, ['one-ride.gpx', 'one-run.tcx'])
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    /Over .*, your (running|cycling) is estimated to use .* more energy rate per kg than your (running|cycling)|Your running and cycling energy estimates overlap/,
+  )
+  await expect(activitiesRows(page)).toHaveCount(2)
+  await expect(page.getByText(/could not be used/)).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toHaveCount(0)
 })
 
 test('uploading a single run names cycling as the missing sport', async ({ page }) => {
@@ -75,5 +88,7 @@ test('start over returns to the landing page', async ({ page }) => {
   await page.getByRole('button', { name: 'Start over' }).click()
 
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
-  await expect(page.getByText('Drop FIT files or a Strava export zip here')).toBeVisible()
+  await expect(
+    page.getByText('Drop FIT, GPX or TCX files, or a Strava export zip here'),
+  ).toBeVisible()
 })

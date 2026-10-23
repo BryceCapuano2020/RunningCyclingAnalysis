@@ -22,7 +22,7 @@ const NAME = 'Ada Lovelace'
 const FIRST_NAME = 'Ada'
 const RUNNING_HEADLINE =
   /Over .* your running is estimated to use .* more energy rate per kg than your cycling/
-const SAVED_NOTICE = 'Saved 14 activities to your library'
+const SAVED_NOTICE = 'Saved 15 activities to your library'
 const KEEP_FILES = 'Keep original files in my library'
 /** An import saves each activity and its file in turn, which takes longer than the default. */
 const IMPORT = { timeout: 30_000 }
@@ -92,15 +92,15 @@ test('a saved library survives reloads and sign-out, and deleting the account re
 
   await test.step('importing the export saves its activities and their files', async () => {
     await signedInWithExport(page, email)
-    await expect(activitiesRows(page)).toHaveCount(14)
+    await expect(activitiesRows(page)).toHaveCount(15)
     // Results appear once every activity and file is stored, so the server should agree.
-    await expect.poll(() => storedFileCount(page), IMPORT).toBe(14)
+    await expect.poll(() => storedFileCount(page), IMPORT).toBe(15)
   })
 
   await test.step('a reload shows the results the server returns', async () => {
     await page.reload()
     await expect(headline(page)).toHaveText(RUNNING_HEADLINE, IMPORT)
-    await expect(activitiesRows(page)).toHaveCount(14)
+    await expect(activitiesRows(page)).toHaveCount(15)
   })
 
   await test.step('a body weight change is saved to the profile', async () => {
@@ -125,7 +125,7 @@ test('a saved library survives reloads and sign-out, and deleting the account re
     await expect(keep).not.toBeChecked()
 
     await expect.poll(() => storedFileCount(page)).toBe(0)
-    expect(await apiActivities(page.request)).toHaveLength(14)
+    expect(await apiActivities(page.request)).toHaveLength(15)
   })
 
   await test.step('signing out returns to the landing page with the sign-in button', async () => {
@@ -141,7 +141,7 @@ test('a saved library survives reloads and sign-out, and deleting the account re
     await signInAs(page.request, email, NAME)
     await page.reload()
     await expect(headline(page)).toHaveText(RUNNING_HEADLINE, IMPORT)
-    await expect(activitiesRows(page)).toHaveCount(14)
+    await expect(activitiesRows(page)).toHaveCount(15)
     await expect(page.getByRole('checkbox', { name: KEEP_FILES })).not.toBeChecked()
     await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
   })
@@ -166,7 +166,7 @@ test('a second user cannot see, fetch or delete the first user activities', asyn
 }) => {
   test.setTimeout(120_000)
   await signedInWithExport(page, uniqueEmail())
-  await expect.poll(() => storedFileCount(page), IMPORT).toBe(14)
+  await expect.poll(() => storedFileCount(page), IMPORT).toBe(15)
 
   const [first] = await apiActivities(page.request)
   if (first === undefined) throw new Error('the export saved no activities')
@@ -178,7 +178,7 @@ test('a second user cannot see, fetch or delete the first user activities', asyn
   const deleted = await request.delete(`/api/activities/${first.id}`, { headers: CLIENT_HEADERS })
   expect(deleted.status()).toBe(404)
 
-  expect(await apiActivities(page.request)).toHaveLength(14)
+  expect(await apiActivities(page.request)).toHaveLength(15)
 })
 
 test('a file chosen before account lookup completes is imported and saved once', async ({
@@ -210,7 +210,7 @@ test('a file chosen before account lookup completes is imported and saved once',
   }
   await expect(accountButton(page)).toBeVisible()
   await expect(headline(page)).toHaveText(RUNNING_HEADLINE, IMPORT)
-  await expect.poll(() => storedFileCount(page), IMPORT).toBe(14)
+  await expect.poll(() => storedFileCount(page), IMPORT).toBe(15)
 })
 
 test('an import started on the landing page shows the saved notice', async ({ page }) => {

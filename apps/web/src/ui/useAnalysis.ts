@@ -49,7 +49,7 @@ export interface AnalysisController {
   busy: boolean
   /** Why held imports are waiting, or null when nothing is waiting. */
   waitingReason: string | null
-  /** Number of FIT files read so far during an import. */
+  /** Number of activity files read so far during an import. */
   progress: number | null
   /** Number of files uploaded so far during an import that keeps files, otherwise null. */
   uploading: number | null
@@ -98,6 +98,7 @@ const EMPTY: SessionState = {
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
+  hiddenDuplicates: 0,
 }
 
 /** A request the worker has not answered yet. `notice` is the confirmation shown on success. */
@@ -458,7 +459,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       ]
       if (message.missing > 0) {
         notice.push(
-          `${message.missing} original ${message.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; re-import those original FIT files.`,
+          `${message.missing} original ${message.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; re-import those original files.`,
         )
       }
       if (message.failed > 0) {
@@ -641,7 +642,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     if (userId === undefined || current.me === null) return
     if (current.me.fileRetentionAvailable === false) {
       setRebuildNotice(
-        'Saved originals cannot be accessed on this deployment. Import the original FIT files to rebuild these activities; existing saved originals are not deleted.',
+        'Saved originals cannot be accessed on this deployment. Import the original files to rebuild these activities; existing saved originals are not deleted.',
       )
       return
     }

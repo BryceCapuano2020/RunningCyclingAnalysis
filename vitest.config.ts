@@ -11,6 +11,8 @@ export default defineConfig({
         '**/test/**',
         'packages/core/src/types.ts',
         'packages/core/src/fit/fitTestFiles.ts',
+        'packages/core/src/gpx/encode.ts',
+        'packages/core/src/tcx/encode.ts',
         'packages/core/src/virtualPower/syntheticRides.ts',
       ],
       thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },

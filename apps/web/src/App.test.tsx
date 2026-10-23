@@ -8,6 +8,7 @@ const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted((
   analysisMock: {
     outdatedActivities: 0,
     incompatibleActivities: 0,
+    hiddenDuplicates: 0,
     result: { activities: [], comparison: null, effort: [] } as null | {
       activities: unknown[]
       comparison: null
@@ -289,7 +290,7 @@ describe('file retention availability', () => {
     render(<App />)
 
     expect(screen.getByRole('button', { name: 'Rebuild saved activities' })).toBeDisabled()
-    expect(screen.getByText(/Import the original FIT files to update them/)).toBeInTheDocument()
+    expect(screen.getByText(/Import the original files to update them/)).toBeInTheDocument()
   })
 })
 

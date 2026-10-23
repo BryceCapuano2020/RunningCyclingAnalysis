@@ -366,9 +366,10 @@ restored database lacks their references.
 
 **What the backup does not contain:**
 
-- **Original FIT files in R2.** These are not copied off Cloudflare. Users keep their own originals,
-  and the owner should not promise that a stored original is recoverable. The manifest only records
-  which objects existed, so an activity whose original is missing can be identified and re-imported.
+- **Original activity files in R2 (FIT, GPX or TCX).** These are not copied off Cloudflare. Users
+  keep their own originals, and the owner should not promise that a stored original is recoverable.
+  The manifest only records which objects existed, so an activity whose original is missing can be
+  identified and re-imported.
 - **A deletion log.** The application keeps no record of deleted accounts. A restored backup can
   contain accounts that were deleted after it was taken, so the restore procedure requires
   reconciling them.
