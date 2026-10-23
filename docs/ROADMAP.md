@@ -45,11 +45,13 @@ Today the fitness trend is a 42-day rolling best (PR #17).
 
 ## Model accuracy
 
-1. **Running-versus-cycling bias (headline).** The validation note `docs/validation/physiology.md`
-   (not yet on `main`) finds flat running about 13% below the ACSM equation, and matched-effort
+1. **Running-versus-cycling bias (headline).** [validation/physiology.md](validation/physiology.md)
+   finds flat running about 13% below the ACSM equation, and matched-effort
    running at 0.79 to 0.86 of cycling. Parity falls outside the 90% range at 3, 4 and 5 m/s. Most of
    the gap is attributed to the running slope. The economy prior (mean 1.0) sits below the
    ACSM-implied scale of about 1.16. Cycling reads 25% low at 1 W/kg, because it has no resting term.
+   A literature-based correction is proposed in
+   [research/headline-bias.md](research/headline-bias.md).
    Next: check the running slope and its gross or net basis against primary text before changing
    the prior or the slope.
 2. **Running air resistance.** Research: [running-air-resistance.md](research/running-air-resistance.md).
@@ -72,9 +74,8 @@ Today the fitness trend is a 42-day rolling best (PR #17).
 1. **CSV.** Strava CSV summaries, and the lifting CSV exports used in Phase 4.
 2. **Apple Health export.** Workouts and dated body mass, parsed with the streaming XML scanner in
    `packages/core/src/xml`.
-3. **FIT fixtures.** Real device files covering timer events, compressed timestamps, developer fields
-   and multisport sessions. The Garmin SDK is a dev-only reference, so distribution no longer
-   applies. Stream accepted records into per-activity processing to reduce retained data
+3. **FIT memory.** Real device fixtures are now in `packages/core/test-corpus`. Remaining: stream
+   accepted records into per-activity processing to reduce retained data
    ([PERFORMANCE.md](PERFORMANCE.md)).
 4. **Done: GPX and TCX import (PR #13).** GPS-derived speed makes short efforts less reliable than FIT.
 

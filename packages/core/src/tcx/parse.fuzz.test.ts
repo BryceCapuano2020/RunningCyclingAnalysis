@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { parseTcx } from './parse'
-import type { ParseResult } from '../fit/parse'
+import type { ParseResult } from '../import/result'
 import { encodeTcx } from './encode'
 
 /** Fixed clock so the date check is the same on every run. */

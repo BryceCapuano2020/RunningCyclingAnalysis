@@ -3,7 +3,7 @@ import type { Activity } from '../types'
 import { encodeFit } from './encode'
 import { buildFit, secondly } from './fitTestFiles'
 import { parseFit } from './parse'
-import type { ParseResult } from './parse'
+import type { ParseResult } from '../import/result'
 
 /** Fixed clock so the date check is the same on every run. */
 const NOW_MS = Date.UTC(2026, 9, 22)

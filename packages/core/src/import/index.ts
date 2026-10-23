@@ -1,7 +1,10 @@
 import { parseFit } from '../fit/parse'
-import type { ParseLimits, ParseOptions, ParseResult } from '../fit/parse'
 import { parseGpx } from '../gpx/parse'
 import { parseTcx } from '../tcx/parse'
+import type { ParseLimits, ParseOptions, ParseResult } from './result'
+
+export { DEFAULT_PARSE_LIMITS } from './result'
+export type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 const UNSUPPORTED = 'Not a FIT, GPX or TCX file'
 

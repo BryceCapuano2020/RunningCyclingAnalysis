@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseGpx } from './parse'
-import type { ParseResult } from '../fit/parse'
+import type { ParseResult } from '../import/result'
 
 const START_MS = Date.UTC(2024, 4, 1, 7, 30, 0)
 const HEADER =

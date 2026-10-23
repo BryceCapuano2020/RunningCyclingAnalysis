@@ -14,6 +14,10 @@ describe('parseIsoTime', () => {
     expect(parseIsoTime(text, 'refuse')).toBe(ms)
   })
 
+  it('keeps a year below 100 as written instead of mapping it to the 1900s', () => {
+    expect(parseIsoTime('0050-01-01T00:00:00Z', 'utc')).toBe(Date.parse('0050-01-01T00:00:00Z'))
+  })
+
   it('reads a time with no zone as UTC under the utc policy', () => {
     expect(parseIsoTime('2024-05-01T07:30:00', 'utc')).toBe(MS)
     expect(parseIsoTime('2024-05-01T07:30:00.5', 'utc')).toBe(MS + 500)

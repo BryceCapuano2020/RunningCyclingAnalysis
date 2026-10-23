@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
-import { DEFAULT_PARSE_LIMITS, parseFit } from './parse'
-import type { ParseResult } from './parse'
+import { DEFAULT_PARSE_LIMITS } from '../import/result'
+import type { ParseResult } from '../import/result'
+import { parseFit } from './parse'
 import { buildFit, secondly } from './fitTestFiles'
+import type { TestRecord } from './fitTestFiles'
 import { FILE_TYPE, SPORT } from './protocol/profile'
 import { FILE_ID_LAYOUT, RECORD_LAYOUT, SESSION_LAYOUT } from './protocol/layouts'
 import { FitWriter } from './protocol/writer'
@@ -32,7 +34,8 @@ function makeActivity(sport: Sport, n: number, options: FixtureOptions = {}): Ac
     const isPaused = i >= pauseFrom && i < pauseTo
     const v = isPaused ? 0 : 4 + (i % 7) * 0.25
     speed[i] = v
-    total += v
+    // Distance starts at zero, as every imported activity does, and grows with each sample.
+    if (i > 0) total += v
     distance[i] = total
     altitude[i] = 100 + i * 0.2
     paused[i] = isPaused ? 1 : 0
@@ -66,12 +69,26 @@ function maxAbsDiff(a: Float64Array, b: Float64Array): number {
   return worst
 }
 
+/** Records from `secondly` with a cumulative distance for each second. */
+function withDistance(records: TestRecord[], distance: (t: number) => number): TestRecord[] {
+  records.forEach((record, t) => {
+    record.distance = distance(t)
+  })
+  return records
+}
+
 /** Parses bytes that must succeed and returns the first activity. */
 function firstActivity(result: ParseResult): Activity {
   if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
   const [activity] = result.activities
   if (activity === undefined) throw new Error('expected at least one activity')
   return activity
+}
+
+/** Parses bytes that must succeed and returns every activity. */
+function firstResultActivities(result: ParseResult): Activity[] {
+  if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
+  return result.activities
 }
 
 /** Parses bytes that must fail and returns the reason. */
@@ -157,20 +174,21 @@ describe('parseFit round trip', () => {
   })
 
   it('starts an independently encoded timer pause at the stop timestamp, including interior records', () => {
+    // 70 s with a 6 s pause leaves 64 s of riding, enough to keep the activity.
     const bytes = buildFit({
       sessions: [
         {
           sport: 'cycling',
           startMs: START_MS,
-          durationS: 60,
-          records: secondly(START_MS, 60, { speed: 8, power: 220, altitude: 100 }),
+          durationS: 70,
+          records: secondly(START_MS, 70, { speed: 8, power: 220, altitude: 100 }),
         },
       ],
       timerEvents: [
         { tMs: START_MS, eventType: 'start' },
         { tMs: START_MS + 30_000, eventType: 'stop' },
         { tMs: START_MS + 36_000, eventType: 'start' },
-        { tMs: START_MS + 60_000, eventType: 'stop' },
+        { tMs: START_MS + 70_000, eventType: 'stop' },
       ],
     })
     const activity = firstActivity(parseFit(bytes, 'timer-stop.fit'))
@@ -208,6 +226,20 @@ describe('parseFit round trip', () => {
     const a = firstActivity(parseFit(bytes, 'trainer.fit'))
     expect(a.indoor).toBe(true)
     expect(a.hasAltitude).toBe(false)
+  })
+
+  it('marks a trainer ride with altitude noise, no speed and power indoor', () => {
+    // As in sample-activity-indoor-trainer.fit: a barometer reads 0 to 4 m of noise, no speed.
+    const records = secondly(START_MS, 70, { power: 200 })
+    records.forEach((record, t) => {
+      record.altitude = t % 5
+    })
+    const bytes = buildFit({
+      sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 70, records }],
+    })
+    const a = firstActivity(parseFit(bytes, 'trainer-noise.fit'))
+    expect(a.indoor).toBe(true)
+    expect(a.hasAltitude).toBe(true)
   })
 
   it('keeps a run outdoors when a file from a watch has records without positions', () => {
@@ -336,6 +368,18 @@ describe('parseFit validation', () => {
     })
   })
 
+  it('accepts a minute of activity recorded every five seconds', () => {
+    // Thirteen records cover 60 s: a smart-recording watch does this. Counting records would reject it.
+    const records = Array.from({ length: 13 }, (_, k) => ({ tMs: START_MS + k * 5000, speed: 3 }))
+    const a = firstActivity(
+      parseFit(
+        buildFit({ sessions: [{ sport: 'running', startMs: START_MS, durationS: 60, records }] }),
+        'sparse.fit',
+      ),
+    )
+    expect(a.n).toBe(61)
+  })
+
   it('accepts a ride of exactly one minute', () => {
     const a = firstActivity(parseFit(encodeFit(makeActivity('ride', 60)), 'min.fit'))
     expect(a.n).toBe(60)
@@ -347,7 +391,7 @@ describe('parseFit validation', () => {
     untimed.message(SESSION_LAYOUT, { sport: SPORT.running })
     for (let i = 0; i < 70; i++) untimed.message(RECORD_LAYOUT, { enhancedSpeed: 3000 })
     expect(reasonOf(parseFit(untimed.finish(), 'x.fit'))).toBe(
-      'Activity is shorter than one minute',
+      'Records have no date, only device time',
     )
     const timed = buildFit({
       sessions: [
@@ -360,6 +404,19 @@ describe('parseFit validation', () => {
       ],
     })
     expect(parseFit(timed, 'x.fit').ok).toBe(true)
+  })
+
+  it('says records with only device time have no date, not that the ride is too short', () => {
+    // A FIT time below 2^28 seconds is device time since power-on. Here it is 1 hour of records.
+    const deviceTime = new FitWriter()
+    deviceTime.message(FILE_ID_LAYOUT, { type: FILE_TYPE.activity, timeCreated: 0 })
+    deviceTime.message(SESSION_LAYOUT, { sport: SPORT.cycling, totalElapsedTime: 3_600_000 })
+    for (let i = 0; i < 3600; i++) {
+      deviceTime.message(RECORD_LAYOUT, { timestamp: 100_000 + i, enhancedSpeed: 5000 })
+    }
+    expect(reasonOf(parseFit(deviceTime.finish(), 'device-time.fit'))).toBe(
+      'Records have no date, only device time',
+    )
   })
 
   it('ignores a stray timestamp more than a day from the rest of the file', () => {
@@ -556,6 +613,101 @@ describe('parseFit multi-session files', () => {
     expect(ride?.startMs).toBe(START_MS + 700_000)
     expect(ride?.n).toBe(900)
     expect(ride?.speed[899]).toBeCloseTo(8, 10)
+  })
+
+  it('counts a session from where the previous one ended, as the device does', () => {
+    // The device keeps one running distance: the run ends at 276 m and the ride carries on from it.
+    const rideStart = START_MS + 700_000
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 70,
+          records: withDistance(secondly(START_MS, 70, { speed: 3, gps: true }), (t) => 4 * t),
+        },
+        {
+          sport: 'cycling',
+          startMs: rideStart,
+          durationS: 70,
+          records: withDistance(
+            secondly(rideStart, 70, { speed: 8, gps: true }),
+            (t) => 4 * 69 + 8 * t,
+          ),
+        },
+      ],
+    })
+    const [run, ride] = firstResultActivities(parseFit(bytes, 'count-on.fit'))
+    expect(run?.distance[0]).toBe(0)
+    expect(run?.distance[run.n - 1]).toBe(4 * 69)
+    expect(ride?.distance[0]).toBe(0)
+    expect(ride?.distance[ride.n - 1]).toBe(8 * 69)
+  })
+
+  it('keeps the distance a device counted before its first record, as its total does', () => {
+    // A single session's total includes the metres counted before its first record.
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 70,
+          records: withDistance(secondly(START_MS, 70, { speed: 3, gps: true }), (t) => 5 + 4 * t),
+        },
+      ],
+    })
+    const [run] = firstResultActivities(parseFit(bytes, 'head-start.fit'))
+    expect(run?.distance[0]).toBe(5)
+    expect(run?.distance[run.n - 1]).toBe(5 + 4 * 69)
+  })
+
+  it('does not subtract a counter that went back, as after a device reset', () => {
+    const rideStart = START_MS + 700_000
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 70,
+          records: withDistance(secondly(START_MS, 70, { speed: 3, gps: true }), (t) => 4 * t),
+        },
+        {
+          sport: 'cycling',
+          startMs: rideStart,
+          durationS: 70,
+          records: withDistance(
+            secondly(rideStart, 70, { speed: 8, gps: true }),
+            (t) => 10 + 8 * t,
+          ),
+        },
+      ],
+    })
+    const [, ride] = firstResultActivities(parseFit(bytes, 'reset.fit'))
+    expect(ride?.distance[0]).toBe(10)
+    expect(ride?.distance[ride.n - 1]).toBe(10 + 8 * 69)
+  })
+
+  it('counts a session whose first record has no distance from where the previous one ended', () => {
+    const rideStart = START_MS + 700_000
+    const rideRecords = withDistance(
+      secondly(rideStart, 70, { speed: 8, gps: true }),
+      (t) => 4 * 69 + 8 * t,
+    )
+    rideRecords[0]!.distance = undefined
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 70,
+          records: withDistance(secondly(START_MS, 70, { speed: 3, gps: true }), (t) => 4 * t),
+        },
+        { sport: 'cycling', startMs: rideStart, durationS: 70, records: rideRecords },
+      ],
+    })
+    const [, ride] = firstResultActivities(parseFit(bytes, 'late-distance.fit'))
+    expect(ride?.distance[1]).toBe(8)
+    expect(ride?.distance[ride.n - 1]).toBe(8 * 69)
   })
 
   it('skips a swim in a triathlon and keeps the ride and run', () => {

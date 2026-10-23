@@ -37,7 +37,10 @@ export function parseIsoTime(
   const offset = zoneOffsetMinutes(zone)
   if (offset === undefined) return undefined
   const fraction = match[7] === undefined ? 0 : Math.round(Number(match[7]) * 1000)
-  const wall = Date.UTC(year, month - 1, day, hour, minute, second) + fraction
+  // Date.UTC maps years 0-99 to 1900-1999, so the year is set separately.
+  const date = new Date(Date.UTC(2000, month - 1, day, hour, minute, second))
+  date.setUTCFullYear(year)
+  const wall = date.getTime() + fraction
   return wall - offset * 60_000
 }
 

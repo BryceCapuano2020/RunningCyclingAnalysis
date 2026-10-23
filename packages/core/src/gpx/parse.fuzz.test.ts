@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeGpx } from './encode'
 import { parseGpx } from './parse'
-import type { ParseResult } from '../fit/parse'
+import type { ParseResult } from '../import/result'
 
 /** Fixed clock so the date check is the same on every run. */
 const NOW_MS = Date.UTC(2026, 9, 22)

@@ -31,6 +31,8 @@ test-results
 # personal activity data never gets committed
 data/
 *.fit
+# Third-party test files with their licences (packages/core/test-corpus/README.md) are not personal.
+!packages/core/test-corpus/**/*.fit
 *.fit.gz
 !**/fixtures/*.fit
 !**/e2e/fixtures/*.fit

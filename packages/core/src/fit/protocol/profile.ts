@@ -23,6 +23,8 @@ export const FIELD = {
   distance: 5,
   speed: 6,
   power: 7,
+  /** Three bytes: a 12-bit speed and a 12-bit distance counter, used when speed or distance is absent. */
+  compressedSpeedDistance: 8,
   enhancedSpeed: 73,
   enhancedAltitude: 78,
 } as const
