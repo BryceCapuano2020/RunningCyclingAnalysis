@@ -119,12 +119,12 @@ describe('AppNotices alerts and actions', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('says the library is unavailable when accounts cannot be reached', () => {
+  it('says sign-in is unavailable when accounts cannot be reached', () => {
     render(<AppNotices {...noticesProps({}, { accountsUnavailable: true })} />)
 
     expect(
       screen.getByText(
-        'Your library is unavailable right now. Analysis still runs in your browser and nothing is being saved.',
+        'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.',
       ),
     ).toBeInTheDocument()
   })

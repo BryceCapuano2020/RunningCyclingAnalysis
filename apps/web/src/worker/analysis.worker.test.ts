@@ -2,12 +2,15 @@ import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
+import { encodeGpx } from '@rca/core/gpx/encode'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { Activity, ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as client from '../api/client'
 import { ApiRequestError } from '../api/client'
 import { buildAccountExport } from '../export/accountExport'
+import { workoutKeyOf } from './device'
+import type { DeviceLibrary } from './deviceLibrary'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 const limits = vi.hoisted(() => ({ maxFileBytes: 50 * 1024 * 1024 }))
@@ -31,6 +34,19 @@ vi.mock('../api/client', async (importOriginal) => {
     listActivities: vi.fn(),
     deleteActivity: vi.fn(),
     uploadFile: vi.fn(),
+  }
+})
+
+/** The device library the worker opens. It outlives a fresh worker import, as IndexedDB does. */
+const kept = vi.hoisted(() => ({ library: null as DeviceLibrary | null }))
+
+vi.mock('./deviceLibrary', async () => {
+  const { memoryDeviceLibrary } = await import('../test/deviceLibrary.fake')
+  return {
+    openDeviceLibrary: () => {
+      kept.library ??= memoryDeviceLibrary()
+      return kept.library
+    },
   }
 })
 
@@ -94,11 +110,18 @@ function fitFile(activity?: Activity, name = 'run.fit'): File {
   return new File([new Uint8Array(encodeFit(source, { gps: true }))], name)
 }
 
+/** The first sample activity as a GPX file: the same workout as the FIT file, in a poorer format. */
+function gpxFile(name = 'run.gpx'): File {
+  if (sampleActivity === undefined) throw new Error('The sample has no activities')
+  return new File([new Uint8Array(encodeGpx(sampleActivity))], name)
+}
+
 beforeEach(() => {
   vi.resetModules()
   vi.useRealTimers()
   vi.clearAllMocks()
   limits.maxFileBytes = 50 * 1024 * 1024
+  kept.library = null
   vi.unstubAllGlobals()
   mocked.createActivity.mockImplementation(async (digest) => ({
     record: recordFor(digest),
@@ -839,6 +862,251 @@ it('reports a daily limit during a delete with the daily-limit cause', async () 
     settings: SETTINGS,
   })
   expect(messages).toEqual([{ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }])
+})
+
+/** The device library the worker opened, so a test can read what it kept. */
+function keptDevice(): DeviceLibrary {
+  if (kept.library === null) throw new Error('the worker did not open the device library')
+  return kept.library
+}
+
+/** A signed-out import, which keeps its digests in this browser. */
+function signedOutImport(file: File = fitFile()): WorkerRequest {
+  return {
+    type: 'addFiles',
+    files: [file],
+    settings: SETTINGS,
+    sync: null,
+    saveToDevice: true,
+  }
+}
+
+/** Storage that cannot be read or written, as when the browser refuses IndexedDB. */
+function refusingLibrary(): DeviceLibrary {
+  const refused = () => Promise.reject(new Error('Device storage is unavailable'))
+  return {
+    all: async () => [],
+    get: async () => null,
+    put: refused,
+    remove: refused,
+    clear: refused,
+  }
+}
+
+describe('device library', () => {
+  it('keeps the digests of a signed-out import that asks for it, and posts them as the library', async () => {
+    const { send } = await startWorker()
+    const messages = await send(signedOutImport())
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(messages).toEqual([
+      { type: 'progress', filesRead: 1 },
+      {
+        type: 'libraryActivities',
+        activities: [expect.objectContaining({ sport: sampleActivity.sport })],
+      },
+      {
+        type: 'state',
+        state: expect.objectContaining({ totalActivities: 1 }),
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      },
+    ])
+    expect(await keptDevice().all()).toHaveLength(1)
+  })
+
+  it('keeps nothing for an import that does not ask for it', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+    })
+
+    expect(messages).not.toContainEqual(expect.objectContaining({ type: 'libraryActivities' }))
+    expect(await keptDevice().all()).toEqual([])
+  })
+
+  it('restores the kept library when a fresh worker loads it', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+
+    vi.resetModules()
+    const restarted = await startWorker()
+    const messages = await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages).toEqual([
+      {
+        type: 'libraryActivities',
+        activities: [expect.objectContaining({ sport: sampleActivity.sport })],
+      },
+      {
+        type: 'state',
+        state: expect.objectContaining({ totalActivities: 1, result: expect.anything() }),
+      },
+    ])
+  })
+
+  it('keeps the FIT copy of a workout over an earlier GPX copy, and reloads that copy', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(gpxFile()))
+    await send(signedOutImport(fitFile()))
+    await send(signedOutImport(gpxFile()))
+
+    const [entry] = await keptDevice().all()
+    expect(entry?.digest.id).toMatch(/-run\.fit$/)
+
+    vi.resetModules()
+    const restarted = await startWorker()
+    const messages = await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+    expect(messages).toEqual([
+      {
+        type: 'libraryActivities',
+        activities: [expect.objectContaining({ sport: sampleActivity.sport })],
+      },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
+    ])
+    expect(await keptDevice().all()).toEqual([entry])
+  })
+
+  it('replaces a kept digest from an older analysis model when the workout is imported again', async () => {
+    const { send } = await startWorker()
+    const key = workoutKeyOf(SAMPLE_DIGEST)
+    await keptDevice().put(key, { ...SAMPLE_DIGEST, modelRevision: MODEL_REVISION - 1 })
+
+    const reloaded = await send({ type: 'loadDevice', settings: SETTINGS })
+    expect(reloaded.at(-1)).toMatchObject({
+      type: 'state',
+      state: { totalActivities: 0, outdatedActivities: 1 },
+    })
+    await send(signedOutImport())
+
+    expect((await keptDevice().get(key))?.modelRevision).toBe(MODEL_REVISION)
+  })
+
+  it('reloads the kept library before files added over the sample are analysed', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+    await send({ type: 'loadSample', settings: SETTINGS })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(secondSampleActivity, 'second.fit')],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(messages[0]).toEqual({
+      type: 'libraryActivities',
+      activities: [expect.objectContaining({ sport: sampleActivity.sport })],
+    })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { isSample: false, totalActivities: 2 },
+    })
+    expect(await keptDevice().all()).toHaveLength(2)
+  })
+
+  it('keeps the sample on screen when the kept library loads after it, and keeps the library as it was', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+    await send({ type: 'loadSample', settings: SETTINGS })
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages).toEqual([
+      {
+        type: 'libraryActivities',
+        activities: [expect.objectContaining({ sport: sampleActivity.sport })],
+      },
+      {
+        type: 'state',
+        state: expect.objectContaining({ isSample: true, result: expect.anything() }),
+      },
+    ])
+    expect(await keptDevice().all()).toHaveLength(1)
+  })
+
+  it('loads the kept library once a cleared sample is no longer showing', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+    await send({ type: 'loadSample', settings: SETTINGS })
+    await send({ type: 'clear' })
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { isSample: false, totalActivities: 1 },
+    })
+  })
+
+  it('still answers an import when the device library refuses to save it', async () => {
+    kept.library = refusingLibrary()
+    const { send } = await startWorker()
+
+    const messages = await send(signedOutImport())
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { totalActivities: 1 },
+      outcome: { activities: 1, rejected: 0, duplicates: [] },
+    })
+  })
+
+  it('loads an empty library when the device library cannot be read', async () => {
+    kept.library = refusingLibrary()
+    const { send } = await startWorker()
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages).toEqual([
+      { type: 'libraryActivities', activities: [] },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
+    ])
+  })
+
+  it('empties the session on start over even when the device library refuses to clear', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+    kept.library = { ...keptDevice(), clear: () => Promise.reject(new Error('refused')) }
+    vi.resetModules()
+    const restarted = await startWorker()
+    await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await restarted.send({ type: 'clear', forgetDevice: true })
+
+    expect(messages).toEqual([
+      { type: 'libraryActivities', activities: [] },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
+    ])
+  })
+
+  it('empties the kept library when a clear forgets the device', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+
+    const messages = await send({ type: 'clear', forgetDevice: true })
+
+    expect(messages).toEqual([
+      { type: 'libraryActivities', activities: [] },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
+    ])
+    expect(await keptDevice().all()).toEqual([])
+  })
+
+  it('keeps the library when a clear does not forget the device', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+
+    const messages = await send({ type: 'clear' })
+
+    expect(messages).toEqual([
+      { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
+    ])
+    expect(await keptDevice().all()).toHaveLength(1)
+  })
 })
 
 describe('account export', () => {

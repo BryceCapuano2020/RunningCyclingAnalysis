@@ -447,4 +447,50 @@ describe('SavedLibrary', () => {
       /outline:\s*none/,
     )
   })
+
+  it('words the delete confirmation for the account, which keeps original files', () => {
+    render(<SavedLibrary activities={activities(1)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(deleteButtonFor(0))
+
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
+      /permanently deletes the activity’s original file and saved summary/,
+    )
+  })
+
+  it('words the delete confirmation for the device list, which keeps only summaries', () => {
+    render(
+      <SavedLibrary
+        scope="device"
+        activities={activities(1)}
+        busy={false}
+        onDelete={vi.fn()}
+        {...idle}
+      />,
+    )
+
+    fireEvent.click(deleteButtonFor(0))
+
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog).toHaveAccessibleDescription(
+      /permanently deletes the activity’s summary kept in this browser/,
+    )
+    expect(dialog).not.toHaveAccessibleDescription(/original file/)
+  })
+
+  it('never says library or account on the device list', () => {
+    render(
+      <SavedLibrary
+        scope="device"
+        activities={activities(2)}
+        busy={false}
+        onDelete={vi.fn()}
+        {...idle}
+      />,
+    )
+    expect(region()).not.toHaveTextContent(/library|account/i)
+
+    fireEvent.click(deleteButtonFor(0))
+    expect(screen.getByRole('alertdialog')).not.toHaveTextContent(/library|account/i)
+  })
 })

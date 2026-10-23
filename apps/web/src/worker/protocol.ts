@@ -24,14 +24,29 @@ export interface SyncOptions {
 }
 
 export type WorkerRequest =
-  | { type: 'addFiles'; files: File[]; settings: AthleteSettings; sync: SyncOptions | null }
+  /**
+   * `sync` saves to the signed-in account. Without it, `saveToDevice` keeps the digests in this
+   * browser, so a signed-out visitor's results survive a reload.
+   */
+  | {
+      type: 'addFiles'
+      files: File[]
+      settings: AthleteSettings
+      sync: SyncOptions | null
+      saveToDevice?: boolean
+    }
+  /** Loads the digests kept in this browser, replacing the session's library. */
+  | { type: 'loadDevice'; settings: AthleteSettings }
   | { type: 'loadSample'; settings: AthleteSettings }
   | { type: 'loadServer'; settings: AthleteSettings; userId: string }
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   | { type: 'setRange'; rangeDays: number | null; settings: AthleteSettings }
-  | { type: 'clear' }
+  /** `forgetDevice` also empties the library kept in this browser. */
+  | { type: 'clear'; forgetDevice?: boolean }
   | { type: 'deleteActivity'; id: string; userId: string; settings: AthleteSettings }
+  /** Removes one workout from the library kept in this browser; `id` is a SavedActivity id. */
+  | { type: 'deleteDeviceActivity'; id: string; settings: AthleteSettings }
   /** Builds the account's data export from its library. The account and profile come from the page. */
   | { type: 'exportData'; userId: string; account: ExportAccount; profile: Profile }
 
@@ -39,6 +54,7 @@ export type WorkerResponse =
   | { type: 'progress'; filesRead: number; uploaded?: number }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
+  /** The account's saved activities when signed in, or the ones kept in this browser when not. */
   | { type: 'libraryActivities'; activities: SavedActivity[] }
   /** The account's export, as the JSON file to save. */
   | { type: 'exportReady'; file: Blob }

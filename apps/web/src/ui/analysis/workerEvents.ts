@@ -6,7 +6,7 @@ import { deleteFailureText, LIBRARY_NOT_LOADED, rebuildNoticeText, workerFailure
 import type { ErrorReply } from './copy'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
-import { EMPTY_SESSION } from './model'
+import { EMPTY_SESSION, isDeletion } from './model'
 import type { Account, Box, Pending, SetError } from './model'
 import { useLatest } from './useLatest'
 import type { WorkerTransport } from './workerTransport'
@@ -23,6 +23,9 @@ interface WorkerEventDeps {
   accountRef: Box<Account>
   previousStatusRef: Box<Account['status']>
   previousUserIdRef: Box<string | null>
+  /** Whether the current worker has been asked for the library kept in this browser. */
+  deviceLoadedRef: Box<boolean>
+  loadDeviceOnce: () => void
 }
 
 /** The responses that answer a request, as opposed to ones the worker sends on its own. */
@@ -84,6 +87,11 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
       handleWorkerError(current, worker, event)
     }
     workerRef.current = worker
+    // A worker that starts while nobody is signed in begins from the library kept in this browser.
+    // One that starts signed in never does, so the device library cannot replace an account's.
+    const current = latest()
+    current.deviceLoadedRef.current = false
+    current.loadDeviceOnce()
     transport.flushUnsent()
     return () => {
       worker.terminate()
@@ -129,7 +137,7 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
       for (const files of library.libraryWaitRef.current.splice(0)) addFiles(files)
       refreshBusy()
     }
-    if (pending?.kind === 'deleteActivity') library.setLibraryNotice(pending.notice ?? null)
+    if (pending && isDeletion(pending.kind)) library.setLibraryNotice(pending.notice ?? null)
     return
   }
   imports.setRebuildNotice(rebuildNoticeText(message))
@@ -146,7 +154,7 @@ function handleReplyError(
     const dropped = failLibrary()
     if (message.issue === 'daily-limit') setError(limitReached('read'), 'daily-limit')
     else if (dropped) setError(LIBRARY_NOT_LOADED)
-  } else if (pending?.kind === 'deleteActivity') {
+  } else if (pending && isDeletion(pending.kind)) {
     library.setLibraryError(deleteFailureText(message))
   } else if (message.issue === 'daily-limit') {
     // A rebuild fails outright only when its first library listing is refused.

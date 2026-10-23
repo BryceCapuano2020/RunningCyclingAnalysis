@@ -84,12 +84,10 @@ export function useLibraryActions({
   const deleteActivity = useCallback(
     (id: string) => {
       const current = accountRef.current
-      if (
-        current.status !== 'signed-in' ||
-        current.me === null ||
-        libraryStatusRef.current !== 'loaded'
-      )
-        return
+      const signedIn = current.status === 'signed-in'
+      // Signed out, the library is the one kept in this browser; signed in, it must have loaded.
+      if (current.status === 'loading') return
+      if (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded')) return
       if (workerRef.current === null) {
         setLibraryError(STOPPED)
         return
@@ -97,8 +95,11 @@ export function useLibraryActions({
       const activity = savedActivitiesRef.current.find((saved) => saved.id === id)
       setLibraryNotice(null)
       setLibraryError(null)
+      const settings = settingsRef.current
       send(
-        { type: 'deleteActivity', id, userId: current.me.user.id, settings: settingsRef.current },
+        signedIn && current.me !== null
+          ? { type: 'deleteActivity', id, userId: current.me.user.id, settings }
+          : { type: 'deleteDeviceActivity', id, settings },
         deleteNoticeText(activity),
       )
     },

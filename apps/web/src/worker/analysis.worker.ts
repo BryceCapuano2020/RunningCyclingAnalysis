@@ -6,7 +6,7 @@ import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState, SyncItem } from '@rca/core/session'
-import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
+import type { AthleteSettings } from '@rca/core/types'
 import {
   ApiRequestError,
   createActivity,
@@ -16,7 +16,10 @@ import {
   uploadFile,
 } from '../api/client'
 import { exportActivitiesJson, exportFooterJson, exportHeaderJson } from '../export/accountExport'
+import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { openDeviceLibrary } from './deviceLibrary'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
+import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
 
 const session = new AnalysisSession()
@@ -32,12 +35,7 @@ function reportLibrary() {
   )
   post({
     type: 'libraryActivities',
-    activities: records.map(({ id, digest }) => ({
-      id,
-      name: digest.name,
-      startMs: digest.startMs,
-      sport: digest.sport,
-    })),
+    activities: records.map(({ id, digest }) => savedActivityOf(id, digest)),
   })
 }
 
@@ -50,10 +48,9 @@ function nextUtcMidnightMs(nowMs: number): number {
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
 }
 
-/** The same key the session uses: one workout per sport and start second. */
-function activityKey(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
-  return `${digest.sport}-${Math.round(digest.startMs / 1000)}`
-}
+const device = deviceActions(session, openDeviceLibrary(), post)
+// The sample is shown in place of the library kept in this browser, never added to it.
+let showingSample = false
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -125,6 +122,9 @@ async function addFiles(
     }
   }
 
+  // Files added over the sample join the library kept in this browser, not the sample.
+  if (request.saveToDevice && showingSample) await device.load(request.settings)
+  showingSample = false
   const state = await session.addFiles(
     request.files,
     request.settings,
@@ -132,7 +132,7 @@ async function addFiles(
       filesRead = count
       report()
     },
-    sync === null ? undefined : save,
+    sync !== null ? save : request.saveToDevice ? device.save : undefined,
     sync?.keepFiles === true,
     (completed) => {
       outcome = completed
@@ -141,6 +141,8 @@ async function addFiles(
   if (sync !== null) {
     post({ type: 'missingOriginals', count: missingOriginals.size })
     reportLibrary()
+  } else if (request.saveToDevice) {
+    await device.report()
   }
   if (haltedBy !== null) post({ type: 'accountIssue', issue: haltedBy })
   return { state, outcome }
@@ -151,8 +153,10 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
     case 'addFiles':
       return (await addFiles(request)).state
     case 'loadSample':
+      showingSample = true
       return session.loadSample(request.settings)
     case 'loadServer':
+      showingSample = false
       return loadServer(request.settings, request.userId)
     case 'rebuildStale':
       return (await rebuildStale(request.settings, request.userId)).state
@@ -160,8 +164,20 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return session.setSettings(request.settings)
     case 'setRange':
       return session.setRange(request.rangeDays, request.settings)
+    case 'loadDevice':
+      // A sample the visitor asked for before the account was known stays on screen; the kept
+      // library is read again before any file is added.
+      if (showingSample) {
+        await device.report()
+        return session.setSettings(request.settings)
+      }
+      return device.load(request.settings)
     case 'clear':
+      showingSample = false
+      if (request.forgetDevice) await device.forget()
       return session.clear()
+    case 'deleteDeviceActivity':
+      return device.remove(request.id, request.settings)
     case 'exportData':
       // Answered by exportAccount with the export file, not with a session state.
       throw new Error('An export is not a session request')

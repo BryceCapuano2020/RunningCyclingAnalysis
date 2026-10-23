@@ -11,14 +11,18 @@ describe('PrivacyNote', () => {
   it('says nothing is uploaded when signed out', () => {
     render(<PrivacyNote signedIn={false} keepFiles={false} />)
     expect(
-      screen.getByText('Nothing is uploaded. Files are read and analysed in your browser only.'),
+      screen.getByText(
+        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.',
+      ),
     ).toBeInTheDocument()
   })
 
   it('ignores keepFiles when signed out', () => {
     render(<PrivacyNote signedIn={false} keepFiles />)
     expect(
-      screen.getByText('Nothing is uploaded. Files are read and analysed in your browser only.'),
+      screen.getByText(
+        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.',
+      ),
     ).toBeInTheDocument()
   })
 

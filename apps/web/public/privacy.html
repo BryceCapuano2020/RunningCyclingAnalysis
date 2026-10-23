@@ -38,9 +38,20 @@
       <h2>Without an account</h2>
       <p>
         Files you analyse without signing in are read and processed in your browser. They are not
-        uploaded, and nothing from them is stored on our servers. The app saves your body mass, bike
-        mass and unit preference in your browser's local storage. Nothing else is written there. You
-        can clear them with your browser's site data controls.
+        uploaded, and nothing from them is stored on our servers. So that your results are still
+        there when you come back, the app keeps a summary of each activity in your browser's
+        IndexedDB storage. It is the analysis summary described below for accounts, without the
+        original file: the activity name, the name of the file it came from (which is part of its
+        identifier), the start time and distances, the heart-rate and power figures, the best
+        efforts, climb sections and data-quality flags. It holds no GPS coordinates and no
+        per-second recording, and it does not expire. The app also saves your body mass, bike mass
+        and unit preference in your browser's local storage. Nothing else is written there.
+      </p>
+      <p>
+        <em>Start over</em> removes every kept summary, and so does clearing this site's data in
+        your browser. You can also delete one activity from the <em>Kept in this browser</em> list
+        on your <em>Profile</em> page. Signing out does not remove the summaries. Anyone using the
+        same browser profile can see them, so use <em>Start over</em> on a shared computer.
       </p>
 
       <h2>With an account</h2>
@@ -85,18 +96,22 @@
       <h2>Where it is stored and who processes it</h2>
       <p>
         Account records, sessions, profile settings and activity summaries are stored in Cloudflare
-        D1. Original files, when kept, are stored in a private Cloudflare R2 bucket. Cloudflare
-        Workers serves the application and its interface. Cloudflare processes these data as our
-        infrastructure provider. Google processes your sign-in under its own policies. When backups
-        are enabled, encrypted copies are stored as GitHub Actions artifacts (see below). We do not
-        sell your data, and we do not give it to anyone other than these providers.
+        D1. Original files, when kept, are stored in a private Cloudflare R2 bucket. Summaries kept
+        without an account are stored only in your browser's IndexedDB storage (see
+        <em>Without an account</em>); we never receive them. Cloudflare Workers serves the
+        application and its interface. Cloudflare processes these data as our infrastructure
+        provider. Google processes your sign-in under its own policies. When backups are enabled,
+        encrypted copies are stored as GitHub Actions artifacts (see below). We do not sell your
+        data, and we do not give it to anyone other than these providers.
       </p>
 
       <h2>Cookies and similar technology</h2>
       <p>
         The app uses only strictly necessary cookies: a session cookie that keeps you signed in, and
         short-lived cookies (ten minutes) that protect the Google sign-in. We set no tracking or
-        advertising cookies.
+        advertising cookies. Without an account, the app also uses your browser's IndexedDB and
+        local storage, described under <em>Without an account</em>. They are not cookies, they stay
+        in your browser, and they are not sent to us.
       </p>
 
       <h2>Logs and rate limits</h2>
@@ -135,7 +150,12 @@
           keeping your summaries.
         </li>
         <li>
-          Delete an activity from your library to remove its summary and any stored original file.
+          Delete an activity from the <em>Saved library</em> on your <em>Profile</em> page to remove
+          its summary and any stored original file.
+        </li>
+        <li>
+          Without an account, choose <em>Start over</em> on your <em>Profile</em> page to remove the
+          summaries kept in your browser.
         </li>
         <li>
           Choose <em>Delete account</em> in the account menu. This removes your account, sessions,

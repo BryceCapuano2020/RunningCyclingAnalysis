@@ -47,6 +47,8 @@ class FakeWorker {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
+/** The request a worker gets when it starts without a signed-in account. */
+const DEVICE_LOAD: WorkerRequest = { type: 'loadDevice', settings: SETTINGS }
 
 function meWith(keepFiles: boolean, fileRetentionAvailable?: boolean): Me {
   const me: Me = {
@@ -74,6 +76,7 @@ const LOADING: Account = { status: 'loading', me: null }
 const SIGNED_OUT: Account = { status: 'signed-out', me: null }
 const SIGNED_IN_KEEP: Account = { status: 'signed-in', me: meWith(true) }
 const SIGNED_IN_NO_KEEP: Account = { status: 'signed-in', me: meWith(false) }
+const UNAVAILABLE: Account = { status: 'unavailable', me: null }
 
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
@@ -85,6 +88,11 @@ function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS)
 
 /** Replies to the account's library load, so imports are sent to the library. */
 function finishLibraryLoad(state: SessionState = STATE) {
+  act(() => worker().reply({ type: 'state', state }))
+}
+
+/** Replies to the device-library load that a worker starts with when nobody is signed in. */
+function finishDeviceLoad(state: SessionState = STATE) {
   act(() => worker().reply({ type: 'state', state }))
 }
 
@@ -168,7 +176,7 @@ describe('useAnalysis account handling', () => {
     expect(result.current.state).toEqual(STATE)
     expect(oldWorker.terminated).toBe(true)
     expect(worker()).not.toBe(oldWorker)
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([DEVICE_LOAD])
   })
 
   it('keeps a slow prior-account reply from restoring the library after sign-out', () => {
@@ -184,7 +192,7 @@ describe('useAnalysis account handling', () => {
     act(() => oldWorker.reply({ type: 'state', state: { ...STATE, totalActivities: 5 } }))
     expect(result.current.state).toEqual(STATE)
     expect(worker()).not.toBe(oldWorker)
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([DEVICE_LOAD])
   })
 
   it('terminates account A work before loading account B and ignores late A replies', () => {
@@ -237,7 +245,7 @@ describe('useAnalysis account handling', () => {
   it('does not clear the library when the first account lookup finds nobody signed in', () => {
     const { rerender } = setup(LOADING)
     rerender({ account: SIGNED_OUT, current: SETTINGS })
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([DEVICE_LOAD])
   })
 
   it('does not clear the library when the account becomes unavailable', () => {
@@ -395,16 +403,27 @@ describe('useAnalysis account handling', () => {
     })
   })
 
-  it('defers imports while the account is loading, then sends them without sync when signed out', () => {
-    const { result, rerender } = setup(LOADING)
-    act(() => result.current.addFiles([FILE]))
-    expect(worker().posted).toEqual([])
-    rerender({ account: SIGNED_OUT, current: SETTINGS })
+  it.each<[string, Account]>([
+    ['signed out', SIGNED_OUT],
+    ['unavailable', UNAVAILABLE],
+  ])(
+    'sends nothing while the account loads, then the device load before the imports that waited, once %s',
+    (_, settled) => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      expect(worker().posted).toEqual([])
 
-    expect(worker().posted).toEqual([
-      { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null },
-    ])
-  })
+      rerender({ account: settled, current: SETTINGS })
+      expect(worker().posted).toEqual([
+        DEVICE_LOAD,
+        { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null, saveToDevice: true },
+      ])
+
+      // A later render with the same account does not send the device load again.
+      rerender({ account: { ...settled }, current: SETTINGS })
+      expect(worker().posted).toHaveLength(2)
+    },
+  )
 
   it('hydrates before syncing imports dropped while the account is loading', () => {
     const { result, rerender } = setup(LOADING)
@@ -431,14 +450,131 @@ describe('useAnalysis account handling', () => {
     const { result } = setup({ status: 'unavailable', me: null })
     act(() => result.current.addFiles([FILE]))
     expect(worker().posted).toEqual([
-      { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null },
+      DEVICE_LOAD,
+      { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null, saveToDevice: true },
     ])
   })
 
   it('does not post an import with no files', () => {
     const { result } = setup(SIGNED_OUT)
     act(() => result.current.addFiles([]))
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+})
+
+describe('useAnalysis device library', () => {
+  it('sends the device load once, when the account turns out signed out', () => {
+    const { rerender } = setup(LOADING)
     expect(worker().posted).toEqual([])
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('sends the device load when the page opens signed out', () => {
+    setup(SIGNED_OUT)
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('sends one device load to the surviving worker under StrictMode when signed out', () => {
+    renderHook(
+      ({ account, current }: { account: Account; current: AthleteSettings }) =>
+        useAnalysis(current, account),
+      {
+        initialProps: { account: SIGNED_OUT, current: SETTINGS },
+        wrapper: StrictWrapper,
+        reactStrictMode: true,
+      },
+    )
+    expect(FakeWorker.instances).toHaveLength(2)
+    expect(FakeWorker.instances[0]?.terminated).toBe(true)
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('does not send the device load when a worker restarts for a signed-in account', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    const first = worker()
+    act(() => result.current.stop())
+
+    expect(first.terminated).toBe(true)
+    expect(worker()).not.toBe(first)
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+  })
+
+  it('never sends the device load after a signed-in worker restarts and the session expires', () => {
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
+    act(() => result.current.stop())
+
+    rerender({
+      account: { status: 'signed-out', me: null, markExpired, sessionExpired: true },
+      current: SETTINGS,
+    })
+
+    const sent = FakeWorker.instances.flatMap((instance) => instance.posted.map((r) => r.type))
+    expect(sent).toEqual(['loadServer', 'loadServer'])
+  })
+
+  it('sends the device load again to a signed-out worker that is restarted', () => {
+    const { result } = setup(SIGNED_OUT)
+    const first = worker()
+    act(() => result.current.stop())
+
+    expect(first.terminated).toBe(true)
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('sends the device load again to a signed-out worker that crashed and was replaced', () => {
+    const { result } = setup(SIGNED_OUT)
+    const crashed = worker()
+    act(() => crashed.onerror?.({ message: 'Script failed' } as ErrorEvent))
+
+    expect(result.current.workerStopped).toBe(false)
+    expect(worker()).not.toBe(crashed)
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('sends the device load to the new worker after a sign-out', () => {
+    const { rerender } = setup(SIGNED_IN_KEEP)
+    const signedInWorker = worker()
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+
+    expect(signedInWorker.terminated).toBe(true)
+    expect(worker()).not.toBe(signedInWorker)
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+  })
+
+  it('deletes a device-kept activity as a library action until the worker replies', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const { result } = setup(SIGNED_OUT)
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+    finishDeviceLoad()
+
+    act(() => result.current.deleteActivity('run-1'))
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'deleteDeviceActivity',
+      id: 'run-1',
+      settings: SETTINGS,
+    })
+    expect(result.current.libraryAction).toBe('deleting')
+    expect(result.current.busy).toBe(false)
+
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.libraryAction).toBeNull()
+    expect(result.current.libraryNotice).toBe(`Deleted Morning run (${formatDay(startMs)}).`)
+  })
+
+  it('clears the account library without forgetting the device library while signed in', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.clear())
+    expect(worker().posted.at(-1)).toEqual({ type: 'clear', forgetDevice: false })
   })
 })
 
@@ -450,20 +586,21 @@ describe('useAnalysis requests', () => {
     act(() => result.current.clear())
 
     expect(worker().posted).toEqual([
+      DEVICE_LOAD,
       { type: 'loadSample', settings: SETTINGS },
       { type: 'setRange', rangeDays: 42, settings: SETTINGS },
-      { type: 'clear' },
+      { type: 'clear', forgetDevice: true },
     ])
   })
 
   it('posts new settings only when the body or bike mass changes', () => {
     const { rerender } = setup(SIGNED_OUT, SETTINGS)
     rerender({ account: SIGNED_OUT, current: SETTINGS })
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([DEVICE_LOAD])
 
     const changed = { massKg: 80, bikeMassKg: 9 }
     rerender({ account: SIGNED_OUT, current: changed })
-    expect(worker().posted).toEqual([{ type: 'setSettings', settings: changed }])
+    expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'setSettings', settings: changed }])
   })
 
   it('stops the worker on unmount', () => {
@@ -624,13 +761,13 @@ describe('useAnalysis state', () => {
     const stopped = worker()
 
     act(() => result.current.addFiles([FILE]))
-    expect(stopped.posted).toEqual([])
+    expect(stopped.posted).toEqual([DEVICE_LOAD])
     expect(result.current.busy).toBe(false)
     expect(result.current.error).toMatch(/did not run.*try again/)
 
     act(() => result.current.retryWorker())
     expect(worker()).not.toBe(stopped)
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([DEVICE_LOAD])
   })
 
   it('refuses a signed-in import made after the worker stopped and the library failed, and does not run it after a restart', () => {
@@ -651,6 +788,7 @@ describe('useAnalysis state', () => {
 
   it('reports busy until the reply arrives and exposes the state it carries', () => {
     const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
     act(() => result.current.loadSample())
     expect(result.current.busy).toBe(true)
 
@@ -690,10 +828,21 @@ describe('useAnalysis state', () => {
 
   it('shows a worker error message and stops being busy', () => {
     const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
     act(() => result.current.clear())
     act(() => worker().reply({ type: 'error', message: 'Disk full' }))
     expect(result.current.error).toBe('Disk full')
     expect(result.current.busy).toBe(false)
+  })
+
+  it('keeps the page available while the library kept in this browser loads', () => {
+    const { result } = setup(SIGNED_OUT)
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    expect(result.current.busy).toBe(false)
+
+    // The sample asked for meanwhile is queued after the load, in order.
+    act(() => result.current.loadSample())
+    expect(worker().posted).toEqual([DEVICE_LOAD, { type: 'loadSample', settings: SETTINGS }])
   })
 
   it('reports a worker crash with its message, or a fallback when it has none', () => {
@@ -701,15 +850,18 @@ describe('useAnalysis state', () => {
     const stoppedWorker = worker()
     act(() => result.current.clear())
     act(() => stoppedWorker.onerror?.({ message: 'Script failed' } as ErrorEvent))
-    expect(result.current.error).toMatch(/worker stopped.*re-import/i)
-    expect(result.current.busy).toBe(false)
+    expect(result.current.error).toMatch(/worker stopped.*add again/i)
     expect(stoppedWorker.terminated).toBe(true)
     expect(worker()).not.toBe(stoppedWorker)
+    // The new worker reloads the library kept in this browser. That load does not hold the page
+    // busy, and the crash message stays. A reply would mark the worker healthy, so none is sent.
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    expect(result.current.busy).toBe(false)
 
     const retryingWorker = worker()
     act(() => result.current.clear())
     act(() => worker().onerror?.({ message: '' } as ErrorEvent))
-    expect(result.current.error).toMatch(/worker stopped.*re-import/i)
+    expect(result.current.error).toMatch(/worker stopped.*add again/i)
     expect(result.current.workerStopped).toBe(true)
     expect(worker()).toBe(retryingWorker)
   })
@@ -912,6 +1064,29 @@ describe('useAnalysis state', () => {
     expect(result.current.libraryError).toBeNull()
   })
 
+  it('empties the account list and its unreadable count when the session expires', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
+    finishLibraryLoad()
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
+    expect(result.current.savedActivities).toHaveLength(1)
+    expect(result.current.libraryUnreadable).toBe(2)
+
+    rerender({
+      account: { status: 'signed-out', me: null, markExpired, sessionExpired: true },
+      current: SETTINGS,
+    })
+    expect(result.current.savedActivities).toEqual([])
+    expect(result.current.libraryUnreadable).toBe(0)
+  })
+
   it('refuses a saved-activity rebuild made while the worker is stopped, and does not run it later', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
@@ -1017,7 +1192,7 @@ describe('useAnalysis state', () => {
 
     expect(result.current.workerStopped).toBe(true)
     expect(worker()).toBe(replacement)
-    expect(result.current.error).toMatch(/worker stopped.*re-import/i)
+    expect(result.current.error).toMatch(/worker stopped.*add again/i)
     expect(replacement.terminated).toBe(true)
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(false)
@@ -1049,11 +1224,12 @@ describe('useAnalysis state', () => {
     act(() => current.onerror?.({ message: 'failed' } as ErrorEvent))
     act(() => worker().onerror?.({ message: 'failed again' } as ErrorEvent))
     expect(result.current.state).toEqual(STATE)
-    expect(result.current.error).toMatch(/re-import your files/i)
+    expect(result.current.error).toMatch(/add again any files/i)
   })
 
   it('stays busy until the last of several outstanding requests is answered', () => {
     const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
     act(() => result.current.clear())
     act(() => result.current.clear())
     act(() => worker().reply({ type: 'state', state: STATE }))
@@ -1182,7 +1358,7 @@ describe('useAnalysis account export', () => {
   it('is refused without a worker call when nobody is signed in', async () => {
     const { result } = setup(SIGNED_OUT)
     await expect(result.current.exportData()).rejects.toThrow('Sign in to download your data.')
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([DEVICE_LOAD])
   })
 
   it('ends a pending export with a message when analysis is stopped', async () => {

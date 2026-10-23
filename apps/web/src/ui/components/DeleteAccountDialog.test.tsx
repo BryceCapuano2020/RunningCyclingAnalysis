@@ -79,7 +79,7 @@ describe('DeleteAccountDialog', () => {
     expect(screen.getByRole('heading', { name: 'Delete your account?' })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'This permanently deletes your profile, every activity and every stored file. It cannot be undone.',
+        'This permanently deletes your profile, every activity and every stored file. It cannot be undone. Activities kept in this browser from before you signed in are not part of your account, so deleting it does not remove them; sign out and choose Start over to remove them.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText(EMAIL)).toBeInTheDocument()

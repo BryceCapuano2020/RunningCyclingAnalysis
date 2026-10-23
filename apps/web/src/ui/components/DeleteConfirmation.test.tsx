@@ -8,6 +8,9 @@ afterEach(() => {
   cleanup()
 })
 
+const DESCRIPTION =
+  'This permanently deletes the activity’s summary kept in this browser. This cannot be undone.'
+
 function renderConfirmation(busy = false) {
   const onCancel = vi.fn()
   const onConfirm = vi.fn()
@@ -15,6 +18,7 @@ function renderConfirmation(busy = false) {
     <>
       <DeleteConfirmation
         name="Morning run"
+        description={DESCRIPTION}
         busy={busy}
         onCancel={onCancel}
         onConfirm={onConfirm}
@@ -27,11 +31,9 @@ function renderConfirmation(busy = false) {
 }
 
 describe('DeleteConfirmation', () => {
-  it('says the delete is permanent and cannot be undone', () => {
+  it('describes what the delete removes, as the caller words it', () => {
     const { dialog } = renderConfirmation()
-    expect(dialog).toHaveAccessibleDescription(
-      /permanently deletes the activity’s original file and saved summary/,
-    )
+    expect(dialog).toHaveAccessibleDescription(DESCRIPTION)
   })
 
   it('takes focus on its heading when it opens', () => {
@@ -66,7 +68,12 @@ describe('DeleteConfirmation', () => {
   })
 
   it('keeps focus on the delete button when the dialog turns busy', () => {
-    const props = { name: 'Morning run', onCancel: vi.fn(), onConfirm: vi.fn() }
+    const props = {
+      name: 'Morning run',
+      description: DESCRIPTION,
+      onCancel: vi.fn(),
+      onConfirm: vi.fn(),
+    }
     const { rerender } = render(<DeleteConfirmation {...props} busy={false} />)
     const button = screen.getByRole('button', { name: 'Delete permanently' })
     button.focus()

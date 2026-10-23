@@ -245,8 +245,11 @@ body consumption. The activity table renders at most 20 activities at a time wit
 
 ## Browser and data recovery
 
-- Stop analysis terminates queued work. Saved activities are reloaded for a signed-in user; unsaved
-  local files must be re-imported. The notice makes that loss of local progress explicit.
+- Stop analysis terminates queued work. Saved activities are reloaded for a signed-in user, and the
+  results kept in the browser are reloaded for a visitor who is not signed in; files that were being
+  added must be added again. The notice makes that loss of local progress explicit.
+- A visitor who is not signed in keeps their activity digests in the browser's IndexedDB, never on the
+  server. Server backups and restores do not hold them, and clearing the site's data removes them.
 - A failed worker restarts once automatically. Repeated startup failures require manual restart,
   preventing an endless resource-consuming loop.
 - Failed saves remain locally analyzable and are counted. Re-importing the original retries them.

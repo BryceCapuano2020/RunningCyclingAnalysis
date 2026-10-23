@@ -49,6 +49,8 @@ interface AccountTransitionDeps {
   setError: SetError
   addFiles: (files: File[]) => void
   loadLibrary: (userId: string) => void
+  /** Loads the library kept in this browser into the worker, once per worker, when signed out. */
+  loadDeviceOnce: () => void
   /** Empties every queue, so nothing the previous account started can run for the next one. */
   clearQueues: () => void
 }
@@ -93,6 +95,8 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
         else startSession(current)
       }
     } else if (before === 'loading' && accountStatus !== 'loading') {
+      // Nobody is signed in: start from the library kept in this browser, then add what waited.
+      current.loadDeviceOnce()
       flushDeferred(current)
     }
   }, [accountStatus, me, sessionExpired, workerGeneration, latest])
@@ -107,6 +111,9 @@ function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
   deps.library.setLibrary('idle')
   deps.library.setLibraryNotice(null)
   deps.library.setLibraryError(null)
+  // The account's list is no longer this visitor's to manage, and it is not the browser's either.
+  deps.library.setSavedActivities([])
+  deps.library.setLibraryUnreadable(0)
   for (const files of deps.library.libraryWaitRef.current.splice(0)) deps.addFiles(files)
 }
 
