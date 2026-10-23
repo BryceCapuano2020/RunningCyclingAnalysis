@@ -32,9 +32,9 @@ Outdoor runs with missing altitude remain excluded from grade-dependent estimate
 flagged. Assuming flat terrain would produce an unsupported numerical result. Real device testing
 and independent physiological validation remain necessary.
 
-This branch has not been deployed during cleanup. Before release, provision the new random
-`SESSION_SIGNING_KEY` (existing sessions will expire), apply migration 0003, and use the gated
-release workflow. Backup and monitoring workflow files are implementation, not evidence that their
+At the cleanup review, this branch had not been deployed. The subsequent release is recorded in
+[PRODUCTION.md](PRODUCTION.md). Its prerequisites included the new random
+`SESSION_SIGNING_KEY` (invalidating old sessions), migration 0003, and reviewed release gates. Backup and monitoring workflow files are implementation, not evidence that their
 secrets, encryption recipient, schedules or recovery have been configured and exercised remotely.
 Repository publication and production configuration are separate actions from this review.
 

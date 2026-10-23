@@ -4,11 +4,20 @@ This document records the operational behavior, the release and migration rules,
 remaining release evidence. It is not a claim of perfect reliability or of validated physiological
 accuracy.
 
-**Release state, 22 October 2026:** the running Worker was verified at code commit `493ce15`
-and version `1143a60d-5562-43c2-95a2-4807b9073c93`. The current `main` tree is `310264a` and
-contains follow-on operations documentation without runtime changes. The hardening branch has not
-been deployed; its new limits, signed sessions, deletion retries, and model revision are source
-behavior until a gated deployment succeeds.
+**Release state, 22 October 2026:** reviewed application code from `deaf6ba` and release
+controls at `4444ab0` are deployed as Worker `c99ae81c-bd7d-471a-b483-4111af9fb63e`.
+Migration 0003 is applied and a new random `SESSION_SIGNING_KEY` is installed. The application
+assets are byte-identical to the build from passing CI run
+[39882125936](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39882125936).
+Live health, D1/R2 deep health, HTML/CSP, unauthenticated denial and the OAuth redirect passed
+`scripts/ops/smoke.mjs`. Real Google sign-in with the new cookie format was verified in Chrome.
+A private snapshot taken after migration restored into isolated local D1; production originals
+were empty, so this drill does not establish larger or populated-original recovery.
+
+Backup and uptime schedules remain disabled by default. GitHub deployment/backup credentials and
+an encryption recipient are not configured. No compatible automatic rollback target has been set;
+the older signed-session-incompatible Worker must not be chosen as a default. Repository updates
+are committed directly to `main` after review; automatic dependency-version PRs are disabled.
 
 ## Release gate
 
@@ -20,7 +29,7 @@ Worker-served application.
 The last test exercises the actual static-asset security policy, module worker, and same-origin
 API together; a Vite preview alone cannot verify Cloudflare's `_headers` behavior.
 
-The hardening branch defines a gated **Deploy** workflow (`.github/workflows/deploy.yml`) with this
+The repository defines a gated **Deploy** workflow (`.github/workflows/deploy.yml`) with this
 intended order:
 
 1. **Guard.** The run must start from `refs/heads/main`. Any other ref fails before anything else.
@@ -180,7 +189,7 @@ with a separate 1,000 authenticated reads, 50 profile writes, 50 activity delete
 downloads. Contract constants and detailed behavior are listed in
 [LIMITS.md](../apps/api/LIMITS.md).
 
-Application-wide R2 admission limits are separate from per-account quotas. In the hardening branch,
+Application-wide R2 admission limits are separate from per-account quotas. In the deployed runtime,
 all users share a 2 GiB PUT-charge budget and a 100,000-operation budget per UTC month. Each PUT
 attempt reserves `max(actual body bytes, 64 KiB)` and one operation atomically before calling R2.
 Failed attempts and retries keep their monthly charges. The monthly byte and operation counters
@@ -194,7 +203,7 @@ per-address limiter. Ordinary puts and gets stop at 90,000 monthly operations, p
 for cleanup LIST calls; list calls share that total and may use the cleanup headroom. Deletes and
 aborts do not consume operations. Exhausted capacity returns `429 storage_budget_exhausted`; cleanup
 refuses before changing D1 state if its reserved list headroom is exhausted. These values describe
-the hardening branch; they are not the limits of the currently deployed runtime. The limits cover
+the deployed runtime. The limits cover
 calls through this Worker only. Keep `rca-files` private and dedicated: direct bucket/API access,
 other clients and dashboard operations can bypass application limits, and Cloudflare may bill R2
 usage above its free allowance.
@@ -269,10 +278,9 @@ request/body logging around personal activity files or OAuth callbacks.
 ## Live verification, historical (22 October 2026)
 
 The live verification below was recorded for runtime commit `493ce15`, served by Worker version
-`1143a60d-5562-43c2-95a2-4807b9073c93`. The current `main` tree is `310264a`, a follow-on containing
-operations documentation and tooling without runtime changes. The hardening branch is not deployed;
-none of its runtime changes below should be treated as live evidence. After a gated deployment,
-record the actual commit, Worker version, date and smoke-test result here.
+`1143a60d-5562-43c2-95a2-4807b9073c93`. Commit `310264a` later recorded
+operations documentation and tooling without runtime changes. This subsection preserves that
+earlier evidence; the release-state section above records the current deployment.
 
 The deployment ran with production D1, the private Standard-class `rca-files` bucket,
 rate-limit bindings and Google secrets. Public `r2.dev` access was disabled. Workers and D1 remain
