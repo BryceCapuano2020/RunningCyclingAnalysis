@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatDuration, formatElevation } from '@rca/core/units'
+import { keyByContent } from '../contentKeys'
 import { plural } from './plural'
 import './ActivitiesTable.css'
 
@@ -169,8 +170,11 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
                   <tr id={panelId} hidden={!open}>
                     <td colSpan={COLUMN_COUNT} className="activities-table__issues">
                       <ul className="activities-table__flags">
-                        {activity.flags.map((flag, flagIndex) => (
-                          <li key={flagIndex}>
+                        {keyByContent(
+                          activity.flags,
+                          (flag) => `${flag.kind}:${flag.start}-${flag.end}`,
+                        ).map(({ key, item: flag }) => (
+                          <li key={key}>
                             {`${flag.message} (${formatDuration(flag.start)} to ${formatDuration(flag.end)})`}
                           </li>
                         ))}

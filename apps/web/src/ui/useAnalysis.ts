@@ -535,7 +535,16 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   }, [massKg, bikeMassKg, send])
 
   const { status: accountStatus, me, sessionExpired } = account
+  // A restarted worker has no account state, so its first pass must count as a load. The worker
+  // effect's cleanup already resets these refs; reading the generation here keeps that dependency
+  // explicit in this effect rather than relying on the other effect's ordering.
+  const accountGenerationRef = useRef(0)
   useEffect(() => {
+    if (accountGenerationRef.current !== workerGeneration) {
+      accountGenerationRef.current = workerGeneration
+      previousStatusRef.current = 'loading'
+      previousUserIdRef.current = null
+    }
     const userId = me?.user.id ?? null
     const before = previousStatusRef.current
     const previousUserId = previousUserIdRef.current

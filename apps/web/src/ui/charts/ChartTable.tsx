@@ -1,3 +1,5 @@
+import { keyByContent } from '../contentKeys'
+
 export interface ChartTableProps {
   columns: string[]
   rows: string[][]
@@ -20,10 +22,10 @@ export function ChartTable({ columns, rows, caption }: ChartTableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, r) => (
-            <tr key={r}>
-              {row.map((cell, c) => (
-                <td key={c} className={c === 0 ? undefined : 'num'}>
+          {keyByContent(rows, (row) => JSON.stringify(row)).map(({ key, item: row }) => (
+            <tr key={key}>
+              {keyByContent(row, (cell) => cell).map(({ key: cellKey, item: cell, index: c }) => (
+                <td key={cellKey} className={c === 0 ? undefined : 'num'}>
                   {cell}
                 </td>
               ))}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -241,6 +242,50 @@ function tooltipFor(
   }
 }
 
+function surfaceOf(
+  size: ChartSize,
+  rows: CurveRow[],
+  active: number | null,
+  setActive: (index: number | null) => void,
+): ReactNode {
+  const m = layout(rows, size)
+  if (m === null) return null
+  return (
+    <PlotSurface
+      size={size}
+      onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
+      onKey={(key) => {
+        const next = stepActive(active, m.xs.length, key)
+        if (next) setActive(next.index)
+      }}
+      onBlur={() => setActive(null)}
+    />
+  )
+}
+
+function overlayOf(
+  size: ChartSize,
+  rows: CurveRow[],
+  active: number | null,
+  units: UnitSystem,
+  names: Record<string, string> | undefined,
+): ReactNode {
+  const m = layout(rows, size)
+  const row = active === null ? undefined : rows[active]
+  const anchorX = m && active !== null ? m.xs[active] : undefined
+  const content =
+    row && anchorX !== undefined
+      ? tooltipFor(row, anchorX, (size.plot.top + size.plot.bottom) / 2, units, names)
+      : null
+  return (
+    <ChartTooltip
+      bounds={{ width: size.width, height: size.height }}
+      content={content}
+      id={size.tooltipId}
+    />
+  )
+}
+
 export function CurveChart({
   runCurve,
   rideMetabolicCurve,
@@ -263,37 +308,8 @@ export function CurveChart({
       }}
       empty={hasData ? undefined : 'Add at least one run and one ride to see both curves'}
       plotRightMargin={(width) => (width < NARROW_WIDTH ? 16 : LABEL_MARGIN)}
-      surface={(size) => {
-        const m = layout(rows, size)
-        if (m === null) return null
-        return (
-          <PlotSurface
-            size={size}
-            onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
-            onKey={(key) => {
-              const next = stepActive(active, m.xs.length, key)
-              if (next) setActive(next.index)
-            }}
-            onBlur={() => setActive(null)}
-          />
-        )
-      }}
-      overlay={(size) => {
-        const m = layout(rows, size)
-        const row = active === null ? undefined : rows[active]
-        const anchorX = m && active !== null ? m.xs[active] : undefined
-        const content =
-          row && anchorX !== undefined
-            ? tooltipFor(row, anchorX, (size.plot.top + size.plot.bottom) / 2, units, activityNames)
-            : null
-        return (
-          <ChartTooltip
-            bounds={{ width: size.width, height: size.height }}
-            content={content}
-            id={size.tooltipId}
-          />
-        )
-      }}
+      surface={(size) => surfaceOf(size, rows, active, setActive)}
+      overlay={(size) => overlayOf(size, rows, active, units, activityNames)}
     >
       {(size) => {
         const m = layout(rows, size)
@@ -335,10 +351,11 @@ export function CurveChart({
               className="curve-chart__line curve-chart__line--ride"
               d={linePath(m.ridePoints)}
             />
-            {m.runPoints.map((point, i) =>
-              point ? (
+            {m.rows.map((row, i) => {
+              const point = m.runPoints[i]
+              return point ? (
                 <circle
-                  key={`run-${i}`}
+                  key={row.durationS}
                   data-testid="curve-marker"
                   data-series="run"
                   className="curve-chart__marker curve-chart__marker--run"
@@ -346,12 +363,13 @@ export function CurveChart({
                   cy={point.y}
                   r={i === active ? activeR : markerR}
                 />
-              ) : null,
-            )}
-            {m.ridePoints.map((point, i) =>
-              point ? (
+              ) : null
+            })}
+            {m.rows.map((row, i) => {
+              const point = m.ridePoints[i]
+              return point ? (
                 <circle
-                  key={`ride-${i}`}
+                  key={row.durationS}
                   data-testid="curve-marker"
                   data-series="ride"
                   className="curve-chart__marker curve-chart__marker--ride"
@@ -359,8 +377,8 @@ export function CurveChart({
                   cy={point.y}
                   r={i === active ? activeR : markerR}
                 />
-              ) : null,
-            )}
+              ) : null
+            })}
             {narrow
               ? null
               : endLabels(m).map((label) => (

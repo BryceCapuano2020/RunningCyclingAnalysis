@@ -229,7 +229,7 @@ describe('stored digests', () => {
       ...digestWire,
       modelRevision: 1,
       durationS: null,
-      curve: curve.slice(0, 3).map((point) => ({ ...point, durationS: 7 })),
+      curve: curve.slice(0, 3).map((point) => Object.assign({}, point, { durationS: 7 })),
     }
     expect(ActivityDigestSchema.safeParse(legacy).success).toBe(false)
     const stored = StoredActivityDigestSchema.safeParse(legacy)

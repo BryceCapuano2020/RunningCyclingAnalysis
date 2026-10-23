@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { VirtualPowerAccuracy } from '@rca/core/types'
 import { formatDuration, formatPercent, formatPower } from '@rca/core/units'
+import { keyByContent } from '../contentKeys'
 import { ChartFrame } from './ChartFrame'
 import { ChartTooltip } from './ChartTooltip'
 import { ChartXAxis } from './ChartXAxis'
@@ -105,6 +107,45 @@ function tooltipFor(dot: Dot): TooltipContent {
   }
 }
 
+function surfaceOf(
+  size: ChartSize,
+  accuracy: VirtualPowerAccuracy,
+  active: number | null,
+  setActive: (index: number | null) => void,
+): ReactNode {
+  const m = accuracy.nSegments > 0 ? layout(accuracy, size) : null
+  if (m === null) return null
+  return (
+    <PlotSurface
+      size={{ ...size, plot: m.square }}
+      onPoint={(point) =>
+        setActive(point === null ? null : nearestByPoint(m.dots, point, HIT_RADIUS))
+      }
+      onKey={(key) => {
+        const next = stepActive(active, m.dots.length, key)
+        if (next) setActive(next.index)
+      }}
+      onBlur={() => setActive(null)}
+    />
+  )
+}
+
+function overlayOf(
+  size: ChartSize,
+  accuracy: VirtualPowerAccuracy,
+  active: number | null,
+): ReactNode {
+  const m = accuracy.nSegments > 0 ? layout(accuracy, size) : null
+  const dot = m && active !== null ? m.dots[active] : undefined
+  return (
+    <ChartTooltip
+      bounds={{ width: size.width, height: size.height }}
+      content={dot ? tooltipFor(dot) : null}
+      id={size.tooltipId}
+    />
+  )
+}
+
 export function AccuracyScatter({ accuracy }: AccuracyScatterProps) {
   const hasData = accuracy.nSegments > 0
   const [active, setActive] = useState<number | null>(null)
@@ -126,34 +167,8 @@ export function AccuracyScatter({ accuracy }: AccuracyScatterProps) {
       }}
       empty={hasData ? undefined : EMPTY}
       note={hasData ? noteFor(accuracy) : undefined}
-      surface={(size) => {
-        const m = hasData ? layout(accuracy, size) : null
-        if (m === null) return null
-        return (
-          <PlotSurface
-            size={{ ...size, plot: m.square }}
-            onPoint={(point) =>
-              setActive(point === null ? null : nearestByPoint(m.dots, point, HIT_RADIUS))
-            }
-            onKey={(key) => {
-              const next = stepActive(active, m.dots.length, key)
-              if (next) setActive(next.index)
-            }}
-            onBlur={() => setActive(null)}
-          />
-        )
-      }}
-      overlay={(size) => {
-        const m = hasData ? layout(accuracy, size) : null
-        const dot = m && active !== null ? m.dots[active] : undefined
-        return (
-          <ChartTooltip
-            bounds={{ width: size.width, height: size.height }}
-            content={dot ? tooltipFor(dot) : null}
-            id={size.tooltipId}
-          />
-        )
-      }}
+      surface={(size) => surfaceOf(size, accuracy, active, setActive)}
+      overlay={(size) => overlayOf(size, accuracy, active)}
     >
       {(size) => {
         const m = layout(accuracy, size)
@@ -187,16 +202,18 @@ export function AccuracyScatter({ accuracy }: AccuracyScatterProps) {
             <text className="accuracy-scatter__reference-label" x={labelX} y={labelY}>
               Perfect estimate
             </text>
-            {m.dots.map((dot, i) => (
-              <circle
-                key={i}
-                data-testid="accuracy-dot"
-                className="accuracy-scatter__dot"
-                cx={dot.x}
-                cy={dot.y}
-                r={i === active ? ACTIVE_DOT_R : DOT_R}
-              />
-            ))}
+            {keyByContent(m.dots, (dot) => `${dot.measuredW}:${dot.estimatedW}:${dot.lengthS}`).map(
+              ({ key, item: dot, index: i }) => (
+                <circle
+                  key={key}
+                  data-testid="accuracy-dot"
+                  className="accuracy-scatter__dot"
+                  cx={dot.x}
+                  cy={dot.y}
+                  r={i === active ? ACTIVE_DOT_R : DOT_R}
+                />
+              ),
+            )}
           </>
         )
       }}

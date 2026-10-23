@@ -440,10 +440,10 @@ async function streamZip(
       keepTail(chunk)
       if (archivePrefix.length < 4) {
         const take = Math.min(4 - archivePrefix.length, chunk.length)
-        const prefix = new Uint8Array(archivePrefix.length + take)
-        prefix.set(archivePrefix)
-        prefix.set(chunk.subarray(0, take), archivePrefix.length)
-        archivePrefix = prefix
+        const grown = new Uint8Array(archivePrefix.length + take)
+        grown.set(archivePrefix)
+        grown.set(chunk.subarray(0, take), archivePrefix.length)
+        archivePrefix = grown
       }
       for (let offset = 0; offset < chunk.length; offset += DECOMPRESS_INPUT_CHUNK_BYTES) {
         if (budget.abort !== null) return false

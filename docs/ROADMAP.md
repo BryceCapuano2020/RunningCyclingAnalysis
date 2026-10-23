@@ -70,9 +70,13 @@ Cheap changes that reduce the risk of the rest of the list.
    the apps depend on.
 3. **Shared chart scaffolding.** Finish consolidating the axis, hover and frame code the charts still
    repeat.
-4. **Stronger lint rules.** The lint config enables only two React rules. Add the suspicious and perf
-   categories, `jsx-a11y`, `exhaustive-deps`, `no-explicit-any` and `eqeqeq`, so the conventions in
-   the code are enforced rather than remembered.
+4. **Done: stronger lint rules.** `oxlint --deny-warnings` now enforces `jsx-a11y`, React hook
+   and nested-component rules, list keys, `no-explicit-any`, `eqeqeq`, `no-shadow` (off in tests),
+   `preserve-caught-error` and `no-map-spread`, with no lint-disable comments. The rules and the
+   deliberate skips are listed in [`.oxlintrc.json`](../.oxlintrc.json). The suspicious and perf
+   categories as a whole are not enabled; the individual rules above are the ones the code meets.
+   `react/exhaustive-deps` already flags missing hook dependencies in oxlint 1.89 and is an error
+   here, so that is not a gap.
 5. **Done: pinned CI actions.** Build and deployment actions are pinned to verified upstream
    commits; Dependabot monitors the references.
 6. **Done: fail on browser flakiness.** CI retains a retry for diagnostics but fails a flaky test.

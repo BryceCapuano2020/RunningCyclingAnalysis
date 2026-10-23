@@ -72,6 +72,17 @@ describe('serializeDigest and parseDigest', () => {
     expect(() => parseDigest('{not json')).toThrow(/parseDigest: not JSON/)
   })
 
+  it('keeps the JSON parse error as the cause', () => {
+    let caught: unknown
+    try {
+      parseDigest('{not json')
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toBeInstanceOf(Error)
+    expect((caught as Error).cause).toBeInstanceOf(SyntaxError)
+  })
+
   it('rejects a value that is not an object', () => {
     expect(() => parseDigest('null')).toThrow(/parseDigest: digest must be an object/)
     expect(() => parseDigest('[]')).toThrow(/digest must be an object/)
