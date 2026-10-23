@@ -1,6 +1,6 @@
 # Outdoor running air resistance: research note
 
-Scope: ROADMAP section 2.1. The app's running model is `P = 1.22 + s * C(i) * v` (W/kg). `C(i)` is the Minetti et al. (2002) polynomial, measured on a treadmill with no air resistance (`packages/core/src/metabolic/power.ts`). `RHO_AIR = 1.225` kg/m^3 is used in `packages/core/src/constants.ts`. Air density by altitude already exists in `packages/core/src/physics/air` and feeds cycling power, not running.
+Scope: ROADMAP, Model accuracy (running air resistance). The app's running model is `P = 1.22 + s * C(i) * v` (W/kg). `C(i)` is the Minetti et al. (2002) polynomial, measured on a treadmill with no air resistance (`packages/core/src/metabolic/power.ts`). `RHO_AIR = 1.225` kg/m^3 is used in `packages/core/src/constants.ts`. Air density by altitude already exists in `packages/core/src/physics/air` and feeds cycling power, not running.
 
 ## 1. Question and effect size
 
