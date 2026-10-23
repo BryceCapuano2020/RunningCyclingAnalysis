@@ -12,7 +12,7 @@ import {
 import { activityFileKey } from '../storage.ts'
 import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
 import { sha256Hex, toBase64Url } from '../util.ts'
-import { dedupeKeyFor } from './activities.ts'
+import { dedupeKeyFor } from './activities/shared.ts'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
 const HASH_OF_CONTENT = await sha256Hex(CONTENT)

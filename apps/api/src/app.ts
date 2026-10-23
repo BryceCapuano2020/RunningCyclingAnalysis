@@ -8,7 +8,7 @@ import type { AppEnv } from './env.ts'
 import { csrfGuard } from './middleware.ts'
 import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
-import { activityRoutes } from './routes/activities.ts'
+import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
 import { healthRoutes } from './routes/health.ts'
 
