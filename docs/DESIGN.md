@@ -97,6 +97,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   emphasised latest point.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
   Tables that cannot fit become lists.
+- The share image is a dark canvas card on ink, as a square (1080 by 1080) or a story (1080 by 1920).
+  It holds the brand mark and app name, the sample badge for sample data, the headline, the balance
+  meter, the running and cycling threshold estimates with W/kg, the period, the heart-rate caveat
+  when there is one, the footnote and the site origin when it is public. Its colours are the dark
+  tokens copied in `apps/web/src/share/cardColors.ts`.
 
 ## Copy
 

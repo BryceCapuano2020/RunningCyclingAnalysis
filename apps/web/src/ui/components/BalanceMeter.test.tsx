@@ -62,9 +62,19 @@ describe('BalanceMeter', () => {
     expect(dotX(container)).toBeCloseTo(312)
   })
 
-  it('keeps the range band visible even when the range is a single value', () => {
+  it('keeps the range band at least as wide as its height, so its rounded ends stay round', () => {
     const { container } = render(<BalanceMeter ratio={interval(1.1, 1.1, 1.1)} />)
     const band = container.querySelector('.balance-meter__band')
-    expect(Number(band?.getAttribute('width'))).toBeGreaterThanOrEqual(2)
+    expect(Number(band?.getAttribute('width'))).toBeGreaterThanOrEqual(
+      Number(band?.getAttribute('height')),
+    )
+  })
+
+  it('centres a band that is widened to its minimum on the dot, not beside it', () => {
+    const { container } = render(<BalanceMeter ratio={interval(1.1, 1.1, 1.1)} />)
+    const band = container.querySelector('.balance-meter__band')
+    const x = Number(band?.getAttribute('x'))
+    const width = Number(band?.getAttribute('width'))
+    expect(x + width / 2).toBeCloseTo(dotX(container), 6)
   })
 })

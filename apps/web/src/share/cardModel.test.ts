@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
-import { comparisonPoint, makeActivity, makeResult } from '../ui/components/fixtures'
-import { headlineText } from '../ui/components/headlineText'
+import { makeActivity, makeResult } from '../ui/components/fixtures'
+import { HARDER_EFFORTS_TITLE, headlineText } from '../ui/components/headlineText'
 import { buildShareCard, shareableOrigin } from './cardModel'
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const LOW_EFFORT: EffortCheck = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }
+const FOOTNOTE = 'Estimated from my own files. Compares my two sports; not a ranking.'
 
 describe('buildShareCard', () => {
   it('uses the app name as the title', () => {
@@ -14,42 +15,43 @@ describe('buildShareCard', () => {
     expect(card?.title).toBe('RunningCyclingAnalysis')
   })
 
-  it('states the headline sentences exactly as the results page does', () => {
+  it('states the headline exactly as the results page does, and the balance it leans to', () => {
     const result = makeResult()
     const card = buildShareCard(result, SETTINGS, 'metric', 42, false)
     const point = result.comparison.prior[0]
     expect(point).toBeDefined()
     if (!point) return
-    const text = headlineText(point)
-    expect(card?.headline).toBe(text.title)
-    expect(card?.summary).toBe(text.summary)
-    expect(card?.range).toBe(text.range)
+    expect(card?.headline).toBe(headlineText(point).title)
     expect(card?.headline).toBe('Your balance leans toward running')
+    expect(card?.meter).toEqual({ lean: 'run', ratio: point.ratio })
   })
 
-  it('states the population basis when there was no heart-rate adjustment', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.basis).toBe('Model range based on population assumptions.')
+  it('has no meter, and says so in the headline, while the sports cannot be compared', () => {
+    const card = buildShareCard(
+      makeResult({ comparison: { prior: [], calibrated: null } }),
+      SETTINGS,
+      'metric',
+      42,
+      false,
+    )
+    expect(card?.meter).toBeNull()
+    expect(card?.headline).toBe(HARDER_EFFORTS_TITLE)
   })
 
-  it('states the adjusted basis when the heart-rate comparison was used', () => {
-    const point = comparisonPoint()
-    const result = makeResult({ comparison: { prior: [point], calibrated: [point] } })
-    const card = buildShareCard(result, SETTINGS, 'metric', 42, false)
-    expect(card?.basis).toBe('Model range adjusted using your heart-rate data.')
-  })
-
-  it('states the rejected basis when the heart-rate check could not support an adjustment', () => {
-    const point = comparisonPoint()
-    const result = makeResult({
-      comparison: {
-        prior: [point],
-        calibrated: null,
-        calibration: { effectiveSamples: 1, draws: 4000, accepted: false },
-      },
-    })
-    const card = buildShareCard(result, SETTINGS, 'metric', 42, false)
-    expect(card?.basis).toMatch(/could not support a reliable adjustment/)
+  it('states the missing-sport headline in the card wording, asking for nothing', () => {
+    const card = buildShareCard(
+      makeResult({
+        activities: [makeActivity({ id: 'run-1', sport: 'run' })],
+        comparison: { prior: [], calibrated: null },
+        rideCp: null,
+      }),
+      SETTINGS,
+      'metric',
+      42,
+      false,
+    )
+    expect(card?.headline).toBe('Your running so far')
+    expect(card?.headline).not.toMatch(/add/i)
   })
 
   it('gives a one-line effort caveat when the heart-rate check found a low effort', () => {
@@ -63,79 +65,88 @@ describe('buildShareCard', () => {
     expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, high)?.caveat).toBeNull()
   })
 
-  it('uses the page units for the running pace figure', () => {
+  it('uses the page units for the running threshold pace', () => {
     const metric = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
     const imperial = buildShareCard(makeResult(), SETTINGS, 'imperial', 42, false)
-    expect(metric?.figures).toContainEqual({ label: 'Running threshold pace', value: '23:23 /km' })
-    expect(imperial?.figures).toContainEqual({
-      label: 'Running threshold pace',
-      value: '37:38 /mi',
+    expect(metric?.heroes[0]).toMatchObject({
+      label: 'Running threshold pace, estimated',
+      figure: { number: '23:23', unit: '/km' },
     })
+    expect(imperial?.heroes[0]?.figure).toEqual({ number: '37:38', unit: '/mi' })
   })
 
-  it('shows the cycling threshold power in watts for the body mass in the settings', () => {
+  it('labels each estimate as estimated, the way the results page does', () => {
     const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.figures).toContainEqual({ label: 'Cycling threshold power', value: '48 W' })
-  })
-
-  it('shows at most three figures, with the running and cycling comparison among them', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.figures).toHaveLength(3)
-    expect(card?.figures[2]).toEqual({ label: 'Running vs cycling, 20 min', value: '+12%' })
-  })
-
-  it('omits a threshold figure when the sport has no threshold', () => {
-    const card = buildShareCard(makeResult({ runCp: null }), SETTINGS, 'metric', 42, false)
-    expect(card?.figures.map((figure) => figure.label)).toEqual([
-      'Cycling threshold power',
-      'Running vs cycling, 20 min',
+    expect(card?.heroes.map((hero) => hero.label)).toEqual([
+      'Running threshold pace, estimated',
+      'Cycling threshold power, estimated',
     ])
   })
 
-  it('names the selected period and counts the activities per sport', () => {
+  it('shows the cycling threshold power in watts, with W/kg for the body mass in the settings', () => {
     const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.period).toBe('Last 6 weeks: 1 run, 1 ride')
+    expect(card?.heroes[1]).toMatchObject({
+      label: 'Cycling threshold power, estimated',
+      figure: { number: '48', unit: 'W' },
+      sub: '0.6 W/kg',
+      prompt: null,
+    })
   })
 
-  it('names all time when no range is selected', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', null, false)
-    expect(card?.period).toBe('All time: 1 run, 1 ride')
+  it('shows both sports in running then cycling order, each with its sport', () => {
+    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
+    expect(card?.heroes.map((hero) => hero.sport)).toEqual(['run', 'ride'])
+    expect(card?.heroes.every((hero) => hero.prompt === null)).toBe(true)
   })
 
-  it('uses singular counts for one activity of a sport', () => {
+  it('leaves a sport with no threshold as a figure-less hero, with no sub line', () => {
+    const card = buildShareCard(makeResult({ runCp: null }), SETTINGS, 'metric', 42, false)
+    expect(card?.heroes[0]).toMatchObject({ figure: null, sub: null })
+    expect(card?.heroes[1]?.figure).toEqual({ number: '48', unit: 'W' })
+  })
+
+  it('shows the one sport that has an estimate, and asks for the other, when only one sport is on file', () => {
     const card = buildShareCard(
       makeResult({
-        activities: [
-          makeActivity({ id: 'a', sport: 'run' }),
-          makeActivity({ id: 'b', sport: 'run' }),
-          makeActivity({ id: 'c', sport: 'ride' }),
-        ],
+        activities: [makeActivity({ id: 'run-1', sport: 'run' })],
+        comparison: { prior: [], calibrated: null },
+        rideCp: null,
       }),
       SETTINGS,
       'metric',
-      91,
+      42,
       false,
     )
-    expect(card?.period).toBe('Last 3 months: 2 runs, 1 ride')
+    expect(card?.headline).toBe('Your running so far')
+    expect(card?.meter).toBeNull()
+    expect(card?.heroes[0]?.figure).toEqual({ number: '23:23', unit: '/km' })
+    expect(card?.heroes[1]).toMatchObject({
+      figure: null,
+      prompt: 'Add rides to see the balance',
+    })
   })
 
-  it('carries a sample badge only for sample data', () => {
-    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, true)?.badge).toBe('Sample data')
-    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)?.badge).toBeNull()
-  })
-
-  it('states the estimate disclaimer in the footer', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.footer).toBe(
-      'Estimated from heart rate, pace and power files. Both sports are put on one energy scale from your own files. It compares your two sports; it does not rank you.',
+  it('asks for harder efforts, not first efforts, when a sport has activities but no threshold', () => {
+    const card = buildShareCard(
+      makeResult({
+        comparison: { prior: [], calibrated: null },
+        rideCp: null,
+      }),
+      SETTINGS,
+      'metric',
+      42,
+      false,
     )
+    expect(card?.heroes[1]?.prompt).toBe('Add harder rides to see the balance')
   })
 
-  it('returns nothing when there is no comparison, so the button is hidden', () => {
+  it('returns nothing when there is no comparison and no threshold, so the button is hidden', () => {
     const card = buildShareCard(
       makeResult({
         activities: [makeActivity({ sport: 'run' })],
         comparison: { prior: [], calibrated: null },
+        runCp: null,
+        rideCp: null,
       }),
       SETTINGS,
       'metric',
@@ -145,20 +156,33 @@ describe('buildShareCard', () => {
     expect(card).toBeNull()
   })
 
+  it('names the selected period, and all time when no range is selected', () => {
+    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)?.period).toBe('Last 6 weeks')
+    expect(buildShareCard(makeResult(), SETTINGS, 'metric', null, false)?.period).toBe('All time')
+  })
+
+  it('carries a sample badge only for sample data', () => {
+    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, true)?.badge).toBe('Sample data')
+    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)?.badge).toBeNull()
+  })
+
+  it('states the estimate and not-a-ranking footnote in the first person', () => {
+    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
+    expect(card?.footnote).toBe(FOOTNOTE)
+  })
+
   it('has exactly these keys, so no account, file or activity field can be added unnoticed', () => {
     const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, true, LOW_EFFORT)
     expect(Object.keys(card ?? {}).sort()).toEqual(
       [
         'badge',
-        'basis',
         'caveat',
-        'figures',
-        'footer',
+        'footnote',
         'headline',
+        'heroes',
+        'meter',
         'origin',
         'period',
-        'range',
-        'summary',
         'title',
       ].sort(),
     )
@@ -199,6 +223,32 @@ describe('shareableOrigin', () => {
     expect(shareableOrigin('http://192.168.1.20')).toBe('')
     expect(shareableOrigin('http://172.16.0.1')).toBe('')
     expect(shareableOrigin('http://172.31.255.1')).toBe('')
+  })
+
+  it('omits the unspecified IPv4 address, 0.0.0.0', () => {
+    expect(shareableOrigin('http://0.0.0.0:8080')).toBe('')
+  })
+
+  it('omits IPv6 unique local (fc00::/7) and link-local (fe80::/10) addresses', () => {
+    expect(shareableOrigin('http://[fc00::1]')).toBe('')
+    expect(shareableOrigin('http://[fd12:3456:789a::1]')).toBe('')
+    expect(shareableOrigin('http://[fe80::1]')).toBe('')
+    expect(shareableOrigin('http://[febf::1]:4319')).toBe('')
+  })
+
+  it('omits IPv4-mapped and IPv4-compatible IPv6 addresses, which can name a private IPv4 host', () => {
+    // The browser writes these in hex (::ffff:127.0.0.1 is [::ffff:7f00:1]); the whole ::/8 block
+    // is treated as private, so an embedded IPv4 address never slips through.
+    expect(shareableOrigin('http://[::ffff:127.0.0.1]')).toBe('')
+    expect(shareableOrigin('http://[::ffff:10.0.0.1]')).toBe('')
+    expect(shareableOrigin('http://[::ffff:8.8.8.8]')).toBe('')
+    expect(shareableOrigin('http://[::]')).toBe('')
+  })
+
+  it('keeps public IPv6 addresses next to those ranges', () => {
+    expect(shareableOrigin('http://[2001:db8::1]')).toBe('http://[2001:db8::1]')
+    expect(shareableOrigin('http://[fec0::1]')).toBe('http://[fec0::1]')
+    expect(shareableOrigin('http://[fbff::1]')).toBe('http://[fbff::1]')
   })
 
   it('keeps public addresses next to the private ranges', () => {

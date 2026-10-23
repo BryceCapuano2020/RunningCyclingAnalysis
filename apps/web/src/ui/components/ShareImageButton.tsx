@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { pickHeadline } from './pickHeadline'
+import { hasShareableContent } from '../../share/hasShareableContent'
+import { CARD_FILE_NAMES, type CardFormat } from '../../share/cardLayout'
 import './ShareImageButton.css'
 
 export interface ShareImageButtonProps {
@@ -17,15 +18,20 @@ export interface ShareImageButtonProps {
   disabled: boolean
 }
 
-const NOTE_ID = 'share-image-note'
 const PRIVACY_NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
 const WAITING_NOTE = 'Available when the analysis finishes.'
-const FAILED = 'The image could not be created. Try again, or use another browser.'
+const FAILED = 'The image could not be created. Try again.'
+
+/** The two shapes, in button order. The square is the primary action. */
+const SHAPES: { format: CardFormat; label: string; primary: boolean }[] = [
+  { format: 'square', label: 'Download square image', primary: true },
+  { format: 'story', label: 'Download story image', primary: false },
+]
 
 /**
- * Saves the comparison on screen as a PNG on this device. Renders nothing when there is no
- * comparison to share. The card code loads on the first click, so it is not in the app's first
- * download.
+ * Saves the balance on screen as a PNG on this device, as a square post or a story. Renders nothing
+ * when there is neither a comparison nor a sport's estimate to draw. The card code loads on the
+ * first click, so it is not in the app's first download.
  */
 export function ShareImageButton({
   result,
@@ -40,9 +46,10 @@ export function ShareImageButton({
   const [generating, setGenerating] = useState(false)
   // A ref, not state, so that a second click in the same tick is refused before React re-renders.
   const inFlight = useRef(false)
-  if (pickHeadline(result.comparison) === null) return null
+  const noteId = useId()
+  if (!hasShareableContent(result)) return null
 
-  const saveImage = async () => {
+  const saveImage = async (format: CardFormat) => {
     if (inFlight.current) return
     inFlight.current = true
     setGenerating(true)
@@ -58,7 +65,10 @@ export function ShareImageButton({
       await loadCardFonts()
       const card = buildShareCard(result, settings, units, rangeDays, isSample, effort)
       const canvas = document.createElement('canvas')
-      const saved = card !== null && renderShareCard(card, canvas) && (await saveCanvasPng(canvas))
+      const saved =
+        card !== null &&
+        renderShareCard(card, canvas, format) &&
+        (await saveCanvasPng(canvas, CARD_FILE_NAMES[format]))
       setStatus(saved ? 'Image saved' : FAILED)
     } catch {
       setStatus(FAILED)
@@ -71,19 +81,22 @@ export function ShareImageButton({
   return (
     <div className="share-image">
       <div className="share-image__actions">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => void saveImage()}
-          disabled={disabled}
-          // aria-disabled, not disabled: a disabled button drops the focus it is holding. The
-          // in-flight ref already refuses a second click.
-          aria-disabled={generating}
-          aria-describedby={NOTE_ID}
-        >
-          Download image
-        </button>
-        <p id={NOTE_ID} className="share-image__note muted">
+        {SHAPES.map(({ format, label, primary }) => (
+          <button
+            key={format}
+            type="button"
+            className={primary ? 'btn btn-primary' : 'btn'}
+            onClick={() => void saveImage(format)}
+            disabled={disabled}
+            // aria-disabled, not disabled: a disabled button drops the focus it is holding. The
+            // in-flight ref already refuses a second click.
+            aria-disabled={generating}
+            aria-describedby={noteId}
+          >
+            {label}
+          </button>
+        ))}
+        <p id={noteId} className="share-image__note muted">
           {disabled ? WAITING_NOTE : PRIVACY_NOTE}
         </p>
       </div>
