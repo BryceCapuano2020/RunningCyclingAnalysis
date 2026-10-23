@@ -5,6 +5,7 @@ import { maxHeartRate, windowHeartRate } from '../effort'
 import { averageBlocks } from '../hr'
 import { mean } from '../math'
 import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade } from '../metabolic'
+import { airDensityStream } from '../physics/air'
 import { assessQuality } from '../quality'
 import type {
   Activity,
@@ -196,7 +197,9 @@ function measuredParts(
   }
   // Indoor power is not a gradient being ridden, so it cannot calibrate or score a bike model.
   if (activity.indoor) return parts
-  const terms = sampleTerms(activity.speed, grade)
+  // validGrade also clears altitude jumps, so their altitudes do not set the air density.
+  const density = airDensityStream(activity, quality.validGrade)
+  const terms = sampleTerms(activity.speed, grade, density)
   return {
     ...parts,
     calibration: calibrationSums(
@@ -226,12 +229,13 @@ function virtualParts(
     : new Uint8Array(activity.n)
   // Windows are picked with the default model at a fixed mass, so the digest is independent of the
   // athlete's settings. Combine then evaluates the stored terms at the real mass and fitted bike.
+  const density = airDensityStream(activity, quality.validGrade)
   const selection = windowedEnvelope(
-    estimatePower(activity.speed, grade, SELECTION_MASS_KG, DEFAULT_BIKE_MODEL),
+    estimatePower(activity.speed, grade, SELECTION_MASS_KG, DEFAULT_BIKE_MODEL, density),
     valid,
     activity.id,
   )
-  const terms = sampleTerms(activity.speed, grade)
+  const terms = sampleTerms(activity.speed, grade, density)
   // The stored terms are linear, so they omit the clamp at zero that estimatePower applies per
   // sample. See powerAt in terms.ts for the size of that bias.
   const curve: DigestCurvePoint[] = selection.map((w) => ({

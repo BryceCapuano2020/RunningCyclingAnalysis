@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { DRIVETRAIN_EFFICIENCY, FLAT_RUN_COST, G, RESTING_W_PER_KG, RHO_AIR } from '../constants'
+import { DRIVETRAIN_EFFICIENCY, FLAT_RUN_COST, G, RESTING_W_PER_KG } from '../constants'
 import { mean } from '../math'
+import { airDensity } from '../physics/air'
 import { DEFAULT_ATHLETE } from './athlete'
 import type { SyntheticAthlete } from './athlete'
 import { generateActivity } from './generate'
@@ -33,12 +34,16 @@ function bestMean(xs: Float64Array, window: number): number {
   return best / window
 }
 
-/** Steady speed on the flat where mechanical power balances rolling and aero drag. */
+/**
+ * Steady speed on the flat where mechanical power balances rolling and aero drag. The flat starts
+ * at 200 m, so the air is that thin.
+ */
 function flatSteadySpeed(powerW: number, athlete: SyntheticAthlete): number {
   const mass = athlete.massKg + athlete.bikeMassKg
   const available = powerW * DRIVETRAIN_EFFICIENCY
+  const rho = airDensity(200)
   const balance = (v: number) =>
-    v * (mass * G * athlete.crr + 0.5 * RHO_AIR * athlete.cda * v * v) - available
+    v * (mass * G * athlete.crr + 0.5 * rho * athlete.cda * v * v) - available
   let lo = 1
   let hi = 25
   for (let k = 0; k < 100; k++) {

@@ -30,14 +30,19 @@ const SECTIONS: Section[] = [
       'The model assumes heart rate responds to energy use similarly in both sports. Under that ' +
       'assumption, differences in the fitted slopes can adjust the energy estimates. This is not an ' +
       'independent measurement of efficiency. If too few model samples support an adjustment, the ' +
-      'population-based range is kept instead.',
+      'population-based range is kept instead. Heart-rate checks judge each sport’s best efforts ' +
+      'against a reference maximum built from each sport’s highest sustained heart rate. Running uses ' +
+      'the higher of its own maximum and the cycling maximum. Cycling uses the higher of its own maximum ' +
+      'and 6 bpm below the running maximum, because cycling maximum usually runs 5 to 7 bpm lower, so it ' +
+      'is never more than 6 bpm below running.',
   },
   {
     title: 'Virtual power meter',
     body:
       'Power is estimated on climbs from speed, gradient and weight using a model fitted to your ' +
       'power-meter rides; its accuracy is scored on each ride with that ride left out of the fit. ' +
-      'Only climbs are used, because wind and drafting dominate on flat roads.',
+      'Only climbs are used, because wind and drafting dominate on flat roads. Air density follows ' +
+      'altitude from the file (ISA, 15 °C), with sea level when altitude is missing or the ride is indoors.',
   },
   {
     title: 'Data checks',

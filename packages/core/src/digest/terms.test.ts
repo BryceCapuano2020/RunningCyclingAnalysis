@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DRIVETRAIN_EFFICIENCY, G, RHO_AIR } from '../constants'
+import { airDensity } from '../physics/air'
 import { estimatePower } from '../virtualPower'
 import { powerAt, sampleTerms, termsOver } from './terms'
 
@@ -11,6 +12,16 @@ describe('sampleTerms', () => {
     expect(terms.gravityAccel[1]).toBeCloseTo(0, 12)
     expect(terms.rolling[1]).toBeCloseTo(G * 10, 12)
     expect(terms.aero[1]).toBeCloseTo(0.5 * RHO_AIR * 1000, 12)
+  })
+
+  it('scales the aero term with the per-sample air density', () => {
+    const speed = new Float64Array(3).fill(10)
+    const grade = new Float64Array(3)
+    const density = Float64Array.from([RHO_AIR, airDensity(2000), airDensity(2000)])
+    const terms = sampleTerms(speed, grade, density)
+    expect(terms.aero[0]).toBeCloseTo(0.5 * RHO_AIR * 1000, 12)
+    expect(terms.aero[1]! / terms.aero[0]!).toBeCloseTo(airDensity(2000) / RHO_AIR, 12)
+    expect(terms.rolling[1]).toBeCloseTo(G * 10, 12)
   })
 
   it('uses the sine of the gradient for the gravity term', () => {

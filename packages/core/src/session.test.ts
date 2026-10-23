@@ -4,6 +4,7 @@ import { encodeFit } from './fit'
 import { encodeGpx } from './gpx/encode'
 import { encodeTcx } from './tcx/encode'
 import { digestActivity } from './digest'
+import { MODEL_REVISION } from './digest/modelRevision'
 import { parseActivityFile } from './import'
 import { AnalysisSession, SyncFailure } from './session'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
@@ -356,9 +357,20 @@ describe('AnalysisSession', () => {
     expect(refreshed.incompatibleActivities).toBe(0)
   })
 
+  it('treats revision 3 digests, from before air density followed altitude, as outdated', async () => {
+    const session = new AnalysisSession()
+    const previous = { ...digestActivity(run), modelRevision: 3 }
+    const loaded = session.loadDigests([previous], SETTINGS)
+    expect(loaded.result).toBeNull()
+    expect(loaded.outdatedActivities).toBe(1)
+    expect(loaded.incompatibleActivities).toBe(0)
+    const refreshed = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(refreshed.outdatedActivities).toBe(0)
+  })
+
   it('tolerates but excludes digests from a newer model revision until the file is re-imported', async () => {
     const session = new AnalysisSession()
-    const future = { ...digestActivity(run), modelRevision: 4 }
+    const future = { ...digestActivity(run), modelRevision: MODEL_REVISION + 1 }
     const state = session.loadDigests([future], SETTINGS)
     expect(state.result).toBeNull()
     expect(state.totalActivities).toBe(0)
@@ -373,7 +385,7 @@ describe('AnalysisSession', () => {
   it('keeps future-revision activities out of a mixed library analysis', () => {
     const session = new AnalysisSession()
     const current = digestActivity(run)
-    const future = { ...digestActivity(ride), modelRevision: 4 }
+    const future = { ...digestActivity(ride), modelRevision: MODEL_REVISION + 1 }
     const state = session.loadDigests([current, future], SETTINGS)
 
     expect(state.result?.activities).toHaveLength(1)

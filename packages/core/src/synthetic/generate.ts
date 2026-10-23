@@ -1,6 +1,7 @@
-import { DRIVETRAIN_EFFICIENCY, G, RESTING_W_PER_KG, RHO_AIR } from '../constants'
+import { DRIVETRAIN_EFFICIENCY, G, RESTING_W_PER_KG } from '../constants'
 import { mulberry32 } from '../math'
 import { minettiCost } from '../metabolic'
+import { airDensity } from '../physics/air'
 import type { Activity, Sport } from '../types'
 import type { SyntheticAthlete } from './athlete'
 import type { ActivitySpec } from './spec'
@@ -45,18 +46,19 @@ function runSpeed(metabolicWPerKg: number, grade: number, economyScale: number):
   return Math.min(MAX_RUN_SPEED_MS, Math.max(0, v))
 }
 
-/** Speed derivative under a steady mechanical power, W, at grade rise/run. */
+/** Speed derivative under a steady mechanical power, W, at grade rise/run and air density kg/m^3. */
 function rideAcceleration(
   v: number,
   grade: number,
   powerW: number,
   athlete: SyntheticAthlete,
+  airDensityKgM3: number,
 ): number {
   const mass = athlete.massKg + athlete.bikeMassKg
   const theta = Math.atan(grade)
   const traction = (powerW * DRIVETRAIN_EFFICIENCY) / Math.max(v, 1)
   const gravityAndRolling = mass * G * (Math.sin(theta) + athlete.crr * Math.cos(theta))
-  const drag = 0.5 * RHO_AIR * athlete.cda * v * v
+  const drag = 0.5 * airDensityKgM3 * athlete.cda * v * v
   return (traction - gravityAndRolling - drag) / mass
 }
 
@@ -88,11 +90,12 @@ function simulate(
     } else {
       v = speed[i]!
       const demand = m * athlete.grossEfficiency * athlete.massKg
-      let dv = rideAcceleration(v, grade, demand, athlete)
+      const rho = airDensity(altitude[i]!)
+      let dv = rideAcceleration(v, grade, demand, athlete, rho)
       let p = demand
       if (grade < 0 && v + dv > COAST_ABOVE_MS) {
         p = 0
-        dv = rideAcceleration(v, grade, 0, athlete)
+        dv = rideAcceleration(v, grade, 0, athlete, rho)
       }
       power[i] = p
       metabolic[i] = Math.max(RESTING_W_PER_KG, p / (athlete.grossEfficiency * athlete.massKg))

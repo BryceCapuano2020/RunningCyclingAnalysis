@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_BIKE_MODEL, DURATIONS_S, RESTING_W_PER_KG } from '../constants'
 import { smoothGrade } from '../metabolic'
 import { mulberry32 } from '../math'
+import { airDensityStream } from '../physics/air'
 import { assessQuality } from '../quality'
 import { generateActivity, sampleDataset } from '../synthetic'
-import type { Activity, AthleteSettings, Curve, CriticalPowerFit, HrPoint } from '../types'
+import type {
+  Activity,
+  AthleteSettings,
+  Curve,
+  CriticalPowerFit,
+  DigestCurvePoint,
+  HrPoint,
+} from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
 import { atOrBelowCriticalPower, combine, equivalentRunSpeed } from './combine'
 import { digestActivity } from './digestActivity'
@@ -47,6 +55,7 @@ function rideInputs(a: Activity): RideInputs {
     grade: smoothGrade(a.altitude, a.distance),
     power: a.power,
     valid: assessQuality(a).validMotion,
+    airDensity: airDensityStream(a),
   }
 }
 
@@ -158,7 +167,7 @@ describe('combine', () => {
       const model = solveBikeModel(sumReferenceStats(perRide.filter((_, j) => j !== k)))
       const input = inputs[k]!
       const estimated =
-        estimatePower(input.speed, input.grade, totalMassKg, model)
+        estimatePower(input.speed, input.grade, totalMassKg, model, input.airDensity)
           .subarray(seg.start, seg.end)
           .reduce((a, b) => a + b, 0) /
         (seg.end - seg.start)
@@ -181,7 +190,13 @@ describe('combine', () => {
     expect(point.activityId).toBe('climb')
     // Every window of this steady climb has the same value, so only the value is compared.
     const grade = smoothGrade(ride.altitude, ride.distance)
-    const estimate = estimatePower(ride.speed, grade, mass, DEFAULT_BIKE_MODEL)
+    const estimate = estimatePower(
+      ride.speed,
+      grade,
+      mass,
+      DEFAULT_BIKE_MODEL,
+      airDensityStream(ride),
+    )
     const direct =
       estimate
         .subarray(window.startIndex, window.startIndex + window.windowS)
@@ -202,7 +217,46 @@ describe('combine', () => {
     expect(r.maxHeartRate).toBe(165)
     const effort = r.effort.find((e) => e.durationS === 300)!
     expect(effort.runHrFraction!).toBeCloseTo((120 * 165 + 300 * 150) / 420 / 165, 9)
-    expect(effort.rideHrFraction!).toBeCloseTo(150 / 165, 9)
+    // Cycling is judged against its own reference: 165 less the 6 bpm offset, since no ride got
+    // higher than 150.
+    expect(effort.rideHrFraction!).toBeCloseTo(150 / 159, 9)
+  })
+
+  it('judges cycling against the running maximum less the offset when no ride came close', () => {
+    const run = digestActivity(activity('run', 'run', 1200, { heartRate: constant(1200, 170) }))
+    const ride = digestActivity(activity('ride', 'ride', 1200, { power: constant(1200, 250) }))
+    const r = combine([run, ride], settings)
+    expect(r.runMaxHeartRate).toBe(170)
+    expect(r.rideMaxHeartRate).toBe(164)
+    // The ride's own highest heart rate, 150 bpm, is below the 164 bpm reference derived from running.
+    expect(r.runObservedMaxHeartRate).toBe(170)
+    expect(r.rideObservedMaxHeartRate).toBe(150)
+    expect(r.maxHeartRate).toBe(170)
+  })
+
+  it('raises the running reference to a cycling maximum above the running maximum', () => {
+    const run = digestActivity(activity('run', 'run', 1200, { heartRate: constant(1200, 160) }))
+    const ride = digestActivity(
+      activity('ride', 'ride', 1200, {
+        power: constant(1200, 250),
+        heartRate: constant(1200, 172),
+      }),
+    )
+    const r = combine([run, ride], settings)
+    expect(r.runMaxHeartRate).toBe(172)
+    expect(r.rideMaxHeartRate).toBe(172)
+    expect(r.runObservedMaxHeartRate).toBe(160)
+    expect(r.rideObservedMaxHeartRate).toBe(172)
+    expect(r.maxHeartRate).toBe(172)
+  })
+
+  it('has no sport heart-rate references without heart-rate data', () => {
+    const noHr = digestActivity({ ...activity('a', 'run', 1200), hasHeartRate: false })
+    const r = combine([noHr], settings)
+    expect(r.runMaxHeartRate).toBeNull()
+    expect(r.rideMaxHeartRate).toBeNull()
+    expect(r.runObservedMaxHeartRate).toBeNull()
+    expect(r.rideObservedMaxHeartRate).toBeNull()
   })
 
   it('does not change the run curve or the watts of power meters when only mass changes', () => {
@@ -264,7 +318,7 @@ describe('combine', () => {
     for (const seg of r.virtualAccuracy!.segments) {
       const grade = smoothGrade(ride.altitude, ride.distance)
       const direct =
-        estimatePower(ride.speed, grade, totalMassKg, DEFAULT_BIKE_MODEL)
+        estimatePower(ride.speed, grade, totalMassKg, DEFAULT_BIKE_MODEL, airDensityStream(ride))
           .subarray(seg.start, seg.end)
           .reduce((a, b) => a + b, 0) /
         (seg.end - seg.start)
@@ -382,16 +436,32 @@ describe('virtual values are priced with the bike model of the same analysis', (
   const totalMassKg = athlete.massKg + athlete.bikeMassKg
   const virtualIds = new Set(digests.filter((d) => d.powerSource === 'virtual').map((d) => d.id))
 
-  /** The stored terms of the window a curve point reports, priced at a mass and bike model. */
-  function pricedAt(
-    point: { durationS: number; activityId: string | null; startIndex: number; value: number },
-    mass: number,
-    model: { crr: number; cda: number },
-  ): number {
+  /**
+   * The stored entry a curve point's value came from. The envelope copies a value to shorter
+   * durations with the same start, and a copy keeps the longer window's windowS. The raw window is
+   * the entry whose windowS equals its durationS. Among raw windows with the point's start and a
+   * duration at least the point's, the shortest is the source: a shorter one would have been
+   * copied from it, or would itself be the source.
+   */
+  function sourceWindow(point: {
+    activityId: string | null
+    startIndex: number
+    durationS: number
+  }): DigestCurvePoint {
     const digest = digests.find((d) => d.id === point.activityId)!
-    const stored = digest.curve.find((c) => c.durationS === point.durationS)!
-    expect(stored.startIndex).toBe(point.startIndex)
-    return powerAt(stored.terms!, mass, model)
+    const raw = digest.curve.filter(
+      (c) =>
+        c.terms !== null &&
+        c.startIndex === point.startIndex &&
+        c.durationS >= point.durationS &&
+        c.windowS === c.durationS,
+    )
+    const source = raw.reduce<DigestCurvePoint | undefined>(
+      (best, c) => (best === undefined || c.durationS < best.durationS ? c : best),
+      undefined,
+    )
+    expect(source).toBeDefined()
+    return source!
   }
 
   // Without the Power Test, the virtual ride is the best ride at 420 s to 1800 s.
@@ -407,7 +477,23 @@ describe('virtual values are priced with the bike model of the same analysis', (
     const winners = virtualWinners(withoutPowerTest.rideCurve)
     expect(winners.length).toBeGreaterThan(0)
     for (const p of winners) {
-      expect(pricedAt(p, totalMassKg, withoutPowerTest.bikeModel)).toBeCloseTo(p.value, 9)
+      const terms = sourceWindow(p).terms!
+      expect(powerAt(terms, totalMassKg, withoutPowerTest.bikeModel)).toBeCloseTo(p.value, 9)
+    }
+  })
+
+  it('stores each virtual window with the air density of its own samples', () => {
+    const winners = virtualWinners(withoutPowerTest.rideCurve)
+    expect(winners.length).toBeGreaterThan(0)
+    for (const p of winners) {
+      const ride = activities.find((a) => a.id === p.activityId)!
+      const source = sourceWindow(p)
+      const density = airDensityStream(ride, assessQuality(ride).validGrade)
+      let aeroSum = 0
+      for (let i = source.startIndex; i < source.startIndex + source.windowS; i++) {
+        aeroSum += 0.5 * density[i]! * ride.speed[i]! ** 3
+      }
+      expect(source.terms!.aero).toBeCloseTo(aeroSum / source.windowS, 9)
     }
   })
 
@@ -418,7 +504,8 @@ describe('virtual values are priced with the bike model of the same analysis', (
     const winners = virtualWinners(withoutPowerTest.rideCurve)
     expect(winners.length).toBeGreaterThan(0)
     for (const p of winners) {
-      expect(pricedAt(p, totalMassKg, result.bikeModel)).not.toBeCloseTo(p.value, 9)
+      const terms = sourceWindow(p).terms!
+      expect(powerAt(terms, totalMassKg, result.bikeModel)).not.toBeCloseTo(p.value, 9)
     }
   })
 
@@ -432,7 +519,8 @@ describe('virtual values are priced with the bike model of the same analysis', (
     const winners = alone.rideCurve.filter((p) => p.activityId !== null)
     expect(winners.length).toBeGreaterThan(0)
     for (const p of winners) {
-      expect(pricedAt(p, totalMassKg, DEFAULT_BIKE_MODEL)).toBeCloseTo(p.value, 9)
+      const terms = sourceWindow(p).terms!
+      expect(powerAt(terms, totalMassKg, DEFAULT_BIKE_MODEL)).toBeCloseTo(p.value, 9)
     }
   })
 })

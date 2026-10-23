@@ -4,7 +4,7 @@ import { DURATIONS_S, FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '../constan
 import { mergeCurves, monotoneEnvelope } from '../curves'
 import { fitCriticalPower } from '../cp'
 import type { EffortPoint } from '../effort'
-import { checkEfforts } from '../effort'
+import { checkEfforts, referenceMaxHeartRates } from '../effort'
 import { crossCheck } from '../hr'
 import { mean } from '../math'
 import type {
@@ -82,6 +82,14 @@ export interface AnalysisResult {
   equivalents: Equivalence[]
   /** Highest sustained heart rate on file, bpm; null without heart-rate data. */
   maxHeartRate: number | null
+  /** Heart rate that running efforts are judged against, bpm; null without heart-rate data. */
+  runMaxHeartRate: number | null
+  /** Heart rate that cycling efforts are judged against, bpm; null without heart-rate data. */
+  rideMaxHeartRate: number | null
+  /** Highest running heart rate on file, bpm; null without running heart-rate data. */
+  runObservedMaxHeartRate: number | null
+  /** Highest cycling heart rate on file, bpm; null without cycling heart-rate data. */
+  rideObservedMaxHeartRate: number | null
   /** Whether each compared best effort was close to all-out, one entry per comparison duration. */
   effort: EffortCheck[]
   bikeModel: BikeModel
@@ -320,10 +328,13 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   }
 
   const maxHr = maxHeartRateOf(ordered)
+  const runObservedMax = maxHeartRateOf(ordered.filter((d) => d.sport === 'run'))
+  const rideObservedMax = maxHeartRateOf(ordered.filter((d) => d.sport === 'ride'))
+  const maxRef = referenceMaxHeartRates(runObservedMax, rideObservedMax)
   const effort = checkEfforts(
     runBest,
     rideBest,
-    maxHr,
+    maxRef,
     comparison.prior.map((p) => p.durationS),
   )
 
@@ -339,6 +350,10 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     comparison,
     equivalents,
     maxHeartRate: maxHr,
+    runMaxHeartRate: maxRef.run,
+    rideMaxHeartRate: maxRef.ride,
+    runObservedMaxHeartRate: runObservedMax,
+    rideObservedMaxHeartRate: rideObservedMax,
     effort,
     bikeModel,
     bikeModelSource: fittedBike.source,

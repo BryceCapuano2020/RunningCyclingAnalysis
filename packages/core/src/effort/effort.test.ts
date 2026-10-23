@@ -3,9 +3,11 @@ import type { Activity, Sport } from '../types'
 import type { EffortPoint, HeartRateSource } from './effort'
 import {
   ALL_OUT_FRACTION,
+  RIDE_MAX_OFFSET_BPM,
   checkEfforts,
   isSubmaximal,
   maxHeartRate,
+  referenceMaxHeartRates,
   windowHeartRate,
 } from './effort'
 
@@ -192,7 +194,7 @@ describe('checkEfforts', () => {
     activityId: string | null,
     heartRate: number | null,
   ): EffortPoint => ({ durationS, value, activityId, startIndex: 0, heartRate })
-  const maxHr = 180
+  const maxHr = { run: 180, ride: 180 }
 
   // Each point carries the mean heart rate of the window it came from, so the check never
   // re-derives a window. The 300 s run point below is backed by a longer window, so its
@@ -254,9 +256,39 @@ describe('checkEfforts', () => {
 
   it('returns null fractions when max heart rate is unknown or not positive', () => {
     for (const bad of [null, 0, -5, NaN]) {
-      const result = checkEfforts(runCurve, rideCurve, bad, [60])
+      const result = checkEfforts(runCurve, rideCurve, { run: bad, ride: bad }, [60])
       expect(result).toEqual([{ durationS: 60, runHrFraction: null, rideHrFraction: null }])
     }
+  })
+
+  it('divides the cycling fraction by the cycling reference, not the running one', () => {
+    // Ride heart rate 153 over a cycling reference of 170 is 0.9; the run side keeps 180.
+    const result = checkEfforts(runCurve, rideCurve, { run: 180, ride: 170 }, [60])
+    expect(result).toEqual([{ durationS: 60, runHrFraction: 0.9, rideHrFraction: 153 / 170 }])
+  })
+})
+
+describe('referenceMaxHeartRates', () => {
+  it('sets cycling RIDE_MAX_OFFSET_BPM below the run maximum when no ride came close', () => {
+    expect(RIDE_MAX_OFFSET_BPM).toBe(6)
+    expect(referenceMaxHeartRates(190, null)).toEqual({ run: 190, ride: 190 - 6 })
+    expect(referenceMaxHeartRates(190, 150)).toEqual({ run: 190, ride: 190 - 6 })
+  })
+
+  it('keeps the cycling maximum when it is within the offset of the run maximum', () => {
+    expect(referenceMaxHeartRates(190, 186)).toEqual({ run: 190, ride: 186 })
+  })
+
+  it('raises the running reference to a cycling maximum above the running maximum', () => {
+    expect(referenceMaxHeartRates(180, 186)).toEqual({ run: 186, ride: 186 })
+  })
+
+  it('uses the other sport when one side has no heart rate', () => {
+    expect(referenceMaxHeartRates(null, 170)).toEqual({ run: 170, ride: 170 })
+  })
+
+  it('is null for both when neither sport has heart rate', () => {
+    expect(referenceMaxHeartRates(null, null)).toEqual({ run: null, ride: null })
   })
 })
 

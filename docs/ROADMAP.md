@@ -35,13 +35,17 @@ These change the numbers the headline is built from.
 5. **Done: effective sample size safeguard.** Comparison diagnostics report effective sample size.
    Both comparison and equivalent pace use shared, stable weights and fall back to the prior when
    too few draws support an adjustment. Validate the threshold on independent data.
-6. **Sport-specific maximum heart rate.** Cycling maximum is usually a few bpm below running. One
-   shared maximum makes the all-out check misjudge cycling efforts.
-7. **Virtual-power bias.** The accuracy card shows spread but not direction. A systematic over- or
-   under-estimate on climbs moves the ride curve one way, so report signed bias next to the error.
-8. **Altitude-dependent air density.** `RHO_AIR` is fixed at sea-level 1.225 kg/m³. At 2,000 m it is
-   about 20% lower, which changes virtual power on long climbs. Use elevation from the file when it
-   is present.
+6. **Done: sport-specific maximum heart rate.** Cycling maximum is usually a few bpm below running.
+   The all-out check uses a running maximum and a cycling maximum. The cycling reference is the
+   higher of its own maximum and 6 bpm below the running maximum, so it is never more than 6 bpm
+   below running. A single shared maximum made the check misjudge cycling efforts.
+7. **Done: virtual-power bias.** The accuracy card reports signed bias next to the error. A
+   systematic over- or under-estimate on climbs moves the ride curve one way, so the direction is
+   shown with the spread.
+8. **Done: altitude-dependent air density.** Air density follows the altitude in the file (ISA,
+   15 °C), per sample, in the aero terms and in virtual power. Sea level applies when altitude is
+   missing or the ride is indoors. Stored digests are model revision 4, so older digests are
+   rebuilt from their retained originals.
 
 ## 3. Input formats
 

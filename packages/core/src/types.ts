@@ -193,14 +193,14 @@ export interface Comparison {
 
 /**
  * How hard the best effort at one duration really was, judged by heart rate.
- * A best effort well below the athlete's highest heart rate was probably not
+ * A best effort well below the athlete's highest sustained heart rate was probably not
  * all-out, so that sport is understated at that duration.
  */
 export interface EffortCheck {
   durationS: number
-  /** Mean heart rate in the best running window divided by maxHeartRate; null if unknown. */
+  /** Mean heart rate in the best running window divided by runMaxHeartRate; null if unknown. */
   runHrFraction: number | null
-  /** Same for the best cycling window. */
+  /** Same for the best cycling window, divided by rideMaxHeartRate. */
   rideHrFraction: number | null
 }
 
@@ -214,7 +214,7 @@ export interface PowerTerms {
   gravityAccel: number
   /** Mean of G cos(theta) * v, W per kg per unit crr. */
   rolling: number
-  /** Mean of 0.5 * RHO_AIR * v^3, W per m^2 of CdA. */
+  /** Mean of 0.5 * air density * v^3, W per m^2 of CdA, with density in kg/m^3 per sample. */
   aero: number
 }
 

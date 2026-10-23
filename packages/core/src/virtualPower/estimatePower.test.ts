@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_BIKE_MODEL } from '../constants'
+import { DEFAULT_BIKE_MODEL, RHO_AIR } from '../constants'
+import { airDensity } from '../physics/air'
 import { accelerationOf, estimatePower } from './estimatePower'
 
 const MASS = 80
@@ -35,6 +36,23 @@ describe('estimatePower', () => {
     expect(p[0]).toBe(0)
     expect(p[1]).toBe(0)
     expect(p[2]).toBeGreaterThan(0)
+  })
+
+  it('cuts the aero share of a 20 km climb at 2,000 m by the density ratio', () => {
+    // 5 m/s on a 5% climb for 4,000 s is 20 km. Speed is constant, so inertia is zero.
+    const n = 4000
+    const speed = new Float64Array(n).fill(5)
+    const grade = new Float64Array(n).fill(0.05)
+    const seaLevel = estimatePower(speed, grade, MASS, DEFAULT_BIKE_MODEL)
+    const density = new Float64Array(n).fill(airDensity(2000))
+    const high = estimatePower(speed, grade, MASS, DEFAULT_BIKE_MODEL, density)
+    const aeroW = (0.5 * RHO_AIR * DEFAULT_BIKE_MODEL.cda * 5 ** 3) / 0.975
+    const ratio = airDensity(2000) / RHO_AIR
+    expect(seaLevel[0]! - high[0]!).toBeCloseTo(aeroW * (1 - ratio), 9)
+    expect((seaLevel[0]! - high[0]!) / seaLevel[0]!).toBeCloseTo(
+      (aeroW / seaLevel[0]!) * (1 - ratio),
+      9,
+    )
   })
 
   it('adds the inertial term m * a * v using the smoothed acceleration', () => {
