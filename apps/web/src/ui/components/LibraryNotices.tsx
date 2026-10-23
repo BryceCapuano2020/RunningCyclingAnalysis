@@ -20,7 +20,26 @@ function hiddenCopiesText(count: number): string {
 }
 
 const LIBRARY_UNAVAILABLE =
-  'Your library is unavailable right now. Analysis still runs in your browser and nothing is being saved.'
+  'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.'
+
+/**
+ * Saved activities made by an older analysis model. Signed in, they are rebuilt from their files; a
+ * visitor who is not signed in has them kept in this browser, and adds the files again.
+ */
+function outdatedText(count: number, signedIn: boolean): string {
+  const one = count === 1
+  if (!signedIn) {
+    return (
+      `${plural(count, 'activity', 'activities')} kept in this browser ${one ? 'was' : 'were'} ` +
+      `analysed by an older version of the app. Add ${one ? 'its file' : 'their files'} again to ` +
+      `include ${one ? 'it' : 'them'}.`
+    )
+  }
+  return (
+    `${plural(count, 'saved activity', 'saved activities')} ${one ? 'needs' : 'need'} a quick ` +
+    `update before ${one ? 'it counts' : 'they count'} in these results.`
+  )
+}
 
 export interface LibraryNoticesProps {
   analysis: AnalysisController
@@ -48,11 +67,7 @@ export function LibraryNotices({
       : `${missingCount} are missing their original file. Re-import them to restore the originals.`
   const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
   const outdatedCount = analysis.state.outdatedActivities
-  const outdatedShown = signedIn && outdatedCount > 0
-  const outdatedText =
-    `${plural(outdatedCount, 'saved activity', 'saved activities')} ` +
-    `${outdatedCount === 1 ? 'needs' : 'need'} a quick update before ` +
-    `${outdatedCount === 1 ? 'it counts' : 'they count'} in these results.`
+  const outdatedShown = outdatedCount > 0
   const incompatibleCount = analysis.state.incompatibleActivities
   const incompatibleShown = incompatibleCount > 0
   const incompatibleText =
@@ -102,9 +117,9 @@ export function LibraryNotices({
         className={outdatedShown ? 'notice' : 'sr-only'}
         aria-label={outdatedShown ? 'Saved activity updates' : undefined}
       >
-        <p role="status">{outdatedShown ? outdatedText : ''}</p>
-        {outdatedShown && !fileRetentionAvailable && <p>{ORIGINALS_UNAVAILABLE}</p>}
-        {outdatedShown && (
+        <p role="status">{outdatedShown ? outdatedText(outdatedCount, signedIn) : ''}</p>
+        {outdatedShown && signedIn && !fileRetentionAvailable && <p>{ORIGINALS_UNAVAILABLE}</p>}
+        {outdatedShown && signedIn && (
           <button
             ref={updateRef}
             type="button"

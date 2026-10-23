@@ -3,6 +3,8 @@ import { useEffect, useId, useRef } from 'react'
 export interface DeleteConfirmationProps {
   /** The activity's name, as the question names it. */
   name: string
+  /** What the delete removes, said in the words of the list it comes from. */
+  description: string
   busy: boolean
   /** Closes the confirmation without deleting, from Cancel or Escape. */
   onCancel: () => void
@@ -13,7 +15,13 @@ export interface DeleteConfirmationProps {
  * Asks before a permanent delete. It takes focus when it opens, Escape cancels from anywhere,
  * and Tab cycles inside it. Mount it with a key per activity, so each question takes focus.
  */
-export function DeleteConfirmation({ name, busy, onCancel, onConfirm }: DeleteConfirmationProps) {
+export function DeleteConfirmation({
+  name,
+  description,
+  busy,
+  onCancel,
+  onConfirm,
+}: DeleteConfirmationProps) {
   const baseId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -61,10 +69,7 @@ export function DeleteConfirmation({ name, busy, onCancel, onConfirm }: DeleteCo
       <h3 id={`${baseId}-confirm-title`} tabIndex={-1} ref={headingRef}>
         Delete “{name}”?
       </h3>
-      <p id={`${baseId}-confirm-description`}>
-        This permanently deletes the activity’s original file and saved summary. This cannot be
-        undone.
-      </p>
+      <p id={`${baseId}-confirm-description`}>{description}</p>
       <div className="saved-library__confirmation-actions">
         <button type="button" className="btn" onClick={onCancel}>
           Cancel

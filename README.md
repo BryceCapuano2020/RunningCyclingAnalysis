@@ -14,7 +14,9 @@ operations described below reflect the current source, not necessarily the live 
 
 Analysis always runs in your browser: activity files are parsed and analysed on your device. An
 account is optional. With one, your profile and activity library are stored on Cloudflare so they
-follow you between devices (see [Accounts and sync](#what-it-does)).
+follow you between devices (see [Accounts and sync](#what-it-does)). Without one, the activity
+summaries are kept in your browser's IndexedDB storage so your results survive a reload; nothing is
+sent to Cloudflare, and Start over removes them.
 
 <p align="center">
   <picture>

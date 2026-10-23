@@ -139,7 +139,14 @@ export function useImportActions({
         else holdForLibrary(files)
         return
       }
-      send({ type: 'addFiles', files, settings: settingsRef.current, sync: null })
+      // Signed out, the digests are kept in this browser so the results survive a reload.
+      send({
+        type: 'addFiles',
+        files,
+        settings: settingsRef.current,
+        sync: null,
+        saveToDevice: true,
+      })
     },
     [
       accountRef,
@@ -167,7 +174,11 @@ export function useImportActions({
     [send, settingsRef],
   )
 
-  const clear = useCallback(() => send({ type: 'clear' }), [send])
+  // Signed out, starting over also forgets the activities kept in this browser.
+  const clear = useCallback(
+    () => send({ type: 'clear', forgetDevice: accountRef.current.status !== 'signed-in' }),
+    [accountRef, send],
+  )
 
   const rebuildSavedActivities = useCallback(() => {
     setRebuildNotice(null)

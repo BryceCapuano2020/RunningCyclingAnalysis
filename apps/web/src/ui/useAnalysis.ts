@@ -3,13 +3,13 @@ import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { ImportOutcome, SavedActivity, WorkerRequest } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
-import { WAITING_FOR_LIBRARY } from './analysis/copy'
+import { STOPPED_KEPT_RESULTS, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
 import { useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
 import type { Account, ErrorNotice, LibraryStatus, Pending } from './analysis/model'
-import { EMPTY_SESSION } from './analysis/model'
+import { EMPTY_SESSION, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
 import type { AccountStatus } from './useAccount'
@@ -63,8 +63,8 @@ export interface AnalysisController {
 
 /**
  * Runs the analysis in a worker. While signed in, the account's stored activities are loaded when
- * sign-in completes, and imports are saved to the account once that library has loaded. Signing
- * out clears the library.
+ * sign-in completes, and imports are saved to the account once that library has loaded. Signed
+ * out, the library kept in this browser is loaded and imports are kept there.
  *
  * The pieces are in ./analysis. This hook wires them together, and owns the two things that touch
  * every piece: what is busy (refreshBusy) and the one place that empties the queues (clearQueues).
@@ -117,13 +117,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   /** Recomputes what the page shows as busy, waiting, and in a library change. */
   const refreshBusy = useCallback(() => {
     const replies = pendingRepliesRef.current
-    setLibraryAction(
-      replies.some((pending) => pending.kind === 'deleteActivity') ? 'deleting' : null,
-    )
+    setLibraryAction(replies.some((pending) => isDeletion(pending.kind)) ? 'deleting' : null)
+    // Reading the library kept in this browser is quick and queued before anything else, so it
+    // does not hold the page busy: the sample and imports stay available while it loads.
+    const quiet = (kind: Pending['kind']) =>
+      isDeletion(kind) || kind === 'exportData' || kind === 'loadDevice'
     setBusy(
-      replies.some(
-        (pending) => pending.kind !== 'deleteActivity' && pending.kind !== 'exportData',
-      ) ||
+      replies.some((pending) => !quiet(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
         deferredImportsRef.current.length > 0 ||
         libraryWaitRef.current.length > 0,
@@ -146,8 +146,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   const onSend = useCallback(
     (request: WorkerRequest) => {
       refreshBusy()
-      // A download does not touch the import or library error, so it is not cleared here.
-      if (request.type !== 'loadServer' && request.type !== 'exportData') setError(null)
+      // Library loads run when a worker starts, including after a crash, so they keep the message
+      // that says why; a download does not touch the import or library error either.
+      const keepsError =
+        request.type === 'loadServer' ||
+        request.type === 'loadDevice' ||
+        request.type === 'exportData'
+      if (!keepsError) setError(null)
       // A new import or rebuild replaces the outcome of the last library change.
       if (request.type === 'addFiles' || request.type === 'rebuildStale') {
         setLibraryNotice(null)
@@ -163,7 +168,17 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
 
   const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
   const { dropPendingReplies, unsentRef, restartWorker, setWorkerStopped } = transport
-  const { automaticRestartCountRef } = transport
+  const { automaticRestartCountRef, send: sendToWorker } = transport
+
+  // Signed out, each worker starts from the library kept in this browser, once. While the account
+  // is still loading it waits, so a signed-in account's page never shows the device library.
+  const deviceLoadedRef = useRef(false)
+  const loadDeviceOnce = useCallback(() => {
+    const { status } = accountRef.current
+    if (deviceLoadedRef.current || (status !== 'signed-out' && status !== 'unavailable')) return
+    deviceLoadedRef.current = true
+    sendToWorker({ type: 'loadDevice', settings: settingsRef.current })
+  }, [sendToWorker])
 
   const libraryActions = useLibraryActions({
     library,
@@ -213,7 +228,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setError(
       accountRef.current.status === 'signed-in'
         ? 'Analysis stopped. Saved activities are reloading; re-import any local files that were not saved.'
-        : 'Analysis stopped. Re-import your files to continue.',
+        : STOPPED_KEPT_RESULTS,
     )
     restartWorker()
   }, [
@@ -241,6 +256,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     accountRef,
     previousStatusRef,
     previousUserIdRef,
+    deviceLoadedRef,
+    loadDeviceOnce,
   })
 
   const { massKg, bikeMassKg } = settings
@@ -263,6 +280,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setError,
     addFiles: importActions.addFiles,
     loadLibrary: libraryActions.loadLibrary,
+    loadDeviceOnce,
     clearQueues,
   })
 

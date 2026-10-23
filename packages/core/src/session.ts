@@ -144,7 +144,7 @@ interface Workout {
 }
 
 /** The fields that decide which copy of a workout is kept. */
-interface Copy {
+export interface Copy {
   id: string
   rank: number
   hasPower: boolean
@@ -153,7 +153,7 @@ interface Copy {
 }
 
 /** The copy of a digest, with its format rank taken from its id. */
-function copyOfDigest(digest: ActivityDigest): Copy {
+export function copyOfDigest(digest: ActivityDigest): Copy {
   return {
     id: digest.id,
     rank: formatRank(digest.id),
@@ -189,14 +189,14 @@ function richer(a: Copy, b: Copy): boolean {
  * Whether the analysis keeps copy a over copy b: the richer one, and between equally rich copies
  * the smaller id, so the choice does not depend on the order the files arrive in.
  */
-function outranks(a: Copy, b: Copy): boolean {
+export function outranks(a: Copy, b: Copy): boolean {
   if (richer(a, b)) return true
   if (richer(b, a)) return false
   return a.id < b.id
 }
 
 /** The same workout exported twice has the same sport and start second. */
-function dedupeKey(sport: Sport, startMs: number): string {
+export function dedupeKey(sport: Sport, startMs: number): string {
   return `${sport}-${Math.round(startMs / 1000)}`
 }
 

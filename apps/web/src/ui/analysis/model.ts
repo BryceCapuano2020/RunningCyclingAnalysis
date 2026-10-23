@@ -25,6 +25,11 @@ export interface ErrorNotice {
   issue: SyncIssueCode | null
 }
 
+/** A deletion from the account library or from the library kept in this browser. */
+export function isDeletion(kind: WorkerRequest['type']): boolean {
+  return kind === 'deleteActivity' || kind === 'deleteDeviceActivity'
+}
+
 /** A request the worker has not answered yet. `notice` is the confirmation shown on success. */
 export interface Pending {
   kind: WorkerRequest['type']

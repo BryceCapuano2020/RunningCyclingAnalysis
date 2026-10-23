@@ -194,12 +194,12 @@ describe('saved library', () => {
 })
 
 describe('status messages go into regions that are already mounted', () => {
-  it('announces that the library is unavailable', () => {
+  it('announces that sign-in is unavailable', () => {
     const view = render(<App />)
     const regions = mountedStatusRegions()
     setAccount('unavailable')
     view.rerender(<App />)
-    expectAnnouncedFromMountedRegion(regions, /Your library is unavailable right now/)
+    expectAnnouncedFromMountedRegion(regions, /Sign-in is unavailable right now/)
   })
 
   it('announces missing original files', () => {

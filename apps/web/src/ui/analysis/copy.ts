@@ -21,6 +21,12 @@ export const ORIGINALS_UNAVAILABLE =
 export const RETENTION_UNAVAILABLE =
   'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
+/**
+ * Stop for a visitor who is not signed in. The kept results reload; files being added must be added
+ * again.
+ */
+export const STOPPED_KEPT_RESULTS =
+  'Analysis stopped. Your results kept in this browser are reloading; add again any files that were being added.'
 
 /** An error reply from the worker. */
 export type ErrorReply = Extract<WorkerResponse, { type: 'error' }>
@@ -86,7 +92,8 @@ export function exportFailureText(message: ErrorReply): string {
 
 /**
  * The message for a worker that stopped on its own. The account state at that moment decides the
- * wording: a signed-in library is reloaded, or the user restarts analysis to reload it.
+ * wording: a signed-in library is reloaded, or the user restarts analysis to reload it. A library
+ * kept in this browser is reloaded the same way, so only the files being added need adding again.
  */
 export function workerFailureText(
   status: AccountStatus,
@@ -98,7 +105,10 @@ export function workerFailureText(
       ? 'The analysis worker stopped. Your saved library is reloading; re-import any local files that were not saved.'
       : 'The analysis worker stopped. Restart analysis to reload your saved library; re-import any local files that were not saved.'
   }
-  if (status === 'signed-out')
-    return 'The analysis worker stopped. Re-import your files to continue.'
-  return eventMessage || 'The analysis worker failed. Re-import your files to continue.'
+  if (status === 'signed-out') {
+    return willRestart
+      ? 'The analysis worker stopped. Your results kept in this browser are reloading; add again any files that were being added.'
+      : 'The analysis worker stopped. Restart analysis to reload your results kept in this browser; add again any files that were being added.'
+  }
+  return eventMessage || 'The analysis worker failed. Add again any files that were being added.'
 }

@@ -145,3 +145,49 @@ describe('LibraryNotices: counts', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('LibraryNotices: outdated saved activities', () => {
+  function outdated(count: number, signedIn: boolean) {
+    return (
+      <LibraryNotices
+        analysis={analysisStub({ state: { outdatedActivities: count } })}
+        signedIn={signedIn}
+        keepFiles={signedIn}
+        fileRetentionAvailable
+        libraryUnavailable={false}
+        onRetry={vi.fn()}
+      />
+    )
+  }
+
+  it('asks a signed-out visitor to add the file again, with no Update now button', () => {
+    render(outdated(1, false))
+
+    expect(
+      screen.getByText(
+        '1 activity kept in this browser was analysed by an older version of the app. Add its file again to include it.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
+  })
+
+  it('uses the plural for several activities kept in this browser, with no Update now button', () => {
+    render(outdated(2, false))
+
+    expect(
+      screen.getByText(
+        '2 activities kept in this browser were analysed by an older version of the app. Add their files again to include them.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the signed-in wording and the Update now button', () => {
+    render(outdated(1, true))
+
+    expect(
+      screen.getByText('1 saved activity needs a quick update before it counts in these results.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeInTheDocument()
+  })
+})

@@ -12,14 +12,14 @@ should feel **athletic and energetic** without hiding the honesty of the engine.
 
 Hash routes, so the static host needs no fallback rules.
 
-| Route              | Page              | Holds                                                                                                             |
-| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and its meter, one card per sport, the evidence card, the cross-sport card, the trend, the share image |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units, the best-effort curve                                                         |
-| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                       |
-| `#/activities/:id` | Activity          | Summary, efforts set here, data issues                                                                            |
-| `#/method`         | How sure is this? | Ratio chart, heart-rate check, virtual-power accuracy, methodology                                                |
-| `#/profile`        | Profile           | Weight, units, account, saved library, file retention, Start over                                                 |
+| Route              | Page              | Holds                                                                                                                                 |
+| ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `#/`               | Balance           | The answer and its meter, one card per sport, the evidence card, the cross-sport card, the trend, the share image                     |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units, the best-effort curve                                                                             |
+| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                           |
+| `#/activities/:id` | Activity          | Summary, efforts set here, data issues                                                                                                |
+| `#/method`         | How sure is this? | Ratio chart, heart-rate check, virtual-power accuracy, methodology                                                                    |
+| `#/profile`        | Profile           | Weight, units, account, the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over |
 
 Without a result every route except Profile shows the landing page. The header holds the wordmark,
 the four tabs (once there is a result), one **Add files** button, a Profile link and the account

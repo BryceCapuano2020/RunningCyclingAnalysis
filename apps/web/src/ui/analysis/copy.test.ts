@@ -131,9 +131,15 @@ describe('workerFailureText', () => {
     )
   })
 
-  it('asks a signed-out user to re-import, whatever the event says', () => {
+  it('says a signed-out worker reloads the results kept in this browser, and files must be added again', () => {
     expect(workerFailureText('signed-out', true, 'boom')).toBe(
-      'The analysis worker stopped. Re-import your files to continue.',
+      'The analysis worker stopped. Your results kept in this browser are reloading; add again any files that were being added.',
+    )
+  })
+
+  it('asks for a restart when a signed-out worker will not restart again', () => {
+    expect(workerFailureText('signed-out', false, 'boom')).toBe(
+      'The analysis worker stopped. Restart analysis to reload your results kept in this browser; add again any files that were being added.',
     )
   })
 
@@ -145,7 +151,7 @@ describe('workerFailureText', () => {
 
   it('falls back to a generic failure when there is no event message', () => {
     expect(workerFailureText('unavailable', false, '')).toBe(
-      'The analysis worker failed. Re-import your files to continue.',
+      'The analysis worker failed. Add again any files that were being added.',
     )
   })
 })

@@ -94,7 +94,9 @@ export function ProfilePage({
       {canStartOver && (
         <section className="section" aria-labelledby="profile-start-over">
           <h2 id="profile-start-over">Start over</h2>
-          <p className="secondary">Clears the activities on this page so you can add others.</p>
+          <p className="secondary">
+            Removes the activities kept in this browser so you can start again.
+          </p>
           <div>
             <button type="button" className="btn" onClick={onStartOver} disabled={analysis.busy}>
               Start over

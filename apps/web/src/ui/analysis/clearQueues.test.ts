@@ -103,7 +103,7 @@ describe('stop empties every queue', () => {
     act(() => result.current.stop())
 
     rerender({ account: SIGNED_OUT, current: SETTINGS })
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([{ type: 'loadDevice', settings: SETTINGS }])
   })
 
   it('drops the imports held for a library that is still loading', () => {
@@ -121,15 +121,18 @@ describe('stop empties every queue', () => {
     rerender({ account: SIGNED_OUT, current: CHANGED_SETTINGS })
 
     act(() => result.current.stop())
-    expect(worker().posted).toEqual([])
+    expect(worker().posted).toEqual([{ type: 'loadDevice', settings: CHANGED_SETTINGS }])
   })
 
   it('ends the requests the worker still owes, so the page stops being busy', () => {
     const { result } = setup(SIGNED_OUT)
+    act(() => worker().reply({ type: 'state', state: STATE }))
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(true)
 
     act(() => result.current.stop())
+    // The replacement worker only reloads the device library, which does not hold the page busy.
+    expect(worker().posted).toEqual([{ type: 'loadDevice', settings: SETTINGS }])
     expect(result.current.busy).toBe(false)
   })
 

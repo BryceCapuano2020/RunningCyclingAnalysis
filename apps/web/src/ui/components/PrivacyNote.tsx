@@ -13,7 +13,9 @@ function privacyText(
   keepFiles: boolean,
   fileRetentionAvailable: boolean,
 ): string {
-  if (!signedIn) return 'Nothing is uploaded. Files are read and analysed in your browser only.'
+  if (!signedIn) {
+    return 'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.'
+  }
   if (!fileRetentionAvailable) {
     return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files stay on this device; existing saved originals are not deleted. Analysis runs in your browser.'
   }

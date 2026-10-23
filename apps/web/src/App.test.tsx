@@ -192,12 +192,12 @@ describe('signed-in and unavailable library', () => {
     expect(screen.getByText(/Activity summaries are saved to your library/)).toBeInTheDocument()
   })
 
-  it('says the library is unavailable and that nothing is saved', () => {
+  it('says sign-in is unavailable and that results are kept in this browser', () => {
     setAccount('unavailable')
     render(<App />)
     expect(
       screen.getByText(
-        'Your library is unavailable right now. Analysis still runs in your browser and nothing is being saved.',
+        'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.',
       ),
     ).toBeInTheDocument()
   })

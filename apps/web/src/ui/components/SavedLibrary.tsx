@@ -15,6 +15,9 @@ export interface SavedLibraryActivity {
   sport: 'run' | 'ride'
 }
 
+/** The signed-in account's library, or the activities kept in this browser when signed out. */
+export type SavedScope = 'account' | 'device'
+
 export interface SavedLibraryProps {
   activities: SavedLibraryActivity[]
   busy: boolean
@@ -25,6 +28,15 @@ export interface SavedLibraryProps {
   error: string | null
   /** Stored activities the server could not read, so they are not listed. */
   unreadable?: number
+  scope?: SavedScope
+}
+
+/** What a delete removes. Only the account keeps original files; this browser keeps summaries. */
+const DELETE_NOTE: Record<SavedScope, string> = {
+  account:
+    'This permanently deletes the activity’s original file and saved summary. This cannot be undone.',
+  device:
+    'This permanently deletes the activity’s summary kept in this browser. This cannot be undone.',
 }
 
 /** The note on stored activities the server could not read, singular or plural. */
@@ -40,6 +52,7 @@ export function SavedLibrary({
   status,
   error,
   unreadable = 0,
+  scope = 'account',
 }: SavedLibraryProps) {
   const [selected, setSelected] = useState<SavedLibraryActivity | null>(null)
   const regionRef = useRef<HTMLDivElement>(null)
@@ -103,6 +116,7 @@ export function SavedLibrary({
         <DeleteConfirmation
           key={confirming.id}
           name={confirming.name}
+          description={DELETE_NOTE[scope]}
           busy={busy}
           onCancel={closeConfirmation}
           onConfirm={confirmDelete}

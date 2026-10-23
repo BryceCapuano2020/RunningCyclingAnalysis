@@ -5,6 +5,7 @@ import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { makeResult } from '../components/fixtures'
+import type { SavedActivity } from '../../worker/protocol'
 import type { ProfilePageProps } from './ProfilePage'
 import { ProfilePage } from './ProfilePage'
 
@@ -13,6 +14,12 @@ afterEach(() => {
 })
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
+const KEPT_RUN: SavedActivity = {
+  id: 'run-1',
+  name: 'Morning run',
+  startMs: new Date(2026, 9, 20, 12).getTime(),
+  sport: 'run',
+}
 
 /** Renders the profile with a signed-out visitor by default, and returns the two callbacks. */
 function renderProfile(
@@ -153,13 +160,73 @@ describe('ProfilePage saved library', () => {
     expect(screen.queryByRole('region', { name: 'Saved library' })).not.toBeInTheDocument()
   })
 
-  it('does not show it to a signed-out visitor', () => {
+  it('does not show the signed-in library to a signed-out visitor', () => {
+    renderProfile({}, { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] })
+    expect(screen.queryByRole('heading', { name: 'Saved library' })).not.toBeInTheDocument()
+  })
+
+  it('shows the signed-in library under its own heading, with the account wording', () => {
+    renderProfile({ signedIn: true }, { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] })
+
+    expect(screen.getByRole('heading', { name: 'Saved library' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Kept in this browser' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
+      /permanently deletes the activity’s original file and saved summary/,
+    )
+  })
+})
+
+describe('ProfilePage kept in this browser', () => {
+  it('lists the activities kept in this browser to a signed-out visitor, with a note', () => {
+    renderProfile({}, { savedActivities: [KEPT_RUN] })
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Kept in this browser' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Anyone using this browser can see these. Start over removes them all.'),
+    ).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Kept in this browser' })
+    expect(
+      within(section).getByRole('button', { name: /^Delete Morning run, Run, / }),
+    ).toBeVisible()
+  })
+
+  it('is not shown when no activities are kept in this browser', () => {
     renderProfile({}, { libraryStatus: 'loaded' })
-    expect(screen.queryByRole('region', { name: 'Saved library' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Kept in this browser' })).not.toBeInTheDocument()
+  })
+
+  it('words the delete confirmation for the summary kept in this browser', () => {
+    renderProfile({}, { savedActivities: [KEPT_RUN] })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
+
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
+      /permanently deletes the activity’s summary kept in this browser/,
+    )
+  })
+
+  it('deletes the kept activity that was chosen', () => {
+    const deleteActivity = vi.fn()
+    renderProfile({}, { savedActivities: [KEPT_RUN], deleteActivity })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(deleteActivity).toHaveBeenCalledWith('run-1')
   })
 })
 
 describe('ProfilePage start over', () => {
+  it('says that Start over removes the activities kept in this browser', () => {
+    renderProfile({}, { state: { result: makeResult() } })
+    expect(
+      screen.getByText('Removes the activities kept in this browser so you can start again.'),
+    ).toBeInTheDocument()
+  })
+
   it('hands over to the app when a signed-out visitor with a result starts over', () => {
     const { onStartOver } = renderProfile({}, { state: { result: makeResult() } })
 
@@ -188,7 +255,9 @@ describe('ProfilePage privacy note', () => {
   it('says nothing is uploaded to a signed-out visitor', () => {
     renderProfile()
     expect(
-      screen.getByText('Nothing is uploaded. Files are read and analysed in your browser only.'),
+      screen.getByText(
+        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.',
+      ),
     ).toBeInTheDocument()
   })
 
