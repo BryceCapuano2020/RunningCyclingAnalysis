@@ -4,7 +4,15 @@ import { getMe, updateProfile, uploadFile } from './client'
 
 const ME = {
   user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
-  profile: { massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles: true, updatedAt: 1000 },
+  profile: {
+    massKg: 75,
+    bikeMassKg: 9,
+    units: 'metric',
+    keepFiles: true,
+    birthYear: null,
+    sex: null,
+    updatedAt: 1000,
+  },
 }
 
 const PROFILE_INPUT = { massKg: 80, bikeMassKg: 10, units: 'imperial', keepFiles: false } as const

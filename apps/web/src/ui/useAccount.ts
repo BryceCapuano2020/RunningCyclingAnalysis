@@ -18,10 +18,11 @@ export interface AccountController {
   /** Rejects with the failure as well as setting `error`, so the caller can keep its dialog open. */
   deleteAccount: () => Promise<void>
   /**
-   * Saves the given fields, merged onto the latest saved profile. Rejects with the failure, and
-   * `error` is set, so the caller can show it.
+   * Saves the given fields, merged onto the latest saved profile. Resolves with the profile the
+   * server stored. Rejects with the failure, and `error` is set, so the caller can show it. It also
+   * rejects when nobody is signed in or the sign-out has begun, rather than pretending to save.
    */
-  updateProfile: (patch: Partial<ProfileInput>) => Promise<void>
+  updateProfile: (patch: Partial<ProfileInput>) => Promise<Profile>
   /** Ends the session after the server refused it. Does not call the server. */
   markExpired: () => void
   /** Fetches the server's current account and adopts it. Rejects when the server cannot be reached. */
@@ -41,14 +42,21 @@ function isUnauthenticated(failure: unknown): boolean {
   return failure instanceof ApiRequestError && failure.status === 401
 }
 
-/** The saved profile with only the given fields changed. */
+/**
+ * The saved profile with only the given fields changed. The settings are always sent, with their
+ * saved values standing in. The optional year of birth and sex are sent only when the patch sets
+ * them, so a write that does not mention them leaves the server's values alone.
+ */
 function mergeProfile(saved: Profile, patch: Partial<ProfileInput>): ProfileInput {
-  return {
+  const fields: ProfileInput = {
     massKg: patch.massKg ?? saved.massKg,
     bikeMassKg: patch.bikeMassKg ?? saved.bikeMassKg,
     units: patch.units ?? saved.units,
     keepFiles: patch.keepFiles ?? saved.keepFiles,
   }
+  if (patch.birthYear !== undefined) fields.birthYear = patch.birthYear
+  if (patch.sex !== undefined) fields.sex = patch.sex
+  return fields
 }
 
 /**
@@ -63,7 +71,7 @@ export function useAccount(): AccountController {
   const meRef = useRef<Me | null>(null)
   const profileWriteFailureRef = useRef<unknown>(null)
   // Profile writes replace the whole profile on the server, so keep them in call order.
-  const profileWritesRef = useRef<Promise<void>>(Promise.resolve())
+  const profileWritesRef = useRef<Promise<unknown>>(Promise.resolve())
   const endingSessionRef = useRef(false)
 
   /** Adopts the server's view of the account. A saved view supersedes a failed write. */
@@ -175,10 +183,16 @@ export function useAccount(): AccountController {
   }, [me])
 
   const updateProfile = useCallback(
-    async (patch: Partial<ProfileInput>) => {
+    async (patch: Partial<ProfileInput>): Promise<Profile> => {
       const userId = meRef.current?.user.id
-      if (endingSessionRef.current || userId === undefined) return
-      const write = profileWritesRef.current.then(async () => {
+      if (endingSessionRef.current) {
+        setError('This change was not saved, because the account is being signed out or deleted.')
+        throw new ApiRequestError(401, 'unauthenticated', 'Sign in required')
+      }
+      if (userId === undefined) {
+        throw new ApiRequestError(401, 'unauthenticated', 'Sign in required')
+      }
+      const write = profileWritesRef.current.then(async (): Promise<Profile> => {
         try {
           // Read the saved profile right before writing, so a change made in another tab survives.
           const latest = await api.getMe()
@@ -195,6 +209,7 @@ export function useAccount(): AccountController {
             setMe(updated)
           }
           setError(null)
+          return profile
         } catch (failure) {
           profileWriteFailureRef.current = failure
           setError(messageOf(failure))
@@ -209,7 +224,7 @@ export function useAccount(): AccountController {
       })
       // Keep the queue usable after a failed write while returning that failure to the caller.
       profileWritesRef.current = write.catch(() => undefined)
-      await write
+      return write
     },
     [expireSession, refresh],
   )

@@ -74,7 +74,15 @@ describe('GET /api/me', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       user: { id: expect.any(String), email: 'rider@example.com', name: 'Rider', pictureUrl: null },
-      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false, updatedAt: START },
+      profile: {
+        massKg: 75,
+        bikeMassKg: 9,
+        units: 'imperial',
+        keepFiles: false,
+        birthYear: null,
+        sex: null,
+        updatedAt: START,
+      },
       fileRetentionAvailable: true,
     })
   })
@@ -205,10 +213,15 @@ describe('PUT /api/profile', () => {
       cookies: { rca_session: token },
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ ...profileInput, updatedAt: START + 5_000 })
+    expect(await res.json()).toEqual({
+      ...profileInput,
+      birthYear: null,
+      sex: null,
+      updatedAt: START + 5_000,
+    })
     const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
     expect(await me.json()).toMatchObject({
-      profile: { ...profileInput, updatedAt: START + 5_000 },
+      profile: { ...profileInput, birthYear: null, sex: null, updatedAt: START + 5_000 },
     })
   })
 
@@ -255,6 +268,12 @@ describe('PUT /api/profile', () => {
       { units: 'furlongs' },
       { keepFiles: 'yes' },
       { massKg: undefined },
+      { birthYear: 1899 },
+      { birthYear: 2101 },
+      { birthYear: 1985.5 },
+      { birthYear: '1985' },
+      { sex: 'other' },
+      { sex: 'Female' },
     ]
     for (const override of bad) {
       const res = await h.send({

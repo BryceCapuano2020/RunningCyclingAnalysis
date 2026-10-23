@@ -58,7 +58,15 @@ const STATE = {
 function me(id: string): Me {
   return {
     user: { id, email: `${id}@example.com`, name: id, pictureUrl: null },
-    profile: { massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles: true, updatedAt: 1000 },
+    profile: {
+      massKg: 75,
+      bikeMassKg: 9,
+      units: 'metric',
+      keepFiles: true,
+      birthYear: null,
+      sex: null,
+      updatedAt: 1000,
+    },
   }
 }
 

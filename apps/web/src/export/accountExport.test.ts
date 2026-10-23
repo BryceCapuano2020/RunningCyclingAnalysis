@@ -28,6 +28,8 @@ const PROFILE: Profile = {
   bikeMassKg: 9,
   units: 'metric',
   keepFiles: true,
+  birthYear: 1990,
+  sex: 'female',
   updatedAt: 1000,
 }
 const NOW = new Date('2026-10-23T12:34:56.000Z')
@@ -81,8 +83,16 @@ describe('buildAccountExport', () => {
       'bikeMassKg',
       'units',
       'keepFiles',
+      'birthYear',
+      'sex',
       'updatedAt',
     ])
+  })
+
+  it('includes the optional year of birth and sex, as null when they were never given', () => {
+    const doc = build({ profile: { ...PROFILE, birthYear: null, sex: null } })
+    expect(doc.profile).toMatchObject({ birthYear: null, sex: null })
+    expect(build().profile).toMatchObject({ birthYear: 1990, sex: 'female' })
   })
 
   it('lists each activity with its fields in a fixed order and its stored digest', () => {

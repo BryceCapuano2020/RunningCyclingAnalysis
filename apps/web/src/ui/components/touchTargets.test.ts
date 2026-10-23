@@ -6,6 +6,7 @@ const STANDARD_PX = 40
 const sheets = {
   accountMenu: await readStylesheet(import.meta.url, './AccountMenu.css'),
   deleteDialog: await readStylesheet(import.meta.url, './DeleteAccountDialog.css'),
+  numberField: await readStylesheet(import.meta.url, './NumberField.css'),
   googleSignIn: await readStylesheet(import.meta.url, './GoogleSignInButton.css'),
   segmentedControl: await readStylesheet(import.meta.url, './SegmentedControl.css'),
   button: await readStylesheet(import.meta.url, '../../styles/components.css'),
@@ -29,6 +30,7 @@ describe('interactive targets', () => {
     ['account menu item', sheets.accountMenu, '.account-menu__item'],
     ['segmented option', sheets.segmentedControl, '.segmented-control__option'],
     ['delete email field', sheets.deleteDialog, '.delete-dialog__input'],
+    ['number field', sheets.numberField, '.number-field__input input'],
     ['button', sheets.button, '.btn'],
     ['disclosure summary', sheets.summary, 'summary'],
   ])('%s is at least 40 px tall', (_name, css, selector) => {

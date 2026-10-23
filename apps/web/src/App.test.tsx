@@ -138,6 +138,32 @@ describe('profile persistence', () => {
     expect(updateProfile).toHaveBeenNthCalledWith(2, { units: 'imperial' })
   })
 
+  it('mirrors a signed-in edit into the saved preferences, so signing out shows it', async () => {
+    setAccount('signed-in', { units: 'metric' })
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+
+    await waitFor(() =>
+      expect(setPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({ sex: 'male', units: 'metric' }),
+      ),
+    )
+    expect(updateProfile).toHaveBeenCalledWith({ sex: 'male' })
+  })
+
+  it('does not mirror an edit the account refused', async () => {
+    setAccount('signed-in', { units: 'metric' })
+    updateProfile.mockRejectedValueOnce(new Error('offline'))
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(setPreferences).not.toHaveBeenCalled()
+  })
+
   it('keeps a signed-out visitor’s edits on this device instead of saving them', () => {
     setAccount('signed-out')
     render(<App />)
@@ -145,6 +171,9 @@ describe('profile persistence', () => {
     expect(setPreferences).toHaveBeenCalledWith({
       settings: { massKg: 75, bikeMassKg: 9 },
       units: 'metric',
+      birthYear: null,
+      sex: null,
+      setupDone: false,
     })
     expect(updateProfile).not.toHaveBeenCalled()
   })
@@ -250,6 +279,44 @@ describe('start over', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus(),
     )
+  })
+})
+
+describe('deleting the account', () => {
+  /** Opens the delete dialog from Profile, types the account's email and confirms. */
+  async function confirmDeletion() {
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
+    const dialog = screen.getByRole('dialog', { name: 'Delete your account?' })
+    await user.type(within(dialog).getByLabelText('Email address'), 'ada@example.com')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete account' }))
+  }
+
+  it('returns to the landing page once the account is gone', async () => {
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+
+    await confirmDeletion()
+
+    await waitFor(() => expect(window.location.hash).toBe('#/'))
+    expect(await screen.findByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+  })
+
+  it('stays on the profile page when the account could not be deleted', async () => {
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => {
+      throw new Error('Busy')
+    })
+    render(<App />)
+
+    await confirmDeletion()
+
+    expect(
+      await screen.findByText('Your account could not be deleted. Try again.'),
+    ).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/profile')
+    expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument()
   })
 })
 

@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Me } from '@rca/contract'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveAccountExport } from '../../export/saveExport'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountMenu } from './AccountMenu'
 import type { AccountMenuProps } from './AccountMenu'
-
-vi.mock('../../export/saveExport', () => ({ saveAccountExport: vi.fn() }))
 
 afterEach(() => {
   cleanup()
@@ -29,6 +26,8 @@ function makeMe(overrides: Partial<Me['user']> = {}): Me {
       bikeMassKg: 10,
       units: 'metric',
       keepFiles: true,
+      birthYear: null,
+      sex: null,
       updatedAt: 1,
     },
   }
@@ -40,7 +39,6 @@ function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
     me: makeMe(),
     onSignIn: vi.fn(),
     onSignOut: vi.fn(),
-    onDeleteAccount: vi.fn(async () => {}),
     ...overrides,
   }
 }
@@ -141,25 +139,24 @@ describe('AccountMenu disclosure', () => {
     expect(panel(container)).not.toBeVisible()
   })
 
-  it('lists the email as muted text, with sign out and delete account', async () => {
+  it('lists the email as muted text and sign out, and nothing else', async () => {
     const user = userEvent.setup()
     const { container } = renderMenu()
     await user.click(trigger())
     const body = panel(container)
-    expect(body).toHaveTextContent(EMAIL)
     expect(body.querySelector('.account-menu__email')).toHaveTextContent(EMAIL)
+    expect(screen.queryByRole('link', { name: 'Profile' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Delete account…' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Download my data' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete account…' })).not.toBeInTheDocument()
   })
 
-  it('moves focus through the items with Tab and closes on Escape, returning focus to the trigger', async () => {
+  it('moves focus to Sign out with Tab, and closes on Escape to the trigger', async () => {
     const user = userEvent.setup()
     const { container } = renderMenu()
     await user.click(trigger())
     await user.tab()
     expect(screen.getByRole('button', { name: 'Sign out' })).toHaveFocus()
-    await user.tab()
-    expect(screen.getByRole('button', { name: 'Delete account…' })).toHaveFocus()
 
     await user.keyboard('{Escape}')
     expect(panel(container)).not.toBeVisible()
@@ -232,7 +229,6 @@ describe('AccountMenu disclosure', () => {
     await user.click(trigger())
     await user.tab()
     await user.tab()
-    await user.tab()
     expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
     expect(panel(container)).not.toBeVisible()
   })
@@ -257,62 +253,6 @@ describe('AccountMenu actions', () => {
     expect(panel(container)).not.toBeVisible()
   })
 
-  it('opens the delete dialog from the menu and closes the menu', async () => {
-    const user = userEvent.setup()
-    const { container } = renderMenu()
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    expect(panel(container)).not.toBeVisible()
-    expect(screen.getByRole('dialog', { name: 'Delete your account?' })).toBeInTheDocument()
-  })
-
-  it('deletes the account after the email is typed, then returns focus to the trigger', async () => {
-    const user = userEvent.setup()
-    const onDeleteAccount = vi.fn(async () => {})
-    renderMenu({ onDeleteAccount })
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    await user.type(screen.getByLabelText('Email address'), EMAIL)
-    await user.click(screen.getByRole('button', { name: 'Delete account' }))
-
-    expect(onDeleteAccount).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(trigger()).toHaveFocus())
-    expect(document.querySelector('dialog')).not.toHaveAttribute('open')
-  })
-
-  it('closes the delete dialog with Cancel and returns focus to the trigger', async () => {
-    const user = userEvent.setup()
-    const onDeleteAccount = vi.fn(async () => {})
-    renderMenu({ onDeleteAccount })
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(onDeleteAccount).not.toHaveBeenCalled()
-    expect(document.querySelector('dialog')).not.toHaveAttribute('open')
-    expect(trigger()).toHaveFocus()
-  })
-
-  it('moves focus to the trigger only after the delete dialog has closed', async () => {
-    const user = userEvent.setup()
-    renderMenu()
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    const dialog = document.querySelector('dialog')
-    if (dialog === null) throw new Error('no delete dialog')
-    // A modal dialog makes the page inert until it closes, so focus sent while it is open is lost.
-    const control = trigger()
-    const focusControl = control.focus.bind(control)
-    const focusedWhileOpen: boolean[] = []
-    vi.spyOn(control, 'focus').mockImplementation(() => {
-      if (dialog.hasAttribute('open')) focusedWhileOpen.push(true)
-      focusControl()
-    })
-
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(focusedWhileOpen).toEqual([])
-    expect(trigger()).toHaveFocus()
-  })
-
   it('replaces the menu with the sign-in button when the status changes to signed-out', async () => {
     const user = userEvent.setup()
     const { container, rerender } = renderMenu()
@@ -334,148 +274,9 @@ describe('AccountMenu actions', () => {
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).toHaveFocus()
   })
 
-  it('moves focus to the sign-in button after a successful delete', async () => {
-    const user = userEvent.setup()
-    const onDeleteAccount = vi.fn(async () => {})
-    const { rerender } = renderMenu({ onDeleteAccount })
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    await user.type(screen.getByLabelText('Email address'), EMAIL)
-    await user.click(screen.getByRole('button', { name: 'Delete account' }))
-    expect(onDeleteAccount).toHaveBeenCalledTimes(1)
-
-    rerender(<AccountMenu {...props({ status: 'signed-out', me: null, onDeleteAccount })} />)
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Sign in with Google' })).toHaveFocus(),
-    )
-  })
-
   it('does not move focus when the session is still loading', () => {
     const { rerender } = renderMenu({ status: 'loading', me: null })
     rerender(<AccountMenu {...props({ status: 'signed-out', me: null })} />)
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).not.toHaveFocus()
-  })
-})
-
-describe('AccountMenu data download', () => {
-  const DOWNLOAD = 'Download my data'
-  const FILE = new Blob(['{"format":"rca-export"}'], { type: 'application/json' })
-
-  beforeEach(() => {
-    vi.mocked(saveAccountExport).mockClear()
-  })
-
-  it('offers Download my data in the open menu when there is an export to run', async () => {
-    const user = userEvent.setup()
-    renderMenu({ onDownloadData: vi.fn(async () => FILE) })
-    await user.click(trigger())
-    expect(screen.getByRole('button', { name: DOWNLOAD })).not.toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
-  })
-
-  it('leaves the item out when the menu has no export to run', async () => {
-    const user = userEvent.setup()
-    renderMenu()
-    await user.click(trigger())
-    expect(screen.queryByRole('button', { name: DOWNLOAD })).not.toBeInTheDocument()
-  })
-
-  it('marks the item busy while the export is in flight, then saves the file and says so', async () => {
-    const user = userEvent.setup()
-    let finish: (file: Blob) => void = () => undefined
-    const onDownloadData = vi.fn(
-      () =>
-        new Promise<Blob>((resolve) => {
-          finish = resolve
-        }),
-    )
-    renderMenu({ onDownloadData })
-    await user.click(trigger())
-    const item = screen.getByRole('button', { name: DOWNLOAD })
-    await user.click(item)
-
-    expect(onDownloadData).toHaveBeenCalledTimes(1)
-    expect(item).toHaveAttribute('aria-disabled', 'true')
-    expect(saveAccountExport).not.toHaveBeenCalled()
-
-    await act(async () => finish(FILE))
-    await waitFor(() => expect(item).not.toHaveAttribute('aria-disabled', 'true'))
-    expect(saveAccountExport).toHaveBeenCalledWith(FILE, expect.any(Date))
-    expect(screen.getByRole('status')).toHaveTextContent('Your data was downloaded')
-  })
-
-  it('keeps keyboard focus on the item while the export is in flight', async () => {
-    const user = userEvent.setup()
-    const onDownloadData = vi.fn(() => new Promise<Blob>(() => undefined))
-    renderMenu({ onDownloadData })
-    await user.click(trigger())
-    const item = screen.getByRole('button', { name: DOWNLOAD })
-    await user.click(item)
-
-    expect(item).toHaveAttribute('aria-disabled', 'true')
-    expect(item).toHaveFocus()
-  })
-
-  it('starts one export for a double click', async () => {
-    const user = userEvent.setup()
-    let finish: (file: Blob) => void = () => undefined
-    const onDownloadData = vi.fn(
-      () =>
-        new Promise<Blob>((resolve) => {
-          finish = resolve
-        }),
-    )
-    renderMenu({ onDownloadData })
-    await user.click(trigger())
-    await user.dblClick(screen.getByRole('button', { name: DOWNLOAD }))
-
-    expect(onDownloadData).toHaveBeenCalledTimes(1)
-    await act(async () => finish(FILE))
-    await waitFor(() => expect(saveAccountExport).toHaveBeenCalledTimes(1))
-  })
-
-  it('keeps the export status outside the menu, so a closed menu still shows the result', async () => {
-    const user = userEvent.setup()
-    let finish: (file: Blob) => void = () => undefined
-    const onDownloadData = vi.fn(
-      () =>
-        new Promise<Blob>((resolve) => {
-          finish = resolve
-        }),
-    )
-    renderMenu({ onDownloadData })
-    // Mounted with the menu closed, so the message is announced when it arrives.
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
-
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: DOWNLOAD }))
-    await user.keyboard('{Escape}')
-    expect(screen.queryByRole('button', { name: DOWNLOAD })).not.toBeInTheDocument()
-
-    await act(async () => finish(FILE))
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Your data was downloaded'),
-    )
-  })
-
-  it('announces a failed export, saves nothing and makes the item available again', async () => {
-    const user = userEvent.setup()
-    const onDownloadData = vi.fn(async () => {
-      throw new Error('Could not download your data. Offline')
-    })
-    renderMenu({ onDownloadData })
-    await user.click(trigger())
-    await user.click(screen.getByRole('button', { name: DOWNLOAD }))
-
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Could not download your data. Offline'),
-    )
-    expect(saveAccountExport).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: DOWNLOAD })).not.toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
   })
 })

@@ -1,44 +1,73 @@
+import { useState } from 'react'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import type { Sex } from '@rca/contract'
 import { PrivacyNote, SegmentedControl, SettingsBar } from '../components'
-import type { AnalysisController } from '../useAnalysis'
+import { AccountSection } from '../components/AccountSection'
+import { AthleteFields } from '../components/AthleteFields'
 import { FileRetention } from '../components/FileRetention'
-import type { ProfilePatch } from '../profilePatch'
 import { SavedLibraryCard } from '../components/SavedLibraryCard'
+import { UNIT_OPTIONS, displayBirthYear, readBirthYear } from '../athlete'
+import type { AnalysisController } from '../useAnalysis'
+import type { ProfilePatch } from '../profilePatch'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 export interface ProfilePageProps {
   analysis: AnalysisController
   settings: AthleteSettings
   units: UnitSystem
+  birthYear: number | null
+  sex: Sex | null
   signedIn: boolean
   /** Accounts are available on this deployment, so sign-in can be offered. */
   accountsAvailable: boolean
+  /** The signed-in account's email, or null when signed out. */
+  email: string | null
   keepFiles: boolean
   fileRetentionAvailable: boolean
   onSaveProfile: (next: ProfilePatch) => void
+  /** Resolves with the account's data as a JSON file. Used only when signed in. */
+  onDownloadData: () => Promise<Blob>
+  /** Resolves when the account is gone. Used only when signed in. */
+  onDeleteAccount: () => Promise<void>
   /** Clears the analysis; the app then returns to the landing page. */
   onStartOver: () => void
 }
 
-const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
-  { value: 'imperial', label: 'Imperial' },
-  { value: 'metric', label: 'Metric' },
-]
-
-/** The settings you set once: weights, units, account, library and what is kept. */
+/** The settings you set once: weights, units, athlete details, account, library and what is kept. */
 export function ProfilePage({
   analysis,
   settings,
   units,
+  birthYear,
+  sex,
   signedIn,
   accountsAvailable,
+  email,
   keepFiles,
   fileRetentionAvailable,
   onSaveProfile,
+  onDownloadData,
+  onDeleteAccount,
   onStartOver,
 }: ProfilePageProps) {
+  // The year as typed. Null means the field shows the saved year; it is saved when left.
+  const [yearDraft, setYearDraft] = useState<string | null>(null)
+  const [yearError, setYearError] = useState<string | null>(null)
   const canStartOver = !signedIn && analysis.state.result !== null
+
+  function commitYear() {
+    if (yearDraft === null) return
+    const read = readBirthYear(yearDraft)
+    if ('error' in read) {
+      setYearError(read.error)
+      return
+    }
+    setYearDraft(null)
+    setYearError(null)
+    if (read.year !== birthYear) onSaveProfile({ birthYear: read.year })
+  }
+
   return (
     <div className="page-stack">
       <div className="page-head">
@@ -54,6 +83,17 @@ export function ProfilePage({
           units={units}
           onChange={(next) => onSaveProfile({ settings: next })}
         />
+        <AthleteFields
+          birthYear={yearDraft ?? displayBirthYear(birthYear)}
+          birthYearError={yearError}
+          sex={sex}
+          onBirthYearChange={(text) => {
+            setYearError(null)
+            setYearDraft(text)
+          }}
+          onBirthYearCommit={commitYear}
+          onSexChange={(next) => onSaveProfile({ sex: next })}
+        />
       </section>
 
       <section className="section" aria-labelledby="profile-units">
@@ -67,15 +107,23 @@ export function ProfilePage({
         />
       </section>
 
-      {!signedIn && accountsAvailable && (
-        <section className="section" aria-labelledby="profile-account">
-          <h2 id="profile-account">Account</h2>
-          <p className="secondary">
-            Sign in with Google, at the top of the page, to keep your library on any device.
-            Analysis still runs in your browser. Activity summaries are saved to your private
-            account, original files too if you choose, and you can delete everything at any time.
-          </p>
-        </section>
+      {email !== null ? (
+        <AccountSection
+          email={email}
+          onDownloadData={onDownloadData}
+          onDeleteAccount={onDeleteAccount}
+        />
+      ) : (
+        accountsAvailable && (
+          <section className="section" aria-labelledby="profile-account">
+            <h2 id="profile-account">Account</h2>
+            <p className="secondary">
+              Sign in with Google, at the top of the page, to keep your library on any device.
+              Analysis still runs in your browser. Activity summaries are saved to your private
+              account, original files too if you choose, and you can delete everything at any time.
+            </p>
+          </section>
+        )
       )}
 
       {signedIn && (

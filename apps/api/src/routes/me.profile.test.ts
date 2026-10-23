@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHarness, testEnv } from '../test/harness.ts'
+import { createHarness, START, testEnv } from '../test/harness.ts'
 
 const PROFILE = { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false }
 
@@ -77,5 +77,144 @@ describe('PUT /api/profile body limit', () => {
     })
     expect(res.status).toBe(413)
     expect(await res.json()).toMatchObject({ error: { code: 'payload_too_large' } })
+  })
+})
+
+describe('PUT /api/profile age and sex', () => {
+  it('writes year of birth and sex when they are sent', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 1975, sex: 'male' },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ birthYear: 1975, sex: 'male' })
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({ profile: { birthYear: 1975, sex: 'male' } })
+  })
+
+  it('keeps saved year of birth and sex when a save leaves them out', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 1990, sex: 'female' },
+      cookies: { rca_session: token },
+    })
+    h.clock.now += 1_000
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, massKg: 81 },
+      cookies: { rca_session: token },
+    })
+    expect(await res.json()).toEqual({
+      ...PROFILE,
+      massKg: 81,
+      birthYear: 1990,
+      sex: 'female',
+      updatedAt: START + 1_000,
+    })
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({
+      profile: { massKg: 81, birthYear: 1990, sex: 'female' },
+    })
+  })
+
+  it('clears saved year of birth and sex when they are sent as null', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 1990, sex: 'female' },
+      cookies: { rca_session: token },
+    })
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: null, sex: null },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ birthYear: null, sex: null })
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({ profile: { birthYear: null, sex: null } })
+  })
+
+  it('keeps the year of birth when a save sends only sex, and the sex when it sends only the year', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 1990, sex: 'female' },
+      cookies: { rca_session: token },
+    })
+
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, sex: 'male' },
+      cookies: { rca_session: token },
+    })
+    const afterSex = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await afterSex.json()).toMatchObject({ profile: { birthYear: 1990, sex: 'male' } })
+
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 1985 },
+      cookies: { rca_session: token },
+    })
+    const afterYear = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await afterYear.json()).toMatchObject({ profile: { birthYear: 1985, sex: 'male' } })
+  })
+
+  it('leaves the saved profile unchanged when a save is refused for an invalid year or sex', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 1990, sex: 'female' },
+      cookies: { rca_session: token },
+    })
+
+    for (const rejected of [
+      { ...PROFILE, massKg: 90, birthYear: 1800 },
+      { ...PROFILE, massKg: 90, sex: 'other' },
+    ]) {
+      const res = await h.send({
+        method: 'PUT',
+        path: '/api/profile',
+        json: rejected,
+        cookies: { rca_session: token },
+      })
+      expect(res.status).toBe(400)
+    }
+
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({
+      profile: { ...PROFILE, birthYear: 1990, sex: 'female' },
+    })
+  })
+
+  it('inserts a new profile with the year of birth and sex it was sent', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.env.DB.prepare('DELETE FROM profiles').run()
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...PROFILE, birthYear: 2001, sex: 'male' },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ birthYear: 2001, sex: 'male' })
   })
 })

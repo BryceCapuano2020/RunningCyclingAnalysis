@@ -1116,6 +1116,8 @@ describe('account export', () => {
     bikeMassKg: 9,
     units: 'metric' as const,
     keepFiles: false,
+    birthYear: null,
+    sex: null,
     updatedAt: 1000,
   }
   const REQUEST = {

@@ -12,6 +12,7 @@ import {
   ApiErrorSchema,
   DevLoginSchema,
   ProfileInputSchema,
+  ProfileSchema,
   StoredActivityDigestSchema,
   UserSchema,
 } from './index.ts'
@@ -323,6 +324,58 @@ describe('ProfileInputSchema', () => {
   it('rejects NaN and unknown units', () => {
     expect(ProfileInputSchema.safeParse({ ...valid, massKg: Number.NaN }).success).toBe(false)
     expect(ProfileInputSchema.safeParse({ ...valid, units: 'stone' }).success).toBe(false)
+  })
+
+  it('leaves year of birth and sex out of the parsed value when they are omitted', () => {
+    const parsed = ProfileInputSchema.parse(valid)
+    expect(parsed).not.toHaveProperty('birthYear')
+    expect(parsed).not.toHaveProperty('sex')
+  })
+
+  it('treats null as clearing year of birth and sex', () => {
+    expect(ProfileInputSchema.parse({ ...valid, birthYear: null, sex: null })).toMatchObject({
+      birthYear: null,
+      sex: null,
+    })
+    expect(ProfileInputSchema.parse({ ...valid, birthYear: 1985, sex: 'female' })).toMatchObject({
+      birthYear: 1985,
+      sex: 'female',
+    })
+  })
+
+  it('accepts the year bounds and rejects years outside them or not whole', () => {
+    for (const birthYear of [1900, 2100]) {
+      expect(ProfileInputSchema.safeParse({ ...valid, birthYear }).success).toBe(true)
+    }
+    for (const birthYear of [1899, 2101, 1985.5, Number.NaN, '1985']) {
+      expect(ProfileInputSchema.safeParse({ ...valid, birthYear }).success, String(birthYear)).toBe(
+        false,
+      )
+    }
+  })
+
+  it('accepts only female or male as sex', () => {
+    for (const sex of ['male', 'female']) {
+      expect(ProfileInputSchema.safeParse({ ...valid, sex }).success).toBe(true)
+    }
+    for (const sex of ['other', 'Female', '']) {
+      expect(ProfileInputSchema.safeParse({ ...valid, sex }).success, sex).toBe(false)
+    }
+  })
+})
+
+describe('ProfileSchema', () => {
+  const stored = { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false, updatedAt: 1 }
+
+  it('reads a profile saved before age and sex existed as null for both', () => {
+    expect(ProfileSchema.parse(stored)).toMatchObject({ birthYear: null, sex: null })
+  })
+
+  it('keeps a saved year of birth and sex', () => {
+    expect(ProfileSchema.parse({ ...stored, birthYear: 1972, sex: 'male' })).toMatchObject({
+      birthYear: 1972,
+      sex: 'male',
+    })
   })
 })
 

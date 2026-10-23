@@ -9,10 +9,12 @@ export interface LandingPageProps {
   analysis: AnalysisController
   signedIn: boolean
   units: UnitSystem
+  /** Receives dropped or chosen files. The app asks the setup questions first, when they are due. */
+  onFiles: (files: File[]) => void
 }
 
 /** Shown while there is no result: the promise, the drop target, an example and how it works. */
-export function LandingPage({ analysis, signedIn, units }: LandingPageProps) {
+export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageProps) {
   return (
     <div className="page-stack">
       <section className="app__pitch">
@@ -26,7 +28,7 @@ export function LandingPage({ analysis, signedIn, units }: LandingPageProps) {
       </section>
       <div className="landing__start">
         <Dropzone
-          onFiles={analysis.addFiles}
+          onFiles={onFiles}
           onSample={analysis.loadSample}
           busy={analysis.busy}
           signedIn={signedIn}

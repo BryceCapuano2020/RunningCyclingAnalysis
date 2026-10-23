@@ -72,9 +72,50 @@ export async function openSample(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
 }
 
-/** Sends files to the hidden file input. Works from the landing page and the results page. */
+/**
+ * The setup dialog's name. Its heading is shorter for a returning visitor whose results are kept in
+ * this browser, so either name matches.
+ */
+export const SETUP_DIALOG_NAME = /^(Before your first analysis|A few details)$/
+
+/**
+ * How long an upload waits for the setup dialog. Most uploads do not open it, so the wait is kept
+ * short; a caller that expects the dialog only after a slow account lookup passes a longer one.
+ */
+const SETUP_DIALOG_WAIT_MS = 2_000
+/** Longer than a failed account lookup takes to settle (its retries run for about 14 s). */
+const ACCOUNT_LOOKUP_MS = 20_000
+
+/**
+ * The first import on a device opens the setup dialog once, and holds the files until it is
+ * answered. When the dialog appears, this answers it with the values it shows, so the import goes
+ * on. When it does not appear within the wait, the setup was answered already and there is nothing
+ * to do.
+ */
+export async function completeSetup(
+  page: Page,
+  waitMs: number = SETUP_DIALOG_WAIT_MS,
+): Promise<void> {
+  // The dialog waits for the account to be known. The header's placeholder shows until the lookup
+  // settles, then gives way to the sign-in button, the account menu, or nothing when accounts are
+  // unavailable. A failed lookup takes about 14 s to settle, so the wait allows for that.
+  await expect(page.locator('.account-menu__placeholder')).toHaveCount(0, {
+    timeout: ACCOUNT_LOOKUP_MS,
+  })
+  const dialog = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
+  try {
+    await dialog.waitFor({ state: 'visible', timeout: waitMs })
+  } catch {
+    return
+  }
+  await dialog.getByRole('button', { name: 'Analyse my files' }).click()
+  await expect(dialog).toBeHidden()
+}
+
+/** Sends files to the hidden file input, then answers the setup dialog if the first import asks. */
 export async function uploadFixtures(page: Page, names: string[]): Promise<void> {
   await page.locator('input[type="file"]').first().setInputFiles(names.map(fixturePath))
+  await completeSetup(page)
 }
 
 export async function horizontalOverflow(

@@ -11,6 +11,7 @@ import { HttpError } from '../errors.ts'
 import { currentUser, requireUser, requireUserEvenIfDeleting } from '../middleware.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { hasStoredFiles, sweepUserFiles } from '../storage.ts'
+import { must } from '../util.ts'
 import { activities, profiles } from '../db/schema.ts'
 
 const PROFILE_BODY_BYTES = 4 * 1024
@@ -66,11 +67,14 @@ meRoutes.put(
         .set({ fileKey: null, fileSize: null, fileReservationToken: null })
         .where(eq(activities.userId, userId))
     }
+    // Optional fields that were left out are not in `values`, so an upsert keeps the saved value.
     const values = { ...input, updatedAt }
-    await db
+    const saved = await db
       .insert(profiles)
       .values({ userId, ...values })
       .onConflictDoUpdate({ target: profiles.userId, set: values })
+      .returning()
+      .get()
     if (sweepFiles && bucket) {
       // An upload that passed the keepFiles check before the change can still land its object.
       await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
@@ -84,7 +88,7 @@ meRoutes.put(
           ),
         )
     }
-    return c.json(toProfile({ userId, ...values }), 200)
+    return c.json(toProfile(must(saved, 'profile')), 200)
   },
 )
 

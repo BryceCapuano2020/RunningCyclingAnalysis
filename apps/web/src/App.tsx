@@ -1,14 +1,13 @@
-import type { AthleteSettings } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef, useState } from 'react'
-import type { ProfileInput } from '@rca/contract'
 import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
 import { ImportStatus } from './ui/components/ImportStatus'
+import { SetupDialog } from './ui/components/SetupDialog'
 import { LandingPage } from './ui/pages/LandingPage'
-import { PAGE_HEADING_ID } from './ui/pages/pageHeading'
+import { WAITING_FOR_ACCOUNT } from './ui/analysis/copy'
+import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { ResultPage } from './ui/pages/ResultPage'
 import type { Route } from './ui/route'
@@ -16,17 +15,15 @@ import { hrefFor, useRoute } from './ui/route'
 import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
-import type { ProfilePatch } from './ui/profilePatch'
+import { useSetup } from './ui/useSetup'
+import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
+import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean): string {
   if (route.page === 'profile') return 'profile'
   if (!hasResult) return 'landing'
   return route.page === 'activity' ? `activity:${route.id}` : route.page
-}
-
-function focusPageHeading() {
-  document.getElementById(PAGE_HEADING_ID)?.focus()
 }
 
 /**
@@ -47,33 +44,48 @@ export function App() {
   const signedIn = profile !== null
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
-  const settings: AthleteSettings = profile
-    ? { massKg: profile.massKg, bikeMassKg: profile.bikeMassKg }
-    : preferences.settings
-  const units: UnitSystem = profile ? profile.units : preferences.units
-  const keepFiles = profile?.keepFiles ?? false
-  const saveProfile = (next: ProfilePatch) => {
-    if (profile) {
-      // Only the fields the user changed are sent. The account merges them onto the latest saved
-      // profile, so a change made in another tab is not reverted.
-      const patch: Partial<ProfileInput> = {}
-      if (next.settings) {
-        patch.massKg = next.settings.massKg
-        patch.bikeMassKg = next.settings.bikeMassKg
+  const athlete: AthleteValues = profile
+    ? athleteValuesOf(profile)
+    : {
+        settings: preferences.settings,
+        units: preferences.units,
+        birthYear: preferences.birthYear,
+        sex: preferences.sex,
       }
-      if (next.units !== undefined) patch.units = next.units
-      if (next.keepFiles !== undefined) patch.keepFiles = next.keepFiles
-      // The failure is shown by the account's error message.
-      void account.updateProfile(patch).catch(() => undefined)
-    } else {
-      setPreferences({
-        settings: next.settings ?? preferences.settings,
-        units: next.units ?? preferences.units,
-      })
+  const { settings, units } = athlete
+  const keepFiles = profile?.keepFiles ?? false
+
+  // Keeps the saved preferences showing the athlete's values, so a later sign-out shows them.
+  const keepInPreferences = (values: AthleteValues, setupDone?: boolean) =>
+    setPreferences({ ...values, setupDone: setupDone ?? preferences.setupDone })
+
+  // Saves a change to the athlete. Signed in, the account stores it first, and the preferences then
+  // take the values it stored; signed out, the preferences are the only copy. A refused change
+  // rejects and is not kept anywhere on this device.
+  const saveAnswers = async (next: ProfilePatch) => {
+    const fields = profileFields(next)
+    if (profile === null || Object.keys(fields).length === 0) {
+      keepInPreferences(applyPatch(athlete, next), next.setupDone)
+      return
     }
+    keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
+  }
+  // A refused change is shown by the account's error message.
+  const saveProfile = (next: ProfilePatch) => {
+    void saveAnswers(next).catch(() => undefined)
   }
 
   const analysis = useAnalysis(settings, account)
+  // Called after useAnalysis, so its settings are in place before held files are sent.
+  const setup = useSetup({
+    status: account.status,
+    workerStopped: analysis.workerStopped,
+    preferencesDone: preferences.setupDone,
+    addFiles: analysis.addFiles,
+    save: saveAnswers,
+  })
+  // Files held while the account loads show as waiting: the import cannot start until it is known.
+  const accountWait = account.status === 'loading' && setup.held > 0
   const hasResult = analysis.state.result !== null
   const key = pageKey(route, hasResult)
 
@@ -110,6 +122,13 @@ export function App() {
     }
   }, [hasResult, route.page])
 
+  // Once the account is gone, its Profile page has nothing left to show, so the visitor goes to the
+  // landing page. A failed delete rejects before this line, and the dialog stays open.
+  const deleteAccount = async () => {
+    await account.deleteAccount()
+    window.location.replace(hrefFor({ page: 'balance' }))
+  }
+
   // Stop, restart and retry unmount their own button when they finish. Once that button has gone
   // and focus went with it, focus moves to the page's heading. Focus the user has moved elsewhere
   // is left where it is.
@@ -140,24 +159,22 @@ export function App() {
       <Header
         route={route}
         showTabs={hasResult}
-        addFiles={<AddFilesButton onFiles={analysis.addFiles} primary={hasResult || signedIn} />}
+        addFiles={<AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />}
         account={
           <AccountMenu
             status={account.status}
             me={account.me}
             onSignIn={account.signIn}
             onSignOut={() => void account.signOut().catch(() => undefined)}
-            onDeleteAccount={account.deleteAccount}
-            onDownloadData={analysis.exportData}
           />
         }
       />
       {/* Always mounted, under the header: file drops anywhere, progress and announcements. */}
       <ImportStatus
-        onFiles={analysis.addFiles}
-        busy={analysis.busy}
+        onFiles={setup.requestImport}
+        busy={analysis.busy || accountWait}
         progress={analysis.progress}
-        waiting={analysis.waitingReason}
+        waiting={analysis.waitingReason ?? (accountWait ? WAITING_FOR_ACCOUNT : null)}
         signedIn={signedIn}
         outcome={analysis.importOutcome}
       />
@@ -178,11 +195,16 @@ export function App() {
             analysis={analysis}
             settings={settings}
             units={units}
+            birthYear={athlete.birthYear}
+            sex={athlete.sex}
             signedIn={signedIn}
             accountsAvailable={accountsAvailable}
+            email={account.me?.user.email ?? null}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
             onSaveProfile={saveProfile}
+            onDownloadData={analysis.exportData}
+            onDeleteAccount={deleteAccount}
             onStartOver={startOver}
           />
         ) : analysis.state.result ? (
@@ -194,7 +216,12 @@ export function App() {
             units={units}
           />
         ) : (
-          <LandingPage analysis={analysis} signedIn={signedIn} units={units} />
+          <LandingPage
+            analysis={analysis}
+            signedIn={signedIn}
+            units={units}
+            onFiles={setup.requestImport}
+          />
         )}
       </main>
 
@@ -208,6 +235,16 @@ export function App() {
           <a href="/privacy">Privacy</a>
         </p>
       </footer>
+      {setup.open && (
+        <SetupDialog
+          initial={athlete}
+          saving={setup.saving}
+          error={setup.saveError}
+          returning={!signedIn && hasResult}
+          onConfirm={(patch) => void setup.finish(patch)}
+          onSkip={() => void setup.finish({})}
+        />
+      )}
     </div>
   )
 }
