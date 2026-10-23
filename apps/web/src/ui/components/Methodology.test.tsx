@@ -54,6 +54,17 @@ describe('Methodology', () => {
     expect(body).toHaveTextContent('Short best efforts under about 30 seconds from GPS-only files')
   })
 
+  it('explains the fitness trend: prior means, the headline median, gaps and the library', () => {
+    render(<Methodology />)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Fitness over time' })
+    const body = heading.nextElementSibling
+    expect(body).toHaveTextContent('prior-mean efficiency and running economy')
+    expect(body).toHaveTextContent('median of the model draws')
+    expect(body).toHaveTextContent('no run or ride with a 20-minute value')
+    expect(body).toHaveTextContent('whole library, whatever period is selected')
+    expect(body).toHaveTextContent('bike model is fitted on the whole library')
+  })
+
   it('states the average gross efficiency and the 90% range', () => {
     render(<Methodology />)
     expect(screen.getByText(/about 21\.5%/)).toBeInTheDocument()

@@ -25,6 +25,17 @@ const SECTIONS: Section[] = [
       'every source of sensor error, missing effort, or error in virtual power, and it is not a fitness percentile.',
   },
   {
+    title: 'Fitness over time',
+    body:
+      'Each point is a week ending on a Sunday, in UTC. It takes the best 20-minute energy rate of ' +
+      'each sport in the 42 days up to that week’s end, in gross metabolic W/kg. The trend uses ' +
+      'prior-mean efficiency and running economy. The headline reports the median of the model ' +
+      'draws, which heart-rate calibration can shift, so the two can differ. The model range shown ' +
+      'with the headline is not drawn for each week. A gap means no run or ride with a 20-minute ' +
+      'value in the window. The trend covers the whole library, whatever period is selected, and ' +
+      'the bike model is fitted on the whole library.',
+  },
+  {
     title: 'Heart-rate check',
     body:
       'The model assumes heart rate responds to energy use similarly in both sports. Under that ' +

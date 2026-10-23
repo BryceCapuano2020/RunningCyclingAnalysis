@@ -1,6 +1,12 @@
 import { compareSports, weightedQuantile } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
-import { DURATIONS_S, FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '../constants'
+import {
+  DURATIONS_S,
+  FLAT_RUN_COST,
+  HEADLINE_DURATION_S,
+  PRIORS,
+  RESTING_W_PER_KG,
+} from '../constants'
 import { mergeCurves, monotoneEnvelope } from '../curves'
 import { fitCriticalPower } from '../cp'
 import type { EffortPoint } from '../effort'
@@ -144,6 +150,47 @@ function canonicalOrder(a: ActivityDigest, b: ActivityDigest): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
+/**
+ * The digests of the active model revision, in canonical order. Mixing revisions would combine
+ * stale and current assumptions, so the other revisions are left out everywhere.
+ */
+export function orderedCurrent(digests: ActivityDigest[]): ActivityDigest[] {
+  return digests.filter((digest) => digest.modelRevision === MODEL_REVISION).sort(canonicalOrder)
+}
+
+/** Gross metabolic W/kg of a run curve point at the prior-mean running economy. */
+export function runCentralWkg(point: DigestCurvePoint): number {
+  return point.value
+}
+
+/** Mechanical watts of a ride curve point at total mass totalMassKg, with the fitted bike model. */
+export function rideWattsAt(
+  point: DigestCurvePoint,
+  totalMassKg: number,
+  bikeModel: BikeModel,
+): number {
+  return point.terms === null ? point.value : powerAt(point.terms, totalMassKg, bikeModel)
+}
+
+/** Gross metabolic W/kg for riding at mechanical watts, at the prior-mean efficiency. */
+export function centralWkgFromWatts(watts: number, massKg: number): number {
+  return watts / (PRIORS.grossEfficiency.mean * massKg)
+}
+
+/** The calibration sums of every power-meter ride in ordered, added in that order. */
+export function totalCalibration(ordered: ActivityDigest[]): CalibrationSums {
+  return ordered.reduce(
+    (acc, digest) =>
+      digest.calibration === null ? acc : addCalibrationSums(acc, digest.calibration),
+    emptyCalibrationSums(),
+  )
+}
+
+/** The bike model fitted to total calibration sums, priced at totalMassKg. */
+export function fitBikeModelFor(totalSums: CalibrationSums, totalMassKg: number) {
+  return fitBikeModel(calibrationStatsAt(totalSums, totalMassKg))
+}
+
 /** One activity's curve points, with values already in the units of the combined curve. */
 function candidates(
   digest: ActivityDigest,
@@ -249,45 +296,39 @@ function leaveOneOutAccuracy(
  * bike masses and the efficiency priors enter here, so the work per settings change is small.
  */
 export function combine(digests: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
-  // A digest contains model-dependent derived values. Mixing revisions would combine stale and
-  // current assumptions into one result, so only the active model revision is analysable.
-  const ordered = digests
-    .filter((digest) => digest.modelRevision === MODEL_REVISION)
-    .sort(canonicalOrder)
+  const ordered = orderedCurrent(digests)
   const massKg = settings.massKg
   const totalMassKg = settings.massKg + settings.bikeMassKg
-  const geKg = PRIORS.grossEfficiency.mean * massKg
 
   const calibrated: Calibrated[] = ordered.flatMap((digest) =>
     digest.calibration === null ? [] : [{ digest, sums: digest.calibration }],
   )
-  const totalSums = calibrated.reduce(
-    (acc, c) => addCalibrationSums(acc, c.sums),
-    emptyCalibrationSums(),
-  )
-  const fittedBike = fitBikeModel(calibrationStatsAt(totalSums, totalMassKg))
+  const totalSums = totalCalibration(ordered)
+  const fittedBike = fitBikeModelFor(totalSums, totalMassKg)
   const bikeModel = fittedBike.model
   const virtualAccuracy =
     calibrated.length > 0 ? leaveOneOutAccuracy(calibrated, totalSums, totalMassKg) : null
 
-  const rideWatts = (point: DigestCurvePoint): number =>
-    point.terms === null ? point.value : powerAt(point.terms, totalMassKg, bikeModel)
+  const rideWatts = (point: DigestCurvePoint): number => rideWattsAt(point, totalMassKg, bikeModel)
   const runBest = bestCurve(
-    ordered.filter((d) => d.sport === 'run').map((d) => candidates(d, (p) => p.value)),
+    ordered.filter((d) => d.sport === 'run').map((d) => candidates(d, runCentralWkg)),
   )
   const rideBest = bestCurve(
     ordered.filter((d) => d.sport === 'ride').map((d) => candidates(d, rideWatts)),
   )
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
-  const rideMetabolicCurve = rideCurve.map((p) => ({ ...p, value: p.value / geKg }))
+  const rideMetabolicCurve = rideCurve.map((p) => ({
+    ...p,
+    value: centralWkgFromWatts(p.value, massKg),
+  }))
 
   // Blocks are kept only when their metabolic power is above twice resting. This filter is applied
   // after conversion, so it means the same thing for runs and rides.
   const blockMetabolic = (digest: ActivityDigest, block: DigestHrBlock): number => {
     if (digest.sport === 'run') return block.value
     const watts = block.terms === null ? block.value : powerAt(block.terms, totalMassKg, bikeModel)
-    return watts / geKg
+    return centralWkgFromWatts(watts, massKg)
   }
   const runPoints: HrPoint[] = []
   const ridePoints: HrPoint[] = []
@@ -316,7 +357,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   })
 
   const equivalents: Equivalence[] = []
-  for (const durationS of [180, 300, 600, 1200, 1800, 3600]) {
+  for (const durationS of [180, 300, 600, HEADLINE_DURATION_S, 1800, 3600]) {
     const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
       equivalents.push({

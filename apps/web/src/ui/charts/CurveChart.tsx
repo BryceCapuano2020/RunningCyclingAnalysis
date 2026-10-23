@@ -1,18 +1,15 @@
 import { useState } from 'react'
-import type { ReactNode } from 'react'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, formatWkg } from '@rca/core/units'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
-import { ChartTooltip } from './ChartTooltip'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
-import { nearestByX, stepActive } from './hover'
+import { markerRadii, plotSurface, tooltipOverlay } from './chartInteraction'
 import { linePath } from './paths'
-import { PlotSurface } from './PlotSurface'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
 import { NARROW_WIDTH, axisFontSize, fitTicks } from './ticks'
 import './CurveChart.css'
@@ -29,11 +26,6 @@ export interface CurveChartProps {
 const MIN_DURATION_S = 60
 /** Candidate x ticks. Only those inside the data range are drawn. */
 const TICK_DURATIONS_S = [60, 300, 1200, 3600, 7200, 10800]
-const MARKER_R = 4
-const ACTIVE_MARKER_R = 6
-/** Below NARROW_WIDTH, markers are 5 px across. */
-const NARROW_MARKER_R = 2.5
-const NARROW_ACTIVE_MARKER_R = 4
 /** Right margin that holds the end-of-line labels. */
 const LABEL_MARGIN = 64
 const LABEL_OFFSET_X = 8
@@ -242,48 +234,19 @@ function tooltipFor(
   }
 }
 
-function surfaceOf(
-  size: ChartSize,
-  rows: CurveRow[],
-  active: number | null,
-  setActive: (index: number | null) => void,
-): ReactNode {
-  const m = layout(rows, size)
-  if (m === null) return null
-  return (
-    <PlotSurface
-      size={size}
-      onPoint={(point) => setActive(point === null ? null : nearestByX(m.xs, point.x))}
-      onKey={(key) => {
-        const next = stepActive(active, m.xs.length, key)
-        if (next) setActive(next.index)
-      }}
-      onBlur={() => setActive(null)}
-    />
-  )
-}
-
-function overlayOf(
+function contentOf(
   size: ChartSize,
   rows: CurveRow[],
   active: number | null,
   units: UnitSystem,
   names: Record<string, string> | undefined,
-): ReactNode {
+): TooltipContent | null {
   const m = layout(rows, size)
   const row = active === null ? undefined : rows[active]
   const anchorX = m && active !== null ? m.xs[active] : undefined
-  const content =
-    row && anchorX !== undefined
-      ? tooltipFor(row, anchorX, (size.plot.top + size.plot.bottom) / 2, units, names)
-      : null
-  return (
-    <ChartTooltip
-      bounds={{ width: size.width, height: size.height }}
-      content={content}
-      id={size.tooltipId}
-    />
-  )
+  return row && anchorX !== undefined
+    ? tooltipFor(row, anchorX, (size.plot.top + size.plot.bottom) / 2, units, names)
+    : null
 }
 
 export function CurveChart({
@@ -308,15 +271,14 @@ export function CurveChart({
       }}
       empty={hasData ? undefined : 'Add at least one run and one ride to see both curves'}
       plotRightMargin={(width) => (width < NARROW_WIDTH ? 16 : LABEL_MARGIN)}
-      surface={(size) => surfaceOf(size, rows, active, setActive)}
-      overlay={(size) => overlayOf(size, rows, active, units, activityNames)}
+      surface={(size) => plotSurface(size, layout(rows, size)?.xs ?? null, active, setActive)}
+      overlay={(size) => tooltipOverlay(size, contentOf(size, rows, active, units, activityNames))}
     >
       {(size) => {
         const m = layout(rows, size)
         if (m === null) return null
         const narrow = size.width < NARROW_WIDTH
-        const markerR = narrow ? NARROW_MARKER_R : MARKER_R
-        const activeR = narrow ? NARROW_ACTIVE_MARKER_R : ACTIVE_MARKER_R
+        const { marker: markerR, active: activeR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
         return (
           <>

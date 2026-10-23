@@ -294,6 +294,7 @@ describe('AnalysisSession', () => {
       hiddenDuplicates: 0,
       rangeDays: null,
       syncIssues: [],
+      trend: [],
     })
   })
 
@@ -337,6 +338,7 @@ describe('AnalysisSession', () => {
       hiddenDuplicates: 0,
       rangeDays: 42,
       syncIssues: [],
+      trend: [],
     })
   })
 
@@ -773,6 +775,17 @@ describe('the same workout in more than one format', () => {
     expect(state.result?.activities).toHaveLength(1)
     expect(state.result?.activities[0]?.id).toContain('1.fit')
     expect(state.hiddenDuplicates).toBe(1)
+  })
+
+  it('counts the workout once in the trend, as the analysis does', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1.gpx.gz': gzipSync(encodeGpx(shifted(run, 4_000))),
+      'activities/1.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.trend.at(-1)?.runCount).toBe(1)
   })
 
   it('skips a GPX copy that arrives after its FIT in the same zip, and does not sync it', async () => {

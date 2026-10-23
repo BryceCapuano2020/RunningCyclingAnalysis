@@ -9,6 +9,7 @@
     "./constants": "./src/constants.ts",
     "./digest": "./src/digest/index.ts",
     "./digest/modelRevision": "./src/digest/modelRevision.ts",
+    "./digest/trendPoints": "./src/digest/trendPoints.ts",
     "./math": "./src/math.ts",
     "./pipeline": "./src/pipeline.ts",
     "./session": "./src/session.ts",

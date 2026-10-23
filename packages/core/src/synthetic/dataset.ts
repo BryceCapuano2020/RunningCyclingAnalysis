@@ -1,3 +1,4 @@
+import { DAY_MS } from '../constants'
 import { mulberry32 } from '../math'
 import type { Activity, Sport } from '../types'
 import { DEFAULT_ATHLETE } from './athlete'
@@ -5,7 +6,6 @@ import type { SyntheticAthlete } from './athlete'
 import { generateActivity } from './generate'
 import type { Effort, Terrain } from './spec'
 
-const DAY_MS = 86_400_000
 const HOUR_MS = 3_600_000
 /** Fixed reference time, so the sample data is the same on every run. */
 const SAMPLE_END_MS = 1_750_000_000_000

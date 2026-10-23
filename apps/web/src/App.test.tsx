@@ -1,7 +1,17 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { TrendPoint } from '@rca/core/digest'
 import { App } from './App'
+
+/** A weekly trend point ending at week (0 = the first week) with the given run and ride values. */
+const week = (index: number, runWkg: number | null, rideWkg: number | null): TrendPoint => ({
+  endMs: Date.UTC(2025, 0, 12 + index * 7, 23, 59, 59, 999),
+  runWkg,
+  rideWkg,
+  runCount: runWkg === null ? 0 : 1,
+  rideCount: rideWkg === null ? 0 : 1,
+})
 
 const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted(() => ({
   updateProfile: vi.fn(async () => undefined),
@@ -15,6 +25,7 @@ const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted((
       effort: unknown[]
     },
     syncIssues: [] as { code: string; count: number }[],
+    trend: [] as TrendPoint[],
     libraryStatus: 'loaded' as 'idle' | 'loading' | 'loaded' | 'failed',
     missingOriginals: 0,
     importOutcome: null,
@@ -82,6 +93,7 @@ vi.mock('./ui/useAnalysis', () => ({
       syncIssues: analysisMock.syncIssues,
       outdatedActivities: analysisMock.outdatedActivities,
       incompatibleActivities: analysisMock.incompatibleActivities,
+      trend: analysisMock.trend,
     },
     busy: analysisMock.busy,
     progress: null,
@@ -119,6 +131,7 @@ vi.mock('./ui/charts', () => ({
   CurveChart: () => null,
   HrScatter: () => null,
   RatioChart: () => null,
+  TrendChart: () => null,
 }))
 
 vi.mock('./ui/components', () => ({
@@ -168,6 +181,7 @@ afterEach(() => {
   analysisMock.incompatibleActivities = 0
   analysisMock.result = { activities: [], comparison: null, effort: [] }
   analysisMock.syncIssues = []
+  analysisMock.trend = []
   analysisMock.libraryStatus = 'loaded'
   analysisMock.missingOriginals = 0
   analysisMock.rebuildNotice = null
@@ -252,6 +266,24 @@ describe('outdated saved activities', () => {
     expect(
       screen.queryByRole('button', { name: 'Rebuild saved activities' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('fitness over time card', () => {
+  it('is hidden until two weeks have a run or ride value', () => {
+    analysisMock.trend = [week(0, null, null), week(1, 15, null), week(2, null, null)]
+    const { unmount } = render(<App />)
+    expect(screen.queryByRole('heading', { level: 2, name: 'Fitness over time' })).toBeNull()
+    unmount()
+
+    analysisMock.trend = [week(0, null, null), week(1, 15, null), week(2, 15.2, 14)]
+    render(<App />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Fitness over time' })).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Your best estimated energy rate over 20 min in the previous 6 weeks, each week.',
+      ),
+    ).toBeInTheDocument()
   })
 })
 
