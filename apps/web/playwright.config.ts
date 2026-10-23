@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
+import { e2eApiPort, e2eWebPort } from './e2e/ports.ts'
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url))
 
@@ -10,7 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   failOnFlakyTests: !!process.env.CI,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
-  use: { baseURL: 'http://localhost:4319', trace: 'on-first-retry' },
+  use: { baseURL: `http://localhost:${e2eWebPort}`, trace: 'on-first-retry' },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
@@ -21,13 +22,13 @@ export default defineConfig({
       // The real API on a throwaway local D1 and R2, so the signed-in tests exercise it.
       command: 'npm run e2e:api -w @rca/api',
       cwd: repoRoot,
-      url: 'http://localhost:8787/api/health',
+      url: `http://localhost:${e2eApiPort}/api/health`,
       reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: 'npm run preview -- --port 4319 --strictPort',
-      url: 'http://localhost:4319',
+      command: `npm run preview -- --port ${e2eWebPort} --strictPort`,
+      url: `http://localhost:${e2eWebPort}`,
       reuseExistingServer: false,
     },
   ],
