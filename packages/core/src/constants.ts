@@ -17,16 +17,37 @@ export const DRIVETRAIN_EFFICIENCY = 0.975
 /** Resting metabolic rate, W/kg (3.5 ml O2/kg/min at 20.9 J/ml). */
 export const RESTING_W_PER_KG = 1.22
 
-/** Minetti et al. 2002 net cost of running on the flat, J/kg/m. */
-export const FLAT_RUN_COST = 3.6
+/**
+ * Minetti et al. 2002 cost of running on the flat, J/kg/m: the intercept of their fit. Whether it
+ * is net or gross is unverified (docs/validation/physiology.md §2).
+ */
+export const MINETTI_FLAT_COST = 3.6
 
 /**
- * Population priors. Gross efficiency of cycling and a multiplicative scale on
- * the Minetti running cost (individual running economy).
+ * Level correction, J/kg/m, added to Minetti's cost at every gradient. It takes the flat cost to
+ * 3.9, the centre of the research's parameter sources (docs/research/headline-bias.md §2 and §3).
+ * That centre rests partly on unverified values, and its Margaria term equals ACSM's validation
+ * slope. Without Margaria the centre is 3.73 (headline-bias.md §3). The shift is additive, not a
+ * scale: a uniform 1.083 scale would overshoot ACSM at +10% grade by about 6%, the additive form by
+ * about 3%. Downhill is unvalidated: the additive form adds 11%, 14% and 17% at −5%, −10% and −20%
+ * grade, against about 8% for a scale. Only −5% has a reference (physiology.md §10.6).
+ */
+export const RUN_COST_CORRECTION = 0.3
+
+/** Cost of running on the flat, J/kg/m, with the level correction. Used by pace conversions. */
+export const FLAT_RUN_COST = MINETTI_FLAT_COST + RUN_COST_CORRECTION
+
+/**
+ * Population priors: gross efficiency of cycling, and a multiplicative individual running economy
+ * on the corrected cost. Efficiency sd 0.015 keeps about 95% of draws within 18.5 to 24.5%, which
+ * covers the 18 to 23.5% range of measured studies (docs/research/cycling-efficiency.md §5).
+ * Economy sd 0.08 is the between-person spread chosen in headline-bias.md §3, between the 5 to 6%
+ * implied by Lacour & Bourdin and the 11% spread of the central values. Bounds are the mean plus or
+ * minus 3 sd.
  */
 export const PRIORS = {
-  grossEfficiency: { mean: 0.215, sd: 0.012, min: 0.18, max: 0.25 },
-  runEconomyScale: { mean: 1.0, sd: 0.06, min: 0.82, max: 1.18 },
+  grossEfficiency: { mean: 0.215, sd: 0.015, min: 0.17, max: 0.26 },
+  runEconomyScale: { mean: 1.0, sd: 0.08, min: 0.76, max: 1.24 },
 } as const
 
 export const DEFAULT_BIKE_MODEL = { cda: 0.32, crr: 0.005 } as const

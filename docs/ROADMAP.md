@@ -45,21 +45,20 @@ Today the fitness trend is a 42-day rolling best (PR #17).
 
 ## Model accuracy
 
-1. **Running-versus-cycling bias (headline).** [validation/physiology.md](validation/physiology.md)
-   finds flat running about 13% below the ACSM equation, and matched-effort
-   running at 0.79 to 0.86 of cycling. Parity falls outside the 90% range at 3, 4 and 5 m/s. Most of
-   the gap is attributed to the running slope. The economy prior (mean 1.0) sits below the
-   ACSM-implied scale of about 1.16. Cycling reads 25% low at 1 W/kg, because it has no resting term.
-   A literature-based correction is proposed in
-   [research/headline-bias.md](research/headline-bias.md).
-   Next: check the running slope and its gross or net basis against primary text before changing
-   the prior or the slope.
+1. **Done for running: running-versus-cycling bias (headline).** The running level is corrected to
+   3.9 J/kg/m (model revision 5), and flat running is now 6% below ACSM and within 2% of Léger &
+   Mercier ([validation/physiology.md](validation/physiology.md) §10). Still open, the cycling slope:
+   constant gross efficiency reads cycling about 10% high at 5 W/kg, so matched-effort parity at 5 m/s
+   sits at the edge of the 90% range (0.999). The power-dependent efficiency slope GE(P) is the fix,
+   and it is not implemented ([research/headline-bias.md](research/headline-bias.md) §5b).
+   Cycling also reads 25% low at 1 W/kg, because it has no resting term.
 2. **Running air resistance.** Research: [running-air-resistance.md](research/running-air-resistance.md).
    Define the mechanical-to-metabolic conversion before adding a drag correction or prior. A
    mechanical drag term cannot be added to gross metabolic power.
 3. **Cycling efficiency and the gross-efficiency prior.** Research:
-   [cycling-efficiency.md](research/cycling-efficiency.md). Reconcile gross, net and delta
-   efficiency against primary literature, then widen the prior (0.215, sd 0.012) in the same change.
+   [cycling-efficiency.md](research/cycling-efficiency.md). The prior is widened to sd 0.015 (mean
+   0.215) in model revision 5. Still open: reconcile gross, net and delta efficiency against primary
+   literature.
    The additive resting-energy formula proposed earlier is not approved; the note shows it
    double-counts resting energy.
 4. **Heart-rate discrepancy (0.05).** Validate it on independent athletes and conditions. The

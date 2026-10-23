@@ -32,14 +32,16 @@ each fix landed. Backlog items are in
   projects now pass against independent decoders and the devices' own summaries
   ([validation/devices.md](validation/devices.md), [validation/gpx-tcx.md](validation/gpx-tcx.md)).
   Still open: files from the owner's own devices, and indoor rides that declare no sub-sport.
-- **Headline running-versus-cycling bias.** Flat running reads about 13% below the ACSM equation.
-  Matched-effort running comes out at 0.79 to 0.86 of cycling, so parity falls outside the 90%
-  range at 3, 4 and 5 m/s. The cause is not settled. Source:
-  [validation/physiology.md](validation/physiology.md). Tracked in ROADMAP, model accuracy.
-- **Model changes need evidence.** The running air-drag term, the gross-efficiency prior (0.215,
-  sd 0.012) and the heart-rate discrepancy (0.05) are unchanged. The research notes are provisional,
-  and some citations are unverified. Sources: engineering and stack reviews. Tracked in ROADMAP,
-  model accuracy.
+- **Headline running-versus-cycling bias (running fixed, cycling open).** Flat running read about
+  13% below the ACSM equation, and matched-effort running was 0.79 to 0.86 of cycling. Model
+  revision 5 raises the running level to 3.9 J/kg/m, so flat running is now 6% below ACSM. Parity at
+  5 m/s still sits at the edge of the 90% range (0.999), because constant cycling efficiency reads
+  high at 5 W/kg. The power-dependent efficiency slope is open. Source:
+  [validation/physiology.md](validation/physiology.md) §10. Tracked in ROADMAP, model accuracy.
+- **Model changes need evidence.** The running air-drag term and the heart-rate discrepancy (0.05)
+  are unchanged. The efficiency prior is now sd 0.015 and the running economy prior sd 0.08, from the
+  research notes, which are provisional, and some citations are unverified. Sources: engineering and
+  stack reviews. Tracked in ROADMAP, model accuracy.
 - **Backups and restore.** `ops/backup-recipient.txt` is still a placeholder, so backup and uptime
   schedules are off. No drill has restored a populated database, and there is no deletion log.
   Sources: engineering, hardening and stack reviews. Tracked in ROADMAP, operations.

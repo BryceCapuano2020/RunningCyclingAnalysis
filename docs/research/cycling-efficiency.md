@@ -57,7 +57,7 @@ Double-count test (Monte Carlo arithmetic, not a fit): the additive form M_ride 
 
 Consistent resting-explicit form: M_ride = RMR + P / (NE * m). This equals P / GE(P) with GE(P) = NE * P / (P + NE * RMR * m). It needs an NE prior. For the 20-minute example, NE = 0.230 reproduces GE = 0.215 at 300 W and 75 kg.
 
-Minor points. FLAT_RUN_COST = 3.6 is the Minetti polynomial intercept, while the paper's measured level value is quoted as 3.40 (unverified). In `sampling.ts`, kappaDraw uses the prior mean; it is scale-invariant only if the GE draws move with the mean.
+Minor points. FLAT_RUN_COST is now 3.9: the Minetti polynomial intercept (3.6, net basis unverified) plus the 0.30 level correction (headline-bias.md §5a). The paper's measured level value is quoted as 3.40 (unverified). In `sampling.ts`, kappaDraw uses the prior mean; it is scale-invariant only if the GE draws move with the mean.
 
 ## 5. Recommendation
 

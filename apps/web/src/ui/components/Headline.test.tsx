@@ -322,7 +322,7 @@ describe('Headline stat tiles', () => {
   it('shows the running and cycling thresholds, accuracy and activity counts', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)), 'metric', 75)
     const running = within(tileFor('Running threshold pace'))
-    expect(running.getByText('21:35 /km')).toBeInTheDocument()
+    expect(running.getByText('23:23 /km')).toBeInTheDocument()
     expect(running.getByText('4.0 W/kg')).toBeInTheDocument()
 
     const cycling = within(tileFor('Cycling threshold power'))
@@ -340,7 +340,7 @@ describe('Headline stat tiles', () => {
 
   it('shows the running pace in miles for imperial', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)), 'imperial')
-    expect(screen.getByText('34:44 /mi')).toBeInTheDocument()
+    expect(screen.getByText('37:38 /mi')).toBeInTheDocument()
   })
 
   it('omits the running threshold tile when there is no running threshold', () => {

@@ -68,10 +68,10 @@ describe('buildShareCard', () => {
   it('uses the page units for the running pace figure', () => {
     const metric = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
     const imperial = buildShareCard(makeResult(), SETTINGS, 'imperial', 42, false)
-    expect(metric?.figures).toContainEqual({ label: 'Running threshold pace', value: '21:35 /km' })
+    expect(metric?.figures).toContainEqual({ label: 'Running threshold pace', value: '23:23 /km' })
     expect(imperial?.figures).toContainEqual({
       label: 'Running threshold pace',
-      value: '34:44 /mi',
+      value: '37:38 /mi',
     })
   })
 

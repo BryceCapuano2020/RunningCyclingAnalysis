@@ -1,13 +1,13 @@
 # Headline bias: literature-based parameters for running and cycling
 
-Status: research note, 2026-10-23. No model code changed. **Unverified** marks values not checked against a primary text. Matched-effort figures come from a Node replica of `compare/` (mulberry32, seed 1, 4000 draws). The replica reproduces `docs/validation/physiology.md` section 4.4 to three decimals.
+Status: research note, 2026-10-23, updated after implementation. Model revision 5 implements the running level (§5a) and constant-efficiency prior widening (§5b). **Not implemented:** the power-dependent efficiency slope GE(P) (§5b, §6). **Unverified** marks values not checked against a primary text. Matched-effort figures come from a Node replica of `compare/` (mulberry32, seed 1, 4000 draws). The replica reproduces `docs/validation/physiology.md` section 4.4 to three decimals.
 
 ## 1. Summary
 
 - **Running:** level cost 3.9 J/kg/m (the app's 3.6 plus an additive 0.30), SD 8%.
-- **Cycling:** keep gross efficiency with a power-dependent mean, GE(P) = 0.200 + 0.0108 × (P − 2.14), SD 0.015 (P in W/kg).
+- **Cycling:** constant mean efficiency 0.215 with SD 0.015 is implemented. The power-dependent slope GE(P) = 0.200 + 0.0108 × (P − 2.14) is **not implemented**. The note rates it low confidence.
 - **Resting:** counted once in each sport.
-- **Expected:** the flat-running gap to ACSM falls from −13% to −6%. The matched-effort median rises from 0.79–0.86 to 0.90–0.92, and 1.0 falls inside the 90% range at every speed. A residual 8–10% gap remains.
+- **Outcome (implemented, revision 5):** the flat-running gap to ACSM falls from −13% to −6%. The matched-effort median rises from 0.79–0.86 to 0.85–0.92. The 90% range contains 1.0 at 3 and 4 m/s. At 5 m/s the upper bound is 0.998, so 1.0 is just outside. The original expectation of 1.0 inside at every speed was not met. GE(P) was expected to close the 5 m/s gap, and it is not in the code.
 
 A source that sets a parameter is never used to validate it.
 
@@ -41,6 +41,8 @@ Cycling:
 
 **Typical cost and Minetti's bias.** The three parameter sources centre on 3.88 J/kg/m, so the parameter mean is 3.9. Against that centre the app's 3.6 is 7% low, and Minetti's abstract value of 3.40 is 12% low. Against the pooled Léger & Mercier slope of 3.97 (validation only), the app is 9% low. Minetti's C(0) therefore probably underestimates the average runner by 7–9% at the app's constant. The basis is a 10-runner study with an unverified net basis, so this is probable, not established. The abstract's "independent of speed" fits a net cost only, since a gross per-distance cost would equal R/v + C (inference).
 
+**Centre sensitivity.** The validators did not set this value. Margaria's 4.18 equals ACSM's validation slope (0.2 ml/kg/m ≈ 4.18 J/kg/m), and the Minetti and trained-runner values are unverified, so the centre is only partly supported. Without Margaria the centre is 3.73, the mean of 3.40 and 4.06. Using a flat cost of 3.73 instead of 3.9 (replica of the shipped code, 4000 draws), flat running against ACSM is −9.8%, −10.0% and −10.2% at 3, 4 and 5 m/s, so the ±10% test fails at 5 m/s. The matched-effort median falls to 0.88, 0.84 and 0.81, and 1.0 is inside the 90% range at 3 m/s only (p95 1.036, 0.986 and 0.957).
+
 **Between-person spread.** Lacour & Bourdin's 20% spread implies an SD of about 5–6% for samples of 30–100 (derived). The three central values have an SD of about 11%. I use 8%: the prior describes individual economy, and the wider source spread is model uncertainty.
 
 **Treadmill vs overground.** Jones & Doust 1996 (doi:10.1080/02640419608727717; nine trained men; abstract verified) found that a 1% treadmill grade matched road cost. On Minetti's curve C(0.01) = 3.80, which is 5.5% above 3.6. This is a literature route to outdoor flat cost that needs no economy fit. The air-resistance note says the 1% convention already includes drag, so drag must not be added on top. The app does not flag treadmill runs.
@@ -55,13 +57,15 @@ Cycling:
 
 ## 5. Proposed changes
 
-(a) **Running.** Level-cost mean 3.9 J/kg/m, SD 0.31 J/kg/m (8%). Implement it as an additive offset of +0.30 at every grade, not a uniform scale. A uniform ×1.083 gives +6.7% against ACSM at +10% grade and −8.2% at −5%; the additive offset gives +3.4% and −6.0%. `compareSports` divides by the prior mean (s / S̄), so changing `runEconomyScale.mean` alone does nothing. The shift must enter the base cost.
+(a) **Running.** Level-cost mean 3.9 J/kg/m, SD 0.31 J/kg/m (8%). Implement it as an additive offset of +0.30 at every grade, not a uniform scale. A uniform ×1.083 gives +6.7% against ACSM at +10% grade and −8.2% at −5%; the additive offset gives +3.4% and −6.0%. `compareSports` divides by the prior mean (s / S̄), so changing `runEconomyScale.mean` alone does nothing. The shift must enter the base cost. Implemented in model revision 5 as `runCost` (Minetti plus 0.30 J/kg/m).
 
-(b) **Cycling.** GE(P) = 0.200 + 0.0108 × (P − 2.14), SD 0.015, bounds [0.17, 0.26]. The anchor is Matomaki 2019 (70 kg assumed). The slope is the midpoint (22%) of the cycling note's 4 W/kg band (unverified). Keep the gross form with no resting term. `compareSports` must evaluate GE at each duration's power, and `calibrationWeights` (`kappaDraw`) assumes one GE and needs the same change.
+(b) **Cycling.** **Not implemented:** GE(P) = 0.200 + 0.0108 × (P − 2.14). Implemented in revision 5 instead: constant mean 0.215, SD 0.015, bounds [0.17, 0.26]. The GE(P) slope stays deferred, because the note rates it low confidence and the 4 W/kg band behind it is unverified. If it is adopted, the anchor is Matomaki 2019 (70 kg assumed). The slope is the midpoint (22%) of the cycling note's 4 W/kg band (unverified). Keep the gross form with no resting term. `compareSports` must evaluate GE at each duration's power, and `calibrationWeights` (`kappaDraw`) assumes one GE and needs the same change.
 
 (c) **Resting.** Running: M = 1.22 + s × C × v, counted once, and valid only if C is net (inferred). Cycling: M = P/(GE × m), where gross GE already contains resting energy. Adding 1.22 W/kg to cycling would overstate M by about 9% at 3 W/kg.
 
-## 6. Expected change
+## 6. Expected change (proposal, written before implementation)
+
+The cycling columns and the matched-effort "proposed" columns assume GE(P), which is not implemented. The shipped result follows the tables.
 
 Formulas as coded (R = 1.22, s = 1): ACSM running (0.2 × 60v + 3.5) × 20.9/60; ACSM cycling (7 + 10.8P) × 20.9/60; Léger & Mercier running (2.209 + 3.163 × 3.6v) × 20.9/60; proposed running R + 3.9v.
 
@@ -90,13 +94,17 @@ Matched-effort ratio (replica Monte Carlo; matched power from ACSM, so the refer
 | 4           | 4.12             | 0.711 / 0.813 / 0.922 | 0.759 / 0.903 / 1.057    |
 | 5           | 5.23             | 0.688 / 0.788 / 0.894 | 0.778 / 0.923 / 1.075    |
 
-Second reference: Léger & Mercier running against Moseley cycling at 3 m/s. The matched power is 12.67 × 0.184 = 2.33 W/kg. The app ratio is 1.11 now (12.02 / (2.33/0.215)) and 1.12 proposed (12.92 / (2.33/0.202)).
+Shipped (revision 5, constant GE, 4000 draws): 0.773 / 0.920 / 1.079 at 3 m/s, 0.734 / 0.875 / 1.028 at 4 m/s, and 0.711 / 0.848 / 0.998 at 5 m/s. 1.0 is inside at 3 and 4 m/s. At 5 m/s the upper bound misses by 0.2 pp (0.999 with 80,000 draws).
+
+Second reference (not implemented): Léger & Mercier running against Moseley cycling at 3 m/s. The matched power is 12.67 × 0.184 = 2.33 W/kg. The app ratio is 1.11 now (12.02 / (2.33/0.215)) and 1.12 proposed (12.92 / (2.33/0.202)).
 
 Running alone gives medians of 0.92, 0.88 and 0.85. Cycling alone gives 0.84–0.86. The median stays about 10% short of 1. Adopting ACSM's 4.18 slope alone would give 0.96 at 4 m/s (17.94 / 18.61).
 
 ## 7. Recommended test
 
 **Matched-effort check.** At 3.01, 4.12 and 5.23 W/kg (ACSM reference), require |p50 − 1| ≤ 0.15 and p05 ≤ 1 ≤ p95. Add one check at 3 m/s, Léger & Mercier running against Moseley cycling: |p50 − 1| ≤ 0.15.
+
+**Implemented.** The matched containment check runs at 3 and 4 m/s. At 5 m/s the test asserts the gap, 0.95 < p95 < 1.0, because constant GE fails the containment check. The Léger & Mercier second reference is not implemented. The median check (0.80 to 0.95) is a pin on the residual, not an agreement test.
 
 **Why 0.15.** The two cycling references differ by 13% at 2.33 W/kg (ACSM 11.20 W/kg against Moseley-implied 12.66), so a tighter tolerance would fail on the references, not the model. The running references differ by about 7% at 4 m/s (ACSM 17.94, Léger & Mercier 16.64 W/kg). Proposed deviations are 10.2%, 9.7%, 7.7% and 12.0%, so the proposal passes. The current model deviates by 14.3%, 18.7% and 21.2%. It fails at 4 and 5 m/s and passes at 3 m/s, so the test is weak there.
 
@@ -115,5 +123,5 @@ Running alone gives medians of 0.92, 0.88 and 0.85. Cycling alone gives 0.84–0
 - Gaesser & Brooks' DOI (the title differs in a 2004 citation); Coyle 1992 and Moseley & Jeukendrup 2001 DOIs.
 - The baseline (unloaded pedalling), the cadence effect on GE, and the 4 W/kg band behind the slope.
 - Body masses in the Matomaki and Moseley studies (70 kg assumed).
-- The tolerances are proposals, not yet implemented in tests.
+- The tolerances are partly implemented in `physiology.test.ts`: flat Léger & Mercier at 5%, flat ACSM and graded at 10%, and cycling at 15% (a bound on the known gap, not the 5% proposed in §7). The 5 m/s matched gap is asserted, not closed.
 - Beyond ACSM, the only independent cycling check is Moseley, at 2.36 W/kg. There is no second reference at 3–5 W/kg.

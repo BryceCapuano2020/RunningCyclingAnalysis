@@ -61,7 +61,7 @@ function activity(spec: Spec): Activity {
 }
 
 /** Metabolic W/kg of running at speed v on the flat, with the prior-mean economy. */
-const flatMetabolic = (v: number) => RESTING_W_PER_KG + PRIORS.runEconomyScale.mean * 3.6 * v
+const flatMetabolic = (v: number) => RESTING_W_PER_KG + PRIORS.runEconomyScale.mean * 3.9 * v
 
 const constant = (n: number, value: number) => new Float64Array(n).fill(value)
 
