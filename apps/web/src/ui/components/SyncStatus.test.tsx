@@ -96,14 +96,14 @@ describe('SyncStatus', () => {
   it('keeps earlier issues visible while a new upload runs', () => {
     const { rerender } = render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     rerender(<SyncStatus {...props({ uploading: 0, issues: [issue('server', 1)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('not fully saved because of a server error')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'not fully saved because of a server error',
+    )
   })
 
   it('joins several issues into one message, one sentence each', () => {
     render(
-      <SyncStatus
-        {...props({ issues: [issue('storage-budget', 2), issue('rate-limited', 4)] })}
-      />,
+      <SyncStatus {...props({ issues: [issue('storage-budget', 2), issue('rate-limited', 4)] })} />,
     )
     expect(screen.getByRole('status')).toHaveTextContent(
       'Original-file storage is paused for now, so 2 originals were not kept. The summaries were saved. Too many requests at once, so 4 activities were not fully saved. Wait a minute, then re-import them.',
@@ -166,11 +166,7 @@ describe('SyncStatus', () => {
       2,
       '2 originals were too large to keep (over 50 MB). The summaries were saved.',
     ],
-    [
-      'file-too-large',
-      1,
-      '1 original was too large to keep (over 50 MB). The summary was saved.',
-    ],
+    ['file-too-large', 1, '1 original was too large to keep (over 50 MB). The summary was saved.'],
     [
       'rate-limited',
       2,

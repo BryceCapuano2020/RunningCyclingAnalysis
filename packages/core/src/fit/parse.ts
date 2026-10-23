@@ -165,9 +165,9 @@ function parseUnchecked(
 }
 
 /**
- * One outcome per continuous part of a session: a session that pauses for longer than
- * MAX_GAP_MS (see splitAtGaps) yields one activity for each side of the gap. Stops at the first
- * fatal outcome, so nothing after a refused file is allocated.
+ * One outcome per continuous part of a session: a gap of more than four hours between records
+ * (see splitAtGaps) ends one activity and starts the next. Stops at the first fatal outcome, so
+ * nothing after a refused file is allocated.
  */
 function evaluateUnit(unit: Unit, index: number, context: Context): Outcome[] {
   const { sport, subSport } = resolveSport(unit.session, context.sportMesg)

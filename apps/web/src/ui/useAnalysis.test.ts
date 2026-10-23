@@ -557,6 +557,24 @@ describe('useAnalysis state', () => {
     expect(refresh).toHaveBeenCalledOnce()
   })
 
+  it('clears the sync issues when the user signs in', () => {
+    const { result, rerender } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, syncIssues: [{ code: 'signed-out', count: 1 }] },
+      }),
+    )
+    expect(result.current.state.syncIssues).toEqual([{ code: 'signed-out', count: 1 }])
+
+    const signedOutWorker = worker()
+    rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+    expect(worker()).not.toBe(signedOutWorker)
+    expect(result.current.state.syncIssues).toEqual([])
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+  })
+
   it('refuses sample data while a signed-in library is shown, and sends nothing', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()

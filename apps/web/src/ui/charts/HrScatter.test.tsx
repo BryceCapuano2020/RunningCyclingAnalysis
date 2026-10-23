@@ -106,6 +106,33 @@ describe('HrScatter', () => {
     expect(tableAt(container, 0).rows).toEqual([['Running', '2500', '10.0', '0.90']])
   })
 
+  it('spaces the drawn blocks across the whole data, keeps the last block, and keeps both axis extremes', () => {
+    // Power rises by 0.1 W/kg per block, so each row's power identifies its block. The lowest heart
+    // rate sits at block 2100 and the highest at block 2300, both past where slice(0, 2000) stops.
+    const points: HrPoint[] = Array.from({ length: 2500 }, (_, i) => ({
+      metabolicPower: 10 + i / 10,
+      heartRate: i === 2100 ? 60 : i === 2300 ? 250 : 120 + (i % 61),
+      activityId: 'run-1',
+    }))
+    const hr: HrCrossCheck = {
+      run: { points, fit: fit(10, 15, 0.9, points.length) },
+      ride: null,
+      kappa: null,
+      lnKappaSe: null,
+    }
+    const { container } = render(<HrScatter hr={hr} />)
+    const rows = tableAt(container, 1).rows
+    const indices = rows.map((row) => Math.round((Number(row[1]) - 10) * 10))
+
+    expect(rows).toHaveLength(2000)
+    expect(indices[0]).toBe(0)
+    expect(indices.at(-1)).toBe(2499)
+    expect(indices).toContain(2100)
+    expect(indices).toContain(2300)
+    const gaps = indices.slice(1).map((index, i) => index - (indices[i] ?? 0))
+    expect(Math.max(...gaps)).toBeLessThanOrEqual(3)
+  })
+
   it('thins the same blocks in the same way on every render', () => {
     const first = render(<HrScatter hr={runBlocks(2500)} />)
     const firstDots = screen.getAllByTestId('hr-dot').map((dot) => dot.getAttribute('cx'))

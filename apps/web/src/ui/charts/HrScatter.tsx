@@ -83,20 +83,55 @@ function noteFor(hr: HrCrossCheck): string | undefined {
   return `Not enough steady heart-rate data for ${missing} yet, so only ${shown} is shown.`
 }
 
+/** Indices of the blocks with the lowest and highest power and the lowest and highest heart rate. */
+function extremeIndices(blocks: Block[]): number[] {
+  const found = new Set<number>()
+  const axes: ((point: HrPoint) => number)[] = [
+    (point) => point.metabolicPower,
+    (point) => point.heartRate,
+  ]
+  for (const axis of axes) {
+    const values = blocks.map((block) => axis(block.point))
+    found.add(values.indexOf(Math.min(...values)))
+    found.add(values.indexOf(Math.max(...values)))
+  }
+  return [...found]
+}
+
 /**
- * Keeps at most MAX_DOTS blocks, spaced evenly through the data in order. The choice depends only
- * on the data, so the same file always draws the same dots.
+ * Keeps at most MAX_DOTS blocks. They are spaced evenly through the data, so the first and last
+ * are always kept, and the blocks at each axis extreme are added too: each replaces the spaced block
+ * nearest to it, which keeps the cap. The choice depends only on the data, so the same file always
+ * draws the same dots.
  */
 function plotted(sports: SportData[]): Plotted {
   const blocks = sports.flatMap(({ sport, points }) => points.map((point) => ({ sport, point })))
   const total = blocks.length
   if (total <= MAX_DOTS) return { blocks, total }
-  const picked = Array.from(
-    { length: MAX_DOTS },
-    (_, i) => blocks[Math.floor((i * total) / MAX_DOTS)],
+
+  const indices = new Set(
+    Array.from({ length: MAX_DOTS }, (_, i) => Math.round((i * (total - 1)) / (MAX_DOTS - 1))),
   )
+  const extremes = extremeIndices(blocks)
+  const protectedIndices = new Set([0, total - 1, ...extremes])
+  for (const extreme of extremes) {
+    if (indices.has(extreme)) continue
+    let nearest: number | null = null
+    for (const index of indices) {
+      if (protectedIndices.has(index)) continue
+      if (nearest === null || Math.abs(index - extreme) < Math.abs(nearest - extreme)) {
+        nearest = index
+      }
+    }
+    if (nearest !== null) indices.delete(nearest)
+    indices.add(extreme)
+  }
+
   return {
-    blocks: picked.filter((block): block is Block => block !== undefined),
+    blocks: [...indices]
+      .sort((a, b) => a - b)
+      .map((index) => blocks[index])
+      .filter((block): block is Block => block !== undefined),
     total,
   }
 }

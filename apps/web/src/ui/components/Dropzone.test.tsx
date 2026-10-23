@@ -25,8 +25,11 @@ function renderDropzone(overrides: Partial<DropzoneProps> = {}) {
   return { ...props, container: view.container, input, target }
 }
 
-function baseProps(): Pick<DropzoneProps, 'onFiles' | 'onSample' | 'busy' | 'progress'> {
-  return { onFiles: vi.fn(), onSample: vi.fn(), busy: false, progress: null }
+function baseProps(): Pick<
+  DropzoneProps,
+  'onFiles' | 'onSample' | 'busy' | 'progress' | 'signedIn'
+> {
+  return { onFiles: vi.fn(), onSample: vi.fn(), busy: false, progress: null, signedIn: false }
 }
 
 function fitFile(name: string): File {
