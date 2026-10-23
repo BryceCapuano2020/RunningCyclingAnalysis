@@ -197,8 +197,8 @@ function measuredParts(
   }
   // Indoor power is not a gradient being ridden, so it cannot calibrate or score a bike model.
   if (activity.indoor) return parts
-  // validGrade also clears altitude jumps, so their altitudes do not set the air density.
-  const density = airDensityStream(activity, quality.validGrade)
+  // Air density depends on altitude alone, so it uses the altitude mask, not the grade mask.
+  const density = airDensityStream(activity, quality.validAltitude)
   const terms = sampleTerms(activity.speed, grade, density)
   return {
     ...parts,
@@ -229,7 +229,7 @@ function virtualParts(
     : new Uint8Array(activity.n)
   // Windows are picked with the default model at a fixed mass, so the digest is independent of the
   // athlete's settings. Combine then evaluates the stored terms at the real mass and fitted bike.
-  const density = airDensityStream(activity, quality.validGrade)
+  const density = airDensityStream(activity, quality.validAltitude)
   const selection = windowedEnvelope(
     estimatePower(activity.speed, grade, SELECTION_MASS_KG, DEFAULT_BIKE_MODEL, density),
     valid,

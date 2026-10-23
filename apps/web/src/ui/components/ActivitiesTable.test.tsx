@@ -146,6 +146,21 @@ describe('ActivitiesTable', () => {
     ).toBeInTheDocument()
   })
 
+  it('mounts the page status before a second page exists, so its first message is announced', () => {
+    const activity = (i: number) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })
+    const { rerender } = renderTable(Array.from({ length: 20 }, (_, i) => activity(i)))
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+    rerender(
+      <ActivitiesTable
+        activities={Array.from({ length: 25 }, (_, i) => activity(i))}
+        units="metric"
+      />,
+    )
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('Showing 1–20 of 25 activities. Page 1 of 2.')
+  })
+
   it('pages through activities and moves focus to the first row on the new page', () => {
     const activities = Array.from({ length: 25 }, (_, i) =>
       makeActivity({ id: `a-${i}`, name: `Run number ${i}` }),

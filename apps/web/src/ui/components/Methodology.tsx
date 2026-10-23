@@ -39,7 +39,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Heart-rate check',
     body:
-      'The model assumes heart rate responds to energy use similarly in both sports. Under that ' +
+      'The model assumes heart rate responds to energy rate similarly in both sports. Under that ' +
       'assumption, differences in the fitted slopes can adjust the energy estimates. This is not an ' +
       'independent measurement of efficiency. If too few model samples support an adjustment, the ' +
       'population-based range is kept instead. Heart-rate checks judge each sport’s best efforts ' +

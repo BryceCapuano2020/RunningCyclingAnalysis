@@ -121,7 +121,25 @@ describe('ShareImageButton', () => {
     expect(saveCanvasPng).toHaveBeenCalledTimes(1)
   })
 
-  it('is disabled while the image is being made', async () => {
+  it('marks the button aria-disabled while the image is being made, and keeps its focus', async () => {
+    let finish: (value: boolean) => void = () => undefined
+    vi.mocked(saveCanvasPng).mockImplementationOnce(
+      () => new Promise<boolean>((resolve) => (finish = resolve)),
+    )
+    renderButton()
+    const button = screen.getByRole('button', { name: 'Download image' })
+    button.focus()
+    download()
+    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'))
+    // Disabling the focused button would drop focus to the page body.
+    expect(button).toBeEnabled()
+    expect(button).toHaveFocus()
+    await act(async () => finish(true))
+    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'false'))
+    expect(button).toHaveFocus()
+  })
+
+  it('does not start a second image while the first is being made', async () => {
     let finish: (value: boolean) => void = () => undefined
     vi.mocked(saveCanvasPng).mockImplementationOnce(
       () => new Promise<boolean>((resolve) => (finish = resolve)),
@@ -129,11 +147,14 @@ describe('ShareImageButton', () => {
     renderButton()
     download()
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Download image' })).toBeDisabled(),
+      expect(screen.getByRole('button', { name: 'Download image' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      ),
     )
+    download()
     await act(async () => finish(true))
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Download image' })).toBeEnabled(),
-    )
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
+    expect(renderShareCard).toHaveBeenCalledTimes(1)
   })
 })

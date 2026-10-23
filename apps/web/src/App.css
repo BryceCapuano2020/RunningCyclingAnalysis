@@ -76,3 +76,15 @@
   margin: 0;
   font-size: 0.8125rem;
 }
+
+/*
+ * Always mounted, so a message put in it is announced. With no message it takes no room; the
+ * region stays in the accessibility tree, as the visually hidden status line does.
+ */
+.app__quiet {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

@@ -6,7 +6,7 @@ import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatPercent, formatPower, formatWkg } from '@rca/core/units'
-import { effortCaveat, headlineBasis, headlineText } from './headlineText'
+import { COMPARISON_DISCLAIMER, effortCaveat, headlineBasis, headlineText } from './headlineText'
 import { pickHeadline } from './pickHeadline'
 import { plural } from './plural'
 import './Headline.css'
@@ -175,8 +175,7 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
       {notice && referenceNotice(result)}
       <p className="headline__basis muted">{basis}</p>
       <p className="headline__basis muted">
-        This compares estimated energy use, not sporting ability. The range does not include every
-        source of error.
+        {`${COMPARISON_DISCLAIMER} The range does not include every source of error.`}
       </p>
       <ul className="headline__tiles">
         {tiles.map((tile) => (

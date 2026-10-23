@@ -32,14 +32,14 @@ describe('RejectedFiles', () => {
   it('says how many unsupported files were skipped, singular', () => {
     render(<RejectedFiles rejected={[]} unsupportedFiles={1} />)
     expect(
-      screen.getByText('1 file was skipped. Only FIT, GPX and TCX files can be read'),
+      screen.getByText('1 file was skipped. Only FIT, GPX or TCX files can be read.'),
     ).toBeInTheDocument()
   })
 
   it('says how many unsupported files were skipped, plural', () => {
     render(<RejectedFiles rejected={[]} unsupportedFiles={3} />)
     expect(
-      screen.getByText('3 files were skipped. Only FIT, GPX and TCX files can be read'),
+      screen.getByText('3 files were skipped. Only FIT, GPX or TCX files can be read.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/could not be used/)).not.toBeInTheDocument()
   })
@@ -47,7 +47,7 @@ describe('RejectedFiles', () => {
   it('shows the skipped-files sentence alongside rejected files', () => {
     render(<RejectedFiles rejected={manyRejected(1)} unsupportedFiles={2} />)
     expect(
-      screen.getByText('2 files were skipped. Only FIT, GPX and TCX files can be read'),
+      screen.getByText('2 files were skipped. Only FIT, GPX or TCX files can be read.'),
     ).toBeInTheDocument()
     expect(screen.getByText('1 file could not be used')).toBeInTheDocument()
   })

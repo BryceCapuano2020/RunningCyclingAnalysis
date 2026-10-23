@@ -72,7 +72,10 @@ export function ShareImageButton({
           type="button"
           className="btn"
           onClick={() => void saveImage()}
-          disabled={disabled || generating}
+          disabled={disabled}
+          // aria-disabled, not disabled: a disabled button drops the focus it is holding. The
+          // in-flight ref already refuses a second click.
+          aria-disabled={generating}
           aria-describedby={NOTE_ID}
         >
           Download image

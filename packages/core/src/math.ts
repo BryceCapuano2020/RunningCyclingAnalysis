@@ -105,3 +105,10 @@ export function rollingMean(xs: ArrayLike<number>, window: number): Float64Array
   }
   return out
 }
+
+/** Throws a RangeError unless value is a positive finite number. name says which input it is. */
+export function requirePositiveFinite(name: string, value: number): void {
+  if (!(Number.isFinite(value) && value > 0)) {
+    throw new RangeError(`${name} must be a positive finite number`)
+  }
+}

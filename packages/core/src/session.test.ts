@@ -902,7 +902,7 @@ describe('the same workout in more than one format', () => {
     expect(state.hiddenDuplicates).toBe(0)
   })
 
-  it('keeps two FITs of a near-duplicate workout as they were before, both counted', async () => {
+  it('counts two FITs of a near-duplicate workout once, and saves both copies', async () => {
     const session = new AnalysisSession()
     let synced = 0
     const state = await session.addFiles(
@@ -914,9 +914,131 @@ describe('the same workout in more than one format', () => {
       },
     )
 
-    expect(state.result?.activities).toHaveLength(2)
-    expect(state.hiddenDuplicates).toBe(0)
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.hiddenDuplicates).toBe(1)
     expect(synced).toBe(2)
+  })
+})
+
+/** The same activity as a bike computer or watch without a heart-rate strap records it. */
+function withoutHeartRate(activity: Activity): Activity {
+  return { ...activity, heartRate: new Float64Array(activity.n).fill(NaN), hasHeartRate: false }
+}
+
+describe('near-duplicate copies of one workout in the same format', () => {
+  it('keeps the copy with heart-rate data, whichever arrives first', async () => {
+    const bare = fitFile('bare.fit', shifted(withoutHeartRate(run), 2_000))
+    const strap = fitFile('strap.fit', run)
+    for (const files of [
+      [bare, strap],
+      [strap, bare],
+    ]) {
+      const session = new AnalysisSession()
+      const state = await session.addFiles(files, SETTINGS)
+      expect(state.result?.activities).toHaveLength(1)
+      expect(state.result?.activities[0]?.id).toContain('strap.fit')
+    }
+  })
+
+  it('keeps the longer of two copies that differ by under a minute', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        fitFile('short.fit', runOf(run.startMs, 590)),
+        fitFile('long.fit', runOf(run.startMs + 2_000, 600)),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('long.fit')
+  })
+
+  it('keeps the smaller id among stored copies that are equally rich', () => {
+    const a = digestOf(new Uint8Array(encodeFit(run, { gps: true })), 'a run.fit')
+    const b = digestOf(new Uint8Array(encodeFit(shifted(run, 2_000), { gps: true })), 'b run.fit')
+    for (const stored of [
+      [a, b],
+      [b, a],
+    ]) {
+      const session = new AnalysisSession()
+      const state = session.loadDigests(stored, SETTINGS)
+      expect(state.result?.activities.map((activity) => activity.id)).toEqual([
+        [a.id, b.id].sort()[0],
+      ])
+    }
+  })
+
+  it('does not save a poorer copy that arrives after a richer one', async () => {
+    const session = new AnalysisSession()
+    const bare = fitFile('bare.fit', shifted(withoutHeartRate(run), 2_000))
+    let synced = 0
+    const state = await session.addFiles(
+      [fitFile('strap.fit', run), bare],
+      SETTINGS,
+      undefined,
+      async () => {
+        synced++
+      },
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(synced).toBe(1)
+  })
+})
+
+describe('transitive near-duplicates and the visible count', () => {
+  it('hides a GPX copy linked to a FIT only through a TCX copy, keeping only the FIT', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        new File([new Uint8Array(encodeGpx(shifted(run, 100_000)))], 'gpx.gpx'),
+        new File([new Uint8Array(encodeTcx(shifted(run, 50_000), { gps: true }))], 'tcx.tcx'),
+        fitFile('fit.fit', run),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.result?.activities[0]?.id).toContain('fit.fit')
+    expect(state.hiddenDuplicates).toBe(2)
+  })
+
+  it('counts only the visible copies in totalActivities', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        new File([new Uint8Array(encodeGpx(shifted(run, 4_000)))], 'run.gpx'),
+        fitFile('run.fit', run),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.hiddenDuplicates).toBe(1)
+    expect(state.totalActivities).toBe(1)
+  })
+})
+
+describe('athlete settings', () => {
+  it('rejects a body mass or bike mass that is not a positive finite number', () => {
+    const session = new AnalysisSession()
+    for (const massKg of [0, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => session.setSettings({ massKg, bikeMassKg: 9 })).toThrow(RangeError)
+    }
+    expect(() => session.setSettings({ massKg: 75, bikeMassKg: 0 })).toThrow(RangeError)
+  })
+
+  it('rejects zero body mass for a library analysis', async () => {
+    const session = new AnalysisSession()
+    await expect(
+      session.addFiles([fitFile('run.fit', run)], { massKg: 0, bikeMassKg: 9 }),
+    ).rejects.toThrow(RangeError)
+  })
+
+  it('clear works after settings were given', () => {
+    const session = new AnalysisSession()
+    session.setSettings(SETTINGS)
+    expect(session.clear().result).toBeNull()
   })
 })
 

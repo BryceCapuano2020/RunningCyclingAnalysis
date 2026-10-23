@@ -104,7 +104,9 @@
         Cloudflare handles each request, including the network address it came from, under its own
         policies. Cloudflare uses that address for rate limiting, which the application does not
         store. When the application hits an unexpected error, it logs a request identifier and the
-        error type. It does not log request bodies, file contents, tokens or query strings.
+        error type. Our code does not log request bodies, file contents, tokens or query strings.
+        Cloudflare's request logs, kept for 3 days, record request URLs, including the single-use
+        sign-in code returned by Google, which cannot be reused.
       </p>
 
       <h2>How long we keep it</h2>
@@ -117,10 +119,7 @@
           Sessions end after 30 days without use, and in any case 90 days after they were created.
           Expired sessions are removed.
         </li>
-        <li>
-          Application logs, which hold request identifiers and error types, are kept by Cloudflare
-          for three days.
-        </li>
+        <li>Cloudflare's request logs and the application's error logs are kept for three days.</li>
         <li>
           Backups are not enabled at the date of this page. When they are, each backup is an
           encrypted copy of the database, kept for up to 90 days and then deleted. A backup also
@@ -156,15 +155,22 @@
         and choose <em>Download my data</em>. The file is one JSON document. It contains:
       </p>
       <ul>
+        <li>the export's format name and version, and when it was made;</li>
         <li>your account name and email address;</li>
         <li>
-          your profile settings: body mass, bike mass, unit system, and whether you keep original
-          files;
+          your profile settings: body mass, bike mass, unit system, whether you keep original files,
+          and when the settings last changed;
         </li>
         <li>
-          for each saved activity, its name, the name of the file it came from, its start time and
-          sport, and its stored analysis summary, including the data-quality flags.
+          for each saved activity: its library identifier, sport, start time, name, the name of the
+          file it came from, whether an original file is stored, when it was saved, and its stored
+          analysis summary, including the data-quality flags;
         </li>
+        <li>
+          the number of saved activities that could not be read, which are therefore left out of the
+          file;
+        </li>
+        <li>notes on what the file leaves out and how values are written.</li>
       </ul>
       <p>The file does not include original activity files.</p>
 

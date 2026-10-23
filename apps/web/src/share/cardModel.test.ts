@@ -129,7 +129,7 @@ describe('buildShareCard', () => {
   it('states the estimate disclaimer in the footer', () => {
     const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.footer).toBe(
-      'Estimated from heart rate, pace and power files. This compares estimated energy use, not sporting ability.',
+      'Estimated from heart rate, pace and power files. This compares estimated energy rates, not sporting ability.',
     )
   })
 

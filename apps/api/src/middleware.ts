@@ -20,6 +20,19 @@ export const csrfGuard = createMiddleware<AppEnv>(async (c, next) => {
   await next()
 })
 
+/**
+ * For a GET that spends budget. A cross-site navigation carries the SameSite=Lax session cookie, so
+ * without this another site could spend the signed-in user's daily units. Browsers send
+ * Sec-Fetch-Site on every request. A request without it (old browsers, curl) is allowed.
+ */
+export const sameOriginReadGuard = createMiddleware<AppEnv>(async (c, next) => {
+  const site = c.req.header('Sec-Fetch-Site')
+  if (site !== undefined && site !== 'same-origin' && site !== 'none') {
+    throw new HttpError(403, 'csrf_rejected', 'This request must come from the app itself')
+  }
+  await next()
+})
+
 function signedIn(options: { allowDeleting: boolean }) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const user = await loadSession(c, options)

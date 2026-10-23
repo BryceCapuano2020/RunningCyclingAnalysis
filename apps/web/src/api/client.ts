@@ -263,9 +263,6 @@ export async function listActivities(
     if (total + page.items.length > MAX_ACTIVITIES_PER_USER) {
       throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
     }
-    if (page.items.length === 0 && page.nextCursor !== null) {
-      throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
-    }
     total += page.items.length
     if (onPage) onPage(page.items)
     else records.push(...page.items)

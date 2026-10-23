@@ -84,31 +84,58 @@ describe('Dropzone', () => {
     expect(screen.getByText('Read 2 files so far')).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it.each([
-    { label: 'signed out', signedIn: false },
-    { label: 'signed in', signedIn: true },
-  ])('keeps one always-mounted live region for analysis, $label', ({ signedIn }) => {
-    const { rerender, container } = render(<Dropzone {...baseProps()} signedIn={signedIn} />)
+  it('keeps one always-mounted live region for analysis', () => {
+    const { rerender, container } = render(<Dropzone {...baseProps()} />)
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1)
 
-    rerender(<Dropzone {...baseProps()} signedIn={signedIn} busy progress={null} />)
+    rerender(<Dropzone {...baseProps()} busy progress={null} />)
     expect(screen.getByRole('status')).toHaveTextContent('Reading files')
-    rerender(<Dropzone {...baseProps()} signedIn={signedIn} busy progress={1} />)
-    rerender(<Dropzone {...baseProps()} signedIn={signedIn} busy progress={2} />)
+    rerender(<Dropzone {...baseProps()} busy progress={1} />)
+    rerender(<Dropzone {...baseProps()} busy progress={2} />)
     expect(screen.getByRole('status')).toHaveTextContent('Reading files')
     expect(screen.getByRole('status')).not.toHaveTextContent('so far')
 
     rerender(
       <Dropzone
         {...baseProps()}
-        signedIn={signedIn}
         busy={false}
         progress={null}
         outcome={{ activities: 3, rejected: 0 }}
       />,
     )
     expect(screen.getByRole('status')).toHaveTextContent('Analysed 3 activities')
+  })
+
+  it('leaves the final announcement of a signed-in import to the sync status', () => {
+    const { rerender } = render(<Dropzone {...baseProps()} signedIn busy progress={null} />)
+    rerender(
+      <Dropzone
+        {...baseProps()}
+        signedIn
+        busy={false}
+        progress={null}
+        outcome={{ activities: 3, rejected: 1 }}
+      />,
+    )
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('keeps the same live region when the view changes from landing to results', () => {
+    const { rerender } = render(<Dropzone {...baseProps()} busy progress={null} />)
+    const region = screen.getByRole('status')
+    rerender(
+      <Dropzone
+        {...baseProps()}
+        compact
+        busy={false}
+        progress={null}
+        outcome={{ activities: 3, rejected: 0 }}
+      />,
+    )
+    // A region that is mounted with its text is not announced, so it must survive the switch.
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('Analysed 3 activities')
   })
 
   it('announces the rejection summary with the outcome of a run', () => {

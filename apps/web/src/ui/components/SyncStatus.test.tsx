@@ -222,6 +222,13 @@ describe('SyncStatus', () => {
     expect(screen.getByRole('status')).toHaveTextContent(text)
   })
 
+  it('says the daily save limit resets at 00:00 UTC, with the local time of that reset', () => {
+    render(<SyncStatus {...props({ issues: [issue('daily-limit', 2)] })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /^You have reached today's limit on saves, so 2 activities were not fully saved\. It resets at 00:00 UTC \(.+ your time\)\. Re-import them after that\.$/,
+    )
+  })
+
   it('shows issues to a signed-out visitor, who is the one who needs to sign in', () => {
     render(<SyncStatus {...props({ signedIn: false, issues: [issue('signed-out', 1)] })} />)
     expect(screen.getByRole('status')).toHaveTextContent('Sign in and re-import it.')

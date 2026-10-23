@@ -33,7 +33,7 @@ function groupByReason(rejected: RejectedFile[]): ReasonGroup[] {
 
 function unsupportedCopy(count: number): string {
   const verb = count === 1 ? 'was' : 'were'
-  return `${plural(count, 'file')} ${verb} skipped. Only FIT, GPX and TCX files can be read`
+  return `${plural(count, 'file')} ${verb} skipped. Only FIT, GPX or TCX files can be read.`
 }
 
 /** One expandable group per reason, each listing its file names. */

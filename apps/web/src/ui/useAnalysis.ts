@@ -8,6 +8,7 @@ import type {
   WorkerRequest,
   WorkerResponse,
 } from '../worker/protocol'
+import { limitReached, resetSentence } from './limitCopy'
 import type { AccountController, AccountStatus } from './useAccount'
 
 /** 'loaded' is the only state in which an import may be sent to the signed-in library. */
@@ -18,11 +19,6 @@ const LIBRARY_NOT_LOADED =
   'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
 const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'
 const INTERRUPTED = 'Your import was interrupted. Add the files again.'
-const DAILY_LIMIT =
-  'You have reached the daily limit for this account. The limit resets at 00:00 UTC.'
-const DELETE_DAILY_LIMIT = `You can delete up to ${DAILY_LIMITS.activityDelete} activities per day. The limit resets at 00:00 UTC.`
-const LIBRARY_DAILY_LIMIT = `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`
-const EXPORT_DAILY_LIMIT = `You have reached today's limit for loading your library, which the export also uses (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`
 const EXPORT_INTERRUPTED = 'The download was interrupted. Download your data again.'
 
 /** The sentence for saved activities a rebuild could not reach because of a limit. */
@@ -35,14 +31,10 @@ function limitedSentence(
   if (kind === 'rate') {
     return `${count} ${noun} not rebuilt. The server asked us to slow down; try again in a minute.`
   }
-  const resetText =
-    resetsAtMs === null
-      ? 'Try again later.'
-      : `Try again after ${new Date(resetsAtMs).toLocaleString()}.`
   if (kind === 'daily') {
-    return `${count} ${noun} not rebuilt because the daily download limit (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetText}`
+    return `${count} ${noun} not rebuilt because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetSentence(resetsAtMs)}`
   }
-  return `${count} ${noun} not rebuilt. ${resetText}`
+  return `${count} ${noun} not rebuilt. Try again later.`
 }
 
 export interface AnalysisController {
@@ -454,18 +446,20 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       if (message.type === 'error') {
         if (pending?.kind === 'loadServer') {
           const dropped = failLibrary()
-          if (message.issue === 'daily-limit') setError(LIBRARY_DAILY_LIMIT, 'daily-limit')
+          if (message.issue === 'daily-limit') setError(limitReached('read'), 'daily-limit')
           else if (dropped) setError(LIBRARY_NOT_LOADED)
         } else if (pending?.kind === 'deleteActivity') {
           setLibraryError(
             message.issue === 'daily-limit'
-              ? DELETE_DAILY_LIMIT
+              ? limitReached('activityDelete')
               : `Could not delete the activity. ${message.message}`,
           )
         } else if (message.issue === 'daily-limit') {
           // A rebuild fails outright only when its first library listing is refused.
           setError(
-            pending?.kind === 'rebuildStale' ? LIBRARY_DAILY_LIMIT : DAILY_LIMIT,
+            pending?.kind === 'rebuildStale'
+              ? limitReached('read')
+              : limitReached('activityCreate'),
             'daily-limit',
           )
         } else setError(message.message)
@@ -688,7 +682,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
               reject(
                 new Error(
                   message.issue === 'daily-limit'
-                    ? EXPORT_DAILY_LIMIT
+                    ? limitReached('read')
                     : `Could not download your data. ${message.message}`,
                 ),
               )

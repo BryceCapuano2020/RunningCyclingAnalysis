@@ -63,7 +63,7 @@ meRoutes.put(
       await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
       await db
         .update(activities)
-        .set({ fileKey: null, fileSize: null })
+        .set({ fileKey: null, fileSize: null, fileReservationToken: null })
         .where(eq(activities.userId, userId))
     }
     const values = { ...input, updatedAt }
@@ -76,7 +76,7 @@ meRoutes.put(
       await sweepUserFiles(c.env.DB, bucket, userId, deps.now)
       await db
         .update(activities)
-        .set({ fileKey: null, fileSize: null })
+        .set({ fileKey: null, fileSize: null, fileReservationToken: null })
         .where(
           and(
             eq(activities.userId, userId),

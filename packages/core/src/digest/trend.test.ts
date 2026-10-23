@@ -206,4 +206,17 @@ describe('fitnessTrend', () => {
     expect(points[0]?.endMs).toBe(FIRST_SUNDAY_END + 40 * WEEK)
     expect(points.at(-1)?.endMs).toBe(FIRST_SUNDAY_END + 299 * WEEK)
   })
+
+  it('rejects a body mass or bike mass that is not a positive finite number', () => {
+    const bad: AthleteSettings[] = [
+      { massKg: 0, bikeMassKg: 9 },
+      { massKg: 75, bikeMassKg: -9 },
+      { massKg: Number.NaN, bikeMassKg: 9 },
+      { massKg: 75, bikeMassKg: Number.POSITIVE_INFINITY },
+    ]
+    for (const s of bad) {
+      expect(() => fitnessTrend([], s)).toThrow(RangeError)
+      expect(() => fitnessTrend(samples, s)).toThrow(RangeError)
+    }
+  })
 })

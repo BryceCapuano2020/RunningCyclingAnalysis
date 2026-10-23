@@ -12,7 +12,7 @@ import { fitCriticalPower } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts, referenceMaxHeartRates } from '../effort'
 import { crossCheck } from '../hr'
-import { mean } from '../math'
+import { mean, requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
   AthleteSettings,
@@ -270,7 +270,7 @@ function leaveOneOutAccuracy(
   calibrated: Calibrated[],
   totalSums: CalibrationSums,
   massKg: number,
-): VirtualPowerAccuracy {
+): VirtualPowerAccuracy | null {
   const segments = calibrated.flatMap(({ digest, sums }) => {
     const others = subtractCalibrationSums(totalSums, sums)
     const model = fitBikeModel(calibrationStatsAt(others, massKg)).model
@@ -282,6 +282,8 @@ function leaveOneOutAccuracy(
       estimatedW: powerAt(section.terms, massKg, model),
     }))
   })
+  // Without a qualifying climb there is nothing to score, so there is no accuracy to report.
+  if (segments.length === 0) return null
   const relErr = segments.map((s) => (s.estimatedW - s.measuredW) / s.measuredW)
   return {
     nSegments: segments.length,
@@ -296,6 +298,8 @@ function leaveOneOutAccuracy(
  * bike masses and the efficiency priors enter here, so the work per settings change is small.
  */
 export function combine(digests: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
+  requirePositiveFinite('massKg', settings.massKg)
+  requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const ordered = orderedCurrent(digests)
   const massKg = settings.massKg
   const totalMassKg = settings.massKg + settings.bikeMassKg

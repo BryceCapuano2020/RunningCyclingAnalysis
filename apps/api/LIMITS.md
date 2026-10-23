@@ -69,6 +69,9 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 - A listing (`GET /api/activities`) charges one `read` unit for its first page. Only the continuation
   cursor the server issued last is free, and only once: a page that presents it is not charged, and
   presenting it again is charged as a fresh read. A malformed cursor returns 400 before any unit is taken.
+  Only same-origin requests are charged or rotate the cursor. A request whose `Sec-Fetch-Site` is
+  `cross-site`, `same-site` or any other value returns 403 `csrf_rejected` before anything is taken.
+  The same check guards file downloads. A request without `Sec-Fetch-Site` (old browsers, curl) is allowed.
 - `GET /api/me` is not charged: it reads a constant one or two rows, so the edge rate limiter bounds it.
   Charging it would lock out someone who simply reloads the page often.
 - The read limit is **100 per UTC day** (`DAILY_LIMITS.read`), lowered from 1,000. A library of 5,000 rows
@@ -81,6 +84,9 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 - A stored row whose digest cannot be read is skipped, not returned. The response counts skipped rows in
   `unreadable`, which is absent when the count is zero. Each skip is logged with the activity id and the
   first failing path, never the content. A skipped row still moves the cursor on.
+- One request scans at most 8 database pages, which keeps it inside D1 Free's 50 queries per invocation
+  even when many stored rows are unreadable. A request that hits the cap returns the rows it found, possibly
+  none, with a cursor after the last row it examined; clients follow that cursor like any other.
 - Stored rows are read with a lenient schema, `StoredActivityDigestSchema`. It keeps the field types but not
   the create-time rules (for example a null duration or a curve off the grid, which older revisions may
   carry), and it bounds array lengths at four times the create limits. Creates still use the strict schema.
@@ -95,10 +101,11 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
   same way unless it shrinks the digest. A request for a revision the row already has is answered with the
   stored digest and never needs quota.
 - **Database guard.** `DATABASE_SOFT_LIMIT_BYTES` is 450 MiB, below D1 Free's 500 MB per database. While the
-  last recorded size is above it, a new activity returns **503 `database_full`**. Existing activities still
-  return 200, and upgrades still succeed.
+  last recorded size is above it, a new activity returns **503 `database_full`**, and so does an upgrade
+  that would grow a stored digest. Upgrades that do not grow it still succeed, and each successful upgrade
+  records the size it leaves behind.
 - **Recovery.** The recorded size is `r2_storage_budget.d1_size_bytes`, taken from `meta.size_after` of a D1
-  statement that has already run: after each create that writes a row, after each successful
+  statement that has already run: after each create that writes a row, after each upgrade, after each successful
   `DELETE /api/activities/:id`, when an account deletion completes, and in every maintenance run. Creates
   are admitted again once one of those records a size at or under the limit. Creates do not measure the
   size themselves, so a refused create does not recover the guard. The daily maintenance run guarantees
@@ -123,13 +130,13 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 ## Other per-user limits
 
-| Limit                       | Value                     | Enforcement                                                                                                                   |
-| --------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Activities stored           | 5,000                     | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                   |
-| Digest JSON bytes stored    | 64 MiB                    | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                 |
-| Original-file bytes stored  | 1 GiB                     | Reserved in the activity row before R2 is called.                                                                             |
-| Concurrent original uploads | 2                         | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job. |
-| Request body                | 256 KB digest; 50 MB file | Checked before parsing and while streaming.                                                                                   |
+| Limit                       | Value                       | Enforcement                                                                                                                   |
+| --------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Activities stored           | 5,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                   |
+| Digest JSON bytes stored    | 64 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                 |
+| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called.                                                                             |
+| Concurrent original uploads | 2                           | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job. |
+| Request body                | 256 KiB digest; 50 MiB file | Checked before parsing and while streaming.                                                                                   |
 
 ## Deployment R2 ledger
 
@@ -181,14 +188,14 @@ before launch, and plan for Workers Paid if usage grows.
 - **Legacy rows reach the web client.** Stored rows that the lenient schema reads are listed as they are. The
   client parses them with the same contract (`ActivityPageSchema`), so the analysis must cope with a null
   duration or an off-grid curve.
-- **CPU on Free (10 ms per request).** Hashing a 50 MB upload with SHA-256 and parsing a 1 MB list
+- **CPU on Free (10 ms per request).** Hashing a 50 MiB upload with SHA-256 and parsing a 1 MiB list
   page are both likely to exceed 10 ms of CPU. This is an estimate and has not been measured. The
   app needs Workers Paid for production uploads, or a measured confirmation that the free plan can
   handle them.
 - **Streaming the SHA-256.** `crypto.DigestStream` exists, but the hash must be verified before the
   object is written. The body is single-pass, so streaming would need a staging key and a copy,
   which doubles Class A operations. Bodies are still buffered, with at most 2 uploads per user.
-  Nothing caps uploads across the whole isolate, and two 50 MB buffers per user could pressure a
+  Nothing caps uploads across the whole isolate, and two 50 MiB buffers per user could pressure a
   128 MB isolate. A global upload cap is a decision for the owner.
 - **Unknown paths outside `/api`.** The web app has no client-side routes, so `not_found_handling`
   is `none` and nothing falls back to `index.html`. A path that matches no asset falls through to the
@@ -200,7 +207,7 @@ before launch, and plan for Workers Paid if usage grows.
 
 Cookies are `<token>.<HMAC-SHA256(token)>` with `SESSION_SIGNING_KEY`. A value without a valid
 signature is refused before any D1 call. Production needs `wrangler secret put SESSION_SIGNING_KEY`.
-The key is at least 32 random bytes. A missing or shorter key fails closed: every request that needs a session returns 503 `service_unavailable`, and the key is never padded or replaced. Rotating it signs every user out. Before this change, unsigned
+The key must be at least 32 bytes, counted as the UTF-8 bytes of the secret string. The code checks only that length, so the key must be generated randomly, for example with `openssl rand -hex 32`, as [DEPLOY.md](../../docs/DEPLOY.md) recommends. A missing or shorter key fails closed: every request that needs a session returns 503 `service_unavailable`, and the key is never padded or replaced. Rotating it signs every user out. Before this change, unsigned
 cookies were valid, so existing users must sign in again after the first deploy.
 
 ## Scheduled job
@@ -237,22 +244,44 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 
 ## Error codes
 
-| Status | Code                       | Meaning                                                                                                       |
-| ------ | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion.                    |
-| 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                                                  |
-| 409    | `account_deleting`         | Sign-in or upload while the account is being deleted. New.                                                    |
-| 403    | `activity_quota`           | 5,000 activities reached.                                                                                     |
-| 403    | `storage_quota`            | 1 GiB of original files reached.                                                                              |
-| 429    | `rate_limited`             | Per-minute limiter.                                                                                           |
-| 429    | `daily_limit`              | Daily budget spent. New. `Retry-After` is set.                                                                |
-| 429    | `upload_in_progress`       | Two uploads already in progress. New. `Retry-After: 5`.                                                       |
-| 429    | `storage_budget_exhausted` | Deployment R2 ledger refused the call. The message is generic; the cap is logged as `storage_budget_refused`. |
-| 411    | `length_required`          | Original-file upload without a Content-Length header.                                                         |
-| 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                    |
-| 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                  |
-| 403    | `digest_quota`             | 64 MiB of stored digest JSON reached.                                                                         |
-| 503    | `database_full`            | Database over 450 MiB; new activities are refused until the recorded size falls.                              |
-| 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                  |
-| 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                           |
-| 503    | `service_unavailable`      | Session signing key missing or shorter than 32 bytes.                                                         |
+| Status | Code                       | Meaning                                                                                                                            |
+| ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion.                                         |
+| 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                                                                       |
+| 409    | `account_deleting`         | Sign-in or upload while the account is being deleted. New.                                                                         |
+| 403    | `activity_quota`           | 5,000 activities reached.                                                                                                          |
+| 403    | `storage_quota`            | 1 GiB of original files reached.                                                                                                   |
+| 429    | `rate_limited`             | Per-minute limiter.                                                                                                                |
+| 429    | `daily_limit`              | Daily budget spent. New. `Retry-After` is set.                                                                                     |
+| 429    | `upload_in_progress`       | Two uploads already in progress. New. `Retry-After: 5`.                                                                            |
+| 429    | `storage_budget_exhausted` | Deployment R2 ledger refused the call. The message is generic; the cap is logged as `storage_budget_refused`.                      |
+| 411    | `length_required`          | Original-file upload without a Content-Length header.                                                                              |
+| 413    | `payload_too_large`        | Original file over 50 MiB.                                                                                                         |
+| 422    | `hash_mismatch`            | The uploaded file does not match its digest's hash. Its daily charges stand.                                                       |
+| 403    | `digest_quota`             | 64 MiB of stored digest JSON reached.                                                                                              |
+| 503    | `database_full`            | Database over 450 MiB; new activities and growing upgrades are refused until the recorded size falls.                              |
+| 404    | `not_found`                | Activity missing or owned by another user, including `replace=<id>` targets.                                                       |
+| 409    | `activity_conflict`        | `replace=<id>` names an activity at another start time or with other file contents.                                                |
+| 503    | `service_unavailable`      | Session signing key missing or shorter than 32 bytes.                                                                              |
+| 400    | `bad_request`              | Malformed `Content-Length` header.                                                                                                 |
+| 400    | `invalid_json`             | Request body is not valid JSON.                                                                                                    |
+| 400    | `invalid_request`          | Body fails the contract schema, or a library cursor is malformed.                                                                  |
+| 400    | `empty_file`               | Original-file upload with an empty body.                                                                                           |
+| 400    | `length_mismatch`          | Body is shorter or longer than its `Content-Length`.                                                                               |
+| 400    | `oauth_denied`             | Google sign-in was cancelled.                                                                                                      |
+| 400    | `oauth_missing_code`       | Google returned no authorization code.                                                                                             |
+| 400    | `oauth_state_mismatch`     | Sign-in state is missing or does not match, usually an expired sign-in attempt.                                                    |
+| 400    | `oauth_token_expired`      | Google ID token has expired.                                                                                                       |
+| 403    | `csrf_rejected`            | Non-GET `/api` request without `X-RCA-Client: web`.                                                                                |
+| 403    | `email_not_verified`       | Google account email is not verified.                                                                                              |
+| 404    | `no_file`                  | Activity has no stored original, or the stored file is missing.                                                                    |
+| 408    | `body_timeout`             | Request body stopped arriving (15-second idle limit, two-minute total limit).                                                      |
+| 409    | `account_conflict`         | Google sign-in: the email is already linked to a different Google account.                                                         |
+| 409    | `files_disabled`           | Original-file upload or download while 'Keep original files' is off.                                                               |
+| 413    | `digest_too_large`         | Activity digest over 256 KiB.                                                                                                      |
+| 429    | `health_probe_limit`       | Deep health probe budget spent. The deep-health route turns this into a 200 `skipped` response, so clients do not normally see it. |
+| 500    | `internal_error`           | Unexpected error. The response carries the request id; the log carries only the id and the exception class.                        |
+| 502    | `oauth_exchange_failed`    | Google code exchange failed.                                                                                                       |
+| 502    | `oauth_bad_id_token`       | Google returned an ID token that failed validation.                                                                                |
+| 503    | `file_storage_unavailable` | The deployment has no file storage binding, or R2 is unavailable.                                                                  |
+| other  | `http_error`               | Other framework HTTP errors that are not 400.                                                                                      |

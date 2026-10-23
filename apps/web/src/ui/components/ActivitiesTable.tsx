@@ -187,19 +187,20 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
           </tbody>
         </table>
       </div>
-      {pageCount > 1 && (
-        <nav
-          className="activities-table__pagination"
-          aria-label="Activity pages"
-          onFocusCapture={() => {
-            paginationHadFocusRef.current = true
-          }}
-          onBlurCapture={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-              paginationHadFocusRef.current = false
-            }
-          }}
-        >
+      {/* Always mounted, so the page status is announced when a second page appears. Empty on one page. */}
+      <nav
+        className="activities-table__pagination"
+        aria-label={pageCount > 1 ? 'Activity pages' : undefined}
+        onFocusCapture={() => {
+          paginationHadFocusRef.current = true
+        }}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            paginationHadFocusRef.current = false
+          }
+        }}
+      >
+        {pageCount > 1 && (
           <button
             type="button"
             className="btn"
@@ -208,9 +209,13 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
           >
             Previous page
           </button>
-          <p role="status" aria-live="polite">
-            {`Showing ${firstIndex + 1}–${Math.min(firstIndex + PAGE_SIZE, activities.length)} of ${activities.length} activities. Page ${currentPage + 1} of ${pageCount}.`}
-          </p>
+        )}
+        <p role="status" aria-live="polite">
+          {pageCount > 1
+            ? `Showing ${firstIndex + 1}–${Math.min(firstIndex + PAGE_SIZE, activities.length)} of ${activities.length} activities. Page ${currentPage + 1} of ${pageCount}.`
+            : ''}
+        </p>
+        {pageCount > 1 && (
           <button
             type="button"
             className="btn"
@@ -219,8 +224,8 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
           >
             Next page
           </button>
-        </nav>
-      )}
+        )}
+      </nav>
     </div>
   )
 }

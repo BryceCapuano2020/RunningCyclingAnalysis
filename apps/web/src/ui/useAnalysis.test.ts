@@ -11,6 +11,14 @@ import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 
+/** The local time shown for a reset instant, as the limit copy formats it. */
+function localTime(ms: number): string {
+  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(ms)
+}
+
+/** The reset sentence, with the local time left to the viewer's zone. */
+const RESET_AT_UTC_MIDNIGHT = /It resets at 00:00 UTC \(.+ your time\)\.$/
+
 /** A Worker that records what the hook posts and lets the test send replies. */
 class FakeWorker {
   static instances: FakeWorker[] = []
@@ -765,7 +773,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Rebuilt 2 saved activities. 3 activities were not rebuilt because the daily download limit (50 per day) was reached. Try again after ${new Date(resetsAt).toLocaleString()}.`,
+      `Rebuilt 2 saved activities. 3 activities were not rebuilt because today's limit on downloads (50 per day) was reached. It resets at 00:00 UTC (${localTime(resetsAt)} your time).`,
     )
   })
 
@@ -789,7 +797,7 @@ describe('useAnalysis state', () => {
     )
   })
 
-  it('does not promise a reset time for a limit whose reset is unknown', () => {
+  it('gives the next UTC midnight as the reset when the server gives no reset time', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.rebuildSavedActivities())
     act(() =>
@@ -805,7 +813,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /1 activity was not rebuilt because the daily download limit.*Try again later\./,
+      /^Rebuilt 0 saved activities\. 1 activity was not rebuilt because today's limit on downloads \(50 per day\) was reached\. It resets at 00:00 UTC \(.+ your time\)\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
@@ -816,9 +824,12 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
 
     expect(result.current.errorIssue).toBe('daily-limit')
-    expect(result.current.error).toBe(
-      'You have reached the daily limit for this account. The limit resets at 00:00 UTC.',
+    expect(result.current.error).toMatch(
+      new RegExp(
+        `^You have reached today's limit on saves \\(${DAILY_LIMITS.activityCreate} per day\\)\\. `,
+      ),
     )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
 
   it('keeps the worker-stopped message when a worker stops while imports are held', () => {
@@ -949,9 +960,12 @@ describe('useAnalysis state', () => {
     act(() => result.current.deleteActivity('a1'))
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
 
-    expect(result.current.libraryError).toBe(
-      'You can delete up to 50 activities per day. The limit resets at 00:00 UTC.',
+    expect(result.current.libraryError).toMatch(
+      new RegExp(
+        `^You have reached today's limit on deletions \\(${DAILY_LIMITS.activityDelete} per day\\)\\. `,
+      ),
     )
+    expect(result.current.libraryError).toMatch(RESET_AT_UTC_MIDNIGHT)
     expect(result.current.error).toBeNull()
     expect(result.current.libraryAction).toBeNull()
   })
@@ -1073,9 +1087,12 @@ describe('useAnalysis library messages', () => {
 
     expect(result.current.libraryStatus).toBe('failed')
     expect(result.current.errorIssue).toBe('daily-limit')
-    expect(result.current.error).toBe(
-      `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`,
+    expect(result.current.error).toMatch(
+      new RegExp(
+        `^You have reached today's limit on library loads \\(${DAILY_LIMITS.read} per day\\)\\. `,
+      ),
     )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
 
   it('states the daily read limit when a rebuild cannot list the library', () => {
@@ -1085,9 +1102,12 @@ describe('useAnalysis library messages', () => {
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
 
     expect(result.current.errorIssue).toBe('daily-limit')
-    expect(result.current.error).toBe(
-      `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`,
+    expect(result.current.error).toMatch(
+      new RegExp(
+        `^You have reached today's limit on library loads \\(${DAILY_LIMITS.read} per day\\)\\. `,
+      ),
     )
+    expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
 })
 
@@ -1140,9 +1160,12 @@ describe('useAnalysis account export', () => {
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
 
     await waitFor(() => expect(failure).toBeInstanceOf(Error))
-    expect((failure as Error).message).toBe(
-      `You have reached today's limit for loading your library, which the export also uses (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`,
+    expect((failure as Error).message).toMatch(
+      new RegExp(
+        `^You have reached today's limit on library loads \\(${DAILY_LIMITS.read} per day\\)\\. `,
+      ),
     )
+    expect((failure as Error).message).toMatch(RESET_AT_UTC_MIDNIGHT)
   })
 
   it('rejects with the reason when the export fails for another cause', async () => {

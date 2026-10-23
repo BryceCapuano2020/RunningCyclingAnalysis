@@ -71,3 +71,57 @@ describe('csrfGuard', () => {
     )
   })
 })
+
+describe('same-origin check on budget-spending GETs', () => {
+  async function spentReads(h: ReturnType<typeof createHarness>): Promise<number> {
+    const row = await h.env.DB.prepare(
+      "SELECT coalesce(sum(used), 0) AS n FROM daily_budget WHERE action IN ('read', 'fileDownload')",
+    ).first<{ n: number }>()
+    return row?.n ?? 0
+  }
+
+  it.each([['cross-site'], ['same-site'], ['an unrecognised value']])(
+    'refuses a library listing with %s in Sec-Fetch-Site, before it takes a read unit',
+    async (site) => {
+      const h = createHarness()
+      const token = await h.signIn()
+      const res = await h.send({
+        path: '/api/activities',
+        headers: { 'Sec-Fetch-Site': site },
+        cookies: { rca_session: token },
+      })
+      expect(res.status).toBe(403)
+      expect(await res.json()).toMatchObject({ error: { code: 'csrf_rejected' } })
+      expect(await spentReads(h)).toBe(0)
+    },
+  )
+
+  it('refuses a cross-site file download before it looks up the activity or takes a unit', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const res = await h.send({
+      path: '/api/activities/missing/file',
+      headers: { 'Sec-Fetch-Site': 'cross-site' },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ error: { code: 'csrf_rejected' } })
+    expect(await spentReads(h)).toBe(0)
+  })
+
+  it.each([['same-origin'], ['none'], [undefined]])(
+    'serves a library listing when Sec-Fetch-Site is %s',
+    async (site) => {
+      const h = createHarness()
+      const token = await h.signIn()
+      const headers: Record<string, string> = site === undefined ? {} : { 'Sec-Fetch-Site': site }
+      const res = await h.send({
+        path: '/api/activities',
+        headers,
+        cookies: { rca_session: token },
+      })
+      expect(res.status).toBe(200)
+      expect(await spentReads(h)).toBe(1)
+    },
+  )
+})

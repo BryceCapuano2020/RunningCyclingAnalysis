@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MAX_ACTIVITIES_PER_USER, MAX_FILE_BYTES } from '@rca/contract'
 import type { SyncIssue } from '@rca/core/session'
+import { resetSentence } from '../limitCopy'
 import { plural } from './plural'
 import './SyncStatus.css'
 
@@ -40,7 +41,7 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'rate-limited':
       return `Too many requests at once, so ${activities} ${wereOrWas} not fully saved. Wait a minute, then re-import ${them}.`
     case 'daily-limit':
-      return `Your daily save allowance was reached, so ${activities} ${wereOrWas} not fully saved. Try again after midnight UTC and re-import ${them}.`
+      return `You have reached today's limit on saves, so ${activities} ${wereOrWas} not fully saved. ${resetSentence()} Re-import ${them} after that.`
     case 'upload-in-progress':
       return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then re-import ${them}.`
     case 'account-deleting':

@@ -49,6 +49,15 @@ describe('Headline wording', () => {
     ).toBeInTheDocument()
   })
 
+  it('says the comparison is of estimated energy rates, not sporting ability', () => {
+    renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
+    expect(
+      screen.getByText(
+        'This compares estimated energy rates, not sporting ability. The range does not include every source of error.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('never states a categorical superiority such as stronger or best', () => {
     const { container } = renderHeadline(withRatio(interval(0.8, 0.9, 0.95)))
     expect(container.textContent).not.toMatch(/stronger|best running|best cycling|all-out/)

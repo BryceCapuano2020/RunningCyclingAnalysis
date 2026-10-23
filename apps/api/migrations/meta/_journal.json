@@ -36,6 +36,13 @@
       "when": 1792800000000,
       "tag": "0004_digest_bytes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792767586506,
+      "tag": "0005_upload_reservation_token",
+      "breakpoints": true
     }
   ]
 }

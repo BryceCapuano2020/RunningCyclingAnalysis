@@ -109,7 +109,7 @@
 .dropzone--compact .dropzone__status {
   min-height: 0;
   text-align: left;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .dropzone__overlay {

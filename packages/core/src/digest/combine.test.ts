@@ -111,6 +111,41 @@ describe('combine', () => {
     expect(empty.virtualAccuracy).toBeNull()
   })
 
+  it('reports no virtual accuracy when a power-meter ride has no climb to score', () => {
+    const flat = digestActivity(
+      generateActivity(
+        athlete,
+        {
+          id: 'flat-ride',
+          name: 'Flat ride',
+          sport: 'ride',
+          startMs: 0,
+          durationS: 1800,
+          effort: 'easy',
+          terrain: 'flat',
+        },
+        7,
+      ),
+    )
+    expect(flat.calibration).not.toBeNull()
+    expect(flat.climbSections).toEqual([])
+    expect(combine([flat], settings).virtualAccuracy).toBeNull()
+  })
+
+  it('rejects a body mass or bike mass that is not a positive finite number', () => {
+    const bad: AthleteSettings[] = [
+      { massKg: 0, bikeMassKg: 9 },
+      { massKg: -1, bikeMassKg: 9 },
+      { massKg: Number.NaN, bikeMassKg: 9 },
+      { massKg: 75, bikeMassKg: 0 },
+      { massKg: 75, bikeMassKg: Number.POSITIVE_INFINITY },
+    ]
+    for (const s of bad) {
+      expect(() => combine(digests, s)).toThrow(RangeError)
+      expect(() => combine([], s)).toThrow(RangeError)
+    }
+  })
+
   it('lists activities newest first, summarised from their digests', () => {
     const starts = result.activities.map((a) => a.startMs)
     expect(starts).toEqual([...starts].sort((a, b) => b - a))

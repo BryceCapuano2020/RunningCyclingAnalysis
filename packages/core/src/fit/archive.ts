@@ -1,4 +1,5 @@
 import { Gunzip, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
+import type { UnzipFile } from 'fflate'
 
 export interface FitFile {
   fileName: string
@@ -273,11 +274,22 @@ async function streamZip(
     failEntry(pending, reason)
   }
 
+  // fflate keeps the compressed input of an entry that is never started, so a skipped entry is
+  // started with its output discarded. Otherwise a large skipped file (a photo, say) stays in memory.
+  const drain = (file: UnzipFile) => {
+    file.ondata = () => undefined
+    try {
+      file.start()
+    } catch {
+      // Nothing is retained for an entry that cannot start.
+    }
+  }
+
   const unzip = new Unzip((file) => {
     sawEntry = true
     seenEntries++
     // Once the archive has stopped, its remaining entries are covered by the archive-wide reason.
-    if (budget.abort !== null) return
+    if (budget.abort !== null) return drain(file)
     budget.archiveEntries++
     const entry = file.name
     const name = prefix + entry
@@ -286,29 +298,29 @@ async function streamZip(
       const reason = `Archive exceeds the ${sink.limits.maxArchiveEntries}-entry limit`
       reportEntryError(name, reason)
       budget.abort ??= reason
-      return
+      return drain(file)
     }
-    if (isIgnored(entry)) return
+    if (isIgnored(entry)) return drain(file)
     if (OTHER_ACTIVITY.test(entry)) {
       sink.summary.otherActivityFiles++
-      return
+      return drain(file)
     }
     const nested = ZIP.test(entry)
-    if (!nested && !ACTIVITY.test(entry)) return
+    if (!nested && !ACTIVITY.test(entry)) return drain(file)
     if (nested && depth >= MAX_NESTED_ARCHIVE_DEPTH) {
       reportEntryError(name, TOO_DEEP)
-      return
+      return drain(file)
     }
     if (!nested) {
       budget.fitEntries++
       if (budget.fitEntries > sink.limits.maxFitFiles) {
         reportEntryError(name, `Archive exceeds the ${sink.limits.maxFitFiles}-activity-file limit`)
-        return
+        return drain(file)
       }
     }
     if (file.originalSize !== undefined && file.originalSize > sink.limits.maxEntryBytes) {
       reportEntryError(name, `Archive entry exceeds the ${sink.limits.maxEntryBytes}-byte limit`)
-      return
+      return drain(file)
     }
 
     const pending: PendingEntry = { name, state: 'open', chunks: [], bytes: 0 }

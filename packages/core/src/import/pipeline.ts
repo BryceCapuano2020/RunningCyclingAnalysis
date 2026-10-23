@@ -1,3 +1,4 @@
+import { DAY_MS } from '../constants'
 import type { Activity, Sport } from '../types'
 import type { ParseLimits, ParseOptions, ParseResult } from '../fit/parse'
 import { resample, splitAtGaps } from '../fit/resample'
@@ -5,7 +6,6 @@ import type { RawRecord, RawTimerEvent } from '../fit/resample'
 
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */
 export const MAX_FILE_SAMPLES = 172_800
-const DAY_MS = 24 * 60 * 60 * 1000
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
 const MIN_RECORDS = 60
