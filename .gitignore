@@ -42,3 +42,7 @@ data/
 # local Worker secrets and Wrangler state
 .dev.vars
 .wrangler
+
+# Python bytecode from the data scripts
+__pycache__/
+*.pyc

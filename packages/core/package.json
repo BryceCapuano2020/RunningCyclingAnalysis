@@ -20,6 +20,7 @@
     "./fit": "./src/fit/index.ts",
     "./gpx": "./src/gpx/index.ts",
     "./gpx/encode": "./src/gpx/encode.ts",
+    "./grade": "./src/grade/index.ts",
     "./hr": "./src/hr/index.ts",
     "./import": "./src/import/index.ts",
     "./metabolic": "./src/metabolic/index.ts",
