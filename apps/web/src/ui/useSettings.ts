@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import type { Sex } from '@rca/contract'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { isBirthYear } from './athlete'
+import { isPlausibleBirthYear } from './athlete'
 
 export interface Preferences {
   settings: AthleteSettings
@@ -50,7 +50,7 @@ export function parsePreferences(raw: string | null): Preferences {
             : DEFAULT_PREFERENCES.settings.bikeMassKg,
       },
       units: units === 'metric' || units === 'imperial' ? units : DEFAULT_PREFERENCES.units,
-      birthYear: isBirthYear(birthYear) ? birthYear : null,
+      birthYear: isPlausibleBirthYear(birthYear) ? birthYear : null,
       sex: sex === 'female' || sex === 'male' ? sex : null,
       setupDone: setupDone === true,
     }

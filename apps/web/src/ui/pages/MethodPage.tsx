@@ -11,21 +11,28 @@ import {
   referenceText,
 } from '../components/headlineText'
 import { plural } from '../components/plural'
+import { gradedSexOf, headlineGrades } from '../grades'
+import type { AgeProfile } from '../grades'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { AgeGradingSection } from './AgeGradingSection'
 import { countSport } from '../records'
 
 export interface MethodPageProps {
   result: AnalysisResult
+  /** The year of birth and sex for the grades, or null while either is missing. */
+  profile: AgeProfile | null
 }
 
 /** The model's own checks, one level below the answers: How sure is this? */
-export function MethodPage({ result }: MethodPageProps) {
+export function MethodPage({ result, profile }: MethodPageProps) {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
   const pick = pickHeadline(result.comparison)
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = referenceText(result)
   const accuracy = result.virtualAccuracy
+  const headline = profile === null ? null : headlineGrades(result, profile)
+  const gradedSex = gradedSexOf(headline, profile)
 
   return (
     <div className="page-stack">
@@ -87,6 +94,8 @@ export function MethodPage({ result }: MethodPageProps) {
           <AccuracyScatter accuracy={accuracy} />
         </section>
       )}
+
+      <AgeGradingSection gradedSex={gradedSex} />
 
       <Methodology />
     </div>

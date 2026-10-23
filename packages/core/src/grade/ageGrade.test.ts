@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { METRES_PER_MILE } from '../units/convert'
 import {
+  FIRST_GRADED_AGE,
   GRADE_LEVELS,
+  LAST_GRADED_AGE,
   ROAD_STANDARDS_SOURCE,
   ageAt,
   ageGrade,
@@ -214,14 +216,14 @@ describe('ageGradeForEffort', () => {
 
 describe('levelOf', () => {
   it.each([
-    [1.2, 'World class'],
-    [0.9, 'World class'],
-    [0.8999, 'National class'],
-    [0.8, 'National class'],
-    [0.7999, 'Regional class'],
-    [0.7, 'Regional class'],
-    [0.6999, 'Local class'],
-    [0.6, 'Local class'],
+    [1.2, 'World'],
+    [0.9, 'World'],
+    [0.8999, 'National'],
+    [0.8, 'National'],
+    [0.7999, 'Regional'],
+    [0.7, 'Regional'],
+    [0.6999, 'Local'],
+    [0.6, 'Local'],
     [0.5999, 'Recreational'],
     [0, 'Recreational'],
   ])('labels grade %s as %s', (grade, label) => {
@@ -247,13 +249,13 @@ describe('gradePercent', () => {
   })
 
   it.each([
-    [0.9, 90, 'World class'],
-    [0.8999, 89.9, 'National class'],
-    [0.8, 80, 'National class'],
-    [0.7999, 79.9, 'Regional class'],
-    [0.7, 70, 'Regional class'],
-    [0.6999, 69.9, 'Local class'],
-    [0.6, 60, 'Local class'],
+    [0.9, 90, 'World'],
+    [0.8999, 89.9, 'National'],
+    [0.8, 80, 'National'],
+    [0.7999, 79.9, 'Regional'],
+    [0.7, 70, 'Regional'],
+    [0.6999, 69.9, 'Local'],
+    [0.6, 60, 'Local'],
     [0.5999, 59.9, 'Recreational'],
   ])('shows grade %s as %s%%, labelled %s', (grade, percent, label) => {
     expect(gradePercent(grade)).toBe(percent)
@@ -300,9 +302,30 @@ describe('ROAD_STANDARDS_SOURCE', () => {
   it('cites the USATF 2025 standards under CC0 1.0', () => {
     expect(ROAD_STANDARDS_SOURCE).toEqual({
       name: 'USATF road age standards (2025)',
+      shortName: 'USATF road standards',
       authors: 'Alan Jones and Tom Bernhard',
       url: 'https://github.com/AlanLyttonJones/Age-Grade-Tables',
       licence: 'CC0 1.0',
     })
+  })
+})
+
+describe('grade names and ages', () => {
+  it('names each band by its bare level name, highest first', () => {
+    expect(GRADE_LEVELS.map((band) => band.label)).toEqual([
+      'World',
+      'National',
+      'Regional',
+      'Local',
+      'Recreational',
+    ])
+  })
+
+  it('covers ages FIRST_GRADED_AGE to LAST_GRADED_AGE, and no others', () => {
+    expect([FIRST_GRADED_AGE, LAST_GRADED_AGE]).toEqual([5, 100])
+    expect(ageStandardSeconds(5000, FIRST_GRADED_AGE, 'male')).not.toBeNull()
+    expect(ageStandardSeconds(5000, LAST_GRADED_AGE, 'male')).not.toBeNull()
+    expect(ageStandardSeconds(5000, FIRST_GRADED_AGE - 1, 'male')).toBeNull()
+    expect(ageStandardSeconds(5000, LAST_GRADED_AGE + 1, 'male')).toBeNull()
   })
 })

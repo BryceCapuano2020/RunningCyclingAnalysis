@@ -100,6 +100,18 @@ describe('parsePreferences', () => {
     expect(withYear(null)).toBeNull()
   })
 
+  it('keeps a stored year from 1900 to this year on load, even when its age is not graded', () => {
+    // Loading must not clear a year the athlete typed; the grades say when the age is out of range.
+    const withYear = (birthYear: unknown) =>
+      parsePreferences(JSON.stringify({ settings: SAVED.settings, birthYear })).birthYear
+    const thisYear = new Date().getFullYear()
+
+    expect(withYear(1900)).toBe(1900)
+    expect(withYear(thisYear)).toBe(thisYear)
+    expect(withYear(1899)).toBeNull()
+    expect(withYear(thisYear + 1)).toBeNull()
+  })
+
   it('keeps female or male, and reads anything else as not given', () => {
     const withSex = (sex: unknown) => parsePreferences(JSON.stringify({ sex })).sex
 

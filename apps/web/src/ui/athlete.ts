@@ -1,3 +1,4 @@
+import { FIRST_GRADED_AGE, LAST_GRADED_AGE } from '@rca/core/grade'
 import type { AthleteSettings } from '@rca/core/types'
 import { kgToLb, lbToKg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
@@ -58,11 +59,30 @@ export function readWeight(text: string, field: WeightField, units: UnitSystem):
 }
 
 /**
- * Birth years for ages 5 to 100 this year. The year is only asked for age grading, so a year
- * outside this range is either a typing slip or not a person the grading applies to.
+ * Birth years for the ages the grading covers, counted this year. The year is only asked for age
+ * grading, so a year outside this range is either a typing slip or not a person it applies to.
  */
 export function birthYearLimits(thisYear = new Date().getFullYear()): { min: number; max: number } {
-  return { min: thisYear - 100, max: thisYear - 5 }
+  return { min: thisYear - LAST_GRADED_AGE, max: thisYear - FIRST_GRADED_AGE }
+}
+
+/** The earliest year of birth a stored preference may hold. */
+const EARLIEST_PLAUSIBLE_BIRTH_YEAR = 1900
+
+/**
+ * A stored year of birth that could be real: a whole year from 1900 to this year. Loading keeps it,
+ * so a year typed earlier is not cleared, even when its age falls outside the graded ages.
+ */
+export function isPlausibleBirthYear(
+  value: unknown,
+  thisYear = new Date().getFullYear(),
+): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= EARLIEST_PLAUSIBLE_BIRTH_YEAR &&
+    value <= thisYear
+  )
 }
 
 export function isBirthYear(value: unknown, thisYear?: number): value is number {

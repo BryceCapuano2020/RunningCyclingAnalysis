@@ -3,7 +3,15 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { EffortCheck } from '@rca/core/types'
-import { comparisonPoint, makeResult } from '../components/fixtures'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { curvePoint } from '../charts/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  MAN_BORN_1986,
+  comparisonPoint,
+  makeResult,
+} from '../components/fixtures'
+import type { AgeProfile } from '../grades'
 import { MethodPage } from './MethodPage'
 
 afterEach(() => {
@@ -17,8 +25,8 @@ function factsOf(): HTMLElement {
   return list
 }
 
-function renderPage(result: AnalysisResult = makeResult()) {
-  return render(<MethodPage result={result} />)
+function renderPage(result: AnalysisResult = makeResult(), profile: AgeProfile | null = null) {
+  return render(<MethodPage result={result} profile={profile} />)
 }
 
 /** A result whose comparison is the 20 minute point, with the given effort check. */
@@ -170,6 +178,22 @@ describe('MethodPage', () => {
 
     expect(
       screen.getByRole('heading', { level: 2, name: 'How this works and what it assumes' }),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('MethodPage age grading', () => {
+  it('puts the age grading method on the page, and the grade it is for when one shows', () => {
+    const graded = makeResult({
+      runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+    })
+    renderPage(graded, MAN_BORN_1986)
+
+    expect(screen.getByRole('region', { name: 'Age grading' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('region', { name: 'Age grading' })).getByText(
+        'Your grades are for a man.',
+      ),
     ).toBeInTheDocument()
   })
 })

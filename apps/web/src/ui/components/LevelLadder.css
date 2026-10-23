@@ -1,0 +1,97 @@
+/* The level ladder: labels as text placed by percentage, the bar as shapes, the marker in the sport's colour. */
+.level-ladder {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  max-width: 420px;
+}
+
+.level-ladder--run {
+  --ladder-colour: var(--series-run);
+  --ladder-band: var(--ladder-run-band);
+}
+
+.level-ladder--ride {
+  --ladder-colour: var(--series-ride);
+  --ladder-band: var(--ladder-ride-band);
+}
+
+/* The labels are rem-sized text, so they stay legible on a 320 px screen; the shapes scale. */
+.level-ladder__scale,
+.level-ladder__names {
+  position: relative;
+}
+
+.level-ladder__scale {
+  height: 1rem;
+}
+
+.level-ladder__names {
+  height: 2.25rem;
+}
+
+.level-ladder__pct,
+.level-ladder__name {
+  position: absolute;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.level-ladder__pct--start {
+  transform: none;
+}
+
+.level-ladder__name {
+  font-weight: 600;
+}
+
+/* Alternate names sit on two rows, so neighbouring names never touch on a narrow screen. */
+.level-ladder__name--top {
+  top: 0;
+}
+
+.level-ladder__name--bottom {
+  top: 1.25rem;
+}
+
+.level-ladder__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.level-ladder__track {
+  fill: var(--surface-2);
+}
+
+/* Band boundaries, so each level's edge is visible without relying on the track's fill. */
+.level-ladder__edge {
+  stroke: var(--neutral-mark);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.level-ladder__range {
+  fill: var(--ladder-band);
+  stroke: var(--ladder-colour);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.level-ladder__dot {
+  fill: var(--ladder-colour);
+  stroke: var(--surface-1);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.level-ladder__ring {
+  fill: var(--surface-1);
+  stroke: var(--ladder-colour);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}

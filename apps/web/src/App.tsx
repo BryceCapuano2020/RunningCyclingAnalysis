@@ -44,7 +44,7 @@ export function App() {
   const signedIn = profile !== null
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
-  const athlete: AthleteValues = profile
+  const athleteValues: AthleteValues = profile
     ? athleteValuesOf(profile)
     : {
         settings: preferences.settings,
@@ -52,7 +52,7 @@ export function App() {
         birthYear: preferences.birthYear,
         sex: preferences.sex,
       }
-  const { settings, units } = athlete
+  const { settings, units } = athleteValues
   const keepFiles = profile?.keepFiles ?? false
 
   // Keeps the saved preferences showing the athlete's values, so a later sign-out shows them.
@@ -65,7 +65,7 @@ export function App() {
   const saveAnswers = async (next: ProfilePatch) => {
     const fields = profileFields(next)
     if (profile === null || Object.keys(fields).length === 0) {
-      keepInPreferences(applyPatch(athlete, next), next.setupDone)
+      keepInPreferences(applyPatch(athleteValues, next), next.setupDone)
       return
     }
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
@@ -196,8 +196,8 @@ export function App() {
             analysis={analysis}
             settings={settings}
             units={units}
-            birthYear={athlete.birthYear}
-            sex={athlete.sex}
+            birthYear={athleteValues.birthYear}
+            sex={athleteValues.sex}
             signedIn={signedIn}
             accountsAvailable={accountsAvailable}
             email={account.me?.user.email ?? null}
@@ -215,6 +215,8 @@ export function App() {
             result={analysis.state.result}
             settings={settings}
             units={units}
+            birthYear={athleteValues.birthYear}
+            sex={athleteValues.sex}
           />
         ) : (
           <LandingPage
@@ -238,7 +240,7 @@ export function App() {
       </footer>
       {setup.open && (
         <SetupDialog
-          initial={athlete}
+          initial={athleteValues}
           saving={setup.saving}
           error={setup.saveError}
           returning={!signedIn && hasResult}

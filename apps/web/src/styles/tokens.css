@@ -26,6 +26,8 @@
   --series-run-soft: #e5304f26;
   --series-ride-soft: #2f56e826;
   --series-swim-soft: #0f9fb026;
+  --ladder-run-band: #e5304f26;
+  --ladder-ride-band: #2f56e826;
   --neutral-mark: #474f5c;
   --neutral-band: #474f5c24;
   --grid: #e9ecf1;
@@ -74,6 +76,8 @@
     --series-run-soft: #f0435f33;
     --series-ride-soft: #4d6ef533;
     --series-swim-soft: #14a0b033;
+    --ladder-run-band: #f0435f26;
+    --ladder-ride-band: #4d6ef526;
     --neutral-mark: #b6bcc6;
     --neutral-band: #b6bcc629;
     --grid: #232830;

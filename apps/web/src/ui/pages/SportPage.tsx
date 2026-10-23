@@ -4,9 +4,12 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration } from '@rca/core/units'
 import { CurveChart } from '../charts'
+import { StandardsCredit } from '../components/StandardsCredit'
 import { SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { formatDay } from '../format/date'
+import { SEX_NOUN, outcomeSentence, sportGrade } from '../grades'
+import type { AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_LABEL, SPORT_PLURAL, THRESHOLD_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -18,15 +21,27 @@ export interface SportPageProps {
   result: AnalysisResult
   units: UnitSystem
   massKg: number
+  /** The year of birth and sex for the grades, or null while either is missing. */
+  profile: AgeProfile | null
   /** The period control, shown beside the heading. */
   controls: ReactNode
 }
 
 /** One sport's records in its own units, the best-effort curve and the evidence behind them. */
-export function SportPage({ sport, result, units, massKg, controls }: SportPageProps) {
+export function SportPage({ sport, result, units, massKg, profile, controls }: SportPageProps) {
   const count = countSport(result.activities, sport)
   const hero = threshold(result, sport, massKg, units)
-  const records = sportRecords(result, sport, massKg, units)
+  const rows = sportRecords(result, sport, massKg, units).map((record) => ({
+    record,
+    // Each record is graded at the age on the date of its own effort.
+    grade:
+      profile === null
+        ? null
+        : outcomeSentence(sportGrade(result, sport, record.durationS, profile)),
+  }))
+  const anyGrade = rows.some((row) => row.grade !== null)
+  // The sex the grades are for, named on the source line when any record shows a grade.
+  const gradedSex = anyGrade && profile !== null ? profile.sex : null
 
   return (
     <div className="page-stack">
@@ -68,12 +83,20 @@ export function SportPage({ sport, result, units, massKg, controls }: SportPageP
             {sport === 'run' && (
               <p className="muted">Paces are grade-adjusted: the flat pace with the same effort.</p>
             )}
+            {gradedSex !== null && (
+              <p className="muted">
+                Age grades for a {SEX_NOUN[gradedSex]} are estimates against the <StandardsCredit />
+                . Age is counted from your birth year on the date of each effort
+                {sport === 'ride' ? ', and a ride’s range is its model range.' : '.'}
+              </p>
+            )}
             <ul className="sport-page__records">
-              {records.map((record) => (
+              {rows.map(({ record, grade }) => (
                 <li key={record.durationS} className="sport-page__record">
                   <span className="eyebrow">{`Best ${formatDuration(record.durationS)}`}</span>
                   <span className="stat-number">{record.value}</span>
                   {record.sub && <span className="secondary">{record.sub}</span>}
+                  {grade && <span className="secondary">{grade}</span>}
                   {record.activity && (
                     <a href={hrefFor({ page: 'activity', id: record.activity.id })}>
                       {`${record.activity.name}, ${formatDay(record.activity.startMs)}`}
