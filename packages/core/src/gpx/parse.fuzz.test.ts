@@ -132,7 +132,9 @@ function violations(result: ParseResult): string[] {
   return problems
 }
 
-describe('parseGpx under mutation', () => {
+// The input count is fixed, so the timeout only guards against a hang; coverage
+// instrumentation on a shared CI runner can take several times the local run.
+describe('parseGpx under mutation', { timeout: 60_000 }, () => {
   it('never throws, and returns only plausible results', () => {
     const rng = random(0x6a9e)
     const bases = baseFiles()

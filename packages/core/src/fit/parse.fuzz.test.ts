@@ -146,7 +146,9 @@ function violations(result: ParseResult): string[] {
   return problems
 }
 
-describe('parseFit under mutation', () => {
+// The input count is fixed, so the timeout only guards against a hang; coverage
+// instrumentation on a shared CI runner can take several times the local run.
+describe('parseFit under mutation', { timeout: 60_000 }, () => {
   it('never throws, and returns only plausible activities', () => {
     const rng = random(0x5eed)
     const bases = baseFiles()

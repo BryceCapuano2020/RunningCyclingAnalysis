@@ -144,7 +144,9 @@ function wellFormed(root: XmlElement): string[] {
   return problems
 }
 
-describe('parseXml under mutation', () => {
+// The input count is fixed, so the timeout only guards against a hang; coverage
+// instrumentation on a shared CI runner can take several times the local run.
+describe('parseXml under mutation', { timeout: 60_000 }, () => {
   it('either parses or throws XmlError, never any other error', () => {
     const rng = random(0x5eed)
     const bases = baseDocuments()
@@ -219,7 +221,9 @@ function scanOutcome(run: (handler: XmlHandler) => void): string {
   return opens === closes ? 'ok' : `unbalanced ${opens} opens, ${closes} closes`
 }
 
-describe('scanXml agrees with parseXml', () => {
+// The input count is fixed, so the timeout only guards against a hang; coverage
+// instrumentation on a shared CI runner can take several times the local run.
+describe('scanXml agrees with parseXml', { timeout: 60_000 }, () => {
   it('both succeed or both throw XmlError on every mutated input and limit', () => {
     const rng = random(0xa9ee)
     const bases = baseDocuments()
