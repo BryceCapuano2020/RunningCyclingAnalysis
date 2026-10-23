@@ -90,8 +90,9 @@ Cheap changes that reduce the risk of the rest of the list.
 
 ## 5. Product
 
-1. **Shareable profile card.** A read-only link or image showing the headline numbers lets people
-   share the comparison. Public links expose only the headline figures, and only after an explicit
+1. **Done: shareable image.** A "Download image" button on the results page saves a PNG of the
+   comparison on the device. Nothing is uploaded, and no account or public link is involved. Public
+   links remain future work: they expose only the headline figures, and only after an explicit
    opt-in.
 2. **Done: browser-side saved-library rebuild.** Stored originals can be downloaded and
    reprocessed on the device; matching hashes upgrade existing records in place. Server-side

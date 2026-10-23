@@ -3,9 +3,10 @@ import { PRIORS } from '@rca/core/constants'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
-import type { EffortCheck, Interval } from '@rca/core/types'
+import type { EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDuration, formatPace, formatPercent, formatPower, formatWkg } from '@rca/core/units'
+import { formatPace, formatPercent, formatPower, formatWkg } from '@rca/core/units'
+import { effortCaveat, headlineBasis, headlineText } from './headlineText'
 import { pickHeadline } from './pickHeadline'
 import { plural } from './plural'
 import './Headline.css'
@@ -23,20 +24,6 @@ interface Tile {
   label: string
   value: string
   sub: string
-}
-
-/** Best efforts below this share of the highest heart rate were probably not all-out. */
-const ALL_OUT = 0.9
-
-/** States which sport the model estimates uses more energy rate per kg, or that the estimates overlap. */
-function headlineTitle(ratio: Interval, duration: string): string {
-  if (ratio.p05 > 1) {
-    return `Over ${duration}, your running is estimated to use ${formatPercent(ratio.p50 - 1)} more energy rate per kg than your cycling`
-  }
-  if (ratio.p95 < 1) {
-    return `Over ${duration}, your cycling is estimated to use ${formatPercent(1 / ratio.p50 - 1)} more energy rate per kg than your running`
-  }
-  return 'Your running and cycling energy estimates overlap'
 }
 
 function missingSportCopy(result: AnalysisResult): string {
@@ -117,28 +104,9 @@ function noticeBlock(text: string): ReactNode {
 
 /** The effort notice, or nothing when heart rate cannot say how hard the efforts were. */
 function effortNotice(effort: EffortCheck | null | undefined): ReactNode {
-  if (!effort) return null
-  const { durationS, runHrFraction: run, rideHrFraction: ride } = effort
-  const duration = formatDuration(durationS)
-  if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
-    return noticeBlock(
-      `Both best efforts over ${duration} were below 90% of each sport's heart-rate reference ` +
-        `(running ${Math.round(run * 100)}%, cycling ${Math.round(ride * 100)}%). Your library may be missing harder efforts.`,
-    )
-  }
-  if (ride !== null && ride < ALL_OUT) {
-    return noticeBlock(
-      `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of the cycling ` +
-        `heart-rate reference. Your library may be missing a harder cycling effort.`,
-    )
-  }
-  if (run !== null && run < ALL_OUT) {
-    return noticeBlock(
-      `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of the running ` +
-        `heart-rate reference. Your library may be missing a harder running effort.`,
-    )
-  }
-  if (run !== null && ride !== null) {
+  const caveat = effortCaveat(effort)
+  if (caveat) return noticeBlock(caveat.text)
+  if (effort && effort.runHrFraction !== null && effort.rideHrFraction !== null) {
     return (
       <p className="headline__effort-ok muted">
         Both best efforts reached at least 90% of each sport's heart-rate reference. This does not
@@ -191,27 +159,15 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
   }
 
   const { point, calibrated } = pick
-  const duration = formatDuration(point.durationS)
-  const summary =
-    `Over ${duration}, your estimated running energy rate is ` +
-    `${formatWkg(point.runMetabolic.p50)} and your cycling energy rate is ` +
-    `${formatWkg(point.rideMetabolic.p50)}.`
-  const range =
-    `90% model range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
-    `${formatPercent(point.ratio.p95 - 1, true)}.`
-  const basis =
-    result.comparison.calibration?.accepted === false
-      ? 'The heart-rate check could not support a reliable adjustment; showing the population-based model range.'
-      : calibrated
-        ? 'Model range adjusted using your heart-rate data.'
-        : 'Model range based on population assumptions.'
+  const { title, summary, range } = headlineText(point)
+  const basis = headlineBasis(result.comparison, calibrated)
   const tiles = buildTiles(result, units, massKg)
   const notice = effortNotice(effort)
 
   return (
     <section className="headline">
       <h1 id="results-heading" tabIndex={-1} className="headline__title">
-        {headlineTitle(point.ratio, duration)}
+        {title}
       </h1>
       <p className="headline__detail">{summary}</p>
       <p className="headline__range">{range}</p>

@@ -16,6 +16,7 @@ import {
   RangePicker,
   RejectedFiles,
   SettingsBar,
+  ShareImageButton,
   SignInCallout,
   SyncStatus,
   SavedLibrary,
@@ -340,6 +341,15 @@ export function App() {
                 units={units}
                 massKg={settings.massKg}
                 effort={headlineEffort}
+              />
+              <ShareImageButton
+                result={result}
+                settings={settings}
+                units={units}
+                rangeDays={rangeDays}
+                isSample={isSample}
+                effort={headlineEffort}
+                disabled={analysis.busy}
               />
             </section>
 
