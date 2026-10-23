@@ -41,6 +41,9 @@ Today the fitness trend is a 42-day rolling best (PR #17).
 
 - **One page, a card per discipline**, each with its own trend, evidence and gaps. No composite
   score.
+- **Age-graded levels** (coming to the Run and Ride cards). Each run is graded against the USATF
+  2025 road standards, and each ride through its equal-energy running equivalent. The ride level is
+  model-derived. Research: [age-grading.md](research/age-grading.md).
 - **Public links** (future, opt-in only). Today sharing is the downloaded image (PR #15).
 
 ## Model accuracy
