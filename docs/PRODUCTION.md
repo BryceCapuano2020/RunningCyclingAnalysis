@@ -23,6 +23,11 @@ Install dependencies with `npm ci`, then install browser engines with
 It checks formatting, lint, all package types, unit coverage, deployment configuration and
 operations tests, the production build, Chromium and WebKit browser behavior, and the
 Worker-served application.
+CI does not install browsers. The `ci.yml` end-to-end job and the `deploy.yml` release gate run in
+the official Playwright container, pinned by tag and digest to the `@playwright/test` version in
+`package-lock.json`. Browser downloads and apt packages therefore never stall a run. When that
+version is upgraded, change the image tag and digest in both workflows. The ops test
+`scripts/ops/workflow-guards.test.mjs` fails while the tag and lockfile disagree.
 The last test exercises the actual static-asset security policy, module worker, and same-origin
 API together; a Vite preview alone cannot verify Cloudflare's `_headers` behavior.
 

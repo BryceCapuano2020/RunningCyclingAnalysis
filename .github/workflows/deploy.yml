@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # npm retries a failed registry request this many times (default 2) before `npm ci` fails.
+  npm_config_fetch_retries: '5'
+
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -38,7 +42,15 @@ jobs:
     name: Release gate on the deployment commit
     needs: guard
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
+    # The browser suites run in the Playwright image that matches @playwright/test in
+    # package-lock.json (checked by workflow-guards.test.mjs). Its Node (24) differs from
+    # .nvmrc (22), so setup-node still installs the project's Node.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --ipc=host
+      env:
+        HOME: /root
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,8 +61,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium webkit
+      - name: Confirm the preinstalled browser engines match this image
+        run: npx playwright install chromium webkit
         working-directory: apps/web
       - name: Format, lint, typecheck, unit tests, build, end-to-end suites
         run: npm run verify:release
