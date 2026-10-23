@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { drizzle } from 'drizzle-orm/d1'
+import { migrate } from 'drizzle-orm/d1/migrator'
 import { getTableConfig } from 'drizzle-orm/sqlite-core'
 import { describe, expect, it } from 'vitest'
+import { getPlatformProxy } from 'wrangler'
 import { schema } from './db/schema.ts'
 
 const MIGRATIONS = new URL('../migrations/', import.meta.url)
@@ -19,6 +25,49 @@ function applyMigration(db: DatabaseSync, tag: string): void {
 }
 
 describe('migrations', () => {
+  it('applies 0005 when continuing from a database whose latest migration is 0004', async () => {
+    const sourceJournal = JSON.parse(
+      readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8'),
+    ) as { entries: { tag: string }[] }
+    const temporary = await mkdtemp(join(tmpdir(), 'rca-migrations-'))
+    await mkdir(join(temporary, 'meta'))
+    const initialEntries = sourceJournal.entries.slice(0, 5)
+    const writeJournal = (entries: { tag: string }[]) =>
+      writeFile(
+        join(temporary, 'meta/_journal.json'),
+        JSON.stringify({ version: '7', dialect: 'sqlite', entries }),
+      )
+    for (const { tag } of sourceJournal.entries) {
+      await writeFile(
+        join(temporary, `${tag}.sql`),
+        await readFile(new URL(`${tag}.sql`, MIGRATIONS)),
+      )
+    }
+    const platform = await getPlatformProxy<{ DB: D1Database }>({
+      configPath: new URL('../wrangler.local.toml', import.meta.url).pathname,
+      persist: false,
+      remoteBindings: false,
+    })
+    try {
+      const db = drizzle(platform.env.DB)
+      await writeJournal(initialEntries)
+      await migrate(db, { migrationsFolder: temporary })
+
+      // The second invocation is the rollout recovery path: 0004 is recorded as latest, and
+      // migration 0005 must still be considered newer and applied.
+      await writeJournal(sourceJournal.entries)
+      await migrate(db, { migrationsFolder: temporary })
+
+      const column = await platform.env.DB.prepare('PRAGMA table_info(activities)').all<{
+        name: string
+      }>()
+      expect(column.results.map((row) => row.name)).toContain('file_reservation_token')
+    } finally {
+      await platform.dispose()
+      await rm(temporary, { recursive: true, force: true })
+    }
+  })
+
   it('upgrades a database seeded under the previous schema without losing or changing data', () => {
     const tags = journalTags()
     const cut = tags.indexOf(PREVIOUS_SCHEMA_LAST)
