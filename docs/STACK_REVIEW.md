@@ -19,6 +19,11 @@ Two release issues needed attention:
   interval can leave the new quota counter inaccurate. The production runbook now specifies a
   post-deploy reconciliation after the new Worker serves all traffic. Production had zero saved
   activities at the preflight inspection; counters still need checking after rollout.
+- The backup recipient preflight checked only key shape, so a checksum-invalid typo could pass and
+  let the workflow export D1 before `age` rejected it. The workflow now asks `age` to encrypt empty
+  input with the configured recipient before it exposes backup credentials or exports data. Backup
+  automation remains disabled until the private key and scoped credentials are provisioned and a
+  restore drill succeeds.
 
 The research notes remain provisional. Several citations and assumptions are explicitly
 unverified, and the proposed uncertainty widths were not validated through the full heart-rate

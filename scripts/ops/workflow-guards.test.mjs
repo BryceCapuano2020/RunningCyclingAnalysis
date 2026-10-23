@@ -27,6 +27,18 @@ test('backup and uptime schedules are opt-in while manual dispatch remains avail
   assert.match(backup, /check-backup-recipient\.mjs/)
 })
 
+test('backup validates recipients with age before exporting account data', async () => {
+  const backup = await workflow('backup')
+  const ageInstall = backup.indexOf('name: Install age')
+  const recipientValidation = backup.indexOf(
+    'age -R ops/backup-recipient.txt -o /dev/null /dev/null',
+  )
+  const exportData = backup.indexOf('name: Export D1 and list R2 objects')
+  assert.ok(ageInstall >= 0)
+  assert.ok(recipientValidation > ageInstall)
+  assert.ok(exportData > recipientValidation)
+})
+
 test('deployment checks Worker secret names before applying migrations', async () => {
   const source = await workflow('deploy')
   const secretCheck = source.indexOf('node scripts/ops/check-worker-secrets.mjs')

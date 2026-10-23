@@ -33,6 +33,9 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
   or inside a Strava account-export zip. GPX files never carry device speed, and TCX files only
   sometimes do. Where a file has no speed, speed is worked out from distance or from GPS positions.
   Short best efforts from GPS-only files, under about 30 seconds, are less reliable than from FIT.
+  FIT preference applies when duplicate files are imported together. A saved activity keeps its
+  original file hash; to replace it with a different file, delete the saved activity and import the
+  preferred file again.
 - **One unit for both sports.** Cycling power is divided by gross efficiency. Running speed and
   gradient go through the Minetti et al. (2002) energy-cost-of-running curve. Both become W/kg.
 - **Uncertainty, not a single number.** Efficiency and running economy differ between people and
