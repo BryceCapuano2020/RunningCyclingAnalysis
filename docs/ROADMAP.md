@@ -20,10 +20,12 @@ Population-relative scoring remains a separate research and product task.
 
 These change the numbers the headline is built from.
 
-1. **Running air resistance.** Research outdoor drag using primary sources and independent data.
+1. **Running air resistance.** Evidence and a recommendation are in
+   [research/running-air-resistance.md](research/running-air-resistance.md). Research outdoor drag using primary sources and independent data.
    Define the mechanical-to-metabolic conversion explicitly before adding a correction or prior;
    a mechanical drag term cannot simply be added to gross metabolic power.
-2. **Audit cycling efficiency definitions.** Reconcile gross, net and delta efficiency against
+2. **Audit cycling efficiency definitions.** Evidence and a recommendation are in
+   [research/cycling-efficiency.md](research/cycling-efficiency.md). Reconcile gross, net and delta efficiency against
    primary literature before changing the conversion. The current parameter is gross efficiency;
    adding resting energy requires a matching change in efficiency definition and prior. Do not
    treat the earlier proposed additive formula as an approved model correction.
