@@ -230,11 +230,12 @@ body consumption. The activity table renders at most 20 activities at a time wit
 - Failed saves remain locally analyzable and are counted. Re-importing the original retries them.
   A digest saved without a requested original is a partial failure. Originals above 50 MiB require
   turning off file retention before retrying; they can still be analysed locally within import limits.
-- Digest schema version and model revision are separate. Revision 3 contains the corrected sensor
-  validity/timer handling and preserves long run efforts across short unpaused stops. Missing
-  revision means legacy revision 1. Older analyses are excluded and can be rebuilt from retained
-  original files; missing originals need re-importing. Newer revisions are excluded with a
-  separate compatibility notice.
+- Digest schema version and model revision are separate. The current model revision is
+  `MODEL_REVISION` in `packages/core/src/digest/modelRevision.ts`. Revision 3 contains the corrected
+  sensor validity/timer handling and preserves long run efforts across short unpaused stops.
+  Revision 4 uses altitude-dependent air density. Missing revision means legacy revision 1. Older
+  analyses are excluded and can be rebuilt from retained original files; missing originals need
+  re-importing. Newer revisions are excluded with a separate compatibility notice.
 - Upgrades require the same sport/start dedupe identity and SHA-256 of the exact original bytes.
   They retain the activity id and stored-file metadata. Different file contents conflict rather
   than silently replacing an activity, and older clients cannot downgrade newer stored summaries.

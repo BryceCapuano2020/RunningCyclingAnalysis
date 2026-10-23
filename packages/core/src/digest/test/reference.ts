@@ -8,6 +8,8 @@ export interface RideInputs {
   grade: Float64Array
   power: Float64Array
   valid: Uint8Array
+  /** Air density, kg/m^3, per sample. Sea level when omitted. */
+  airDensity?: Float64Array
 }
 
 /** Mass, kg, of the default-model screen in the calibration. */
@@ -42,7 +44,7 @@ export function referenceRideStats(ride: RideInputs, totalMassKg: number): Calib
       const modelled =
         SCREEN_MASS_KG * G * (Math.sin(theta) + DEFAULT_BIKE_MODEL.crr * Math.cos(theta)) * v +
         SCREEN_MASS_KG * accel[i]! * v +
-        0.5 * DEFAULT_BIKE_MODEL.cda * RHO_AIR * v * v * v
+        0.5 * DEFAULT_BIKE_MODEL.cda * (ride.airDensity?.[i] ?? RHO_AIR) * v * v * v
       usable = p > 0 && modelled >= 0
       if (!usable) break
       sy +=
@@ -50,7 +52,7 @@ export function referenceRideStats(ride: RideInputs, totalMassKg: number): Calib
         totalMassKg * G * Math.sin(theta) * v -
         totalMassKg * accel[i]! * v
       s1 += totalMassKg * G * Math.cos(theta) * v
-      s2 += 0.5 * RHO_AIR * v * v * v
+      s2 += 0.5 * (ride.airDensity?.[i] ?? RHO_AIR) * v * v * v
     }
     if (!usable) continue
     const y = sy / 30

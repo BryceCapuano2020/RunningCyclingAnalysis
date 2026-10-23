@@ -9,6 +9,18 @@ export interface HeartRateSource {
 /** At or above this fraction of max heart rate, a 5 minute or longer effort is close to all-out. */
 export const ALL_OUT_FRACTION = 0.9
 
+/**
+ * Cycling maximum heart rate typically runs about 5 to 7 bpm below running maximum in the same
+ * athlete, so the cycling reference is never set lower than the running maximum minus this.
+ */
+export const RIDE_MAX_OFFSET_BPM = 6
+
+/** The heart rate each sport's best efforts are judged against, bpm; null when unknown. */
+export interface MaxHeartRates {
+  run: number | null
+  ride: number | null
+}
+
 const SMOOTHING_WINDOW = 30
 const MIN_VALID_FRACTION = 0.8
 
@@ -91,17 +103,39 @@ function heartRateFraction(point: EffortPoint | undefined, maxHr: number | null)
   return point.heartRate / maxHr
 }
 
+/**
+ * Reference maxima from the highest sustained heart rate of each sport. Running is at least as high
+ * as cycling for nearly everyone, so the running reference is the higher of the two. Cycling is
+ * the higher of its own maximum and the running maximum less RIDE_MAX_OFFSET_BPM, so an athlete
+ * who rarely rode hard is not judged against an artificially low cycling maximum.
+ */
+export function referenceMaxHeartRates(
+  runMax: number | null,
+  rideMax: number | null,
+): MaxHeartRates {
+  return {
+    run: highest(runMax, rideMax),
+    ride: highest(rideMax, runMax === null ? null : runMax - RIDE_MAX_OFFSET_BPM),
+  }
+}
+
+function highest(a: number | null, b: number | null): number | null {
+  if (a === null) return b
+  if (b === null) return a
+  return Math.max(a, b)
+}
+
 /** One check per requested duration, in the order given. */
 export function checkEfforts(
   runCurve: EffortPoint[],
   rideCurve: EffortPoint[],
-  maxHr: number | null,
+  maxHr: MaxHeartRates,
   durations: readonly number[],
 ): EffortCheck[] {
   return durations.map((durationS) => ({
     durationS,
-    runHrFraction: heartRateFraction(findPoint(runCurve, durationS), maxHr),
-    rideHrFraction: heartRateFraction(findPoint(rideCurve, durationS), maxHr),
+    runHrFraction: heartRateFraction(findPoint(runCurve, durationS), maxHr.run),
+    rideHrFraction: heartRateFraction(findPoint(rideCurve, durationS), maxHr.ride),
   }))
 }
 

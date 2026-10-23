@@ -23,6 +23,7 @@ export function accelerationOf(speed: Float64Array): Float64Array {
 /**
  * Mechanical power, W, that a rider on a bike with the given drag and rolling
  * resistance must produce to follow speed (m/s) and grade (rise/run).
+ * Air density, kg/m^3, is per sample and defaults to sea level.
  * Clamped at zero: coasting downhill produces no estimated power.
  */
 export function estimatePower(
@@ -30,6 +31,7 @@ export function estimatePower(
   grade: Float64Array,
   totalMassKg: number,
   model: BikeModel,
+  airDensityKgM3?: Float64Array,
 ): Float64Array {
   const n = speed.length
   const accel = accelerationOf(speed)
@@ -43,7 +45,8 @@ export function estimatePower(
     }
     const theta = Math.atan(g)
     const rolling = totalMassKg * G * (Math.sin(theta) + model.crr * Math.cos(theta)) * v
-    const aero = 0.5 * RHO_AIR * model.cda * v * v * v
+    const rho = airDensityKgM3?.[i] ?? RHO_AIR
+    const aero = 0.5 * rho * model.cda * v * v * v
     const inertia = totalMassKg * accel[i]! * v
     const p = (rolling + aero + inertia) / DRIVETRAIN_EFFICIENCY
     out[i] = Math.max(0, p)

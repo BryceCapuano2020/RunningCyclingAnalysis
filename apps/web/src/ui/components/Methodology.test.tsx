@@ -60,6 +60,28 @@ describe('Methodology', () => {
     expect(screen.getByText(/90% range/)).toBeInTheDocument()
   })
 
+  it('says air density follows the altitude in the file, with sea level as the fallback', () => {
+    render(<Methodology />)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Virtual power meter' })
+    expect(heading.nextElementSibling).toHaveTextContent(
+      'Air density follows altitude from the file (ISA, 15 °C), with sea level when altitude is missing or the ride is indoors.',
+    )
+  })
+
+  it('says heart-rate checks build each reference from the sports’ highest sustained heart rates, with the cycling offset', () => {
+    render(<Methodology />)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Heart-rate check' })
+    expect(heading.nextElementSibling).toHaveTextContent(
+      'Heart-rate checks judge each sport’s best efforts against a reference maximum built from each sport’s highest sustained heart rate.',
+    )
+    expect(heading.nextElementSibling).toHaveTextContent(
+      'Running uses the higher of its own maximum and the cycling maximum. Cycling uses the higher of its own maximum and 6 bpm below the running maximum',
+    )
+    expect(heading.nextElementSibling).toHaveTextContent(
+      'it is never more than 6 bpm below running',
+    )
+  })
+
   it('says the model is fitted to all power-meter rides and its accuracy is scored leave-one-out', () => {
     render(<Methodology />)
     const heading = screen.getByRole('heading', { level: 3, name: 'Virtual power meter' })

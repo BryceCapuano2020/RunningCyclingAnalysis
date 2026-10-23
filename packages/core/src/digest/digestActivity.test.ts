@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_BIKE_MODEL, DURATIONS_S, PRIORS, RESTING_W_PER_KG } from '../constants'
+import { DEFAULT_BIKE_MODEL, DURATIONS_S, PRIORS, RESTING_W_PER_KG, RHO_AIR } from '../constants'
 import { MIN_RUN_SPEED_MS, smoothGrade } from '../metabolic'
+import { airDensity, airDensityStream } from '../physics/air'
 import type { Activity, Sport } from '../types'
 import { climbMask, estimatePower } from '../virtualPower'
 import { digestActivity } from './digestActivity'
@@ -229,13 +230,22 @@ describe('digestActivity: rides with a power meter', () => {
 
   it('describes each climb section with its measured power and power terms', () => {
     const n = 1800
-    const d = digestActivity(climb(n, { power: constant(n, climbPower(84)) }))
+    // Power follows the ride's own air density, so the stored terms reproduce it sample by sample.
+    const power = estimatePower(
+      constant(n, 8),
+      constant(n, 0.05),
+      84,
+      TRUE_MODEL,
+      airDensityStream(climb(n)),
+    )
+    const d = digestActivity(climb(n, { power }))
     // Grade is exactly 5% away from the ends, where the smoothing is not symmetric.
     const interior = d.climbSections.filter((s) => s.start >= 30 && s.end <= n - 31)
     expect(interior.length).toBeGreaterThan(0)
     for (const section of interior) {
       expect(section.end - section.start).toBeGreaterThanOrEqual(120)
-      expect(section.measuredW).toBeCloseTo(climbPower(84), 6)
+      const window = power.subarray(section.start, section.end)
+      expect(section.measuredW).toBeCloseTo(window.reduce((a, b) => a + b, 0) / window.length, 6)
       expect(powerAt(section.terms, 84, TRUE_MODEL)).toBeCloseTo(section.measuredW, 6)
     }
     for (const section of d.climbSections) expect(section.measuredW).toBeGreaterThanOrEqual(50)
@@ -310,7 +320,8 @@ describe('digestActivity: rides without a power meter', () => {
       Float64Array.from({ length: n }, (_, i) => 100 + 0.05 * 8 * i),
       Float64Array.from({ length: n }, (_, i) => 8 * i),
     )
-    const estimate = estimatePower(constant(n, 8), grade, 84, DEFAULT_BIKE_MODEL)
+    const density = airDensityStream(climb(n))
+    const estimate = estimatePower(constant(n, 8), grade, 84, DEFAULT_BIKE_MODEL, density)
     for (const p of d.curve) {
       if (p.terms === null) continue
       const from = p.startIndex
@@ -330,6 +341,22 @@ describe('digestActivity: rides without a power meter', () => {
       expect(block.heartRate).toBe(140)
       expect(block.terms).not.toBeNull()
     }
+  })
+
+  it('stores aero terms with the air density of each sample altitude', () => {
+    const n = 1800
+    const altitude = Float64Array.from({ length: n }, (_, i) => 2000 + 0.05 * 8 * i)
+    const d = digestActivity(climb(n, { altitude }))
+    const density = airDensityStream(climb(n, { altitude }))
+    const p = d.curve.find((c) => c.terms !== null && c.windowS === 300)!
+    let aero = 0
+    for (let i = p.startIndex; i < p.startIndex + p.windowS; i++) {
+      expect(density[i]).toBe(airDensity(altitude[i]!))
+      aero += 0.5 * density[i]! * 8 ** 3
+    }
+    expect(p.terms!.aero).toBeCloseTo(aero / p.windowS, 9)
+    // Sea-level density would give 0.5 * RHO_AIR * 8^3; at 2,000 m the ratio is about 0.82.
+    expect(p.terms!.aero / (0.5 * RHO_AIR * 8 ** 3)).toBeCloseTo(airDensity(2000) / RHO_AIR, 1)
   })
 
   it('has no heart-rate blocks without a heart-rate stream', () => {

@@ -29,7 +29,7 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await expect(activitiesRows(page)).toHaveCount(14)
 })
 
-test('the headline does not infer maximal effort from the uploaded maximum heart rate', async ({
+test('the headline shows the disclaimer that a heart-rate check does not establish all-out effort', async ({
   page,
 }) => {
   await openSample(page)

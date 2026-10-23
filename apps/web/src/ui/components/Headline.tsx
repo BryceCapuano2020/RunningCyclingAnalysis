@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { PRIORS } from '@rca/core/constants'
+import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { EffortCheck, Interval } from '@rca/core/types'
@@ -121,31 +122,59 @@ function effortNotice(effort: EffortCheck | null | undefined): ReactNode {
   const duration = formatDuration(durationS)
   if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
     return noticeBlock(
-      `Both best efforts over ${duration} were below 90% of your highest recorded heart rate ` +
+      `Both best efforts over ${duration} were below 90% of each sport's heart-rate reference ` +
         `(running ${Math.round(run * 100)}%, cycling ${Math.round(ride * 100)}%). Your library may be missing harder efforts.`,
     )
   }
   if (ride !== null && ride < ALL_OUT) {
     return noticeBlock(
-      `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of your highest ` +
-        `recorded heart rate. Your library may be missing a harder cycling effort.`,
+      `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of the cycling ` +
+        `heart-rate reference. Your library may be missing a harder cycling effort.`,
     )
   }
   if (run !== null && run < ALL_OUT) {
     return noticeBlock(
-      `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of your highest ` +
-        `recorded heart rate. Your library may be missing a harder running effort.`,
+      `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of the running ` +
+        `heart-rate reference. Your library may be missing a harder running effort.`,
     )
   }
   if (run !== null && ride !== null) {
     return (
       <p className="headline__effort-ok muted">
-        Both best efforts reached at least 90% of your highest recorded heart rate. This does not
+        Both best efforts reached at least 90% of each sport's heart-rate reference. This does not
         establish that either was all-out.
       </p>
     )
   }
   return null
+}
+
+/**
+ * The heart rate each sport's best efforts were judged against; nothing when neither is known.
+ * A sport's own highest sustained heart rate is named as such. A reference taken from the other
+ * sport is labelled with that source.
+ */
+function referenceNotice(result: AnalysisResult): ReactNode {
+  const parts: string[] = []
+  const { runMaxHeartRate: run, rideMaxHeartRate: ride } = result
+  if (run !== null) {
+    const own = run === result.runObservedMaxHeartRate
+    parts.push(
+      own
+        ? `running ${Math.round(run)} bpm (your highest sustained heart rate)`
+        : `running ${Math.round(run)} bpm (your cycling maximum)`,
+    )
+  }
+  if (ride !== null) {
+    const own = ride === result.rideObservedMaxHeartRate
+    parts.push(
+      own
+        ? `cycling ${Math.round(ride)} bpm (your highest sustained heart rate)`
+        : `cycling ${Math.round(ride)} bpm (${RIDE_MAX_OFFSET_BPM} bpm below your running maximum)`,
+    )
+  }
+  if (parts.length === 0) return null
+  return <p className="headline__basis muted">Judged against {parts.join('; ')}.</p>
 }
 
 export function Headline({ result, units, massKg, effort }: HeadlineProps) {
@@ -177,6 +206,7 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
         ? 'Model range adjusted using your heart-rate data.'
         : 'Model range based on population assumptions.'
   const tiles = buildTiles(result, units, massKg)
+  const notice = effortNotice(effort)
 
   return (
     <section className="headline">
@@ -185,7 +215,8 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
       </h1>
       <p className="headline__detail">{summary}</p>
       <p className="headline__range">{range}</p>
-      {effortNotice(effort)}
+      {notice}
+      {notice && referenceNotice(result)}
       <p className="headline__basis muted">{basis}</p>
       <p className="headline__basis muted">
         This compares estimated energy use, not sporting ability. The range does not include every

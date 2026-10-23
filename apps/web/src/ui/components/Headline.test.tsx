@@ -134,7 +134,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
     expect(
       screen.getByText(
-        'Your best cycling effort over 20 min reached 80% of your highest recorded heart rate. Your library may be missing a harder cycling effort.',
+        'Your best cycling effort over 20 min reached 80% of the cycling heart-rate reference. Your library may be missing a harder cycling effort.',
       ),
     ).toBeInTheDocument()
   })
@@ -143,7 +143,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
     expect(
       screen.getByText(
-        'Your best running effort over 20 min reached 70% of your highest recorded heart rate. Your library may be missing a harder running effort.',
+        'Your best running effort over 20 min reached 70% of the running heart-rate reference. Your library may be missing a harder running effort.',
       ),
     ).toBeInTheDocument()
   })
@@ -152,9 +152,75 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
     expect(
       screen.getByText(
-        'Both best efforts over 20 min were below 90% of your highest recorded heart rate (running 70%, cycling 80%). Your library may be missing harder efforts.',
+        "Both best efforts over 20 min were below 90% of each sport's heart-rate reference (running 70%, cycling 80%). Your library may be missing harder efforts.",
       ),
     ).toBeInTheDocument()
+  })
+
+  function renderJudged(overrides: Partial<AnalysisResult>) {
+    return render(
+      <Headline
+        result={withRatio(interval(1.05, 1.12, 1.2), false, overrides)}
+        units="metric"
+        massKg={75}
+        effort={{ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }}
+      />,
+    )
+  }
+
+  it('labels each sport figure as its highest sustained heart rate when the sport has its own maximum', () => {
+    renderJudged({
+      runMaxHeartRate: 188,
+      runObservedMaxHeartRate: 188,
+      rideMaxHeartRate: 182,
+      rideObservedMaxHeartRate: 182,
+    })
+    expect(
+      screen.getByText(
+        'Judged against running 188 bpm (your highest sustained heart rate); cycling 182 bpm (your highest sustained heart rate).',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('labels a cycling reference derived from running as below the running maximum', () => {
+    renderJudged({
+      runMaxHeartRate: 188,
+      runObservedMaxHeartRate: 188,
+      rideMaxHeartRate: 182,
+      rideObservedMaxHeartRate: null,
+    })
+    const basis = screen.getByText(/Judged against/)
+    expect(basis).toHaveTextContent('cycling 182 bpm (6 bpm below your running maximum).')
+    expect(basis).not.toHaveTextContent(/cycling 182 bpm \(your highest sustained heart rate\)/)
+  })
+
+  it('labels a running reference derived from cycling as the cycling maximum', () => {
+    renderJudged({
+      runMaxHeartRate: 182,
+      runObservedMaxHeartRate: null,
+      rideMaxHeartRate: 182,
+      rideObservedMaxHeartRate: 182,
+    })
+    const basis = screen.getByText(/Judged against/)
+    expect(basis).toHaveTextContent('running 182 bpm (your cycling maximum);')
+    expect(basis).toHaveTextContent('cycling 182 bpm (your highest sustained heart rate).')
+  })
+
+  it('labels a running reference as the cycling maximum when cycling was higher', () => {
+    renderJudged({
+      runMaxHeartRate: 185,
+      runObservedMaxHeartRate: 180,
+      rideMaxHeartRate: 185,
+      rideObservedMaxHeartRate: 185,
+    })
+    expect(screen.getByText(/Judged against/)).toHaveTextContent(
+      'running 185 bpm (your cycling maximum)',
+    )
+  })
+
+  it('does not state a heart-rate reference without an effort notice', () => {
+    renderWithEffort(undefined)
+    expect(screen.queryByText(/Judged against/)).not.toBeInTheDocument()
   })
 
   it('shows a warning icon drawn with currentColor and the text', () => {
@@ -176,7 +242,7 @@ describe('Headline effort notice', () => {
     })
     expect(
       screen.getByText(
-        'Both best efforts reached at least 90% of your highest recorded heart rate. This does not establish that either was all-out.',
+        "Both best efforts reached at least 90% of each sport's heart-rate reference. This does not establish that either was all-out.",
       ),
     ).toBeInTheDocument()
     expect(container.querySelector('.headline__effort')).toBeNull()

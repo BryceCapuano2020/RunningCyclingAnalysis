@@ -12,9 +12,13 @@ export interface SampleTerms {
 /**
  * Mass-free power terms at every sample. Mechanical power is (m * (gravityAccel + crr * rolling)
  * + cda * aero) / DRIVETRAIN_EFFICIENCY for total mass m, so these arrays are all a bike model
- * needs.
+ * needs. Air density, kg/m^3, is per sample and defaults to sea level.
  */
-export function sampleTerms(speed: Float64Array, grade: Float64Array): SampleTerms {
+export function sampleTerms(
+  speed: Float64Array,
+  grade: Float64Array,
+  airDensityKgM3?: Float64Array,
+): SampleTerms {
   const n = speed.length
   const accel = accelerationOf(speed)
   const gravityAccel = new Float64Array(n)
@@ -25,7 +29,7 @@ export function sampleTerms(speed: Float64Array, grade: Float64Array): SampleTer
     const theta = Math.atan(grade[i]!)
     gravityAccel[i] = (G * Math.sin(theta) + accel[i]!) * v
     rolling[i] = G * Math.cos(theta) * v
-    aero[i] = 0.5 * RHO_AIR * v * v * v
+    aero[i] = 0.5 * (airDensityKgM3?.[i] ?? RHO_AIR) * v * v * v
   }
   return { gravityAccel, rolling, aero }
 }
