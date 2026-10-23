@@ -308,10 +308,7 @@ describe('extractFitFiles on single files', () => {
       maxArchiveEntries: 1,
     })
     expect(files).toEqual([])
-    expect(errors).toEqual([
-      { fileName: 'ride.fit', reason: 'Archive exceeds the 1-entry limit' },
-      { fileName: 'headers.zip', reason: 'Archive exceeds the 1-entry limit' },
-    ])
+    expect(errors).toEqual([{ fileName: 'ride.fit', reason: 'Archive exceeds the 1-entry limit' }])
   })
 
   it('enforces aggregate decompressed and retained-buffer quotas', async () => {
@@ -325,7 +322,6 @@ describe('extractFitFiles on single files', () => {
         fileName: 'b.fit',
         reason: `Archive expands to more than ${FIT_A.length} bytes`,
       },
-      { fileName: 'total.zip', reason: `Archive expands to more than ${FIT_A.length} bytes` },
     ])
 
     const buffered = await collect(new File([zip], 'buffered.zip'), { maxBufferedBytes: 5 })
@@ -546,7 +542,6 @@ describe('extractFitFiles on zip archives', () => {
     expect(files).toHaveLength(3)
     expect(errors).toEqual([
       { fileName: 'bomb-3.fit', reason: 'Archive expands to more than 3 MB' },
-      { fileName: 'bomb.zip', reason: 'Archive expands to more than 3 MB' },
     ])
     expect(stream.current?.locked).toBe(false)
   })
@@ -606,8 +601,17 @@ describe('extractFitFiles on zip archives', () => {
     expect(namesOf(files)).toEqual(['inner.zip/a.fit'])
     expect(errors).toEqual([
       { fileName: 'inner.zip/b.fit', reason: 'Archive exceeds the 2-entry limit' },
-      { fileName: 'outer.zip', reason: 'Archive exceeds the 2-entry limit' },
     ])
+  })
+
+  it('does not read a zip inside an archive that has already stopped, so it adds no error', async () => {
+    const outer = zipSync({
+      'inner.zip': zipSync({ 'b.fit': FIT_B }),
+      'c.fit': FIT_C,
+      'd.fit': FIT_A,
+    })
+    const { errors } = await collect(new File([outer], 'outer.zip'), { maxArchiveEntries: 2 })
+    expect(errors).toEqual([{ fileName: 'd.fit', reason: 'Archive exceeds the 2-entry limit' }])
   })
 
   it('counts bytes inside a nested zip against the same total limit', async () => {
@@ -618,10 +622,7 @@ describe('extractFitFiles on zip archives', () => {
       maxTotalDecompressedBytes: inner.length,
     })
     expect(files).toEqual([])
-    expect(errors).toEqual([
-      { fileName: 'inner.zip/a.fit', reason },
-      { fileName: 'outer.zip', reason },
-    ])
+    expect(errors).toEqual([{ fileName: 'inner.zip/a.fit', reason }])
   })
 
   it('reports a total limit in GB, MB or bytes', () => {
@@ -678,7 +679,6 @@ describe('extractFitFiles on zip archives', () => {
     expect(total.files).toEqual([])
     expect(total.errors).toEqual([
       { fileName: 'bomb.fit.gz', reason: 'Archive expands to more than 1000 bytes' },
-      { fileName: 'gz.zip', reason: 'Archive expands to more than 1000 bytes' },
     ])
     const buffered = await collect(new File([zip], 'gz.zip'), { maxBufferedBytes: 1000 })
     expect(buffered.errors).toEqual([
@@ -697,7 +697,6 @@ describe('extractFitFiles on zip archives', () => {
     })
     expect(total.errors).toEqual([
       { fileName: 'big.fit', reason: 'Archive expands to more than 1000 bytes' },
-      { fileName: 'streamed.zip', reason: 'Archive expands to more than 1000 bytes' },
     ])
     const buffered = await collect(new File([zip], 'streamed.zip'), { maxBufferedBytes: 1000 })
     expect(buffered.errors).toEqual([
@@ -783,6 +782,18 @@ describe('extractFitFiles on zip archives', () => {
         reason: '1 entries could not be read because the archive is damaged',
       },
     ])
+  })
+
+  it('trusts the headers of the directory over an end record whose count lies', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B }, { level: 0 })
+    new DataView(zip.buffer, zip.byteOffset, zip.byteLength).setUint16(
+      zip.length - 22 + 10,
+      5,
+      true,
+    )
+    const { files, errors } = await collect(new File([zip], 'lying.zip'))
+    expect(namesOf(files)).toEqual(['a.fit', 'b.fit'])
+    expect(errors).toEqual([])
   })
 
   it('reports a truncated zip as damaged, keeping the entries it has', async () => {

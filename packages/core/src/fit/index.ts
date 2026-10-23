@@ -1,4 +1,6 @@
 export { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
+export { countActivityFiles } from './count'
+export type { RangedSource } from './count'
 export type {
   ExtractLimits,
   ExtractSummary,

@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
 import type { ImportOutcome } from '../../worker/protocol'
+import { addedSentence } from '../analysis/copy'
+import type { ImportProgress } from '../analysis/model'
+import { PAGE_HEADING_ID } from '../pages/pageHeading'
+import { hrefFor } from '../route'
 import { plural } from './plural'
 import { isFileDrag } from './useFilePicker'
 import './ImportStatus.css'
 
-type Outcome = Pick<ImportOutcome, 'activities' | 'rejected'>
+type Outcome = Pick<
+  ImportOutcome,
+  'activities' | 'rejected' | 'runs' | 'rides' | 'firstStartMs' | 'lastStartMs'
+>
 
 export interface ImportStatusProps {
   /** Receives the files of every drop on the page, including while busy. */
   onFiles: (files: File[]) => void
   busy: boolean
-  /** FIT files read so far. Null until the first file is read, since the total is not known. */
-  progress: number | null
+  /** Files read so far, with the total when it is known. Null until the first file is read. */
+  progress: ImportProgress | null
   /** Signed in, the sync status announces how an import ended, so the outcome is not announced here. */
   signedIn: boolean
   /**
@@ -21,18 +29,41 @@ export interface ImportStatusProps {
   outcome?: Outcome | null
   /** Neutral reason shown while busy in place of analysis progress, e.g. while imports wait for the library. */
   waiting?: string | null
+  /** On the Balance page the summary's link would point at the page it is already on, so it is left out. */
+  atBalance?: boolean
 }
 
-function statusText(progress: number | null): string {
-  if (progress === null || progress === 0) return 'Analysing'
-  return `Read ${plural(progress, 'file')} so far`
+/** The total a count and a bar can use, or null when the import shows its count alone. */
+function knownTotal({ filesRead, filesTotal }: ImportProgress): number | null {
+  if (filesTotal === null || filesTotal === 0 || filesRead > filesTotal) return null
+  return filesTotal
+}
+
+function statusText(progress: ImportProgress | null): string {
+  if (progress === null || progress.filesRead === 0) return 'Analysing'
+  const total = knownTotal(progress)
+  if (total === null) return `Read ${plural(progress.filesRead, 'file')} so far`
+  const noun = total === 1 ? 'file' : 'files'
+  const [read, all] = [progress.filesRead, total].map((count) => count.toLocaleString('en-US'))
+  return `Reading ${read} of ${all} ${noun}`
+}
+
+/** How far through a known total the import is, as a whole percentage. */
+function percentRead(progress: ImportProgress | null): number | null {
+  // Until a file is read the bar stays indeterminate, rather than showing an empty measure.
+  if (progress === null || progress.filesRead === 0) return null
+  const total = knownTotal(progress)
+  return total === null ? null : Math.round((progress.filesRead / total) * 100)
 }
 
 /** The one sentence announced when a run ends. Per-file progress is never announced. */
-function outcomeSentence({ activities, rejected }: Outcome): string {
-  const rejectedText = rejected > 0 ? ` ${plural(rejected, 'file')} could not be used.` : ''
-  if (activities === 0) return `No activities were analysed.${rejectedText}`
-  return `Analysed ${plural(activities, 'activity', 'activities')}.${rejectedText}`
+function outcomeSentence(outcome: Outcome): string {
+  const rejectedText =
+    outcome.rejected > 0 ? ` ${plural(outcome.rejected, 'file')} could not be used.` : ''
+  const added = addedSentence(outcome)
+  if (added !== null) return `${added}${rejectedText}`
+  if (outcome.activities === 0) return `No activities were analysed.${rejectedText}`
+  return `Analysed ${plural(outcome.activities, 'activity', 'activities')}.${rejectedText}`
 }
 
 /**
@@ -47,11 +78,14 @@ export function ImportStatus({
   signedIn,
   outcome = null,
   waiting = null,
+  atBalance = false,
 }: ImportStatusProps) {
   const [windowDragging, setWindowDragging] = useState(false)
   // The one live region: announces that a run started and how it ended, and nothing in between.
   const [announcedBusy, setAnnouncedBusy] = useState(busy)
   const [announcedOutcome, setAnnouncedOutcome] = useState(outcome)
+  // The summary of a run stays until it is dismissed; a new run's outcome brings it back.
+  const [dismissedOutcome, setDismissedOutcome] = useState<Outcome | null>(null)
   const [announcement, setAnnouncement] = useState('')
   // The window listeners read the latest callback without being rebound on every render.
   const latestOnFiles = useRef(onFiles)
@@ -105,16 +139,44 @@ export function ImportStatus({
     if (outcome !== null && !busy && !signedIn) setAnnouncement(outcomeSentence(outcome))
   }
 
+  const summary =
+    outcome !== null && outcome !== dismissedOutcome && !busy ? addedSentence(outcome) : null
+  const percent = percentRead(progress)
+
+  function dismiss(event: MouseEvent<HTMLButtonElement>) {
+    setDismissedOutcome(outcome)
+    // The button leaves with the notice, so focus that was on it moves to the page heading.
+    if (document.activeElement === event.currentTarget) {
+      document.getElementById(PAGE_HEADING_ID)?.focus({ preventScroll: true })
+    }
+  }
+
   return (
     <>
       {busy && (
         <div className="import-status">
           <div className="import-status__bar" aria-hidden="true">
-            <span className="import-status__fill" />
+            <span
+              className={
+                percent === null
+                  ? 'import-status__fill'
+                  : 'import-status__fill import-status__fill--measured'
+              }
+              style={percent === null ? undefined : { width: `${percent}%` }}
+            />
           </div>
           <p className="import-status__text" aria-hidden="true">
             {waiting ?? statusText(progress)}
           </p>
+        </div>
+      )}
+      {summary !== null && (
+        <div className="import-status__notice">
+          <p>{summary}</p>
+          {atBalance ? null : <a href={hrefFor({ page: 'balance' })}>See your balance</a>}
+          <button type="button" className="btn" onClick={dismiss}>
+            Dismiss import summary
+          </button>
         </div>
       )}
       <p role="status" className="sr-only">

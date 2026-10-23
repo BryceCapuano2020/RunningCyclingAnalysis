@@ -20,6 +20,13 @@ export type Setter<T> = Dispatch<SetStateAction<T>>
 
 export type SetError = (message: string | null, issue?: SyncIssueCode | null) => void
 
+/** The files an import has read, and how many it holds in all when that is known before reading. */
+export interface ImportProgress {
+  filesRead: number
+  /** Null when the total is not known, such as for a zip that holds another zip. */
+  filesTotal: number | null
+}
+
 export interface ErrorNotice {
   message: string
   issue: SyncIssueCode | null

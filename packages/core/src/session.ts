@@ -2,100 +2,34 @@ import { combine, digestActivity } from './digest'
 import { fitnessTrend } from './digest/trend'
 import type { TrendPoint } from './digest/trend'
 import { MODEL_REVISION } from './digest/modelRevision'
-import type { AnalysisResult } from './digest'
-import type { FitSource } from './fit'
-import { extractFitFiles } from './fit'
+import type { RangedSource } from './fit'
+import { countActivityFiles, extractFitFiles } from './fit'
 import { parseActivityFile } from './import'
 import { sampleDataset } from './synthetic'
 import { DAY_MS } from './constants'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
+import {
+  copyOfActivity,
+  copyOfDigest,
+  dedupeKey,
+  fileNameOf,
+  hiddenDigests,
+  isSameWorkout,
+  richer,
+} from './duplicates'
+import type { Workout } from './duplicates'
+import { ACTIVITY } from './fit/zipDirectory'
+import { haltsImport, SyncFailure } from './saveFailure'
+import type { SyncIssue, SyncIssueCode } from './saveFailure'
+import type { RejectedFile, SessionState } from './sessionState'
 
-export interface RejectedFile {
-  fileName: string
-  reason: string
-}
-
-/** Why an activity could not be saved to the signed-in library. Drives the user-facing message. */
-export type SyncIssueCode =
-  | 'signed-out'
-  | 'account-changed'
-  | 'activity-quota'
-  | 'storage-quota'
-  | 'storage-budget'
-  | 'file-too-large'
-  | 'rate-limited'
-  | 'daily-limit'
-  | 'upload-in-progress'
-  | 'account-deleting'
-  | 'digest-quota'
-  | 'database-full'
-  | 'activity-conflict'
-  | 'network'
-  | 'server'
-
-export interface SyncIssue {
-  code: SyncIssueCode
-  /** Activities affected in the current library session. */
-  count: number
-}
-
-/** A sink throws this to say why a save failed. Any other error is reported as 'server'. */
-export class SyncFailure extends Error {
-  readonly code: SyncIssueCode
-
-  constructor(code: SyncIssueCode, message: string) {
-    super(message)
-    this.name = 'SyncFailure'
-    this.code = code
-  }
-}
-
-const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
-  'signed-out',
-  'account-changed',
-  'account-deleting',
-  'digest-quota',
-  'database-full',
-])
-
-/**
- * Whether a failure ends the import: once the account is signed out or changed, or the saved-analysis
- * storage or the database is full, later saves in the same import would fail the same way, so they
- * are not attempted.
- */
-export function haltsImport(code: SyncIssueCode): boolean {
-  return HALTING_CODES.has(code)
-}
-
-export interface SessionState {
-  /** Null until at least one activity has been loaded. */
-  result: AnalysisResult | null
-  rejected: RejectedFile[]
-  /** Activity files in formats this app does not read (e.g. KML) that were skipped. */
-  unsupportedFiles: number
-  isSample: boolean
-  /** Activities analysed or eligible, not counting hidden duplicates, before the period filter. */
-  totalActivities: number
-  /** Stored activities excluded because their digest model is older than this app's. */
-  outdatedActivities: number
-  /** Stored activities excluded because their digest model is from a newer app version. */
-  incompatibleActivities: number
-  /**
-   * Saved activities left out of the analysis because a copy of the same workout in a higher format
-   * (FIT over TCX over GPX) is saved too. They stay in the library.
-   */
-  hiddenDuplicates: number
-  /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
-  rangeDays: number | null
-  /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
-  syncIssues: SyncIssue[]
-  /**
-   * Weekly fitness trend over the analysed workouts. Ignores the period filter, so it covers the
-   * whole library, and it is the same set as the analysis before that filter.
-   */
-  trend: TrendPoint[]
-}
+export { haltsImport, SyncFailure } from './saveFailure'
+export type { SyncIssue, SyncIssueCode } from './saveFailure'
+export type { RejectedFile, SessionState } from './sessionState'
+// The device library keeps one copy per workout by the same rule the analysis uses.
+export { copyOfDigest, dedupeKey, outranks } from './duplicates'
+export type { Copy } from './duplicates'
 
 /** What the sink receives for each newly digested activity. */
 export interface SyncItem {
@@ -120,159 +54,13 @@ type ImportedFile = Omit<SyncItem, 'digest'>
 interface SaveBatch {
   halt: SyncIssueCode | null
   duplicates: RejectedFile[]
+  /** The digests this import added to the library, by key. A replacement updates its entry. */
+  added: Map<string, ActivityDigest>
 }
 
 /** Whether two lists hold the same digest objects in the same order. */
 function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
   return a.length === b.length && a.every((digest, i) => digest === b[i])
-}
-
-/** Format ranks: when copies of one workout exist, the highest-ranked one is analysed. */
-const RANK = { fit: 3, tcx: 2, gpx: 1 } as const
-
-/** Two copies start within this many milliseconds to be one workout. */
-const NEAR_START_MS = 60_000
-/** Durations within this many seconds, or this fraction of the longer one, are the same workout. */
-const NEAR_DURATION_S = 60
-const NEAR_DURATION_FRACTION = 0.1
-
-/** The fields that decide whether two activities are the same workout. */
-interface Workout {
-  sport: Sport
-  startMs: number
-  durationS: number
-}
-
-/** The fields that decide which copy of a workout is kept. */
-export interface Copy {
-  id: string
-  rank: number
-  hasPower: boolean
-  hasHeartRate: boolean
-  durationS: number
-}
-
-/** The copy of a digest, with its format rank taken from its id. */
-export function copyOfDigest(digest: ActivityDigest): Copy {
-  return {
-    id: digest.id,
-    rank: formatRank(digest.id),
-    hasPower: digest.powerSource === 'measured',
-    hasHeartRate: digest.hasHeartRate,
-    durationS: digest.durationS,
-  }
-}
-
-/** The copy of an activity read from a file, before it is digested. Matches copyOfDigest. */
-function copyOfActivity(activity: Activity, fileName: string): Copy {
-  return {
-    id: activity.id,
-    rank: formatRank(fileName),
-    hasPower: activity.sport === 'ride' && activity.hasPower,
-    hasHeartRate: activity.hasHeartRate,
-    durationS: activity.n,
-  }
-}
-
-/**
- * Whether copy a is richer than copy b: format rank first, then a power meter, heart-rate data and
- * the longer duration. Equally rich copies are not richer than each other.
- */
-function richer(a: Copy, b: Copy): boolean {
-  if (a.rank !== b.rank) return a.rank > b.rank
-  if (a.hasPower !== b.hasPower) return a.hasPower
-  if (a.hasHeartRate !== b.hasHeartRate) return a.hasHeartRate
-  return a.durationS > b.durationS
-}
-
-/**
- * Whether the analysis keeps copy a over copy b: the richer one, and between equally rich copies
- * the smaller id, so the choice does not depend on the order the files arrive in.
- */
-export function outranks(a: Copy, b: Copy): boolean {
-  if (richer(a, b)) return true
-  if (richer(b, a)) return false
-  return a.id < b.id
-}
-
-/** The same workout exported twice has the same sport and start second. */
-export function dedupeKey(sport: Sport, startMs: number): string {
-  return `${sport}-${Math.round(startMs / 1000)}`
-}
-
-/** The activity file name a digest id was built from: `<startMs>-<fileName>[#index][.part]`. */
-function fileNameOf(digestId: string): string {
-  return digestId.replace(/^\d+-/, '').replace(/(#\d+)?(\.\d+)?$/, '')
-}
-
-/**
- * The format rank of an activity file name, or of a digest id, which begins with the file name.
- * 0 when the name has no FIT, TCX or GPX extension.
- */
-function formatRank(name: string): number {
-  const extension = /\.(fit|gpx|tcx)(?=(?:#\d+)?(?:\.\d+)?$)/i.exec(name)?.[1]?.toLowerCase()
-  switch (extension) {
-    case 'fit':
-      return RANK.fit
-    case 'tcx':
-      return RANK.tcx
-    case 'gpx':
-      return RANK.gpx
-    default:
-      return 0
-  }
-}
-
-/** Same sport, starts within a minute, and lasts the same time within 60 s or 10%. */
-function isSameWorkout(a: Workout, b: Workout): boolean {
-  if (a.sport !== b.sport || Math.abs(a.startMs - b.startMs) > NEAR_START_MS) return false
-  const gap = Math.abs(a.durationS - b.durationS)
-  return (
-    gap <= NEAR_DURATION_S || gap <= NEAR_DURATION_FRACTION * Math.max(a.durationS, b.durationS)
-  )
-}
-
-/**
- * The digests the analysis leaves out. Near-duplicates link into groups, and links are followed
- * transitively (union-find), so a copy linked to the best one only through another copy is also a
- * copy of that workout. Each group keeps its best copy by outranks and hides the rest. Digests are
- * sorted by start, so each one is compared only with those that start within NEAR_START_MS of it.
- */
-function hiddenDigests(digests: ActivityDigest[]): Set<ActivityDigest> {
-  const sorted = [...digests].sort((a, b) => a.startMs - b.startMs)
-  const parent = sorted.map((_, i) => i)
-  const root = (i: number): number => {
-    let x = i
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]!]!
-      x = parent[x]!
-    }
-    return x
-  }
-  let first = 0
-  for (let j = 0; j < sorted.length; j++) {
-    const later = sorted[j]!
-    while (later.startMs - sorted[first]!.startMs > NEAR_START_MS) first++
-    for (let i = first; i < j; i++) {
-      if (isSameWorkout(sorted[i]!, later)) parent[root(i)] = root(j)
-    }
-  }
-  const best = new Map<number, number>()
-  for (let i = 0; i < sorted.length; i++) {
-    const group = root(i)
-    const current = best.get(group)
-    if (
-      current === undefined ||
-      outranks(copyOfDigest(sorted[i]!), copyOfDigest(sorted[current]!))
-    ) {
-      best.set(group, i)
-    }
-  }
-  const hidden = new Set<ActivityDigest>()
-  sorted.forEach((digest, i) => {
-    if (best.get(root(i)) !== i) hidden.add(digest)
-  })
-  return hidden
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -306,7 +94,7 @@ export class AnalysisSession {
   } | null = null
 
   async addFiles(
-    sources: FitSource[],
+    sources: RangedSource[],
     settings: AthleteSettings,
     onProgress?: (filesRead: number) => void,
     sink?: SyncSink,
@@ -315,14 +103,16 @@ export class AnalysisSession {
       activities: number
       rejected: number
       duplicates: RejectedFile[]
+      added: ActivityDigest[]
     }) => void,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
-    const batch: SaveBatch = { halt: null, duplicates: [] }
+    const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
     let filesRead = 0
     const outcome = { activities: 0, rejected: 0 }
     for (const source of sources) {
       let undecodable = 0
+      const readBefore = filesRead
       const summary = await extractFitFiles(
         source,
         async (file) => {
@@ -347,8 +137,15 @@ export class AnalysisSession {
           undecodable++
           outcome.rejected++
           this.rejected.set(fileName, reason)
+          // An activity file that could not be read was still read, so progress reaches its total.
+          if (ACTIVITY.test(fileName)) onProgress?.(++filesRead)
         },
       )
+      // An archive that stops early, or loses an entry, reports nothing for the files it did not
+      // reach. They count as read here, up to the total its directory lists.
+      const expected = (await countActivityFiles([source])) ?? 0
+      for (let left = expected - (filesRead - readBefore); left > 0; left--)
+        onProgress?.(++filesRead)
       this.unsupported.set(source.name, summary.otherActivityFiles)
       outcome.rejected += summary.otherActivityFiles
       // A corrupt file is already reported under its own name, so do not also call it empty.
@@ -357,7 +154,10 @@ export class AnalysisSession {
         this.rejected.set(source.name, 'No supported activity files found (FIT, GPX or TCX)')
       }
     }
-    onComplete?.({ ...outcome, duplicates: batch.duplicates })
+    // Only digests still visible count as added, so the order the files arrive in does not matter.
+    const hidden = hiddenDigests([...this.digests.values()])
+    const added = [...batch.added.values()].filter((digest) => !hidden.has(digest))
+    onComplete?.({ ...outcome, duplicates: batch.duplicates, added })
     return this.state(settings)
   }
 
@@ -478,6 +278,7 @@ export class AnalysisSession {
       return
     const digest = held !== undefined && !replaces ? held : digestActivity(activity)
     this.digests.set(key, digest)
+    if (held === undefined || batch.added.has(key)) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
     if (sink === undefined) return

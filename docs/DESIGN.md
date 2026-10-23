@@ -26,6 +26,12 @@ the four tabs (once there is a result), one **Add files** button, a Profile link
 control. The account menu holds the email and Sign out; downloading data and
 deleting the account are on the Profile page. A file dropped anywhere on the page is imported.
 
+The landing page's step 1 has a **How to get your files** button. It moves focus to the export guides
+below the steps, one closed details per service; guides whose steps could not be checked from the
+vendor's own page say so.
+After an import that added activities, a dismissible notice under the header says what it added and
+links to Balance, except on Balance itself.
+
 ## Colour
 
 Ink and volt are the brand. Sport colours mark a sport: its data, its glyph, and the edge of its
@@ -102,7 +108,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   an icon that links to the detail.
 - **Every number names its source**: the activity that set it, with a link to that activity.
 - **Evidence gaps say what to do**: what to upload or record, and what it would sharpen.
-- Dates are friendly: "Tue 3 Jun", with the year only when it is not this year.
+- Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A range of months
+  gives the year on both ends when the years differ, or when either is not this year: "from Mar to
+  Oct", "from Mar 2023 to Oct 2026".
 - One "How sure is this?" link per card at most.
 - The app grades, it never ranks: no percentiles, no "top X%", no composite score across sports.
 

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { SessionState } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
 import { EMPTY_SESSION } from './model'
+import type { ImportProgress } from './model'
 
 /**
  * What an import is doing: the analysed session, busy and progress, the outcome of the last import,
@@ -11,7 +12,7 @@ export function useImportState() {
   const [state, setState] = useState<SessionState>(EMPTY_SESSION)
   const [busy, setBusy] = useState(false)
   const [waitingReason, setWaitingReason] = useState<string | null>(null)
-  const [progress, setProgress] = useState<number | null>(null)
+  const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [uploading, setUploading] = useState<number | null>(null)
   const [importOutcome, setImportOutcome] = useState<ImportOutcome | null>(null)
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)

@@ -51,8 +51,7 @@ split this way in the refactor that introduced this document.
 
 | File                                  | Lines | Direction                                                   |
 | ------------------------------------- | ----- | ----------------------------------------------------------- |
-| `packages/core/src/fit/archive.ts`    | 670   | Separate zip, gzip and nesting from the per-entry policy    |
-| `packages/core/src/session.ts`        | 568   | Move near-duplicate grouping and library bookkeeping out    |
+| `packages/core/src/fit/archive.ts`    | 634   | Separate zip, gzip and nesting from the per-entry policy    |
 | `packages/core/src/xml/parse.ts`      | 438   | Separate entity decoding and the tree builder from the scan |
 | `packages/core/src/digest/combine.ts` | 407   | Move the virtual-power accuracy and summaries out           |
 

@@ -1,6 +1,7 @@
 import { DAILY_LIMITS } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import {
+  addedSentence,
   deleteFailureText,
   deleteNoticeText,
   exportFailureText,
@@ -10,6 +11,71 @@ import {
 } from './copy'
 import type { RebuildOutcome } from './copy'
 import { formatDay } from '../format/date'
+
+const NOW = new Date(2026, 9, 23).getTime()
+const MARCH_2023 = new Date(2023, 2, 4, 9).getTime()
+const OCTOBER_2026 = new Date(2026, 9, 20, 7).getTime()
+
+describe('addedSentence', () => {
+  const MARCH_2026 = new Date(2026, 2, 4, 9).getTime()
+  const OCTOBER_2023 = new Date(2023, 9, 20, 7).getTime()
+
+  it('says how many runs and rides were added, with the years on both ends when they differ', () => {
+    expect(
+      addedSentence(
+        { runs: 412, rides: 388, firstStartMs: MARCH_2023, lastStartMs: OCTOBER_2026 },
+        NOW,
+      ),
+    ).toBe('Added 412 runs and 388 rides, from Mar 2023 to Oct 2026.')
+  })
+
+  it('leaves the year out when both ends are in the current year', () => {
+    expect(
+      addedSentence(
+        { runs: 2, rides: 0, firstStartMs: MARCH_2026, lastStartMs: OCTOBER_2026 },
+        NOW,
+      ),
+    ).toBe('Added 2 runs, from Mar to Oct.')
+  })
+
+  it('gives the year on both ends when both are in a year that is not this one', () => {
+    expect(
+      addedSentence(
+        { runs: 0, rides: 3, firstStartMs: MARCH_2023, lastStartMs: OCTOBER_2023 },
+        NOW,
+      ),
+    ).toBe('Added 3 rides, from Mar 2023 to Oct 2023.')
+  })
+
+  it('names one month alone, with its year when it is not this year', () => {
+    expect(
+      addedSentence(
+        { runs: 1, rides: 0, firstStartMs: OCTOBER_2026, lastStartMs: OCTOBER_2026 },
+        NOW,
+      ),
+    ).toBe('Added 1 run, in Oct.')
+    expect(
+      addedSentence(
+        { runs: 0, rides: 1, firstStartMs: OCTOBER_2023, lastStartMs: OCTOBER_2023 },
+        NOW,
+      ),
+    ).toBe('Added 1 ride, in Oct 2023.')
+  })
+
+  it('separates thousands', () => {
+    expect(
+      addedSentence(
+        { runs: 1204, rides: 0, firstStartMs: MARCH_2023, lastStartMs: OCTOBER_2026 },
+        NOW,
+      ),
+    ).toBe('Added 1,204 runs, from Mar 2023 to Oct 2026.')
+  })
+
+  it('is null when no run or ride was added, or no span is known', () => {
+    expect(addedSentence({ runs: 0, rides: 0 }, NOW)).toBeNull()
+    expect(addedSentence({ runs: 3, rides: 0 }, NOW)).toBeNull()
+  })
+})
 
 /** The local time the viewer sees for an instant, formatted the way the limit copy formats it. */
 function localTime(ms: number): string {
