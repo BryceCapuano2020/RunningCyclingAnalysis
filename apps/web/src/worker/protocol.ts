@@ -41,7 +41,10 @@ export type WorkerRequest =
       sync: SyncOptions | null
       saveToDevice?: boolean
     }
-  /** Loads the digests kept in this browser, replacing the session's library. */
+  /**
+   * Loads the digests kept in this browser, unless the session already holds them or a sample is
+   * showing.
+   */
   | { type: 'loadDevice'; settings: AthleteSettings }
   | { type: 'loadSample'; settings: AthleteSettings }
   | { type: 'loadServer'; settings: AthleteSettings; userId: string }

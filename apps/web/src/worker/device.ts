@@ -9,6 +9,10 @@ import { savedActivityOf } from './savedActivity'
 export interface DeviceActions {
   /** Replaces the session's library with the one kept in this browser. */
   load(settings: AthleteSettings): Promise<SessionState>
+  /** Whether the session holds that library already, so loading it again would drop imports. */
+  inSession(): boolean
+  /** The session's library was replaced or emptied, so the kept one must be loaded again. */
+  replaced(): void
   /** Keeps one imported activity. Best effort: a refused write leaves the visit working. */
   save(item: SyncItem): Promise<void>
   /** Posts the activities kept in this browser, newest first. Best effort. */
@@ -45,6 +49,7 @@ export function deviceActions(
   device: DeviceLibrary,
   post: (message: WorkerResponse) => void,
 ): DeviceActions {
+  let held = false
   const report = async () => {
     try {
       post({ type: 'libraryActivities', activities: newestFirst(await device.all()) })
@@ -56,10 +61,18 @@ export function deviceActions(
     async load(settings) {
       const entries = await device.all()
       post({ type: 'libraryActivities', activities: newestFirst(entries) })
-      return session.loadDigests(
+      const state = session.loadDigests(
         entries.map((entry) => entry.digest),
         settings,
       )
+      held = true
+      return state
+    },
+    inSession() {
+      return held
+    },
+    replaced() {
+      held = false
     },
     async save({ digest }) {
       try {
@@ -78,12 +91,16 @@ export function deviceActions(
       return session.removeActivity(kept.sport, kept.startMs, settings)
     },
     async forget() {
+      let cleared = false
       try {
         await device.clear()
+        cleared = true
       } catch {
         // The page still starts over; whatever could not be removed reloads next visit.
       }
       post({ type: 'libraryActivities', activities: [] })
+      // Nothing to merge once empty. After a refused clear, the next read loads what remains.
+      held = cleared
     },
   }
 }

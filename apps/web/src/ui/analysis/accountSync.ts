@@ -103,8 +103,9 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
 }
 
 /**
- * The session ended without a sign-out. Keep what is on screen and stop saving; imports that were
- * waiting for the library are analysed locally.
+ * The session ended without a sign-out. Keep what is on screen and stop saving. The next signed-out
+ * import is analysed with the library kept in this browser, as a reload would, so the list and the
+ * analysis agree. Imports that were waiting for the library are analysed that way now.
  */
 function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
   deps.accountEpochRef.current += 1

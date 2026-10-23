@@ -52,9 +52,10 @@ vi.mock('./deviceLibrary', async () => {
 
 const SETTINGS = { massKg: 75, bikeMassKg: 9 }
 const USER_ID = 'u1'
-const [sampleActivity, secondSampleActivity] = sampleDataset().activities
+const [sampleActivity, secondSampleActivity, thirdSampleActivity] = sampleDataset().activities
 if (sampleActivity === undefined) throw new Error('The sample has no activities')
 if (secondSampleActivity === undefined) throw new Error('The sample has fewer than two activities')
+if (thirdSampleActivity === undefined) throw new Error('The sample has fewer than three activities')
 const RUN_FILE_BYTES = new Uint8Array(encodeFit(sampleActivity, { gps: true }))
 const SAMPLE_DIGEST = digestActivity(sampleActivity)
 
@@ -937,6 +938,23 @@ function refusingLibrary(): DeviceLibrary {
   }
 }
 
+/** The start times, earliest first, of the activities the last reply analyses. */
+function analysedStarts(messages: WorkerResponse[]): number[] {
+  const last = messages.at(-1)
+  if (last?.type !== 'state') throw new Error('The request did not reply with a state')
+  return (last.state.result?.activities ?? [])
+    .map((activity) => activity.startMs)
+    .sort((a, b) => a - b)
+}
+
+/** The start times, earliest first, of the activities the last library list reports. */
+function listedStarts(messages: WorkerResponse[]): number[] {
+  const lists = messages.flatMap((message) =>
+    message.type === 'libraryActivities' ? [message.activities] : [],
+  )
+  return (lists.at(-1) ?? []).map((activity) => activity.startMs).sort((a, b) => a - b)
+}
+
 describe('device library', () => {
   it('keeps the digests of a signed-out import that asks for it, and posts them as the library', async () => {
     const { send } = await startWorker()
@@ -944,6 +962,8 @@ describe('device library', () => {
 
     expect(mocked.createActivity).not.toHaveBeenCalled()
     expect(messages).toEqual([
+      // The kept library is read before the file is added, so it is listed first (empty here).
+      { type: 'libraryActivities', activities: [] },
       { type: 'progress', filesRead: 1, filesTotal: 1 },
       {
         type: 'libraryActivities',
@@ -1125,6 +1145,11 @@ describe('device library', () => {
       { type: 'libraryActivities', activities: [] },
       { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
     ])
+    // The kept activity is still there, so the next import is analysed with it, as a reload would.
+    const added = await restarted.send(signedOutImport(fitFile(secondSampleActivity, 'second.fit')))
+    const both = [sampleActivity.startMs, secondSampleActivity.startMs].sort((a, b) => a - b)
+    expect(analysedStarts(added)).toEqual(both)
+    expect(listedStarts(added)).toEqual(both)
   })
 
   it('empties the kept library when a clear forgets the device', async () => {
@@ -1150,6 +1175,95 @@ describe('device library', () => {
       { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
     ])
     expect(await keptDevice().all()).toHaveLength(1)
+  })
+
+  it('keeps a file the import rejected when the kept library is read after it', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(new File(['not an activity'], 'notes.txt')))
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { rejected: [expect.objectContaining({ fileName: 'notes.txt' })] },
+    })
+  })
+
+  it('adds an import to the kept digest, and lists both once more on load', async () => {
+    const { send } = await startWorker()
+    const keptDigest = digestActivity(secondSampleActivity)
+    await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
+
+    const imported = await send(signedOutImport())
+    expect(imported.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+    expect(messages).toEqual([
+      { type: 'libraryActivities', activities: [expect.anything(), expect.anything()] },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 2 }) },
+    ])
+  })
+
+  it('after the account ends, an import is analysed with the kept library', async () => {
+    const { send } = await startWorker()
+    const keptDigest = digestActivity(secondSampleActivity)
+    await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send(signedOutImport(fitFile(thirdSampleActivity, 'third.fit')))
+
+    const both = [keptDigest.startMs, digestActivity(thirdSampleActivity).startMs].sort(
+      (a, b) => a - b,
+    )
+    expect(analysedStarts(messages)).toEqual(both)
+    expect(listedStarts(messages)).toEqual(both)
+    expect(await keptDevice().all()).toHaveLength(2)
+  })
+
+  it('an import into the account does not merge the library kept in this browser', async () => {
+    const { send } = await startWorker()
+    const keptDigest = digestActivity(secondSampleActivity)
+    await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(thirdSampleActivity, 'third.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+      saveToDevice: true,
+    })
+
+    const both = [sampleActivity.startMs, thirdSampleActivity.startMs].sort((a, b) => a - b)
+    expect(analysedStarts(messages)).toEqual(both)
+  })
+
+  it('loads the kept library again after a clear that keeps it', async () => {
+    const { send } = await startWorker()
+    const keptDigest = digestActivity(secondSampleActivity)
+    await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    await send({ type: 'clear' })
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(analysedStarts(messages)).toEqual([keptDigest.startMs])
+  })
+
+  it('loads the kept library again after a rebuild replaces the session', async () => {
+    const { send } = await startWorker()
+    const keptDigest = digestActivity(secondSampleActivity)
+    await keptDevice().put(workoutKeyOf(keptDigest), keptDigest)
+    await send({ type: 'loadDevice', settings: SETTINGS })
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST, true)])
+    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({ type: 'loadDevice', settings: SETTINGS })
+
+    expect(analysedStarts(messages)).toEqual([keptDigest.startMs])
   })
 })
 

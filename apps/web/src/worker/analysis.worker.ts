@@ -127,8 +127,9 @@ async function addFiles(
     }
   }
 
-  // Files added over the sample join the library kept in this browser, not the sample.
-  if (request.saveToDevice && showingSample) await device.load(request.settings)
+  // Files saved here join the library kept in this browser, unless the session already holds it.
+  if (sync === null && request.saveToDevice && !device.inSession())
+    await device.load(request.settings)
   showingSample = false
   const state = await session.addFiles(
     request.files,
@@ -159,6 +160,7 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return (await addFiles(request)).state
     case 'loadSample':
       showingSample = true
+      device.replaced()
       return session.loadSample(request.settings)
     case 'loadServer':
       showingSample = false
@@ -170,9 +172,9 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
     case 'setRange':
       return session.setRange(request.rangeDays, request.settings)
     case 'loadDevice':
-      // A sample the visitor asked for before the account was known stays on screen; the kept
-      // library is read again before any file is added.
-      if (showingSample) {
+      // A sample on screen, or a library already read, stays as it is: loading it again would
+      // drop what was imported since.
+      if (showingSample || device.inSession()) {
         await device.report()
         return session.setSettings(request.settings)
       }
@@ -180,6 +182,7 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
     case 'clear':
       showingSample = false
       if (request.forgetDevice) await device.forget()
+      else device.replaced()
       return session.clear()
     case 'deleteDeviceActivity':
       return device.remove(request.id, request.settings)
@@ -224,6 +227,7 @@ async function loadServer(settings: AthleteSettings, userId: string): Promise<Se
     if (!record.hasFile) missingOriginals.add(activityKey(record.digest))
   }
   post({ type: 'missingOriginals', count: missingOriginals.size })
+  device.replaced()
   return session.loadDigests(
     records.map((record) => record.digest),
     settings,
@@ -346,6 +350,7 @@ async function rebuildStale(settings: AthleteSettings, userId: string) {
     failed++
     refreshed = records
   }
+  device.replaced()
   const state = session.loadDigests(
     refreshed.map((record) => record.digest),
     settings,
