@@ -34,9 +34,3 @@
     color: #e3e3e3;
   }
 }
-
-:root[data-theme='dark'] .google-sign-in {
-  border-color: #8e918f;
-  background: #131314;
-  color: #e3e3e3;
-}

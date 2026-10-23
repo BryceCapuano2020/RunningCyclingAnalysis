@@ -25,7 +25,6 @@
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  gap: var(--space-2);
   min-height: 40px;
   padding: 0 var(--space-4);
   border: 1px solid var(--control-border);
@@ -48,20 +47,21 @@
   background: var(--surface-2);
 }
 
-/* The checked state uses weight and a check mark, not colour alone. */
+/* The checked state uses weight and a filled background, not colour alone. */
 .segmented-control__option--selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--selected);
+  border-color: var(--selected);
+  color: var(--selected-contrast);
   font-weight: 600;
 }
 
-.segmented-control__check {
-  visibility: hidden;
-}
-
-.segmented-control__option--selected .segmented-control__check {
-  visibility: visible;
+/* Forced colours drop the fill, so the selected segment needs the system's selection colours. */
+@media (forced-colors: active) {
+  .segmented-control__option--selected {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
 }
 
 /* The focus ring is drawn on the visible label, since the radio itself is hidden. */

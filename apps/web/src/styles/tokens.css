@@ -1,0 +1,88 @@
+/*
+ * Custom properties only: colour, spacing, radius, type families and shadow. The colour values are
+ * the table in docs/DESIGN.md, and tokens.test.ts keeps the two in step.
+ */
+:root {
+  --surface-0: #f5f6f8;
+  --surface-1: #ffffff;
+  --surface-2: #eceff3;
+  --border: #e1e4ea;
+  --control-border: #7f8694;
+  --text-primary: #0e1116;
+  --text-secondary: #474f5c;
+  --text-muted: #5f6774;
+  --brand: #c8f03c;
+  --accent: #0e1116;
+  --accent-contrast: var(--brand);
+  --selected: #0e1116;
+  --selected-contrast: #ffffff;
+  --link: #0e1116;
+  --focus: #0e1116;
+
+  /* Sport identity: fixed everywhere in the app */
+  --series-run: #e5304f;
+  --series-ride: #2f56e8;
+  --series-swim: #0f9fb0;
+  --series-run-soft: #e5304f26;
+  --series-ride-soft: #2f56e826;
+  --series-swim-soft: #0f9fb026;
+  --neutral-mark: #474f5c;
+  --neutral-band: #474f5c24;
+  --grid: #e9ecf1;
+
+  --status-good: #17753a;
+  --status-good-bg: #e3f4e8;
+  --status-warning: #8a5300;
+  --status-warning-bg: #fbf2d9;
+  --status-critical: #b3261e;
+  --status-critical-bg: #fde8e6;
+
+  --radius: 12px;
+  --radius-sm: 6px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --shadow: 0 1px 2px #0000000d, 0 4px 16px #0000000a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface-0: #0f1115;
+    --surface-1: #171a20;
+    --surface-2: #1e232c;
+    --border: #2a2f38;
+    --control-border: #6b7380;
+    --text-primary: #eef0f3;
+    --text-secondary: #b6bcc6;
+    --text-muted: #8d95a2;
+    --accent: var(--brand);
+    --accent-contrast: #0e1116;
+    --selected: #eef0f3;
+    --selected-contrast: #0e1116;
+    --link: #eef0f3;
+    --focus: #c8f03c;
+    --series-run: #f0435f;
+    --series-ride: #4d6ef5;
+    --series-swim: #14a0b0;
+    --series-run-soft: #f0435f33;
+    --series-ride-soft: #4d6ef533;
+    --series-swim-soft: #14a0b033;
+    --neutral-mark: #b6bcc6;
+    --neutral-band: #b6bcc629;
+    --grid: #232830;
+    --status-good: #4ac26b;
+    --status-good-bg: #10301b;
+    --status-warning: #f2b544;
+    --status-warning-bg: #33290c;
+    --status-critical: #ff8a80;
+    --status-critical-bg: #3a1714;
+    --shadow: 0 1px 2px #00000040;
+  }
+}

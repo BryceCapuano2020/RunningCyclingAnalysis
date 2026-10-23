@@ -1,27 +1,23 @@
+/*
+ * Colours copied from apps/web/src/styles/tokens.css (surface-0, text-primary, text-muted, link and
+ * border). This page is static and sits outside React, so keep these in step with that file by hand.
+ */
 :root {
-  --page: #f7f7f5;
-  --ink: #1d1d1b;
-  --muted: #5b5b57;
-  --link: #1f5fa8;
-  --rule: #d9d9d4;
+  --page: #f5f6f8;
+  --ink: #0e1116;
+  --muted: #5f6774;
+  --link: #0e1116;
+  --rule: #e1e4ea;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --page: #161715;
-    --ink: #ecebe6;
-    --muted: #aaa9a2;
-    --link: #8ab8ec;
-    --rule: #3a3b37;
+    --page: #0f1115;
+    --ink: #eef0f3;
+    --muted: #8d95a2;
+    --link: #eef0f3;
+    --rule: #2a2f38;
   }
-}
-
-:root[data-theme='dark'] {
-  --page: #161715;
-  --ink: #ecebe6;
-  --muted: #aaa9a2;
-  --link: #8ab8ec;
-  --rule: #3a3b37;
 }
 
 body {

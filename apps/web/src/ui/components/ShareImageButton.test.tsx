@@ -3,12 +3,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EffortCheck } from '@rca/core/types'
 import { saveCanvasPng } from '../../share/download'
-import { renderShareCard } from '../../share/renderCard'
+import { loadCardFonts, renderShareCard } from '../../share/renderCard'
 import { makeResult } from './fixtures'
 import { ShareImageButton } from './ShareImageButton'
 
 vi.mock('../../share/download', () => ({ saveCanvasPng: vi.fn(async () => true) }))
-vi.mock('../../share/renderCard', () => ({ renderShareCard: vi.fn(() => true) }))
+vi.mock('../../share/renderCard', () => ({
+  loadCardFonts: vi.fn(async () => undefined),
+  renderShareCard: vi.fn(() => true),
+}))
 
 afterEach(() => {
   cleanup()
@@ -73,6 +76,10 @@ describe('ShareImageButton', () => {
       expect.any(HTMLCanvasElement),
     )
     expect(saveCanvasPng).toHaveBeenCalledTimes(1)
+    // The card's fonts load before it is drawn.
+    expect(vi.mocked(loadCardFonts).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(renderShareCard).mock.invocationCallOrder[0] ?? 0,
+    )
   })
 
   it('passes the heart-rate effort to the card so the caveat is included', async () => {

@@ -144,7 +144,7 @@
 }
 
 .account-menu__item--danger {
-  color: var(--status-critical-text);
+  color: var(--status-critical);
 }
 
 /* Holds the header's space while the session loads. Roughly the size of the sign-in button. */

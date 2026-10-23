@@ -17,8 +17,8 @@ export interface SegmentedControlProps<T extends string> {
 }
 
 /**
- * A row of radio buttons drawn as segments. The checked segment is marked by weight and a
- * check mark as well as colour, and the focus ring is drawn on the visible label.
+ * A row of radio buttons drawn as segments. The checked segment is marked by weight and a filled
+ * background as well as colour, and the focus ring is drawn on the visible label.
  */
 export function SegmentedControl<T extends string>({
   legend,
@@ -51,9 +51,6 @@ export function SegmentedControl<T extends string>({
                 checked={isSelected}
                 onChange={() => onSelect(option.value)}
               />
-              <span className="segmented-control__check" aria-hidden="true">
-                ✓
-              </span>
               <span>{option.label}</span>
             </label>
           )

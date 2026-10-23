@@ -34,18 +34,25 @@ describe('SegmentedControl', () => {
     expect(screen.getByText('Units')).toHaveClass('sr-only')
   })
 
-  it('checks only the selected option and marks it with a check mark', () => {
-    const { container } = render(
-      <SegmentedControl legend="Period" options={OPTIONS} selected="b" onSelect={vi.fn()} />,
-    )
+  it('checks only the selected option and marks it by weight and fill', () => {
+    render(<SegmentedControl legend="Period" options={OPTIONS} selected="b" onSelect={vi.fn()} />)
     expect(screen.getByRole('radio', { name: 'Beta' })).toBeChecked()
     expect(screen.getByRole('radio', { name: 'Alpha' })).not.toBeChecked()
-    const checks = container.querySelectorAll('.segmented-control__check')
-    expect(checks).toHaveLength(2)
-    checks.forEach((check) => expect(check).toHaveAttribute('aria-hidden', 'true'))
     expect(screen.getByRole('radio', { name: 'Beta' }).closest('label')).toHaveClass(
       'segmented-control__option--selected',
     )
+  })
+
+  it('draws no check mark, so each option is only its label', () => {
+    const { container } = render(
+      <SegmentedControl legend="Period" options={OPTIONS} selected="b" onSelect={vi.fn()} />,
+    )
+    expect(container.textContent).not.toContain('✓')
+    expect(container.querySelector('.segmented-control__check')).toBeNull()
+    for (const option of OPTIONS) {
+      const label = screen.getByRole('radio', { name: option.label }).closest('label')
+      expect(label?.textContent).toBe(option.label)
+    }
   })
 
   it('reports the value of the option picked', async () => {

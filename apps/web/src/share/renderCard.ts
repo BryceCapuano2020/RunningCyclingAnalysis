@@ -14,16 +14,21 @@ const CONTENT_HEIGHT = CARD_HEIGHT - 2 * MARGIN_Y
 const MIN_GAP = 8
 const TILE_PADDING = 18
 const TILE_GAP = 24
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif'
+const FALLBACK_FONTS = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif'
+const FONT = `"Barlow", ${FALLBACK_FONTS}`
+const FONT_DISPLAY = `"Barlow Condensed", ${FALLBACK_FONTS}`
 
-/** The app's light CSS tokens. Every text colour meets 4.5:1 on the background or tile colour. */
+/**
+ * The app's light tokens from docs/DESIGN.md. Every text colour meets 4.5:1 on the background or
+ * tile colour.
+ */
 const COLORS = {
-  background: '#fcfcfb',
-  surface: '#efeeea',
-  text: '#0b0b0b',
-  secondary: '#52514e',
-  muted: '#6b6a64',
-  accent: '#1c5cab',
+  background: '#ffffff',
+  surface: '#eceff3',
+  text: '#0e1116',
+  secondary: '#474f5c',
+  muted: '#5f6774',
+  accent: '#0e1116',
 }
 
 /** The 2D context of either canvas kind; the card uses only the members they share. */
@@ -40,9 +45,11 @@ interface TextStyle {
   size: number
   weight: number
   lineHeight: number
+  /** Defaults to the body face. */
+  family?: string
 }
 
-const BRAND: TextStyle = { size: 24, weight: 700, lineHeight: 30 }
+const BRAND: TextStyle = { size: 24, weight: 600, lineHeight: 30 }
 const BADGE: TextStyle = { size: 16, weight: 600, lineHeight: 24 }
 const HEADLINE_LARGE: TextStyle = { size: 40, weight: 600, lineHeight: 46 }
 const HEADLINE_SMALL: TextStyle = { size: 32, weight: 600, lineHeight: 38 }
@@ -50,8 +57,21 @@ const SUMMARY: TextStyle = { size: 22, weight: 400, lineHeight: 30 }
 const RANGE: TextStyle = { size: 20, weight: 400, lineHeight: 28 }
 const NOTE: TextStyle = { size: 18, weight: 400, lineHeight: 26 }
 const TILE_LABEL: TextStyle = { size: 18, weight: 400, lineHeight: 22 }
-const TILE_VALUE: TextStyle = { size: 46, weight: 600, lineHeight: 54 }
+const TILE_VALUE: TextStyle = { size: 46, weight: 800, lineHeight: 54, family: FONT_DISPLAY }
 const PERIOD: TextStyle = { size: 20, weight: 600, lineHeight: 28 }
+/** Every style the card draws, so that loadCardFonts waits for each face it uses. */
+const STYLES = [
+  BRAND,
+  BADGE,
+  HEADLINE_LARGE,
+  HEADLINE_SMALL,
+  SUMMARY,
+  RANGE,
+  NOTE,
+  TILE_LABEL,
+  TILE_VALUE,
+  PERIOD,
+]
 
 /** A tile is a label, a gap and a value, inside padding on every side. */
 const TILE_HEIGHT = TILE_PADDING * 2 + TILE_LABEL.lineHeight + 4 + TILE_VALUE.lineHeight
@@ -88,8 +108,24 @@ export function wrapText(
   return kept
 }
 
+/** The CSS font shorthand for a style, as both the canvas and document.fonts.load read it. */
+function fontOf(style: TextStyle): string {
+  return `${style.weight} ${style.size}px ${style.family ?? FONT}`
+}
+
 function setFont(ctx: CardContext, style: TextStyle): void {
-  ctx.font = `${style.weight} ${style.size}px ${FONT}`
+  ctx.font = fontOf(style)
+}
+
+/**
+ * Resolves once the faces the card draws have loaded, so that the canvas measures and paints them
+ * rather than the fallbacks. A face that fails to load is skipped. Without document.fonts (tests,
+ * workers) it resolves at once.
+ */
+export async function loadCardFonts(): Promise<void> {
+  const fonts = typeof document === 'undefined' ? undefined : document.fonts
+  if (fonts === undefined) return
+  await Promise.all(STYLES.map((style) => fonts.load(fontOf(style)).catch(() => [])))
 }
 
 /** Wraps text in the given style, measured with the font the style sets. */

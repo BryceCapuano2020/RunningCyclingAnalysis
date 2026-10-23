@@ -42,7 +42,7 @@
 }
 
 .settings-bar__input input[aria-invalid='true'] {
-  border-color: var(--status-critical-text);
+  border-color: var(--status-critical);
 }
 
 .settings-bar__unit {
@@ -56,7 +56,7 @@
 }
 
 .settings-bar__error {
-  color: var(--status-critical-text);
+  color: var(--status-critical);
   font-size: 0.875rem;
 }
 

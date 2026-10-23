@@ -1,0 +1,185 @@
+import { describe, expect, it } from 'vitest'
+import { readStylesheet } from '../ui/components/stylesheet'
+
+const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
+const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
+const privacyCss = await readStylesheet(import.meta.url, '../../public/privacy.css')
+
+type Tokens = Map<string, string>
+
+/** The custom properties declared in the first block that opens with `selector`. */
+function declared(css: string, selector: string): Tokens {
+  const start = css.indexOf(`${selector} {`)
+  if (start < 0) throw new Error(`no ${selector} block in tokens.css`)
+  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
+  const tokens: Tokens = new Map()
+  for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
+    const [, name, value] = match
+    if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
+  }
+  return tokens
+}
+
+/** The same tokens with each var(--name) replaced by the value that name resolves to. */
+function resolved(tokens: Tokens): Tokens {
+  const expand = (value: string, seen: string[]): string =>
+    value.replace(/var\(--([a-z0-9-]+)\)/g, (_match: string, name: string) => {
+      const next = tokens.get(name)
+      if (next === undefined || seen.includes(name)) throw new Error(`--${name} does not resolve`)
+      return expand(next, [...seen, name])
+    })
+  return new Map(
+    [...tokens].map(([name, value]): [string, string] => [name, expand(value, [name])]),
+  )
+}
+
+/** The Colour section of docs/DESIGN.md, up to the Type section. */
+function colourSection(markdown: string): string {
+  const start = markdown.indexOf('## Colour')
+  const end = markdown.indexOf('## Type')
+  if (start < 0 || end < start) throw new Error('no Colour section in docs/DESIGN.md')
+  return markdown.slice(start, end)
+}
+
+const TABLE_ROW = '| `--'
+
+/** The colour rows of the DESIGN.md table: each token with its light and dark value. */
+function colourTable(section: string): Map<string, { light: string; dark: string }> {
+  const rows = new Map<string, { light: string; dark: string }>()
+  const row = /^\|\s*`--([a-z0-9-]+)`\s*\|\s*`(#[0-9a-f]{6,8})`\s*\|\s*`(#[0-9a-f]{6,8})`/
+  for (const line of section.split('\n')) {
+    const match = row.exec(line)
+    const [, name, light, dark] = match ?? []
+    if (name !== undefined && light !== undefined && dark !== undefined) {
+      rows.set(name, { light, dark })
+    }
+  }
+  return rows
+}
+
+/** WCAG relative luminance of an opaque #rrggbb colour. */
+function luminance(hex: string): number {
+  const linear = (start: number) => {
+    const channel = parseInt(hex.slice(start, start + 2), 16) / 255
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * linear(1) + 0.7152 * linear(3) + 0.0722 * linear(5)
+}
+
+/** WCAG contrast ratio between two opaque colours, from 1 to 21. */
+function contrast(a: string, b: string): number {
+  const x = luminance(a)
+  const y = luminance(b)
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+
+function colour(tokens: Tokens, name: string): string {
+  const value = tokens.get(name)
+  if (value === undefined || !/^#[0-9a-f]{6}$/.test(value)) {
+    throw new Error(`--${name} is not an opaque hex colour`)
+  }
+  return value
+}
+
+/** Spacing, radius, type and shadow tokens are not colours, so they need no table row. */
+const NOT_COLOUR = /^(space-\d|radius(-sm)?$|font-|shadow$)/
+
+const lightRaw = declared(tokensCss, ':root')
+const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
+const light = resolved(lightRaw)
+const dark = resolved(new Map([...lightRaw, ...darkRaw]))
+
+const section = colourSection(designMd)
+const table = colourTable(section)
+const rowCount = section.split('\n').filter((line) => line.startsWith(TABLE_ROW)).length
+
+const TEXT = 4.5
+const GRAPHIC = 3
+
+/** Each pair docs/DESIGN.md promises, as foreground, background and the least ratio it reaches. */
+const PAIRS: [string, string, number][] = [
+  ['text-primary', 'surface-0', TEXT],
+  ['text-primary', 'surface-1', TEXT],
+  ['text-secondary', 'surface-0', TEXT],
+  ['text-secondary', 'surface-1', TEXT],
+  ['text-muted', 'surface-0', TEXT],
+  ['text-muted', 'surface-1', TEXT],
+  ['control-border', 'surface-0', GRAPHIC],
+  ['control-border', 'surface-1', GRAPHIC],
+  ['control-border', 'surface-2', GRAPHIC],
+  ['accent-contrast', 'accent', TEXT],
+  ['selected-contrast', 'selected', TEXT],
+  ['focus', 'surface-0', GRAPHIC],
+  ['focus', 'surface-1', GRAPHIC],
+  ['series-run', 'surface-1', GRAPHIC],
+  ['series-ride', 'surface-1', GRAPHIC],
+  ['series-swim', 'surface-1', GRAPHIC],
+  ['status-warning', 'surface-1', TEXT],
+  ['status-warning', 'status-warning-bg', TEXT],
+  ['status-critical', 'surface-1', TEXT],
+  ['status-critical', 'status-critical-bg', TEXT],
+  ['status-good', 'surface-1', TEXT],
+  ['status-good', 'status-good-bg', TEXT],
+]
+
+const CASES = [
+  ...PAIRS.map(([fg, bg, min]) => ({ theme: 'light', tokens: light, fg, bg, min })),
+  ...PAIRS.map(([fg, bg, min]) => ({ theme: 'dark', tokens: dark, fg, bg, min })),
+]
+
+describe('colour tokens', () => {
+  it('parses one entry for every colour row in the DESIGN.md table', () => {
+    expect(rowCount).toBeGreaterThan(0)
+    expect(table.size).toBe(rowCount)
+  })
+
+  it('has a table row for every colour token in tokens.css', () => {
+    const names = new Set([...lightRaw.keys(), ...darkRaw.keys()])
+    const missing = [...names].filter((name) => !NOT_COLOUR.test(name) && !table.has(name))
+    expect(missing).toEqual([])
+  })
+
+  it.each([...table])('--%s has the light and dark values in docs/DESIGN.md', (name, values) => {
+    expect(light.get(name)).toBe(values.light.toLowerCase())
+    expect(dark.get(name)).toBe(values.dark.toLowerCase())
+  })
+})
+
+/** The privacy page's custom properties, mapped to the tokens they copy. */
+const PRIVACY_TOKENS: Record<string, string> = {
+  page: 'surface-0',
+  ink: 'text-primary',
+  muted: 'text-muted',
+  link: 'link',
+  rule: 'border',
+}
+
+describe('privacy page', () => {
+  const privacyLight = declared(privacyCss, ':root')
+  const privacyDark = declared(privacyCss, ":root:not([data-theme='light'])")
+
+  it('declares exactly the mapped properties in each theme', () => {
+    const names = Object.keys(PRIVACY_TOKENS).sort()
+    expect([...privacyLight.keys()].sort()).toEqual(names)
+    expect([...privacyDark.keys()].sort()).toEqual(names)
+  })
+
+  it.each(Object.entries(PRIVACY_TOKENS))(
+    '--%s matches --%s in tokens.css in both themes',
+    (name, token) => {
+      expect(privacyLight.get(name)).toBe(light.get(token))
+      expect(privacyDark.get(name)).toBe(dark.get(token))
+    },
+  )
+})
+
+describe('contrast', () => {
+  it('computes the WCAG ratio, from 1:1 to 21:1', () => {
+    expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5)
+    expect(contrast('#777777', '#777777')).toBeCloseTo(1, 5)
+  })
+
+  it.each(CASES)('$theme: --$fg on --$bg reaches $min:1', ({ tokens, fg, bg, min }) => {
+    expect(contrast(colour(tokens, fg), colour(tokens, bg))).toBeGreaterThanOrEqual(min)
+  })
+})

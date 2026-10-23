@@ -50,7 +50,7 @@
 }
 
 .delete-dialog__error {
-  color: var(--status-critical-text);
+  color: var(--status-critical);
   font-size: 0.875rem;
 }
 
@@ -65,8 +65,8 @@
 /* Text uses the surface colour so it keeps contrast in both themes. The button is aria-disabled,
    not disabled, so it stays focusable and looks disabled through the attribute. */
 .btn.delete-dialog__confirm {
-  background: var(--status-critical-text);
-  border-color: var(--status-critical-text);
+  background: var(--status-critical);
+  border-color: var(--status-critical);
   color: var(--surface-1);
 }
 
@@ -76,7 +76,7 @@
 }
 
 .btn.delete-dialog__confirm:hover {
-  background: var(--status-critical-text);
+  background: var(--status-critical);
   filter: brightness(1.1);
 }
 
