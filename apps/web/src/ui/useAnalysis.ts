@@ -99,6 +99,7 @@ const EMPTY: SessionState = {
   outdatedActivities: 0,
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
+  trend: [],
 }
 
 /** A request the worker has not answered yet. `notice` is the confirmation shown on success. */

@@ -102,6 +102,7 @@ const STATE = {
   outdatedActivities: 0,
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
+  trend: [],
 }
 
 beforeEach(() => {

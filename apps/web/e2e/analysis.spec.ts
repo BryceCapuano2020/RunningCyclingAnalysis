@@ -7,14 +7,14 @@ import {
   uploadFixtures,
 } from './helpers.js'
 
-test('try sample data shows the results, four charts, the activities and the sample notice', async ({
+test('try sample data shows the results, five charts, the activities and the sample notice', async ({
   page,
 }) => {
   const errors = trackErrors(page)
   await openSample(page)
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/running|cycling/i)
-  await expect(page.locator('figure [role="img"]')).toHaveCount(4)
+  await expect(page.locator('figure [role="img"]')).toHaveCount(5)
   await expect(activitiesRows(page)).toHaveCount(14)
   await expect(page.getByText('You are looking at simulated sample data')).toBeVisible()
   expect(errors).toEqual([])

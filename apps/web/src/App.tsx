@@ -1,9 +1,10 @@
+import { weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef } from 'react'
 import type { ProfileInput } from '@rca/contract'
 import './App.css'
-import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from './ui/charts'
+import { AccuracyScatter, CurveChart, HrScatter, RatioChart, TrendChart } from './ui/charts'
 import {
   AccountMenu,
   ActivitiesTable,
@@ -367,6 +368,16 @@ export function App() {
                 activityNames={Object.fromEntries(result.activities.map((a) => [a.id, a.name]))}
               />
             </section>
+
+            {weeksWithValue(analysis.state.trend) >= 2 && (
+              <section className="card">
+                <h2>Fitness over time</h2>
+                <p>
+                  Your best estimated energy rate over 20 min in the previous 6 weeks, each week.
+                </p>
+                <TrendChart points={analysis.state.trend} />
+              </section>
+            )}
 
             <div className="grid-2">
               <section className="card">

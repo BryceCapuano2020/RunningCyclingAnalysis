@@ -1,10 +1,13 @@
 import { combine, digestActivity } from './digest'
+import { fitnessTrend } from './digest/trend'
+import type { TrendPoint } from './digest/trend'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { AnalysisResult } from './digest'
 import type { FitSource } from './fit'
 import { extractFitFiles } from './fit'
 import { parseActivityFile } from './import'
 import { sampleDataset } from './synthetic'
+import { DAY_MS } from './constants'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
 
 export interface RejectedFile {
@@ -86,6 +89,11 @@ export interface SessionState {
   rangeDays: number | null
   /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
   syncIssues: SyncIssue[]
+  /**
+   * Weekly fitness trend over the analysed workouts. Ignores the period filter, so it covers the
+   * whole library, and it is the same set as the analysis before that filter.
+   */
+  trend: TrendPoint[]
 }
 
 /** What the sink receives for each newly digested activity. */
@@ -111,6 +119,11 @@ type ImportedFile = Omit<SyncItem, 'digest'>
 interface SaveBatch {
   halt: SyncIssueCode | null
   duplicates: RejectedFile[]
+}
+
+/** Whether two lists hold the same digest objects in the same order. */
+function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
+  return a.length === b.length && a.every((digest, i) => digest === b[i])
 }
 
 /** Format ranks: when copies of one workout exist, the highest-ranked one is analysed. */
@@ -213,6 +226,13 @@ export class AnalysisSession {
   private unsupported = new Map<string, number>()
   private isSample = false
   private rangeDays: number | null = null
+  // The last trend, with the digests and masses it was computed from.
+  private trendCache: {
+    digests: ActivityDigest[]
+    massKg: number
+    bikeMassKg: number
+    points: TrendPoint[]
+  } | null = null
 
   async addFiles(
     sources: FitSource[],
@@ -401,6 +421,30 @@ export class AnalysisSession {
     }
   }
 
+  /**
+   * The trend of the visible set. The period does not change it, so it is reused while the digests
+   * and both masses are the same, and recomputed when any of them change.
+   */
+  private trendFor(visible: ActivityDigest[], settings: AthleteSettings): TrendPoint[] {
+    const cached = this.trendCache
+    if (
+      cached !== null &&
+      cached.massKg === settings.massKg &&
+      cached.bikeMassKg === settings.bikeMassKg &&
+      sameDigests(cached.digests, visible)
+    ) {
+      return cached.points
+    }
+    const points = fitnessTrend(visible, settings)
+    this.trendCache = {
+      digests: visible,
+      massKg: settings.massKg,
+      bikeMassKg: settings.bikeMassKg,
+      points,
+    }
+    return points
+  }
+
   private reset(): void {
     this.unsynced.clear()
     this.resetLibrary()
@@ -429,11 +473,12 @@ export class AnalysisSession {
     if (this.rangeDays !== null && visible.length > 0) {
       // Anchored to the newest activity, not today, so an old export still shows its last weeks.
       const newest = visible.reduce((latest, d) => Math.max(latest, d.startMs), -Infinity)
-      const cutoff = newest - this.rangeDays * 86_400_000
+      const cutoff = newest - this.rangeDays * DAY_MS
       selected = visible.filter((d) => d.startMs >= cutoff)
     }
     return {
       result: selected.length > 0 ? combine(selected, settings) : null,
+      trend: this.trendFor(visible, settings),
       rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,

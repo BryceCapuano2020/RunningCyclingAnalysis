@@ -4,6 +4,11 @@ export const DURATIONS_S = [
   10800,
 ] as const
 
+/** The duration, s, that the headline and the fitness trend describe: 20 minutes. */
+export const HEADLINE_DURATION_S = 1200
+
+export const DAY_MS = 86_400_000
+
 export const G = 9.80665
 /** Air density at 15 C, sea level, kg/m^3. */
 export const RHO_AIR = 1.225
