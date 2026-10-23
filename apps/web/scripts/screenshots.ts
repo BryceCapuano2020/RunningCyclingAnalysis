@@ -28,20 +28,16 @@ interface Box {
   height: number
 }
 
-function headlineCard(page: Page): Locator {
-  return page.locator('section.card').filter({ has: page.locator('.headline') })
+/** The section whose own level 2 heading has this name. */
+function sectionWith(page: Page, heading: string): Locator {
+  return page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { level: 2, name: heading, exact: true }) })
 }
 
-function bestEffortsCard(page: Page): Locator {
-  return page
-    .locator('section.card')
-    .filter({ has: page.getByRole('heading', { level: 2, name: 'Best efforts in one unit' }) })
-}
-
-function checksRow(page: Page): Locator {
-  return page
-    .locator('.grid-2')
-    .filter({ has: page.getByRole('heading', { level: 2, name: 'Heart-rate check' }) })
+/** The Balance answer and the two sport cards, with the evidence between them. */
+function balanceTargets(page: Page): Locator[] {
+  return [page.locator('.balance-hero'), page.locator('.balance__sports')]
 }
 
 /** Smallest box around all targets, grown by PADDING and kept inside the viewport. */
@@ -76,8 +72,8 @@ async function capture(page: Page, targets: Locator[], fileName: string): Promis
   })
 }
 
-/** Opens a fresh context on the sample data results page, runs the job, then closes the context. */
-async function withSampleResults(
+/** Opens a fresh context on the app's first page, runs the job, then closes the context. */
+async function withPage(
   browser: Browser,
   viewport: { width: number; height: number },
   colorScheme: ColorScheme,
@@ -91,18 +87,37 @@ async function withSampleResults(
   try {
     const page = await context.newPage()
     await page.goto(BASE_URL)
-    await page.getByRole('button', { name: 'Try sample data' }).click()
-    await page.locator('#results-heading').waitFor()
-    await page.getByRole('heading', { level: 2, name: 'Best efforts in one unit' }).waitFor()
-    await page.evaluate(async () => {
-      await document.fonts.ready
-    })
-    // Keep the pointer away from the charts so no hover tooltip lands in a screenshot.
-    await page.mouse.move(0, 0)
     await job(page)
   } finally {
     await context.close()
   }
+}
+
+/** Waits for the fonts, and keeps the pointer away from the charts so no tooltip is captured. */
+async function settle(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts.ready
+  })
+  await page.mouse.move(0, 0)
+}
+
+/** Loads the sample athlete and waits for the Balance page to show its cards. */
+async function openSample(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'See a sample athlete' }).click()
+  await page
+    .getByRole('heading', { level: 2, name: 'Your bike on foot, at every duration' })
+    .waitFor()
+  await settle(page)
+}
+
+/** Opens a page from the Sections navigation and waits for its heading. */
+async function openSection(page: Page, name: string): Promise<void> {
+  await page
+    .getByRole('navigation', { name: 'Sections' })
+    .getByRole('link', { name, exact: true })
+    .click()
+  await page.getByRole('heading', { level: 1, name, exact: true }).waitFor()
+  await settle(page)
 }
 
 async function main(): Promise<void> {
@@ -115,15 +130,50 @@ async function main(): Promise<void> {
   let browser: Browser | undefined
   try {
     browser = await chromium.launch()
-    await withSampleResults(browser, DESKTOP, 'light', async (page) => {
-      await capture(page, [headlineCard(page), bestEffortsCard(page)], 'screenshot-light.png')
-      await capture(page, [checksRow(page)], 'screenshot-checks.png')
+    await withPage(browser, DESKTOP, 'light', async (page) => {
+      await page.getByRole('heading', { level: 1 }).waitFor()
+      await settle(page)
+      await capture(
+        page,
+        [page.locator('.app__pitch'), page.locator('.landing__start')],
+        'screenshot-landing.png',
+      )
     })
-    await withSampleResults(browser, DESKTOP, 'dark', async (page) => {
-      await capture(page, [headlineCard(page), bestEffortsCard(page)], 'screenshot-dark.png')
+    await withPage(browser, DESKTOP, 'light', async (page) => {
+      await openSample(page)
+      await capture(page, balanceTargets(page), 'screenshot-light.png')
+      await page.getByRole('link', { name: 'How sure is this?' }).click()
+      await page.getByRole('heading', { level: 1, name: 'How sure is this?' }).waitFor()
+      await settle(page)
+      await capture(
+        page,
+        [sectionWith(page, 'Heart-rate check'), sectionWith(page, 'Virtual power meter accuracy')],
+        'screenshot-checks.png',
+      )
+      await openSection(page, 'Run')
+      await capture(
+        page,
+        [page.locator('.page-head'), sectionWith(page, 'Every duration')],
+        'screenshot-run.png',
+      )
+      await openSection(page, 'Activities')
+      await capture(
+        page,
+        [page.locator('.page-head'), page.locator('.activity-list')],
+        'screenshot-activities.png',
+      )
     })
-    await withSampleResults(browser, MOBILE, 'light', async (page) => {
-      await capture(page, [headlineCard(page)], 'screenshot-mobile.png')
+    await withPage(browser, DESKTOP, 'dark', async (page) => {
+      await openSample(page)
+      await capture(page, balanceTargets(page), 'screenshot-dark.png')
+    })
+    await withPage(browser, MOBILE, 'light', async (page) => {
+      await openSample(page)
+      await capture(page, [page.locator('.balance-hero')], 'screenshot-mobile.png')
+    })
+    await withPage(browser, MOBILE, 'dark', async (page) => {
+      await openSample(page)
+      await capture(page, [page.locator('.balance-hero')], 'screenshot-mobile-dark.png')
     })
   } finally {
     await browser?.close()

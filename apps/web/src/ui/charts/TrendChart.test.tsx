@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TrendPoint } from '@rca/core/digest'
 import { TrendChart } from './TrendChart'
 
@@ -39,8 +39,15 @@ function tableOf(container: HTMLElement) {
 }
 
 describe('TrendChart', () => {
+  beforeEach(() => {
+    // formatDay leaves out the year in the current year, so the clock is pinned to another year.
+    vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 5, 10))
+  })
+
   afterEach(() => {
     cleanup()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
   })
 
   it('draws the titled chart with a legend for both sports', () => {
@@ -86,12 +93,12 @@ describe('TrendChart', () => {
     expect(screen.queryByRole('status')).toBeNull()
 
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
-    expect(screen.getByRole('status')).toHaveTextContent('Jan 12, 2025')
+    expect(screen.getByRole('status')).toHaveTextContent('Sun 12 Jan 2025')
     expect(screen.getByRole('status')).toHaveTextContent('14.5 W/kg')
     expect(screen.getByRole('status')).toHaveTextContent('No rides in the previous 6 weeks')
 
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
-    expect(screen.getByRole('status')).toHaveTextContent('Jan 19, 2025')
+    expect(screen.getByRole('status')).toHaveTextContent('Sun 19 Jan 2025')
     expect(screen.getByRole('status')).toHaveTextContent('14.1 W/kg')
 
     fireEvent.keyDown(plot, { key: 'Escape' })
@@ -103,8 +110,15 @@ describe('TrendChart', () => {
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual(['Week ending', 'Running (W/kg)', 'Runs', 'Cycling (W/kg)', 'Rides'])
     expect(rows).toHaveLength(6)
-    expect(rows[0]).toEqual(['Jan 12, 2025', '14.5 W/kg', '2', '—', '0'])
-    expect(rows[2]).toEqual(['Jan 26, 2025', '—', '0', '14.2 W/kg', '1'])
+    expect(rows[0]).toEqual(['Sun 12 Jan 2025', '14.5 W/kg', '2', '—', '0'])
+    expect(rows[2]).toEqual(['Sun 26 Jan 2025', '—', '0', '14.2 W/kg', '1'])
+  })
+
+  it('names each week by its UTC Sunday, whatever the viewer zone', () => {
+    vi.stubEnv('TZ', 'Pacific/Auckland')
+    // 23:59 UTC on Sunday is already Monday in Auckland; the week still ends on the Sunday.
+    const { container } = render(<TrendChart points={POINTS} />)
+    expect(tableOf(container).rows[0]?.[0]).toBe('Sun 12 Jan 2025')
   })
 
   it('shows an empty state when fewer than two weeks have a run or ride value', () => {

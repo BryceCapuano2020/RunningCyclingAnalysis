@@ -1,0 +1,30 @@
+.balance-hero {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 62ch;
+}
+
+.balance__sports,
+.balance__cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+
+.balance__cards .card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.balance__cards .chip {
+  justify-self: start;
+}
+
+.balance__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}

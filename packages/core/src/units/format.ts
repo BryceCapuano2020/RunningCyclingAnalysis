@@ -41,14 +41,21 @@ export function formatDuration(seconds: number): string {
   return sign + parts.join(' ')
 }
 
-/** Minutes per mile or per kilometre, from speed in m/s. Seconds are rounded before splitting. */
-export function formatPace(speedMs: number, system: UnitSystem): string {
+export const PACE_UNIT: Record<UnitSystem, string> = { imperial: '/mi', metric: '/km' }
+
+/** Minutes and seconds per mile or per kilometre, from speed in m/s, without the unit. */
+export function formatPaceValue(speedMs: number, system: UnitSystem): string {
   if (!(speedMs > 0 && Number.isFinite(speedMs))) {
     return DASH
   }
-  const imperial = system === 'imperial'
-  const total = Math.round((imperial ? METRES_PER_MILE : METRES_PER_KM) / speedMs)
-  return `${Math.floor(total / 60)}:${twoDigits(total % 60)} ${imperial ? '/mi' : '/km'}`
+  const total = Math.round((system === 'imperial' ? METRES_PER_MILE : METRES_PER_KM) / speedMs)
+  return `${Math.floor(total / 60)}:${twoDigits(total % 60)}`
+}
+
+/** Minutes per mile or per kilometre, from speed in m/s. Seconds are rounded before splitting. */
+export function formatPace(speedMs: number, system: UnitSystem): string {
+  const value = formatPaceValue(speedMs, system)
+  return value === DASH ? DASH : `${value} ${PACE_UNIT[system]}`
 }
 
 export function formatSpeed(speedMs: number, system: UnitSystem): string {

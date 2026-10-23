@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { LANDING_TITLE, horizontalOverflow, openSample, trackErrors } from './helpers.js'
+import { LANDING_TITLE, goTo, horizontalOverflow, openSample, trackErrors } from './helpers.js'
 
 test('landing page shows the heading, drop zone and privacy statement without console errors', async ({
   page,
@@ -15,7 +15,7 @@ test('landing page shows the heading, drop zone and privacy statement without co
   expect(errors).toEqual([])
 })
 
-test('landing page and results page have no horizontal scroll on a phone', async ({
+test('landing page and every results page have no horizontal scroll on a phone', async ({
   page,
   isMobile,
 }) => {
@@ -27,6 +27,9 @@ test('landing page and results page have no horizontal scroll on a phone', async
   expect(landing.scrollWidth).toBeLessThanOrEqual(landing.innerWidth)
 
   await openSample(page)
-  const results = await horizontalOverflow(page)
-  expect(results.scrollWidth).toBeLessThanOrEqual(results.innerWidth)
+  for (const destination of ['Balance', 'Run', 'Ride', 'Activities', 'Profile'] as const) {
+    await goTo(page, destination)
+    const results = await horizontalOverflow(page)
+    expect(results.scrollWidth).toBeLessThanOrEqual(results.innerWidth)
+  }
 })

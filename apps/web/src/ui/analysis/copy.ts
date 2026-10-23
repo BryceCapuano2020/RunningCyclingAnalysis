@@ -2,6 +2,7 @@ import { DAILY_LIMITS } from '@rca/contract'
 import type { SavedActivity, WorkerResponse } from '../../worker/protocol'
 import { limitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
+import { formatDay } from '../format/date'
 
 export const WAITING_FOR_LIBRARY = 'Waiting for your library to load'
 export const LIBRARY_NOT_LOADED =
@@ -17,6 +18,8 @@ export const SAMPLE_BLOCKED =
   'Sample data cannot replace your saved library. Add your own files, or sign out to try the sample.'
 export const ORIGINALS_UNAVAILABLE =
   'Saved originals cannot be accessed on this deployment. Import the original files to rebuild these activities; existing saved originals are not deleted.'
+export const RETENTION_UNAVAILABLE =
+  'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
 
 /** An error reply from the worker. */
@@ -71,7 +74,7 @@ export function deleteFailureText(message: ErrorReply): string {
 
 export function deleteNoticeText(activity: SavedActivity | undefined): string {
   return activity
-    ? `Deleted ${activity.name} (${new Date(activity.startMs).toLocaleDateString()}).`
+    ? `Deleted ${activity.name} (${formatDay(activity.startMs)}).`
     : 'Deleted the activity.'
 }
 

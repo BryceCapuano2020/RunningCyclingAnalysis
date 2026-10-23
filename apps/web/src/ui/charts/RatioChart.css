@@ -41,7 +41,12 @@
   stroke-width: 2;
 }
 
+/* Surface-coloured halo keeps the label legible where it crosses the band or the median. */
 .ratio-chart__label {
   fill: var(--text-muted);
   font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }

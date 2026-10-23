@@ -3,6 +3,7 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, formatWkg } from '@rca/core/units'
+import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
@@ -11,7 +12,7 @@ import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { markerRadii, plotSurface, tooltipOverlay } from './chartInteraction'
 import { linePath } from './paths'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
-import { NARROW_WIDTH, axisFontSize, fitTicks } from './ticks'
+import { NARROW_WIDTH, axisFontSize, durationTicks, fitTicks } from './ticks'
 import './CurveChart.css'
 
 export interface CurveChartProps {
@@ -24,8 +25,6 @@ export interface CurveChartProps {
 }
 
 const MIN_DURATION_S = 60
-/** Candidate x ticks. Only those inside the data range are drawn. */
-const TICK_DURATIONS_S = [60, 300, 1200, 3600, 7200, 10800]
 /** Right margin that holds the end-of-line labels. */
 const LABEL_MARGIN = 64
 const LABEL_OFFSET_X = 8
@@ -34,18 +33,18 @@ const LABEL_BASELINE_OFFSET = 4
 const LABEL_MIN_GAP = 14
 
 const LEGEND: ChartLegendEntry[] = [
-  { label: 'Running', kind: 'run' },
-  { label: 'Cycling', kind: 'ride' },
+  { label: SPORT_TITLE.run, kind: 'run' },
+  { label: SPORT_TITLE.ride, kind: 'ride' },
 ]
 
 const TABLE_COLUMNS = [
   'Duration',
-  'Running (W/kg)',
+  `${SPORT_TITLE.run} (W/kg)`,
   'Flat pace',
-  'Cycling (W/kg)',
-  'Cycling power',
-  'Running from',
-  'Cycling from',
+  `${SPORT_TITLE.ride} (W/kg)`,
+  `${SPORT_TITLE.ride} power`,
+  `${SPORT_TITLE.run} from`,
+  `${SPORT_TITLE.ride} from`,
 ]
 
 interface CurveRow {
@@ -121,12 +120,7 @@ function layout(rows: CurveRow[], size: ChartSize): Layout | null {
     ridePoints: rows.map((row) =>
       Number.isFinite(row.rideWkg) ? { x: x(row.durationS), y: y(row.rideWkg) } : null,
     ),
-    xTicks: fitTicks(
-      TICK_DURATIONS_S.filter(
-        (durationS) => durationS >= first.durationS && durationS <= last.durationS,
-      ).map((durationS) => ({ position: x(durationS), label: formatDuration(durationS) })),
-      { axis: 'x', width },
-    ),
+    xTicks: fitTicks(durationTicks(first.durationS, last.durationS, x), { axis: 'x', width }),
     yTicks: fitTicks(
       ticks.map((value) => ({ position: y(value), label: value.toFixed(tickDecimals(ticks)) })),
       { axis: 'y', width },
@@ -157,11 +151,19 @@ function endLabels(m: Layout): EndLabel[] {
   const ends: EndLabel[] = []
   const run = lastPoint(m.runPoints)
   if (run) {
-    ends.push({ text: 'Running', x: run.x + LABEL_OFFSET_X, y: run.y + LABEL_BASELINE_OFFSET })
+    ends.push({
+      text: SPORT_TITLE.run,
+      x: run.x + LABEL_OFFSET_X,
+      y: run.y + LABEL_BASELINE_OFFSET,
+    })
   }
   const ride = lastPoint(m.ridePoints)
   if (ride) {
-    ends.push({ text: 'Cycling', x: ride.x + LABEL_OFFSET_X, y: ride.y + LABEL_BASELINE_OFFSET })
+    ends.push({
+      text: SPORT_TITLE.ride,
+      x: ride.x + LABEL_OFFSET_X,
+      y: ride.y + LABEL_BASELINE_OFFSET,
+    })
   }
   const [first, second] = ends
   if (first && second && Math.abs(first.y - second.y) < LABEL_MIN_GAP) {
@@ -219,14 +221,14 @@ function tooltipFor(
       {
         kind: 'run',
         value: formatWkg(row.runWkg),
-        label: 'Running',
+        label: SPORT_TITLE.run,
         note: sourceNote(row.runActivityId, names),
       },
       { value: formatPace(metabolicToFlatSpeed(row.runWkg), units), label: 'Flat pace' },
       {
         kind: 'ride',
         value: formatWkg(row.rideWkg),
-        label: 'Cycling',
+        label: SPORT_TITLE.ride,
         note: sourceNote(row.rideActivityId, names),
       },
       { value: formatPower(row.ridePowerW), label: 'Mechanical power' },
@@ -262,8 +264,8 @@ export function CurveChart({
 
   return (
     <ChartFrame
-      title="Running and cycling energy rate by duration"
-      description="Best energy rate in watts per kilogram for running and for cycling, on one axis. Duration is on a log scale."
+      title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate by duration`}
+      description={`Best energy rate in watts per kilogram for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, on one axis. Duration is on a log scale.`}
       legend={hasData ? LEGEND : undefined}
       table={{
         columns: TABLE_COLUMNS,

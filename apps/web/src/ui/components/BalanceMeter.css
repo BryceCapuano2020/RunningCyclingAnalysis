@@ -1,0 +1,61 @@
+.balance-meter {
+  margin: 0;
+  max-width: 420px;
+}
+
+.balance-meter__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.balance-meter__track {
+  fill: var(--surface-2);
+}
+
+.balance-meter__band {
+  fill: var(--neutral-band);
+}
+
+.balance-meter--run .balance-meter__band {
+  fill: var(--series-run-soft);
+}
+
+.balance-meter--ride .balance-meter__band {
+  fill: var(--series-ride-soft);
+}
+
+.balance-meter__even {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+
+.balance-meter__dot {
+  fill: var(--neutral-mark);
+  stroke: var(--surface-0);
+  stroke-width: 3;
+}
+
+.balance-meter--run .balance-meter__dot {
+  fill: var(--series-run);
+}
+
+.balance-meter--ride .balance-meter__dot {
+  fill: var(--series-ride);
+}
+
+.balance-meter__label {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.balance-meter__label--run {
+  fill: var(--text-secondary);
+  font-weight: 600;
+}
+
+.balance-meter__label--ride {
+  fill: var(--text-secondary);
+  font-weight: 600;
+}

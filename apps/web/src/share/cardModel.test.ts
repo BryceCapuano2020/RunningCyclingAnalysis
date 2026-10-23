@@ -24,9 +24,7 @@ describe('buildShareCard', () => {
     expect(card?.headline).toBe(text.title)
     expect(card?.summary).toBe(text.summary)
     expect(card?.range).toBe(text.range)
-    expect(card?.headline).toBe(
-      'Over 20 min, your running is estimated to use 12% more energy rate per kg than your cycling',
-    )
+    expect(card?.headline).toBe('Your balance leans toward running')
   })
 
   it('states the population basis when there was no heart-rate adjustment', () => {
@@ -129,7 +127,7 @@ describe('buildShareCard', () => {
   it('states the estimate disclaimer in the footer', () => {
     const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.footer).toBe(
-      'Estimated from heart rate, pace and power files. This compares estimated energy rates, not sporting ability.',
+      'Estimated from heart rate, pace and power files. Both sports are put on one energy scale from your own files. It compares your two sports; it does not rank you.',
     )
   })
 

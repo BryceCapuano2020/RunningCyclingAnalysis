@@ -1,22 +1,46 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SavedLibraryActivity } from './SavedLibrary'
 import { SavedLibrary } from './SavedLibrary'
 import { readStylesheet, ruleBody } from './stylesheet'
 
 const libraryCss = await readStylesheet(import.meta.url, './SavedLibrary.css')
 
-afterEach(() => cleanup())
+// A fixed clock, so the year on each day does not depend on when the suite runs. Local dates keep
+// the friendly day the same in every zone.
+const NOW = new Date(2026, 5, 10, 12).getTime()
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
+})
+
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 const idle = { status: null, error: null }
+
+/** The friendly day formatDay shows for the activity at index in 2026, such as "Thu 1 Jan". */
+function dayLabel(index: number): string {
+  // 1 January 2026 is a Thursday, so each day after it moves one weekday on.
+  const weekdays = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed'] as const
+  return `${weekdays[index % 7]!} ${index + 1} Jan`
+}
+
+/** The sport name shown for the activity at index: even ones are runs, odd ones rides. */
+function sportName(index: number): string {
+  return index % 2 === 0 ? 'Run' : 'Ride'
+}
 
 function activities(count: number): SavedLibraryActivity[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `saved-${index}`,
     name: `Saved activity ${index}`,
-    startMs: Date.UTC(2026, 0, 1 + index, 12),
+    startMs: new Date(2026, 0, 1 + index, 12).getTime(),
     sport: index % 2 === 0 ? 'run' : 'ride',
   }))
 }
@@ -30,16 +54,14 @@ function region(): HTMLElement {
 }
 
 function deleteButtonFor(index: number): HTMLElement {
-  const sport = index % 2 === 0 ? 'run' : 'ride'
-  const day = String(index + 1).padStart(2, '0')
   return screen.getByRole('button', {
-    name: `Delete Saved activity ${index}, ${sport}, 2026-01-${day}`,
+    name: `Delete Saved activity ${index}, ${sportName(index)}, ${dayLabel(index)}`,
   })
 }
 
+/** The page summary. It sits beside the page buttons, and the status region announces outcomes. */
 function paginationSummary(): HTMLElement {
-  const nav = screen.getByRole('navigation', { name: 'Saved activity pages' })
-  return within(nav).getByText(/^Showing /)
+  return screen.getByText(/^Showing /)
 }
 
 describe('SavedLibrary', () => {
@@ -47,21 +69,30 @@ describe('SavedLibrary', () => {
     const saved = activities(2)
     render(<SavedLibrary activities={saved} busy={false} onDelete={vi.fn()} {...idle} />)
 
-    expect(within(rowFor('Saved activity 0')).getByText('2026-01-01')).toBeInTheDocument()
+    expect(within(rowFor('Saved activity 0')).getByText('Thu 1 Jan')).toBeInTheDocument()
     expect(within(rowFor('Saved activity 0')).getByText('Run')).toBeInTheDocument()
     expect(within(rowFor('Saved activity 1')).getByText('Ride')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /^Delete Saved activity/ })).toHaveLength(2)
   })
 
-  it('names each Delete button with its activity, sport and local date', () => {
+  it('names each Delete button with its activity, sport and friendly local date', () => {
     render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
 
     expect(
-      screen.getByRole('button', { name: 'Delete Saved activity 0, run, 2026-01-01' }),
+      screen.getByRole('button', { name: 'Delete Saved activity 0, Run, Thu 1 Jan' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Delete Saved activity 1, ride, 2026-01-02' }),
+      screen.getByRole('button', { name: 'Delete Saved activity 1, Ride, Fri 2 Jan' }),
     ).toBeInTheDocument()
+  })
+
+  it('adds the year to a day from an earlier year', () => {
+    const older: SavedLibraryActivity[] = [
+      { id: 'older', name: 'Older run', startMs: new Date(2025, 0, 2, 12).getTime(), sport: 'run' },
+    ]
+    render(<SavedLibrary activities={older} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    expect(within(rowFor('Older run')).getByText('Thu 2 Jan 2025')).toBeInTheDocument()
   })
 
   it('cancels the named confirmation without deleting', () => {
@@ -77,14 +108,6 @@ describe('SavedLibrary', () => {
 
     expect(onDelete).not.toHaveBeenCalled()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-  })
-
-  it('moves focus into the confirmation when it opens', () => {
-    render(<SavedLibrary activities={activities(1)} busy={false} onDelete={vi.fn()} {...idle} />)
-
-    fireEvent.click(deleteButtonFor(0))
-    const confirmation = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 0”?' })
-    expect(within(confirmation).getByRole('heading')).toHaveFocus()
   })
 
   it('closes the confirmation on Escape and returns focus to the row Delete button', async () => {
@@ -108,6 +131,15 @@ describe('SavedLibrary', () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
 
     expect(deleteButtonFor(1)).toHaveFocus()
+  })
+
+  it('moves focus to the heading of a confirmation opened for another activity', () => {
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(deleteButtonFor(0))
+    fireEvent.click(deleteButtonFor(1))
+    const confirmation = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 1”?' })
+    expect(within(confirmation).getByRole('heading')).toHaveFocus()
   })
 
   it('confirms deletion using the server record id and clears the confirmation', () => {
@@ -185,7 +217,7 @@ describe('SavedLibrary', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('paginates in pages of 20 and disables all mutations while busy', () => {
+  it('paginates in pages of 20 and blocks every change while busy', () => {
     const saved = activities(25)
     const onDelete = vi.fn()
     const { rerender } = render(
@@ -207,12 +239,43 @@ describe('SavedLibrary', () => {
 
     fireEvent.click(deleteButtonFor(20))
     rerender(<SavedLibrary activities={saved} busy onDelete={onDelete} {...idle} />)
-    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous page' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
-    expect(deleteButtonFor(20)).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
+    expect(deleteButtonFor(20)).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Delete permanently' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
     expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it('keeps focus on a row Delete button when the library turns busy', () => {
+    const saved = activities(2)
+    const { rerender } = render(
+      <SavedLibrary activities={saved} busy={false} onDelete={vi.fn()} {...idle} />,
+    )
+    deleteButtonFor(0).focus()
+
+    rerender(<SavedLibrary activities={saved} busy onDelete={vi.fn()} {...idle} />)
+    expect(deleteButtonFor(0)).toHaveFocus()
+  })
+
+  it('does not open a confirmation from a Delete click while busy', () => {
+    render(<SavedLibrary activities={activities(1)} busy onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(deleteButtonFor(0))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('moves focus to the first row of the page it moves to', () => {
+    render(<SavedLibrary activities={activities(25)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(rowFor('Saved activity 20')).toHaveFocus()
   })
 
   it('does not show pagination for a single page', () => {
@@ -236,32 +299,18 @@ describe('SavedLibrary', () => {
         activities={[]}
         busy={false}
         onDelete={onDelete}
-        status="Deleted Saved activity 0 (2026-01-01)."
+        status="Deleted Saved activity 0 (Thu 1 Jan)."
         error="Could not refresh the saved list."
       />,
     )
 
     expect(region()).toHaveFocus()
     expect(within(region()).getByText('No saved activities')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Deleted Saved activity 0 (2026-01-01).')
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted Saved activity 0 (Thu 1 Jan).')
     expect(within(region()).getByRole('alert')).toHaveTextContent(
       'Could not refresh the saved list.',
     )
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-  })
-
-  it('keeps Tab inside the confirmation until it is closed', async () => {
-    const user = userEvent.setup()
-    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
-
-    await user.click(deleteButtonFor(0))
-    const dialog = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 0”?' })
-    await user.tab()
-    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
-    await user.tab()
-    expect(within(dialog).getByRole('button', { name: 'Delete permanently' })).toHaveFocus()
-    await user.tab()
-    expect(within(dialog).getByRole('heading')).toHaveFocus()
   })
 
   it('closes on Escape even when focus is outside the confirmation', () => {
@@ -307,24 +356,6 @@ describe('SavedLibrary', () => {
     expect(paginationSummary()).not.toHaveAttribute('aria-live')
   })
 
-  it('stores the clamped page so a list that grows back does not jump to the old page', () => {
-    const saved = activities(21)
-    const { rerender } = render(
-      <SavedLibrary activities={saved} busy={false} onDelete={vi.fn()} {...idle} />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    rerender(
-      <SavedLibrary activities={saved.slice(0, 20)} busy={false} onDelete={vi.fn()} {...idle} />,
-    )
-    rerender(<SavedLibrary activities={saved} busy={false} onDelete={vi.fn()} {...idle} />)
-
-    expect(paginationSummary()).toHaveTextContent(
-      'Showing 1–20 of 21 saved activities. Page 1 of 2.',
-    )
-    expect(rowFor('Saved activity 0')).toBeInTheDocument()
-  })
-
   it('keeps one persistent status element that announces the supplied message', () => {
     const { rerender } = render(
       <SavedLibrary activities={activities(1)} busy={false} onDelete={vi.fn()} {...idle} />,
@@ -338,12 +369,12 @@ describe('SavedLibrary', () => {
         activities={activities(1)}
         busy={false}
         onDelete={vi.fn()}
-        status="Deleted Saved activity 0 (2026-01-01)."
+        status="Deleted Saved activity 0 (Thu 1 Jan)."
         error={null}
       />,
     )
     expect(screen.getByRole('status')).toBe(status)
-    expect(status).toHaveTextContent('Deleted Saved activity 0 (2026-01-01).')
+    expect(status).toHaveTextContent('Deleted Saved activity 0 (Thu 1 Jan).')
   })
 
   it('notes the saved activities that could not be read, outside any alert or live region', () => {

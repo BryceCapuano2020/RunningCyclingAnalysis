@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
+import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartTooltip } from './ChartTooltip'
@@ -12,7 +13,7 @@ import { nearestByX, stepActive } from './hover'
 import { bandPath, linePath } from './paths'
 import { PlotSurface } from './PlotSurface'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
-import { axisFontSize, fitTicks } from './ticks'
+import { axisFontSize, durationTicks, fitTicks } from './ticks'
 import './RatioChart.css'
 
 export interface RatioChartProps {
@@ -20,12 +21,11 @@ export interface RatioChartProps {
 }
 
 const MIN_DURATION_S = 60
-const TICK_DURATIONS_S = [60, 300, 1200, 3600, 7200, 10800]
 const ACTIVE_MARKER_R = 5
 /** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them'
-const PERCENT_AXIS_TITLE = 'Running compared with cycling: percent above (+) or below (−) equal'
+const PERCENT_AXIS_TITLE = `${SPORT_TITLE.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
 const NOTE =
   'Shading shows the 90% model range; other errors are not included. The line is the median'
 
@@ -126,12 +126,7 @@ function layout(rows: RatioRow[], hasCalibrated: boolean, size: ChartSize): Layo
 
   return {
     xs: rows.map((row) => x(row.durationS)),
-    xTicks: fitTicks(
-      TICK_DURATIONS_S.filter(
-        (durationS) => durationS >= first.durationS && durationS <= last.durationS,
-      ).map((durationS) => ({ position: x(durationS), label: formatDuration(durationS) })),
-      { axis: 'x', width },
-    ),
+    xTicks: fitTicks(durationTicks(first.durationS, last.durationS, x), { axis: 'x', width }),
     yTicks: fitTicks(
       ticks.map((value) => ({ position: y(value), label: percentTick(value, decimals) })),
       { axis: 'y', width },
@@ -244,8 +239,8 @@ export function RatioChart({ comparison }: RatioChartProps) {
 
   return (
     <ChartFrame
-      title="Running compared with cycling by duration"
-      description="Running energy rate as a percentage of cycling at each duration, with 90% ranges. Zero means equal. Duration is on a log scale."
+      title={`${SPORT_TITLE.run} compared with ${SPORT_NOUN.ride} by duration`}
+      description={`${SPORT_TITLE.run} energy rate as a percentage of ${SPORT_NOUN.ride} at each duration, with 90% ranges. Zero means equal. Duration is on a log scale.`}
       legend={rows.length > 0 && hasCalibrated ? LEGEND_CALIBRATED : undefined}
       table={tableFor(rows, hasCalibrated)}
       empty={rows.length > 0 ? undefined : EMPTY}
@@ -307,10 +302,10 @@ export function RatioChart({ comparison }: RatioChartProps) {
               Equal
             </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.top + 14}>
-              Higher running energy rate
+              {`Higher ${SPORT_NOUN.run} energy rate`}
             </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.bottom - 8}>
-              Higher cycling energy rate
+              {`Higher ${SPORT_NOUN.ride} energy rate`}
             </text>
             {activeX !== undefined ? (
               <line

@@ -147,11 +147,12 @@
   color: var(--status-critical);
 }
 
-/* Holds the header's space while the session loads. Roughly the size of the sign-in button. */
+/*
+ * Holds the header's space while the session loads, so the header does not jump. It is invisible:
+ * when the API is slow or down, an empty grey shape would look broken.
+ */
 .account-menu__placeholder {
   display: block;
-  width: 12rem;
+  width: 40px;
   height: 40px;
-  border-radius: 999px;
-  background: var(--surface-2);
 }

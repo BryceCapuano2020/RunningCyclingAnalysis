@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PACE_UNIT,
   formatDistance,
   formatDuration,
   formatElevation,
   formatMass,
   formatPace,
+  formatPaceValue,
   formatPercent,
   formatPower,
   formatSpeed,
@@ -75,6 +77,33 @@ describe('formatPace', () => {
     expect(formatPace(-2, 'imperial')).toBe(DASH)
     expect(formatPace(NaN, 'metric')).toBe(DASH)
     expect(formatPace(Infinity, 'imperial')).toBe(DASH)
+  })
+})
+
+describe('formatPaceValue', () => {
+  it('gives minutes and seconds without the unit, for either system', () => {
+    expect(formatPaceValue(1609.344 / 435, 'imperial')).toBe('7:15')
+    expect(formatPaceValue(1000 / 270, 'metric')).toBe('4:30')
+  })
+
+  it('rounds and carries seconds exactly as formatPace does', () => {
+    expect(formatPaceValue(1000 / 359.6, 'metric')).toBe('6:00')
+    expect(formatPaceValue(1000 / 359.4, 'metric')).toBe('5:59')
+    expect(formatPaceValue(1609.344 / 1199.6, 'imperial')).toBe('20:00')
+  })
+
+  it('returns a dash for zero, negative, NaN or infinite speed', () => {
+    expect(formatPaceValue(0, 'metric')).toBe(DASH)
+    expect(formatPaceValue(-2, 'imperial')).toBe(DASH)
+    expect(formatPaceValue(NaN, 'metric')).toBe(DASH)
+    expect(formatPaceValue(Infinity, 'imperial')).toBe(DASH)
+  })
+
+  it('is the number formatPace shows, followed by PACE_UNIT', () => {
+    expect(PACE_UNIT).toEqual({ imperial: '/mi', metric: '/km' })
+    const speed = 1000 / 277
+    expect(formatPace(speed, 'metric')).toBe(`${formatPaceValue(speed, 'metric')} /km`)
+    expect(formatPace(speed, 'imperial')).toBe(`${formatPaceValue(speed, 'imperial')} /mi`)
   })
 })
 

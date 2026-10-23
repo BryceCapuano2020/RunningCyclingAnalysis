@@ -45,7 +45,7 @@ export function makeRejectedFile(overrides: Partial<RejectedFile> = {}): Rejecte
   return { fileName: 'broken.fit', reason: 'Could not read the file header', ...overrides }
 }
 
-/** A complete result with a run and a ride, a 1200 s comparison, and all tiles available. */
+/** A complete result with a run and a ride and a 1200 s comparison, so every card has data. */
 export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   const comparison: Comparison = { prior: [comparisonPoint()], calibrated: null }
   return {

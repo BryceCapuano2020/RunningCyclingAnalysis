@@ -23,9 +23,11 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   expect(headers['x-content-type-options']).toBe('nosniff')
   expect(headers['referrer-policy']).toBe('no-referrer')
   expect(headers['x-frame-options']).toBe('DENY')
-  await page.getByRole('button', { name: 'Try sample data' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/energy/)
-  await expect(page.getByRole('heading', { name: 'Best efforts in one unit' })).toBeVisible()
+  await page.getByRole('button', { name: 'See a sample athlete' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
+  await expect(
+    page.getByRole('heading', { level: 2, name: /^On foot, your bike is worth/ }),
+  ).toBeVisible()
   expect(violations).toEqual([])
 
   const session = await page.request.get('/api/me')

@@ -48,6 +48,7 @@ const READ_RETRIES = 1
 const CLIENT_PAGE_SIZE = MAX_PAGE_SIZE
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
 const ERROR_BODY_LIMIT = 64 * 1024
+const INVALID_RESPONSE_MESSAGE = 'Unexpected response from the server'
 const responseTimeouts = new WeakMap<Response, ReturnType<typeof setTimeout>>()
 
 function clearResponseTimeout(response: Response): void {
@@ -136,13 +137,13 @@ async function readResponseBytes(response: Response, maxBytes: number): Promise<
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
     await response.body?.cancel().catch(() => undefined)
     clearResponseTimeout(response)
-    throw new ApiRequestError(502, 'invalid_response', 'Unexpected response from the server')
+    throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)
   }
   if (!response.body) {
     try {
       const bytes = new Uint8Array(await response.arrayBuffer())
       if (bytes.byteLength > maxBytes) {
-        throw new ApiRequestError(502, 'invalid_response', 'Unexpected response from the server')
+        throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)
       }
       return bytes
     } finally {
@@ -159,7 +160,7 @@ async function readResponseBytes(response: Response, maxBytes: number): Promise<
       size += value.byteLength
       if (size > maxBytes) {
         await reader.cancel()
-        throw new ApiRequestError(502, 'invalid_response', 'Unexpected response from the server')
+        throw new ApiRequestError(502, 'invalid_response', INVALID_RESPONSE_MESSAGE)
       }
       chunks.push(value)
     }
@@ -194,11 +195,7 @@ async function readJson<T>(
   try {
     return schema.parse(body)
   } catch {
-    throw new ApiRequestError(
-      response.status,
-      'invalid_response',
-      'Unexpected response from the server',
-    )
+    throw new ApiRequestError(response.status, 'invalid_response', INVALID_RESPONSE_MESSAGE)
   }
 }
 
@@ -249,7 +246,7 @@ export async function listActivities(
   let unreadable = 0
   do {
     if (pages >= MAX_ACTIVITIES_PER_USER) {
-      throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
+      throw new ApiRequestError(200, 'invalid_response', INVALID_RESPONSE_MESSAGE)
     }
     pages++
     const params = new URLSearchParams({ limit: String(CLIENT_PAGE_SIZE) })
@@ -261,7 +258,7 @@ export async function listActivities(
       PAGE_BODY_LIMIT,
     )
     if (total + page.items.length > MAX_ACTIVITIES_PER_USER) {
-      throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
+      throw new ApiRequestError(200, 'invalid_response', INVALID_RESPONSE_MESSAGE)
     }
     total += page.items.length
     if (onPage) onPage(page.items)
@@ -271,7 +268,7 @@ export async function listActivities(
     // A server that repeats a cursor would make this loop forever.
     if (cursor !== undefined) {
       if (seenCursors.has(cursor)) {
-        throw new ApiRequestError(200, 'invalid_response', 'Unexpected response from the server')
+        throw new ApiRequestError(200, 'invalid_response', INVALID_RESPONSE_MESSAGE)
       }
       seenCursors.add(cursor)
     }

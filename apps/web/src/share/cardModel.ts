@@ -1,9 +1,7 @@
-import { PRIORS } from '@rca/core/constants'
-import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDuration, formatPace, formatPercent, formatPower } from '@rca/core/units'
+import { formatDuration, formatPercent } from '@rca/core/units'
 import { APP_NAME } from '../appName'
 import {
   COMPARISON_DISCLAIMER,
@@ -14,6 +12,8 @@ import {
 import { pickHeadline } from '../ui/components/pickHeadline'
 import { plural } from '../ui/components/plural'
 import { rangePeriod } from '../ui/components/rangeOptions'
+import { countSport, threshold } from '../ui/records'
+import { SPORT_NOUN, SPORT_TITLE } from '../ui/sports'
 
 export interface ShareFigure {
   label: string
@@ -88,27 +88,17 @@ export function buildShareCard(
   const duration = formatDuration(point.durationS)
 
   const figures: ShareFigure[] = []
-  if (result.runCp) {
-    figures.push({
-      label: 'Running threshold pace',
-      value: formatPace(metabolicToFlatSpeed(result.runCp.cp), units),
-    })
-  }
-  if (result.rideCp) {
-    figures.push({
-      label: 'Cycling threshold power',
-      value: formatPower(
-        metabolicToRidePower(result.rideCp.cp, settings.massKg, PRIORS.grossEfficiency.mean),
-      ),
-    })
-  }
+  const run = threshold(result, 'run', settings.massKg, units)
+  if (run) figures.push({ label: `${SPORT_TITLE.run} threshold pace`, value: run.value })
+  const ride = threshold(result, 'ride', settings.massKg, units)
+  if (ride) figures.push({ label: `${SPORT_TITLE.ride} threshold power`, value: ride.value })
   figures.push({
-    label: `Running vs cycling, ${duration}`,
+    label: `${SPORT_TITLE.run} vs ${SPORT_NOUN.ride}, ${duration}`,
     value: formatPercent(point.ratio.p50 - 1, true),
   })
 
-  const runs = result.activities.filter((activity) => activity.sport === 'run').length
-  const rides = result.activities.length - runs
+  const runs = countSport(result.activities, 'run')
+  const rides = countSport(result.activities, 'ride')
 
   return {
     title: APP_NAME,

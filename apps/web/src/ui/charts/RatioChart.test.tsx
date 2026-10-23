@@ -99,8 +99,6 @@ describe('RatioChart', () => {
 
   it('labels the percentage axis with what the signs mean', () => {
     render(<RatioChart comparison={comparisonFixture(false)} />)
-    expect(
-      screen.getByText('Running compared with cycling: percent above (+) or below (−) equal'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Running above (+) or below (−) cycling, %')).toBeInTheDocument()
   })
 })

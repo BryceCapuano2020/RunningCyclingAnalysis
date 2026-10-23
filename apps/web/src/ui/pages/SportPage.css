@@ -1,0 +1,45 @@
+.sport-page__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sport-run .icon {
+  color: var(--series-run);
+}
+
+.sport-ride .icon {
+  color: var(--series-ride);
+}
+
+.sport-page__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.sport-page__hero-sub {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.sport-page__records {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sport-page__record {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-width: 0;
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--text-primary);
+  overflow-wrap: break-word;
+}

@@ -1,43 +1,69 @@
+import { ALL_OUT_FRACTION as ALL_OUT, RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Comparison, ComparisonPoint, EffortCheck, Interval } from '@rca/core/types'
-import { formatDuration, formatPercent, formatWkg } from '@rca/core/units'
+import { formatDuration, formatPercent } from '@rca/core/units'
 
 export interface HeadlineText {
-  /** The sentence the results heading states. */
+  /** The answer, in an athlete's words: which way your balance between the sports leans. */
   title: string
-  /** The energy rate each sport is estimated at over the duration. */
+  /** How far apart the two sports are over the duration. */
   summary: string
   /** The 90% model range as signed percentages. */
   range: string
 }
 
-/** The disclaimer for the headline comparison, on the results page and on the share card. */
-export const COMPARISON_DISCLAIMER = 'This compares estimated energy rates, not sporting ability.'
+/** What the comparison is and is not, on the results page and on the share card. */
+export const COMPARISON_DISCLAIMER =
+  'Both sports are put on one energy scale from your own files. It compares your two sports; it does not rank you.'
 
-/** Best efforts below this share of the highest heart rate were probably not all-out. */
-const ALL_OUT = 0.9
+/** Which way the balance leans: a sport is ahead only when the whole 90% range says so. */
+export type Lean = 'run' | 'ride' | 'even'
 
-/** States which sport the model estimates uses more energy rate per kg, or that the estimates overlap. */
-function titleFor(ratio: Interval, duration: string): string {
-  if (ratio.p05 > 1) {
-    return `Over ${duration}, your running is estimated to use ${formatPercent(ratio.p50 - 1)} more energy rate per kg than your cycling`
+export function leanOf(ratio: Interval): Lean {
+  if (ratio.p05 > 1) return 'run'
+  if (ratio.p95 < 1) return 'ride'
+  return 'even'
+}
+
+const TITLE: Record<Lean, string> = {
+  run: 'Your balance leans toward running',
+  ride: 'Your balance leans toward cycling',
+  even: 'Your running and cycling are in balance',
+}
+
+/**
+ * How far the leading sport is ahead, with its range, both as positive percentages of the other
+ * sport. Running over cycling is the ratio; cycling over running is its inverse, so the inverse's
+ * range runs from 1 / p95 to 1 / p05.
+ */
+function aheadBy(ratio: Interval, lean: Exclude<Lean, 'even'>): { centre: string; range: string } {
+  const [centre, low, high] =
+    lean === 'run'
+      ? [ratio.p50, ratio.p05, ratio.p95]
+      : [1 / ratio.p50, 1 / ratio.p95, 1 / ratio.p05]
+  return {
+    centre: formatPercent(centre - 1),
+    range: `${formatPercent(low - 1)} to ${formatPercent(high - 1)}`,
   }
-  if (ratio.p95 < 1) {
-    return `Over ${duration}, your cycling is estimated to use ${formatPercent(1 / ratio.p50 - 1)} more energy rate per kg than your running`
+}
+
+function summaryFor(ratio: Interval, duration: string): string {
+  const lean = leanOf(ratio)
+  if (lean === 'even') {
+    return `Over ${duration}, the gap between your running and your cycling is smaller than the model can tell apart.`
   }
-  return 'Your running and cycling energy estimates overlap'
+  const [ahead, behind] = lean === 'run' ? ['running', 'cycling'] : ['cycling', 'running']
+  return `Over ${duration}, your ${ahead} is about ${aheadBy(ratio, lean).centre} ahead of your ${behind} once both are put on the same energy scale.`
 }
 
 /** The headline sentences for one comparison point. The results page and the share card both read them. */
 export function headlineText(point: ComparisonPoint): HeadlineText {
   const duration = formatDuration(point.durationS)
   return {
-    title: titleFor(point.ratio, duration),
-    summary:
-      `Over ${duration}, your estimated running energy rate is ` +
-      `${formatWkg(point.runMetabolic.p50)} and your cycling energy rate is ` +
-      `${formatWkg(point.rideMetabolic.p50)}.`,
+    title: TITLE[leanOf(point.ratio)],
+    summary: summaryFor(point.ratio, duration),
     range:
-      `90% model range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
+      `Running against cycling, 90% model range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
       `${formatPercent(point.ratio.p95 - 1, true)}.`,
   }
 }
@@ -53,7 +79,9 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
 }
 
 export interface EffortCaveat {
-  /** The sentence the results page shows under the headline. */
+  /** The evidence-gap card's title. */
+  title: string
+  /** What the gap is and what would close it. */
   text: string
   /** One line for the share card. */
   short: string
@@ -66,27 +94,81 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   const duration = formatDuration(durationS)
   if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
     return {
+      title: 'Both numbers may be low',
       text:
-        `Both best efforts over ${duration} were below 90% of each sport's heart-rate reference ` +
-        `(running ${Math.round(run * 100)}%, cycling ${Math.round(ride * 100)}%). Your library may be missing harder efforts.`,
+        `Your best ${duration} reached ${Math.round(run * 100)}% of your running heart-rate reference ` +
+        `and ${Math.round(ride * 100)}% of your cycling one, so neither was probably all-out. ` +
+        'A recent race or a hard effort of this length in each sport would sharpen both.',
       short: `Best efforts over ${duration} may not have been all-out.`,
     }
   }
   if (ride !== null && ride < ALL_OUT) {
     return {
+      title: 'Your ride number may be low',
       text:
-        `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of the cycling ` +
-        `heart-rate reference. Your library may be missing a harder cycling effort.`,
+        `Your best ${duration} on the bike reached ${Math.round(ride * 100)}% of your cycling ` +
+        'heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
       short: `Best cycling effort over ${duration} may not have been all-out.`,
     }
   }
   if (run !== null && run < ALL_OUT) {
     return {
+      title: 'Your run number may be low',
       text:
-        `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of the running ` +
-        `heart-rate reference. Your library may be missing a harder running effort.`,
+        `Your best ${duration} running reached ${Math.round(run * 100)}% of your running ` +
+        'heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
       short: `Best running effort over ${duration} may not have been all-out.`,
     }
   }
   return null
+}
+
+/** True when heart rate shows both best efforts were hard: at least 90% of each reference. */
+export function hardEffortsOnFile(effort: EffortCheck | null | undefined): boolean {
+  return (
+    effort !== null &&
+    effort !== undefined &&
+    effort.runHrFraction !== null &&
+    effort.rideHrFraction !== null &&
+    effort.runHrFraction >= ALL_OUT &&
+    effort.rideHrFraction >= ALL_OUT
+  )
+}
+
+/**
+ * The heart rate each sport's best efforts were judged against; null when neither is known. A
+ * sport's own highest sustained heart rate is named as such; a reference taken from the other
+ * sport is labelled with that source.
+ */
+export function referenceText(result: AnalysisResult): string | null {
+  const parts: string[] = []
+  const { runMaxHeartRate: run, rideMaxHeartRate: ride } = result
+  if (run !== null) {
+    const own = run === result.runObservedMaxHeartRate
+    parts.push(
+      own
+        ? `running ${Math.round(run)} bpm (your highest sustained heart rate)`
+        : `running ${Math.round(run)} bpm (your cycling maximum)`,
+    )
+  }
+  if (ride !== null) {
+    const own = ride === result.rideObservedMaxHeartRate
+    parts.push(
+      own
+        ? `cycling ${Math.round(ride)} bpm (your highest sustained heart rate)`
+        : `cycling ${Math.round(ride)} bpm (${RIDE_MAX_OFFSET_BPM} bpm below your running maximum)`,
+    )
+  }
+  return parts.length === 0 ? null : `Best efforts are judged against ${parts.join('; ')}.`
+}
+
+/** How far ahead one sport is, in words, for assistive technology and the caption. */
+export function balanceSentence(ratio: Interval): string {
+  const lean = leanOf(ratio)
+  if (lean === 'even') {
+    const range = `${formatPercent(ratio.p05 - 1, true)} to ${formatPercent(ratio.p95 - 1, true)}`
+    return `Even within the model's range (running against cycling ${range})`
+  }
+  const { centre, range } = aheadBy(ratio, lean)
+  return `${lean === 'run' ? 'Running' : 'Cycling'} ahead by ${centre} (range ${range})`
 }

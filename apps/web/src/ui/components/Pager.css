@@ -1,0 +1,15 @@
+.pager {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pager__summary {
+  margin: 0;
+  text-align: center;
+}
+
+.pager__controls {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}

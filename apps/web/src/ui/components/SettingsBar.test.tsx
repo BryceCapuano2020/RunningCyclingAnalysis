@@ -70,7 +70,7 @@ describe('SettingsBar', () => {
     renderBar()
     expect(
       screen.getByText(
-        'Weight changes the energy estimates on this page, so enter your real weight.',
+        'Your weight puts watts and pace on the same scale, so enter your real weight.',
       ),
     ).toBeInTheDocument()
   })

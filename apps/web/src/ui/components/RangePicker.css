@@ -9,3 +9,10 @@
   padding-bottom: var(--space-2);
   font-size: 0.875rem;
 }
+
+/* Phones: four periods fit on one row. */
+@media (max-width: 480px) {
+  .range-picker .segmented-control__option {
+    padding: 0 var(--space-3);
+  }
+}
