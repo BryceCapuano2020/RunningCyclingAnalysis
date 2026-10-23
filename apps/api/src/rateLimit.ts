@@ -41,3 +41,13 @@ export const accountWriteLimit = createMiddleware<AppEnv>(async (c, next) => {
   c.res.headers.delete('Retry-After')
   await next()
 })
+
+/** The deep health check does R2 work, so it has its own, much tighter, per-address limit. */
+export const healthRateLimit = createMiddleware<AppEnv>(async (c, next) => {
+  if (c.env.ENVIRONMENT === 'development') return next()
+  const address = c.req.header('CF-Connecting-IP') ?? 'unknown'
+  c.header('Retry-After', '60')
+  await admit(c.env.HEALTH_RATE_LIMITER, `health:${address}`)
+  c.res.headers.delete('Retry-After')
+  await next()
+})

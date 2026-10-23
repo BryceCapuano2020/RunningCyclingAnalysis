@@ -1,26 +1,26 @@
-import { Encoder } from '@garmin/fitsdk'
-import type {
-  ActivityMesg,
-  EventMesg,
-  FileIdMesg,
-  LapMesg,
-  RecordMesg,
-  SessionMesg,
-  Types,
-} from '@garmin/fitsdk'
 import type { Activity } from '../types'
-
-/** FIT global message numbers (Profile.MesgNum). */
-const MESG_FILE_ID = 0
-const MESG_SESSION = 18
-const MESG_LAP = 19
-const MESG_RECORD = 20
-const MESG_EVENT = 21
-const MESG_ACTIVITY = 34
+import {
+  ACTIVITY_LAYOUT,
+  EVENT_LAYOUT,
+  FILE_ID_LAYOUT,
+  LAP_LAYOUT,
+  RECORD_LAYOUT,
+  SESSION_LAYOUT,
+} from './protocol/layouts'
+import { FitWriter } from './protocol/writer'
+import {
+  EVENT,
+  EVENT_TYPE,
+  FILE_TYPE,
+  FIT_EPOCH_OFFSET_S,
+  SPORT,
+  SUB_SPORT,
+} from './protocol/profile'
+import type { FitSubSportName } from './protocol/profile'
 
 export interface EncodeOptions {
   /** Written to the session, for example `treadmill` or `eBikeMountain`. */
-  subSport?: Types.SubSport
+  subSport?: FitSubSportName
   /**
    * Writes a placeholder position (0, 0) to every record, as a watch with GPS would. The Activity
    * has no coordinates, so this carries no location. Not needed for the file to read as outdoor.
@@ -33,102 +33,91 @@ export interface EncodeOptions {
  * and seconds inside a pause are left out so the pause survives the round trip.
  */
 export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Array {
-  const encoder = new Encoder()
+  const writer = new FitWriter()
   const { n } = activity
-  const startSec = Math.floor(activity.startMs / 1000)
-  const endSec = startSec + n
-  const startTime = new Date(startSec * 1000)
-  const endTime = new Date(endSec * 1000)
-  const sport = activity.sport === 'run' ? 'running' : 'cycling'
+  const startFit = Math.floor(activity.startMs / 1000) - FIT_EPOCH_OFFSET_S
+  const endFit = startFit + n
+  const sport = activity.sport === 'run' ? SPORT.running : SPORT.cycling
   const totalDistance = n > 0 ? (sample(activity.distance, n - 1) ?? 0) : 0
+  const totalMs = n * 1000
 
-  const fileId: FileIdMesg = {
-    type: 'activity',
-    manufacturer: 'development',
+  writer.message(FILE_ID_LAYOUT, {
+    type: FILE_TYPE.activity,
+    manufacturer: 255,
     product: 0,
-    timeCreated: startTime,
-  }
-  encoder.onMesg(MESG_FILE_ID, fileId)
+    timeCreated: startFit,
+  })
 
-  const timer = (timestampS: number, eventType: EventMesg['eventType']) => {
-    const event: EventMesg = {
-      timestamp: new Date(timestampS * 1000),
-      event: 'timer',
-      eventType,
-    }
-    encoder.onMesg(MESG_EVENT, event)
+  const timer = (timestamp: number, eventType: number) => {
+    writer.message(EVENT_LAYOUT, { timestamp, event: EVENT.timer, eventType })
   }
-  timer(startSec, 'start')
+  timer(startFit, EVENT_TYPE.start)
   for (let i = 0; i < n;) {
     if (activity.paused[i] === 1) {
       const pauseStart = i
       while (i < n && activity.paused[i] === 1) i++
-      timer(startSec + pauseStart, 'stop')
-      if (i < n) timer(startSec + i, 'start')
+      timer(startFit + pauseStart, EVENT_TYPE.stop)
+      if (i < n) timer(startFit + i, EVENT_TYPE.start)
       continue
     }
-    const record: RecordMesg = { timestamp: new Date((startSec + i) * 1000) }
-    if (opts.gps) {
-      record.positionLat = 0
-      record.positionLong = 0
-    }
-    const distance = sample(activity.distance, i)
-    if (distance !== undefined) record.distance = distance
-    const speed = sample(activity.speed, i)
-    if (speed !== undefined) record.enhancedSpeed = speed
-    const altitude = sample(activity.altitude, i)
-    if (altitude !== undefined) record.enhancedAltitude = altitude
-    const heartRate = sample(activity.heartRate, i)
-    if (heartRate !== undefined) record.heartRate = Math.round(heartRate)
-    const power = sample(activity.power, i)
-    if (power !== undefined) record.power = Math.round(power)
-    encoder.onMesg(MESG_RECORD, record)
+    writer.message(RECORD_LAYOUT, {
+      timestamp: startFit + i,
+      positionLat: opts.gps ? 0 : undefined,
+      positionLong: opts.gps ? 0 : undefined,
+      distance: scaled(sample(activity.distance, i), 100),
+      enhancedSpeed: scaled(sample(activity.speed, i), 1000),
+      enhancedAltitude: scaled(sample(activity.altitude, i), 5, 500),
+      heartRate: sample(activity.heartRate, i),
+      power: sample(activity.power, i),
+    })
     i++
   }
-  timer(endSec, 'stop')
+  timer(endFit, EVENT_TYPE.stop)
 
-  const lap: LapMesg = {
+  writer.message(LAP_LAYOUT, {
     messageIndex: 0,
-    event: 'lap',
-    eventType: 'stop',
-    startTime,
-    timestamp: endTime,
-    totalElapsedTime: n,
-    totalTimerTime: n,
-    totalDistance,
-  }
-  encoder.onMesg(MESG_LAP, lap)
+    event: EVENT.lap,
+    eventType: EVENT_TYPE.stop,
+    startTime: startFit,
+    timestamp: endFit,
+    totalElapsedTime: totalMs,
+    totalTimerTime: totalMs,
+    totalDistance: scaled(totalDistance, 100),
+  })
 
-  const session: SessionMesg = {
+  writer.message(SESSION_LAYOUT, {
     messageIndex: 0,
-    event: 'session',
-    eventType: 'stop',
-    startTime,
-    timestamp: endTime,
+    event: EVENT.session,
+    eventType: EVENT_TYPE.stop,
+    startTime: startFit,
+    timestamp: endFit,
     sport,
-    subSport: opts.subSport,
-    totalElapsedTime: n,
-    totalTimerTime: n,
-    totalDistance,
+    subSport: opts.subSport === undefined ? undefined : SUB_SPORT[opts.subSport],
+    totalElapsedTime: totalMs,
+    totalTimerTime: totalMs,
+    totalDistance: scaled(totalDistance, 100),
     firstLapIndex: 0,
     numLaps: 1,
-  }
-  encoder.onMesg(MESG_SESSION, session)
+  })
 
-  const summary: ActivityMesg = {
-    timestamp: endTime,
-    type: 'manual',
-    event: 'activity',
-    eventType: 'stop',
+  writer.message(ACTIVITY_LAYOUT, {
+    timestamp: endFit,
+    totalTimerTime: totalMs,
     numSessions: 1,
-    totalTimerTime: n,
-  }
-  encoder.onMesg(MESG_ACTIVITY, summary)
+    type: 0,
+    event: EVENT.activity,
+    eventType: EVENT_TYPE.stop,
+  })
 
-  return encoder.close()
+  return writer.finish()
 }
 
 function sample(xs: Float64Array, i: number): number | undefined {
   const value = xs[i]
   return value !== undefined && Number.isFinite(value) ? value : undefined
+}
+
+/** A value in SI units as the raw integer the profile stores: (value + offset) * scale. */
+function scaled(value: number | undefined, scale: number, offset = 0): number | undefined {
+  return value === undefined ? undefined : (value + offset) * scale
 }

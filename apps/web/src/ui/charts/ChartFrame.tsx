@@ -15,6 +15,8 @@ export interface ChartFrameProps {
   /** Shown above the plot only when it has two or more entries. */
   legend?: ChartLegendEntry[]
   table: ChartTableData
+  /** A short table shown above `table` in the text view, for totals that are not per point. */
+  summary?: ChartTableData
   /** Replaces the plot with a short message when set. */
   empty?: string
   /** Muted text under the plot. */
@@ -38,6 +40,7 @@ export function ChartFrame({
   height = DEFAULT_HEIGHT,
   legend,
   table,
+  summary,
   empty,
   note,
   plotRightMargin,
@@ -95,7 +98,8 @@ export function ChartFrame({
       {!empty ? (
         <details className="chart-frame__details">
           <summary>View as table</summary>
-          <ChartTable columns={table.columns} rows={table.rows} />
+          {summary ? <ChartTable {...summary} /> : null}
+          <ChartTable {...table} />
         </details>
       ) : null}
     </figure>

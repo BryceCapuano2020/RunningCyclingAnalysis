@@ -14,10 +14,10 @@ function renderTable(equivalents = [makeEquivalence()], units: UnitSystem = 'met
 }
 
 describe('EquivalenceTable', () => {
-  it('lists the ride effort, the equal flat running pace and its likely range', () => {
+  it('lists the ride effort, the equal flat running pace and its 90% model range', () => {
     renderTable()
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Cycling effort', 'Equal flat running pace', 'Likely range'])
+    expect(headers).toEqual(['Cycling effort', 'Equal flat running pace', '90% model range'])
 
     const row = within(screen.getByRole('row', { name: /20 min at 250 W/ }))
     expect(row.getByText('20 min at 250 W')).toBeInTheDocument()

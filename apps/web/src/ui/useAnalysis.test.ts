@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import type { Me } from '@rca/contract'
+import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
@@ -54,6 +55,9 @@ interface Account {
   status: AccountStatus
   me: Me | null
   flushProfileWrites?: () => Promise<Me | null>
+  markExpired?: () => void
+  refresh?: () => Promise<Me | null>
+  sessionExpired?: boolean
 }
 
 const LOADING: Account = { status: 'loading', me: null }
@@ -67,6 +71,11 @@ function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS)
       useAnalysis(current, account),
     { initialProps: { account: initial, current: settings } },
   )
+}
+
+/** Replies to the account's library load, so imports are sent to the library. */
+function finishLibraryLoad(state: SessionState = STATE) {
+  act(() => worker().reply({ type: 'state', state }))
 }
 
 function StrictWrapper({ children }: { children: ReactNode }) {
@@ -88,7 +97,7 @@ const STATE = {
   isSample: false,
   totalActivities: 0,
   rangeDays: null,
-  syncFailures: 0,
+  syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
 }
@@ -169,6 +178,7 @@ describe('useAnalysis account handling', () => {
   it('terminates account A work before loading account B and ignores late A replies', () => {
     const { result, rerender } = setup(SIGNED_IN_KEEP)
     const workerA = worker()
+    finishLibraryLoad()
     act(() => result.current.addFiles([FILE]))
     expect(workerA.posted.at(-1)).toMatchObject({
       type: 'addFiles',
@@ -230,6 +240,7 @@ describe('useAnalysis account handling', () => {
 
   it('sends the keep-files setting with each import while signed in', () => {
     const { result, rerender } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
     act(() => result.current.addFiles([FILE]))
     rerender({ account: { status: 'signed-in', me: meWith(false) }, current: SETTINGS })
     act(() => result.current.addFiles([FILE]))
@@ -306,6 +317,7 @@ describe('useAnalysis account handling', () => {
     }
     const { result, rerender } = setup(account)
     const oldWorker = worker()
+    finishLibraryLoad()
 
     act(() => result.current.addFiles([FILE]))
     rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
@@ -328,6 +340,7 @@ describe('useAnalysis account handling', () => {
     }
     const { result } = setup(account)
     const oldWorker = worker()
+    finishLibraryLoad()
 
     act(() => result.current.addFiles([FILE]))
     act(() => result.current.stop())
@@ -348,6 +361,7 @@ describe('useAnalysis account handling', () => {
   it('keeps syncing digests without uploading files when file retention is unavailable', () => {
     const account = { status: 'signed-in' as const, me: meWith(true, false) }
     const { result } = setup(account)
+    finishLibraryLoad()
 
     act(() => result.current.addFiles([FILE]))
 
@@ -361,6 +375,7 @@ describe('useAnalysis account handling', () => {
 
   it('preserves file sync for an older API that omits retention capability', () => {
     const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
     act(() => result.current.addFiles([FILE]))
     expect(worker().posted.at(-1)).toMatchObject({
       type: 'addFiles',
@@ -385,7 +400,10 @@ describe('useAnalysis account handling', () => {
     expect(worker().posted).toEqual([])
 
     rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
 
+    // The import waits for the library: a failed load must not be followed by an import.
+    finishLibraryLoad()
     expect(worker().posted).toEqual([
       { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
       {
@@ -445,32 +463,149 @@ describe('useAnalysis requests', () => {
 })
 
 describe('useAnalysis state', () => {
-  it('tracks storage allowance failures and resets the notice state for a new import or clear', () => {
+  it('exposes the sync issues an import reports and clears them when the library is cleared', () => {
     const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
     act(() => result.current.addFiles([FILE]))
-    const firstImport = worker()
-    act(() => firstImport.reply({ type: 'storageBudgetExceeded' }))
-    expect(result.current.storageBudgetExceeded).toBe(true)
-    act(() => firstImport.reply({ type: 'state', state: { ...STATE, syncFailures: 1 } }))
-    expect(result.current.storageBudgetExceeded).toBe(true)
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, syncIssues: [{ code: 'storage-budget', count: 1 }] },
+      }),
+    )
+    expect(result.current.state.syncIssues).toEqual([{ code: 'storage-budget', count: 1 }])
 
-    act(() => result.current.addFiles([FILE]))
-    expect(result.current.storageBudgetExceeded).toBe(false)
-    act(() => worker().reply({ type: 'state', state: STATE }))
-    act(() => result.current.addFiles([FILE]))
-    act(() => worker().reply({ type: 'storageBudgetExceeded' }))
-    expect(result.current.storageBudgetExceeded).toBe(true)
     act(() => result.current.clear())
-    expect(result.current.storageBudgetExceeded).toBe(false)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.state.syncIssues).toEqual([])
   })
 
-  it('ignores a storage allowance message from a prior account worker', () => {
-    const { result, rerender } = setup(SIGNED_IN_KEEP)
+  it('ignores an account issue from a prior account worker', () => {
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
     const workerA = worker()
+    finishLibraryLoad()
     act(() => result.current.addFiles([FILE]))
     rerender({ account: SIGNED_OUT, current: SETTINGS })
-    act(() => workerA.reply({ type: 'storageBudgetExceeded' }))
-    expect(result.current.storageBudgetExceeded).toBe(false)
+    act(() => workerA.reply({ type: 'accountIssue', issue: 'signed-out' }))
+    expect(markExpired).not.toHaveBeenCalled()
+  })
+
+  it('holds imports while the library fails to load, and runs them only after a retry loads it', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'error', message: 'Network down' }))
+
+    expect(result.current.libraryStatus).toBe('failed')
+    // The import is not sent: the worker would replace the library with only this file.
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(result.current.error).toBeNull()
+
+    act(() => result.current.retryLibrary())
+    expect(result.current.libraryStatus).toBe('loading')
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'loadServer',
+      settings: SETTINGS,
+      userId: USER_ID,
+    })
+
+    finishLibraryLoad()
+    expect(result.current.libraryStatus).toBe('loaded')
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
+  it('signs the account out after a sign-out during an import, and keeps the activities on screen', () => {
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
+    const workerA = worker()
+    finishLibraryLoad({ ...STATE, totalActivities: 3 })
+    act(() => result.current.addFiles([FILE]))
+
+    act(() => workerA.reply({ type: 'accountIssue', issue: 'signed-out' }))
+    expect(markExpired).toHaveBeenCalledOnce()
+
+    // The session ended, so the account is signed out and the saved library is not cleared.
+    rerender({
+      account: { status: 'signed-out', me: null, markExpired, sessionExpired: true },
+      current: SETTINGS,
+    })
+    expect(result.current.state.totalActivities).toBe(3)
+    expect(worker()).toBe(workerA)
+    expect(workerA.terminated).toBe(false)
+    expect(result.current.libraryStatus).toBe('idle')
+  })
+
+  it('reloads the same account when the server reports an account change during an import', async () => {
+    const refresh = vi.fn(async () => meWith(true))
+    const { result } = setup({ ...SIGNED_IN_KEEP, refresh })
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'accountIssue', issue: 'account-changed' }))
+
+    await waitFor(() =>
+      expect(worker().posted.at(-1)).toEqual({
+        type: 'loadServer',
+        settings: SETTINGS,
+        userId: USER_ID,
+      }),
+    )
+    expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it('refuses sample data while a signed-in library is shown, and sends nothing', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.loadSample())
+
+    expect(worker().posted.some((request) => request.type === 'loadSample')).toBe(false)
+    expect(result.current.error).toMatch(/cannot replace your saved library/)
+  })
+
+  it('exposes how many saved activities are missing their original file', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => worker().reply({ type: 'missingOriginals', count: 2 }))
+    expect(result.current.missingOriginals).toBe(2)
+    finishLibraryLoad()
+    expect(result.current.missingOriginals).toBe(2)
+  })
+
+  it('queues an import made while the worker is stopped, and sends it once the library reloads', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+    expect(result.current.workerStopped).toBe(true)
+
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.busy).toBe(false)
+    const stopped = worker()
+    act(() => result.current.retryWorker())
+    expect(worker()).not.toBe(stopped)
+    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+
+    finishLibraryLoad()
+    expect(worker().posted.at(-1)).toMatchObject({ type: 'addFiles', files: [FILE] })
+  })
+
+  it('sends a signed-out import made while the worker is stopped once the user restarts analysis', () => {
+    const { result } = setup(SIGNED_OUT)
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+    const stopped = worker()
+
+    act(() => result.current.addFiles([FILE]))
+    expect(stopped.posted).toEqual([])
+    act(() => result.current.retryWorker())
+
+    expect(worker()).not.toBe(stopped)
+    expect(worker().posted).toEqual([
+      { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null },
+    ])
   })
 
   it('reports busy until the reply arrives and exposes the state it carries', () => {
@@ -479,10 +614,13 @@ describe('useAnalysis state', () => {
     expect(result.current.busy).toBe(true)
 
     act(() =>
-      worker().reply({ type: 'state', state: { ...STATE, syncFailures: 2, totalActivities: 5 } }),
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, syncIssues: [{ code: 'server', count: 2 }], totalActivities: 5 },
+      }),
     )
     expect(result.current.busy).toBe(false)
-    expect(result.current.state.syncFailures).toBe(2)
+    expect(result.current.state.syncIssues).toEqual([{ code: 'server', count: 2 }])
     expect(result.current.state.totalActivities).toBe(5)
   })
 
@@ -616,6 +754,7 @@ describe('useAnalysis state', () => {
   it('stops queued imports and rehydrates saved activities after a user stops analysis', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     const stopped = worker()
+    finishLibraryLoad()
     act(() => result.current.addFiles([FILE]))
     act(() => result.current.stop())
 

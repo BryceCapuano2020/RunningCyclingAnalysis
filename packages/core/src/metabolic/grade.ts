@@ -10,13 +10,13 @@ const MAX_ABS_GRADE = 0.35
 
 /**
  * Gradient (rise over run) at each sample. Altitude is smoothed with a rolling mean, then the
- * change across +/- 15 samples is divided by the distance over the same span. Spans shorter than
- * 5 m, or touching a NaN, give 0. A single altitude sample can influence grades within
- * GRADE_SMOOTHING_MARGIN_S samples.
+ * change across +/- 15 samples is divided by the distance over the same span. Where the grade is
+ * unknown it is NaN: a span shorter than 5 m (a stopped rider), or a span touching a NaN. A single
+ * altitude sample can influence grades within GRADE_SMOOTHING_MARGIN_S samples.
  */
 export function smoothGrade(altitude: Float64Array, distance: Float64Array): Float64Array {
   const n = altitude.length
-  const grade = new Float64Array(n)
+  const grade = new Float64Array(n).fill(NaN)
   if (altitude.every(Number.isNaN)) {
     return grade
   }

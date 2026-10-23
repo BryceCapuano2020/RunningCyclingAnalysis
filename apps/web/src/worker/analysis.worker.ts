@@ -2,9 +2,10 @@
 import { MAX_FILE_BYTES } from '@rca/contract'
 import { parseFit } from '@rca/core/fit'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
-import { AnalysisSession } from '@rca/core/session'
+import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
+import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState, SyncItem } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
+import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import {
   ApiRequestError,
   createActivity,
@@ -13,17 +14,32 @@ import {
   uploadFile,
 } from '../api/client'
 import type { WorkerRequest, WorkerResponse } from './protocol'
+import { syncIssueFor } from './syncIssue'
 
 const session = new AnalysisSession()
 const post = (message: WorkerResponse) => self.postMessage(message)
+/** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
+const missingOriginals = new Set<string>()
+
+/** The same key the session uses: one workout per sport and start second. */
+function activityKey(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
+  return `${digest.sport}-${Math.round(digest.startMs / 1000)}`
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 /** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
-function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promise<SessionState> {
+async function addFiles(
+  request: Extract<WorkerRequest, { type: 'addFiles' }>,
+): Promise<SessionState> {
   const { sync } = request
   let filesRead = 0
   // Activities saved to the library, counting the digest alone when files are not kept.
   let uploaded = 0
-  let storageBudgetExceeded = false
+  let storageBudgetExhausted = false
+  let haltedBy: SyncIssueCode | null = null
   const report = () =>
     post({
       type: 'progress',
@@ -32,29 +48,49 @@ function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promis
     })
 
   const save = async (item: SyncItem): Promise<void> => {
-    const { record } = await createActivity(item.digest, item.fileName, item.fileHash, sync?.userId)
-    if (sync?.keepFiles && !record.hasFile) {
-      if (item.bytes.byteLength > MAX_FILE_BYTES) {
-        throw new Error('Original exceeds the upload limit; digest saved without its file')
-      }
-      if (storageBudgetExceeded) {
-        throw new Error('Original-file storage allowance is exhausted')
-      }
-      try {
-        await uploadFile(record.id, item.bytes, sync.userId)
-      } catch (error) {
-        if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
-          storageBudgetExceeded = true
-          post({ type: 'storageBudgetExceeded' })
+    try {
+      const key = activityKey(item.digest)
+      const { record } = await createActivity(
+        item.digest,
+        item.fileName,
+        item.fileHash,
+        sync?.userId,
+      )
+      if (record.hasFile) missingOriginals.delete(key)
+      if (sync?.keepFiles && !record.hasFile) {
+        // The limit is inclusive: a file of exactly MAX_FILE_BYTES is kept.
+        if (item.bytes.byteLength > MAX_FILE_BYTES) {
+          throw new SyncFailure(
+            'file-too-large',
+            'Original exceeds the upload limit; digest saved without its file',
+          )
         }
-        throw error
+        if (storageBudgetExhausted) {
+          throw new SyncFailure('storage-budget', 'Original-file storage allowance is exhausted')
+        }
+        try {
+          await uploadFile(record.id, item.bytes, sync.userId)
+        } catch (error) {
+          if (error instanceof ApiRequestError && error.code === 'storage_budget_exhausted') {
+            storageBudgetExhausted = true
+          }
+          throw error
+        }
+        missingOriginals.delete(key)
       }
+      uploaded++
+      report()
+    } catch (error) {
+      const failure =
+        error instanceof SyncFailure
+          ? error
+          : new SyncFailure(syncIssueFor(error), messageOf(error))
+      if (haltsImport(failure.code)) haltedBy ??= failure.code
+      throw failure
     }
-    uploaded++
-    report()
   }
 
-  return session.addFiles(
+  const state = await session.addFiles(
     request.files,
     request.settings,
     (count) => {
@@ -64,6 +100,9 @@ function addFiles(request: Extract<WorkerRequest, { type: 'addFiles' }>): Promis
     sync === null ? undefined : save,
     sync?.keepFiles === true,
   )
+  if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
+  if (haltedBy !== null) post({ type: 'accountIssue', issue: haltedBy })
+  return state
 }
 
 async function handle(request: WorkerRequest): Promise<SessionState> {
@@ -88,6 +127,11 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
 async function loadServer(settings: AthleteSettings, userId: string): Promise<SessionState> {
   const records = await listActivities(undefined, userId)
+  missingOriginals.clear()
+  for (const record of records) {
+    if (!record.hasFile) missingOriginals.add(activityKey(record.digest))
+  }
+  post({ type: 'missingOriginals', count: missingOriginals.size })
   return session.loadDigests(
     records.map((record) => record.digest),
     settings,
@@ -138,6 +182,8 @@ async function rebuildStale(settings: AthleteSettings, userId: string) {
       if (recordIndex >= 0) records[recordIndex] = upgraded
       rebuilt++
     } catch (error) {
+      // A sign-out or account change would fail every remaining activity the same way.
+      if (haltsImport(syncIssueFor(error))) throw error
       if (error instanceof Error && 'status' in error && error.status === 404) missing++
       else failed++
     }
@@ -171,7 +217,11 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         post({ type: 'state', state: await handle(event.data) })
       }
     } catch (error) {
-      post({ type: 'error', message: error instanceof Error ? error.message : String(error) })
+      post({
+        type: 'error',
+        message: messageOf(error),
+        ...(error instanceof ApiRequestError ? { issue: syncIssueFor(error) } : {}),
+      })
     }
   })
 }

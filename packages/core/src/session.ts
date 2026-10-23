@@ -11,6 +11,48 @@ export interface RejectedFile {
   reason: string
 }
 
+/** Why an activity could not be saved to the signed-in library. Drives the user-facing message. */
+export type SyncIssueCode =
+  | 'signed-out'
+  | 'account-changed'
+  | 'activity-quota'
+  | 'storage-quota'
+  | 'storage-budget'
+  | 'file-too-large'
+  | 'rate-limited'
+  | 'network'
+  | 'server'
+
+export interface SyncIssue {
+  code: SyncIssueCode
+  /** Activities affected in the current library session. */
+  count: number
+}
+
+/** A sink throws this to say why a save failed. Any other error is reported as 'server'. */
+export class SyncFailure extends Error {
+  readonly code: SyncIssueCode
+
+  constructor(code: SyncIssueCode, message: string) {
+    super(message)
+    this.name = 'SyncFailure'
+    this.code = code
+  }
+}
+
+const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'signed-out',
+  'account-changed',
+])
+
+/**
+ * Whether a failure ends the import: once the account is signed out or changed, later saves in the
+ * same import would fail the same way, so they are not attempted.
+ */
+export function haltsImport(code: SyncIssueCode): boolean {
+  return HALTING_CODES.has(code)
+}
+
 export interface SessionState {
   /** Null until at least one activity has been loaded. */
   result: AnalysisResult | null
@@ -26,8 +68,8 @@ export interface SessionState {
   incompatibleActivities: number
   /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
   rangeDays: number | null
-  /** Activities the sink could not save and that have not been saved since. */
-  syncFailures: number
+  /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
+  syncIssues: SyncIssue[]
 }
 
 /** What the sink receives for each newly digested activity. */
@@ -42,6 +84,11 @@ export interface SyncItem {
 }
 
 export type SyncSink = (item: SyncItem) => Promise<void>
+
+/** Set by the first halting failure of one import, so later saves in it are skipped. */
+interface SaveBatch {
+  halt: SyncIssueCode | null
+}
 
 /** The same workout exported twice has the same sport and start second. */
 function dedupeKey(sport: Sport, startMs: number): string {
@@ -61,8 +108,8 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
  */
 export class AnalysisSession {
   private digests = new Map<string, ActivityDigest>()
-  // Keys of activities whose last sink call failed. Re-importing the file tries them again.
-  private unsynced = new Set<string>()
+  // Activities whose last sink call failed, and why. Re-importing the file tries them again.
+  private unsynced = new Map<string, SyncIssueCode>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
@@ -79,6 +126,7 @@ export class AnalysisSession {
     syncExisting = false,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
+    const batch: SaveBatch = { halt: null }
     let filesRead = 0
     for (const source of sources) {
       let undecodable = 0
@@ -94,6 +142,7 @@ export class AnalysisSession {
                 { fileName: file.fileName, fileHash, bytes: file.bytes },
                 sink,
                 syncExisting,
+                batch,
               )
             }
             // A file that now reads cleanly replaces an earlier rejection under the same name.
@@ -120,7 +169,8 @@ export class AnalysisSession {
 
   /** Replaces the whole library with digests that were stored elsewhere (the server). */
   loadDigests(digests: ActivityDigest[], settings: AthleteSettings): SessionState {
-    this.reset()
+    // Sync issues stay: those activities are still unsaved, whatever the library now holds.
+    this.resetLibrary()
     const outdatedKeys = new Set<string>()
     const incompatibleKeys = new Set<string>()
     for (const digest of digests) {
@@ -169,12 +219,14 @@ export class AnalysisSession {
    * Digests one parsed activity and hands it to the sink. An activity already held and saved is
    * left alone unless syncExisting requests a sink call for an existing activity (for example,
    * to retain an original after that preference is enabled). A sink failure is counted, not thrown.
+   * After a halting failure, the rest of the batch is digested but not sent to the sink.
    */
   private async keep(
     activity: Activity,
     file: { fileName: string; fileHash: string; bytes: Uint8Array },
     sink: SyncSink | undefined,
     syncExisting: boolean,
+    batch: SaveBatch,
   ): Promise<void> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
@@ -185,22 +237,38 @@ export class AnalysisSession {
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
     if (sink === undefined) return
+    if (batch.halt !== null) {
+      this.unsynced.set(key, batch.halt)
+      return
+    }
     try {
       await sink({ digest, ...file })
       this.unsynced.delete(key)
-    } catch {
-      this.unsynced.add(key)
+    } catch (error) {
+      const code = error instanceof SyncFailure ? error.code : 'server'
+      this.unsynced.set(key, code)
+      if (haltsImport(code)) batch.halt = code
     }
   }
 
   private reset(): void {
-    this.digests.clear()
     this.unsynced.clear()
+    this.resetLibrary()
+  }
+
+  private resetLibrary(): void {
+    this.digests.clear()
     this.outdatedKeys.clear()
     this.incompatibleKeys.clear()
     this.rejected.clear()
     this.unsupported.clear()
     this.isSample = false
+  }
+
+  private syncIssues(): SyncIssue[] {
+    const counts = new Map<SyncIssueCode, number>()
+    for (const code of this.unsynced.values()) counts.set(code, (counts.get(code) ?? 0) + 1)
+    return [...counts].map(([code, count]) => ({ code, count }))
   }
 
   private state(settings: AthleteSettings): SessionState {
@@ -221,7 +289,7 @@ export class AnalysisSession {
       outdatedActivities: this.outdatedKeys.size,
       incompatibleActivities: this.incompatibleKeys.size,
       rangeDays: this.rangeDays,
-      syncFailures: this.unsynced.size,
+      syncIssues: this.syncIssues(),
     }
   }
 }

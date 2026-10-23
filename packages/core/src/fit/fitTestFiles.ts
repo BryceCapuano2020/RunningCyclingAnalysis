@@ -1,12 +1,20 @@
-import { Encoder } from '@garmin/fitsdk'
-import type {
-  EventMesg,
-  FileIdMesg,
-  RecordMesg,
-  SessionMesg,
-  SportMesg,
-  Types,
-} from '@garmin/fitsdk'
+import {
+  FILE_TYPE,
+  FIT_EPOCH_OFFSET_S,
+  EVENT,
+  EVENT_TYPE,
+  SPORT,
+  SUB_SPORT,
+} from './protocol/profile'
+import type { FitEventType, FitSportName, FitSubSportName } from './protocol/profile'
+import {
+  EVENT_LAYOUT,
+  FILE_ID_LAYOUT,
+  RECORD_LAYOUT,
+  SESSION_LAYOUT,
+  SPORT_LAYOUT,
+} from './protocol/layouts'
+import { FitWriter } from './protocol/writer'
 
 /** Test-only builder for FIT files with several sessions, loose records and odd sport fields. */
 
@@ -17,14 +25,15 @@ export interface TestRecord {
   altitude?: number
   heartRate?: number
   power?: number
+  distance?: number
   /** Writes a position so the record counts as outdoor. */
   gps?: boolean
 }
 
 export interface TestSession {
   /** Omit to write a session with no sport. */
-  sport?: Types.Sport
-  subSport?: Types.SubSport
+  sport?: FitSportName
+  subSport?: FitSubSportName
   startMs: number
   durationS: number
   records: TestRecord[]
@@ -32,59 +41,62 @@ export interface TestSession {
 
 export interface TestFile {
   /** Written as a sport message before any record. */
-  sportMesg?: Types.Sport
+  sportMesg?: FitSportName
   /** Records written with no session message after them. */
   looseRecords?: TestRecord[]
   sessions?: TestSession[]
   /** Timer events written independently of records, for pause-boundary parser fixtures. */
-  timerEvents?: Array<{ tMs: number; eventType: EventMesg['eventType'] }>
+  timerEvents?: Array<{ tMs: number; eventType: FitEventType }>
+}
+
+/** Epoch milliseconds to whole seconds since the FIT epoch. */
+function fitSeconds(tMs: number): number {
+  return Math.floor(tMs / 1000) - FIT_EPOCH_OFFSET_S
 }
 
 export function buildFit(file: TestFile): Uint8Array {
-  const encoder = new Encoder()
-  const fileId: FileIdMesg = {
-    type: 'activity',
-    manufacturer: 'development',
+  const writer = new FitWriter()
+  writer.message(FILE_ID_LAYOUT, {
+    type: FILE_TYPE.activity,
+    manufacturer: 255,
     product: 0,
-    timeCreated: new Date(0),
-  }
-  encoder.onMesg(0, fileId)
+    timeCreated: 0,
+  })
   if (file.sportMesg !== undefined) {
-    const sport: SportMesg = { sport: file.sportMesg }
-    encoder.onMesg(12, sport)
+    writer.message(SPORT_LAYOUT, { sport: SPORT[file.sportMesg] })
   }
-  for (const record of file.looseRecords ?? []) writeRecord(encoder, record)
+  for (const record of file.looseRecords ?? []) writeRecord(writer, record)
   for (const session of file.sessions ?? []) {
-    for (const record of session.records) writeRecord(encoder, record)
-    const mesg: SessionMesg = {
-      sport: session.sport,
-      subSport: session.subSport,
-      startTime: new Date(session.startMs),
-      timestamp: new Date(session.startMs + session.durationS * 1000),
-      totalElapsedTime: session.durationS,
-      totalTimerTime: session.durationS,
-    }
-    encoder.onMesg(18, mesg)
+    for (const record of session.records) writeRecord(writer, record)
+    writer.message(SESSION_LAYOUT, {
+      sport: session.sport === undefined ? undefined : SPORT[session.sport],
+      subSport: session.subSport === undefined ? undefined : SUB_SPORT[session.subSport],
+      startTime: fitSeconds(session.startMs),
+      timestamp: fitSeconds(session.startMs + session.durationS * 1000),
+      totalElapsedTime: session.durationS * 1000,
+      totalTimerTime: session.durationS * 1000,
+    })
   }
   for (const timerEvent of file.timerEvents ?? []) {
-    const mesg: EventMesg = {
-      timestamp: new Date(timerEvent.tMs),
-      event: 'timer',
-      eventType: timerEvent.eventType,
-    }
-    encoder.onMesg(21, mesg)
+    writer.message(EVENT_LAYOUT, {
+      timestamp: fitSeconds(timerEvent.tMs),
+      event: EVENT.timer,
+      eventType: EVENT_TYPE[timerEvent.eventType],
+    })
   }
-  return encoder.close()
+  return writer.finish()
 }
 
-function writeRecord(encoder: Encoder, record: TestRecord): void {
-  const mesg: RecordMesg = { timestamp: new Date(record.tMs) }
-  if (record.gps) mesg.positionLat = 1
-  if (record.speed !== undefined) mesg.enhancedSpeed = record.speed
-  if (record.altitude !== undefined) mesg.enhancedAltitude = record.altitude
-  if (record.heartRate !== undefined) mesg.heartRate = record.heartRate
-  if (record.power !== undefined) mesg.power = record.power
-  encoder.onMesg(20, mesg)
+function writeRecord(writer: FitWriter, record: TestRecord): void {
+  writer.message(RECORD_LAYOUT, {
+    timestamp: fitSeconds(record.tMs),
+    positionLat: record.gps ? 1 : undefined,
+    enhancedSpeed: record.speed === undefined ? undefined : record.speed * 1000,
+    enhancedAltitude: record.altitude === undefined ? undefined : (record.altitude + 500) * 5,
+    heartRate: record.heartRate,
+    power: record.power,
+    distance: record.distance === undefined ? undefined : record.distance * 100,
+  })
 }
 
 /** One record per second over [startMs, startMs + durationS), with the given field values. */

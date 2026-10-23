@@ -12,7 +12,7 @@ const SECTIONS: Section[] = [
   {
     title: 'One unit for both sports',
     body:
-      `Cycling power is divided by gross efficiency, the share of the energy you burn that ` +
+      `Cycling power is divided by gross efficiency, the share of the metabolic energy used that ` +
       `reaches the pedals, which averages about ${EFFICIENCY_PERCENT}%. Running speed and ` +
       `gradient are converted with the Minetti et al. 2002 energy-cost-of-running curve. Both ` +
       `become watts of energy burned per kilogram of body weight.`,
@@ -35,9 +35,9 @@ const SECTIONS: Section[] = [
   {
     title: 'Virtual power meter',
     body:
-      'On climbs, power is estimated from speed, gradient and weight. The estimate is calibrated ' +
-      'and scored against your rides that have a real power meter. Only climbs are used, because ' +
-      'wind and drafting dominate on flat roads.',
+      'Power is estimated on climbs from speed, gradient and weight using a model fitted to your ' +
+      'power-meter rides; its accuracy is scored on each ride with that ride left out of the fit. ' +
+      'Only climbs are used, because wind and drafting dominate on flat roads.',
   },
   {
     title: 'Data checks',

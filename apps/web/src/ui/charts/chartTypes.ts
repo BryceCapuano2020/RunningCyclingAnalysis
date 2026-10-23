@@ -45,4 +45,6 @@ export interface TooltipContent {
 export interface ChartTableData {
   columns: string[]
   rows: string[][]
+  /** Names the table for screen readers and sighted readers alike. */
+  caption?: string
 }

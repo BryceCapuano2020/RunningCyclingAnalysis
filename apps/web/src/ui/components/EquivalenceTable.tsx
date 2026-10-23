@@ -29,7 +29,7 @@ export function EquivalenceTable({ equivalents, units }: EquivalenceTableProps) 
               Equal flat running pace
             </th>
             <th scope="col" className="num">
-              Likely range
+              90% model range
             </th>
           </tr>
         </thead>

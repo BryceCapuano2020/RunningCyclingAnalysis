@@ -1,6 +1,6 @@
-import { gzipSync, zipSync } from 'fflate'
+import { gzipSync, Zip, ZipDeflate, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
+import { DEFAULT_EXTRACT_LIMITS, expandsReason, extractFitFiles } from './archive'
 import type { FitFile, FitSource } from './archive'
 
 const FIT_A = new Uint8Array([14, 16, 0, 0, 1, 2, 3, 4, 46, 70, 73, 84, 9, 9])
@@ -37,6 +37,55 @@ function chunkedSource(name: string, bytes: Uint8Array, size: number): FitSource
 }
 
 const DECOMPRESS = 'Could not decompress this file'
+const DAMAGED = 'Archive is damaged; some activities may be missing'
+
+/** Offsets of the local file headers of a zip, in order. */
+function localHeaderOffsets(zip: Uint8Array): number[] {
+  const offsets: number[] = []
+  for (let i = 0; i + 4 <= zip.length; i++) {
+    if (zip[i] === 0x50 && zip[i + 1] === 0x4b && zip[i + 2] === 0x03 && zip[i + 3] === 0x04) {
+      offsets.push(i)
+    }
+  }
+  return offsets
+}
+
+/** Rewrites a zipSync archive with a ZIP64 end record, locator and placeholder EOCD. */
+function toZip64(zip: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
+  const eocd = zip.length - 22
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength)
+  const entries = view.getUint16(eocd + 10, true)
+  const cdSize = view.getUint32(eocd + 12, true)
+  const cdOffset = view.getUint32(eocd + 16, true)
+  const record = new Uint8Array(56)
+  const rv = new DataView(record.buffer)
+  rv.setUint32(0, 0x06064b50, true)
+  rv.setBigUint64(4, BigInt(44), true)
+  rv.setUint16(12, 45, true)
+  rv.setUint16(14, 45, true)
+  rv.setBigUint64(24, BigInt(entries), true)
+  rv.setBigUint64(32, BigInt(entries), true)
+  rv.setBigUint64(40, BigInt(cdSize), true)
+  rv.setBigUint64(48, BigInt(cdOffset), true)
+  const locator = new Uint8Array(20)
+  const lv = new DataView(locator.buffer)
+  lv.setUint32(0, 0x07064b50, true)
+  lv.setUint32(16, 1, true)
+  lv.setBigUint64(8, BigInt(eocd), true)
+  const end = new Uint8Array(22)
+  const ev = new DataView(end.buffer)
+  ev.setUint32(0, 0x06054b50, true)
+  ev.setUint16(8, 0xffff, true)
+  ev.setUint16(10, 0xffff, true)
+  ev.setUint32(12, 0xffffffff, true)
+  ev.setUint32(16, 0xffffffff, true)
+  const out = new Uint8Array(eocd + record.length + locator.length + end.length)
+  out.set(zip.subarray(0, eocd), 0)
+  out.set(record, eocd)
+  out.set(locator, eocd + record.length)
+  out.set(end, eocd + record.length + locator.length)
+  return out
+}
 
 async function collect(source: FitSource, limits: Partial<typeof DEFAULT_EXTRACT_LIMITS> = {}) {
   const files: FitFile[] = []
@@ -52,6 +101,28 @@ async function collect(source: FitSource, limits: Partial<typeof DEFAULT_EXTRACT
     { ...DEFAULT_EXTRACT_LIMITS, ...limits },
   )
   return { files, summary, errors }
+}
+
+/** A zip written in streaming mode: sizes are only known after each entry, as in a data descriptor. */
+function streamedZip(entries: Record<string, Uint8Array>): Uint8Array<ArrayBuffer> {
+  const parts: Uint8Array[] = []
+  const zip = new Zip((error, chunk) => {
+    if (error) throw error
+    parts.push(chunk)
+  })
+  for (const [name, data] of Object.entries(entries)) {
+    const file = new ZipDeflate(name)
+    zip.add(file)
+    file.push(data, true)
+  }
+  zip.end()
+  const out = new Uint8Array(parts.reduce((total, part) => total + part.length, 0))
+  let offset = 0
+  for (const part of parts) {
+    out.set(part, offset)
+    offset += part.length
+  }
+  return out
 }
 
 function namesOf(files: FitFile[]): string[] {
@@ -199,6 +270,7 @@ describe('extractFitFiles on single files', () => {
     })
     expect(files).toEqual([])
     expect(errors).toEqual([
+      { fileName: 'ride.fit', reason: 'Archive exceeds the 1-entry limit' },
       { fileName: 'headers.zip', reason: 'Archive exceeds the 1-entry limit' },
     ])
   })
@@ -212,8 +284,9 @@ describe('extractFitFiles on single files', () => {
     expect(total.errors).toEqual([
       {
         fileName: 'b.fit',
-        reason: `Total decompressed data exceeds the ${FIT_A.length}-byte limit`,
+        reason: `Archive expands to more than ${FIT_A.length} bytes`,
       },
+      { fileName: 'total.zip', reason: `Archive expands to more than ${FIT_A.length} bytes` },
     ])
 
     const buffered = await collect(new File([zip], 'buffered.zip'), { maxBufferedBytes: 5 })
@@ -230,7 +303,7 @@ describe('extractFitFiles on single files', () => {
     expect(singleGzip.errors).toEqual([
       {
         fileName: 'single.fit.gz',
-        reason: 'Total decompressed data exceeds the 8-byte limit',
+        reason: 'Archive expands to more than 8 bytes',
       },
     ])
   })
@@ -309,6 +382,7 @@ describe('extractFitFiles on zip archives', () => {
     expect(errors).toEqual([
       { fileName: 'b.fit', reason: 'File is incomplete or corrupt' },
       { fileName: 'cut.zip', reason: 'Could not read archive' },
+      { fileName: 'cut.zip', reason: DAMAGED },
     ])
   })
 
@@ -399,5 +473,333 @@ describe('extractFitFiles on zip archives', () => {
     const { files, summary } = await collect(source)
     expect(files).toEqual([])
     expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+  })
+
+  it('reports a source that is cut off by the source-size limit, with the entry it cut', async () => {
+    const zip = zipSync({ 'a.fit': noise(100) }, { level: 0 })
+    const { files, errors } = await collect(chunkedSource('cut.zip', zip, 20), {
+      maxSourceBytes: 50,
+    })
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'a.fit', reason: 'Source exceeds the 50-byte limit' },
+      { fileName: 'cut.zip', reason: 'Source exceeds the 50-byte limit' },
+    ])
+  })
+
+  it('stops a zip bomb at the total limit and does not expand the rest of the archive', async () => {
+    const megabyte = new Uint8Array(1024 ** 2)
+    const entries: Record<string, Uint8Array> = {}
+    for (let k = 0; k < 30; k++) entries[`bomb-${k}.fit`] = megabyte
+    const zip = zipSync(entries, { level: 9 })
+    const stream = {
+      current: undefined as ReadableStream<Uint8Array> | undefined,
+    }
+    const source: FitSource = {
+      name: 'bomb.zip',
+      arrayBuffer: async () => zip.slice().buffer,
+      stream: () => {
+        stream.current = chunkedSource('bomb.zip', zip, 64 * 1024).stream()
+        return stream.current
+      },
+    }
+    const { files, errors } = await collect(source, { maxTotalDecompressedBytes: 3 * 1024 ** 2 })
+    expect(files).toHaveLength(3)
+    expect(errors).toEqual([
+      { fileName: 'bomb-3.fit', reason: 'Archive expands to more than 3 MB' },
+      { fileName: 'bomb.zip', reason: 'Archive expands to more than 3 MB' },
+    ])
+    expect(stream.current?.locked).toBe(false)
+  })
+
+  it('keeps the default total at 2 GB and each entry at 64 MB', () => {
+    expect(DEFAULT_EXTRACT_LIMITS.maxTotalDecompressedBytes).toBe(2 * 1024 ** 3)
+    expect(DEFAULT_EXTRACT_LIMITS.maxEntryBytes).toBe(64 * 1024 ** 2)
+  })
+
+  it('extracts FIT files from a zip nested inside a zip', async () => {
+    const inner = zipSync({ 'a.fit': FIT_A, 'sub/B.FIT': FIT_B, 'notes.txt': TEXT, 'r.gpx': TEXT })
+    const outer = zipSync({ 'rides/inner.zip': inner, 'top.fit': FIT_C })
+    const { files, summary, errors } = await collect(new File([outer], 'outer.zip'))
+    expect(namesOf(files)).toEqual([
+      'rides/inner.zip/a.fit',
+      'rides/inner.zip/sub/B.FIT',
+      'top.fit',
+    ])
+    expect(bytesOf(files, 'rides/inner.zip/a.fit')).toEqual(FIT_A)
+    expect(bytesOf(files, 'rides/inner.zip/sub/B.FIT')).toEqual(FIT_B)
+    expect(summary).toEqual({ fitFiles: 3, otherActivityFiles: 1 })
+    expect(errors).toEqual([])
+  })
+
+  it('extracts FIT files two levels deep', async () => {
+    const level2 = zipSync({ 'deep.fit': FIT_A })
+    const outer = zipSync({ 'l1.zip': zipSync({ 'l2.zip': level2 }) })
+    const { files, errors } = await collect(new File([outer], 'outer.zip'))
+    expect(namesOf(files)).toEqual(['l1.zip/l2.zip/deep.fit'])
+    expect(errors).toEqual([])
+  })
+
+  it('reports a zip nested three levels deep and still reads the shallower files', async () => {
+    const level3 = zipSync({ 'x.fit': FIT_A })
+    const level2 = zipSync({ 'l3.zip': level3, 'ok.fit': FIT_B })
+    const outer = zipSync({ 'l1.zip': zipSync({ 'l2.zip': level2 }) })
+    const { files, errors } = await collect(new File([outer], 'outer.zip'))
+    expect(namesOf(files)).toEqual(['l1.zip/l2.zip/ok.fit'])
+    expect(errors).toEqual([
+      { fileName: 'l1.zip/l2.zip/l3.zip', reason: 'Nested archives are too deep' },
+    ])
+  })
+
+  it('reports a corrupt nested zip under its path and keeps the other entries', async () => {
+    const outer = zipSync({ 'bad.zip': NOT_GZIP, 'ok.fit': FIT_A })
+    const { files, errors } = await collect(new File([outer], 'outer.zip'))
+    expect(namesOf(files)).toEqual(['ok.fit'])
+    expect(errors).toEqual([{ fileName: 'bad.zip', reason: 'Could not read archive' }])
+  })
+
+  it('counts entries inside a nested zip against the same entry limit', async () => {
+    const outer = zipSync({ 'inner.zip': zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B }) })
+    const { files, errors } = await collect(new File([outer], 'outer.zip'), {
+      maxArchiveEntries: 2,
+    })
+    expect(namesOf(files)).toEqual(['inner.zip/a.fit'])
+    expect(errors).toEqual([
+      { fileName: 'inner.zip/b.fit', reason: 'Archive exceeds the 2-entry limit' },
+      { fileName: 'outer.zip', reason: 'Archive exceeds the 2-entry limit' },
+    ])
+  })
+
+  it('counts bytes inside a nested zip against the same total limit', async () => {
+    const inner = zipSync({ 'a.fit': FIT_A })
+    const outer = zipSync({ 'inner.zip': inner })
+    const reason = `Archive expands to more than ${inner.length} bytes`
+    const { files, errors } = await collect(new File([outer], 'outer.zip'), {
+      maxTotalDecompressedBytes: inner.length,
+    })
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'inner.zip/a.fit', reason },
+      { fileName: 'outer.zip', reason },
+    ])
+  })
+
+  it('reports a total limit in GB, MB or bytes', () => {
+    expect(expandsReason(DEFAULT_EXTRACT_LIMITS.maxTotalDecompressedBytes)).toBe(
+      'Archive expands to more than 2 GB',
+    )
+    expect(expandsReason(3 * 1024 ** 2)).toBe('Archive expands to more than 3 MB')
+    expect(expandsReason(14)).toBe('Archive expands to more than 14 bytes')
+  })
+
+  it('uses no error handler unless one is given', async () => {
+    const summary = await extractFitFiles(new File([TEXT], 'notes.bin'), () => undefined)
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+  })
+
+  it('limits a single .fit file by the total and entry sizes', async () => {
+    const total = await collect(new File([FIT_A], 'total.fit'), { maxTotalDecompressedBytes: 5 })
+    expect(total.files).toEqual([])
+    expect(total.errors).toEqual([
+      { fileName: 'total.fit', reason: 'Archive expands to more than 5 bytes' },
+    ])
+    const entry = await collect(new File([FIT_A], 'entry.fit'), { maxEntryBytes: 5 })
+    expect(entry.errors).toEqual([
+      { fileName: 'entry.fit', reason: 'File exceeds the 5-byte limit' },
+    ])
+  })
+
+  it('reserves room for the copy made when a single gzip file is joined', async () => {
+    const { files, errors } = await collect(new File([gzipSync(FIT_A)], 'joined.fit.gz'), {
+      maxBufferedBytes: 20,
+    })
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'joined.fit.gz', reason: 'Buffered data exceeds the 20-byte limit' },
+    ])
+  })
+
+  it('reserves room for the copy made when a zip entry is joined', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A }, { level: 0 })
+    const { files, errors } = await collect(new File([zip], 'joined.zip'), { maxBufferedBytes: 20 })
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'a.fit', reason: 'Buffered data exceeds the 20-byte limit' },
+    ])
+  })
+
+  it('applies the entry, total and buffer limits to a gzipped FIT inside a zip', async () => {
+    const zip = zipSync({ 'bomb.fit.gz': gzipSync(new Uint8Array(10_000)) })
+    const entry = await collect(new File([zip], 'gz.zip'), { maxEntryBytes: 1024 })
+    expect(entry.errors).toEqual([
+      { fileName: 'bomb.fit.gz', reason: 'Decompressed file exceeds the 1024-byte limit' },
+    ])
+    const total = await collect(new File([zip], 'gz.zip'), { maxTotalDecompressedBytes: 1000 })
+    expect(total.files).toEqual([])
+    expect(total.errors).toEqual([
+      { fileName: 'bomb.fit.gz', reason: 'Archive expands to more than 1000 bytes' },
+      { fileName: 'gz.zip', reason: 'Archive expands to more than 1000 bytes' },
+    ])
+    const buffered = await collect(new File([zip], 'gz.zip'), { maxBufferedBytes: 1000 })
+    expect(buffered.errors).toEqual([
+      { fileName: 'bomb.fit.gz', reason: 'Buffered data exceeds the 1000-byte limit' },
+    ])
+  })
+
+  it('enforces the entry, total and buffer limits on streamed zip entries', async () => {
+    const zip = streamedZip({ 'big.fit': noise(5000) })
+    const entry = await collect(new File([zip], 'streamed.zip'), { maxEntryBytes: 1000 })
+    expect(entry.errors).toEqual([
+      { fileName: 'big.fit', reason: 'Archive entry exceeds the 1000-byte limit' },
+    ])
+    const total = await collect(new File([zip], 'streamed.zip'), {
+      maxTotalDecompressedBytes: 1000,
+    })
+    expect(total.errors).toEqual([
+      { fileName: 'big.fit', reason: 'Archive expands to more than 1000 bytes' },
+      { fileName: 'streamed.zip', reason: 'Archive expands to more than 1000 bytes' },
+    ])
+    const buffered = await collect(new File([zip], 'streamed.zip'), { maxBufferedBytes: 1000 })
+    expect(buffered.errors).toEqual([
+      { fileName: 'big.fit', reason: 'Buffered data exceeds the 1000-byte limit' },
+    ])
+  })
+
+  it('reads a streamed zip entry, gzipped or not, with the same result', async () => {
+    const zip = streamedZip({ 'a.fit': FIT_A, 'b.fit.gz': gzipSync(FIT_B) })
+    const { files, errors } = await collect(new File([zip], 'streamed.zip'))
+    expect(files).toEqual([
+      { fileName: 'a.fit', bytes: FIT_A },
+      { fileName: 'b.fit', bytes: FIT_B },
+    ])
+    expect(errors).toEqual([])
+  })
+
+  it('reports an entry left open when the stream fails part way through it', async () => {
+    const zip = zipSync({ 'a.fit': noise(200) }, { level: 0 })
+    const source: FitSource = {
+      name: 'broken.zip',
+      arrayBuffer: async () => zip.slice().buffer,
+      stream: () => {
+        let sent = false
+        return new ReadableStream<Uint8Array>({
+          pull(controller) {
+            if (!sent) {
+              sent = true
+              controller.enqueue(zip.slice(0, 100))
+              return
+            }
+            controller.error(new Error('network dropped'))
+          },
+        })
+      },
+    }
+    const { files, errors } = await collect(source)
+    expect(files).toEqual([])
+    expect(errors).toEqual([
+      { fileName: 'a.fit', reason: 'Could not read this file' },
+      { fileName: 'broken.zip', reason: 'Could not read this file' },
+    ])
+  })
+
+  it('reports a rejected entry even when the error handler throws', async () => {
+    const zip = zipSync({ 'big.fit': noise(40) }, { level: 0 })
+    await expect(
+      extractFitFiles(
+        new File([zip], 'handler.zip'),
+        () => undefined,
+        () => {
+          throw new Error('log full')
+        },
+        { ...DEFAULT_EXTRACT_LIMITS, maxEntryBytes: 32 },
+      ),
+    ).rejects.toThrow('log full')
+  })
+
+  it('treats a zip with only a 4-byte header as unreadable, not empty', async () => {
+    const { files, errors } = await collect(
+      new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], 'stub.zip'),
+    )
+    expect(files).toEqual([])
+    expect(errors).toEqual([{ fileName: 'stub.zip', reason: 'Could not read archive' }])
+  })
+
+  it('accepts an empty zip without reporting an error', async () => {
+    const { files, summary, errors } = await collect(new File([zipSync({})], 'empty.zip'))
+    expect(files).toEqual([])
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(errors).toEqual([])
+  })
+
+  it('reports how many entries a corrupted local header in the middle costs', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B, 'c.fit': FIT_C }, { level: 0 })
+    const second = localHeaderOffsets(zip)[1]!
+    zip[second + 2] = 0
+    const { files, errors } = await collect(new File([zip], 'mid.zip'))
+    expect(namesOf(files)).toEqual(['a.fit', 'c.fit'])
+    expect(errors).toEqual([
+      {
+        fileName: 'mid.zip',
+        reason: '1 entries could not be read because the archive is damaged',
+      },
+    ])
+  })
+
+  it('reports a truncated zip as damaged, keeping the entries it has', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B }, { level: 0 })
+    const { files, errors } = await collect(new File([zip.slice(0, zip.length - 10)], 't.zip'))
+    expect(namesOf(files)).toEqual(['a.fit', 'b.fit'])
+    expect(errors).toEqual([{ fileName: 't.zip', reason: DAMAGED }])
+  })
+
+  it('reports nothing for a valid zip', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B }, { level: 0 })
+    const { errors } = await collect(new File([zip], 'valid.zip'))
+    expect(errors).toEqual([])
+  })
+
+  it('reads a ZIP64 archive and reports nothing when it is intact', async () => {
+    const { files, errors } = await collect(
+      new File([toZip64(zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B }))], 'big.zip'),
+    )
+    expect(namesOf(files)).toEqual(['a.fit', 'b.fit'])
+    expect(errors).toEqual([])
+  })
+
+  it('counts a lost entry in a ZIP64 archive from the ZIP64 record', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B, 'c.fit': FIT_C }, { level: 0 })
+    zip[localHeaderOffsets(zip)[1]! + 2] = 0
+    const { files, errors } = await collect(new File([toZip64(zip)], 'big-mid.zip'))
+    expect(namesOf(files)).toEqual(['a.fit', 'c.fit'])
+    expect(errors).toEqual([
+      {
+        fileName: 'big-mid.zip',
+        reason: '1 entries could not be read because the archive is damaged',
+      },
+    ])
+  })
+
+  it('reports damage when the ZIP64 locator or record is missing or unreadable', async () => {
+    const zip = toZip64(zipSync({ 'a.fit': FIT_A }))
+    const locator = zip.length - 22 - 20
+    const recordAt = zip.length - 22 - 20 - 56
+    const noLocator = zip.slice()
+    noLocator[locator] = 0
+    const badPointer = zip.slice()
+    new DataView(badPointer.buffer).setBigUint64(locator + 8, BigInt(0xffffffff), true)
+    const badRecord = zip.slice()
+    badRecord[recordAt] = 0
+    for (const broken of [noLocator, badPointer, badRecord]) {
+      const { errors } = await collect(new File([broken], 'big-broken.zip'))
+      expect(errors).toEqual([{ fileName: 'big-broken.zip', reason: DAMAGED }])
+    }
+  })
+
+  it('reports damage when the end-of-central-directory record is gone', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A }, { level: 0 })
+    zip[zip.length - 22] = 0
+    const { files, errors } = await collect(new File([zip], 'no-end.zip'))
+    expect(namesOf(files)).toEqual(['a.fit'])
+    expect(errors).toEqual([{ fileName: 'no-end.zip', reason: DAMAGED }])
   })
 })

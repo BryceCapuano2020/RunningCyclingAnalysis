@@ -1,7 +1,7 @@
 import {
   MAX_GLOBAL_R2_MONTHLY_OPERATIONS,
   MAX_GLOBAL_R2_STANDARD_OPERATIONS,
-  MAX_GLOBAL_R2_WRITE_BYTES,
+  MAX_MONTHLY_R2_PUT_BYTES,
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
 import { HttpError } from './errors.ts'
@@ -34,7 +34,7 @@ function budgetError(message: string): HttpError {
   return new HttpError(429, 'storage_budget_exhausted', message)
 }
 
-/** Atomically reserves a global R2 PUT/GET/LIST operation and optional lifetime PUT bytes. */
+/** Atomically reserves a global R2 PUT/GET/LIST operation and optional monthly PUT bytes. */
 async function reserveR2Budget(
   db: D1Database,
   now: number,
@@ -48,55 +48,42 @@ async function reserveR2Budget(
     : MAX_GLOBAL_R2_STANDARD_OPERATIONS
   await db
     .prepare(
-      `INSERT INTO r2_storage_budget (id, lifetime_put_bytes, monthly_period, monthly_operations)
-       VALUES (1, 0, ?, 0) ON CONFLICT(id) DO NOTHING`,
+      `INSERT INTO r2_storage_budget (id, lifetime_put_bytes, monthly_period, monthly_operations, monthly_put_bytes)
+       VALUES (1, 0, ?, 0, 0) ON CONFLICT(id) DO NOTHING`,
     )
     .bind(period)
     .run()
+  // A new UTC month starts all three counters from zero. The month comparison is string order on
+  // YYYY-MM, which is chronological. lifetime_put_bytes is an audit total and is never enforced.
   const reserved = await db
     .prepare(
       `UPDATE r2_storage_budget
-       SET lifetime_put_bytes = lifetime_put_bytes + ?,
-           monthly_period = CASE WHEN monthly_period < ? THEN ? ELSE monthly_period END,
-           monthly_operations = CASE WHEN monthly_period < ? THEN ? ELSE monthly_operations + ? END
+       SET lifetime_put_bytes = lifetime_put_bytes + ?1,
+           monthly_put_bytes = CASE WHEN monthly_period < ?2 THEN 0 ELSE monthly_put_bytes END + ?1,
+           monthly_period = CASE WHEN monthly_period < ?2 THEN ?2 ELSE monthly_period END,
+           monthly_operations = CASE WHEN monthly_period < ?2 THEN ?3 ELSE monthly_operations + ?3 END
        WHERE id = 1
-         AND monthly_period <= ?
-         AND (monthly_period < ? OR monthly_operations + ? <= ?)
-         AND (? = 0 OR lifetime_put_bytes + ? <= ?)
+         AND monthly_period <= ?2
+         AND (monthly_period < ?2 OR monthly_operations + ?3 <= ?4)
+         AND (?1 = 0 OR CASE WHEN monthly_period < ?2 THEN 0 ELSE monthly_put_bytes END + ?1 <= ?5)
        RETURNING id`,
     )
-    .bind(
-      putBytes,
-      period,
-      period,
-      period,
-      operations,
-      operations,
-      period,
-      period,
-      operations,
-      operationCap,
-      putBytes,
-      putBytes,
-      MAX_GLOBAL_R2_WRITE_BYTES,
-    )
+    .bind(putBytes, period, operations, operationCap, MAX_MONTHLY_R2_PUT_BYTES)
     .first<{ id: number }>()
   if (reserved) return period
 
   const current = await db
     .prepare(
-      'SELECT lifetime_put_bytes, monthly_period, monthly_operations FROM r2_storage_budget WHERE id = 1',
+      'SELECT monthly_period, monthly_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
     )
-    .first<{ lifetime_put_bytes: number; monthly_period: string; monthly_operations: number }>()
-  if (
-    !current ||
-    (putBytes > 0 && current.lifetime_put_bytes + putBytes > MAX_GLOBAL_R2_WRITE_BYTES)
-  ) {
+    .first<{ monthly_period: string; monthly_put_bytes: number; monthly_operations: number }>()
+  const bytesThisMonth = current?.monthly_period === period ? current.monthly_put_bytes : 0
+  if (putBytes > 0 && bytesThisMonth + putBytes > MAX_MONTHLY_R2_PUT_BYTES) {
     throw budgetError(
-      'The deployment reached its 4 GiB lifetime original-file write limit. Further file writes are disabled until an operator reviews the storage budget.',
+      'The deployment has used its monthly original-file write budget. Uploads resume at the start of the next UTC month.',
     )
   }
-  if (current.monthly_period > period) {
+  if (!current || current.monthly_period > period) {
     throw budgetError(
       'The deployment storage budget clock is ahead of this request; try again later.',
     )
@@ -166,6 +153,20 @@ export async function releaseR2CleanupBudget(
   budget.remaining = 0
 }
 
+/**
+ * Charges the monthly PUT budget for a write before R2 is called. Throws 429 without any R2 call
+ * when the budget refuses, so the caller knows the object was never written.
+ */
+export async function reserveR2Put(
+  db: D1Database,
+  currentTime: () => number,
+  bytes: number,
+): Promise<void> {
+  await reserveBeforeR2Call(db, currentTime, {
+    putBytes: Math.max(bytes, MIN_GLOBAL_R2_PUT_CHARGE_BYTES),
+  })
+}
+
 export async function putOriginalFile(
   db: D1Database,
   bucket: R2Bucket,
@@ -174,9 +175,7 @@ export async function putOriginalFile(
   options: R2PutOptions,
   currentTime: () => number,
 ) {
-  await reserveBeforeR2Call(db, currentTime, {
-    putBytes: Math.max(body.byteLength, MIN_GLOBAL_R2_PUT_CHARGE_BYTES),
-  })
+  await reserveR2Put(db, currentTime, body.byteLength)
   return bucket.put(key, body, options)
 }
 
@@ -251,4 +250,34 @@ export async function deleteByPrefixWithBudget(
     cursor = page.truncated ? page.cursor : undefined
   } while (cursor !== undefined)
   return deleted
+}
+
+/** True when the user has any activity row that holds, or is reserving, an original file. */
+export async function hasStoredFiles(db: D1Database, userId: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS found FROM activities
+       WHERE user_id = ? AND (file_key IS NOT NULL OR file_size IS NOT NULL) LIMIT 1`,
+    )
+    .bind(userId)
+    .first<{ found: number }>()
+  return row !== null
+}
+
+/**
+ * Removes every object under the user's prefix, reserving cleanup LIST headroom first. Callers
+ * decide whether the user has objects at all, so accounts without files never spend the budget.
+ */
+export async function sweepUserFiles(
+  db: D1Database,
+  bucket: R2Bucket,
+  userId: string,
+  now: () => number,
+): Promise<number> {
+  const budget = await reserveR2CleanupBudget(db, now(), undefined, now)
+  try {
+    return await deleteByPrefixWithBudget(bucket, userFilePrefix(userId), budget)
+  } finally {
+    await releaseR2CleanupBudget(db, budget)
+  }
 }

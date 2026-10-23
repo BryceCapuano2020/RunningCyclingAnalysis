@@ -77,6 +77,23 @@ function and(a: Uint8Array, b: Uint8Array): Uint8Array {
 }
 
 /**
+ * Masks grade-dependent samples whose grade is unknown (NaN). Paused samples are exempt: they
+ * record no motion, so the grade cannot change their power, and masking them would drop every
+ * window that spans a pause.
+ */
+function withKnownGrade(
+  quality: QualityReport,
+  rawGrade: Float64Array,
+  paused: Uint8Array,
+): QualityReport {
+  const validGrade = Uint8Array.from(quality.validGrade)
+  for (let i = 0; i < validGrade.length; i++) {
+    if (Number.isNaN(rawGrade[i]!) && paused[i] !== 1) validGrade[i] = 0
+  }
+  return { ...quality, validGrade }
+}
+
+/**
  * Best window at every duration, then the monotone envelope. A value copied from a longer window
  * keeps that window's startIndex and windowS, so every field describes the same window.
  */
@@ -244,11 +261,14 @@ function virtualParts(
  * itself, never on the athlete's settings, so it can be computed once at import and combined later.
  */
 export function digestActivity(activity: Activity): ActivityDigest {
-  const quality = assessQuality(activity)
   // Indoor altitude is barometer drift or a simulated course, not a gradient being ridden.
-  const grade = activity.indoor
+  const rawGrade = activity.indoor
     ? new Float64Array(activity.n)
     : smoothGrade(activity.altitude, activity.distance)
+  const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused)
+  // Unknown grade becomes zero here. Where it matters it is masked by validGrade, and elsewhere
+  // (paused samples) the speed is zero, so the value is unaffected.
+  const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))
   const source: HeartRateSource = { activity, validHeartRate: quality.validHeartRate }
 
   let parts: Parts

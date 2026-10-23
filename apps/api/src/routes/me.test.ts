@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHarness, digestFixture, racingBucket, START, testEnv } from '../test/harness.ts'
+import { runMaintenance } from '../maintenance.ts'
+import { systemDeps } from '../deps.ts'
 import { activityFileKey, userFilePrefix } from '../storage.ts'
 import { sha256Hex } from '../util.ts'
 
@@ -614,6 +616,8 @@ describe('DELETE /api/me', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const h = createHarness()
     const token = await h.signIn()
+    // An account with no stored files never reaches R2, so the test needs one.
+    await createWithFile(h, token, 'a.fit', START)
     const brokenFiles = {
       list: async () => {
         throw new Error('R2 unavailable')
@@ -627,6 +631,139 @@ describe('DELETE /api/me', () => {
     })
     expect(res.status).toBe(500)
     expect(await countRows(h, 'users')).toBe(1)
+    spy.mockRestore()
+  })
+})
+
+describe('cleanup budget is spent only when a user has stored files', () => {
+  const off = { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false }
+  const exhaust = (h: ReturnType<typeof createHarness>) =>
+    h.env.DB.prepare(
+      "UPDATE r2_storage_budget SET monthly_period = '2026-01', monthly_operations = 100000",
+    ).run()
+
+  it('lets keepFiles be turned off when the user has no files, even with cleanup exhausted', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...off, keepFiles: true },
+      cookies: { rca_session: token },
+    })
+    await exhaust(h)
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: off,
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('lets an account with no files be deleted even with cleanup exhausted', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await exhaust(h)
+    const res = await h.send({ method: 'DELETE', path: '/api/me', cookies: { rca_session: token } })
+    expect(res.status).toBe(204)
+    expect(await countRows(h, 'users')).toBe(0)
+  })
+})
+
+describe('account deletion tombstone', () => {
+  it('refuses ordinary routes for an account marked for deletion, but still allows its deletion to finish', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.env.DB.prepare('UPDATE users SET deleting_at = ?').bind(START).run()
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: token } })).status).toBe(401)
+    const res = await h.send({ method: 'DELETE', path: '/api/me', cookies: { rca_session: token } })
+    expect(res.status).toBe(204)
+    expect(await countRows(h, 'users')).toBe(0)
+  })
+
+  it('keeps the account retryable when the first R2 sweep fails, and finishes on retry', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await userIdOf(h, token)
+    const file = await createWithFile(h, token, 'a.fit', START)
+    let lists = 0
+    const flaky = new Proxy(h.env.FILES!, {
+      get(target, property) {
+        if (property === 'list')
+          return async (...args: Parameters<R2Bucket['list']>) => {
+            lists += 1
+            if (lists === 1) throw new Error('simulated R2 outage')
+            return target.list(...args)
+          }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const first = await createHarness({}, { FILES: flaky }).send({
+      method: 'DELETE',
+      path: '/api/me',
+      cookies: { rca_session: token },
+    })
+    expect(first.status).toBe(500)
+    expect(await countRows(h, 'users')).toBe(1)
+    expect(await h.env.FILES!.get(activityFileKey(id, file))).not.toBeNull()
+
+    const retry = await h.send({
+      method: 'DELETE',
+      path: '/api/me',
+      cookies: { rca_session: token },
+    })
+    expect(retry.status).toBe(204)
+    expect(await h.env.FILES!.get(activityFileKey(id, file))).toBeNull()
+    spy.mockRestore()
+  })
+
+  it('reports success once the rows are gone, and leaves a racing object to the scheduler', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await userIdOf(h, token)
+    await createWithFile(h, token, 'a.fit', START)
+    let lists = 0
+    let raced = false
+    const racing = new Proxy(h.env.FILES!, {
+      get(target, property) {
+        if (property === 'list')
+          return async (...args: Parameters<R2Bucket['list']>) => {
+            lists += 1
+            // The final sweep's LIST fails, so an object that lands after the first sweep stays.
+            if (lists === 2) throw new Error('simulated R2 outage')
+            return target.list(...args)
+          }
+        if (property === 'delete')
+          return async (...args: Parameters<R2Bucket['delete']>) => {
+            const result = await target.delete(...args)
+            if (!raced) {
+              raced = true
+              await target.put(`${userFilePrefix(id)}late-upload`, 'landed after the first sweep')
+            }
+            return result
+          }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const res = await createHarness({}, { FILES: racing }).send({
+      method: 'DELETE',
+      path: '/api/me',
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(204)
+    expect(await countRows(h, 'users')).toBe(0)
+    expect(await h.env.FILES!.get(`${userFilePrefix(id)}late-upload`)).not.toBeNull()
+    expect(await countRows(h, 'pending_account_deletions')).toBe(1)
+
+    const report = await runMaintenance(h.env, { ...systemDeps, now: () => START + 1000 })
+    expect(report.finishedDeletions).toBe(1)
+    expect(await h.env.FILES!.get(`${userFilePrefix(id)}late-upload`)).toBeNull()
+    expect(await countRows(h, 'pending_account_deletions')).toBe(0)
     spy.mockRestore()
   })
 })

@@ -12,9 +12,8 @@
   stroke: var(--series-ride);
 }
 
-/* Dots are 70% opaque with a surface ring, so overlapping dots stay separate. */
+/* Dots are fully opaque, with a 2 px surface ring so that overlapping dots stay separate. */
 .hr-scatter__dot {
-  fill-opacity: 0.7;
   stroke: var(--surface-1);
   stroke-width: 2;
 }

@@ -29,7 +29,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@garmin/fitsdk": "^21.218.0",
     "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@garmin/fitsdk": "^21.218.0"
   }
 }

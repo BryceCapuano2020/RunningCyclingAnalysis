@@ -141,7 +141,7 @@ export function SettingsBar({ settings, units, onChange }: SettingsBarProps) {
         })}
       </div>
       <p id={hintId} className="settings-bar__hint muted">
-        Weight changes every number on this page, so use your real figure
+        Weight changes the energy estimates on this page, so enter your real weight.
       </p>
     </div>
   )

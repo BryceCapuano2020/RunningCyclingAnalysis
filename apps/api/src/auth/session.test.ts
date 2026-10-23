@@ -225,3 +225,34 @@ describe('sessions', () => {
     expect(row?.expires_at).toBe(START + 90 * DAY)
   })
 })
+
+describe('signed session cookies', () => {
+  it('rejects a well-formed token with no signature, and one with a forged signature, without touching D1', async () => {
+    const plain = createHarness()
+    const valid = await plain.signIn()
+    const [token = ''] = valid.split('.')
+    const tampered = `${token}.${'0'.repeat(64)}`
+    const counted = countingDb(testEnv().DB)
+    const h = createHarness({}, { DB: counted.db })
+    for (const cookie of [token, tampered]) {
+      const res = await h.send({ path: '/api/me', cookies: { rca_session: cookie } })
+      expect(res.status).toBe(401)
+    }
+    expect(counted.count()).toBe(0)
+  })
+
+  it('rejects a real token whose signature was altered in its last character', async () => {
+    const h = createHarness()
+    const valid = await h.signIn()
+    const flipped = valid.slice(0, -1) + (valid.endsWith('0') ? '1' : '0')
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: flipped } })).status).toBe(401)
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: valid } })).status).toBe(200)
+  })
+
+  it('does not accept a session signed with a different key', async () => {
+    const other = createHarness({}, { SESSION_SIGNING_KEY: 'a-different-deployment-key' })
+    const foreign = await other.signIn()
+    const h = createHarness()
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: foreign } })).status).toBe(401)
+  })
+})

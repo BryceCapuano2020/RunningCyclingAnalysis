@@ -20,13 +20,21 @@ export const csrfGuard = createMiddleware<AppEnv>(async (c, next) => {
   await next()
 })
 
-export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
-  const user = await loadSession(c)
-  if (!user) throw new HttpError(401, 'unauthenticated', 'Sign in required')
-  assertAccountScope(c, user)
-  c.set('user', user)
-  await accountWriteLimit(c, next)
-})
+function signedIn(options: { allowDeleting: boolean }) {
+  return createMiddleware<AppEnv>(async (c, next) => {
+    const user = await loadSession(c, options)
+    if (!user) throw new HttpError(401, 'unauthenticated', 'Sign in required')
+    assertAccountScope(c, user)
+    c.set('user', user)
+    await accountWriteLimit(c, next)
+  })
+}
+
+/** Requires a live session. An account being deleted reads as signed out. */
+export const requireUser = signedIn({ allowDeleting: false })
+
+/** Only DELETE /api/me uses this: it lets an interrupted account deletion be retried. */
+export const requireUserEvenIfDeleting = signedIn({ allowDeleting: true })
 
 /** Rejects a browser request whose expected account no longer matches its session cookie. */
 export function assertAccountScope(c: Context<AppEnv>, user: User): void {

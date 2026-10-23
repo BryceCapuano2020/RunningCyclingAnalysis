@@ -10,6 +10,13 @@ const point = (
 ): CurvePoint => ({ durationS, value, activityId, startIndex })
 
 describe('monotoneEnvelope', () => {
+  it('on a tie, a lower point copies the fields of the longest tied point', () => {
+    const curve = [point(60, NaN), point(180, 10, 'b', 200), point(300, 10, 'a', 100)]
+    const out = monotoneEnvelope(curve)
+    expect(out[0]).toEqual(point(60, 10, 'a', 100))
+    expect(out[1]).toEqual(point(180, 10, 'b', 200))
+  })
+
   it('returns an empty curve for empty input', () => {
     expect(monotoneEnvelope([])).toEqual([])
   })

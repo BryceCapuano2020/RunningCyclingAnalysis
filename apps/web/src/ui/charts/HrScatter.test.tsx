@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
-import type { HrCrossCheck } from '@rca/core/types'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { HrCrossCheck, HrPoint, LinearFit } from '@rca/core/types'
 import { hrFixture, hrRunOnlyFixture } from './fixtures'
 import { HrScatter } from './HrScatter'
+import { readStylesheet, ruleBody } from '../components/stylesheet'
+
+const hrCss = await readStylesheet(import.meta.url, './HrScatter.css')
 
 const TITLE = 'Heart rate against gross metabolic power'
 
@@ -12,12 +15,34 @@ const named = (title: string) => (name: string) => name.startsWith(title)
 const EMPTY =
   'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks per sport across a range of efforts'
 
-function tableOf(container: HTMLElement) {
-  const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
-  const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
+/** The data table at index i in the table view: 0 is the summary, 1 is one row per plotted block. */
+function tableAt(container: HTMLElement, index: number) {
+  const table = container.querySelectorAll('table')[index]
+  if (!table) throw new Error(`no table at ${index}`)
+  const headers = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent)
+  const rows = Array.from(table.querySelectorAll('tbody tr')).map((tr) =>
     Array.from(tr.querySelectorAll('td')).map((td) => td.textContent),
   )
   return { headers, rows }
+}
+
+function fit(slope: number, intercept: number, r2: number, n: number): LinearFit {
+  return { slope, intercept, slopeSe: 0.5, r2, n }
+}
+
+/** A run-only cross-check with `count` blocks, spread so that no two share a position. */
+function runBlocks(count: number): HrCrossCheck {
+  const points: HrPoint[] = Array.from({ length: count }, (_, i) => ({
+    metabolicPower: 10 + (i % 97) / 10 + Math.floor(i / 97) / 1000,
+    heartRate: 120 + (i % 61),
+    activityId: 'run-1',
+  }))
+  return { run: { points, fit: fit(10, 15, 0.9, count) }, ride: null, kappa: null, lnKappaSe: null }
+}
+
+/** The declarations of one rule in HrScatter.css, by exact selector. */
+function cssRule(selector: string): string {
+  return ruleBody(hrCss, selector)
 }
 
 describe('HrScatter', () => {
@@ -39,14 +64,78 @@ describe('HrScatter', () => {
     expect(legend).toHaveTextContent('Cycling')
   })
 
-  it('formats the table view with block counts, slopes and R squared', () => {
+  it('formats the summary table with block counts, slopes and R squared', () => {
     const { container } = render(<HrScatter hr={hrFixture} />)
-    const { headers, rows } = tableOf(container)
+    const { headers, rows } = tableAt(container, 0)
     expect(headers).toEqual(['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'])
     expect(rows).toEqual([
       ['Running', '3', '10.0', '0.95'],
       ['Cycling', '2', '12.0', '0.90'],
     ])
+  })
+
+  it('lists one row per plotted block with its sport, W/kg and bpm, after the summary', () => {
+    const { container } = render(<HrScatter hr={hrFixture} />)
+    const { headers, rows } = tableAt(container, 1)
+    expect(headers).toEqual(['Sport', 'Gross metabolic power (W/kg)', 'Heart rate (bpm)'])
+    expect(rows).toEqual([
+      ['Running', '13.5', '150'],
+      ['Running', '14.5', '160'],
+      ['Running', '15.5', '170'],
+      ['Cycling', '14.0', '140'],
+      ['Cycling', '15.0', '152'],
+    ])
+  })
+
+  it('draws each dot fully opaque with a 2 px ring in the surface colour', () => {
+    const rule = cssRule('.hr-scatter__dot')
+    expect(rule).not.toMatch(/fill-opacity/)
+    expect(rule).toMatch(/stroke:\s*var\(--surface-1\)/)
+    expect(rule).toMatch(/stroke-width:\s*2(px)?;/)
+  })
+
+  it('draws at most 2,000 dots, says so, and keeps the table to the dots drawn', () => {
+    const { container } = render(<HrScatter hr={runBlocks(2500)} />)
+    expect(screen.getAllByTestId('hr-dot')).toHaveLength(2000)
+    expect(
+      screen.getByText(
+        /To keep the chart responsive, 2,000 of 2,500 blocks are plotted, spaced evenly/,
+      ),
+    ).toBeInTheDocument()
+    expect(tableAt(container, 1).rows).toHaveLength(2000)
+    expect(tableAt(container, 0).rows).toEqual([['Running', '2500', '10.0', '0.90']])
+  })
+
+  it('thins the same blocks in the same way on every render', () => {
+    const first = render(<HrScatter hr={runBlocks(2500)} />)
+    const firstDots = screen.getAllByTestId('hr-dot').map((dot) => dot.getAttribute('cx'))
+    first.unmount()
+    render(<HrScatter hr={runBlocks(2500)} />)
+    const secondDots = screen.getAllByTestId('hr-dot').map((dot) => dot.getAttribute('cx'))
+    expect(secondDots).toEqual(firstDots)
+  })
+
+  it('does not mention thinning when every block is plotted', () => {
+    render(<HrScatter hr={hrFixture} />)
+    expect(screen.queryByText(/To keep the chart responsive/)).toBeNull()
+  })
+
+  it('does not sort the dots again on each pointer move', () => {
+    const sortSpy = vi.spyOn(Array.prototype, 'sort')
+    try {
+      render(<HrScatter hr={runBlocks(37)} />)
+      const surface = screen.getByTestId('plot-surface')
+      const sortsOf37 = () =>
+        sortSpy.mock.contexts.filter((context) => Array.isArray(context) && context.length === 37)
+          .length
+
+      fireEvent.keyDown(surface, { key: 'ArrowRight' })
+      const afterFirstMove = sortsOf37()
+      for (let i = 0; i < 5; i++) fireEvent.keyDown(surface, { key: 'ArrowRight' })
+      expect(sortsOf37()).toBe(afterFirstMove)
+    } finally {
+      sortSpy.mockRestore()
+    }
   })
 
   it('shows the nearest dot when the arrow keys move', () => {

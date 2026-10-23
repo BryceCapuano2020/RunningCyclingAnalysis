@@ -147,3 +147,34 @@ test('enforces the 64 MiB input cap before parsing and before reading file conte
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+test('accepts exports from the current schema, orders its new tables after their parents, and keeps old exports restorable', () => {
+  const current = `
+  PRAGMA defer_foreign_keys=TRUE;
+  CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TEXT NOT NULL);
+  CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL, picture_url TEXT, created_at INTEGER NOT NULL, activity_count INTEGER NOT NULL DEFAULT 0, deleting_at INTEGER);
+  CREATE TABLE activities (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, digest TEXT);
+  CREATE TABLE oauth_accounts (provider TEXT NOT NULL, provider_user_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(provider, provider_user_id));
+  CREATE TABLE profiles (user_id TEXT PRIMARY KEY REFERENCES users(id), units TEXT);
+  CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id));
+  CREATE TABLE r2_storage_budget (id INTEGER PRIMARY KEY, lifetime_put_bytes INTEGER NOT NULL, monthly_period TEXT NOT NULL, monthly_operations INTEGER NOT NULL, monthly_put_bytes INTEGER NOT NULL DEFAULT 0, orphan_sweep_cursor TEXT);
+  CREATE TABLE daily_budget (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, action TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, action));
+  CREATE TABLE upload_slots (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slot_id TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY (user_id, slot_id));
+  CREATE TABLE pending_account_deletions (user_id TEXT PRIMARY KEY NOT NULL, requested_at INTEGER NOT NULL, sweep_pending INTEGER NOT NULL DEFAULT 1);
+  INSERT INTO users VALUES ('user-1', 'a@example.test', 'Alex', NULL, 1, 0, NULL);
+  INSERT INTO daily_budget VALUES ('user-1', '2026-10-22', 'read', 3);
+  INSERT INTO upload_slots VALUES ('user-1', 'slot', 5);
+  INSERT INTO pending_account_deletions VALUES ('user-1', 1, 0);
+  INSERT INTO d1_migrations(name, applied_at) VALUES ('0003', '2026-10-22');
+  `
+  const prepared = prepareD1RestoreSql(current)
+  assert.ok(
+    prepared.indexOf('INSERT INTO "users"') < prepared.indexOf('INSERT INTO "daily_budget"'),
+  )
+  inspect(prepared, (db) => {
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
+    assert.equal(db.prepare('SELECT used FROM daily_budget').get().used, 3)
+  })
+  // Exports from before the budget and deletion tables existed still restore.
+  assert.doesNotThrow(() => prepareD1RestoreSql(schema))
+})

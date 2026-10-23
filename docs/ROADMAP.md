@@ -71,13 +71,16 @@ Cheap changes that reduce the risk of the rest of the list.
    commits; Dependabot monitors the references.
 6. **Done: fail on browser flakiness.** CI retains a retry for diagnostics but fails a flaky test.
    Chromium and WebKit suites plus Worker-served CSP tests gate deployment.
-7. **Repository licensing.** Choose and document the intended reuse permissions before making
-   the source available for reuse.
-8. **Public demo deployment.** The app already ships a sample dataset. Follow [DEPLOY.md](DEPLOY.md)
-   for the single Worker serving assets and API.
+7. **Done: repository licensing.** The code is MIT-licensed (`LICENSE`).
+8. **Done: public deployment.** The single Worker serves the app and the API at its `workers.dev`
+   address, and the app runs with a sample dataset without an account. See [DEPLOY.md](DEPLOY.md).
 
 9. **Done: edge rate limits.** Public, auth and per-account write bindings return bounded retry
    responses. These approximate abuse controls supplement atomic D1 storage/admission quotas.
+10. **Done: gated releases and encrypted backups.** Production deploys need owner approval, run the
+    release gate on the exact commit, smoke-test the live origin and roll back on failure. Daily
+    backups are encrypted and kept for 90 days, and an external probe opens an issue on outage. See
+    [PRODUCTION.md](PRODUCTION.md). Restores are not yet drilled.
 
 ## 5. Product
 

@@ -21,6 +21,14 @@ describe('app shell', () => {
     expect(systemDeps.randomUUID()).toMatch(/^[0-9a-f-]{36}$/)
   })
 
+  it('answers a missing hashed asset with a plain 404, not JSON or the app shell', async () => {
+    const h = createHarness()
+    const res = await h.send({ path: '/assets/missing-0123abcd.js' })
+    expect(res.status).toBe(404)
+    expect(res.headers.get('content-type')).toMatch(/^text\/plain/)
+    expect(await res.text()).toBe('Not found')
+  })
+
   it('answers unknown paths with an ApiError', async () => {
     const h = createHarness()
     const res = await h.send({ path: '/nope' })

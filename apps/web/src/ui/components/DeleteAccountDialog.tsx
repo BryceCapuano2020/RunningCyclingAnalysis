@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { ApiRequestError } from '../../api/client'
 import './DeleteAccountDialog.css'
 
 export interface DeleteAccountDialogProps {
@@ -11,6 +12,25 @@ export interface DeleteAccountDialogProps {
 }
 
 const HINT = 'Type your email to confirm'
+
+interface Failure {
+  message: string
+  /** Whether trying again can succeed. A refused request will be refused again. */
+  retryable: boolean
+}
+
+const UNEXPECTED_FAILURE: Failure = {
+  message: 'Your account could not be deleted. Try again.',
+  retryable: true,
+}
+
+/** Shows the server's own message. Only unavailability and transport errors can clear on retry. */
+function failureFrom(error: unknown): Failure {
+  if (!(error instanceof ApiRequestError)) return UNEXPECTED_FAILURE
+  const retryable =
+    error.status === 0 || error.status === 408 || error.status === 429 || error.status >= 500
+  return { message: error.message, retryable }
+}
 
 /**
  * A confirmation for deleting the account. The confirm button looks disabled until the user types
@@ -24,9 +44,10 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
   const hintId = useId()
   const errorId = useId()
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const failureRef = useRef<HTMLParagraphElement>(null)
   const [typed, setTyped] = useState('')
   const [pending, setPending] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<Failure | null>(null)
   const [blocked, setBlocked] = useState(false)
   const [wasOpen, setWasOpen] = useState(open)
 
@@ -35,7 +56,7 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
     setWasOpen(open)
     if (!open) {
       setTyped('')
-      setFailed(false)
+      setFailure(null)
       setBlocked(false)
     }
   }
@@ -55,21 +76,26 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
 
   const matches = email !== '' && typed === email
 
+  // A refusal removes the confirm button, so focus moves to the explanation instead of the page.
+  useEffect(() => {
+    if (failure !== null && !failure.retryable) failureRef.current?.focus()
+  }, [failure])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (pending) return
+    if (pending || (failure !== null && !failure.retryable)) return
     if (!matches) {
       setBlocked(true)
       return
     }
     setBlocked(false)
     setPending(true)
-    setFailed(false)
+    setFailure(null)
     try {
       await onConfirm()
       onClose()
-    } catch {
-      setFailed(true)
+    } catch (error) {
+      setFailure(failureFrom(error))
     } finally {
       setPending(false)
     }
@@ -107,9 +133,10 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
             spellCheck={false}
             value={typed}
             readOnly={pending}
-            aria-describedby={failed ? errorId : undefined}
+            aria-describedby={failure ? errorId : undefined}
             onChange={(event) => {
-              setFailed(false)
+              // A refused request stays explained: editing the email cannot make it succeed.
+              setFailure((current) => (current?.retryable === false ? current : null))
               setBlocked(false)
               setTyped(event.target.value)
             }}
@@ -122,23 +149,31 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
         >
           {HINT}
         </p>
-        {failed && (
-          <p id={errorId} role="alert" className="delete-dialog__error">
-            Your account could not be deleted. Try again.
+        {failure && (
+          <p
+            ref={failureRef}
+            id={errorId}
+            role="alert"
+            tabIndex={-1}
+            className="delete-dialog__error"
+          >
+            {failure.message}
           </p>
         )}
         <div className="delete-dialog__actions">
           <button type="button" className="btn" onClick={onClose} disabled={pending}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="btn delete-dialog__confirm"
-            aria-disabled={!matches || pending}
-            aria-describedby={hintId}
-          >
-            {pending ? 'Deleting…' : 'Delete account'}
-          </button>
+          {failure === null || failure.retryable ? (
+            <button
+              type="submit"
+              className="btn delete-dialog__confirm"
+              aria-disabled={!matches || pending}
+              aria-describedby={hintId}
+            >
+              {pending ? 'Deleting…' : 'Delete account'}
+            </button>
+          ) : null}
         </div>
       </form>
     </dialog>

@@ -16,6 +16,7 @@ const START_MS = Date.UTC(2026, 0, 15, 12, 0, 0)
 let randomCounter = 0
 let uuidCounter = 0
 export const TEST_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+export const TEST_SESSION_SIGNING_KEY = 'test-session-signing-key-for-unit-tests'
 
 type Proxy = PlatformProxy<Bindings>
 let proxy: Proxy | undefined
@@ -46,9 +47,11 @@ export function testEnv(overrides: Partial<Bindings> = {}): Bindings {
     APP_URL: 'http://localhost:5183',
     GOOGLE_CLIENT_ID: TEST_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: 'test-secret',
+    SESSION_SIGNING_KEY: TEST_SESSION_SIGNING_KEY,
     API_RATE_LIMITER: { limit: async () => ({ success: true }) },
     AUTH_RATE_LIMITER: { limit: async () => ({ success: true }) },
     WRITE_RATE_LIMITER: { limit: async () => ({ success: true }) },
+    HEALTH_RATE_LIMITER: { limit: async () => ({ success: true }) },
     ...overrides,
   }
 }
@@ -57,9 +60,17 @@ export function testEnv(overrides: Partial<Bindings> = {}): Bindings {
 export async function resetTestEnv(): Promise<void> {
   const env = testEnv()
   await env.DB.batch(
-    ['activities', 'sessions', 'oauth_accounts', 'profiles', 'users', 'r2_storage_budget'].map(
-      (table) => env.DB.prepare(`DELETE FROM ${table}`),
-    ),
+    [
+      'activities',
+      'sessions',
+      'oauth_accounts',
+      'profiles',
+      'users',
+      'daily_budget',
+      'upload_slots',
+      'pending_account_deletions',
+      'r2_storage_budget',
+    ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   )
   await deleteByPrefix(env.FILES!, '')
 }
@@ -196,7 +207,9 @@ export function sessionCookie(res: Response): string | undefined {
   return undefined
 }
 
-export async function sha256Token(token: string): Promise<string> {
+/** Hashes the token part of a cookie value (the part before the HMAC signature). */
+export async function sha256Token(cookieValue: string): Promise<string> {
+  const token = cookieValue.split('.')[0] ?? ''
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
   return toHex(new Uint8Array(digest))
 }

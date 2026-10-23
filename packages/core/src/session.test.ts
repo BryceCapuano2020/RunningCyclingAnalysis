@@ -2,7 +2,7 @@ import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
 import { digestActivity } from './digest'
-import { AnalysisSession } from './session'
+import { AnalysisSession, SyncFailure } from './session'
 import type { SyncItem } from './session'
 import { sampleDataset } from './synthetic'
 import type { Activity, AthleteSettings, Sport } from './types'
@@ -235,7 +235,7 @@ describe('AnalysisSession', () => {
       outdatedActivities: 0,
       incompatibleActivities: 0,
       rangeDays: null,
-      syncFailures: 0,
+      syncIssues: [],
     })
   })
 
@@ -277,7 +277,7 @@ describe('AnalysisSession', () => {
       outdatedActivities: 0,
       incompatibleActivities: 0,
       rangeDays: 42,
-      syncFailures: 0,
+      syncIssues: [],
     })
   })
 
@@ -366,7 +366,7 @@ describe('AnalysisSession', () => {
     expect(state.isSample).toBe(false)
     expect(state.rejected).toEqual([])
     expect(state.unsupportedFiles).toBe(0)
-    expect(state.syncFailures).toBe(0)
+    expect(state.syncIssues).toEqual([])
   })
 
   it('loadDigests with no digests gives no result', () => {
@@ -405,7 +405,7 @@ describe('AnalysisSession', () => {
       },
     )
 
-    expect(state.syncFailures).toBe(0)
+    expect(state.syncIssues).toEqual([])
     // The zip's first entry is the same run as run.fit, so only the ride is new.
     expect(items.map((item) => item.fileName)).toEqual(['run.fit', 'activities/2.fit'])
     expect(items.map((item) => item.digest.sport)).toEqual(['run', 'ride'])
@@ -453,7 +453,7 @@ describe('AnalysisSession', () => {
     expect(synced[0]?.fileName).toBe('run again.fit')
     expect(synced[0]?.fileHash).toMatch(/^[0-9a-f]{64}$/)
     expect(again.result?.activities).toHaveLength(1)
-    expect(again.syncFailures).toBe(0)
+    expect(again.syncIssues).toEqual([])
   })
 
   it('counts a failed sink call without failing the import', async () => {
@@ -467,7 +467,7 @@ describe('AnalysisSession', () => {
       },
     )
 
-    expect(state.syncFailures).toBe(1)
+    expect(state.syncIssues).toEqual([{ code: 'server', count: 1 }])
     expect(state.result?.activities.map((activity) => activity.sport).sort()).toEqual([
       'ride',
       'run',
@@ -480,7 +480,7 @@ describe('AnalysisSession', () => {
     const failed = await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
       Promise.reject(new Error('offline')),
     )
-    expect(failed.syncFailures).toBe(1)
+    expect(failed.syncIssues).toEqual([{ code: 'server', count: 1 }])
 
     const seen: string[] = []
     const retried = await session.addFiles(
@@ -492,7 +492,7 @@ describe('AnalysisSession', () => {
       },
     )
     expect(seen).toHaveLength(1)
-    expect(retried.syncFailures).toBe(0)
+    expect(retried.syncIssues).toEqual([])
     expect(retried.result?.activities).toHaveLength(1)
   })
 
@@ -502,7 +502,7 @@ describe('AnalysisSession', () => {
       Promise.reject(new Error('offline')),
     )
     const state = await session.addFiles([fitFile('ride.fit', ride)], SETTINGS)
-    expect(state.syncFailures).toBe(1)
+    expect(state.syncIssues).toEqual([{ code: 'server', count: 1 }])
   })
 
   it('clear forgets failed saves', async () => {
@@ -510,7 +510,7 @@ describe('AnalysisSession', () => {
     await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
       Promise.reject(new Error('offline')),
     )
-    expect(session.clear().syncFailures).toBe(0)
+    expect(session.clear().syncIssues).toEqual([])
   })
 
   it('clear resets the selected range before the next library is loaded', () => {
@@ -523,6 +523,88 @@ describe('AnalysisSession', () => {
     const next = session.loadSample(SETTINGS)
     expect(next.rangeDays).toBeNull()
     expect(next.result?.activities).toHaveLength(sample.length)
+  })
+
+  it('stops calling the sink after a sign-out but still analyses the rest of the import', async () => {
+    const session = new AnalysisSession()
+    const attempted: Sport[] = []
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        attempted.push(item.digest.sport)
+        throw new SyncFailure('signed-out', 'Sign in required')
+      },
+    )
+
+    expect(attempted).toEqual(['run'])
+    expect(state.syncIssues).toEqual([{ code: 'signed-out', count: 2 }])
+    expect(state.result?.activities.map((activity) => activity.sport).sort()).toEqual([
+      'ride',
+      'run',
+    ])
+  })
+
+  it('stops calling the sink after an account change', async () => {
+    const session = new AnalysisSession()
+    let calls = 0
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async () => {
+        calls++
+        throw new SyncFailure('account-changed', 'Reload')
+      },
+    )
+
+    expect(calls).toBe(1)
+    expect(state.syncIssues).toEqual([{ code: 'account-changed', count: 2 }])
+  })
+
+  it('keeps saving the rest of the import after a rate limit or a network failure', async () => {
+    const session = new AnalysisSession()
+    const attempted: Sport[] = []
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        attempted.push(item.digest.sport)
+        if (item.digest.sport === 'run') throw new SyncFailure('rate-limited', 'Daily limit')
+        throw new SyncFailure('network', 'Offline')
+      },
+    )
+
+    expect(attempted).toEqual(['run', 'ride'])
+    expect(state.syncIssues).toEqual([
+      { code: 'rate-limited', count: 1 },
+      { code: 'network', count: 1 },
+    ])
+  })
+
+  it('counts a failure that is not a SyncFailure as a server failure', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new Error('boom')),
+    )
+    expect(state.syncIssues).toEqual([{ code: 'server', count: 1 }])
+  })
+
+  it('keeps sync issues across a library reload until the activities are saved', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new SyncFailure('network', 'Offline')),
+    )
+
+    const reloaded = session.loadDigests([digestActivity(ride)], SETTINGS)
+    expect(reloaded.syncIssues).toEqual([{ code: 'network', count: 1 }])
+
+    const saved = await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.resolve(),
+    )
+    expect(saved.syncIssues).toEqual([])
   })
 
   it('does not call the sink when the file cannot be read', async () => {

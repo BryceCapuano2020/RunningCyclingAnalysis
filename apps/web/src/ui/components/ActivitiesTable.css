@@ -4,6 +4,17 @@
   min-width: 0;
 }
 
+/*
+ * Titles wrap rather than widen the table, so the last column stays in view on a phone. max-width
+ * is set on this block, because a table cell ignores it.
+ */
+.activities-table__name {
+  display: block;
+  max-width: 20rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .activities-table__issues {
   white-space: normal;
   background: var(--surface-2);

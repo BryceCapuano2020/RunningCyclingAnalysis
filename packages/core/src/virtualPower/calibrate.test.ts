@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_BIKE_MODEL } from '../constants'
 import type { CalibrationStats } from './calibrate'
-import { solveBikeModel } from './calibrate'
+import { fitBikeModel, solveBikeModel } from './calibrate'
 
 const stats = (
   blocks: number,
@@ -42,9 +42,45 @@ describe('solveBikeModel', () => {
     expect(fit.cda).toBeCloseTo(0.35, 12)
   })
 
-  it('clamps crr and cda to their ranges from above and below', () => {
-    expect(solveBikeModel(exactStats(0.02, 0.6))).toEqual({ crr: 0.012, cda: 0.5 })
-    expect(solveBikeModel(exactStats(0.0005, 0.1))).toEqual({ crr: 0.002, cda: 0.2 })
+  it('falls back to the default model when crr or cda would lie outside its range', () => {
+    // A clamped coefficient is not a fit: the solution is outside the physical range.
+    expect(solveBikeModel(exactStats(0.02, 0.35))).toEqual(DEFAULT_BIKE_MODEL)
+    expect(solveBikeModel(exactStats(0.006, 0.6))).toEqual(DEFAULT_BIKE_MODEL)
+    expect(solveBikeModel(exactStats(0.0005, 0.1))).toEqual(DEFAULT_BIKE_MODEL)
+  })
+
+  it('falls back to the default model when the two regressors are nearly collinear', () => {
+    // Speed varies by under 2% around 8 m/s, so rolling (v) and aero (v^3) terms are almost
+    // proportional. Noise in the target then produces huge, meaningless coefficients.
+    const blocks = 120
+    let s11 = 0
+    let s12 = 0
+    let s22 = 0
+    let s1y = 0
+    let s2y = 0
+    for (let k = 0; k < blocks; k++) {
+      const v = 8 * (1 + 0.02 * Math.sin(k * 0.9))
+      const x1 = v
+      const x2 = v * v * v
+      const y = 0.006 * x1 + 0.35 * x2 + 0.5 * Math.cos(k)
+      s11 += x1 * x1
+      s12 += x1 * x2
+      s22 += x2 * x2
+      s1y += x1 * y
+      s2y += x2 * y
+    }
+    const s = stats(blocks, s11, s12, s22, s1y, s2y)
+    expect(solveBikeModel(s)).toEqual(DEFAULT_BIKE_MODEL)
+    expect(fitBikeModel(s).source).toBe('default')
+  })
+
+  it('reports a calibrated source only when the fit is inside both ranges', () => {
+    expect(fitBikeModel(exactStats(0.006, 0.35))).toEqual({
+      model: { crr: expect.closeTo(0.006, 12), cda: expect.closeTo(0.35, 12) },
+      source: 'calibrated',
+    })
+    expect(fitBikeModel(exactStats(0.02, 0.35)).source).toBe('default')
+    expect(fitBikeModel(exactStats(0.006, 0.35, 19)).source).toBe('default')
   })
 
   it('needs at least 20 blocks', () => {

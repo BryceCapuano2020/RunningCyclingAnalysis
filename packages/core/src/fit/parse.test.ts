@@ -1,11 +1,12 @@
-import { Decoder, Encoder, Stream } from '@garmin/fitsdk'
-import type { FileIdMesg, RecordMesg, SessionMesg } from '@garmin/fitsdk'
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
 import { DEFAULT_PARSE_LIMITS, parseFit } from './parse'
 import type { ParseResult } from './parse'
 import { buildFit, secondly } from './fitTestFiles'
+import { FILE_TYPE, SPORT } from './protocol/profile'
+import { FILE_ID_LAYOUT, RECORD_LAYOUT, SESSION_LAYOUT } from './protocol/layouts'
+import { FitWriter } from './protocol/writer'
 
 const START_MS = Date.UTC(2024, 4, 1, 7, 30, 0)
 const E_BIKE = 'E-bike activities are not supported because motor assistance hides your own power'
@@ -262,7 +263,7 @@ describe('parseFit validation', () => {
     expect(parseFit(headerOnly, 'cut.fit')).toEqual({
       ok: false,
       fileName: 'cut.fit',
-      reason: 'Could not decode FIT file',
+      reason: 'File is incomplete or corrupt',
     })
   })
 
@@ -294,26 +295,20 @@ describe('parseFit validation', () => {
     })
   })
 
-  it('accepts a file with decoder errors when it still holds at least 60 timestamped records', () => {
+  it('rejects a truncated file even when 60 or more of its records survive', () => {
     const bytes = buildFit({
       sportMesg: 'running',
       looseRecords: secondly(START_MS, 120, { speed: 3 }),
     })
     const truncated = bytes.slice(0, Math.floor(bytes.length * 0.7))
-    const decoder = new Decoder(Stream.fromByteArray(truncated))
-    expect(decoder.read().errors.length).toBeGreaterThan(0)
-
-    const result = parseFit(truncated, 'partial.fit')
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      const [a] = result.activities
-      expect(a?.sport).toBe('run')
-      expect(a?.n).toBeGreaterThanOrEqual(60)
-      expect(a?.n).toBeLessThan(120)
-    }
+    expect(parseFit(truncated, 'partial.fit')).toEqual({
+      ok: false,
+      fileName: 'partial.fit',
+      reason: 'File is incomplete or corrupt',
+    })
   })
 
-  it('rejects a file with decoder errors and fewer than 60 usable records', () => {
+  it('rejects a truncated file with fewer than 60 records the same way', () => {
     const bytes = buildFit({
       sportMesg: 'running',
       looseRecords: secondly(START_MS, 30, { speed: 3 }),
@@ -322,7 +317,7 @@ describe('parseFit validation', () => {
     expect(parseFit(truncated, 'partial.fit')).toEqual({
       ok: false,
       fileName: 'partial.fit',
-      reason: 'Could not decode FIT file',
+      reason: 'File is incomplete or corrupt',
     })
   })
 
@@ -341,24 +336,22 @@ describe('parseFit validation', () => {
   })
 
   it('skips records without a timestamp when counting samples', () => {
-    const records = Array.from({ length: 70 }, (_, i) => ({ tMs: START_MS + i * 1000, speed: 3 }))
-    const untimed = new Encoder()
-    const fileId: FileIdMesg = {
-      type: 'activity',
-      manufacturer: 'development',
-      product: 0,
-      timeCreated: new Date(START_MS),
-    }
-    untimed.onMesg(0, fileId)
-    const session: SessionMesg = { sport: 'running' }
-    untimed.onMesg(18, session)
-    for (let i = 0; i < 70; i++) {
-      const record: RecordMesg = { speed: 3 }
-      untimed.onMesg(20, record)
-    }
-    expect(reasonOf(parseFit(untimed.close(), 'x.fit'))).toBe('Activity is shorter than one minute')
+    const untimed = new FitWriter()
+    untimed.message(FILE_ID_LAYOUT, { type: FILE_TYPE.activity, timeCreated: 0 })
+    untimed.message(SESSION_LAYOUT, { sport: SPORT.running })
+    for (let i = 0; i < 70; i++) untimed.message(RECORD_LAYOUT, { enhancedSpeed: 3000 })
+    expect(reasonOf(parseFit(untimed.finish(), 'x.fit'))).toBe(
+      'Activity is shorter than one minute',
+    )
     const timed = buildFit({
-      sessions: [{ sport: 'running', startMs: START_MS, durationS: 70, records }],
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 70,
+          records: secondly(START_MS, 70, { speed: 3 }),
+        },
+      ],
     })
     expect(parseFit(timed, 'x.fit').ok).toBe(true)
   })
@@ -698,5 +691,238 @@ describe('parseFit file names', () => {
       },
     )
     expect(names).toEqual(['Sunday Loop', 'Sunday Loop', 'Sunday Loop'])
+  })
+})
+
+describe('parseFit hardening', () => {
+  const HOUR = 3_600_000
+  const DAY = 24 * HOUR
+
+  it('rejects a file with a flipped bit as corrupt, whatever the byte', () => {
+    const bytes = encodeFit(makeActivity('ride', 120))
+    for (const at of [40, 200, 900, bytes.length - 10, bytes.length - 1]) {
+      const flipped = bytes.slice()
+      flipped[at] = flipped[at]! ^ 0x04
+      expect(reasonOf(parseFit(flipped, 'flip.fit'))).toBe('File is corrupt (checksum mismatch)')
+    }
+  })
+
+  it('rejects a truncated file as incomplete rather than decoding the part that is left', () => {
+    const bytes = encodeFit(makeActivity('ride', 120))
+    const cut = bytes.slice(0, Math.floor(bytes.length * 0.7))
+    expect(reasonOf(parseFit(cut, 'cut.fit'))).toBe('File is incomplete or corrupt')
+  })
+
+  it('says a file with no records contains no activity records', () => {
+    const bytes = buildFit({
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 70, records: [] }],
+    })
+    expect(parseFit(bytes, 'empty.fit')).toEqual({
+      ok: false,
+      fileName: 'empty.fit',
+      reason: 'File contains no activity records',
+    })
+  })
+
+  it('does not count two records 20 hours apart as a minute of activity', () => {
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 20 * 3600,
+          records: [
+            { tMs: START_MS, speed: 3 },
+            { tMs: START_MS + 20 * HOUR, speed: 3 },
+          ],
+        },
+      ],
+    })
+    expect(reasonOf(parseFit(bytes, 'two.fit'))).toBe('Activity is shorter than one minute')
+  })
+
+  it('rejects one session whose records span more than 48 hours', () => {
+    // Records every 30 minutes for 60 hours. Records more than a day from the median are treated
+    // as clock errors, so the 48 hours that remain are the longest span an activity can keep.
+    const records = Array.from({ length: 121 }, (_, i) => ({
+      tMs: START_MS + i * 30 * 60_000,
+      speed: 3,
+    }))
+    const bytes = buildFit({
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 60 * 3600, records }],
+    })
+    expect(reasonOf(parseFit(bytes, 'long.fit'))).toBe('Activity is longer than 48 hours')
+  })
+
+  it('caps the grid samples summed over every session of one file', () => {
+    // A record every minute for 20 hours: one continuous 72,001-sample activity per session.
+    const sessions = [0, 1, 2].map((k) => {
+      const startMs = START_MS + k * 25 * HOUR
+      const records = Array.from({ length: 1201 }, (_, i) => ({
+        tMs: startMs + i * 60_000,
+        speed: 3,
+      }))
+      return { sport: 'running' as const, startMs, durationS: 20 * 3600, records }
+    })
+    expect(reasonOf(parseFit(buildFit({ sessions }), 'many.fit'))).toBe(
+      'File contains too much data',
+    )
+  })
+
+  it('rejects 600 sessions of two far-apart records without allocating for each', () => {
+    const sessions = Array.from({ length: 600 }, (_, k) => {
+      const startMs = START_MS + k * 25 * HOUR
+      return {
+        sport: 'running' as const,
+        startMs,
+        durationS: 20 * 3600,
+        records: [
+          { tMs: startMs, speed: 3 },
+          { tMs: startMs + 20 * HOUR, speed: 3 },
+        ],
+      }
+    })
+    expect(parseFit(buildFit({ sessions }), 'sparse.fit').ok).toBe(false)
+  })
+
+  it('splits a 30 hour gap into two activities and loses no records', () => {
+    const second = START_MS + 31 * HOUR
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 32 * 3600,
+          records: [
+            ...secondly(START_MS, 3600, { speed: 3 }),
+            ...secondly(second, 3600, { speed: 3 }),
+          ],
+        },
+      ],
+    })
+    const result = parseFit(bytes, 'gap.fit')
+    if (!result.ok) throw new Error(result.reason)
+    expect(result.activities.map((a) => a.n)).toEqual([3600, 3600])
+    expect(result.activities.map((a) => a.startMs)).toEqual([START_MS, second])
+    expect(result.activities.map((a) => a.name)).toEqual(['gap (part 1)', 'gap (part 2)'])
+    expect(result.activities[0]?.id).not.toBe(result.activities[1]?.id)
+  })
+
+  it('splits a 20 hour gap into two activities rather than one 21 hour activity', () => {
+    const second = START_MS + 21 * HOUR
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'cycling',
+          startMs: START_MS,
+          durationS: 22 * 3600,
+          records: [
+            ...secondly(START_MS, 3600, { speed: 8 }),
+            ...secondly(second, 3600, { speed: 8 }),
+          ],
+        },
+      ],
+    })
+    const result = parseFit(bytes, 'gap20.fit')
+    if (!result.ok) throw new Error(result.reason)
+    expect(result.activities.map((a) => a.n)).toEqual([3600, 3600])
+  })
+
+  it('matches thousands of records to sessions without a quadratic scan', () => {
+    const count = 2800
+    const sessions = Array.from({ length: count }, (_, k) => {
+      const startMs = START_MS + k * 120_000
+      return {
+        sport: 'cycling' as const,
+        startMs,
+        durationS: 60,
+        records: secondly(startMs, 60, { speed: 8 }),
+      }
+    })
+    const bytes = buildFit({ sessions })
+    const began = performance.now()
+    const result = parseFit(bytes, 'many-sessions.fit')
+    const elapsed = performance.now() - began
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.activities.length).toBe(count)
+    expect(elapsed).toBeLessThan(2000)
+  })
+
+  it('rejects an activity dated before 2000', () => {
+    const startMs = Date.UTC(1999, 11, 31, 23)
+    const bytes = buildFit({
+      sessions: [
+        { sport: 'running', startMs, durationS: 70, records: secondly(startMs, 70, { speed: 3 }) },
+      ],
+    })
+    expect(reasonOf(parseFit(bytes, 'old.fit'))).toBe('Activity date is not plausible')
+  })
+
+  it('rejects an activity more than a day after the injected clock', () => {
+    const bytes = encodeFit(makeActivity('ride', 120))
+    expect(
+      reasonOf(parseFit(bytes, 'future.fit', DEFAULT_PARSE_LIMITS, { nowMs: START_MS - 2 * DAY })),
+    ).toBe('Activity date is not plausible')
+    expect(
+      parseFit(bytes, 'soon.fit', DEFAULT_PARSE_LIMITS, { nowMs: START_MS - 12 * HOUR }).ok,
+    ).toBe(true)
+  })
+
+  it('drops impossible speed, power and heart rate values and counts them', () => {
+    const records = secondly(START_MS, 70, { speed: 8, power: 200, heartRate: 140 })
+    records[10] = { tMs: START_MS + 10_000, speed: 40, power: 3500, heartRate: 252 }
+    records[20] = { tMs: START_MS + 20_000, speed: 8, power: 200, heartRate: 10 }
+    const bytes = buildFit({
+      sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 70, records }],
+    })
+    const result = parseFit(bytes, 'bad-values.fit')
+    if (!result.ok) throw new Error(result.reason)
+    const [a] = result.activities
+    expect(a?.speed[10]).toBe(8)
+    expect(a?.power[10]).toBe(200)
+    expect(a?.heartRate[10]).toBe(140)
+    expect(a?.heartRate[20]).toBe(140)
+    expect(result.droppedValues).toBe(4)
+  })
+
+  it('treats a run speed derived from distance above 12.5 m/s as missing', () => {
+    const records = Array.from({ length: 70 }, (_, i) => ({
+      tMs: START_MS + i * 1000,
+      distance: i * 100,
+    }))
+    const bytes = buildFit({
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 70, records }],
+    })
+    const result = parseFit(bytes, 'jumpy.fit')
+    if (!result.ok) throw new Error(result.reason)
+    const [a] = result.activities
+    expect(a?.speed.every((v) => Number.isNaN(v) || v <= 12.5)).toBe(true)
+    expect(result.droppedValues).toBeGreaterThan(0)
+  })
+
+  it('gives an overlapping record to the latest-starting session and reports the overlap', () => {
+    const second = START_MS + 300_000
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 600,
+          records: secondly(START_MS, 600, { speed: 3 }),
+        },
+        {
+          sport: 'running',
+          startMs: second,
+          durationS: 600,
+          records: secondly(second, 600, { speed: 3 }),
+        },
+      ],
+    })
+    const result = parseFit(bytes, 'overlap.fit')
+    if (!result.ok) throw new Error(result.reason)
+    expect(result.skipped).toEqual(['Sessions overlap; times were adjusted'])
+    const [first, later] = result.activities
+    expect(first?.n).toBe(300)
+    expect(later?.n).toBe(600)
   })
 })

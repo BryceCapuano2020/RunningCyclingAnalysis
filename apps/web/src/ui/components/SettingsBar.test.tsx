@@ -69,7 +69,9 @@ describe('SettingsBar', () => {
   it('shows the real-figure hint', () => {
     renderBar()
     expect(
-      screen.getByText('Weight changes every number on this page, so use your real figure'),
+      screen.getByText(
+        'Weight changes the energy estimates on this page, so enter your real weight.',
+      ),
     ).toBeInTheDocument()
   })
 

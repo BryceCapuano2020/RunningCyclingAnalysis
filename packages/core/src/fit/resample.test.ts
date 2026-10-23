@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resample } from './resample'
+import { resample, splitAtGaps } from './resample'
 describe('resample', () => {
   it('returns an empty grid for no records', () => {
     const r = resample([])
@@ -156,11 +156,11 @@ describe('resample', () => {
       { tMs: 4000 },
     ])
     expect(r.n).toBe(5)
-    expect(Array.from(r.speed)).toEqual([0, 0, 4, 0, 0])
+    expect(Array.from(r.speed)).toEqual([NaN, NaN, 4, NaN, NaN])
     expect(Array.from(r.distance)).toEqual([8, 8, 8, 8, 8])
     expect(Array.from(r.altitude)).toEqual([70, 70, 70, 70, 70])
     expect(Array.from(r.heartRate)).toEqual([NaN, NaN, 140, NaN, NaN])
-    expect(Array.from(r.power)).toEqual([0, 0, 250, 0, 0])
+    expect(Array.from(r.power)).toEqual([NaN, NaN, 250, NaN, NaN])
   })
 
   it('integrates speed into distance when no record has distance', () => {
@@ -324,18 +324,6 @@ describe('resample', () => {
     expect(r.distance[12]).toBe(4)
   })
 
-  it('drops timestamps more than a day from the median', () => {
-    const base = Date.UTC(2024, 0, 1)
-    const records = [
-      { tMs: Date.UTC(1989, 11, 31, 12), speed: 99 },
-      ...Array.from({ length: 5 }, (_, k) => ({ tMs: base + k * 1000, speed: 1 })),
-    ]
-    const r = resample(records)
-    expect(r.startMs).toBe(base)
-    expect(r.n).toBe(5)
-    expect(Array.from(r.speed)).toEqual([1, 1, 1, 1, 1])
-  })
-
   it('reports zero speed for a stationary distance record', () => {
     const r = resample([
       { tMs: 0, distance: 0 },
@@ -343,5 +331,166 @@ describe('resample', () => {
     ])
     expect(Array.from(r.distance)).toEqual([0, 0])
     expect(Array.from(r.speed)).toEqual([0, 0])
+  })
+
+  it('leaves power unknown after the power meter stops, instead of recording zeros', () => {
+    const records = Array.from({ length: 2000 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 6,
+      power: t < 1000 ? 250 : undefined,
+    }))
+    const r = resample(records)
+    expect(Array.from(r.power.slice(0, 1000))).toEqual(Array.from({ length: 1000 }, () => 250))
+    expect(Array.from(r.power.slice(1000))).toEqual(Array.from({ length: 1000 }, () => NaN))
+    expect(r.paused.every((v) => v === 0)).toBe(true)
+  })
+
+  it('leaves power unknown before the power meter starts recording', () => {
+    const records = Array.from({ length: 1000 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 6,
+      power: t >= 500 ? 250 : undefined,
+    }))
+    const r = resample(records)
+    expect(Array.from(r.power.slice(0, 500))).toEqual(Array.from({ length: 500 }, () => NaN))
+    expect(r.power[999]).toBe(250)
+  })
+
+  it('leaves speed unknown outside the samples the speed sensor recorded', () => {
+    const records = Array.from({ length: 1500 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: t >= 500 && t < 1000 ? 6 : undefined,
+      heartRate: 150,
+    }))
+    const r = resample(records)
+    expect(Array.from(r.speed.slice(0, 500))).toEqual(Array.from({ length: 500 }, () => NaN))
+    expect(Array.from(r.speed.slice(500, 1000))).toEqual(Array.from({ length: 500 }, () => 6))
+    expect(Array.from(r.speed.slice(1000))).toEqual(Array.from({ length: 500 }, () => NaN))
+  })
+
+  it('leaves heart rate unknown before and after its samples', () => {
+    const records = Array.from({ length: 1500 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 6,
+      heartRate: t >= 500 && t < 1000 ? 150 : undefined,
+    }))
+    const r = resample(records)
+    expect(Array.from(r.heartRate.slice(0, 500))).toEqual(Array.from({ length: 500 }, () => NaN))
+    expect(r.heartRate[700]).toBe(150)
+    expect(Array.from(r.heartRate.slice(1000))).toEqual(Array.from({ length: 500 }, () => NaN))
+  })
+
+  it('pauses only the stop second when a stop has no start and data continues', () => {
+    const records = Array.from({ length: 20 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 5,
+      heartRate: 140,
+      power: 200,
+    }))
+    const r = resample(records, [{ tMs: 5000, eventType: 'stop' }])
+    expect(Array.from(r.paused)).toEqual([
+      ...Array.from({ length: 5 }, () => 0),
+      1,
+      ...Array.from({ length: 14 }, () => 0),
+    ])
+    expect(Array.from(r.speed.slice(6))).toEqual(Array.from({ length: 14 }, () => 5))
+    expect(Array.from(r.heartRate.slice(6))).toEqual(Array.from({ length: 14 }, () => 140))
+    expect(Array.from(r.power.slice(6))).toEqual(Array.from({ length: 14 }, () => 200))
+  })
+
+  it('keeps a stop without a start paused until records resume after a gap', () => {
+    const records = [
+      ...Array.from({ length: 5 }, (_, t) => ({ tMs: t * 1000, speed: 5 })),
+      ...Array.from({ length: 10 }, (_, k) => ({ tMs: (30 + k) * 1000, speed: 5 })),
+    ]
+    const r = resample(records, [{ tMs: 5000, eventType: 'stop' }])
+    expect(r.n).toBe(40)
+    expect(Array.from(r.paused.slice(5, 30))).toEqual(Array.from({ length: 25 }, () => 1))
+    expect(r.paused[4]).toBe(0)
+    expect(r.paused[30]).toBe(0)
+    expect(Array.from(r.speed.slice(30))).toEqual(Array.from({ length: 10 }, () => 5))
+  })
+
+  it('still pauses until the matching start when records continue through a stop', () => {
+    const records = Array.from({ length: 20 }, (_, t) => ({
+      tMs: t * 1000,
+      speed: 5,
+      heartRate: 140,
+    }))
+    const r = resample(records, [
+      { tMs: 5000, eventType: 'stop' },
+      { tMs: 10000, eventType: 'start' },
+    ])
+    expect(Array.from(r.paused.slice(5, 10))).toEqual([1, 1, 1, 1, 1])
+    expect(r.paused[10]).toBe(0)
+    expect(Array.from(r.heartRate.slice(10))).toEqual(Array.from({ length: 10 }, () => 140))
+  })
+
+  describe('splitAtGaps', () => {
+    const H = 3600_000
+    const ride = (startMs: number, hours: number) =>
+      Array.from({ length: hours * 3600 }, (_, t) => ({ tMs: startMs + t * 1000, speed: 5 }))
+
+    it('returns no segments for no records', () => {
+      expect(splitAtGaps([])).toEqual([])
+    })
+
+    it('keeps the hour before a 30 h gap and the hour after it as two activities', () => {
+      const first = 0
+      const second = first + 31 * H
+      const segments = splitAtGaps([...ride(first, 1), ...ride(second, 1)])
+      expect(segments.map((s) => s.length)).toEqual([3600, 3600])
+      const resampled = segments.map((s) => resample(s))
+      expect(resampled.map((r) => r.n)).toEqual([3600, 3600])
+      expect(resampled.map((r) => r.startMs)).toEqual([first, second])
+    })
+
+    it('splits a 20 h gap rather than producing a 21 h activity', () => {
+      const segments = splitAtGaps([...ride(0, 1), ...ride(21 * H, 1)])
+      expect(segments).toHaveLength(2)
+      expect(segments.every((s) => s.length === 3600)).toBe(true)
+    })
+
+    it('does not split a gap of exactly four hours but does split one just longer', () => {
+      const exact = splitAtGaps([
+        { tMs: 0, speed: 1 },
+        { tMs: 4 * H, speed: 1 },
+      ])
+      expect(exact).toHaveLength(1)
+      const longer = splitAtGaps([
+        { tMs: 0, speed: 1 },
+        { tMs: 4 * H + 1, speed: 1 },
+      ])
+      expect(longer.map((s) => s.length)).toEqual([1, 1])
+    })
+
+    it('splits at a stray timestamp far from the rest instead of dropping data', () => {
+      const base = Date.UTC(2024, 0, 1)
+      const records = [
+        { tMs: Date.UTC(1989, 11, 31, 12), speed: 99 },
+        ...Array.from({ length: 5 }, (_, k) => ({ tMs: base + k * 1000, speed: 1 })),
+      ]
+      const segments = splitAtGaps(records)
+      expect(segments.map((s) => s.length)).toEqual([1, 5])
+      const r = resample(segments[1]!)
+      expect(r.startMs).toBe(base)
+      expect(Array.from(r.speed)).toEqual([1, 1, 1, 1, 1])
+    })
+
+    it('sorts a copy of the input and ignores records without a finite timestamp', () => {
+      const input = [
+        { tMs: 2000, speed: 2 },
+        { tMs: NaN, speed: 9 },
+        { tMs: 0, speed: 1 },
+      ]
+      const segments = splitAtGaps(input)
+      expect(segments).toEqual([
+        [
+          { tMs: 0, speed: 1 },
+          { tMs: 2000, speed: 2 },
+        ],
+      ])
+      expect(input[0]).toEqual({ tMs: 2000, speed: 2 })
+    })
   })
 })

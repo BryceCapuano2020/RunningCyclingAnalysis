@@ -1,10 +1,13 @@
 import { linearRegression, mean } from '../math'
 import type { Curve, CriticalPowerFit } from '../types'
 
+/** Fewest points for which the standard error of cp has a residual degree of freedom. */
+const MIN_POINTS = 4
+
 /**
  * Fits value = cp + wPrime / durationS by ordinary least squares of value on x = 1 / durationS.
  * Uses points with minS <= durationS <= maxS (defaults 180 and 1200) and a finite value.
- * Returns null with fewer than 3 points, zero spread in x, wPrime < 0, or cp <= 0.
+ * Returns null with fewer than 4 points, zero spread in x, equal values, wPrime < 0, or cp <= 0.
  */
 export function fitCriticalPower(
   curve: Curve,
@@ -15,9 +18,10 @@ export function fitCriticalPower(
     (p) =>
       p.durationS > 0 && p.durationS >= minS && p.durationS <= maxS && Number.isFinite(p.value),
   )
-  if (points.length < 3) return null
+  if (points.length < MIN_POINTS) return null
   const xs = points.map((p) => 1 / p.durationS)
   const ys = points.map((p) => p.value)
+  if (ys.every((y) => y === ys[0])) return null
   const fit = linearRegression(xs, ys)
   if (fit === null) return null
   const { intercept: cp, slope: wPrime, r2, n } = fit

@@ -13,7 +13,7 @@ describe('Header', () => {
     render(<Header units="metric" onUnitsChange={vi.fn()} />)
     expect(screen.getByText('RunningCyclingAnalysis')).toBeInTheDocument()
     expect(
-      screen.getByText('Compare your running and cycling fitness in one unit'),
+      screen.getByText('Compare your running and cycling energy estimates in one unit'),
     ).toBeInTheDocument()
   })
 

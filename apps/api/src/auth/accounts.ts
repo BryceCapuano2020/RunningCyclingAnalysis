@@ -55,12 +55,20 @@ export async function buildMe(
   }
 }
 
+/** Accounts being deleted cannot sign in again; the deletion has to finish first. */
 async function refreshUser(
   db: Db,
   id: string,
   values: { name: string; pictureUrl: string | null },
 ): Promise<UserRow> {
-  return must(await db.update(users).set(values).where(eq(users.id, id)).returning().get(), 'user')
+  const row = must(
+    await db.update(users).set(values).where(eq(users.id, id)).returning().get(),
+    'user',
+  )
+  if (row.deletingAt !== null) {
+    throw new HttpError(409, 'account_deleting', 'This account is being deleted. Try again later.')
+  }
+  return row
 }
 
 async function createUser(

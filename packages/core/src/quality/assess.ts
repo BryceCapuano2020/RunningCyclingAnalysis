@@ -149,7 +149,7 @@ function motionRules(
   raw: RawFlag[],
   steady: Uint8Array,
 ): void {
-  const { n, speed, altitude } = a
+  const { n, speed, altitude, paused } = a
   const t = QUALITY_THRESHOLDS
   const maxSpeed = t.speedSpike.maxSpeedMs[a.sport]
 
@@ -162,12 +162,17 @@ function motionRules(
   }
 
   if (!a.hasAltitude) {
-    if (n > 0 && !a.indoor) raw.push({ kind: 'missing-altitude', start: 0, end: n })
+    // Outdoors, grade is unknown, so nothing grade-dependent may be used. Indoors, grade is zero.
+    if (a.indoor) return
+    validGrade.fill(0)
+    if (n > 0) raw.push({ kind: 'missing-altitude', start: 0, end: n })
     return
   }
+  // No steady gate here: a step right after a pause is still a discontinuity in the grade. Only the
+  // paused samples themselves are skipped, since their altitude is not being recorded.
   for (let i = 1; i < n; i++) {
     const jump = Math.abs(altitude[i]! - altitude[i - 1]!) > t.altitudeJump.maxStepM
-    if (steady[i] === 1 && jump) {
+    if (paused[i] !== 1 && jump) {
       const flagRange = around(i, t.altitudeJump.marginS, n)
       raw.push({ kind: 'altitude-jump', ...flagRange })
       validGrade.fill(
@@ -220,7 +225,10 @@ function messageFor(kind: QualityKind, durationS: number): string {
     case 'altitude-jump':
       return `Altitude changed by more than ${t.altitudeJump.maxStepM} m in a single second`
     case 'missing-altitude':
-      return `No altitude was recorded for ${seconds}`
+      return (
+        `No altitude was recorded for ${seconds}, so grade-based running cost, virtual power ` +
+        'and calibration are left out'
+      )
   }
 }
 

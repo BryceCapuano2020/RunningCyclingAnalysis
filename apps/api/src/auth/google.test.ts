@@ -10,6 +10,7 @@ const env = {
   APP_URL: 'http://localhost:5183',
   GOOGLE_CLIENT_ID: TEST_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: 'secret',
+  SESSION_SIGNING_KEY: 'test-session-signing-key-for-unit-tests',
 }
 
 function expectHttpError(fn: () => unknown, status: number, code: string): void {

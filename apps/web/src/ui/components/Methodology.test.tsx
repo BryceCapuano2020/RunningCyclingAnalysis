@@ -45,4 +45,14 @@ describe('Methodology', () => {
     expect(screen.getByText(/about 21\.5%/)).toBeInTheDocument()
     expect(screen.getByText(/90% range/)).toBeInTheDocument()
   })
+
+  it('says the model is fitted to all power-meter rides and its accuracy is scored leave-one-out', () => {
+    render(<Methodology />)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Virtual power meter' })
+    const body = heading.nextElementSibling
+    expect(body).toHaveTextContent(
+      'Power is estimated on climbs from speed, gradient and weight using a model fitted to your power-meter rides; its accuracy is scored on each ride with that ride left out of the fit.',
+    )
+    expect(body?.textContent).not.toMatch(/tuned on your other/)
+  })
 })

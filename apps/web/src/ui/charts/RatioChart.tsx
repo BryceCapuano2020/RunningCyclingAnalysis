@@ -24,6 +24,7 @@ const ACTIVE_MARKER_R = 5
 /** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them'
+const PERCENT_AXIS_TITLE = 'Running compared with cycling: percent above (+) or below (−) equal'
 const NOTE =
   'Shading shows the 90% model range; other errors are not included. The line is the median'
 
@@ -253,16 +254,21 @@ export function RatioChart({ comparison }: RatioChartProps) {
               title="Duration"
               fontSize={axisFontSize(size.width)}
             />
-            <ChartYAxis ticks={m.yTicks} plot={plot} fontSize={axisFontSize(size.width)} />
+            <ChartYAxis
+              ticks={m.yTicks}
+              plot={plot}
+              title={PERCENT_AXIS_TITLE}
+              fontSize={axisFontSize(size.width)}
+            />
             <path
               data-testid="ratio-band"
-              className="ratio-chart__band"
+              className="ratio-chart__band ratio-chart__band--prior"
               d={bandPath(m.prior.upper, m.prior.lower)}
             />
             {m.calibrated ? (
               <path
                 data-testid="ratio-band"
-                className="ratio-chart__band"
+                className="ratio-chart__band ratio-chart__band--calibrated"
                 d={bandPath(m.calibrated.upper, m.calibrated.lower)}
               />
             ) : null}

@@ -504,6 +504,64 @@ describe('deleteActivity', () => {
   })
 })
 
+describe('retry policy', () => {
+  it('sends a POST exactly once when the connection drops, so a retry cannot duplicate it', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
+      status: 0,
+      code: 'network_error',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends a PUT exactly once when the connection drops', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(uploadFile('rec-1', new Uint8Array([1]))).rejects.toMatchObject({ status: 0 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends a POST exactly once on a server error', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        respond(500, { error: { code: 'internal_error', message: 'Oops' } }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
+      status: 500,
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a GET once after a server error, then returns the success', async () => {
+    const fetchMock = stubFetch(
+      respond(500, { error: { code: 'internal_error', message: 'Oops' } }),
+      respond(200, ME),
+    )
+    expect(await getMe()).toEqual(ME)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up on a GET after its one retry when the server keeps failing', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        respond(500, { error: { code: 'internal_error', message: 'Oops' } }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(getMe()).rejects.toMatchObject({ status: 500 })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry a GET that failed with a client error', async () => {
+    const fetchMock = stubFetch(respond(404, { error: { code: 'not_found', message: 'Gone' } }))
+    await expect(downloadActivityFile('rec-1')).rejects.toMatchObject({ status: 404 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('ApiRequestError', () => {
   it('carries status, code and message', () => {
     const error = new ApiRequestError(409, 'files_disabled', 'Turned off')

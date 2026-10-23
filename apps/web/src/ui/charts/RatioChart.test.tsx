@@ -3,6 +3,14 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest'
 import { comparisonFixture } from './fixtures'
 import { RatioChart } from './RatioChart'
+import { readStylesheet, ruleBody } from '../components/stylesheet'
+
+const ratioCss = await readStylesheet(import.meta.url, './RatioChart.css')
+
+/** The declarations of one rule in RatioChart.css, by exact selector. */
+function cssRule(selector: string): string {
+  return ruleBody(ratioCss, selector)
+}
 
 const TITLE = 'Running compared with cycling by duration'
 
@@ -74,5 +82,25 @@ describe('RatioChart', () => {
       screen.getByText('Add at least one run and one ride to compare them'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
+  })
+
+  it('distinguishes the two bands by outline as well as fill, so fill alone carries no meaning', () => {
+    const { container } = render(<RatioChart comparison={comparisonFixture(true)} />)
+    const prior = container.querySelector('.ratio-chart__band--prior')
+    const calibrated = container.querySelector('.ratio-chart__band--calibrated')
+    expect(prior).not.toBeNull()
+    expect(calibrated).not.toBeNull()
+
+    const calibratedRule = cssRule('.ratio-chart__band--calibrated')
+    expect(calibratedRule).toMatch(/stroke:\s*var\(--neutral-mark\)/)
+    expect(calibratedRule).toMatch(/stroke-width:\s*1\.5px/)
+    expect(cssRule('.ratio-chart__band--prior')).toMatch(/stroke-dasharray/)
+  })
+
+  it('labels the percentage axis with what the signs mean', () => {
+    render(<RatioChart comparison={comparisonFixture(false)} />)
+    expect(
+      screen.getByText('Running compared with cycling: percent above (+) or below (−) equal'),
+    ).toBeInTheDocument()
   })
 })

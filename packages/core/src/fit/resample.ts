@@ -2,9 +2,6 @@
 const MAX_INTERPOLATED_GAP_S = 10
 export const MAX_ACTIVITY_GRID_SECONDS = 7 * 24 * 60 * 60
 
-/** Records further than this from the median timestamp are treated as clock errors. */
-const STRAY_TIMESTAMP_MS = 24 * 60 * 60 * 1000
-
 /**
  * How the samples inside a long gap are filled: linear, held at the earlier sample, or a constant.
  * Paused and dropout gaps can be filled differently.
@@ -44,12 +41,33 @@ export interface Resampled {
   hasAltitude: boolean
 }
 
+/**
+ * Splits records wherever consecutive records (in time order) are more than `maxGapMs` apart.
+ * Each part is one continuous activity, so a long gap is never bridged and no data is dropped.
+ */
+export function splitAtGaps(records: RawRecord[], maxGapMs = 4 * 3600_000): RawRecord[][] {
+  const sorted = sortByTime(records)
+  const segments: RawRecord[][] = []
+  let current: RawRecord[] = []
+  for (const r of sorted) {
+    const previous = current.at(-1)
+    if (previous !== undefined && r.tMs - previous.tMs > maxGapMs) {
+      segments.push(current)
+      current = []
+    }
+    current.push(r)
+  }
+  if (current.length > 0) segments.push(current)
+  return segments
+}
+
+/** Resamples one continuous segment (see splitAtGaps) onto a 1 Hz grid. */
 export function resample(
   records: RawRecord[],
   timerEvents: RawTimerEvent[] = [],
   maxGridSeconds = MAX_ACTIVITY_GRID_SECONDS,
 ): Resampled {
-  const sorted = withinDayOfMedian(records.filter((r) => Number.isFinite(r.tMs)))
+  const sorted = sortByTime(records)
   const first = sorted[0]
   if (first === undefined) return emptyResample()
 
@@ -82,7 +100,7 @@ export function resample(
     normalizeTimerEventType(event.eventType),
   )
   const paused = hasRecognizedTimerEvents
-    ? markTimerPauses(n, startMs, timerEvents)
+    ? markTimerPauses(recorded, startMs, timerEvents)
     : markPauses(recorded)
 
   const hasSpeed = speedKnown.some(isFiniteValue)
@@ -97,9 +115,12 @@ export function resample(
   const heartRate = hasHeartRate
     ? fillStream(heartRateKnown, NaN, NaN, NaN, paused)
     : new Float64Array(n).fill(NaN)
-  const power = hasPower ? fillStream(powerKnown, 0, NaN, 0, paused) : new Float64Array(n).fill(NaN)
+  const power = hasPower
+    ? fillStream(powerKnown, 0, NaN, NaN, paused)
+    : new Float64Array(n).fill(NaN)
 
-  let speed = fillStream(speedKnown, 0, NaN, 0, paused)
+  // A file with no speed at all reads as stationary; otherwise speed is unknown where it was not recorded.
+  let speed = hasSpeed ? fillStream(speedKnown, 0, NaN, NaN, paused) : new Float64Array(n)
   let distance: Float64Array
   if (hasDistance) {
     distance = fillStream(distanceKnown, 'hold', 'hold', 'nearest', paused)
@@ -146,12 +167,9 @@ function emptyResample(): Resampled {
   }
 }
 
-/** Sorts by time and drops records that sit more than a day from the median timestamp. */
-function withinDayOfMedian(records: RawRecord[]): RawRecord[] {
-  const sorted = records.sort((a, b) => a.tMs - b.tMs)
-  const median = sorted[Math.floor(sorted.length / 2)]
-  if (median === undefined) return sorted
-  return sorted.filter((r) => Math.abs(r.tMs - median.tMs) <= STRAY_TIMESTAMP_MS)
+/** A copy of the records with finite timestamps, in time order. The input is not changed. */
+function sortByTime(records: RawRecord[]): RawRecord[] {
+  return records.filter((r) => Number.isFinite(r.tMs)).sort((a, b) => a.tMs - b.tMs)
 }
 
 /** Stores a value at grid index i. Later records overwrite earlier ones; missing values do not. */
@@ -171,23 +189,45 @@ function markPauses(recorded: Uint8Array): Uint8Array {
   return paused
 }
 
-function markTimerPauses(n: number, startMs: number, events: RawTimerEvent[]): Uint8Array {
-  const paused = new Uint8Array(n)
+function markTimerPauses(
+  recorded: Uint8Array,
+  startMs: number,
+  events: RawTimerEvent[],
+): Uint8Array {
+  const paused = new Uint8Array(recorded.length)
+  const indexAt = (tMs: number) => Math.round((tMs - startMs) / 1000)
   const ordered = events.filter((event) => Number.isFinite(event.tMs)).sort((a, b) => a.tMs - b.tMs)
   let pauseStart: number | null = null
   for (const event of ordered) {
     const eventType = normalizeTimerEventType(event.eventType)
     if (!eventType) continue
     if (isTimerStop(eventType)) {
-      if (pauseStart === null) pauseStart = Math.round((event.tMs - startMs) / 1000)
+      if (pauseStart === null) pauseStart = indexAt(event.tMs)
     } else if (isTimerStart(eventType) && pauseStart !== null) {
-      const resume = Math.round((event.tMs - startMs) / 1000)
-      paused.fill(1, Math.max(0, pauseStart), Math.min(n, Math.max(pauseStart, resume)))
+      fillRange(paused, pauseStart, indexAt(event.tMs))
       pauseStart = null
     }
   }
-  if (pauseStart !== null) paused.fill(1, Math.max(0, pauseStart), n)
+  // A stop with no later start lasts only until records resume, so later data is not lost.
+  if (pauseStart !== null) {
+    fillRange(paused, pauseStart, nextRecordedIndex(recorded, pauseStart + 1))
+  }
   return paused
+}
+
+/** Sets [from, to) to 1, clipped to the grid. */
+function fillRange(values: Uint8Array, from: number, to: number): void {
+  const start = Math.max(0, from)
+  const end = Math.min(values.length, to)
+  if (end > start) values.fill(1, start, end)
+}
+
+/** Index of the first recorded second at or after `from`, or the grid length if there is none. */
+function nextRecordedIndex(recorded: Uint8Array, from: number): number {
+  for (let i = Math.max(0, from); i < recorded.length; i++) {
+    if (recorded[i] === 1) return i
+  }
+  return recorded.length
 }
 
 type TimerEventType = 'start' | 'stop' | 'stopAll' | 'stopDisable' | 'stopDisableAll'
@@ -234,8 +274,8 @@ function isPositiveValue(value: number): boolean {
 /**
  * Fills every index of a stream from its known samples (NaN marks unknown). A gap of at most
  * MAX_INTERPOLATED_GAP_S is interpolated. A longer gap uses `pausedFill` where no record exists
- * and `dropoutFill` where records exist but this stream is missing. With no known samples the
- * result is the edge constant everywhere (speed uses this for a stream that was never recorded).
+ * and `dropoutFill` where records exist but this stream is missing. Before the first and after the
+ * last known sample the result is `edge`, or the nearest known value when `edge` is 'nearest'.
  */
 function fillStream(
   known: Float64Array,

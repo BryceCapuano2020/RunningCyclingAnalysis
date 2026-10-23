@@ -4,6 +4,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { makeActivity } from './fixtures'
 import { ActivitiesTable } from './ActivitiesTable'
+import { readStylesheet, ruleBody } from './stylesheet'
+
+const tableCss = await readStylesheet(import.meta.url, './ActivitiesTable.css')
 
 beforeAll(() => {
   // Pins the viewer's zone so the date assertions do not depend on the machine running them.
@@ -218,5 +221,19 @@ describe('ActivitiesTable', () => {
     renderTable([])
     expect(screen.getByText('No activities yet')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('lets a long activity title wrap, so the Data issues column stays on screen at 320 px', () => {
+    const longName =
+      'Sunday long ride with a very long descriptive title that keeps going and going'
+    renderTable([makeActivity({ id: 'long', name: longName, sport: 'ride' })])
+    expect(screen.getByText(longName)).toHaveClass('activities-table__name')
+    expect(screen.getByText(longName).closest('td')).not.toBeNull()
+
+    const rule = ruleBody(tableCss, '.activities-table__name')
+    expect(rule).toMatch(/white-space:\s*normal/)
+    expect(rule).toMatch(/overflow-wrap:\s*anywhere/)
+    expect(rule).toMatch(/max-width:\s*20rem/)
+    expect(rule).toMatch(/display:\s*block/)
   })
 })

@@ -3,7 +3,12 @@ import type { AnalysisResult } from './digest/combine'
 import { digestActivity } from './digest/digestActivity'
 import type { Activity, AthleteSettings } from './types'
 
-export type { ActivitySummary, AnalysisResult, Equivalence } from './digest/combine'
+export type {
+  ActivitySummary,
+  AnalysisResult,
+  BikeModelSource,
+  Equivalence,
+} from './digest/combine'
 export { equivalentRunSpeed } from './digest/combine'
 
 /** Digests each activity, then combines the digests with the athlete's settings. */

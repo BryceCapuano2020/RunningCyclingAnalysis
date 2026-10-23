@@ -29,30 +29,35 @@ function renderHeadline(result: AnalysisResult, units: UnitSystem = 'metric', ma
 }
 
 describe('Headline wording', () => {
-  it('says running is stronger when the whole interval is above 1', () => {
+  it('estimates that running uses more energy rate per kg when the whole interval is above 1', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Your best running uses 12% more energy per kg than your best cycling',
+        name: 'Over 20 min, your running is estimated to use 12% more energy rate per kg than your cycling',
       }),
     ).toBeInTheDocument()
   })
 
-  it('says cycling is stronger when the whole interval is below 1', () => {
+  it('estimates that cycling uses more energy rate per kg when the whole interval is below 1', () => {
     renderHeadline(withRatio(interval(0.8, 0.9, 0.95)))
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Your best cycling uses 11% more energy per kg than your best running',
+        name: 'Over 20 min, your cycling is estimated to use 11% more energy rate per kg than your running',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('never states a categorical superiority such as stronger or best', () => {
+    const { container } = renderHeadline(withRatio(interval(0.8, 0.9, 0.95)))
+    expect(container.textContent).not.toMatch(/stronger|best running|best cycling|all-out/)
   })
 
   it('uses running as the denominator when cycling has the higher energy rate', () => {
     renderHeadline(withRatio(interval(0.75, 0.8, 0.9)))
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Your best cycling uses 25% more energy per kg than your best running',
+      'Over 20 min, your cycling is estimated to use 25% more energy rate per kg than your running',
     )
   })
 
@@ -66,13 +71,18 @@ describe('Headline wording', () => {
     ).toBeInTheDocument()
   })
 
-  it('states the 20 minute costs and the signed likely range', () => {
+  it('states the 20 minute energy rates in W/kg', () => {
     renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
     expect(
       screen.getByText(
-        'Over 20 min, your estimated running energy rate is 3.4 W/kg and your cycling energy rate is 3.0 W/kg. The 90% model range for running relative to cycling is +5% to +20%.',
+        'Over 20 min, your estimated running energy rate is 3.4 W/kg and your cycling energy rate is 3.0 W/kg.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('gives the 90% model range on its own line, with signed percentages', () => {
+    renderHeadline(withRatio(interval(1.05, 1.12, 1.2)))
+    expect(screen.getByText('90% model range: +5% to +20%.')).toBeInTheDocument()
   })
 
   it('makes the heading a programmatic focus target for the page', () => {
@@ -124,7 +134,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
     expect(
       screen.getByText(
-        'Your best cycling effort over 20 min reached 80% of your highest heart rate on file. Your library may be missing a harder cycling effort.',
+        'Your best cycling effort over 20 min reached 80% of your highest recorded heart rate. Your library may be missing a harder cycling effort.',
       ),
     ).toBeInTheDocument()
   })
@@ -133,7 +143,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
     expect(
       screen.getByText(
-        'Your best running effort over 20 min reached 70% of your highest heart rate on file. Your library may be missing a harder running effort.',
+        'Your best running effort over 20 min reached 70% of your highest recorded heart rate. Your library may be missing a harder running effort.',
       ),
     ).toBeInTheDocument()
   })
@@ -142,7 +152,7 @@ describe('Headline effort notice', () => {
     renderWithEffort({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
     expect(
       screen.getByText(
-        'Both best efforts over 20 min were below 90% of your highest heart rate on file (running 70%, cycling 80%). Your library may be missing harder efforts.',
+        'Both best efforts over 20 min were below 90% of your highest recorded heart rate (running 70%, cycling 80%). Your library may be missing harder efforts.',
       ),
     ).toBeInTheDocument()
   })
@@ -166,7 +176,7 @@ describe('Headline effort notice', () => {
     })
     expect(
       screen.getByText(
-        'Both best efforts reached at least 90% of your highest heart rate on file. This does not establish that either was all-out.',
+        'Both best efforts reached at least 90% of your highest recorded heart rate. This does not establish that either was all-out.',
       ),
     ).toBeInTheDocument()
     expect(container.querySelector('.headline__effort')).toBeNull()

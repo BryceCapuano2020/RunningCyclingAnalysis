@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Privacy policy - RunningCyclingAnalysis</title>
+    <meta
+      name="description"
+      content="What RunningCyclingAnalysis stores, where, how long, and how to delete it."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/privacy.css" />
+  </head>
+  <body>
+    <main class="policy">
+      <p class="back"><a href="/">RunningCyclingAnalysis</a></p>
+      <h1>Privacy policy</h1>
+      <p class="updated">Last updated 22 October 2026.</p>
+
+      <p>
+        RunningCyclingAnalysis analyses your activity files in your browser. If you sign in, some of
+        your data is stored on Cloudflare so it follows you between devices. This page says exactly
+        what is stored, where, for how long, and how to delete it. We do not sell or share your
+        data, and the app contains no analytics or advertising trackers.
+      </p>
+
+      <h2>Who operates the service</h2>
+      <p>
+        RunningCyclingAnalysis is operated by Bryce Capuano. The source code is public at
+        <a href="https://github.com/BryceCapuano2020/RunningCyclingAnalysis">GitHub</a>. Privacy
+        questions and requests go to the repository's
+        <a href="https://github.com/BryceCapuano2020/RunningCyclingAnalysis/issues">issues</a>. Do
+        not put personal data, activity files or account details in a public issue. Say that you
+        have a privacy request, and you will be asked for the minimum needed to act on it.
+      </p>
+
+      <h2>Without an account</h2>
+      <p>
+        Files you analyse without signing in are read and processed in your browser. They are not
+        uploaded. The app saves your unit and athlete-mass preferences in your browser's local
+        storage. You can clear them with your browser's site data controls.
+      </p>
+
+      <h2>With an account</h2>
+      <p>
+        You sign in with Google. Signing in uses only the basic <code>openid</code>,
+        <code>email</code> and <code>profile</code> permissions. We store:
+      </p>
+      <ul>
+        <li>
+          <strong>Your account:</strong> the stable Google account identifier, your email address,
+          your display name, and the profile picture address Google gives us. The picture is shown
+          in the account menu.
+        </li>
+        <li>
+          <strong>Sign-in sessions:</strong> a one-way hash of your session token, your account, and
+          when the session was created and expires. The token itself is kept only in your browser,
+          in an HttpOnly cookie.
+        </li>
+        <li>
+          <strong>Profile settings:</strong> body mass, bike mass, your unit system, and whether you
+          keep original files.
+        </li>
+        <li>
+          <strong>Activity summaries:</strong> for each activity you save, its name, start time and
+          sport, the name of the file it came from, a SHA-256 hash of that file, and the analysis
+          summary computed in your browser (for example best efforts and heart-rate blocks). The
+          summary does not include the per-second recording.
+        </li>
+        <li>
+          <strong>Original activity files:</strong> stored only if you turn on
+          <em>Keep original files in my library</em>. Turning it off deletes the stored originals
+          and keeps the summaries.
+        </li>
+      </ul>
+      <p>
+        Google's own privacy policy governs what Google does with your account. We do not receive
+        your Google password.
+      </p>
+
+      <h2>Where it is stored and who processes it</h2>
+      <p>
+        Account records, sessions, profile settings and activity summaries are stored in Cloudflare
+        D1. Original files, when kept, are stored in a private Cloudflare R2 bucket. Cloudflare
+        Workers serves the application and its interface. Cloudflare processes these data as our
+        infrastructure provider. We do not give your data to anyone else, and we do not sell it.
+      </p>
+
+      <h2>Cookies and similar technology</h2>
+      <p>
+        The app uses only strictly necessary cookies: a session cookie that keeps you signed in, and
+        short-lived cookies (ten minutes) that protect the Google sign-in. We set no tracking or
+        advertising cookies.
+      </p>
+
+      <h2>Logs and rate limits</h2>
+      <p>
+        Cloudflare handles each request, including the network address it came from, under its own
+        policies. Cloudflare uses that address for rate limiting, which the application does not
+        store. When the application hits an unexpected error, it logs a request identifier and the
+        error type. It does not log request bodies, file contents, tokens or query strings.
+      </p>
+
+      <h2>How long we keep it</h2>
+      <ul>
+        <li>
+          Account, profile, activity summaries and original files stay until you delete them or
+          delete your account.
+        </li>
+        <li>
+          Sessions end after 30 days without use, and in any case 90 days after they were created.
+        </li>
+        <li>
+          Database backups are encrypted and kept for 90 days, after which they are deleted. Backups
+          contain the database only. Original files are not included in backups.
+        </li>
+      </ul>
+
+      <h2>How to delete your data</h2>
+      <ul>
+        <li>
+          Turn off <em>Keep original files in my library</em> to delete all stored originals while
+          keeping your summaries.
+        </li>
+        <li>
+          Individual activity summaries cannot yet be deleted one at a time in the app. Deleting
+          your account removes all of them.
+        </li>
+        <li>
+          Choose <em>Delete account</em> in the account menu. This removes your account, sessions,
+          profile, all activity summaries and all stored original files. Copies in encrypted backups
+          are deleted when those backups expire after 90 days.
+        </li>
+      </ul>
+
+      <h2>Your rights</h2>
+      <p>
+        Depending on where you live, you may have rights to access, correct, delete or restrict the
+        use of your personal data. To use them, open a privacy request as described above. Deleting
+        your account in the app is always available without a request.
+      </p>
+
+      <h2>Children</h2>
+      <p>The service is not directed at children, and we do not knowingly collect their data.</p>
+
+      <h2>Changes</h2>
+      <p>
+        When this policy changes, the page is updated and its date changes too. Material changes to
+        what is stored are described here before they take effect.
+      </p>
+    </main>
+  </body>
+</html>

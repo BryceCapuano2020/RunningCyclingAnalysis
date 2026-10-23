@@ -6,6 +6,8 @@
   background: var(--surface-1);
   color: var(--text-primary);
   box-shadow: var(--shadow);
+  /* Long email addresses have no spaces to break on, so they wrap anywhere to stay in 320 px. */
+  overflow-wrap: anywhere;
 }
 
 .delete-dialog::backdrop {

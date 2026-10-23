@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PRIORS } from '../constants'
 import type { HrCrossCheck } from '../types'
 import { calibrationWeights, drawPriors } from './sampling'
 
@@ -18,6 +19,16 @@ describe('calibration sampling', () => {
     expect(result.effectiveSamples).toBeGreaterThan(40)
     expect(result.effectiveSamples).toBeLessThanOrEqual(4000)
     expect(Math.max(...result.weights)).toBe(1)
+  })
+
+  it('accepts exactly 42 effective draws of 4000, and the 1% floor is 40 draws', () => {
+    // Forty-two draws sit exactly on kappa = 1 and the rest are far off, so ESS is 42.
+    const ge = new Float64Array(4000).fill(0.2)
+    const s = new Float64Array(4000).fill(1)
+    ge.fill(PRIORS.grossEfficiency.mean, 0, 42)
+    const result = calibrationWeights(ge, s, hr(1, 0.001))!
+    expect(result.effectiveSamples).toBeCloseTo(42, 6)
+    expect(result.accepted).toBe(true)
   })
 
   it('rejects conflicting evidence rather than using a few draws as a narrow interval', () => {

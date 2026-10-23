@@ -20,6 +20,15 @@ const DEV_LOGIN_BODY_BYTES = 4 * 1024
 
 export const authRoutes = new Hono<AppEnv>()
 
+function oauthCookieAttributes(c: Parameters<typeof isSecure>[0]) {
+  return {
+    httpOnly: true,
+    secure: isSecure(c),
+    sameSite: 'Lax' as const,
+    path: OAUTH_COOKIE_PATH,
+  }
+}
+
 const devOnly = createMiddleware<AppEnv>(async (c, next) => {
   if (c.env.ENVIRONMENT !== 'development') throw new HttpError(404, 'not_found', 'Not found')
   await next()
@@ -30,13 +39,7 @@ authRoutes.get('/google', async (c) => {
   const state = toHex(deps.randomBytes(32))
   const codeVerifier = toBase64Url(deps.randomBytes(32))
   const url = await deps.google(c.env).authorizationUrl(state, codeVerifier)
-  const cookieOptions = {
-    httpOnly: true,
-    secure: isSecure(c),
-    sameSite: 'Lax' as const,
-    path: OAUTH_COOKIE_PATH,
-    maxAge: OAUTH_COOKIE_MAX_AGE_S,
-  }
+  const cookieOptions = { ...oauthCookieAttributes(c), maxAge: OAUTH_COOKIE_MAX_AGE_S }
   setCookie(c, STATE_COOKIE, state, cookieOptions)
   setCookie(c, VERIFIER_COOKIE, codeVerifier, cookieOptions)
   return c.redirect(url.toString(), 302)
@@ -46,9 +49,10 @@ authRoutes.get('/google/callback', async (c) => {
   const { deps, db } = c.var
   const stateCookie = getCookie(c, STATE_COOKIE)
   const codeVerifier = getCookie(c, VERIFIER_COOKIE)
-  // One-shot: the cookies are cleared whatever the outcome.
-  deleteCookie(c, STATE_COOKIE, { path: OAUTH_COOKIE_PATH })
-  deleteCookie(c, VERIFIER_COOKIE, { path: OAUTH_COOKIE_PATH })
+  // One-shot: the cookies are cleared whatever the outcome. Clearing must repeat the attributes the
+  // cookies were set with, or a browser may keep the original cookie.
+  deleteCookie(c, STATE_COOKIE, oauthCookieAttributes(c))
+  deleteCookie(c, VERIFIER_COOKIE, oauthCookieAttributes(c))
 
   if (c.req.query('error')) throw new HttpError(400, 'oauth_denied', 'Google sign-in was cancelled')
   const state = c.req.query('state')

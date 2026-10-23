@@ -78,7 +78,10 @@ npm run db:migrate:remote -w @rca/api
 ```
 
 Migrations only ever move forward, so run this again after each new migration file is added. The
-command asks for confirmation interactively and still captures a backup when run non-interactively.
+command asks for confirmation interactively. Wrangler also captures a Cloudflare-held copy of the
+database before it applies migrations; that is not the off-platform backup in
+[PRODUCTION.md](PRODUCTION.md#backup-and-restore). Migrations must follow the expand, deploy,
+contract rule in PRODUCTION.md, because the live Worker keeps running against the migrated schema.
 
 ## 4. First deploy
 
@@ -188,6 +191,10 @@ npm run deploy
 Commit the `wrangler.toml` change. Each deploy writes the `[vars]` values from that file, and the
 GitHub workflow in section 10 reads the same file from the repository.
 
+`npm run deploy` refuses to run unless the checkout is `main`, has no uncommitted or untracked
+changes, and matches `origin/main`. Run it from a clean, pushed `main`; from any other state it stops
+before building or deploying.
+
 ## 8. Smoke test
 
 1. Health check. It should print `{"status":"ok"}`:
@@ -259,34 +266,52 @@ stays on one origin, as it does in production.
 Rebuild the web app with `npm run build` if you want `wrangler dev` to serve the latest build. The
 Vite dev server does not need this.
 
-## 10. Deploy from GitHub Actions (optional)
+## 10. Deploy from GitHub Actions
 
-The workflow `.github/workflows/deploy.yml` runs only when you start it by hand: in the GitHub
-repository, open **Actions**, choose **Deploy**, select **main**, then **Run workflow**. It runs
-the complete reusable CI gate first, downloads the exact verified web build, applies remote
-migrations and deploys the Worker. It never deploys on a push or from another branch. The
-`production` GitHub environment can be configured with reviewer rules in repository settings.
+The workflow `.github/workflows/deploy.yml` is started by hand from **Actions**, then **Deploy**,
+then **Run workflow**, with the branch set to **main**. It refuses any other branch. In order, it:
 
-Create a Cloudflare API token:
+1. **Guard:** confirms the run is on `refs/heads/main`.
+2. **Release gate:** runs `npm run verify:release` on that exact commit, including the Chromium,
+   WebKit and Worker-served browser suites. It keeps the static build it verified.
+3. **Approval:** waits for the owner to approve the `production` environment.
+4. **Migrations:** applies pending D1 migrations with `wrangler d1 migrations apply rca --remote`.
+5. **Deploy:** runs `wrangler deploy`, tagging the Worker version with the commit SHA.
+6. **Smoke test:** runs `scripts/ops/smoke.mjs` against `APP_URL`. The checks are listed in
+   [PRODUCTION.md](PRODUCTION.md#release-gate).
+7. **Rollback:** if the smoke test fails, runs `wrangler rollback` to the previous version. The run
+   then fails.
 
-1. In the Cloudflare dashboard, open **My Profile**, then **API Tokens**, then **Create Token**,
-   then **Create Custom Token**.
-2. Add these permissions, all at the **Account** level:
+One-time setup for the repository owner:
+
+1. **Create a Cloudflare API token** for deployments. In the Cloudflare dashboard, open **My
+   Profile**, then **API Tokens**, then **Create Token**, then **Create Custom Token**. Add these
+   permissions, all at the **Account** level:
    - **Workers Scripts**: Edit
    - **D1**: Edit
    - **Account Settings**: Read
-3. Under account resources, select only your account. Create the token and copy it. It is shown
-   once.
 
-Find your account ID: in the dashboard, open **Workers & Pages**. The **Account ID** is in the
-right-hand panel.
+   Under account resources, select only your account. Copy the token when it is shown; it is shown
+   once. Token permission names change from time to time. If a run fails with a permission error,
+   the error names the permission to add.
 
-Add both values as repository secrets: in GitHub, open **Settings**, then **Secrets and
-variables**, then **Actions**, then **New repository secret**. Create `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`.
+2. **Find the account ID.** In the dashboard, open **Workers & Pages**. The **Account ID** is in the
+   right-hand panel.
+3. **Create the `production` environment.** In GitHub, open **Settings**, then **Environments**, then
+   **New environment**, and name it `production`. Then:
+   - Add **Required reviewers**, with the owner as the reviewer.
+   - Under **Deployment branches and tags**, choose **Selected branches** and allow only `main`.
+   - Add environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 
-Token permission names change from time to time. If a run fails with a permission error, the error
-names the permission to add.
+   Environment secrets are available only to jobs that name the environment, and only after the
+   approval. They are not repository secrets, so workflows on other branches cannot read them.
+
+4. **Set branch protection on `main`** as described in the repository settings checklist in
+   [PRODUCTION.md](PRODUCTION.md#release-gate). The workflow checks the ref, but protection stops
+   unreviewed code from reaching `main` in the first place.
+
+Backups use a separate `backup` environment and separate credentials, so a leaked backup token
+cannot deploy the Worker. See [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner).
 
 ## 11. Costs and hard free-plan limits
 
@@ -331,9 +356,11 @@ npx wrangler rollback                 # back to the previous version
 npx wrangler rollback <version-id>    # or to a specific version from the list
 ```
 
-A rollback changes only the Worker code and the web app. It does not undo database migrations, so
-data written by a newer version stays. If a migration is the problem, fix forward with a new
-migration file and run `npm run db:migrate:remote -w @rca/api`.
+The Deploy workflow rolls back by itself when its smoke test fails, so the commands above are for
+manual recovery. A rollback changes only the Worker code and the web app. It does not undo database
+migrations, so data written by a newer version stays. If a migration is the problem, fix forward
+with a new migration file, which must follow the expand, deploy, contract rule in
+[PRODUCTION.md](PRODUCTION.md#migrations-order-of-operations).
 
 ## 13. Delete everything
 
@@ -356,8 +383,10 @@ npx wrangler r2 bucket delete rca-files
 Then, in the Google Cloud Console, delete the OAuth client under **Google Auth Platform**, then
 **Clients**, or shut down the whole project under **IAM & Admin**, then **Settings**.
 
-Finally, delete the GitHub repository secrets and the Cloudflare API token if you created them, and
-delete `apps/api/.dev.vars` on your machine.
+Finally, delete the GitHub environment secrets (`production` and `backup`), the Cloudflare API
+tokens and the R2 backup access key if you created them, and delete `apps/api/.dev.vars` on your
+machine. Delete the backup artifacts in **Actions**. The age private key can be destroyed once no
+backup encrypted to its public key remains, which is 90 days after the last scheduled backup.
 
 See [PRODUCTION.md](PRODUCTION.md) for rate limits, model upgrades, recovery, diagnostics and
 release evidence still required. Normal `npm run deploy` includes `npm run verify:release`.
@@ -366,7 +395,7 @@ release evidence still required. Normal `npm run deploy` includes `npm run verif
 
 | Command                                               | What it does                                         |
 | ----------------------------------------------------- | ---------------------------------------------------- |
-| `npm run deploy`                                      | Runs release verification, then deploys the Worker   |
+| `npm run deploy`                                      | Refuses unless clean main, then verifies and deploys |
 | `npm run db:migrate:remote -w @rca/api`               | Applies migrations to the production D1 database     |
 | `npm run db:migrate:local -w @rca/api`                | Applies migrations to the local D1 database          |
 | `npm run dev:api`                                     | Local API on port 8787                               |

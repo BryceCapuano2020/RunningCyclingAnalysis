@@ -2,7 +2,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ApiRequestError } from '../../api/client'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
+import { readStylesheet, ruleBody } from './stylesheet'
+
+const dialogCss = await readStylesheet(import.meta.url, './DeleteAccountDialog.css')
 
 afterEach(() => {
   cleanup()
@@ -253,5 +257,90 @@ describe('DeleteAccountDialog', () => {
     expect(emailInput()).toHaveValue('')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(confirmButton()).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows the server message when file storage is unavailable, and offers retry', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(
+        new ApiRequestError(
+          503,
+          'storage_unavailable',
+          'File storage is unavailable. Try again later.',
+        ),
+      )
+    render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
+    await user.type(emailInput(), EMAIL)
+    await user.click(confirmButton())
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('File storage is unavailable. Try again later.')
+    expect(alert).not.toHaveTextContent('Try again.')
+    expect(confirmButton()).toBeInTheDocument()
+  })
+
+  it('does not offer retry when the server rejects the request for a reason retrying cannot fix', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(
+        new ApiRequestError(401, 'unauthenticated', 'Your session has ended. Sign in again.'),
+      )
+    render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
+    await user.type(emailInput(), EMAIL)
+    await user.click(confirmButton())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session has ended. Sign in again.',
+    )
+    expect(screen.queryByRole('button', { name: 'Delete account' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+  })
+
+  it('moves focus to the explanation when a refusal removes the confirm button', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new ApiRequestError(403, 'forbidden', 'This account cannot be deleted.'))
+    render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
+    await user.type(emailInput(), EMAIL)
+    await user.click(confirmButton())
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveFocus()
+    expect(alert).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('leaves focus on the confirm button when a retry is offered', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new ApiRequestError(503, 'storage_unavailable', 'Try again later.'))
+    render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
+    await user.type(emailInput(), EMAIL)
+    await user.click(confirmButton())
+
+    await screen.findByRole('alert')
+    expect(confirmButton()).toBeInTheDocument()
+    expect(screen.getByRole('alert')).not.toHaveFocus()
+  })
+
+  it('offers retry after a lost connection, which a later attempt can fix', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new ApiRequestError(0, 'network_error', 'Could not reach the server'))
+    render(<DeleteAccountDialog open email={EMAIL} onConfirm={onConfirm} onClose={vi.fn()} />)
+    await user.type(emailInput(), EMAIL)
+    await user.click(confirmButton())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server')
+    expect(confirmButton()).toBeInTheDocument()
+  })
+
+  it('wraps a long email address inside the dialog at 320 px', () => {
+    const rule = ruleBody(dialogCss, '.delete-dialog')
+    expect(rule).toMatch(/overflow-wrap:\s*anywhere/)
   })
 })

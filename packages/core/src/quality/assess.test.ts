@@ -196,7 +196,8 @@ describe('assessQuality: clean and degenerate activities', () => {
         kind: 'missing-altitude',
         start: 0,
         end: 1,
-        message: 'No altitude was recorded for 1 second',
+        message:
+          'No altitude was recorded for 1 second, so grade-based running cost, virtual power and calibration are left out',
       },
     ])
   })
@@ -579,7 +580,8 @@ describe('assessQuality: altitude-jump and missing-altitude', () => {
         kind: 'missing-altitude',
         start: 0,
         end: 120,
-        message: 'No altitude was recorded for 120 seconds',
+        message:
+          'No altitude was recorded for 120 seconds, so grade-based running cost, virtual power and calibration are left out',
       },
     ])
     expect(zeroIndices(report.validMotion)).toEqual([])
@@ -625,5 +627,48 @@ describe('assessQuality: merging and ordering', () => {
       ['hr-spike', 45, 57],
       ['power-spike', 45, 48],
     ])
+  })
+})
+
+describe('assessQuality: altitude steps near pauses', () => {
+  /** A 3.5 m/s run of 200 s with a 60 s pause from 100 s to 160 s, altitude held in the pause. */
+  function pausedRun(): Activity {
+    const a = makeActivity(200)
+    a.speed.fill(3.5)
+    a.speed.fill(0, 100, 160)
+    a.paused.fill(1, 100, 160)
+    return a
+  }
+
+  it.each([160, 161, 162])(
+    'flags an altitude step at sample %i, within 3 samples after a pause, and masks its grade',
+    (step) => {
+      const a = pausedRun()
+      a.altitude.fill(180, step)
+      const report = assessQuality(a)
+      expect(report.flags.map((f) => f.kind)).toEqual(['altitude-jump'])
+      expect(report.flags[0]!.start).toBe(step - 10)
+      expect(zeroIndices(report.validGrade)).toEqual(span(step - 30, step + 31))
+    },
+  )
+
+  it('does not flag an altitude step on a paused sample itself', () => {
+    const a = pausedRun()
+    a.altitude[120] = 180
+    const report = assessQuality(a)
+    expect(report.flags).toEqual([])
+    expect(zeroIndices(report.validGrade)).toEqual([])
+  })
+})
+
+describe('assessQuality: missing altitude', () => {
+  it('outdoors, makes every grade sample invalid, including paused ones', () => {
+    const report = assessQuality(makeActivity(120, { hasAltitude: false }))
+    expect(zeroIndices(report.validGrade)).toEqual(span(0, 120))
+  })
+
+  it('indoors, leaves grade valid because the grade is defined as zero there', () => {
+    const report = assessQuality(makeActivity(120, { hasAltitude: false, indoor: true }))
+    expect(zeroIndices(report.validGrade)).toEqual([])
   })
 })

@@ -6,6 +6,7 @@ import {
   googleClaims,
   sessionCookie,
   sha256Token,
+  START,
 } from '../test/harness.ts'
 
 /** Runs the start step and returns the state and verifier cookies it set. */
@@ -175,6 +176,52 @@ describe('GET /api/auth/google/callback', () => {
     expect(prodSession).toContain('SameSite=Lax')
     expect(prodSession).toContain('Path=/')
     expect(prodSession).not.toContain('Domain')
+  })
+
+  it('clears the OAuth cookies on an error return with the attributes they were set with', async () => {
+    const h = createHarness({}, { ENVIRONMENT: 'production' })
+    const { state, verifier } = await startSignIn(h)
+    const res = await h.send({
+      path: `/api/auth/google/callback?error=access_denied&state=${state}`,
+      cookies: { rca_oauth_state: state, rca_oauth_verifier: verifier },
+    })
+    expect(res.status).toBe(400)
+    const cleared = res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))
+    expect(cleared).toHaveLength(2)
+    for (const cookie of cleared) {
+      expect(cookie).toContain('HttpOnly')
+      expect(cookie).toContain('Secure')
+      expect(cookie).toContain('SameSite=Lax')
+      expect(cookie).toContain('Path=/api/auth/google')
+    }
+  })
+
+  it('clears the OAuth cookies on a state mismatch with the same attributes', async () => {
+    const h = createHarness({}, { ENVIRONMENT: 'production' })
+    const res = await h.send({
+      path: '/api/auth/google/callback?state=wrong&code=c',
+      cookies: { rca_oauth_state: 'right', rca_oauth_verifier: 'v' },
+    })
+    expect(res.status).toBe(400)
+    for (const cookie of res.headers.getSetCookie().filter((c) => c.startsWith('rca_oauth_'))) {
+      expect(cookie).toContain('HttpOnly')
+      expect(cookie).toContain('Secure')
+      expect(cookie).toContain('SameSite=Lax')
+      expect(cookie).toContain('Path=/api/auth/google')
+    }
+  })
+
+  it('refuses to sign in to an account that is being deleted', async () => {
+    const h = createHarness({}, { ENVIRONMENT: 'development' })
+    await h.signIn('rider@example.com', 'Rider')
+    await h.env.DB.prepare('UPDATE users SET deleting_at = ?').bind(START).run()
+    const res = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'rider@example.com', name: 'Rider' },
+    })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ error: { code: 'account_deleting' } })
   })
 
   it('rejects a callback whose state does not match the cookie', async () => {

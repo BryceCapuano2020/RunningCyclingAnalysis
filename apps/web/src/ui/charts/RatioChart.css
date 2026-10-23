@@ -1,7 +1,20 @@
-/* Both bands use the same fill; the calibrated band sits on the prior one, so it reads stronger. */
+/*
+ * Both bands share one fill, which is too faint to carry the difference on its own (about 1.2:1
+ * against the card). The outline does: solid for the calibrated band, dashed for the prior one.
+ */
 .ratio-chart__band {
   fill: var(--neutral-band);
-  stroke: none;
+}
+
+.ratio-chart__band--prior {
+  stroke: var(--neutral-mark);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 3;
+}
+
+.ratio-chart__band--calibrated {
+  stroke: var(--neutral-mark);
+  stroke-width: 1.5px;
 }
 
 .ratio-chart__median {

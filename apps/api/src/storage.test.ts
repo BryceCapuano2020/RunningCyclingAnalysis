@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_GLOBAL_R2_MONTHLY_OPERATIONS,
   MAX_GLOBAL_R2_STANDARD_OPERATIONS,
-  MAX_GLOBAL_R2_WRITE_BYTES,
+  MAX_MONTHLY_R2_PUT_BYTES,
   MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
 } from '@rca/contract'
 import {
@@ -94,7 +94,7 @@ describe('deleteByPrefix', () => {
 })
 
 describe('global R2 budgets', () => {
-  it('counts failed PUT attempts against monthly operations and the lifetime byte cap', async () => {
+  it('counts failed PUT attempts against monthly operations and monthly bytes', async () => {
     await resetTestEnv()
     const env = testEnv()
     const bucket = new Proxy(env.FILES, {
@@ -114,18 +114,22 @@ describe('global R2 budgets', () => {
     ).rejects.toThrow('simulated R2 failure')
     expect(
       await env.DB.prepare(
-        'SELECT lifetime_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
+        'SELECT lifetime_put_bytes, monthly_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
       ).first(),
-    ).toEqual({ lifetime_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES, monthly_operations: 1 })
+    ).toEqual({
+      lifetime_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
+      monthly_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
+      monthly_operations: 1,
+    })
   })
 
-  it('rejects a write past the lifetime cap before calling R2', async () => {
+  it('rejects a write past the monthly byte cap before calling R2', async () => {
     await resetTestEnv()
     const env = testEnv()
     const now = Date.UTC(2026, 9, 1)
     await reserveR2Operation(env.DB, now)
-    await env.DB.prepare('UPDATE r2_storage_budget SET lifetime_put_bytes = ? WHERE id = 1')
-      .bind(MAX_GLOBAL_R2_WRITE_BYTES - 1)
+    await env.DB.prepare('UPDATE r2_storage_budget SET monthly_put_bytes = ? WHERE id = 1')
+      .bind(MAX_MONTHLY_R2_PUT_BYTES - 1)
       .run()
     let putCalls = 0
     const bucket = new Proxy(env.FILES, {
@@ -145,18 +149,18 @@ describe('global R2 budgets', () => {
     expect(await getOriginalFile(env.DB, env.FILES, 'still-readable', () => now)).toBeNull()
     expect(
       await env.DB.prepare(
-        'SELECT lifetime_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
+        'SELECT monthly_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
       ).first(),
-    ).toEqual({ lifetime_put_bytes: MAX_GLOBAL_R2_WRITE_BYTES - 1, monthly_operations: 2 })
+    ).toEqual({ monthly_put_bytes: MAX_MONTHLY_R2_PUT_BYTES - 1, monthly_operations: 2 })
   })
 
-  it('atomically admits only one concurrent PUT at the remaining lifetime-budget edge', async () => {
+  it('atomically admits only one concurrent PUT at the remaining monthly-budget edge', async () => {
     await resetTestEnv()
     const env = testEnv()
     const now = Date.UTC(2026, 9, 1)
     await reserveR2Operation(env.DB, now)
-    await env.DB.prepare('UPDATE r2_storage_budget SET lifetime_put_bytes = ? WHERE id = 1')
-      .bind(MAX_GLOBAL_R2_WRITE_BYTES - MIN_GLOBAL_R2_PUT_CHARGE_BYTES)
+    await env.DB.prepare('UPDATE r2_storage_budget SET monthly_put_bytes = ? WHERE id = 1')
+      .bind(MAX_MONTHLY_R2_PUT_BYTES - MIN_GLOBAL_R2_PUT_CHARGE_BYTES)
       .run()
     let putCalls = 0
     const bucket = new Proxy(env.FILES, {
@@ -181,12 +185,38 @@ describe('global R2 budgets', () => {
     expect(putCalls).toBe(1)
     expect(
       await env.DB.prepare(
-        'SELECT lifetime_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
+        'SELECT monthly_put_bytes, monthly_operations FROM r2_storage_budget WHERE id = 1',
       ).first(),
     ).toEqual({
-      lifetime_put_bytes: MAX_GLOBAL_R2_WRITE_BYTES,
+      monthly_put_bytes: MAX_MONTHLY_R2_PUT_BYTES,
       monthly_operations: 2,
     })
+  })
+
+  it('resumes PUTs in a new UTC month after the monthly byte budget was spent', async () => {
+    await resetTestEnv()
+    const env = testEnv()
+    await reserveR2Operation(env.DB, Date.UTC(2026, 0, 15))
+    await env.DB.prepare(
+      'UPDATE r2_storage_budget SET monthly_period = ?, monthly_put_bytes = ? WHERE id = 1',
+    )
+      .bind('2026-01', MAX_MONTHLY_R2_PUT_BYTES)
+      .run()
+    await expect(
+      putOriginalFile(env.DB, env.FILES, 'jan', new Uint8Array([1]), {}, () =>
+        Date.UTC(2026, 0, 15),
+      ),
+    ).rejects.toMatchObject({ code: 'storage_budget_exhausted' })
+
+    await putOriginalFile(env.DB, env.FILES, 'feb', new Uint8Array([1]), {}, () =>
+      Date.UTC(2026, 1, 1, 0, 0, 1),
+    )
+    expect(await env.FILES.get('feb')).not.toBeNull()
+    expect(
+      await env.DB.prepare(
+        'SELECT monthly_period, monthly_put_bytes FROM r2_storage_budget WHERE id = 1',
+      ).first(),
+    ).toEqual({ monthly_period: '2026-02', monthly_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES })
   })
 
   it('blocks standard operations at 90,000 but reserves cleanup headroom up to 100,000', async () => {
@@ -247,21 +277,27 @@ describe('global R2 budgets', () => {
     expect(MAX_GLOBAL_R2_MONTHLY_OPERATIONS).toBe(100_000)
   })
 
-  it('resets monthly operations on UTC calendar-month rollover without resetting lifetime bytes', async () => {
+  it('resets monthly operations and monthly bytes on UTC month rollover, but keeps the lifetime audit total', async () => {
     await resetTestEnv()
     const env = testEnv()
     await reserveR2Operation(env.DB, Date.UTC(2026, 9, 1))
     await env.DB.prepare(
-      'UPDATE r2_storage_budget SET lifetime_put_bytes = 1234, monthly_period = ?, monthly_operations = ?',
+      `UPDATE r2_storage_budget SET lifetime_put_bytes = 1234, monthly_put_bytes = 999,
+         monthly_period = ?, monthly_operations = ?`,
     )
       .bind('2026-09', MAX_GLOBAL_R2_MONTHLY_OPERATIONS)
       .run()
     await reserveR2Operation(env.DB, Date.UTC(2026, 9, 1))
     expect(
       await env.DB.prepare(
-        'SELECT lifetime_put_bytes, monthly_period, monthly_operations FROM r2_storage_budget WHERE id = 1',
+        'SELECT lifetime_put_bytes, monthly_put_bytes, monthly_period, monthly_operations FROM r2_storage_budget WHERE id = 1',
       ).first(),
-    ).toEqual({ lifetime_put_bytes: 1234, monthly_period: '2026-10', monthly_operations: 1 })
+    ).toEqual({
+      lifetime_put_bytes: 1234,
+      monthly_put_bytes: 0,
+      monthly_period: '2026-10',
+      monthly_operations: 1,
+    })
   })
 
   it('charges a PUT in the month when R2 is called after a delayed D1 reservation', async () => {
@@ -269,7 +305,8 @@ describe('global R2 budgets', () => {
     const env = testEnv()
     const delayedDb = delayFirstBudgetUpdate(env.DB, async () => {
       await env.DB.prepare(
-        'UPDATE r2_storage_budget SET monthly_period = ?, monthly_operations = 0 WHERE id = 1',
+        `UPDATE r2_storage_budget SET monthly_period = ?, monthly_operations = 0,
+           monthly_put_bytes = 0 WHERE id = 1`,
       )
         .bind('2026-11')
         .run()
@@ -280,10 +317,11 @@ describe('global R2 budgets', () => {
 
     expect(
       await env.DB.prepare(
-        'SELECT lifetime_put_bytes, monthly_period, monthly_operations FROM r2_storage_budget WHERE id = 1',
+        'SELECT lifetime_put_bytes, monthly_put_bytes, monthly_period, monthly_operations FROM r2_storage_budget WHERE id = 1',
       ).first(),
     ).toEqual({
       lifetime_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES * 2,
+      monthly_put_bytes: MIN_GLOBAL_R2_PUT_CHARGE_BYTES,
       monthly_period: '2026-11',
       monthly_operations: 1,
     })

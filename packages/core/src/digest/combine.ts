@@ -27,7 +27,8 @@ import type {
   VirtualPowerAccuracy,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
-import { solveBikeModel } from '../virtualPower'
+import { fitBikeModel } from '../virtualPower'
+import type { BikeModelSource } from '../virtualPower'
 import {
   addCalibrationSums,
   calibrationStatsAt,
@@ -57,11 +58,20 @@ export interface Equivalence {
   runSpeed: Interval
 }
 
+export type { BikeModelSource }
+
+/**
+ * Analysis of a set of digests. Best values follow one rule. Measured values (runs, and rides
+ * with a power meter) are fixed per activity, so adding an activity never lowers a measured best.
+ * Values for rides without a power meter are priced with `bikeModel`, which is refitted from every
+ * power-meter ride in the same set. Adding a power-meter ride can therefore move those values in
+ * either direction. `bikeModelSource` says whether the fit or the default model was used.
+ */
 export interface AnalysisResult {
   activities: ActivitySummary[]
   /** Best gross metabolic power while running, W/kg, at the prior-mean economy. */
   runCurve: Curve
-  /** Best mechanical power while riding, W. */
+  /** Best mechanical power while riding, W. See the note above on rides without a power meter. */
   rideCurve: Curve
   /** rideCurve expressed as gross metabolic W/kg at the prior-mean efficiency. */
   rideMetabolicCurve: Curve
@@ -75,6 +85,8 @@ export interface AnalysisResult {
   /** Whether each compared best effort was close to all-out, one entry per comparison duration. */
   effort: EffortCheck[]
   bikeModel: BikeModel
+  /** 'calibrated' when bikeModel was fitted to power-meter rides, else 'default'. */
+  bikeModelSource: BikeModelSource
   /** Leave-one-ride-out accuracy of the virtual power meter; null with no power-meter rides. */
   virtualAccuracy: VirtualPowerAccuracy | null
 }
@@ -107,6 +119,15 @@ export function equivalentRunSpeed(
     p50: weightedQuantile(speeds, weights, 0.5),
     p95: weightedQuantile(speeds, weights, 0.95),
   }
+}
+
+/**
+ * Heart-rate points at or below critical power. Heart rate is only regressed where it still rises
+ * with power. Without a fit, every point is kept.
+ */
+export function atOrBelowCriticalPower(points: HrPoint[], cp: CriticalPowerFit | null): HrPoint[] {
+  if (cp === null) return points
+  return points.filter((p) => p.metabolicPower <= cp.cp)
 }
 
 /** Orders digests by start time, then id, so results do not depend on the order they arrive in. */
@@ -197,7 +218,7 @@ function leaveOneOutAccuracy(
 ): VirtualPowerAccuracy {
   const segments = calibrated.flatMap(({ digest, sums }) => {
     const others = subtractCalibrationSums(totalSums, sums)
-    const model = solveBikeModel(calibrationStatsAt(others, massKg))
+    const model = fitBikeModel(calibrationStatsAt(others, massKg)).model
     return digest.climbSections.map((section) => ({
       activityId: digest.id,
       start: section.start,
@@ -236,7 +257,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     (acc, c) => addCalibrationSums(acc, c.sums),
     emptyCalibrationSums(),
   )
-  const bikeModel = solveBikeModel(calibrationStatsAt(totalSums, totalMassKg))
+  const fittedBike = fitBikeModel(calibrationStatsAt(totalSums, totalMassKg))
+  const bikeModel = fittedBike.model
   const virtualAccuracy =
     calibrated.length > 0 ? leaveOneOutAccuracy(calibrated, totalSums, totalMassKg) : null
 
@@ -276,9 +298,10 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   // truncating the dependent variable would bias the slopes.
   const runCp = fitCriticalPower(runCurve)
   const rideCp = fitCriticalPower(rideMetabolicCurve)
-  const below = (cp: CriticalPowerFit | null) => (p: HrPoint) =>
-    cp === null || p.metabolicPower <= cp.cp
-  const hr = crossCheck(runPoints.filter(below(runCp)), ridePoints.filter(below(rideCp)))
+  const hr = crossCheck(
+    atOrBelowCriticalPower(runPoints, runCp),
+    atOrBelowCriticalPower(ridePoints, rideCp),
+  )
   const comparison = compareSports(runCurve, rideCurve, massKg, hr, {
     draws: DRAWS,
     seed: SEED,
@@ -318,6 +341,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     maxHeartRate: maxHr,
     effort,
     bikeModel,
+    bikeModelSource: fittedBike.source,
     virtualAccuracy,
   }
 }

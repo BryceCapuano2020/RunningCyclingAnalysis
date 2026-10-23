@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
 import { formatWkg } from '@rca/core/units'
 import { ChartFrame } from './ChartFrame'
@@ -23,6 +23,8 @@ const DOT_R = 4
 const ACTIVE_DOT_R = 6
 /** Pointer distance, in px, within which a dot counts as hovered. Wider than the dot. */
 const HIT_RADIUS = 16
+/** Most dots drawn at once. Longer libraries keep every block in the table view and the summary. */
+const MAX_DOTS = 2000
 
 interface SportData {
   sport: Sport
@@ -51,6 +53,18 @@ interface Layout {
   yTicks: AxisTick[]
 }
 
+interface Block {
+  sport: Sport
+  point: HrPoint
+}
+
+interface Plotted {
+  /** The blocks drawn as dots, in data order. */
+  blocks: Block[]
+  /** Every block in the data, whether or not it is drawn. */
+  total: number
+}
+
 function sportsOf(hr: HrCrossCheck): SportData[] {
   const sports: SportData[] = []
   if (hr.run) sports.push({ sport: 'run', points: hr.run.points, fit: hr.run.fit })
@@ -69,7 +83,25 @@ function noteFor(hr: HrCrossCheck): string | undefined {
   return `Not enough steady heart-rate data for ${missing} yet, so only ${shown} is shown.`
 }
 
-function layout(sports: SportData[], size: ChartSize): Layout | null {
+/**
+ * Keeps at most MAX_DOTS blocks, spaced evenly through the data in order. The choice depends only
+ * on the data, so the same file always draws the same dots.
+ */
+function plotted(sports: SportData[]): Plotted {
+  const blocks = sports.flatMap(({ sport, points }) => points.map((point) => ({ sport, point })))
+  const total = blocks.length
+  if (total <= MAX_DOTS) return { blocks, total }
+  const picked = Array.from(
+    { length: MAX_DOTS },
+    (_, i) => blocks[Math.floor((i * total) / MAX_DOTS)],
+  )
+  return {
+    blocks: picked.filter((block): block is Block => block !== undefined),
+    total,
+  }
+}
+
+function layout(sports: SportData[], blocks: Block[], size: ChartSize): Layout | null {
   const all = sports.flatMap((data) => data.points)
   if (all.length === 0) return null
   const { plot, width } = size
@@ -84,16 +116,14 @@ function layout(sports: SportData[], size: ChartSize): Layout | null {
   const x = linearScale(xDomain.domain, [plot.left, plot.right])
   const y = linearScale(yDomain.domain, [plot.bottom, plot.top])
 
-  const dots = sports
-    .flatMap(({ sport, points }) =>
-      points.map((point): Dot => ({
-        sport,
-        x: x(point.metabolicPower),
-        y: y(point.heartRate),
-        metabolicWkg: point.metabolicPower,
-        bpm: point.heartRate,
-      })),
-    )
+  const dots = blocks
+    .map(({ sport, point }): Dot => ({
+      sport,
+      x: x(point.metabolicPower),
+      y: y(point.heartRate),
+      metabolicWkg: point.metabolicPower,
+      bpm: point.heartRate,
+    }))
     .sort((a, b) => a.x - b.x)
 
   // Each fitted line runs across the range of its own sport's data.
@@ -130,6 +160,28 @@ function layout(sports: SportData[], size: ChartSize): Layout | null {
   }
 }
 
+/**
+ * A layout function that recomputes only when the chart's size changes. The chart calls it several
+ * times per render, and every pointer move re-renders it, so the dots are not re-sorted each time.
+ */
+function layoutCache(sports: SportData[], blocks: Block[]): (size: ChartSize) => Layout | null {
+  let cachedKey: string | null = null
+  let cached: Layout | null = null
+  return (size) => {
+    const { plot } = size
+    const key = [size.width, size.height, plot.left, plot.right, plot.top, plot.bottom].join(',')
+    if (key !== cachedKey) {
+      cached = layout(sports, blocks, size)
+      cachedKey = key
+    }
+    return cached
+  }
+}
+
+function thinningNote(total: number, drawn: number): string {
+  return `To keep the chart responsive, ${drawn.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} blocks are plotted, spaced evenly through your data.`
+}
+
 function tooltipFor(dot: Dot): TooltipContent {
   return {
     x: dot.x,
@@ -143,18 +195,24 @@ function tooltipFor(dot: Dot): TooltipContent {
 }
 
 export function HrScatter({ hr }: HrScatterProps) {
-  const sports = sportsOf(hr)
+  const sports = useMemo(() => sportsOf(hr), [hr])
+  const blocks = useMemo(() => plotted(sports), [sports])
+  const layoutFor = useMemo(() => layoutCache(sports, blocks.blocks), [sports, blocks])
   const clipId = `hr-scatter-clip-${useId().replace(/:/g, '')}`
   const [active, setActive] = useState<number | null>(null)
 
-  const note = noteFor(hr)
+  const thinned = blocks.blocks.length < blocks.total
+  const note = [noteFor(hr), thinned ? thinningNote(blocks.total, blocks.blocks.length) : null]
+    .filter((line): line is string => line !== null)
+    .join(' ')
 
   return (
     <ChartFrame
       title="Heart rate against gross metabolic power"
       description="Average heart rate against gross metabolic power for each block of steady effort, with a fitted line for each sport."
       legend={sports.map((data) => ({ label: SPORT_LABEL[data.sport], kind: data.sport }))}
-      table={{
+      summary={{
+        caption: 'Summary by sport',
         columns: ['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'],
         rows: sports.map((data) => [
           SPORT_LABEL[data.sport],
@@ -163,10 +221,19 @@ export function HrScatter({ hr }: HrScatterProps) {
           data.fit.r2.toFixed(2),
         ]),
       }}
+      table={{
+        caption: 'Plotted blocks',
+        columns: ['Sport', 'Gross metabolic power (W/kg)', 'Heart rate (bpm)'],
+        rows: blocks.blocks.map(({ sport, point }) => [
+          SPORT_LABEL[sport],
+          point.metabolicPower.toFixed(1),
+          String(Math.round(point.heartRate)),
+        ]),
+      }}
       empty={sports.length > 0 ? undefined : EMPTY}
-      note={note}
+      note={note === '' ? undefined : note}
       overlay={(size) => {
-        const m = layout(sports, size)
+        const m = layoutFor(size)
         const dot = m && active !== null ? m.dots[active] : undefined
         return (
           <ChartTooltip
@@ -177,7 +244,7 @@ export function HrScatter({ hr }: HrScatterProps) {
         )
       }}
       surface={(size) => {
-        const m = layout(sports, size)
+        const m = layoutFor(size)
         if (m === null) return null
         return (
           <PlotSurface
@@ -195,7 +262,7 @@ export function HrScatter({ hr }: HrScatterProps) {
       }}
     >
       {(size) => {
-        const m = layout(sports, size)
+        const m = layoutFor(size)
         if (m === null) return null
         const { plot } = size
         const fontSize = axisFontSize(size.width)

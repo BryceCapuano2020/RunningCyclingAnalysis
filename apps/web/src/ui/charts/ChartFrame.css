@@ -43,3 +43,15 @@
 .chart-frame__details .table-scroll {
   margin-top: var(--space-2);
 }
+
+.chart-frame__details .table-scroll + .table-scroll {
+  margin-top: var(--space-4);
+}
+
+.chart-frame__details caption {
+  caption-side: top;
+  padding: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: left;
+}

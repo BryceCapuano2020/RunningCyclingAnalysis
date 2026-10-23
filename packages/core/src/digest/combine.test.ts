@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_BIKE_MODEL, DURATIONS_S, RESTING_W_PER_KG } from '../constants'
 import { smoothGrade } from '../metabolic'
+import { mulberry32 } from '../math'
 import { assessQuality } from '../quality'
-import { sampleDataset } from '../synthetic'
-import type { Activity, AthleteSettings } from '../types'
+import { generateActivity, sampleDataset } from '../synthetic'
+import type { Activity, AthleteSettings, Curve, CriticalPowerFit, HrPoint } from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
-import { combine, equivalentRunSpeed } from './combine'
+import { atOrBelowCriticalPower, combine, equivalentRunSpeed } from './combine'
 import { digestActivity } from './digestActivity'
+import { powerAt } from './terms'
 import type { RideInputs } from './test/reference'
 import { referenceRideStats, sumReferenceStats } from './test/reference'
 
@@ -261,6 +263,170 @@ describe('combine', () => {
           .reduce((a, b) => a + b, 0) /
         (seg.end - seg.start)
       expect(seg.estimatedW / direct).toBeCloseTo(1, 6)
+    }
+  })
+
+  it('keeps a heart-rate block at exactly twice resting', () => {
+    const digest = digestActivity(activity('run', 'run', 1800))
+    const values = [2 * RESTING_W_PER_KG, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8]
+    const blocks = values.map((value, i) => ({ heartRate: 120 + 5 * i, value, terms: null }))
+    const r = combine([{ ...digest, hrBlocks: blocks }], settings)
+    expect(r.hr.run!.points.map((p) => p.metabolicPower)).toContain(2 * RESTING_W_PER_KG)
+  })
+
+  it('keeps heart-rate points at exactly critical power', () => {
+    const cp: CriticalPowerFit = { cp: 2.5, wPrime: 0, cpSe: 0, r2: 1, nPoints: 4 }
+    const at = (metabolicPower: number): HrPoint => ({
+      metabolicPower,
+      heartRate: 150,
+      activityId: 'a',
+    })
+    const points = [at(2.4), at(2.5), at(2.6)]
+    expect(atOrBelowCriticalPower(points, cp)).toEqual([points[0], points[1]])
+    expect(atOrBelowCriticalPower(points, null)).toEqual(points)
+  })
+})
+
+/** Durations at which `after` is below `before`. A missing value counts as a lower one. */
+function loweredDurations(before: Curve, after: Curve): number[] {
+  const out: number[] = []
+  before.forEach((b, i) => {
+    if (!Number.isFinite(b.value)) return
+    const a = after[i]!
+    if (!(a.value >= b.value)) out.push(b.durationS)
+  })
+  return out
+}
+
+describe('adding an activity', () => {
+  const DAY_MS = 86_400_000
+  const EFFORTS = ['easy', 'tempo', 'intervals', 'test'] as const
+  const TERRAINS = ['flat', 'rolling', 'climb'] as const
+
+  /** A synthetic run, a ride with a power meter, or a ride without one, from a seeded generator. */
+  function randomActivity(rand: () => number, kind: 'run' | 'meter' | 'virtual', index: number) {
+    return generateActivity(
+      athlete,
+      {
+        id: `${kind}-${index}`,
+        name: `${kind} ${index}`,
+        sport: kind === 'run' ? 'run' : 'ride',
+        startMs: index * DAY_MS,
+        durationS: 1200 + Math.floor(rand() * 1200),
+        effort: EFFORTS[Math.floor(rand() * EFFORTS.length)]!,
+        terrain: TERRAINS[Math.floor(rand() * TERRAINS.length)]!,
+        withPower: kind !== 'virtual',
+      },
+      1000 + index,
+    )
+  }
+
+  function pick<T>(rand: () => number, xs: readonly T[]): T {
+    return xs[Math.floor(rand() * xs.length)]!
+  }
+
+  const seeds = Array.from({ length: 12 }, (_, k) => k + 1)
+
+  it.each(seeds)(
+    'never lowers a run or power-meter best when such an activity is added (seed %i)',
+    (seed) => {
+      const rand = mulberry32(seed)
+      const kinds = ['run', 'meter'] as const
+      const base = Array.from({ length: 2 + Math.floor(rand() * 3) }, (_, i) =>
+        randomActivity(rand, pick(rand, kinds), i),
+      )
+      const extra = randomActivity(rand, pick(rand, kinds), base.length)
+      const before = combine(
+        base.map((a) => digestActivity(a)),
+        settings,
+      )
+      const after = combine(
+        [...base, extra].map((a) => digestActivity(a)),
+        settings,
+      )
+      expect(loweredDurations(before.runCurve, after.runCurve)).toEqual([])
+      expect(loweredDurations(before.rideCurve, after.rideCurve)).toEqual([])
+    },
+  )
+
+  it.each(seeds)(
+    'never lowers any best when a ride without a power meter is added (seed %i)',
+    (seed) => {
+      const rand = mulberry32(seed)
+      const kinds = ['run', 'meter', 'virtual'] as const
+      const base = Array.from({ length: 2 + Math.floor(rand() * 3) }, (_, i) =>
+        randomActivity(rand, pick(rand, kinds), i),
+      )
+      const extra = randomActivity(rand, 'virtual', base.length)
+      const before = combine(
+        base.map((a) => digestActivity(a)),
+        settings,
+      )
+      const after = combine(
+        [...base, extra].map((a) => digestActivity(a)),
+        settings,
+      )
+      expect(loweredDurations(before.runCurve, after.runCurve)).toEqual([])
+      expect(loweredDurations(before.rideCurve, after.rideCurve)).toEqual([])
+    },
+  )
+})
+
+describe('virtual values are priced with the bike model of the same analysis', () => {
+  const totalMassKg = athlete.massKg + athlete.bikeMassKg
+  const virtualIds = new Set(digests.filter((d) => d.powerSource === 'virtual').map((d) => d.id))
+
+  /** The stored terms of the window a curve point reports, priced at a mass and bike model. */
+  function pricedAt(
+    point: { durationS: number; activityId: string | null; startIndex: number; value: number },
+    mass: number,
+    model: { crr: number; cda: number },
+  ): number {
+    const digest = digests.find((d) => d.id === point.activityId)!
+    const stored = digest.curve.find((c) => c.durationS === point.durationS)!
+    expect(stored.startIndex).toBe(point.startIndex)
+    return powerAt(stored.terms!, mass, model)
+  }
+
+  // Without the Power Test, the virtual ride is the best ride at 420 s to 1800 s.
+  const withoutPowerTest = combine(
+    digests.filter((d) => d.name !== 'Power Test'),
+    settings,
+  )
+  const virtualWinners = (curve: typeof withoutPowerTest.rideCurve) =>
+    curve.filter((p) => p.activityId !== null && virtualIds.has(p.activityId))
+
+  it('prices the virtual windows with the bike model fitted in the same analysis', () => {
+    expect(withoutPowerTest.bikeModelSource).toBe('calibrated')
+    const winners = virtualWinners(withoutPowerTest.rideCurve)
+    expect(winners.length).toBeGreaterThan(0)
+    for (const p of winners) {
+      expect(pricedAt(p, totalMassKg, withoutPowerTest.bikeModel)).toBeCloseTo(p.value, 9)
+    }
+  })
+
+  it('reprices the same virtual windows when a power-meter ride is added, as documented', () => {
+    // Adding the Power Test refits the bike model, so the same windows change value, in either
+    // direction. This is the one documented exception to "adding an activity never lowers a best".
+    expect(result.bikeModel).not.toEqual(withoutPowerTest.bikeModel)
+    const winners = virtualWinners(withoutPowerTest.rideCurve)
+    expect(winners.length).toBeGreaterThan(0)
+    for (const p of winners) {
+      expect(pricedAt(p, totalMassKg, result.bikeModel)).not.toBeCloseTo(p.value, 9)
+    }
+  })
+
+  it('uses the default model for rides without a power meter alone', () => {
+    const alone = combine(
+      digests.filter((d) => d.powerSource === 'virtual'),
+      settings,
+    )
+    expect(alone.bikeModelSource).toBe('default')
+    expect(alone.bikeModel).toEqual(DEFAULT_BIKE_MODEL)
+    const winners = alone.rideCurve.filter((p) => p.activityId !== null)
+    expect(winners.length).toBeGreaterThan(0)
+    for (const p of winners) {
+      expect(pricedAt(p, totalMassKg, DEFAULT_BIKE_MODEL)).toBeCloseTo(p.value, 9)
     }
   })
 })

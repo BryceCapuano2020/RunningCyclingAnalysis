@@ -44,10 +44,11 @@ describe('fitCriticalPower', () => {
   })
 
   it('honours custom minS and maxS bounds', () => {
-    const curve = synthetic([180, 300, 600, 1200], 250, 20000)
-    const fit = fitCriticalPower(curve, { minS: 300 })
-    expect(fit?.nPoints).toBe(3)
+    const curve = synthetic([120, 180, 300, 600, 1200], 250, 20000)
+    const fit = fitCriticalPower(curve, { minS: 180 })
+    expect(fit?.nPoints).toBe(4)
     expect(fit?.wPrime).toBeCloseTo(20000, 4)
+    expect(fitCriticalPower(curve, { minS: 300 })).toBeNull()
     expect(fitCriticalPower(curve, { minS: 300, maxS: 600 })).toBeNull()
   })
 
@@ -64,15 +65,16 @@ describe('fitCriticalPower', () => {
     expect(fit?.cpSe).toBeCloseTo(Math.sqrt(2.3), 9)
   })
 
-  it('returns wPrime 0 and r2 1 when all values are equal', () => {
-    const curve = [point(200, 300), point(400, 300), point(800, 300)]
-    const fit = fitCriticalPower(curve)
-    expect(fit).toEqual<CriticalPowerFit>({ cp: 300, wPrime: 0, cpSe: 0, r2: 1, nPoints: 3 })
+  it('returns null when all values are equal, since no work capacity can be read from them', () => {
+    const curve = [point(200, 300), point(400, 300), point(800, 300), point(1200, 300)]
+    expect(fitCriticalPower(curve)).toBeNull()
   })
 
-  it('returns null with fewer than 3 usable points', () => {
+  it('returns null with fewer than 4 usable points, even when three fit exactly', () => {
+    // Three points leave one residual degree of freedom, so the standard error is not meaningful.
+    expect(fitCriticalPower(synthetic([180, 300, 600], 250, 20000))).toBeNull()
     expect(fitCriticalPower([point(300, 300), point(600, 280)])).toBeNull()
-    const withNaN = [point(300, 300), point(600, 280), point(900, NaN)]
+    const withNaN = [point(300, 300), point(600, 280), point(900, NaN), point(1200, 260)]
     expect(fitCriticalPower(withNaN)).toBeNull()
     expect(fitCriticalPower([])).toBeNull()
   })
@@ -83,12 +85,12 @@ describe('fitCriticalPower', () => {
   })
 
   it('returns null when wPrime is negative', () => {
-    const curve = [point(200, 100), point(400, 200), point(800, 300)]
+    const curve = [point(200, 100), point(400, 200), point(800, 300), point(1200, 320)]
     expect(fitCriticalPower(curve)).toBeNull()
   })
 
   it('returns null when cp is not positive', () => {
-    const curve = synthetic([200, 300, 600], -100, 20000)
+    const curve = synthetic([200, 300, 600, 1200], -100, 20000)
     expect(fitCriticalPower(curve)).toBeNull()
   })
 })

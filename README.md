@@ -50,12 +50,15 @@ follow you between devices (see [Accounts and sync](#what-it-does)).
   Cloudflare. Per-activity digests are stored in D1; original files stay on your device by default.
   Users can opt in to R2 retention subject to per-user and application-wide limits. Direct bucket
   access outside the app is not covered by those limits and could incur charges. Each user sees
-  only their own data, and deleting the account removes it.
+  only their own data, and deleting the account removes it. The
+  [privacy policy](https://rca-api.nutritioncoachapp.workers.dev/privacy.html) lists exactly what is
+  stored.
 
 The system design is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and planned work is
 in [docs/ROADMAP.md](docs/ROADMAP.md). Operational limits, release gates and remaining launch
 evidence are in [docs/PRODUCTION.md](docs/PRODUCTION.md); the local benchmark is in
-[docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md). Service and storage limits are in
+[apps/api/LIMITS.md](apps/api/LIMITS.md).
 
 ## The model
 
@@ -111,7 +114,7 @@ npm run dev
 | Command                           | What it does                                                             |
 | --------------------------------- | ------------------------------------------------------------------------ |
 | `npm run dev`                     | Web app dev server (Vite)                                                |
-| `npm run dev:api`                 | Local API Worker (in progress)                                           |
+| `npm run dev:api`                 | Local API Worker on port 8787 (`wrangler dev`)                           |
 | `npm run build`                   | Production build of the web app into `apps/web/dist`                     |
 | `npm test`                        | Unit and component tests across all packages (Vitest)                    |
 | `npm run test:coverage`           | Same, with coverage thresholds                                           |
@@ -137,7 +140,7 @@ packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
   effort/            heart-rate check that best efforts were close to maximal
   synthetic/         ground-truth activity simulator
   pipeline.ts        ties the modules together
-packages/contract/   zod schemas shared by the API and the web app (in progress)
+packages/contract/   zod schemas shared by the API and the web app
 apps/web/            @rca/web: React + Vite app
   src/worker/        Web Worker that runs the analysis
   src/ui/            React components and hand-written SVG charts
@@ -147,8 +150,11 @@ apps/api/            @rca/api: Cloudflare Worker API with Hono, D1 and R2
 docs/                architecture, roadmap and README screenshots
 ```
 
-CI (GitHub Actions) runs the full check, the end-to-end suite on desktop and mobile viewports, and
-a dependency audit on every push and pull request.
+CI (GitHub Actions) runs on every push to `main` and on every pull request. The verification job
+checks formatting, lint, types, deployment-configuration tests, unit tests with coverage, and the
+build. The end-to-end job runs the Playwright suites in Chromium and WebKit, including the
+Worker-served suite. The audit job runs `npm audit`. A weekly workflow verifies registry signatures
+and audits production dependencies.
 
 ## Deploy
 
@@ -158,14 +164,24 @@ does not enroll in Workers Paid. The web app is served as static assets and the 
 exceeded, requests fail until limits reset or storage is freed. Application-level R2 limits cap
 app-handled traffic, but do not protect against direct bucket access or guarantee zero charges.
 Setup, Google sign-in, local development with real sign-in, costs and rollback are in
-[docs/DEPLOY.md](docs/DEPLOY.md). Deploys run with `npm run deploy`, or manually from the
-**Deploy** workflow in GitHub Actions.
+[docs/DEPLOY.md](docs/DEPLOY.md). Production releases run from the **Deploy** workflow only. It runs
+on `main`, runs the release gate, waits for owner approval, applies migrations, deploys, smoke-tests
+the live origin, and rolls back if the smoke test fails. Encrypted daily backups and an external
+uptime probe are described in [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## Built with
 
-TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. The API uses Cloudflare
-Workers, D1 and R2 with Hono, Drizzle and arctic. Written with Claude Code; no language model runs
-in the product.
+TypeScript, React, Vite, Vitest, Playwright, the Garmin FIT SDK and fflate. The API runs on
+Cloudflare Workers with D1 and R2, using Hono, Drizzle ORM and zod. Written with Claude Code; no
+language model runs in the product.
+
+## Privacy, security and license
+
+- The [privacy policy](https://rca-api.nutritioncoachapp.workers.dev/privacy.html) describes what is
+  stored, where, for how long, and how to delete it.
+- Report security problems through GitHub's private security advisory form, not a public issue. The
+  contact details are in `apps/web/public/.well-known/security.txt`.
+- Licensed under the [MIT License](LICENSE).
 
 ## References
 

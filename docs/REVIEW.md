@@ -1,10 +1,11 @@
-# Continuation review
+# Engineering review log
 
-Reviewed the full-stack handoff at `a5e03b9` from the perspective of a staff engineer evaluating
-mid-level ownership. The continuation now includes a live deployment and a synthetic production
-smoke on 22 October 2026. D1, private R2 and Google sign-in are configured; live persistence,
-original-file recovery and rollback were exercised. Real device and model validation remain
-separate open questions.
+This log records the engineering review of the project at `a5e03b9`. The review covered
+architecture, concurrency across the browser, Worker, API, D1 and R2, analysis correctness, and
+security. Findings are tracked to fixes with tests. A live deployment and a synthetic production
+smoke were run on 22 October 2026. D1, private R2 and Google sign-in are configured; live
+persistence, original-file recovery and rollback were exercised. Real device and model validation
+remain open.
 
 ## Assessment
 
@@ -13,20 +14,17 @@ contract, and a small storage backend is a reasonable design for this project. K
 on the device makes the backend's role clear. Owner-scoped queries, hashed sessions, explicit
 upload limits, and browser tests against a real local API are good foundations.
 
-The handoff's implication that repeated reviews had established readiness was too strong.
+The earlier implication that repeated reviews had established readiness was too strong.
 Passing isolated tests did not cover concurrency across D1 and R2, imports during account
 hydration, queued profile edits, or the propagation of invalid sensor data through derived
 streams. The original headline also claimed sporting ability and maximal effort more strongly
-than the model justified. These are engineering judgment issues, not missing cosmetic features.
+than the model justified. These are correctness and design issues, not missing cosmetic features.
 
-For a mid-level hiring decision, I would advance the creator to an interview, with particular
-attention to independent ownership of the failure paths below. The architecture and delivery
-show useful implementation ability. I would still want the creator to explain the concurrency
-invariants, distinguish model assumptions from validation, and demonstrate ownership on real
-input files before trusting the analytical conclusions in production. Adding a backend and more
-tests does not by itself resolve those concerns.
+Remaining engineering questions are the concurrency invariants, the separation of model
+assumptions from validation, and validation of analytical conclusions on real input files before
+production use. Adding a backend and more tests does not by itself resolve these.
 
-## Findings addressed in this continuation
+## Findings addressed in this review
 
 | Priority | Finding                                                                                                                                                        | Correction                                                                                                                           |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -43,7 +41,7 @@ tests does not by itself resolve those concerns.
 | Medium   | Incompatible heart-rate evidence could underflow every weight or concentrate an interval on a few draws.                                                       | Share sampling code, normalize log weights, report effective sample size, and use the unadjusted prior when support is insufficient. |
 | Medium   | “Stronger” and “all-out” language implied conclusions the uploaded data could not establish.                                                                   | Describe estimated energy use and model ranges, qualify the effort context, and state omitted uncertainty.                           |
 | Medium   | The cycling-higher percentage used the wrong denominator, and mean absolute percentage error was displayed as a ± bound.                                       | Use the reciprocal ratio for cycling relative to running and label the error statistic directly.                                     |
-| Medium   | Handoff CI failed when a mobile period label was covered by another control.                                                                                   | Prevent labels from shrinking over their contents, wrap segments, and test narrow viewports with enlarged text.                      |
+| Medium   | Mobile CI failed when a period label was covered by another control.                                                                                           | Prevent labels from shrinking over their contents, wrap segments, and test narrow viewports with enlarged text.                      |
 | Medium   | Direct API deploys assumed an existing web build; deployment docs described obsolete architecture.                                                             | Build assets through the deploy command, block placeholder remote configuration, and align the guide with the single Worker.         |
 
 The FIT timer handling was checked against Garmin's official
@@ -51,7 +49,7 @@ The FIT timer handling was checked against Garmin's official
 The pause regression uses independently encoded boundaries, not only a round trip through our
 own encoder.
 
-The handoff commit's GitHub Actions run was **failed**, not pending, when checked:
+The GitHub Actions run for the `a5e03b9` commit had **failed** when checked, not pending:
 [CI run 39706535015](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39706535015).
 Unit/build and dependency-audit jobs passed; mobile period selection timed out because another
 label or the toolbar intercepted the click. Newer runs belonged to dependency-update branches,
@@ -152,3 +150,7 @@ Later documentation-only updates clarify reuse of existing resources and record 
 restore; recheck the current PR head before release. Installation and auditing are separate, and
 audit network waits are bounded without bypassing the required check. See
 [PRODUCTION.md](PRODUCTION.md) for operational behavior and the remaining launch evidence.
+
+## October 2026 hardening review
+
+A second eight-area review (analysis correctness, import fuzzing, API integrity and free-tier abuse, client concurrency, UI and accessibility, test strength via mutation testing, operations, live-site headers) is being addressed on the hardening branch; see docs/PRODUCTION.md and apps/api/LIMITS.md.

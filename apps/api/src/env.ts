@@ -13,10 +13,13 @@ export interface Bindings {
   APP_URL: string
   GOOGLE_CLIENT_ID: string
   GOOGLE_CLIENT_SECRET: string
+  /** HMAC key for session cookies. Worker secret in production; fixed in .dev.vars.example. */
+  SESSION_SIGNING_KEY: string
   /** Cloudflare edge bindings; required outside local development. */
   API_RATE_LIMITER?: RateLimit
   AUTH_RATE_LIMITER?: RateLimit
   WRITE_RATE_LIMITER?: RateLimit
+  HEALTH_RATE_LIMITER?: RateLimit
 }
 
 export type Db = DrizzleD1Database<typeof schema>

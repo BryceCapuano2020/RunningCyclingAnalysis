@@ -118,7 +118,7 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages).toEqual([
       { type: 'progress', filesRead: 1 },
-      { type: 'state', state: expect.objectContaining({ totalActivities: 1, syncFailures: 0 }) },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 1, syncIssues: [] }) },
     ])
   })
 
@@ -189,7 +189,7 @@ describe('analysis worker', () => {
     )
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { totalActivities: 1, syncFailures: 0 },
+      state: { totalActivities: 1, syncIssues: [] },
     })
   })
 
@@ -207,10 +207,9 @@ describe('analysis worker', () => {
 
     expect(mocked.createActivity).toHaveBeenCalledTimes(2)
     expect(mocked.uploadFile).toHaveBeenCalledOnce()
-    expect(messages).toContainEqual({ type: 'storageBudgetExceeded' })
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncFailures: 2, totalActivities: 2 },
+      state: { syncIssues: [{ code: 'storage-budget', count: 2 }], totalActivities: 2 },
     })
   })
 
@@ -244,7 +243,7 @@ describe('analysis worker', () => {
     expect(mocked.uploadFile).not.toHaveBeenCalled()
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncFailures: 1, totalActivities: 1 },
+      state: { syncIssues: [{ code: 'file-too-large', count: 1 }], totalActivities: 1 },
     })
     expect(messages).not.toContainEqual(expect.objectContaining({ uploaded: 1 }))
   })
@@ -261,7 +260,7 @@ describe('analysis worker', () => {
 
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: { syncFailures: 1, totalActivities: 1 },
+      state: { syncIssues: [{ code: 'server', count: 1 }], totalActivities: 1 },
     })
     expect(mocked.uploadFile).not.toHaveBeenCalled()
   })
@@ -276,7 +275,10 @@ describe('analysis worker', () => {
       sync: { keepFiles: true, userId: USER_ID },
     })
 
-    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { syncFailures: 1 } })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'server', count: 1 }] },
+    })
   })
 
   it('loads the account digests and replies with the analysis', async () => {
@@ -286,6 +288,7 @@ describe('analysis worker', () => {
 
     expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID)
     expect(messages).toEqual([
+      { type: 'missingOriginals', count: 1 },
       {
         type: 'state',
         state: expect.objectContaining({ totalActivities: 1, isSample: false }),
@@ -377,6 +380,167 @@ describe('analysis worker', () => {
     expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
       { type: 'error', message: 'offline' },
     ])
+  })
+
+  it('stops saving after a sign-out and reports the unsaved activities as signed out', async () => {
+    mocked.createActivity.mockRejectedValue(
+      new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'signed-out', count: 2 }], totalActivities: 2 },
+    })
+  })
+
+  it('stops saving after an account change and reports it as account-changed', async () => {
+    mocked.createActivity.mockRejectedValue(
+      new ApiRequestError(409, 'account_changed', 'The signed-in account changed'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'account-changed', count: 2 }] },
+    })
+  })
+
+  it('keeps saving after a rate limit or a network failure, and names each cause', async () => {
+    mocked.createActivity
+      .mockRejectedValueOnce(new ApiRequestError(429, 'rate_limited', 'Slow down'))
+      .mockRejectedValueOnce(new ApiRequestError(0, 'network_error', 'Could not reach the server'))
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: {
+        syncIssues: [
+          { code: 'rate-limited', count: 1 },
+          { code: 'network', count: 1 },
+        ],
+      },
+    })
+  })
+
+  it('names an activity quota and a storage quota as their own causes', async () => {
+    mocked.createActivity.mockRejectedValueOnce(
+      new ApiRequestError(403, 'activity_quota', 'Library full'),
+    )
+    mocked.uploadFile.mockRejectedValueOnce(
+      new ApiRequestError(403, 'storage_quota', 'Storage full'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: {
+        syncIssues: [
+          { code: 'activity-quota', count: 1 },
+          { code: 'storage-quota', count: 1 },
+        ],
+      },
+    })
+  })
+
+  it('keeps a file of exactly the upload limit and refuses one byte more', async () => {
+    const size = RUN_FILE_BYTES.byteLength
+    const secondSize = new Uint8Array(encodeFit(secondSampleActivity, { gps: true })).byteLength
+    limits.maxFileBytes = size
+    const { send } = await startWorker()
+    await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+
+    limits.maxFileBytes = secondSize - 1
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(secondSampleActivity)],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'file-too-large', count: 1 }] },
+    })
+  })
+
+  it('reports the saved activities whose originals are missing, and clears each one a re-import restores', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST, false)])
+    const { send } = await startWorker()
+    const loaded = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    expect(loaded).toEqual([
+      { type: 'missingOriginals', count: 1 },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 1 }) },
+    ])
+
+    const imported = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+    expect(mocked.uploadFile).toHaveBeenCalledOnce()
+    expect(imported.at(-2)).toEqual({ type: 'missingOriginals', count: 0 })
+    expect(imported.at(-1)).toMatchObject({ type: 'state' })
+  })
+
+  it('reports a sign-out while loading the library so the app can stop showing the account', async () => {
+    mocked.listActivities.mockRejectedValue(
+      new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
+    )
+    const { send } = await startWorker()
+    expect(await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })).toEqual([
+      { type: 'error', message: 'Sign in required', issue: 'signed-out' },
+    ])
+  })
+
+  it('stops a rebuild at the first sign-out instead of failing every activity', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities.mockResolvedValueOnce([
+      recordFor(stale, true),
+      recordFor({ ...stale, id: 'other' }, true),
+    ])
+    mocked.downloadActivityFile.mockRejectedValue(
+      new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
+    )
+    const { send } = await startWorker()
+    expect(await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })).toEqual([
+      { type: 'error', message: 'Sign in required', issue: 'signed-out' },
+    ])
+    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
   })
 
   it('handles requests strictly in order, even when they arrive together', async () => {

@@ -26,6 +26,8 @@ interface Spec {
   indoor?: boolean
   noHeartRate?: boolean
   noAltitude?: boolean
+  /** Auto-pause flags. Default none. */
+  paused?: Uint8Array
 }
 
 /** A 1 Hz activity built from a spec. */
@@ -48,7 +50,7 @@ function activity(spec: Spec): Activity {
     altitude,
     heartRate: spec.heartRate ?? new Float64Array(n).fill(150),
     power: spec.power ?? new Float64Array(n).fill(NaN),
-    paused: new Uint8Array(n),
+    paused: spec.paused ?? new Uint8Array(n),
     hasPower: spec.power !== undefined,
     hasHeartRate: !spec.noHeartRate,
     hasAltitude: !spec.noAltitude,
@@ -438,5 +440,107 @@ describe('digestActivity: surging climbs', () => {
     // this as the limit of the linear approximation rather than a fixed bias.
     const biases = biasByWindow(4, 20)
     expect(Math.min(...biases)).toBeLessThan(-0.03)
+  })
+})
+
+describe('digestActivity: altitude steps and missing altitude', () => {
+  /** 1800 s at `speedMs`, a 60 s pause from 1000 s, then an 80 m altitude step at 1060 s. */
+  function steppedAfterPause(sport: Sport, speedMs: number): Activity {
+    const n = 1800
+    const speed = constant(n, speedMs)
+    speed.fill(0, 1000, 1060)
+    const paused = new Uint8Array(n)
+    paused.fill(1, 1000, 1060)
+    const altitude = constant(n, 100)
+    altitude.fill(180, 1060)
+    return activity({ n, sport, speed, paused, altitude })
+  }
+
+  it('masks an altitude step that follows a pause, so a flat run keeps its flat 5 s best', () => {
+    const d = digestActivity(steppedAfterPause('run', 3.5))
+    expect(d.flags.map((flag) => flag.kind)).toContain('altitude-jump')
+    expect(d.curve.find((p) => p.durationS === 5)!.value).toBeCloseTo(flatMetabolic(3.5), 6)
+  })
+
+  it('gives a virtual ride no climb window when its only steep grade is that step', () => {
+    const d = digestActivity(steppedAfterPause('ride', 7))
+    expect(d.powerSource).toBe('virtual')
+    expect(d.curve.every((p) => p.terms === null)).toBe(true)
+  })
+
+  it('gives a run without altitude no grade-dependent values, and flags the reason', () => {
+    const d = digestActivity(activity({ n: 1500, noAltitude: true }))
+    expect(d.curve.every((p) => Number.isNaN(p.value))).toBe(true)
+    expect(d.hrBlocks).toEqual([])
+    const flag = d.flags.find((f) => f.kind === 'missing-altitude')!
+    expect(flag.message).toContain('grade-based')
+  })
+
+  it('keeps a power-meter ride without altitude on measured power, but out of calibration', () => {
+    const n = 1200
+    const d = digestActivity(
+      activity({
+        n,
+        sport: 'ride',
+        speed: constant(n, 8),
+        power: constant(n, 300),
+        noAltitude: true,
+      }),
+    )
+    expect(d.powerSource).toBe('measured')
+    expect(d.curve[0]!.value).toBe(300)
+    expect(d.calibration!.blocks).toBe(0)
+    expect(d.climbSections).toEqual([])
+  })
+
+  it('does not let a paused stop make a run window that spans it unusable', () => {
+    const n = 600
+    const speed = constant(n, 4)
+    speed.fill(0, 200, 260)
+    const paused = new Uint8Array(n)
+    paused.fill(1, 200, 260)
+    const d = digestActivity(activity({ n, speed, paused }))
+    expect(d.curve.find((p) => p.durationS === 600)!.value).toBeGreaterThan(0)
+  })
+
+  it('does make a run window unusable when the same stop is not paused', () => {
+    const n = 600
+    const speed = constant(n, 4)
+    speed.fill(0, 200, 260)
+    const d = digestActivity(activity({ n, speed }))
+    expect(d.curve.find((p) => p.durationS === 600)!.value).toBeNaN()
+  })
+})
+
+describe('digestActivity: climb sections', () => {
+  it('never lets a power spike into a climb section', () => {
+    const n = 1800
+    const power = constant(n, climbPower(84))
+    power[900] = 2500
+    const d = digestActivity(climb(n, { power }))
+    expect(d.climbSections.some((s) => s.start <= 900 && 900 < s.end)).toBe(false)
+    expect(d.climbSections.length).toBeGreaterThan(0)
+    for (const section of d.climbSections) {
+      expect(section.measuredW).toBeCloseTo(climbPower(84), 6)
+    }
+  })
+
+  it('keeps a climb whose measured power is exactly 50 W', () => {
+    const n = 1800
+    const d = digestActivity(climb(n, { power: constant(n, 50) }))
+    expect(d.climbSections.length).toBeGreaterThan(0)
+    expect(d.climbSections.every((s) => s.measuredW === 50)).toBe(true)
+  })
+
+  it('keeps a climb whose measured power is 52 W', () => {
+    const n = 1800
+    const d = digestActivity(climb(n, { power: constant(n, 52) }))
+    expect(d.climbSections.length).toBeGreaterThan(0)
+  })
+
+  it('drops a climb whose measured power is 49 W', () => {
+    const n = 1800
+    const d = digestActivity(climb(n, { power: constant(n, 49) }))
+    expect(d.climbSections).toEqual([])
   })
 })

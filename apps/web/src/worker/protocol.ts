@@ -1,4 +1,4 @@
-import type { SessionState } from '@rca/core/session'
+import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */
@@ -18,7 +18,10 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { type: 'progress'; filesRead: number; uploaded?: number }
-  | { type: 'storageBudgetExceeded' }
+  /** Saved activities without an original file. Sent before the state that ends the request. */
+  | { type: 'missingOriginals'; count: number }
+  /** The import stopped because the account ended or changed. Sent before its state. */
+  | { type: 'accountIssue'; issue: SyncIssueCode }
   | { type: 'state'; state: SessionState }
   | {
       type: 'rebuildComplete'
@@ -27,4 +30,5 @@ export type WorkerResponse =
       missing: number
       failed: number
     }
-  | { type: 'error'; message: string }
+  /** `issue` is set when the failure means the account ended or changed, so the app can act on it. */
+  | { type: 'error'; message: string; issue?: SyncIssueCode }

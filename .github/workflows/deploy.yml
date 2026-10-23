@@ -1,7 +1,13 @@
 name: Deploy
 
-# Manual only. Deploys to the production Worker; never runs on push or pull request.
-# Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see docs/DEPLOY.md).
+# Manual only, and only from main. Order of operations:
+#   1. refuse any ref other than refs/heads/main
+#   2. run the full release gate on this exact commit and keep its static build
+#   3. wait for approval in the `production` environment (required reviewer: the owner)
+#   4. check production configuration, then apply pending D1 migrations (expand before deploy)
+#   5. deploy the Worker, tagged and described with the commit SHA
+#   6. smoke-test the live origin; on failure, roll the Worker back and fail the run
+# Migration rules and rollback limits are in docs/PRODUCTION.md; the secrets are in docs/DEPLOY.md.
 on:
   workflow_dispatch:
 
@@ -13,38 +19,123 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    name: Verify the deployment commit
-    uses: ./.github/workflows/ci.yml
-
-  deploy:
-    name: Migrate and deploy verified build
-    needs: verify
-    if: github.ref == 'refs/heads/main'
-    environment: production
+  guard:
+    name: Require main
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 2
+    steps:
+      - name: Refuse any ref other than refs/heads/main
+        shell: bash
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "Refusing to deploy $REF. Deploys run only from refs/heads/main." >&2
+            exit 1
+          fi
+
+  verify:
+    name: Release gate on the deployment commit
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit
-      - name: Use the exact assets produced by verification
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+        working-directory: apps/web
+      - name: Format, lint, typecheck, unit tests, build, end-to-end suites
+        run: npm run verify:release
+      - name: Keep the verified static build for the deploy job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: production-dist
+          path: apps/web/dist
+          retention-days: 7
+          if-no-files-found: error
+      - name: Keep the Playwright report when a suite fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
+
+  deploy:
+    name: Migrate, deploy and smoke test
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://rca-api.nutritioncoachapp.workers.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+      - name: Use the exact static build verified for this commit
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: dist
+          name: production-dist
           path: apps/web/dist
-      - name: Apply D1 migrations to the production database
-        run: npm run db:migrate:remote -w @rca/api
+      - name: Check the production configuration
+        run: node apps/api/scripts/check-deploy-config.mjs
+      - name: Apply pending D1 migrations before the new Worker runs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Deploy the Worker
-        run: npm run deploy:built -w @rca/api
+        run: npm exec -w @rca/api -- wrangler d1 migrations apply rca --remote
+      - name: Deploy the Worker, recording the commit on the version
+        id: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/deploy.log"
+          npm exec -w @rca/api -- wrangler deploy \
+            --tag "$GITHUB_SHA" \
+            --message "Commit $GITHUB_SHA, workflow run $GITHUB_RUN_ID" 2>&1 | tee "$log"
+          version="$(grep -oiE 'version id: [0-9a-f-]{36}' "$log" | awk '{print $NF}' | head -n 1 || true)"
+          echo "version=${version:-unknown}" >> "$GITHUB_OUTPUT"
+      - name: Smoke test the live origin
+        id: smoke
+        run: node scripts/ops/smoke.mjs
+      - name: Roll back the Worker after a failed smoke test
+        if: steps.smoke.outcome == 'failure'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: >-
+          npm exec -w @rca/api -- wrangler rollback --yes
+          --message "Automatic rollback: smoke test failed for $GITHUB_SHA (run $GITHUB_RUN_ID)"
+      - name: Record the deployment
+        if: always()
+        shell: bash
+        env:
+          VERSION: ${{ steps.deploy.outputs.version }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          {
+            echo "### Production deployment"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Worker version: \`${VERSION:-not deployed}\`"
+            echo "- Smoke test: \`${SMOKE:-skipped}\`"
+            echo "- A rollback restores Worker code only. Migrations are never reversed (docs/PRODUCTION.md)."
+          } >> "$GITHUB_STEP_SUMMARY"

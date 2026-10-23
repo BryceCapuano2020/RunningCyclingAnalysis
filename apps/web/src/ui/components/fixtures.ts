@@ -64,6 +64,7 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     maxHeartRate: null,
     effort: [],
     bikeModel: { cda: 0.32, crr: 0.005 },
+    bikeModelSource: 'default',
     virtualAccuracy: { nSegments: 3, mape: 0.06, bias: 0.01, segments: [] },
     ...overrides,
   }

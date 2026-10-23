@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   ACCOUNT_SCOPE_HEADER,
+  ActivityDigestSchema,
   MAX_ACTIVITIES_PER_USER,
+  MAX_DIGEST_BYTES,
   MAX_PAGE_BODY_BYTES,
   MAX_PAGE_DIGEST_BYTES,
   MAX_STORED_BYTES_PER_USER,
@@ -9,6 +11,7 @@ import {
 import { activityFileKey } from '../storage.ts'
 import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
 import { sha256Hex, toBase64Url } from '../util.ts'
+import { dedupeKeyFor } from './activities.ts'
 
 const CONTENT = new TextEncoder().encode('0123 fake FIT bytes')
 const HASH_OF_CONTENT = await sha256Hex(CONTENT)
@@ -676,14 +679,15 @@ describe('original file upload and download', () => {
         // Runs after the duplicate check and before the insert: another request lands first.
         if (racing && harness) {
           racing = false
-          void harness.env.DB.prepare(
-            `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-              digest_json, file_name, file_hash, created_at)
-             SELECT 'winner', id, ?, 'ride', ?, 'Morning ride', 1, ?, 'ride.fit', ?, 0
-             FROM users LIMIT 1`,
-          )
-            .bind(`ride-${START / 1000}`, START, JSON.stringify(digestFixture()), HASH_OF_CONTENT)
-            .run()
+          void harness.env.DB.batch([
+            harness.env.DB.prepare(
+              `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+                digest_json, file_name, file_hash, created_at)
+               SELECT 'winner', id, ?, 'ride', ?, 'Morning ride', 1, ?, 'ride.fit', ?, 0
+               FROM users LIMIT 1`,
+            ).bind(`ride-${START / 1000}`, START, JSON.stringify(digestFixture()), HASH_OF_CONTENT),
+            harness.env.DB.prepare('UPDATE users SET activity_count = activity_count + 1'),
+          ])
         }
         return 'loser'
       },
@@ -1007,12 +1011,15 @@ describe('per-user quotas', () => {
       randomUUID: () => {
         if (racing && harness) {
           racing = false
-          competitorInsert = harness.env.DB.prepare(
-            `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-              digest_json, file_name, file_hash, created_at)
-             SELECT 'last-slot-winner', id, 'last-slot-winner', 'run', 1, 'winner', 1, '{}',
-               'winner.fit', 'hash', 0 FROM users LIMIT 1`,
-          ).run()
+          competitorInsert = harness.env.DB.batch([
+            harness.env.DB.prepare(
+              `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+                digest_json, file_name, file_hash, created_at)
+               SELECT 'last-slot-winner', id, 'last-slot-winner', 'run', 1, 'winner', 1, '{}',
+                 'winner.fit', 'hash', 0 FROM users LIMIT 1`,
+            ),
+            harness.env.DB.prepare('UPDATE users SET activity_count = activity_count + 1'),
+          ])
         }
         return 'quota-racer'
       },
@@ -1205,7 +1212,6 @@ describe('per-user quotas', () => {
     await secondPutStarted
     failFirstPut()
     expect((await first).status).toBe(500)
-
     const third = await h.send({
       method: 'PUT',
       path: `/api/activities/${thirdId}/file`,
@@ -1237,12 +1243,163 @@ async function pageOf(h: Harness, token: string, query: string) {
 
 /** Inserts filler activities in one statement. Only the count matters to the quota. */
 async function seedActivities(h: Harness, uid: string, count: number): Promise<void> {
-  await h.env.DB.prepare(
-    `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
-     INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
-       digest_json, file_name, file_hash, created_at)
-     SELECT 'seed-' || i, ?, 'seed-' || i, 'run', i, 'seed', 1, '{}', 'seed.fit', 'h', 0 FROM n`,
-  )
-    .bind(count, uid)
-    .run()
+  await h.env.DB.batch([
+    h.env.DB.prepare(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+       INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+         digest_json, file_name, file_hash, created_at)
+       SELECT 'seed-' || i, ?, 'seed-' || i, 'run', i, 'seed', 1, '{}', 'seed.fit', 'h', 0 FROM n`,
+    ).bind(count, uid),
+    h.env.DB.prepare('UPDATE users SET activity_count = activity_count + ? WHERE id = ?').bind(
+      count,
+      uid,
+    ),
+  ])
 }
+
+describe('activity count cap', () => {
+  it('caps creates by the stored per-user counter, not by counting rows', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    await h.env.DB.prepare('UPDATE users SET activity_count = ? WHERE id = ?')
+      .bind(MAX_ACTIVITIES_PER_USER, uid)
+      .run()
+
+    const refused = await createActivity(h, token)
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ error: { code: 'activity_quota' } })
+  })
+
+  it('keeps the counter equal to the number of rows through creates and deletes', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    const first = await idOf(await createActivity(h, token))
+    await idOf(await createActivity(h, token, {}, { startMs: START + 60_000 }))
+    await h.send({ method: 'DELETE', path: `/api/activities/${first}`, ...as(token) })
+    await h.send({ method: 'DELETE', path: `/api/activities/${first}`, ...as(token) })
+
+    expect(
+      await h.env.DB.prepare(
+        `SELECT activity_count, (SELECT COUNT(*) FROM activities WHERE user_id = users.id) AS rows
+         FROM users WHERE id = ?`,
+      )
+        .bind(uid)
+        .first(),
+    ).toEqual({ activity_count: 1, rows: 1 })
+  })
+})
+
+describe('original file reservations', () => {
+  it('releases the byte reservation when the monthly R2 budget refuses the write before R2 is called', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    await h.env.DB.prepare(
+      `INSERT INTO r2_storage_budget (id, lifetime_put_bytes, monthly_period, monthly_operations, monthly_put_bytes)
+       VALUES (1, 0, '2026-01', 0, ${2 * 1024 * 1024 * 1024})
+       ON CONFLICT(id) DO UPDATE SET monthly_period = '2026-01', monthly_operations = 0,
+         monthly_put_bytes = ${2 * 1024 * 1024 * 1024}`,
+    ).run()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: true },
+      ...as(token),
+    })
+
+    const refused = await h.send({
+      method: 'PUT',
+      path: `/api/activities/${id}/file`,
+      raw: CONTENT,
+      ...as(token),
+    })
+    expect(refused.status).toBe(429)
+    expect(await refused.json()).toMatchObject({ error: { code: 'storage_budget_exhausted' } })
+    expect(
+      await h.env.DB.prepare('SELECT file_key, file_size FROM activities WHERE id = ?')
+        .bind(id)
+        .first(),
+    ).toEqual({ file_key: null, file_size: null })
+  })
+
+  it('returns 204 when an activity is deleted and its R2 object cannot be removed, and never leaves the row behind', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    const brokenDelete = new Proxy(testEnv().FILES!, {
+      get(target, property) {
+        if (property === 'delete')
+          return async () => {
+            throw new Error('simulated R2 delete failure')
+          }
+        const value = Reflect.get(target, property, target) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+    const broken = createHarness({}, { FILES: brokenDelete })
+    const res = await broken.send({ method: 'DELETE', path: `/api/activities/${id}`, ...as(token) })
+    expect(res.status).toBe(204)
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM activities WHERE id = ?')
+        .bind(id)
+        .first<{ n: number }>(),
+    ).toEqual({ n: 0 })
+    spy.mockRestore()
+  })
+})
+
+/** Bytes the server stores for a digest with this name: the JSON it re-serialises after parsing. */
+function storedDigestBytes(name: string): number {
+  const wire = JSON.parse(JSON.stringify(digestFixture({ name })))
+  return new TextEncoder().encode(JSON.stringify(ActivityDigestSchema.parse(wire))).byteLength
+}
+
+describe('boundary pins', () => {
+  it('derives the dedupe key by rounding to the nearest second, half up', () => {
+    expect(dedupeKeyFor('ride', 1_499)).toBe('ride-1')
+    expect(dedupeKeyFor('ride', 1_500)).toBe('ride-2')
+    expect(dedupeKeyFor('run', 2_499)).toBe('run-2')
+  })
+
+  it('accepts a digest of exactly 256 KB and refuses one byte more', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const sizeWithName = (name: string) => storedDigestBytes(name)
+    const base = sizeWithName('')
+    const exact = await createActivity(h, token, {}, { name: 'n'.repeat(MAX_DIGEST_BYTES - base) })
+    expect(exact.status).toBe(201)
+    const over = await createActivity(
+      h,
+      token,
+      {},
+      { name: 'n'.repeat(MAX_DIGEST_BYTES - base + 1), startMs: START + 60_000 },
+    )
+    expect(over.status).toBe(413)
+    expect(await over.json()).toMatchObject({ error: { code: 'digest_too_large' } })
+  })
+
+  it('fills a page exactly to its digest byte budget, and includes the row that exactly fits', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const base = storedDigestBytes('')
+    const each = MAX_DIGEST_BYTES
+    expect(MAX_PAGE_DIGEST_BYTES % each).toBe(0)
+    for (let i = 0; i < MAX_PAGE_DIGEST_BYTES / each; i += 1) {
+      h.clock.now += 1_000
+      const res = await createActivity(
+        h,
+        token,
+        {},
+        { name: 'n'.repeat(each - base), startMs: START + i * 60_000 },
+      )
+      expect(res.status).toBe(201)
+    }
+    const page = await pageOf(h, token, '?limit=25')
+    expect(page.items).toHaveLength(MAX_PAGE_DIGEST_BYTES / each)
+    expect(page.nextCursor).toBeNull()
+    expect(MAX_PAGE_BODY_BYTES).toBeGreaterThan(MAX_PAGE_DIGEST_BYTES)
+  })
+})

@@ -1,7 +1,7 @@
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef } from 'react'
-import type { Profile, ProfileInput } from '@rca/contract'
+import type { ProfileInput } from '@rca/contract'
 import './App.css'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from './ui/charts'
 import {
@@ -24,44 +24,12 @@ import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
 
-function profileInput(profile: Profile): ProfileInput {
-  return {
-    massKg: profile.massKg,
-    bikeMassKg: profile.bikeMassKg,
-    units: profile.units,
-    keepFiles: profile.keepFiles,
-  }
-}
-
 export function App() {
   const [preferences, setPreferences] = usePreferences()
   const account = useAccount()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
-  const userId = account.me?.user.id ?? null
-  const profileEditRef = useRef<{ userId: string | null; input: ProfileInput | null }>({
-    userId,
-    input: profile ? profileInput(profile) : null,
-  })
-  const profileSavedRef = useRef<{ userId: string | null; input: ProfileInput | null }>({
-    userId,
-    input: profile ? profileInput(profile) : null,
-  })
-  useEffect(() => {
-    if (profileEditRef.current.userId !== userId) {
-      const input = profile ? profileInput(profile) : null
-      profileEditRef.current = { userId, input }
-      profileSavedRef.current = { userId, input }
-    } else if (profile && profileEditRef.current.input === null) {
-      const input = profileInput(profile)
-      profileEditRef.current.input = input
-      profileSavedRef.current = { userId, input }
-    } else if (profile) {
-      profileSavedRef.current = { userId, input: profileInput(profile) }
-    }
-  }, [profile, userId])
-
   // Signed in, the saved profile is the source of truth; signed out, local preferences are.
   const settings: AthleteSettings = profile
     ? { massKg: profile.massKg, bikeMassKg: profile.bikeMassKg }
@@ -72,30 +40,17 @@ export function App() {
     next: Partial<{ settings: AthleteSettings; units: UnitSystem; keepFiles: boolean }>,
   ) => {
     if (profile) {
-      const current = profileEditRef.current.input ?? profileInput(profile)
-      const input = {
-        massKg: next.settings?.massKg ?? current.massKg,
-        bikeMassKg: next.settings?.bikeMassKg ?? current.bikeMassKg,
-        units: next.units ?? current.units,
-        keepFiles: next.keepFiles ?? current.keepFiles,
+      // Only the fields the user changed are sent. The account merges them onto the latest saved
+      // profile, so a change made in another tab is not reverted.
+      const patch: Partial<ProfileInput> = {}
+      if (next.settings) {
+        patch.massKg = next.settings.massKg
+        patch.bikeMassKg = next.settings.bikeMassKg
       }
-      profileEditRef.current.input = input
-      const editUserId = profileEditRef.current.userId
-      void account
-        .updateProfile(input)
-        .then(() => {
-          if (profileSavedRef.current.userId === editUserId) {
-            profileSavedRef.current.input = input
-          }
-        })
-        .catch(() => {
-          if (
-            profileEditRef.current.userId === editUserId &&
-            profileEditRef.current.input === input
-          ) {
-            profileEditRef.current.input = profileSavedRef.current.input
-          }
-        })
+      if (next.units !== undefined) patch.units = next.units
+      if (next.keepFiles !== undefined) patch.keepFiles = next.keepFiles
+      // The failure is shown by the account's error message.
+      void account.updateProfile(patch).catch(() => undefined)
     } else {
       setPreferences({
         settings: next.settings ?? preferences.settings,
@@ -132,6 +87,11 @@ export function App() {
   )
   const { result, rejected, unsupportedFiles, isSample, totalActivities, rangeDays } =
     analysis.state
+  const originalsMissing = analysis.missingOriginals
+  const missingText =
+    originalsMissing === 1
+      ? '1 activity is missing its original file. Re-import it to restore the original.'
+      : `${originalsMissing} activities are missing their original file. Re-import them to restore the originals.`
   const headlineDuration = result ? pickHeadline(result.comparison)?.point.durationS : undefined
   const headlineEffort = result?.effort.find((e) => e.durationS === headlineDuration) ?? null
 
@@ -165,10 +125,28 @@ export function App() {
       {/* One instance for both views: its live region must stay mounted to announce uploads. */}
       <SyncStatus
         uploading={analysis.uploading}
-        failures={analysis.state.syncFailures}
-        storageBudgetExceeded={analysis.storageBudgetExceeded}
+        issues={analysis.state.syncIssues}
         signedIn={signedIn}
       />
+      {account.status === 'unavailable' && (
+        <p className="card" role="status">
+          Your library is unavailable right now. Analysis still runs in your browser and nothing is
+          being saved.
+        </p>
+      )}
+      {signedIn && analysis.libraryStatus === 'failed' && (
+        <section className="card app__error" aria-label="Library">
+          <p role="alert">Your library could not be loaded.</p>
+          <button type="button" className="btn" onClick={analysis.retryLibrary}>
+            Retry
+          </button>
+        </section>
+      )}
+      {signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0 && (
+        <section className="card" aria-label="Missing original files">
+          <p role="status">{missingText}</p>
+        </section>
+      )}
       {signedIn && analysis.state.outdatedActivities > 0 && (
         <section className="card" aria-label="Saved activity updates">
           <p role="status">
@@ -238,8 +216,8 @@ export function App() {
             </h1>
             <p className="secondary">
               Watts on the bike and pace on the run cannot be compared directly. This tool converts
-              both into the energy your body burns per kilogram, then compares the estimates with a
-              range that reflects the model assumptions.
+              both into estimated energy use per kilogram, then compares the estimates with a range
+              that reflects the model assumptions.
             </p>
           </section>
           {fileRetentionControls}
@@ -248,7 +226,7 @@ export function App() {
             onSample={analysis.loadSample}
             busy={analysis.busy}
             progress={analysis.progress}
-            retainsOriginals={signedIn && keepFiles && fileRetentionAvailable}
+            signedIn={signedIn}
           />
           <RejectedFiles rejected={rejected} unsupportedFiles={unsupportedFiles} />
           {account.status === 'signed-out' && <SignInCallout onSignIn={account.signIn} />}
@@ -294,7 +272,7 @@ export function App() {
               onSample={analysis.loadSample}
               busy={analysis.busy}
               progress={analysis.progress}
-              retainsOriginals={signedIn && keepFiles && fileRetentionAvailable}
+              signedIn={signedIn}
             />
             <SettingsBar
               settings={settings}
@@ -336,7 +314,7 @@ export function App() {
           <section className="card">
             <h2>Best efforts in one unit</h2>
             <p>
-              The most energy you have burned per kilogram for each length of effort. Where the
+              The highest estimated energy rate per kilogram for each length of effort. Where the
               lines cross, the two sports are equal.
             </p>
             <CurveChart
@@ -357,7 +335,8 @@ export function App() {
             <section className="card">
               <h2>What your cycling is worth on foot</h2>
               <p>
-                Your best cycling efforts, and the flat running pace that burns the same energy.
+                Your best cycling efforts, and the flat running pace estimated to use the same
+                energy (90% model range).
               </p>
               <EquivalenceTable equivalents={result.equivalents} units={units} />
             </section>
@@ -376,8 +355,8 @@ export function App() {
               <section className="card">
                 <h2>Virtual power meter accuracy</h2>
                 <p>
-                  Power estimated from speed, gradient and weight on climbs, tested against your
-                  real power meter on rides it was not tuned on.
+                  Power estimated from speed, gradient and weight on climbs, tuned on your other
+                  power-meter rides and scored on each ride it was not tuned on.
                 </p>
                 <AccuracyScatter accuracy={result.virtualAccuracy} />
               </section>
@@ -399,6 +378,9 @@ export function App() {
           keepFiles={keepFiles}
           fileRetentionAvailable={fileRetentionAvailable}
         />
+        <p>
+          <a href="/privacy.html">Privacy</a>
+        </p>
       </footer>
     </div>
   )

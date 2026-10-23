@@ -4,7 +4,8 @@
   gap: var(--space-3);
 }
 
-.headline__detail {
+.headline__detail,
+.headline__range {
   max-width: 68ch;
 }
 

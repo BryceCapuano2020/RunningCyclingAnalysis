@@ -3,6 +3,13 @@ import type { ChangeEvent, DragEvent as ReactDragEvent, KeyboardEvent } from 're
 import { plural } from './plural'
 import './Dropzone.css'
 
+/** What a finished run produced, announced once when it ends. */
+export interface DropzoneOutcome {
+  activities: number
+  /** Files that could not be read or used. */
+  rejected: number
+}
+
 export interface DropzoneProps {
   onFiles: (files: File[]) => void
   onSample: () => void
@@ -11,13 +18,22 @@ export interface DropzoneProps {
   progress: number | null
   /** Single inline button for use above results. Drops are accepted anywhere on the page. */
   compact?: boolean
-  /** Whether imports upload originals to the signed-in library. */
-  retainsOriginals?: boolean
+  /** Signed-in imports are saved to the library, so the copy and the sample button change. */
+  signedIn: boolean
+  /** Result of the run that just ended. Give a new object per run; its text is announced when it appears while not busy. */
+  outcome?: DropzoneOutcome | null
 }
 
 function statusText(progress: number | null): string {
   if (progress === null || progress === 0) return 'Analysing'
   return `Read ${plural(progress, 'file')} so far`
+}
+
+/** The one sentence announced when a run ends. Per-file progress is never announced. */
+function outcomeSentence({ activities, rejected }: DropzoneOutcome): string {
+  const rejectedText = rejected > 0 ? ` ${plural(rejected, 'file')} could not be used.` : ''
+  if (activities === 0) return `No activities were analysed.${rejectedText}`
+  return `Analysed ${plural(activities, 'activity', 'activities')}.${rejectedText}`
 }
 
 function isFileDrag(event: Pick<DragEvent, 'dataTransfer'>): boolean {
@@ -34,11 +50,16 @@ export function Dropzone({
   busy,
   progress,
   compact = false,
-  retainsOriginals = false,
+  signedIn,
+  outcome = null,
 }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [windowDragging, setWindowDragging] = useState(false)
+  // The one live region: announces that a run started and how it ended, and nothing in between.
+  const [announcedBusy, setAnnouncedBusy] = useState(busy)
+  const [announcedOutcome, setAnnouncedOutcome] = useState(outcome)
+  const [announcement, setAnnouncement] = useState('')
   // The window listeners read the latest callback without being rebound on every render.
   const latestOnFiles = useRef(onFiles)
 
@@ -120,7 +141,22 @@ export function Dropzone({
     if (files.length > 0) onFiles(files)
   }
 
+  // Detect the start and the end of a run during render, not in an effect.
+  if (busy !== announcedBusy) {
+    setAnnouncedBusy(busy)
+    if (busy) setAnnouncement('Reading files')
+  }
+  if (outcome !== announcedOutcome) {
+    setAnnouncedOutcome(outcome)
+    if (outcome !== null && !busy) setAnnouncement(outcomeSentence(outcome))
+  }
+
   const status = busy ? statusText(progress) : ''
+  const liveRegion = (
+    <p role="status" className="sr-only">
+      {announcement}
+    </p>
+  )
   const bar = busy && (
     <div className="dropzone__bar" aria-hidden="true">
       <span className="dropzone__bar-fill" />
@@ -134,9 +170,10 @@ export function Dropzone({
           Add more files
         </button>
         {bar}
-        <p className="dropzone__status" aria-live="polite">
+        <p className="dropzone__status" aria-hidden="true">
           {status}
         </p>
+        {liveRegion}
         <input
           ref={inputRef}
           type="file"
@@ -167,20 +204,23 @@ export function Dropzone({
         <p className="dropzone__title">Drop FIT files or a Strava export zip here</p>
         <p className="dropzone__hint">or choose files</p>
       </div>
-      <div className="dropzone__actions">
-        <button type="button" className="btn" onClick={onSample} disabled={busy}>
-          Try sample data
-        </button>
-      </div>
+      {signedIn ? null : (
+        <div className="dropzone__actions">
+          <button type="button" className="btn" onClick={onSample} disabled={busy}>
+            Try sample data
+          </button>
+        </div>
+      )}
       <p className="dropzone__privacy muted">
-        {retainsOriginals
-          ? 'Original files are saved to your private library. Analysis runs in your browser.'
-          : 'Your files never leave this device. All analysis runs in your browser'}
+        {signedIn
+          ? 'Analysis runs in your browser. Activity summaries are saved to your library; original files only if you keep them.'
+          : 'Your files never leave this device. All analysis runs in your browser.'}
       </p>
       {bar}
-      <p className="dropzone__status" aria-live="polite">
+      <p className="dropzone__status" aria-hidden="true">
         {status}
       </p>
+      {liveRegion}
       <input
         ref={inputRef}
         type="file"

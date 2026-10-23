@@ -13,10 +13,10 @@ function route(n: number, stepM: number, slope: number) {
 }
 
 describe('smoothGrade', () => {
-  it('returns zeros when every altitude is NaN', () => {
+  it('returns NaN when every altitude is NaN', () => {
     const altitude = new Float64Array(10).fill(NaN)
     const { distance } = route(10, 3, 0.05)
-    expect(Array.from(smoothGrade(altitude, distance))).toEqual(new Array<number>(10).fill(0))
+    expect(Array.from(smoothGrade(altitude, distance))).toEqual(new Array<number>(10).fill(NaN))
   })
 
   it('returns an empty array for empty input', () => {
@@ -53,28 +53,28 @@ describe('smoothGrade', () => {
     expect(smoothGrade(descent, distance)[50]).toBe(-0.35)
   })
 
-  it('gives zero where the distance span is under 5 m', () => {
+  it('gives NaN, not flat ground, where the distance span is under 5 m', () => {
     // 0.1 m per sample makes every 30-sample span 3 m long.
     const { altitude, distance } = route(100, 0.1, 0.5)
-    expect(Array.from(smoothGrade(altitude, distance))).toEqual(new Array<number>(100).fill(0))
+    expect(Array.from(smoothGrade(altitude, distance))).toEqual(new Array<number>(100).fill(NaN))
   })
 
-  it('gives zero where the distance is NaN at a span end', () => {
+  it('gives NaN where the distance is NaN at a span end', () => {
     const { altitude, distance } = route(100, 3, 0.05)
     distance[50] = NaN
     const grade = smoothGrade(altitude, distance)
-    expect(grade[35]).toBe(0)
-    expect(grade[65]).toBe(0)
+    expect(grade[35]).toBeNaN()
+    expect(grade[65]).toBeNaN()
     // The span for sample 34 runs from 19 to 49 and does not touch the NaN.
     expect(grade[34]).toBeCloseTo(0.05, 9)
   })
 
-  it('gives zero where the smoothed altitude is NaN', () => {
+  it('gives NaN where the smoothed altitude is NaN', () => {
     const { altitude, distance } = route(100, 3, 0.05)
     altitude.fill(NaN, 0, 60)
     const grade = smoothGrade(altitude, distance)
     // Smoothed altitude at 25 and 35 averages only NaN samples.
-    expect(grade[10]).toBe(0)
-    expect(grade[50]).toBe(0)
+    expect(grade[10]).toBeNaN()
+    expect(grade[50]).toBeNaN()
   })
 })

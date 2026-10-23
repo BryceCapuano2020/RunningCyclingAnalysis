@@ -6,12 +6,20 @@ export type ErrorStatus = 400 | 401 | 403 | 404 | 408 | 409 | 413 | 422 | 429 | 
 export class HttpError extends Error {
   readonly status: ErrorStatus
   readonly code: string
+  /** Seconds before a retry can succeed; sent as the Retry-After header when set. */
+  readonly retryAfter: number | undefined
 
-  constructor(status: ErrorStatus, code: string, message: string) {
+  constructor(
+    status: ErrorStatus,
+    code: string,
+    message: string,
+    options: { retryAfter?: number } = {},
+  ) {
     super(message)
     this.name = 'HttpError'
     this.status = status
     this.code = code
+    this.retryAfter = options.retryAfter
   }
 }
 

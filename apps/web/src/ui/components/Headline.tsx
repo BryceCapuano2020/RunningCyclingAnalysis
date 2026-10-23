@@ -27,12 +27,13 @@ interface Tile {
 /** Best efforts below this share of the highest heart rate were probably not all-out. */
 const ALL_OUT = 0.9
 
-function headlineTitle(ratio: Interval): string {
+/** States which sport the model estimates uses more energy rate per kg, or that the estimates overlap. */
+function headlineTitle(ratio: Interval, duration: string): string {
   if (ratio.p05 > 1) {
-    return `Your best running uses ${formatPercent(ratio.p50 - 1)} more energy per kg than your best cycling`
+    return `Over ${duration}, your running is estimated to use ${formatPercent(ratio.p50 - 1)} more energy rate per kg than your cycling`
   }
   if (ratio.p95 < 1) {
-    return `Your best cycling uses ${formatPercent(1 / ratio.p50 - 1)} more energy per kg than your best running`
+    return `Over ${duration}, your cycling is estimated to use ${formatPercent(1 / ratio.p50 - 1)} more energy rate per kg than your running`
   }
   return 'Your running and cycling energy estimates overlap'
 }
@@ -120,26 +121,26 @@ function effortNotice(effort: EffortCheck | null | undefined): ReactNode {
   const duration = formatDuration(durationS)
   if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
     return noticeBlock(
-      `Both best efforts over ${duration} were below 90% of your highest heart rate on file ` +
+      `Both best efforts over ${duration} were below 90% of your highest recorded heart rate ` +
         `(running ${Math.round(run * 100)}%, cycling ${Math.round(ride * 100)}%). Your library may be missing harder efforts.`,
     )
   }
   if (ride !== null && ride < ALL_OUT) {
     return noticeBlock(
       `Your best cycling effort over ${duration} reached ${Math.round(ride * 100)}% of your highest ` +
-        `heart rate on file. Your library may be missing a harder cycling effort.`,
+        `recorded heart rate. Your library may be missing a harder cycling effort.`,
     )
   }
   if (run !== null && run < ALL_OUT) {
     return noticeBlock(
       `Your best running effort over ${duration} reached ${Math.round(run * 100)}% of your highest ` +
-        `heart rate on file. Your library may be missing a harder running effort.`,
+        `recorded heart rate. Your library may be missing a harder running effort.`,
     )
   }
   if (run !== null && ride !== null) {
     return (
       <p className="headline__effort-ok muted">
-        Both best efforts reached at least 90% of your highest heart rate on file. This does not
+        Both best efforts reached at least 90% of your highest recorded heart rate. This does not
         establish that either was all-out.
       </p>
     )
@@ -161,11 +162,13 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
   }
 
   const { point, calibrated } = pick
+  const duration = formatDuration(point.durationS)
   const summary =
-    `Over ${formatDuration(point.durationS)}, your estimated running energy rate is ` +
+    `Over ${duration}, your estimated running energy rate is ` +
     `${formatWkg(point.runMetabolic.p50)} and your cycling energy rate is ` +
-    `${formatWkg(point.rideMetabolic.p50)}. ` +
-    `The 90% model range for running relative to cycling is ${formatPercent(point.ratio.p05 - 1, true)} to ` +
+    `${formatWkg(point.rideMetabolic.p50)}.`
+  const range =
+    `90% model range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
     `${formatPercent(point.ratio.p95 - 1, true)}.`
   const basis =
     result.comparison.calibration?.accepted === false
@@ -178,9 +181,10 @@ export function Headline({ result, units, massKg, effort }: HeadlineProps) {
   return (
     <section className="headline">
       <h1 id="results-heading" tabIndex={-1} className="headline__title">
-        {headlineTitle(point.ratio)}
+        {headlineTitle(point.ratio, duration)}
       </h1>
       <p className="headline__detail">{summary}</p>
+      <p className="headline__range">{range}</p>
       {effortNotice(effort)}
       <p className="headline__basis muted">{basis}</p>
       <p className="headline__basis muted">

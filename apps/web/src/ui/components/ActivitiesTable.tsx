@@ -131,7 +131,9 @@ export function ActivitiesTable({ activities, units }: ActivitiesTableProps) {
                     tabIndex={isFirstVisible ? -1 : undefined}
                   >
                     <td>{localDate(activity.startMs)}</td>
-                    <td>{activity.name}</td>
+                    <td>
+                      <span className="activities-table__name">{activity.name}</span>
+                    </td>
                     <td>
                       <span className={`swatch swatch-${activity.sport}`} aria-hidden="true" />
                       {activity.sport === 'run' ? 'Run' : 'Ride'}

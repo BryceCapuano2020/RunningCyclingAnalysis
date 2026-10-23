@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
-import type { Me } from '@rca/contract'
+import type { Me, Profile } from '@rca/contract'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/client'
 import { ApiRequestError } from '../api/client'
@@ -78,11 +78,19 @@ describe('useAccount', () => {
     ['a 404 from a static host', new ApiRequestError(404, 'http_error', 'Not Found')],
     ['a 500 from the API', new ApiRequestError(500, 'internal_error', 'Something went wrong')],
   ])('becomes unavailable on %s, with the reason as the error', async (_label, failure) => {
-    mocked.getMe.mockRejectedValue(failure)
-    const { result } = renderHook(() => useAccount())
-    await waitFor(() => expect(result.current.status).toBe('unavailable'))
-    expect(result.current.me).toBeNull()
-    expect(result.current.error).toBe(failure.message)
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockRejectedValue(failure)
+      const { result } = renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(14_000)
+      })
+      expect(result.current.status).toBe('unavailable')
+      expect(result.current.me).toBeNull()
+      expect(result.current.error).toBe(failure.message)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not update after unmounting while the lookup is still running', async () => {
@@ -192,10 +200,7 @@ describe('useAccount', () => {
       first = result.current.updateProfile(INPUT)
       second = result.current.updateProfile(secondInput)
     })
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(mocked.updateProfile).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(mocked.updateProfile).toHaveBeenCalledTimes(1))
 
     await act(async () => {
       finishFirst(firstStored)
@@ -236,17 +241,38 @@ describe('useAccount', () => {
     })
   })
 
-  it('flushProfileWrites rejects when the latest submitted profile write fails', async () => {
-    const failure = new ApiRequestError(503, 'http_error', 'Profile save failed')
+  it('flushProfileWrites adopts the saved profile after a failed write, so imports can go on', async () => {
+    const failure = new ApiRequestError(429, 'rate_limited', 'Slow down')
+    const saved = { ...ME.profile, keepFiles: false, updatedAt: 5000 }
     mocked.updateProfile.mockRejectedValueOnce(failure)
     const { result } = await renderSignedIn()
+    mocked.getMe.mockResolvedValue({ user: ME.user, profile: saved })
+    let flushed: Me | null = null
+    await act(async () => {
+      void result.current.updateProfile(INPUT).catch(() => undefined)
+      flushed = await result.current.flushProfileWrites()
+    })
+
+    expect(flushed).toEqual({ user: ME.user, profile: saved })
+    expect(result.current.me?.profile).toEqual(saved)
+  })
+
+  it('flushProfileWrites refuses to continue only while the server cannot be read', async () => {
+    mocked.updateProfile.mockRejectedValueOnce(new ApiRequestError(429, 'rate_limited', 'Slow'))
+    const { result } = await renderSignedIn()
+    mocked.getMe.mockResolvedValueOnce(ME)
+    mocked.getMe.mockRejectedValue(new Error('offline'))
     let flush: Promise<Me | null> = Promise.resolve(null)
     act(() => {
       void result.current.updateProfile(INPUT).catch(() => undefined)
       flush = result.current.flushProfileWrites()
     })
+    await expect(flush).rejects.toThrow('offline')
 
-    await expect(flush).rejects.toBe(failure)
+    mocked.getMe.mockResolvedValue(ME)
+    expect(await attempt(() => result.current.flushProfileWrites().then(() => undefined))).toBe(
+      undefined,
+    )
   })
 
   it('finishes queued profile writes before logging out', async () => {
@@ -265,10 +291,7 @@ describe('useAccount', () => {
       secondUpdate = result.current.updateProfile({ ...INPUT, units: 'metric' })
       logout = result.current.signOut()
     })
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(mocked.updateProfile).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(mocked.updateProfile).toHaveBeenCalledOnce())
     expect(mocked.logout).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -321,5 +344,152 @@ describe('useAccount', () => {
     expect(await attempt(() => result.current.deleteAccount())).toBeUndefined()
     expect(result.current.error).toBeNull()
     expect(result.current.status).toBe('signed-out')
+  })
+  it('merges an edit onto the latest saved profile, so a stale tab cannot revert another tab', async () => {
+    mocked.getMe.mockReset()
+    mocked.updateProfile.mockReset()
+    let saved: Profile = { ...ME.profile, keepFiles: false }
+    mocked.getMe.mockImplementation(async () => ({ user: ME.user, profile: saved }))
+    mocked.updateProfile.mockImplementation(async (input) => {
+      saved = { ...input, updatedAt: saved.updatedAt + 1 }
+      return saved
+    })
+    const tabA = renderHook(() => useAccount())
+    const tabB = renderHook(() => useAccount())
+    await waitFor(() => expect(tabA.result.current.status).toBe('signed-in'))
+    await waitFor(() => expect(tabB.result.current.status).toBe('signed-in'))
+
+    // Tab B turns original-file retention on after tab A was opened.
+    await act(async () => {
+      await tabB.result.current.updateProfile({ keepFiles: true })
+    })
+    // Tab A still shows retention off, and changes only its weight.
+    await act(async () => {
+      await tabA.result.current.updateProfile({ massKg: 80 })
+    })
+
+    expect(mocked.updateProfile).toHaveBeenLastCalledWith(
+      { massKg: 80, bikeMassKg: 9, units: 'metric', keepFiles: true },
+      ME.user.id,
+    )
+    expect(saved).toMatchObject({ massKg: 80, keepFiles: true, units: 'metric' })
+    expect(tabA.result.current.me?.profile).toMatchObject({ massKg: 80, keepFiles: true })
+    mocked.getMe.mockReset()
+    mocked.updateProfile.mockReset()
+  })
+
+  it('does not write a profile edit into a different account that signed in another tab', async () => {
+    mocked.getMe.mockResolvedValueOnce(ME)
+    const { result } = renderHook(() => useAccount())
+    await waitFor(() => expect(result.current.status).toBe('signed-in'))
+    mocked.getMe.mockResolvedValue({ ...ME, user: { ...ME.user, id: 'u2' } })
+
+    const failure = await attempt(() => result.current.updateProfile({ units: 'imperial' }))
+    expect(failure).toMatchObject({ status: 409, code: 'account_changed' })
+    expect(mocked.updateProfile).not.toHaveBeenCalled()
+    expect(result.current.me?.user.id).toBe('u2')
+  })
+
+  it('ends an expired session when a profile save is refused as unauthenticated', async () => {
+    mocked.updateProfile.mockRejectedValueOnce(
+      new ApiRequestError(401, 'unauthenticated', 'Sign in required'),
+    )
+    const { result } = await renderSignedIn()
+    mocked.getMe.mockResolvedValue(null)
+    await attempt(() => result.current.updateProfile(INPUT))
+
+    expect(result.current.status).toBe('signed-out')
+    expect(result.current.me).toBeNull()
+    expect(result.current.sessionExpired).toBe(true)
+    expect(result.current.error).toMatch(/session ended/i)
+  })
+
+  it('markExpired ends the session without signing the user out on the server', async () => {
+    mocked.logout.mockClear()
+    const { result } = await renderSignedIn()
+    act(() => result.current.markExpired())
+
+    expect(result.current.status).toBe('signed-out')
+    expect(result.current.me).toBeNull()
+    expect(result.current.sessionExpired).toBe(true)
+    expect(mocked.logout).not.toHaveBeenCalled()
+  })
+
+  it('refresh adopts the account the server now reports', async () => {
+    const { result } = await renderSignedIn()
+    mocked.getMe.mockResolvedValue({ ...ME, user: { ...ME.user, id: 'u2' } })
+
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(result.current.me?.user.id).toBe('u2')
+    expect(result.current.status).toBe('signed-in')
+    expect(result.current.sessionExpired).toBe(false)
+  })
+
+  it('refresh reports an expired session when the server no longer knows the user', async () => {
+    const { result } = await renderSignedIn()
+    mocked.getMe.mockResolvedValue(null)
+
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(result.current.status).toBe('signed-out')
+    expect(result.current.sessionExpired).toBe(true)
+  })
+
+  it('retries a failed account lookup with backoff, and signs in when a retry succeeds', async () => {
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockReset()
+      mocked.getMe
+        .mockRejectedValueOnce(new ApiRequestError(0, 'network_error', 'Offline'))
+        .mockResolvedValue(ME)
+      const { result } = renderHook(() => useAccount())
+      expect(mocked.getMe).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+      expect(mocked.getMe).toHaveBeenCalledTimes(2)
+      expect(result.current.status).toBe('signed-in')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('tries the account lookup at 1 s, 3 s and 10 s after the first failure, then reports it unavailable', async () => {
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockReset()
+      mocked.getMe.mockRejectedValue(new ApiRequestError(0, 'network_error', 'Offline'))
+      const { result } = renderHook(() => useAccount())
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999)
+      })
+      expect(mocked.getMe).toHaveBeenCalledTimes(1)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      expect(mocked.getMe).toHaveBeenCalledTimes(2)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_000)
+      })
+      expect(mocked.getMe).toHaveBeenCalledTimes(3)
+      expect(result.current.status).toBe('loading')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000)
+      })
+      expect(mocked.getMe).toHaveBeenCalledTimes(4)
+      expect(result.current.status).toBe('unavailable')
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000)
+      })
+      expect(mocked.getMe).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

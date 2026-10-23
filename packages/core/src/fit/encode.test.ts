@@ -1,7 +1,10 @@
-import { Decoder, Stream } from '@garmin/fitsdk'
 import { describe, expect, it } from 'vitest'
 import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
+import { decodeFit } from './protocol/decode'
+import { isFitFile, scanFit } from './protocol/reader'
+import type { FitMessage } from './protocol/reader'
+import { MESG } from './protocol/profile'
 
 const START_MS = Date.UTC(2024, 0, 15, 6, 0, 0)
 
@@ -40,42 +43,48 @@ function makeActivity(sport: Sport, n: number, withPower: boolean): Activity {
   }
 }
 
+/** Every data message of one global message number, read without interpretation. */
+function rawMessages(bytes: Uint8Array, globalNum: number): FitMessage[] {
+  const out: FitMessage[] = []
+  scanFit(bytes, (message) => {
+    if (message.globalNum === globalNum) out.push(message)
+    return true
+  })
+  return out
+}
+
 function decode(bytes: Uint8Array) {
-  return new Decoder(Stream.fromByteArray(bytes)).read()
+  const result = decodeFit(bytes)
+  if (!result.ok) throw new Error(result.errors.join('; '))
+  return result.messages
 }
 
 describe('encodeFit', () => {
   it('writes a valid FIT file with one record per second', () => {
     const bytes = encodeFit(makeActivity('ride', 5, true))
-    const decoder = new Decoder(Stream.fromByteArray(bytes))
-    expect(decoder.isFIT()).toBe(true)
-    expect(decoder.checkIntegrity()).toBe(true)
-
-    const { messages, errors } = decode(bytes)
-    expect(errors).toEqual([])
-    expect(messages.fileIdMesgs?.[0]?.type).toBe('activity')
-    expect(messages.recordMesgs?.length).toBe(5)
-    expect(messages.lapMesgs?.length).toBe(1)
-    expect(messages.sessionMesgs?.length).toBe(1)
-    expect(messages.activityMesgs?.length).toBe(1)
+    expect(isFitFile(bytes)).toBe(true)
+    const result = decodeFit(bytes)
+    expect(result.ok).toBe(true)
+    expect(result.crcValid).toBe(true)
+    expect(result.messages.fileId?.type).toBe(4)
+    expect(result.messages.records.length).toBe(5)
+    expect(result.messages.sessions.length).toBe(1)
+    expect(rawMessages(bytes, MESG.lap).length).toBe(1)
+    expect(rawMessages(bytes, MESG.activity).length).toBe(1)
   })
 
   it('maps the ride and run sports to cycling and running', () => {
-    expect(decode(encodeFit(makeActivity('ride', 3, true))).messages.sessionMesgs?.[0]?.sport).toBe(
-      'cycling',
-    )
-    expect(decode(encodeFit(makeActivity('run', 3, false))).messages.sessionMesgs?.[0]?.sport).toBe(
-      'running',
-    )
+    expect(decode(encodeFit(makeActivity('ride', 3, true))).sessions[0]?.sport).toBe('cycling')
+    expect(decode(encodeFit(makeActivity('run', 3, false))).sessions[0]?.sport).toBe('running')
   })
 
   it('writes the record fields and rounds heart rate and power to whole numbers', () => {
     const a = makeActivity('ride', 3, true)
     a.heartRate[1] = 143.6
     a.power[1] = 251.4
-    const records = decode(encodeFit(a)).messages.recordMesgs ?? []
-    expect(records[0]?.timestamp).toEqual(new Date(START_MS))
-    expect(records[1]?.timestamp).toEqual(new Date(START_MS + 1000))
+    const records = decode(encodeFit(a)).records
+    expect(records[0]?.timestampMs).toBe(START_MS)
+    expect(records[1]?.timestampMs).toBe(START_MS + 1000)
     expect(records[1]?.heartRate).toBe(144)
     expect(records[1]?.power).toBe(251)
     expect(records[2]?.enhancedSpeed).toBeCloseTo(a.speed[2] ?? NaN, 3)
@@ -84,73 +93,74 @@ describe('encodeFit', () => {
   })
 
   it('omits fields whose value is NaN', () => {
-    const records = decode(encodeFit(makeActivity('run', 3, false))).messages.recordMesgs ?? []
+    const records = decode(encodeFit(makeActivity('run', 3, false))).records
     expect(records.length).toBe(3)
     for (const record of records) {
-      expect('power' in record).toBe(false)
-      expect('heartRate' in record).toBe(true)
+      expect(record.power).toBeUndefined()
+      expect(record.heartRate).toBeDefined()
     }
   })
 
   it('writes the lap and session totals from the activity', () => {
     const a = makeActivity('ride', 10, true)
-    const { messages } = decode(encodeFit(a))
-    const session = messages.sessionMesgs?.[0]
-    const lap = messages.lapMesgs?.[0]
-    expect(session?.totalElapsedTime).toBe(10)
-    expect(session?.totalTimerTime).toBe(10)
-    expect(session?.totalDistance).toBeCloseTo(a.distance[9] ?? NaN, 2)
-    expect(session?.numLaps).toBe(1)
-    expect(lap?.totalElapsedTime).toBe(10)
-    expect(lap?.totalDistance).toBeCloseTo(a.distance[9] ?? NaN, 2)
-    expect(messages.activityMesgs?.[0]?.numSessions).toBe(1)
+    const bytes = encodeFit(a)
+    const session = rawMessages(bytes, MESG.session)[0]?.values
+    const lap = rawMessages(bytes, MESG.lap)[0]?.values
+    const activity = rawMessages(bytes, MESG.activity)[0]?.values
+    expect(session?.get(7)).toBe(10_000)
+    expect(session?.get(8)).toBe(10_000)
+    expect(Number(session?.get(9)) / 100).toBeCloseTo(a.distance[9] ?? NaN, 2)
+    expect(session?.get(26)).toBe(1)
+    expect(lap?.get(7)).toBe(10_000)
+    expect(Number(lap?.get(9)) / 100).toBeCloseTo(a.distance[9] ?? NaN, 2)
+    expect(activity?.get(1)).toBe(1)
   })
 
   it('reports zero session distance when the last distance sample is unknown', () => {
     const a = makeActivity('ride', 4, true)
     a.distance[3] = NaN
-    const session = decode(encodeFit(a)).messages.sessionMesgs?.[0]
-    expect(session?.totalDistance).toBe(0)
+    const session = rawMessages(encodeFit(a), MESG.session)[0]?.values
+    expect(session?.get(9)).toBe(0)
   })
 
   it('writes the sub-sport and placeholder positions only when asked', () => {
     const a = makeActivity('ride', 3, true)
-    const plain = decode(encodeFit(a)).messages
-    expect(plain.sessionMesgs?.[0]?.subSport).toBeUndefined()
-    expect(plain.recordMesgs?.[0]?.positionLat).toBeUndefined()
+    const plain = decode(encodeFit(a))
+    expect(plain.sessions[0]?.subSport).toBeUndefined()
+    expect(plain.records[0]?.positionLat).toBeUndefined()
 
-    const tagged = decode(encodeFit(a, { subSport: 'eBikeMountain', gps: true })).messages
-    expect(tagged.sessionMesgs?.[0]?.subSport).toBe('eBikeMountain')
-    expect(tagged.recordMesgs?.[0]?.positionLat).toBe(0)
+    const tagged = decode(encodeFit(a, { subSport: 'eBikeMountain', gps: true }))
+    expect(tagged.sessions[0]?.subSport).toBe('eBikeMountain')
+    expect(tagged.records[0]?.positionLat).toBe(0)
   })
 
   it('leaves out the seconds of a pause so the gap is in the file', () => {
     const a = makeActivity('ride', 6, true)
     a.paused.set([0, 0, 1, 1, 0, 0])
-    const records = decode(encodeFit(a)).messages.recordMesgs ?? []
-    expect(records.map((r) => r.timestamp)).toEqual([
-      new Date(START_MS),
-      new Date(START_MS + 1000),
-      new Date(START_MS + 4000),
-      new Date(START_MS + 5000),
+    const records = decode(encodeFit(a)).records
+    expect(records.map((r) => r.timestampMs)).toEqual([
+      START_MS,
+      START_MS + 1000,
+      START_MS + 4000,
+      START_MS + 5000,
     ])
     expect(
-      decode(encodeFit(a)).messages.eventMesgs?.map((event) => [event.timestamp, event.eventType]),
+      decode(encodeFit(a)).events.map((event) => [event.timestampMs, event.eventType]),
     ).toEqual([
-      [new Date(START_MS), 'start'],
-      [new Date(START_MS + 2000), 'stop'],
-      [new Date(START_MS + 4000), 'start'],
-      [new Date(START_MS + 6000), 'stop'],
+      [START_MS, 'start'],
+      [START_MS + 2000, 'stop'],
+      [START_MS + 4000, 'start'],
+      [START_MS + 6000, 'stop'],
     ])
-    expect(decode(encodeFit(a)).messages.sessionMesgs?.[0]?.totalElapsedTime).toBe(6)
+    expect(decode(encodeFit(a)).sessions[0]?.totalElapsedTime).toBe(6)
   })
 
   it('encodes an empty activity with zero totals and no records', () => {
     const empty = makeActivity('run', 0, false)
-    const { messages, errors } = decode(encodeFit(empty))
-    expect(errors).toEqual([])
-    expect(messages.recordMesgs).toBeUndefined()
-    expect(messages.sessionMesgs?.[0]?.totalElapsedTime).toBe(0)
-    expect(messages.sessionMesgs?.[0]?.totalDistance).toBe(0)
+    const bytes = encodeFit(empty)
+    const messages = decode(bytes)
+    expect(messages.records).toEqual([])
+    expect(messages.sessions[0]?.totalElapsedTime).toBe(0)
+    expect(rawMessages(bytes, MESG.session)[0]?.values.get(9)).toBe(0)
   })
 })

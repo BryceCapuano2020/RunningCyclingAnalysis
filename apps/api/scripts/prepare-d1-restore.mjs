@@ -12,7 +12,9 @@ const TABLES = [
   'users',
   'd1_migrations',
 ]
-const TABLE_SET = new Set(TABLES)
+/** Tables added after the first schema. Exports without them (pre-migration) still restore. */
+const OPTIONAL_TABLES = ['daily_budget', 'upload_slots', 'pending_account_deletions']
+const TABLE_SET = new Set([...TABLES, ...OPTIONAL_TABLES])
 export const MAX_D1_EXPORT_BYTES = 64 * 1024 * 1024
 
 const quoteIdentifier = (identifier) => `"${identifier.replaceAll('"', '""')}"`
@@ -66,8 +68,8 @@ function requireKnownSchema(db) {
   return objects
 }
 
-function getTableOrder(db) {
-  const tables = [...TABLES].sort()
+function getTableOrder(db, names) {
+  const tables = [...names].sort()
   const parents = new Map(tables.map((name) => [name, new Set()]))
   for (const child of tables) {
     const foreignKeys = db.prepare(`PRAGMA foreign_key_list(${quoteIdentifier(child)})`).all()
@@ -140,7 +142,10 @@ export function prepareD1RestoreSql(exportSql) {
     db.exec(exportSql)
     const objects = requireKnownSchema(db)
     checkDatabase(db)
-    const tableOrder = getTableOrder(db)
+    const tableOrder = getTableOrder(
+      db,
+      objects.filter((object) => object.type === 'table').map((object) => object.name),
+    )
     const tableSql = objects
       .filter((object) => object.type === 'table')
       .sort((a, b) => tableOrder.indexOf(a.name) - tableOrder.indexOf(b.name))

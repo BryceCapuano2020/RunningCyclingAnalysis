@@ -1,0 +1,107 @@
+name: Backup
+
+# Daily backup of the production D1 database, plus a manifest of the R2 objects that existed.
+# The repository is public, so nothing leaves the runner unencrypted: the archive is encrypted with
+# age to the recipient in ops/backup-recipient.txt, and the private key is never stored in GitHub.
+# A placeholder or missing recipient stops the run before any export. Restore: scripts/ops/restore.md.
+# Targets: RPO 24 hours, RTO 2 hours. Original files in R2 are NOT part of the backup.
+on:
+  schedule:
+    - cron: '5 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-production
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Export, encrypt and store for 90 days
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: backup
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Refuse to run without a real backup recipient
+        run: node scripts/ops/check-backup-recipient.mjs ops/backup-recipient.txt
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+      - name: Install age
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends age
+          age --version
+      - name: Export D1 and list R2 objects into private temporary files
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BACKUP_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_BACKUP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_BACKUP_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          RCA_WORK: ${{ runner.temp }}/backup
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RCA_WORK"
+          # The export log is withheld from the job log: it can contain a temporary signed URL.
+          if ! npm exec -w @rca/api -- wrangler d1 export rca --remote -y \
+            --output "$RCA_WORK/database.sql" > "$RCA_WORK/export.log" 2>&1; then
+            echo "D1 export failed. Its output is withheld because it can contain a signed URL." >&2
+            exit 1
+          fi
+          aws s3api list-objects-v2 --bucket rca-files \
+            --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --output json --paginate > "$RCA_WORK/r2-pages.json"
+          jq -s '[.[] | (.Contents // [])[]]' "$RCA_WORK/r2-pages.json" > "$RCA_WORK/r2-objects.json"
+      - name: Validate the export and write the manifest
+        shell: bash
+        env:
+          RCA_WORK: ${{ runner.temp }}/backup
+        run: |
+          set -euo pipefail
+          node scripts/ops/make-manifest.mjs \
+            --export "$RCA_WORK/database.sql" \
+            --r2 "$RCA_WORK/r2-objects.json" \
+            --out "$RCA_WORK/manifest.json" \
+            --commit "$GITHUB_SHA" \
+            --run-id "$GITHUB_RUN_ID"
+      - name: Compress and encrypt
+        shell: bash
+        env:
+          RCA_WORK: ${{ runner.temp }}/backup
+          RCA_OUT: ${{ runner.temp }}/encrypted
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RCA_OUT"
+          archive="rca-backup-$(date -u +%Y%m%dT%H%M%SZ).tar.gz.age"
+          tar -czf - -C "$RCA_WORK" database.sql manifest.json \
+            | age -R ops/backup-recipient.txt -o "$RCA_OUT/$archive"
+          # Only the encrypted file is in the artifact directory. Check that it is an age file.
+          test "$(head -n 1 "$RCA_OUT/$archive")" = "age-encryption.org/v1"
+          ls -l "$RCA_OUT"
+          echo "Encrypted backup: $archive" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove the plaintext copies
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/backup"
+      - name: Store the encrypted backup for 90 days
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rca-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/encrypted/
+          retention-days: 90
+          if-no-files-found: error

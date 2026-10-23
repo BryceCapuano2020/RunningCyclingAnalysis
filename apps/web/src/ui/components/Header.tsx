@@ -20,7 +20,9 @@ export function Header({ units, onUnitsChange, actions }: HeaderProps) {
     <header className="header">
       <div>
         <p className="header__brand">RunningCyclingAnalysis</p>
-        <p className="header__tagline">Compare your running and cycling fitness in one unit</p>
+        <p className="header__tagline">
+          Compare your running and cycling energy estimates in one unit
+        </p>
       </div>
       <SegmentedControl
         legend="Units"

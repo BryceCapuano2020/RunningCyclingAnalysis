@@ -31,10 +31,14 @@
 }
 
 .chart-legend__key--band {
+  box-sizing: border-box;
+  border: 1px dashed var(--neutral-mark);
   background: var(--neutral-band);
 }
 
 .chart-legend__key--band-strong {
+  box-sizing: border-box;
+  border: 1px solid var(--neutral-mark);
   background: var(--neutral-band);
   overflow: hidden;
 }

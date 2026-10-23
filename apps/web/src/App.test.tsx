@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
-const { updateProfile, analysisMock, accountMock } = vi.hoisted(() => ({
+const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted(() => ({
   updateProfile: vi.fn(async () => undefined),
   analysisMock: {
     outdatedActivities: 0,
@@ -13,28 +13,43 @@ const { updateProfile, analysisMock, accountMock } = vi.hoisted(() => ({
       comparison: null
       effort: unknown[]
     },
+    syncIssues: [] as { code: string; count: number }[],
+    libraryStatus: 'loaded' as 'idle' | 'loading' | 'loaded' | 'failed',
+    missingOriginals: 0,
+    retryLibrary: vi.fn(),
     rebuildSavedActivities: vi.fn(),
     workerStopped: false,
     retryWorker: vi.fn(),
     stop: vi.fn(),
   },
-  accountMock: { fileRetentionAvailable: true, keepFiles: true },
+  accountMock: {
+    status: 'signed-in' as 'signed-in' | 'unavailable',
+    fileRetentionAvailable: true,
+    keepFiles: true,
+  },
+  componentMock: {
+    syncStatus: [] as Record<string, unknown>[],
+    dropzone: [] as Record<string, unknown>[],
+  },
 }))
 
 vi.mock('./ui/useAccount', () => ({
   useAccount: () => ({
-    status: 'signed-in',
-    me: {
-      fileRetentionAvailable: accountMock.fileRetentionAvailable,
-      user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
-      profile: {
-        massKg: 75,
-        bikeMassKg: 9,
-        units: 'imperial',
-        keepFiles: accountMock.keepFiles,
-        updatedAt: 1000,
-      },
-    },
+    status: accountMock.status,
+    me:
+      accountMock.status === 'signed-in'
+        ? {
+            fileRetentionAvailable: accountMock.fileRetentionAvailable,
+            user: { id: 'u1', email: 'a@example.com', name: 'Ada', pictureUrl: null },
+            profile: {
+              massKg: 75,
+              bikeMassKg: 9,
+              units: 'imperial',
+              keepFiles: accountMock.keepFiles,
+              updatedAt: 1000,
+            },
+          }
+        : null,
     signIn: vi.fn(),
     signOut: vi.fn(),
     deleteAccount: vi.fn(),
@@ -52,7 +67,7 @@ vi.mock('./ui/useAnalysis', () => ({
       isSample: false,
       totalActivities: 0,
       rangeDays: null,
-      syncFailures: 0,
+      syncIssues: analysisMock.syncIssues,
       outdatedActivities: analysisMock.outdatedActivities,
       incompatibleActivities: analysisMock.incompatibleActivities,
     },
@@ -60,6 +75,9 @@ vi.mock('./ui/useAnalysis', () => ({
     progress: null,
     uploading: null,
     error: null,
+    libraryStatus: analysisMock.libraryStatus,
+    missingOriginals: analysisMock.missingOriginals,
+    retryLibrary: analysisMock.retryLibrary,
     rebuildNotice: null,
     rebuildSavedActivities: analysisMock.rebuildSavedActivities,
     workerStopped: analysisMock.workerStopped,
@@ -86,7 +104,10 @@ vi.mock('./ui/charts', () => ({
 vi.mock('./ui/components', () => ({
   AccountMenu: () => null,
   ActivitiesTable: () => null,
-  Dropzone: () => null,
+  Dropzone: (props: Record<string, unknown>) => {
+    componentMock.dropzone.push(props)
+    return null
+  },
   EquivalenceTable: () => null,
   Header: ({ onUnitsChange }: { onUnitsChange: (units: 'metric') => void }) => (
     <button type="button" onClick={() => onUnitsChange('metric')}>
@@ -108,43 +129,44 @@ vi.mock('./ui/components', () => ({
     </button>
   ),
   SignInCallout: () => null,
-  SyncStatus: () => null,
+  SyncStatus: (props: Record<string, unknown>) => {
+    componentMock.syncStatus.push(props)
+    return null
+  },
   pickHeadline: () => null,
 }))
 
 afterEach(() => {
-  updateProfile.mockClear()
+  updateProfile.mockReset()
+  updateProfile.mockImplementation(async () => undefined)
   analysisMock.outdatedActivities = 0
   analysisMock.incompatibleActivities = 0
   analysisMock.result = { activities: [], comparison: null, effort: [] }
+  analysisMock.syncIssues = []
+  analysisMock.libraryStatus = 'loaded'
+  analysisMock.missingOriginals = 0
+  analysisMock.retryLibrary.mockClear()
   analysisMock.rebuildSavedActivities.mockClear()
+  accountMock.status = 'signed-in'
   accountMock.fileRetentionAvailable = true
   accountMock.keepFiles = true
+  componentMock.syncStatus.length = 0
+  componentMock.dropzone.length = 0
 })
 
 describe('App profile persistence', () => {
-  it('merges quick profile edits using the latest intended values', async () => {
+  it('sends only the field each edit changes', async () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Change units' }))
     fireEvent.click(screen.getByRole('button', { name: 'Change weight' }))
     await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2))
 
-    expect(updateProfile).toHaveBeenNthCalledWith(1, {
-      massKg: 75,
-      bikeMassKg: 9,
-      units: 'metric',
-      keepFiles: true,
-    })
-    expect(updateProfile).toHaveBeenNthCalledWith(2, {
-      massKg: 80,
-      bikeMassKg: 10,
-      units: 'metric',
-      keepFiles: true,
-    })
+    expect(updateProfile).toHaveBeenNthCalledWith(1, { units: 'metric' })
+    expect(updateProfile).toHaveBeenNthCalledWith(2, { massKg: 80, bikeMassKg: 10 })
   })
 
-  it('rolls back a failed profile draft before an unrelated edit', async () => {
+  it('does not resend a failed edit with a later one', async () => {
     updateProfile.mockRejectedValueOnce(new Error('offline'))
     render(<App />)
 
@@ -156,43 +178,13 @@ describe('App profile persistence', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change weight' }))
     await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2))
 
-    expect(updateProfile).toHaveBeenNthCalledWith(2, {
-      massKg: 80,
-      bikeMassKg: 10,
-      units: 'imperial',
-      keepFiles: true,
-    })
+    expect(updateProfile).toHaveBeenNthCalledWith(2, { massKg: 80, bikeMassKg: 10 })
   })
 
-  it('keeps an earlier successful edit when a queued later edit fails', async () => {
-    let failWeightEdit: (reason: Error) => void = () => undefined
-    updateProfile
-      .mockImplementationOnce(async () => undefined)
-      .mockImplementationOnce(
-        () =>
-          new Promise((_resolve, reject) => {
-            failWeightEdit = reject
-          }),
-      )
+  it('sends a retention change as its own field', () => {
     render(<App />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Change units' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Change weight' }))
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2))
-
-    await act(async () => {
-      failWeightEdit(new Error('offline'))
-      await Promise.resolve()
-    })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Keep original files in my library' }))
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(3))
-
-    expect(updateProfile).toHaveBeenNthCalledWith(3, {
-      massKg: 75,
-      bikeMassKg: 9,
-      units: 'metric',
-      keepFiles: false,
-    })
+    expect(updateProfile).toHaveBeenCalledWith({ keepFiles: false })
   })
 })
 
@@ -238,12 +230,7 @@ describe('file retention availability', () => {
     expect(retention).not.toBeChecked()
     expect(retention).toHaveAccessibleDescription(/Turning this off deletes saved originals/)
     fireEvent.click(retention)
-    expect(updateProfile).toHaveBeenCalledWith({
-      massKg: 75,
-      bikeMassKg: 9,
-      units: 'imperial',
-      keepFiles: true,
-    })
+    expect(updateProfile).toHaveBeenCalledWith({ keepFiles: true })
   })
 
   it('disables retention without changing the saved preference when storage is unavailable', () => {
@@ -260,12 +247,7 @@ describe('file retention availability', () => {
     expect(updateProfile).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Change weight' }))
-    expect(updateProfile).toHaveBeenCalledWith({
-      massKg: 80,
-      bikeMassKg: 10,
-      units: 'imperial',
-      keepFiles: true,
-    })
+    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 10 })
   })
 
   it('disables saved-activity rebuilding when original file storage is unavailable', () => {
@@ -275,5 +257,62 @@ describe('file retention availability', () => {
 
     expect(screen.getByRole('button', { name: 'Rebuild saved activities' })).toBeDisabled()
     expect(screen.getByText(/Import the original FIT files to update them/)).toBeInTheDocument()
+  })
+})
+
+describe('library and sync status', () => {
+  it('passes the sync issues and the signed-in state to the status line and the dropzone', () => {
+    analysisMock.syncIssues = [{ code: 'network', count: 2 }]
+    render(<App />)
+
+    expect(componentMock.syncStatus.at(-1)).toMatchObject({
+      issues: [{ code: 'network', count: 2 }],
+      signedIn: true,
+    })
+    expect(componentMock.dropzone.at(-1)).toMatchObject({ signedIn: true })
+  })
+
+  it('offers a retry when the signed-in library could not be loaded', () => {
+    analysisMock.libraryStatus = 'failed'
+    render(<App />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Your library could not be loaded.')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(analysisMock.retryLibrary).toHaveBeenCalledOnce()
+  })
+
+  it('says how many saved activities need their original file re-imported', () => {
+    analysisMock.missingOriginals = 3
+    render(<App />)
+
+    expect(
+      screen.getByText(
+        '3 activities are missing their original file. Re-import them to restore the originals.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('hides the missing-original notice when originals are not kept', () => {
+    analysisMock.missingOriginals = 3
+    accountMock.keepFiles = false
+    render(<App />)
+
+    expect(screen.queryByText(/missing their original file/)).not.toBeInTheDocument()
+  })
+
+  it('says the library is unavailable and that nothing is saved', () => {
+    accountMock.status = 'unavailable'
+    render(<App />)
+
+    expect(
+      screen.getByText(
+        'Your library is unavailable right now. Analysis still runs in your browser and nothing is being saved.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('links to the privacy page from the footer', () => {
+    render(<App />)
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html')
   })
 })

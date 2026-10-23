@@ -1,0 +1,167 @@
+import { scanFit } from './reader'
+import type { FitMessage } from './reader'
+import { FIELD, MESG, eventTypeName, fitTimeToEpochMs, sportName, subSportName } from './profile'
+import type { FitEventType, FitSportName, FitSubSportName } from './profile'
+
+export const DEFAULT_MAX_RECORDS = 2_000_000
+
+export interface DecodedFileId {
+  /** The FILE_TYPE enum value, for example 4 for an activity. */
+  type: number | undefined
+}
+
+export interface DecodedSport {
+  sport: FitSportName | undefined
+  subSport: FitSubSportName | undefined
+}
+
+export interface DecodedSession {
+  timestampMs: number | undefined
+  startTimeMs: number | undefined
+  /** Seconds. */
+  totalElapsedTime: number | undefined
+  sport: FitSportName | undefined
+  subSport: FitSubSportName | undefined
+}
+
+export interface DecodedRecord {
+  timestampMs: number | undefined
+  /** Semicircles, as written in the file. */
+  positionLat: number | undefined
+  positionLong: number | undefined
+  /** Metres. */
+  altitude: number | undefined
+  heartRate: number | undefined
+  /** Metres. */
+  distance: number | undefined
+  /** Metres per second. */
+  speed: number | undefined
+  power: number | undefined
+  /** Metres per second. */
+  enhancedSpeed: number | undefined
+  /** Metres. */
+  enhancedAltitude: number | undefined
+}
+
+export interface DecodedEvent {
+  timestampMs: number | undefined
+  event: 'timer' | undefined
+  eventType: FitEventType | undefined
+}
+
+export interface DecodedMessages {
+  fileId?: DecodedFileId
+  sports: DecodedSport[]
+  sessions: DecodedSession[]
+  records: DecodedRecord[]
+  events: DecodedEvent[]
+}
+
+export interface DecodeOptions {
+  /** Decoding stops with an error once more record messages than this have been seen. */
+  maxRecords?: number
+}
+
+export interface DecodeResult {
+  /** True when the file decoded without errors and its CRC matches. */
+  ok: boolean
+  messages: DecodedMessages
+  errors: string[]
+  warnings: string[]
+  crcValid: boolean
+  /** Record messages seen, including any beyond the limit that stopped decoding. */
+  recordCount: number
+}
+
+type Values = Map<number, number | string>
+
+/**
+ * Decodes the first FIT file in `bytes` into the messages the analysis uses. Never throws; every
+ * read is bounds-checked. Values outside the profile's valid range are undefined.
+ */
+export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeResult {
+  const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
+  const messages: DecodedMessages = { sports: [], sessions: [], records: [], events: [] }
+  const errors: string[] = []
+  let recordCount = 0
+  let warnings: string[] = []
+  let crcValid = false
+  try {
+    const scan = scanFit(bytes, (message) => {
+      if (message.globalNum === MESG.record) {
+        recordCount++
+        if (recordCount > maxRecords) return false
+        messages.records.push(toRecord(message.values))
+      } else {
+        collect(messages, message)
+      }
+      return true
+    })
+    errors.push(...scan.errors)
+    warnings = scan.warnings
+    crcValid = scan.crcValid
+    if (recordCount > maxRecords) errors.push(`Record count exceeds the ${maxRecords}-record limit`)
+  } catch {
+    errors.push('Could not decode FIT data')
+  }
+  return { ok: errors.length === 0, messages, errors, warnings, crcValid, recordCount }
+}
+
+function collect(messages: DecodedMessages, message: FitMessage): void {
+  const v = message.values
+  switch (message.globalNum) {
+    case MESG.fileId:
+      messages.fileId ??= { type: numberOf(v, 0) }
+      return
+    case MESG.sport:
+      messages.sports.push({
+        sport: sportName(numberOf(v, 0) ?? -1),
+        subSport: subSportName(numberOf(v, 1) ?? -1),
+      })
+      return
+    case MESG.session:
+      messages.sessions.push({
+        timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+        startTimeMs: fitTimeToEpochMs(numberOf(v, 2)),
+        totalElapsedTime: scaled(v, 7, 1000),
+        sport: sportName(numberOf(v, 5) ?? -1),
+        subSport: subSportName(numberOf(v, 6) ?? -1),
+      })
+      return
+    case MESG.event:
+      messages.events.push({
+        timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+        event: numberOf(v, 0) === 0 ? 'timer' : undefined,
+        eventType: eventTypeName(numberOf(v, 1) ?? -1),
+      })
+      return
+    default:
+      return
+  }
+}
+
+function toRecord(v: Values): DecodedRecord {
+  return {
+    timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+    positionLat: numberOf(v, FIELD.positionLat),
+    positionLong: numberOf(v, FIELD.positionLong),
+    altitude: scaled(v, FIELD.altitude, 5, 500),
+    heartRate: numberOf(v, FIELD.heartRate),
+    distance: scaled(v, FIELD.distance, 100),
+    speed: scaled(v, FIELD.speed, 1000),
+    power: numberOf(v, FIELD.power),
+    enhancedSpeed: scaled(v, FIELD.enhancedSpeed, 1000),
+    enhancedAltitude: scaled(v, FIELD.enhancedAltitude, 5, 500),
+  }
+}
+
+function numberOf(v: Values, field: number): number | undefined {
+  const value = v.get(field)
+  return typeof value === 'number' ? value : undefined
+}
+
+/** A raw value divided by `scale`, less `offset` (the profile's scale and offset). */
+function scaled(v: Values, field: number, scale: number, offset = 0): number | undefined {
+  const raw = numberOf(v, field)
+  return raw === undefined ? undefined : raw / scale - offset
+}
