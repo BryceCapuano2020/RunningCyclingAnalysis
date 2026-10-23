@@ -8,7 +8,8 @@ const sheets = {
   deleteDialog: await readStylesheet(import.meta.url, './DeleteAccountDialog.css'),
   googleSignIn: await readStylesheet(import.meta.url, './GoogleSignInButton.css'),
   segmentedControl: await readStylesheet(import.meta.url, './SegmentedControl.css'),
-  global: await readStylesheet(import.meta.url, '../../index.css'),
+  button: await readStylesheet(import.meta.url, '../../styles/components.css'),
+  summary: await readStylesheet(import.meta.url, '../../styles/base.css'),
 }
 
 /** The `min-height` of a rule in px, or null when the rule sets none. */
@@ -28,8 +29,8 @@ describe('interactive targets', () => {
     ['account menu item', sheets.accountMenu, '.account-menu__item'],
     ['segmented option', sheets.segmentedControl, '.segmented-control__option'],
     ['delete email field', sheets.deleteDialog, '.delete-dialog__input'],
-    ['button', sheets.global, '.btn'],
-    ['disclosure summary', sheets.global, 'summary'],
+    ['button', sheets.button, '.btn'],
+    ['disclosure summary', sheets.summary, 'summary'],
   ])('%s is at least 40 px tall', (_name, css, selector) => {
     expect(minHeightOf(css, selector)).toBeGreaterThanOrEqual(STANDARD_PX)
   })

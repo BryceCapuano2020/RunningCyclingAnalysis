@@ -20,7 +20,7 @@
 .ratio-chart__median {
   fill: none;
   stroke: var(--neutral-mark);
-  stroke-width: 2;
+  stroke-width: 2.5px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

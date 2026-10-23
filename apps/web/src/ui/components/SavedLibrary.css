@@ -34,7 +34,7 @@
 
 .saved-library__error {
   margin: 0;
-  color: var(--status-critical-text);
+  color: var(--status-critical);
   overflow-wrap: anywhere;
 }
 
@@ -43,7 +43,7 @@
   gap: var(--space-2);
   min-width: 0;
   padding: var(--space-4);
-  border: 1px solid var(--status-critical-text);
+  border: 1px solid var(--status-critical);
   border-radius: var(--radius);
   background: var(--surface-1);
   overflow-wrap: anywhere;
@@ -67,8 +67,8 @@
 }
 
 .btn.saved-library__delete-confirm {
-  border-color: var(--status-critical-text);
-  background: var(--status-critical-text);
+  border-color: var(--status-critical);
+  background: var(--status-critical);
   color: var(--surface-1);
 }
 

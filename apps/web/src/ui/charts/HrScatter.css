@@ -1,7 +1,8 @@
 .hr-scatter__fit {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 2.5px;
   stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .hr-scatter__fit--run {

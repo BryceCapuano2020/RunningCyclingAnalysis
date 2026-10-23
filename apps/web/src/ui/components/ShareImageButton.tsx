@@ -48,11 +48,14 @@ export function ShareImageButton({
     setGenerating(true)
     setStatus('Creating image…')
     try {
-      const [{ buildShareCard }, { renderShareCard }, { saveCanvasPng }] = await Promise.all([
-        import('../../share/cardModel'),
-        import('../../share/renderCard'),
-        import('../../share/download'),
-      ])
+      const [{ buildShareCard }, { loadCardFonts, renderShareCard }, { saveCanvasPng }] =
+        await Promise.all([
+          import('../../share/cardModel'),
+          import('../../share/renderCard'),
+          import('../../share/download'),
+        ])
+      // The canvas only draws a web font that has loaded, so wait for the card's faces first.
+      await loadCardFonts()
       const card = buildShareCard(result, settings, units, rangeDays, isSample, effort)
       const canvas = document.createElement('canvas')
       const saved = card !== null && renderShareCard(card, canvas) && (await saveCanvasPng(canvas))

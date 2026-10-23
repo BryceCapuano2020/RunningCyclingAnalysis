@@ -8,7 +8,7 @@
 }
 
 .sync-status__message--failed {
-  color: var(--status-critical-text);
+  color: var(--status-critical);
 }
 
 .sync-status__count {

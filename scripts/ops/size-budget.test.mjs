@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 
-/** Source files above this many lines are refactor candidates (docs/ENGINEERING.md, pillar 1). */
+/** Source and stylesheet files above this many lines are refactor candidates (docs/ENGINEERING.md). */
 const LINE_BUDGET = 400
 
 /**
@@ -21,7 +21,7 @@ const OVER_BUDGET = {
   'packages/core/src/digest/combine.ts': 407,
 }
 
-const SOURCE = /\.(ts|tsx|mjs)$/
+const SOURCE = /\.(ts|tsx|mjs|css)$/
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'test-results', 'test-corpus'])
 
 async function sourceFiles(dir) {

@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ShareCardModel } from './cardModel'
 import {
   CARD_HEIGHT,
   CARD_WIDTH,
   MARGIN_X,
   MARGIN_Y,
+  loadCardFonts,
   renderShareCard,
   wrapText,
 } from './renderCard'
@@ -12,12 +13,20 @@ import {
 /** Ten pixels per character, so line breaks are easy to predict. */
 const fixedMeasure = (text: string) => text.length * 10
 
-const BACKGROUND = '#fcfcfb'
-const ACCENT = '#1c5cab'
+const BACKGROUND = '#ffffff'
+const ACCENT = '#0e1116'
 const HEADLINE_SIZES = [32, 40]
 const FIGURE_VALUE_SIZE = 46
 
-type Text = { text: string; x: number; y: number; size: number; width: number; color: string }
+type Text = {
+  text: string
+  x: number
+  y: number
+  size: number
+  width: number
+  color: string
+  font: string
+}
 type Rect = { x: number; y: number; w: number; h: number; color: string }
 
 /**
@@ -47,7 +56,15 @@ class FakeContext {
 
   fillText(text: string, x: number, y: number) {
     const width = this.measureText(text).width
-    this.texts.push({ text, x, y, size: this.size(), width, color: this.fillStyle })
+    this.texts.push({
+      text,
+      x,
+      y,
+      size: this.size(),
+      width,
+      color: this.fillStyle,
+      font: this.font,
+    })
   }
 }
 
@@ -244,6 +261,14 @@ describe('renderShareCard', () => {
     expect(texts[0]?.text).toBe('RunningCyclingAnalysis')
   })
 
+  it('sets the figure values in Barlow Condensed and the other text in Barlow', () => {
+    const texts = draw(model()).texts
+    const value = texts.find((text) => text.text === '21:35 /km')
+    const label = texts.find((text) => text.text === 'Running threshold pace')
+    expect(value?.font).toContain('"Barlow Condensed"')
+    expect(label?.font).toContain('"Barlow"')
+  })
+
   it('draws the figure values at the large tile size', () => {
     const values = draw(model()).texts.filter((text) => text.size === FIGURE_VALUE_SIZE)
     expect(values.map((text) => text.text)).toEqual(['21:35 /km', '48 W', '+12%'])
@@ -276,5 +301,60 @@ describe('renderShareCard', () => {
     expect(texts).not.toContain('Best efforts over 20 min may not have been all-out.')
     expect(texts).toContain('Model range based on population assumptions.')
     expect(texts.join(' ')).toContain('so the comparison can move with your data.')
+  })
+})
+
+describe('loadCardFonts', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** The Barlow weights docs/DESIGN.md imports, by family. */
+  const IMPORTED_WEIGHTS = { body: [400, 500, 600], condensed: [700, 800] }
+
+  /** Stubs document.fonts so that every face asked for is recorded, and returns those requests. */
+  function stubFontLoading(): string[] {
+    const requested: string[] = []
+    const load = (font: string) => {
+      requested.push(font)
+      return Promise.resolve<FontFace[]>([])
+    }
+    vi.stubGlobal('document', { fonts: { load } })
+    return requested
+  }
+
+  it('waits for every face the card draws, and only for weights that are imported', async () => {
+    const requested = stubFontLoading()
+    await loadCardFonts()
+    expect(
+      requested.some((font) => font.startsWith('800 ') && font.includes('Barlow Condensed')),
+    ).toBe(true)
+    for (const font of requested) {
+      const weight = Number(font.split(' ')[0])
+      const family = font.includes('Barlow Condensed') ? 'condensed' : 'body'
+      expect(IMPORTED_WEIGHTS[family]).toContain(weight)
+    }
+  })
+
+  it('requests every font the canvas is drawn with, so no text is measured in a fallback', async () => {
+    const requested = stubFontLoading()
+    await loadCardFonts()
+    const cards = [model(), model({ badge: 'Sample' }), model({ headline: LONG_HEADLINE })]
+    const drawn = new Set(cards.flatMap((card) => draw(card).texts.map((text) => text.font)))
+    expect(drawn.size).toBeGreaterThan(1)
+    expect([...drawn].some((font) => font.includes('32px'))).toBe(true)
+    for (const font of drawn) expect(requested).toContain(font)
+  })
+
+  it('still resolves when a face fails to load, so the card falls back rather than failing', async () => {
+    vi.stubGlobal('document', {
+      fonts: { load: () => Promise.reject(new Error('offline')) },
+    })
+    await expect(loadCardFonts()).resolves.toBeUndefined()
+  })
+
+  it('resolves at once where there is no document.fonts API', async () => {
+    vi.stubGlobal('document', {})
+    await expect(loadCardFonts()).resolves.toBeUndefined()
   })
 })
