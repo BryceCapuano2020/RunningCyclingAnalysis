@@ -1,0 +1,52 @@
+.activity-page__back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  align-self: start;
+}
+
+.activity-page__eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.activity-page__icon--run {
+  color: var(--series-run);
+}
+
+.activity-page__icon--ride {
+  color: var(--series-ride);
+}
+
+.activity-page__title {
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.activity-page__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.activity-page__stat {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.activity-page__stat dd {
+  margin: 0;
+}
+
+.activity-page__flags {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.activity-page__flags li + li {
+  margin-top: var(--space-1);
+}

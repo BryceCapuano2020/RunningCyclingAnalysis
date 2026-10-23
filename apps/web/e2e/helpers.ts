@@ -7,17 +7,39 @@ import type { APIRequestContext, ConsoleMessage, Locator, Page } from '@playwrig
 import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
-export const LANDING_TITLE = 'How do your running and cycling energy estimates compare?'
+export const LANDING_TITLE = 'How balanced are you as an athlete?'
+
+/** The Balance page's h1: the answer, or what is missing before the two sports can be compared. */
+export const BALANCE_TITLE = /leans toward|in balance|see your balance|balance needs harder efforts/
 
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa']
 
-/** The Activities table only. Chart "View as table" tables are also role=table. */
-export function activitiesRows(page: Page): Locator {
-  return page
-    .locator('section')
-    .filter({ has: page.getByRole('heading', { level: 2, name: 'Activities', exact: true }) })
-    .getByRole('table')
-    .locator('tbody tr:not([hidden])')
+export type Destination = 'Balance' | 'Run' | 'Ride' | 'Activities' | 'Profile'
+
+const HEADINGS: Record<Destination, string | RegExp> = {
+  Balance: BALANCE_TITLE,
+  Run: 'Run',
+  Ride: 'Ride',
+  Activities: 'Activities',
+  Profile: 'Profile',
+}
+
+/** Clicks the header link to a page, then waits for that page's h1. */
+export async function goTo(page: Page, destination: Destination): Promise<void> {
+  const link =
+    destination === 'Profile'
+      ? page.getByRole('banner').getByRole('link', { name: 'Profile', exact: true })
+      : page
+          .getByRole('navigation', { name: 'Sections' })
+          .getByRole('link', { name: destination, exact: true })
+  await link.click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(HEADINGS[destination])
+}
+
+/** The rows of the Activities list. Opens the Activities page first, so callers need no setup. */
+export async function activitiesRows(page: Page): Promise<Locator> {
+  await goTo(page, 'Activities')
+  return page.locator('.activity-list__items > li')
 }
 
 const FIXTURE_DIR = fileURLToPath(new URL('./fixtures/', import.meta.url))
@@ -46,8 +68,8 @@ export function trackErrors(page: Page): string[] {
 
 export async function openSample(page: Page): Promise<void> {
   await page.goto('/')
-  await page.getByRole('button', { name: 'Try sample data' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/running|cycling/i)
+  await page.getByRole('button', { name: 'See a sample athlete' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
 }
 
 /** Sends files to the hidden file input. Works from the landing page and the results page. */

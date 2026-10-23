@@ -62,6 +62,17 @@ describe('SyncStatus', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Saved 1 activity to your library')
   })
 
+  it('never shows a saved count of zero, and says so when a signed-in import saved nothing', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    expect(screen.queryByText('0 saved')).not.toBeInTheDocument()
+
+    rerender(<SyncStatus {...props({ uploading: null })} />)
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('No new activities were saved to your library.')
+    expect(status).not.toHaveTextContent('Saved 0')
+    expect(status).not.toHaveClass('sync-status__message--failed')
+  })
+
   it('does not announce a start or finish for an upload that was already running on mount', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 5 })} />)
     expect(screen.getByRole('status')).toBeEmptyDOMElement()

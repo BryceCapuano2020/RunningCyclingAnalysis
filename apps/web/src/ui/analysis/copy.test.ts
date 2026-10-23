@@ -9,6 +9,7 @@ import {
   workerFailureText,
 } from './copy'
 import type { RebuildOutcome } from './copy'
+import { formatDay } from '../format/date'
 
 /** The local time the viewer sees for an instant, formatted the way the limit copy formats it. */
 function localTime(ms: number): string {
@@ -80,7 +81,7 @@ describe('deleteNoticeText', () => {
   it('names the deleted activity and its date', () => {
     const startMs = Date.UTC(2026, 8, 1, 12)
     expect(deleteNoticeText({ id: 'a1', name: 'Morning run', startMs, sport: 'run' })).toBe(
-      `Deleted Morning run (${new Date(startMs).toLocaleDateString()}).`,
+      `Deleted Morning run (${formatDay(startMs)}).`,
     )
   })
 

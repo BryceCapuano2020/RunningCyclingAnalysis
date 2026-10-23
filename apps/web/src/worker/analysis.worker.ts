@@ -76,6 +76,8 @@ async function addFiles(
       filesRead,
       ...(sync ? { uploaded } : {}),
     })
+  // Reported before any file is read, so an import that saves nothing still starts and ends.
+  if (sync) report()
 
   const save = async (item: SyncItem): Promise<void> => {
     try {

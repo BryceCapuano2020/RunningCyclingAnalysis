@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { Methodology } from './Methodology'
 
 afterEach(() => {
@@ -86,10 +87,10 @@ describe('Methodology', () => {
       'Heart-rate checks judge each sport’s best efforts against a reference maximum built from each sport’s highest sustained heart rate.',
     )
     expect(heading.nextElementSibling).toHaveTextContent(
-      'Running uses the higher of its own maximum and the cycling maximum. Cycling uses the higher of its own maximum and 6 bpm below the running maximum',
+      `Running uses the higher of its own maximum and the cycling maximum. Cycling uses the higher of its own maximum and ${RIDE_MAX_OFFSET_BPM} bpm below the running maximum`,
     )
     expect(heading.nextElementSibling).toHaveTextContent(
-      'it is never more than 6 bpm below running',
+      `it is never more than ${RIDE_MAX_OFFSET_BPM} bpm below running`,
     )
   })
 

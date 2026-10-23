@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
+import { formatDay } from './format/date'
 
 /** The local time shown for a reset instant, as the limit copy formats it. */
 function localTime(ms: number): string {
@@ -941,9 +942,7 @@ describe('useAnalysis state', () => {
 
     act(() => worker().reply({ type: 'state', state: STATE }))
     expect(result.current.libraryAction).toBeNull()
-    expect(result.current.libraryNotice).toBe(
-      `Deleted Morning run (${new Date(startMs).toLocaleDateString()}).`,
-    )
+    expect(result.current.libraryNotice).toBe(`Deleted Morning run (${formatDay(startMs)}).`)
     expect(result.current.error).toBeNull()
   })
 

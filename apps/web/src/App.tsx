@@ -3,21 +3,46 @@ import type { UnitSystem } from '@rca/core/units'
 import { useEffect, useRef, useState } from 'react'
 import type { ProfileInput } from '@rca/contract'
 import './App.css'
-import { AccountMenu, Header, PrivacyNote, SyncStatus } from './ui/components'
+import { AccountMenu, Header, PrivacyNote } from './ui/components'
+import { AddFilesButton } from './ui/components/AddFilesButton'
+import { AppNotices } from './ui/components/AppNotices'
+import { ImportStatus } from './ui/components/ImportStatus'
+import { LandingPage } from './ui/pages/LandingPage'
+import { PAGE_HEADING_ID } from './ui/pages/pageHeading'
+import { ProfilePage } from './ui/pages/ProfilePage'
+import { ResultPage } from './ui/pages/ResultPage'
+import type { Route } from './ui/route'
+import { hrefFor, useRoute } from './ui/route'
 import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
 import { usePreferences } from './ui/useSettings'
-import { FilesToolbar, type ProfilePatch } from './ui/views/FilesToolbar'
-import { LandingPitch, LandingView } from './ui/views/LandingView'
-import { LibraryNotices } from './ui/views/LibraryNotices'
-import { ResultsView } from './ui/views/ResultsView'
-import { SavedLibraryCard } from './ui/views/SavedLibraryCard'
+import type { ProfilePatch } from './ui/profilePatch'
 
-const SAMPLE_NOTICE = 'You are looking at simulated sample data. Add your own files to replace it.'
+/** A string that changes whenever a different page is on screen. */
+function pageKey(route: Route, hasResult: boolean): string {
+  if (route.page === 'profile') return 'profile'
+  if (!hasResult) return 'landing'
+  return route.page === 'activity' ? `activity:${route.id}` : route.page
+}
+
+function focusPageHeading() {
+  document.getElementById(PAGE_HEADING_ID)?.focus()
+}
+
+/**
+ * Whether focus was lost with the page that went away. Focus that is still on a control outside
+ * the page, such as the header, is where the user put it and is left alone.
+ */
+function focusWasLost(): boolean {
+  const active = document.activeElement
+  if (active === null || active === document.body || !active.isConnected) return true
+  return document.querySelector('main')?.contains(active) ?? false
+}
 
 export function App() {
   const [preferences, setPreferences] = usePreferences()
   const account = useAccount()
+  const route = useRoute()
   const profile = account.status === 'signed-in' ? (account.me?.profile ?? null) : null
   const signedIn = profile !== null
   const fileRetentionAvailable = account.me?.fileRetentionAvailable !== false
@@ -49,47 +74,74 @@ export function App() {
   }
 
   const analysis = useAnalysis(settings, account)
-  const { result, isSample } = analysis.state
-  const signedOut = account.status === 'signed-out'
+  const hasResult = analysis.state.result !== null
+  const key = pageKey(route, hasResult)
 
-  // Swapping between the landing and results views unmounts whatever had focus,
-  // so send focus to the new view's heading.
-  const hasResult = result !== null
-  const previousHasResult = useRef(hasResult)
-  const landingHeading = useRef<HTMLHeadingElement>(null)
+  // A new page replaces the old one, so focus moves to the new page's heading and the page shows
+  // from the top. A link the user followed always moves them; a page that changes by itself, such
+  // as a library that loads, only takes focus that was lost with the old page. The first render
+  // keeps the browser's own focus and scroll.
+  const previousKey = useRef(key)
+  const previousHash = useRef(window.location.hash)
   useEffect(() => {
-    if (previousHasResult.current === hasResult) return
-    previousHasResult.current = hasResult
-    if (hasResult) document.getElementById('results-heading')?.focus()
-    else landingHeading.current?.focus()
-  }, [hasResult])
+    if (previousKey.current === key) return
+    previousKey.current = key
+    const followed = previousHash.current !== window.location.hash
+    previousHash.current = window.location.hash
+    if (!followed && !focusWasLost()) return
+    window.scrollTo(0, 0)
+    focusPageHeading()
+  }, [key])
 
-  // Stop, restart and retry unmount their own button when they finish. Once the page has rendered
-  // without it, focus moves to the view's heading. Focus still on a control is left where it is.
-  const focusWhenDone = useRef(false)
+  // Start over clears the analysis in the worker. The landing page shows once it has, so the old
+  // result never flashes on the way. Leaving Profile first cancels the move; it replaces the
+  // Profile history entry rather than adding one.
+  const startingOver = useRef(false)
+  const startOver = () => {
+    startingOver.current = true
+    analysis.clear()
+  }
+  useEffect(() => {
+    if (!startingOver.current) return
+    if (route.page !== 'profile') startingOver.current = false
+    else if (!hasResult) {
+      startingOver.current = false
+      window.location.replace(hrefFor({ page: 'balance' }))
+    }
+  }, [hasResult, route.page])
+
+  // Stop, restart and retry unmount their own button when they finish. Once that button has gone
+  // and focus went with it, focus moves to the page's heading. Focus the user has moved elsewhere
+  // is left where it is.
+  const focusAfter = useRef<{ control: Element | null } | null>(null)
   const [, setFocusTick] = useState(0)
-  function runThenFocus(action: () => void) {
+  // The control is passed by the caller because Safari and Firefox do not focus a clicked button.
+  function runThenFocus(action: () => void, control?: Element) {
+    const active = document.activeElement
     action()
-    focusWhenDone.current = true
+    focusAfter.current = { control: control ?? (active === document.body ? null : active) }
     setFocusTick((tick) => tick + 1)
   }
   useEffect(() => {
-    if (!focusWhenDone.current) return
-    focusWhenDone.current = false
+    const pending = focusAfter.current
+    if (pending === null) return
     const active = document.activeElement
-    if (active !== null && active !== document.body) return
-    if (hasResult) document.getElementById('results-heading')?.focus()
-    else landingHeading.current?.focus()
+    // The button that ran the action is still there: wait for it to go.
+    if (pending.control?.isConnected) return
+    focusAfter.current = null
+    if (active !== null && active !== document.body && active.isConnected) return
+    focusPageHeading()
   })
 
-  const sampleShown = result !== null && isSample
+  const accountsAvailable = account.status !== 'unavailable'
 
   return (
     <div className="page">
       <Header
-        units={units}
-        onUnitsChange={(next) => saveProfile({ units: next })}
-        actions={
+        route={route}
+        showTabs={hasResult}
+        addFiles={<AddFilesButton onFiles={analysis.addFiles} primary={hasResult || signedIn} />}
+        account={
           <AccountMenu
             status={account.status}
             me={account.me}
@@ -100,82 +152,51 @@ export function App() {
           />
         }
       />
-      {/* One instance for both views: its live region must stay mounted to announce uploads. */}
-      <SyncStatus
-        uploading={analysis.uploading}
-        issues={analysis.state.syncIssues}
+      {/* Always mounted, under the header: file drops anywhere, progress and announcements. */}
+      <ImportStatus
+        onFiles={analysis.addFiles}
+        busy={analysis.busy}
+        progress={analysis.progress}
+        waiting={analysis.waitingReason}
         signedIn={signedIn}
+        outcome={analysis.importOutcome}
       />
-      <LibraryNotices
+
+      <AppNotices
         analysis={analysis}
         signedIn={signedIn}
         keepFiles={keepFiles}
         fileRetentionAvailable={fileRetentionAvailable}
-        libraryUnavailable={account.status === 'unavailable'}
-        onRetry={() => runThenFocus(analysis.retryLibrary)}
+        accountsUnavailable={!accountsAvailable}
+        accountError={account.error}
+        runThenFocus={runThenFocus}
       />
 
-      {account.error && account.status !== 'unavailable' && (
-        <p className="app__error card" role="alert">
-          {account.error}
-        </p>
-      )}
-
-      {analysis.error && (
-        <div className="app__error card" role="alert">
-          {analysis.errorIssue === 'daily-limit' ? (
-            <p>{analysis.error}</p>
-          ) : (
-            <p>Something went wrong: {analysis.error}</p>
-          )}
-          {analysis.workerStopped && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => runThenFocus(analysis.retryWorker)}
-            >
-              Restart analysis
-            </button>
-          )}
-        </div>
-      )}
-
-      {analysis.busy && (
-        <button type="button" className="btn" onClick={() => runThenFocus(analysis.stop)}>
-          Stop current analysis
-        </button>
-      )}
-
-      <main className={result ? 'app__results' : 'app__intro'}>
-        {!result && <LandingPitch headingRef={landingHeading} />}
-        {/* Always mounted, so a message put in it is announced. */}
-        <p role="status" className={sampleShown ? 'app__sample card' : 'app__quiet'}>
-          {sampleShown ? SAMPLE_NOTICE : ''}
-        </p>
-        <FilesToolbar
-          analysis={analysis}
-          settings={settings}
-          units={units}
-          signedIn={signedIn}
-          keepFiles={keepFiles}
-          fileRetentionAvailable={fileRetentionAvailable}
-          onSaveProfile={saveProfile}
-        />
-        {result ? (
-          <ResultsView
+      <main className="app__main">
+        {route.page === 'profile' ? (
+          <ProfilePage
             analysis={analysis}
-            result={result}
             settings={settings}
             units={units}
-            signedOut={signedOut}
-            onSignIn={account.signIn}
+            signedIn={signedIn}
+            accountsAvailable={accountsAvailable}
+            keepFiles={keepFiles}
+            fileRetentionAvailable={fileRetentionAvailable}
+            onSaveProfile={saveProfile}
+            onStartOver={startOver}
+          />
+        ) : analysis.state.result ? (
+          <ResultPage
+            route={route}
+            analysis={analysis}
+            result={analysis.state.result}
+            settings={settings}
+            units={units}
           />
         ) : (
-          <LandingView analysis={analysis} signedOut={signedOut} onSignIn={account.signIn} />
+          <LandingPage analysis={analysis} signedIn={signedIn} units={units} />
         )}
       </main>
-
-      <SavedLibraryCard analysis={analysis} signedIn={signedIn} />
 
       <footer className="app__footer muted">
         <PrivacyNote

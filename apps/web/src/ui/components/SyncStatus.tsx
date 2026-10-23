@@ -14,6 +14,7 @@ export interface SyncStatusProps {
 }
 
 const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024))
+const NOTHING_SAVED = 'No new activities were saved to your library.'
 
 /**
  * One sentence per cause: what happened, and the action that works. A summary is saved before its
@@ -62,10 +63,11 @@ function issueSentence({ code, count }: SyncIssue): string {
 }
 
 /**
- * Status line for save outcomes. Render it once, outside the landing and results views, so its
+ * Status line for save outcomes. Render it once, outside the pages, so its
  * live region stays mounted: a region that mounts with the content is not announced. It announces
- * only the outcome of an upload, once it finishes. Starts are not announced here, and the running
- * count is visual only. Issues stay visible until the parent clears them.
+ * how an upload ends, once it finishes: the count saved, or that none was. Starts are not announced
+ * here, and the running count is visual only, shown once at least one activity is saved. Issues
+ * stay visible until the parent clears them.
  */
 export function SyncStatus({ uploading, issues, signedIn }: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)
@@ -84,6 +86,8 @@ export function SyncStatus({ uploading, issues, signedIn }: SyncStatusProps) {
   let text: string
   if (issues.length > 0) {
     text = issues.map(issueSentence).join(' ')
+  } else if (finished === 0) {
+    text = NOTHING_SAVED
   } else if (finished !== null) {
     text = `Saved ${plural(finished, 'activity', 'activities')} to your library`
   } else {
@@ -97,7 +101,7 @@ export function SyncStatus({ uploading, issues, signedIn }: SyncStatusProps) {
       <p role="status" className={messageClass}>
         {text}
       </p>
-      {signedIn && uploading !== null && (
+      {signedIn && uploading !== null && uploading > 0 && (
         <span className="sync-status__count" aria-hidden="true">
           {`${uploading} saved`}
         </span>

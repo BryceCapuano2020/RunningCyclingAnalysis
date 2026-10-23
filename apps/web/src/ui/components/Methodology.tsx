@@ -1,3 +1,4 @@
+import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { FLAT_RUN_COST, PRIORS, RUN_COST_CORRECTION } from '@rca/core/constants'
 import './Methodology.css'
 
@@ -50,8 +51,8 @@ const SECTIONS: Section[] = [
       'population-based range is kept instead. Heart-rate checks judge each sport’s best efforts ' +
       'against a reference maximum built from each sport’s highest sustained heart rate. Running uses ' +
       'the higher of its own maximum and the cycling maximum. Cycling uses the higher of its own maximum ' +
-      'and 6 bpm below the running maximum, because cycling maximum usually runs 5 to 7 bpm lower, so it ' +
-      'is never more than 6 bpm below running.',
+      `and ${RIDE_MAX_OFFSET_BPM} bpm below the running maximum, because cycling maximum usually runs ` +
+      `5 to 7 bpm lower, so it is never more than ${RIDE_MAX_OFFSET_BPM} bpm below running.`,
   },
   {
     title: 'Virtual power meter',

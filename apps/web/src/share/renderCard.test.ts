@@ -85,7 +85,7 @@ function model(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
     title: 'RunningCyclingAnalysis',
     headline: 'Over 20 min, your running is estimated to use 12% more energy rate',
     summary: 'Over 20 min, your estimated running energy rate is 3.4 W/kg and your cycling is 3.0.',
-    range: '90% model range: +5% to +20%.',
+    range: 'Running against cycling, 90% model range: +5% to +20%.',
     basis: 'Model range based on population assumptions.',
     caveat: 'Best efforts over 20 min may not have been all-out.',
     figures: [
@@ -162,7 +162,7 @@ describe('renderShareCard', () => {
     )
     for (const expected of [
       'RunningCyclingAnalysis',
-      '90% model range: +5% to +20%.',
+      'Running against cycling, 90% model range: +5% to +20%.',
       'Model range based on population assumptions.',
       'Best efforts over 20 min may not have been all-out.',
       'Running threshold pace',
@@ -179,7 +179,9 @@ describe('renderShareCard', () => {
 
   it('draws the basis and the effort caveat under the range, above the figures', () => {
     const texts = draw(model()).texts
-    const range = texts.find((text) => text.text.startsWith('90% model range'))
+    const range = texts.find((text) =>
+      text.text.startsWith('Running against cycling, 90% model range'),
+    )
     const basis = texts.find((text) => text.text.startsWith('Model range based'))
     const figure = texts.find((text) => text.text === '21:35 /km')
     expect(basis?.y).toBeGreaterThan(range?.y ?? Infinity)

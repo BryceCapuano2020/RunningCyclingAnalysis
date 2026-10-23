@@ -61,6 +61,7 @@ export function AccountMenu({
   const previousStatus = useRef(status)
   const [open, setOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const previousDialogOpen = useRef(dialogOpen)
   const [exporting, setExporting] = useState(false)
   const [exportStatus, setExportStatus] = useState('')
   // State updates are not visible until the next render, so a second click in the same render
@@ -76,6 +77,13 @@ export function AccountMenu({
     previousStatus.current = status
     if (was === 'signed-in' && status === 'signed-out') signInRef.current?.focus()
   }, [status])
+
+  // The dialog is modal while open, which makes the trigger inert. Focus it once the dialog closes.
+  useEffect(() => {
+    const was = previousDialogOpen.current
+    previousDialogOpen.current = dialogOpen
+    if (was && !dialogOpen) triggerRef.current?.focus()
+  }, [dialogOpen])
 
   // While the menu is open, the document handles the ways it closes: a press outside, focus moving
   // out, and Escape. Escape returns focus to the trigger. The wrapper itself has no role, so it
@@ -154,11 +162,6 @@ export function AccountMenu({
     setDialogOpen(true)
   }
 
-  function closeDeleteDialog() {
-    setDialogOpen(false)
-    triggerRef.current?.focus()
-  }
-
   return (
     <>
       <div ref={wrapperRef} className="account-menu">
@@ -211,7 +214,7 @@ export function AccountMenu({
         open={dialogOpen}
         email={email}
         onConfirm={onDeleteAccount}
-        onClose={closeDeleteDialog}
+        onClose={() => setDialogOpen(false)}
       />
     </>
   )

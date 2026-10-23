@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import type { AxisTick } from './chartTypes'
-import { axisFontSize, fitTicks } from './ticks'
+import { axisFontSize, durationTicks, fitTicks } from './ticks'
 
 function ticksAt(positions: number[], label: string): AxisTick[] {
   return positions.map((position) => ({ position, label }))
@@ -33,5 +33,21 @@ describe('fitTicks', () => {
   it('leaves ticks alone when they fit', () => {
     const ticks = ticksAt([0, 200, 400], '1 min')
     expect(fitTicks(ticks, { axis: 'x', width: 1000 })).toEqual(ticks)
+  })
+})
+
+describe('durationTicks', () => {
+  it('labels each candidate duration inside the span, at its x position', () => {
+    const ticks = durationTicks(60, 3600, (durationS) => durationS / 10)
+    expect(ticks).toEqual([
+      { position: 6, label: '1 min' },
+      { position: 30, label: '5 min' },
+      { position: 120, label: '20 min' },
+      { position: 360, label: '1 h' },
+    ])
+  })
+
+  it('returns nothing when no candidate falls inside the span', () => {
+    expect(durationTicks(4000, 5000, (durationS) => durationS)).toEqual([])
   })
 })

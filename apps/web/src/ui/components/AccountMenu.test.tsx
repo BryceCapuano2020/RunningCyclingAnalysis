@@ -292,6 +292,27 @@ describe('AccountMenu actions', () => {
     expect(trigger()).toHaveFocus()
   })
 
+  it('moves focus to the trigger only after the delete dialog has closed', async () => {
+    const user = userEvent.setup()
+    renderMenu()
+    await user.click(trigger())
+    await user.click(screen.getByRole('button', { name: 'Delete account…' }))
+    const dialog = document.querySelector('dialog')
+    if (dialog === null) throw new Error('no delete dialog')
+    // A modal dialog makes the page inert until it closes, so focus sent while it is open is lost.
+    const control = trigger()
+    const focusControl = control.focus.bind(control)
+    const focusedWhileOpen: boolean[] = []
+    vi.spyOn(control, 'focus').mockImplementation(() => {
+      if (dialog.hasAttribute('open')) focusedWhileOpen.push(true)
+      focusControl()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(focusedWhileOpen).toEqual([])
+    expect(trigger()).toHaveFocus()
+  })
+
   it('replaces the menu with the sign-in button when the status changes to signed-out', async () => {
     const user = userEvent.setup()
     const { container, rerender } = renderMenu()

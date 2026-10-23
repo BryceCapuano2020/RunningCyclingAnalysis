@@ -1,18 +1,17 @@
 import type { Equivalence } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDuration, formatPace, formatPower } from '@rca/core/units'
+import {
+  PACE_UNIT,
+  formatDuration,
+  formatPace,
+  formatPaceValue,
+  formatPower,
+} from '@rca/core/units'
 import './EquivalenceTable.css'
 
 export interface EquivalenceTableProps {
   equivalents: Equivalence[]
   units: UnitSystem
-}
-
-const PACE_UNIT: Record<UnitSystem, string> = { imperial: '/mi', metric: '/km' }
-
-/** A pace without its unit, so that a range can show the unit once at the end. */
-function paceNumber(speedMs: number, units: UnitSystem): string {
-  return formatPace(speedMs, units).replace(/ \/(mi|km)$/, '')
 }
 
 export function EquivalenceTable({ equivalents, units }: EquivalenceTableProps) {
@@ -41,7 +40,7 @@ export function EquivalenceTable({ equivalents, units }: EquivalenceTableProps) 
               </td>
               <td className="num">{formatPace(equivalent.runSpeed.p50, units)}</td>
               <td className="num">
-                {`${paceNumber(equivalent.runSpeed.p95, units)} to ${paceNumber(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
+                {`${formatPaceValue(equivalent.runSpeed.p95, units)} to ${formatPaceValue(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
               </td>
             </tr>
           ))}

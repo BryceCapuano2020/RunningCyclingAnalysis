@@ -1,38 +1,78 @@
 import type { ReactNode } from 'react'
-import type { UnitSystem } from '@rca/core/units'
 import { APP_NAME } from '../../appName'
-import { SegmentedControl } from './SegmentedControl'
+import type { Route } from '../route'
+import { hrefFor } from '../route'
+import { SPORT_LABEL } from '../sports'
+import { BrandMark, SettingsIcon, SportIcon } from './icons'
 import './Header.css'
 
 export interface HeaderProps {
-  units: UnitSystem
-  onUnitsChange: (units: UnitSystem) => void
-  /** Rendered at the end of the header, e.g. the account menu. */
-  actions?: ReactNode
+  /** The current page, which the tabs and the Profile link mark as current. */
+  route: Route | null
+  /** Shows the tabs: only once there is a result to navigate. */
+  showTabs?: boolean
+  /** The Add files button. */
+  addFiles?: ReactNode
+  /** The account control. */
+  account?: ReactNode
 }
 
-const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
-  { value: 'imperial', label: 'Imperial' },
-  { value: 'metric', label: 'Metric' },
+interface Tab {
+  label: string
+  route: Route
+  sport?: 'run' | 'ride'
+}
+
+const TABS: Tab[] = [
+  { label: 'Balance', route: { page: 'balance' } },
+  { label: SPORT_LABEL.run, route: { page: 'run' }, sport: 'run' },
+  { label: SPORT_LABEL.ride, route: { page: 'ride' }, sport: 'ride' },
+  { label: 'Activities', route: { page: 'activities' } },
 ]
 
-export function Header({ units, onUnitsChange, actions }: HeaderProps) {
+/** The tab a page belongs to. An activity belongs to Activities; the method page to Balance. */
+function tabOf(route: Route): Route['page'] | null {
+  if (route.page === 'activity') return 'activities'
+  if (route.page === 'method') return 'balance'
+  if (route.page === 'profile') return null
+  return route.page
+}
+
+export function Header({ route, showTabs = route !== null, addFiles, account }: HeaderProps) {
+  const current = route ? tabOf(route) : null
   return (
     <header className="header">
-      <div>
-        <p className="header__brand">{APP_NAME}</p>
-        <p className="header__tagline">
-          Compare your running and cycling energy estimates in one unit
-        </p>
+      <a className="header__brand" href={hrefFor({ page: 'balance' })}>
+        <BrandMark />
+        <span className="header__name">{APP_NAME}</span>
+      </a>
+      <div className="header__actions">
+        {addFiles}
+        <a
+          className="header__profile"
+          href={hrefFor({ page: 'profile' })}
+          aria-current={route?.page === 'profile' ? 'page' : undefined}
+        >
+          <SettingsIcon />
+          <span className="header__profile-label">Profile</span>
+        </a>
+        {account}
       </div>
-      <SegmentedControl
-        legend="Units"
-        legendHidden
-        options={UNIT_OPTIONS}
-        selected={units}
-        onSelect={onUnitsChange}
-      />
-      {actions}
+      {showTabs && (
+        <nav className="header__tabs" aria-label="Sections">
+          {TABS.map((tab) => (
+            <a
+              key={tab.label}
+              className="header__tab"
+              href={hrefFor(tab.route)}
+              aria-current={current === tab.route.page ? 'page' : undefined}
+            >
+              {tab.sport && <SportIcon sport={tab.sport} />}
+              {tab.label}
+            </a>
+          ))}
+        </nav>
+      )}
     </header>
   )
 }

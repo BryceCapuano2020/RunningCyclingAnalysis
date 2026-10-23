@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
 import { formatWkg } from '@rca/core/units'
 import { keyByContent } from '../contentKeys'
+import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartTooltip } from './ChartTooltip'
 import { ChartXAxis } from './ChartXAxis'
@@ -20,7 +21,6 @@ export interface HrScatterProps {
 
 const EMPTY =
   'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks per sport across a range of efforts'
-const SPORT_LABEL: Record<Sport, string> = { run: 'Running', ride: 'Cycling' }
 const DOT_R = 4
 const ACTIVE_DOT_R = 6
 /** Pointer distance, in px, within which a dot counts as hovered. Wider than the dot. */
@@ -77,12 +77,12 @@ function sportsOf(hr: HrCrossCheck): SportData[] {
 /** Slope note when both sports are present; otherwise a note naming the missing sport. */
 function noteFor(hr: HrCrossCheck): string | undefined {
   if (hr.run && hr.ride) {
-    return `Slopes: running ${hr.run.fit.slope.toFixed(1)} and cycling ${hr.ride.fit.slope.toFixed(1)} bpm per W/kg`
+    return `Slopes: ${SPORT_NOUN.run} ${hr.run.fit.slope.toFixed(1)} and ${SPORT_NOUN.ride} ${hr.ride.fit.slope.toFixed(1)} bpm per W/kg`
   }
   if (hr.run === null && hr.ride === null) return undefined
-  const missing = hr.run === null ? 'running' : 'cycling'
-  const shown = missing === 'running' ? 'cycling' : 'running'
-  return `Not enough steady heart-rate data for ${missing} yet, so only ${shown} is shown.`
+  const missing: Sport = hr.run === null ? 'run' : 'ride'
+  const shown: Sport = missing === 'run' ? 'ride' : 'run'
+  return `Not enough steady heart-rate data for ${SPORT_NOUN[missing]} yet, so only ${SPORT_NOUN[shown]} is shown.`
 }
 
 /** Indices of the blocks with the lowest and highest power and the lowest and highest heart rate. */
@@ -223,7 +223,7 @@ function tooltipFor(dot: Dot): TooltipContent {
   return {
     x: dot.x,
     y: dot.y,
-    title: SPORT_LABEL[dot.sport],
+    title: SPORT_TITLE[dot.sport],
     rows: [
       { kind: dot.sport, value: formatWkg(dot.metabolicWkg), label: 'Energy rate' },
       { kind: dot.sport, value: `${Math.round(dot.bpm)} bpm`, label: 'Heart rate' },
@@ -286,12 +286,12 @@ export function HrScatter({ hr }: HrScatterProps) {
     <ChartFrame
       title="Heart rate against energy rate"
       description="Average heart rate against energy rate for each block of steady effort, with a fitted line for each sport."
-      legend={sports.map((data) => ({ label: SPORT_LABEL[data.sport], kind: data.sport }))}
+      legend={sports.map((data) => ({ label: SPORT_TITLE[data.sport], kind: data.sport }))}
       summary={{
         caption: 'Summary by sport',
         columns: ['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'],
         rows: sports.map((data) => [
-          SPORT_LABEL[data.sport],
+          SPORT_TITLE[data.sport],
           String(data.points.length),
           data.fit.slope.toFixed(1),
           data.fit.r2.toFixed(2),
@@ -301,7 +301,7 @@ export function HrScatter({ hr }: HrScatterProps) {
         caption: 'Plotted blocks',
         columns: ['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'],
         rows: blocks.blocks.map(({ sport, point }) => [
-          SPORT_LABEL[sport],
+          SPORT_TITLE[sport],
           point.metabolicPower.toFixed(1),
           String(Math.round(point.heartRate)),
         ]),

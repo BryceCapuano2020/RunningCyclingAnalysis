@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { TrendPoint } from '@rca/core/digest'
 import { weeksWithValue } from '@rca/core/digest/trendPoints'
 import { formatWkg } from '@rca/core/units'
+import { formatDay } from '../format/date'
+import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
@@ -18,20 +20,20 @@ export interface TrendChartProps {
 }
 
 const LEGEND: ChartLegendEntry[] = [
-  { label: 'Running', kind: 'run' },
-  { label: 'Cycling', kind: 'ride' },
+  { label: SPORT_TITLE.run, kind: 'run' },
+  { label: SPORT_TITLE.ride, kind: 'ride' },
 ]
 
-const TABLE_COLUMNS = ['Week ending', 'Running (W/kg)', 'Runs', 'Cycling (W/kg)', 'Rides']
+const TABLE_COLUMNS = [
+  'Week ending',
+  `${SPORT_TITLE.run} (W/kg)`,
+  'Runs',
+  `${SPORT_TITLE.ride} (W/kg)`,
+  'Rides',
+]
 const TABLE_CAPTION =
   'Each week ends on a Sunday, in UTC. Runs and rides count the activities with a value in the previous 6 weeks.'
 
-const WEEK_DATE = new Intl.DateTimeFormat('en-US', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
 const MONTH = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 interface Layout {
@@ -41,6 +43,17 @@ interface Layout {
   ridePoints: (Point | null)[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
+}
+
+/**
+ * formatDay names the viewer's calendar day, but each week ends on a UTC Sunday. Local noon on that
+ * UTC date names the same day in every zone.
+ */
+function weekDay(ms: number): string {
+  const date = new Date(ms)
+  return formatDay(
+    new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12).getTime(),
+  )
 }
 
 /** First instants of the calendar months, in UTC, that fall after fromMs and up to toMs. */
@@ -90,7 +103,7 @@ function countNote(count: number, noun: string): string {
 
 function tableRow(point: TrendPoint): string[] {
   return [
-    WEEK_DATE.format(point.endMs),
+    weekDay(point.endMs),
     formatWkg(point.runWkg ?? NaN),
     String(point.runCount),
     formatWkg(point.rideWkg ?? NaN),
@@ -102,17 +115,17 @@ function tooltipFor(point: TrendPoint, x: number, y: number): TooltipContent {
   return {
     x,
     y,
-    title: `Week ending ${WEEK_DATE.format(point.endMs)}`,
+    title: `Week ending ${weekDay(point.endMs)}`,
     rows: [
       {
         kind: 'run',
-        label: 'Running',
+        label: SPORT_TITLE.run,
         value: formatWkg(point.runWkg ?? NaN),
         note: countNote(point.runCount, 'run'),
       },
       {
         kind: 'ride',
-        label: 'Cycling',
+        label: SPORT_TITLE.ride,
         value: formatWkg(point.rideWkg ?? NaN),
         note: countNote(point.rideCount, 'ride'),
       },
@@ -140,7 +153,7 @@ export function TrendChart({ points }: TrendChartProps) {
   return (
     <ChartFrame
       title="Fitness over time"
-      description="Best estimated energy rate in watts per kilogram over 20 minutes, for running and for cycling, at the end of each week. Each value is the best in the previous 6 weeks."
+      description={`Best estimated energy rate in watts per kilogram over 20 minutes, for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, at the end of each week. Each value is the best in the previous 6 weeks.`}
       legend={hasData ? LEGEND : undefined}
       table={{
         columns: TABLE_COLUMNS,

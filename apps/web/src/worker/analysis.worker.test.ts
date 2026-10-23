@@ -160,6 +160,20 @@ describe('analysis worker', () => {
     expect(messages.at(-1)).toMatchObject({ type: 'state' })
   })
 
+  it('reports the start of a signed-in import that saves nothing', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [new File(['not an activity'], 'notes.txt')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+    expect(messages).toContainEqual({ type: 'progress', filesRead: 0, uploaded: 0 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state' })
+  })
+
   it('saves the activity without uploading its file when files are not kept', async () => {
     const { send } = await startWorker()
     const messages = await send({

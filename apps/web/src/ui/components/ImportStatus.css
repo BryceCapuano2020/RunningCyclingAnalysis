@@ -1,0 +1,68 @@
+/* A slim strip under the header, shown only while files are being read. */
+.import-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) 0;
+}
+
+/* Indeterminate: the total is unknown while files are streamed in. */
+.import-status__bar {
+  position: relative;
+  flex: 1 1 120px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+.import-status__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: import-status-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes import-status-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-status__fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.35;
+  }
+}
+
+.import-status__text {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Shown over the whole page while files are dragged across it. */
+.import-status__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface-0) 85%, transparent);
+  box-shadow: inset 0 0 0 4px var(--accent);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
