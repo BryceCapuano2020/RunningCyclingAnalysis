@@ -4,9 +4,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
 import type { TrendPoint } from '@rca/core/digest'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
-import { makeEquivalence, makeResult } from '../components/fixtures'
+import { curvePoint } from '../charts/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  MAN_BORN_1986,
+  makeEquivalence,
+  makeResult,
+} from '../components/fixtures'
+import type { AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
 
 afterEach(() => {
@@ -15,17 +24,29 @@ afterEach(() => {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
-function renderPage(result: AnalysisResult = makeResult(), overrides: AnalysisStubOverrides = {}) {
+const PROFILE_PROMPT = 'Add your year of birth and sex on your profile to see age-graded levels.'
+
+function renderPage(
+  result: AnalysisResult = makeResult(),
+  overrides: AnalysisStubOverrides = {},
+  profile: AgeProfile | null = null,
+) {
   return render(
     <BalancePage
       analysis={analysisStub(overrides)}
       result={result}
       settings={SETTINGS}
       units="metric"
+      profile={profile}
       controls={<span>Period picker</span>}
     />,
   )
 }
+
+/** A run with a best 20-minute effort at 5 km, so the run has a grade to show. */
+const GRADED_RUN = makeResult({
+  runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+})
 
 /** Two weeks with a running value: the fitness trend is shown only from two. */
 function trendWithWeeks(weeks: number): TrendPoint[] {
@@ -119,5 +140,63 @@ describe('BalancePage', () => {
       makeResult({ comparison: { prior: [], calibrated: null }, runCp: null, rideCp: null }),
     )
     expect(screen.queryByRole('button', { name: 'Download square image' })).not.toBeInTheDocument()
+  })
+})
+
+describe('BalancePage age grades', () => {
+  it('shows the run’s estimate on its card, at the age on its date', () => {
+    renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+
+    expect(
+      within(screen.getByRole('region', { name: 'Run' })).getByText(
+        'Estimated age grade 67.6% · Local',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('asks once, on this page, for the year of birth and sex, and not on each card', () => {
+    renderPage(GRADED_RUN)
+
+    const prompts = screen.getAllByRole('link', { name: PROFILE_PROMPT })
+    expect(prompts).toHaveLength(1)
+    expect(prompts[0]).toHaveAttribute('href', '#/profile')
+  })
+
+  it('does not ask for the profile once it has the year of birth and sex', () => {
+    renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+    expect(screen.queryByRole('link', { name: PROFILE_PROMPT })).not.toBeInTheDocument()
+  })
+
+  it('names the standards, the sex they grade, and that a level is not a ranking', () => {
+    renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+
+    const source = screen.getByText(/^Graded on the/)
+    expect(source).toHaveTextContent(
+      'Graded on the USATF road age standards (2025), by Alan Jones and Tom Bernhard, licensed CC0 1.0, for a man. Age is counted from your birth year on the date of each effort. Rides are graded through their equal-energy running pace. A level, not a ranking.',
+    )
+    expect(
+      within(source).getByRole('link', { name: 'USATF road age standards (2025)' }),
+    ).toHaveAttribute('href', ROAD_STANDARDS_SOURCE.url)
+  })
+
+  it('shows the standards line only when a grade is shown', () => {
+    const { unmount } = renderPage(makeResult(), {}, MAN_BORN_1986)
+    expect(screen.queryByText(/^Graded on the/)).not.toBeInTheDocument()
+    unmount()
+
+    renderPage(
+      makeResult({
+        equivalents: [makeEquivalence()],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+      }),
+      {},
+      MAN_BORN_1986,
+    )
+    expect(screen.getByText(/^Graded on the/)).toBeInTheDocument()
+  })
+
+  it('shows no standards line without the year of birth and sex', () => {
+    renderPage(GRADED_RUN)
+    expect(screen.queryByText(/^Graded on the/)).not.toBeInTheDocument()
   })
 })

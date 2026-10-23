@@ -5,6 +5,10 @@ import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { TrendChart } from '../charts'
 import { ShareImageButton, pickHeadline } from '../components'
+import { StandardsCredit } from '../components/StandardsCredit'
+import { gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
+import type { AgeProfile } from '../grades'
+import { hrefFor } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import { BalanceHero } from './BalanceHero'
 import { CrossSportCard } from './CrossSportCard'
@@ -17,6 +21,8 @@ export interface BalancePageProps {
   result: AnalysisResult
   settings: AthleteSettings
   units: UnitSystem
+  /** The year of birth and sex for the grades, or null while either is missing. */
+  profile: AgeProfile | null
   /** The period control, shown beside the heading. */
   controls: ReactNode
 }
@@ -25,10 +31,21 @@ export interface BalancePageProps {
  * The home screen. It answers three things at a glance: where you stand in each sport, how your
  * balance between them leans, and what would sharpen the answer.
  */
-export function BalancePage({ analysis, result, settings, units, controls }: BalancePageProps) {
+export function BalancePage({
+  analysis,
+  result,
+  settings,
+  units,
+  profile,
+  controls,
+}: BalancePageProps) {
   const { isSample, rangeDays, trend } = analysis.state
   const pick = pickHeadline(result.comparison)
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
+  // Each sport's grade is worked out once here, and the cards and the source line share it.
+  const headline = profile === null ? null : headlineGrades(result, profile)
+  // The standards line is shown only when a grade is, so it never cites grades that are not there.
+  const sourceSex = gradedSexOf(headline, profile)
 
   return (
     <div className="page-stack">
@@ -43,9 +60,29 @@ export function BalancePage({ analysis, result, settings, units, controls }: Bal
       <BalanceHero result={result} pick={pick} />
 
       <div className="balance__sports">
-        <SportCard sport="run" result={result} units={units} massKg={settings.massKg} />
-        <SportCard sport="ride" result={result} units={units} massKg={settings.massKg} />
+        <SportCard
+          sport="run"
+          result={result}
+          units={units}
+          massKg={settings.massKg}
+          grade={headline?.run ?? null}
+        />
+        <SportCard
+          sport="ride"
+          result={result}
+          units={units}
+          massKg={settings.massKg}
+          grade={headline?.ride ?? null}
+        />
       </div>
+
+      {profile === null && (
+        <p className="muted">
+          <a href={hrefFor({ page: 'profile' })}>
+            Add your year of birth and sex on your profile to see age-graded levels.
+          </a>
+        </p>
+      )}
 
       <div className="balance__cards">
         <EvidenceCard effort={effort} />
@@ -70,6 +107,14 @@ export function BalancePage({ analysis, result, settings, units, controls }: Bal
           disabled={analysis.busy}
         />
       </div>
+
+      {sourceSex !== null && (
+        <p className="muted balance__source">
+          Graded on the <StandardsCredit />, for a {SEX_NOUN[sourceSex]}. Age is counted from your
+          birth year on the date of each effort. Rides are graded through their equal-energy running
+          pace. A level, not a ranking.
+        </p>
+      )}
     </div>
   )
 }

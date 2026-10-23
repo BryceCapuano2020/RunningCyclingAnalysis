@@ -14,11 +14,11 @@ Hash routes, so the static host needs no fallback rules.
 
 | Route              | Page              | Holds                                                                                                                                                                                  |
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and its meter, one card per sport, the evidence card, the cross-sport card, the trend, the share image                                                                      |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units, the best-effort curve                                                                                                                              |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, trend, share image                                                                              |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each, the best-effort curve                                                                                                   |
 | `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                            |
 | `#/activities/:id` | Activity          | Summary, efforts set here, data issues                                                                                                                                                 |
-| `#/method`         | How sure is this? | Ratio chart, heart-rate check, virtual-power accuracy, methodology                                                                                                                     |
+| `#/method`         | How sure is this? | Ratio chart, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                        |
 | `#/profile`        | Profile           | Weight, units, year of birth and sex, account (email, download, delete), the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over |
 
 Without a result every route except Profile shows the landing page. The header holds the wordmark,
@@ -38,38 +38,40 @@ Ink and volt are the brand. Sport colours mark a sport: its data, its glyph, and
 card. They never colour generic chrome such as buttons, links, tabs or focus rings. Status
 colours always come with an icon and a label, so a warning never relies on red beside the run coral.
 
-| Token                  | Light       | Dark        | Use                                                    |
-| ---------------------- | ----------- | ----------- | ------------------------------------------------------ |
-| `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                           |
-| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs, chart plot                              |
-| `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                   |
-| `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                   |
-| `--grid`               | `#e9ecf1`   | `#232830`   | Chart gridlines                                        |
-| `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)              |
-| `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                    |
-| `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                        |
-| `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                |
-| `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                       |
-| `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                      |
-| `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen          |
-| `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`) |
-| `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)     |
-| `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                |
-| `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                     |
-| `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                               |
-| `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                             |
-| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                           |
-| `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                           |
-| `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                               |
-| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                             |
-| `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                             |
-| `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                 |
-| `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                 |
-| `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                |
-| `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background    |
-| `--status-critical-bg` | `#fde8e6`   | `#3a1714`   | Error chip background                                  |
-| `--status-good`        | `#17753a`   | `#4ac26b`   | Success icon and label                                 |
-| `--status-good-bg`     | `#e3f4e8`   | `#10301b`   | Success chip background                                |
+| Token                  | Light       | Dark        | Use                                                                        |
+| ---------------------- | ----------- | ----------- | -------------------------------------------------------------------------- |
+| `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                               |
+| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs, chart plot                                                  |
+| `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                       |
+| `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                       |
+| `--grid`               | `#e9ecf1`   | `#232830`   | Chart gridlines                                                            |
+| `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                  |
+| `--text-primary`       | `#0e1116`   | `#eef0f3`   | Ink                                                                        |
+| `--text-secondary`     | `#474f5c`   | `#b6bcc6`   | Supporting text                                                            |
+| `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                    |
+| `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                                           |
+| `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                                          |
+| `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                              |
+| `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
+| `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
+| `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                    |
+| `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                         |
+| `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                   |
+| `--focus`              | `#0e1116`   | `#c8f03c`   | Focus ring                                                                 |
+| `--series-run`         | `#e5304f`   | `#f0435f`   | Running data                                                               |
+| `--series-ride`        | `#2f56e8`   | `#4d6ef5`   | Cycling data                                                               |
+| `--series-swim`        | `#0f9fb0`   | `#14a0b0`   | Swimming data (reserved)                                                   |
+| `--series-run-soft`    | `#e5304f26` | `#f0435f33` | Running band and area fill                                                 |
+| `--series-ride-soft`   | `#2f56e826` | `#4d6ef533` | Cycling band and area fill                                                 |
+| `--series-swim-soft`   | `#0f9fb026` | `#14a0b033` | Swimming band and area fill (reserved)                                     |
+| `--ladder-run-band`    | `#e5304f26` | `#f0435f26` | Run band behind the level ladder's range, low enough alpha for the outline |
+| `--ladder-ride-band`   | `#2f56e826` | `#4d6ef526` | Ride band behind the level ladder's range, low enough alpha for the ring   |
+| `--status-warning`     | `#8a5300`   | `#f2b544`   | Warning icon and label                                                     |
+| `--status-warning-bg`  | `#fbf2d9`   | `#33290c`   | Warning chip background                                                    |
+| `--status-critical`    | `#b3261e`   | `#ff8a80`   | Error icon and label; destructive button background                        |
+| `--status-critical-bg` | `#fde8e6`   | `#3a1714`   | Error chip background                                                      |
+| `--status-good`        | `#17753a`   | `#4ac26b`   | Success icon and label                                                     |
+| `--status-good-bg`     | `#e3f4e8`   | `#10301b`   | Success chip background                                                    |
 
 Spacing, radius, font and shadow tokens live in `apps/web/src/styles/tokens.css`, beside the colours.
 
@@ -95,6 +97,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - A sport glyph (`SportIcon`) sits next to every sport name.
 - Charts get a faint grid, 2.5 px lines with round joins, an area fill under single series and an
   emphasised latest point.
+- The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
+  the drawing. A run's estimate, from one activity, is a solid dot in the sport's colour. A ride's
+  estimate is a ring over an outlined band for its model range. Band edges are ticks, not fill.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
   Tables that cannot fit become lists.
 - The share image is a dark canvas card on ink, as a square (1080 by 1080) or a story (1080 by 1920).
@@ -118,6 +123,22 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Oct", "from Mar 2023 to Oct 2026".
 - One "How sure is this?" link per card at most.
 - The app grades, it never ranks: no percentiles, no "top X%", no composite score across sports.
+- **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
+  written the same way in sentences, labels and this document. Never call a level weak, a limiter
+  or a weakness, and never give a percentile.
+- **Every grade is an estimate.** A run's grade comes from one activity's grade-adjusted pace, so
+  it is written "Estimated age grade". A ride's grade is estimated through its equal-energy running
+  pace, and it shows its model range rather than one number.
+- **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
+  standards". The full credit, with the authors, licence and a link, is on the Balance source line,
+  the record list's source line and How sure is this?.
+- **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
+  from the birth year alone. A ride is dated by its own best ride at that duration. Cards say the
+  age they used ("aged 40"). The three pages that carry the full credit say "Age is counted from
+  your birth year on the date of each effort." On the Ride page the source line also says that a
+  ride's range is its model range.
+- **A missing year of birth or sex asks once,** on the Balance page, in a quiet line that links to
+  Profile. The cards show no grade and no prompt in that case.
 
 ## Accessibility
 

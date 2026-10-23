@@ -1,6 +1,7 @@
 # Age grading against published road standards
 
-Status: core module implemented in `packages/core/src/grade` (`@rca/core/grade`). The UI is not wired yet.
+Status: the core module is in `packages/core/src/grade` (`@rca/core/grade`), and the UI is wired in
+`apps/web/src/ui/grades.ts` and the pages that use it. Grades are estimates; see sections 3 and 6.
 
 ## 1. The standards
 
@@ -31,13 +32,15 @@ Status: core module implemented in `packages/core/src/grade` (`@rca/core/grade`)
 
 Owner decision, 2026-10-23: a ride is graded through its equal-energy flat running equivalent, the
 running speed that costs the same metabolic power, over the ride's duration. The ride level is
-model-derived, not a published cycling standard. The UI is planned to call `ageGradeForEffort`.
+model-derived, not a published cycling standard. The UI calls `ageGradeForEffort` on each ride's
+running equivalent, and shows the model's 5th to 95th percentile as the range.
 
 ## 4. Level bands
 
-WMA-style bands, lower bounds inclusive: World class 0.90, National 0.80, Regional 0.70, Local 0.60,
-Recreational below. `gradePercent` rounds down (0.8999 shows 89.9%, never 90), and `levelOf` takes
-the unrounded grade, so they agree. Both return null for NaN, infinite or negative input.
+WMA-style bands, lower bounds inclusive: World 0.90, National 0.80, Regional 0.70, Local 0.60,
+Recreational below. The names are `GRADE_LEVELS` labels, and the UI uses them as written.
+`gradePercent` rounds down (0.8999 shows 89.9%, never 90), and `levelOf` takes the unrounded grade,
+so they agree. Both return null for NaN, infinite or negative input.
 
 ## 5. One year of age
 
@@ -51,6 +54,8 @@ those ages most distances fall, and an overstated age deflates the grade there.
 
 - **Birth year only.** Until the athlete's birthday the calendar-year age can be one year too high,
   which moves the grade by one year's change in the standard (section 5).
+- **Dated by activity.** The UI takes each effort's age on the day of the activity that set it. A ride
+  uses the date of its own best ride at that duration, since its equivalent comes from that ride.
 - **Road races at sea level.** The standards do not adjust for altitude, trail, track or cross-country.
 - **Hilly courses and GPS error.** Grade-adjusted pace is an estimate; measured distance can be off.
 - **Training is not a race:** a training grade is an estimate, not a race result or a ranking.

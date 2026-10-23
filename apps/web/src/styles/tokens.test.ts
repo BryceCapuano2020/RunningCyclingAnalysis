@@ -4,6 +4,7 @@ import { readStylesheet } from '../ui/components/stylesheet'
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
 const privacyCss = await readStylesheet(import.meta.url, '../../public/privacy.css')
+const ladderCss = await readStylesheet(import.meta.url, '../ui/components/LevelLadder.css')
 
 type Tokens = Map<string, string>
 
@@ -181,5 +182,101 @@ describe('contrast', () => {
 
   it.each(CASES)('$theme: --$fg on --$bg reaches $min:1', ({ tokens, fg, bg, min }) => {
     expect(contrast(colour(tokens, fg), colour(tokens, bg))).toBeGreaterThanOrEqual(min)
+  })
+})
+
+/** A colour as #rrggbb or #rrggbbaa, laid over an opaque background, as the browser paints it. */
+function over(foreground: string, background: string): string {
+  const alpha = foreground.length === 9 ? parseInt(foreground.slice(7, 9), 16) / 255 : 1
+  const channels = [1, 3, 5].map((start) => {
+    const top = parseInt(foreground.slice(start, start + 2), 16)
+    const below = parseInt(background.slice(start, start + 2), 16)
+    return Math.round(top * alpha + below * (1 - alpha))
+      .toString(16)
+      .padStart(2, '0')
+  })
+  return `#${channels.join('')}`
+}
+
+/** A token that is an opaque colour, or a translucent one, as the ladder's bands are. */
+function paint(tokens: Tokens, name: string): string {
+  const value = tokens.get(name)
+  if (value === undefined || !/^#[0-9a-f]{6}([0-9a-f]{2})?$/.test(value)) {
+    throw new Error(`--${name} is not a hex colour`)
+  }
+  return value
+}
+
+/**
+ * The level ladder's marks against the surfaces they are drawn on: the ring and the dot in the sport
+ * colour, the band edges in neutral, each over the band or track beneath it.
+ */
+function ladderPairs(tokens: Tokens): [string, string, string][] {
+  const track = colour(tokens, 'surface-2')
+  const card = colour(tokens, 'surface-1')
+  const runBand = over(paint(tokens, 'ladder-run-band'), track)
+  const rideBand = over(paint(tokens, 'ladder-ride-band'), track)
+  return [
+    ['run ring on its range band', colour(tokens, 'series-run'), runBand],
+    ['ride ring on its range band', colour(tokens, 'series-ride'), rideBand],
+    ['band edge inside a ride range', colour(tokens, 'neutral-mark'), rideBand],
+    ['band edge on the track', colour(tokens, 'neutral-mark'), track],
+    ['band edge beyond the bar', colour(tokens, 'neutral-mark'), card],
+    ['run dot on the track', colour(tokens, 'series-run'), track],
+  ]
+}
+
+describe('level ladder contrast', () => {
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ] as const)('%s: every mark reaches 3:1 against what it sits on', (_theme, tokens) => {
+    for (const [label, fg, bg] of ladderPairs(tokens)) {
+      expect(contrast(fg, bg), label).toBeGreaterThanOrEqual(GRAPHIC)
+    }
+  })
+})
+
+/** The declarations of the rule whose selector is exactly this, as property to value. */
+function declarations(css: string, selector: string): Map<string, string> {
+  const start = css.indexOf(`${selector} {`)
+  if (start < 0) throw new Error(`no ${selector} rule in the stylesheet`)
+  if (css.indexOf(`${selector} {`, start + 1) >= 0) throw new Error(`${selector} is declared twice`)
+  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
+  const found = new Map<string, string>()
+  for (const match of body.matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)) {
+    const [, property, value] = match
+    if (property !== undefined && value !== undefined) {
+      found.set(property, value.trim().toLowerCase())
+    }
+  }
+  return found
+}
+
+describe('level ladder stylesheet', () => {
+  it('paints each sport’s band with that sport’s ladder band token', () => {
+    expect(declarations(ladderCss, '.level-ladder--run').get('--ladder-band')).toBe(
+      'var(--ladder-run-band)',
+    )
+    expect(declarations(ladderCss, '.level-ladder--ride').get('--ladder-band')).toBe(
+      'var(--ladder-ride-band)',
+    )
+  })
+
+  it('draws each sport’s marker in the sport colour', () => {
+    expect(declarations(ladderCss, '.level-ladder--run').get('--ladder-colour')).toBe(
+      'var(--series-run)',
+    )
+    expect(declarations(ladderCss, '.level-ladder--ride').get('--ladder-colour')).toBe(
+      'var(--series-ride)',
+    )
+  })
+
+  it('strokes the band edges in neutral-mark', () => {
+    expect(declarations(ladderCss, '.level-ladder__edge').get('stroke')).toBe('var(--neutral-mark)')
+  })
+
+  it('fills the range with the sport’s band token', () => {
+    expect(declarations(ladderCss, '.level-ladder__range').get('fill')).toBe('var(--ladder-band)')
   })
 })

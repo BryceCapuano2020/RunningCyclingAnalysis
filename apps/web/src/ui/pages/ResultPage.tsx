@@ -1,7 +1,9 @@
+import type { Sex } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
+import type { AgeProfile } from '../grades'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import { ActivitiesPage } from './ActivitiesPage'
@@ -16,11 +18,23 @@ export interface ResultPageProps {
   result: AnalysisResult
   settings: AthleteSettings
   units: UnitSystem
+  birthYear: number | null
+  sex: Sex | null
 }
 
 /** The page the route names, once there is a result to show. */
-export function ResultPage({ route, analysis, result, settings, units }: ResultPageProps) {
+export function ResultPage({
+  route,
+  analysis,
+  result,
+  settings,
+  units,
+  birthYear,
+  sex,
+}: ResultPageProps) {
   const { rangeDays, totalActivities } = analysis.state
+  // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
+  const profile: AgeProfile | null = birthYear !== null && sex !== null ? { birthYear, sex } : null
   const period = (
     <RangePicker
       rangeDays={rangeDays}
@@ -38,6 +52,7 @@ export function ResultPage({ route, analysis, result, settings, units }: ResultP
           result={result}
           units={units}
           massKg={settings.massKg}
+          profile={profile}
           controls={period}
         />
       )
@@ -53,7 +68,7 @@ export function ResultPage({ route, analysis, result, settings, units }: ResultP
         />
       )
     case 'method':
-      return <MethodPage result={result} />
+      return <MethodPage result={result} profile={profile} />
     default:
       return (
         <BalancePage
@@ -61,6 +76,7 @@ export function ResultPage({ route, analysis, result, settings, units }: ResultP
           result={result}
           settings={settings}
           units={units}
+          profile={profile}
           controls={period}
         />
       )

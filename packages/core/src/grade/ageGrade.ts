@@ -2,8 +2,9 @@ import { ROAD_DISTANCES_M, ROAD_STANDARDS_FEMALE, ROAD_STANDARDS_MALE } from './
 
 export type Sex = 'female' | 'male'
 
-const FIRST_AGE = 5
-const LAST_AGE = 100
+/** The ages the road standards cover, inclusive. Outside them there is no grade. */
+export const FIRST_GRADED_AGE = 5
+export const LAST_GRADED_AGE = 100
 const TABLES: Record<Sex, number[][]> = {
   female: ROAD_STANDARDS_FEMALE,
   male: ROAD_STANDARDS_MALE,
@@ -23,13 +24,18 @@ const LAST_DISTANCE_M = ROAD_DISTANCES_M[ROAD_DISTANCES_M.length - 1]!
  */
 export function ageStandardSeconds(distanceM: number, age: number, sex: Sex): number | null {
   const table: number[][] | undefined = Object.hasOwn(TABLES, sex) ? TABLES[sex] : undefined
-  if (table === undefined || !Number.isInteger(age) || age < FIRST_AGE || age > LAST_AGE) {
+  if (
+    table === undefined ||
+    !Number.isInteger(age) ||
+    age < FIRST_GRADED_AGE ||
+    age > LAST_GRADED_AGE
+  ) {
     return null
   }
   if (!Number.isFinite(distanceM) || distanceM < FIRST_DISTANCE_M || distanceM > LAST_DISTANCE_M) {
     return null
   }
-  const row = table[age - FIRST_AGE]!
+  const row = table[age - FIRST_GRADED_AGE]!
   let hi = 0
   while (ROAD_DISTANCES_M[hi]! < distanceM) hi++
   if (ROAD_DISTANCES_M[hi] === distanceM) return row[hi]!
@@ -86,12 +92,12 @@ export interface GradeLevel {
   readonly label: string
 }
 
-/** WMA-style level bands for an age grade, highest first. */
+/** WMA-style level bands for an age grade, highest first. The names are the UI's level names. */
 export const GRADE_LEVELS: readonly GradeLevel[] = [
-  { min: 0.9, label: 'World class' },
-  { min: 0.8, label: 'National class' },
-  { min: 0.7, label: 'Regional class' },
-  { min: 0.6, label: 'Local class' },
+  { min: 0.9, label: 'World' },
+  { min: 0.8, label: 'National' },
+  { min: 0.7, label: 'Regional' },
+  { min: 0.6, label: 'Local' },
   { min: 0, label: 'Recreational' },
 ]
 
@@ -118,6 +124,8 @@ export function gradePercent(grade: number): number | null {
 /** The published standards behind the grades, for citation in the UI. */
 export const ROAD_STANDARDS_SOURCE = {
   name: 'USATF road age standards (2025)',
+  /** The name for a short citation, such as a caption: "on the USATF road standards". */
+  shortName: 'USATF road standards',
   authors: 'Alan Jones and Tom Bernhard',
   url: 'https://github.com/AlanLyttonJones/Age-Grade-Tables',
   licence: 'CC0 1.0',

@@ -2,8 +2,19 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { curvePoint } from '../charts/fixtures'
-import { makeActivity, makeResult } from '../components/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  MAN_BORN_1986,
+  flatWkg,
+  interval,
+  makeActivity,
+  makeEquivalence,
+  makeResult,
+} from '../components/fixtures'
+import type { AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
@@ -31,6 +42,7 @@ function renderPage(
   sport: 'run' | 'ride',
   result: AnalysisResult,
   units: 'metric' | 'imperial' = 'metric',
+  profile: AgeProfile | null = null,
 ) {
   return render(
     <SportPage
@@ -38,9 +50,17 @@ function renderPage(
       result={result}
       units={units}
       massKg={75}
+      profile={profile}
       controls={<span>Period picker</span>}
     />,
   )
+}
+
+/** The record list item for one duration, found by its eyebrow such as "Best 20 min". */
+function recordNamed(records: HTMLElement, eyebrow: string): HTMLElement {
+  const item = within(records).getByText(eyebrow).closest('li')
+  if (item === null) throw new Error(`No record named ${eyebrow}`)
+  return item
 }
 
 describe('SportPage', () => {
@@ -162,5 +182,149 @@ describe('SportPage', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     expect(screen.getByRole('region', { name: 'Every duration' })).toBeInTheDocument()
+  })
+})
+
+describe('SportPage age grades', () => {
+  it('shows a run record’s estimate where the run covers a mile to 200 km', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 20 min')).getByText('Estimated age grade 67.6% · Local'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no grade for a run record that covers under a mile', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        // 60 s at 8 m/s covers 480 m.
+        runCurve: [curvePoint(60, flatWkg(8), 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(recordNamed(records, 'Best 1 min').textContent).not.toMatch(/Estimated age grade/)
+  })
+
+  it('shows a ride record’s estimate with its range', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+        equivalents: [
+          makeEquivalence({
+            durationS: HEADLINE_DURATION_S,
+            runSpeed: interval(3.9, 5000 / HEADLINE_DURATION_S, 4.4),
+          }),
+        ],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 20 min')).getByText(
+        'Estimated age grade 67.6% · Local (63–71.5%)',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('names the standards under Best efforts when a record shows a grade', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    const source = within(records).getByText(/Age grades for a man are estimates against the/)
+    expect(source).toHaveTextContent(
+      'Age is counted from your birth year on the date of each effort',
+    )
+    expect(
+      within(source).getByRole('link', { name: 'USATF road age standards (2025)' }),
+    ).toHaveAttribute('href', ROAD_STANDARDS_SOURCE.url)
+  })
+
+  it('names the sex the record grades are for on the source line', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      { birthYear: 1986, sex: 'female' },
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(within(records).getByText(/Age grades for a woman are estimates/)).toBeInTheDocument()
+  })
+
+  it('says a ride’s range is its model range on the ride page only', () => {
+    const runPage = renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+    expect(screen.getByText(/Age grades for a man are estimates/)).toBeInTheDocument()
+    expect(screen.queryByText(/model range/)).not.toBeInTheDocument()
+    runPage.unmount()
+
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+        equivalents: [
+          makeEquivalence({
+            durationS: HEADLINE_DURATION_S,
+            runSpeed: interval(3.9, 5000 / HEADLINE_DURATION_S, 4.4),
+          }),
+        ],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(within(records).getByText(/a ride’s range is its model range/)).toBeInTheDocument()
+  })
+
+  it('shows no grades, and no standards line, without the year of birth and sex', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+    )
+
+    expect(screen.queryByText(/Estimated age grade/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/are estimates against the/)).not.toBeInTheDocument()
   })
 })

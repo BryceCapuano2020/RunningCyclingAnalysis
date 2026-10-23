@@ -55,6 +55,37 @@ describe('road standards data', () => {
     expect(ROAD_STANDARDS_MALE[0]![8]).toBe(3150)
   })
 
+  // docs/research/age-grading.md section 5: from about 22 (men) and 26 (women) a standard never
+  // falls with age, at any distance, so an overstated age inflates the grade for adults.
+  const FROM_AGE = { male: 22, female: 26 } as const
+  for (const sex of ['male', 'female'] as const) {
+    it(`never lets a ${sex} standard fall with age from ${FROM_AGE[sex]} to 99`, () => {
+      const table = TABLES[sex]
+      for (let age = FROM_AGE[sex]; age < 100; age++) {
+        const row = table[age - 5]!
+        const older = table[age - 4]!
+        row.forEach((seconds, index) => {
+          expect(
+            older[index],
+            `${sex} ${age} to ${age + 1}, distance ${index}`,
+          ).toBeGreaterThanOrEqual(seconds)
+        })
+      }
+    })
+  }
+
+  it('lets the standards fall just below those ages, so the claim is not vacuous', () => {
+    // Male 21 to 22 and female 25 to 26 each have distances whose standard falls.
+    expect(
+      ROAD_STANDARDS_MALE[16]!.some((seconds, index) => ROAD_STANDARDS_MALE[17]![index]! < seconds),
+    ).toBe(true)
+    expect(
+      ROAD_STANDARDS_FEMALE[20]!.some(
+        (seconds, index) => ROAD_STANDARDS_FEMALE[21]![index]! < seconds,
+      ),
+    ).toBe(true)
+  })
+
   it('keeps the female age-100 10 km cell as published, 12172 s', () => {
     // Age 100 is the last row, row 95.
     expect(ROAD_DISTANCES_M[6]).toBe(10000)

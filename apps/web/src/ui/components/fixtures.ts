@@ -1,10 +1,23 @@
+import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { RejectedFile } from '@rca/core/session'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
+import type { AgeProfile } from '../grades'
 
 export function interval(p05: number, p50: number, p95: number): Interval {
   return { p05, p50, p95 }
 }
+
+/** The gross W/kg that a run's best-effort curve holds for running speedMs on the flat. */
+export function flatWkg(speedMs: number): number {
+  return RESTING_W_PER_KG + FLAT_RUN_COST * speedMs
+}
+
+/** A 5 km run in 20 minutes: 67.6% for a man of 40 on the activity's date, Local. */
+export const FIVE_K_IN_20_MIN_WKG = flatWkg(5000 / 1200)
+
+/** A man born in 1986: 40 on any activity dated in 2026, the year the fixtures use. */
+export const MAN_BORN_1986: AgeProfile = { birthYear: 1986, sex: 'male' }
 
 export function comparisonPoint(overrides: Partial<ComparisonPoint> = {}): ComparisonPoint {
   return {
