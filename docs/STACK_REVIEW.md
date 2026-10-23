@@ -9,7 +9,7 @@ reproducible blocking defect. The release gate passed 2,230 unit tests, 95 brows
 Worker-served browser tests before the migration-journal correction below. This is synthetic and
 fixture evidence; it does not establish accuracy on the owner's real devices or physiological data.
 
-Two release issues needed attention:
+Release issues needed attention:
 
 - Migration 0005's journal timestamp preceded 0004. Drizzle could skip it when resuming a database
   that already had 0004. The timestamp now follows 0004, and a real incremental Drizzle migration
@@ -24,6 +24,14 @@ Two release issues needed attention:
   input with the configured recipient before it exposes backup credentials or exports data. Backup
   automation remains disabled until the private key and scoped credentials are provisioned and a
   restore drill succeeds.
+- CI and Deploy uploaded `apps/web/dist` without hidden files. The downloaded artifact for CI run
+  [39976755969](https://github.com/BryceCapuano2020/RunningCyclingAnalysis/actions/runs/39976755969)
+  contained `index.html` but omitted `.well-known/security.txt`, so the deployed static site could
+  return 404 for the security contact endpoint even though the file was in the source build. The
+  `upload-artifact` action defaults `include-hidden-files` to false
+  ([official documentation](https://github.com/actions/upload-artifact#uploading-hidden-files)).
+  Both workflows now enable hidden-file upload only for `apps/web/dist`; CI also runs `test:ops` so
+  the workflow guard checks execute on each change.
 
 The research notes remain provisional. Several citations and assumptions are explicitly
 unverified, and the proposed uncertainty widths were not validated through the full heart-rate

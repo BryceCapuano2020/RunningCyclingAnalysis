@@ -47,6 +47,20 @@ test('deployment checks Worker secret names before applying migrations', async (
   assert.ok(migrations > secretCheck)
 })
 
+test('CI and Deploy preserve hidden files in the static build artifact', async () => {
+  const ci = await workflow('ci')
+  const deploy = await workflow('deploy')
+  assert.match(
+    ci,
+    /name: dist\n\s+path: apps\/web\/dist\n\s+retention-days: 7\n\s+include-hidden-files: true/,
+  )
+  assert.match(
+    deploy,
+    /name: production-dist\n\s+path: apps\/web\/dist\n\s+retention-days: 7\n\s+include-hidden-files: true/,
+  )
+  assert.match(ci, /- run: npm run test:ops/)
+})
+
 test('manual uptime runs can simulate an outage without reading inputs in shell steps', async () => {
   const uptime = await workflow('uptime')
   assert.match(
