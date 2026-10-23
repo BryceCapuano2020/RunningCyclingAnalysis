@@ -1,10 +1,12 @@
 name: Backup
 
 # Daily backup of the production D1 database, plus a manifest of the R2 objects that existed.
-# The repository is public, so nothing leaves the runner unencrypted: the archive is encrypted with
+# Nothing leaves the runner unencrypted: the archive is encrypted with
 # age to the recipient in ops/backup-recipient.txt, and the private key is never stored in GitHub.
 # A placeholder or missing recipient stops the run before any export. Restore: scripts/ops/restore.md.
-# Targets: RPO 24 hours, RTO 2 hours. Original files in R2 are NOT part of the backup.
+# Scheduled runs are opt-in with the RCA_BACKUP_ENABLED repository variable. Manual runs remain
+# available and still stop before export unless the recipient is valid. Targets: RPO 24 hours,
+# RTO 2 hours. Original files in R2 are NOT part of the backup.
 on:
   schedule:
     - cron: '5 4 * * *'
@@ -19,6 +21,7 @@ concurrency:
 
 jobs:
   backup:
+    if: github.event_name == 'workflow_dispatch' || vars.RCA_BACKUP_ENABLED == 'true'
     name: Export, encrypt and store for 90 days
     runs-on: ubuntu-latest
     timeout-minutes: 30

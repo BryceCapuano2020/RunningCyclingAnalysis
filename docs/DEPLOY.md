@@ -177,6 +177,11 @@ GitHub Actions environment secret. The first deploy that verifies signed session
 invalidate all existing unsigned session cookies, so every user will need to sign in again. D1
 session rows may remain until their normal expiry and cleanup.
 
+Both `npm run deploy` and the production workflow check the names of `GOOGLE_CLIENT_ID`,
+`GOOGLE_CLIENT_SECRET` and `SESSION_SIGNING_KEY` with `wrangler secret list` before deploying or
+applying migrations. The check never prints secret values. This confirms the names exist, not that
+the values work; the smoke test does not exercise an OAuth callback.
+
 ## 7. Set APP_URL and deploy again
 
 Open `apps/api/wrangler.toml` and set the `[vars]` value:
@@ -292,12 +297,16 @@ then **Run workflow**, with the branch set to **main**. It refuses any other bra
 2. **Release gate:** runs `npm run verify:release` on that exact commit, including the Chromium,
    WebKit and Worker-served browser suites. It keeps the static build it verified.
 3. **Approval:** waits for the owner to approve the `production` environment.
-4. **Migrations:** applies pending D1 migrations with `wrangler d1 migrations apply rca --remote`.
-5. **Deploy:** runs `wrangler deploy`, tagging the Worker version with the commit SHA.
-6. **Smoke test:** runs `scripts/ops/smoke.mjs` against `APP_URL`. The checks are listed in
+4. **Preflight:** checks production configuration and verifies the presence of the three required
+   Worker secret names before any migration runs.
+5. **Migrations:** applies pending D1 migrations with `wrangler d1 migrations apply rca --remote`.
+6. **Deploy:** runs `wrangler deploy`, tagging the Worker version with the commit SHA.
+7. **Smoke test:** runs `scripts/ops/smoke.mjs` against `APP_URL`. The checks are listed in
    [PRODUCTION.md](PRODUCTION.md#release-gate).
-7. **Rollback:** if the smoke test fails, runs `wrangler rollback` to the previous version. The run
-   then fails.
+8. **Rollback:** if the smoke test fails and `RCA_SAFE_ROLLBACK_VERSION` is set to an explicitly
+   verified compatible Worker version ID, rolls back to that version. If it is unset, the workflow
+   records that no rollback was attempted and fails the run. It never chooses an implicit previous
+   version.
 
 One-time setup for the repository owner:
 
@@ -319,6 +328,9 @@ One-time setup for the repository owner:
    - Add **Required reviewers**, with the owner as the reviewer.
    - Under **Deployment branches and tags**, choose **Selected branches** and allow only `main`.
    - Add environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+   - Set `RCA_SAFE_ROLLBACK_VERSION` only after verifying a Worker version against the current D1
+     schema and deletion state. The historical Worker `1143a60d-5562-43c2-95a2-4807b9073c93`
+     predates signed cookies and deletion tombstones and is not a safe rollback target.
 
    Environment secrets are available only to jobs that name the environment, and only after the
    approval. They are not repository secrets, so workflows on other branches cannot read them.
@@ -327,11 +339,11 @@ One-time setup for the repository owner:
    [PRODUCTION.md](PRODUCTION.md#release-gate). The workflow checks the ref, but protection stops
    unreviewed code from reaching `main` in the first place.
 
-The backup and uptime workflow files in this branch are not active jobs. No backup recipient/key,
-GitHub backup environment secrets, or remote workflow setup was configured as part of this work.
-The owner setup instructions in [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner) describe
-what is needed before encrypted backups can run; uptime monitoring also requires the source workflow
-to reach the default branch and complete a successful probe.
+Scheduled backup and uptime jobs are disabled unless the repository variables `RCA_BACKUP_ENABLED`
+and `RCA_UPTIME_ENABLED` respectively equal the exact string `true`. Manual runs remain available;
+backup still refuses to export unless its recipient check passes. No backup recipient/key, GitHub
+backup environment secrets, or remote variables/workflow setup was configured or verified as part of
+this work. See [PRODUCTION.md](PRODUCTION.md#setting-up-backups-owner) before enabling either job.
 
 ## 11. Costs and hard free-plan limits
 
@@ -368,20 +380,22 @@ Google sign-in with the basic `openid email profile` scopes has no usage charge 
 
 ## 12. Roll back a deploy
 
-Every deploy creates a version. To list them and roll back:
+Every deploy creates a version. To list them and roll back to a version you have verified is
+compatible with the current schema and data:
 
 ```bash
 cd apps/api
 npx wrangler deployments list
-npx wrangler rollback                 # back to the previous version
-npx wrangler rollback <version-id>    # or to a specific version from the list
+npx wrangler rollback <compatible-version-id>
 ```
 
-The Deploy workflow rolls back by itself when its smoke test fails, so the commands above are for
-manual recovery. A rollback changes only the Worker code and the web app. It does not undo database
-migrations, so data written by a newer version stays. If a migration is the problem, fix forward
-with a new migration file, which must follow the expand, deploy, contract rule in
-[PRODUCTION.md](PRODUCTION.md#migrations-order-of-operations).
+The Deploy workflow rolls back only when its smoke test fails and
+`RCA_SAFE_ROLLBACK_VERSION` is explicitly configured; otherwise it records that no rollback target
+was configured and fails. A rollback changes only Worker code. It does not undo database migrations
+or newer data. Worker `1143a60d-5562-43c2-95a2-4807b9073c93` cannot safely serve the hardening
+schema and deletion tombstones and cannot read signed session cookies, so do not use it as a rollback
+target. If a migration is the problem, fix forward with a new migration file, following the expand,
+deploy, contract rule in [PRODUCTION.md](PRODUCTION.md#migrations-order-of-operations).
 
 ## 13. Delete everything
 

@@ -27,17 +27,21 @@ intended order:
 2. **Release gate.** `npm run verify:release` runs on the exact commit. Its static build is kept
    and is the only build that is deployed.
 3. **Approval.** The `production` GitHub environment requires approval from the owner.
-4. **Migrations.** Pending D1 migrations are applied to the production database before the new
+4. **Preflight.** The workflow verifies production config and the presence of required Worker
+   secret names before changing D1. It does not inspect or print secret values.
+5. **Migrations.** Pending D1 migrations are applied to the production database before the new
    Worker code runs. See [Migrations: order of operations](#migrations-order-of-operations).
-5. **Deploy.** `wrangler deploy` uploads the Worker. Its version carries the commit SHA as its tag
+6. **Deploy.** `wrangler deploy` uploads the Worker. Its version carries the commit SHA as its tag
    and message.
-6. **Smoke test.** `scripts/ops/smoke.mjs` checks the live origin: `GET /api/health` returns
+7. **Smoke test.** `scripts/ops/smoke.mjs` checks the live origin: `GET /api/health` returns
    `{"status":"ok"}`, `GET /api/health/deep` returns 200, `GET /` serves HTML with the
    Content-Security-Policy header, `GET /api/me` returns 401, and `GET /api/auth/google` returns a
    302 to `accounts.google.com` whose `redirect_uri` is `APP_URL` plus `/api/auth/google/callback`.
    Each check is retried briefly to allow for propagation.
-7. **Rollback.** If the smoke test fails, the workflow runs `wrangler rollback` to the previous
-   Worker version and the run fails. Database migrations are not reversed by a rollback.
+8. **Rollback.** If the smoke test fails and `RCA_SAFE_ROLLBACK_VERSION` names an explicitly
+   verified compatible Worker version, the workflow rolls back to that version and the run fails.
+   If no version is configured, no rollback is attempted and the run still fails. Database
+   migrations are not reversed by a rollback.
 
 `npm run deploy` runs locally and must start from a clean checkout of `main` identical to
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
@@ -82,7 +86,10 @@ The status-check names are the job names shown on pull requests and must match e
 
 - `production`: required reviewer is the owner. Deployment branches: selected branches, `main` only.
   Secrets: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (the deploy token needs Workers
-  Scripts Edit, D1 Edit and Account Settings Read).
+  Scripts Edit, D1 Edit and Account Settings Read). Set `RCA_SAFE_ROLLBACK_VERSION` only to a
+  Worker version verified against the current schema and data state. The historical Worker
+  `1143a60d-5562-43c2-95a2-4807b9073c93` is not compatible with signed cookies or deletion
+  tombstones and must not be selected.
 - `backup`: no reviewers, because scheduled runs cannot wait for approval. Deployment branches:
   `main` only. Secrets: `CLOUDFLARE_BACKUP_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
   `R2_BACKUP_ACCESS_KEY_ID` and `R2_BACKUP_SECRET_ACCESS_KEY`.
@@ -95,10 +102,11 @@ The status-check names are the job names shown on pull requests and must match e
 - Enable Dependabot alerts and security updates. Version updates are configured in
   `.github/dependabot.yml`.
 - Turn on notifications for failed workflow runs and for issues labelled `outage`.
-- Scheduled workflows run only from the default branch. The branch's backup and uptime source files
-  are not active jobs; configure them after merge before relying on them. GitHub disables scheduled
-  workflows in public repositories after 60 days without repository activity. Check configured
-  schedules to confirm they still run.
+- Scheduled workflows run only from the default branch. Backup and uptime schedules are disabled
+  unless repository variables `RCA_BACKUP_ENABLED` and `RCA_UPTIME_ENABLED` respectively equal
+  `true`; manual runs remain available. No remote variables or workflow setup were configured or
+  verified as part of this work. GitHub disables scheduled workflows in public repositories after
+  60 days without repository activity. Check configured schedules to confirm they still run.
 
 ## Migrations: order of operations
 

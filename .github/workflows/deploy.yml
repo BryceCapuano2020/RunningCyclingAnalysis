@@ -95,6 +95,11 @@ jobs:
           path: apps/web/dist
       - name: Check the production configuration
         run: node apps/api/scripts/check-deploy-config.mjs
+      - name: Confirm required Worker secrets are installed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/ops/check-worker-secrets.mjs
       - name: Apply pending D1 migrations before the new Worker runs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -118,13 +123,17 @@ jobs:
         id: smoke
         run: node scripts/ops/smoke.mjs
       - name: Roll back the Worker after a failed smoke test
-        if: ${{ always() && steps.smoke.outcome == 'failure' }}
+        if: ${{ always() && steps.smoke.outcome == 'failure' && vars.RCA_SAFE_ROLLBACK_VERSION != '' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SAFE_ROLLBACK_VERSION: ${{ vars.RCA_SAFE_ROLLBACK_VERSION }}
         run: >-
-          npm exec -w @rca/api -- wrangler rollback --yes
+          npm exec -w @rca/api -- wrangler rollback "$SAFE_ROLLBACK_VERSION" --yes
           --message "Automatic rollback: smoke test failed for $GITHUB_SHA (run $GITHUB_RUN_ID)"
+      - name: Record that no compatible rollback target is configured
+        if: ${{ always() && steps.smoke.outcome == 'failure' && vars.RCA_SAFE_ROLLBACK_VERSION == '' }}
+        run: echo "No automatic rollback was attempted; set RCA_SAFE_ROLLBACK_VERSION to an explicitly verified compatible Worker version." >> "$GITHUB_STEP_SUMMARY"
       - name: Record the deployment
         if: always()
         shell: bash
