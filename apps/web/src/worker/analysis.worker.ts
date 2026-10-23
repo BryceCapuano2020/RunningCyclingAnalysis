@@ -24,16 +24,29 @@ const post = (message: WorkerResponse) => self.postMessage(message)
 const missingOriginals = new Set<string>()
 const savedRecords = new Map<string, ActivityRecord>()
 
+/** Newest first; records that start together are ordered by id so the list is stable. */
 function reportLibrary() {
+  const records = [...savedRecords.values()].sort(
+    (a, b) => b.digest.startMs - a.digest.startMs || a.id.localeCompare(b.id),
+  )
   post({
     type: 'libraryActivities',
-    activities: [...savedRecords.values()].map(({ id, digest }) => ({
+    activities: records.map(({ id, digest }) => ({
       id,
       name: digest.name,
       startMs: digest.startMs,
       sport: digest.sport,
     })),
   })
+}
+
+/** The edge rate limiter's window. */
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+/** The first instant of the next UTC day, when the per-user daily limit resets. */
+function nextUtcMidnightMs(nowMs: number): number {
+  const now = new Date(nowMs)
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
 }
 
 /** The same key the session uses: one workout per sport and start second. */
@@ -164,12 +177,21 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
   }
 }
 
+/** Posts the unreadable count of a library load, when it is above zero. */
+function reportUnreadable(count: number) {
+  if (count > 0) post({ type: 'libraryUnreadable', count })
+}
+
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
 async function loadServer(settings: AthleteSettings, userId: string): Promise<SessionState> {
-  const records = await listActivities(undefined, userId)
+  let unreadable = 0
+  const records = await listActivities(undefined, userId, (count) => {
+    unreadable += count
+  })
   savedRecords.clear()
   for (const record of records) savedRecords.set(record.id, record)
   reportLibrary()
+  reportUnreadable(unreadable)
   missingOriginals.clear()
   for (const record of records) {
     if (!record.hasFile) missingOriginals.add(activityKey(record.digest))
@@ -188,14 +210,25 @@ async function hashHex(bytes: Uint8Array): Promise<string> {
 
 /** Rebuild stale digests only from their exact stored original file, retaining partial successes. */
 async function rebuildStale(settings: AthleteSettings, userId: string) {
-  const records = await listActivities(undefined, userId)
+  let unreadable = 0
+  const records = await listActivities(undefined, userId, (count) => {
+    unreadable += count
+  })
   const stale = records.filter((record) => record.digest.modelRevision < MODEL_REVISION)
   let rebuilt = 0
   let missing = 0
   let failed = 0
+  let limited = 0
+  let limitKind: 'daily' | 'rate' | null = null
+  let limitReached = false
   for (const record of stale) {
     if (!record.hasFile) {
       missing++
+      continue
+    }
+    // Once a download limit is reached, further downloads would be refused the same way.
+    if (limitReached) {
+      limited++
       continue
     }
     try {
@@ -215,25 +248,41 @@ async function rebuildStale(settings: AthleteSettings, userId: string) {
         continue
       }
       const fileHash = await hashHex(bytes)
+      // Replaces this exact activity, so a copy deleted in another tab is not written back.
       const { record: upgraded } = await createActivity(
         digestActivity(activity),
         record.fileName,
         fileHash,
         userId,
+        record.id,
       )
       const recordIndex = records.findIndex((candidate) => candidate.id === record.id)
       if (recordIndex >= 0) records[recordIndex] = upgraded
       rebuilt++
     } catch (error) {
+      const issue = syncIssueFor(error)
       // A sign-out or account change would fail every remaining activity the same way.
-      if (haltsImport(syncIssueFor(error))) throw error
+      if (haltsImport(issue)) throw error
       if (error instanceof Error && 'status' in error && error.status === 404) missing++
-      else failed++
+      // The stored original no longer matches a different saved copy, so it cannot be matched.
+      else if (issue === 'activity-conflict') missing++
+      else if (issue === 'daily-limit' || issue === 'rate-limited') {
+        limitReached = true
+        limited++
+        // A daily limit outranks a rate limit if both are seen.
+        if (issue === 'daily-limit') limitKind = 'daily'
+        else if (limitKind === null) limitKind = 'rate'
+      } else failed++
     }
   }
   let refreshed
   try {
-    refreshed = await listActivities(undefined, userId)
+    // The refreshed listing is the library now shown, so its unreadable count replaces the first.
+    let refreshedUnreadable = 0
+    refreshed = await listActivities(undefined, userId, (count) => {
+      refreshedUnreadable += count
+    })
+    unreadable = refreshedUnreadable
   } catch {
     // Rebuild successes remain usable even if the final refresh is interrupted.
     failed++
@@ -246,7 +295,15 @@ async function rebuildStale(settings: AthleteSettings, userId: string) {
   savedRecords.clear()
   for (const record of refreshed) savedRecords.set(record.id, record)
   reportLibrary()
-  return { state, rebuilt, missing, failed }
+  reportUnreadable(unreadable)
+  // The error has no Retry-After, so a rate limit is assumed to clear with its 60 s window.
+  const limitResetsAtMs =
+    limitKind === 'daily'
+      ? nextUtcMidnightMs(Date.now())
+      : limitKind === 'rate'
+        ? Date.now() + RATE_LIMIT_WINDOW_MS
+        : null
+  return { state, rebuilt, missing, failed, limited, limitKind, limitResetsAtMs }
 }
 
 // Requests are handled strictly in order so a settings change cannot overtake a file import.

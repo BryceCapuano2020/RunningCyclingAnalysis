@@ -62,6 +62,40 @@ export function smokeChecks(origin, appUrl) {
       },
     },
     {
+      name: 'GET /.well-known/security.txt serves plain text with Contact and Expires',
+      run: async (fetchImpl) => {
+        const res = await get(origin, '/.well-known/security.txt', fetchImpl)
+        expect(res.status === 200, `expected 200, got ${res.status}`)
+        expect(
+          (res.headers.get('content-type') ?? '').startsWith('text/plain'),
+          'content-type is not text/plain',
+        )
+        const body = await res.text()
+        expect(body.includes('Contact:'), 'security.txt has no Contact: field')
+        const expires = Date.parse(/^Expires:\s*(\S+)/m.exec(body)?.[1] ?? '')
+        expect(Number.isFinite(expires), 'security.txt has no valid Expires: field')
+        expect(expires > Date.now(), 'security.txt has expired')
+      },
+    },
+    {
+      name: 'GET /robots.txt returns 200',
+      run: async (fetchImpl) => {
+        const res = await get(origin, '/robots.txt', fetchImpl)
+        expect(res.status === 200, `expected 200, got ${res.status}`)
+      },
+    },
+    {
+      name: 'GET /privacy serves HTML',
+      run: async (fetchImpl) => {
+        const res = await get(origin, '/privacy', fetchImpl)
+        expect(res.status === 200, `expected 200, got ${res.status}`)
+        expect(
+          (res.headers.get('content-type') ?? '').startsWith('text/html'),
+          'content-type is not text/html',
+        )
+      },
+    },
+    {
       name: 'GET /api/me is unauthenticated',
       run: async (fetchImpl) => {
         const res = await get(origin, '/api/me', fetchImpl)

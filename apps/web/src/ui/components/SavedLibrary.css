@@ -24,13 +24,29 @@
   min-height: 40px;
 }
 
+.saved-library:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.saved-library__status:empty {
+  margin: 0;
+}
+
+.saved-library__error {
+  margin: 0;
+  color: var(--status-critical-text);
+  overflow-wrap: anywhere;
+}
+
 .saved-library__confirmation {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
   padding: var(--space-4);
   border: 1px solid var(--status-critical-text);
   border-radius: var(--radius);
   background: var(--surface-1);
+  overflow-wrap: anywhere;
 }
 
 .saved-library__confirmation h3,

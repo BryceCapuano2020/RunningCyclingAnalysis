@@ -295,6 +295,12 @@ describe('parseFit validation', () => {
     })
   })
 
+  it('accepts a file of exactly the byte limit', () => {
+    const bytes = encodeFit(makeActivity('ride', 60))
+    const limits = { ...DEFAULT_PARSE_LIMITS, maxFileBytes: bytes.length }
+    expect(parseFit(bytes, 'exact.fit', limits).ok).toBe(true)
+  })
+
   it('rejects a truncated file even when 60 or more of its records survive', () => {
     const bytes = buildFit({
       sportMesg: 'running',

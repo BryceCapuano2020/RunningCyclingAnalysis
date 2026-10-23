@@ -24,6 +24,18 @@ function healthyFetch(overrides = {}) {
         status: 302,
         headers: { location: GOOGLE_URL(`${ORIGIN}/api/auth/google/callback`) },
       }),
+    '/.well-known/security.txt': () =>
+      new Response('Contact: mailto:security@example.com\nExpires: 2030-01-01T00:00:00Z\n', {
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
+      }),
+    '/robots.txt': () =>
+      new Response('User-agent: *\nAllow: /\n', {
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
+      }),
+    '/privacy': () =>
+      new Response('<html><body>Privacy</body></html>', {
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      }),
     ...overrides,
   }
   return async (url, init) => {
@@ -110,6 +122,104 @@ test('reads APP_URL from the Wrangler configuration', () => {
 
 test('lists one check per production route that must stay reachable', () => {
   const names = smokeChecks(ORIGIN, ORIGIN).map((check) => check.name)
-  assert.equal(names.length, 5)
+  assert.equal(names.length, 8)
   assert.ok(names.some((name) => name.includes('/api/auth/google')))
+  assert.ok(names.some((name) => name.includes('/.well-known/security.txt')))
+  assert.ok(names.some((name) => name.includes('/robots.txt')))
+  assert.ok(names.some((name) => name.includes('/privacy')))
+})
+
+test('security.txt without an Expires field fails the smoke test', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({
+      '/.well-known/security.txt': () =>
+        new Response('Contact: mailto:security@example.com\n', {
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        }),
+    }),
+    sleep: noSleep,
+  })
+  assert.equal(failures.length, 1)
+  assert.match(failures[0], /security\.txt.*has no valid Expires: field/)
+})
+
+test('an expired security.txt fails the smoke test', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({
+      '/.well-known/security.txt': () =>
+        new Response('Contact: mailto:security@example.com\nExpires: 2020-01-01T00:00:00Z\n', {
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        }),
+    }),
+    sleep: noSleep,
+  })
+  assert.equal(failures.length, 1)
+  assert.match(failures[0], /security\.txt has expired/)
+})
+
+test('the committed security.txt stays valid for at least 60 days', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const body = await readFile(
+    new URL('../../apps/web/public/.well-known/security.txt', import.meta.url),
+    'utf8',
+  )
+  const expires = Date.parse(/^Expires:\s*(\S+)/m.exec(body)?.[1] ?? '')
+  assert.ok(Number.isFinite(expires), 'security.txt has no valid Expires field')
+  // Renew the Expires date (at most a year ahead, RFC 9116) before this starts failing CI.
+  assert.ok(expires - Date.now() > 60 * 24 * 60 * 60 * 1000, 'security.txt expires within 60 days')
+})
+
+test('security.txt served as HTML fails the smoke test', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({
+      '/.well-known/security.txt': () =>
+        new Response('Contact: mailto:a@example.com\nExpires: 2030-01-01T00:00:00Z\n', {
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        }),
+    }),
+    sleep: noSleep,
+  })
+  assert.equal(failures.length, 1)
+  assert.match(failures[0], /content-type is not text\/plain/)
+})
+
+test('a missing security.txt, robots.txt or privacy page fails with its status', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({
+      '/.well-known/security.txt': () => new Response('missing', { status: 404 }),
+      '/robots.txt': () => new Response('missing', { status: 404 }),
+      '/privacy': () => new Response('missing', { status: 404 }),
+    }),
+    sleep: noSleep,
+  })
+  assert.equal(failures.length, 3)
+  assert.match(failures.join('\n'), /security\.txt.*expected 200, got 404/)
+  assert.match(failures.join('\n'), /GET \/robots\.txt returns 200: expected 200, got 404/)
+  assert.match(failures.join('\n'), /GET \/privacy.*expected 200, got 404/)
+})
+
+test('a privacy page served as plain text fails the smoke test', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({
+      '/privacy': () => new Response('Privacy', { headers: { 'content-type': 'text/plain' } }),
+    }),
+    sleep: noSleep,
+  })
+  assert.equal(failures.length, 1)
+  assert.match(failures[0], /content-type is not text\/html/)
 })

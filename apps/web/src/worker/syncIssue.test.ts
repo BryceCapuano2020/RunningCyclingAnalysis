@@ -15,6 +15,17 @@ describe('syncIssueFor', () => {
     ['a full library', new ApiRequestError(403, 'activity_quota', 'Full'), 'activity-quota'],
     ['full storage', new ApiRequestError(403, 'storage_quota', 'Full'), 'storage-quota'],
     [
+      'a full saved-analysis quota',
+      new ApiRequestError(403, 'digest_quota', 'Full'),
+      'digest-quota',
+    ],
+    ['a full database', new ApiRequestError(503, 'database_full', 'Paused'), 'database-full'],
+    [
+      'a saved copy from another file',
+      new ApiRequestError(409, 'activity_conflict', 'Different file'),
+      'activity-conflict',
+    ],
+    [
       'an exhausted storage budget',
       new ApiRequestError(429, 'storage_budget_exhausted', 'Paused'),
       'storage-budget',

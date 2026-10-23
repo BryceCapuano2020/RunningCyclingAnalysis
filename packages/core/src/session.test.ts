@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { encodeFit } from './fit'
 import { digestActivity } from './digest'
 import { AnalysisSession, SyncFailure } from './session'
-import type { SyncItem } from './session'
+import type { SyncIssueCode, SyncItem } from './session'
 import { sampleDataset } from './synthetic'
 import type { Activity, AthleteSettings, Sport } from './types'
 
@@ -582,6 +582,43 @@ describe('AnalysisSession', () => {
       { code: 'rate-limited', count: 1 },
       { code: 'network', count: 1 },
     ])
+  })
+
+  it.each<SyncIssueCode>(['digest-quota', 'database-full'])(
+    'stops calling the sink after a %s failure, since every further save would fail the same way',
+    async (code) => {
+      const session = new AnalysisSession()
+      const attempted: Sport[] = []
+      const state = await session.addFiles(
+        [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+        SETTINGS,
+        undefined,
+        async (item) => {
+          attempted.push(item.digest.sport)
+          throw new SyncFailure(code, 'Full')
+        },
+      )
+
+      expect(attempted).toEqual(['run'])
+      expect(state.syncIssues).toEqual([{ code, count: 2 }])
+    },
+  )
+
+  it('keeps saving the rest of the import after one activity conflicts with a saved copy', async () => {
+    const session = new AnalysisSession()
+    const attempted: Sport[] = []
+    const state = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        attempted.push(item.digest.sport)
+        if (item.digest.sport === 'run') throw new SyncFailure('activity-conflict', 'Different')
+      },
+    )
+
+    expect(attempted).toEqual(['run', 'ride'])
+    expect(state.syncIssues).toEqual([{ code: 'activity-conflict', count: 1 }])
   })
 
   it('counts a failure that is not a SyncFailure as a server failure', async () => {

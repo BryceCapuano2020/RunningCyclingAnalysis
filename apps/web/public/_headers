@@ -1,7 +1,6 @@
 # Applied by Workers Static Assets to static responses. API responses set their own headers in the
-# Worker (apps/api/src/app.ts). Only a trailing "*" is allowed in these paths, so /assets/* also
-# matches a missing /assets/ path that the single-page fallback answers with index.html; see
-# docs/PRODUCTION.md for why that case is accepted.
+# Worker (apps/api/src/app.ts). A missing /assets/ path matches no file, so it falls through to the
+# Worker's JSON 404, which these rules do not touch; immutable caching applies only to real files.
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
   Cross-Origin-Opener-Policy: same-origin

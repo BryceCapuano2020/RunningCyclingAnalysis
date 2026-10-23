@@ -5,11 +5,20 @@ name: Uptime
 # workflows in public repositories after 60 days without repository activity, so this is a
 # best-effort monitor. Scheduled runs are opt-in with RCA_UPTIME_ENABLED; manual runs remain
 # available. A failing probe opens or updates an issue labelled "outage" and fails the run. A
-# passing probe closes open outage issues. See docs/PRODUCTION.md.
+# passing probe closes open outage issues. A deep check that the API reports as "skipped" (its
+# daily probe budget is spent) is a warning only: it neither opens nor closes an outage issue.
+# See docs/PRODUCTION.md.
 on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      simulate_outage:
+        description: >-
+          Probe a non-resolving origin instead of production, so the outage-issue path can be
+          tested. Has no effect on scheduled runs.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      ORIGIN: ${{ vars.PRODUCTION_ORIGIN || 'https://rca-api.nutritioncoachapp.workers.dev' }}
+      ORIGIN: ${{ inputs.simulate_outage == true && 'https://simulated-outage.invalid' || vars.PRODUCTION_ORIGIN || 'https://rca-api.nutritioncoachapp.workers.dev' }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
@@ -48,7 +57,26 @@ jobs:
             failures+=("$name returned HTTP $code, expected 200")
           }
           probe "health" "$ORIGIN/api/health"
-          probe "deep health" "$ORIGIN/api/health/deep"
+          # The deep check answers 200 with "skipped" once the deployment's probe budget is spent,
+          # so an exhausted budget is not reported as an outage. A failing D1 check still is.
+          deep_state=ok
+          deep_body="$RUNNER_TEMP/deep.json"
+          deep_probe() {
+            local code=000 attempt
+            for attempt in 1 2; do
+              code="$(curl --silent --output "$deep_body" --write-out '%{http_code}' \
+                --max-time 20 "$ORIGIN/api/health/deep" || echo 000)"
+              if [ "$code" = "200" ]; then
+                if jq -e '.deep == "skipped"' "$deep_body" > /dev/null 2>&1; then
+                  deep_state=skipped
+                fi
+                return 0
+              fi
+              sleep 20
+            done
+            failures+=("deep health returned HTTP $code, expected 200")
+          }
+          deep_probe
           probe "web app" "$ORIGIN/"
 
           # The Google redirect must point at the registered callback for this origin.
@@ -68,6 +96,10 @@ jobs:
             failures+=("Google sign-in redirect is not 302 to accounts.google.com with the callback")
           fi
 
+          if [ "$deep_state" = skipped ]; then
+            echo "::warning title=Deep health skipped::The deep health budget is spent, so the D1 and R2 check did not run. No outage issue was opened or closed because of it."
+          fi
+          echo "deep=$deep_state" >> "$GITHUB_OUTPUT"
           if [ "${#failures[@]}" -gt 0 ]; then
             printf -- '- %s\n' "${failures[@]}" > "$RUNNER_TEMP/failures.md"
             echo "failed=true" >> "$GITHUB_OUTPUT"
@@ -93,7 +125,7 @@ jobs:
           fi
 
       - name: Close outage issues after recovery
-        if: steps.probe.outputs.failed == 'false'
+        if: steps.probe.outputs.failed == 'false' && steps.probe.outputs.deep != 'skipped'
         shell: bash
         run: |
           set -euo pipefail

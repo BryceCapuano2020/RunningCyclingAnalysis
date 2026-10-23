@@ -92,6 +92,7 @@ function fitFile(activity?: Activity, name = 'run.fit'): File {
 
 beforeEach(() => {
   vi.resetModules()
+  vi.useRealTimers()
   vi.clearAllMocks()
   limits.maxFileBytes = 50 * 1024 * 1024
   vi.unstubAllGlobals()
@@ -292,7 +293,7 @@ describe('analysis worker', () => {
     const { send } = await startWorker()
     const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
 
-    expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID)
+    expect(mocked.listActivities).toHaveBeenCalledWith(undefined, USER_ID, expect.any(Function))
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
       { type: 'missingOriginals', count: 1 },
@@ -317,6 +318,7 @@ describe('analysis worker', () => {
       'run.fit',
       expect.stringMatching(/^[0-9a-f]{64}$/),
       USER_ID,
+      `rec-${stale.id}`,
     )
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
@@ -325,9 +327,37 @@ describe('analysis worker', () => {
         rebuilt: 1,
         missing: 0,
         failed: 0,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
         state: expect.objectContaining({ totalActivities: 1, outdatedActivities: 0 }),
       },
     ])
+  })
+
+  it('counts a rebuild whose activity was deleted in another tab as missing, and does not re-create it', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities.mockResolvedValueOnce([recordFor(stale, true)]).mockResolvedValueOnce([])
+    mocked.createActivity.mockRejectedValueOnce(
+      new ApiRequestError(404, 'not_found', 'Activity not found'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.createActivity).toHaveBeenCalledOnce()
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      expect.anything(),
+      'run.fit',
+      expect.stringMatching(/^[0-9a-f]{64}$/),
+      USER_ID,
+      `rec-${stale.id}`,
+    )
+    expect(messages.at(-1)).toMatchObject({
+      type: 'rebuildComplete',
+      rebuilt: 0,
+      missing: 1,
+      failed: 0,
+    })
   })
 
   it('keeps stale activities excluded and reports originals that must be re-imported', async () => {
@@ -347,9 +377,126 @@ describe('analysis worker', () => {
         rebuilt: 0,
         missing: 1,
         failed: 0,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
         state: expect.objectContaining({ totalActivities: 0, outdatedActivities: 1 }),
       },
     ])
+  })
+
+  it('stops downloading after a daily limit and counts the remaining stored originals as limited', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-22T15:30:00Z'))
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([
+        recordFor(stale, true),
+        recordFor({ ...stale, id: 'no-file' }, false),
+        recordFor({ ...stale, id: 'other' }, true),
+        recordFor({ ...stale, id: 'third' }, true),
+      ])
+      .mockResolvedValueOnce([recordFor(stale, true)])
+    mocked.downloadActivityFile.mockRejectedValueOnce(
+      new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    expect(messages.at(-1)).toMatchObject({
+      type: 'rebuildComplete',
+      rebuilt: 0,
+      missing: 1,
+      failed: 0,
+      limited: 3,
+      limitKind: 'daily',
+      limitResetsAtMs: Date.parse('2026-10-23T00:00:00Z'),
+    })
+  })
+
+  it('stops downloading at a rate limit, retries after a minute, and counts the rest as limited', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([
+        recordFor(stale, true),
+        recordFor({ ...stale, id: 'no-file' }, false),
+        recordFor({ ...stale, id: 'other' }, true),
+      ])
+      .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
+    mocked.downloadActivityFile.mockRejectedValueOnce(
+      new ApiRequestError(429, 'rate_limited', 'Slow down'),
+    )
+    const { send } = await startWorker()
+    const before = Date.now()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+    const after = Date.now()
+
+    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    const done = messages.at(-1)
+    if (done?.type !== 'rebuildComplete') throw new Error('The rebuild did not complete')
+    expect(done).toMatchObject({ rebuilt: 0, missing: 1, failed: 0, limited: 2, limitKind: 'rate' })
+    expect(done.limitResetsAtMs).toBeGreaterThanOrEqual(before + 60_000)
+    expect(done.limitResetsAtMs).toBeLessThanOrEqual(after + 60_000)
+  })
+
+  it('reports the stored activities the server could not read when the library loads', async () => {
+    mocked.listActivities.mockImplementation(async (_since, _userId, onUnreadable) => {
+      onUnreadable?.(2)
+      return [recordFor(SAMPLE_DIGEST)]
+    })
+    const { send } = await startWorker()
+    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    expect(messages).toContainEqual({ type: 'libraryUnreadable', count: 2 })
+  })
+
+  it('reports the unreadable count of the library a rebuild leaves, and clears it when none remain', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockImplementationOnce(async (_since, _userId, onUnreadable) => {
+        onUnreadable?.(2)
+        return [recordFor(stale, true)]
+      })
+      .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(messages.some((message) => message.type === 'libraryUnreadable')).toBe(false)
+    expect(messages.at(-1)).toMatchObject({ type: 'rebuildComplete', rebuilt: 1 })
+  })
+
+  it('counts a rebuild that conflicts with another saved activity as missing, not failed', async () => {
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(stale, true)])
+      .mockResolvedValueOnce([recordFor(stale, true)])
+    mocked.createActivity.mockRejectedValueOnce(
+      new ApiRequestError(409, 'activity_conflict', 'Saved from another file'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'rebuildComplete',
+      rebuilt: 0,
+      missing: 1,
+      failed: 0,
+    })
+  })
+
+  it('lists the library newest first, with ties ordered by id', async () => {
+    const older = { ...SAMPLE_DIGEST, id: 'older', startMs: SAMPLE_DIGEST.startMs - 86_400_000 }
+    const tieB = { ...SAMPLE_DIGEST, id: 'tie-b' }
+    const tieA = { ...SAMPLE_DIGEST, id: 'tie-a' }
+    mocked.listActivities.mockResolvedValue([recordFor(older), recordFor(tieB), recordFor(tieA)])
+    const { send } = await startWorker()
+    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    expect(messages[0]).toMatchObject({
+      type: 'libraryActivities',
+      activities: [{ id: 'rec-tie-a' }, { id: 'rec-tie-b' }, { id: 'rec-older' }],
+    })
   })
 
   it('passes sample, settings, range and clear requests through to the session', async () => {
@@ -476,6 +623,47 @@ describe('analysis worker', () => {
           { code: 'storage-quota', count: 1 },
         ],
       },
+    })
+  })
+
+  it.each([
+    ['a full saved-analysis quota', 403, 'digest_quota', 'digest-quota'],
+    ['a full database', 503, 'database_full', 'database-full'],
+  ])('stops saving at %s and names it as the cause', async (_label, status, code, cause) => {
+    mocked.createActivity.mockRejectedValue(new ApiRequestError(status, code, 'Full'))
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledOnce()
+    expect(messages).toContainEqual({ type: 'accountIssue', issue: cause })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: cause, count: 2 }] },
+    })
+  })
+
+  it('keeps saving the rest of an import after one activity conflicts with a saved copy', async () => {
+    mocked.createActivity.mockRejectedValueOnce(
+      new ApiRequestError(409, 'activity_conflict', 'Saved from another file'),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(messages.some((message) => message.type === 'accountIssue')).toBe(false)
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'activity-conflict', count: 1 }] },
     })
   })
 
@@ -618,4 +806,19 @@ it('keeps a saved activity after its deletion fails', async () => {
   expect(messages).toEqual([{ type: 'error', message: 'Try later', issue: 'server' }])
   const state = await send({ type: 'setSettings', settings: SETTINGS })
   expect(state.at(-1)).toMatchObject({ state: { totalActivities: 1 } })
+})
+
+it('reports a daily limit during a delete with the daily-limit cause', async () => {
+  const saved = recordFor(SAMPLE_DIGEST)
+  mocked.listActivities.mockResolvedValue([saved])
+  mocked.deleteActivity.mockRejectedValue(new ApiRequestError(429, 'daily_limit', 'Tomorrow'))
+  const { send } = await startWorker()
+  await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+  const messages = await send({
+    type: 'deleteActivity',
+    id: saved.id,
+    userId: USER_ID,
+    settings: SETTINGS,
+  })
+  expect(messages).toEqual([{ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }])
 })

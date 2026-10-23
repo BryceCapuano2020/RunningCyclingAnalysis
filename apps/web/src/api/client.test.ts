@@ -1,5 +1,6 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { CLIENT_HEADER, CLIENT_HEADER_VALUE } from '@rca/contract'
+import { DURATIONS_S } from '@rca/core/constants'
 import type { ActivityRecord, Me, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -36,7 +37,7 @@ const WIRE_DIGEST = {
   name: 'Morning run',
   sport: 'run',
   startMs: 1_700_000_000_000,
-  durationS: null,
+  durationS: 3600,
   distanceM: null,
   elevationGainM: 12,
   hasHeartRate: false,
@@ -45,7 +46,14 @@ const WIRE_DIGEST = {
   flags: [],
   flagCounts: {},
   maxHeartRate: null,
-  curve: [{ durationS: 60, value: null, startIndex: 0, windowS: 60, heartRate: null, terms: null }],
+  curve: DURATIONS_S.map((durationS) => ({
+    durationS,
+    value: null,
+    startIndex: 0,
+    windowS: durationS,
+    heartRate: null,
+    terms: null,
+  })),
   hrBlocks: [],
   calibration: null,
   climbSections: [],
@@ -345,7 +353,7 @@ describe('listActivities', () => {
     expect(records).toHaveLength(1)
     const [record] = records
     expect(record?.id).toBe('rec-1')
-    expect(record?.digest.durationS).toBeNaN()
+    expect(record?.digest.durationS).toBe(3600)
     expect(record?.digest.distanceM).toBeNaN()
     expect(record?.digest.curve[0]?.value).toBeNaN()
     expect(record?.digest.curve[0]?.heartRate).toBeNull()
@@ -367,6 +375,24 @@ describe('listActivities', () => {
     expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=25&cursor=c1')
     expect(callOf(fetchMock, 2).path).toBe('/api/activities?limit=25&cursor=c2')
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('reports the unreadable count summed over every page, and only when it is above zero', async () => {
+    stubFetch(
+      respond(200, { items: [RECORD_WIRE], nextCursor: 'c1', unreadable: 1 }),
+      respond(200, { items: [{ ...RECORD_WIRE, id: 'rec-2' }], nextCursor: null, unreadable: 2 }),
+    )
+    const onUnreadable = vi.fn()
+    const records = await listActivities(undefined, undefined, onUnreadable)
+    expect(records.map((r) => r.id)).toEqual(['rec-1', 'rec-2'])
+    expect(onUnreadable).toHaveBeenCalledExactlyOnceWith(3)
+  })
+
+  it('does not report an unreadable count when every stored activity was readable', async () => {
+    stubFetch(respond(200, { items: [RECORD_WIRE], nextCursor: null }))
+    const onUnreadable = vi.fn()
+    await listActivities(undefined, undefined, onUnreadable)
+    expect(onUnreadable).not.toHaveBeenCalled()
   })
 
   it('keeps since on every page request', async () => {
@@ -427,7 +453,7 @@ describe('createActivity', () => {
     expect(body.digest.curve[0]?.value).toBeNull()
 
     expect(created).toBe(true)
-    expect(record.digest.durationS).toBeNaN()
+    expect(record.digest.durationS).toBe(3600)
   })
 
   it('reports an activity that already existed as not created', async () => {
@@ -442,6 +468,40 @@ describe('createActivity', () => {
     await expect(createActivity(DIGEST, 'run.fit', 'x')).rejects.toMatchObject({
       status: 400,
       code: 'invalid_request',
+    })
+  })
+
+  it('replaces only the named activity when replaceId is given, and never sends a plain create', async () => {
+    const fetchMock = stubFetch(respond(200, RECORD_WIRE))
+    const { created } = await createActivity(DIGEST, 'run.fit', 'c'.repeat(64), 'u1', 'rec-1')
+    expect(callOf(fetchMock).path).toBe('/api/activities?replace=rec-1')
+    expect(callOf(fetchMock).init.method).toBe('POST')
+    expect(created).toBe(false)
+  })
+
+  it('sends no replace parameter without replaceId', async () => {
+    const fetchMock = stubFetch(respond(201, RECORD_WIRE))
+    await createActivity(DIGEST, 'run.fit', 'c'.repeat(64), 'u1')
+    expect(callOf(fetchMock).path).toBe('/api/activities')
+  })
+
+  it('throws not_found with status 404 when the replaced activity was deleted', async () => {
+    stubFetch(respond(404, { error: { code: 'not_found', message: 'Activity not found' } }))
+    await expect(
+      createActivity(DIGEST, 'run.fit', 'c'.repeat(64), 'u1', 'rec-1'),
+    ).rejects.toMatchObject({ status: 404, code: 'not_found' })
+  })
+
+  it('surfaces the digest quota and the database-full refusals with their codes', async () => {
+    stubFetch(respond(403, { error: { code: 'digest_quota', message: 'Digest quota reached' } }))
+    await expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject({
+      status: 403,
+      code: 'digest_quota',
+    })
+    stubFetch(respond(503, { error: { code: 'database_full', message: 'Database full' } }))
+    await expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject({
+      status: 503,
+      code: 'database_full',
     })
   })
 })

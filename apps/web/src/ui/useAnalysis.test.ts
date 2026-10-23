@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
+import { DAILY_LIMITS } from '@rca/contract'
 import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
@@ -491,32 +492,45 @@ describe('useAnalysis state', () => {
     expect(markExpired).not.toHaveBeenCalled()
   })
 
-  it('holds imports while the library fails to load, and runs them only after a retry loads it', () => {
+  it('drops imports held while the library loads when that load fails, and asks for them to be added again', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.addFiles([FILE]))
+    expect(result.current.waitingReason).toBe('Waiting for your library to load')
     act(() => worker().reply({ type: 'error', message: 'Network down' }))
 
     expect(result.current.libraryStatus).toBe('failed')
-    // The import is not sent: the worker would replace the library with only this file.
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
-    expect(result.current.error).toBeNull()
+    expect(result.current.waitingReason).toBeNull()
+    expect(result.current.busy).toBe(false)
+    expect(result.current.error).toMatch(/not imported.*add them again/)
 
+    // A retry must not run the dropped files later.
     act(() => result.current.retryLibrary())
-    expect(result.current.libraryStatus).toBe('loading')
-    expect(worker().posted.at(-1)).toEqual({
-      type: 'loadServer',
-      settings: SETTINGS,
-      userId: USER_ID,
-    })
-
     finishLibraryLoad()
     expect(result.current.libraryStatus).toBe('loaded')
-    expect(worker().posted.at(-1)).toEqual({
-      type: 'addFiles',
-      files: [FILE],
-      settings: SETTINGS,
-      sync: { keepFiles: true, userId: USER_ID },
-    })
+    expect(worker().posted.some((request) => request.type === 'addFiles')).toBe(false)
+  })
+
+  it('refuses an import while the library is not loaded, rather than holding it', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => worker().reply({ type: 'error', message: 'Network down' }))
+    act(() => result.current.addFiles([FILE]))
+
+    expect(result.current.waitingReason).toBeNull()
+    expect(result.current.busy).toBe(false)
+    expect(result.current.error).toMatch(/not imported.*add them again/)
+  })
+
+  it('reports imports held while the library loads as busy, and clears the reason once it loads', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.busy).toBe(true)
+    expect(result.current.waitingReason).toBe('Waiting for your library to load')
+
+    finishLibraryLoad()
+    expect(result.current.waitingReason).toBeNull()
+    expect(result.current.busy).toBe(true)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.busy).toBe(false)
   })
 
   it('signs the account out after a sign-out during an import, and keeps the activities on screen', () => {
@@ -592,7 +606,23 @@ describe('useAnalysis state', () => {
     expect(result.current.missingOriginals).toBe(2)
   })
 
-  it('queues an import made while the worker is stopped, and sends it once the library reloads', () => {
+  it('refuses a signed-out import made while the worker is stopped, and does not run it after a restart', () => {
+    const { result } = setup(SIGNED_OUT)
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+    const stopped = worker()
+
+    act(() => result.current.addFiles([FILE]))
+    expect(stopped.posted).toEqual([])
+    expect(result.current.busy).toBe(false)
+    expect(result.current.error).toMatch(/did not run.*try again/)
+
+    act(() => result.current.retryWorker())
+    expect(worker()).not.toBe(stopped)
+    expect(worker().posted).toEqual([])
+  })
+
+  it('refuses a signed-in import made after the worker stopped and the library failed, and does not run it after a restart', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     finishLibraryLoad()
     act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
@@ -601,29 +631,11 @@ describe('useAnalysis state', () => {
 
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(false)
-    const stopped = worker()
-    act(() => result.current.retryWorker())
-    expect(worker()).not.toBe(stopped)
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    expect(result.current.error).toMatch(/not imported.*add them again/)
 
+    act(() => result.current.retryWorker())
     finishLibraryLoad()
-    expect(worker().posted.at(-1)).toMatchObject({ type: 'addFiles', files: [FILE] })
-  })
-
-  it('sends a signed-out import made while the worker is stopped once the user restarts analysis', () => {
-    const { result } = setup(SIGNED_OUT)
-    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
-    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
-    const stopped = worker()
-
-    act(() => result.current.addFiles([FILE]))
-    expect(stopped.posted).toEqual([])
-    act(() => result.current.retryWorker())
-
-    expect(worker()).not.toBe(stopped)
-    expect(worker().posted).toEqual([
-      { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null },
-    ])
+    expect(worker().posted.some((request) => request.type === 'addFiles')).toBe(false)
   })
 
   it('reports busy until the reply arrives and exposes the state it carries', () => {
@@ -706,6 +718,9 @@ describe('useAnalysis state', () => {
         rebuilt: 1,
         missing: 1,
         failed: 0,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
       }),
     )
     expect(result.current.state.outdatedActivities).toBe(2)
@@ -722,10 +737,238 @@ describe('useAnalysis state', () => {
         rebuilt: 1,
         missing: 1,
         failed: 2,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
       }),
     )
     expect(result.current.rebuildNotice).toMatch(/re-import those original FIT files/)
     expect(result.current.rebuildNotice).toMatch(/2 could not be rebuilt; try again/)
+  })
+
+  it('says which activities the daily limit left unrebuilt, and when the limit resets', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    const resetsAt = Date.UTC(2026, 9, 23)
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({
+        type: 'rebuildComplete',
+        state: { ...STATE, outdatedActivities: 3 },
+        rebuilt: 2,
+        missing: 0,
+        failed: 0,
+        limited: 3,
+        limitKind: 'daily',
+        limitResetsAtMs: resetsAt,
+      }),
+    )
+    expect(result.current.rebuildNotice).toBe(
+      `Rebuilt 2 saved activities. 3 activities were not rebuilt because the daily download limit (50 per day) was reached. Try again after ${new Date(resetsAt).toLocaleString()}.`,
+    )
+  })
+
+  it('tells the user to slow down, not to wait for a daily reset, when the server rate-limits', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({
+        type: 'rebuildComplete',
+        state: { ...STATE, outdatedActivities: 1 },
+        rebuilt: 0,
+        missing: 0,
+        failed: 0,
+        limited: 1,
+        limitKind: 'rate',
+        limitResetsAtMs: Date.now() + 60_000,
+      }),
+    )
+    expect(result.current.rebuildNotice).toBe(
+      'Rebuilt 0 saved activities. 1 activity was not rebuilt. The server asked us to slow down; try again in a minute.',
+    )
+  })
+
+  it('does not promise a reset time for a limit whose reset is unknown', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({
+        type: 'rebuildComplete',
+        state: { ...STATE, outdatedActivities: 1 },
+        rebuilt: 0,
+        missing: 0,
+        failed: 0,
+        limited: 1,
+        limitKind: 'daily',
+        limitResetsAtMs: null,
+      }),
+    )
+    expect(result.current.rebuildNotice).toMatch(
+      /1 activity was not rebuilt because the daily download limit.*Try again later\./,
+    )
+    expect(result.current.rebuildNotice).not.toMatch(/server is available/)
+  })
+
+  it('states the daily limit and its reset for an import, with no generic error prefix', () => {
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
+
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toBe(
+      'You have reached the daily limit for this account. The limit resets at 00:00 UTC.',
+    )
+  })
+
+  it('keeps the worker-stopped message when a worker stops while imports are held', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+
+    expect(result.current.workerStopped).toBe(true)
+    expect(result.current.error).toMatch(/worker stopped.*Restart analysis/i)
+  })
+
+  it('says an import was interrupted when the worker restarts while its profile is saving', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const { result } = setup(account)
+    finishLibraryLoad()
+
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.retryWorker())
+    await act(async () => {
+      finish(meWith(true))
+      await Promise.resolve()
+    })
+
+    expect(result.current.error).toBe('Your import was interrupted. Add the files again.')
+    expect(worker().posted.some((request) => request.type === 'addFiles')).toBe(false)
+  })
+
+  it('clears a library message when an import or a rebuild starts', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+    act(() => result.current.deleteActivity('a1'))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.libraryNotice).not.toBeNull()
+
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.libraryNotice).toBeNull()
+
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    act(() => result.current.deleteActivity('a1'))
+    act(() => worker().reply({ type: 'error', message: 'Network down' }))
+    expect(result.current.libraryError).not.toBeNull()
+
+    act(() => result.current.rebuildSavedActivities())
+    expect(result.current.libraryError).toBeNull()
+  })
+
+  it('clears a library message when the session expires', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
+    finishLibraryLoad()
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+    act(() => result.current.deleteActivity('a1'))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.libraryNotice).not.toBeNull()
+
+    rerender({
+      account: { status: 'signed-out', me: null, markExpired, sessionExpired: true },
+      current: SETTINGS,
+    })
+    expect(result.current.libraryNotice).toBeNull()
+    expect(result.current.libraryError).toBeNull()
+  })
+
+  it('refuses a saved-activity rebuild made while the worker is stopped, and does not run it later', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+    const stopped = worker()
+
+    act(() => result.current.rebuildSavedActivities())
+    expect(stopped.posted.some((request) => request.type === 'rebuildStale')).toBe(false)
+    expect(result.current.error).toMatch(/did not run.*try again/)
+  })
+
+  it('reports a library delete as a library action, not as an import, and confirms it', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+
+    act(() => result.current.deleteActivity('a1'))
+    expect(result.current.libraryAction).toBe('deleting')
+    expect(result.current.busy).toBe(false)
+    expect(result.current.error).toBeNull()
+
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.libraryAction).toBeNull()
+    expect(result.current.libraryNotice).toBe(
+      `Deleted Morning run (${new Date(startMs).toLocaleDateString()}).`,
+    )
+    expect(result.current.error).toBeNull()
+  })
+
+  it('reports a daily-limit delete failure in the library error, with no generic prefix', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+    act(() => result.current.deleteActivity('a1'))
+    act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
+
+    expect(result.current.libraryError).toBe(
+      'You can delete up to 50 activities per day. The limit resets at 00:00 UTC.',
+    )
+    expect(result.current.error).toBeNull()
+    expect(result.current.libraryAction).toBeNull()
+  })
+
+  it('reports any other library delete failure in the library error, not the top-level alert', () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() =>
+      worker().reply({
+        type: 'libraryActivities',
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+      }),
+    )
+    act(() => result.current.deleteActivity('a1'))
+    act(() => worker().reply({ type: 'error', message: 'Network down' }))
+
+    expect(result.current.libraryError).toMatch(/Could not delete the activity.*Network down/)
+    expect(result.current.error).toBeNull()
   })
 
   it('does not request a rebuild when file retention is unavailable', () => {
@@ -808,5 +1051,40 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_OUT)
     act(() => worker().reply({ type: 'state', state: STATE }))
     expect(result.current.busy).toBe(false)
+  })
+})
+
+describe('useAnalysis library messages', () => {
+  it('shows how many stored activities could not be read, and clears the count when the library reloads', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
+    expect(result.current.libraryUnreadable).toBe(2)
+
+    act(() => result.current.retryLibrary())
+    expect(result.current.libraryUnreadable).toBe(0)
+  })
+
+  it('states the daily read limit when the library cannot be loaded, with no generic prefix', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
+
+    expect(result.current.libraryStatus).toBe('failed')
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toBe(
+      `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`,
+    )
+  })
+
+  it('states the daily read limit when a rebuild cannot list the library', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.rebuildSavedActivities())
+    act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
+
+    expect(result.current.errorIssue).toBe('daily-limit')
+    expect(result.current.error).toBe(
+      `You have reached today's limit for loading your library (${DAILY_LIMITS.read} per day). It resets at 00:00 UTC.`,
+    )
   })
 })

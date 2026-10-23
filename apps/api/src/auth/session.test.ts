@@ -250,9 +250,62 @@ describe('signed session cookies', () => {
   })
 
   it('does not accept a session signed with a different key', async () => {
-    const other = createHarness({}, { SESSION_SIGNING_KEY: 'a-different-deployment-key' })
+    const other = createHarness({}, { SESSION_SIGNING_KEY: 'a-different-deployment-key-32-bytes!' })
     const foreign = await other.signIn()
     const h = createHarness()
     expect((await h.send({ path: '/api/me', cookies: { rca_session: foreign } })).status).toBe(401)
+  })
+
+  it('refuses to create a session when no signing key is configured, and writes no session row', async () => {
+    const h = createHarness({}, { SESSION_SIGNING_KEY: undefined })
+    const res = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'rider@example.com', name: 'Rider' },
+    })
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({
+      error: { code: 'service_unavailable', message: 'Service is temporarily unavailable' },
+    })
+    expect(sessionCookie(res)).toBeUndefined()
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first<{ n: number }>(),
+    ).toEqual({ n: 0 })
+  })
+
+  it('refuses to create a session with a signing key shorter than 32 bytes, and writes no session row', async () => {
+    const h = createHarness({}, { SESSION_SIGNING_KEY: 'k'.repeat(31) })
+    const res = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'rider@example.com', name: 'Rider' },
+    })
+    expect(res.status).toBe(503)
+    expect(sessionCookie(res)).toBeUndefined()
+    expect(
+      await h.env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first<{ n: number }>(),
+    ).toEqual({ n: 0 })
+  })
+
+  it('accepts a signing key of exactly 32 bytes', async () => {
+    const h = createHarness({}, { SESSION_SIGNING_KEY: 'k'.repeat(32) })
+    const token = await h.signIn()
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: token } })).status).toBe(200)
+  })
+
+  it('fails closed on a session cookie when the signing key is shorter than 32 bytes', async () => {
+    const signed = await createHarness().signIn()
+    const h = createHarness({}, { SESSION_SIGNING_KEY: 'k'.repeat(31) })
+    const res = await h.send({ path: '/api/me', cookies: { rca_session: signed } })
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({
+      error: { code: 'service_unavailable', message: 'Service is temporarily unavailable' },
+    })
+  })
+
+  it('fails closed on a session cookie when no signing key is configured', async () => {
+    const signed = await createHarness().signIn()
+    const h = createHarness({}, { SESSION_SIGNING_KEY: undefined })
+    expect((await h.send({ path: '/api/me', cookies: { rca_session: signed } })).status).toBe(503)
   })
 })

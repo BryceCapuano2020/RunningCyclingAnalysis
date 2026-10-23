@@ -114,6 +114,13 @@ describe('assessQuality: pauses, sprints and indoor activities', () => {
     expect(report.flags).toEqual([])
   })
 
+  it('a heart-rate step on the third sample after a pause is ignored', () => {
+    const a = withPause()
+    a.heartRate.fill(170, 92)
+    const report = assessQuality(a)
+    expect(report.flags).toEqual([])
+  })
+
   it('a heart-rate step on the fourth sample after a pause is checked', () => {
     const a = withPause()
     a.heartRate.fill(170, 93)
@@ -220,6 +227,13 @@ describe('assessQuality: hr-dropout', () => {
     expect(zeroIndices(report.validMotion)).toEqual([])
   })
 
+  it('fires on exactly 10 s of missing heart rate while moving', () => {
+    const a = makeActivity(60)
+    a.heartRate.fill(NaN, 20, 30)
+    const report = assessQuality(a)
+    expect(report.flags.map((f) => [f.kind, f.start, f.end])).toEqual([['hr-dropout', 20, 30]])
+  })
+
   it('does not fire on 9 s of missing heart rate but still masks those samples', () => {
     const a = makeActivity(60)
     a.heartRate.fill(NaN, 20, 29)
@@ -257,6 +271,12 @@ describe('assessQuality: hr-dropout', () => {
       },
     ])
     expect(zeroIndices(report.validHeartRate)).toEqual(span(0, 60))
+  })
+
+  it('counts heart rate just under 30 bpm as a dropout', () => {
+    const a = makeActivity(60, { heartRate: new Float64Array(60).fill(29) })
+    const report = assessQuality(a)
+    expect(report.flags.map((f) => f.kind)).toEqual(['hr-dropout'])
   })
 
   it('does not treat heart rate of exactly 30 bpm as a dropout', () => {

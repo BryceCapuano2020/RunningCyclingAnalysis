@@ -156,7 +156,6 @@ export function App() {
             analysis model and {analysis.state.outdatedActivities === 1 ? 'is' : 'are'} excluded
             from these results.
           </p>
-          {analysis.rebuildNotice && <p role="status">{analysis.rebuildNotice}</p>}
           {!fileRetentionAvailable && (
             <p>
               Original file storage is unavailable on this deployment, so saved activities cannot be
@@ -174,6 +173,8 @@ export function App() {
           </button>
         </section>
       )}
+      {/* Always mounted, so the outcome of a rebuild is announced and stays after the card above unmounts. */}
+      <div role="status">{analysis.rebuildNotice}</div>
       {analysis.state.incompatibleActivities > 0 && (
         <section className="card" aria-label="Incompatible saved activities">
           <p role="status">
@@ -194,7 +195,11 @@ export function App() {
 
       {analysis.error && (
         <div className="app__error card" role="alert">
-          <p>Something went wrong: {analysis.error}</p>
+          {analysis.errorIssue === 'daily-limit' ? (
+            <p>{analysis.error}</p>
+          ) : (
+            <p>Something went wrong: {analysis.error}</p>
+          )}
           {analysis.workerStopped && (
             <button type="button" className="btn" onClick={analysis.retryWorker}>
               Restart analysis
@@ -237,6 +242,7 @@ export function App() {
             onFiles={analysis.addFiles}
             onSample={analysis.loadSample}
             busy={analysis.busy}
+            waiting={analysis.waitingReason}
             progress={analysis.progress}
             signedIn={signedIn}
             outcome={analysis.importOutcome}
@@ -379,13 +385,16 @@ export function App() {
         )}
       </main>
 
-      {signedIn && analysis.savedActivities.length > 0 && (
+      {signedIn && analysis.libraryStatus === 'loaded' && (
         <section className="card" aria-label="Saved library">
           <h2>Saved library</h2>
           <SavedLibrary
             activities={analysis.savedActivities}
-            busy={analysis.busy || analysis.libraryStatus !== 'loaded'}
+            busy={analysis.busy || analysis.libraryAction !== null}
             onDelete={analysis.deleteActivity}
+            status={analysis.libraryNotice}
+            error={analysis.libraryError}
+            unreadable={analysis.libraryUnreadable}
           />
         </section>
       )}
@@ -397,7 +406,7 @@ export function App() {
           fileRetentionAvailable={fileRetentionAvailable}
         />
         <p>
-          <a href="/privacy.html">Privacy</a>
+          <a href="/privacy">Privacy</a>
         </p>
       </footer>
     </div>

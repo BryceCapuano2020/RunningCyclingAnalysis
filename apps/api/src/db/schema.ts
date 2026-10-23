@@ -18,6 +18,10 @@ export const users = sqliteTable('users', {
   activityCount: integer('activity_count').notNull().default(0),
   /** Set when account deletion starts. A deleting account can only finish its own deletion. */
   deletingAt: integer('deleting_at'),
+  /** Digest JSON bytes this user stores, kept in step with activities rows. Capped per user. */
+  digestBytes: integer('digest_bytes').notNull().default(0),
+  /** The last continuation cursor the server issued for this user's library, spent once. */
+  listCursor: text('list_cursor'),
 })
 
 export const oauthAccounts = sqliteTable(
@@ -106,6 +110,8 @@ export const r2StorageBudget = sqliteTable('r2_storage_budget', {
   healthProbeDayCount: integer('health_probe_day_count').notNull().default(0),
   healthProbeMonth: text('health_probe_month').notNull().default(''),
   healthProbeMonthCount: integer('health_probe_month_count').notNull().default(0),
+  /** Last-seen database size in bytes, from the D1 statement meta. The create guard reads it. */
+  d1SizeBytes: integer('d1_size_bytes').notNull().default(0),
 })
 
 /** Requests of one kind by one user on one UTC day. Rows older than a week are pruned. */

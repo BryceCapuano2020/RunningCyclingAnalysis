@@ -2,7 +2,7 @@ import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import type { Me } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { parseFit } from '@rca/core/fit'
@@ -26,6 +26,15 @@ const SAVED_NOTICE = 'Saved 14 activities to your library'
 const KEEP_FILES = 'Keep original files in my library'
 /** An import saves each activity and its file in turn, which takes longer than the default. */
 const IMPORT = { timeout: 30_000 }
+
+/**
+ * A saved activity's delete button is labelled with its name, sport and date. Matches on the name
+ * at the start, so the sport and date may change without breaking the selector.
+ */
+function deleteButton(library: Locator, name: string) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return library.getByRole('button', { name: new RegExp(`^Delete ${escaped}, `) })
+}
 
 function headline(page: Page) {
   return page.getByRole('heading', { level: 1 })
@@ -303,14 +312,23 @@ test('saved activity deletion requires confirmation and persists after reload', 
   const [record] = await apiActivities(page.request)
   if (!record) throw new Error('saved activity missing')
   const library = page.getByRole('region', { name: 'Saved library', exact: true })
-  await library.getByRole('button', { name: `Delete ${record.digest.name}`, exact: true }).click()
+  await deleteButton(library, record.digest.name).click()
   await library.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await apiActivities(page.request)).toHaveLength(1)
-  await library.getByRole('button', { name: `Delete ${record.digest.name}`, exact: true }).click()
+  await deleteButton(library, record.digest.name).click()
   await library.getByRole('button', { name: 'Delete permanently', exact: true }).click()
   await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(0)
+  await expect(library.getByRole('status')).toContainText(`Deleted ${record.digest.name}`)
   await page.reload()
   await expect(accountButton(page)).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(LANDING_TITLE)
   expect((await page.request.get(`/api/activities/${record.id}/file`)).status()).toBe(404)
+})
+
+test('the footer privacy link points to the canonical /privacy page', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Privacy', exact: true })).toHaveAttribute(
+    'href',
+    '/privacy',
+  )
 })

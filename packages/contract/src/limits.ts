@@ -29,7 +29,8 @@ export const DAILY_LIMITS = {
   activityDelete: 50,
   activityCreate: 2000,
   fileUpload: 2000,
-  read: 1000,
+  /** Library listings and profile reads. One listing of 5,000 rows is 5,000 D1 rows read. */
+  read: 100,
 } as const
 export type DailyLimitAction = keyof typeof DAILY_LIMITS
 
@@ -57,3 +58,14 @@ export const MAX_PAGE_SIZE = 25
 export const MAX_PAGE_DIGEST_BYTES = 1024 * 1024
 /** Maximum full JSON response, including record envelopes and original file names. */
 export const MAX_PAGE_BODY_BYTES = MAX_PAGE_DIGEST_BYTES + 64 * 1024
+
+/** Most digest JSON bytes one user may store, summed over their activities. See apps/api/LIMITS.md. */
+export const MAX_DIGEST_BYTES_PER_USER = 64 * 1024 * 1024
+/**
+ * Creates are refused while the database's last-seen size is above this. D1 Free allows 500 MB per
+ * database; the margin leaves room for in-flight writes and the ledger row itself.
+ */
+export const DATABASE_SOFT_LIMIT_BYTES = 450 * 1024 * 1024
+
+/** Most original-file bytes one user may upload per UTC day, summed over their uploads. */
+export const DAILY_UPLOAD_BYTES = 1024 * 1024 * 1024

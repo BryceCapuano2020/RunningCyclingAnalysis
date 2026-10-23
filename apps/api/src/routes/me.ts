@@ -20,7 +20,8 @@ export const meRoutes = new Hono<AppEnv>()
 meRoutes.get('/me', requireUser, async (c) => {
   const { deps, db } = c.var
   const user = currentUser(c)
-  await chargeDaily(c.env.DB, user.id, 'read', deps.now())
+  // A constant-size read, bounded by the edge rate limiter. The daily read budget is for library
+  // listings, whose cost grows with the library; charging page loads here would lock people out.
   return c.json(await buildMe(db, deps, user, Boolean(c.env.FILES)), 200)
 })
 

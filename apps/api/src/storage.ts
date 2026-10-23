@@ -31,8 +31,14 @@ function periodFor(now: number): string {
   return new Date(now).toISOString().slice(0, 7)
 }
 
-function budgetError(message: string): HttpError {
-  return new HttpError(429, 'storage_budget_exhausted', message)
+/** The one message clients see. Which ledger cap was hit is operator detail, kept out of responses. */
+const BUDGET_MESSAGE =
+  'Original-file storage is temporarily unavailable. Your analysis is still saved.'
+
+/** Logs the reason, which names the cap, and returns the generic 429 to send. */
+function budgetError(reason: string): HttpError {
+  console.warn(JSON.stringify({ event: 'storage_budget_refused', reason }))
+  return new HttpError(429, 'storage_budget_exhausted', BUDGET_MESSAGE)
 }
 
 /** Atomically reserves a global R2 operation and PUT bytes against both lifetime and monthly caps. */
@@ -80,7 +86,19 @@ async function reserveR2Budget(
     )
     .first<{ id: number }>()
   if (reserved) return period
+  return throwBudgetRefusal(db, period, putBytes, cleanup)
+}
 
+/**
+ * Throws the 429 that explains a refused reservation. Called only after the atomic reservation has
+ * refused, so it reads the ledger back to name the limit that was hit.
+ */
+async function throwBudgetRefusal(
+  db: D1Database,
+  period: string,
+  putBytes: number,
+  cleanup: boolean,
+): Promise<never> {
   const current = await db
     .prepare(
       `SELECT lifetime_put_bytes, monthly_period, monthly_put_bytes, monthly_operations
@@ -189,6 +207,56 @@ export async function reserveR2Put(
   await reserveBeforeR2Call(db, currentTime, {
     putBytes: Math.max(bytes, MIN_GLOBAL_R2_PUT_CHARGE_BYTES),
   })
+}
+
+/**
+ * Keeps the database size last seen, which the create guard reads. Callers pass the `size_after`
+ * from a D1 statement they have already run, so recording the size costs no size query.
+ */
+export async function recordDatabaseSize(
+  db: D1Database,
+  now: number,
+  sizeAfter: number,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO r2_storage_budget (id, lifetime_put_bytes, monthly_period, monthly_operations,
+         monthly_put_bytes, d1_size_bytes)
+       VALUES (1, 0, ?, 0, 0, ?)
+       ON CONFLICT(id) DO UPDATE SET d1_size_bytes = excluded.d1_size_bytes`,
+    )
+    .bind(periodFor(now), sizeAfter)
+    .run()
+}
+
+/**
+ * Refuses a PUT of `bytes` that reserveR2Put would refuse, without charging anything. Uploads call
+ * it before reading the body, so a full ledger costs no body reads or hashing. reserveR2Put stays
+ * the authority: it runs atomically after the hash check, and it can still refuse.
+ */
+export async function checkR2PutBudget(db: D1Database, now: number, bytes: number): Promise<void> {
+  const putBytes = Math.max(bytes, MIN_GLOBAL_R2_PUT_CHARGE_BYTES)
+  const period = periodFor(now)
+  const current = await db
+    .prepare(
+      `SELECT lifetime_put_bytes, monthly_period, monthly_put_bytes, monthly_operations
+       FROM r2_storage_budget WHERE id = 1`,
+    )
+    .first<{
+      lifetime_put_bytes: number
+      monthly_period: string
+      monthly_put_bytes: number
+      monthly_operations: number
+    }>()
+  // With no row yet, the first reservation creates it, and that reservation is checked atomically.
+  if (!current) return
+  const sameMonth = current.monthly_period === period
+  const admitted =
+    current.monthly_period <= period &&
+    current.lifetime_put_bytes + putBytes <= MAX_GLOBAL_R2_WRITE_BYTES &&
+    (sameMonth ? current.monthly_put_bytes : 0) + putBytes <= MAX_MONTHLY_R2_PUT_BYTES &&
+    (!sameMonth || current.monthly_operations + 1 <= MAX_GLOBAL_R2_STANDARD_OPERATIONS)
+  if (!admitted) await throwBudgetRefusal(db, period, putBytes, false)
 }
 
 export async function putOriginalFile(

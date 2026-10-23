@@ -40,16 +40,18 @@ function sessionCookieOptions(c: Ctx) {
   }
 }
 
+/** A 256-bit HMAC key. A missing or shorter key fails closed; it is never padded or replaced. */
+const MIN_SIGNING_KEY_BYTES = 32
+
 async function signingKey(c: Ctx): Promise<CryptoKey> {
-  const secret = c.env.SESSION_SIGNING_KEY
-  if (!secret) throw new HttpError(503, 'service_unavailable', 'Service is temporarily unavailable')
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify'],
-  )
+  const secret = new TextEncoder().encode(c.env.SESSION_SIGNING_KEY ?? '')
+  if (secret.byteLength < MIN_SIGNING_KEY_BYTES) {
+    throw new HttpError(503, 'service_unavailable', 'Service is temporarily unavailable')
+  }
+  return crypto.subtle.importKey('raw', secret, { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+    'verify',
+  ])
 }
 
 function fromHex(hex: string): Uint8Array {
@@ -98,14 +100,18 @@ async function verifiedToken(c: Ctx): Promise<string | undefined> {
   return valid ? token : undefined
 }
 
-/** Creates a session row for the user and sets the signed cookie. The row stores only sha-256(token). */
+/**
+ * Creates a session row for the user and sets the signed cookie. The row stores only sha-256(token).
+ * The token is signed before the row is written, so a signing failure leaves no orphan row.
+ */
 export async function createSession(c: Ctx, userId: string): Promise<void> {
   const { deps, db } = c.var
   const token = toHex(deps.randomBytes(32))
+  const signature = await signToken(c, token)
   const createdAt = deps.now()
   const expiresAt = createdAt + SESSION_TTL_MS
   await db.insert(sessions).values({ id: await sha256Hex(token), userId, expiresAt, createdAt })
-  setSessionCookie(c, token, await signToken(c, token), expiresAt)
+  setSessionCookie(c, token, signature, expiresAt)
 }
 
 /**

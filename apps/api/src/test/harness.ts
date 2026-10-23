@@ -183,6 +183,8 @@ export function createHarness(
       body = JSON.stringify(spec.json)
     } else if (spec.raw !== undefined) {
       if (!headers.has('content-type')) headers.set('content-type', 'application/octet-stream')
+      // Browsers always declare the length of a byte-array body; a test omits it explicitly.
+      if (!headers.has('content-length')) headers.set('content-length', String(spec.raw.byteLength))
       body = spec.raw
     }
     return Promise.resolve(app.request(spec.path, { method, headers, body }, env))

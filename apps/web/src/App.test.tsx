@@ -17,9 +17,17 @@ const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted((
     libraryStatus: 'loaded' as 'idle' | 'loading' | 'loaded' | 'failed',
     missingOriginals: 0,
     importOutcome: null,
-    savedActivities: [],
+    savedActivities: [] as { id: string; name: string; startMs: number; sport: 'run' | 'ride' }[],
     retryLibrary: vi.fn(),
     rebuildSavedActivities: vi.fn(),
+    rebuildNotice: null as string | null,
+    busy: false,
+    error: null as string | null,
+    errorIssue: null as string | null,
+    libraryAction: null as 'deleting' | null,
+    libraryNotice: null as string | null,
+    libraryError: null as string | null,
+    waitingReason: null as string | null,
     workerStopped: false,
     retryWorker: vi.fn(),
     stop: vi.fn(),
@@ -32,6 +40,7 @@ const { updateProfile, analysisMock, accountMock, componentMock } = vi.hoisted((
   componentMock: {
     syncStatus: [] as Record<string, unknown>[],
     dropzone: [] as Record<string, unknown>[],
+    savedLibrary: [] as Record<string, unknown>[],
   },
 }))
 
@@ -73,17 +82,22 @@ vi.mock('./ui/useAnalysis', () => ({
       outdatedActivities: analysisMock.outdatedActivities,
       incompatibleActivities: analysisMock.incompatibleActivities,
     },
-    busy: false,
+    busy: analysisMock.busy,
     progress: null,
     uploading: null,
-    error: null,
+    error: analysisMock.error,
+    errorIssue: analysisMock.errorIssue,
+    waitingReason: analysisMock.waitingReason,
+    libraryAction: analysisMock.libraryAction,
+    libraryNotice: analysisMock.libraryNotice,
+    libraryError: analysisMock.libraryError,
     libraryStatus: analysisMock.libraryStatus,
     missingOriginals: analysisMock.missingOriginals,
     importOutcome: analysisMock.importOutcome,
     savedActivities: analysisMock.savedActivities,
     deleteActivity: vi.fn(),
     retryLibrary: analysisMock.retryLibrary,
-    rebuildNotice: null,
+    rebuildNotice: analysisMock.rebuildNotice,
     rebuildSavedActivities: analysisMock.rebuildSavedActivities,
     workerStopped: analysisMock.workerStopped,
     retryWorker: analysisMock.retryWorker,
@@ -124,6 +138,10 @@ vi.mock('./ui/components', () => ({
   PrivacyNote: () => null,
   RangePicker: () => null,
   RejectedFiles: () => null,
+  SavedLibrary: (props: Record<string, unknown>) => {
+    componentMock.savedLibrary.push(props)
+    return null
+  },
   SettingsBar: ({
     onChange,
   }: {
@@ -150,6 +168,15 @@ afterEach(() => {
   analysisMock.syncIssues = []
   analysisMock.libraryStatus = 'loaded'
   analysisMock.missingOriginals = 0
+  analysisMock.rebuildNotice = null
+  analysisMock.busy = false
+  analysisMock.error = null
+  analysisMock.errorIssue = null
+  analysisMock.libraryAction = null
+  analysisMock.libraryNotice = null
+  analysisMock.libraryError = null
+  analysisMock.waitingReason = null
+  analysisMock.savedActivities = []
   analysisMock.retryLibrary.mockClear()
   analysisMock.rebuildSavedActivities.mockClear()
   accountMock.status = 'signed-in'
@@ -157,6 +184,7 @@ afterEach(() => {
   accountMock.keepFiles = true
   componentMock.syncStatus.length = 0
   componentMock.dropzone.length = 0
+  componentMock.savedLibrary.length = 0
 })
 
 describe('App profile persistence', () => {
@@ -318,6 +346,66 @@ describe('library and sync status', () => {
 
   it('links to the privacy page from the footer', () => {
     render(<App />)
-    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy.html')
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
+  })
+})
+
+describe('library actions and notices', () => {
+  it('keeps the rebuild outcome visible after every saved activity is rebuilt', () => {
+    analysisMock.outdatedActivities = 0
+    analysisMock.rebuildNotice = 'Rebuilt 2 saved activities.'
+    render(<App />)
+
+    expect(screen.getByText('Rebuilt 2 saved activities.')).toHaveAttribute('role', 'status')
+  })
+
+  it('shows a daily-limit error without the generic "Something went wrong" prefix', () => {
+    analysisMock.error =
+      'You have reached the daily limit for this account. The limit resets at 00:00 UTC.'
+    analysisMock.errorIssue = 'daily-limit'
+    render(<App />)
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent(/^You have reached the daily limit/)
+    expect(alert).not.toHaveTextContent('Something went wrong')
+  })
+
+  it('keeps the saved library section when the library is loaded and has no activities', () => {
+    analysisMock.savedActivities = []
+    render(<App />)
+
+    expect(screen.getByRole('region', { name: 'Saved library' })).toBeInTheDocument()
+    expect(componentMock.savedLibrary.at(-1)).toMatchObject({ activities: [] })
+  })
+
+  it('passes the library notice and error to the saved library, and marks it busy while deleting', () => {
+    analysisMock.libraryNotice = 'Deleted Morning run (20/10/2026).'
+    analysisMock.libraryError = 'Could not delete the activity. Network down'
+    analysisMock.libraryAction = 'deleting'
+    render(<App />)
+
+    expect(componentMock.savedLibrary.at(-1)).toMatchObject({
+      status: 'Deleted Morning run (20/10/2026).',
+      error: 'Could not delete the activity. Network down',
+      busy: true,
+    })
+  })
+
+  it('does not show the saved library while the library is still loading', () => {
+    analysisMock.libraryStatus = 'loading'
+    render(<App />)
+
+    expect(screen.queryByRole('region', { name: 'Saved library' })).not.toBeInTheDocument()
+  })
+
+  it('passes the reason imports are waiting to the dropzone', () => {
+    analysisMock.busy = true
+    analysisMock.waitingReason = 'Waiting for your library to load'
+    render(<App />)
+
+    expect(componentMock.dropzone.at(-1)).toMatchObject({
+      busy: true,
+      waiting: 'Waiting for your library to load',
+    })
   })
 })

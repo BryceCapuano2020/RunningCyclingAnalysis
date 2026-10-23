@@ -1,10 +1,10 @@
 # Interrupted hardening review
 
 Reviewed the interrupted `hardening` branch at `01e38e2` against the deployed baseline on
-22 October 2026. Three Luna reviewers independently checked operations, API integrity and the
-new FIT codec; the coordinator checked client integration and combined verification.
+22 October 2026. Three independent reviews checked operations, API integrity and the new FIT codec;
+client integration and combined verification were checked separately.
 
-The handoff's build/crash warning was stale: initial type-checking and 135 focused client tests
+An earlier note's build and crash warning was stale: type-checking and 135 focused client tests
 passed before this cleanup. That did not establish release readiness. The branch combined several
 large changes without completing the release gate, and the operational defects below were serious.
 
@@ -32,10 +32,11 @@ Outdoor runs with missing altitude remain excluded from grade-dependent estimate
 flagged. Assuming flat terrain would produce an unsupported numerical result. Real device testing
 and independent physiological validation remain necessary.
 
-At the cleanup review, this branch had not been deployed. The subsequent release is recorded in
-[PRODUCTION.md](PRODUCTION.md). Its prerequisites included the new random
-`SESSION_SIGNING_KEY` (invalidating old sessions), migration 0003, and reviewed release gates. Backup and monitoring workflow files are implementation, not evidence that their
-secrets, encryption recipient, schedules or recovery have been configured and exercised remotely.
+At the time of this review, the branch had not been deployed. The release that followed is described
+in [PRODUCTION.md](PRODUCTION.md). Its prerequisites included the new random `SESSION_SIGNING_KEY`
+(invalidating old sessions), migration 0003, and the reviewed release gates. Backup and monitoring
+workflow files are implementation, not evidence that their secrets, encryption recipient, schedules
+or recovery have been configured and exercised remotely.
 Repository publication and production configuration are separate actions from this review.
 
 ## Cleanup validation

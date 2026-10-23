@@ -123,6 +123,11 @@ describe('digestActivity: summary', () => {
     expect(d.curve.every((p) => Number.isNaN(p.value) && p.startIndex === -1)).toBe(true)
   })
 
+  it('reports the distance of a single-sample activity', () => {
+    const distance = Float64Array.from([42])
+    expect(digestActivity({ ...activity({ n: 1 }), distance }).distanceM).toBe(42)
+  })
+
   it('carries the quality flags of the activity', () => {
     const heartRate = constant(200, 150)
     heartRate[100] = 240

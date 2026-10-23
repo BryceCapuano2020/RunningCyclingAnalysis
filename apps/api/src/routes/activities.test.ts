@@ -1411,3 +1411,39 @@ describe('boundary pins', () => {
     expect(MAX_PAGE_BODY_BYTES).toBeGreaterThan(MAX_PAGE_DIGEST_BYTES)
   })
 })
+
+describe('stored digests from older revisions', () => {
+  it('lists an old-revision row that create would refuse, and answers a same-revision create with it', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await createActivity(h, token)
+    await h.env.DB.prepare('DELETE FROM activities').run()
+    const base = digestFixture({ modelRevision: 1 })
+    const legacy = {
+      ...base,
+      durationS: null,
+      curve: (base.curve as Record<string, unknown>[]).slice(0, 3).map((point) => ({
+        ...point,
+        durationS: 7,
+      })),
+    }
+    await h.env.DB.prepare(
+      `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+        digest_json, file_name, file_hash, created_at)
+       SELECT 'legacy', id, ?, 'ride', ?, 'Old ride', 1, ?, 'old.fit', ?, 0
+       FROM users LIMIT 1`,
+    )
+      .bind(`ride-${START / 1000}`, START, JSON.stringify(legacy), HASH_OF_CONTENT)
+      .run()
+
+    const list = await h.send({ path: '/api/activities', cookies: { rca_session: token } })
+    expect(list.status).toBe(200)
+    const page = (await list.json()) as { items: { id: string }[]; unreadable?: number }
+    expect(page.items.map((item) => item.id)).toEqual(['legacy'])
+    expect(page.unreadable).toBeUndefined()
+
+    const again = await createActivity(h, token, {}, { modelRevision: 1 })
+    expect(again.status).toBe(200)
+    expect(await again.json()).toMatchObject({ id: 'legacy' })
+  })
+})

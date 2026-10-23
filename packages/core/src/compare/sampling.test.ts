@@ -21,6 +21,16 @@ describe('calibration sampling', () => {
     expect(Math.max(...result.weights)).toBe(1)
   })
 
+  it('weights a draw by the Gaussian of its z-score, exp(-z^2 / 2)', () => {
+    // With s at its prior mean, kappaDraw = mean / ge. So z = 0 for the first draw and
+    // z = 1 for the second, and their weight ratio is exp(-1 / 2).
+    const { grossEfficiency, runEconomyScale } = PRIORS
+    const gePair = Float64Array.from([grossEfficiency.mean, grossEfficiency.mean * Math.E])
+    const sPair = Float64Array.from([runEconomyScale.mean, runEconomyScale.mean])
+    const weights = calibrationWeights(gePair, sPair, hr(1, 1))?.weights ?? new Float64Array(0)
+    expect(weights[1]! / weights[0]!).toBeCloseTo(Math.exp(-0.5), 12)
+  })
+
   it('accepts exactly 42 effective draws of 4000, and the 1% floor is 40 draws', () => {
     // Forty-two draws sit exactly on kappa = 1 and the rest are far off, so ESS is 42.
     const ge = new Float64Array(4000).fill(0.2)
