@@ -300,7 +300,8 @@ then **Run workflow**, with the branch set to **main**. It refuses any other bra
 
 1. **Guard:** confirms the run is on `refs/heads/main`.
 2. **Release gate:** runs `npm run verify:release` on that exact commit, including the Chromium,
-   WebKit and Worker-served browser suites. It keeps the static build it verified.
+   WebKit and Worker-served browser suites, inside the pinned Playwright container (see
+   [PRODUCTION.md](PRODUCTION.md#release-gate)). It keeps the static build it verified.
 3. **Approval:** waits for the owner to approve the `production` environment.
 4. **Preflight:** checks production configuration and verifies the presence of the three required
    Worker secret names before any migration runs.

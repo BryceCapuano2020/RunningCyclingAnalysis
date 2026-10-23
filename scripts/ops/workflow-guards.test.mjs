@@ -88,3 +88,58 @@ test('a skipped deep health check warns and neither opens nor closes the outage 
     /name: Open or update the outage issue\n {8}if: steps\.probe\.outputs\.failed == 'true'/,
   )
 })
+
+const jobBlocks = (source) => {
+  const lines = source.split('\n')
+  const blocks = new Map()
+  let current = null
+  for (const line of lines.slice(lines.indexOf('jobs:') + 1)) {
+    const job = /^ {2}([A-Za-z0-9_-]+):$/.exec(line)
+    if (job) {
+      current = job[1]
+      blocks.set(current, [])
+    } else if (current) {
+      blocks.get(current).push(line)
+    }
+  }
+  return blocks
+}
+
+test('every CI and Deploy job has a timeout so a hang fails instead of running for hours', async () => {
+  for (const name of ['ci', 'deploy']) {
+    const blocks = jobBlocks(await workflow(name))
+    assert.ok(blocks.size > 0)
+    for (const [job, lines] of blocks) {
+      assert.match(lines.join('\n'), /^ {4}timeout-minutes: [1-9]\d*$/m, `${name} job ${job}`)
+    }
+  }
+})
+
+test('browser jobs run in the Playwright image pinned to the locked version and digest', async () => {
+  const lock = JSON.parse(await readFile(new URL('package-lock.json', root), 'utf8'))
+  const version = lock.packages['node_modules/@playwright/test'].version
+  const escaped = version.replaceAll('.', '\\.')
+  const image = new RegExp(
+    `image: mcr\\.microsoft\\.com/playwright:v${escaped}-noble@sha256:[0-9a-f]{64}`,
+  )
+  let browserJobs = 0
+  for (const name of ['ci', 'deploy']) {
+    const source = await workflow(name)
+    assert.doesNotMatch(source, /--with-deps/)
+    for (const [job, lines] of jobBlocks(source)) {
+      const block = lines.join('\n')
+      if (!/npm run (e2e|verify:release)/.test(block)) continue
+      browserJobs += 1
+      assert.match(block, /^ {4}container:\n {6}image: /m, `${name} job ${job}`)
+      assert.match(block, image, `${name} job ${job}`)
+      assert.match(block, /HOME: \/root/, `${name} job ${job}`)
+    }
+  }
+  assert.equal(browserJobs, 2)
+})
+
+test('npm retries transient registry failures before a dependency install fails', async () => {
+  for (const name of ['ci', 'deploy']) {
+    assert.match(await workflow(name), /npm_config_fetch_retries: '5'/)
+  }
+})
