@@ -18,11 +18,11 @@ import {
   NO_STANDARD_TEXT,
   SEX_NOUN,
   athleteOf,
-  gradeRangeBracket,
-  gradeSentence,
+  distanceGrade,
+  gapRecordText,
+  gradeParts,
   gradedSexOf,
   headlineGrades,
-  outcomeSentence,
   sportGrade,
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
@@ -240,7 +240,7 @@ describe('headline grades and the sex they are for', () => {
   })
 })
 
-describe('grade sentences', () => {
+describe('grade parts', () => {
   it('reads a run grade as recorded, with its level and whole percent, and no estimate word', () => {
     const grade = gradeOf(
       sportGrade(
@@ -250,7 +250,12 @@ describe('grade sentences', () => {
         MAN_BORN_1986,
       ),
     )
-    expect(gradeSentence('run', grade)).toBe('Local · 67%')
+    expect(gradeParts('run', grade)).toEqual({
+      lead: null,
+      level: 'Local',
+      value: '67%',
+      range: null,
+    })
   })
 
   it('names both levels when a ride range crosses a band boundary', () => {
@@ -261,7 +266,12 @@ describe('grade sentences', () => {
         high: { grade: 0.64, level: 'Local' },
       },
     }
-    expect(gradeSentence('ride', grade)).toBe('Estimated · Recreational to Local · 60% (55–64%)')
+    expect(gradeParts('ride', grade)).toEqual({
+      lead: 'Estimated',
+      level: 'Recreational to Local',
+      value: '60%',
+      range: '55–64%',
+    })
   })
 
   it('says a ride record is graded through its running equivalent, and a run record is not', () => {
@@ -272,15 +282,16 @@ describe('grade sentences', () => {
         high: { grade: 0.64, level: 'Local' },
       },
     }
-    expect(gradeSentence('ride', ride, 'record')).toBe(
-      'Estimated through its running equivalent · Recreational to Local · 60% (55–64%)',
-    )
+    expect(gradeParts('ride', ride, 'record')).toMatchObject({
+      lead: 'Estimated through its running equivalent',
+      level: 'Recreational to Local',
+    })
     expect(
-      gradeSentence('run', { centre: { grade: 0.676, level: 'Local' }, range: null }, 'record'),
-    ).toBe('Local · 67%')
+      gradeParts('run', { centre: { grade: 0.676, level: 'Local' }, range: null }, 'record').lead,
+    ).toBeNull()
   })
 
-  it('brackets a ride range on its own, so a card can keep it on one line', () => {
+  it('splits a ride sentence into its lead, level, whole percent and range', () => {
     const grade: SportGrade = {
       centre: { grade: 0.6, level: 'Local' },
       range: {
@@ -288,8 +299,25 @@ describe('grade sentences', () => {
         high: { grade: 0.64, level: 'Local' },
       },
     }
-    expect(gradeRangeBracket(grade)).toBe(' (55–64%)')
-    expect(gradeRangeBracket({ centre: { grade: 0.6, level: 'Local' }, range: null })).toBe('')
+    expect(gradeParts('ride', grade)).toEqual({
+      lead: 'Estimated',
+      level: 'Recreational to Local',
+      value: '60%',
+      range: '55–64%',
+    })
+    expect(gradeParts('ride', grade, 'record').lead).toBe(
+      'Estimated through its running equivalent',
+    )
+  })
+
+  it('has no lead and no range for a run, which is read as recorded', () => {
+    const grade: SportGrade = { centre: { grade: 0.676, level: 'Local' }, range: null }
+    expect(gradeParts('run', grade)).toEqual({
+      lead: null,
+      level: 'Local',
+      value: '67%',
+      range: null,
+    })
   })
 
   it('names one level when the whole range sits in one band', () => {
@@ -297,7 +325,12 @@ describe('grade sentences', () => {
       centre: { grade: 0.66, level: 'Local' },
       range: { low: { grade: 0.63, level: 'Local' }, high: { grade: 0.69, level: 'Local' } },
     }
-    expect(gradeSentence('ride', grade)).toBe('Estimated · Local · 66% (63–69%)')
+    expect(gradeParts('ride', grade)).toMatchObject({
+      lead: 'Estimated',
+      level: 'Local',
+      value: '66%',
+      range: '63–69%',
+    })
   })
 
   it('reads a ride grade as estimated, with its range in brackets', () => {
@@ -314,21 +347,28 @@ describe('grade sentences', () => {
       ),
     )
     // The range runs from 62% (Local) to 70% (Regional), so both levels are named.
-    expect(gradeSentence('ride', grade)).toBe('Estimated · Local to Regional · 66% (62–70%)')
+    expect(gradeParts('ride', grade)).toMatchObject({
+      lead: 'Estimated',
+      level: 'Local to Regional',
+      value: '66%',
+      range: '62–70%',
+    })
   })
 
-  it('gives no sentence for a gap', () => {
-    const gap: GradeOutcome = { kind: 'gap', reason: NEEDS_EFFORT_TEXT }
-    expect(outcomeSentence('run', gap)).toBeNull()
+  it('gives a record’s gap as a short line, saying a run has no standard under a mile', () => {
+    const gap: GradeOutcome = { kind: 'gap', reason: NO_STANDARD_TEXT }
+    expect(gapRecordText('run', gap)).toBe('No age standard under 1 mile')
+    expect(gapRecordText('ride', gap)).toBe('No age standard for this duration')
   })
 
-  it('gives the sentence of a graded outcome in the sport’s reading', () => {
+  it('keeps the reason of any other gap, and gives no gap for a graded record', () => {
+    expect(gapRecordText('run', { kind: 'gap', reason: NO_DATE_TEXT })).toBe(NO_DATE_TEXT)
     const graded: GradeOutcome = {
       kind: 'graded',
       age: 40,
       grade: { centre: { grade: 0.676, level: 'Local' }, range: null },
     }
-    expect(outcomeSentence('run', graded)).toBe('Local · 67%')
+    expect(gapRecordText('run', graded)).toBeNull()
   })
 })
 
@@ -356,5 +396,19 @@ describe('ageProfileOf', () => {
   it('is null while either the year of birth or the sex is missing', () => {
     expect(ageProfileOf(null, 'male')).toBeNull()
     expect(ageProfileOf(1986, null)).toBeNull()
+  })
+})
+
+describe('distanceGrade', () => {
+  // A man born in 1990, so 34 on 15 June 2024. He runs 5 km in 20 min 50 s that day.
+  const profile: AgeProfile = { birthYear: 1990, sex: 'male' }
+  const JUNE_2024 = new Date(2024, 5, 15).getTime()
+
+  it('grades a 5 km record at the exact grade for the age on the day it was run', () => {
+    expect(distanceGrade(5000, 1250, JUNE_2024, profile)).toEqual({
+      kind: 'graded',
+      age: 34,
+      grade: { centre: { grade: 0.6224, level: 'Local' }, range: null },
+    })
   })
 })

@@ -122,3 +122,12 @@
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
+
+/* A grade past either end of the scale carries a chevron at that end, beside its marker. */
+.level-ladder__beyond {
+  fill: none;
+  stroke: var(--ladder-colour);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}

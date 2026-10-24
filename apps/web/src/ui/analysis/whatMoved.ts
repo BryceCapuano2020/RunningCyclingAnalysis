@@ -2,7 +2,7 @@ import { dedupeKey } from '@rca/core/session'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDuration, formatPercent } from '@rca/core/units'
+import { formatPercent } from '@rca/core/units'
 import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick, type BalanceReading } from '../components/balanceScale'
 import { plural } from '../components/plural'
@@ -10,7 +10,7 @@ import { pickHeadline } from '../components/pickHeadline'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
-import { curveOf, sportRecords, threshold } from '../records'
+import { curveOf, distanceRecords, recordDurationLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
 import { SPORT_NOUN, SPORT_ORDER } from '../sports'
 import { addedSentence } from './copy'
@@ -113,6 +113,19 @@ function bestAt(result: AnalysisResult, sport: Sport, durationS: number): number
   return curveOf(result, sport).find((point) => point.durationS === durationS)?.value ?? Number.NaN
 }
 
+/** A time read aloud: "1 hour 27 minutes 54 seconds", or "6 minutes 42 seconds". */
+function spokenSeconds(seconds: number): string {
+  const total = Math.round(seconds)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const parts = [
+    hours > 0 ? plural(hours, 'hour') : null,
+    minutes > 0 ? plural(minutes, 'minute') : null,
+    plural(total % 60, 'second'),
+  ]
+  return parts.filter((part): part is string => part !== null).join(' ')
+}
+
 /** A record duration read aloud: "20 minutes", "1 minute" or "1 hour". */
 function spokenDuration(durationS: number): string {
   return durationS % 3600 === 0
@@ -132,6 +145,14 @@ function spokenFigure(record: SportRecord, sport: Sport, units: UnitSystem): str
 }
 
 /**
+ * The workouts an analysis holds, by their sport and start time, so a workout counts as on file
+ * whatever its activity id. A copy that replaces one is not new.
+ */
+function workoutsOn(result: AnalysisResult): Set<string> {
+  return new Set(result.activities.map((activity) => dedupeKey(activity.sport, activity.startMs)))
+}
+
+/**
  * The record durations that an activity the import added set, and that beat the earlier best with
  * a change in the displayed value. An activity counts as on file when its workout matches (sport
  * and start time), whatever its id, so a copy that replaces one is not new.
@@ -143,9 +164,7 @@ function bestItems(
   units: UnitSystem,
   sports: readonly Sport[],
 ): MovedItem[] {
-  const onFile = new Set(
-    before.activities.map((activity) => dedupeKey(activity.sport, activity.startMs)),
-  )
+  const onFile = workoutsOn(before)
   const items: MovedItem[] = []
   for (const sport of sports) {
     const earlierRecords = sportRecords(before, sport, massKg, units)
@@ -160,10 +179,37 @@ function bestItems(
         continue
       }
       items.push({
-        text: `New best ${formatDuration(record.durationS)} ${sport}: ${record.value}`,
+        text: `New best ${recordDurationLabel(record.durationS)} ${sport}: ${record.value}`,
         spoken: `New best ${spokenDuration(record.durationS)} ${sport}: ${spokenFigure(record, sport, units)}`,
       })
     }
+  }
+  return items
+}
+
+/**
+ * The run distance bests that an activity the import added set, and that are faster than the
+ * earlier best. Like the duration bests, a workout on file does not count.
+ */
+function distanceItems(
+  before: AnalysisResult,
+  after: AnalysisResult,
+  units: UnitSystem,
+): MovedItem[] {
+  // A run on file that predates distance bests has none, so an earlier best may be missing: no
+  // distance best is called new against a partial record.
+  if (before.activities.some((a) => a.sport === 'run' && a.distanceBests === undefined)) return []
+  const onFile = workoutsOn(before)
+  const earlier = distanceRecords(before.activities, units).records
+  const items: MovedItem[] = []
+  for (const record of distanceRecords(after.activities, units).records) {
+    if (onFile.has(dedupeKey(record.activity.sport, record.activity.startMs))) continue
+    const earlierBest = earlier.find((candidate) => candidate.distanceM === record.distanceM)
+    if (earlierBest !== undefined && earlierBest.seconds <= record.seconds) continue
+    items.push({
+      text: `New best ${record.label}: ${record.time}`,
+      spoken: `New best ${record.label}: ${spokenSeconds(record.seconds)}`,
+    })
   }
   return items
 }
@@ -190,10 +236,11 @@ export function whatMoved(
     balanceItem(before, after, profile, weighted),
   ].filter((item): item is MovedItem => item !== null)
   const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
-  return [...changes, ...bestItems(before, after, settings.massKg, units, sports)].slice(
-    0,
-    MAX_ITEMS,
-  )
+  const bests = [
+    ...bestItems(before, after, settings.massKg, units, sports),
+    ...distanceItems(before, after, units),
+  ]
+  return [...changes, ...bests].slice(0, MAX_ITEMS)
 }
 
 /**

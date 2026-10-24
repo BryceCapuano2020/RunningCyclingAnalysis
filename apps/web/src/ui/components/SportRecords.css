@@ -51,6 +51,13 @@
   font-size: 0.875rem;
 }
 
+/* The change on the period before, in words, under the figure. */
+.records__change {
+  grid-column: 2;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 /* A long activity name is cut short with an ellipsis; its full name is the link's title and label. */
 .records__link {
   display: block;

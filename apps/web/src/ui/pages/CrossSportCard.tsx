@@ -74,7 +74,7 @@ export function CrossSportCard({ result, units, weighted }: CrossSportCardProps)
         </p>
       )}
       <details className="cross-sport__details">
-        <summary>See every duration</summary>
+        <summary>See the pace curve</summary>
         <EquivalenceTable
           equivalents={result.equivalents}
           units={units}

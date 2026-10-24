@@ -1,17 +1,13 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
-import { formatDuration } from '@rca/core/units'
-import { LevelLadder } from '../components/LevelLadder'
+import { AgeGradeBlock } from '../components/AgeGradeBlock'
 import { SportRecords } from '../components/SportRecords'
 import { recordRow } from '../recordRow'
-import { GradingLink } from '../components/GradingLink'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
-import { HEADLINE_LABEL, GRADE_ADJUSTED_NOTE, gradeRangeBracket, gradeSentence } from '../grades'
-import type { GradeOutcome, SportGrade } from '../grades'
+import { FLAT_PACE_NOTE } from '../grades'
+import type { GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import {
   SPORT_LABEL,
@@ -20,7 +16,13 @@ import {
   THRESHOLD_LABEL,
   THRESHOLD_MEANING,
 } from '../sports'
-import { CHIP_DURATIONS_S, isEstimatedRecord, sportRecords, threshold } from '../records'
+import {
+  CHIP_DURATIONS_S,
+  headlineEffort,
+  recordDurationLabel,
+  sportRecords,
+  threshold,
+} from '../records'
 import './SportCard.css'
 
 export interface SportCardProps {
@@ -38,60 +40,6 @@ export interface SportCardProps {
 }
 
 /**
- * The grade's sentence on the grade line, from gradeSentence. Its range bracket is set apart in a
- * span, so a ride's range stays on one line when the line wraps.
- */
-function GradeHead({ sport, grade }: { sport: Sport; grade: SportGrade }) {
-  const sentence = gradeSentence(sport, grade)
-  const bracket = gradeRangeBracket(grade)
-  const head = sentence.slice(0, sentence.length - bracket.length)
-  return (
-    <>
-      {head}
-      {bracket && (
-        <>
-          {' '}
-          <span className="sport-card__range">{bracket.trim()}</span>
-        </>
-      )}
-    </>
-  )
-}
-
-/**
- * The grade, its level ladder and what it grades. The line names the effort it is for, and its
- * pace or watts; a ride's watts from virtual power are tagged estimated.
- */
-function AgeGrade({
-  sport,
-  outcome,
-  effort,
-}: {
-  sport: Sport
-  outcome: GradeOutcome
-  effort: string | null
-}) {
-  if (outcome.kind === 'gap') return <p className="secondary">{outcome.reason}</p>
-  const { age, grade } = outcome
-  const ride = sport === 'ride'
-  const caption = ride
-    ? `Graded through its running equivalent, at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}. The range is the 90% model range.`
-    : `Graded at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
-  return (
-    <div className="sport-card__grade">
-      <p className="sport-card__grade-line">
-        <GradeHead sport={sport} grade={grade} />
-        {` · on your best ${HEADLINE_LABEL}${effort ? `, ${effort}` : ''}`}
-      </p>
-      <GradingLink />
-      <LevelLadder sport={sport} grade={grade} />
-      {!ride && <p className="muted">{GRADE_ADJUSTED_NOTE}</p>}
-      <p className="muted">{caption}</p>
-    </div>
-  )
-}
-
-/**
  * One sport at a glance: the estimated threshold as the hero number, its age grade, and the best
  * efforts that show it, each naming the activity that set it. A ride's figures wait for the weight.
  */
@@ -105,10 +53,7 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
     : sportRecords(result, sport, massKg, units).filter((record) =>
         CHIP_DURATIONS_S.includes(record.durationS),
       )
-  const headline = records.find((record) => record.durationS === HEADLINE_DURATION_S)
-  const effort = headline
-    ? `${headline.value}${isEstimatedRecord(sport, headline.activity) ? ', estimated' : ''}`
-    : null
+  const effort = headlineEffort(sport, records)
 
   return (
     <section className={`card sport-card sport-card--${sport}`} aria-labelledby={headingId}>
@@ -134,14 +79,18 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
           )}
           {!held && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
         </div>
-        {!held && grade && <AgeGrade sport={sport} outcome={grade} effort={effort} />}
+        {!held && grade && <AgeGradeBlock sport={sport} outcome={grade} effort={effort} />}
         {records.length > 0 && (
           <SportRecords
             rows={records.map((record) =>
-              recordRow(sport, record, { label: formatDuration(record.durationS), grade: null }),
+              recordRow(sport, record, {
+                label: recordDurationLabel(record.durationS),
+                grade: null,
+              }),
             )}
           />
         )}
+        {sport === 'run' && records.length > 0 && <p className="muted">{FLAT_PACE_NOTE}</p>}
       </>
       <a className="link-arrow" href={hrefFor({ page: sport })}>
         {`All ${SPORT_PLURAL[sport]}`}

@@ -10,6 +10,7 @@ import {
   curveOf,
   distanceRecords,
   featuredEquivalence,
+  recordDurationLabel,
   isEstimatedRecord,
   nativeCurve,
   nativeValue,
@@ -210,6 +211,18 @@ describe('distanceRecords', () => {
     expect(distanceRecords([early, late], 'metric').records[0]?.activity.id).toBe('early')
   })
 
+  it('names the half marathon, and gives its pace in the unit preference', () => {
+    const run = makeActivity({
+      id: 'half',
+      startMs: 1,
+      distanceBests: [{ distanceM: 21097.5, seconds: 5274 }],
+    })
+    const [half] = distanceRecords([run], 'metric').records
+    expect(half).toMatchObject({ label: 'half marathon', time: '1:27:54' })
+    expect(half?.pace).toBe('4:10 /km')
+    expect(distanceRecords([run], 'imperial').records[0]?.pace).toBe('6:42 /mi')
+  })
+
   it('shows its paces in the unit preference', () => {
     const run = runBests('run', 1, { 1000: 240 })
     expect(distanceRecords([run], 'imperial').records[0]?.pace).toBe('6:26 /mi')
@@ -229,7 +242,7 @@ describe('distanceRecords', () => {
 })
 
 describe('chipLabels', () => {
-  it('names duration bests of 5, 20 and 60 minutes and every run distance', () => {
+  it('names duration bests of 5 and 20 minutes, 1 hour and every run distance', () => {
     expect(
       chipLabels([
         { kind: 'duration', durationS: 300 },
@@ -237,8 +250,16 @@ describe('chipLabels', () => {
         { kind: 'duration', durationS: 3600 },
         { kind: 'distance', distanceM: 1609.344 },
         { kind: 'distance', distanceM: 10000 },
+        { kind: 'distance', distanceM: 21097.5 },
       ]),
-    ).toEqual(['Best 5 min', 'Best 20 min', 'Best 60 min', 'Best 1 mi', 'Best 10 km'])
+    ).toEqual([
+      'Best 5 min',
+      'Best 20 min',
+      'Best 1 hour',
+      'Best 1 mi',
+      'Best 10 km',
+      'Best half marathon',
+    ])
   })
 
   it('leaves out the one-minute best, which is on the page only', () => {
@@ -275,5 +296,14 @@ describe('isEstimatedRecord', () => {
       false,
     )
     expect(isEstimatedRecord('run', null)).toBe(false)
+  })
+})
+
+describe('recordDurationLabel', () => {
+  it('names a whole hour in words, and a shorter effort in minutes', () => {
+    expect(recordDurationLabel(3600)).toBe('1 hour')
+    expect(recordDurationLabel(7200)).toBe('2 hours')
+    expect(recordDurationLabel(1200)).toBe('20 min')
+    expect(recordDurationLabel(60)).toBe('1 min')
   })
 })

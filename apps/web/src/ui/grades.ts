@@ -195,11 +195,10 @@ export function gradedSexOf(
 }
 
 /**
- * The note a run's pace carries. GAP, the mark on each run row, is spelled out here, so it has its
- * meaning in words too: the flat pace with the same effort.
+ * The note a run's pace carries. The Flat mark on each run row is spelled out here, so it has its
+ * meaning in words too.
  */
-export const GRADE_ADJUSTED_NOTE =
-  'Pace is grade-adjusted (GAP): the flat pace with the same effort.'
+export const FLAT_PACE_NOTE = 'Flat pace: your pace allowing for hills, as if on level ground.'
 
 /**
  * The level a grade names: its band, or "Recreational to Local" when a ride's range crosses a band
@@ -217,38 +216,74 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
   return `${wholeGrade(range.low.grade)}–${formatGrade(range.high.grade)}`
 }
 
-/** A ride's range in brackets, with its leading space, such as " (63–71%)"; empty for a run. */
-export function gradeRangeBracket(grade: SportGrade): string {
-  return grade.range ? ` (${gradeRangeText(grade.range)})` : ''
-}
-
 /**
  * Where a grade sentence is written. A card says a ride is estimated; a record says it is graded
  * through its running equivalent, so a row on its own still says how the grade was reached.
  */
 export type GradeContext = 'card' | 'record'
 
+/** A grade sentence in parts, so each can be set apart: the level and percent stay on one line. */
+export interface GradeParts {
+  /** "Estimated" for a ride, or "Estimated through its running equivalent" on a record; else null. */
+  lead: string | null
+  level: string
+  /** The centre as a whole percent, such as "64%". */
+  value: string
+  /** A ride's range as whole percents, such as "63–71%"; null for a run. */
+  range: string | null
+}
+
 /**
- * A grade as the cards and records write it. A run is read as recorded: "Local · 67%". A ride is
- * estimated through its running equivalent: "Estimated · Local · 67% (63–71%)", or on a record
- * "Estimated through its running equivalent · Local · 67% (63–71%)".
+ * A grade as the cards and records write it, in parts. A run is read as recorded: "Local · 67%". A
+ * ride is estimated through its running equivalent: "Estimated · Local · 67% (63–71%)".
  */
-export function gradeSentence(
+export function gradeParts(
   sport: Sport,
   grade: SportGrade,
   where: GradeContext = 'card',
-): string {
-  const reading = `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)}${gradeRangeBracket(grade)}`
-  if (sport !== 'ride') return reading
-  const lead = where === 'record' ? 'Estimated through its running equivalent' : 'Estimated'
-  return `${lead} · ${reading}`
+): GradeParts {
+  const lead =
+    sport !== 'ride'
+      ? null
+      : where === 'record'
+        ? 'Estimated through its running equivalent'
+        : 'Estimated'
+  return {
+    lead,
+    level: gradeLevelText(grade),
+    value: formatGrade(grade.centre.grade),
+    range: grade.range ? gradeRangeText(grade.range) : null,
+  }
 }
 
-/** A record's grade sentence, or null when the outcome is a gap. */
-export function outcomeSentence(
-  sport: Sport,
-  outcome: GradeOutcome,
-  where: GradeContext = 'card',
-): string | null {
-  return outcome.kind === 'graded' ? gradeSentence(sport, outcome.grade, where) : null
+/**
+ * A run's grade at a distance record, read as recorded: the distance over its time, graded at the age
+ * on the day it was run. A distance with no standard, under a mile, is a gap.
+ */
+export function distanceGrade(
+  distanceM: number,
+  seconds: number,
+  startMs: number,
+  profile: AgeProfile,
+): GradeOutcome {
+  const athlete = athleteOf(profile, startMs)
+  if (athlete === null) return gap(AGE_RANGE_TEXT)
+  const centre = gradeAtSpeed(distanceM / seconds, seconds, athlete)
+  if (centre === null) return gap(NO_STANDARD_TEXT)
+  return { kind: 'graded', age: athlete.age, grade: { centre, range: null } }
+}
+
+/** A run under a mile has no standard, so a record row names that rather than the full reason. */
+export const NO_STANDARD_RECORD_TEXT: Record<Sport, string> = {
+  run: 'No age standard under 1 mile',
+  ride: 'No age standard for this duration',
+}
+
+/**
+ * A record's gap as a short line for its row, such as "No age standard under 1 mile", or null when
+ * the record is graded. Any other reason is kept as it is.
+ */
+export function gapRecordText(sport: Sport, outcome: GradeOutcome): string | null {
+  if (outcome.kind === 'graded') return null
+  return outcome.reason === NO_STANDARD_TEXT ? NO_STANDARD_RECORD_TEXT[sport] : outcome.reason
 }

@@ -173,6 +173,60 @@ describe('LevelLadder shapes', () => {
   })
 })
 
+describe('LevelLadder off the scale', () => {
+  it('draws a chevron beside the marker at the bar end that a grade lies past', () => {
+    const below = render(
+      <LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />,
+    )
+    expect(below.container.querySelector('.level-ladder__beyond')).toHaveAttribute(
+      'data-side',
+      'below',
+    )
+    below.unmount()
+
+    const above = render(
+      <LevelLadder sport="run" grade={{ centre: gradeAt(310, 'World'), range: null }} />,
+    )
+    expect(above.container.querySelector('.level-ladder__beyond')).toHaveAttribute(
+      'data-side',
+      'above',
+    )
+  })
+
+  it('draws the chevron just outside the bar end it points past, so it never sits on the marker', () => {
+    const above = render(
+      <LevelLadder
+        sport="ride"
+        grade={{
+          centre: gradeAt(96, 'National'),
+          range: { low: gradeAt(87, 'National'), high: gradeAt(107, 'World') },
+        }}
+      />,
+    )
+    // The path reads "M edge y L tip y L edge y": the edge is the bar's end, the tip points past it.
+    const [, edge, , , tip] = (
+      above.container.querySelector('.level-ladder__beyond')?.getAttribute('d') ?? ''
+    ).split(' ')
+    expect(Number(edge)).toBe(320)
+    expect(Number(tip)).toBeGreaterThan(320)
+    above.unmount()
+
+    const below = render(
+      <LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />,
+    )
+    const [, belowEdge, , , belowTip] = (
+      below.container.querySelector('.level-ladder__beyond')?.getAttribute('d') ?? ''
+    ).split(' ')
+    expect(Number(belowEdge)).toBe(0)
+    expect(Number(belowTip)).toBeLessThan(0)
+  })
+
+  it('draws no chevron for a grade on the scale', () => {
+    const { container } = render(<LevelLadder sport="run" grade={RUN} />)
+    expect(container.querySelector('.level-ladder__beyond')).toBeNull()
+  })
+})
+
 describe('LevelLadder layering', () => {
   it('draws the range before the first band edge, so the edges sit on top of it', () => {
     const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)

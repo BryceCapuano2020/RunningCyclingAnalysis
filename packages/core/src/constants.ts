@@ -10,12 +10,19 @@ export const DURATIONS_S = [
   10800,
 ] as const
 
-/** Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km and 10 km. */
+/** A half marathon, m: 21.0975 km. */
+export const HALF_MARATHON_M = 21_097.5
+
+/**
+ * Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km, 10 km and a half
+ * marathon. A run keeps the time at each one it covers.
+ */
 export const RUN_RECORD_DISTANCES_M = [
   METRES_PER_KM,
   METRES_PER_MILE,
   5 * METRES_PER_KM,
   10 * METRES_PER_KM,
+  HALF_MARATHON_M,
 ] as const
 export type RunRecordDistanceM = (typeof RUN_RECORD_DISTANCES_M)[number]
 /**

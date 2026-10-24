@@ -196,15 +196,22 @@ describe('ActivityPage', () => {
     expect(within(statFor('Avg pace')).getByText('9:39 /mi')).toBeInTheDocument()
   })
 
-  it('lists the run best efforts this activity set, as grade-adjusted pace', () => {
+  it('explains the flat pace under a run’s best efforts, once', () => {
+    renderPage(morningRun)
+    expect(
+      screen.getAllByText('Flat pace: your pace allowing for hills, as if on level ground.'),
+    ).toHaveLength(1)
+  })
+
+  it('lists the run best efforts this activity set, as flat pace', () => {
     renderPage(morningRun)
     expect(
       screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
     ).toBeInTheDocument()
-    expect(within(statFor('Best 1 min')).getByText('4:07 /km grade-adjusted')).toBeInTheDocument()
-    expect(within(statFor('Best 5 min')).getByText('4:31 /km grade-adjusted')).toBeInTheDocument()
-    expect(within(statFor('Best 20 min')).getByText('5:00 /km grade-adjusted')).toBeInTheDocument()
-    expect(within(statFor('Best 1 h')).getByText('5:37 /km grade-adjusted')).toBeInTheDocument()
+    expect(within(statFor('Best 1 min')).getByText('4:07 /km flat pace')).toBeInTheDocument()
+    expect(within(statFor('Best 5 min')).getByText('4:31 /km flat pace')).toBeInTheDocument()
+    expect(within(statFor('Best 20 min')).getByText('5:00 /km flat pace')).toBeInTheDocument()
+    expect(within(statFor('Best 1 hour')).getByText('5:37 /km flat pace')).toBeInTheDocument()
   })
 
   it('lists the ride best efforts this activity set, in watts', () => {
@@ -218,7 +225,7 @@ describe('ActivityPage', () => {
 
   it('lists only the durations this activity set', () => {
     renderPage(morningRun, resultWith({ runCurve: curveOf({ 300: 15.6 }) }))
-    expect(within(statFor('Best 5 min')).getByText('4:31 /km grade-adjusted')).toBeInTheDocument()
+    expect(within(statFor('Best 5 min')).getByText('4:31 /km flat pace')).toBeInTheDocument()
     expect(screen.queryByText('Best 1 min', { selector: 'dt' })).not.toBeInTheDocument()
     expect(screen.queryByText('Best 20 min', { selector: 'dt' })).not.toBeInTheDocument()
   })
@@ -238,7 +245,7 @@ describe('ActivityPage', () => {
         'None of your best efforts between 12 May and 3 Aug 2025 came from this activity.',
       ),
     ).toBeInTheDocument()
-    expect(screen.queryByText(/grade-adjusted/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/flat pace/)).not.toBeInTheDocument()
   })
 
   it('lists each data issue with the time range it covers', () => {
@@ -330,7 +337,7 @@ describe('ActivityPage records earned', () => {
     renderPage(morningRun, resultWith(), 'metric', held)
     const group = screen.getByRole('group', { name: 'All-time records' })
     expect(within(group).getByText('Best 5 min')).toBeTruthy()
-    expect(within(group).getByText('Best 60 min')).toBeTruthy()
+    expect(within(group).getByText('Best 1 hour')).toBeTruthy()
     expect(within(group).getByText('Best 5 km')).toBeTruthy()
     expect(within(group).queryByText(/more/)).toBeNull()
   })

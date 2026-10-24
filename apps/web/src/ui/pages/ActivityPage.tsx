@@ -17,7 +17,7 @@ import { RouteShape as RouteOutline } from '../components/RouteShape'
 import { SportIcon } from '../components/icons'
 import { keyByContent } from '../contentKeys'
 import { formatDay, formatTimeOfDay } from '../format/date'
-import { chipLabels, sportRecords } from '../records'
+import { chipLabels, recordDurationLabel, sportRecords } from '../records'
 import { hrefFor } from '../route'
 import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
@@ -26,6 +26,7 @@ import { useRouteShape } from '../useRouteShape'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { RunSplits } from './RunSplits'
 import './ActivityPage.css'
+import { FLAT_PACE_NOTE } from '../grades'
 
 export interface ActivityPageProps {
   /** The activity the URL names, or null when the library does not hold it. The period never hides one. */
@@ -192,12 +193,13 @@ export function ActivityPage({
             {bests.map((best) => (
               <Stat
                 key={best.durationS}
-                label={`Best ${formatDuration(best.durationS)}`}
-                value={isRun ? `${best.value} grade-adjusted` : best.value}
+                label={`Best ${recordDurationLabel(best.durationS)}`}
+                value={isRun ? `${best.value} flat pace` : best.value}
               />
             ))}
           </dl>
         )}
+        {isRun && bests.length > 0 && <p className="muted">{FLAT_PACE_NOTE}</p>}
       </section>
 
       {activity.flags.length > 0 && (

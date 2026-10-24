@@ -146,9 +146,9 @@ describe('SportRecords', () => {
     expect(screen.queryByText('Estimated')).not.toBeInTheDocument()
   })
 
-  it('marks a run’s pace GAP, in words', () => {
-    render(<SportRecords rows={[row({ value: '4:00 /km', tags: ['GAP'] })]} />)
-    expect(screen.getByText('GAP')).toBeInTheDocument()
+  it('marks a run’s pace Flat, in words', () => {
+    render(<SportRecords rows={[row({ value: '4:00 /km', tags: ['Flat'] })]} />)
+    expect(screen.getByText('Flat')).toBeInTheDocument()
   })
 })
 
@@ -162,8 +162,8 @@ describe('recordRow', () => {
     activity: morningRun,
   }
 
-  it('tags a run’s pace GAP, since it is grade-adjusted', () => {
-    expect(recordRow('run', record, { label: '20 min', grade: null }).tags).toEqual(['GAP'])
+  it('tags a run’s pace Flat, since it is a flat pace', () => {
+    expect(recordRow('run', record, { label: '20 min', grade: null }).tags).toEqual(['Flat'])
   })
 
   it('tags a ride’s watts estimated when they did not come from a power meter', () => {

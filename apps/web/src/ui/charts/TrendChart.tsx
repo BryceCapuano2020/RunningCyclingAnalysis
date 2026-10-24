@@ -148,7 +148,7 @@ function tooltipFor(row: WeekRow, x: number, y: number, view: View): TooltipCont
 /** The name of the chart: the unit, the effort and the window it is the best of. */
 function titleOf(sport: Sport, units: UnitSystem, effort: string, windowText: string): string {
   return sport === 'run'
-    ? `${SPORT_TITLE.run} grade-adjusted pace ${paceUnitName(units)}, best ${effort}, trailing ${windowText}`
+    ? `${SPORT_TITLE.run} flat pace ${paceUnitName(units)}, best ${effort}, trailing ${windowText}`
     : `${SPORT_TITLE.ride} power in watts, best ${effort}, trailing ${windowText}`
 }
 
@@ -171,7 +171,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
   return (
     <ChartFrame
       title={titleOf(sport, units, effort, windowText)}
-      description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'grade-adjusted pace, faster up'}.`}
+      description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'flat pace, faster up'}.`}
       note={`Each point is the best ${effort} in the ${windowText} to that Sunday. Each line steps from one Sunday to the next, and breaks where a week has no value.`}
       table={{
         columns: [

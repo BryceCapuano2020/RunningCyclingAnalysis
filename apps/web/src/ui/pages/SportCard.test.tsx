@@ -9,6 +9,7 @@ import { curvePoint } from '../charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
+  flatWkg,
   interval,
   makeActivity,
   makeEquivalence,
@@ -88,7 +89,7 @@ describe('SportCard grading link', () => {
     )
 
     const card = cardNamed('Run')
-    const line = card.querySelector('.sport-card__grade-line')
+    const line = card.querySelector('.age-grade__line')
     const link = within(card).getByRole('link', { name: 'How is this graded?' })
     expect(link).toHaveAttribute('href', '#/method')
     expect(line?.nextElementSibling).toBe(link)
@@ -171,7 +172,7 @@ describe('SportCard records', () => {
     expect(records).toHaveLength(3)
     expect(within(card).getByText('5 min')).toBeInTheDocument()
     expect(within(card).getByText('20 min')).toBeInTheDocument()
-    expect(within(card).getByText('1 h')).toBeInTheDocument()
+    expect(within(card).getByText('1 hour')).toBeInTheDocument()
     expect(within(card).queryByText('1 min')).not.toBeInTheDocument()
     expect(card.querySelector('.records__shared')).toHaveTextContent(
       'All set on Morning run, Mon 5 Jan',
@@ -258,14 +259,60 @@ describe('SportCard run grade', () => {
     )
 
     const card = cardNamed('Run')
-    expect(card.querySelector('.sport-card__grade-line')).toHaveTextContent(
+    expect(card.querySelector('.age-grade__line')).toHaveTextContent(
       'Local · 67% · on your best 20 min, 4:00 /km',
     )
     expect(within(card).queryByText(/Estimated age grade/)).not.toBeInTheDocument()
     expect(within(card).queryByText(/Estimated · /)).not.toBeInTheDocument()
   })
 
-  it('shows the ladder, a key to its solid dot, and the note that run pace is grade-adjusted', () => {
+  it('labels the hour record in words, as the sport page does', () => {
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(3600, flatWkg(4.5), 'run-1')],
+      }),
+    )
+
+    expect(within(cardNamed('Run')).getByText('1 hour')).toBeInTheDocument()
+  })
+
+  it('explains the Flat mark on a run card that has records but no grade, as without a profile', () => {
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(300, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      null,
+    )
+
+    const card = cardNamed('Run')
+    expect(within(card).getAllByText('Flat')).not.toHaveLength(0)
+    expect(
+      within(card).getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
+    ).toBeInTheDocument()
+  })
+
+  it('explains the Flat mark on a run card whose headline grade is a gap', () => {
+    // Five minutes but no twenty: the records show, and the grade line says why there is no grade.
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(300, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+    )
+
+    const card = cardNamed('Run')
+    expect(
+      within(card).getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the ladder, a key to its solid dot, and the note on the flat pace of a run', () => {
     renderCard(
       'run',
       makeResult({
@@ -284,14 +331,14 @@ describe('SportCard run grade', () => {
       within(card).getByText('Solid dot: the grade of one recorded effort.'),
     ).toBeInTheDocument()
     expect(
-      within(card).getByText('Pace is grade-adjusted (GAP): the flat pace with the same effort.'),
+      within(card).getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
     ).toBeInTheDocument()
     expect(
       within(card).getByText('Graded at age 40, on the USATF road standards.'),
     ).toBeInTheDocument()
   })
 
-  it('marks each run record’s pace GAP, so its pace reads as grade-adjusted', () => {
+  it('marks each run record’s pace Flat, so its pace reads as a flat pace', () => {
     renderCard(
       'run',
       makeResult({
@@ -299,7 +346,7 @@ describe('SportCard run grade', () => {
         runCurve: [curvePoint(1200, 3.6, 'run-1'), curvePoint(3600, 3.1, 'run-1')],
       }),
     )
-    expect(within(cardNamed('Run')).getAllByText('GAP')).toHaveLength(2)
+    expect(within(cardNamed('Run')).getAllByText('Flat')).toHaveLength(2)
   })
 
   it('asks for a best 20-minute effort when the run has none at that length', () => {
@@ -350,7 +397,7 @@ describe('SportCard ride grade', () => {
     )
 
     const card = cardNamed('Ride')
-    expect(card.querySelector('.sport-card__grade-line')).toHaveTextContent(
+    expect(card.querySelector('.age-grade__line')).toHaveTextContent(
       'Estimated · Local to Regional · 67% (63–71%) · on your best 20 min, 400 W, estimated',
     )
     expect(
@@ -383,7 +430,7 @@ describe('SportCard ride grade', () => {
     ).toBeInTheDocument()
     expect(
       within(cardNamed('Ride')).queryByText(
-        'Pace is grade-adjusted (GAP): the flat pace with the same effort.',
+        'Flat pace: your pace allowing for hills, as if on level ground.',
       ),
     ).not.toBeInTheDocument()
   })
@@ -430,7 +477,7 @@ describe('SportCard with no weight entered', () => {
     expect(within(card).queryByText(/W\/kg/)).not.toBeInTheDocument()
     expect(within(card).queryByText('400 W')).not.toBeInTheDocument()
     expect(within(card).queryByRole('listitem')).not.toBeInTheDocument()
-    expect(card.querySelector('.sport-card__grade-line')).toBeNull()
+    expect(card.querySelector('.age-grade__line')).toBeNull()
     expect(within(card).queryByRole('img')).toBeNull()
     expect(within(card).getByText(/Add your weight on/)).toBeInTheDocument()
     expect(within(card).getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
@@ -450,7 +497,7 @@ describe('SportCard with no weight entered', () => {
 
     const card = cardNamed('Run')
     expect(heroOf(card)).toBe('23:23 /km')
-    expect(card.querySelector('.sport-card__grade-line')).toHaveTextContent('Local · 67%')
+    expect(card.querySelector('.age-grade__line')).toHaveTextContent('Local · 67%')
     expect(within(card).queryByText(/Add your weight/)).not.toBeInTheDocument()
   })
 })

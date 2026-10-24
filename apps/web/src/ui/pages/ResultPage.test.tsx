@@ -53,7 +53,9 @@ describe('ResultPage age grades', () => {
     renderPage({ page: 'balance' }, 1986, 'male')
 
     const run = screen.getByRole('region', { name: 'Run' })
-    expect(within(run).getByText(/^Local · 67% · on your best 20 min/)).toBeInTheDocument()
+    expect(run.querySelector('.age-grade__line')).toHaveTextContent(
+      /^Local · 67% · on your best 20 min/,
+    )
     expect(
       screen.getByText(
         /^Graded for a \d+-year-old man on the USATF road standards\. A level, not a ranking\.$/,
@@ -415,7 +417,9 @@ describe('ResultPage sample athlete', () => {
       />,
     )
     const run = screen.getByRole('region', { name: 'Run' })
-    expect(within(run).getByText(/Local · \d+% · on your best 20 min/)).toBeInTheDocument()
+    expect(run.querySelector('.age-grade__line')).toHaveTextContent(
+      /Local · \d+% · on your best 20 min/,
+    )
     expect(screen.queryByText(PROFILE_PROMPT)).not.toBeInTheDocument()
     expect(screen.getByText('Sample athlete')).toBeInTheDocument()
   })
@@ -510,6 +514,6 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
         sex={null}
       />,
     )
-    expect(screen.getByRole('heading', { name: 'Fitness over time' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Best 20 min, week by week' })).toBeInTheDocument()
   })
 })

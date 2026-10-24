@@ -65,7 +65,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Running grade-adjusted pace per kilometre by duration' }),
+      screen.getByRole('figure', { name: 'Running flat pace per kilometre by duration' }),
     ).toBeInTheDocument()
     metric.unmount()
 
@@ -79,7 +79,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Running grade-adjusted pace per mile by duration' }),
+      screen.getByRole('figure', { name: 'Running flat pace per mile by duration' }),
     ).toBeInTheDocument()
     imperial.unmount()
 
@@ -108,7 +108,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/km), faster up',
+      'Flat pace (/km), faster up',
     )
     const labels = yTickLabels(container)
     expect(labels.every((label) => /^\d:\d{2}$/.test(label))).toBe(true)
@@ -133,7 +133,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/mi), faster up',
+      'Flat pace (/mi), faster up',
     )
     // 5.0 to 3.5 m/s is 5:22 to 7:40 a mile, so the minute ticks run from 5:00 to 8:00.
     expect(yTickLabels(container)).toEqual(['5:00', '6:00', '7:00', '8:00'])
@@ -332,7 +332,7 @@ describe('SportCurveChart', () => {
       />,
     )
     const { headers, rows } = tableOf(container)
-    expect(headers).toEqual(['Duration', 'Grade-adjusted pace', 'Previous 6 weeks', 'From'])
+    expect(headers).toEqual(['Duration', 'Flat pace', 'Previous 6 weeks', 'From'])
     // A minute at 4.8 m/s is 3:28 /km and 20 minutes at 3.8 m/s is 4:23 /km; five minutes has none before.
     expect(rows[0]?.[2]).toBe('3:28 /km')
     expect(rows[1]?.[2]).toBe('—')
@@ -364,7 +364,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(run.container.querySelector('caption')?.textContent).toBe(
-      'Best grade-adjusted pace at each duration, per kilometre.',
+      'Best flat pace at each duration, per kilometre.',
     )
     run.unmount()
     const ride = render(

@@ -4,6 +4,11 @@
   gap: var(--space-3);
 }
 
+/* The heading takes focus on a route change, so its ring keeps clear of the icon and the word. */
+.sport-page__title:focus-visible {
+  outline-offset: var(--space-2);
+}
+
 .sport-run .icon {
   color: var(--series-run);
 }

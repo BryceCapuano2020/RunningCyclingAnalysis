@@ -1,0 +1,4 @@
+/* A level with its percent, and a range, never break inside themselves. */
+.grade-sentence__unbroken {
+  white-space: nowrap;
+}

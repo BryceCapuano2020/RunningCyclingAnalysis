@@ -1,4 +1,9 @@
-import { HEADLINE_DURATION_S, PRIORS, RUN_RECORD_DISTANCES_M } from '@rca/core/constants'
+import {
+  HALF_MARATHON_M,
+  HEADLINE_DURATION_S,
+  PRIORS,
+  RUN_RECORD_DISTANCES_M,
+} from '@rca/core/constants'
 import type { RunRecordDistanceM } from '@rca/core/constants'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
@@ -18,7 +23,9 @@ import {
   METRES_PER_KM,
   METRES_PER_MILE,
   formatRecordTime,
+  formatDuration,
 } from '@rca/core/units'
+import { plural } from './components/plural'
 
 /** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
 export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
@@ -31,11 +38,18 @@ export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.filter(
   (durationS) => durationS >= 5 * 60,
 )
 
-/** A run record distance's name, derived from the distance: the mile, else whole kilometres. */
+/** A run record distance's name: the half marathon, the mile, else whole kilometres. */
 function distanceName(distanceM: RunRecordDistanceM): string {
+  if (distanceM === HALF_MARATHON_M) return 'half marathon'
   return distanceM === METRES_PER_MILE
     ? `${distanceM / METRES_PER_MILE} mi`
     : `${distanceM / METRES_PER_KM} km`
+}
+
+/** A record's duration as its label: "20 min", or "1 hour" for a whole hour. */
+export function recordDurationLabel(durationS: number): string {
+  const wholeHours = durationS >= 3600 && durationS % 3600 === 0
+  return wholeHours ? plural(durationS / 3600, 'hour') : formatDuration(durationS)
 }
 
 export interface SportNumber {
@@ -57,10 +71,7 @@ export interface SportRecord extends SportNumber {
 
 type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
 
-/**
- * A running value (gross metabolic W/kg) as the flat pace with the same cost, which athletes know
- * as grade-adjusted pace.
- */
+/** A running value (gross metabolic W/kg) as the flat pace with the same cost. */
 function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
   const speed = metabolicToFlatSpeed(metabolicWkg)
   return {
@@ -70,10 +81,7 @@ function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
   }
 }
 
-/**
- * A running value (gross metabolic W/kg) as the flat pace with the same cost, which athletes know
- * as grade-adjusted pace. The one place a pace is formatted: the figure's value.
- */
+/** A running value (gross metabolic W/kg) as its flat pace. The one place a pace is formatted. */
 export function runPace(metabolicWkg: number, units: UnitSystem): string {
   return paceFigure(metabolicWkg, units).value
 }
@@ -107,6 +115,11 @@ export function nativeCurve(sport: Sport, curves: SportCurves): Curve {
     activityId: point.activityId,
     startIndex: point.startIndex,
   }))
+}
+
+/** The value at a duration on a curve, in the curve's own unit; NaN when the curve has none there. */
+export function valueAt(curve: Curve, durationS: number): number {
+  return curve.find((point) => point.durationS === durationS)?.value ?? Number.NaN
 }
 
 /** The effort lengths the sport page's trend offers, as segment values and their labels. */
@@ -166,6 +179,16 @@ export function sportRecords(
     )
   }
   return records
+}
+
+/**
+ * The headline effort's figure as the grade line names it, such as "6:37 /mi", with "estimated" when
+ * a ride's watts did not come from a power meter. Null when there is no headline effort.
+ */
+export function headlineEffort(sport: Sport, records: readonly SportRecord[]): string | null {
+  const headline = records.find((record) => record.durationS === HEADLINE_DURATION_S)
+  if (headline === undefined) return null
+  return `${headline.value}${isEstimatedRecord(sport, headline.activity) ? ', estimated' : ''}`
 }
 
 export function countSport(activities: ActivitySummary[], sport: Sport): number {
@@ -251,7 +274,7 @@ export function chipLabels(records: readonly EarnedRecord[]): string[] {
     if (record.kind === 'distance') {
       labels.push(`Best ${distanceName(record.distanceM)}`)
     } else if (CHIP_DURATIONS_S.includes(record.durationS)) {
-      labels.push(`Best ${Math.round(record.durationS / 60)} min`)
+      labels.push(`Best ${recordDurationLabel(record.durationS)}`)
     }
   }
   return labels

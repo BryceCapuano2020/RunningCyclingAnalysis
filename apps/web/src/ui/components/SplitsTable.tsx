@@ -10,6 +10,7 @@ import {
 import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '@rca/core/constants'
 import { SPLITS_NOT_LOADED } from '../analysis/copy'
 import './SplitsTable.css'
+import { FLAT_PACE_NOTE } from '../grades'
 
 /** What the page knows about one run's splits: still loading, not loaded, or loaded. */
 export type SplitsLoad =
@@ -52,7 +53,7 @@ function Missing({ words }: { words: string }) {
 /**
  * The rows in display form. A split whose time is unknown has no pace, so it is not marked fastest
  * and does not set the bar scale. Elevation is shown whenever the activity has altitude, even when
- * its grade-adjusted time is unknown.
+ * its flat pace is unknown.
  */
 function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
   const unitMetres = units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM
@@ -130,7 +131,7 @@ function SplitTable({ cells, caption }: { cells: SplitCells[]; caption: string }
               Pace
             </th>
             <th scope="col" className="num">
-              Grade-adjusted pace
+              Flat pace
             </th>
             <th scope="col" className="num">
               Elevation gain
@@ -167,7 +168,7 @@ function SplitItem({ cell }: { cell: SplitCells }) {
           </dd>
         </div>
         <div>
-          <dt>Grade-adjusted pace</dt>
+          <dt>Flat pace</dt>
           <dd>{cell.gradeAdjustedPace ?? <Missing words="Not available" />}</dd>
         </div>
         <div>
@@ -223,6 +224,7 @@ function SplitsRows({
     <>
       <SplitTable cells={cells} caption={caption} />
       <SplitList cells={cells} caption={caption} />
+      <p className="muted">{FLAT_PACE_NOTE}</p>
     </>
   )
 }
@@ -239,7 +241,9 @@ export function SplitsTable({ load, units, distanceM }: SplitsTableProps) {
       ) : load.splits === null ? (
         <p className="secondary">Splits were not kept when this run was added.</p>
       ) : (
-        <SplitsRows splits={load.splits} units={units} distanceM={distanceM} />
+        <>
+          <SplitsRows splits={load.splits} units={units} distanceM={distanceM} />
+        </>
       )}
     </section>
   )
