@@ -24,6 +24,22 @@ export const MAX_MILE_SPLITS = 320
 /** The duration, s, that the headline and the fitness trend describe: 20 minutes. */
 export const HEADLINE_DURATION_S = 1200
 
+/** The shortest and longest efforts, s, the critical-power fit uses: 3 to 20 minutes. */
+export const CP_FIT_MIN_S = 180
+export const CP_FIT_MAX_S = 1200
+
+/** The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. */
+export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
+  180,
+  300,
+  600,
+  HEADLINE_DURATION_S,
+  1800,
+  3600,
+]
+/** The shortest ride, s, that an equivalence is worked out for. */
+export const EQUIVALENCE_MIN_S = EQUIVALENCE_DURATIONS_S[0]!
+
 export const DAY_MS = 86_400_000
 
 export const G = 9.80665

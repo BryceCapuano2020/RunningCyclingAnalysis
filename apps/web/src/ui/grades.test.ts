@@ -18,6 +18,7 @@ import {
   NO_STANDARD_TEXT,
   SEX_NOUN,
   athleteOf,
+  gradeRangeBracket,
   gradeSentence,
   gradedSexOf,
   headlineGrades,
@@ -225,10 +226,22 @@ describe('headline grades and the sex they are for', () => {
     expect(gradedSexOf(headlineGrades(none, MAN_BORN_1986), MAN_BORN_1986)).toBeNull()
     expect(gradedSexOf(null, null)).toBeNull()
   })
+
+  it('does not count a ride whose grade is held, when the ride is not on screen', () => {
+    const rideOnly = makeResult({
+      activities: [makeActivity({ id: 'ride-1', sport: 'ride', startMs: IN_2026 })],
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+      equivalents: [makeEquivalence({ runSpeed: interval(3.9, FIVE_K_SPEED, 4.4) })],
+    })
+    const headline = headlineGrades(rideOnly, MAN_BORN_1986)
+    expect(headline.ride.kind).toBe('graded')
+    expect(gradedSexOf(headline, MAN_BORN_1986)).toBe('male')
+    expect(gradedSexOf(headline, MAN_BORN_1986, false)).toBeNull()
+  })
 })
 
 describe('grade sentences', () => {
-  it('states a run grade as an estimate, with its level', () => {
+  it('reads a run grade as recorded, with its level and whole percent, and no estimate word', () => {
     const grade = gradeOf(
       sportGrade(
         makeResult({ runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')] }),
@@ -237,10 +250,57 @@ describe('grade sentences', () => {
         MAN_BORN_1986,
       ),
     )
-    expect(gradeSentence(grade)).toBe('Estimated age grade 67% · Local')
+    expect(gradeSentence('run', grade)).toBe('Local · 67%')
   })
 
-  it('adds a ride’s range in brackets', () => {
+  it('names both levels when a ride range crosses a band boundary', () => {
+    const grade: SportGrade = {
+      centre: { grade: 0.6, level: 'Local' },
+      range: {
+        low: { grade: 0.55, level: 'Recreational' },
+        high: { grade: 0.64, level: 'Local' },
+      },
+    }
+    expect(gradeSentence('ride', grade)).toBe('Estimated · Recreational to Local · 60% (55–64%)')
+  })
+
+  it('says a ride record is graded through its running equivalent, and a run record is not', () => {
+    const ride: SportGrade = {
+      centre: { grade: 0.6, level: 'Local' },
+      range: {
+        low: { grade: 0.55, level: 'Recreational' },
+        high: { grade: 0.64, level: 'Local' },
+      },
+    }
+    expect(gradeSentence('ride', ride, 'record')).toBe(
+      'Estimated through its running equivalent · Recreational to Local · 60% (55–64%)',
+    )
+    expect(
+      gradeSentence('run', { centre: { grade: 0.676, level: 'Local' }, range: null }, 'record'),
+    ).toBe('Local · 67%')
+  })
+
+  it('brackets a ride range on its own, so a card can keep it on one line', () => {
+    const grade: SportGrade = {
+      centre: { grade: 0.6, level: 'Local' },
+      range: {
+        low: { grade: 0.55, level: 'Recreational' },
+        high: { grade: 0.64, level: 'Local' },
+      },
+    }
+    expect(gradeRangeBracket(grade)).toBe(' (55–64%)')
+    expect(gradeRangeBracket({ centre: { grade: 0.6, level: 'Local' }, range: null })).toBe('')
+  })
+
+  it('names one level when the whole range sits in one band', () => {
+    const grade: SportGrade = {
+      centre: { grade: 0.66, level: 'Local' },
+      range: { low: { grade: 0.63, level: 'Local' }, high: { grade: 0.69, level: 'Local' } },
+    }
+    expect(gradeSentence('ride', grade)).toBe('Estimated · Local · 66% (63–69%)')
+  })
+
+  it('reads a ride grade as estimated, with its range in brackets', () => {
     const grade = gradeOf(
       sportGrade(
         makeResult({
@@ -253,12 +313,22 @@ describe('grade sentences', () => {
         MAN_BORN_1986,
       ),
     )
-    expect(gradeSentence(grade)).toBe('Estimated age grade 66% · Local (62–70%)')
+    // The range runs from 62% (Local) to 70% (Regional), so both levels are named.
+    expect(gradeSentence('ride', grade)).toBe('Estimated · Local to Regional · 66% (62–70%)')
   })
 
   it('gives no sentence for a gap', () => {
     const gap: GradeOutcome = { kind: 'gap', reason: NEEDS_EFFORT_TEXT }
-    expect(outcomeSentence(gap)).toBeNull()
+    expect(outcomeSentence('run', gap)).toBeNull()
+  })
+
+  it('gives the sentence of a graded outcome in the sport’s reading', () => {
+    const graded: GradeOutcome = {
+      kind: 'graded',
+      age: 40,
+      grade: { centre: { grade: 0.676, level: 'Local' }, range: null },
+    }
+    expect(outcomeSentence('run', graded)).toBe('Local · 67%')
   })
 })
 

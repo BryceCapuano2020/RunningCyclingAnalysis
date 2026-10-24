@@ -34,8 +34,7 @@ afterEach(() => {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
-const PROFILE_PROMPT =
-  'Add your year of birth and sex on your profile to see the balance in points and levels.'
+const PROFILE_PROMPT = 'Add year of birth and sex'
 
 function renderPage(
   result: AnalysisResult = makeResult(),
@@ -141,10 +140,10 @@ describe('BalancePage', () => {
   it('shows the bike on foot in the cross-sport card, which opens to every duration', () => {
     renderPage(makeResult({ equivalents: [makeEquivalence()] }))
 
-    const card = screen.getByRole('region', { name: 'On foot, your bike is worth 4:10 /km' })
+    const card = screen.getByRole('region', { name: 'On foot, your ride is worth 4:10 /km' })
     expect(within(card).getByText('See every duration')).toBeInTheDocument()
     expect(
-      screen.queryByRole('region', { name: 'Your bike on foot, at every duration' }),
+      screen.queryByRole('region', { name: 'Your ride on foot, at every duration' }),
     ).not.toBeInTheDocument()
   })
 
@@ -238,11 +237,12 @@ describe('BalancePage', () => {
     expect(within(section).getByText(/^Each point grades your best 20 minutes/)).toBeInTheDocument()
   })
 
-  it('links to how sure the answer is once, from the evidence card', () => {
+  it('links to the method page once, from the evidence card, whatever the card says to do', () => {
     renderPage()
-    const links = screen.getAllByRole('link', { name: 'How sure is this?' })
+    const links = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href') === '#/method')
     expect(links).toHaveLength(1)
-    expect(links[0]).toHaveAttribute('href', '#/method')
   })
 
   it('offers the square and story image downloads while the analysis is idle', () => {
@@ -273,7 +273,7 @@ describe('BalancePage age grades', () => {
 
     expect(
       within(screen.getByRole('region', { name: 'Run' })).getByText(
-        'Estimated age grade 67% · Local',
+        /^Local · 67% · on your best 20 min/,
       ),
     ).toBeInTheDocument()
   })
@@ -296,11 +296,48 @@ describe('BalancePage age grades', () => {
 
     const source = screen.getByText(/^Graded on the/)
     expect(source).toHaveTextContent(
-      'Graded on the USATF road age standards (2025), by Alan Jones and Tom Bernhard, licensed CC0 1.0, for a man. Age is counted from your birth year on the date of each effort. Rides are graded through their running equivalent. A level, not a ranking.',
+      'Graded on the USATF road age standards (2025), by Alan Jones and Tom Bernhard, licensed CC0 1.0, for a man. Age is counted from your birth year on the date of each effort. A level, not a ranking.',
     )
     expect(
       within(source).getByRole('link', { name: 'USATF road age standards (2025)' }),
     ).toHaveAttribute('href', ROAD_STANDARDS_SOURCE.url)
+  })
+
+  it('says rides are graded through their running equivalent only when a ride grade is shown', () => {
+    renderPage(
+      makeResult({
+        equivalents: [makeEquivalence()],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+      }),
+      {},
+      MAN_BORN_1986,
+    )
+    expect(screen.getByText(/^Graded on the/)).toHaveTextContent(
+      'Rides are graded through their running equivalent.',
+    )
+  })
+
+  it('holds the cross-sport idea without a weight, with the same prompt as the cards', () => {
+    renderPage(makeResult({ equivalents: [makeEquivalence()] }), {}, null, false)
+    expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
+    expect(screen.queryByText(/4:10/)).not.toBeInTheDocument()
+  })
+
+  it('names no ride grade and no standards line without a weight, though the ride is graded', () => {
+    renderPage(
+      makeResult({
+        equivalents: [makeEquivalence()],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+      }),
+      {},
+      MAN_BORN_1986,
+      false,
+    )
+    // The ride's grade is held with its card, so nothing graded is on screen to cite a standard for.
+    expect(screen.queryByText(/^Graded on the/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/Rides are graded through their running equivalent/),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the standards line only when a grade is shown', () => {
@@ -326,13 +363,17 @@ describe('BalancePage age grades', () => {
 })
 
 describe('BalancePage with no weight entered', () => {
-  it('holds the balance and asks for the weight once, on a line that links to Profile', () => {
+  it('holds the balance and the ride figures, and links each prompt for the weight to Profile', () => {
     renderPage(makeResult(), {}, null, false)
     expect(
       screen.getByRole('heading', { level: 1, name: 'Your balance waits for your weight' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
-    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+    const prompts = screen.getAllByRole('link', { name: 'Profile' })
+    expect(prompts.length).toBeGreaterThanOrEqual(1)
+    for (const prompt of prompts) expect(prompt).toHaveAttribute('href', '#/profile')
+    expect(screen.getByRole('region', { name: 'Ride' })).toHaveTextContent(
+      'Add your weight on Profile to see ride figures.',
+    )
   })
 
   it('shows the balance, and no prompt for the weight, once a weight is entered', () => {

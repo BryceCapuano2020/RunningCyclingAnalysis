@@ -4,6 +4,13 @@
   max-width: 62ch;
 }
 
+/* The one prompt for a missing year of birth or sex: a short line and the button that acts on it. */
+.balance__profile {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
 .balance__sports,
 .balance__cards {
   display: grid;

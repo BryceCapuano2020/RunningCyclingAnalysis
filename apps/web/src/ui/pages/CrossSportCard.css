@@ -1,0 +1,25 @@
+/*
+ * The cross-sport idea is a quiet section, not a bordered card: it is something to read, not an
+ * action, so only the evidence card's gap is boxed beside it.
+ */
+.cross-sport {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+/* The glyph pair: a ride, then the run it is worth. The pair is decoration; the headline says it. */
+.cross-sport__pair {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.cross-sport__pair .icon:first-child {
+  color: var(--series-ride);
+}
+
+.cross-sport__pair .icon:last-child {
+  color: var(--series-run);
+}

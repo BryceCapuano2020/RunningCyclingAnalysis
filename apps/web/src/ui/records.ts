@@ -23,8 +23,11 @@ import {
 /** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
 export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
 
-/** The durations that earn a chip: 5, 20 and 60 minutes. The one-minute best is page-only. */
-const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.filter(
+/**
+ * The durations that earn a chip, and that a Balance card lists: 5, 20 and 60 minutes. The
+ * one-minute best is page-only.
+ */
+export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.filter(
   (durationS) => durationS >= 5 * 60,
 )
 
@@ -167,6 +170,14 @@ export function sportRecords(
 
 export function countSport(activities: ActivitySummary[], sport: Sport): number {
   return activities.filter((activity) => activity.sport === sport).length
+}
+
+/**
+ * Whether a record's figure is estimated: a ride's watts that did not come from a power meter, or
+ * from an activity that is not in the result, so its power source is unknown. A run is never tagged.
+ */
+export function isEstimatedRecord(sport: Sport, activity: ActivitySummary | null): boolean {
+  return sport === 'ride' && activity?.powerSource !== 'measured'
 }
 
 /** The equivalence to feature: 20 minutes when there is one, else the longest effort below it. */

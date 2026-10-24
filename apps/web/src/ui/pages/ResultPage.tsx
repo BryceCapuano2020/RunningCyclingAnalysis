@@ -13,7 +13,7 @@ import type { AnalysisController } from '../useAnalysis'
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
-import { WeightNote } from '../components/WeightNote'
+import { ProfileFootnote } from '../components/ProfileFootnote'
 import { MethodPage } from './MethodPage'
 import { SportPage } from './SportPage'
 
@@ -54,9 +54,19 @@ export function ResultPage({
   birthYear,
   sex,
 }: ResultPageProps) {
-  const { rangeDays, totalActivities } = analysis.state
+  const { isSample, rangeDays, totalActivities } = analysis.state
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
   const profile = ageProfileOf(birthYear, sex)
+  // What the results are based on, at each page's foot. The sample has its own persona, so none.
+  // The weight is named only once it is entered; settings then carries the athlete's own weight.
+  const footnote = isSample ? null : (
+    <ProfileFootnote
+      massKg={weightKnown ? settings.massKg : null}
+      units={units}
+      birthYear={birthYear}
+      sex={sex}
+    />
+  )
   const period = (
     <RangePicker
       rangeDays={rangeDays}
@@ -69,22 +79,21 @@ export function ResultPage({
     case 'run':
     case 'ride':
       return (
-        <>
-          {route.page === 'ride' && !weightKnown && <WeightNote />}
-          <SportPage
-            key={route.page}
-            sport={route.page}
-            result={result}
-            previous={analysis.state.previous}
-            previousLabel={previousPeriodLabel(rangeDays)}
-            trends={analysis.state.effortTrends}
-            windowDays={trendWindowDays(rangeDays)}
-            units={units}
-            massKg={settings.massKg}
-            profile={profile}
-            controls={period}
-          />
-        </>
+        <SportPage
+          key={route.page}
+          sport={route.page}
+          result={result}
+          previous={analysis.state.previous}
+          previousLabel={previousPeriodLabel(rangeDays)}
+          trends={analysis.state.effortTrends}
+          windowDays={trendWindowDays(rangeDays)}
+          units={units}
+          massKg={settings.massKg}
+          weighted={weightKnown}
+          profile={profile}
+          controls={period}
+          footnote={footnote}
+        />
       )
     case 'activities':
       return (
@@ -121,6 +130,7 @@ export function ResultPage({
           units={units}
           profile={profile}
           controls={period}
+          footnote={footnote}
         />
       )
   }

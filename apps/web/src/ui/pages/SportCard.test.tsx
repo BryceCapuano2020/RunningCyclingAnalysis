@@ -43,6 +43,7 @@ const rideOnFriday = makeActivity({
   name: 'Hill ride',
   sport: 'ride',
   startMs: new Date(2026, 0, 9, 17, 0).getTime(),
+  powerSource: 'virtual',
 })
 
 /** The card, given the profile the page would pass; null is a profile without a year or sex. */
@@ -51,9 +52,19 @@ function renderCard(
   result: AnalysisResult,
   units: UnitSystem = 'metric',
   profile: AgeProfile | null = MAN_BORN_1986,
+  weighted = true,
 ) {
   const grade = profile === null ? null : headlineGrades(result, profile)[sport]
-  return render(<SportCard sport={sport} result={result} units={units} massKg={75} grade={grade} />)
+  return render(
+    <SportCard
+      sport={sport}
+      result={result}
+      units={units}
+      massKg={75}
+      grade={grade}
+      weighted={weighted}
+    />,
+  )
 }
 
 /** The card for one sport, named by its heading. */
@@ -61,8 +72,13 @@ function cardNamed(name: 'Run' | 'Ride'): HTMLElement {
   return screen.getByRole('region', { name })
 }
 
+/** The hero figure's text, its number and unit read together, such as "23:23 /km". */
+function heroOf(card: HTMLElement): string | null | undefined {
+  return card.querySelector('.hero-number')?.textContent
+}
+
 describe('SportCard without activities of its sport', () => {
-  it('says runs are needed to see the running balance, and still links to the running records', () => {
+  it('says runs are needed to see the running balance, with no link to empty records', () => {
     renderCard('run', makeResult({ activities: [rideOnFriday], runCurve: [] }))
 
     const card = cardNamed('Run')
@@ -70,10 +86,7 @@ describe('SportCard without activities of its sport', () => {
       within(card).getByText('Add runs to see your running and your balance.'),
     ).toBeInTheDocument()
     expect(within(card).queryByText('Threshold pace, estimated')).not.toBeInTheDocument()
-    expect(within(card).getByRole('link', { name: 'All running records' })).toHaveAttribute(
-      'href',
-      '#/run',
-    )
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('says rides are needed to see the cycling balance', () => {
@@ -83,10 +96,7 @@ describe('SportCard without activities of its sport', () => {
     expect(
       within(card).getByText('Add rides to see your cycling and your balance.'),
     ).toBeInTheDocument()
-    expect(within(card).getByRole('link', { name: 'All cycling records' })).toHaveAttribute(
-      'href',
-      '#/ride',
-    )
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument()
   })
 })
 
@@ -96,12 +106,28 @@ describe('SportCard threshold', () => {
 
     const card = cardNamed('Run')
     expect(within(card).getByText('Threshold pace, estimated')).toBeInTheDocument()
-    expect(within(card).getByText('23:23 /km')).toBeInTheDocument()
+    expect(heroOf(card)).toBe('23:23 /km')
+  })
+
+  it('says in plain words what the threshold is, under the number', () => {
+    renderCard('run', makeResult({ activities: [runOnMonday] }))
+    expect(
+      within(cardNamed('Run')).getByText(
+        'The pace you could hold for a long, steady effort, estimated from your best 3 to 20 min efforts.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('shows the running threshold in miles for imperial', () => {
     renderCard('run', makeResult({ activities: [runOnMonday] }), 'imperial')
-    expect(within(cardNamed('Run')).getByText('37:38 /mi')).toBeInTheDocument()
+    expect(heroOf(cardNamed('Run'))).toBe('37:38 /mi')
+  })
+
+  it('sets the unit in a smaller span beside the number, so the number stays the hero', () => {
+    renderCard('run', makeResult({ activities: [runOnMonday] }))
+    const unit = cardNamed('Run').querySelector('.hero-number__unit')
+    expect(unit).toHaveTextContent('/km')
+    expect(unit?.closest('.hero-number')).not.toBeNull()
   })
 
   it('shows the cycling threshold in watts with its W/kg for the body mass', () => {
@@ -109,7 +135,7 @@ describe('SportCard threshold', () => {
 
     const card = cardNamed('Ride')
     expect(within(card).getByText('Threshold power, estimated')).toBeInTheDocument()
-    expect(within(card).getByText('48 W')).toBeInTheDocument()
+    expect(heroOf(card)).toBe('48 W')
     expect(within(card).getByText('0.6 W/kg')).toBeInTheDocument()
   })
 
@@ -117,7 +143,7 @@ describe('SportCard threshold', () => {
     renderCard('run', makeResult({ activities: [runOnMonday], runCp: null }))
 
     const card = cardNamed('Run')
-    expect(within(card).getByText('Needs a hard effort of 2 to 20 min.')).toBeInTheDocument()
+    expect(within(card).getByText('Needs a hard effort of 3 to 20 min.')).toBeInTheDocument()
     expect(card.querySelector('.hero-number')).toBeNull()
   })
 
@@ -125,13 +151,13 @@ describe('SportCard threshold', () => {
     renderCard('ride', makeResult({ activities: [rideOnFriday], rideCp: null }))
 
     const card = cardNamed('Ride')
-    expect(within(card).getByText('Needs a hard effort of 2 to 20 min.')).toBeInTheDocument()
+    expect(within(card).getByText('Needs a hard effort of 3 to 20 min.')).toBeInTheDocument()
     expect(within(card).queryByText(/W\/kg/)).not.toBeInTheDocument()
   })
 })
 
 describe('SportCard records', () => {
-  it('lists the 5, 20 and 60 minute bests, each with the friendly day it was set', () => {
+  it('lists the 5, 20 and 60 minute bests, and names the one activity that set them all', () => {
     renderCard(
       'run',
       makeResult({
@@ -152,19 +178,24 @@ describe('SportCard records', () => {
     expect(within(card).getByText('20 min')).toBeInTheDocument()
     expect(within(card).getByText('1 h')).toBeInTheDocument()
     expect(within(card).queryByText('1 min')).not.toBeInTheDocument()
+    expect(card.querySelector('.records__shared')).toHaveTextContent(
+      'All set on Morning run, Mon 5 Jan',
+    )
   })
 
-  it('links each record to the activity that set it, named with the day it was set', () => {
+  it('links a record to the activity that set it, named with its duration and the day', () => {
     renderCard(
       'run',
       makeResult({
         activities: [runOnMonday],
-        runCurve: [curvePoint(1200, 3.6, 'run-1')],
+        runCurve: [curvePoint(1200, 3.6, 'run-1'), curvePoint(3600, 3.1, 'other')],
       }),
     )
 
     expect(
-      within(cardNamed('Run')).getByRole('link', { name: 'Morning run, Mon 5 Jan' }),
+      within(cardNamed('Run')).getByRole('link', {
+        name: '20 min, from Morning run, Mon 5 Jan',
+      }),
     ).toHaveAttribute('href', '#/activities/run-1')
   })
 
@@ -179,7 +210,7 @@ describe('SportCard records', () => {
 
     const card = cardNamed('Run')
     expect(within(card).getByText('20 min')).toBeInTheDocument()
-    expect(within(card).queryByRole('link', { name: /Mon 5 Jan/ })).not.toBeInTheDocument()
+    expect(within(card).queryByRole('link', { name: /Morning run/ })).not.toBeInTheDocument()
   })
 
   it('shows cycling records in watts, linked to the ride that set them', () => {
@@ -193,10 +224,26 @@ describe('SportCard records', () => {
 
     const card = cardNamed('Ride')
     expect(within(card).getByText('400 W')).toBeInTheDocument()
-    expect(within(card).getByRole('link', { name: 'Hill ride, Fri 9 Jan' })).toHaveAttribute(
-      'href',
-      '#/activities/ride-1',
+    expect(
+      within(card).getByRole('link', { name: '5 min, from Hill ride, Fri 9 Jan' }),
+    ).toHaveAttribute('href', '#/activities/ride-1')
+  })
+
+  it('tags a cycling record estimated when its watts came from virtual power', () => {
+    renderCard(
+      'ride',
+      makeResult({ activities: [rideOnFriday], rideCurve: [curvePoint(300, 400, 'ride-1')] }),
     )
+    expect(within(cardNamed('Ride')).getByText('Estimated')).toBeInTheDocument()
+  })
+
+  it('leaves the tag off a cycling record whose watts were measured', () => {
+    const measured = makeActivity({ ...rideOnFriday, powerSource: 'measured' })
+    renderCard(
+      'ride',
+      makeResult({ activities: [measured], rideCurve: [curvePoint(300, 400, 'ride-1')] }),
+    )
+    expect(within(cardNamed('Ride')).queryByText('Estimated')).not.toBeInTheDocument()
   })
 
   it('shows no record list when the sport has no best efforts at those durations', () => {
@@ -206,7 +253,7 @@ describe('SportCard records', () => {
 })
 
 describe('SportCard run grade', () => {
-  it('shows the estimate under the hero, with its ladder and what it rests on', () => {
+  it('names the effort the grade is for on the grade line, and reads the grade as recorded', () => {
     renderCard(
       'run',
       makeResult({
@@ -216,18 +263,48 @@ describe('SportCard run grade', () => {
     )
 
     const card = cardNamed('Run')
-    expect(within(card).getByText('Estimated age grade 67% · Local')).toBeInTheDocument()
+    expect(card.querySelector('.sport-card__grade-line')).toHaveTextContent(
+      'Local · 67% · on your best 20 min, 4:00 /km',
+    )
+    expect(within(card).queryByText(/Estimated age grade/)).not.toBeInTheDocument()
+    expect(within(card).queryByText(/Estimated · /)).not.toBeInTheDocument()
+  })
+
+  it('shows the ladder, a key to its solid dot, and the note that run pace is grade-adjusted', () => {
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+    )
+
+    const card = cardNamed('Run')
     expect(
       within(card).getByRole('img', {
-        name: 'Estimated age grade 67%, Local, from one activity, on the USATF road standards.',
+        name: 'Age grade 67%, Local, from your best 20 min, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
     expect(
-      within(card).getByText(
-        'Estimate from your best 20 min, aged 40, on the USATF road standards.',
-      ),
+      within(card).getByText('Solid dot: the grade of one recorded effort.'),
     ).toBeInTheDocument()
-    expect(within(card).queryByText(/Graded through its running equivalent/)).toBeNull()
+    expect(
+      within(card).getByText('Pace is grade-adjusted (GAP): the flat pace with the same effort.'),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText('Graded at age 40, on the USATF road standards.'),
+    ).toBeInTheDocument()
+  })
+
+  it('marks each run record’s pace GAP, so its pace reads as grade-adjusted', () => {
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(1200, 3.6, 'run-1'), curvePoint(3600, 3.1, 'run-1')],
+      }),
+    )
+    expect(within(cardNamed('Run')).getAllByText('GAP')).toHaveLength(2)
   })
 
   it('asks for a best 20-minute effort when the run has none at that length', () => {
@@ -262,7 +339,7 @@ describe('SportCard run grade', () => {
 })
 
 describe('SportCard ride grade', () => {
-  it('shows the centre grade with its range, and says it is graded through its running equivalent', () => {
+  it('names the effort and its watts, and marks the grade and the watts as estimated', () => {
     renderCard(
       'ride',
       makeResult({
@@ -278,13 +355,42 @@ describe('SportCard ride grade', () => {
     )
 
     const card = cardNamed('Ride')
-    expect(within(card).getByText('Estimated age grade 67% · Local (63–71%)')).toBeInTheDocument()
-    expect(within(card).getByText(/Graded through its running equivalent/)).toBeInTheDocument()
+    expect(card.querySelector('.sport-card__grade-line')).toHaveTextContent(
+      'Estimated · Local to Regional · 67% (63–71%) · on your best 20 min, 400 W, estimated',
+    )
     expect(
       within(card).getByRole('img', {
-        name: 'Estimated age grade 67%, Local, range 63% to 71%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local to Regional, from your best 20 min, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
+    expect(within(card).getByText('Ring: estimated, with its range.')).toBeInTheDocument()
+  })
+
+  it('says it is graded through its running equivalent, and that the range is the 90% model range', () => {
+    renderCard(
+      'ride',
+      makeResult({
+        activities: [rideOnFriday],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+        equivalents: [
+          makeEquivalence({
+            durationS: HEADLINE_DURATION_S,
+            runSpeed: interval(3.9, 5000 / HEADLINE_DURATION_S, 4.4),
+          }),
+        ],
+      }),
+    )
+
+    expect(
+      within(cardNamed('Ride')).getByText(
+        'Graded through its running equivalent, at age 40, on the USATF road standards. The range is the 90% model range.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(cardNamed('Ride')).queryByText(
+        'Pace is grade-adjusted (GAP): the flat pace with the same effort.',
+      ),
+    ).not.toBeInTheDocument()
   })
 
   it('says the ride has no running equivalent to grade when its best effort has none', () => {
@@ -304,6 +410,56 @@ describe('SportCard ride grade', () => {
   })
 })
 
+describe('SportCard with no weight entered', () => {
+  it('holds the ride threshold, its watts and W/kg, its grade and its records, and asks for the weight', () => {
+    renderCard(
+      'ride',
+      makeResult({
+        activities: [rideOnFriday],
+        rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+        equivalents: [
+          makeEquivalence({
+            durationS: HEADLINE_DURATION_S,
+            runSpeed: interval(3.9, 5000 / HEADLINE_DURATION_S, 4.4),
+          }),
+        ],
+      }),
+      'metric',
+      MAN_BORN_1986,
+      false,
+    )
+
+    const card = cardNamed('Ride')
+    expect(within(card).getByText('Threshold power, estimated')).toBeInTheDocument()
+    expect(card.querySelector('.hero-number')).toBeNull()
+    expect(within(card).queryByText(/W\/kg/)).not.toBeInTheDocument()
+    expect(within(card).queryByText('400 W')).not.toBeInTheDocument()
+    expect(within(card).queryByRole('listitem')).not.toBeInTheDocument()
+    expect(card.querySelector('.sport-card__grade-line')).toBeNull()
+    expect(within(card).queryByRole('img')).toBeNull()
+    expect(within(card).getByText(/Add your weight on/)).toBeInTheDocument()
+    expect(within(card).getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+  })
+
+  it('still shows the run, its threshold and its grade, because the run does not need the weight', () => {
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+      false,
+    )
+
+    const card = cardNamed('Run')
+    expect(heroOf(card)).toBe('23:23 /km')
+    expect(card.querySelector('.sport-card__grade-line')).toHaveTextContent('Local · 67%')
+    expect(within(card).queryByText(/Add your weight/)).not.toBeInTheDocument()
+  })
+})
+
 describe('SportCard without the year of birth or sex', () => {
   it.each(['run', 'ride'] as const)(
     'shows no grade and no prompt on the %s card, because the balance page asks once',
@@ -318,7 +474,17 @@ describe('SportCard without the year of birth or sex', () => {
       const card = cardNamed(sport === 'run' ? 'Run' : 'Ride')
       expect(within(card).queryByRole('img')).toBeNull()
       expect(within(card).queryByRole('link', { name: /age-graded levels/ })).toBeNull()
-      expect(within(card).queryByText(/Estimated age grade/)).toBeNull()
+      expect(within(card).queryByText(/Age grade/)).toBeNull()
     },
   )
+})
+
+describe('SportCard links', () => {
+  it('links to the sport’s records with its plural, Run or Ride', () => {
+    renderCard('run', makeResult({ activities: [runOnMonday] }))
+    expect(within(cardNamed('Run')).getByRole('link', { name: 'All runs' })).toHaveAttribute(
+      'href',
+      '#/run',
+    )
+  })
 })

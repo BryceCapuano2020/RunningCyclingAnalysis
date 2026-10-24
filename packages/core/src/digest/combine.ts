@@ -2,8 +2,8 @@ import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import {
   DURATIONS_S,
+  EQUIVALENCE_DURATIONS_S,
   FLAT_RUN_COST,
-  HEADLINE_DURATION_S,
   PRIORS,
   RESTING_W_PER_KG,
 } from '../constants'
@@ -331,7 +331,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   })
 
   const equivalents: Equivalence[] = []
-  for (const durationS of [180, 300, 600, HEADLINE_DURATION_S, 1800, 3600]) {
+  for (const durationS of EQUIVALENCE_DURATIONS_S) {
     const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
       equivalents.push({
