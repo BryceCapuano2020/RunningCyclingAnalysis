@@ -1,7 +1,10 @@
 import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
+import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
-import type { Sport } from '@rca/core/types'
+import type { Curve, Sport } from '@rca/core/types'
+import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
+import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatPower, formatWkg } from '@rca/core/units'
 
@@ -27,6 +30,43 @@ export interface SportRecord extends SportNumber {
  */
 export function runPace(metabolicWkg: number, units: UnitSystem): string {
   return formatPace(metabolicToFlatSpeed(metabolicWkg), units)
+}
+
+/**
+ * A metabolic W/kg value as the sport's own number: the flat speed, m/s, that costs the same for
+ * running, and the mechanical watts for cycling at the prior-mean efficiency.
+ */
+export function nativeValue(sport: Sport, metabolicWkg: number, massKg: number): number {
+  return sport === 'run'
+    ? metabolicToFlatSpeed(metabolicWkg)
+    : metabolicToRidePower(metabolicWkg, massKg, PRIORS.grossEfficiency.mean)
+}
+
+/** A sport's best-effort curve in its own number: running in m/s, cycling in watts. */
+export function nativeCurve(sport: Sport, curves: SportCurves): Curve {
+  if (sport === 'ride') return curves.rideCurve
+  return curves.runCurve.map((point) => ({
+    durationS: point.durationS,
+    value: metabolicToFlatSpeed(point.value),
+    activityId: point.activityId,
+    startIndex: point.startIndex,
+  }))
+}
+
+/** The effort lengths the sport page's trend offers, as segment values and their labels. */
+export const EFFORT_OPTIONS = EFFORT_LENGTHS_S.map((durationS) => ({
+  value: String(durationS),
+  label: `${durationS / 60} min`,
+}))
+
+/** The effort length a segment value names, or undefined for a value that names none. */
+export function effortOf(value: string): EffortLengthS | undefined {
+  return EFFORT_LENGTHS_S.find((durationS) => String(durationS) === value)
+}
+
+/** Each activity's name by id, for the names that tooltips and tables give. */
+export function activityNames(activities: ActivitySummary[]): Record<string, string> {
+  return Object.fromEntries(activities.map((activity) => [activity.id, activity.name]))
 }
 
 /** Estimated threshold in the sport's own unit, from the critical-power fit; null without one. */

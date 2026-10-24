@@ -1,11 +1,22 @@
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { FLAT_RUN_COST, PRIORS, RUN_COST_CORRECTION } from '@rca/core/constants'
+import {
+  DEFAULT_WINDOW_DAYS,
+  EFFORT_LENGTHS_S,
+  MIN_WINDOW_DAYS,
+} from '@rca/core/digest/trendPoints'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import './Methodology.css'
 
 interface Section {
   title: string
   body: string
 }
+
+/** The effort lengths the trend offers, in minutes, as a phrase: "5, 20 or 60 minutes". */
+const EFFORT_MINUTES = EFFORT_LENGTHS_S.map((durationS) => durationS / 60)
+const EFFORT_PHRASE = `${EFFORT_MINUTES.slice(0, -1).join(', ')} or ${EFFORT_MINUTES.at(-1)} minutes`
+const BALANCE_MINUTES = HEADLINE_DURATION_S / 60
 
 const EFFICIENCY_PERCENT = (PRIORS.grossEfficiency.mean * 100).toFixed(1)
 const spreadPercent = (prior: { mean: number; sd: number }) =>
@@ -34,13 +45,18 @@ const SECTIONS: Section[] = [
   {
     title: 'Fitness over time',
     body:
-      'Each point is a week ending on a Sunday, in UTC. It takes the best 20-minute energy rate of ' +
-      'each sport in the 42 days up to that week’s end, in W/kg. The trend uses ' +
-      'prior-mean efficiency and running economy. The headline reports the median of the model ' +
-      'draws, which heart-rate calibration can shift, so the two can differ. The model range shown ' +
-      'with the headline is not drawn for each week. A gap means no run or ride with a 20-minute ' +
-      'value in the window. The trend covers the whole library, whatever period is selected, and ' +
-      'the bike model is fitted on the whole library.',
+      'Each point is a week ending on a Sunday, in UTC. It takes the best effort of each sport, of ' +
+      `the chosen length (${EFFORT_PHRASE}; Balance uses ${BALANCE_MINUTES}), in the trailing window ` +
+      'that ends at that week’s end: grade-adjusted pace for running, and ' +
+      `power in watts for cycling. The window is ${DEFAULT_WINDOW_DAYS} days over all time, and a ` +
+      `third of a shorter period, at least ${MIN_WINDOW_DAYS} days and at most ` +
+      `${DEFAULT_WINDOW_DAYS} days, so a six-week period uses two-week windows. Each window lies ` +
+      'inside the selected period. The effort is judged on energy rate, using prior-mean efficiency ' +
+      'and running economy. Every point is priced with the selected period’s one bike model. The ' +
+      'headline reports the median of the model draws, ' +
+      'which heart-rate calibration can shift, so the two can differ. The model range shown with the ' +
+      'headline is not drawn for each week. A gap means no run or ride with an effort of that length in the ' +
+      'window. The bike model is fitted on the activities in the selected period.',
   },
   {
     title: 'Heart-rate check',

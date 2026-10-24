@@ -16,7 +16,8 @@ design is in [ARCHITECTURE.md](ARCHITECTURE.md). Open review findings are in [RE
 
 ## Phase 2: Evolving capability
 
-Today the fitness trend is a 42-day rolling best (PR #17).
+Today the fitness trend is a rolling best over a window of a third of the selected period, between
+one week and 42 days; all time uses 42 days (PR #17).
 
 - **Timeline engine.** One engine turns dated Estimates into a trajectory with intervals that widen
   between observations. It replaces the rolling best.

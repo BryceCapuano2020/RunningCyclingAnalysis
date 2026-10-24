@@ -12,10 +12,11 @@ import { fitCriticalPower } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts, referenceMaxHeartRates } from '../effort'
 import { crossCheck } from '../hr'
-import { mean, requirePositiveFinite } from '../math'
+import { requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
   AthleteSettings,
+  SportCurves,
   BikeModel,
   CalibrationSums,
   Comparison,
@@ -35,12 +36,9 @@ import type {
 import { MODEL_REVISION } from './modelRevision'
 import { fitBikeModel } from '../virtualPower'
 import type { BikeModelSource } from '../virtualPower'
-import {
-  addCalibrationSums,
-  calibrationStatsAt,
-  emptyCalibrationSums,
-  subtractCalibrationSums,
-} from './calibration'
+import { addCalibrationSums, calibrationStatsAt, emptyCalibrationSums } from './calibration'
+import { leaveOneOutAccuracy } from './accuracy'
+import type { Calibrated } from './accuracy'
 import { powerAt } from './terms'
 
 export interface ActivitySummary {
@@ -257,40 +255,36 @@ function maxHeartRateOf(digests: ActivityDigest[]): number | null {
   return best
 }
 
-interface Calibrated {
-  digest: ActivityDigest
-  sums: CalibrationSums
+/** The best run and ride values at each duration. Rides are priced with bikeModel. */
+function bestCurves(
+  ordered: ActivityDigest[],
+  totalMassKg: number,
+  bikeModel: BikeModel,
+): { runBest: EffortPoint[]; rideBest: EffortPoint[] } {
+  const rideWatts = (point: DigestCurvePoint): number => rideWattsAt(point, totalMassKg, bikeModel)
+  return {
+    runBest: bestCurve(
+      ordered.filter((d) => d.sport === 'run').map((d) => candidates(d, runCentralWkg)),
+    ),
+    rideBest: bestCurve(
+      ordered.filter((d) => d.sport === 'ride').map((d) => candidates(d, rideWatts)),
+    ),
+  }
 }
 
 /**
- * Leave-one-ride-out accuracy: each ride's climb sections are scored with a bike model fitted on
- * the other rides, then the sections are pooled.
+ * The run and ride curves of a set of digests, without the rest of the analysis. Rides are priced
+ * with bikeModel, passed in so that two periods share one model and a change of model cannot read
+ * as a change of fitness.
  */
-function leaveOneOutAccuracy(
-  calibrated: Calibrated[],
-  totalSums: CalibrationSums,
-  massKg: number,
-): VirtualPowerAccuracy | null {
-  const segments = calibrated.flatMap(({ digest, sums }) => {
-    const others = subtractCalibrationSums(totalSums, sums)
-    const model = fitBikeModel(calibrationStatsAt(others, massKg)).model
-    return digest.climbSections.map((section) => ({
-      activityId: digest.id,
-      start: section.start,
-      end: section.end,
-      measuredW: section.measuredW,
-      estimatedW: powerAt(section.terms, massKg, model),
-    }))
-  })
-  // Without a qualifying climb there is nothing to score, so there is no accuracy to report.
-  if (segments.length === 0) return null
-  const relErr = segments.map((s) => (s.estimatedW - s.measuredW) / s.measuredW)
-  return {
-    nSegments: segments.length,
-    mape: mean(relErr.map(Math.abs)),
-    bias: mean(relErr),
-    segments,
-  }
+export function sportCurves(
+  digests: ActivityDigest[],
+  settings: AthleteSettings,
+  bikeModel: BikeModel,
+): SportCurves {
+  const totalMassKg = settings.massKg + settings.bikeMassKg
+  const { runBest, rideBest } = bestCurves(orderedCurrent(digests), totalMassKg, bikeModel)
+  return { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
 }
 
 /**
@@ -313,13 +307,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   const virtualAccuracy =
     calibrated.length > 0 ? leaveOneOutAccuracy(calibrated, totalSums, totalMassKg) : null
 
-  const rideWatts = (point: DigestCurvePoint): number => rideWattsAt(point, totalMassKg, bikeModel)
-  const runBest = bestCurve(
-    ordered.filter((d) => d.sport === 'run').map((d) => candidates(d, runCentralWkg)),
-  )
-  const rideBest = bestCurve(
-    ordered.filter((d) => d.sport === 'ride').map((d) => candidates(d, rideWatts)),
-  )
+  const { runBest, rideBest } = bestCurves(ordered, totalMassKg, bikeModel)
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
   const rideMetabolicCurve = rideCurve.map((p) => ({

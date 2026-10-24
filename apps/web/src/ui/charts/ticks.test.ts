@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import type { AxisTick } from './chartTypes'
-import { axisFontSize, durationTicks, fitTicks } from './ticks'
+import { axisFontSize, durationTicks, fitTicks, labelWidth } from './ticks'
 
 function ticksAt(positions: number[], label: string): AxisTick[] {
   return positions.map((position) => ({ position, label }))
@@ -49,5 +49,12 @@ describe('durationTicks', () => {
 
   it('returns nothing when no candidate falls inside the span', () => {
     expect(durationTicks(4000, 5000, (durationS) => durationS)).toEqual([])
+  })
+})
+
+describe('labelWidth', () => {
+  it('estimates a label as 0.6 em a character', () => {
+    expect(labelWidth('Jun 2025', 12)).toBeCloseTo(8 * 12 * 0.6, 9)
+    expect(labelWidth('', 12)).toBe(0)
   })
 })

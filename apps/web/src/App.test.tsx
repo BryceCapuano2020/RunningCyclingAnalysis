@@ -257,7 +257,11 @@ describe('fitness over time', () => {
     setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, 15.2, 14)] })
     render(<App />)
     expect(screen.getByRole('heading', { level: 2, name: 'Fitness over time' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /^Fitness over time/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', {
+        name: /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\./,
+      }),
+    ).toBeInTheDocument()
   })
 })
 

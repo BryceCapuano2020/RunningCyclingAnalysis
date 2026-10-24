@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sex } from '@rca/core/grade'
 import type { Route } from '../route'
 import { analysisStub } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
-import { FIVE_K_IN_20_MIN_WKG, makeResult } from '../components/fixtures'
+import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
 import { ResultPage } from './ResultPage'
 
 afterEach(() => {
@@ -56,5 +56,42 @@ describe('ResultPage age grades', () => {
     renderPage({ page: 'method' }, 1986, 'male')
 
     expect(screen.getByText('Your grades are for a man.')).toBeInTheDocument()
+  })
+})
+
+describe('ResultPage sport trend', () => {
+  it('starts each sport on the 20-minute trend, so a choice on Run does not carry over to Ride', () => {
+    const result = makeResult({
+      activities: [makeActivity({ id: 'run-1' }), makeActivity({ id: 'ride-1', sport: 'ride' })],
+    })
+    const page = (route: Route) => (
+      <ResultPage
+        route={route}
+        analysis={analysisStub()}
+        result={result}
+        settings={{ massKg: 75, bikeMassKg: 9 }}
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />
+    )
+    const view = render(page({ page: 'run' }))
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Effort length' })).getByRole('radio', {
+        name: '5 min',
+      }),
+    )
+    expect(
+      within(screen.getByRole('group', { name: 'Effort length' })).getByRole('radio', {
+        name: '5 min',
+      }),
+    ).toBeChecked()
+
+    view.rerender(page({ page: 'ride' }))
+    expect(
+      within(screen.getByRole('group', { name: 'Effort length' })).getByRole('radio', {
+        name: '20 min',
+      }),
+    ).toBeChecked()
   })
 })

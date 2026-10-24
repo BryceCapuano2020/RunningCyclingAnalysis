@@ -1,5 +1,7 @@
 export { CurveChart } from './CurveChart'
 export type { CurveChartProps } from './CurveChart'
+export { SportCurveChart } from './SportCurveChart'
+export type { PreviousCurve, SportCurveChartProps } from './SportCurveChart'
 export { RatioChart } from './RatioChart'
 export type { RatioChartProps } from './RatioChart'
 export { HrScatter } from './HrScatter'

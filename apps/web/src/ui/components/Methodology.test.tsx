@@ -1,12 +1,22 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import {
+  DEFAULT_WINDOW_DAYS,
+  EFFORT_LENGTHS_S,
+  MIN_WINDOW_DAYS,
+} from '@rca/core/digest/trendPoints'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { Methodology } from './Methodology'
 
 afterEach(() => {
   cleanup()
 })
+
+/** The effort lengths in minutes, as the copy names them: "5, 20 or 60 minutes". */
+const EFFORT_MINUTES = EFFORT_LENGTHS_S.map((durationS) => durationS / 60)
+const EFFORT_PHRASE = `${EFFORT_MINUTES.slice(0, -1).join(', ')} or ${EFFORT_MINUTES.at(-1)} minutes`
 
 describe('Methodology', () => {
   it('is a collapsed details card with the methodology title', () => {
@@ -55,15 +65,21 @@ describe('Methodology', () => {
     expect(body).toHaveTextContent('Short best efforts under about 30 seconds from GPS-only files')
   })
 
-  it('explains the fitness trend: prior means, the headline median, gaps and the library', () => {
+  it('explains the fitness trend: prior means, the headline median, gaps and the period', () => {
     render(<Methodology />)
     const heading = screen.getByRole('heading', { level: 3, name: 'Fitness over time' })
     const body = heading.nextElementSibling
     expect(body).toHaveTextContent('prior-mean efficiency and running economy')
     expect(body).toHaveTextContent('median of the model draws')
-    expect(body).toHaveTextContent('no run or ride with a 20-minute value')
-    expect(body).toHaveTextContent('whole library, whatever period is selected')
-    expect(body).toHaveTextContent('bike model is fitted on the whole library')
+    expect(body).toHaveTextContent('no run or ride with an effort of that length')
+    expect(body).toHaveTextContent(`(${EFFORT_PHRASE}; Balance uses ${HEADLINE_DURATION_S / 60})`)
+    expect(body).toHaveTextContent(`${DEFAULT_WINDOW_DAYS} days over all time`)
+    expect(body).toHaveTextContent(
+      `at least ${MIN_WINDOW_DAYS} days and at most ${DEFAULT_WINDOW_DAYS} days`,
+    )
+    expect(body).toHaveTextContent('Each window lies inside the selected period')
+    expect(body).toHaveTextContent('priced with the selected period’s one bike model')
+    expect(body).toHaveTextContent('bike model is fitted on the activities in the selected period')
   })
 
   it('states the average gross efficiency and the 90% range', () => {

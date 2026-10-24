@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bandPath, linePath } from './paths'
+import { areaPath, bandPath, linePath } from './paths'
 
 describe('linePath', () => {
   it('is empty for no points', () => {
@@ -78,5 +78,19 @@ describe('bandPath', () => {
       lower,
     )
     expect(lower[0]).toEqual({ x: 0, y: 5 })
+  })
+})
+
+describe('areaPath', () => {
+  it('fills under each unbroken run and not across a gap', () => {
+    const d = areaPath(
+      [{ x: 0, y: 5 }, { x: 10, y: 5 }, null, { x: 20, y: 5 }, { x: 30, y: 5 }],
+      100,
+    )
+    expect(d).toBe('M0 5L10 5L10 100L0 100ZM20 5L30 5L30 100L20 100Z')
+  })
+
+  it('fills nothing under a lone point', () => {
+    expect(areaPath([{ x: 0, y: 5 }, null], 100)).toBe('')
   })
 })

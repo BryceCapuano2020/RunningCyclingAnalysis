@@ -1,7 +1,8 @@
 import { ALL_OUT_FRACTION } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { UnitSystem } from '@rca/core/units'
 import { formatPercent } from '@rca/core/units'
-import { AccuracyScatter, HrScatter, RatioChart } from '../charts'
+import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { Methodology, pickHeadline } from '../components'
 import {
   COMPARISON_DISCLAIMER,
@@ -15,16 +16,17 @@ import { gradedSexOf, headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { AgeGradingSection } from './AgeGradingSection'
-import { countSport } from '../records'
+import { activityNames, countSport } from '../records'
 
 export interface MethodPageProps {
   result: AnalysisResult
+  units: UnitSystem
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
 }
 
 /** The model's own checks, one level below the answers: How sure is this? */
-export function MethodPage({ result, profile }: MethodPageProps) {
+export function MethodPage({ result, units, profile }: MethodPageProps) {
   const runs = countSport(result.activities, 'run')
   const rides = countSport(result.activities, 'ride')
   const pick = pickHeadline(result.comparison)
@@ -68,6 +70,22 @@ export function MethodPage({ result, profile }: MethodPageProps) {
           </ul>
         )}
         <RatioChart comparison={result.comparison} />
+      </section>
+
+      <section className="section" aria-labelledby="method-scale">
+        <h2 id="method-scale">Both sports on one scale</h2>
+        <p className="secondary">
+          Energy rate is the gross metabolic power a sport costs, per kilogram of body mass. Pace
+          and power are converted to it at the model&rsquo;s prior-mean economy, so the two sports
+          share one axis. The app shows each sport in its own units everywhere else.
+        </p>
+        <CurveChart
+          runCurve={result.runCurve}
+          rideMetabolicCurve={result.rideMetabolicCurve}
+          rideCurve={result.rideCurve}
+          units={units}
+          activityNames={activityNames(result.activities)}
+        />
       </section>
 
       <section className="section" aria-labelledby="method-hr">

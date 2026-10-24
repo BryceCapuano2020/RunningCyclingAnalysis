@@ -1,0 +1,59 @@
+/* Shared by the single-series charts: a 2.5 px line with round joins, an area under it and markers. */
+.chart-series__line {
+  fill: none;
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-series__line--run {
+  stroke: var(--series-run);
+}
+
+.chart-series__line--ride {
+  stroke: var(--series-ride);
+}
+
+/* The previous period is neutral and dashed, so it never reads as a sport. */
+.chart-series__line--previous {
+  stroke: var(--neutral-mark);
+  stroke-width: 2.5px;
+  stroke-dasharray: 6 4;
+}
+
+/*
+ * Only watts are filled. Pace has no zero to fill down to: its baseline is the slowest pace on the
+ * axis, so a run's area would show the axis rather than the effort, and no run area is drawn.
+ */
+.chart-series__area--ride {
+  fill: var(--series-ride-soft);
+}
+
+/* Marker with a surface ring, so it stays legible where it crosses a line. */
+.chart-series__marker {
+  stroke: var(--surface-1);
+  stroke-width: 2;
+}
+
+.chart-series__marker--run {
+  fill: var(--series-run);
+}
+
+.chart-series__marker--ride {
+  fill: var(--series-ride);
+}
+
+.chart-series__marker--previous {
+  fill: var(--neutral-mark);
+}
+
+/* Surface-coloured halo keeps the label legible over gridlines and lines. */
+.chart-series__label {
+  fill: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}

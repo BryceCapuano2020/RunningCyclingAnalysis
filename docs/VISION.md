@@ -71,8 +71,9 @@ Each phase ships on its own and leaves the app more useful.
    - Shared `Evidence` and `Estimate` types.
    - Running and cycling report demonstrated values separately from capability.
    - Best efforts are treated as lower bounds.
-2. **Evolving capability.** The shared timeline engine replaces the 42-day rolling best with a
-   capability trajectory and intervals. Each card lists its evidence gaps.
+2. **Evolving capability.** The shared timeline engine replaces the per-period rolling best (a
+   window of a third of the period, between one week and 42 days) with a capability trajectory and
+   intervals. Each card lists its evidence gaps.
 3. **Swimming.** Pool-swim FIT parsing (lengths, laps, pool size) and critical swim speed from
    ordinary swims, freestyle first.
 4. **Strength.** Simple lifting logs (manual entry, common app CSV exports, FIT strength sets) and

@@ -147,3 +147,31 @@ export function hiddenDigests(digests: ActivityDigest[]): Set<ActivityDigest> {
   })
   return hidden
 }
+
+/**
+ * Why a copy read from a file is not kept: a richer copy of the same workout is already held.
+ * Null when no held copy outranks it.
+ */
+export function heldCopyReason(
+  held: Iterable<ActivityDigest>,
+  activity: Activity,
+  fileName: string,
+): string | null {
+  const workout: Workout = {
+    sport: activity.sport,
+    startMs: activity.startMs,
+    durationS: activity.n,
+  }
+  const candidate = copyOfActivity(activity, fileName)
+  for (const digest of held) {
+    if (isSameWorkout(digest, workout) && richer(copyOfDigest(digest), candidate)) {
+      return `Same workout as ${fileNameOf(digest.id)}`
+    }
+  }
+  return null
+}
+
+/** Whether a copy read from a file outranks the digest held for the same start second. */
+export function outranksHeld(activity: Activity, fileName: string, held: ActivityDigest): boolean {
+  return richer(copyOfActivity(activity, fileName), copyOfDigest(held))
+}

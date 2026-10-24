@@ -30,3 +30,35 @@ export function bandPath(upper: readonly Point[], lower: readonly Point[]): stri
     .join('')
   return `${top}${bottom}Z`
 }
+
+/** The unbroken runs of finite points, in order: a null entry ends one run and starts the next. */
+function contiguousRuns(points: ReadonlyArray<Point | null>): Point[][] {
+  const runs: Point[][] = []
+  let run: Point[] | null = null
+  for (const point of points) {
+    if (point === null || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+      run = null
+    } else if (run === null) {
+      run = [point]
+      runs.push(run)
+    } else {
+      run.push(point)
+    }
+  }
+  return runs
+}
+
+/** Area fills under each unbroken run of points, down to a baseline y. A lone point fills nothing. */
+export function areaPath(points: ReadonlyArray<Point | null>, baseline: number): string {
+  return contiguousRuns(points)
+    .map((run) => {
+      const first = run[0]
+      const last = run.at(-1)
+      if (run.length < 2 || first === undefined || last === undefined) return ''
+      return bandPath(run, [
+        { x: first.x, y: baseline },
+        { x: last.x, y: baseline },
+      ])
+    })
+    .join('')
+}

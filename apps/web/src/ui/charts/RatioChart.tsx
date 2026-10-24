@@ -9,6 +9,7 @@ import { ChartTooltip } from './ChartTooltip'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
+import { Crosshair } from './Crosshair'
 import { nearestByX, stepActive } from './hover'
 import { bandPath, linePath } from './paths'
 import { PlotSurface } from './PlotSurface'
@@ -26,8 +27,9 @@ const ACTIVE_MARKER_R = 5
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them'
 const PERCENT_AXIS_TITLE = `${SPORT_TITLE.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
+const CAPTION = 'Above the line, your running is ahead at that duration; below it, your cycling is.'
 const NOTE =
-  'Shading shows the 90% model range; other errors are not included. The line is the median'
+  'Shading shows the 90% model range; other errors are not included. The line is the median of the model draws.'
 
 const LEGEND_CALIBRATED: ChartLegendEntry[] = [
   { label: 'Before heart-rate check', kind: 'neutral', swatch: 'band' },
@@ -45,6 +47,16 @@ interface RatioRow {
 const delta = (ratio: number): string => formatPercent(ratio - 1, true)
 
 const rangeOf = (interval: Interval): string => `${delta(interval.p05)} to ${delta(interval.p95)}`
+
+/** The median in plain words: which sport is ahead at this duration, and by how much. */
+function readingOf(interval: Interval | null): string {
+  if (interval === null) return '—'
+  const offset = interval.p50 - 1
+  if (formatPercent(offset) === '0%') return 'Equal'
+  return offset > 0
+    ? `Running ahead by ${formatPercent(offset)}`
+    : `Cycling ahead by ${formatPercent(-offset)}`
+}
 
 /** Axis label for an offset from equal, with as many decimals as the tick step needs. */
 function percentTick(offset: number, decimals: number): string {
@@ -167,20 +179,22 @@ function tableFor(
 ): { columns: string[]; rows: string[][] } {
   if (!hasCalibrated) {
     return {
-      columns: ['Duration', 'Median', '90% range'],
+      columns: ['Duration', 'Reading', 'Median', '90% range'],
       rows: rows.map((row) => [
         formatDuration(row.durationS),
+        readingOf(row.prior.ratio),
         delta(row.prior.ratio.p50),
         rangeOf(row.prior.ratio),
       ]),
     }
   }
   return {
-    columns: ['Duration', 'Median', '90% range', 'Prior median', 'Prior 90% range'],
+    columns: ['Duration', 'Reading', 'Median', '90% range', 'Prior median', 'Prior 90% range'],
     rows: rows.map((row) => {
-      const calibrated = row.calibrated?.ratio
+      const calibrated = row.calibrated?.ratio ?? null
       return [
         formatDuration(row.durationS),
+        readingOf(calibrated),
         calibrated ? delta(calibrated.p50) : '—',
         calibrated ? rangeOf(calibrated) : '—',
         delta(row.prior.ratio.p50),
@@ -244,7 +258,7 @@ export function RatioChart({ comparison }: RatioChartProps) {
       legend={rows.length > 0 && hasCalibrated ? LEGEND_CALIBRATED : undefined}
       table={tableFor(rows, hasCalibrated)}
       empty={rows.length > 0 ? undefined : EMPTY}
-      note={rows.length > 0 ? NOTE : undefined}
+      note={rows.length > 0 ? `${CAPTION} ${NOTE}` : undefined}
       surface={(size) => surfaceOf(size, rows, hasCalibrated, active, setActive)}
       overlay={(size) => overlayOf(size, rows, hasCalibrated, active)}
     >
@@ -268,6 +282,22 @@ export function RatioChart({ comparison }: RatioChartProps) {
               plot={plot}
               title={PERCENT_AXIS_TITLE}
               fontSize={axisFontSize(size.width)}
+            />
+            <rect
+              data-testid="ratio-ahead"
+              className="ratio-chart__ahead ratio-chart__ahead--run"
+              x={plot.left}
+              y={plot.top}
+              width={plot.right - plot.left}
+              height={Math.max(0, m.zeroY - plot.top)}
+            />
+            <rect
+              data-testid="ratio-ahead"
+              className="ratio-chart__ahead ratio-chart__ahead--ride"
+              x={plot.left}
+              y={m.zeroY}
+              width={plot.right - plot.left}
+              height={Math.max(0, plot.bottom - m.zeroY)}
             />
             <path
               data-testid="ratio-band"
@@ -307,15 +337,7 @@ export function RatioChart({ comparison }: RatioChartProps) {
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.bottom - 8}>
               {`Higher ${SPORT_NOUN.ride} energy rate`}
             </text>
-            {activeX !== undefined ? (
-              <line
-                className="ratio-chart__crosshair"
-                x1={activeX}
-                x2={activeX}
-                y1={plot.top}
-                y2={plot.bottom}
-              />
-            ) : null}
+            {activeX !== undefined ? <Crosshair x={activeX} plot={plot} /> : null}
             {activeMedian ? (
               <circle
                 className="ratio-chart__marker"

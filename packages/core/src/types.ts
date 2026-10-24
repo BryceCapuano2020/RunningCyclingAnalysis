@@ -301,3 +301,11 @@ export interface ActivityDigest {
   /** Power-meter rides outdoors only: climb sections for scoring the virtual power meter. */
   climbSections: DigestClimbSection[]
 }
+
+/** The best run and ride curves of one set of digests. See sportCurves. */
+export interface SportCurves {
+  /** Best gross metabolic power while running, W/kg. */
+  runCurve: Curve
+  /** Best mechanical power while riding, W. */
+  rideCurve: Curve
+}

@@ -174,6 +174,60 @@ describe('privacy page', () => {
   )
 })
 
+/** The marks that sit on a running or cycling tint in the ratio chart, and the least ratio each reaches. */
+const ON_TINT: [string, string, number][] = [
+  ['neutral-mark', 'series-run-soft', GRAPHIC],
+  ['neutral-mark', 'series-ride-soft', GRAPHIC],
+  // The zero line is text-muted, and it runs across the boundary between the two tints.
+  ['text-muted', 'series-run-soft', GRAPHIC],
+  ['text-muted', 'series-ride-soft', GRAPHIC],
+  ['text-secondary', 'series-run-soft', TEXT],
+  ['text-secondary', 'series-ride-soft', TEXT],
+]
+
+const TINT_CASES = [
+  ...ON_TINT.map(([fg, tint, min]) => ({ theme: 'light', tokens: light, fg, tint, min })),
+  ...ON_TINT.map(([fg, tint, min]) => ({ theme: 'dark', tokens: dark, fg, tint, min })),
+]
+
+describe('contrast on the ratio chart’s tints', () => {
+  it.each(TINT_CASES)(
+    '$theme: --$fg on the --$tint tint, over the plot, reaches $min:1',
+    ({ tokens, fg, tint, min }) => {
+      const plot = colour(tokens, 'surface-1')
+      const painted = tokens.get(tint)
+      if (painted === undefined || !/^#[0-9a-f]{8}$/.test(painted)) {
+        throw new Error(`--${tint} is not a translucent hex colour`)
+      }
+      expect(contrast(colour(tokens, fg), over(painted, plot))).toBeGreaterThanOrEqual(min)
+    },
+  )
+})
+
+/**
+ * The band's fill is deliberately faint (DESIGN.md: about 1.2:1 against the card), so the fill alone
+ * never carries it; the band's edge is the neutral-mark outline checked above. This pins the faint
+ * fill so that it stays visible over either tint.
+ */
+const BAND_FILL_MIN = 1.2
+
+const BAND_CASES = [
+  ...(['run', 'ride'] as const).map((side) => ({ theme: 'light', tokens: light, side })),
+  ...(['run', 'ride'] as const).map((side) => ({ theme: 'dark', tokens: dark, side })),
+]
+
+describe('the band fill on the ratio chart’s tints', () => {
+  it.each(BAND_CASES)(
+    '$theme: --neutral-band over the --series-$side-soft tint stays visible',
+    ({ tokens, side }) => {
+      const plot = colour(tokens, 'surface-1')
+      const tint = over(String(tokens.get(`series-${side}-soft`)), plot)
+      const band = over(String(tokens.get('neutral-band')), tint)
+      expect(contrast(band, tint)).toBeGreaterThanOrEqual(BAND_FILL_MIN)
+    },
+  )
+})
+
 describe('contrast', () => {
   it('computes the WCAG ratio, from 1:1 to 21:1', () => {
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5)

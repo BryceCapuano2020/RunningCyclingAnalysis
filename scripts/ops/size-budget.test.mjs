@@ -17,7 +17,6 @@ const LINE_BUDGET = 400
 const OVER_BUDGET = {
   'packages/core/src/fit/archive.ts': 634,
   'packages/core/src/xml/parse.ts': 438,
-  'packages/core/src/digest/combine.ts': 407,
 }
 
 const SOURCE = /\.(ts|tsx|mjs|css)$/

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import { DAILY_LIMITS } from '@rca/contract'
@@ -128,6 +129,8 @@ const STATE = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   trend: [],
+  previous: null,
+  effortTrends: NO_TRENDS,
 }
 
 beforeEach(() => {

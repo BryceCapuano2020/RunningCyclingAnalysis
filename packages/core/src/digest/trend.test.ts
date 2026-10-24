@@ -6,7 +6,7 @@ import { centralWkgFromWatts, combine } from './combine'
 import { digestActivity } from './digestActivity'
 import { MODEL_REVISION } from './modelRevision'
 import { fitnessTrend } from './trend'
-import { weeksWithValue } from './trendPoints'
+import { trendWindowDays, weeksWithValue } from './trendPoints'
 
 const DAY = 86_400_000
 const WEEK = 7 * DAY
@@ -207,6 +207,20 @@ describe('fitnessTrend', () => {
     expect(points.at(-1)?.endMs).toBe(FIRST_SUNDAY_END + 299 * WEEK)
   })
 
+  it('starts at the first week whose whole window fits after fromMs', () => {
+    const digests = [run(MONDAY, 17), run(MONDAY + 3 * WEEK, 16)]
+    const points = fitnessTrend(digests, settings, { windowDays: 14, fromMs: MONDAY })
+    // The first week whose 14-day window fits after 6 January ends on Sunday 26 January, so that
+    // window starts on 12 January.
+    expect(points[0]?.endMs).toBe(Date.UTC(2025, 0, 26, 23, 59, 59, 999))
+  })
+
+  it('never counts an activity from before fromMs in a trailing window', () => {
+    const digests = [run(MONDAY - WEEK, 25), run(MONDAY + 2 * WEEK, 16)]
+    const points = fitnessTrend(digests, settings, { windowDays: 14, fromMs: MONDAY })
+    expect(points.map((point) => point.runWkg)).toEqual([16])
+  })
+
   it('rejects a body mass or bike mass that is not a positive finite number', () => {
     const bad: AthleteSettings[] = [
       { massKg: 0, bikeMassKg: 9 },
@@ -218,5 +232,20 @@ describe('fitnessTrend', () => {
       expect(() => fitnessTrend([], s)).toThrow(RangeError)
       expect(() => fitnessTrend(samples, s)).toThrow(RangeError)
     }
+  })
+})
+
+describe('trendWindowDays', () => {
+  it('is six weeks for all time, and a third of a shorter period', () => {
+    expect(trendWindowDays(null)).toBe(42)
+    expect(trendWindowDays(42)).toBe(14)
+    expect(trendWindowDays(91)).toBe(30)
+    expect(trendWindowDays(365)).toBe(42)
+  })
+
+  it('never judges a period in windows shorter than a week', () => {
+    expect(trendWindowDays(1)).toBe(7)
+    expect(trendWindowDays(10)).toBe(7)
+    expect(trendWindowDays(21)).toBe(7)
   })
 })

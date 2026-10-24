@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
+import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import type { AccountController } from '../useAccount'
 
@@ -57,4 +58,6 @@ export const EMPTY_SESSION: SessionState = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   trend: [],
+  previous: null,
+  effortTrends: NO_TRENDS,
 }

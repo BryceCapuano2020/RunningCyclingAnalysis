@@ -13,6 +13,9 @@ import { workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
+/** A reply waits on a full analysis, which takes most of a second on its own; vi.waitFor's 1 s is too short under load. */
+const WAIT_FOR_MS = 10_000
+
 const limits = vi.hoisted(() => ({ maxFileBytes: 50 * 1024 * 1024 }))
 
 vi.mock('@rca/contract', async (importOriginal) => {
@@ -99,7 +102,7 @@ async function startWorker() {
       ) {
         throw new Error('still working')
       }
-    })
+    }, WAIT_FOR_MS)
     return posted.slice(start)
   }
   return { send }

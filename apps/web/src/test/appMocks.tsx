@@ -97,6 +97,7 @@ export function usePreferencesMock(): [Preferences, (next: Preferences) => void]
 /** The costly charts. TrendChart stays real, since the Balance page's fitness test reads it. */
 export const heavyChartStubs = {
   CurveChart: () => null,
+  SportCurveChart: () => null,
   RatioChart: () => null,
   HrScatter: () => null,
   AccuracyScatter: () => null,

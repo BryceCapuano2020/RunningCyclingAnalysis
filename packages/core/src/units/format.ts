@@ -43,13 +43,23 @@ export function formatDuration(seconds: number): string {
 
 export const PACE_UNIT: Record<UnitSystem, string> = { imperial: '/mi', metric: '/km' }
 
+/** Seconds per mile or per kilometre at a speed in m/s. */
+export function paceSeconds(speedMs: number, system: UnitSystem): number {
+  return (system === 'imperial' ? METRES_PER_MILE : METRES_PER_KM) / speedMs
+}
+
+/** Minutes and seconds, such as 4:05, for a value in seconds. Seconds are rounded first. */
+export function formatClock(seconds: number): string {
+  const total = Math.round(seconds)
+  return `${Math.floor(total / 60)}:${twoDigits(total % 60)}`
+}
+
 /** Minutes and seconds per mile or per kilometre, from speed in m/s, without the unit. */
 export function formatPaceValue(speedMs: number, system: UnitSystem): string {
   if (!(speedMs > 0 && Number.isFinite(speedMs))) {
     return DASH
   }
-  const total = Math.round((system === 'imperial' ? METRES_PER_MILE : METRES_PER_KM) / speedMs)
-  return `${Math.floor(total / 60)}:${twoDigits(total % 60)}`
+  return formatClock(paceSeconds(speedMs, system))
 }
 
 /** Minutes per mile or per kilometre, from speed in m/s. Seconds are rounded before splitting. */

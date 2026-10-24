@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { EffortCheck } from '@rca/core/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { curvePoint } from '../charts/fixtures'
+import {
+  curvePoint,
+  rideCurveFixture,
+  rideMetabolicCurveFixture,
+  runCurveFixture,
+} from '../charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
@@ -26,7 +31,7 @@ function factsOf(): HTMLElement {
 }
 
 function renderPage(result: AnalysisResult = makeResult(), profile: AgeProfile | null = null) {
-  return render(<MethodPage result={result} profile={profile} />)
+  return render(<MethodPage result={result} units="metric" profile={profile} />)
 }
 
 /** A result whose comparison is the 20 minute point, with the given effort check. */
@@ -195,5 +200,24 @@ describe('MethodPage age grading', () => {
         'Your grades are for a man.',
       ),
     ).toBeInTheDocument()
+  })
+})
+
+describe('MethodPage energy scale', () => {
+  it('puts both sports on one metabolic energy scale, under its own heading', () => {
+    renderPage(
+      makeResult({
+        runCurve: runCurveFixture,
+        rideMetabolicCurve: rideMetabolicCurveFixture,
+        rideCurve: rideCurveFixture,
+      }),
+    )
+    const section = screen.getByRole('region', { name: 'Both sports on one scale' })
+    expect(
+      within(section).getByRole('img', {
+        name: /^Running and cycling energy rate in W\/kg by duration\./,
+      }),
+    ).toBeInTheDocument()
+    expect(within(section).getByText(/metabolic power a sport costs/)).toBeInTheDocument()
   })
 })
