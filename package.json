@@ -42,6 +42,9 @@
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "0.28.2"
+    },
+    "miniflare": {
+      "undici": "7.30.1"
     }
   }
 }
