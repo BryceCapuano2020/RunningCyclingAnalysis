@@ -409,3 +409,76 @@ describe('shared limits', () => {
     expect(MAX_MONTHLY_R2_PUT_BYTES).toBe(2 * 1024 * 1024 * 1024)
   })
 })
+
+describe('distance bests', () => {
+  const bests = [
+    { distanceM: 1000, seconds: 250 },
+    { distanceM: 5000, seconds: 1250 },
+  ]
+  /** A ten-kilometre run; a ride is the same wire with its sport changed. */
+  const run = (overrides: Record<string, unknown> = {}) =>
+    atRevision(MODEL_REVISION, {
+      sport: 'run',
+      distanceM: 10000,
+      durationS: 2500,
+      distanceBests: bests,
+      ...overrides,
+    })
+  /** The create and the stored schema apply the same distance-best rules. */
+  const SCHEMAS = [
+    ['create', ActivityDigestSchema],
+    ['stored', StoredActivityDigestSchema],
+  ] as const
+
+  it.each(SCHEMAS)(
+    '%s schema accepts a run with ascending record distances it covers',
+    (_l, schema) => {
+      expect(schema.safeParse(run()).success).toBe(true)
+      expect(schema.safeParse(run({ distanceM: 900, distanceBests: [] })).success).toBe(true)
+    },
+  )
+
+  it('accepts a digest without the field, as digests from before it are', () => {
+    expect(ActivityDigestSchema.safeParse(atRevision(MODEL_REVISION)).success).toBe(true)
+    expect(StoredActivityDigestSchema.safeParse(atRevision(MODEL_REVISION)).success).toBe(true)
+  })
+
+  it('reads a stored run back with its distance bests equal to the wire', () => {
+    expect(StoredActivityDigestSchema.parse(run()).distanceBests).toEqual(bests)
+  })
+
+  it.each(SCHEMAS)('%s schema rejects distance bests on a ride', (_l, schema) => {
+    expect(schema.safeParse(run({ sport: 'ride' })).success).toBe(false)
+  })
+
+  // Each case breaks one rule: a distance that is not a record distance, a zero time, a time past
+  // the duration, a run that does not cover the distance, a repeated distance, descending order,
+  // and more entries than record distances.
+  const rejected: [string, Record<string, unknown>][] = [
+    ['not a record distance', { distanceBests: [{ distanceM: 2000, seconds: 500 }] }],
+    ['a zero time', { distanceBests: [{ distanceM: 1000, seconds: 0 }] }],
+    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2501 }] }],
+    [
+      'a distance the run does not cover',
+      { distanceM: 900, distanceBests: [{ distanceM: 5000, seconds: 1250 }] },
+    ],
+    ['a repeated distance', { distanceBests: [bests[0], bests[0]] }],
+    ['descending order', { distanceBests: [...bests].reverse() }],
+    [
+      'more entries than record distances',
+      {
+        distanceBests: [
+          ...Array.from({ length: 4 }, (_, i) => ({ distanceM: 1000 * (i + 1), seconds: 1 })),
+          { distanceM: 20000, seconds: 1 },
+        ],
+      },
+    ],
+  ]
+  it.each(
+    SCHEMAS.flatMap(([label, schema]) =>
+      rejected.map(([name, overrides]) => [`${label}: ${name}`, schema, overrides] as const),
+    ),
+  )('%s', (_label, schema, overrides) => {
+    expect(schema.safeParse(run(overrides)).success).toBe(false)
+  })
+})

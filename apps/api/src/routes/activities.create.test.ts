@@ -146,6 +146,41 @@ async function rowCount(h: Harness): Promise<number> {
   return row?.n ?? 0
 }
 
+describe('distance bests', () => {
+  const bests = [
+    { distanceM: 1000, seconds: 250 },
+    { distanceM: 5000, seconds: 1250 },
+  ]
+  const run = { sport: 'run', powerSource: 'none', durationS: 2500, distanceM: 10000 }
+
+  it('stores a run digest with its distance bests and returns them from the list', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const created = await createActivity(h, token, {}, { ...run, distanceBests: bests })
+    expect(created.status).toBe(201)
+    const page = await pageOf(h, token, '')
+    expect(itemsOf(page.body)).toHaveLength(1)
+    expect(page.body.items).toMatchObject([{ digest: { distanceBests: bests } }])
+  })
+
+  it('stores a digest without the field, as older clients send it', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    expect((await createActivity(h, token, {}, run)).status).toBe(201)
+    const page = await pageOf(h, token, '')
+    const [item] = page.body.items as { digest: object }[]
+    expect(item?.digest).toMatchObject({ sport: 'run' })
+    expect(item?.digest).not.toHaveProperty('distanceBests')
+  })
+
+  it('refuses distance bests on a ride', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const ride = await createActivity(h, token, {}, { distanceBests: bests })
+    expect(ride.status).toBe(400)
+  })
+})
+
 describe('per-user digest byte quota', () => {
   it('refuses a create past the digest byte cap with 403 digest_quota and stores nothing', async () => {
     const h = createHarness()

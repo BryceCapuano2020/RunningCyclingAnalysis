@@ -3,6 +3,7 @@ import type { TrendPoint } from './digest/trend'
 import type { EffortLengthS } from './digest/trendPoints'
 import type { SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
+import type { EarnedRecord } from './records'
 
 export interface RejectedFile {
   fileName: string
@@ -43,4 +44,6 @@ export interface SessionState {
    * all time, or when that period has no activities.
    */
   previous: SportCurves | null
+  /** The best efforts each activity holds across the whole library, not the period. */
+  records: Map<string, EarnedRecord[]>
 }

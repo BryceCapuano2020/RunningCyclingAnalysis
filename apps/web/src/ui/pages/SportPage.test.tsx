@@ -425,3 +425,51 @@ describe('SportPage fitness trend', () => {
     expect(paceColumnOf('best 60 minutes')).not.toEqual(paceList(TRENDS[TWENTY_MIN_S]))
   })
 })
+
+describe('SportPage distance records', () => {
+  const at = (day: number) => new Date(2026, 0, day, 9).getTime()
+  const parkrun = makeActivity({
+    id: 'parkrun',
+    name: 'Parkrun',
+    sport: 'run',
+    startMs: at(12),
+    distanceBests: [
+      { distanceM: 1000, seconds: 240 },
+      { distanceM: 5000, seconds: 1260 },
+    ],
+  })
+
+  /** The run page's Best efforts section, where the distance records sit. */
+  function bestEfforts(): HTMLElement {
+    const section = screen.getByRole('heading', { name: 'Best efforts' }).closest('section')
+    if (!section) throw new Error('No Best efforts section')
+    return section
+  }
+
+  it('lists the fastest run at each record distance, with its time, pace and activity', () => {
+    renderPage('run', makeResult({ activities: [parkrun, morningRun] }))
+    const section = within(bestEfforts())
+    expect(section.getByText('Best 1 km')).toBeTruthy()
+    expect(section.getByText('4:00')).toBeTruthy()
+    expect(section.getByText('4:00 /km')).toBeTruthy()
+    expect(section.getByText('Best 5 km')).toBeTruthy()
+    expect(section.getByText('21:00')).toBeTruthy()
+    expect(section.getByText('4:12 /km')).toBeTruthy()
+    expect(section.getAllByRole('link', { name: /Parkrun/ })).toHaveLength(2)
+  })
+
+  it('says the list may be short when some runs predate distance bests', () => {
+    renderPage('run', makeResult({ activities: [parkrun, morningRun] }))
+    expect(
+      within(bestEfforts()).getByText(
+        'Distance records cover runs added since distance records were introduced.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('shows no distance records and no line when no run in scope has them', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+    expect(screen.queryByText('Best 1 km')).toBeNull()
+    expect(screen.queryByText(/since distance records were introduced/)).toBeNull()
+  })
+})

@@ -296,3 +296,79 @@ describe('serializeDigest and parseDigest', () => {
     )
   })
 })
+
+describe('distance bests on the wire', () => {
+  /** A flat 4 m/s run of 2501 s: 10 km, so every record distance is covered. */
+  const n = 2501
+  const distance = Float64Array.from({ length: n }, (_, i) => 4 * i)
+  const run: Activity = {
+    id: 'ten-k',
+    name: 'Ten k',
+    sport: 'run',
+    startMs: 9,
+    n,
+    speed: new Float64Array(n).fill(4),
+    distance,
+    altitude: new Float64Array(n).fill(100),
+    heartRate: new Float64Array(n).fill(NaN),
+    power: new Float64Array(n).fill(NaN),
+    paused: new Uint8Array(n),
+    hasPower: false,
+    hasHeartRate: false,
+    hasAltitude: true,
+    indoor: false,
+  }
+  const runDigest = digestActivity(run)
+
+  /** The run's digest with one field edited, read back by parseDigest. */
+  const editedRun = (edit: (o: Record<string, unknown>) => void) => edited(runDigest, edit)
+  const bestsOf = (o: Record<string, unknown>) => o.distanceBests as Record<string, unknown>[]
+
+  it('round-trips a run with its distance bests', () => {
+    expect(runDigest.distanceBests).toHaveLength(4)
+    expect(parseDigest(serializeDigest(runDigest))).toEqual(runDigest)
+  })
+
+  it('keeps a digest without the field without adding one', () => {
+    const ride = digests.find((d) => d.sport === 'ride')!
+    expect(ride).not.toHaveProperty('distanceBests')
+    expect(parseDigest(serializeDigest(ride))).not.toHaveProperty('distanceBests')
+  })
+
+  it('rejects malformed distance bests', () => {
+    expect(() => parseDigest(editedRun((o) => (o.distanceBests = {})))).toThrow(
+      /distanceBests must be an array/,
+    )
+    expect(() => parseDigest(editedRun((o) => (o.distanceBests = [5])))).toThrow(
+      /distanceBests\[0\] must be an object/,
+    )
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          bestsOf(o)[0]!.seconds = 0
+        }),
+      ),
+    ).toThrow(/distanceBests\[0\]\.seconds must be positive/)
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          bestsOf(o)[0]!.seconds = run.n + 1
+        }),
+      ),
+    ).toThrow(/distanceBests\[0\]\.seconds must not exceed durationS/)
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          bestsOf(o)[0]!.distanceM = -1
+        }),
+      ),
+    ).toThrow(/distanceBests\[0\]\.distanceM must be positive/)
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          o.distanceBests = [...bestsOf(o)].reverse()
+        }),
+      ),
+    ).toThrow(/distanceBests must be in ascending distance/)
+  })
+})

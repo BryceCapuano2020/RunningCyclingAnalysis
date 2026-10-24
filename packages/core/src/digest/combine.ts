@@ -22,15 +22,12 @@ import type {
   Comparison,
   CriticalPowerFit,
   Curve,
-  DerivedStreams,
   DigestCurvePoint,
   DigestHrBlock,
   EffortCheck,
   HrCrossCheck,
   HrPoint,
   Interval,
-  QualityFlag,
-  Sport,
   VirtualPowerAccuracy,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
@@ -40,19 +37,8 @@ import { addCalibrationSums, calibrationStatsAt, emptyCalibrationSums } from './
 import { leaveOneOutAccuracy } from './accuracy'
 import type { Calibrated } from './accuracy'
 import { powerAt } from './terms'
-
-export interface ActivitySummary {
-  id: string
-  name: string
-  sport: Sport
-  startMs: number
-  durationS: number
-  distanceM: number
-  elevationGainM: number
-  hasHeartRate: boolean
-  powerSource: DerivedStreams['powerSource']
-  flags: QualityFlag[]
-}
+import type { ActivitySummary } from './summary'
+import { summaryOf } from './summary'
 
 export interface Equivalence {
   durationS: number
@@ -229,21 +215,6 @@ function plainCurve(points: EffortPoint[]): Curve {
     activityId,
     startIndex,
   }))
-}
-
-function summaryOf(digest: ActivityDigest): ActivitySummary {
-  return {
-    id: digest.id,
-    name: digest.name,
-    sport: digest.sport,
-    startMs: digest.startMs,
-    durationS: digest.durationS,
-    distanceM: digest.distanceM,
-    elevationGainM: digest.elevationGainM,
-    hasHeartRate: digest.hasHeartRate,
-    powerSource: digest.powerSource,
-    flags: digest.flags,
-  }
 }
 
 function maxHeartRateOf(digests: ActivityDigest[]): number | null {

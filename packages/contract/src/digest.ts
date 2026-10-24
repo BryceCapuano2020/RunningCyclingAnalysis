@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DURATIONS_S } from '@rca/core/constants'
+import { DURATIONS_S, RUN_RECORD_DISTANCES_M } from '@rca/core/constants'
 import type { ActivityDigest } from '@rca/core/types'
 import { MAX_DIGEST_BYTES } from './limits.ts'
 
@@ -77,6 +77,14 @@ const hrBlock = z.object({
   terms: powerTerms.nullable(),
 })
 
+/** A run's best time over one record distance, which must be in RUN_RECORD_DISTANCES_M. */
+const distanceBest = z.object({
+  distanceM: z.number().refine((m) => RUN_RECORD_DISTANCES_M.some((d) => d === m), {
+    message: 'Not a run record distance',
+  }),
+  seconds: z.number().positive(),
+})
+
 const climbSection = z.object({
   start: z.number(),
   end: z.number(),
@@ -94,6 +102,41 @@ const calibrationSums = z.object({
   aP: nanNumber,
   aG: nanNumber,
 })
+
+/** The fields the distance-best rules read, which the create and stored schemas both have. */
+interface DistanceBestsFields {
+  sport: 'run' | 'ride'
+  distanceM: number
+  durationS: number
+  distanceBests?: { distanceM: number; seconds: number }[]
+}
+
+/**
+ * Runs only; ascending distances, each covered by the run, each no longer than the activity. The
+ * stored schema applies these too: rows written before the field do not exist, so nothing is lost.
+ */
+function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): void {
+  const bests = digest.distanceBests
+  if (bests === undefined) return
+  if (digest.sport !== 'run') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['distanceBests'],
+      message: 'Only runs have distance bests',
+    })
+    return
+  }
+  bests.forEach((best, index) => {
+    const path = ['distanceBests', index]
+    if (index > 0 && best.distanceM <= bests[index - 1]!.distanceM) {
+      ctx.addIssue({ code: 'custom', path, message: 'Distance bests must ascend' })
+    } else if (!(best.distanceM <= digest.distanceM)) {
+      ctx.addIssue({ code: 'custom', path, message: 'The run does not cover this distance' })
+    } else if (!(best.seconds <= digest.durationS)) {
+      ctx.addIssue({ code: 'custom', path, message: 'Time exceeds the digest duration' })
+    }
+  })
+}
 
 /**
  * Wire format of an ActivityDigest. Parsing restores NaN, so the output type is the
@@ -131,6 +174,7 @@ export const ActivityDigestSchema = z
     hrBlocks: z.array(hrBlock).max(MAX_HR_BLOCKS),
     calibration: calibrationSums.nullable(),
     climbSections: z.array(climbSection).max(MAX_CLIMB_SECTIONS),
+    distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
   })
   .superRefine((digest, ctx) => {
     digest.curve.forEach((point, index) => {
@@ -157,6 +201,7 @@ export const ActivityDigestSchema = z
         message: 'Too many climb sections for the digest duration',
       })
     }
+    checkDistanceBests(digest, ctx)
   })
 
 /** Stored rows may be larger than a create can send, by this factor, and still be read. */
@@ -164,11 +209,12 @@ const STORED_BOUND_FACTOR = 4
 
 /**
  * An ActivityDigest as read back from a stored row. Rows written by older revisions can miss the
- * create-time rules (a null duration, a curve off the grid), so those rules are not applied here.
+ * create-time rules (a null duration, a curve off the grid), so those rules are not applied here;
+ * the distance-best rules are, because no row predates them.
  * The array bounds stay, at STORED_BOUND_FACTOR times the create limits, so one row cannot grow
  * the response without limit. Creates keep using ActivityDigestSchema.
  */
-export const StoredActivityDigestSchema = z.object({
+const StoredActivityDigestBase = z.object({
   version: z.literal(1),
   modelRevision: z
     .number()
@@ -192,7 +238,12 @@ export const StoredActivityDigestSchema = z.object({
   hrBlocks: z.array(hrBlock).max(MAX_HR_BLOCKS * STORED_BOUND_FACTOR),
   calibration: calibrationSums.nullable(),
   climbSections: z.array(climbSection).max(MAX_CLIMB_SECTIONS * STORED_BOUND_FACTOR),
+  distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
 })
+
+export const StoredActivityDigestSchema = StoredActivityDigestBase.superRefine((digest, ctx) =>
+  checkDistanceBests(digest, ctx),
+)
 
 export type ActivityDigestJson = z.input<typeof ActivityDigestSchema>
 

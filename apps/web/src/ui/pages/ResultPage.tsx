@@ -64,7 +64,13 @@ export function ResultPage({
         />
       )
     case 'activities':
-      return <ActivitiesPage activities={result.activities} units={units} />
+      return (
+        <ActivitiesPage
+          activities={result.activities}
+          units={units}
+          records={analysis.state.records}
+        />
+      )
     case 'activity':
       return (
         <ActivityPage
@@ -72,6 +78,7 @@ export function ResultPage({
           result={result}
           units={units}
           massKg={settings.massKg}
+          records={analysis.state.records}
         />
       )
     case 'method':

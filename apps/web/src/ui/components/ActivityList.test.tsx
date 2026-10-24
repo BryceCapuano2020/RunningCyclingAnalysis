@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
 import { makeActivity } from './fixtures'
 import { ActivityList } from './ActivityList'
@@ -31,8 +32,12 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function renderList(activities: ActivitySummary[], units: UnitSystem = 'metric') {
-  return render(<ActivityList activities={activities} units={units} />)
+function renderList(
+  activities: ActivitySummary[],
+  units: UnitSystem = 'metric',
+  records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
+) {
+  return render(<ActivityList activities={activities} units={units} records={records} />)
 }
 
 /** The list item that holds the activity's name link. */
@@ -171,6 +176,7 @@ describe('ActivityList', () => {
       <ActivityList
         activities={Array.from({ length: 25 }, (_, i) => activity(i))}
         units="metric"
+        records={new Map()}
       />,
     )
     expect(screen.getByRole('status')).toBe(region)
@@ -220,12 +226,16 @@ describe('ActivityList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     expect(screen.getByText('Showing 41–45 of 45 activities. Page 3 of 3.')).toBeVisible()
 
-    view.rerender(<ActivityList activities={activities.slice(0, 25)} units="metric" />)
+    view.rerender(
+      <ActivityList activities={activities.slice(0, 25)} units="metric" records={new Map()} />,
+    )
     expect(screen.getByText('Showing 1–20 of 25 activities. Page 1 of 2.')).toBeVisible()
     expect(rowFor('Run number 0')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Run number 40' })).not.toBeInTheDocument()
 
-    view.rerender(<ActivityList activities={activities.slice(0, 15)} units="metric" />)
+    view.rerender(
+      <ActivityList activities={activities.slice(0, 15)} units="metric" records={new Map()} />,
+    )
     expect(screen.queryByRole('navigation', { name: 'Activity pages' })).not.toBeInTheDocument()
     expect(rowsShown()).toHaveLength(15)
   })
@@ -238,7 +248,9 @@ describe('ActivityList', () => {
     const next = screen.getByRole('button', { name: 'Next page' })
     next.focus()
 
-    view.rerender(<ActivityList activities={activities.slice(0, 15)} units="metric" />)
+    view.rerender(
+      <ActivityList activities={activities.slice(0, 15)} units="metric" records={new Map()} />,
+    )
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
     expect(document.activeElement).toBe(rowFor('Run number 0'))
   })
@@ -258,5 +270,69 @@ describe('ActivityList', () => {
     const sport = within(rowFor('Hill ride')).getByText('Ride')
     expect(sport).toHaveClass('activity-list__sport')
     expect(sport.querySelector('svg')).toHaveClass('activity-list__icon--ride')
+  })
+})
+
+/** The chip labels in a records group, in the order they are shown. */
+function chipTexts(group: HTMLElement): (string | null)[] {
+  return within(group)
+    .getAllByText(/^Best /)
+    .map((chip) => chip.textContent)
+}
+
+describe('ActivityList records earned', () => {
+  const run = makeActivity({ id: 'run-1', name: 'Morning run' })
+  const other = makeActivity({ id: 'run-2', name: 'Evening run', startMs: NOW - 86_400_000 })
+
+  it('names the records an activity holds as chips, in the order given', () => {
+    const records = new Map<string, EarnedRecord[]>([
+      [
+        'run-1',
+        [
+          { kind: 'duration', durationS: 1200 },
+          { kind: 'distance', distanceM: 5000 },
+        ],
+      ],
+    ])
+    renderList([run], 'metric', records)
+    const group = screen.getByRole('group', { name: 'Records earned' })
+    expect(within(group).getByText('Best 20 min')).toBeTruthy()
+    expect(chipTexts(group)).toEqual(['Best 20 min', 'Best 5 km'])
+    expect(within(group).queryByText(/more/)).toBeNull()
+  })
+
+  it('shows at most two chips and says how many more the activity holds', () => {
+    const records = new Map<string, EarnedRecord[]>([
+      [
+        'run-1',
+        [
+          { kind: 'duration', durationS: 300 },
+          { kind: 'duration', durationS: 1200 },
+          { kind: 'duration', durationS: 3600 },
+          { kind: 'distance', distanceM: 5000 },
+        ],
+      ],
+    ])
+    renderList([run], 'metric', records)
+    const group = screen.getByRole('group', { name: 'Records earned' })
+    expect(chipTexts(group)).toEqual(['Best 5 min', 'Best 20 min'])
+    expect(within(group).getByText('+2 more records')).toBeTruthy()
+  })
+
+  it('gives chips only to the row of the activity that holds them', () => {
+    const records: ReadonlyMap<string, EarnedRecord[]> = new Map([
+      ['run-1', [{ kind: 'distance', distanceM: 1000 }]],
+    ])
+    renderList([run, other], 'metric', records)
+    const held = within(rowFor('Morning run')).getByRole('group', { name: 'Records earned' })
+    expect(held).toBeTruthy()
+    expect(
+      within(rowFor('Evening run')).queryByRole('group', { name: 'Records earned' }),
+    ).toBeNull()
+  })
+
+  it('shows no records group for an activity that holds nothing', () => {
+    renderList([run])
+    expect(screen.queryByRole('group', { name: 'Records earned' })).toBeNull()
   })
 })

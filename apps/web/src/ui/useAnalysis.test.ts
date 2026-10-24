@@ -132,6 +132,7 @@ const STATE = {
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
+  records: new Map(),
 }
 
 beforeEach(() => {

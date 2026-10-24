@@ -1,9 +1,8 @@
-import { METRES_PER_FOOT, METRES_PER_MILE, kgToLb } from './convert'
+import { METRES_PER_FOOT, METRES_PER_KM, METRES_PER_MILE, kgToLb } from './convert'
 
 export type UnitSystem = 'imperial' | 'metric'
 
 const DASH = '—'
-const METRES_PER_KM = 1000
 const KMH_PER_MS = 3.6
 const SECONDS_PER_HOUR = 3600
 const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g
@@ -39,6 +38,18 @@ export function formatDuration(seconds: number): string {
   }
   const sign = seconds < 0 && total > 0 ? '-' : ''
   return sign + parts.join(' ')
+}
+
+/** A time as m:ss, or h:mm:ss from an hour on, for record times. */
+export function formatRecordTime(seconds: number): string {
+  if (!Number.isFinite(seconds)) {
+    return DASH
+  }
+  const total = Math.round(Math.max(0, seconds))
+  const hours = Math.floor(total / SECONDS_PER_HOUR)
+  const minutes = Math.floor((total % SECONDS_PER_HOUR) / 60)
+  const secs = twoDigits(total % 60)
+  return hours > 0 ? `${hours}:${twoDigits(minutes)}:${secs}` : `${minutes}:${secs}`
 }
 
 export const PACE_UNIT: Record<UnitSystem, string> = { imperial: '/mi', metric: '/km' }

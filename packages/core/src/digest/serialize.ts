@@ -5,6 +5,7 @@ import type {
   DerivedStreams,
   DigestClimbSection,
   DigestCurvePoint,
+  DigestDistanceBest,
   DigestHrBlock,
   PowerTerms,
   QualityFlag,
@@ -203,6 +204,21 @@ function asClimbSection(value: unknown, path: string, durationS: number): Digest
   }
 }
 
+/** Distance bests are optional, so a digest from before the field is read without one. */
+function asDistanceBests(value: unknown, durationS: number): DigestDistanceBest[] {
+  const bests = asArray(value, 'distanceBests').map((b, i) => {
+    const path = `distanceBests[${i}]`
+    const o = asObject(b, path)
+    const seconds = asPositive(o.seconds, `${path}.seconds`)
+    if (seconds > durationS) fail(`${path}.seconds`, 'must not exceed durationS')
+    return { distanceM: asPositive(o.distanceM, `${path}.distanceM`), seconds }
+  })
+  if (bests.some((b, i) => i > 0 && b.distanceM <= bests[i - 1]!.distanceM)) {
+    fail('distanceBests', 'must be in ascending distance')
+  }
+  return bests
+}
+
 const SPORTS: readonly Sport[] = ['run', 'ride']
 const POWER_SOURCES: readonly DerivedStreams['powerSource'][] = ['measured', 'virtual', 'none']
 
@@ -234,6 +250,8 @@ export function parseDigest(json: string): ActivityDigest {
   const durationS = asNonNegativeInteger(o.durationS, 'durationS')
   const distanceM = asNumberOrNaN(o.distanceM, 'distanceM')
   if (distanceM < 0) fail('distanceM', 'must not be negative')
+  const distanceBests =
+    o.distanceBests === undefined ? undefined : asDistanceBests(o.distanceBests, durationS)
   return {
     version: DIGEST_VERSION,
     modelRevision,
@@ -256,5 +274,6 @@ export function parseDigest(json: string): ActivityDigest {
     climbSections: asArray(o.climbSections, 'climbSections').map((s, i) =>
       asClimbSection(s, `climbSections[${i}]`, durationS),
     ),
+    ...(distanceBests === undefined ? {} : { distanceBests }),
   }
 }

@@ -1,4 +1,5 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
 import {
   formatDistance,
@@ -10,7 +11,7 @@ import {
 import { SportIcon } from '../components/icons'
 import { keyByContent } from '../contentKeys'
 import { formatDay, formatTimeOfDay } from '../format/date'
-import { sportRecords } from '../records'
+import { chipLabels, sportRecords } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -23,6 +24,8 @@ export interface ActivityPageProps {
   units: UnitSystem
   /** Body mass, kg, for the W/kg of cycling bests. */
   massKg: number
+  /** The records each activity holds across the library, keyed by activity id. */
+  records: ReadonlyMap<string, readonly EarnedRecord[]>
 }
 
 const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
@@ -41,7 +44,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** One activity: its summary, the library bests it set, and any data issues in its file. */
-export function ActivityPage({ activity, result, units, massKg }: ActivityPageProps) {
+export function ActivityPage({ activity, result, units, massKg, records }: ActivityPageProps) {
   if (!activity) {
     return (
       <div className="page-title">
@@ -61,6 +64,7 @@ export function ActivityPage({ activity, result, units, massKg }: ActivityPagePr
   const bests = sportRecords(result, activity.sport, massKg, units).filter(
     (record) => record.activity?.id === activity.id,
   )
+  const chips = chipLabels(records.get(activity.id) ?? [])
   return (
     <div className="page-stack">
       <div className="page-title">
@@ -98,6 +102,21 @@ export function ActivityPage({ activity, result, units, massKg }: ActivityPagePr
         <Stat label="Heart rate" value={activity.hasHeartRate ? 'Recorded' : 'Not recorded'} />
         {!isRun && <Stat label="Power" value={POWER_LABEL[activity.powerSource]} />}
       </dl>
+
+      {chips.length > 0 && (
+        <div className="activity-page__records" role="group" aria-labelledby="activity-records">
+          <p id="activity-records" className="eyebrow">
+            Records earned
+          </p>
+          <div className="activity-page__chips">
+            {chips.map((label) => (
+              <span key={label} className={`chip chip--${activity.sport}`}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <section className="section" aria-labelledby="activity-bests">
         <h2 id="activity-bests">Best efforts set here</h2>

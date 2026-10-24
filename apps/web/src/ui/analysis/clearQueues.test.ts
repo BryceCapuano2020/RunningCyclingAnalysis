@@ -56,6 +56,7 @@ const STATE = {
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
+  records: new Map(),
 }
 
 function me(id: string): Me {

@@ -90,6 +90,17 @@
   background: var(--status-good-bg);
 }
 
+/* A record chip takes its sport's colour as a soft fill, and keeps ink text for contrast. */
+.chip--run {
+  background: var(--series-run-soft);
+  color: var(--text-primary);
+}
+
+.chip--ride {
+  background: var(--series-ride-soft);
+  color: var(--text-primary);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
