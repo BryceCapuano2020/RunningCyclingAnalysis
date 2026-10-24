@@ -2,14 +2,18 @@ import { FIRST_GRADED_AGE, LAST_GRADED_AGE } from '@rca/core/grade'
 import type { AthleteSettings } from '@rca/core/types'
 import { kgToLb, lbToKg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
+import { WEIGHT_LIMITS_KG } from '@rca/contract'
 
 /** The two weights the app keeps. The bike weight keeps its default unless the athlete edits it. */
 export type WeightField = 'body' | 'bike'
 
-/** Limits in kg, checked after converting what was typed. */
-const WEIGHT_LIMITS_KG: Record<WeightField, { min: number; max: number }> = {
-  body: { min: 30, max: 200 },
-  bike: { min: 3, max: 30 },
+/**
+ * What the athlete has entered. The body weight is null until it is entered: nothing assumes one,
+ * so a ride's W/kg, grade and the balance wait for it. The bike weight always has a value.
+ */
+export interface WeightSettings {
+  massKg: number | null
+  bikeMassKg: number
 }
 
 export const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
@@ -17,9 +21,32 @@ export const UNIT_OPTIONS: { value: UnitSystem; label: string }[] = [
   { value: 'metric', label: 'Metric' },
 ]
 
-const DECIMAL = /^(\d+\.?\d*|\.\d+)$/
+/**
+ * The body mass the analysis runs on while none is entered. The analysis needs a number, and this is
+ * the 75 kg the app used before weights were optional, so ride results keep today's numbers. It is a
+ * placeholder, not the athlete's weight: anything built on it must be held while weightKnown is false.
+ * A stored 75 kg from before setup was answered is read as unset (see parsePreferences).
+ */
+export const PLACEHOLDER_BODY_KG = 75
 
-export function weightKg(settings: AthleteSettings, field: WeightField): number {
+const NUMBER_MESSAGE = 'Enter a number, such as 75 or 165.5'
+
+/**
+ * A number with a point, or a decimal comma followed by one or two digits, and an optional kg or lb.
+ * Three digits after a comma are a thousands separator, which is refused rather than read as decimals.
+ */
+const WEIGHT_TEXT = /^(\d+(?:\.\d*)?|\d+,\d{1,2}|\.\d+|,\d{1,2})\s*(kgs?|lbs?)?$/i
+
+export function weightKnown(settings: WeightSettings): boolean {
+  return typeof settings.massKg === 'number'
+}
+
+/** The settings the analysis runs on. See PLACEHOLDER_BODY_KG. */
+export function analysisSettings(settings: WeightSettings): AthleteSettings {
+  return { massKg: settings.massKg ?? PLACEHOLDER_BODY_KG, bikeMassKg: settings.bikeMassKg }
+}
+
+export function weightKg(settings: WeightSettings, field: WeightField): number | null {
   return field === 'body' ? settings.massKg : settings.bikeMassKg
 }
 
@@ -27,15 +54,25 @@ export function weightUnit(units: UnitSystem): string {
   return units === 'imperial' ? 'lb' : 'kg'
 }
 
-/** One decimal, or a whole number when the value is within 0.05 of one. */
-export function displayWeight(kg: number, units: UnitSystem): string {
+/** Whether a weight in kg is within the limits its field accepts. */
+export function weightWithinLimits(kg: number, field: WeightField): boolean {
+  const { min, max } = WEIGHT_LIMITS_KG[field]
+  return kg >= min && kg <= max
+}
+
+/** One decimal, or a whole number when the value is within 0.05 of one. Blank when no weight. */
+export function displayWeight(kg: number | null, units: UnitSystem): string {
+  if (kg === null) return ''
   const value = units === 'imperial' ? kgToLb(kg) : kg
   const whole = Math.round(value)
   if (Math.abs(value - whole) < 0.05) return String(whole)
   return value.toFixed(1)
 }
 
-/** Whole display-unit limits, inside the kg limits. */
+/**
+ * The whole-number limits in the given units. In pounds these are the pounds whose kilograms fall
+ * inside the kilogram limits, so every value the message names is accepted and nothing else is.
+ */
 function displayLimits(field: WeightField, units: UnitSystem): { lo: number; hi: number } {
   const { min, max } = WEIGHT_LIMITS_KG[field]
   if (units === 'metric') return { lo: min, hi: max }
@@ -44,18 +81,22 @@ function displayLimits(field: WeightField, units: UnitSystem): { lo: number; hi:
 
 export type WeightReading = { kg: number } | { error: string }
 
-/** The kilograms typed into a weight field, or why the text cannot be used. */
+/**
+ * The kilograms typed into a weight field, or why the text cannot be used. A unit typed after the
+ * number wins over the units chosen, and the value is checked against the limits in that unit.
+ */
 export function readWeight(text: string, field: WeightField, units: UnitSystem): WeightReading {
-  const trimmed = text.trim()
-  if (!DECIMAL.test(trimmed)) return { error: 'Enter a number' }
-  const value = Number(trimmed)
-  const kg = units === 'imperial' ? lbToKg(value) : value
-  const { min, max } = WEIGHT_LIMITS_KG[field]
-  if (kg < min || kg > max) {
-    const { lo, hi } = displayLimits(field, units)
-    return { error: `Enter a weight from ${lo} to ${hi} ${weightUnit(units)}` }
+  const match = WEIGHT_TEXT.exec(text.trim())
+  if (match === null) return { error: NUMBER_MESSAGE }
+  const [, digits = '', unit] = match
+  let typedUnits: UnitSystem = units
+  if (unit !== undefined) typedUnits = /^lb/i.test(unit) ? 'imperial' : 'metric'
+  const value = Number(digits.replace(',', '.'))
+  const { lo, hi } = displayLimits(field, typedUnits)
+  if (value < lo || value > hi) {
+    return { error: `Enter a weight from ${lo} to ${hi} ${weightUnit(typedUnits)}` }
   }
-  return { kg }
+  return { kg: typedUnits === 'imperial' ? lbToKg(value) : value }
 }
 
 /**

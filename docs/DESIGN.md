@@ -171,7 +171,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   your birth year on the date of each effort." On the Ride page the source line also says that a
   ride's range is its model range.
 - **A missing year of birth or sex asks once,** on the Balance page, in a quiet line that links to
-  Profile. The cards show no grade and no prompt in that case.
+  Profile. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer
+  not to say" is stored as no sex.
+- **Weight is never filled in for you.** Setup's Skip leaves the body weight blank, and Profile
+  shows it as not entered. Add it to compare a ride with a run. Until the results screens gate on it,
+  their ride figures use a placeholder of 75 kg. The share card leaves out the ride estimate and the
+  balance while no weight is entered.
+- **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
+  A new account takes the language of its sign-in request the same way. The Units choice comes
+  first in setup, and a unit typed after a weight ("150 lb") is read as typed.
+- **The export may hold a null body mass,** written as null, for a weight that was never entered.
 
 ## Accessibility
 

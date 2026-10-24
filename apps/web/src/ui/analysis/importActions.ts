@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type { AthleteSettings } from '@rca/core/types'
+import { analysisSettings } from '../athlete'
 import {
   ACCOUNT_CHANGED_BEFORE_IMPORT,
   INTERRUPTED,
@@ -88,10 +89,10 @@ export function useImportActions({
           send({
             type: 'addFiles',
             files,
-            settings: {
+            settings: analysisSettings({
               massKg: savedMe.profile.massKg,
               bikeMassKg: savedMe.profile.bikeMassKg,
-            },
+            }),
             sync: {
               keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,
               userId: submittedUserId,

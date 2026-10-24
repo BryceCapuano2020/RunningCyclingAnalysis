@@ -13,25 +13,30 @@
   font-size: 0.875rem;
 }
 
+/* The options share the row and never wrap onto a second row, so the segments stay one control. */
 .segmented-control__options {
   display: inline-flex;
-  flex-wrap: wrap;
   max-width: 100%;
 }
 
-/* Each visible label is the click target, and at least 40 px tall. */
+/*
+ * Each visible label is the click target, and at least 44 px tall. Options shrink to fit a 320 px
+ * phone and wrap their own text, so a long label grows the segment rather than the row.
+ */
 .segmented-control__option {
   position: relative;
   display: inline-flex;
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-width: 0;
   align-items: center;
-  min-height: 40px;
-  padding: 0 var(--space-4);
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--control-border);
   background: var(--surface-1);
   cursor: pointer;
   font-weight: 500;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .segmented-control__option:first-of-type {

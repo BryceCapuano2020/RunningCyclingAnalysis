@@ -112,14 +112,26 @@ describe('profile persistence', () => {
     expect(updateProfile).toHaveBeenCalledWith({ units: 'metric' })
   })
 
-  it('saves both weights when a weight is entered and Enter is pressed', async () => {
+  it('saves only the body weight that was entered when Enter is pressed', async () => {
     const user = userEvent.setup()
     setAccount('signed-in', { units: 'metric' })
     render(<App />)
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '80{Enter}')
-    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 9 })
+    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80 })
+  })
+
+  it('tells the athlete a weight was not saved when the account refuses it', async () => {
+    const user = userEvent.setup()
+    setAccount('signed-in', { units: 'metric' })
+    updateProfile.mockRejectedValueOnce(new Error('offline'))
+    render(<App />)
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '80{Enter}')
+    expect(await screen.findByText("Couldn't save. Try again.")).toBeInTheDocument()
+    expect(body).toHaveValue('80')
   })
 
   it('does not resend a failed weight edit with a later units change', async () => {
@@ -169,7 +181,7 @@ describe('profile persistence', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('radio', { name: 'Metric' }))
     expect(setPreferences).toHaveBeenCalledWith({
-      settings: { massKg: 75, bikeMassKg: 9 },
+      settings: { massKg: null, bikeMassKg: 9 },
       units: 'metric',
       birthYear: null,
       sex: null,
@@ -210,7 +222,7 @@ describe('original file retention', () => {
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '80{Enter}')
-    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 9 })
+    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80 })
   })
 })
 

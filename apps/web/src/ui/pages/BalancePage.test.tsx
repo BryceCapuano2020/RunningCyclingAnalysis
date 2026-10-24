@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
 import type { TrendPoint } from '@rca/core/digest'
@@ -18,8 +18,16 @@ import {
 import type { AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
 
+vi.mock('../../share/download', () => ({ saveCanvasPng: vi.fn(async () => true) }))
+vi.mock('../../share/renderCard', () => ({
+  loadCardFonts: vi.fn(async () => undefined),
+  renderShareCard: vi.fn(() => true),
+}))
+import { renderShareCard } from '../../share/renderCard'
+
 afterEach(() => {
   cleanup()
+  vi.clearAllMocks()
 })
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
@@ -30,6 +38,7 @@ function renderPage(
   result: AnalysisResult = makeResult(),
   overrides: AnalysisStubOverrides = {},
   profile: AgeProfile | null = null,
+  weightKnown = true,
 ) {
   return render(
     <BalancePage
@@ -39,6 +48,7 @@ function renderPage(
       units="metric"
       profile={profile}
       controls={<span>Period picker</span>}
+      weightKnown={weightKnown}
     />,
   )
 }
@@ -208,5 +218,32 @@ describe('BalancePage age grades', () => {
   it('shows no standards line without the year of birth and sex', () => {
     renderPage(GRADED_RUN)
     expect(screen.queryByText(/^Graded on the/)).not.toBeInTheDocument()
+  })
+})
+
+describe('BalancePage with no weight entered', () => {
+  it('says the ride figures use the placeholder, and links to Profile to add a weight', () => {
+    renderPage(makeResult(), {}, null, false)
+    expect(
+      screen.getByText(/Ride figures use 75 kg until you add your weight on/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+  })
+
+  it('shows no such line once a weight is entered', () => {
+    renderPage(makeResult(), {}, null, true)
+    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+  })
+
+  it('leaves the ride estimate and the balance meter off the share card', async () => {
+    renderPage(makeResult(), {}, null, false)
+    fireEvent.click(screen.getByRole('button', { name: 'Download square image' }))
+    await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
+    const card = vi.mocked(renderShareCard).mock.calls[0]?.[0]
+    expect(card?.meter).toBeNull()
+    expect(card?.heroes.find((hero) => hero.sport === 'ride')).toMatchObject({
+      figure: null,
+      sub: null,
+    })
   })
 })

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { and, eq, sql } from 'drizzle-orm'
-import { ProfileInputSchema } from '@rca/contract'
+import { ProfileInputSchema, unitsForAcceptLanguage } from '@rca/contract'
 import type { AppEnv } from '../env.ts'
 import { buildMe, ensureProfile, toProfile } from '../auth/accounts.ts'
 import { clearSessionCookie } from '../auth/session.ts'
@@ -23,7 +23,8 @@ meRoutes.get('/me', requireUser, async (c) => {
   const user = currentUser(c)
   // A constant-size read, bounded by the edge rate limiter. The daily read budget is for library
   // listings, whose cost grows with the library; charging page loads here would lock people out.
-  return c.json(await buildMe(db, deps, user, Boolean(c.env.FILES)), 200)
+  const units = unitsForAcceptLanguage(c.req.header('accept-language'))
+  return c.json(await buildMe(db, deps, user, Boolean(c.env.FILES), units), 200)
 })
 
 meRoutes.put(
@@ -47,7 +48,10 @@ meRoutes.put(
         'Original-file storage is not available in this deployment',
       )
     }
-    const before = existing ? toProfile(existing) : await ensureProfile(db, userId, updatedAt)
+    // A missing profile is created with the units this write sets, which the upsert below sets anyway.
+    const before = existing
+      ? toProfile(existing)
+      : await ensureProfile(db, userId, updatedAt, input.units)
     const turningFilesOff = before.keepFiles && !input.keepFiles
     // Only an account with stored files needs the R2 sweeps. Without them, no cleanup budget is spent.
     const sweepFiles = turningFilesOff && (await hasStoredFiles(c.env.DB, userId))

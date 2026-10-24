@@ -326,6 +326,17 @@ describe('ProfileInputSchema', () => {
     expect(ProfileInputSchema.safeParse({ ...valid, units: 'stone' }).success).toBe(false)
   })
 
+  it('treats null as clearing the body mass, and leaves it out when it is omitted', () => {
+    expect(ProfileInputSchema.parse({ ...valid, massKg: null })).toMatchObject({ massKg: null })
+    expect(
+      ProfileInputSchema.parse({ bikeMassKg: 9, units: 'metric', keepFiles: false }),
+    ).not.toHaveProperty('massKg')
+  })
+
+  it('rejects a body mass that is text, even though null is accepted', () => {
+    expect(ProfileInputSchema.safeParse({ ...valid, massKg: '75' }).success).toBe(false)
+  })
+
   it('leaves year of birth and sex out of the parsed value when they are omitted', () => {
     const parsed = ProfileInputSchema.parse(valid)
     expect(parsed).not.toHaveProperty('birthYear')
@@ -369,6 +380,10 @@ describe('ProfileSchema', () => {
 
   it('reads a profile saved before age and sex existed as null for both', () => {
     expect(ProfileSchema.parse(stored)).toMatchObject({ birthYear: null, sex: null })
+  })
+
+  it('reads a profile with no body mass entered as a null body mass', () => {
+    expect(ProfileSchema.parse({ ...stored, massKg: null })).toMatchObject({ massKg: null })
   })
 
   it('keeps a saved year of birth and sex', () => {

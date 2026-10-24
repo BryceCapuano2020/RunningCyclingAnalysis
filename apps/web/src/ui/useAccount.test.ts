@@ -181,6 +181,30 @@ describe('useAccount', () => {
     expect(result.current.error).toBe('Busy')
   })
 
+  it('updateProfile sends a body mass only when the patch sets it, so a write leaves it alone', async () => {
+    const { result } = await renderSignedIn()
+    mocked.updateProfile.mockResolvedValueOnce({ ...ME.profile, updatedAt: 2000 })
+    await act(async () => {
+      await result.current.updateProfile({ units: 'imperial' })
+    })
+    const [sent] = mocked.updateProfile.mock.calls.at(-1) ?? []
+    expect(sent).not.toHaveProperty('massKg')
+    expect(sent).toMatchObject({ units: 'imperial', bikeMassKg: 9 })
+  })
+
+  it('updateProfile sends a cleared body mass as null, not as the saved one', async () => {
+    const { result } = await renderSignedIn()
+    mocked.updateProfile.mockResolvedValueOnce({ ...ME.profile, massKg: null, updatedAt: 2000 })
+    await act(async () => {
+      await result.current.updateProfile({ massKg: null })
+    })
+    expect(mocked.updateProfile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ massKg: null }),
+      ME.user.id,
+    )
+    expect(result.current.me?.profile.massKg).toBeNull()
+  })
+
   it('updateProfile replaces the profile in place and clears an earlier error', async () => {
     const stored = { ...INPUT, updatedAt: 2000 }
     const { result } = await renderSignedIn()
@@ -407,6 +431,7 @@ describe('useAccount', () => {
     })
     mocked.updateProfile.mockImplementation(async (input) => ({
       ...input,
+      massKg: input.massKg !== undefined ? input.massKg : ME.profile.massKg,
       birthYear: input.birthYear ?? 1990,
       sex: input.sex ?? 'female',
       updatedAt: 2000,
@@ -418,7 +443,7 @@ describe('useAccount', () => {
       await result.current.updateProfile({ units: 'metric' })
     })
     const [unrelated] = mocked.updateProfile.mock.calls.at(-1) ?? []
-    expect(unrelated).toEqual({ massKg: 75, bikeMassKg: 9, units: 'metric', keepFiles: true })
+    expect(unrelated).toEqual({ bikeMassKg: 9, units: 'metric', keepFiles: true })
     expect(unrelated).not.toHaveProperty('birthYear')
     expect(unrelated).not.toHaveProperty('sex')
 
@@ -440,6 +465,7 @@ describe('useAccount', () => {
     mocked.updateProfile.mockImplementation(async (input) => {
       saved = {
         ...input,
+        massKg: input.massKg !== undefined ? input.massKg : saved.massKg,
         birthYear: input.birthYear ?? null,
         sex: input.sex ?? null,
         updatedAt: saved.updatedAt + 1,

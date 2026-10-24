@@ -14,7 +14,7 @@ import { analysisStub } from './analysisStub'
  */
 
 const DEFAULT_PREFERENCES: Preferences = {
-  settings: { massKg: 75, bikeMassKg: 9 },
+  settings: { massKg: null, bikeMassKg: 9 },
   units: 'imperial',
   birthYear: null,
   sex: null,

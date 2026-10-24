@@ -3,30 +3,39 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import type { WeightSettings } from '../athlete'
 import { SettingsBar } from './SettingsBar'
 
 afterEach(() => {
   cleanup()
 })
 
-const SETTINGS: AthleteSettings = { massKg: 80, bikeMassKg: 9 }
+const SETTINGS: WeightSettings = { massKg: 80, bikeMassKg: 9 }
+const UNSET: WeightSettings = { massKg: null, bikeMassKg: 9 }
+const SAVED = 'Saved. Balance and ride results now use this.'
+const NUMBER_ERROR = 'Enter a number, such as 75 or 165.5'
 
-function renderBar(units: UnitSystem = 'metric', settings: AthleteSettings = SETTINGS) {
+function renderBar(units: UnitSystem = 'metric', settings: WeightSettings = SETTINGS) {
   const onChange = vi.fn()
   render(<SettingsBar settings={settings} units={units} onChange={onChange} />)
   return {
     onChange,
     body: screen.getByLabelText('Body weight'),
-    bike: screen.getByLabelText('Bike and kit weight'),
+    bike: screen.getByLabelText('Bike and gear weight'),
   }
 }
 
 /** Holds settings in state, so a committed value is shown back as the real app would. */
-function Harness({ initial, units }: { initial: AthleteSettings; units: UnitSystem }) {
+function Harness({ initial, units }: { initial: WeightSettings; units: UnitSystem }) {
   const [settings, setSettings] = useState(initial)
-  return <SettingsBar settings={settings} units={units} onChange={setSettings} />
+  return (
+    <SettingsBar
+      settings={settings}
+      units={units}
+      onChange={(change) => setSettings((current) => ({ ...current, ...change }))}
+    />
+  )
 }
 
 describe('SettingsBar', () => {
@@ -66,12 +75,20 @@ describe('SettingsBar', () => {
     expect(screen.getAllByText('lb')).toHaveLength(2)
   })
 
-  it('shows the real-figure hint', () => {
+  it('says what the body weight drives', () => {
     renderBar()
     expect(
       screen.getByText(
-        'Your weight puts watts and pace on the same scale, so enter your real weight.',
+        'Your body weight sets ride W/kg and the balance. Bike and gear weight is used for power on climbs.',
       ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no body weight as a blank field, and says what adding one is for', () => {
+    const { body } = renderBar('metric', UNSET)
+    expect(body).toHaveValue('')
+    expect(
+      screen.getByText('Not entered. Add your weight to compare a ride with a run.'),
     ).toBeInTheDocument()
   })
 
@@ -83,7 +100,7 @@ describe('SettingsBar', () => {
     expect(onChange).not.toHaveBeenCalled()
     await user.tab()
     expect(onChange).toHaveBeenCalledTimes(1)
-    expect(onChange).toHaveBeenCalledWith({ massKg: 75, bikeMassKg: 9 })
+    expect(onChange).toHaveBeenCalledWith({ massKg: 75 })
   })
 
   it('commits on Enter', async () => {
@@ -91,7 +108,7 @@ describe('SettingsBar', () => {
     const { body, onChange } = renderBar()
     await user.clear(body)
     await user.type(body, '72.5{Enter}')
-    expect(onChange).toHaveBeenCalledWith({ massKg: 72.5, bikeMassKg: 9 })
+    expect(onChange).toHaveBeenCalledWith({ massKg: 72.5 })
   })
 
   it('does not commit a second time when blurred after Enter', async () => {
@@ -109,7 +126,7 @@ describe('SettingsBar', () => {
     await user.clear(bike)
     await user.type(bike, '8.5')
     await user.tab()
-    expect(onChange).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 8.5 })
+    expect(onChange).toHaveBeenCalledWith({ bikeMassKg: 8.5 })
   })
 
   it('converts typed pounds to kilograms for imperial', async () => {
@@ -118,9 +135,26 @@ describe('SettingsBar', () => {
     await user.clear(body)
     await user.type(body, '170')
     await user.tab()
-    const [next] = onChange.mock.calls[0] as [AthleteSettings]
+    const [next] = onChange.mock.calls[0] as [Partial<WeightSettings>]
     expect(next.massKg).toBeCloseTo(170 * 0.45359237, 6)
-    expect(next.bikeMassKg).toBe(9)
+    expect(next).not.toHaveProperty('bikeMassKg')
+  })
+
+  it('accepts a decimal comma and a unit typed after the number', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar('metric')
+    await user.clear(body)
+    await user.type(body, '75,5')
+    await user.tab()
+    expect(onChange).toHaveBeenCalledWith({ massKg: 75.5 })
+  })
+
+  it('sets a body weight that was not entered', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar('metric', UNSET)
+    await user.type(body, '70')
+    await user.tab()
+    expect(onChange).toHaveBeenCalledWith({ massKg: 70 })
   })
 
   it('does not call onChange when focus leaves an unchanged field', async () => {
@@ -131,26 +165,35 @@ describe('SettingsBar', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('rejects text, restores the previous value and shows an inline error', async () => {
+  it('keeps the text typed with its error until it is corrected, and does not save it', async () => {
     const user = userEvent.setup()
     const { body, onChange } = renderBar()
     await user.clear(body)
     await user.type(body, 'heavy')
     await user.tab()
-    expect(screen.getByRole('alert')).toHaveTextContent('Enter a number')
-    expect(body).toHaveValue('80')
+    expect(screen.getByRole('alert')).toHaveTextContent(NUMBER_ERROR)
+    expect(body).toHaveValue('heavy')
     expect(body).toHaveAttribute('aria-invalid', 'true')
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('rejects a body weight above 200 kg', async () => {
+  it('does not save a blank body weight once one is set', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.tab()
+    expect(screen.getByRole('alert')).toHaveTextContent(NUMBER_ERROR)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('rejects a body weight above 200 kg, and keeps the text', async () => {
     const user = userEvent.setup()
     const { body, onChange } = renderBar('metric')
     await user.clear(body)
     await user.type(body, '250')
     await user.tab()
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a weight from 30 to 200 kg')
-    expect(body).toHaveValue('80')
+    expect(body).toHaveValue('250')
     expect(onChange).not.toHaveBeenCalled()
   })
 
@@ -164,14 +207,14 @@ describe('SettingsBar', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('rejects a bike weight outside 3 to 30 kg', async () => {
+  it('rejects a bike weight outside 3 to 30 kg, and keeps the text', async () => {
     const user = userEvent.setup()
     const { bike, onChange } = renderBar('metric')
     await user.clear(bike)
     await user.type(bike, '40')
     await user.tab()
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a weight from 3 to 30 kg')
-    expect(bike).toHaveValue('9')
+    expect(bike).toHaveValue('40')
     expect(onChange).not.toHaveBeenCalled()
   })
 
@@ -195,5 +238,64 @@ describe('SettingsBar', () => {
     await user.click(body)
     await user.type(body, '7')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says it is saving, then saved, when the change is stored', async () => {
+    const user = userEvent.setup()
+    let finish: () => void = () => undefined
+    const onChange = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<SettingsBar settings={SETTINGS} units="metric" onChange={onChange} />)
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '76')
+    await user.tab()
+    expect(screen.getByRole('status')).toHaveTextContent('Saving…')
+    finish()
+    expect(await screen.findByText(SAVED)).toBeInTheDocument()
+  })
+
+  it('keeps the typed weight, and says so, when the change cannot be stored', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn(() => Promise.reject(new Error('offline')))
+    render(<SettingsBar settings={SETTINGS} units="metric" onChange={onChange} />)
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '76')
+    await user.tab()
+    expect(await screen.findByText("Couldn't save. Try again.")).toBeInTheDocument()
+    expect(body).toHaveValue('76')
+  })
+
+  it('keeps the status line mounted, so it can announce each change', () => {
+    renderBar()
+    expect(screen.getByRole('status')).toHaveTextContent('')
+  })
+})
+
+describe('SettingsBar units agree with what is saved', () => {
+  it('saves a metric entry as kilograms, unconverted, under a kg label', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar('metric')
+    expect(screen.getByLabelText('Body weight').parentElement).toHaveTextContent('kg')
+    await user.clear(body)
+    await user.type(body, '185')
+    await user.tab()
+    expect(onChange).toHaveBeenCalledWith({ massKg: 185 })
+  })
+
+  it('saves an imperial entry as kilograms, converted, under an lb label', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar('imperial')
+    expect(screen.getByLabelText('Body weight').parentElement).toHaveTextContent('lb')
+    await user.clear(body)
+    await user.type(body, '185')
+    await user.tab()
+    const [change] = onChange.mock.calls[0] as [Partial<WeightSettings>]
+    expect(change.massKg).toBeCloseTo(185 * 0.45359237, 6)
   })
 })

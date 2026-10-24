@@ -531,3 +531,20 @@ describe('validation messages', () => {
     expect(body.error.message.length).toBeLessThanOrEqual(1000)
   })
 })
+
+describe('upload profile units', () => {
+  it('creates a profile an upload finds missing in the units of the upload language', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const id = await idOf(await createActivity(h, token))
+    await h.env.DB.prepare('DELETE FROM profiles').run()
+    const res = await putFile(h, token, id, CONTENT, {
+      ...lengthOf(CONTENT),
+      'accept-language': 'en-US,en;q=0.9',
+    })
+    // Files are off by default, so the upload is refused once the profile exists.
+    expect(res.status).toBe(409)
+    const me = await h.send({ path: '/api/me', ...as(token) })
+    expect(await me.json()).toMatchObject({ profile: { units: 'imperial' } })
+  })
+})

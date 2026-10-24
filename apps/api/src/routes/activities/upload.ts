@@ -1,6 +1,11 @@
 import { Hono, type Context } from 'hono'
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { DAILY_UPLOAD_BYTES, MAX_FILE_BYTES, MAX_STORED_BYTES_PER_USER } from '@rca/contract'
+import {
+  DAILY_UPLOAD_BYTES,
+  MAX_FILE_BYTES,
+  MAX_STORED_BYTES_PER_USER,
+  unitsForAcceptLanguage,
+} from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
 import { apiError, HttpError } from '../../errors.ts'
 import { ensureProfile } from '../../auth/accounts.ts'
@@ -289,7 +294,12 @@ uploadRoutes.put('/:id/file', requireUser, async (c) => {
     return c.json(apiError('length_required', 'Send the file with a Content-Length header'), 411)
   }
 
-  const profile = await ensureProfile(db, userId, deps.now())
+  const profile = await ensureProfile(
+    db,
+    userId,
+    deps.now(),
+    unitsForAcceptLanguage(c.req.header('accept-language')),
+  )
   if (!profile.keepFiles) {
     throw new HttpError(409, 'files_disabled', 'Original files are turned off in your profile')
   }

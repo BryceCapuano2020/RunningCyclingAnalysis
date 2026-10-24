@@ -1,10 +1,11 @@
 import type { Profile, ProfileInput, Sex } from '@rca/contract'
-import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import type { WeightSettings } from './athlete'
 
 /** A change to what the app keeps about the athlete, signed in or out. */
 export type ProfilePatch = Partial<{
-  settings: AthleteSettings
+  /** Only the weights the change sets: a weight left out keeps its saved value. */
+  settings: Partial<WeightSettings>
   units: UnitSystem
   keepFiles: boolean
   birthYear: number | null
@@ -20,8 +21,9 @@ export type ProfilePatch = Partial<{
 export function profileFields(next: ProfilePatch): Partial<ProfileInput> {
   const fields: Partial<ProfileInput> = {}
   if (next.settings) {
-    fields.massKg = next.settings.massKg
-    fields.bikeMassKg = next.settings.bikeMassKg
+    // Only the weights the patch sets are sent. A body mass of null clears the saved one.
+    if (next.settings.massKg !== undefined) fields.massKg = next.settings.massKg
+    if (next.settings.bikeMassKg !== undefined) fields.bikeMassKg = next.settings.bikeMassKg
   }
   if (next.units !== undefined) fields.units = next.units
   if (next.keepFiles !== undefined) fields.keepFiles = next.keepFiles
@@ -32,7 +34,7 @@ export function profileFields(next: ProfilePatch): Partial<ProfileInput> {
 
 /** The athlete's values as the app shows them: the saved profile when signed in, else preferences. */
 export interface AthleteValues {
-  settings: AthleteSettings
+  settings: WeightSettings
   units: UnitSystem
   birthYear: number | null
   sex: Sex | null
@@ -51,7 +53,10 @@ export function athleteValuesOf(profile: Profile): AthleteValues {
 /** The values after a patch. A field the patch leaves out keeps its current value. */
 export function applyPatch(values: AthleteValues, patch: ProfilePatch): AthleteValues {
   return {
-    settings: patch.settings ?? values.settings,
+    settings: {
+      massKg: patch.settings?.massKg !== undefined ? patch.settings.massKg : values.settings.massKg,
+      bikeMassKg: patch.settings?.bikeMassKg ?? values.settings.bikeMassKg,
+    },
     units: patch.units ?? values.units,
     birthYear: patch.birthYear !== undefined ? patch.birthYear : values.birthYear,
     sex: patch.sex !== undefined ? patch.sex : values.sex,
