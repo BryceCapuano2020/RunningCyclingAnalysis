@@ -388,6 +388,87 @@ describe('DevLoginSchema', () => {
   })
 })
 
+describe('digest splits', () => {
+  const split = {
+    distanceM: 1000,
+    seconds: 300,
+    gradeAdjustedSeconds: 290,
+    elevationGainM: 12,
+    avgHeartRate: 150,
+  }
+  const splitsOf = (km: number, mile: number) => ({
+    km: Array.from({ length: km }, () => ({ ...split })),
+    mile: Array.from({ length: mile }, () => ({ ...split, distanceM: 1609.344 })),
+  })
+  const withSplits = (splits: unknown) => ({ ...digestWire, splits })
+  const withKm = (override: Record<string, unknown>) =>
+    withSplits({ km: [{ ...split, ...override }], mile: [] })
+
+  it('reads splits back, from both the create and the stored schemas', () => {
+    const wire = withSplits(splitsOf(2, 1))
+    expect(ActivityDigestSchema.parse(wire).splits).toEqual(splitsOf(2, 1))
+    expect(StoredActivityDigestSchema.parse(wire).splits).toEqual(splitsOf(2, 1))
+  })
+
+  it('reads a digest without splits as having none', () => {
+    expect(ActivityDigestSchema.parse(digestWire)).not.toHaveProperty('splits')
+    expect(StoredActivityDigestSchema.parse(digestWire)).not.toHaveProperty('splits')
+  })
+
+  it('accepts null for a split whose time, grade, climb or heart rate is unknown', () => {
+    const parsed = ActivityDigestSchema.parse(
+      withKm({
+        seconds: null,
+        gradeAdjustedSeconds: null,
+        elevationGainM: null,
+        avgHeartRate: null,
+      }),
+    )
+    expect(parsed.splits?.km[0]).toMatchObject({
+      seconds: null,
+      gradeAdjustedSeconds: null,
+      elevationGainM: null,
+      avgHeartRate: null,
+    })
+  })
+
+  it('accepts exactly 500 kilometre splits and 320 mile splits', () => {
+    expect(ActivityDigestSchema.safeParse(withSplits(splitsOf(500, 320))).success).toBe(true)
+  })
+
+  it('rejects more than 500 kilometre splits or 320 mile splits in a create', () => {
+    expect(ActivityDigestSchema.safeParse(withSplits(splitsOf(501, 0))).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse(withSplits(splitsOf(0, 321))).success).toBe(false)
+  })
+
+  it('reads stored rows at four times the create limit, as apps/api/LIMITS.md describes', () => {
+    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(2000, 1280))).success).toBe(
+      true,
+    )
+    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(2001, 0))).success).toBe(false)
+    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(0, 1281))).success).toBe(false)
+  })
+
+  it('rejects a split value that is missing, negative, infinite or NaN', () => {
+    for (const override of [
+      { seconds: undefined },
+      { seconds: -1 },
+      { distanceM: Number.POSITIVE_INFINITY },
+      { elevationGainM: Number.NaN },
+      { gradeAdjustedSeconds: Number.NaN },
+      { avgHeartRate: -5 },
+    ]) {
+      expect(ActivityDigestSchema.safeParse(withKm(override)).success).toBe(false)
+      expect(StoredActivityDigestSchema.safeParse(withKm(override)).success).toBe(false)
+    }
+  })
+
+  it('rejects splits with the wrong shape', () => {
+    expect(ActivityDigestSchema.safeParse(withSplits({ km: [] })).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse(withSplits(null)).success).toBe(false)
+  })
+})
+
 describe('shared limits', () => {
   it('pins the owner-approved daily budgets, with the two deliberate import exceptions', async () => {
     const {

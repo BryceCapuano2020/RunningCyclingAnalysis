@@ -1,0 +1,87 @@
+/* The splits table shows from 480 px wide. Below that, the same splits are a list, and CSS shows one. */
+.splits-table caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--text-secondary);
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.splits-table th,
+.splits-table td {
+  padding-inline: var(--space-2);
+}
+
+.splits-table th {
+  white-space: normal;
+}
+
+.splits-table__pace {
+  min-width: 6.5rem;
+}
+
+.splits-table__fastest {
+  font-weight: 700;
+}
+
+/* The bar runs from zero to the width of the fastest known pace. */
+.splits-table__track {
+  display: block;
+  margin-top: var(--space-1);
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.splits-table__bar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--series-run);
+}
+
+.splits-list {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.splits-list__item + .splits-list__item {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.splits-list dl {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.splits-list dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.splits-list dt {
+  color: var(--text-secondary);
+}
+
+.splits-list dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Exactly one representation is shown at each width. */
+@media (max-width: 479px) {
+  .splits-wide {
+    display: none;
+  }
+
+  .splits-list {
+    display: block;
+  }
+}

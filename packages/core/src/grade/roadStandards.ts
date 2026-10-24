@@ -29,14 +29,36 @@
 // - Presentation-only anomalies (OC row 5 for 4 Mile, blank H:MM:SS cells, label typos) are
 //   not in this data.
 
+import { METRES_PER_MILE } from '../units/convert'
+
 /** SHA-256 of the age tables, recorded by the generator and checked by the tests. */
 export const ROAD_STANDARDS_SHA256 =
   'c6cc53d95c03b0fd62f563340d16234c18a784e3ae3cc4c99adfbaeeae3a8bb1'
 
 /** Road distances in metres, ascending. Each table row lists its seconds in this order. */
 export const ROAD_DISTANCES_M: readonly number[] = [
-  1609.344, 5000, 6000, 6437.376, 8000, 8046.72, 10000, 11265.408, 12000, 15000, 16093.44, 20000,
-  21097.5, 25000, 30000, 42195, 50000, 80467.2, 100000, 150000, 160934.4, 200000,
+  METRES_PER_MILE,
+  5000,
+  6000,
+  6437.376,
+  8000,
+  8046.72,
+  10000,
+  11265.408,
+  12000,
+  15000,
+  16093.44,
+  20000,
+  21097.5,
+  25000,
+  30000,
+  42195,
+  50000,
+  80467.2,
+  100000,
+  150000,
+  160934.4,
+  200000,
 ]
 
 const MALE_TABLE = `

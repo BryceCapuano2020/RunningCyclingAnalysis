@@ -40,7 +40,10 @@ const SOURCE_FIELDS = [
   'sha256.female',
 ]
 
-/** The 22 published road distances in metres, in table order. Any other list is refused. */
+/**
+ * The 22 published road distances in metres, in table order. Any other list is refused. The first
+ * is a mile: METRES_PER_MILE in units/convert.ts, kept as a literal here so this script stands alone.
+ */
 const PUBLISHED_DISTANCES_M = [
   1609.344, 5000, 6000, 6437.376, 8000, 8046.72, 10000, 11265.408, 12000, 15000, 16093.44, 20000,
   21097.5, 25000, 30000, 42195, 50000, 80467.2, 100000, 150000, 160934.4, 200000,
@@ -172,9 +175,11 @@ function checksumBlock(data) {
 }
 
 function distancesBlock(distancesM) {
+  // 1609.344 is METRES_PER_MILE in units/convert.ts, so the table names the shared constant.
+  const shown = distancesM.map((metres) => (metres === 1609.344 ? 'METRES_PER_MILE' : `${metres}`))
   return [
     '/** Road distances in metres, ascending. Each table row lists its seconds in this order. */',
-    `export const ROAD_DISTANCES_M: readonly number[] = [${distancesM.join(', ')}]`,
+    `export const ROAD_DISTANCES_M: readonly number[] = [${shown.join(', ')}]`,
   ].join('\n')
 }
 
@@ -185,6 +190,8 @@ function tableBlock(name, data, sex) {
 function render(data) {
   return [
     header(data.source),
+    '',
+    "import { METRES_PER_MILE } from '../units/convert'",
     '',
     checksumBlock(data),
     '',

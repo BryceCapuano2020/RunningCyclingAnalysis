@@ -1,4 +1,4 @@
-import { DURATIONS_S } from '../constants'
+import { DURATIONS_S, MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
 import type {
   ActivityDigest,
   CalibrationSums,
@@ -7,6 +7,8 @@ import type {
   DigestCurvePoint,
   DigestDistanceBest,
   DigestHrBlock,
+  DigestSplit,
+  DigestSplits,
   PowerTerms,
   QualityFlag,
   QualityKind,
@@ -219,6 +221,40 @@ function asDistanceBests(value: unknown, durationS: number): DigestDistanceBest[
   return bests
 }
 
+/** A finite number that is not negative, or null where a split value is unknown. */
+function asSplitValue(value: unknown, path: string): number | null {
+  const n = asFiniteOrNull(value, path)
+  if (n !== null && n < 0) fail(path, 'must not be negative')
+  return n
+}
+
+function asSplit(value: unknown, path: string): DigestSplit {
+  const o = asObject(value, path)
+  const distanceM = asFinite(o.distanceM, `${path}.distanceM`)
+  if (distanceM < 0) fail(`${path}.distanceM`, 'must not be negative')
+  return {
+    distanceM,
+    seconds: asSplitValue(o.seconds, `${path}.seconds`),
+    gradeAdjustedSeconds: asSplitValue(o.gradeAdjustedSeconds, `${path}.gradeAdjustedSeconds`),
+    elevationGainM: asSplitValue(o.elevationGainM, `${path}.elevationGainM`),
+    avgHeartRate: asSplitValue(o.avgHeartRate, `${path}.avgHeartRate`),
+  }
+}
+
+function asSplitList(value: unknown, path: string, limit: number): DigestSplit[] {
+  const list = asArray(value, path)
+  if (list.length > limit) fail(path, `must have at most ${limit} entries`)
+  return list.map((s, i) => asSplit(s, `${path}[${i}]`))
+}
+
+function asSplits(value: unknown, path: string): DigestSplits {
+  const o = asObject(value, path)
+  return {
+    km: asSplitList(o.km, `${path}.km`, MAX_KM_SPLITS),
+    mile: asSplitList(o.mile, `${path}.mile`, MAX_MILE_SPLITS),
+  }
+}
+
 const SPORTS: readonly Sport[] = ['run', 'ride']
 const POWER_SOURCES: readonly DerivedStreams['powerSource'][] = ['measured', 'virtual', 'none']
 
@@ -275,5 +311,6 @@ export function parseDigest(json: string): ActivityDigest {
       asClimbSection(s, `climbSections[${i}]`, durationS),
     ),
     ...(distanceBests === undefined ? {} : { distanceBests }),
+    ...(o.splits === undefined ? {} : { splits: asSplits(o.splits, 'splits') }),
   }
 }

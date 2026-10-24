@@ -1,0 +1,131 @@
+import type { ActivityRecord } from '@rca/contract'
+import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
+import { parseActivityFile } from '@rca/core/import'
+import { haltsImport } from '@rca/core/session'
+import type { AnalysisSession } from '@rca/core/session'
+import type { AthleteSettings } from '@rca/core/types'
+import { createActivity, downloadActivityFile, listActivities } from '../api/client'
+import type { DeviceActions } from './device'
+import { syncIssueFor } from './syncIssue'
+
+/** The edge rate limiter's window. */
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+/** The first instant of the next UTC day, when the per-user daily limit resets. */
+function nextUtcMidnightMs(nowMs: number): number {
+  const now = new Date(nowMs)
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
+}
+
+async function hashHex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** What a rebuild changes: the session, the library kept in this browser, and the saved records. */
+export interface RebuildContext {
+  session: AnalysisSession
+  device: Pick<DeviceActions, 'replaced'>
+  savedRecords: Map<string, ActivityRecord>
+  reportLibrary: () => void
+  reportUnreadable: (count: number) => void
+}
+
+/** Rebuild stale digests only from their exact stored original file, retaining partial successes. */
+export async function rebuildStale(ctx: RebuildContext, settings: AthleteSettings, userId: string) {
+  let unreadable = 0
+  const records = await listActivities(undefined, userId, (count) => {
+    unreadable += count
+  })
+  const stale = records.filter((record) => record.digest.modelRevision < MODEL_REVISION)
+  let rebuilt = 0
+  let missing = 0
+  let failed = 0
+  let limited = 0
+  let limitKind: 'daily' | 'rate' | null = null
+  let limitReached = false
+  for (const record of stale) {
+    if (!record.hasFile) {
+      missing++
+      continue
+    }
+    // Once a download limit is reached, further downloads would be refused the same way.
+    if (limitReached) {
+      limited++
+      continue
+    }
+    try {
+      const bytes = await downloadActivityFile(record.id, userId)
+      const parsed = parseActivityFile(bytes, record.fileName)
+      if (!parsed.ok) {
+        missing++
+        continue
+      }
+      const activity = parsed.activities.find(
+        (candidate) =>
+          candidate.sport === record.digest.sport &&
+          Math.round(candidate.startMs / 1000) === Math.round(record.digest.startMs / 1000),
+      )
+      if (!activity) {
+        missing++
+        continue
+      }
+      const fileHash = await hashHex(bytes)
+      // Replaces this exact activity, so a copy deleted in another tab is not written back.
+      const { record: upgraded } = await createActivity(
+        digestActivity(activity),
+        record.fileName,
+        fileHash,
+        userId,
+        record.id,
+      )
+      const recordIndex = records.findIndex((candidate) => candidate.id === record.id)
+      if (recordIndex >= 0) records[recordIndex] = upgraded
+      rebuilt++
+    } catch (error) {
+      const issue = syncIssueFor(error)
+      // A sign-out or account change would fail every remaining activity the same way.
+      if (haltsImport(issue)) throw error
+      if (error instanceof Error && 'status' in error && error.status === 404) missing++
+      // The stored original no longer matches a different saved copy, so it cannot be matched.
+      else if (issue === 'activity-conflict') missing++
+      else if (issue === 'daily-limit' || issue === 'rate-limited') {
+        limitReached = true
+        limited++
+        // A daily limit outranks a rate limit if both are seen.
+        if (issue === 'daily-limit') limitKind = 'daily'
+        else if (limitKind === null) limitKind = 'rate'
+      } else failed++
+    }
+  }
+  let refreshed
+  try {
+    // The refreshed listing is the library now shown, so its unreadable count replaces the first.
+    let refreshedUnreadable = 0
+    refreshed = await listActivities(undefined, userId, (count) => {
+      refreshedUnreadable += count
+    })
+    unreadable = refreshedUnreadable
+  } catch {
+    // Rebuild successes remain usable even if the final refresh is interrupted.
+    failed++
+    refreshed = records
+  }
+  ctx.device.replaced()
+  const state = ctx.session.loadDigests(
+    refreshed.map((record) => record.digest),
+    settings,
+  )
+  ctx.savedRecords.clear()
+  for (const record of refreshed) ctx.savedRecords.set(record.id, record)
+  ctx.reportLibrary()
+  ctx.reportUnreadable(unreadable)
+  // The error has no Retry-After, so a rate limit is assumed to clear with its 60 s window.
+  const limitResetsAtMs =
+    limitKind === 'daily'
+      ? nextUtcMidnightMs(Date.now())
+      : limitKind === 'rate'
+        ? Date.now() + RATE_LIMIT_WINDOW_MS
+        : null
+  return { state, rebuilt, missing, failed, limited, limitKind, limitResetsAtMs }
+}

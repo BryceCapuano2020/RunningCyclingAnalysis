@@ -36,6 +36,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     libraryError: null,
     deleteActivity: vi.fn(),
     exportData: vi.fn(async () => new Blob()),
+    activitySplits: vi.fn(async () => null),
     rebuildNotice: null,
     rebuildSavedActivities: vi.fn(),
     addFiles: vi.fn(),

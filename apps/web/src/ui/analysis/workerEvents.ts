@@ -131,6 +131,11 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
     if (message.type === 'error' && message.issue !== undefined) handleAccountIssue(message.issue)
     return
   }
+  // A splits reply, or the error that answers a splits request, settles that request alone.
+  if (message.type === 'splits' || pending?.kind === 'activitySplits') {
+    pending?.settle?.(message)
+    return
+  }
   if (message.type === 'error') {
     handleReplyError(deps, pending, message)
     return

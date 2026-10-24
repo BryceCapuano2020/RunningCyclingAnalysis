@@ -14,6 +14,12 @@ export const RUN_RECORD_DISTANCES_M = [
   10 * METRES_PER_KM,
 ] as const
 export type RunRecordDistanceM = (typeof RUN_RECORD_DISTANCES_M)[number]
+/**
+ * Most splits one run may have in each unit, counting a partial split. A run over the limit has
+ * none in that unit. 500 is a 500 km run, and 320 miles is about 515 km.
+ */
+export const MAX_KM_SPLITS = 500
+export const MAX_MILE_SPLITS = 320
 
 /** The duration, s, that the headline and the fitness trend describe: 20 minutes. */
 export const HEADLINE_DURATION_S = 1200

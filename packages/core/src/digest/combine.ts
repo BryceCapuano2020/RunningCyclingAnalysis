@@ -31,14 +31,13 @@ import type {
   VirtualPowerAccuracy,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
+import { summaryOf, type ActivitySummary } from './summary'
 import { fitBikeModel } from '../virtualPower'
 import type { BikeModelSource } from '../virtualPower'
 import { addCalibrationSums, calibrationStatsAt, emptyCalibrationSums } from './calibration'
 import { leaveOneOutAccuracy } from './accuracy'
 import type { Calibrated } from './accuracy'
 import { powerAt } from './terms'
-import type { ActivitySummary } from './summary'
-import { summaryOf } from './summary'
 
 export interface Equivalence {
   durationS: number

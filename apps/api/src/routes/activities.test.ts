@@ -301,6 +301,78 @@ describe('POST /api/activities', () => {
   })
 })
 
+/**
+ * The largest run digest the limits allow for a six-hour run: the most splits in both units, the
+ * most heart-rate blocks, the most flags, the distance bests, and a realistic count of climb
+ * sections. A run's own digest carries none, so the climbs are on top of what a run stores.
+ */
+function largestRunDigest(climbSections: number) {
+  const digits = (base: number, step: number, i: number) => Number((base + step * i).toFixed(2))
+  const split = (i: number, distanceM: number) => ({
+    distanceM,
+    seconds: digits(287.37, 0.0137, i),
+    gradeAdjustedSeconds: digits(281.04, 0.0121, i),
+    elevationGainM: Number((12.3 + 0.1 * (i % 7)).toFixed(1)),
+    avgHeartRate: Number((151.2 + 0.1 * (i % 9)).toFixed(1)),
+  })
+  const flagMessage =
+    'Heart rate read zero for over ten seconds, while the device was still recording the run'
+  const heartBlocks = Array.from({ length: 70 }, (_, i) => ({
+    heartRate: 128 + (i % 40),
+    value: Math.PI * (i + 1) * 0.0371,
+    terms: null,
+  }))
+  const sections = Array.from({ length: climbSections }, (_, i) => ({
+    start: 1200 + 120 * i,
+    end: 1320 + 120 * i,
+    measuredW: 180.123456789 + i,
+    terms: { gravityAccel: Math.PI * (i + 1), rolling: 4.123456789012345, aero: 0.9876543210987 },
+  }))
+  return digestFixture({
+    sport: 'run',
+    durationS: 21_600,
+    distanceM: 40_000,
+    elevationGainM: 1_213.4,
+    maxHeartRate: 191,
+    flags: Array.from({ length: 50 }, (_, i) => ({
+      kind: 'hr-dropout',
+      start: 300 + 400 * i,
+      end: 330 + 400 * i,
+      message: flagMessage,
+    })),
+    flagCounts: { 'hr-dropout': 50 },
+    hrBlocks: heartBlocks,
+    climbSections: sections,
+    distanceBests: [
+      { distanceM: 1000, seconds: 201.25 },
+      { distanceM: 1609.344, seconds: 330.5 },
+      { distanceM: 5000, seconds: 1098.75 },
+      { distanceM: 10000, seconds: 2301.5 },
+    ],
+    splits: {
+      km: Array.from({ length: 500 }, (_, i) => split(i, 1000)),
+      mile: Array.from({ length: 320 }, (_, i) => split(i, 1609.344)),
+    },
+  })
+}
+
+describe('the largest run digest', () => {
+  it('is accepted by the create route, and stays under the digest byte limit', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const bytesOf = (digest: Record<string, unknown>) =>
+      new TextEncoder().encode(JSON.stringify(digest)).byteLength
+    // A run stores no climb sections, so the first measurement is what the producer can write.
+    const run = largestRunDigest(0)
+    const withClimbs = largestRunDigest(150)
+    const sizes = { run: bytesOf(run), withClimbs: bytesOf(withClimbs), limit: MAX_DIGEST_BYTES }
+    expect(sizes.withClimbs).toBeLessThan(MAX_DIGEST_BYTES)
+    expect(sizes.run).toBeLessThan(sizes.withClimbs)
+    const res = await createActivity(h, token, {}, withClimbs)
+    expect(res.status, JSON.stringify(sizes)).toBe(201)
+  })
+})
+
 describe('GET /api/activities', () => {
   it('returns an empty list before any upload', async () => {
     const h = createHarness()
@@ -322,6 +394,36 @@ describe('GET /api/activities', () => {
       items: { id: string }[]
     }
     expect(list.items.map((r) => r.id)).toEqual([third, second, first])
+  })
+
+  it('keeps splits from create to list, with unknown values as null', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const splits = {
+      km: [
+        {
+          distanceM: 1000,
+          seconds: 300.5,
+          gradeAdjustedSeconds: null,
+          elevationGainM: 12.3,
+          avgHeartRate: 150.2,
+        },
+        {
+          distanceM: 1000,
+          seconds: null,
+          gradeAdjustedSeconds: null,
+          elevationGainM: null,
+          avgHeartRate: null,
+        },
+      ],
+      mile: [],
+    }
+    const created = await createActivity(h, token, {}, { sport: 'run', splits })
+    expect(created.status).toBe(201)
+    const list = (await (await h.send({ path: '/api/activities', ...as(token) })).json()) as {
+      items: { digest: { splits?: unknown } }[]
+    }
+    expect(list.items[0]?.digest.splits).toEqual(splits)
   })
 
   it('parses legacy rows with no modelRevision as revision 1', async () => {

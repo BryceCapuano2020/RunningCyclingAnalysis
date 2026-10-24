@@ -45,8 +45,8 @@ strong enough to justify that cost, and the reason belongs in the PR description
 
 ## Current hotspots
 
-These core files are over the 400-line budget and are held by the size ratchet. A change to one
-should leave it smaller; the API's activity routes, the web app's analysis hook and `App.tsx` were
+These core files are over the 400-line budget. The size ratchet in `scripts/ops/size-budget.test.mjs`
+holds each to its current length, and must match this table. A change to one should leave it smaller; the API's activity routes, the web app's analysis hook and `App.tsx` were
 split this way in the refactor that introduced this document.
 
 | File                               | Lines | Direction                                                   |
