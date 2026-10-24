@@ -37,6 +37,11 @@ export interface Activity {
   hasAltitude: boolean
   /** Treadmill, trainer or virtual activity: gradient and GPS speed are not real. */
   indoor: boolean
+  /**
+   * 1 inside a record gap the device did not time (see resample), where distance and time are not
+   * known. Distance bests cannot span these seconds. Absent for an activity built without resampling.
+   */
+  unrecorded?: Uint8Array
 }
 
 export interface AthleteSettings {
@@ -260,6 +265,12 @@ export interface DigestHrBlock {
   terms: PowerTerms | null
 }
 
+/** A run's fastest elapsed time over one record distance. Wall clock, so pauses inside it count. */
+export interface DigestDistanceBest {
+  distanceM: number
+  seconds: number
+}
+
 export interface DigestClimbSection {
   start: number
   end: number
@@ -300,6 +311,11 @@ export interface ActivityDigest {
   calibration: CalibrationSums | null
   /** Power-meter rides outdoors only: climb sections for scoring the virtual power meter. */
   climbSections: DigestClimbSection[]
+  /**
+   * Runs only, absent for rides and for digests from before this field. One entry per record
+   * distance the run covers and has a valid window for, in ascending distance.
+   */
+  distanceBests?: DigestDistanceBest[]
 }
 
 /** The best run and ride curves of one set of digests. See sportCurves. */

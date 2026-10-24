@@ -291,6 +291,28 @@ describe('level ladder contrast', () => {
   })
 })
 
+describe('record chip contrast', () => {
+  // A record chip is ink on its sport's soft fill, laid over the card or the page it sits on.
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ] as const)(
+    '%s: ink reaches 4.5:1 on each sport fill over the card and the page',
+    (_theme, tokens) => {
+      for (const sport of ['run', 'ride'] as const) {
+        const fill = paint(tokens, `series-${sport}-soft`)
+        for (const surface of ['surface-0', 'surface-1'] as const) {
+          const painted = over(fill, colour(tokens, surface))
+          expect(
+            contrast(colour(tokens, 'text-primary'), painted),
+            `${sport} on ${surface}`,
+          ).toBeGreaterThanOrEqual(TEXT)
+        }
+      }
+    },
+  )
+})
+
 /** The declarations of the rule whose selector is exactly this, as property to value. */
 function declarations(css: string, selector: string): Map<string, string> {
   const start = css.indexOf(`${selector} {`)

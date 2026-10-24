@@ -12,14 +12,14 @@ should feel **athletic and energetic** without hiding the honesty of the engine.
 
 Hash routes, so the static host needs no fallback rules.
 
-| Route              | Page              | Holds                                                                                                                                                                                  |
-| ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                 |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each, the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes          |
-| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                            |
-| `#/activities/:id` | Activity          | Summary, efforts set here, data issues                                                                                                                                                 |
-| `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                       |
-| `#/profile`        | Profile           | Weight, units, year of birth and sex, account (email, download, delete), the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over |
+| Route              | Page              | Holds                                                                                                                                                                                                                   |
+| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                                                  |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes |
+| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                             |
+| `#/activities/:id` | Activity          | Summary, records earned across the library, efforts set here, data issues                                                                                                                                               |
+| `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                        |
+| `#/profile`        | Profile           | Weight, units, year of birth and sex, account (email, download, delete), the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over                                  |
 
 Without a result every route except Profile shows the landing page. The header holds the wordmark,
 the four tabs (once there is a result), one **Add files** button, a Profile link and the account
@@ -79,7 +79,8 @@ colours always come with an icon and a label, so a warning never relies on red b
 
 Spacing, radius, font and shadow tokens live in `apps/web/src/styles/tokens.css`, beside the colours.
 
-`*-soft` variants are the same hue at 15% (light) or 20% (dark) alpha, for bands and area fills.
+`*-soft` variants are the same hue at 15% (light) or 20% (dark) alpha, for bands and area fills. A
+record chip takes its sport's soft colour as its fill, with ink text, so it never relies on the hue.
 The run, ride and swim colours were checked with a colour-vision simulator in the October 2026 UX
 review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 

@@ -371,6 +371,7 @@ describe('AnalysisSession', () => {
       trend: [],
       effortTrends: NO_TRENDS,
       previous: null,
+      records: new Map(),
     })
   })
 
@@ -417,6 +418,7 @@ describe('AnalysisSession', () => {
       trend: [],
       effortTrends: NO_TRENDS,
       previous: null,
+      records: new Map(),
     })
   })
 

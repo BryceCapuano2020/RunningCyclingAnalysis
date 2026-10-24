@@ -1,5 +1,5 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { copyOfDigest, dedupeKey, outranks } from '@rca/core/session'
+import { copyOfDigest, dedupeKey, outranks } from '@rca/core/duplicates'
 import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'

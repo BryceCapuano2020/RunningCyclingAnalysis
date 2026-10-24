@@ -1,8 +1,10 @@
 import { useEffect, useRef, type Ref } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
+import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatDuration, formatElevation, formatPace } from '@rca/core/units'
 import { formatDay } from '../format/date'
+import { chipLabels } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
 import { SportIcon, WarningIcon } from './icons'
@@ -11,9 +13,14 @@ import { plural } from './plural'
 import { PAGE_SIZE, usePagination } from './usePagination'
 import './ActivityList.css'
 
+/** Most record chips a row shows; the rest are counted. The activity page lists them all. */
+const CHIPS_PER_ROW = 2
+
 export interface ActivityListProps {
   activities: ActivitySummary[]
   units: UnitSystem
+  /** The records each activity holds across the library, keyed by activity id. */
+  records: ReadonlyMap<string, readonly EarnedRecord[]>
 }
 
 const activityCollectionIds = new WeakMap<ActivitySummary[], number>()
@@ -34,11 +41,13 @@ interface ActivityRowProps {
   rowRef?: Ref<HTMLLIElement>
   /** The first row on a page takes focus when the page changes, so it alone is focusable. */
   isFirst: boolean
+  records: readonly EarnedRecord[]
 }
 
-function ActivityRow({ activity, units, rowRef, isFirst }: ActivityRowProps) {
+function ActivityRow({ activity, units, rowRef, isFirst, records }: ActivityRowProps) {
   const isRun = activity.sport === 'run'
   const issueCount = activity.flags.length
+  const chips = chipLabels(records)
   return (
     <li ref={rowRef} tabIndex={isFirst ? -1 : undefined} className="activity-list__item">
       <div className="activity-list__body">
@@ -72,13 +81,25 @@ function ActivityRow({ activity, units, rowRef, isFirst }: ActivityRowProps) {
             )
           )}
         </p>
+        {chips.length > 0 && (
+          <div className="activity-list__records" role="group" aria-label="Records earned">
+            {chips.slice(0, CHIPS_PER_ROW).map((label) => (
+              <span key={label} className={`chip chip--${activity.sport}`}>
+                {label}
+              </span>
+            ))}
+            {chips.length > CHIPS_PER_ROW && (
+              <span className="activity-list__more">{`+${chips.length - CHIPS_PER_ROW} more records`}</span>
+            )}
+          </div>
+        )}
       </div>
     </li>
   )
 }
 
 /** Activities as a list, newest first as given, 20 to a page. Each name opens its activity. */
-export function ActivityList({ activities, units }: ActivityListProps) {
+export function ActivityList({ activities, units, records }: ActivityListProps) {
   const collectionId = activityCollectionId(activities)
   const { page, pageCount, visible, firstItemRef, changePage } = usePagination<
     ActivitySummary,
@@ -107,6 +128,7 @@ export function ActivityList({ activities, units }: ActivityListProps) {
             units={units}
             isFirst={index === 0}
             rowRef={index === 0 ? firstItemRef : undefined}
+            records={records.get(activity.id) ?? []}
           />
         ))}
       </ul>

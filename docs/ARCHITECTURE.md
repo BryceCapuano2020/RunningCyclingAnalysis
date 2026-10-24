@@ -172,6 +172,12 @@ the server stores only that. A digest holds:
   happens at combine time, because the critical power depends on the merged curve.
 - **Mass-free power terms and calibration sums**: the per-sample terms of the virtual-power model
   with mass and bike constants left out.
+- **Run distance bests**: for runs only, the fastest wall-clock time over each distance in
+  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km and 10 km). A window may not include a second the
+  device did not record (a gap of over 10 s that no timer pause covers, where distance is held and
+  time is unknown), an invalid motion sample, or a distance step above the top run speed. A timer
+  pause is real time and counts. Grade does not matter here. It is absent for rides and for digests
+  from before the field, and an empty list for a run under 1 km.
 
 The virtual-power model is `P = (m (g_a + c_rr r) + CdA a) / η`, where `g_a = v (g sin θ + dv/dt)`,
 `r = g v cos θ` and `a = ½ ρ v³`. The digest stores these per sample, so mass, rolling resistance,

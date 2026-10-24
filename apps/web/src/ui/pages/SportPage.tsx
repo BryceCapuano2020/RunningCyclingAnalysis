@@ -22,6 +22,7 @@ import {
   EFFORT_OPTIONS,
   activityNames,
   countSport,
+  distanceRecords,
   effortOf,
   nativeCurve,
   sportRecords,
@@ -72,6 +73,7 @@ export function SportPage({
         : outcomeSentence(sportGrade(result, sport, record.durationS, profile)),
   }))
   const anyGrade = rows.some((row) => row.grade !== null)
+  const distance = sport === 'run' ? distanceRecords(result.activities, units) : null
   // The sex the grades are for, named on the source line when any record shows a grade.
   const gradedSex = anyGrade && profile !== null ? profile.sex : null
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
@@ -137,7 +139,22 @@ export function SportPage({
                   )}
                 </li>
               ))}
+              {distance?.records.map((record) => (
+                <li key={`distance-${record.distanceM}`} className="sport-page__record">
+                  <span className="eyebrow">{`Best ${record.label}`}</span>
+                  <span className="stat-number">{record.time}</span>
+                  <span className="secondary">{record.pace}</span>
+                  <a href={hrefFor({ page: 'activity', id: record.activity.id })}>
+                    {`${record.activity.name}, ${formatDay(record.activity.startMs)}`}
+                  </a>
+                </li>
+              ))}
             </ul>
+            {distance?.partial && (
+              <p className="muted">
+                Distance records cover runs added since distance records were introduced.
+              </p>
+            )}
           </section>
 
           <section className="section" aria-labelledby={`${sport}-trend`}>

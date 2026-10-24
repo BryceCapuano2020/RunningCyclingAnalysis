@@ -8,12 +8,14 @@ import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
 import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
 import { ACTIVITY } from './fit/zipDirectory'
-import { PeriodCache, splitPeriods } from './period'
+import { PeriodCache, sameDigests, splitPeriods } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
 import { haltsImport, SyncFailure } from './saveFailure'
 import type { SyncIssue, SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
+import { recordHolders } from './records'
+import type { EarnedRecord } from './records'
 
 export { haltsImport, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
@@ -72,6 +74,13 @@ export class AnalysisSession {
   private isSample = false
   private rangeDays: number | null = null
   private periods = new PeriodCache()
+  // The last record holders, with the digests and masses they were computed from.
+  private recordsCache: {
+    digests: ActivityDigest[]
+    massKg: number
+    bikeMassKg: number
+    records: Map<string, EarnedRecord[]>
+  } | null = null
 
   async addFiles(
     sources: RangedSource[],
@@ -285,6 +294,33 @@ export class AnalysisSession {
     return [...counts].map(([code, count]) => ({ code, count }))
   }
 
+  /**
+   * The best efforts each activity holds across the visible library, not the period. They are reused
+   * while the digests and both masses are the same.
+   */
+  private recordsFor(
+    visible: ActivityDigest[],
+    settings: AthleteSettings,
+  ): Map<string, EarnedRecord[]> {
+    const cached = this.recordsCache
+    if (
+      cached !== null &&
+      cached.massKg === settings.massKg &&
+      cached.bikeMassKg === settings.bikeMassKg &&
+      sameDigests(cached.digests, visible)
+    ) {
+      return cached.records
+    }
+    const records = recordHolders(visible, settings)
+    this.recordsCache = {
+      digests: visible,
+      massKg: settings.massKg,
+      bikeMassKg: settings.bikeMassKg,
+      records,
+    }
+    return records
+  }
+
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
     const all = [...this.digests.values()]
@@ -315,6 +351,8 @@ export class AnalysisSession {
       hiddenDuplicates: hidden.size,
       rangeDays: this.rangeDays,
       syncIssues: this.syncIssues(),
+      records:
+        settings === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, settings),
     }
   }
 }

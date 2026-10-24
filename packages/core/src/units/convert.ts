@@ -1,4 +1,5 @@
 export const KG_PER_LB = 0.45359237
+export const METRES_PER_KM = 1000
 export const METRES_PER_MILE = 1609.344
 export const METRES_PER_FOOT = 0.3048
 

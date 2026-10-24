@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   PACE_UNIT,
+  formatClock,
   formatDistance,
   formatDuration,
   formatElevation,
   formatMass,
   formatPace,
-  formatClock,
+  formatRecordTime,
   formatPaceValue,
   paceSeconds,
   formatPercent,
@@ -261,5 +262,22 @@ describe('formatWatts', () => {
 
   it('is the number that formatPower shows before its unit', () => {
     expect(formatPower(284.6)).toBe(`${formatWatts(284.6)} W`)
+  })
+})
+
+describe('formatRecordTime', () => {
+  it('reads minutes and seconds, with no leading zero on the minutes', () => {
+    expect(formatRecordTime(250)).toBe('4:10')
+    expect(formatRecordTime(402.336)).toBe('6:42')
+    expect(formatRecordTime(59.6)).toBe('1:00')
+  })
+
+  it('adds hours from an hour, with minutes and seconds always two digits', () => {
+    expect(formatRecordTime(3725)).toBe('1:02:05')
+    expect(formatRecordTime(3600)).toBe('1:00:00')
+  })
+
+  it('shows a dash for a time that is not a number', () => {
+    expect(formatRecordTime(NaN)).toBe('—')
   })
 })

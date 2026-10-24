@@ -13,6 +13,7 @@ import type {
   CurvePoint,
   DigestClimbSection,
   DigestCurvePoint,
+  DigestDistanceBest,
   DigestHrBlock,
   QualityFlag,
   QualityKind,
@@ -21,6 +22,7 @@ import type {
 import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
 import { calibrationSums } from './calibration'
+import { distanceBests } from '../records/distanceBests'
 import type { SampleTerms } from './terms'
 import { SELECTION_MASS_KG, sampleTerms, termsOver } from './terms'
 
@@ -38,6 +40,8 @@ interface Parts {
   hrBlocks: DigestHrBlock[]
   calibration: ActivityDigest['calibration']
   climbSections: DigestClimbSection[]
+  /** Runs only. */
+  distanceBests?: DigestDistanceBest[]
 }
 
 /** A curve point together with the length of the window its value came from. */
@@ -63,6 +67,12 @@ function elevationGain(altitude: Float64Array, validGrade: Uint8Array): number {
     }
   }
   return gain
+}
+
+/** 1 for every second the device recorded. Activities without an unrecorded mask are all recorded. */
+function recordedSeconds(activity: Activity): Uint8Array {
+  if (activity.unrecorded === undefined) return new Uint8Array(activity.n).fill(1)
+  return Uint8Array.from(activity.unrecorded, (u) => (u === 1 ? 0 : 1))
 }
 
 function countFlags(flags: QualityFlag[]): Partial<Record<QualityKind, number>> {
@@ -150,6 +160,11 @@ function runParts(
     hrBlocks: valueBlocks(metabolic, valid, source),
     calibration: null,
     climbSections: [],
+    // Only motion and recording decide a distance best: altitude affects grade, not distance or time.
+    distanceBests: distanceBests(
+      activity.distance,
+      and(quality.validMotion, recordedSeconds(activity)),
+    ),
   }
 }
 
@@ -305,5 +320,6 @@ export function digestActivity(activity: Activity): ActivityDigest {
     hrBlocks: parts.hrBlocks,
     calibration: parts.calibration,
     climbSections: parts.climbSections,
+    ...(parts.distanceBests === undefined ? {} : { distanceBests: parts.distanceBests }),
   }
 }

@@ -35,7 +35,7 @@ export function splitPeriods(visible: ActivityDigest[], rangeDays: number | null
 }
 
 /** Whether two lists hold the same digest objects in the same order. */
-function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
+export function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
   return a.length === b.length && a.every((digest, i) => digest === b[i])
 }
 

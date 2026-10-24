@@ -1,8 +1,19 @@
+import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
+
 /** Durations, in seconds, at which every duration curve is evaluated. */
 export const DURATIONS_S = [
   5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200,
   10800,
 ] as const
+
+/** Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km and 10 km. */
+export const RUN_RECORD_DISTANCES_M = [
+  METRES_PER_KM,
+  METRES_PER_MILE,
+  5 * METRES_PER_KM,
+  10 * METRES_PER_KM,
+] as const
+export type RunRecordDistanceM = (typeof RUN_RECORD_DISTANCES_M)[number]
 
 /** The duration, s, that the headline and the fitness trend describe: 20 minutes. */
 export const HEADLINE_DURATION_S = 1200

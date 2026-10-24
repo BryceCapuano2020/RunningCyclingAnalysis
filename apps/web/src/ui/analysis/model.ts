@@ -60,4 +60,5 @@ export const EMPTY_SESSION: SessionState = {
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
+  records: new Map(),
 }

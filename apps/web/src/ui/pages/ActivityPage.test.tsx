@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import type { EarnedRecord } from '@rca/core/records'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { ActivityPage } from './ActivityPage'
@@ -28,6 +29,7 @@ function renderPage(
   activity: ActivitySummary | null,
   result: AnalysisResult = resultWith(),
   units: 'metric' | 'imperial' = 'metric',
+  records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
 ) {
   // As in the app, the page's activity is one of the result's activities.
   const activities = activity ? [activity, ...result.activities] : result.activities
@@ -37,6 +39,7 @@ function renderPage(
       result={{ ...result, activities }}
       units={units}
       massKg={70}
+      records={records}
     />,
   )
 }
@@ -208,5 +211,32 @@ describe('ActivityPage', () => {
   it('shows no data issues section when the activity has none', () => {
     renderPage(makeActivity({ id: 'activity-1', name: 'Clean run', flags: [] }))
     expect(screen.queryByRole('heading', { name: 'Data issues' })).not.toBeInTheDocument()
+  })
+})
+
+describe('ActivityPage records earned', () => {
+  const held: ReadonlyMap<string, EarnedRecord[]> = new Map([
+    [
+      'activity-1',
+      [
+        { kind: 'duration', durationS: 300 },
+        { kind: 'duration', durationS: 3600 },
+        { kind: 'distance', distanceM: 5000 },
+      ],
+    ],
+  ])
+
+  it('lists every record the activity holds in one Records earned group', () => {
+    renderPage(morningRun, resultWith(), 'metric', held)
+    const group = screen.getByRole('group', { name: 'Records earned' })
+    expect(within(group).getByText('Best 5 min')).toBeTruthy()
+    expect(within(group).getByText('Best 60 min')).toBeTruthy()
+    expect(within(group).getByText('Best 5 km')).toBeTruthy()
+    expect(within(group).queryByText(/more/)).toBeNull()
+  })
+
+  it('shows no Best efforts group for an activity that holds nothing', () => {
+    renderPage(morningRun)
+    expect(screen.queryByRole('group', { name: 'Records earned' })).toBeNull()
   })
 })

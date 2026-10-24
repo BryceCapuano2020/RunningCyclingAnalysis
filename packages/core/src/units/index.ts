@@ -1,12 +1,13 @@
-export { kgToLb, lbToKg } from './convert'
+export { METRES_PER_KM, METRES_PER_MILE, kgToLb, lbToKg } from './convert'
 export {
+  formatClock,
+  formatRecordTime,
   formatDistance,
   formatDuration,
   formatElevation,
   PACE_UNIT,
   formatMass,
   formatPace,
-  formatClock,
   formatPaceValue,
   formatPercent,
   formatPower,
