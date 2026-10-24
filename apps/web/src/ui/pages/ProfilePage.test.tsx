@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
@@ -28,8 +29,9 @@ function renderProfile(
   overrides: Partial<Omit<ProfilePageProps, 'analysis'>> = {},
   analysis: AnalysisStubOverrides = {},
 ) {
-  const onSaveProfile = vi.fn(async () => undefined)
-  const onStartOver = vi.fn()
+  const onSaveProfile = vi.fn(async () => {})
+  const onRemoveAll = vi.fn()
+  const onSignIn = vi.fn()
   const onDownloadData = vi.fn(async () => new Blob())
   const onDeleteAccount = vi.fn(async () => {})
   render(
@@ -41,17 +43,19 @@ function renderProfile(
       sex="female"
       signedIn={false}
       accountsAvailable
+      accountLoading={false}
       email={null}
       keepFiles={false}
       fileRetentionAvailable
       onSaveProfile={onSaveProfile}
+      onSignIn={onSignIn}
       onDownloadData={onDownloadData}
       onDeleteAccount={onDeleteAccount}
-      onStartOver={onStartOver}
+      onRemoveAll={onRemoveAll}
       {...overrides}
     />,
   )
-  return { onSaveProfile, onStartOver, onDownloadData, onDeleteAccount }
+  return { onSaveProfile, onRemoveAll, onSignIn, onDownloadData, onDeleteAccount }
 }
 
 describe('ProfilePage settings', () => {
@@ -63,12 +67,17 @@ describe('ProfilePage settings', () => {
     )
   })
 
-  it('shows the body and bike weights from the settings', () => {
+  it('groups the year and sex as about you, and the weights and units as body and bike', () => {
     renderProfile()
 
-    const section = screen.getByRole('region', { name: 'You and your bike' })
-    expect(within(section).getByLabelText('Body weight')).toHaveValue('75')
-    expect(within(section).getByLabelText('Bike and gear weight')).toHaveValue('9')
+    const about = screen.getByRole('region', { name: 'About you' })
+    expect(within(about).getByLabelText('Year of birth')).toBeInTheDocument()
+    expect(within(about).getByRole('radio', { name: 'Female' })).toBeChecked()
+
+    const body = screen.getByRole('region', { name: 'Body and bike' })
+    expect(within(body).getByLabelText('Body weight')).toHaveValue('75')
+    expect(within(body).getByLabelText('Bike and gear weight')).toHaveValue('9')
+    expect(within(body).getByRole('group', { name: 'Units' })).toBeInTheDocument()
   })
 
   it('saves only the body weight that changed', () => {
@@ -124,6 +133,49 @@ describe('ProfilePage settings', () => {
     expect(onSaveProfile).not.toHaveBeenCalled()
   })
 
+  it('keeps a typed year, with its own status saying the save failed', async () => {
+    const onSaveProfile = vi.fn(async () => {
+      throw new Error('Offline')
+    })
+    renderProfile({ onSaveProfile })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(await screen.findByText("Year of birth: Couldn't save. Try again.")).toBeInTheDocument()
+    expect(year).toHaveValue('1985')
+  })
+
+  it('shows Saving, then Saved, for a year that is left', async () => {
+    let finish: () => void = () => undefined
+    const onSaveProfile = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    renderProfile({ onSaveProfile })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(screen.getByText('Year of birth: Saving…')).toBeInTheDocument()
+    finish()
+    expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
+  })
+
+  it('sends one save when Enter and then leaving the field both commit the same year', () => {
+    const onSaveProfile = vi.fn(() => new Promise<void>(() => undefined))
+    renderProfile({ onSaveProfile })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.keyDown(year, { key: 'Enter' })
+    fireEvent.blur(year)
+
+    expect(onSaveProfile).toHaveBeenCalledOnce()
+    expect(onSaveProfile).toHaveBeenCalledWith({ birthYear: 1985 })
+  })
+
   it('clears the year when the field is emptied, and saves a null year', () => {
     const { onSaveProfile } = renderProfile()
     const year = screen.getByLabelText('Year of birth')
@@ -143,6 +195,66 @@ describe('ProfilePage settings', () => {
     expect(onSaveProfile).toHaveBeenLastCalledWith({ sex: 'female' })
   })
 
+  it('shows the chosen sex at once while it saves, then reports it saved', async () => {
+    let finish: () => void = () => undefined
+    const onSaveProfile = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    renderProfile({ sex: 'female', onSaveProfile })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+    expect(screen.getByRole('radio', { name: 'Male' })).toBeChecked()
+    expect(screen.getByText('Sex: Saving…')).toBeInTheDocument()
+
+    finish()
+    expect(await screen.findByText('Sex: Saved.')).toBeInTheDocument()
+  })
+
+  it('returns the sex to the saved value and says so when the save is refused', async () => {
+    const onSaveProfile = vi.fn(async () => {
+      throw new Error('Offline')
+    })
+    renderProfile({ sex: 'female', onSaveProfile })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+
+    expect(await screen.findByText("Sex: Couldn't save. Try again.")).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Female' })).toBeChecked()
+  })
+
+  it('shows Saving, then Saved, for a unit system chosen', async () => {
+    let finish: () => void = () => undefined
+    const onSaveProfile = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    renderProfile({ units: 'metric', onSaveProfile })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Imperial' }))
+    expect(screen.getByText('Units: Saving…')).toBeInTheDocument()
+
+    finish()
+    expect(await screen.findByText('Units: Saved.')).toBeInTheDocument()
+  })
+
+  it('shows the unit system at once and reports a refused change to it', async () => {
+    const onSaveProfile = vi.fn(async () => {
+      throw new Error('Offline')
+    })
+    renderProfile({ units: 'metric', onSaveProfile })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Imperial' }))
+    expect(screen.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+
+    expect(await screen.findByText("Units: Couldn't save. Try again.")).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Metric' })).toBeChecked()
+  })
+
   it('marks the unit system in use and offers both as one radio group', () => {
     renderProfile({ units: 'metric' })
 
@@ -159,19 +271,49 @@ describe('ProfilePage settings', () => {
     expect(onSaveProfile).toHaveBeenCalledOnce()
     expect(onSaveProfile).toHaveBeenCalledWith({ units: 'metric' })
   })
+
+  it('holds the athlete fields while the account is still loading', () => {
+    renderProfile({ accountLoading: true })
+
+    expect(screen.getByLabelText('Year of birth').closest('[inert]')).not.toBeNull()
+    expect(screen.getByLabelText('Body weight').closest('[inert]')).not.toBeNull()
+    expect(screen.getByRole('radio', { name: 'Metric' }).closest('[inert]')).not.toBeNull()
+  })
+
+  it('says the account is loading in a status outside the held fields, so it is announced', () => {
+    renderProfile({ accountLoading: true })
+
+    const waiting = screen.getByText('Waiting for your account…')
+    expect(waiting).toHaveAttribute('role', 'status')
+    expect(waiting.closest('[inert]')).toBeNull()
+  })
+
+  it('leaves the fields open, with no waiting note, once the account is known', () => {
+    renderProfile({ accountLoading: false })
+
+    expect(screen.getByLabelText('Year of birth').closest('[inert]')).toBeNull()
+    expect(screen.queryByText('Waiting for your account…')).not.toBeInTheDocument()
+  })
 })
 
 describe('ProfilePage account', () => {
-  it('explains the account in text to a signed-out visitor, with sign-in only in the header', () => {
-    renderProfile()
+  it('offers a sign-in button in the account section to a signed-out visitor', () => {
+    const { onSignIn } = renderProfile()
 
     const section = screen.getByRole('region', { name: 'Account' })
-    expect(within(section).getByText(/Sign in with Google, at the top of the page/)).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Sign in with Google' })).not.toBeInTheDocument()
+    expect(section).toHaveTextContent('Sign in to keep your library on any device')
+    fireEvent.click(within(section).getByRole('button', { name: 'Sign in with Google' }))
+    expect(onSignIn).toHaveBeenCalledOnce()
   })
 
   it('leaves the account section out when accounts are not available on this deployment', () => {
     renderProfile({ accountsAvailable: false })
+
+    expect(screen.queryByRole('region', { name: 'Account' })).not.toBeInTheDocument()
+  })
+
+  it('offers no sign-in while the account is loading', () => {
+    renderProfile({ accountLoading: true })
 
     expect(screen.queryByRole('region', { name: 'Account' })).not.toBeInTheDocument()
   })
@@ -183,14 +325,14 @@ describe('ProfilePage account', () => {
     expect(within(section).getByText(EMAIL, { selector: '.account-section__email' })).toBeVisible()
     expect(within(section).getByRole('button', { name: 'Download my data' })).toBeInTheDocument()
     expect(within(section).getByRole('button', { name: 'Delete account…' })).toBeInTheDocument()
-    expect(within(section).queryByText(/Sign in with Google/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/Sign in to keep/)).not.toBeInTheDocument()
   })
 
   it('asks for the email before deleting, and does not delete on opening the dialog', () => {
     const { onDeleteAccount } = renderProfile({ signedIn: true, email: EMAIL })
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }))
-    expect(screen.getByRole('dialog', { name: 'Delete your account?' })).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
     expect(onDeleteAccount).not.toHaveBeenCalled()
   })
 })
@@ -215,6 +357,23 @@ describe('ProfilePage original files', () => {
 
     expect(onSaveProfile).toHaveBeenCalledOnce()
     expect(onSaveProfile).toHaveBeenCalledWith({ keepFiles: true })
+  })
+
+  it('names the stored originals a turn-off deletes, from the library it has loaded', () => {
+    renderProfile(
+      { signedIn: true, keepFiles: true },
+      {
+        libraryStatus: 'loaded',
+        savedActivities: [KEPT_RUN, { ...KEPT_RUN, id: 'run-2' }, { ...KEPT_RUN, id: 'run-3' }],
+        missingOriginals: 1,
+      },
+    )
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Keep original files in my library' }))
+
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
+      /This deletes 2 stored original files\./,
+    )
   })
 
   it('disables the choice and says why when original file storage is unavailable', () => {
@@ -253,8 +412,10 @@ describe('ProfilePage saved library', () => {
     expect(screen.getByRole('heading', { name: 'Saved library' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Kept in this browser' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
-      /permanently deletes the activity’s original file and saved summary/,
+    expect(
+      screen.getByRole('group', { name: 'Delete “Morning run”?' }),
+    ).toHaveAccessibleDescription(
+      /deletes the activity’s original file, if one is stored, and its saved summary from your account/,
     )
   })
 })
@@ -267,12 +428,14 @@ describe('ProfilePage kept in this browser', () => {
       screen.getByRole('heading', { level: 2, name: 'Kept in this browser' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Anyone using this browser can see these. Start over removes them all.'),
+      screen.getByText(
+        'Anyone using this browser can see these. Remove all my activities removes them all.',
+      ),
     ).toBeInTheDocument()
     const section = screen.getByRole('region', { name: 'Kept in this browser' })
     expect(
       within(section).getByRole('button', { name: /^Delete Morning run, Run, / }),
-    ).toBeVisible()
+    ).toBeInTheDocument()
   })
 
   it('is not shown when no activities are kept in this browser', () => {
@@ -285,70 +448,271 @@ describe('ProfilePage kept in this browser', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
 
-    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
-      /permanently deletes the activity’s summary kept in this browser/,
-    )
+    expect(
+      screen.getByRole('group', { name: 'Delete “Morning run”?' }),
+    ).toHaveAccessibleDescription(/removes the activity’s summary from this browser/)
   })
 
-  it('deletes the kept activity that was chosen', () => {
+  it('deletes the kept activity that was chosen, on confirming', () => {
     const deleteActivity = vi.fn()
     renderProfile({}, { savedActivities: [KEPT_RUN], deleteActivity })
 
     fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(deleteActivity).toHaveBeenCalledWith('run-1')
   })
 })
 
-describe('ProfilePage start over', () => {
-  it('says that Start over removes the activities kept in this browser', () => {
+describe('ProfilePage remove activities', () => {
+  it('says that removing them clears this browser, and never claims the account is touched', () => {
+    renderProfile({}, { state: { result: makeResult() }, savedActivities: [KEPT_RUN] })
+
+    const section = screen.getByRole('region', { name: 'Remove activities' })
+    expect(section).toHaveTextContent(
+      'Removes every activity kept in this browser, and the analysis on screen.',
+    )
+    expect(section).not.toHaveTextContent(/account/i)
+  })
+
+  it('asks before removing, naming how many activities it removes', () => {
+    const { onRemoveAll } = renderProfile(
+      {},
+      {
+        state: { result: makeResult() },
+        savedActivities: [KEPT_RUN, { ...KEPT_RUN, id: 'run-2' }],
+      },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+
+    const dialog = screen.getByRole('alertdialog', {
+      name: 'Remove all 2 activities kept in this browser?',
+    })
+    expect(dialog).toHaveAccessibleDescription(/cannot be undone/)
+    expect(onRemoveAll).not.toHaveBeenCalled()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  })
+
+  it('removes them once the removal is confirmed', () => {
+    const { onRemoveAll } = renderProfile(
+      {},
+      { state: { result: makeResult() }, savedActivities: [KEPT_RUN] },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all' }))
+
+    expect(onRemoveAll).toHaveBeenCalledOnce()
+  })
+
+  it('does nothing when the removal is cancelled', () => {
+    const { onRemoveAll } = renderProfile(
+      {},
+      { state: { result: makeResult() }, savedActivities: [KEPT_RUN] },
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Remove all my activities' })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onRemoveAll).not.toHaveBeenCalled()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('names only the analysis on screen when nothing is kept in this browser', () => {
     renderProfile({}, { state: { result: makeResult() } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+
     expect(
-      screen.getByText('Removes the activities kept in this browser so you can start again.'),
+      screen.getByRole('alertdialog', { name: 'Clear the analysis on this page?' }),
+    ).toHaveAccessibleDescription(/Nothing is kept in this browser/)
+  })
+
+  it('names a single kept activity in the singular', () => {
+    renderProfile({}, { state: { result: makeResult() }, savedActivities: [KEPT_RUN] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+
+    expect(
+      screen.getByRole('alertdialog', { name: 'Remove all 1 activity kept in this browser?' }),
+    ).toHaveAccessibleDescription(/cannot be undone/)
+  })
+
+  it('closes a kept activity’s confirmation when the removal dialog opens over the list', () => {
+    renderProfile({}, { state: { result: makeResult() }, savedActivities: [KEPT_RUN] })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
+    expect(screen.getByRole('group', { name: 'Delete “Morning run”?' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+
+    expect(screen.queryByRole('group', { name: 'Delete “Morning run”?' })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('alertdialog', { name: 'Remove all 1 activity kept in this browser?' }),
     ).toBeInTheDocument()
   })
 
-  it('hands over to the app when a signed-out visitor with a result starts over', () => {
-    const { onStartOver } = renderProfile({}, { state: { result: makeResult() } })
+  it('offers the removal to a signed-out visitor whose kept activities are not on screen', () => {
+    renderProfile({}, { savedActivities: [KEPT_RUN] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start over' }))
+    expect(screen.getByRole('button', { name: 'Remove all my activities' })).toBeEnabled()
+  })
 
-    expect(onStartOver).toHaveBeenCalledOnce()
+  it('removes the kept activities on confirming, with no result on screen', () => {
+    const { onRemoveAll } = renderProfile({}, { savedActivities: [KEPT_RUN] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all' }))
+
+    expect(onRemoveAll).toHaveBeenCalledOnce()
+  })
+
+  it('says only the summaries go when there is no analysis on screen to clear', () => {
+    renderProfile({}, { savedActivities: [KEPT_RUN] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+
+    const dialog = screen.getByRole('alertdialog', {
+      name: 'Remove all 1 activity kept in this browser?',
+    })
+    expect(dialog).toHaveAccessibleDescription(/Their summaries are removed from this browser\./)
+    expect(dialog).not.toHaveAccessibleDescription(/analysis on screen/)
   })
 
   it('does not offer it without a result to clear', () => {
     renderProfile()
-    expect(screen.queryByRole('button', { name: 'Start over' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Remove all my activities' }),
+    ).not.toBeInTheDocument()
   })
 
   it('does not offer it to a signed-in user, whose activities live in the library', () => {
     renderProfile({ signedIn: true }, { state: { result: makeResult() } })
-    expect(screen.queryByRole('button', { name: 'Start over' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Remove all my activities' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('holds the button while an analysis is busy', () => {
+  it('holds the button while an analysis is busy, and says when it will be available', () => {
     renderProfile({}, { busy: true, state: { result: makeResult() } })
-    expect(screen.getByRole('button', { name: 'Start over' })).toBeDisabled()
+
+    expect(screen.getByRole('button', { name: 'Remove all my activities' })).toBeDisabled()
+    expect(screen.getByText('Available when the current analysis finishes.')).toBeInTheDocument()
   })
 })
 
-describe('ProfilePage privacy note', () => {
-  it('says nothing is uploaded to a signed-out visitor', () => {
-    renderProfile()
+describe('ProfilePage dialogs over the list', () => {
+  it('closes an open row confirmation when the Keep original files question opens', () => {
+    renderProfile(
+      { signedIn: true, email: EMAIL, keepFiles: true },
+      { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
+    expect(screen.getByRole('group', { name: 'Delete “Morning run”?' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Keep original files in my library' }))
+
+    expect(screen.queryByRole('group', { name: 'Delete “Morning run”?' })).not.toBeInTheDocument()
     expect(
-      screen.getByText(
-        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.',
-      ),
+      screen.getByRole('alertdialog', { name: 'Turn off keeping original files?' }),
     ).toBeInTheDocument()
   })
 
-  it('says originals are stored in the private library once the signed-in user keeps them', () => {
-    renderProfile({ signedIn: true, keepFiles: true })
+  it('closes an open row confirmation when the delete account dialog opens', () => {
+    renderProfile(
+      { signedIn: true, email: EMAIL, keepFiles: false },
+      { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }))
+
+    expect(screen.queryByRole('group', { name: 'Delete “Morning run”?' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage questions follow their sections', () => {
+  /** The page as a visitor sees it, with the props a test changes. */
+  function page(
+    overrides: Partial<Omit<ProfilePageProps, 'analysis'>>,
+    analysis: AnalysisStubOverrides = {},
+  ): ReactElement {
+    return (
+      <ProfilePage
+        analysis={analysisStub(analysis)}
+        settings={SETTINGS}
+        units="metric"
+        birthYear={1990}
+        sex="female"
+        signedIn={false}
+        accountsAvailable
+        accountLoading={false}
+        email={null}
+        keepFiles={false}
+        fileRetentionAvailable
+        onSaveProfile={vi.fn(async () => {})}
+        onSignIn={vi.fn()}
+        onDownloadData={vi.fn(async () => new Blob())}
+        onDeleteAccount={vi.fn(async () => {})}
+        onRemoveAll={vi.fn()}
+        {...overrides}
+      />
+    )
+  }
+
+  const SIGNED_IN = { signedIn: true, email: EMAIL, keepFiles: true }
+  const SIGNED_OUT = { signedIn: false, email: null, keepFiles: false }
+
+  it('does not reopen the turn-off question by itself when the signed-in section comes back', () => {
+    const view = render(page(SIGNED_IN))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Keep original files in my library' }))
     expect(
-      screen.getByText(
-        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser.',
-      ),
+      screen.getByRole('alertdialog', { name: 'Turn off keeping original files?' }),
     ).toBeInTheDocument()
+
+    view.rerender(page(SIGNED_OUT))
+    view.rerender(page(SIGNED_IN))
+
+    expect(
+      screen.queryByRole('alertdialog', { name: 'Turn off keeping original files?' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not reopen the account deletion dialog by itself after a sign-out and sign-in', () => {
+    const view = render(page(SIGNED_IN))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }))
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
+
+    view.rerender(page(SIGNED_OUT))
+    view.rerender(page(SIGNED_IN))
+
+    expect(
+      screen.queryByRole('alertdialog', { name: 'Delete your account?' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not reopen the removal question by itself when the visitor signs in and out again', () => {
+    const view = render(page({ ...SIGNED_OUT, keepFiles: false }, { savedActivities: [KEPT_RUN] }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    expect(
+      screen.getByRole('alertdialog', { name: 'Remove all 1 activity kept in this browser?' }),
+    ).toBeInTheDocument()
+
+    view.rerender(page(SIGNED_IN, { savedActivities: [KEPT_RUN] }))
+    view.rerender(page(SIGNED_OUT, { savedActivities: [KEPT_RUN] }))
+
+    expect(
+      screen.queryByRole('alertdialog', { name: 'Remove all 1 activity kept in this browser?' }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage privacy', () => {
+  it('does not repeat the privacy note, which the page footer carries', () => {
+    renderProfile()
+    expect(screen.queryByText(/Nothing is uploaded/)).not.toBeInTheDocument()
   })
 })

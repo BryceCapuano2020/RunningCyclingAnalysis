@@ -277,14 +277,15 @@ describe('fitness over time', () => {
   })
 })
 
-describe('start over', () => {
+describe('removing all activities', () => {
   it('keeps the profile until the analysis has cleared, then returns to the landing page', async () => {
     window.location.hash = '#/profile'
     setAccount('signed-out')
     showResult()
     const view = render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start over' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
     expect(app.analysis.clear).toHaveBeenCalledOnce()
     expect(window.location.hash).toBe('#/profile')
 
@@ -298,12 +299,38 @@ describe('start over', () => {
   })
 })
 
+describe('removing kept activities with no result on screen', () => {
+  it('goes to the landing page at once, and moves focus to its heading', async () => {
+    window.location.hash = '#/profile'
+    setAccount('signed-out')
+    app.analysis.savedActivities = [
+      {
+        id: 'run-1',
+        name: 'Morning run',
+        startMs: Date.UTC(2026, 9, 20, 12),
+        sport: 'run',
+        copy: { id: 'run-1', rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
+      },
+    ]
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all' }))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/'))
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus(),
+    )
+    expect(app.analysis.clear).toHaveBeenCalledOnce()
+  })
+})
+
 describe('deleting the account', () => {
   /** Opens the delete dialog from Profile, types the account's email and confirms. */
   async function confirmDeletion() {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    const dialog = screen.getByRole('dialog', { name: 'Delete your account?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete your account?' })
     await user.type(within(dialog).getByLabelText('Email address'), 'ada@example.com')
     await user.click(within(dialog).getByRole('button', { name: 'Delete account' }))
   }
@@ -317,6 +344,16 @@ describe('deleting the account', () => {
 
     await waitFor(() => expect(window.location.hash).toBe('#/'))
     expect(await screen.findByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+  })
+
+  it('says on the landing page that the account and its data were deleted', async () => {
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+
+    await confirmDeletion()
+
+    expect(await screen.findByText('Your account and data were deleted.')).toBeInTheDocument()
   })
 
   it('stays on the profile page when the account could not be deleted', async () => {
@@ -340,5 +377,11 @@ describe('footer', () => {
   it('links to the privacy page', () => {
     render(<App />)
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
+  })
+
+  it('carries the one privacy note on Profile, so the page does not repeat it', () => {
+    window.location.hash = '#/profile'
+    render(<App />)
+    expect(document.querySelectorAll('.privacy-note')).toHaveLength(1)
   })
 })

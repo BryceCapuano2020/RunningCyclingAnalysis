@@ -74,8 +74,6 @@ export function App() {
     }
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
   }
-  // The page reports a refused change, so the rejection reaches it.
-  const saveProfile = (next: ProfilePatch) => saveAnswers(next)
 
   const analysis = useAnalysis(analysisAthlete, account)
   // Called after useAnalysis, so its settings are in place before held files are sent.
@@ -109,27 +107,40 @@ export function App() {
     focusPageHeading()
   }, [key])
 
-  // Start over clears the analysis in the worker. The landing page shows once it has, so the old
-  // result never flashes on the way. Leaving Profile first cancels the move; it replaces the
-  // Profile history entry rather than adding one.
-  const startingOver = useRef(false)
-  const startOver = () => {
-    startingOver.current = true
+  // Removing all activities clears the analysis in the worker. The landing page shows once the old
+  // result is gone, so it never flashes on the way. Leaving Profile first cancels the move; it
+  // replaces the Profile history entry rather than adding one.
+  const removingAll = useRef(false)
+  const removeAll = () => {
     analysis.clear()
+    // With no result on screen the effect below never runs, so the landing page is shown now.
+    if (!hasResult) {
+      window.location.replace(hrefFor({ page: 'balance' }))
+      return
+    }
+    removingAll.current = true
   }
   useEffect(() => {
-    if (!startingOver.current) return
-    if (route.page !== 'profile') startingOver.current = false
+    if (!removingAll.current) return
+    if (route.page !== 'profile') removingAll.current = false
     else if (!hasResult) {
-      startingOver.current = false
+      removingAll.current = false
       window.location.replace(hrefFor({ page: 'balance' }))
     }
   }, [hasResult, route.page])
 
   // Once the account is gone, its Profile page has nothing left to show, so the visitor goes to the
-  // landing page. A failed delete rejects before this line, and the dialog stays open.
+  // landing page, which says what was deleted. A failed delete rejects before this line, and the
+  // dialog stays open. The note goes once the visitor moves to another page.
+  const [accountDeleted, setAccountDeleted] = useState(false)
+  const [notedPage, setNotedPage] = useState(route.page)
+  if (notedPage !== route.page) {
+    setNotedPage(route.page)
+    if (route.page !== 'balance') setAccountDeleted(false)
+  }
   const deleteAccount = async () => {
     await account.deleteAccount()
+    setAccountDeleted(true)
     window.location.replace(hrefFor({ page: 'balance' }))
   }
 
@@ -198,6 +209,9 @@ export function App() {
       />
 
       <main className="app__main">
+        <p role="status" className="app__notice">
+          {accountDeleted && route.page === 'balance' ? 'Your account and data were deleted.' : ''}
+        </p>
         {route.page === 'profile' ? (
           <ProfilePage
             analysis={analysis}
@@ -207,13 +221,15 @@ export function App() {
             sex={athleteValues.sex}
             signedIn={signedIn}
             accountsAvailable={accountsAvailable}
+            accountLoading={account.status === 'loading'}
             email={account.me?.user.email ?? null}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
-            onSaveProfile={saveProfile}
+            onSaveProfile={saveAnswers}
+            onSignIn={account.signIn}
             onDownloadData={analysis.exportData}
             onDeleteAccount={deleteAccount}
-            onStartOver={startOver}
+            onRemoveAll={removeAll}
           />
         ) : analysis.state.result ? (
           <ResultPage

@@ -7,6 +7,9 @@ import type { ImportSummary } from '../../worker/importSummary'
 
 export const WAITING_FOR_LIBRARY = 'Waiting for your library to load'
 export const WAITING_FOR_ACCOUNT = 'Waiting for your account…'
+/** A delete asked for before the library it would change has loaded. Nothing is removed. */
+export const LIBRARY_NOT_READY =
+  'Your library is still loading, so nothing was deleted. Try again in a moment.'
 export const LIBRARY_NOT_LOADED =
   'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
 export const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'
@@ -20,6 +23,14 @@ export const SAMPLE_BLOCKED =
   'Sample data cannot replace your saved library. Add your own files, or sign out to try the sample.'
 export const ORIGINALS_UNAVAILABLE =
   'Saved originals cannot be accessed on this deployment. Import the original files to rebuild these activities; existing saved originals are not deleted.'
+/** A profile change the server refused. The typed value stays, with this beside it. */
+export const SAVE_FAILED = "Couldn't save. Try again."
+/** The status words for a save, the same wherever a field saves on its own. */
+export const SAVE_STATE_TEXT = {
+  saving: 'Saving…',
+  saved: 'Saved.',
+  failed: SAVE_FAILED,
+} as const
 export const RETENTION_UNAVAILABLE =
   'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'

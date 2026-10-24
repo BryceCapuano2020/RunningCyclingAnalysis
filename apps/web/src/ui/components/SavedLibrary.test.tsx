@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SavedLibraryActivity } from './SavedLibrary'
 import { SavedLibrary } from './SavedLibrary'
@@ -100,26 +99,25 @@ describe('SavedLibrary', () => {
     render(<SavedLibrary activities={activities(1)} busy={false} onDelete={onDelete} {...idle} />)
 
     fireEvent.click(deleteButtonFor(0))
-    const confirmation = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 0”?' })
+    const confirmation = screen.getByRole('group', { name: 'Delete “Saved activity 0”?' })
     expect(confirmation).toHaveAccessibleDescription(
-      /permanently deletes the activity’s original file and saved summary/,
+      /deletes the activity’s original file, if one is stored, and its saved summary from your account/,
     )
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
 
     expect(onDelete).not.toHaveBeenCalled()
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 
-  it('closes the confirmation on Escape and returns focus to the row Delete button', async () => {
-    const user = userEvent.setup()
+  it('closes the confirmation on Escape and returns focus to the row Delete button', () => {
     const onDelete = vi.fn()
     render(<SavedLibrary activities={activities(1)} busy={false} onDelete={onDelete} {...idle} />)
 
-    await user.click(deleteButtonFor(0))
-    await user.keyboard('{Escape}')
+    fireEvent.click(deleteButtonFor(0))
+    fireEvent.keyDown(screen.getByRole('group'), { key: 'Escape' })
 
     expect(onDelete).not.toHaveBeenCalled()
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
     expect(deleteButtonFor(0)).toHaveFocus()
   })
 
@@ -127,7 +125,7 @@ describe('SavedLibrary', () => {
     render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
 
     fireEvent.click(deleteButtonFor(1))
-    const confirmation = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 1”?' })
+    const confirmation = screen.getByRole('group', { name: 'Delete “Saved activity 1”?' })
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
 
     expect(deleteButtonFor(1)).toHaveFocus()
@@ -138,7 +136,7 @@ describe('SavedLibrary', () => {
 
     fireEvent.click(deleteButtonFor(0))
     fireEvent.click(deleteButtonFor(1))
-    const confirmation = screen.getByRole('alertdialog', { name: 'Delete “Saved activity 1”?' })
+    const confirmation = screen.getByRole('group', { name: 'Delete “Saved activity 1”?' })
     expect(within(confirmation).getByRole('heading')).toHaveFocus()
   })
 
@@ -147,11 +145,11 @@ describe('SavedLibrary', () => {
     render(<SavedLibrary activities={activities(2)} busy={false} onDelete={onDelete} {...idle} />)
 
     fireEvent.click(deleteButtonFor(1))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(onDelete).toHaveBeenCalledOnce()
     expect(onDelete).toHaveBeenCalledWith('saved-1')
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 
   it('moves focus to the library region when a confirmed delete removes the row', () => {
@@ -162,7 +160,7 @@ describe('SavedLibrary', () => {
     )
 
     fireEvent.click(deleteButtonFor(1))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(region()).toHaveFocus()
 
     rerender(
@@ -180,7 +178,7 @@ describe('SavedLibrary', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     fireEvent.click(deleteButtonFor(20))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     rerender(
       <SavedLibrary
         activities={saved.filter((activity) => activity.id !== 'saved-20')}
@@ -205,7 +203,7 @@ describe('SavedLibrary', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     fireEvent.click(deleteButtonFor(20))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     rerender(
       <SavedLibrary activities={saved.slice(0, 20)} busy={false} onDelete={onDelete} {...idle} />,
     )
@@ -245,11 +243,8 @@ describe('SavedLibrary', () => {
     )
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
     expect(deleteButtonFor(20)).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.getByRole('button', { name: 'Delete permanently' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onDelete).not.toHaveBeenCalled()
   })
 
@@ -268,7 +263,7 @@ describe('SavedLibrary', () => {
     render(<SavedLibrary activities={activities(1)} busy onDelete={vi.fn()} {...idle} />)
 
     fireEvent.click(deleteButtonFor(0))
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 
   it('moves focus to the first row of the page it moves to', () => {
@@ -293,7 +288,7 @@ describe('SavedLibrary', () => {
     )
 
     fireEvent.click(deleteButtonFor(0))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     rerender(
       <SavedLibrary
         activities={[]}
@@ -313,7 +308,7 @@ describe('SavedLibrary', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
-  it('closes on Escape even when focus is outside the confirmation', () => {
+  it('closes on Escape from outside the confirmation when no modal dialog is open', () => {
     const onDelete = vi.fn()
     render(<SavedLibrary activities={activities(2)} busy={false} onDelete={onDelete} {...idle} />)
 
@@ -321,7 +316,7 @@ describe('SavedLibrary', () => {
     fireEvent.keyDown(deleteButtonFor(1), { key: 'Escape' })
 
     expect(onDelete).not.toHaveBeenCalled()
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
     expect(deleteButtonFor(0)).toHaveFocus()
   })
 
@@ -333,18 +328,16 @@ describe('SavedLibrary', () => {
     )
 
     fireEvent.click(deleteButtonFor(1))
-    expect(
-      screen.getByRole('alertdialog', { name: 'Delete “Saved activity 1”?' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Delete “Saved activity 1”?' })).toBeInTheDocument()
 
     rerender(
       <SavedLibrary activities={saved.slice(0, 1)} busy={false} onDelete={onDelete} {...idle} />,
     )
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
     expect(region()).toHaveFocus()
 
     rerender(<SavedLibrary activities={saved} busy={false} onDelete={onDelete} {...idle} />)
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
     expect(onDelete).not.toHaveBeenCalled()
   })
 
@@ -453,8 +446,8 @@ describe('SavedLibrary', () => {
 
     fireEvent.click(deleteButtonFor(0))
 
-    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(
-      /permanently deletes the activity’s original file and saved summary/,
+    expect(screen.getByRole('group')).toHaveAccessibleDescription(
+      /deletes the activity’s original file, if one is stored, and its saved summary from your account/,
     )
   })
 
@@ -471,10 +464,8 @@ describe('SavedLibrary', () => {
 
     fireEvent.click(deleteButtonFor(0))
 
-    const dialog = screen.getByRole('alertdialog')
-    expect(dialog).toHaveAccessibleDescription(
-      /permanently deletes the activity’s summary kept in this browser/,
-    )
+    const dialog = screen.getByRole('group')
+    expect(dialog).toHaveAccessibleDescription(/removes the activity’s summary from this browser/)
     expect(dialog).not.toHaveAccessibleDescription(/original file/)
   })
 
@@ -491,6 +482,92 @@ describe('SavedLibrary', () => {
     expect(region()).not.toHaveTextContent(/library|account/i)
 
     fireEvent.click(deleteButtonFor(0))
-    expect(screen.getByRole('alertdialog')).not.toHaveTextContent(/library|account/i)
+    expect(screen.getByRole('group')).not.toHaveTextContent(/library|account/i)
+  })
+})
+
+describe('SavedLibrary confirmation in the row', () => {
+  it('opens the confirmation in the table, directly under the row it is for', () => {
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(deleteButtonFor(1))
+    const confirmation = screen.getByRole('group', { name: 'Delete “Saved activity 1”?' })
+    const confirmRow = confirmation.closest('tr')
+    expect(confirmRow?.previousElementSibling).toHaveTextContent('Saved activity 1')
+    expect(screen.getAllByRole('row')).toHaveLength(4)
+  })
+
+  it('words the device confirmation as a neutral removal of the summary, with a plain Delete', () => {
+    render(
+      <SavedLibrary
+        scope="device"
+        activities={activities(1)}
+        busy={false}
+        onDelete={vi.fn()}
+        {...idle}
+      />,
+    )
+
+    fireEvent.click(deleteButtonFor(0))
+
+    const dialog = screen.getByRole('group')
+    expect(dialog).toHaveAccessibleDescription(
+      'This removes the activity’s summary from this browser.',
+    )
+    expect(dialog).not.toHaveTextContent(/cannot be undone|permanently|original file/)
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('sends a summary delete as soon as it is confirmed', () => {
+    const onDelete = vi.fn()
+    render(
+      <SavedLibrary
+        scope="device"
+        activities={activities(2)}
+        busy={false}
+        onDelete={onDelete}
+        {...idle}
+      />,
+    )
+
+    fireEvent.click(deleteButtonFor(0))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('saved-0')
+  })
+
+  it('closes its confirmation when a removal dialog opens over the list', () => {
+    const { rerender } = render(
+      <SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />,
+    )
+
+    fireEvent.click(deleteButtonFor(0))
+    expect(screen.getByRole('group')).toBeInTheDocument()
+
+    rerender(
+      <SavedLibrary
+        activities={activities(2)}
+        busy={false}
+        onDelete={vi.fn()}
+        removalOpen
+        {...idle}
+      />,
+    )
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
+  })
+
+  it('closes a confirmation when the page changes, since its row is no longer shown', () => {
+    render(<SavedLibrary activities={activities(25)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(deleteButtonFor(0))
+    expect(screen.getByRole('group')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
+  })
+
+  it('keeps the date, sport and action on one line, so the activity name takes the wrapping', () => {
+    expect(ruleBody(libraryCss, '.saved-library__nowrap')).toMatch(/white-space:\s*nowrap/)
+    expect(ruleBody(libraryCss, '.saved-library__name')).toMatch(/overflow-wrap:\s*anywhere/)
   })
 })

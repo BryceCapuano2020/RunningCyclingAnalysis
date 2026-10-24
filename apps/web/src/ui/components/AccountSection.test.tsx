@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from 'react'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,7 +18,9 @@ const DOWNLOAD = 'Download my data'
 const DELETE = 'Delete account…'
 const FILE = new Blob(['{"format":"rca-export"}'], { type: 'application/json' })
 
-function props(overrides: Partial<AccountSectionProps> = {}): AccountSectionProps {
+type PageProps = Omit<AccountSectionProps, 'deleteOpen' | 'onDeleteOpenChange'>
+
+function props(overrides: Partial<PageProps> = {}): PageProps {
   return {
     email: EMAIL,
     onDownloadData: vi.fn(async () => FILE),
@@ -26,8 +29,14 @@ function props(overrides: Partial<AccountSectionProps> = {}): AccountSectionProp
   }
 }
 
-function renderSection(overrides: Partial<AccountSectionProps> = {}) {
-  return render(<AccountSection {...props(overrides)} />)
+/** A page that holds the delete dialog's open state, as ProfilePage does. */
+function Host(props: PageProps) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  return <AccountSection {...props} deleteOpen={deleteOpen} onDeleteOpenChange={setDeleteOpen} />
+}
+
+function renderSection(overrides: Partial<PageProps> = {}) {
+  return render(<Host {...props(overrides)} />)
 }
 
 /** A download that stays in flight until the test resolves it. */
@@ -119,11 +128,50 @@ describe('AccountSection', () => {
     )
   })
 
+  it('says when the download was saved, so an old note does not read as current', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 24, 14, 5))
+    try {
+      const user = userEvent.setup()
+      renderSection()
+      await user.click(screen.getByRole('button', { name: DOWNLOAD }))
+
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(/^Your data was downloaded at 2:05/),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps the delete button in a danger zone of its own, under a heading', () => {
+    renderSection()
+
+    const zone = screen.getByRole('button', { name: DELETE }).closest('.account-section__danger')
+    expect(zone).not.toBeNull()
+    expect(
+      within(zone as HTMLElement).getByRole('heading', { name: 'Delete account', level: 3 }),
+    ).toBeInTheDocument()
+    expect(within(zone as HTMLElement).queryByRole('button', { name: DOWNLOAD })).toBeNull()
+  })
+
+  it('reports to its page when the delete dialog opens, so the page can close what else is open', async () => {
+    const user = userEvent.setup()
+    const onDeleteOpenChange = vi.fn()
+    render(
+      <AccountSection {...props()} deleteOpen={false} onDeleteOpenChange={onDeleteOpenChange} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: DELETE }))
+
+    expect(onDeleteOpenChange).toHaveBeenCalledWith(true)
+  })
+
   it('opens the delete dialog from the button', async () => {
     const user = userEvent.setup()
     renderSection()
     await user.click(screen.getByRole('button', { name: DELETE }))
-    expect(screen.getByRole('dialog', { name: 'Delete your account?' })).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
   })
 
   it('deletes the account once the email is typed', async () => {

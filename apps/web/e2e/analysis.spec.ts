@@ -217,12 +217,13 @@ test('a chart plot responds to the arrow keys with a tooltip', async ({ page }) 
   await expect(page.locator(`[id="${tooltipId}"]`)).toBeVisible()
 })
 
-test('start over on the Profile page clears the sample and returns to the landing page', async ({
+test('removing all activities on the Profile page clears the sample and returns to the landing page', async ({
   page,
 }) => {
   await openSample(page)
   await goTo(page, 'Profile')
-  await page.getByRole('button', { name: 'Start over' }).click()
+  await page.getByRole('button', { name: 'Remove all my activities' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Clear', exact: true }).click()
 
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
   // The app moves to the landing page's hash only once the result has been cleared.

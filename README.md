@@ -16,7 +16,7 @@ Analysis always runs in your browser: activity files are parsed and analysed on 
 account is optional. With one, your profile and activity library are stored on Cloudflare so they
 follow you between devices (see [Accounts and sync](#what-it-does)). Without one, the activity
 summaries are kept in your browser's IndexedDB storage so your results survive a reload; nothing is
-sent to Cloudflare, and Start over removes them.
+sent to Cloudflare, and Remove all my activities removes them (on Profile, when signed out).
 
 <p align="center">
   <picture>

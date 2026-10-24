@@ -2,6 +2,9 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Header } from './Header'
+import { readStylesheet } from './stylesheet'
+
+const headerCss = await readStylesheet(import.meta.url, './Header.css')
 
 afterEach(() => {
   cleanup()
@@ -11,6 +14,28 @@ afterEach(() => {
 function follows(first: Element, second: Element): boolean {
   return (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
 }
+
+describe('Header on a 320 px phone', () => {
+  it('stacks the brand above a full-width row of actions at 359 px and below, so the actions take two rows, not three', () => {
+    // At 320 px the brand and Add files, Profile and the Google button in a 232 px column wrapped to
+    // three rows. At 359 px and below the actions get the whole width, where two of them fit on a row.
+    expect(headerCss).toMatch(
+      /@media \(max-width: 359px\) \{\s*\.header \{[^}]*grid-template-areas:\s*'brand'\s*'actions'\s*'tabs'/,
+    )
+  })
+})
+
+describe('Header profile link', () => {
+  it('keeps its word visible at every width, so the link is not an unlabeled icon on a phone', () => {
+    render(<Header route={null} />)
+
+    const link = screen.getByRole('link', { name: 'Profile' })
+    expect(link).toHaveTextContent('Profile')
+    expect(link.querySelector('.header__profile-label')).toHaveTextContent('Profile')
+    // The phone rule hides the wordmark. It must not hide the Profile word.
+    expect(headerCss).not.toMatch(/\.header__profile-label\s*[,{]/)
+  })
+})
 
 describe('Header', () => {
   it('links the wordmark home', () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import './SavedLibrary.css'
 import { formatDay } from '../format/date'
 import { SPORT_LABEL } from '../sports'
@@ -29,14 +29,23 @@ export interface SavedLibraryProps {
   /** Stored activities the server could not read, so they are not listed. */
   unreadable?: number
   scope?: SavedScope
+  /** A removal dialog is open beside the list, so no row confirmation stays open with it. */
+  removalOpen?: boolean
 }
 
-/** What a delete removes. Only the account keeps original files; this browser keeps summaries. */
-const DELETE_NOTE: Record<SavedScope, string> = {
-  account:
-    'This permanently deletes the activity’s original file and saved summary. This cannot be undone.',
-  device:
-    'This permanently deletes the activity’s summary kept in this browser. This cannot be undone.',
+/**
+ * What a delete removes, and how its confirmation reads. Only the account keeps original files, so
+ * only its confirmation is the red card; a summary kept in this browser gets the neutral one.
+ */
+const DELETE_FOR: Record<SavedScope, { note: string; critical: boolean }> = {
+  account: {
+    note: 'This deletes the activity’s original file, if one is stored, and its saved summary from your account.',
+    critical: true,
+  },
+  device: {
+    note: 'This removes the activity’s summary from this browser.',
+    critical: false,
+  },
 }
 
 /** The note on stored activities the server could not read, singular or plural. */
@@ -53,6 +62,7 @@ export function SavedLibrary({
   error,
   unreadable = 0,
   scope = 'account',
+  removalOpen = false,
 }: SavedLibraryProps) {
   const [selected, setSelected] = useState<SavedLibraryActivity | null>(null)
   const regionRef = useRef<HTMLDivElement>(null)
@@ -68,8 +78,9 @@ export function SavedLibrary({
       : null
   const confirmingId = confirming?.id ?? null
 
-  // The confirmed activity was removed elsewhere while confirming: drop the confirmation.
-  if (selected !== null && confirming === null) setSelected(null)
+  // The confirmed activity was removed elsewhere, or a removal dialog opened over the list: either
+  // way the confirmation goes.
+  if (selected !== null && (confirming === null || removalOpen)) setSelected(null)
 
   useEffect(() => {
     const previousId = lastConfirmingIdRef.current
@@ -100,6 +111,14 @@ export function SavedLibrary({
     setSelected(null)
   }
 
+  // Moving pages ends a confirmation, because its row may not be on the new page.
+  function turnPage(next: number) {
+    setSelected(null)
+    changePage(next)
+  }
+
+  const rule = DELETE_FOR[scope]
+
   return (
     <div
       className="saved-library"
@@ -111,17 +130,6 @@ export function SavedLibrary({
       <p role="status" aria-live="polite" className="saved-library__status">
         {status ?? ''}
       </p>
-
-      {confirming && (
-        <DeleteConfirmation
-          key={confirming.id}
-          name={confirming.name}
-          description={DELETE_NOTE[scope]}
-          busy={busy}
-          onCancel={closeConfirmation}
-          onConfirm={confirmDelete}
-        />
-      )}
 
       {error && (
         <p role="alert" className="saved-library__error">
@@ -152,35 +160,52 @@ export function SavedLibrary({
                   const date = formatDay(activity.startMs)
                   const sport = SPORT_LABEL[activity.sport]
                   return (
-                    <tr
-                      key={activity.id}
-                      ref={index === 0 ? firstItemRef : undefined}
-                      tabIndex={index === 0 ? -1 : undefined}
-                    >
-                      <td>{date}</td>
-                      <td>
-                        <span className="saved-library__name">{activity.name}</span>
-                      </td>
-                      <td>
-                        <span className="saved-library__sport">
-                          <SportIcon sport={activity.sport} />
-                          {sport}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn saved-library__delete"
-                          onClick={(event) => {
-                            if (!busy) openConfirmation(activity, event.currentTarget)
-                          }}
-                          aria-disabled={busy}
-                          aria-label={`Delete ${activity.name}, ${sport}, ${date}`}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
+                    <Fragment key={activity.id}>
+                      <tr
+                        ref={index === 0 ? firstItemRef : undefined}
+                        tabIndex={index === 0 ? -1 : undefined}
+                      >
+                        <td className="saved-library__nowrap">{date}</td>
+                        <td>
+                          <span className="saved-library__name">{activity.name}</span>
+                        </td>
+                        <td className="saved-library__nowrap">
+                          <span className="saved-library__sport">
+                            <SportIcon sport={activity.sport} />
+                            {sport}
+                          </span>
+                        </td>
+                        <td className="saved-library__nowrap">
+                          <button
+                            type="button"
+                            className="btn saved-library__delete"
+                            onClick={(event) => {
+                              if (!busy) openConfirmation(activity, event.currentTarget)
+                            }}
+                            aria-disabled={busy}
+                            aria-label={`Delete ${activity.name}, ${sport}, ${date}`}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                      {confirmingId === activity.id && (
+                        // The confirmation opens under its own row, so the page does not jump.
+                        <tr className="saved-library__confirm-row">
+                          <td colSpan={4}>
+                            <DeleteConfirmation
+                              key={activity.id}
+                              name={activity.name}
+                              description={rule.note}
+                              critical={rule.critical}
+                              busy={busy}
+                              onCancel={closeConfirmation}
+                              onConfirm={confirmDelete}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
@@ -196,7 +221,7 @@ export function SavedLibrary({
               noun="saved activities"
               label="Saved activity pages"
               busy={busy}
-              onPageChange={changePage}
+              onPageChange={turnPage}
             />
           )}
         </>

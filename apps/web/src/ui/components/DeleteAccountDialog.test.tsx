@@ -36,10 +36,51 @@ describe('DeleteAccountDialog', () => {
     expect(dialogElement()).not.toHaveAttribute('open')
   })
 
+  it('is an alert dialog named by its heading, so a screen reader announces the question', () => {
+    render(<DeleteAccountDialog open email={EMAIL} onConfirm={vi.fn()} onClose={vi.fn()} />)
+
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
+  })
+
+  it('returns focus to the control it was opened from, once it closes', () => {
+    const opener = document.createElement('button')
+    document.body.append(opener)
+    const { rerender } = render(
+      <DeleteAccountDialog
+        open={false}
+        email={EMAIL}
+        opener={opener}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    rerender(
+      <DeleteAccountDialog
+        open
+        email={EMAIL}
+        opener={opener}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    rerender(
+      <DeleteAccountDialog
+        open={false}
+        email={EMAIL}
+        opener={opener}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
+
   it('opens with the open attribute when the browser has no showModal', () => {
     render(<DeleteAccountDialog open email={EMAIL} onConfirm={vi.fn()} onClose={vi.fn()} />)
     expect(dialogElement()).toHaveAttribute('open')
-    expect(screen.getByRole('dialog', { name: 'Delete your account?' })).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
   })
 
   it('uses showModal and close when the browser provides them', () => {
@@ -79,7 +120,7 @@ describe('DeleteAccountDialog', () => {
     expect(screen.getByRole('heading', { name: 'Delete your account?' })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'This permanently deletes your profile, every activity and every stored file. It cannot be undone. Activities kept in this browser from before you signed in are not part of your account, so deleting it does not remove them; sign out and choose Start over to remove them.',
+        'This permanently deletes your profile, every activity and every stored file. It cannot be undone. Activities kept in this browser from before you signed in are not part of your account, so deleting it does not remove them; sign out and choose Remove all my activities to remove them.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText(EMAIL)).toBeInTheDocument()
@@ -180,7 +221,10 @@ describe('DeleteAccountDialog', () => {
 
     const pending = screen.getByRole('button', { name: 'Deleting…' })
     expect(pending).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    // Cancel stays focusable but ignores clicks while the delete is in flight.
+    const cancel = screen.getByRole('button', { name: 'Cancel' })
+    expect(cancel).toHaveAttribute('aria-disabled', 'true')
+    await user.click(cancel)
     expect(input).toHaveAttribute('readonly')
 
     // A second activation while pending does not start another delete.

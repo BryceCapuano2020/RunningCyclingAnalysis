@@ -20,6 +20,11 @@
   overflow-wrap: anywhere;
 }
 
+/* The date, sport and action stay on one line, so the activity name is the column that wraps. */
+.saved-library__nowrap {
+  white-space: nowrap;
+}
+
 .saved-library__delete {
   min-height: 40px;
 }
@@ -64,20 +69,11 @@
   color: var(--text-secondary);
 }
 
-.saved-library__confirmation-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+/* A summary kept in this browser: the same question, on the ordinary rule colour. */
+.saved-library__confirmation--quiet {
+  border-color: var(--border);
 }
 
-.btn.saved-library__delete-confirm {
-  border-color: var(--status-critical);
-  background: var(--status-critical);
-  color: var(--surface-1);
-}
-
-.btn.saved-library__delete-confirm:hover {
-  filter: brightness(1.1);
+.saved-library__confirm-row > td {
+  padding: var(--space-2) 0;
 }
