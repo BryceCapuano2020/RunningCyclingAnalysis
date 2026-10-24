@@ -545,7 +545,7 @@ describe('MethodPage how this works', () => {
     const section = screen.getByRole('region', { name: 'How this works and what it assumes' })
     expect(section.querySelector('details')).toHaveAttribute('open')
     expect(
-      within(section).getByRole('heading', { level: 3, name: 'Fitness over time' }),
+      within(section).getByRole('heading', { level: 3, name: 'Best 20 min, week by week' }),
     ).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { name: 'Heart-rate check' })).toHaveLength(1)
     expect(screen.getAllByRole('heading', { name: 'Virtual power meter accuracy' })).toHaveLength(1)
@@ -553,7 +553,7 @@ describe('MethodPage how this works', () => {
       within(section)
         .getAllByRole('heading', { level: 3 })
         .map((heading) => heading.textContent),
-    ).toEqual(['Fitness over time', 'Data checks', 'Where speed comes from', 'Limits'])
+    ).toEqual(['Best 20 min, week by week', 'Data checks', 'Where speed comes from', 'Limits'])
   })
 })
 

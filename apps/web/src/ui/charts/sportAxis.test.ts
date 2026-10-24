@@ -41,9 +41,9 @@ describe('plottedValue, nativeLabel and axisTitle', () => {
   })
 
   it('names each sport’s number and its axis, with the unit', () => {
-    expect(nativeLabel('run')).toBe('Grade-adjusted pace')
+    expect(nativeLabel('run')).toBe('Flat pace')
     expect(nativeLabel('ride')).toBe('Power')
-    expect(axisTitle('run', 'imperial')).toBe('Grade-adjusted pace (/mi), faster up')
+    expect(axisTitle('run', 'imperial')).toBe('Flat pace (/mi), faster up')
     expect(axisTitle('ride', 'metric')).toBe('Power (W)')
   })
 

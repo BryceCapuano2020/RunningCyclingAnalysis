@@ -19,6 +19,9 @@ export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cyclin
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
 
+/** The heading of a sport's best-effort curve, in the sport's own unit: pace for running, power for riding. */
+export const CURVE_TITLE: Record<Sport, string> = { run: 'Pace curve', ride: 'Power curve' }
+
 /** A sport's threshold as the noun in a sentence, lower case: the card's "Running threshold pace". */
 export const THRESHOLD_NOUN: Record<Sport, string> = {
   run: 'threshold pace',

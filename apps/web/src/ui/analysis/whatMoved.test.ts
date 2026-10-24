@@ -187,7 +187,7 @@ describe('whatMoved: bests', () => {
         spoken: 'New best 20 minutes ride: 262 watts',
       },
       {
-        text: 'New best 1 h ride: 210 W',
+        text: 'New best 1 hour ride: 210 W',
         spoken: 'New best 1 hour ride: 210 watts',
       },
     ])
@@ -245,6 +245,96 @@ describe('whatMoved: bests', () => {
       activities: [RUN, RIDE, NEW_RIDE],
       rideCurve: [curvePoint(600, 300, 'ride-2')],
     })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
+  })
+})
+
+describe('whatMoved: distance bests', () => {
+  // A run that covers the half marathon in 1:27:54 (5274 s).
+  const HALF = makeActivity({
+    id: 'half-1',
+    sport: 'run',
+    name: 'Spring half',
+    startMs: LATER,
+    distanceBests: [{ distanceM: 21097.5, seconds: 5274 }],
+  })
+
+  it('lists a distance best set by an activity the import added, with its time', () => {
+    const before = resultWith({ activities: [{ ...RUN, distanceBests: [] }, RIDE] })
+    const after = resultWith({ activities: [RUN, RIDE, HALF] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
+      {
+        text: 'New best half marathon: 1:27:54',
+        spoken: 'New best half marathon: 1 hour 27 minutes 54 seconds',
+      },
+    ])
+  })
+
+  it('does not list a distance best that is no faster than the one on file', () => {
+    const onFile = makeActivity({
+      id: 'run-1',
+      sport: 'run',
+      distanceBests: [{ distanceM: 21097.5, seconds: 5000 }],
+    })
+    const before = resultWith({ activities: [onFile, RIDE] })
+    const after = resultWith({ activities: [onFile, RIDE, HALF] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
+  })
+
+  it('does not count a distance best whose workout was on file under another activity id', () => {
+    const replaced = makeActivity({
+      id: 'half-1b',
+      sport: 'run',
+      name: 'Spring half',
+      startMs: LATER,
+      distanceBests: [{ distanceM: 21097.5, seconds: 5274 }],
+    })
+    const earlier = makeActivity({ ...HALF, id: 'half-1-old', startMs: LATER })
+    const before = resultWith({ activities: [earlier, RIDE] })
+    const after = resultWith({ activities: [replaced, RIDE] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
+  })
+
+  it('does not count a faster distance best whose workout was on file under another id', () => {
+    const earlier = makeActivity({ ...HALF, id: 'half-1-old', startMs: LATER })
+    // 5200 s beats the 5274 s on file, so only the on-file check keeps it out of the list.
+    const faster = makeActivity({
+      id: 'half-1b',
+      sport: 'run',
+      name: 'Spring half',
+      startMs: LATER,
+      distanceBests: [{ distanceM: 21097.5, seconds: 5200 }],
+    })
+    const before = resultWith({ activities: [earlier, RIDE] })
+    const after = resultWith({ activities: [faster, RIDE] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
+  })
+
+  it('does not list a distance best that only ties the one on file', () => {
+    // The import adds a workout that started earlier and ties the time on file, so it holds the tie.
+    const onFile = makeActivity({
+      id: 'run-1',
+      sport: 'run',
+      startMs: LATER,
+      distanceBests: [{ distanceM: 21097.5, seconds: 5274 }],
+    })
+    const earlierTie = makeActivity({
+      id: 'half-early',
+      sport: 'run',
+      name: 'Early half',
+      startMs: LATER - 86_400_000,
+      distanceBests: [{ distanceM: 21097.5, seconds: 5274 }],
+    })
+    const before = resultWith({ activities: [onFile, RIDE] })
+    const after = resultWith({ activities: [onFile, RIDE, earlierTie] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
+  })
+
+  it('lists no distance best while a run on file predates distance bests, since it may hold a faster one', () => {
+    // The older run has no distance bests field, so its half marathon time is unknown.
+    const older = makeActivity({ id: 'run-0', sport: 'run', name: 'Old run', startMs: 1 })
+    const before = resultWith({ activities: [older, RIDE] })
+    const after = resultWith({ activities: [older, RIDE, HALF] })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 })

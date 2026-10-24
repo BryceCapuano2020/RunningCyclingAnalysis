@@ -179,7 +179,7 @@ export function BalancePage({
 
       {weeksWithValue(trend) >= 2 && (
         <section className="section" aria-labelledby="balance-trend">
-          <h2 id="balance-trend">Fitness over time</h2>
+          <h2 id="balance-trend">Best 20 min, week by week</h2>
           <div className="balance__trends">
             {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
             <SharedTrendChart

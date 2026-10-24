@@ -175,8 +175,11 @@ function checksumBlock(data) {
 }
 
 function distancesBlock(distancesM) {
-  // 1609.344 is METRES_PER_MILE in units/convert.ts, so the table names the shared constant.
-  const shown = distancesM.map((metres) => (metres === 1609.344 ? 'METRES_PER_MILE' : `${metres}`))
+  // 1609.344 and 21097.5 are METRES_PER_MILE and HALF_MARATHON_M, so the table names the shared constants.
+  const shown = distancesM.map((metres) => {
+    if (metres === 1609.344) return 'METRES_PER_MILE'
+    return metres === 21097.5 ? 'HALF_MARATHON_M' : `${metres}`
+  })
   return [
     '/** Road distances in metres, ascending. Each table row lists its seconds in this order. */',
     `export const ROAD_DISTANCES_M: readonly number[] = [${shown.join(', ')}]`,
@@ -191,6 +194,7 @@ function render(data) {
   return [
     header(data.source),
     '',
+    "import { HALF_MARATHON_M } from '../constants'",
     "import { METRES_PER_MILE } from '../units/convert'",
     '',
     checksumBlock(data),

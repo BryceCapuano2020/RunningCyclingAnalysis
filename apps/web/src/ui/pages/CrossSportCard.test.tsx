@@ -39,7 +39,7 @@ function rideWith(powerSource: 'measured' | 'virtual' | 'none') {
 
 /** The disclosure that opens to every duration, found by its summary. */
 function everyDuration(): HTMLElement {
-  const details = screen.getByText('See every duration').closest('details')
+  const details = screen.getByText('See the pace curve').closest('details')
   if (!details) throw new Error('No disclosure for every duration')
   return details
 }
@@ -100,7 +100,7 @@ describe('CrossSportCard', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
     expect(screen.queryByText(/4:10/)).not.toBeInTheDocument()
     expect(screen.queryByText(/250 W/)).not.toBeInTheDocument()
-    expect(screen.queryByText('See every duration')).not.toBeInTheDocument()
+    expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
     expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
   })
@@ -189,7 +189,7 @@ describe('CrossSportCard', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
     expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
-    expect(screen.queryByText('See every duration')).not.toBeInTheDocument()
+    expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
   })
 
   it('asks for a ride instead of a pace when the effort gives no valid running pace', () => {
@@ -202,7 +202,7 @@ describe('CrossSportCard', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
     expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
-    expect(screen.queryByText('See every duration')).not.toBeInTheDocument()
+    expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
   })
 
   it('takes no room on a file with no rides, so a run-only balance shows no cross-sport slot', () => {

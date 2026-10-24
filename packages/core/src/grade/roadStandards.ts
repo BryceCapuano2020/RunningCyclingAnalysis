@@ -29,6 +29,7 @@
 // - Presentation-only anomalies (OC row 5 for 4 Mile, blank H:MM:SS cells, label typos) are
 //   not in this data.
 
+import { HALF_MARATHON_M } from '../constants'
 import { METRES_PER_MILE } from '../units/convert'
 
 /** SHA-256 of the age tables, recorded by the generator and checked by the tests. */
@@ -49,7 +50,7 @@ export const ROAD_DISTANCES_M: readonly number[] = [
   15000,
   16093.44,
   20000,
-  21097.5,
+  HALF_MARATHON_M,
   25000,
   30000,
   42195,

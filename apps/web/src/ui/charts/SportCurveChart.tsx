@@ -158,14 +158,14 @@ function tooltipFor(row: CurveRow, x: number, y: number, view: View): TooltipCon
 /** The name of the chart, with the unit spelt out: "per kilometre", "in watts". */
 function titleOf(sport: Sport, units: UnitSystem): string {
   return sport === 'run'
-    ? `${SPORT_TITLE.run} grade-adjusted pace ${paceUnitName(units)} by duration`
+    ? `${SPORT_TITLE.run} flat pace ${paceUnitName(units)} by duration`
     : `${SPORT_TITLE.ride} power in watts by duration`
 }
 
 /** The table's caption, saying what its values are. */
 function captionOf(view: View): string {
   return view.sport === 'run'
-    ? `Best grade-adjusted pace at each duration, ${paceUnitName(view.units)}.`
+    ? `Best flat pace at each duration, ${paceUnitName(view.units)}.`
     : 'Best power at each duration, in watts, with W/kg at your body mass.'
 }
 
@@ -225,7 +225,7 @@ export function SportCurveChart({
   return (
     <ChartFrame
       title={titleOf(sport, units)}
-      description={`Best ${sport === 'run' ? 'grade-adjusted pace' : 'power'} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
+      description={`Best ${sport === 'run' ? 'flat pace' : 'power'} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
       legend={legend}
       note={noPrevious}
       table={{

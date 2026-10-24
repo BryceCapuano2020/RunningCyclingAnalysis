@@ -30,6 +30,9 @@ const MARK_R = 8
  * drawing is 320 units wide and about 320 px on a phone, so one unit of half-stroke is close enough.
  */
 const MARK_STROKE_HALF = 1
+/** The off-scale chevron stands this far past the bar end, with arms this long. */
+const BEYOND_TIP = 6
+const BEYOND_ARM = 6
 
 /** What each sport's shape means, in words beside the drawing: the key a colour-blind reader needs. */
 const KEY: Record<Sport, string> = {
@@ -134,6 +137,18 @@ function currentBands(grade: SportGrade): Set<string> {
   return new Set(names.filter((_, index) => index >= first && index <= last))
 }
 
+/**
+ * A chevron just outside the bar end a grade lies past, pointing out past it. It sits beside the bar
+ * rather than on the marker, so a grade whose centre is on the scale still reads cleanly.
+ */
+function BeyondMark({ side }: { side: 'below' | 'above' }) {
+  const below = side === 'below'
+  const edge = below ? 0 : WIDTH
+  const tip = below ? -BEYOND_TIP : WIDTH + BEYOND_TIP
+  const d = `M ${edge} ${MID_Y - BEYOND_ARM} L ${tip} ${MID_Y} L ${edge} ${MID_Y + BEYOND_ARM}`
+  return <path className="level-ladder__beyond" d={d} data-side={side} />
+}
+
 /** The range as a band over the bar, outlined so it stands out from the bar. */
 function RangeBand({ range }: { range: { low: Grade; high: Grade } }) {
   const left = x(range.low.grade)
@@ -156,6 +171,7 @@ function RangeBand({ range }: { range: { low: Grade; high: Grade } }) {
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const { centre, range } = grade
   const current = currentBands(grade)
+  const side = beyondScale(grade)
   return (
     <figure className={`level-ladder level-ladder--${sport}`}>
       <div className="level-ladder__scale" aria-hidden="true">
@@ -207,6 +223,7 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
         ) : (
           <circle className="level-ladder__dot" cx={markerX(centre.grade)} cy={MID_Y} r={MARK_R} />
         )}
+        {side && <BeyondMark side={side} />}
       </svg>
       <div className="level-ladder__names" aria-hidden="true">
         {BANDS.map((band, index) => (

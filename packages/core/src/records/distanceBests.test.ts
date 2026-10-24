@@ -28,6 +28,19 @@ describe('distanceBests', () => {
     expect(bests[3]!.seconds).toBeCloseTo(2500, 9)
   })
 
+  it('gives the half marathon time for a run that covers it', () => {
+    // 4 m/s for 5300 s is 21.2 km: the half marathon is 21.0975 km, so it is 5274.375 s.
+    const { distance, valid } = profile([[5300, 4]])
+    const bests = distanceBests(distance, valid)
+    expect(bests.map((b) => b.distanceM)).toEqual([1000, 1609.344, 5000, 10000, 21097.5])
+    expect(secondsAt(bests, 21097.5)).toBeCloseTo(21097.5 / 4, 6)
+  })
+
+  it('leaves the half marathon out of a run shorter than it', () => {
+    const { distance, valid } = profile([[5200, 4]])
+    expect(distanceBests(distance, valid).map((b) => b.distanceM)).not.toContain(21097.5)
+  })
+
   it('interpolates both window edges instead of snapping to whole samples', () => {
     // 3 m/s: 1 km takes 333.33 s and a mile 536.45 s, neither a whole number of samples.
     const { distance, valid } = profile([[1000, 3]])

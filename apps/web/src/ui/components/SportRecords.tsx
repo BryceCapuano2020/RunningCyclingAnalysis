@@ -44,6 +44,7 @@ export function SportRecords({ rows }: SportRecordsProps) {
               ))}
             </span>
             {row.grade && <span className="records__grade">{row.grade}</span>}
+            {row.change && <span className="records__change">{row.change}</span>}
             {shared === null && row.activity && (
               <a
                 className="records__link"

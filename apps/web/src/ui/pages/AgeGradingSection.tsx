@@ -43,8 +43,8 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         {RECREATIONAL_BELOW}% is Recreational.
       </p>
       <p className="secondary">
-        A run’s grade is read as recorded: the run’s recorded pace, corrected for hills with a
-        published energy-cost curve, is its grade-adjusted pace.
+        A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for
+        hills with a published energy-cost curve.
       </p>
       <p className="secondary">
         A ride has no published cycling standard. Its best effort is converted to the flat running

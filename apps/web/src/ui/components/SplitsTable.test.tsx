@@ -9,7 +9,7 @@ afterEach(() => {
   cleanup()
 })
 
-/** A kilometre split that took 300 s, with a grade-adjusted time of 290 s and 12 m of climb. */
+/** A kilometre split that took 300 s, with a flat pace of 290 s and 12 m of climb. */
 function split(overrides: Partial<DigestSplit> = {}): DigestSplit {
   return {
     distanceM: 1000,
@@ -45,20 +45,21 @@ function listItems(name = 'Pace for each kilometre'): HTMLElement[] {
 }
 
 describe('SplitsTable', () => {
-  it('lists each kilometre split with its pace, grade-adjusted pace, elevation and heart rate', () => {
+  it('says in words what a flat pace is, once under the splits', () => {
+    renderSplits(loaded({ km: [split()], mile: [] }))
+    expect(
+      screen.getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
+    ).toBeInTheDocument()
+  })
+
+  it('lists each kilometre split with its pace, flat pace, elevation and heart rate', () => {
     renderSplits(
       loaded({ km: [split(), split({ seconds: 285, gradeAdjustedSeconds: 280 })], mile: [] }),
     )
     const headers = within(table())
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent)
-    expect(headers).toEqual([
-      'Split',
-      'Pace',
-      'Grade-adjusted pace',
-      'Elevation gain',
-      'Heart rate',
-    ])
+    expect(headers).toEqual(['Split', 'Pace', 'Flat pace', 'Elevation gain', 'Heart rate'])
 
     const [first, second] = bodyRows()
     expect(within(first!).getByRole('rowheader', { name: '1' })).toBeInTheDocument()
@@ -111,7 +112,7 @@ describe('SplitsTable', () => {
     expect(within(known!).getByText('Fastest')).toBeInTheDocument()
   })
 
-  it('keeps elevation when the grade-adjusted time is unknown, and says so when there is no altitude', () => {
+  it('keeps elevation when the flat pace is unknown, and says so when there is no altitude', () => {
     renderSplits(
       loaded({
         km: [
@@ -213,6 +214,20 @@ describe('SplitsTable', () => {
     renderSplits(loaded({ km: [], mile: [] }))
     expect(screen.getByText('This run is too short to split.')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('leaves the flat-pace note out when there are no split rows, under either empty line', () => {
+    const { unmount } = renderSplits(loaded({ km: [], mile: [] }))
+    expect(screen.getByText('This run is too short to split.')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Flat pace: your pace allowing for hills, as if on level ground.'),
+    ).not.toBeInTheDocument()
+    unmount()
+    renderSplits(loaded({ km: [], mile: [] }), 'metric', 500_500)
+    expect(screen.getByText('Splits are kept for runs up to 500 km.')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Flat pace: your pace allowing for hills, as if on level ground.'),
+    ).not.toBeInTheDocument()
   })
 
   it('says a run past the split limit is kept only up to it, which is not the too-short line', () => {

@@ -235,11 +235,11 @@ describe('SportPage', () => {
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
-  it('explains that run paces are grade-adjusted', () => {
+  it('explains that run paces are flat paces', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     expect(
-      screen.getByText('Pace is grade-adjusted (GAP): the flat pace with the same effort.'),
+      screen.getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
     ).toBeInTheDocument()
   })
 
@@ -261,13 +261,13 @@ describe('SportPage', () => {
     expect(within(records).getByText('Best 1 min')).toBeInTheDocument()
     expect(within(records).getByText('Best 5 min')).toBeInTheDocument()
     expect(within(records).getByText('Best 20 min')).toBeInTheDocument()
-    expect(within(records).getByText('Best 1 h')).toBeInTheDocument()
+    expect(within(records).getByText('Best 1 hour')).toBeInTheDocument()
     expect(
       within(records).getAllByRole('link', { name: 'Morning run, Mon 5 Jan' })[0],
     ).toHaveAttribute('href', '#/activities/run-1')
   })
 
-  it('marks each run record’s pace GAP on the run page', () => {
+  it('marks each run record’s pace Flat on the run page', () => {
     renderPage(
       'run',
       makeResult({
@@ -276,7 +276,7 @@ describe('SportPage', () => {
       }),
     )
     expect(
-      within(screen.getByRole('region', { name: 'Best efforts' })).getAllByText('GAP'),
+      within(screen.getByRole('region', { name: 'Best efforts' })).getAllByText('Flat'),
     ).toHaveLength(2)
   })
 
@@ -294,18 +294,18 @@ describe('SportPage', () => {
     expect(within(records).getByText('5.3 W/kg')).toBeInTheDocument()
   })
 
-  it('leaves the grade-adjusted note off the cycling page', () => {
+  it('leaves the flat pace note off the cycling page', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
 
     expect(
-      screen.queryByText('Pace is grade-adjusted (GAP): the flat pace with the same effort.'),
+      screen.queryByText('Flat pace: your pace allowing for hills, as if on level ground.'),
     ).not.toBeInTheDocument()
   })
 
   it('shows every duration as a chart section', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
-    expect(screen.getByRole('region', { name: 'Every duration' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Pace curve' })).toBeInTheDocument()
   })
 })
 
@@ -360,11 +360,9 @@ describe('SportPage age grades', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(
-      within(recordNamed(records, 'Best 20 min')).getByText(
-        'Estimated through its running equivalent · Local to Regional · 67% (63–71%)',
-      ),
-    ).toBeInTheDocument()
+    expect(recordNamed(records, 'Best 20 min').querySelector('.records__grade')?.textContent).toBe(
+      'Estimated through its running equivalent · Local to Regional · 67% (63–71%)',
+    )
   })
 
   it('names the standards under Best efforts when a record shows a grade', () => {
@@ -479,7 +477,7 @@ describe('SportPage age grades', () => {
     renderPage('run', result, 'metric', null, previous, 'Previous 6 weeks')
 
     expect(
-      screen.getByRole('figure', { name: 'Running grade-adjusted pace per kilometre by duration' }),
+      screen.getByRole('figure', { name: 'Running flat pace per kilometre by duration' }),
     ).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
@@ -532,7 +530,7 @@ describe('SportPage fitness trend', () => {
     expect(within(choice).getByRole('radio', { name: '20 min' })).toBeChecked()
     expect(
       screen.getByRole('figure', {
-        name: /^Running grade-adjusted pace per kilometre, best 20 minutes, trailing/,
+        name: /^Running flat pace per kilometre, best 20 minutes, trailing/,
       }),
     ).toBeInTheDocument()
   })
@@ -544,7 +542,7 @@ describe('SportPage fitness trend', () => {
     fireEvent.click(within(choice).getByRole('radio', { name: '5 min' }))
     expect(
       screen.getByRole('figure', {
-        name: /^Running grade-adjusted pace per kilometre, best 5 minutes, trailing/,
+        name: /^Running flat pace per kilometre, best 5 minutes, trailing/,
       }),
     ).toBeInTheDocument()
     expect(paceColumnOf('best 5 minutes')).toEqual(paceList(TRENDS[FIVE_MIN_S]))
@@ -591,11 +589,24 @@ describe('SportPage distance records', () => {
     expect(section.getByText('All set on')).toBeInTheDocument()
   })
 
-  it('says the list may be short when some runs predate distance bests', () => {
+  it('grades each distance record it has a standard for, and says in words where it has none', () => {
+    renderPage('run', makeResult({ activities: [parkrun, morningRun] }), 'metric', MAN_BORN_1986)
+
+    const records = bestEfforts()
+    expect(recordNamed(records, 'Best 5 km').querySelector('.records__grade')?.textContent).toMatch(
+      /^(Recreational|Local|Regional|National|World) · \d+%$/,
+    )
+    expect(recordNamed(records, 'Best 1 km').querySelector('.records__grade')?.textContent).toBe(
+      'No age standard under 1 mile',
+    )
+    expect(records).toHaveTextContent(/Age grades for a man use the/)
+  })
+
+  it('says the distance records may not be the fastest when some runs predate distance bests', () => {
     renderPage('run', makeResult({ activities: [parkrun, morningRun] }))
     expect(
       within(bestEfforts()).getByText(
-        'Distance records cover runs added since distance records were introduced.',
+        'Runs added before distance bests were recorded don’t have them yet, so these may not be the fastest. Add those runs again to include them.',
       ),
     ).toBeTruthy()
   })
@@ -641,7 +652,7 @@ describe('SportPage cycling figures without a weight', () => {
 
     expect(screen.queryByRole('region', { name: 'Threshold power, estimated' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Best efforts' })).toBeNull()
-    expect(screen.queryByRole('region', { name: 'Fitness over time' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Best 20 min, week by week' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Every duration' })).toBeNull()
     expect(screen.queryByText('400 W')).toBeNull()
     expect(screen.queryByText(/W\/kg/)).toBeNull()
@@ -709,5 +720,184 @@ describe('SportPage cycling figures without a weight', () => {
       <p>Based on 75 kg, age 40, man. Change on Profile</p>,
     )
     expect(screen.getByText('Based on 75 kg, age 40, man. Change on Profile')).toBeInTheDocument()
+  })
+})
+
+describe('SportPage depth', () => {
+  it('draws the level ladder under the threshold, graded on the best 20 minutes', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(
+      within(threshold).getByRole('img', { name: /Age grade 67%, Local, from your best 20 min/ }),
+    ).toBeInTheDocument()
+    expect(threshold.querySelector('.age-grade__line')).toHaveTextContent(
+      'Local · 67% · on your best 20 min, 4:00 /km',
+    )
+  })
+
+  it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+
+    expect(screen.getByText('Age grades need your year of birth and sex.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Add year of birth and sex' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
+    expect(screen.queryByRole('img', { name: /Age grade/ })).toBeNull()
+  })
+
+  it('names a record with no standard in words, in the grade slot of its row', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        // 60 s at 8 m/s covers 480 m, under a mile.
+        runCurve: [curvePoint(60, flatWkg(8), 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 1 min')).getByText('No age standard under 1 mile'),
+    ).toBeInTheDocument()
+  })
+
+  it('says a run’s pace is a flat pace once on the page, under the best efforts', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const note = 'Flat pace: your pace allowing for hills, as if on level ground.'
+    expect(screen.getAllByText(note)).toHaveLength(1)
+    expect(
+      within(screen.getByRole('heading', { name: 'Best efforts' }).closest('section')!).getByText(
+        note,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says the grades are a level, not a ranking', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
+  })
+
+  it('lists the half marathon among the distance records, with its time', () => {
+    const half = makeActivity({
+      id: 'half',
+      name: 'Spring half',
+      sport: 'run',
+      startMs: new Date(2026, 0, 18, 9).getTime(),
+      distanceBests: [{ distanceM: 21097.5, seconds: 5274 }],
+    })
+    renderPage('run', makeResult({ activities: [half] }))
+
+    const section = within(
+      screen.getByRole('heading', { name: 'Best efforts' }).closest('section')!,
+    )
+    expect(section.getByText('Best half marathon')).toBeInTheDocument()
+    expect(section.getByText('1:27:54')).toBeInTheDocument()
+  })
+
+  it('says how each record moved on the period before, in words', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
+    const previous: SportCurves = {
+      runCurve: [],
+      rideCurve: [curvePoint(60, 250, 'ride-0')],
+    }
+    renderPage(
+      'ride',
+      makeResult({ activities: [ride], rideCurve: [curvePoint(60, 258, 'ride-1')] }),
+      'metric',
+      null,
+      previous,
+      'Previous 6 weeks',
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 1 min')).getByText('8 W more than previous 6 weeks'),
+    ).toBeInTheDocument()
+  })
+
+  it('gives the recent form in one line: the last run, the runs and their distance', () => {
+    const run = makeActivity({
+      id: 'run-1',
+      sport: 'run',
+      name: 'Morning run',
+      startMs: morningRun.startMs,
+      distanceM: 10000,
+    })
+    renderPage('run', makeResult({ activities: [run] }))
+
+    expect(screen.getByText('Last run Mon 5 Jan · 1 run · 10.00 km')).toBeInTheDocument()
+  })
+
+  it('says which watts are estimated when no power meter measured the rides', () => {
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      name: 'Hill ride',
+      powerSource: 'virtual',
+    })
+    renderPage(
+      'ride',
+      makeResult({ activities: [ride], rideCurve: [curvePoint(60, 400, 'ride-1')] }),
+    )
+
+    expect(
+      screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
+    ).toBeInTheDocument()
+  })
+
+  it('links the power note to How sure is this?', () => {
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      name: 'Hill ride',
+      powerSource: 'virtual',
+    })
+    renderPage(
+      'ride',
+      makeResult({ activities: [ride], rideCurve: [curvePoint(60, 400, 'ride-1')] }),
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(within(records).getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
+      'href',
+      '#/method',
+    )
+  })
+
+  it('names the trend "Week by week" and the curve by sport', () => {
+    renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
+
+    expect(screen.getByRole('heading', { name: 'Week by week' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Power curve' })).toBeInTheDocument()
   })
 })
