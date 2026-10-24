@@ -63,10 +63,12 @@
         <li>
           Each activity's summary is kept in this browser's IndexedDB, so results survive a reload.
           It holds the figures shown (times, distances, heart-rate and power, best efforts, climbs,
-          data-quality flags) and the file name. For an outdoor activity with GPS it also holds an
-          outline of the route: the track with its position and scale removed, so it shows no
-          location. The outline is kept only in this browser and is never uploaded. The summary has
-          no GPS coordinates, per-second data, file hash or original file, and it does not expire.
+          data-quality flags) and the file name. Its name comes from the activity list in a Strava
+          export, else the title in the file, else the start time and sport. For an outdoor activity
+          with GPS it also holds an outline of the route: the track with its position and scale
+          removed, so it shows no location. The outline is kept only in this browser and is never
+          uploaded. The summary has no GPS coordinates, per-second data, file hash or original file,
+          and it does not expire.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
@@ -108,8 +110,9 @@
           original files, and year of birth and sex if given.
         </li>
         <li>
-          <strong>Activity summaries:</strong> name, sport, start and save times; file name and
-          SHA-256 hash; distance, duration and elevation gain; and the analysis summary (best
+          <strong>Activity summaries:</strong> name (from the activity list in a Strava export, the
+          title in the file, or the start time and sport), sport, start and save times; file name
+          and SHA-256 hash; distance, duration and elevation gain; and the analysis summary (best
           efforts, heart-rate figures, climb sections, data-quality flags). No per-second recording
           or route data.
         </li>

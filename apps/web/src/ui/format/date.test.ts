@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { formatTimeOfDay as coreFormatTimeOfDay } from '@rca/core/units'
 import { formatDay, formatMonth, formatTimeOfDay } from './date'
 
 // Local constructors keep these cases independent of the zone the suite runs in. The only test
@@ -48,6 +49,10 @@ describe('formatMonth', () => {
 })
 
 describe('formatTimeOfDay', () => {
+  it('is the one formatter in core, not a second copy in the web app', () => {
+    expect(formatTimeOfDay).toBe(coreFormatTimeOfDay)
+  })
+
   it('reads the local time in twelve-hour form with no leading zero on the hour', () => {
     expect(formatTimeOfDay(new Date(2026, 5, 3, 6, 42).getTime())).toBe('6:42 am')
     expect(formatTimeOfDay(new Date(2026, 5, 3, 18, 5).getTime())).toBe('6:05 pm')

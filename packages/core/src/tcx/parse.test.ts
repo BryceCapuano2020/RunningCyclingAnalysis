@@ -4,6 +4,7 @@ import { digestActivity } from '../digest/digestActivity'
 import { encodeFit } from '../fit/encode'
 import { parseFit } from '../fit/parse'
 import type { ParseLimits, ParseResult } from '../import/result'
+import { generatedName } from '../import/names'
 import { encodeTcx } from './encode'
 import { parseTcx } from './parse'
 
@@ -170,6 +171,29 @@ function runPoints(from: number, count: number, withGps: boolean): string[] {
   return out
 }
 
+describe('parseTcx names', () => {
+  /** A local 6:11 am start, so the literal name below holds in any time zone. */
+  const LOCAL_MORNING = new Date(2025, 4, 15, 6, 11).getTime()
+
+  /** The same activity with the Notes element a device or app writes under the Activity's Id. */
+  function withNotes(notes: string): Uint8Array {
+    const activity = { ...makeActivity('run', 120), startMs: LOCAL_MORNING }
+    const text = new TextDecoder().decode(encodeTcx(activity, { gps: true }))
+    return utf8(text.replace('</Id>', `</Id><Notes>${notes}</Notes>`))
+  }
+
+  it('ignores Notes, which are free text, and names the activity from its start', () => {
+    const a = firstActivity(parseTcx(withNotes('Dr Lee: knee pain, 12 Example Rd'), 'run.tcx'))
+    expect(a.name).toBe('Morning Run')
+  })
+
+  it('generates the name when the activity has no Notes', () => {
+    const activity = { ...makeActivity('run', 120), startMs: LOCAL_MORNING }
+    const a = firstActivity(parseTcx(encodeTcx(activity, { gps: true }), 'run.tcx'))
+    expect(a.name).toBe('Morning Run')
+  })
+})
+
 describe('parseTcx round trip', () => {
   it('reproduces a ride with power and heart rate', () => {
     const original = makeActivity('ride', 120)
@@ -181,7 +205,7 @@ describe('parseTcx round trip', () => {
 
     const a = result.activities[0]!
     expect(a.sport).toBe('ride')
-    expect(a.name).toBe('Morning Ride')
+    expect(a.name).toBe(generatedName(START_MS, 'ride'))
     expect(a.id).toBe(`${START_MS}-Morning Ride.tcx`)
     expect(a.startMs).toBe(START_MS)
     expect(a.n).toBe(120)
@@ -204,7 +228,7 @@ describe('parseTcx round trip', () => {
     const original = makeActivity('run', 90, { withPower: false })
     const a = firstActivity(parseTcx(encodeTcx(original), 'tempo.tcx'))
     expect(a.sport).toBe('run')
-    expect(a.name).toBe('tempo')
+    expect(a.name).toBe(generatedName(START_MS, 'run'))
     expect(a.n).toBe(90)
     expect(a.hasPower).toBe(false)
     expect(a.power.every((v) => Number.isNaN(v))).toBe(true)
@@ -410,7 +434,10 @@ describe('parseTcx garmin-style documents', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.activities.map((a) => a.sport)).toEqual(['run', 'ride'])
-    expect(result.activities.map((a) => a.name)).toEqual(['two (run)', 'two (ride)'])
+    expect(result.activities.map((a) => a.name)).toEqual([
+      generatedName(START_MS, 'run'),
+      generatedName(START_MS, 'ride'),
+    ])
     expect(result.activities[0]!.id.endsWith('#0')).toBe(true)
     expect(result.activities[1]!.id.endsWith('#1')).toBe(true)
   })

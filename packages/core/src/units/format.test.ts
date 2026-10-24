@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PACE_UNIT,
   formatClock,
+  formatTimeOfDay,
   formatDistance,
   formatDuration,
   formatElevation,
@@ -279,5 +280,23 @@ describe('formatRecordTime', () => {
 
   it('shows a dash for a time that is not a number', () => {
     expect(formatRecordTime(NaN)).toBe('—')
+  })
+})
+
+describe('formatTimeOfDay', () => {
+  // Local constructors, so the clock reads the same in every zone the suite runs in.
+  const at = (hour: number, minute: number) => new Date(2026, 5, 3, hour, minute).getTime()
+
+  it.each([
+    [0, 5, '12:05 am'],
+    [6, 11, '6:11 am'],
+    [6, 42, '6:42 am'],
+    [11, 59, '11:59 am'],
+    [12, 0, '12:00 pm'],
+    [12, 30, '12:30 pm'],
+    [18, 5, '6:05 pm'],
+    [23, 59, '11:59 pm'],
+  ])('shows %i:%i as %s', (hour, minute, text) => {
+    expect(formatTimeOfDay(at(hour, minute))).toBe(text)
   })
 })

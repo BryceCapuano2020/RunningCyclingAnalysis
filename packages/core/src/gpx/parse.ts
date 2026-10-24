@@ -4,6 +4,7 @@ import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime } from '../import/time'
+import { fileTitle } from '../import/names'
 import {
   fixesOf,
   readNonNegative,
@@ -22,7 +23,7 @@ const DECODE_FAILED = 'Could not decode GPX file'
 
 const POWER_NAMES = new Set(['power', 'PowerInWatts'])
 /** Elements whose own text is read when they close. */
-const TEXT_ROLES = new Set(['type', 'ele', 'time', 'heartRate', 'power'])
+const TEXT_ROLES = new Set(['type', 'trackName', 'ele', 'time', 'heartRate', 'power'])
 
 /** One trkpt with a valid time. Position, altitude and extensions are optional. */
 interface Point {
@@ -48,6 +49,8 @@ interface OpenPoint {
 interface OpenTrack {
   type: string | undefined
   typeSeen: boolean
+  name: string | undefined
+  nameSeen: boolean
   anyPosition: boolean
   points: Point[]
   /** Trackpoints without a valid time. */
@@ -56,7 +59,17 @@ interface OpenTrack {
 
 /** What an open element is, decided when it opens. */
 type Role =
-  'root' | 'track' | 'type' | 'segment' | 'point' | 'ele' | 'time' | 'heartRate' | 'power' | 'other'
+  | 'root'
+  | 'track'
+  | 'type'
+  | 'trackName'
+  | 'segment'
+  | 'point'
+  | 'ele'
+  | 'time'
+  | 'heartRate'
+  | 'power'
+  | 'other'
 
 interface Frame {
   role: Role
@@ -151,6 +164,9 @@ class GpxReader implements XmlHandler {
       case 'type':
         if (this.track !== undefined) this.track.type = nonBlank(frame.text)
         break
+      case 'trackName':
+        if (this.track !== undefined) this.track.name = nonBlank(frame.text)
+        break
       case 'ele':
         if (point !== undefined) point.altitude = readNumber(frame.text)
         break
@@ -185,7 +201,15 @@ class GpxReader implements XmlHandler {
       return 'root'
     }
     if (parent === 'root' && local === 'trk') {
-      this.track = { type: undefined, typeSeen: false, anyPosition: false, points: [], untimed: 0 }
+      this.track = {
+        type: undefined,
+        typeSeen: false,
+        name: undefined,
+        nameSeen: false,
+        anyPosition: false,
+        points: [],
+        untimed: 0,
+      }
       return 'track'
     }
     const track = this.track
@@ -193,6 +217,10 @@ class GpxReader implements XmlHandler {
       if (local === 'type' && !track.typeSeen) {
         track.typeSeen = true
         return 'type'
+      }
+      if (local === 'name' && !track.nameSeen) {
+        track.nameSeen = true
+        return 'trackName'
       }
       if (local === 'trkseg') return 'segment'
     }
@@ -293,6 +321,7 @@ function buildUnit(
     hasPosition: track.anyPosition,
     refusal: choice.refusal,
     fixes: fixesOf(ordered),
+    title: fileTitle(track.name),
   }
   return { unit, dropped }
 }

@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { RawRecord } from '../fit/resample'
 import type { GpsFix } from './gps'
 import type { PipelineUnit } from './pipeline'
-import { activitiesFromRecords, activitiesFromUnits, baseName } from './pipeline'
+import { activitiesFromRecords, activitiesFromUnits } from './pipeline'
 import { DEFAULT_PARSE_LIMITS } from './result'
 import type { ParseResult } from './result'
+import { generatedName } from './names'
 
 const START = Date.UTC(2024, 4, 1, 7, 30, 0)
 const NOW = Date.UTC(2024, 5, 1)
@@ -54,12 +55,56 @@ describe('activitiesFromRecords', () => {
     expect(result.activities).toHaveLength(1)
     expect(result.activities[0]).toMatchObject({
       id: `${START}-morning.gpx`,
-      name: 'morning',
+      name: generatedName(START, 'run'),
       sport: 'run',
       indoor: false,
       startMs: START,
       n: 60,
     })
+  })
+
+  it('names an activity from the title its file carries', () => {
+    const result = succeeded(
+      activitiesFromRecords(
+        { ...unitOf(steadyRecords(60)), title: 'Hill repeats', fileName: 'run.gpx' },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW },
+      ),
+    )
+
+    expect(result.activities[0]?.name).toBe('Hill repeats')
+  })
+
+  it('falls back to the file title, then the start time, when the export name is a device default', () => {
+    const titled = succeeded(
+      activitiesFromRecords(
+        { ...unitOf(steadyRecords(60)), title: 'Hill repeats', fileName: 'run.gpx' },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW, activityName: '001' },
+      ),
+    )
+    const untitled = succeeded(
+      activitiesFromRecords(
+        { ...unitOf(steadyRecords(60, localMs(6, 11))), fileName: 'run.gpx' },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW, activityName: 'ACTIVE LOG' },
+      ),
+    )
+
+    expect(titled.activities[0]?.name).toBe('Hill repeats')
+    expect(untitled.activities[0]?.name).toBe('Morning Run')
+  })
+
+  it('names an activity from the name its export gives, before the file title', () => {
+    const result = succeeded(
+      activitiesFromRecords(
+        { ...unitOf(steadyRecords(60)), title: 'Track name', fileName: 'run.gpx' },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW, activityName: 'Export name' },
+      ),
+    )
+
+    expect(result.activities[0]?.name).toBe('Export name')
   })
 
   it('accepts a sparsely recorded track by the seconds its records cover, in any format', () => {
@@ -167,6 +212,7 @@ describe('activitiesFromRecords', () => {
     const result = succeeded(
       activitiesFromRecords({ ...unitOf(records), fileName: 'long.gpx' }, DEFAULT_PARSE_LIMITS, {
         nowMs: NOW,
+        activityName: 'Long day',
       }),
     )
 
@@ -174,7 +220,7 @@ describe('activitiesFromRecords', () => {
       `${START}-long.gpx.1`,
       `${START + 5 * HOUR_MS}-long.gpx.2`,
     ])
-    expect(result.activities.map((a) => a.name)).toEqual(['long (part 1)', 'long (part 2)'])
+    expect(result.activities.map((a) => a.name)).toEqual(['Long day (part 1)', 'Long day (part 2)'])
   })
 
   it('refuses an unsupported sport with the FIT rejection message', () => {
@@ -315,24 +361,152 @@ describe('indoor inference for units without positions', () => {
   })
 })
 
+/** A local start on a fixed day, so the clock times a test expects hold in any time zone. */
+function localMs(hour: number, minute: number): number {
+  return new Date(2024, 4, 1, hour, minute).getTime()
+}
+
+/** A ride unit: the same steady records as a run, with a cycling sport. */
+function rideOf(records: RawRecord[]): PipelineUnit {
+  return { ...unitOf(records), sport: 'ride', sportLabel: 'cycling' }
+}
+
 describe('activitiesFromUnits', () => {
-  it('gives each unit its index in the id and its sport in the name', () => {
+  it('gives each unit its index in the id, and tells apart two legs that share a name', () => {
     const result = succeeded(
       activitiesFromUnits(
         {
           fileName: 'week.fit',
-          units: [unitOf(steadyRecords(60)), unitOf(steadyRecords(60, START + 2 * HOUR_MS))],
+          units: [
+            unitOf(steadyRecords(60, localMs(6, 11))),
+            unitOf(steadyRecords(60, localMs(8, 20))),
+          ],
+        },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW, activityName: 'Week' },
+      ),
+    )
+
+    expect(result.activities.map((a) => a.id)).toEqual([
+      `${localMs(6, 11)}-week.fit#0`,
+      `${localMs(8, 20)}-week.fit#1`,
+    ])
+    expect(result.activities.map((a) => a.name)).toEqual([
+      'Week (Run, 6:11 am)',
+      'Week (Run, 8:20 am)',
+    ])
+  })
+
+  it('names a run-ride-run brick by its export name, with the start time on the two runs', () => {
+    const result = succeeded(
+      activitiesFromUnits(
+        {
+          fileName: 'brick.fit',
+          units: [
+            unitOf(steadyRecords(60, localMs(6, 11))),
+            rideOf(steadyRecords(60, localMs(9, 0))),
+            unitOf(steadyRecords(60, localMs(12, 30))),
+          ],
+        },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW, activityName: 'Brick' },
+      ),
+    )
+
+    expect(result.activities.map((a) => a.name)).toEqual([
+      'Brick (Run, 6:11 am)',
+      'Brick (Ride)',
+      'Brick (Run, 12:30 pm)',
+    ])
+  })
+
+  it('numbers two legs that start in the same minute after their start time', () => {
+    const result = succeeded(
+      activitiesFromUnits(
+        {
+          fileName: 'twins.fit',
+          units: [
+            unitOf(steadyRecords(60, localMs(6, 11))),
+            unitOf(steadyRecords(60, localMs(6, 11) + 30_000)),
+          ],
         },
         DEFAULT_PARSE_LIMITS,
         { nowMs: NOW },
       ),
     )
 
-    expect(result.activities.map((a) => a.id)).toEqual([
-      `${START}-week.fit#0`,
-      `${START + 2 * HOUR_MS}-week.fit#1`,
+    expect(result.activities.map((a) => a.name)).toEqual([
+      'Morning Run, 6:11 am',
+      'Morning Run, 6:11 am (2)',
     ])
-    expect(result.activities.map((a) => a.name)).toEqual(['week (run)', 'week (run)'])
+  })
+
+  it('tells apart two generated names of one file with the start time, at midnight too', () => {
+    const result = succeeded(
+      activitiesFromUnits(
+        {
+          fileName: 'brick.fit',
+          units: [
+            unitOf(steadyRecords(60, localMs(0, 5))),
+            rideOf(steadyRecords(60, localMs(9, 0))),
+            unitOf(steadyRecords(60, localMs(0, 40))),
+          ],
+        },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW },
+      ),
+    )
+
+    expect(result.activities.map((a) => a.name)).toEqual([
+      'Night Run, 12:05 am',
+      'Morning Ride',
+      'Night Run, 12:40 am',
+    ])
+  })
+})
+
+/** One record a minute, so a long activity has few records but one grid sample a second. */
+function minuteRecords(count: number, startMs: number): RawRecord[] {
+  return Array.from({ length: count }, (_, i) => ({
+    tMs: startMs + i * 60_000,
+    speed: 4,
+    distance: 240 * i,
+    altitude: 100,
+    heartRate: 140,
+    power: 200,
+  }))
+}
+
+describe('sample budget', () => {
+  it('refuses the file when its units together pass the 48-hour grid, and only then', () => {
+    // A 40-hour unit takes 144,001 samples. A 10-hour unit after it would take 36,001 more, which is
+    // past the 172,800 a file may hold. A 6-hour unit takes 21,601 and fits.
+    const forty = unitOf(minuteRecords(2401, START))
+    const tooMuch = activitiesFromUnits(
+      {
+        fileName: 'long.fit',
+        units: [forty, unitOf(minuteRecords(601, START + 41 * HOUR_MS))],
+      },
+      DEFAULT_PARSE_LIMITS,
+      { nowMs: NOW },
+    )
+    expect(tooMuch).toEqual({
+      ok: false,
+      fileName: 'long.fit',
+      reason: 'File contains too much data',
+    })
+
+    const fits = succeeded(
+      activitiesFromUnits(
+        {
+          fileName: 'long.fit',
+          units: [forty, unitOf(minuteRecords(361, START + 41 * HOUR_MS))],
+        },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW },
+      ),
+    )
+    expect(fits.activities).toHaveLength(2)
   })
 })
 
@@ -442,24 +616,5 @@ describe('route shapes', () => {
 
     expect(first?.route).toBeDefined()
     expect(second?.route).toBeUndefined()
-  })
-})
-
-describe('baseName', () => {
-  it.each([
-    ['ride.fit', 'ride'],
-    ['ride.FIT.gz', 'ride'],
-    ['run.gpx', 'run'],
-    ['run.GPX.GZ', 'run'],
-    ['course.tcx', 'course'],
-    ['course.tcx.gz', 'course'],
-    ['folder/sub/ride.fit', 'ride'],
-    ['C:\\rides\\ride.tcx', 'ride'],
-    ['my.ride.gpx', 'my.ride'],
-    ['ride.gz', 'ride.gz'],
-    ['ride.fit.zip', 'ride.fit.zip'],
-    ['ride', 'ride'],
-  ])('strips the activity extension from %s', (fileName, expected) => {
-    expect(baseName(fileName)).toBe(expected)
   })
 })
