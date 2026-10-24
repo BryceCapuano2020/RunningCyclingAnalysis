@@ -14,6 +14,7 @@ import {
 import { plural } from '../components/plural'
 import { gradedSexOf, headlineGrades } from '../grades'
 import type { AgeProfile } from '../grades'
+import { hrefFor } from '../route'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { AgeGradingSection } from './AgeGradingSection'
 import { activityNames, countSport } from '../records'
@@ -38,6 +39,9 @@ export function MethodPage({ result, units, profile }: MethodPageProps) {
 
   return (
     <div className="page-stack">
+      <a className="link-arrow" href={hrefFor({ page: 'balance' })}>
+        <span aria-hidden="true">&larr;</span> Back to Balance
+      </a>
       <div className="page-head">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           How sure is this?

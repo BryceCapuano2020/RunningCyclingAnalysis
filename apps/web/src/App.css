@@ -2,9 +2,17 @@
   min-width: 0;
 }
 
-/* The account-deleted note; empty, it takes no space but stays mounted to announce. */
+/* The status line above the page: empty, it takes no space but stays mounted to announce. Shown, it
+   says why a link shows the landing page, or that an account was deleted. */
 .app__notice:empty {
   margin: 0;
+}
+
+.app__notice:not(:empty) {
+  padding: var(--space-2) var(--space-4);
+  border-left: 4px solid var(--text-muted);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
 }
 
 /* A page: sections separated by space and a heading, not by borders. */
@@ -45,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   font-family: var(--font-display);
   font-size: 1.0625rem;
   font-weight: 700;
@@ -170,7 +178,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   color: var(--text-secondary);
 }
 

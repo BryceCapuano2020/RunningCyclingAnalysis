@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { Me } from '@rca/contract'
+import { focusPageHeading } from '../pages/pageHeading'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import './AccountMenu.css'
 
@@ -48,11 +49,14 @@ export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProp
   const menuOpen = open && status === 'signed-in' && me !== null
 
   // Signing out removes the trigger, which would drop focus to the body. Put it on the sign-in
-  // button that replaces it.
+  // button that replaces it, or on the page heading when that button is not shown.
   useEffect(() => {
     const was = previousStatus.current
     previousStatus.current = status
-    if (was === 'signed-in' && status === 'signed-out') signInRef.current?.focus()
+    if (was !== 'signed-in' || status !== 'signed-out') return
+    const button = signInRef.current
+    if (button !== null && button.getClientRects().length > 0) button.focus()
+    else focusPageHeading()
   }, [status])
 
   // While the menu is open, the document handles the ways it closes: a press outside, focus moving

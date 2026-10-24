@@ -17,7 +17,7 @@ export function AddFilesButton({ onFiles, primary = true }: AddFilesButtonProps)
     <>
       <button type="button" className={primary ? 'btn btn-primary' : 'btn'} onClick={picker.open}>
         <PlusIcon />
-        Add files
+        <span className="add-files__label">Add files</span>
       </button>
       {picker.input}
     </>

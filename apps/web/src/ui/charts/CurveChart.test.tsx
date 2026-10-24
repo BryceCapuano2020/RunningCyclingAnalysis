@@ -93,9 +93,9 @@ describe('CurveChart', () => {
     ])
     expect(rows).toEqual([
       // Without activity names the cells stay blank rather than showing a raw id.
-      ['1 min', '17.0 W/kg', '4:07 /km', '18.5 W/kg', '1400 W', '', ''],
-      ['5 min', '15.6 W/kg', '4:31 /km', '16.4 W/kg', '1230 W', '', ''],
-      ['20 min', '14.2 W/kg', '5:00 /km', '14.0 W/kg', '1050 W', '', ''],
+      ['1 min', '17.0 W/kg', '4:07 /km', '18.5 W/kg', '1,400 W', '', ''],
+      ['5 min', '15.6 W/kg', '4:31 /km', '16.4 W/kg', '1,230 W', '', ''],
+      ['20 min', '14.2 W/kg', '5:00 /km', '14.0 W/kg', '1,050 W', '', ''],
       ['1 h', '12.8 W/kg', '5:37 /km', '—', '—', '', '—'],
     ])
   })
@@ -136,7 +136,7 @@ describe('CurveChart', () => {
     expect(tooltip).toHaveTextContent('17.0 W/kg')
     expect(tooltip).toHaveTextContent('4:07 /km')
     expect(tooltip).toHaveTextContent('18.5 W/kg')
-    expect(tooltip).toHaveTextContent('1400 W')
+    expect(tooltip).toHaveTextContent('1,400 W')
 
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
     expect(screen.getByRole('status')).toHaveTextContent('5 min')

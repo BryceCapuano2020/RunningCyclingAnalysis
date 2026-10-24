@@ -476,3 +476,13 @@ describe('SportPage distance records', () => {
     expect(screen.queryByText(/since distance records were introduced/)).toBeNull()
   })
 })
+
+describe('SportPage method link', () => {
+  it('links to How sure is this? from the head of the page, so the evidence is one tap away', () => {
+    renderPage('run', makeResult())
+    expect(screen.getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
+      'href',
+      '#/method',
+    )
+  })
+})

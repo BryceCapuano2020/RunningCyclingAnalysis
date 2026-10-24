@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { keptLibraryHinted } from './ui/analysis/keptLibrary'
 import { app, resetAppMocks, setAccount, showResult } from './test/appMocks'
 
 vi.mock('./ui/useAccount', async () => ({
@@ -55,5 +56,28 @@ describe('the account control when sign-in is unavailable', () => {
     render(<App />)
     expect(screen.getByText('Sign-in is unavailable right now')).toHaveAttribute('role', 'status')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('a reload with a kept library, on a deep link', () => {
+  afterEach(() => {
+    localStorage.removeItem('rca.kept.v1')
+  })
+
+  it('shows no notice while the library restores, and keeps the deep link once the results are back', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    setAccount('signed-out')
+    // useAnalysis is mocked here; the real library state starts restoring from this same hint.
+    app.analysis.restoring = keptLibraryHinted()
+    window.location.hash = '#/run'
+    const view = render(<App />)
+    expect(screen.queryByText('Add your files to see this page.')).not.toBeInTheDocument()
+    expect(window.location.hash).toBe('#/run')
+
+    app.analysis.restoring = false
+    showResult()
+    view.rerender(<App />)
+    expect(screen.queryByText('Add your files to see this page.')).not.toBeInTheDocument()
+    expect(window.location.hash).toBe('#/run')
   })
 })

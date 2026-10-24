@@ -87,6 +87,9 @@ export function SportPage({
         </h1>
         {controls}
       </div>
+      <a className="link-arrow" href={hrefFor({ page: 'method' })}>
+        How sure is this?
+      </a>
 
       {count === 0 ? (
         <p className="secondary">

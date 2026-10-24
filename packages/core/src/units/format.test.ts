@@ -207,6 +207,11 @@ describe('formatPower', () => {
     expect(formatPower(-0.2)).toBe('0 W')
   })
 
+  it('groups thousands as the other large numbers do', () => {
+    expect(formatPower(1200)).toBe('1,200 W')
+    expect(formatPower(1446.4)).toBe('1,446 W')
+  })
+
   it('returns a dash for NaN', () => {
     expect(formatPower(NaN)).toBe(DASH)
   })

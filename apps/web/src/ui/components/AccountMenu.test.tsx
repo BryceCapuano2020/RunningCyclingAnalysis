@@ -8,6 +8,7 @@ import type { AccountMenuProps } from './AccountMenu'
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
 })
 
 const EMAIL = 'bryce@example.com'
@@ -280,6 +281,10 @@ describe('AccountMenu actions', () => {
   })
 
   it('moves focus to the sign-in button when signing out removes the trigger', async () => {
+    // jsdom has no layout, so a button is shown here by giving it a box, as a browser would.
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([
+      {} as DOMRect,
+    ] as unknown as DOMRectList)
     const user = userEvent.setup()
     const onSignOut = vi.fn()
     const { rerender } = renderMenu({ onSignOut })
@@ -289,6 +294,21 @@ describe('AccountMenu actions', () => {
 
     rerender(<AccountMenu {...props({ status: 'signed-out', me: null, onSignOut })} />)
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).toHaveFocus()
+  })
+
+  it('moves focus to the page heading when the sign-in button is hidden, so focus is not lost to the body', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderMenu({})
+    render(
+      <h1 id="page-heading" tabIndex={-1}>
+        Balance
+      </h1>,
+    )
+    await user.click(trigger())
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    rerender(<AccountMenu {...props({ status: 'signed-out', me: null })} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toHaveFocus()
   })
 
   it('does not move focus when the session is still loading', () => {

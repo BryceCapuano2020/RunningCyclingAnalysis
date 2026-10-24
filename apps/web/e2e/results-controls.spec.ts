@@ -86,7 +86,7 @@ test('How sure is this? keeps the disclaimer that hard best efforts do not prove
   // Evidence card reports real efforts and the method page says what that does not prove.
   await expect(page.getByRole('heading', { level: 2, name: 'Built on real efforts' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'How sure is this?' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
   await expect(
     page.getByText('That makes them hard, but does not prove either was all-out.'),

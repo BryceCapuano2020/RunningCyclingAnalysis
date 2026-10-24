@@ -1,6 +1,6 @@
 /*
- * Custom properties only: colour, spacing, radius, type families and shadow. The colour values are
- * the table in docs/DESIGN.md, and tokens.test.ts keeps the two in step.
+ * Custom properties only: colour, spacing, radius, control size, type families and shadow. The
+ * colour values are the table in docs/DESIGN.md, and tokens.test.ts keeps the two in step.
  */
 :root {
   --surface-0: #f5f6f8;
@@ -48,6 +48,11 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+  /* A control is 40 px; a phone or a finger gets the 44 px touch target, set below. */
+  --control-height: 40px;
+  /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
+  --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
+  --tab-bar-height: 48px;
   --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -88,5 +93,19 @@
     --status-critical: #ff8a80;
     --status-critical-bg: #3a1714;
     --shadow: 0 1px 2px #00000040;
+  }
+}
+
+/* ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone or a finger is the pointer: 44 px targets. */
+@media (max-width: 760px), (pointer: coarse) {
+  :root {
+    --control-height: 44px;
+  }
+}
+
+/* ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone's header is one row. */
+@media (max-width: 760px) {
+  :root {
+    --header-height: calc(var(--space-5) + var(--control-height) + 1px);
   }
 }

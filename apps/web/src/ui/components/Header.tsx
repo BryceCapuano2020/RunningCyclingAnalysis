@@ -1,3 +1,4 @@
+import { useLayoutEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { APP_NAME } from '../../appName'
 import type { Route } from '../route'
@@ -40,6 +41,32 @@ function tabOf(route: Route): Route['page'] | null {
 
 export function Header({ route, showTabs = route !== null, addFiles, account }: HeaderProps) {
   const current = route ? tabOf(route) : null
+  const [tabs, setTabs] = useState<HTMLElement | null>(null)
+  const [tabsOverflow, setTabsOverflow] = useState(false)
+  const [tabsFaded, setTabsFaded] = useState(false)
+  // Tabs that do not all fit scroll inside their bar, so its labels start at the left. The bar also
+  // fades at its edge while there is more to scroll to. The bar is measured again when it scrolls,
+  // when its size or its tabs' sizes change, and when the window does.
+  useLayoutEffect(() => {
+    if (tabs === null) return
+    const measure = () => {
+      const overflow = tabs.scrollWidth > tabs.clientWidth
+      const atEnd = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 1
+      setTabsOverflow(overflow)
+      setTabsFaded(overflow && !atEnd)
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
+    observer?.observe(tabs)
+    Array.from(tabs.children).forEach((tab) => observer?.observe(tab))
+    tabs.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      tabs.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
+    }
+  }, [tabs])
   return (
     <header className="header">
       <a className="header__brand" href={hrefFor({ page: 'balance' })}>
@@ -56,10 +83,20 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
           <PersonIcon />
           <span className="header__profile-label">Profile</span>
         </a>
-        {account}
+        <div className="header__account">{account}</div>
       </div>
       {showTabs && (
-        <nav className="header__tabs" aria-label="Sections">
+        <nav
+          ref={setTabs}
+          className={[
+            'header__tabs',
+            tabsOverflow && 'header__tabs--overflowing',
+            tabsFaded && 'header__tabs--faded',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-label="Sections"
+        >
           {TABS.map((tab) => (
             <a
               key={tab.label}

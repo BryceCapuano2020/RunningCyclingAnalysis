@@ -221,3 +221,10 @@ describe('MethodPage energy scale', () => {
     expect(within(section).getByText(/metabolic power a sport costs/)).toBeInTheDocument()
   })
 })
+
+describe('MethodPage links back', () => {
+  it('links back to Balance, the page the method answers', () => {
+    renderPage()
+    expect(screen.getByRole('link', { name: 'Back to Balance' })).toHaveAttribute('href', '#/')
+  })
+})
