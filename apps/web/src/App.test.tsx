@@ -232,7 +232,8 @@ describe('signed-in and unavailable library', () => {
   it('offers no sample on the landing page once signed in, and says where imports are saved', () => {
     render(<App />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
-    expect(screen.getByText(/Activity summaries are saved to your library/)).toBeInTheDocument()
+    // The footer carries the one privacy statement; the drop zone no longer repeats it.
+    expect(screen.getByText(/stored in your private library/)).toBeInTheDocument()
   })
 
   it('shows the saved library section on the profile page once loaded, even with no activities', () => {

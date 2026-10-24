@@ -1,20 +1,57 @@
 .export-guides {
   display: grid;
-  gap: var(--space-3);
-  max-width: 68ch;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .export-guides h2 {
-  margin: 0 0 var(--space-1);
+  margin: 0;
+}
+
+/* One tile per service, in a grid that wraps; the expanded tile takes the selected colours. */
+.export-guides__tiles {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+}
+
+.export-guides__tile {
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.export-guides__tile:hover {
+  background: var(--surface-2);
+}
+
+.export-guides__tile[aria-expanded='true'] {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-contrast);
 }
 
 .export-guide {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-1);
 }
 
-.export-guide__name {
+.export-guide h3 {
+  margin: 0;
   font-family: var(--font-display);
   font-size: 1.125rem;
   font-weight: 700;
@@ -22,37 +59,37 @@
   text-transform: uppercase;
 }
 
-.export-guide__body {
-  display: grid;
-  gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-4);
-}
-
 /* A plain list, so screen readers keep its numbered-list semantics. */
-.export-guide ol {
+.export-guide__steps {
   margin: 0;
   padding-left: var(--space-5);
 }
 
-.export-guide li + li {
+.export-guide__steps li + li {
   margin-top: var(--space-2);
 }
 
-.export-guide__note {
+.export-guide__steps .btn {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.export-guide p {
   margin: 0;
-  color: var(--text-muted);
+}
+
+.export-guide__checked {
   font-size: 0.875rem;
 }
 
-.export-guide__note .icon {
-  flex: none;
-  width: 16px;
-  height: 16px;
+.export-guides__none {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  max-width: 62ch;
 }
 
-.export-guide__body p {
+.export-guides__none h3,
+.export-guides__none p {
   margin: 0;
 }
