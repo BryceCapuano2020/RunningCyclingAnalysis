@@ -174,6 +174,21 @@ describe('ResultPage footnote', () => {
   })
 })
 
+describe('ResultPage How sure is this? with no weight entered', () => {
+  it('holds the energy view and asks for the weight, as Balance does', () => {
+    renderPage({ page: 'method' }, 1986, 'male', false)
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+    expect(screen.getByRole('region', { name: 'The energy view' }).textContent).not.toMatch(
+      /90% model range/,
+    )
+  })
+
+  it('shows the energy view once a weight is entered', () => {
+    renderPage({ page: 'method' }, 1986, 'male', true)
+    expect(screen.queryByRole('link', { name: 'Profile' })).toBeNull()
+  })
+})
+
 const ACTIVITY = makeActivity({
   id: 'activity-1',
   sport: 'run',

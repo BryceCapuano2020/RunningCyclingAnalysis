@@ -7,11 +7,11 @@ import type { RouteGuardInput } from './useRouteGuard'
 const cold = { hasResult: false, busy: false, restoring: false, settled: true }
 
 describe('needsResult', () => {
-  it('lets Balance and Profile show without a result, and every other page needs one', () => {
+  it('lets Balance, Profile and How sure is this? show without a result, and every other page needs one', () => {
     expect(needsResult({ page: 'balance' })).toBe(false)
     expect(needsResult({ page: 'profile' })).toBe(false)
+    expect(needsResult({ page: 'method' })).toBe(false)
     expect(needsResult({ page: 'run' })).toBe(true)
-    expect(needsResult({ page: 'method' })).toBe(true)
     expect(needsResult({ page: 'activity', id: 'a' })).toBe(true)
   })
 })
@@ -19,7 +19,7 @@ describe('needsResult', () => {
 describe('coldNoticeFor', () => {
   it('says what a deep link needs, once the library has answered', () => {
     expect(coldNoticeFor({ route: { page: 'activity', id: 'a' }, ...cold })).toBe(COLD_NOTICE)
-    expect(coldNoticeFor({ route: { page: 'method' }, ...cold })).toBe(COLD_NOTICE)
+    expect(coldNoticeFor({ route: { page: 'run' }, ...cold })).toBe(COLD_NOTICE)
   })
 
   it('says nothing on Balance or Profile, which the landing page is for', () => {

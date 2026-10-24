@@ -231,3 +231,69 @@ describe('HrScatter', () => {
     expect(screen.queryByRole('img')).toBeNull()
   })
 })
+
+describe('HrScatter with rides held', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('draws only the run blocks, and the run fit, while the rides are held', () => {
+    render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    const dots = screen.getAllByTestId('hr-dot')
+    expect(dots).toHaveLength(3)
+    expect(dots.every((dot) => dot.getAttribute('data-sport') === 'run')).toBe(true)
+    expect(screen.getAllByTestId('hr-fit')).toHaveLength(1)
+  })
+
+  it('has no legend entry, slope note or missing-data note for the held sport', () => {
+    const { container } = render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(screen.queryByText(/Slopes:/)).toBeNull()
+    expect(screen.queryByText(/Not enough steady heart-rate data for cycling/)).toBeNull()
+    expect(tableAt(container, 0).rows).toEqual([['Running', '3', '10.0', '0.95']])
+  })
+
+  it('lists only running blocks in the table view, so the table matches what is drawn', () => {
+    const { container } = render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    const plotted = tableAt(container, 1).rows
+    expect(plotted).toHaveLength(3)
+    expect(plotted.every((row) => row[0] === 'Running')).toBe(true)
+  })
+
+  it('describes the chart as running alone while the rides are held', () => {
+    render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    expect(
+      screen.getByRole('img', {
+        name: 'Average heart rate against energy rate for each block of steady running effort, with a fitted line.',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('says running, not each sport, in its empty state while the rides are held', () => {
+    const ridesOnly: HrCrossCheck = {
+      run: null,
+      ride: hrFixture.ride,
+      kappa: null,
+      lnKappaSe: null,
+    }
+    render(<HrScatter hr={ridesOnly} includeRides={false} />)
+
+    expect(
+      screen.getByText(
+        'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks of running across a range of efforts',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/per sport/)).toBeNull()
+  })
+
+  it('still draws both sports, with the slope note, when the rides are not held', () => {
+    render(<HrScatter hr={hrFixture} includeRides />)
+
+    expect(screen.getAllByTestId('hr-dot')).toHaveLength(5)
+    expect(screen.getByText(/Slopes: running 10\.0 and cycling 12\.0/)).toBeInTheDocument()
+  })
+})

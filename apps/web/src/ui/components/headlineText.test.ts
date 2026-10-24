@@ -223,16 +223,14 @@ describe('balanceTitle', () => {
 describe('balanceSummary', () => {
   it('names the leading sport and its grade gap in points, on the headline duration', () => {
     expect(balanceSummary(gapReading(gap({ centre: 6, lean: 'run' })), 1200)).toBe(
-      'Your running grades 6 points higher than your cycling, on your best 20 minutes in each.',
+      'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
     )
   })
 
   it('names cycling as the leader when cycling grades higher', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })), 1200),
-    ).toBe(
-      'Your cycling grades 6 points higher than your running, on your best 20 minutes in each.',
-    )
+    ).toBe('Your cycling grades 6 points higher than your running, on your best 20 min in each.')
   })
 
   it('uses the singular for a gap of one point', () => {

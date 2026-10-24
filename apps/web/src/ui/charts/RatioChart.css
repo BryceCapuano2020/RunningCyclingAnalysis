@@ -1,9 +1,9 @@
 /* Where running is ahead the plot is tinted coral above the line, and where cycling is ahead, blue below it. */
-.ratio-chart__ahead--run {
+.ratio-chart__higher--run {
   fill: var(--series-run-soft);
 }
 
-.ratio-chart__ahead--ride {
+.ratio-chart__higher--ride {
   fill: var(--series-ride-soft);
 }
 

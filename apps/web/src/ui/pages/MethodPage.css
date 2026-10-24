@@ -1,0 +1,56 @@
+/* The three-line answer: what is recorded, what is estimated, and how far to trust it. */
+.method__answer {
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.method__answer li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The on-page contents. Each entry is a button that moves focus, since a fragment would change the hash route. */
+.method__contents ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.method__contents button {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.method__facts {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 68ch;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+/* Charts sit behind a disclosure, and the claim above them stays in words. */
+.method__evidence {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.method__evidence[open] > summary {
+  margin-bottom: var(--space-1);
+}

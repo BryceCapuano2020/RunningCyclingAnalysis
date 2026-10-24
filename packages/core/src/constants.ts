@@ -93,3 +93,10 @@ export const MIN_CLIMB_GRADE = 0.03
  * metabolic power identically in both sports.
  */
 export const HR_MODEL_DISCREPANCY = 0.05
+
+/**
+ * The heart-rate blocks: each is this many seconds of steady effort, averaged for the check, and
+ * the first HR_SKIP_S seconds of an activity are left out, as warm-up and settling.
+ */
+export const HR_BLOCK_S = 300
+export const HR_SKIP_S = 600

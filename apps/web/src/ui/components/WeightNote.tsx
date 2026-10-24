@@ -1,13 +1,16 @@
+import { WEIGHT_FIGURES_PURPOSE, WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import { hrefFor } from '../route'
 
 /**
  * Where ride figures wait for a weight. Nothing assumes one, so a ride's figures are held until the
- * athlete adds it, and this line says so and links to Profile.
+ * athlete adds it, and this line says so and links to Profile. Its words are the prompt's lead and
+ * page from weightCopy, with its own purpose: a card's note is about figures, not the comparison.
  */
 export function WeightNote() {
   return (
     <p className="muted">
-      Add your weight on <a href={hrefFor({ page: 'profile' })}>Profile</a> to see ride figures.
+      {WEIGHT_PROMPT_PARTS.lead}{' '}
+      <a href={hrefFor({ page: 'profile' })}>{WEIGHT_PROMPT_PARTS.page}</a> {WEIGHT_FIGURES_PURPOSE}
     </p>
   )
 }

@@ -16,6 +16,7 @@ import { AthleteFields } from './AthleteFields'
 import { NumberField } from './NumberField'
 import { SegmentedControl } from './SegmentedControl'
 import './SetupDialog.css'
+import { WEIGHT_PROMPT_TEXT } from '../weightCopy'
 
 export interface SetupDialogProps {
   /** What the dialog starts from: the saved values, or the signed-in profile. */
@@ -227,11 +228,7 @@ export function SetupDialog({
           </p>
         )}
         <div className="setup-dialog__footer">
-          {weightBlank && (
-            <p className="setup-dialog__note muted">
-              Add your weight on Profile to compare a ride with a run.
-            </p>
-          )}
+          {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_PROMPT_TEXT}</p>}
           <div className="setup-dialog__actions">
             <button
               type="button"

@@ -9,16 +9,38 @@ afterEach(() => {
 })
 
 function section(): HTMLElement {
-  return screen.getByRole('region', { name: 'Age grading' })
+  return screen.getByRole('region', { name: 'Age grades and levels' })
 }
 
 describe('AgeGradingSection', () => {
-  it('says how a run is graded, and the levels, with Below 60% as Recreational', () => {
+  it('is a heading that moves focus, and says how a run is graded, with Below 60% as Recreational', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Age grading' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Age grades and levels' }),
+    ).toHaveAttribute('tabindex', '-1')
     expect(section()).toHaveTextContent(
-      'A run is graded against the USATF road standards for the athlete’s age and sex: the standard time for the distance covered, divided by the time taken. A grade of 70% means the run was at 70% of the standard pace. Levels are bands of that grade: Local from 60%, Regional from 70%, National from 80%, World from 90%. Below 60% is Recreational.',
+      'A run is graded against the USATF road standards for your age and sex: the standard time for the distance covered, divided by the time taken. A grade of 70% means the run was at 70% of the standard pace. Levels are bands of that grade: Local from 60%, Regional from 70%, National from 80%, World from 90%. Below 60% is Recreational.',
+    )
+  })
+
+  it('reads a run’s grade as recorded, from its recorded pace, which the cards call grade-adjusted', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(section()).toHaveTextContent(
+      'A run’s grade is read as recorded: the run’s recorded pace, corrected for hills with a published energy-cost curve, is its grade-adjusted pace.',
+    )
+    expect(section()).not.toHaveTextContent(/a fact from the file/)
+  })
+
+  it('says a ride grade is an estimate through its running equivalent, with the model range', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(section()).toHaveTextContent(
+      'A ride has no published cycling standard. Its best effort is converted to the flat running speed that costs the same energy over the same time, the running equivalent, and graded like a run.',
+    )
+    expect(section()).toHaveTextContent(
+      'Its range is the model’s 90% range for that conversion, so a ride grade is an estimate.',
     )
   })
 
@@ -30,15 +52,6 @@ describe('AgeGradingSection', () => {
     )
     expect(section()).toHaveTextContent(
       'A ride takes the date of its own best ride at that duration, because its running equivalent comes from that ride.',
-    )
-  })
-
-  it('calls a run one activity’s estimate, and a ride’s range the model’s range', () => {
-    render(<AgeGradingSection gradedSex={null} />)
-
-    expect(section()).toHaveTextContent('A run’s grade is one activity’s estimate.')
-    expect(section()).toHaveTextContent(
-      'Its range is the model’s 90% range for that conversion, so it is an estimate too.',
     )
   })
 
@@ -70,8 +83,12 @@ describe('AgeGradingSection', () => {
       'Only the birth year is used, so until the birthday the age can be one year too high. That moves the grade by about a year’s change in the standard: up for adults, down for young athletes.',
     )
     expect(limits[1]).toHaveTextContent('The standards are for road races at sea level.')
-    expect(limits[2]).toHaveTextContent('Hilly courses and GPS error')
-    expect(limits[3]).toHaveTextContent('A training effort is not a race.')
+    expect(limits[2]).toHaveTextContent(
+      'Hilly courses and GPS error affect the pace and the measured distance, so a run’s grade is only as exact as its file.',
+    )
+    expect(limits[3]).toHaveTextContent(
+      'A training effort is not a race. A grade shows how a training effort compares with the standard; it is not a race result or a ranking.',
+    )
   })
 
   it('names the sex the grades are for when a grade is shown', () => {
@@ -84,5 +101,13 @@ describe('AgeGradingSection', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(screen.queryByText(/Your grades are for a/)).not.toBeInTheDocument()
+  })
+
+  it('uses one term set, "level", and no vague words', () => {
+    const { container } = render(<AgeGradingSection gradedSex="male" />)
+    const text = container.textContent ?? ''
+
+    expect(text).not.toMatch(/\b(Female|Male|the athlete’s|in this period|ranking of you)\b/)
+    expect(text).not.toMatch(/\bminutes\b/)
   })
 })

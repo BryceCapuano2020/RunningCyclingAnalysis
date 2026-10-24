@@ -166,3 +166,13 @@ describe('EvidenceCard without a heart-rate check', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('EvidenceCard links', () => {
+  it('keeps How sure is this? and leaves the grading link to the level cards', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 })
+
+    const card = screen.getByRole('region', { name: 'Built on real efforts' })
+    expect(within(card).getByRole('link', { name: 'How sure is this?' })).toBeInTheDocument()
+    expect(within(card).queryByRole('link', { name: 'How is this graded?' })).toBeNull()
+  })
+})

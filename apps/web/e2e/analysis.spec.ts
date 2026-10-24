@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
@@ -23,6 +24,11 @@ const RATIO = /^Running compared with cycling by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
 const POWER_ACCURACY = /^Estimated against measured power on climbs$/
 
+/** Opens one section's "Show the evidence" disclosure on How sure is this?, so its chart is shown. */
+async function showEvidence(page: Page, section: string): Promise<void> {
+  await page.locator('summary', { hasText: `Show the evidence for the ${section}` }).click()
+}
+
 test('a sample athlete shows the balance, its charts, the activities and the sample notice', async ({
   page,
 }) => {
@@ -45,9 +51,15 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await goTo(page, 'Balance')
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+  // A closed disclosure hides its chart, in every browser, until the reader opens it.
+  await expect(page.locator('details.method__evidence').first()).not.toHaveAttribute('open')
+  await expect(page.getByRole('figure', { name: RATIO })).toBeHidden()
+  await showEvidence(page, 'energy view')
   await expect(page.getByRole('figure', { name: ENERGY_SCALE })).toBeVisible()
   await expect(page.getByRole('figure', { name: RATIO })).toBeVisible()
+  await showEvidence(page, 'heart-rate check')
   await expect(page.getByRole('figure', { name: HEART_RATE })).toBeVisible()
+  await showEvidence(page, 'virtual power meter')
   await expect(page.getByRole('figure', { name: POWER_ACCURACY })).toBeVisible()
 
   await expect(await activitiesRows(page)).toHaveCount(14)

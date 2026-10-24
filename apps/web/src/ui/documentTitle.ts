@@ -15,7 +15,8 @@ const PAGE_NAMES: Record<Exclude<Route['page'], 'activity'>, string> = {
 
 /** The page's name, or null on the landing page, which is the app itself. */
 function nameOf(route: Route, result: AnalysisResult | null): string | null {
-  if (route.page === 'profile') return PAGE_NAMES.profile
+  // Profile and How sure is this? show without a result, so they keep their names.
+  if (route.page === 'profile' || route.page === 'method') return PAGE_NAMES[route.page]
   if (result === null) return null
   if (route.page === 'activity') {
     const name = result.activities.find((activity) => activity.id === route.id)?.name.trim()

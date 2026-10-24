@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { HR_BLOCK_S, HR_SKIP_S } from '../constants'
 import { averageBlocks } from './blocks'
 
 function streams(n: number, power: (i: number) => number, hr: (i: number) => number) {
@@ -31,6 +32,17 @@ describe('averageBlocks', () => {
       { heartRate: 120, means: [3] },
       { heartRate: 150, means: [4] },
     ])
+  })
+
+  it('takes its default block length and skip from the shared constants', () => {
+    const s = streams(
+      1200,
+      (i) => (i < 600 ? 10 : i < 900 ? 3 : 4),
+      (i) => (i < 600 ? 200 : i < 900 ? 120 : 150),
+    )
+    expect(HR_BLOCK_S).toBe(300)
+    expect(HR_SKIP_S).toBe(600)
+    expect(run(s)).toEqual(run(s, { blockS: HR_BLOCK_S, skipS: HR_SKIP_S }))
   })
 
   it('takes the mean of alternating samples inside a block', () => {

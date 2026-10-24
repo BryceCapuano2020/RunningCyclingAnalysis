@@ -5,6 +5,7 @@ import { displayWeight, readWeight, weightKg, weightUnit } from '../athlete'
 import type { WeightField, WeightSettings } from '../athlete'
 import { NumberField } from './NumberField'
 import './SettingsBar.css'
+import { WEIGHT_PURPOSE } from '../weightCopy'
 
 export interface SettingsBarProps {
   settings: WeightSettings
@@ -80,7 +81,7 @@ export function SettingsBar({ settings, units, onChange }: SettingsBarProps) {
   const bodyKnown = settings.massKg !== null
   const hint = bodyKnown
     ? 'Your body weight sets ride W/kg and the balance. Bike and gear weight is used for power on climbs.'
-    : 'Not entered. Add your weight to compare a ride with a run.'
+    : `Not entered. Add your weight ${WEIGHT_PURPOSE}`
 
   return (
     <div className="settings-bar">

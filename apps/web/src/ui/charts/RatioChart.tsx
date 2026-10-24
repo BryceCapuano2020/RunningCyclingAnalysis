@@ -27,9 +27,9 @@ const ACTIVE_MARKER_R = 5
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them'
 const PERCENT_AXIS_TITLE = `${SPORT_TITLE.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
-const CAPTION = 'Above the line, your running is ahead at that duration; below it, your cycling is.'
-const NOTE =
-  'Shading shows the 90% model range; other errors are not included. The line is the median of the model draws.'
+const CAPTION =
+  'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher.'
+const NOTE = 'Shading shows the 90% model range. The line is the middle estimate.'
 
 const LEGEND_CALIBRATED: ChartLegendEntry[] = [
   { label: 'Before heart-rate check', kind: 'neutral', swatch: 'band' },
@@ -48,14 +48,14 @@ const delta = (ratio: number): string => formatPercent(ratio - 1, true)
 
 const rangeOf = (interval: Interval): string => `${delta(interval.p05)} to ${delta(interval.p95)}`
 
-/** The median in plain words: which sport is ahead at this duration, and by how much. */
+/** The middle estimate in plain words: which sport is higher at this duration, and by how much. */
 function readingOf(interval: Interval | null): string {
   if (interval === null) return '—'
   const offset = interval.p50 - 1
   if (formatPercent(offset) === '0%') return 'Equal'
   return offset > 0
-    ? `Running ahead by ${formatPercent(offset)}`
-    : `Cycling ahead by ${formatPercent(-offset)}`
+    ? `Running ${formatPercent(offset)} higher than cycling`
+    : `Cycling ${formatPercent(-offset)} higher than running`
 }
 
 /** Axis label for an offset from equal, with as many decimals as the tick step needs. */
@@ -284,16 +284,16 @@ export function RatioChart({ comparison }: RatioChartProps) {
               fontSize={axisFontSize(size.width)}
             />
             <rect
-              data-testid="ratio-ahead"
-              className="ratio-chart__ahead ratio-chart__ahead--run"
+              data-testid="ratio-higher"
+              className="ratio-chart__higher ratio-chart__higher--run"
               x={plot.left}
               y={plot.top}
               width={plot.right - plot.left}
               height={Math.max(0, m.zeroY - plot.top)}
             />
             <rect
-              data-testid="ratio-ahead"
-              className="ratio-chart__ahead ratio-chart__ahead--ride"
+              data-testid="ratio-higher"
+              className="ratio-chart__higher ratio-chart__higher--ride"
               x={plot.left}
               y={m.zeroY}
               width={plot.right - plot.left}

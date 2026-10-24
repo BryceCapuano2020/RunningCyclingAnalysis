@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { UnitSystem } from '@rca/core/units'
 import type { WeightSettings } from '../athlete'
+import { WEIGHT_PURPOSE } from '../weightCopy'
 import { SettingsBar } from './SettingsBar'
 
 afterEach(() => {
@@ -87,9 +88,7 @@ describe('SettingsBar', () => {
   it('shows no body weight as a blank field, and says what adding one is for', () => {
     const { body } = renderBar('metric', UNSET)
     expect(body).toHaveValue('')
-    expect(
-      screen.getByText('Not entered. Add your weight to compare a ride with a run.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText(`Not entered. Add your weight ${WEIGHT_PURPOSE}`)).toBeInTheDocument()
   })
 
   it('does not commit on each keystroke, only on blur', async () => {
