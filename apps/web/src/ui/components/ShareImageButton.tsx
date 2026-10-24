@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import type { CanvasDelivery } from '../../share/download'
 import { hasShareableContent } from '../../share/hasShareableContent'
 import { CARD_FILE_NAMES, type CardFormat } from '../../share/cardLayout'
 import type { BalanceGap } from '../balanceGap'
@@ -26,6 +27,12 @@ export interface ShareImageButtonProps {
 const PRIVACY_NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
 const WAITING_NOTE = 'Available when the analysis finishes.'
 const FAILED = 'The image could not be created. Try again.'
+/** What the page says once the image has reached the visitor. A cancelled share says nothing. */
+const DELIVERED: Record<CanvasDelivery, string> = {
+  shared: 'Image shared',
+  saved: 'Image saved',
+  cancelled: '',
+}
 
 /** The two shapes, in button order. The square is the primary action. */
 const SHAPES: { format: CardFormat; label: string; primary: boolean }[] = [
@@ -81,11 +88,11 @@ export function ShareImageButton({
         gap,
       )
       const canvas = document.createElement('canvas')
-      const saved =
-        card !== null &&
-        renderShareCard(card, canvas, format) &&
-        (await saveCanvasPng(canvas, CARD_FILE_NAMES[format]))
-      setStatus(saved ? 'Image saved' : FAILED)
+      const delivery =
+        card !== null && renderShareCard(card, canvas, format)
+          ? await saveCanvasPng(canvas, CARD_FILE_NAMES[format])
+          : null
+      setStatus(delivery === null ? FAILED : DELIVERED[delivery])
     } catch {
       setStatus(FAILED)
     } finally {

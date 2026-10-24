@@ -118,7 +118,7 @@ export function formatWatts(watts: number): string {
   if (!Number.isFinite(watts)) {
     return DASH
   }
-  return whole(watts)
+  return whole(watts, true)
 }
 
 export function formatPower(watts: number): string {

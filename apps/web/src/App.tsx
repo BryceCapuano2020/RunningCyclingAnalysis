@@ -5,16 +5,20 @@ import { AddFilesButton } from './ui/components/AddFilesButton'
 import { AppNotices } from './ui/components/AppNotices'
 import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
+import { SkipLink } from './ui/components/SkipLink'
 import { LandingPage } from './ui/pages/LandingPage'
 import { listedMoves } from './ui/analysis/whatMoved'
 import { ageProfileOf } from './ui/grades'
+import { documentTitleFor, useDocumentTitle } from './ui/documentTitle'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
 import { ResultPage } from './ui/pages/ResultPage'
 import type { Route } from './ui/route'
 import { hrefFor, useRoute } from './ui/route'
+import { restoreScroll, useRouteHistory } from './ui/routeHistory'
 import { useAccount } from './ui/useAccount'
+import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
 import { useRestoringWindow } from './ui/useRestoringWindow'
@@ -102,11 +106,28 @@ export function App() {
   const restoringPage = useRestoringWindow(analysis.restoring, account.status === 'loading')
   const key = pageKey(route, hasResult, restoringPage)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
+  useRouteHistory()
+  useDocumentTitle(documentTitleFor(route, analysis.state.result))
+  // The account and a signed-in library must answer before the landing page is the true state.
+  const settled =
+    account.status !== 'loading' &&
+    (account.status !== 'signed-in' || analysis.libraryStatus === 'loaded')
+  const coldNotice = useRouteGuard({
+    route,
+    hasResult,
+    busy: analysis.busy,
+    // A file import queued behind the library, or running while it is not loading.
+    waiting: analysis.waitingReason !== null,
+    libraryLoading: analysis.libraryStatus === 'loading',
+    // A kept library restoring may still bring the result, so the notice waits for it.
+    restoring: analysis.restoring,
+    settled,
+  })
 
   // A new page replaces the old one, so focus moves to the new page's heading and the page shows
-  // from the top. A link the user followed always moves them; a page that changes by itself, such
-  // as a library that loads, only takes focus that was lost with the old page. The first render
-  // keeps the browser's own focus and scroll.
+  // from the top, or where the visitor left it when Back returns to it. A link the user followed
+  // always moves them; a page that changes by itself, such as a library that loads, only takes
+  // focus that was lost with the old page. The first render keeps the browser's own focus and scroll.
   const previousKey = useRef(key)
   const previousHash = useRef(window.location.hash)
   useEffect(() => {
@@ -115,8 +136,9 @@ export function App() {
     const followed = previousHash.current !== window.location.hash
     previousHash.current = window.location.hash
     if (!followed && !focusWasLost()) return
-    window.scrollTo(0, 0)
-    focusPageHeading()
+    restoreScroll()
+    // Focus without a scroll of its own, so the position just restored is kept.
+    focusPageHeading({ preventScroll: true })
   }, [key])
 
   // Removing all activities clears the analysis in the worker. The landing page shows once the old
@@ -183,6 +205,7 @@ export function App() {
 
   return (
     <div className="page">
+      <SkipLink />
       <Header
         route={route}
         showTabs={hasResult}
@@ -222,7 +245,9 @@ export function App() {
 
       <main className="app__main">
         <p role="status" className="app__notice">
-          {accountDeleted && route.page === 'balance' ? 'Your account and data were deleted.' : ''}
+          {accountDeleted && route.page === 'balance'
+            ? 'Your account and data were deleted.'
+            : coldNotice}
         </p>
         {route.page === 'profile' ? (
           <ProfilePage
@@ -273,6 +298,8 @@ export function App() {
           fileRetentionAvailable={fileRetentionAvailable}
         />
         <p>
+          <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
+          {' · '}
           <a href="/privacy">Privacy</a>
         </p>
       </footer>

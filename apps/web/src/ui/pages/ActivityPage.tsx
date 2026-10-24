@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import type { DigestSplits } from '@rca/core/types'
@@ -16,6 +17,7 @@ import { keyByContent } from '../contentKeys'
 import { formatDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, sportRecords } from '../records'
 import { hrefFor } from '../route'
+import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
 import type { RouteReply } from '../routeReply'
 import { useRouteShape } from '../useRouteShape'
@@ -55,6 +57,19 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
+/**
+ * Back to the list. When the list is the page before this one, Back returns to it where it was left,
+ * rather than opening it again as a new page.
+ */
+function backToList(event: MouseEvent<HTMLAnchorElement>) {
+  // A modified or non-primary click is the browser's to open in a tab, as a link is.
+  const modified =
+    event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+  if (modified || previousRoute()?.page !== 'activities') return
+  event.preventDefault()
+  window.history.back()
+}
+
 /** One activity: its summary, its route, the library bests it set, and any data issues in its file. */
 export function ActivityPage({
   activity,
@@ -75,7 +90,9 @@ export function ActivityPage({
         </h1>
         <p className="secondary">It may be outside the period you selected.</p>
         <p>
-          <a href={hrefFor({ page: 'activities' })}>Back to activities</a>
+          <a href={hrefFor({ page: 'activities' })} onClick={backToList}>
+            Back to activities
+          </a>
         </p>
       </div>
     )
@@ -90,7 +107,11 @@ export function ActivityPage({
   return (
     <div className="page-stack">
       <div className="page-title">
-        <a className="activity-page__back" href={hrefFor({ page: 'activities' })}>
+        <a
+          className="activity-page__back"
+          href={hrefFor({ page: 'activities' })}
+          onClick={backToList}
+        >
           Back to activities
         </a>
         <p className="eyebrow activity-page__eyebrow">

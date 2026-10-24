@@ -54,6 +54,7 @@
   display: block;
 }
 
+/* The table is wider than a phone, so it scrolls inside the figure rather than widening it. */
 .chart-frame__details {
   min-width: 0;
 }

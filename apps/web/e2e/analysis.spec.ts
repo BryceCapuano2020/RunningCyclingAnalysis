@@ -43,7 +43,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('figure', { name: RIDE_CURVE })).toBeVisible()
 
   await goTo(page, 'Balance')
-  await page.getByRole('link', { name: 'How sure is this?' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
   await expect(page.getByRole('figure', { name: ENERGY_SCALE })).toBeVisible()
   await expect(page.getByRole('figure', { name: RATIO })).toBeVisible()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hrefFor, parseRoute } from './route'
+import { canonicalHash, hrefFor, parseRoute } from './route'
 import type { Route } from './route'
 
 describe('parseRoute', () => {
@@ -49,4 +49,20 @@ describe('hrefFor', () => {
   it('links Balance to the bare hash', () => {
     expect(hrefFor({ page: 'balance' })).toBe('#/')
   })
+})
+
+describe('canonicalHash', () => {
+  it.each(['#/nowhere', '#/run/extra', '#/Run', '#/activities/a/b'])(
+    'replaces the unknown hash %s with the balance hash, so the address names the page shown',
+    (hash) => {
+      expect(canonicalHash(hash)).toBe('#/')
+    },
+  )
+
+  it.each(['', '#', '#/', '#/run', '#/run/', '#/activities/abc'])(
+    'keeps the known hash %s',
+    (hash) => {
+      expect(canonicalHash(hash)).toBe(hash)
+    },
+  )
 })

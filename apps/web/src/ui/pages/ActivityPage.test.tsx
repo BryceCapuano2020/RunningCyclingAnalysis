@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
@@ -195,9 +195,9 @@ describe('ActivityPage', () => {
 
   it('lists the ride best efforts this activity set, in watts', () => {
     renderPage(powerRide, resultWith({ rideCurve: rideCurveFixture }))
-    expect(within(statFor('Best 1 min')).getByText('1400 W')).toBeInTheDocument()
-    expect(within(statFor('Best 5 min')).getByText('1230 W')).toBeInTheDocument()
-    expect(within(statFor('Best 20 min')).getByText('1050 W')).toBeInTheDocument()
+    expect(within(statFor('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
+    expect(within(statFor('Best 5 min')).getByText('1,230 W')).toBeInTheDocument()
+    expect(within(statFor('Best 20 min')).getByText('1,050 W')).toBeInTheDocument()
     // The fixture has no best at one hour, so none is listed.
     expect(screen.queryByText('Best 1 h', { selector: 'dt' })).not.toBeInTheDocument()
   })
@@ -503,5 +503,42 @@ describe('route shape', () => {
     expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
     expect(screen.queryByRole('img', { name: DRAWN })).toBeNull()
     expect(screen.queryByRole('status')).toBeNull()
+  })
+})
+
+describe('the back link to the list', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '')
+    vi.restoreAllMocks()
+  })
+
+  it('goes Back when the list was the page before, so the list comes back where it was left', async () => {
+    window.history.replaceState({ rcaEntry: 'activity-entry', rcaFrom: '#/activities' }, '')
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
+    renderPage(morningRun)
+    await userEvent.click(screen.getByRole('link', { name: 'Back to activities' }))
+    expect(back).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['a command click', { metaKey: true }],
+    ['a control click', { ctrlKey: true }],
+    ['a shift click', { shiftKey: true }],
+    ['an alt click', { altKey: true }],
+    ['a middle button click', { button: 1 }],
+  ])('leaves %s to the browser, which opens the list as a link does', (_name, modifier) => {
+    window.history.replaceState({ rcaEntry: 'activity-entry', rcaFrom: '#/activities' }, '')
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
+    renderPage(morningRun)
+    fireEvent.click(screen.getByRole('link', { name: 'Back to activities' }), modifier)
+    expect(back).not.toHaveBeenCalled()
+  })
+
+  it('links to the list when the visitor came from another page, so the list is a page of its own', async () => {
+    window.history.replaceState({ rcaEntry: 'activity-entry', rcaFrom: '#/run' }, '')
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
+    renderPage(morningRun)
+    await userEvent.click(screen.getByRole('link', { name: 'Back to activities' }))
+    expect(back).not.toHaveBeenCalled()
   })
 })

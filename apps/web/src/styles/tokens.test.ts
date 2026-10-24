@@ -33,7 +33,8 @@ function colourTable(section: string): Map<string, { light: string; dark: string
 }
 
 /** Spacing, radius, type and shadow tokens are not colours, so they need no table row. */
-const NOT_COLOUR = /^(space-\d|radius(-sm)?$|font-|shadow$)/
+const NOT_COLOUR =
+  /^(space-\d|radius(-sm)?$|control-height$|header-height$|tab-bar-height$|font-|shadow$)/
 
 const lightRaw = declared(tokensCss, ':root')
 const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")

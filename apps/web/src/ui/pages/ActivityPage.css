@@ -1,7 +1,7 @@
 .activity-page__back {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--control-height);
   align-self: start;
 }
 

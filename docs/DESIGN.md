@@ -22,18 +22,51 @@ Hash routes, so the static host needs no fallback rules.
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities |
 
 Without a result every route except Profile shows the landing page. On a reload of a visit that kept
-results, it shows a restoring state in its place, with an **Add files** button, until the library has
-replied, or, while the account is still loading, three seconds have passed, whichever is first. A
-returning visitor is not asked to add their files again and is never left without a control. The header
-holds the wordmark, the four tabs (once there is a result), one **Add files** button, a **Profile** link
-(a person glyph with its word at every width) and the account control. Below 360 px the brand takes its
-own row and the actions the full width, so they wrap to two rows rather than three. The account menu
-holds the email and Sign out; downloading data and deleting the account are on the Profile page. A file
-dropped anywhere on the page is imported. While the account is still loading, the account control reads
-"Checking sign-in…", and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold
-the sign-in button's width, so the header does not move. The import strip keeps its height while idle,
-so a drop does not push the page down. Nothing is held for the account: a file is analysed at once and
-saved once the account is known.
+results, it shows a restoring state in its place, with an **Add files** button, until the library
+has replied, or, while the account is still loading, three seconds have passed, whichever is first.
+A returning visitor is not asked to add their files again and is never left without a control. The
+header holds the wordmark, the four tabs (once there is a result), one **Add files** button, a
+**Profile** link (a person glyph with its word at every width, outlined as an account) and the
+account control. While the account is still loading, the account control reads "Checking sign-in…",
+and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
+button's width, so the header does not move. The import strip keeps its height while idle, so a drop
+does not push the page down. Nothing is held for the account: a file is analysed at once and saved
+once the account is known.
+
+The header stays at
+the top of the screen while the page scrolls. On a phone (760 px and below) the tabs move to a bar
+fixed to the foot of the screen, 48 px tall, with four equal tabs of 15 px labels. Where they do not
+all fit, the bar scrolls and fades at its edge. The brand and actions share one row. Sign-in stays
+one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
+screen readers. Below 420 px **Add files** shows its plus only, and keeps its name for screen
+readers. The account menu holds the email and Sign out; downloading data and deleting the account
+are on the Profile page. A file dropped anywhere on the page is imported.
+
+The header's sizes are custom properties in `tokens.css`. The header is 113 px on a wide screen and
+69 px on a phone, and the scroll padding follows it, so a control that focus or Back brings into
+view is not hidden under the header. The breakpoints are named once, in
+`apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 560 px for the compact one and
+420 px for the narrow one.
+
+**Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
+control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
+menu, the sign-in button, the link arrows, the disclosure summaries and the form fields. At 360 px and
+below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
+overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
+
+Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
+and an activity by its own name. The first control on a page is **Skip to content**, which moves
+focus to the page heading past the header. The app's routes are hashes, so it is a button, not a
+fragment link.
+
+Back and Forward return to the page the visitor left, where they left it. A page opened by a link
+starts at the top. **Back to activities** on an activity goes Back when the list was the page before.
+Run and Ride link to **How sure is this?**, which links back to **Back to Balance**; the footer links
+to it too.
+
+A deep link to a page that needs a result, with none on this device, stays where it is and says
+"Add your files to see this page." A file import that then brings a result moves to Balance, the
+home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
 The landing page's step 1 has a **How to get your files** button. It moves focus to the export guides
 below the steps, one closed details per service; guides whose steps could not be checked from the
@@ -236,5 +269,5 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 ## Accessibility
 
 Unchanged by the redesign: every chart has a table view, colour is never the only cue, controls are
-at least 40 px tall, focus is always visible, live regions stay mounted, and motion respects
+at least 40 px tall (44 px on a phone or for a finger), focus is always visible, live regions stay mounted, and motion respects
 `prefers-reduced-motion`.
