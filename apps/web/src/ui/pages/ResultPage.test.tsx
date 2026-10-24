@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sex } from '@rca/core/grade'
+import type { Copy } from '@rca/core/session'
 import type { Route } from '../route'
+import type { SavedActivity } from '../../worker/protocol'
+import type { RouteReply } from '../routeReply'
 import { analysisStub } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
 import { FIVE_K_IN_20_MIN_WKG, makeActivity, makeResult } from '../components/fixtures'
@@ -12,6 +15,14 @@ import { ResultPage } from './ResultPage'
 afterEach(() => {
   cleanup()
 })
+
+const SAVED_COPY: Copy = {
+  id: 'saved-copy',
+  rank: 3,
+  hasPower: false,
+  hasHeartRate: true,
+  durationS: 3600,
+}
 
 const PROFILE_PROMPT = 'Add your year of birth and sex on your profile to see age-graded levels.'
 
@@ -112,5 +123,93 @@ describe('ResultPage Ride with no weight entered', () => {
     cleanup()
     renderPage({ page: 'ride' }, null, null, true)
     expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+  })
+})
+
+const ACTIVITY = makeActivity({
+  id: 'activity-1',
+  sport: 'run',
+  startMs: Date.UTC(2026, 0, 5, 7, 30),
+})
+const SETTINGS = { massKg: 70, bikeMassKg: 9 }
+
+function renderActivity(
+  savedActivities: SavedActivity[],
+  loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>,
+) {
+  const analysis = analysisStub({
+    state: { result: makeResult({ activities: [ACTIVITY] }) },
+    savedActivities,
+    loadRoute,
+  })
+  return render(
+    <ResultPage
+      route={{ page: 'activity', id: ACTIVITY.id }}
+      analysis={analysis}
+      result={makeResult({ activities: [ACTIVITY] })}
+      settings={SETTINGS}
+      units="metric"
+      birthYear={null}
+      sex={null}
+      weightKnown
+    />,
+  )
+}
+
+describe('ResultPage activity route', () => {
+  it('asks for the route under the id the activity is saved with', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' }))
+    renderActivity(
+      [
+        {
+          id: 'saved-9',
+          name: ACTIVITY.name,
+          startMs: ACTIVITY.startMs,
+          sport: 'run',
+          copy: SAVED_COPY,
+        },
+      ],
+      loadRoute,
+    )
+
+    await waitFor(() => expect(loadRoute).toHaveBeenCalledWith('saved-9', false))
+  })
+
+  it('asks for no route when the activity is not saved, as with the sample', () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' }))
+    renderActivity([], loadRoute)
+
+    expect(loadRoute).not.toHaveBeenCalled()
+  })
+
+  it('asks for the route of the copy the analysis keeps, when the library holds a GPX and a FIT copy of one workout', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' }))
+    const copy = (id: string, rank: number): Copy => ({
+      id,
+      rank,
+      hasPower: false,
+      hasHeartRate: true,
+      durationS: 3600,
+    })
+    const saved: SavedActivity[] = [
+      {
+        id: 'gpx-copy',
+        name: ACTIVITY.name,
+        startMs: ACTIVITY.startMs,
+        sport: 'run',
+        copy: copy(`${ACTIVITY.startMs}-morning.gpx`, 1),
+      },
+      {
+        id: 'fit-copy',
+        name: ACTIVITY.name,
+        startMs: ACTIVITY.startMs,
+        sport: 'run',
+        copy: copy(`${ACTIVITY.startMs}-morning.fit`, 3),
+      },
+    ]
+    renderActivity(saved, loadRoute)
+
+    await waitFor(() => expect(loadRoute).toHaveBeenCalledWith('fit-copy', false))
+    expect(loadRoute).not.toHaveBeenCalledWith('gpx-copy', false)
   })
 })

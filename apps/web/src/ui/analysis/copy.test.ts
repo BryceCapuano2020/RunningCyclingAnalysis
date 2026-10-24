@@ -1,4 +1,5 @@
 import { DAILY_LIMITS } from '@rca/contract'
+import type { Copy } from '@rca/core/session'
 import { describe, expect, it } from 'vitest'
 import {
   addedSentence,
@@ -11,6 +12,14 @@ import {
 } from './copy'
 import type { RebuildOutcome } from './copy'
 import { formatDay } from '../format/date'
+
+const SAVED_COPY: Copy = {
+  id: 'saved-copy',
+  rank: 3,
+  hasPower: false,
+  hasHeartRate: true,
+  durationS: 3600,
+}
 
 const NOW = new Date(2026, 9, 23).getTime()
 const MARCH_2023 = new Date(2023, 2, 4, 9).getTime()
@@ -146,9 +155,9 @@ describe('limitedSentence', () => {
 describe('deleteNoticeText', () => {
   it('names the deleted activity and its date', () => {
     const startMs = Date.UTC(2026, 8, 1, 12)
-    expect(deleteNoticeText({ id: 'a1', name: 'Morning run', startMs, sport: 'run' })).toBe(
-      `Deleted Morning run (${formatDay(startMs)}).`,
-    )
+    expect(
+      deleteNoticeText({ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }),
+    ).toBe(`Deleted Morning run (${formatDay(startMs)}).`)
   })
 
   it('falls back to a plain confirmation when the activity is no longer listed', () => {

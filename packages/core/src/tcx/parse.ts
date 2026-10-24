@@ -6,6 +6,7 @@ import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime, ZONELESS } from '../import/time'
 import {
+  fixesOf,
   readNonNegative,
   readNumber,
   readPosition,
@@ -223,6 +224,7 @@ function unitOf(activity: OpenActivity): PipelineUnit {
     // A trainer ride saved as plain cycling has no positions at all.
     indoor: sport === 'ride' && !hasPosition,
     hasPosition,
+    fixes: fixesOf(points),
   }
 }
 

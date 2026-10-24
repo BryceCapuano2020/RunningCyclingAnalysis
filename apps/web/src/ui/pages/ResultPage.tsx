@@ -1,11 +1,13 @@
 import type { Sex } from '@rca/core/grade'
-import type { AnalysisResult } from '@rca/core/pipeline'
+import { outranks } from '@rca/core/session'
+import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import { trendWindowDays } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { previousPeriodLabel } from '../components/rangeOptions'
 import type { AgeProfile } from '../grades'
+import type { SavedActivity } from '../../worker/protocol'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import { ActivitiesPage } from './ActivitiesPage'
@@ -14,6 +16,20 @@ import { BalancePage } from './BalancePage'
 import { WeightNote } from '../components/WeightNote'
 import { MethodPage } from './MethodPage'
 import { SportPage } from './SportPage'
+
+/**
+ * The library id of the saved copy the analysis keeps for this activity: among the saved copies that
+ * start with it, the one that outranks the others by the analysis's own rule. Null when none is saved.
+ */
+function savedIdOf(activity: ActivitySummary | null, saved: SavedActivity[]): string | null {
+  if (activity === null) return null
+  let kept: SavedActivity | undefined
+  for (const s of saved) {
+    if (s.sport !== activity.sport || s.startMs !== activity.startMs) continue
+    if (kept === undefined || outranks(s.copy, kept.copy)) kept = s
+  }
+  return kept?.id ?? null
+}
 
 export interface ResultPageProps {
   route: Route
@@ -78,17 +94,21 @@ export function ResultPage({
           records={analysis.state.records}
         />
       )
-    case 'activity':
+    case 'activity': {
+      const activity = result.activities.find((candidate) => candidate.id === route.id) ?? null
       return (
         <ActivityPage
-          activity={result.activities.find((activity) => activity.id === route.id) ?? null}
+          activity={activity}
           result={result}
           units={units}
           massKg={settings.massKg}
           records={analysis.state.records}
           loadSplits={analysis.activitySplits}
+          routeId={savedIdOf(activity, analysis.savedActivities)}
+          loadRoute={analysis.loadRoute}
         />
       )
+    }
     case 'method':
       return <MethodPage result={result} units={units} profile={profile} />
     default:

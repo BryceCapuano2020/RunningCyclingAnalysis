@@ -15,6 +15,8 @@ import { EMPTY_SESSION, isDeletion } from './analysis/model'
 import { useLatest } from './analysis/useLatest'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
+import { replyOf } from './routeReply'
+import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
 
 export type { LibraryStatus }
@@ -68,6 +70,11 @@ export interface AnalysisController {
   loadSample: () => void
   setRange: (rangeDays: number | null) => void
   clear: () => void
+  /**
+   * The route of a saved activity, by its library id. `fromOriginal` reads the kept original file,
+   * which is done only when the visitor asks. A read never shows an error or makes the page busy.
+   */
+  loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
 }
 
 /**
@@ -138,7 +145,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       isDeletion(kind) ||
       kind === 'exportData' ||
       kind === 'activitySplits' ||
-      kind === 'loadDevice'
+      kind === 'loadDevice' ||
+      kind === 'routeShape' ||
+      kind === 'forgetRoutes'
     setBusy(
       replies.some((pending) => !quiet(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
@@ -169,7 +178,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         request.type === 'loadServer' ||
         request.type === 'loadDevice' ||
         request.type === 'exportData' ||
-        request.type === 'activitySplits'
+        request.type === 'activitySplits' ||
+        request.type === 'routeShape' ||
+        request.type === 'forgetRoutes'
       if (!keepsError) setError(null)
       // Taken as the import is sent. An import sent before the one before it replies compares with
       // the same result, since that reply has not yet changed what is on screen.
@@ -204,7 +215,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   )
 
   const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
-  const { dropPendingReplies, unsentRef, restartWorker, setWorkerStopped } = transport
+  const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
 
   // Signed out, each worker starts from the library kept in this browser, once. While the account
@@ -216,6 +227,21 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     deviceLoadedRef.current = true
     sendToWorker({ type: 'loadDevice', settings: settingsRef.current })
   }, [sendToWorker])
+
+  /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */
+  const loadRoute = useCallback(
+    (id: string, fromOriginal: boolean) =>
+      new Promise<RouteReply>((resolve) => {
+        const { status, me } = accountRef.current
+        const userId = status === 'signed-in' ? me?.user.id : undefined
+        sendToWorker(
+          { type: 'routeShape', id, fromOriginal, ...(userId === undefined ? {} : { userId }) },
+          undefined,
+          (message) => resolve(replyOf(message)),
+        )
+      }),
+    [sendToWorker],
+  )
 
   const libraryActions = useLibraryActions({
     library,
@@ -248,11 +274,11 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
    */
   const clearQueues = useCallback(() => {
     dropPendingReplies()
-    unsentRef.current = []
+    dropUnsent()
     deferredImportsRef.current = []
     libraryWaitRef.current = []
     refreshBusy()
-  }, [deferredImportsRef, dropPendingReplies, libraryWaitRef, refreshBusy, unsentRef])
+  }, [deferredImportsRef, dropPendingReplies, dropUnsent, libraryWaitRef, refreshBusy])
 
   /**
    * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
@@ -363,5 +389,6 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     loadSample: importActions.loadSample,
     setRange: importActions.setRange,
     clear: importActions.clear,
+    loadRoute,
   }
 }

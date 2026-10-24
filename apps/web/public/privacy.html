@@ -63,8 +63,10 @@
         <li>
           Each activity's summary is kept in this browser's IndexedDB, so results survive a reload.
           It holds the figures shown (times, distances, heart-rate and power, best efforts, climbs,
-          data-quality flags) and the file name. It has no GPS coordinates, per-second data, file
-          hash or original file, and it does not expire.
+          data-quality flags) and the file name. For an outdoor activity with GPS it also holds an
+          outline of the route: the track with its position and scale removed, so it shows no
+          location. The outline is kept only in this browser and is never uploaded. The summary has
+          no GPS coordinates, per-second data, file hash or original file, and it does not expire.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
@@ -109,7 +111,8 @@
         <li>
           <strong>Original files:</strong> only while
           <strong>Keep original files in my library</strong> is on, and uploaded only then. Turning
-          it off deletes them and keeps the summaries.
+          it off deletes them and keeps the summaries. A route outline is drawn from your original
+          only when you ask for it, with Show route.
         </li>
         <li>
           <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile

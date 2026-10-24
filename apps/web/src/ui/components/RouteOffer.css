@@ -1,0 +1,17 @@
+/* The offer to read a route from the kept file: a button, with its status beside it. */
+.route-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-block: var(--space-4);
+}
+
+.route-offer__status {
+  margin: 0;
+}
+
+.route-offer__status:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}

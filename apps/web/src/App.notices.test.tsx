@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { Copy } from '@rca/core/session'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
@@ -11,6 +12,14 @@ import {
   showResult,
 } from './test/appMocks'
 import { ORIGINALS_UNAVAILABLE } from './ui/analysis/copy'
+
+const SAVED_COPY: Copy = {
+  id: 'saved-copy',
+  rank: 3,
+  hasPower: false,
+  hasHeartRate: true,
+  durationS: 3600,
+}
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,
@@ -172,7 +181,13 @@ describe('saved library', () => {
   it('passes the library notice and error to the list, and disables delete while deleting', () => {
     window.location.hash = '#/profile'
     app.analysis.savedActivities = [
-      { id: 'run-1', name: 'Morning run', startMs: Date.UTC(2026, 9, 20, 7), sport: 'run' },
+      {
+        id: 'run-1',
+        name: 'Morning run',
+        startMs: Date.UTC(2026, 9, 20, 7),
+        sport: 'run',
+        copy: SAVED_COPY,
+      },
     ]
     app.analysis.libraryNotice = 'Deleted Morning run (20/10/2026).'
     app.analysis.libraryError = 'Could not delete the activity. Network down'

@@ -1,6 +1,7 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { copyOfDigest, dedupeKey, outranks } from '@rca/core/duplicates'
 import type { AnalysisSession, SessionState, SyncItem } from '@rca/core/session'
+import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import type { DeviceEntry, DeviceLibrary } from './deviceLibrary'
 import type { WorkerResponse } from './protocol'
@@ -13,8 +14,10 @@ export interface DeviceActions {
   inSession(): boolean
   /** The session's library was replaced or emptied, so the kept one must be loaded again. */
   replaced(): void
-  /** Keeps one imported activity. Best effort: a refused write leaves the visit working. */
+  /** Keeps one imported activity, with its route. Best effort: a refused write leaves the visit working. */
   save(item: SyncItem): Promise<void>
+  /** The route kept with a workout, or null. Best effort. */
+  route(id: string): Promise<RouteShape | null>
   /** Posts the activities kept in this browser, newest first. Best effort. */
   report(): Promise<void>
   remove(id: string, settings: AthleteSettings): Promise<SessionState>
@@ -74,12 +77,19 @@ export function deviceActions(
     replaced() {
       held = false
     },
-    async save({ digest }) {
+    async save({ digest, route }) {
       try {
         const key = workoutKeyOf(digest)
-        if (replaces(digest, await device.get(key))) await device.put(key, digest)
+        if (replaces(digest, await device.get(key))) await device.put(key, digest, route)
       } catch {
         // Storage can be refused (a private window, a full disk); the results still show.
+      }
+    },
+    async route(id) {
+      try {
+        return await device.route(id)
+      } catch {
+        return null
       }
     },
     report,

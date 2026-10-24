@@ -1,3 +1,4 @@
+import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest } from '@rca/core/types'
 import type { DeviceLibrary } from '../worker/deviceLibrary'
 
@@ -6,15 +7,16 @@ import type { DeviceLibrary } from '../worker/deviceLibrary'
  * the order they were written.
  */
 export function memoryDeviceLibrary(): DeviceLibrary {
-  const entries = new Map<string, ActivityDigest>()
+  const entries = new Map<string, { digest: ActivityDigest; route: RouteShape | null }>()
   return {
     all: async () =>
       [...entries]
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([workoutKey, digest]) => ({ workoutKey, digest })),
-    get: async (workoutKey) => entries.get(workoutKey) ?? null,
-    put: async (workoutKey, digest) => {
-      entries.set(workoutKey, digest)
+        .map(([workoutKey, { digest }]) => ({ workoutKey, digest })),
+    get: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
+    route: async (workoutKey) => entries.get(workoutKey)?.route ?? null,
+    put: async (workoutKey, digest, route = null) => {
+      entries.set(workoutKey, { digest, route })
     },
     remove: async (workoutKey) => {
       entries.delete(workoutKey)

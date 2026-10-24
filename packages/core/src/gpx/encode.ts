@@ -1,3 +1,4 @@
+import { EARTH_RADIUS_M } from '../import/gps'
 import type { Activity } from '../types'
 
 export interface EncodeGpxOptions {
@@ -15,11 +16,6 @@ interface LatLon {
   lon: number
 }
 
-/**
- * The sphere the points are placed on. Written out here, not shared with the parser, so a wrong
- * radius in one place does not cancel out in the other.
- */
-const EARTH_RADIUS_M = 6371008.8
 const DEG = 180 / Math.PI
 const RAD = Math.PI / 180
 /** Tracks start here, away from (0, 0), which the importer rejects as a bad fix. */

@@ -31,6 +31,12 @@ interface WorkerEventDeps {
   baselineRef: Box<AnalysisResult | null>
 }
 
+/** The requests a route reply answers. A forgotten route is answered with the same reply. */
+const ROUTE_KINDS: ReadonlySet<Pending['kind']> = new Set<Pending['kind']>([
+  'routeShape',
+  'forgetRoutes',
+])
+
 /** The responses that answer a request, as opposed to ones the worker sends on its own. */
 type ReplyResponse = Exclude<
   WorkerResponse,
@@ -115,6 +121,10 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
 function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   const { transport, imports, library, addFiles, handleAccountIssue, refreshBusy, baselineRef } =
     deps
+  // A route reply answers only a route request. One that comes out of turn is dropped before the
+  // pending request is taken, so that request still gets its own reply.
+  const front = transport.pendingRepliesRef.current[0]
+  if (message.type === 'routeShape' && (front === undefined || !ROUTE_KINDS.has(front.kind))) return
   // Replies arrive in request order; the first pending request is the one this answers.
   const pending = transport.pendingRepliesRef.current.shift()
   refreshBusy()
@@ -122,11 +132,11 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   transport.setWorkerStopped(false)
   imports.setProgress(null)
   imports.setUploading(null)
-  if (message.type === 'exportReady') {
+  if (message.type === 'exportReady' || message.type === 'routeShape') {
     pending?.settle?.(message)
     return
   }
-  if (pending?.kind === 'exportData') {
+  if (pending?.kind === 'exportData' || pending?.kind === 'routeShape') {
     pending.settle?.(message)
     if (message.type === 'error' && message.issue !== undefined) handleAccountIssue(message.issue)
     return

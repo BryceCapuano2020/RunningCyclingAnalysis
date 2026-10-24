@@ -592,3 +592,26 @@ describe('parseGpx times', () => {
     expect(a.startMs).toBe(START_MS)
   })
 })
+
+describe('parseGpx route shape', () => {
+  it('gives the activity a route shape from its positions', () => {
+    const result = parseGpx(encodeGpx(makeActivity('run', 600), { type: 'running' }), 'run.gpx')
+
+    expect(result.ok && result.activities[0]?.route?.points.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('gives an activity without positions no route shape', () => {
+    const points = Array.from(
+      { length: 120 },
+      (_, i) => `<trkpt><time>${new Date(START_MS + i * 1000).toISOString()}</time></trkpt>`,
+    ).join('')
+    const bytes = new TextEncoder().encode(
+      `${HEADER}<trk><type>running</type><trkseg>${points}</trkseg></trk></gpx>`,
+    )
+
+    const result = parseGpx(bytes, 'nopos.gpx')
+
+    expect(result.ok && result.activities.length).toBe(1)
+    expect(result.ok && result.activities[0]?.route).toBeUndefined()
+  })
+})

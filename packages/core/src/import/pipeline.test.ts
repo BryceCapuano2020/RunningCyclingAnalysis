@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RawRecord } from '../fit/resample'
+import type { GpsFix } from './gps'
 import type { PipelineUnit } from './pipeline'
 import { activitiesFromRecords, activitiesFromUnits, baseName } from './pipeline'
 import { DEFAULT_PARSE_LIMITS } from './result'
@@ -332,6 +333,115 @@ describe('activitiesFromUnits', () => {
       `${START + 2 * HOUR_MS}-week.fit#1`,
     ])
     expect(result.activities.map((a) => a.name)).toEqual(['week (run)', 'week (run)'])
+  })
+})
+
+describe('route shapes', () => {
+  /** One fix a second round an 800 m by 400 m rectangle, so its shape is twice as wide as it is tall. */
+  function rectangleFixes(startMs: number, count: number): GpsFix[] {
+    const earth = 6_371_008.8
+    const lat0 = 51.5
+    const lon0 = -0.12
+    const corners: [number, number][] = [
+      [0, 0],
+      [800, 0],
+      [800, 400],
+      [0, 400],
+    ]
+    const per = count / 4
+    const fixes: GpsFix[] = []
+    corners.forEach(([x0, y0], side) => {
+      const [x1, y1] = corners[(side + 1) % 4]!
+      for (let k = 0; k < per; k++) {
+        const east = x0 + ((x1 - x0) * k) / per
+        const north = y0 + ((y1 - y0) * k) / per
+        fixes.push({
+          t: startMs + (side * per + k) * 1000,
+          lat: lat0 + (north / earth) * (180 / Math.PI),
+          lon: lon0 + (east / (earth * Math.cos((lat0 * Math.PI) / 180))) * (180 / Math.PI),
+        })
+      }
+    })
+    return fixes
+  }
+
+  it('gives the second part its own shape, from the fixes in its own part', () => {
+    const records = [...steadyRecords(120, START), ...steadyRecords(240, START + 5 * HOUR_MS)]
+    const fixes = [...circleFixes(START, 120), ...rectangleFixes(START + 5 * HOUR_MS, 240)]
+    const unit = { ...unitOf(records), fixes }
+    const [first, second] = succeeded(
+      activitiesFromRecords({ ...unit, fileName: 'long.gpx' }, DEFAULT_PARSE_LIMITS, {
+        nowMs: NOW,
+      }),
+    ).activities
+
+    expect(first?.route?.aspect).toBeCloseTo(1, 1)
+    expect(second?.route?.aspect).toBeCloseTo(2, 1)
+  })
+
+  /** One fix a second around a circle of 200 m, so the unit has a loop to draw. */
+  function circleFixes(startMs: number, count: number): GpsFix[] {
+    const earth = 6_371_008.8
+    const lat0 = 51.5
+    const lon0 = -0.12
+    return Array.from({ length: count }, (_, i) => {
+      const angle = (2 * Math.PI * i) / count
+      return {
+        t: startMs + i * 1000,
+        lat: lat0 + ((200 * Math.sin(angle)) / earth) * (180 / Math.PI),
+        lon:
+          lon0 +
+          ((200 * Math.cos(angle)) / (earth * Math.cos((lat0 * Math.PI) / 180))) * (180 / Math.PI),
+      }
+    })
+  }
+
+  it('gives a unit with positions a route shape', () => {
+    const unit = { ...unitOf(steadyRecords(120)), fixes: circleFixes(START, 120) }
+    const [activity] = succeeded(
+      activitiesFromRecords({ ...unit, fileName: 'loop.gpx' }, DEFAULT_PARSE_LIMITS, {
+        nowMs: NOW,
+      }),
+    ).activities
+
+    expect(activity?.route?.points.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('gives an indoor unit no route, even when it has positions', () => {
+    const unit = { ...unitOf(steadyRecords(120)), indoor: true, fixes: circleFixes(START, 120) }
+    const [activity] = succeeded(
+      activitiesFromRecords({ ...unit, fileName: 'loop.gpx' }, DEFAULT_PARSE_LIMITS, {
+        nowMs: NOW,
+      }),
+    ).activities
+
+    expect(activity).toBeDefined()
+    expect(activity?.route).toBeUndefined()
+  })
+
+  it('gives a unit without positions no route', () => {
+    const [activity] = succeeded(
+      activitiesFromRecords(
+        { ...unitOf(steadyRecords(120)), fileName: 'loop.gpx' },
+        DEFAULT_PARSE_LIMITS,
+        { nowMs: NOW },
+      ),
+    ).activities
+
+    expect(activity?.route).toBeUndefined()
+  })
+
+  it('gives each part of a split unit only the fixes that fall in its own part', () => {
+    const records = [...steadyRecords(120, START), ...steadyRecords(120, START + 5 * HOUR_MS)]
+    const unit = { ...unitOf(records), fixes: circleFixes(START, 120) }
+    const [first, second] = succeeded(
+      activitiesFromRecords({ ...unit, fileName: 'long.gpx' }, DEFAULT_PARSE_LIMITS, {
+        nowMs: NOW,
+      }),
+    ).activities
+
+    expect(first?.route).toBeDefined()
+    expect(second?.route).toBeUndefined()
   })
 })
 
