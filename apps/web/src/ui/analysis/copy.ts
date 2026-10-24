@@ -4,8 +4,11 @@ import { limitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
 import { formatDay, formatMonth } from '../format/date'
 import type { ImportSummary } from '../../worker/importSummary'
+import type { ImportOutcome } from '../../worker/protocol'
+import { plural } from '../components/plural'
 
-export const WAITING_FOR_LIBRARY = 'Waiting for your library to load'
+/** Shown while held files wait for the kept library, for a signed-in or a signed-out visitor. */
+export const WAITING_FOR_LIBRARY = 'Checking your saved results…'
 export const WAITING_FOR_ACCOUNT = 'Waiting for your account…'
 /** A delete asked for before the library it would change has loaded. Nothing is removed. */
 export const LIBRARY_NOT_READY =
@@ -20,11 +23,11 @@ export const EXPORT_INTERRUPTED = 'The download was interrupted. Download your d
 export const ACCOUNT_CHANGED_BEFORE_IMPORT =
   'The account changed before this import started. Select the files again.'
 export const PROFILE_NOT_CONFIRMED =
-  'Could not confirm your saved account settings. Retry saving your settings, then re-import these files; no activities were imported.'
+  'Could not confirm your saved account settings. Retry saving your settings, then add these files again; no activities were imported.'
 export const SAMPLE_BLOCKED =
   'Sample data cannot replace your saved library. Add your own files, or sign out to try the sample.'
 export const ORIGINALS_UNAVAILABLE =
-  'Saved originals cannot be accessed on this deployment. Import the original files to rebuild these activities; existing saved originals are not deleted.'
+  'Original files cannot be read right now. Add the original files again to update these activities; saved originals are not deleted.'
 /** A profile change the server refused. The typed value stays, with this beside it. */
 export const SAVE_FAILED = "Couldn't save. Try again."
 /** The status words for a save, the same wherever a field saves on its own. */
@@ -34,20 +37,21 @@ export const SAVE_STATE_TEXT = {
   failed: SAVE_FAILED,
 } as const
 export const RETENTION_UNAVAILABLE =
-  'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
+  'Original file storage is unavailable right now. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
+/** What an import reports for its summary: the files it read and could not use, and what it added. */
+export type ImportCounts = Pick<ImportOutcome, 'activities' | 'rejected'> &
+  ImportSummary & { duplicates?: readonly unknown[] }
+
 /** Said after a summary's sentence when the list under it says what moved in the numbers. */
 export const MOVED_NOTE = 'Your numbers moved.'
 export const SPLITS_NOT_LOADED =
   'The splits could not be loaded. Open this activity again to retry.'
 /**
- * Stop for a visitor who is not signed in. The kept results reload; files being added must be added
- * again.
+ * The visitor's own Stop. It is neutral, not a fault: the results already kept stay, and nothing
+ * claims that files which were partly read were not kept.
  */
-export const STOPPED_KEPT_RESULTS =
-  'Analysis stopped. Your results kept in this browser are reloading; add again any files that were being added.'
-/** Stop while the account is still loading: nothing is claimed about what is kept, so the files are added again. */
-export const STOPPED_WHILE_LOADING = 'Analysis stopped. Add the files again to analyse them.'
+export const STOPPED_BY_USER = "Stopped. Add your files again when you're ready."
 
 /** An error reply from the worker. */
 export type ErrorReply = Extract<WorkerResponse, { type: 'error' }>
@@ -66,26 +70,26 @@ export function limitedSentence(
 ): string {
   const noun = count === 1 ? 'activity was' : 'activities were'
   if (kind === 'rate') {
-    return `${count} ${noun} not rebuilt. The server asked us to slow down; try again in a minute.`
+    return `${count} ${noun} not updated. The server asked us to slow down; try again in a minute.`
   }
   if (kind === 'daily') {
-    return `${count} ${noun} not rebuilt because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetSentence(resetsAtMs)}`
+    return `${count} ${noun} not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetSentence(resetsAtMs)}`
   }
-  return `${count} ${noun} not rebuilt. Try again later.`
+  return `${count} ${noun} not updated. Try again later.`
 }
 
 /** The notice after a rebuild: what was rebuilt, and what was not, and why. */
 export function rebuildNoticeText(outcome: RebuildOutcome): string {
   const notice = [
-    `Rebuilt ${outcome.rebuilt} saved ${outcome.rebuilt === 1 ? 'activity' : 'activities'}.`,
+    `Updated ${outcome.rebuilt} saved ${outcome.rebuilt === 1 ? 'activity' : 'activities'}.`,
   ]
   if (outcome.missing > 0) {
     notice.push(
-      `${outcome.missing} original ${outcome.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; re-import those original files.`,
+      `${outcome.missing} original ${outcome.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; add ${outcome.missing === 1 ? 'that original file' : 'those original files'} again.`,
     )
   }
   if (outcome.failed > 0) {
-    notice.push(`${outcome.failed} could not be rebuilt; try again when the server is available.`)
+    notice.push(`${outcome.failed} could not be updated; try again when the server is available.`)
   }
   if (outcome.limited > 0) {
     notice.push(limitedSentence(outcome.limited, outcome.limitKind, outcome.limitResetsAtMs))
@@ -112,6 +116,23 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
   const last = formatMonth(lastStartMs, withYear)
   const span = first === last ? `in ${first}` : `from ${first} to ${last}`
   return `Added ${counts.join(' and ')}, ${span}.`
+}
+
+/** Every import's summary sentence: what it added, or that nothing was new. Shown and announced alike. */
+export function importSentence(summary: ImportCounts, nowMs = Date.now()): string {
+  return addedSentence(summary, nowMs) ?? notAddedSentence(summary.activities)
+}
+
+/** The files an import skipped: those it could not use, and the copies of workouts it left out. */
+export function skippedCount(outcome: {
+  rejected: number
+  duplicates?: readonly unknown[]
+}): number {
+  return outcome.rejected + (outcome.duplicates?.length ?? 0)
+}
+
+export function skippedSentence(count: number): string {
+  return `${plural(count, 'file')} skipped.`
 }
 
 /**
@@ -158,13 +179,13 @@ export function workerFailureText(
 ): string {
   if (status === 'signed-in') {
     return willRestart
-      ? 'The analysis worker stopped. Your saved library is reloading; re-import any local files that were not saved.'
-      : 'The analysis worker stopped. Restart analysis to reload your saved library; re-import any local files that were not saved.'
+      ? 'Analysis stopped unexpectedly. Your saved library is reloading; add again any files that were not saved.'
+      : 'Analysis stopped unexpectedly. Restart analysis to reload your saved library; add again any files that were not saved.'
   }
   if (status === 'signed-out') {
     return willRestart
-      ? 'The analysis worker stopped. Your results kept in this browser are reloading; add again any files that were being added.'
-      : 'The analysis worker stopped. Restart analysis to reload your results kept in this browser; add again any files that were being added.'
+      ? 'Analysis stopped unexpectedly. Your results kept in this browser are reloading; add again any files that were being added.'
+      : 'Analysis stopped unexpectedly. Restart analysis to reload your results kept in this browser; add again any files that were being added.'
   }
-  return eventMessage || 'The analysis worker failed. Add again any files that were being added.'
+  return eventMessage || 'Analysis failed. Add again any files that were being added.'
 }

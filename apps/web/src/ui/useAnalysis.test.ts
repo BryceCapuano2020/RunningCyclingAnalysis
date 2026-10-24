@@ -32,7 +32,7 @@ function localTime(ms: number): string {
 }
 
 /** The reset sentence, with the local time left to the viewer's zone. */
-const RESET_AT_UTC_MIDNIGHT = /It resets at 00:00 UTC \(.+ your time\)\.$/
+const RESET_AT_UTC_MIDNIGHT = /It resets at .+, your time\.$/
 
 /** A Worker that records what the hook posts and lets the test send replies. */
 class FakeWorker {
@@ -371,7 +371,7 @@ describe('useAnalysis account handling', () => {
     act(() => result.current.addFiles([FILE]))
     await waitFor(() =>
       expect(result.current.error).toMatch(
-        /Retry saving your settings, then re-import these files/,
+        /Retry saving your settings, then add these files again/,
       ),
     )
 
@@ -425,7 +425,7 @@ describe('useAnalysis account handling', () => {
       { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
     ])
     expect(restartedWorker.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
-    expect(result.current.error).toMatch(/Analysis stopped/)
+    expect(result.current.error).toMatch(/Stopped\. Add your files again/)
   })
 
   it('keeps syncing digests without uploading files when file retention is unavailable', () => {
@@ -683,7 +683,7 @@ describe('useAnalysis account handling', () => {
 
       act(() => result.current.stop())
 
-      expect(result.current.error).toMatch(/add the files again/i)
+      expect(result.current.error).toMatch(/Stopped\. Add your files again/)
       expect(result.current.error).not.toMatch(/kept/)
     })
 
@@ -1025,7 +1025,7 @@ describe('useAnalysis state', () => {
   it('drops imports held while the library loads when that load fails, and asks for them to be added again', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.addFiles([FILE]))
-    expect(result.current.waitingReason).toBe('Waiting for your library to load')
+    expect(result.current.waitingReason).toBe('Checking your saved results…')
     act(() => worker().reply({ type: 'error', message: 'Network down' }))
 
     expect(result.current.libraryStatus).toBe('failed')
@@ -1054,7 +1054,7 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(true)
-    expect(result.current.waitingReason).toBe('Waiting for your library to load')
+    expect(result.current.waitingReason).toBe('Checking your saved results…')
 
     finishLibraryLoad()
     expect(result.current.waitingReason).toBeNull()
@@ -1198,6 +1198,54 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'state', state: STATE }))
     expect(result.current.progress).toBeNull()
     expect(result.current.uploading).toBeNull()
+  })
+
+  it('keeps the result on screen when the visitor stops, and says so as news rather than a fault', () => {
+    const result = { ...STATE, totalActivities: 1 }
+    const { result: hook } = setup(SIGNED_OUT)
+    finishDeviceLoad(result)
+    act(() => hook.current.addFiles([FILE]))
+    act(() => hook.current.stop())
+
+    expect(hook.current.error).toBe("Stopped. Add your files again when you're ready.")
+    expect(hook.current.errorNeutral).toBe(true)
+    expect(hook.current.state.totalActivities).toBe(1)
+  })
+
+  it('reports a fault that comes after a stop as a fault, not as the neutral stop', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad(STATE)
+    act(() => result.current.stop())
+    expect(result.current.errorNeutral).toBe(true)
+
+    act(() => worker().reply({ type: 'error', message: 'The file could not be read.' }))
+    expect(result.current.error).toBe('The file could not be read.')
+    expect(result.current.errorNeutral).toBe(false)
+  })
+
+  it('clears the summary when an activity is deleted from the account, as it is from this browser', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.deleteActivity('1-run'))
+    expect(worker().posted.at(-1)).toMatchObject({ type: 'deleteActivity' })
+    expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('clears the summary of the last import when an activity is deleted, since its count has changed', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result: hook } = setup(SIGNED_OUT)
+    finishDeviceLoad(STATE)
+    act(() => hook.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(hook.current.importOutcome).toEqual(outcome)
+
+    act(() => hook.current.deleteActivity('1-run'))
+    expect(hook.current.importOutcome).toBeNull()
   })
 
   it('drops the summary of the last import when the library is cleared or replaced by the sample', () => {
@@ -1369,7 +1417,7 @@ describe('useAnalysis state', () => {
     const stoppedWorker = worker()
     act(() => result.current.clear())
     act(() => stoppedWorker.onerror?.({ message: 'Script failed' } as ErrorEvent))
-    expect(result.current.error).toMatch(/worker stopped.*add again/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*add again/i)
     expect(stoppedWorker.terminated).toBe(true)
     expect(worker()).not.toBe(stoppedWorker)
     // The new worker reloads the library kept in this browser. That load does not hold the page
@@ -1380,9 +1428,33 @@ describe('useAnalysis state', () => {
     const retryingWorker = worker()
     act(() => result.current.clear())
     act(() => worker().onerror?.({ message: '' } as ErrorEvent))
-    expect(result.current.error).toMatch(/worker stopped.*add again/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*add again/i)
     expect(result.current.workerStopped).toBe(true)
     expect(worker()).toBe(retryingWorker)
+  })
+
+  it('clears the summary of the last import when a rebuild replaces the session, so no count outlives its skipped files', () => {
+    const outcome = { activities: 2, rejected: 1, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({
+        type: 'rebuildComplete',
+        state: STATE,
+        rebuilt: 0,
+        missing: 0,
+        failed: 0,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
+      }),
+    )
+    expect(result.current.importOutcome).toBeNull()
   })
 
   it('requests a saved-activity rebuild and exposes its partial recovery notice', () => {
@@ -1406,7 +1478,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.state.outdatedActivities).toBe(2)
-    expect(result.current.rebuildNotice).toMatch(/re-import those original files/)
+    expect(result.current.rebuildNotice).toMatch(/add (that|those) original file/)
   })
 
   it('keeps the missing-file and retry guidance when both rebuild outcomes occur', () => {
@@ -1424,8 +1496,8 @@ describe('useAnalysis state', () => {
         limitResetsAtMs: null,
       }),
     )
-    expect(result.current.rebuildNotice).toMatch(/re-import those original files/)
-    expect(result.current.rebuildNotice).toMatch(/2 could not be rebuilt; try again/)
+    expect(result.current.rebuildNotice).toMatch(/add (that|those) original file/)
+    expect(result.current.rebuildNotice).toMatch(/2 could not be updated; try again/)
   })
 
   it('says which activities the daily limit left unrebuilt, and when the limit resets', () => {
@@ -1445,7 +1517,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Rebuilt 2 saved activities. 3 activities were not rebuilt because today's limit on downloads (50 per day) was reached. It resets at 00:00 UTC (${localTime(resetsAt)} your time).`,
+      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (50 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -1465,7 +1537,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      'Rebuilt 0 saved activities. 1 activity was not rebuilt. The server asked us to slow down; try again in a minute.',
+      'Updated 0 saved activities. 1 activity was not updated. The server asked us to slow down; try again in a minute.',
     )
   })
 
@@ -1485,7 +1557,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /^Rebuilt 0 saved activities\. 1 activity was not rebuilt because today's limit on downloads \(50 per day\) was reached\. It resets at 00:00 UTC \(.+ your time\)\.$/,
+      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(50 per day\) was reached\. It resets at .+, your time\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
@@ -1512,7 +1584,7 @@ describe('useAnalysis state', () => {
     act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
 
     expect(result.current.workerStopped).toBe(true)
-    expect(result.current.error).toMatch(/worker stopped.*Restart analysis/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*Restart analysis/i)
   })
 
   it('says an import was interrupted when the worker restarts while its profile is saving', async () => {
@@ -1708,7 +1780,7 @@ describe('useAnalysis state', () => {
     act(() => result.current.rebuildSavedActivities())
 
     expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
-    expect(result.current.rebuildNotice).toMatch(/cannot be accessed on this deployment/i)
+    expect(result.current.rebuildNotice).toMatch(/cannot be read right now/i)
   })
 
   it('rehydrates the signed-in library after a fatal worker error', () => {
@@ -1733,7 +1805,7 @@ describe('useAnalysis state', () => {
 
     expect(result.current.workerStopped).toBe(true)
     expect(worker()).toBe(replacement)
-    expect(result.current.error).toMatch(/worker stopped.*add again/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*add again/i)
     expect(replacement.terminated).toBe(true)
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(false)
@@ -1753,7 +1825,7 @@ describe('useAnalysis state', () => {
     expect(stopped.terminated).toBe(true)
     expect(result.current.busy).toBe(true) // The replacement is hydrating the saved library.
     expect(result.current.state).toEqual(STATE)
-    expect(result.current.error).toMatch(/analysis stopped.*re-import/i)
+    expect(result.current.error).toMatch(/Stopped\. Add your files again/)
     expect(worker()).not.toBe(stopped)
     expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
   })
@@ -2147,7 +2219,9 @@ describe('a period, a clear, and the restore hint, in round 3', () => {
 
 describe('a rejected file dropped while the account loads', () => {
   const BAD = new File(['not a fit'], 'not-a-fit.fit')
-  const REJECTED = [{ fileName: 'not-a-fit.fit', reason: 'Not an activity file' }]
+  const REJECTED = [
+    { fileName: 'not-a-fit.fit', reason: 'Not an activity file', code: 'not-activity' as const },
+  ]
 
   it('still shows the rejected file once a kept library has loaded signed out', () => {
     localStorage.setItem('rca.kept.v1', '1')
@@ -2365,7 +2439,7 @@ describe('round 5: baselines, errors, and Start over during a load', () => {
     act(() => result.current.addFiles([FILE]))
     settle()
     rerender({ account: SIGNED_OUT, current: SETTINGS })
-    expect(result.current.waitingReason).toBe('Waiting for your library to load')
+    expect(result.current.waitingReason).toBe('Checking your saved results…')
 
     act(() => worker().reply({ type: 'error', message: 'Device library down' }))
 

@@ -51,7 +51,7 @@ split this way in the refactor that introduced this document.
 
 | File                               | Lines | Direction                                                   |
 | ---------------------------------- | ----- | ----------------------------------------------------------- |
-| `packages/core/src/fit/archive.ts` | 634   | Separate zip, gzip and nesting from the per-entry policy    |
+| `packages/core/src/fit/archive.ts` | 605   | Separate zip, gzip and nesting from the per-entry policy    |
 | `packages/core/src/xml/parse.ts`   | 438   | Separate entity decoding and the tree builder from the scan |
 
 Hooks and components compose many small parts, so their function bodies may exceed 60 lines;

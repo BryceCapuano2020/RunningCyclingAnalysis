@@ -75,8 +75,8 @@ export function parseTcx(
   try {
     return parseUnchecked(bytes, fileName, limits, opts)
   } catch (error) {
-    if (error instanceof Refusal) return failure(fileName, error.reason)
-    return failure(fileName, DECODE_FAILED)
+    if (error instanceof Refusal) return failure(fileName, error.reason, error.code)
+    return failure(fileName, DECODE_FAILED, 'corrupt')
   }
 }
 
@@ -87,15 +87,16 @@ function parseUnchecked(
   opts: ParseOptions,
 ): ParseResult {
   if (bytes.length > limits.maxFileBytes) {
-    return failure(fileName, `TCX file exceeds the ${limits.maxFileBytes}-byte limit`)
+    const reason = `TCX file exceeds the ${limits.maxFileBytes}-byte limit`
+    return failure(fileName, reason, 'too-large', String(limits.maxFileBytes))
   }
   const units: PipelineUnit[] = []
   scanXmlBytes(bytes, new TcxScanner(units, limits.maxRecordMessages))
-  if (units.length === 0) return failure(fileName, NO_ACTIVITIES)
+  if (units.length === 0) return failure(fileName, NO_ACTIVITIES, 'empty')
   // An unsupported sport is refused by the pipeline with its own reason, so only supported ones count.
   const supported = units.filter((unit) => unit.sport !== null)
   if (supported.length > 0 && supported.every((unit) => unit.records.length === 0)) {
-    return failure(fileName, NO_RECORDS)
+    return failure(fileName, NO_RECORDS, 'empty')
   }
   return activitiesFromUnits({ fileName, units }, limits, opts)
 }
@@ -122,13 +123,16 @@ class TcxScanner implements XmlHandler {
   open(local: string, _name: string, attrs: Record<string, string>, depth: number): void {
     this.stack.push(local)
     if (depth === 1) {
-      if (local !== 'TrainingCenterDatabase') throw new Refusal(NOT_TCX)
+      if (local !== 'TrainingCenterDatabase') throw new Refusal(NOT_TCX, 'corrupt')
     } else if (depth === 3 && local === 'Activity' && this.stack[1] === 'Activities') {
       this.activity = openActivity(attrs.Sport)
     } else if (depth === 6 && local === 'Trackpoint' && this.inTrack()) {
       this.trackpoints++
       if (this.trackpoints > this.maxTrackpoints) {
-        throw new Refusal(`TCX file exceeds the ${this.maxTrackpoints}-record limit`)
+        throw new Refusal(
+          `TCX file exceeds the ${this.maxTrackpoints}-record limit`,
+          'too-much-data',
+        )
       }
       this.trackpoint = {}
     } else if (this.trackpoint !== undefined && depth > 6) {
@@ -195,7 +199,7 @@ function sportOf(name: string | undefined): Sport | null {
 /** A trackpoint with a valid time, or undefined. Invalid values are left undefined. */
 function pointOf(raw: RawTrackpoint): Point | undefined {
   const tMs = raw.time === undefined ? undefined : parseIsoTime(raw.time, 'refuse')
-  if (tMs === ZONELESS) throw new Refusal(NO_ZONE)
+  if (tMs === ZONELESS) throw new Refusal(NO_ZONE, 'no-date')
   if (tMs === undefined) return undefined
   return {
     tMs,

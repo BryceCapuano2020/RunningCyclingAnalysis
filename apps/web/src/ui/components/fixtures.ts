@@ -55,7 +55,12 @@ export function makeEquivalence(overrides: Partial<Equivalence> = {}): Equivalen
 }
 
 export function makeRejectedFile(overrides: Partial<RejectedFile> = {}): RejectedFile {
-  return { fileName: 'broken.fit', reason: 'Could not read the file header', ...overrides }
+  return {
+    fileName: 'broken.fit',
+    reason: 'Could not read the file header',
+    code: 'corrupt',
+    ...overrides,
+  }
 }
 
 /** A complete result with a run and a ride and a 1200 s comparison, so every card has data. */

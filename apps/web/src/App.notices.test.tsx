@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import {
@@ -97,12 +97,12 @@ describe('saved activities that need updating', () => {
 })
 
 describe('missing original files', () => {
-  it('says how many saved activities need their original file re-imported', () => {
+  it('says how many saved activities need their original file added again', () => {
     app.analysis.missingOriginals = 3
     render(<App />)
     expect(
       screen.getByText(
-        '3 activities are missing their original file. Re-import them to restore the originals.',
+        '3 activities are missing their original file. Add their files again to restore the originals.',
       ),
     ).toBeInTheDocument()
   })
@@ -129,7 +129,7 @@ describe('library failure', () => {
     render(<App />)
     expect(
       screen.getByText(
-        '2 activities were not fully saved because the connection dropped. Re-import them to retry.',
+        '2 activities were not fully saved because the connection dropped. Add them again to retry.',
       ),
     ).toHaveAttribute('role', 'status')
   })
@@ -161,18 +161,26 @@ describe('rebuild, error and wait messages', () => {
   })
 
   it('shows the reason imports are waiting in the import progress', () => {
-    app.analysis.busy = true
-    app.analysis.waitingReason = 'Waiting for your library to load'
-    render(<App />)
-    expect(screen.getByText('Waiting for your library to load')).toBeInTheDocument()
+    vi.useFakeTimers()
+    try {
+      app.analysis.busy = true
+      app.analysis.waitingReason = 'Checking your saved results…'
+      render(<App />)
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(screen.getByText('Checking your saved results…')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('announces the waiting reason when an import starts waiting', () => {
     const view = render(<App />)
     app.analysis.busy = true
-    app.analysis.waitingReason = 'Waiting for your library to load'
+    app.analysis.waitingReason = 'Checking your saved results…'
     view.rerender(<App />)
-    expect(announcements()).toContain('Waiting for your library to load')
+    expect(announcements()).toContain('Checking your saved results…')
   })
 })
 

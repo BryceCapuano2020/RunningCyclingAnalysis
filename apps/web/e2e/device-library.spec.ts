@@ -19,7 +19,7 @@ const TWO_WORKOUTS = ['one-ride.gpx', 'one-run.tcx']
  */
 async function settleAfterReload(page: Page): Promise<void> {
   await uploadFixtures(page, ['not-a-fit.fit'])
-  await expect(page.getByText('1 file could not be used', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 file skipped.', { exact: true })).toBeVisible()
 }
 
 /** The activities kept in this browser, as the Profile page lists them. */

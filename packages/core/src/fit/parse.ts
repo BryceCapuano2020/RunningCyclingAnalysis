@@ -1,7 +1,7 @@
 import type { Sport } from '../types'
 import { activitiesFromUnits } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
-import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
+import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { decodeFit } from './protocol/decode'
 import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/decode'
@@ -48,7 +48,7 @@ type DecodedSportMessage = {
 }
 
 type SportMapping =
-  { ok: true; sport: Sport; indoor: boolean } | { ok: false; reason: string; skipped: string }
+  { ok: true; sport: Sport; indoor: boolean } | ({ ok: false; skipped: string } & Rejection)
 
 /** Decodes every session of a FIT file into 1 Hz Activities. Never throws. */
 export function parseFit(
@@ -60,7 +60,7 @@ export function parseFit(
   try {
     return parseUnchecked(bytes, fileName, limits, opts)
   } catch {
-    return failure(fileName, DECODE_FAILED)
+    return failure(fileName, DECODE_FAILED, 'corrupt')
   }
 }
 
@@ -71,22 +71,28 @@ function parseUnchecked(
   opts: ParseOptions,
 ): ParseResult {
   if (bytes.length > limits.maxFileBytes) {
-    return failure(fileName, `FIT file exceeds the ${limits.maxFileBytes}-byte limit`)
+    const reason = `FIT file exceeds the ${limits.maxFileBytes}-byte limit`
+    return failure(fileName, reason, 'too-large', String(limits.maxFileBytes))
   }
-  if (!isFitFile(bytes)) return failure(fileName, NOT_FIT)
+  if (!isFitFile(bytes)) return failure(fileName, NOT_FIT, 'corrupt')
 
   const decoded = decodeFit(bytes, { maxRecords: limits.maxRecordMessages })
   if (decoded.recordCount > limits.maxRecordMessages) {
-    return failure(fileName, `FIT file exceeds the ${limits.maxRecordMessages}-record limit`)
+    return failure(
+      fileName,
+      `FIT file exceeds the ${limits.maxRecordMessages}-record limit`,
+      'too-much-data',
+    )
   }
   // Partial data is never used: a damaged file could place records at the wrong times.
   if (!decoded.ok) {
-    return failure(fileName, decoded.errors.includes(TRUNCATED_ERROR) ? INCOMPLETE : CORRUPT)
+    const reason = decoded.errors.includes(TRUNCATED_ERROR) ? INCOMPLETE : CORRUPT
+    return failure(fileName, reason, 'corrupt')
   }
   const { messages } = decoded
-  if (messages.records.length === 0) return failure(fileName, NO_RECORDS)
+  if (messages.records.length === 0) return failure(fileName, NO_RECORDS, 'empty')
   const timed = timedRecords(messages.records)
-  if (timed.length === 0) return failure(fileName, NO_DATE)
+  if (timed.length === 0) return failure(fileName, NO_DATE, 'no-date')
 
   const skipped: string[] = []
   const units = assignUnits(messages.sessions, timed, messages.events, skipped)
@@ -118,7 +124,12 @@ function toPipelineUnit(
     fixes: fitFixes(unit.records),
   }
   if (!mapping.ok) {
-    const refusal = { reason: mapping.reason, skipped: mapping.skipped }
+    const refusal = {
+      reason: mapping.reason,
+      skipped: mapping.skipped,
+      code: mapping.code,
+      ...(mapping.detail === undefined ? {} : { detail: mapping.detail }),
+    }
     return { ...shared, sport: null, refusal, indoor: false }
   }
   return { ...shared, sport: mapping.sport, indoor: mapping.indoor }
@@ -129,7 +140,12 @@ function mapSport(
   subSport: FitSubSportName | undefined,
 ): SportMapping {
   if (inSet(E_BIKE_SUB_SPORTS, subSport) || sport === 'eBiking') {
-    return { ok: false, reason: E_BIKE_REASON, skipped: 'e-bike session skipped' }
+    return {
+      ok: false,
+      reason: E_BIKE_REASON,
+      code: 'e-bike',
+      skipped: 'e-bike session skipped',
+    }
   }
   const indoor = inSet(INDOOR_SUB_SPORTS, subSport) || sport === 'fitnessEquipment'
   if (sport === 'running') return { ok: true, sport: 'run', indoor }
@@ -146,6 +162,8 @@ function mapSport(
   return {
     ok: false,
     reason: `Unsupported sport: ${label}`,
+    code: 'unsupported-sport',
+    detail: label,
     skipped: `${label} session skipped`,
   }
 }

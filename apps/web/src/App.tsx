@@ -223,7 +223,7 @@ export function App() {
           />
         }
       />
-      {/* Always mounted, under the header: file drops anywhere, progress and announcements. */}
+      {/* Always mounted: file drops anywhere, the busy strip and announcements. */}
       <ImportStatus
         onFiles={setup.requestImport}
         busy={analysis.busy}
@@ -232,19 +232,20 @@ export function App() {
         signedIn={signedIn}
         outcome={analysis.importOutcome}
         moved={moved}
-        onDismiss={analysis.dismissSummary}
-        atBalance={route.page === 'balance'}
+        onStop={(control) => runThenFocus(analysis.stop, control)}
       />
 
       <AppNotices
         analysis={analysis}
         signedIn={signedIn}
-        moved={moved.length > 0}
+        moved={moved}
         keepFiles={keepFiles}
         fileRetentionAvailable={fileRetentionAvailable}
         accountsUnavailable={!accountsAvailable}
         accountError={account.error}
         runThenFocus={runThenFocus}
+        atBalance={route.page === 'balance'}
+        activitiesPage={route.page === 'activities'}
       />
 
       <main className="app__main">

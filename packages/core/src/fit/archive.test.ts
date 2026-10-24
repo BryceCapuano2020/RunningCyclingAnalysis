@@ -1,6 +1,7 @@
 import { gzipSync, Zip, ZipDeflate, zipSync } from 'fflate'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_EXTRACT_LIMITS, expandsReason, extractFitFiles } from './archive'
+import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
+import { expandsReason } from './archiveReasons'
 import type { FitFile, FitSource } from './archive'
 
 // Records the entries whose start() ran. start() is what drains an entry the archive skips.
@@ -115,8 +116,8 @@ async function collect(source: FitSource, limits: Partial<typeof DEFAULT_EXTRACT
     (file) => {
       files.push(file)
     },
-    (fileName, reason) => {
-      errors.push({ fileName, reason })
+    (fileName, rejection) => {
+      errors.push({ fileName, reason: rejection.reason })
     },
     { ...DEFAULT_EXTRACT_LIMITS, ...limits },
   )
@@ -781,6 +782,69 @@ describe('extractFitFiles on zip archives', () => {
         fileName: 'mid.zip',
         reason: '1 entries could not be read because the archive is damaged',
       },
+    ])
+  })
+
+  it('gives the entries a damaged archive lost the corrupt code, with their count as the detail', async () => {
+    const zip = zipSync({ 'a.fit': FIT_A, 'b.fit': FIT_B, 'c.fit': FIT_C }, { level: 0 })
+    const second = localHeaderOffsets(zip)[1]!
+    zip[second + 2] = 0
+    const rejected: { reason: string; code: string; detail?: string }[] = []
+    await extractFitFiles(
+      new File([zip], 'mid.zip'),
+      () => undefined,
+      (_fileName, rejection) => {
+        rejected.push(rejection)
+      },
+      DEFAULT_EXTRACT_LIMITS,
+    )
+    expect(rejected).toEqual([
+      {
+        reason: '1 entries could not be read because the archive is damaged',
+        code: 'corrupt',
+        detail: '1',
+      },
+    ])
+  })
+
+  it('counts every entry a damaged archive lost, not just one', async () => {
+    const zip = zipSync(
+      { 'a.fit': FIT_A, 'b.fit': FIT_B, 'c.fit': FIT_C, 'd.fit': FIT_A },
+      { level: 0 },
+    )
+    const offsets = localHeaderOffsets(zip)
+    zip[offsets[1]! + 2] = 0
+    zip[offsets[2]! + 2] = 0
+    const rejected: { reason: string; code: string; detail?: string }[] = []
+    await extractFitFiles(
+      new File([zip], 'two-lost.zip'),
+      () => undefined,
+      (_fileName, rejection) => {
+        rejected.push(rejection)
+      },
+      DEFAULT_EXTRACT_LIMITS,
+    )
+    expect(rejected).toEqual([
+      {
+        reason: '2 entries could not be read because the archive is damaged',
+        code: 'corrupt',
+        detail: '2',
+      },
+    ])
+  })
+
+  it('gives an entry over the byte limit the too-large code, with the limit in bytes as the detail', async () => {
+    const rejected: { reason: string; code: string; detail?: string }[] = []
+    await extractFitFiles(
+      new File([zipSync({ 'a.fit': FIT_A })], 'big.zip'),
+      () => undefined,
+      (_fileName, rejection) => {
+        rejected.push(rejection)
+      },
+      { ...DEFAULT_EXTRACT_LIMITS, maxEntryBytes: 10 },
+    )
+    expect(rejected).toEqual([
+      { reason: 'Archive entry exceeds the 10-byte limit', code: 'too-large', detail: '10' },
     ])
   })
 

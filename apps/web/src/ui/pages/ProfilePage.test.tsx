@@ -382,9 +382,7 @@ describe('ProfilePage original files', () => {
     expect(
       screen.getByRole('checkbox', { name: 'Keep original files in my library' }),
     ).toBeDisabled()
-    expect(
-      screen.getByText(/Original file storage is unavailable on this deployment/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Original file storage is unavailable right now/)).toBeInTheDocument()
   })
 })
 

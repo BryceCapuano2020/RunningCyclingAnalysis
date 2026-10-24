@@ -152,10 +152,12 @@ describe('readActivityNames', () => {
     expect(await readActivityNames(fileOf('export.zip', zip), limits)).toBeNull()
   })
 
+  // Zipping and inflating past the real cap is slow under coverage on a shared runner, so this one
+  // test has a longer limit than the default 5 s.
   it('returns null when the list inflates past the list cap, though it is small when zipped', async () => {
     const zip = zipSync({ 'activities.csv': new Uint8Array(MAX_ACTIVITY_LIST_BYTES + 1) })
     expect(await readActivityNames(fileOf('export.zip', zip))).toBeNull()
-  })
+  }, 30_000)
 
   it('reports the bytes the list inflated to, so they count against the export budget', async () => {
     const zip = zipSync({ 'activities.csv': strToU8(LIST) })

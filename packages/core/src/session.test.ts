@@ -137,7 +137,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([
-      { fileName: 'empty.gpx', reason: 'File contains no activity records' },
+      { fileName: 'empty.gpx', reason: 'File contains no activity records', code: 'empty' },
     ])
   })
 
@@ -218,7 +218,9 @@ describe('AnalysisSession', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+    expect(state.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
   })
 
   it('reports a source with no FIT content as No FIT files found', async () => {
@@ -228,8 +230,12 @@ describe('AnalysisSession', () => {
 
     expect(state.result).toBeNull()
     expect(state.rejected).toEqual([
-      { fileName: 'empty.zip', reason: 'No supported activity files found (FIT, GPX or TCX)' },
-      { fileName: 'notes.txt', reason: 'Unsupported file format' },
+      {
+        fileName: 'empty.zip',
+        reason: 'No supported activity files found (FIT, GPX or TCX)',
+        code: 'not-activity',
+      },
+      { fileName: 'notes.txt', reason: 'Unsupported file format', code: 'not-activity' },
     ])
   })
 
@@ -240,7 +246,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([
-      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file' },
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
     ])
   })
 
@@ -254,7 +260,11 @@ describe('AnalysisSession', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([
-      { fileName: 'activities/2.fit.gz', reason: 'Could not decompress this file' },
+      {
+        fileName: 'activities/2.fit.gz',
+        reason: 'Could not decompress this file',
+        code: 'corrupt',
+      },
     ])
   })
 
@@ -265,7 +275,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result).toBeNull()
     expect(state.rejected).toEqual([
-      { fileName: 'cut.fit.gz', reason: 'Could not decompress this file' },
+      { fileName: 'cut.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
     ])
   })
 
@@ -276,7 +286,7 @@ describe('AnalysisSession', () => {
       SETTINGS,
     )
     expect(broken.rejected).toEqual([
-      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file' },
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
     ])
 
     const fixed = await session.addFiles(
@@ -290,7 +300,9 @@ describe('AnalysisSession', () => {
   it('clears a Not a FIT rejection when the same name is later read as a FIT file', async () => {
     const session = new AnalysisSession()
     const junk = await session.addFiles([textFile('ride.fit', 'plainly not a FIT file')], SETTINGS)
-    expect(junk.rejected).toEqual([{ fileName: 'ride.fit', reason: 'Not a FIT file' }])
+    expect(junk.rejected).toEqual([
+      { fileName: 'ride.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
 
     const fixed = await session.addFiles([fitFile('ride.fit', ride)], SETTINGS)
     expect(fixed.rejected).toEqual([])
@@ -519,7 +531,9 @@ describe('AnalysisSession', () => {
     const session = new AnalysisSession()
     const junk = (): File => textFile('junk.fit', 'this is plainly not a FIT file')
     const sameCall = await session.addFiles([junk(), junk()], SETTINGS)
-    expect(sameCall.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+    expect(sameCall.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
 
     const laterCall = await session.addFiles([junk()], SETTINGS)
     expect(laterCall.rejected).toHaveLength(1)
@@ -943,7 +957,9 @@ describe('AnalysisSession', () => {
       },
     )
     expect(calls).toBe(0)
-    expect(state.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+    expect(state.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
   })
 })
 
@@ -1045,7 +1061,12 @@ describe('the same workout in more than one format', () => {
     expect(state.hiddenDuplicates).toBe(0)
     expect(synced).toEqual(['activities/1.fit'])
     expect(duplicates).toEqual([
-      { fileName: 'activities/1.gpx', reason: 'Same workout as activities/1.fit' },
+      {
+        fileName: 'activities/1.gpx',
+        reason: 'Same workout as activities/1.fit',
+        code: 'duplicate',
+        detail: 'activities/1.fit',
+      },
     ])
   })
 
@@ -1331,5 +1352,84 @@ describe('route shapes handed to the sink', () => {
     expect(coordinates.size).toBeGreaterThan(0)
     expect(numbers.length).toBeGreaterThan(0)
     expect(numbers.filter((n) => coordinates.has(n))).toEqual([])
+  })
+})
+
+describe('AnalysisSession rejected files, per import', () => {
+  function kmlZip(zipName: string, name: string): File {
+    const bytes = zipSync({ [name]: strToU8('<kml/>'), 'ride.fit': encodeFit(ride, { gps: true }) })
+    return new File([bytes], zipName)
+  }
+
+  it('lists only the files the last import could not use, not those of earlier imports', async () => {
+    const session = new AnalysisSession()
+    const first = await session.addFiles([textFile('one.txt', 'hello')], SETTINGS)
+    expect(first.rejected).toEqual([
+      { fileName: 'one.txt', reason: 'Unsupported file format', code: 'not-activity' },
+    ])
+
+    const second = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(second.rejected).toEqual([])
+  })
+
+  it('counts only the unsupported files of the last import', async () => {
+    const session = new AnalysisSession()
+    const first = await session.addFiles([kmlZip('a.zip', 'a/1.kml')], SETTINGS)
+    expect(first.unsupportedFiles).toBe(1)
+
+    const second = await session.addFiles([kmlZip('b.zip', 'b/2.kml')], SETTINGS)
+    expect(second.unsupportedFiles).toBe(1)
+  })
+
+  it('gives each rejection a code, so the app can say why in its own words', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        textFile('junk.fit', 'this is plainly not a FIT file'),
+        textFile('notes.txt', 'hello'),
+        new File([new Uint8Array([1, 2, 3, 4, 5])], 'bad.fit.gz'),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+      { fileName: 'notes.txt', reason: 'Unsupported file format', code: 'not-activity' },
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
+    ])
+  })
+
+  it('gives a duplicate the code and the name of the copy it duplicates', async () => {
+    const session = new AnalysisSession()
+    let duplicates: RejectedFile[] = []
+    await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      (outcome) => {
+        duplicates = outcome.duplicates
+      },
+    )
+    await session.addFiles(
+      [new File([new Uint8Array(encodeGpx(run))], 'copy.gpx')],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      (outcome) => {
+        duplicates = outcome.duplicates
+      },
+    )
+
+    expect(duplicates).toEqual([
+      {
+        fileName: 'copy.gpx',
+        reason: 'Same workout as run.fit',
+        code: 'duplicate',
+        detail: 'run.fit',
+      },
+    ])
   })
 })

@@ -1,0 +1,28 @@
+/* What an import added, until it is dismissed. Neutral: sport colours never mark chrome. */
+.import-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.import-notice__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.import-notice__body > p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* What the import moved, under the summary sentence. */
+.import-notice__moved {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}

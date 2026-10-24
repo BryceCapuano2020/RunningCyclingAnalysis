@@ -28,6 +28,6 @@ export function parseActivityFile(
     case 'tcx':
       return parseTcx(bytes, fileName, limits, opts)
     default:
-      return { ok: false, fileName, reason: UNSUPPORTED }
+      return { ok: false, fileName, reason: UNSUPPORTED, code: 'not-activity' }
   }
 }

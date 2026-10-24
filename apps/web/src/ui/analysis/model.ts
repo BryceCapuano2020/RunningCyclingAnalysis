@@ -21,7 +21,11 @@ export interface Box<T> {
 
 export type Setter<T> = Dispatch<SetStateAction<T>>
 
-export type SetError = (message: string | null, issue?: SyncIssueCode | null) => void
+export type SetError = (
+  message: string | null,
+  issue?: SyncIssueCode | null,
+  neutral?: boolean,
+) => void
 
 /** The files an import has read, and how many it holds in all when that is known before reading. */
 export interface ImportProgress {
@@ -33,6 +37,8 @@ export interface ImportProgress {
 export interface ErrorNotice {
   message: string
   issue: SyncIssueCode | null
+  /** A message the visitor asked for, such as a stop: shown as news, never as a fault. */
+  neutral?: boolean
 }
 
 /** A deletion from the account library or from the library kept in this browser. */

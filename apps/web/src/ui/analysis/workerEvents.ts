@@ -231,6 +231,8 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
     handleReplyError(deps, pending, message)
     return
   }
+  // A rebuild replaces the session, and with it the files the last import skipped, so its summary goes.
+  if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
   imports.setState(message.state)
   if (message.type === 'state') {
     // An analysis made while the account loads is shown, but only the import that is saved is summarised.

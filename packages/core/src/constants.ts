@@ -1,5 +1,9 @@
 import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
 
+/** Binary sizes, for byte limits and for telling people how large a file may be. */
+export const MIB = 1024 ** 2
+export const GIB = 1024 ** 3
+
 /** Durations, in seconds, at which every duration curve is evaluated. */
 export const DURATIONS_S = [
   5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200,

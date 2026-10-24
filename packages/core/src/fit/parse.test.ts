@@ -265,6 +265,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'junk.fit',
       reason: 'Not a FIT file',
+      code: 'corrupt',
     })
   })
 
@@ -274,6 +275,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'broken.fit',
       reason: 'Could not decode FIT file',
+      code: 'corrupt',
     })
   })
 
@@ -282,11 +284,13 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'empty.fit',
       reason: 'Not a FIT file',
+      code: 'corrupt',
     })
     expect(parseFit(new Uint8Array([14, 16, 0, 0, 0]), 'short.fit')).toEqual({
       ok: false,
       fileName: 'short.fit',
       reason: 'Not a FIT file',
+      code: 'corrupt',
     })
   })
 
@@ -297,6 +301,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'cut.fit',
       reason: 'File is incomplete or corrupt',
+      code: 'corrupt',
     })
   })
 
@@ -307,6 +312,8 @@ describe('parseFit validation', () => {
     ).toEqual({
       ok: false,
       fileName: 'large.fit',
+      code: 'too-large',
+      detail: String(bytes.length - 1),
       reason: `FIT file exceeds the ${bytes.length - 1}-byte limit`,
     })
     expect(
@@ -318,6 +325,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'many-records.fit',
       reason: 'FIT file exceeds the 10-record limit',
+      code: 'too-much-data',
     })
     expect(
       parseFit(bytes, 'long.fit', { ...DEFAULT_PARSE_LIMITS, maxActivitySeconds: 30 }),
@@ -325,6 +333,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'long.fit',
       reason: 'Activity exceeds the 30-second time-grid limit',
+      code: 'too-long',
     })
   })
 
@@ -344,6 +353,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'partial.fit',
       reason: 'File is incomplete or corrupt',
+      code: 'corrupt',
     })
   })
 
@@ -357,6 +367,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'partial.fit',
       reason: 'File is incomplete or corrupt',
+      code: 'corrupt',
     })
   })
 
@@ -366,6 +377,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'short.fit',
       reason: 'Activity is shorter than one minute',
+      code: 'too-short',
     })
   })
 
@@ -446,6 +458,8 @@ describe('parseFit sport mapping', () => {
       ok: false,
       fileName: 'pool.fit',
       reason: 'Unsupported sport: swimming',
+      code: 'unsupported-sport',
+      detail: 'swimming',
     })
   })
 
@@ -455,6 +469,8 @@ describe('parseFit sport mapping', () => {
       ok: false,
       fileName: 'nosport.fit',
       reason: 'Unsupported sport: unknown',
+      code: 'unsupported-sport',
+      detail: 'unknown',
     })
   })
 
@@ -793,6 +809,8 @@ describe('parseFit multi-session files', () => {
       ok: false,
       fileName: 'pool.fit',
       reason: 'Unsupported sport: swimming',
+      code: 'unsupported-sport',
+      detail: 'swimming',
     })
   })
 
@@ -900,6 +918,7 @@ describe('parseFit hardening', () => {
       ok: false,
       fileName: 'empty.fit',
       reason: 'File contains no activity records',
+      code: 'empty',
     })
   })
 
