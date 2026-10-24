@@ -23,6 +23,8 @@ export const ORIGINALS_UNAVAILABLE =
 export const RETENTION_UNAVAILABLE =
   'Original file storage is unavailable on this deployment. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
+/** Said after a summary's sentence when the list under it says what moved in the numbers. */
+export const MOVED_NOTE = 'Your numbers moved.'
 /**
  * Stop for a visitor who is not signed in. The kept results reload; files being added must be added
  * again.

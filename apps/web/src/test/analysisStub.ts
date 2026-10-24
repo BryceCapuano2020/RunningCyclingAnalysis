@@ -28,6 +28,8 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     missingOriginals: 0,
     libraryUnreadable: 0,
     importOutcome: null,
+    importChange: null,
+    dismissSummary: vi.fn(),
     savedActivities: [],
     libraryAction: null,
     libraryNotice: null,

@@ -35,17 +35,21 @@ const TITLE: Record<Lean, string> = {
 }
 
 /**
+ * How far the leading sport is ahead of the other, as a fraction of it: the centre of the range.
+ * Running over cycling is the ratio; cycling over running is its inverse.
+ */
+export function leadOf(ratio: Interval, lean: Exclude<Lean, 'even'>): number {
+  return (lean === 'run' ? ratio.p50 : 1 / ratio.p50) - 1
+}
+
+/**
  * How far the leading sport is ahead, with its range, both as positive percentages of the other
- * sport. Running over cycling is the ratio; cycling over running is its inverse, so the inverse's
- * range runs from 1 / p95 to 1 / p05.
+ * sport. Cycling over running is the inverse, so its range runs from 1 / p95 to 1 / p05.
  */
 function aheadBy(ratio: Interval, lean: Exclude<Lean, 'even'>): { centre: string; range: string } {
-  const [centre, low, high] =
-    lean === 'run'
-      ? [ratio.p50, ratio.p05, ratio.p95]
-      : [1 / ratio.p50, 1 / ratio.p95, 1 / ratio.p05]
+  const [low, high] = lean === 'run' ? [ratio.p05, ratio.p95] : [1 / ratio.p95, 1 / ratio.p05]
   return {
-    centre: formatPercent(centre - 1),
+    centre: formatPercent(leadOf(ratio, lean)),
     range: `${formatPercent(low - 1)} to ${formatPercent(high - 1)}`,
   }
 }

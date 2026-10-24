@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { MovedItem } from '../analysis/whatMoved'
 import { ImportStatus } from './ImportStatus'
 import type { ImportStatusProps } from './ImportStatus'
 
@@ -393,5 +394,112 @@ describe('ImportStatus: the summary of an import', () => {
     const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
     rerender(<ImportStatus {...baseProps()} outcome={ADDED} />)
     expect(screen.getByRole('status')).toHaveTextContent(SENTENCE)
+  })
+})
+
+describe('ImportStatus: what moved', () => {
+  const MARCH_2023 = new Date(2023, 2, 4, 9).getTime()
+  const OCTOBER_THIS_YEAR = new Date(new Date().getFullYear(), 9, 20, 7).getTime()
+  const ADDED = {
+    activities: 800,
+    rejected: 0,
+    runs: 412,
+    rides: 388,
+    firstStartMs: MARCH_2023,
+    lastStartMs: OCTOBER_THIS_YEAR,
+  }
+  const SENTENCE = `Added 412 runs and 388 rides, from Mar 2023 to Oct ${new Date().getFullYear()}.`
+  const MOVED: MovedItem[] = [
+    {
+      text: 'Threshold pace: 7:12 → 7:05 /mi',
+      spoken: 'Threshold pace from 7:12 to 7:05 per mile',
+    },
+    { text: 'New best 20 min ride: 262 W' },
+  ]
+
+  it('lists what moved under the summary sentence', () => {
+    renderStatus({ outcome: ADDED, moved: MOVED })
+    const list = screen.getByRole('list')
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2)
+    const sentence = screen.getByText(SENTENCE)
+    expect(sentence.closest('.import-status__notice')).toContainElement(list)
+    expect(sentence.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('hides each arrow from screen readers and says the change in words instead', () => {
+    renderStatus({ outcome: ADDED, moved: MOVED })
+    expect(screen.getByText('Threshold pace: 7:12 → 7:05 /mi')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    expect(screen.getByText('Threshold pace from 7:12 to 7:05 per mile')).toHaveClass('sr-only')
+    expect(screen.getByText('New best 20 min ride: 262 W')).not.toHaveAttribute('aria-hidden')
+  })
+
+  it('shows no list when nothing moved', () => {
+    renderStatus({ outcome: ADDED, moved: [] })
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(screen.getByText(SENTENCE)).toBeInTheDocument()
+  })
+
+  it('announces that the numbers moved, after the outcome sentence', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} outcome={ADDED} moved={MOVED} />)
+    expect(screen.getByRole('status').textContent).toBe(`${SENTENCE} Your numbers moved.`)
+  })
+
+  it('announces only the outcome sentence when nothing moved', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} outcome={ADDED} moved={[]} />)
+    expect(screen.getByRole('status').textContent).toBe(SENTENCE)
+  })
+
+  it('removes the list with the summary when it is dismissed', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} outcome={ADDED} moved={MOVED} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(screen.getByRole('status').textContent).toBe(`${SENTENCE} Your numbers moved.`)
+  })
+
+  it('shows the list of a later import in place of the one dismissed', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} outcome={ADDED} moved={MOVED} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    rerender(
+      <ImportStatus
+        {...baseProps()}
+        outcome={{ ...ADDED }}
+        moved={[{ text: 'New best 1 h ride: 210 W' }]}
+      />,
+    )
+    expect(screen.getByText('New best 1 h ride: 210 W')).toBeInTheDocument()
+    expect(screen.queryByText('New best 20 min ride: 262 W')).not.toBeInTheDocument()
+  })
+})
+
+describe('ImportStatus: dismissal and what the summary adds', () => {
+  const MOVED: MovedItem[] = [{ text: 'New best 20 min ride: 262 W' }]
+
+  it('tells the page when the summary is dismissed', () => {
+    const onDismiss = vi.fn()
+    renderStatus({
+      outcome: { activities: 2, rejected: 0, runs: 2, rides: 0, firstStartMs: 0, lastStartMs: 0 },
+      onDismiss,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('says only the outcome, and lists nothing, when the import added no run or ride', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(
+      <ImportStatus
+        {...baseProps()}
+        outcome={{ activities: 1, rejected: 0, runs: 0, rides: 0 }}
+        moved={MOVED}
+      />,
+    )
+    expect(screen.getByRole('status').textContent).toBe('Analysed 1 activity.')
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 })

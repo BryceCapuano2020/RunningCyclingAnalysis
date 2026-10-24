@@ -30,7 +30,11 @@ The landing page's step 1 has a **How to get your files** button. It moves focus
 below the steps, one closed details per service; guides whose steps could not be checked from the
 vendor's own page say so.
 After an import that added activities, a dismissible notice under the header says what it added and
-links to Balance, except on Balance itself.
+links to Balance, except on Balance itself. Under that sentence it lists what the import moved in the
+athlete's numbers: at most four items, thresholds first, then the balance, then new bests at 1, 5, 20
+and 60 minutes, counted only for workouts that were not on file before. A first import, or one that
+replaced the sample, lists nothing, and nor does an import that added no run or ride. Each change is
+also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
 
 ## Colour
 

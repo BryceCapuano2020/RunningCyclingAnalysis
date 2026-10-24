@@ -7,6 +7,7 @@ import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
 import { LandingPage } from './ui/pages/LandingPage'
 import { WAITING_FOR_ACCOUNT } from './ui/analysis/copy'
+import { listedMoves } from './ui/analysis/whatMoved'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { ResultPage } from './ui/pages/ResultPage'
@@ -87,6 +88,8 @@ export function App() {
   // Files held while the account loads show as waiting: the import cannot start until it is known.
   const accountWait = account.status === 'loading' && setup.held > 0
   const hasResult = analysis.state.result !== null
+  // What the last import moved in the athlete's numbers, for the summary and the sync status.
+  const moved = listedMoves(analysis.importChange, settings, units)
   const key = pageKey(route, hasResult)
 
   // A new page replaces the old one, so focus moves to the new page's heading and the page shows
@@ -177,12 +180,15 @@ export function App() {
         waiting={analysis.waitingReason ?? (accountWait ? WAITING_FOR_ACCOUNT : null)}
         signedIn={signedIn}
         outcome={analysis.importOutcome}
+        moved={moved}
+        onDismiss={analysis.dismissSummary}
         atBalance={route.page === 'balance'}
       />
 
       <AppNotices
         analysis={analysis}
         signedIn={signedIn}
+        moved={moved.length > 0}
         keepFiles={keepFiles}
         fileRetentionAvailable={fileRetentionAvailable}
         accountsUnavailable={!accountsAvailable}

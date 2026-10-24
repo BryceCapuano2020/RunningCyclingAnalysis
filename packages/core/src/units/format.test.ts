@@ -11,6 +11,7 @@ import {
   paceSeconds,
   formatPercent,
   formatPower,
+  formatWatts,
   formatSpeed,
   formatWkg,
 } from './format'
@@ -245,5 +246,20 @@ describe('formatPercent', () => {
   it('returns a dash for NaN', () => {
     expect(formatPercent(NaN)).toBe(DASH)
     expect(formatPercent(NaN, true)).toBe(DASH)
+  })
+})
+
+describe('formatWatts', () => {
+  it('rounds to whole watts, without the unit', () => {
+    expect(formatWatts(285)).toBe('285')
+    expect(formatWatts(284.6)).toBe('285')
+  })
+
+  it('is a dash when there is no value', () => {
+    expect(formatWatts(NaN)).toBe(DASH)
+  })
+
+  it('is the number that formatPower shows before its unit', () => {
+    expect(formatPower(284.6)).toBe(`${formatWatts(284.6)} W`)
   })
 })

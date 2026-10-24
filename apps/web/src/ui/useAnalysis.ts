@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import type { ImportOutcome, SavedActivity, WorkerRequest } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { STOPPED_KEPT_RESULTS, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
-import { useImportState } from './analysis/importState'
+import type { ImportChange } from './analysis/importState'
+import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
 import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
 import { EMPTY_SESSION, isDeletion } from './analysis/model'
+import { useLatest } from './analysis/useLatest'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
 import type { AccountStatus } from './useAccount'
@@ -40,6 +43,10 @@ export interface AnalysisController {
   /** Stored activities the server could not read in the last library load, and so are hidden. */
   libraryUnreadable: number
   importOutcome: ImportOutcome | null
+  /** What the last import moved from, while its summary is shown; null otherwise. */
+  importChange: ImportChange | null
+  /** The summary was dismissed, so what moved goes with it. */
+  dismissSummary: () => void
   savedActivities: SavedActivity[]
   /** A library change in progress. It does not make the import dropzone busy. */
   libraryAction: 'deleting' | null
@@ -81,6 +88,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   // Created here, not in the transport, because refreshBusy reads it and the transport needs refreshBusy.
   const pendingRepliesRef = useRef<Pending[]>([])
   const [errorNotice, setErrorNotice] = useState<ErrorNotice | null>(null)
+  // The analysis on screen when the last import was sent: what its summary compares with.
+  const baselineRef = useRef<AnalysisResult | null>(null)
 
   const setError = useCallback((message: string | null, issue: SyncIssueCode | null = null) => {
     setErrorNotice(message === null ? null : { message, issue })
@@ -96,6 +105,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
 
   const library = useLibraryState()
   const imports = useImportState()
+  const latestState = useLatest(imports.state)
   const {
     setLibraryAction,
     setLibraryNotice,
@@ -113,6 +123,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setUploading,
     setRebuildNotice,
     setImportOutcome,
+    setImportChange,
   } = imports
 
   /** Recomputes what the page shows as busy, waiting, and in a library change. */
@@ -154,6 +165,9 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
         request.type === 'loadDevice' ||
         request.type === 'exportData'
       if (!keepsError) setError(null)
+      // Taken as the import is sent. An import sent before the one before it replies compares with
+      // the same result, since that reply has not yet changed what is on screen.
+      if (request.type === 'addFiles') baselineRef.current = baselineOf(latestState())
       // A new import or rebuild replaces the outcome of the last library change.
       if (request.type === 'addFiles' || request.type === 'rebuildStale') {
         setLibraryNotice(null)
@@ -173,6 +187,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       }
     },
     [
+      latestState,
       refreshBusy,
       setError,
       setImportOutcome,
@@ -233,6 +248,12 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     refreshBusy()
   }, [deferredImportsRef, dropPendingReplies, libraryWaitRef, refreshBusy, unsentRef])
 
+  /**
+   * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
+   * waiting for its reply compares with it, and the next import replaces it.
+   */
+  const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
+
   const stop = useCallback(() => {
     clearQueues()
     setProgress(null)
@@ -276,6 +297,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
+    baselineRef,
   })
 
   const { massKg, bikeMassKg } = settings
@@ -318,6 +340,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     missingOriginals: library.missingOriginals,
     libraryUnreadable: library.libraryUnreadable,
     importOutcome: imports.importOutcome,
+    // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
+    importChange:
+      imports.importChange?.outcome === imports.importOutcome ? imports.importChange : null,
+    dismissSummary,
     savedActivities: library.savedActivities,
     libraryAction: library.libraryAction,
     libraryNotice: library.libraryNotice,
