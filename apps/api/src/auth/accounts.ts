@@ -1,5 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
-import type { Me, Profile, User } from '@rca/contract'
+import { DEFAULT_BIKE_MASS_KG } from '@rca/contract'
+import type { Me, Profile, UnitPreference, User } from '@rca/contract'
 import type { Deps } from '../deps.ts'
 import type { Db } from '../env.ts'
 import { must } from '../util.ts'
@@ -12,14 +13,19 @@ export const GOOGLE_PROVIDER = 'google'
 type UserRow = typeof users.$inferSelect
 type ProfileRow = typeof profiles.$inferSelect
 
-/** A new profile. Age and sex are unset until the rider saves them. */
-export const DEFAULT_PROFILE: Omit<ProfileRow, 'userId' | 'updatedAt'> = {
-  massKg: 75,
-  bikeMassKg: 9,
-  units: 'imperial',
-  keepFiles: false,
-  birthYear: null,
-  sex: null,
+/**
+ * A new profile. The body mass, age and sex are unset until the rider saves them. The units are the
+ * ones the sign-in request's language starts in, so the caller passes them.
+ */
+export function defaultProfile(units: UnitPreference): Omit<ProfileRow, 'userId' | 'updatedAt'> {
+  return {
+    massKg: null,
+    bikeMassKg: DEFAULT_BIKE_MASS_KG,
+    units,
+    keepFiles: false,
+    birthYear: null,
+    sex: null,
+  }
 }
 
 export function toUser(row: UserRow): User {
@@ -38,11 +44,19 @@ export function toProfile(row: ProfileRow): Profile {
   }
 }
 
-/** Returns the user's profile, creating the default one if it is missing. */
-export async function ensureProfile(db: Db, userId: string, now: number): Promise<Profile> {
+/**
+ * Returns the user's profile, creating the default one in `units` if it is missing. An existing
+ * profile keeps its own units, whatever the request's language.
+ */
+export async function ensureProfile(
+  db: Db,
+  userId: string,
+  now: number,
+  units: UnitPreference,
+): Promise<Profile> {
   const existing = await db.select().from(profiles).where(eq(profiles.userId, userId)).get()
   if (existing) return toProfile(existing)
-  const created = { userId, ...DEFAULT_PROFILE, updatedAt: now }
+  const created = { userId, ...defaultProfile(units), updatedAt: now }
   await db.insert(profiles).values(created).onConflictDoNothing()
   return toProfile(created)
 }
@@ -51,11 +65,12 @@ export async function buildMe(
   db: Db,
   deps: Deps,
   user: User,
-  fileRetentionAvailable = true,
+  fileRetentionAvailable: boolean,
+  units: UnitPreference,
 ): Promise<Me> {
   return {
     user,
-    profile: await ensureProfile(db, user.id, deps.now()),
+    profile: await ensureProfile(db, user.id, deps.now(), units),
     fileRetentionAvailable,
   }
 }

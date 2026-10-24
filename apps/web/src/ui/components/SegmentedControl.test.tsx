@@ -62,4 +62,11 @@ describe('SegmentedControl', () => {
     await user.click(screen.getByRole('radio', { name: 'Beta' }))
     expect(onSelect).toHaveBeenCalledWith('b')
   })
+
+  it('checks no option when nothing is selected yet', () => {
+    render(
+      <SegmentedControl legend="Period" options={OPTIONS} selected={null} onSelect={vi.fn()} />,
+    )
+    expect(screen.queryAllByRole('radio', { checked: true })).toHaveLength(0)
+  })
 })

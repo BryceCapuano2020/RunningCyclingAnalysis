@@ -12,7 +12,8 @@ export interface SegmentedControlProps<T extends string> {
   /** Hides the legend visually. It still names the group. */
   legendHidden?: boolean
   options: SegmentedControlOption<T>[]
-  selected: T
+  /** Null when nothing has been chosen yet, so no segment is checked. */
+  selected: T | null
   onSelect: (value: T) => void
 }
 

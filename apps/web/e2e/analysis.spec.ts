@@ -125,7 +125,7 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
 })
 
-test('skipping the setup dialog keeps the default weight', async ({ page }) => {
+test('skipping the setup dialog leaves the weight unset', async ({ page }) => {
   await page.goto('/')
   const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
   await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
@@ -138,8 +138,17 @@ test('skipping the setup dialog keeps the default weight', async ({ page }) => {
     page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
   ).toBeVisible()
   await goTo(page, 'Profile')
-  // 75 kg, the default, in the imperial units the athlete starts with.
-  await expect(page.getByLabel('Body weight')).toHaveValue('165.3')
+  // Skip keeps nothing that was typed: the field is empty and says what a weight is for.
+  await expect(page.getByLabel('Body weight')).toHaveValue('')
+  await expect(
+    page.getByText('Not entered. Add your weight to compare a ride with a run.'),
+  ).toBeVisible()
+  // The skip is recorded as answered, with no weight saved.
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('rca.preferences.v1') ?? 'null'),
+  )
+  expect(stored?.setupDone).toBe(true)
+  expect(stored?.settings?.massKg ?? null).toBeNull()
 })
 
 test('uploading the Strava export zip shows the results, including its GPX run', async ({

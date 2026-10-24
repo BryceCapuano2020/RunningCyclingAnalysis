@@ -11,6 +11,7 @@ import type { AnalysisController } from '../useAnalysis'
 import { ActivitiesPage } from './ActivitiesPage'
 import { ActivityPage } from './ActivityPage'
 import { BalancePage } from './BalancePage'
+import { WeightNote } from '../components/WeightNote'
 import { MethodPage } from './MethodPage'
 import { SportPage } from './SportPage'
 
@@ -19,6 +20,8 @@ export interface ResultPageProps {
   analysis: AnalysisController
   result: AnalysisResult
   settings: AthleteSettings
+  /** False while no body weight is entered; the results on screen and on the card then wait for one. */
+  weightKnown: boolean
   units: UnitSystem
   birthYear: number | null
   sex: Sex | null
@@ -30,6 +33,7 @@ export function ResultPage({
   analysis,
   result,
   settings,
+  weightKnown,
   units,
   birthYear,
   sex,
@@ -49,19 +53,22 @@ export function ResultPage({
     case 'run':
     case 'ride':
       return (
-        <SportPage
-          key={route.page}
-          sport={route.page}
-          result={result}
-          previous={analysis.state.previous}
-          previousLabel={previousPeriodLabel(rangeDays)}
-          trends={analysis.state.effortTrends}
-          windowDays={trendWindowDays(rangeDays)}
-          units={units}
-          massKg={settings.massKg}
-          profile={profile}
-          controls={period}
-        />
+        <>
+          {route.page === 'ride' && !weightKnown && <WeightNote />}
+          <SportPage
+            key={route.page}
+            sport={route.page}
+            result={result}
+            previous={analysis.state.previous}
+            previousLabel={previousPeriodLabel(rangeDays)}
+            trends={analysis.state.effortTrends}
+            windowDays={trendWindowDays(rangeDays)}
+            units={units}
+            massKg={settings.massKg}
+            profile={profile}
+            controls={period}
+          />
+        </>
       )
     case 'activities':
       return (
@@ -90,6 +97,7 @@ export function ResultPage({
           analysis={analysis}
           result={result}
           settings={settings}
+          weightKnown={weightKnown}
           units={units}
           profile={profile}
           controls={period}

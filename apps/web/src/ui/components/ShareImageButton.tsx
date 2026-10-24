@@ -14,6 +14,8 @@ export interface ShareImageButtonProps {
   isSample: boolean
   /** Heart-rate check for the headline duration, shown on the card as a caveat when it applies. */
   effort: EffortCheck | null
+  /** False while no body weight is entered: the card then leaves out the ride estimate and balance. */
+  weightKnown: boolean
   /** Analysis is running, so the comparison on screen may change. */
   disabled: boolean
 }
@@ -40,6 +42,7 @@ export function ShareImageButton({
   rangeDays,
   isSample,
   effort,
+  weightKnown,
   disabled,
 }: ShareImageButtonProps) {
   const [status, setStatus] = useState('')
@@ -63,7 +66,7 @@ export function ShareImageButton({
         ])
       // The canvas only draws a web font that has loaded, so wait for the card's faces first.
       await loadCardFonts()
-      const card = buildShareCard(result, settings, units, rangeDays, isSample, effort)
+      const card = buildShareCard(result, settings, units, rangeDays, isSample, effort, weightKnown)
       const canvas = document.createElement('canvas')
       const saved =
         card !== null &&

@@ -19,6 +19,7 @@ import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
+import { analysisSettings, weightKnown } from './ui/athlete'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean): string {
@@ -54,6 +55,8 @@ export function App() {
         sex: preferences.sex,
       }
   const { settings, units } = athleteValues
+  // The analysis and the results take a body mass even before one is entered; see analysisSettings.
+  const analysisAthlete = analysisSettings(settings)
   const keepFiles = profile?.keepFiles ?? false
 
   // Keeps the saved preferences showing the athlete's values, so a later sign-out shows them.
@@ -71,12 +74,10 @@ export function App() {
     }
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
   }
-  // A refused change is shown by the account's error message.
-  const saveProfile = (next: ProfilePatch) => {
-    void saveAnswers(next).catch(() => undefined)
-  }
+  // The page reports a refused change, so the rejection reaches it.
+  const saveProfile = (next: ProfilePatch) => saveAnswers(next)
 
-  const analysis = useAnalysis(settings, account)
+  const analysis = useAnalysis(analysisAthlete, account)
   // Called after useAnalysis, so its settings are in place before held files are sent.
   const setup = useSetup({
     status: account.status,
@@ -89,7 +90,7 @@ export function App() {
   const accountWait = account.status === 'loading' && setup.held > 0
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
-  const moved = listedMoves(analysis.importChange, settings, units)
+  const moved = listedMoves(analysis.importChange, analysisAthlete, units)
   const key = pageKey(route, hasResult)
 
   // A new page replaces the old one, so focus moves to the new page's heading and the page shows
@@ -219,7 +220,8 @@ export function App() {
             route={route}
             analysis={analysis}
             result={analysis.state.result}
-            settings={settings}
+            settings={analysisAthlete}
+            weightKnown={weightKnown(settings)}
             units={units}
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}

@@ -37,6 +37,18 @@ interface FieldErrors {
   year?: string
 }
 
+type WeightEntry = { kg: number | null } | { error: string }
+
+/**
+ * The body weight the text stands for. Text that still shows the last valid weight is that weight,
+ * so a rounded display is saved as the exact value. Blank text is no weight, which is fine until
+ * one is saved: once a weight is saved, blanking the field is an error, so it is only replaced.
+ */
+function readWeightEntry(text: string, validKg: number | null, units: UnitSystem): WeightEntry {
+  if (text === displayWeight(validKg, units)) return { kg: validKg }
+  return readWeight(text, 'body', units)
+}
+
 /**
  * The questions asked once, before the first analysis. Mounted only while it is open, so each
  * opening starts from the current values. Escape is Skip.
@@ -53,20 +65,21 @@ export function SetupDialog({
   const titleId = `${baseId}-title`
   const helpId = `${baseId}-help`
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const weightRef = useRef<HTMLInputElement>(null)
   const yearRef = useRef<HTMLInputElement>(null)
   const savedKg = weightKg(initial.settings, 'body')
   const [units, setUnits] = useState<UnitSystem>(initial.units)
-  // The last weight that was valid. The text can be a rounded display of it, which is saved as this
-  // exact weight rather than as the rounded figure.
-  const [validKg, setValidKg] = useState(savedKg)
+  // The last weight that was valid, null when none has been entered.
+  const [validKg, setValidKg] = useState<number | null>(savedKg)
   const [weightText, setWeightText] = useState(() => displayWeight(savedKg, initial.units))
   const [yearText, setYearText] = useState(() => displayBirthYear(initial.birthYear))
   const [sex, setSex] = useState(initial.sex)
   const [errors, setErrors] = useState<FieldErrors>({})
 
-  // Modal while mounted. Focus goes back to whatever opened the dialog, or to the page heading when
-  // that has gone (a file dropped on the page opened it from the body).
+  // Modal while mounted. Focus goes to the heading rather than a field, so a phone does not raise
+  // the keyboard before the dialog has been read. It returns to whatever opened the dialog, or to
+  // the page heading when that has gone (a file dropped on the page opened it from the body).
   useEffect(() => {
     const dialog = dialogRef.current
     if (dialog === null) return
@@ -74,6 +87,7 @@ export function SetupDialog({
     // jsdom has no showModal, so the open attribute stands in for it there.
     if (typeof dialog.showModal === 'function') dialog.showModal()
     else dialog.setAttribute('open', '')
+    headingRef.current?.focus()
     return () => {
       if (typeof dialog.close === 'function') dialog.close()
       else dialog.removeAttribute('open')
@@ -86,15 +100,11 @@ export function SetupDialog({
   }, [])
 
   function changeUnits(next: UnitSystem) {
-    // Text that still shows the last valid weight is only reformatted. Anything typed is read first,
-    // in the units it was typed in, and then shown in the new ones.
-    const typed =
-      weightText === displayWeight(validKg, units)
-        ? { kg: validKg }
-        : readWeight(weightText, 'body', units)
+    // The weight is read in the units it was typed in, then shown in the new ones.
+    const typed = readWeightEntry(weightText, validKg, units)
     if ('error' in typed) {
       // The text stays as typed, so it is judged again in the new units.
-      const judged = readWeight(weightText, 'body', next)
+      const judged = readWeightEntry(weightText, validKg, next)
       setErrors((current) => ({ ...current, weight: 'error' in judged ? judged.error : undefined }))
     } else {
       setValidKg(typed.kg)
@@ -109,14 +119,10 @@ export function SetupDialog({
     if (saving) return
     const patch: ProfilePatch = {}
     const next: FieldErrors = {}
-    let kg = validKg
-    if (weightText !== displayWeight(validKg, units)) {
-      const read = readWeight(weightText, 'body', units)
-      if ('error' in read) next.weight = read.error
-      else kg = read.kg
-    }
-    if (next.weight === undefined && kg !== savedKg) {
-      patch.settings = { ...initial.settings, massKg: kg }
+    const entry = readWeightEntry(weightText, validKg, units)
+    if ('error' in entry) next.weight = entry.error
+    else if (entry.kg !== null && entry.kg !== savedKg) {
+      patch.settings = { massKg: entry.kg }
     }
     if (yearText !== displayBirthYear(initial.birthYear)) {
       const read = readBirthYear(yearText)
@@ -134,6 +140,10 @@ export function SetupDialog({
     onConfirm(patch)
   }
 
+  const entry = readWeightEntry(weightText, validKg, units)
+  const weightBlank = !('error' in entry) && entry.kg === null
+  const storedKg = !('error' in entry) && entry.kg !== null ? entry.kg : null
+
   return (
     <dialog
       ref={dialogRef}
@@ -147,11 +157,19 @@ export function SetupDialog({
       }}
     >
       <form className="setup-dialog__form" onSubmit={handleSubmit} noValidate>
-        <h2 id={titleId}>{returning ? 'A few details' : 'Before your first analysis'}</h2>
+        <h2 id={titleId} ref={headingRef} tabIndex={-1}>
+          {returning ? 'A few details' : 'Before your first analysis'}
+        </h2>
         <p id={helpId} className="setup-dialog__help">
-          Weight puts watts and pace on the same scale. Age and sex are optional and only used to
-          grade your results against age standards. They stay on this device unless you sign in.
+          Your weight puts rides and runs on one scale. Age and sex are optional: they set your
+          level in each sport. They stay on this device unless you sign in.
         </p>
+        <SegmentedControl
+          legend="Units"
+          options={UNIT_OPTIONS}
+          selected={units}
+          onSelect={changeUnits}
+        />
         <NumberField
           ref={weightRef}
           id={`${baseId}-weight`}
@@ -159,6 +177,7 @@ export function SetupDialog({
           unit={weightUnit(units)}
           inputMode="decimal"
           autoComplete="off"
+          enterKeyHint="done"
           value={weightText}
           error={errors.weight ?? null}
           onChange={(event) => {
@@ -166,12 +185,11 @@ export function SetupDialog({
             setWeightText(event.target.value)
           }}
         />
-        <SegmentedControl
-          legend="Units"
-          options={UNIT_OPTIONS}
-          selected={units}
-          onSelect={changeUnits}
-        />
+        {units === 'imperial' && storedKg !== null && (
+          <p className="setup-dialog__note muted">
+            Stored as {displayWeight(storedKg, 'metric')} kg
+          </p>
+        )}
         <AthleteFields
           birthYear={yearText}
           birthYearError={errors.year ?? null}
@@ -188,20 +206,27 @@ export function SetupDialog({
             {error}
           </p>
         )}
-        <div className="setup-dialog__actions">
-          <button
-            type="button"
-            className="btn"
-            aria-disabled={saving}
-            onClick={() => {
-              if (!saving) onSkip()
-            }}
-          >
-            Skip for now
-          </button>
-          <button type="submit" className="btn btn-primary" aria-disabled={saving}>
-            Analyse my files
-          </button>
+        <div className="setup-dialog__footer">
+          {weightBlank && (
+            <p className="setup-dialog__note muted">
+              Add your weight on Profile to compare a ride with a run.
+            </p>
+          )}
+          <div className="setup-dialog__actions">
+            <button
+              type="button"
+              className="btn"
+              aria-disabled={saving}
+              onClick={() => {
+                if (!saving) onSkip()
+              }}
+            >
+              Skip for now
+            </button>
+            <button type="submit" className="btn btn-primary" aria-disabled={saving}>
+              Analyse my files
+            </button>
+          </div>
         </div>
       </form>
     </dialog>

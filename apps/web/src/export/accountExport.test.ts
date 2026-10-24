@@ -89,6 +89,11 @@ describe('buildAccountExport', () => {
     ])
   })
 
+  it('writes a body mass that was never entered as null, not as a weight', () => {
+    const doc = build({ profile: { ...PROFILE, massKg: null } })
+    expect(doc.profile).toMatchObject({ massKg: null, bikeMassKg: PROFILE.bikeMassKg })
+  })
+
   it('includes the optional year of birth and sex, as null when they were never given', () => {
     const doc = build({ profile: { ...PROFILE, birthYear: null, sex: null } })
     expect(doc.profile).toMatchObject({ birthYear: null, sex: null })

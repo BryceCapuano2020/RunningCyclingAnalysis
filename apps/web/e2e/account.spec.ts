@@ -53,7 +53,7 @@ function savedActivityUpdates(page: Page) {
   return page.getByRole('region', { name: 'Saved activity updates' }).getByRole('status')
 }
 
-async function profileMassKg(page: Page): Promise<number> {
+async function profileMassKg(page: Page): Promise<number | null> {
   const response = await page.request.get('/api/me')
   expect(response.status()).toBe(200)
   const me = (await response.json()) as Me
@@ -126,12 +126,17 @@ test('a saved library survives reloads and sign-out, and deleting the account re
 
   await test.step('a body weight change is saved to the profile', async () => {
     await goTo(page, 'Profile')
+    // The session's sign-in sends no language, so the account starts in metric. Set the units here,
+    // then check the field says lb before entering pounds.
+    await page.getByText('Imperial', { exact: true }).click()
+    await expect(page.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+    await expect(page.locator('.settings-bar .number-field__unit').first()).toHaveText('lb')
     const body = page.getByLabel('Body weight')
     await body.fill('185')
     await body.blur()
     await expect(body).toHaveValue(/^185(\.0)?$/)
 
-    // The form is in imperial by default, so 185 lb is about 83.9 kg in the profile.
+    // 185 lb is about 83.9 kg, which is what the profile keeps.
     await expect.poll(() => profileMassKg(page)).toBeCloseTo(83.91, 1)
 
     await page.reload()

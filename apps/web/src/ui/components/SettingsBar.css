@@ -16,3 +16,10 @@
   color: var(--text-muted);
   font-size: 0.875rem;
 }
+
+/* Kept as a line of its own so a saved or failed change does not move the fields below it. */
+.settings-bar__status {
+  min-height: 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}

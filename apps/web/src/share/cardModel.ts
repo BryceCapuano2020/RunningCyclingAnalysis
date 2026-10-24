@@ -116,6 +116,8 @@ function splitFigure(value: string): ShareFigure {
 }
 
 /** What to add to see a sport's estimate: its first activities, or harder ones when it has some. */
+const RIDE_NEEDS_WEIGHT = 'Add your weight to see the ride estimate'
+
 function promptFor(sport: Sport, count: number): string {
   return count === 0
     ? `Add ${SPORT_PLURAL[sport]} to see the balance`
@@ -128,9 +130,14 @@ function heroFor(
   settings: AthleteSettings,
   units: UnitSystem,
   count: number,
+  weightKnown: boolean,
 ): ShareHero {
   // Says "estimated" as the page's threshold label does, with the noun in lower case.
   const label = `${SPORT_TITLE[sport]} ${THRESHOLD_NOUN[sport]}, estimated`
+  // A ride's estimate is in watts and W/kg, both worked out from body weight, so it waits for one.
+  if (sport === 'ride' && !weightKnown) {
+    return { sport, label, figure: null, sub: null, prompt: RIDE_NEEDS_WEIGHT }
+  }
   const estimate = threshold(result, sport, settings.massKg, units)
   if (estimate === null) {
     return { sport, label, figure: null, sub: null, prompt: promptFor(sport, count) }
@@ -166,15 +173,19 @@ export function buildShareCard(
   units: UnitSystem,
   rangeDays: number | null,
   isSample: boolean,
-  effort: EffortCheck | null = null,
+  effort: EffortCheck | null,
+  weightKnown: boolean,
 ): ShareCardModel | null {
   if (!hasShareableContent(result)) return null
-  const pick = pickHeadline(result.comparison)
+  // The balance is worked out from the ride, so it is left off the card until a weight is entered.
+  const pick = weightKnown ? pickHeadline(result.comparison) : null
   const counts: Record<Sport, number> = {
     run: countSport(result.activities, 'run'),
     ride: countSport(result.activities, 'ride'),
   }
-  const heroes = SPORTS.map((sport) => heroFor(result, sport, settings, units, counts[sport]))
+  const heroes = SPORTS.map((sport) =>
+    heroFor(result, sport, settings, units, counts[sport], weightKnown),
+  )
 
   return {
     title: APP_NAME,

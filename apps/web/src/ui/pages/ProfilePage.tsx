@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { Sex } from '@rca/contract'
 import { PrivacyNote, SegmentedControl, SettingsBar } from '../components'
@@ -8,13 +7,14 @@ import { AthleteFields } from '../components/AthleteFields'
 import { FileRetention } from '../components/FileRetention'
 import { SavedLibraryCard } from '../components/SavedLibraryCard'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear } from '../athlete'
+import type { WeightSettings } from '../athlete'
 import type { AnalysisController } from '../useAnalysis'
 import type { ProfilePatch } from '../profilePatch'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 export interface ProfilePageProps {
   analysis: AnalysisController
-  settings: AthleteSettings
+  settings: WeightSettings
   units: UnitSystem
   birthYear: number | null
   sex: Sex | null
@@ -25,7 +25,8 @@ export interface ProfilePageProps {
   email: string | null
   keepFiles: boolean
   fileRetentionAvailable: boolean
-  onSaveProfile: (next: ProfilePatch) => void
+  /** Resolves once the change is saved, and rejects with the reason when it is not. */
+  onSaveProfile: (next: ProfilePatch) => Promise<void>
   /** Resolves with the account's data as a JSON file. Used only when signed in. */
   onDownloadData: () => Promise<Blob>
   /** Resolves when the account is gone. Used only when signed in. */
@@ -56,6 +57,12 @@ export function ProfilePage({
   const [yearError, setYearError] = useState<string | null>(null)
   const canStartOver = !signedIn && analysis.state.result !== null
 
+  // Only the weight bar shows a failed save, since it keeps the text to correct. Other changes keep
+  // their saved value and say nothing when they are refused.
+  function saveQuietly(next: ProfilePatch) {
+    void onSaveProfile(next).catch(() => undefined)
+  }
+
   function commitYear() {
     if (yearDraft === null) return
     const read = readBirthYear(yearDraft)
@@ -65,7 +72,7 @@ export function ProfilePage({
     }
     setYearDraft(null)
     setYearError(null)
-    if (read.year !== birthYear) onSaveProfile({ birthYear: read.year })
+    if (read.year !== birthYear) saveQuietly({ birthYear: read.year })
   }
 
   return (
@@ -92,7 +99,7 @@ export function ProfilePage({
             setYearDraft(text)
           }}
           onBirthYearCommit={commitYear}
-          onSexChange={(next) => onSaveProfile({ sex: next })}
+          onSexChange={(next) => saveQuietly({ sex: next })}
         />
       </section>
 
@@ -103,7 +110,7 @@ export function ProfilePage({
           legendHidden
           options={UNIT_OPTIONS}
           selected={units}
-          onSelect={(next) => onSaveProfile({ units: next })}
+          onSelect={(next) => saveQuietly({ units: next })}
         />
       </section>
 
@@ -132,7 +139,7 @@ export function ProfilePage({
           <FileRetention
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
-            onChange={(next) => onSaveProfile({ keepFiles: next })}
+            onChange={(next) => saveQuietly({ keepFiles: next })}
           />
         </section>
       )}

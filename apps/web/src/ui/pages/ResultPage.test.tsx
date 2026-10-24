@@ -15,7 +15,7 @@ afterEach(() => {
 
 const PROFILE_PROMPT = 'Add your year of birth and sex on your profile to see age-graded levels.'
 
-function renderPage(route: Route, birthYear: number | null, sex: Sex | null) {
+function renderPage(route: Route, birthYear: number | null, sex: Sex | null, weightKnown = true) {
   const result = makeResult({
     runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
   })
@@ -25,6 +25,7 @@ function renderPage(route: Route, birthYear: number | null, sex: Sex | null) {
       analysis={analysisStub()}
       result={result}
       settings={{ massKg: 75, bikeMassKg: 9 }}
+      weightKnown={weightKnown}
       units="metric"
       birthYear={birthYear}
       sex={sex}
@@ -70,6 +71,7 @@ describe('ResultPage sport trend', () => {
         analysis={analysisStub()}
         result={result}
         settings={{ massKg: 75, bikeMassKg: 9 }}
+        weightKnown
         units="metric"
         birthYear={null}
         sex={null}
@@ -93,5 +95,22 @@ describe('ResultPage sport trend', () => {
         name: '20 min',
       }),
     ).toBeChecked()
+  })
+})
+
+describe('ResultPage Ride with no weight entered', () => {
+  it('says the ride figures use the placeholder until a weight is entered', () => {
+    renderPage({ page: 'ride' }, null, null, false)
+    expect(
+      screen.getByText(/Ride figures use 75 kg until you add your weight on/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no such line on Run, or once a weight is entered', () => {
+    renderPage({ page: 'run' }, null, null, false)
+    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+    cleanup()
+    renderPage({ page: 'ride' }, null, null, true)
+    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
   })
 })

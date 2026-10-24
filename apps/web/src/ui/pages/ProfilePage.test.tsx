@@ -27,7 +27,7 @@ function renderProfile(
   overrides: Partial<Omit<ProfilePageProps, 'analysis'>> = {},
   analysis: AnalysisStubOverrides = {},
 ) {
-  const onSaveProfile = vi.fn()
+  const onSaveProfile = vi.fn(async () => undefined)
   const onStartOver = vi.fn()
   const onDownloadData = vi.fn(async () => new Blob())
   const onDeleteAccount = vi.fn(async () => {})
@@ -67,10 +67,10 @@ describe('ProfilePage settings', () => {
 
     const section = screen.getByRole('region', { name: 'You and your bike' })
     expect(within(section).getByLabelText('Body weight')).toHaveValue('75')
-    expect(within(section).getByLabelText('Bike and kit weight')).toHaveValue('9')
+    expect(within(section).getByLabelText('Bike and gear weight')).toHaveValue('9')
   })
 
-  it('saves a changed body weight with the bike weight kept', () => {
+  it('saves only the body weight that changed', () => {
     const { onSaveProfile } = renderProfile()
 
     const body = screen.getByLabelText('Body weight')
@@ -78,7 +78,18 @@ describe('ProfilePage settings', () => {
     fireEvent.blur(body)
 
     expect(onSaveProfile).toHaveBeenCalledOnce()
-    expect(onSaveProfile).toHaveBeenCalledWith({ settings: { massKg: 80, bikeMassKg: 9 } })
+    expect(onSaveProfile).toHaveBeenCalledWith({ settings: { massKg: 80 } })
+  })
+
+  it('says the weight was not saved when the account write is refused', async () => {
+    renderProfile({ onSaveProfile: vi.fn(() => Promise.reject(new Error('offline'))) })
+
+    const body = screen.getByLabelText('Body weight')
+    fireEvent.change(body, { target: { value: '80' } })
+    fireEvent.blur(body)
+
+    expect(await screen.findByText("Couldn't save. Try again.")).toBeInTheDocument()
+    expect(body).toHaveValue('80')
   })
 
   it('shows the year of birth and sex, and saves a year when it is left', () => {

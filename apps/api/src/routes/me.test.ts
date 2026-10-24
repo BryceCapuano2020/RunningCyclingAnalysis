@@ -75,9 +75,9 @@ describe('GET /api/me', () => {
     expect(await res.json()).toEqual({
       user: { id: expect.any(String), email: 'rider@example.com', name: 'Rider', pictureUrl: null },
       profile: {
-        massKg: 75,
+        massKg: null,
         bikeMassKg: 9,
-        units: 'imperial',
+        units: 'metric',
         keepFiles: false,
         birthYear: null,
         sex: null,
@@ -87,13 +87,25 @@ describe('GET /api/me', () => {
     })
   })
 
-  it('creates a missing profile with the defaults', async () => {
+  it('creates a missing profile with the defaults, and no body mass', async () => {
     const h = createHarness()
     const token = await h.signIn()
     await h.env.DB.prepare('DELETE FROM profiles').run()
     const res = await h.send({ path: '/api/me', cookies: { rca_session: token } })
-    expect(await res.json()).toMatchObject({ profile: { massKg: 75, keepFiles: false } })
+    expect(await res.json()).toMatchObject({ profile: { massKg: null, keepFiles: false } })
     expect(await countRows(h, 'profiles')).toBe(1)
+  })
+
+  it('creates a missing profile in the units of the request language', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.env.DB.prepare('DELETE FROM profiles').run()
+    const res = await h.send({
+      path: '/api/me',
+      cookies: { rca_session: token },
+      headers: { 'accept-language': 'en-US,en;q=0.9' },
+    })
+    expect(await res.json()).toMatchObject({ profile: { units: 'imperial' } })
   })
 
   it('reports unavailable retention and keeps new profiles off in a D1-only deployment', async () => {
@@ -239,6 +251,61 @@ describe('PUT /api/profile', () => {
     expect(await countRows(h, 'profiles')).toBe(1)
   })
 
+  it('creates the profile with no body mass when it is sent as null', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.env.DB.prepare('DELETE FROM profiles').run()
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...profileInput, massKg: null },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ massKg: null, bikeMassKg: 10 })
+    expect(await countRows(h, 'profiles')).toBe(1)
+  })
+
+  it('clears a saved body mass when it is sent as null, and keeps the bike mass', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: profileInput,
+      cookies: { rca_session: token },
+    })
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { ...profileInput, massKg: null },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ massKg: null, bikeMassKg: 10 })
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({ profile: { massKg: null, bikeMassKg: 10 } })
+  })
+
+  it('keeps the saved body mass when a write leaves it out', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: profileInput,
+      cookies: { rca_session: token },
+    })
+    const res = await h.send({
+      method: 'PUT',
+      path: '/api/profile',
+      json: { bikeMassKg: 10, units: 'metric', keepFiles: false },
+      cookies: { rca_session: token },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ massKg: 80 })
+  })
+
   it('accepts the bounds of each field', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -263,11 +330,11 @@ describe('PUT /api/profile', () => {
       { massKg: 29.9 },
       { massKg: 200.1 },
       { massKg: 'heavy' },
+      { massKg: '80' },
       { bikeMassKg: 2.9 },
       { bikeMassKg: 30.1 },
       { units: 'furlongs' },
       { keepFiles: 'yes' },
-      { massKg: undefined },
       { birthYear: 1899 },
       { birthYear: 2101 },
       { birthYear: 1985.5 },
@@ -316,7 +383,7 @@ describe('PUT /api/profile', () => {
       cookies: { rca_session: alice },
     })
     const bobMe = await h.send({ path: '/api/me', cookies: { rca_session: bob } })
-    expect(await bobMe.json()).toMatchObject({ profile: { massKg: 75, keepFiles: false } })
+    expect(await bobMe.json()).toMatchObject({ profile: { massKg: null, keepFiles: false } })
   })
 })
 

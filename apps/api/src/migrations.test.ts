@@ -187,6 +187,56 @@ describe('migrations', () => {
     }
   })
 
+  it('lets the body mass be null, and keeps every profile row through the rebuild', () => {
+    const tags = journalTags()
+    const cut = tags.indexOf('0006_profile_age_sex')
+    expect(cut).toBeGreaterThan(0)
+    const db = new DatabaseSync(':memory:')
+    try {
+      db.exec('PRAGMA foreign_keys = ON')
+      for (const tag of tags.slice(0, cut + 1)) applyMigration(db, tag)
+      db.exec(`
+        INSERT INTO users (id, email, name, picture_url, created_at)
+          VALUES ('u1', 'a@example.test', 'A', NULL, 1), ('u2', 'b@example.test', 'B', NULL, 1);
+        INSERT INTO profiles (user_id, mass_kg, bike_mass_kg, units, keep_files, updated_at,
+          birth_year, sex) VALUES
+          ('u1', 75, 9, 'imperial', 1, 1, 1980, 'female'),
+          ('u2', 82.5, 11, 'metric', 0, 2, NULL, NULL);
+      `)
+      const before = db.prepare('SELECT * FROM profiles ORDER BY user_id').all()
+
+      for (const tag of tags.slice(cut + 1)) applyMigration(db, tag)
+
+      // The stored masses, including the old 75 kg default, are kept as they were.
+      expect(db.prepare('SELECT * FROM profiles ORDER BY user_id').all()).toEqual(before)
+      db.exec(`
+        INSERT INTO users (id, email, name, picture_url, created_at)
+          VALUES ('u3', 'c@example.test', 'C', NULL, 1);
+        INSERT INTO profiles (user_id, mass_kg, bike_mass_kg, units, keep_files, updated_at)
+          VALUES ('u3', NULL, 9, 'metric', 0, 3);
+      `)
+      expect(db.prepare("SELECT mass_kg FROM profiles WHERE user_id = 'u3'").get()).toEqual({
+        mass_kg: null,
+      })
+      db.exec("UPDATE profiles SET mass_kg = NULL WHERE user_id = 'u1'")
+      expect(() => db.exec("UPDATE profiles SET sex = 'other' WHERE user_id = 'u1'")).toThrow(
+        /CHECK constraint/,
+      )
+      expect(() => db.exec("UPDATE profiles SET bike_mass_kg = NULL WHERE user_id = 'u1'")).toThrow(
+        /NOT NULL/,
+      )
+      db.exec("DELETE FROM users WHERE id = 'u1'")
+      expect(db.prepare('SELECT user_id FROM profiles ORDER BY user_id').all()).toEqual([
+        { user_id: 'u2' },
+        { user_id: 'u3' },
+      ])
+      expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+      expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
+    } finally {
+      db.close()
+    }
+  })
+
   it('creates the indexes and tables that the new code relies on', () => {
     const db = new DatabaseSync(':memory:')
     try {
@@ -213,23 +263,36 @@ describe('migrations', () => {
 })
 
 describe('schema', () => {
-  it('declares every column the migrated database has, with the same nullability', () => {
+  it('declares every column the migrated database has, with the same type, nullability and key', () => {
     const db = new DatabaseSync(':memory:')
     try {
       db.exec('PRAGMA foreign_keys = ON')
       for (const tag of journalTags()) applyMigration(db, tag)
       for (const table of Object.values(schema)) {
         const config = getTableConfig(table)
+        // A composite key is declared on the table, so a member column is not `primary` on its own.
+        const keyed = new Set(
+          config.primaryKeys.flatMap((key) => key.columns.map((column) => column.name)),
+        )
         const declared = config.columns.map((column) => ({
           name: column.name,
+          type: column.getSQLType().toLowerCase(),
           notNull: column.notNull,
+          primaryKey: column.primary || keyed.has(column.name),
         }))
         const migrated = (
           db.prepare(`PRAGMA table_info(\`${config.name}\`)`).all() as {
             name: string
+            type: string
             notnull: number
+            pk: number
           }[]
-        ).map((column) => ({ name: column.name, notNull: column.notnull === 1 }))
+        ).map((column) => ({
+          name: column.name,
+          type: column.type.toLowerCase(),
+          notNull: column.notnull === 1,
+          primaryKey: column.pk > 0,
+        }))
         const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
         expect(declared.sort(byName), config.name).toEqual(migrated.sort(byName))
       }

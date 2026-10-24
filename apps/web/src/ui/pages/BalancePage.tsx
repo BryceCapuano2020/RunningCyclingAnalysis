@@ -6,6 +6,7 @@ import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { TrendChart } from '../charts'
 import { ShareImageButton, pickHeadline } from '../components'
+import { WeightNote } from '../components/WeightNote'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
 import type { AgeProfile } from '../grades'
@@ -26,6 +27,8 @@ export interface BalancePageProps {
   profile: AgeProfile | null
   /** The period control, shown beside the heading. */
   controls: ReactNode
+  /** False while no body weight is entered, so the share card leaves out what needs one. */
+  weightKnown: boolean
 }
 
 /**
@@ -39,6 +42,7 @@ export function BalancePage({
   units,
   profile,
   controls,
+  weightKnown,
 }: BalancePageProps) {
   const { isSample, rangeDays, trend } = analysis.state
   const pick = pickHeadline(result.comparison)
@@ -59,6 +63,8 @@ export function BalancePage({
       </div>
 
       <BalanceHero result={result} pick={pick} />
+
+      {!weightKnown && <WeightNote />}
 
       <div className="balance__sports">
         <SportCard
@@ -122,6 +128,7 @@ export function BalancePage({
           rangeDays={rangeDays}
           isSample={isSample}
           effort={effort}
+          weightKnown={weightKnown}
           disabled={analysis.busy}
         />
       </div>

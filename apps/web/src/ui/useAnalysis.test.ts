@@ -322,6 +322,30 @@ describe('useAnalysis account handling', () => {
     })
   })
 
+  it('imports a signed-in profile with no body mass on the analysis placeholder, not on null', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const { result } = setup(account)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    await act(async () => {
+      const saved = meWith(true)
+      finish({ ...saved, profile: { ...saved.profile, massKg: null, bikeMassKg: 12 } })
+      await Promise.resolve()
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: { massKg: 75, bikeMassKg: 12 },
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
   it('reports a profile-write failure and does not silently import with retention off', async () => {
     const failure = new Error('profile save failed')
     const account: Account = {

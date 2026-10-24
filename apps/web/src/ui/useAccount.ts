@@ -43,17 +43,18 @@ function isUnauthenticated(failure: unknown): boolean {
 }
 
 /**
- * The saved profile with only the given fields changed. The settings are always sent, with their
- * saved values standing in. The optional year of birth and sex are sent only when the patch sets
- * them, so a write that does not mention them leaves the server's values alone.
+ * The saved profile with only the given fields changed. The bike mass and the required settings are
+ * sent with their saved values standing in. The body mass, the optional year of birth and sex are
+ * sent only when the patch sets them, so a write that does not mention them leaves the server's
+ * values alone. A body mass the patch sets, null included, is sent as it is, so null clears it.
  */
 function mergeProfile(saved: Profile, patch: Partial<ProfileInput>): ProfileInput {
   const fields: ProfileInput = {
-    massKg: patch.massKg ?? saved.massKg,
     bikeMassKg: patch.bikeMassKg ?? saved.bikeMassKg,
     units: patch.units ?? saved.units,
     keepFiles: patch.keepFiles ?? saved.keepFiles,
   }
+  if (patch.massKg !== undefined) fields.massKg = patch.massKg
   if (patch.birthYear !== undefined) fields.birthYear = patch.birthYear
   if (patch.sex !== undefined) fields.sex = patch.sex
   return fields

@@ -35,6 +35,7 @@ function renderButton(overrides: Partial<Parameters<typeof ShareImageButton>[0]>
       rangeDays={42}
       isSample={false}
       effort={null}
+      weightKnown
       disabled={false}
       {...overrides}
     />,

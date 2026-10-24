@@ -133,7 +133,7 @@ describe('setup before the first import, signed in', () => {
     await user.type(weight, '80')
     await user.click(panel.getByRole('button', { name: 'Analyse my files' }))
 
-    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 9 })
+    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80 })
     await waitFor(() => expect(app.analysis.addFiles).toHaveBeenCalledTimes(1))
     expect(localStorage.getItem(SETUP_KEY)).toBe('1')
     expect(dialog()).not.toBeInTheDocument()
