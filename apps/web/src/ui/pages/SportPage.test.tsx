@@ -210,7 +210,7 @@ describe('SportPage age grades', () => {
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
     expect(
-      within(recordNamed(records, 'Best 20 min')).getByText('Estimated age grade 67.6% · Local'),
+      within(recordNamed(records, 'Best 20 min')).getByText('Estimated age grade 67% · Local'),
     ).toBeInTheDocument()
   })
 
@@ -251,7 +251,7 @@ describe('SportPage age grades', () => {
     const records = screen.getByRole('region', { name: 'Best efforts' })
     expect(
       within(recordNamed(records, 'Best 20 min')).getByText(
-        'Estimated age grade 67.6% · Local (63–71.5%)',
+        'Estimated age grade 67% · Local (63–71%)',
       ),
     ).toBeInTheDocument()
   })

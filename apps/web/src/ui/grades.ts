@@ -5,7 +5,6 @@ import {
   LAST_GRADED_AGE,
   ageAt,
   ageGradeForEffort,
-  gradePercent,
   levelOf,
 } from '@rca/core/grade'
 import type { Sex } from '@rca/core/grade'
@@ -13,6 +12,7 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
+import { formatGrade, wholeGrade } from './gradeFormat'
 import { curveOf } from './records'
 
 /** The year of birth and sex that every grade needs. Null on the page when either is missing. */
@@ -21,16 +21,20 @@ export interface AgeProfile {
   sex: Sex
 }
 
+/** The profile the grades need, or null while the year of birth or the sex is missing. */
+export function ageProfileOf(birthYear: number | null, sex: Sex | null): AgeProfile | null {
+  return birthYear !== null && sex !== null ? { birthYear, sex } : null
+}
+
 /** The athlete's age on the date of an effort, with their sex. */
 export interface Athlete {
   age: number
   sex: Sex
 }
 
-/** An age grade: the fraction, its percentage to one decimal place (rounded down) and its level. */
+/** An age grade: the fraction and its level. Its whole percent is `wholeGrade`, and its text `formatGrade`. */
 export interface Grade {
   grade: number
-  percent: number
   level: string
 }
 
@@ -86,9 +90,8 @@ export function athleteOf(profile: AgeProfile, atMs: number): Athlete | null {
 
 function gradeOf(grade: number | null): Grade | null {
   if (grade === null) return null
-  const percent = gradePercent(grade)
   const level = levelOf(grade)
-  return percent === null || level === null ? null : { grade, percent, level }
+  return level === null ? null : { grade, level }
 }
 
 function gap(reason: string): GradeOutcome {
@@ -180,9 +183,11 @@ export function gradedSexOf(
  * brackets: "Estimated age grade 47% · Recreational (44–50%)".
  */
 export function gradeSentence(grade: SportGrade): string {
-  const sentence = `Estimated age grade ${grade.centre.percent}% · ${grade.centre.level}`
+  const sentence = `Estimated age grade ${formatGrade(grade.centre.grade)} · ${grade.centre.level}`
   const range = grade.range
-  return range ? `${sentence} (${range.low.percent}–${range.high.percent}%)` : sentence
+  return range
+    ? `${sentence} (${wholeGrade(range.low.grade)}–${formatGrade(range.high.grade)})`
+    : sentence
 }
 
 /** A record's grade sentence, or null when the outcome is a gap. */

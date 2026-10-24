@@ -25,6 +25,8 @@ import {
   sportGrade,
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
+import { formatGrade } from './gradeFormat'
+import { ageProfileOf } from './grades'
 
 /** A date in 2026, the year the fixtures use, and an old one for an effort set long ago. */
 const IN_2026 = new Date(2026, 2, 1).getTime()
@@ -66,7 +68,7 @@ describe('sportGrade for a run', () => {
     expect(outcome.kind).toBe('graded')
     if (outcome.kind !== 'graded') return
     expect(outcome.age).toBe(40)
-    expect(outcome.grade.centre.percent).toBe(67.6)
+    expect(formatGrade(outcome.grade.centre.grade)).toBe('67%')
     expect(outcome.grade.centre.level).toBe('Local')
     expect(outcome.grade.range).toBeNull()
   })
@@ -83,7 +85,7 @@ describe('sportGrade for a run', () => {
     const outcome = sportGrade(result, 'run', HEADLINE_DURATION_S, MAN_BORN_1986)
     expect(outcome).toMatchObject({ kind: 'graded', age: 14 })
     const grade = gradeOf(outcome)
-    expect(grade.centre.percent).toBe(66.6)
+    expect(formatGrade(grade.centre.grade)).toBe('66%')
     expect(grade.centre.level).toBe('Local')
   })
 
@@ -152,10 +154,10 @@ describe('sportGrade for a ride', () => {
       equivalents: [rideEquivalent],
     })
     const grade = gradeOf(sportGrade(result, 'ride', HEADLINE_DURATION_S, MAN_BORN_1986))
-    expect(grade.centre.percent).toBe(67.6)
+    expect(formatGrade(grade.centre.grade)).toBe('67%')
     expect(grade.centre.level).toBe('Local')
-    expect(grade.range?.low.percent).toBe(63)
-    expect(grade.range?.high.percent).toBe(71.5)
+    expect(formatGrade(grade.range?.low.grade ?? 0)).toBe('63%')
+    expect(formatGrade(grade.range?.high.grade ?? 0)).toBe('71%')
     expect(grade.range?.high.level).toBe('Regional')
   })
 
@@ -172,9 +174,9 @@ describe('sportGrade for a ride', () => {
     const outcome = sportGrade(result, 'ride', HEADLINE_DURATION_S, MAN_BORN_1986)
     expect(outcome).toMatchObject({ kind: 'graded', age: 14 })
     const grade = gradeOf(outcome)
-    expect(grade.centre.percent).toBe(66.6)
-    expect(grade.range?.low.percent).toBe(62.2)
-    expect(grade.range?.high.percent).toBe(70.8)
+    expect(formatGrade(grade.centre.grade)).toBe('66%')
+    expect(formatGrade(grade.range?.low.grade ?? 0)).toBe('62%')
+    expect(formatGrade(grade.range?.high.grade ?? 0)).toBe('70%')
   })
 
   it('is a gap when there is a best ride at that duration but no equivalent for it', () => {
@@ -235,7 +237,7 @@ describe('grade sentences', () => {
         MAN_BORN_1986,
       ),
     )
-    expect(gradeSentence(grade)).toBe('Estimated age grade 67.6% · Local')
+    expect(gradeSentence(grade)).toBe('Estimated age grade 67% · Local')
   })
 
   it('adds a ride’s range in brackets', () => {
@@ -251,7 +253,7 @@ describe('grade sentences', () => {
         MAN_BORN_1986,
       ),
     )
-    expect(gradeSentence(grade)).toBe('Estimated age grade 66.6% · Local (62.2–70.8%)')
+    expect(gradeSentence(grade)).toBe('Estimated age grade 66% · Local (62–70%)')
   })
 
   it('gives no sentence for a gap', () => {
@@ -273,5 +275,16 @@ describe('level bands and sex', () => {
 
   it('names each sex as a noun for the sentence', () => {
     expect(SEX_NOUN).toEqual({ female: 'woman', male: 'man' })
+  })
+})
+
+describe('ageProfileOf', () => {
+  it('is the profile the grades need once both the year of birth and the sex are known', () => {
+    expect(ageProfileOf(1986, 'male')).toEqual({ birthYear: 1986, sex: 'male' })
+  })
+
+  it('is null while either the year of birth or the sex is missing', () => {
+    expect(ageProfileOf(null, 'male')).toBeNull()
+    expect(ageProfileOf(1986, null)).toBeNull()
   })
 })

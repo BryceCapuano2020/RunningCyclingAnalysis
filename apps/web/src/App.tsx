@@ -8,6 +8,7 @@ import { SetupDialog } from './ui/components/SetupDialog'
 import { LandingPage } from './ui/pages/LandingPage'
 import { WAITING_FOR_ACCOUNT } from './ui/analysis/copy'
 import { listedMoves } from './ui/analysis/whatMoved'
+import { ageProfileOf } from './ui/grades'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { ResultPage } from './ui/pages/ResultPage'
@@ -57,6 +58,8 @@ export function App() {
   const { settings, units } = athleteValues
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   const analysisAthlete = analysisSettings(settings)
+  // The year of birth and sex the grades need, or null while either is missing.
+  const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
 
   // Keeps the saved preferences showing the athlete's values, so a later sign-out shows them.
@@ -76,6 +79,8 @@ export function App() {
   }
 
   const analysis = useAnalysis(analysisAthlete, account)
+  // Sample data carries its own persona weight, so it is weighted whatever the visitor has entered.
+  const weighted = analysis.state.isSample || weightKnown(settings)
   // Called after useAnalysis, so its settings are in place before held files are sent.
   const setup = useSetup({
     status: account.status,
@@ -88,7 +93,7 @@ export function App() {
   const accountWait = account.status === 'loading' && setup.held > 0
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
-  const moved = listedMoves(analysis.importChange, analysisAthlete, units)
+  const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
   const key = pageKey(route, hasResult)
 
   // A new page replaces the old one, so focus moves to the new page's heading and the page shows
@@ -237,7 +242,7 @@ export function App() {
             analysis={analysis}
             result={analysis.state.result}
             settings={analysisAthlete}
-            weightKnown={weightKnown(settings)}
+            weightKnown={weighted}
             units={units}
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}

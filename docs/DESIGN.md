@@ -115,6 +115,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
   six-week period uses two-week windows. Every point's window lies inside the period, and a value
   holds until a faster effort or the window passes.
+- The balance meter spans the card row, so its centre is the gap between the two cards. Running is
+  on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
+  the cards, the meter, the landing example and the share card all follow it. The meter plots the
+  age-grade gap in whole points, with the range as a band and the best estimate as a dot. Ticks sit at
+  10, 20 and 30 points either side of the centre, and a lead past 30 is drawn at the end, marked "30+"
+  ("30%+" in percent). The best estimate is printed over the dot as "6 pts". Its scale is the gap in
+  points when both sports are graded, and the energy ratio in percent when they are not. The track has
+  a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
+  its glyph. The key under it gives the range in words: "Band: the ride's 90% range".
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
   the drawing. A run's estimate, from one activity, is a solid dot in the sport's colour. A ride's
   estimate is a ring over an outlined band for its model range. Band edges are ticks, not fill.
@@ -141,6 +150,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
+- **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
+  than your cycling, on your best 20 minutes in each." When the gap's range spans zero, the best
+  estimate is named and the range is given: "On the age-grade best estimate, running grades 4 points
+  higher, but the range (−2 to +10 points) includes zero, so the two are in balance." When the best
+  estimate is level: "On the age-grade best estimate, running and cycling grade the same, and the range
+  (−2 to +2 points) includes zero, so the two are in balance." Never "ahead of". Without an age and
+  sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
+  cycling once both are put on the same energy scale." The prompt says that adding them shows the
+  balance in points and levels.
+- **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
+  every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
+  reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "metabolic W/kg" belong on How sure is this?, not on the surface. A plain
   phrase such as "on the same energy scale" may explain the balance.
@@ -161,8 +182,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   written the same way in sentences, labels and this document. Never call a level weak, a limiter
   or a weakness, and never give a percentile.
 - **Every grade is an estimate.** A run's grade comes from one activity's grade-adjusted pace, so
-  it is written "Estimated age grade". A ride's grade is estimated through its equal-energy running
-  pace, and it shows its model range rather than one number.
+  it is written "Estimated age grade". A ride's grade is estimated through its running
+  equivalent, and it shows its model range rather than one number.
 - **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
   standards". The full credit, with the authors, licence and a link, is on the Balance source line,
   the record list's source line and How sure is this?.

@@ -1,18 +1,14 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { AthleteSettings, EffortCheck, Interval, Sport } from '@rca/core/types'
+import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { APP_NAME } from '../appName'
-import {
-  HARDER_EFFORTS_TITLE,
-  effortCaveat,
-  headlineText,
-  leanOf,
-  type Lean,
-} from '../ui/components/headlineText'
+import type { BalanceGap } from '../ui/balanceGap'
+import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
+import { HARDER_EFFORTS_TITLE, balanceTitle, effortCaveat } from '../ui/components/headlineText'
 import { pickHeadline } from '../ui/components/pickHeadline'
 import { rangePeriod } from '../ui/components/rangeOptions'
 import { countSport, threshold } from '../ui/records'
-import { SPORT_NOUN, SPORT_PLURAL, SPORT_TITLE, THRESHOLD_NOUN } from '../ui/sports'
+import { SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL, SPORT_TITLE, THRESHOLD_NOUN } from '../ui/sports'
 import { hasShareableContent } from './hasShareableContent'
 
 /** An estimate's number and unit, so that the unit can be set smaller than the number. */
@@ -34,11 +30,8 @@ export interface ShareHero {
   prompt: string | null
 }
 
-/** The balance between the sports: the 90% range of running over cycling, and which way it leans. */
-export interface ShareMeter {
-  lean: Lean
-  ratio: Interval
-}
+/** The balance between the sports, read the same way as the page's meter. */
+export type ShareMeter = BalanceReading
 
 /**
  * Everything the share card shows. Built from the analysis on screen; it holds no account, file,
@@ -52,7 +45,7 @@ export interface ShareCardModel {
    * others, who did not add them.
    */
   headline: string
-  /** The balance, or null while the two sports cannot be compared. */
+  /** The balance, or null while neither a grade gap nor an energy comparison exists. */
   meter: ShareMeter | null
   /** Running first, then cycling. */
   heroes: ShareHero[]
@@ -68,8 +61,6 @@ export interface ShareCardModel {
 
 /** The card's own words for what it is: the owner's estimate, comparing two sports, not a ranking. */
 const FOOTNOTE = 'Estimated from my own files. Compares my two sports; not a ranking.'
-
-const SPORTS: Sport[] = ['run', 'ride']
 
 const PRIVATE_IPV4 = [
   /^0\.0\.0\.0$/,
@@ -156,7 +147,7 @@ function heroFor(
  * or the shared harder-efforts title when both sports are on file.
  */
 function headlineWithoutComparison(counts: Record<Sport, number>): string {
-  const withActivities = SPORTS.filter((sport) => counts[sport] > 0)
+  const withActivities = SPORT_ORDER.filter((sport) => counts[sport] > 0)
   const [only, ...rest] = withActivities
   if (only !== undefined && rest.length === 0) return `Your ${SPORT_NOUN[only]} so far`
   return HARDER_EFFORTS_TITLE
@@ -164,8 +155,8 @@ function headlineWithoutComparison(counts: Record<Sport, number>): string {
 
 /**
  * The card for the balance on screen, or null when there is neither a comparison nor a sport's
- * estimate to share. Reads the same results and formatters as the page, so the card cannot
- * disagree with it.
+ * estimate to share. Reads the same results, grade gap and formatters as the page, so the card
+ * cannot disagree with it.
  */
 export function buildShareCard(
   result: AnalysisResult,
@@ -175,22 +166,24 @@ export function buildShareCard(
   isSample: boolean,
   effort: EffortCheck | null,
   weightKnown: boolean,
+  gap: BalanceGap | null,
 ): ShareCardModel | null {
   if (!hasShareableContent(result)) return null
   // The balance is worked out from the ride, so it is left off the card until a weight is entered.
   const pick = weightKnown ? pickHeadline(result.comparison) : null
+  const reading = weightKnown ? balanceOfPick(gap, pick) : null
   const counts: Record<Sport, number> = {
     run: countSport(result.activities, 'run'),
     ride: countSport(result.activities, 'ride'),
   }
-  const heroes = SPORTS.map((sport) =>
+  const heroes = SPORT_ORDER.map((sport) =>
     heroFor(result, sport, settings, units, counts[sport], weightKnown),
   )
 
   return {
     title: APP_NAME,
-    headline: pick === null ? headlineWithoutComparison(counts) : headlineText(pick.point).title,
-    meter: pick === null ? null : { lean: leanOf(pick.point.ratio), ratio: pick.point.ratio },
+    headline: reading === null ? headlineWithoutComparison(counts) : balanceTitle(reading),
+    meter: reading,
     heroes,
     period: rangePeriod(rangeDays),
     caveat: effortCaveat(effort)?.short ?? null,

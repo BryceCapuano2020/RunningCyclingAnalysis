@@ -1,16 +1,12 @@
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { ALL_OUT_FRACTION as ALL_OUT, RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Comparison, ComparisonPoint, EffortCheck, Interval } from '@rca/core/types'
+import type { Comparison, ComparisonPoint, EffortCheck } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
-
-export interface HeadlineText {
-  /** The answer, in an athlete's words: which way your balance between the sports leans. */
-  title: string
-  /** How far apart the two sports are over the duration. */
-  summary: string
-  /** The 90% model range as signed percentages. */
-  range: string
-}
+import type { Lean } from '../balanceGap'
+import { plural } from './plural'
+import { SPORT_NOUN, SPORT_TITLE } from '../sports'
+import type { BalanceReading } from './balanceScale'
 
 /** What the comparison is and is not, on the results page and on the share card. */
 export const COMPARISON_DISCLAIMER =
@@ -19,56 +15,96 @@ export const COMPARISON_DISCLAIMER =
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
 export const HARDER_EFFORTS_TITLE = 'Your balance needs harder efforts'
 
-/** Which way the balance leans: a sport is ahead only when the whole 90% range says so. */
-export type Lean = 'run' | 'ride' | 'even'
-
-export function leanOf(ratio: Interval): Lean {
-  if (ratio.p05 > 1) return 'run'
-  if (ratio.p95 < 1) return 'ride'
-  return 'even'
-}
-
 const TITLE: Record<Lean, string> = {
   run: 'Your balance leans toward running',
   ride: 'Your balance leans toward cycling',
   even: 'Your running and cycling are in balance',
 }
 
-/**
- * How far the leading sport is ahead of the other, as a fraction of it: the centre of the range.
- * Running over cycling is the ratio; cycling over running is its inverse.
- */
-export function leadOf(ratio: Interval, lean: Exclude<Lean, 'even'>): number {
-  return (lean === 'run' ? ratio.p50 : 1 / ratio.p50) - 1
+/** The headline on the Balance page and the share card: which way the balance leans, or that it is even. */
+export function balanceTitle(reading: BalanceReading): string {
+  return TITLE[reading.lean]
+}
+
+/** A count of points in words: "1 point", "6 points". */
+function points(count: number): string {
+  return plural(count, 'point')
+}
+
+/** A signed count with a true minus sign, so an even range reads both ways: "−2", "+10". */
+function signedCount(count: number): string {
+  const rounded = Math.round(count)
+  if (rounded < 0) return `−${-rounded}`
+  return rounded > 0 ? `+${rounded}` : '0'
+}
+
+/** The sport that leads and the one it leads, as the nouns a sentence uses. */
+function leaderOf(lean: Exclude<Lean, 'even'>): { leader: string; other: string } {
+  return lean === 'run'
+    ? { leader: SPORT_NOUN.run, other: SPORT_NOUN.ride }
+    : { leader: SPORT_NOUN.ride, other: SPORT_NOUN.run }
 }
 
 /**
- * How far the leading sport is ahead, with its range, both as positive percentages of the other
- * sport. Cycling over running is the inverse, so its range runs from 1 / p95 to 1 / p05.
+ * The range of a balance, in words. A lean gives its size from the leading sport, so both ends are
+ * positive; an even balance is signed, running against cycling.
  */
-function aheadBy(ratio: Interval, lean: Exclude<Lean, 'even'>): { centre: string; range: string } {
-  const [low, high] = lean === 'run' ? [ratio.p05, ratio.p95] : [1 / ratio.p95, 1 / ratio.p05]
-  return {
-    centre: formatPercent(leadOf(ratio, lean)),
-    range: `${formatPercent(low - 1)} to ${formatPercent(high - 1)}`,
+export function rangeText({ unit, lean, lead }: BalanceReading): string {
+  if (unit === 'points') {
+    if (lean === 'even') return `${signedCount(lead.low)} to ${signedCount(lead.high)} points`
+    const [low, high] = lean === 'ride' ? [-lead.high, -lead.low] : [lead.low, lead.high]
+    return `${Math.round(low)} to ${plural(Math.round(high), 'point')}`
   }
-}
-
-function summaryFor(ratio: Interval, duration: string): string {
-  const lean = leanOf(ratio)
   if (lean === 'even') {
-    return `Over ${duration}, the gap between your running and your cycling is smaller than the model can tell apart.`
+    return `${formatPercent(lead.low / 100, true)} to ${formatPercent(lead.high / 100, true)}`
   }
-  const [ahead, behind] = lean === 'run' ? ['running', 'cycling'] : ['cycling', 'running']
-  return `Over ${duration}, your ${ahead} is about ${aheadBy(ratio, lean).centre} ahead of your ${behind} once both are put on the same energy scale.`
+  const [low, high] = lean === 'ride' ? [-lead.high, -lead.low] : [lead.low, lead.high]
+  return `${formatPercent(low / 100)} to ${formatPercent(high / 100)}`
 }
 
-/** The headline sentences for one comparison point. The results page and the share card both read them. */
-export function headlineText(point: ComparisonPoint): HeadlineText {
-  const duration = formatDuration(point.durationS)
+/** A leaning grade gap on the headline duration: "Your running grades 6 points higher than your cycling, ...". */
+function leaningGradeSummary(lean: Exclude<Lean, 'even'>, centre: number): string {
+  const { leader, other } = leaderOf(lean)
+  return (
+    `Your ${leader} grades ${points(Math.abs(Math.round(centre)))} higher than your ${other}, ` +
+    `on your best ${HEADLINE_DURATION_S / 60} minutes in each.`
+  )
+}
+
+/**
+ * A balance in range zero: the best estimate names the leading sport, and the range that includes
+ * zero says why the two are in balance.
+ */
+function inBalanceSummary(reading: BalanceReading): string {
+  const range = rangeText(reading)
+  const centre = Math.round(reading.lead.centre)
+  if (centre === 0) {
+    return `On the age-grade best estimate, running and cycling grade the same, and the range (${range}) includes zero, so the two are in balance.`
+  }
+  const { leader } = leaderOf(centre > 0 ? 'run' : 'ride')
+  return `On the age-grade best estimate, ${leader} grades ${points(Math.abs(centre))} higher, but the range (${range}) includes zero, so the two are in balance.`
+}
+
+/** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
+function energySummary({ lean, lead }: BalanceReading, duration: string): string {
+  if (lean === 'even') {
+    return `Over ${duration}, your running and your cycling are within the model's range of each other, once both are put on the same energy scale.`
+  }
+  const { leader, other } = leaderOf(lean)
+  const percent = formatPercent(Math.abs(lead.centre) / 100)
+  return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other} once both are put on the same energy scale.`
+}
+
+/** The summary under the headline. A grade gap is on the headline duration; the energy ratio on the duration given. */
+export function balanceSummary(reading: BalanceReading, durationS: number): string {
+  if (reading.unit === 'percent') return energySummary(reading, formatDuration(durationS))
+  if (reading.lean === 'even') return inBalanceSummary(reading)
+  return leaningGradeSummary(reading.lean, reading.lead.centre)
+}
+
+/** The 90% model range of the energy ratio, running against cycling, as the Method page quotes it. */
+export function headlineText(point: ComparisonPoint): { range: string } {
   return {
-    title: TITLE[leanOf(point.ratio)],
-    summary: summaryFor(point.ratio, duration),
     range:
       `Running against cycling, 90% model range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
       `${formatPercent(point.ratio.p95 - 1, true)}.`,
@@ -169,13 +205,22 @@ export function referenceText(result: AnalysisResult): string | null {
   return parts.length === 0 ? null : `Best efforts are judged against ${parts.join('; ')}.`
 }
 
-/** How far ahead one sport is, in words, for assistive technology and the caption. */
-export function balanceSentence(ratio: Interval): string {
-  const lean = leanOf(ratio)
-  if (lean === 'even') {
-    const range = `${formatPercent(ratio.p05 - 1, true)} to ${formatPercent(ratio.p95 - 1, true)}`
-    return `Even within the model's range (running against cycling ${range})`
+/**
+ * How the balance reads, in words, for assistive technology and the meter's caption: the leading
+ * sport, its lead and its range. An even grade gap names the best estimate and its range.
+ */
+export function balanceSentence(reading: BalanceReading): string {
+  const { unit, lean, lead } = reading
+  if (unit === 'points') {
+    if (lean === 'even') {
+      return `In balance: best estimate running ${signedCount(lead.centre)} points against cycling, range ${rangeText(reading)}`
+    }
+    const { other } = leaderOf(lean)
+    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(Math.round(lead.centre)))} higher than ${other} (range ${rangeText(reading)})`
   }
-  const { centre, range } = aheadBy(ratio, lean)
-  return `${lean === 'run' ? 'Running' : 'Cycling'} ahead by ${centre} (range ${range})`
+  if (lean === 'even') {
+    return `Even within the model's range (running against cycling ${rangeText(reading)})`
+  }
+  const percent = formatPercent(Math.abs(lead.centre) / 100)
+  return `${SPORT_TITLE[lean]} ${percent} higher on the energy scale (range ${rangeText(reading)})`
 }

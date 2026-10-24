@@ -24,7 +24,8 @@ const SAVED_COPY: Copy = {
   durationS: 3600,
 }
 
-const PROFILE_PROMPT = 'Add your year of birth and sex on your profile to see age-graded levels.'
+const PROFILE_PROMPT =
+  'Add your year of birth and sex on your profile to see the balance in points and levels.'
 
 function renderPage(route: Route, birthYear: number | null, sex: Sex | null, weightKnown = true) {
   const result = makeResult({
@@ -49,7 +50,7 @@ describe('ResultPage age grades', () => {
     renderPage({ page: 'balance' }, 1986, 'male')
 
     const run = screen.getByRole('region', { name: 'Run' })
-    expect(within(run).getByText('Estimated age grade 67.6% · Local')).toBeInTheDocument()
+    expect(within(run).getByText('Estimated age grade 67% · Local')).toBeInTheDocument()
     expect(screen.getByText(/Graded on the/)).toHaveTextContent(
       'for a man. Age is counted from your birth year on the date of each effort.',
     )

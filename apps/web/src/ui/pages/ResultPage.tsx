@@ -6,7 +6,7 @@ import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { previousPeriodLabel } from '../components/rangeOptions'
-import type { AgeProfile } from '../grades'
+import { ageProfileOf } from '../grades'
 import type { SavedActivity } from '../../worker/protocol'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
@@ -56,7 +56,7 @@ export function ResultPage({
 }: ResultPageProps) {
   const { rangeDays, totalActivities } = analysis.state
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
-  const profile: AgeProfile | null = birthYear !== null && sex !== null ? { birthYear, sex } : null
+  const profile = ageProfileOf(birthYear, sex)
   const period = (
     <RangePicker
       rangeDays={rangeDays}

@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { PRIORS } from '@rca/core/constants'
+import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Comparison, Interval } from '@rca/core/types'
 import { curvePoint } from '../charts/fixtures'
-import { comparisonPoint, interval, makeActivity, makeResult } from '../components/fixtures'
+import {
+  FIVE_K_IN_20_MIN_WKG,
+  MAN_BORN_1986,
+  comparisonPoint,
+  interval,
+  makeActivity,
+  makeEquivalence,
+  makeResult,
+} from '../components/fixtures'
 import type { ImportChange } from './importState'
 import { listedMoves, whatMoved } from './whatMoved'
 
@@ -45,13 +53,13 @@ describe('whatMoved: thresholds', () => {
   it('lists a running threshold whose displayed pace moved, in the unit preference', () => {
     const before = resultWith({ runCp: fit(15.749) })
     const after = resultWith({ runCp: fit(15.988) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'Threshold pace: 7:12 → 7:05 /mi',
         spoken: 'Threshold pace from 7:12 to 7:05 per mile',
       },
     ])
-    expect(whatMoved(before, after, SETTINGS, 'metric')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'metric', null)).toEqual([
       {
         text: 'Threshold pace: 4:28 → 4:24 /km',
         spoken: 'Threshold pace from 4:28 to 4:24 per kilometre',
@@ -62,7 +70,7 @@ describe('whatMoved: thresholds', () => {
   it('lists a cycling threshold in watts', () => {
     const before = resultWith({ rideCp: rideFit(225) })
     const after = resultWith({ rideCp: rideFit(231) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'Threshold power: 225 → 231 W',
         spoken: 'Threshold power from 225 to 231 watts',
@@ -73,13 +81,13 @@ describe('whatMoved: thresholds', () => {
   it('leaves out a threshold whose displayed value did not change, however small the change', () => {
     const before = resultWith({ runCp: fit(15.749) })
     const after = resultWith({ runCp: fit(15.7492) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('does not list a threshold that had no value before the import', () => {
     const before = resultWith({ runCp: null })
     const after = resultWith({ runCp: fit(15.988) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 })
 
@@ -87,7 +95,7 @@ describe('whatMoved: balance', () => {
   it('says the balance leans less toward running, with the range centre before and after', () => {
     const before = resultWith({ comparison: balance(interval(1.05, 1.12, 1.2)) })
     const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'Your balance now leans less toward running (12% → 8%)',
         spoken: 'Your balance now leans less toward running, from 12% to 8%',
@@ -98,7 +106,7 @@ describe('whatMoved: balance', () => {
   it('says the balance leans more toward running when the lead grows', () => {
     const before = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
     const after = resultWith({ comparison: balance(interval(1.05, 1.12, 1.2)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'Your balance now leans more toward running (8% → 12%)',
         spoken: 'Your balance now leans more toward running, from 8% to 12%',
@@ -109,7 +117,7 @@ describe('whatMoved: balance', () => {
   it('reads a cycling lead as cycling, with its own centre', () => {
     const before = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     const after = resultWith({ comparison: balance(interval(0.9, 0.95, 0.99)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'Your balance now leans less toward cycling (11% → 5%)',
         spoken: 'Your balance now leans less toward cycling, from 11% to 5%',
@@ -119,14 +127,14 @@ describe('whatMoved: balance', () => {
 
   it('says the balance now leans toward cycling when the lean changes sport', () => {
     const after = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
-    expect(whatMoved(resultWith(), after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(resultWith(), after, SETTINGS, 'imperial', null)).toEqual([
       { text: 'Your balance now leans toward cycling' },
     ])
   })
 
   it('says running and cycling are now in balance when the range includes even', () => {
     const after = resultWith({ comparison: balance(interval(0.97, 1.01, 1.05)) })
-    expect(whatMoved(resultWith(), after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(resultWith(), after, SETTINGS, 'imperial', null)).toEqual([
       { text: 'Your running and cycling are now in balance' },
     ])
   })
@@ -134,7 +142,7 @@ describe('whatMoved: balance', () => {
   it('says the balance leans toward running when it was in balance before', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({ comparison: balance(interval(1.02, 1.06, 1.1)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       { text: 'Your balance now leans toward running' },
     ])
   })
@@ -142,13 +150,13 @@ describe('whatMoved: balance', () => {
   it('lists nothing when the lead still rounds to the same whole percent', () => {
     const before = resultWith({ comparison: balance(interval(1.05, 1.1249, 1.2)) })
     const after = resultWith({ comparison: balance(interval(1.05, 1.1151, 1.2)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('lists nothing for a balance that stays in balance', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({ comparison: balance(interval(0.97, 1.0, 1.03)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 })
 
@@ -159,7 +167,7 @@ describe('whatMoved: bests', () => {
       activities: [RUN, RIDE, NEW_RUN],
       runCurve: [curvePoint(1200, 15.988, 'run-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'New best 20 min run: 7:05 /mi',
         spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
@@ -173,7 +181,7 @@ describe('whatMoved: bests', () => {
       activities: [RUN, RIDE, NEW_RIDE],
       rideCurve: [curvePoint(1200, 262, 'ride-2'), curvePoint(3600, 210, 'ride-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'New best 20 min ride: 262 W',
         spoken: 'New best 20 minutes ride: 262 watts',
@@ -195,7 +203,7 @@ describe('whatMoved: bests', () => {
       runCurve: [curvePoint(1200, 15.988, 'run-2')],
       rideCurve: [curvePoint(1200, 262, 'ride-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'New best 20 min run: 7:05 /mi',
         spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
@@ -210,7 +218,7 @@ describe('whatMoved: bests', () => {
   it('does not list a best that an activity already on file set', () => {
     const before = resultWith({ rideCurve: [curvePoint(1200, 250, 'ride-1')] })
     const after = resultWith({ rideCurve: [curvePoint(1200, 262, 'ride-1')] })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('does not list a best that is lower than the earlier one, even from a new activity', () => {
@@ -219,7 +227,7 @@ describe('whatMoved: bests', () => {
       activities: [RUN, RIDE, NEW_RIDE],
       rideCurve: [curvePoint(1200, 240, 'ride-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('does not list a best whose displayed watts did not change', () => {
@@ -228,7 +236,7 @@ describe('whatMoved: bests', () => {
       activities: [RUN, RIDE, NEW_RIDE],
       rideCurve: [curvePoint(1200, 250.4, 'ride-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('lists only the record durations: 1, 5, 20 and 60 minutes', () => {
@@ -237,7 +245,7 @@ describe('whatMoved: bests', () => {
       activities: [RUN, RIDE, NEW_RIDE],
       rideCurve: [curvePoint(600, 300, 'ride-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 })
 
@@ -256,7 +264,7 @@ describe('whatMoved: order, cap, first import and sample', () => {
       runCurve: [curvePoint(1200, 15.988, 'run-2')],
       rideCurve: [curvePoint(1200, 262, 'ride-2')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial').map((item) => item.text)).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null).map((item) => item.text)).toEqual([
       'Threshold pace: 7:12 → 7:05 /mi',
       'Threshold power: 225 → 231 W',
       'Your balance now leans less toward running (12% → 8%)',
@@ -265,11 +273,11 @@ describe('whatMoved: order, cap, first import and sample', () => {
   })
 
   it('lists nothing for a first import, which has nothing to compare with', () => {
-    expect(whatMoved(null, resultWith(), SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(null, resultWith(), SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('lists nothing when nothing moved', () => {
-    expect(whatMoved(resultWith(), resultWith(), SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(resultWith(), resultWith(), SETTINGS, 'imperial', null)).toEqual([])
   })
 })
 
@@ -282,7 +290,7 @@ describe('whatMoved: balance headlines compare like with like', () => {
       },
     })
     const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('lists nothing when one balance is calibrated by heart rate and the other is not', () => {
@@ -293,14 +301,14 @@ describe('whatMoved: balance headlines compare like with like', () => {
         calibrated: [comparisonPoint({ ratio: interval(1.02, 1.08, 1.14) })],
       },
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 })
 
 describe('whatMoved: every lean change', () => {
   it('says the balance now leans toward running after it leaned toward cycling', () => {
     const before = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
-    expect(whatMoved(before, resultWith(), SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, resultWith(), SETTINGS, 'imperial', null)).toEqual([
       { text: 'Your balance now leans toward running' },
     ])
   })
@@ -308,7 +316,7 @@ describe('whatMoved: every lean change', () => {
   it('says running and cycling are now in balance after the balance leaned toward cycling', () => {
     const before = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     const after = resultWith({ comparison: balance(interval(0.97, 1.01, 1.05)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       { text: 'Your running and cycling are now in balance' },
     ])
   })
@@ -316,7 +324,7 @@ describe('whatMoved: every lean change', () => {
   it('says the balance now leans toward cycling after it was in balance', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       { text: 'Your balance now leans toward cycling' },
     ])
   })
@@ -324,7 +332,7 @@ describe('whatMoved: every lean change', () => {
   it('says the cycling lead grew, more toward cycling', () => {
     const before = resultWith({ comparison: balance(interval(0.9, 0.95, 0.99)) })
     const after = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
         text: 'Your balance now leans more toward cycling (5% → 11%)',
         spoken: 'Your balance now leans more toward cycling, from 5% to 11%',
@@ -346,7 +354,7 @@ describe('whatMoved: bests from workouts not on file', () => {
       activities: [replaced, RIDE],
       runCurve: [curvePoint(1200, 15.988, 'run-1b')],
     })
-    expect(whatMoved(before, after, SETTINGS, 'imperial')).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 })
 
@@ -367,7 +375,7 @@ describe('listedMoves', () => {
       before: resultWith(),
       after: resultWith({ runCp: fit(15.988) }),
     }
-    expect(listedMoves(change, SETTINGS, 'imperial').map((item) => item.text)).toEqual([
+    expect(listedMoves(change, SETTINGS, 'imperial', null).map((item) => item.text)).toEqual([
       'Threshold pace: 7:12 → 7:05 /mi',
     ])
   })
@@ -378,12 +386,109 @@ describe('listedMoves', () => {
       before: resultWith(),
       after: resultWith({ runCp: fit(15.988) }),
     }
-    expect(listedMoves(change, SETTINGS, 'imperial')).toEqual([])
+    expect(listedMoves(change, SETTINGS, 'imperial', null)).toEqual([])
   })
 
   it('lists nothing without a change, or without a result after the import', () => {
-    expect(listedMoves(null, SETTINGS, 'imperial')).toEqual([])
+    expect(listedMoves(null, SETTINGS, 'imperial', null)).toEqual([])
     const change: ImportChange = { outcome: ADDED, before: resultWith(), after: null }
-    expect(listedMoves(change, SETTINGS, 'imperial')).toEqual([])
+    expect(listedMoves(change, SETTINGS, 'imperial', null)).toEqual([])
+  })
+})
+
+/** A result whose run and ride both reach a 20-minute grade: the run at the 5 km pace, the ride at `rideSpeedMs`. */
+function gradedResult(
+  rideSpeedMs: number,
+  overrides: Partial<AnalysisResult> = {},
+): AnalysisResult {
+  return makeResult({
+    activities: [RUN, RIDE],
+    runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+    rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+    equivalents: [
+      makeEquivalence({
+        durationS: HEADLINE_DURATION_S,
+        runSpeed: interval(rideSpeedMs, rideSpeedMs, rideSpeedMs),
+      }),
+    ],
+    comparison: balance(interval(1.05, 1.12, 1.2)),
+    ...overrides,
+  })
+}
+
+describe('whatMoved: balance in grade points', () => {
+  it('says how the lead in points moved when both results grade both sports', () => {
+    // A slower ride lowers its grade, so the run leads by more.
+    const before = gradedResult(3.8)
+    const after = gradedResult(3.5)
+    const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
+      (item) => item.text,
+    )
+    expect(texts).toContainEqual(
+      expect.stringMatching(
+        /^Your balance now leans more toward running \(\d+ points? → \d+ points?\)$/,
+      ),
+    )
+  })
+
+  it('says the balance now leans toward cycling when the grade gap crosses zero', () => {
+    const before = gradedResult(3.8)
+    const after = gradedResult(5.0)
+    const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
+      (item) => item.text,
+    )
+    expect(texts).toContain('Your balance now leans toward cycling')
+  })
+
+  it('lists no balance when one side has grades and the other has only the energy ratio', () => {
+    const before = gradedResult(3.8)
+    const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
+    const texts = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map(
+      (item) => item.text,
+    )
+    expect(texts.some((text) => /balance/.test(text))).toBe(false)
+  })
+})
+
+describe('whatMoved while no weight is entered', () => {
+  it('lists the running threshold but holds the ride threshold until a weight is entered', () => {
+    const before = resultWith({ runCp: fit(15.749), rideCp: rideFit(250) })
+    const after = resultWith({ runCp: fit(15.988), rideCp: rideFit(300) })
+    const held = whatMoved(before, after, SETTINGS, 'imperial', null, false).map(
+      (item) => item.text,
+    )
+    expect(held).toEqual(['Threshold pace: 7:12 → 7:05 /mi'])
+    const weighed = whatMoved(before, after, SETTINGS, 'imperial', null, true).map(
+      (item) => item.text,
+    )
+    expect(weighed).toContain('Threshold pace: 7:12 → 7:05 /mi')
+    expect(weighed.some((text) => text.startsWith('Threshold power'))).toBe(true)
+  })
+
+  it('keeps the running best but holds the cycling best until a weight is entered', () => {
+    const before = resultWith({
+      runCurve: [curvePoint(1200, 15.749, 'run-1')],
+      rideCurve: [curvePoint(1200, Number.NaN, null)],
+    })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RUN, NEW_RIDE],
+      runCurve: [curvePoint(1200, 15.988, 'run-2')],
+      rideCurve: [curvePoint(1200, 262, 'ride-2')],
+    })
+    const held = whatMoved(before, after, SETTINGS, 'imperial', null, false).map(
+      (item) => item.text,
+    )
+    expect(held).toEqual(['New best 20 min run: 7:05 /mi'])
+    const weighed = whatMoved(before, after, SETTINGS, 'imperial', null, true).map(
+      (item) => item.text,
+    )
+    expect(weighed).toContain('New best 20 min ride: 262 W')
+  })
+
+  it('holds the balance line, since the ride is part of it', () => {
+    const before = resultWith({ comparison: balance(interval(1.05, 1.12, 1.2)) })
+    const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, false)).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true)).toHaveLength(1)
   })
 })

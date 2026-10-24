@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 function gradeAt(percent: number, level: string): Grade {
-  return { grade: percent / 100, percent, level }
+  return { grade: percent / 100, level }
 }
 
 const RUN: SportGrade = { centre: gradeAt(67.6, 'Local'), range: null }
@@ -23,7 +23,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="run" grade={RUN} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67.6%, Local, from one activity, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local, from one activity, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -32,7 +32,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67.6%, Local, range 63% to 71.5%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })

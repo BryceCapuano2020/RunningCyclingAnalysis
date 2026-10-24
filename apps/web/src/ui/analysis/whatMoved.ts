@@ -1,16 +1,18 @@
 import { dedupeKey } from '@rca/core/session'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { AthleteSettings, Interval, Sport } from '@rca/core/types'
+import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
-import { leadOf, leanOf } from '../components/headlineText'
+import { gapOfHeadline } from '../balanceGap'
+import { balanceOfPick, type BalanceReading } from '../components/balanceScale'
 import { plural } from '../components/plural'
-import type { HeadlinePick } from '../components/pickHeadline'
 import { pickHeadline } from '../components/pickHeadline'
 import { PER } from '../format/units'
+import type { AgeProfile } from '../grades'
+import { headlineGrades } from '../grades'
 import { curveOf, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
-import { SPORT_NOUN } from '../sports'
+import { SPORT_NOUN, SPORT_ORDER } from '../sports'
 import { addedSentence } from './copy'
 import type { ImportChange } from './importState'
 
@@ -22,7 +24,6 @@ export interface MovedItem {
 
 /** The most changes the summary lists: thresholds, then the balance, then bests. */
 const MAX_ITEMS = 4
-const SPORTS: Sport[] = ['run', 'ride']
 
 /** Whether a figure is a number to compare and say, rather than the dash that stands for none. */
 function isFigure(figure: SportNumber): boolean {
@@ -49,21 +50,27 @@ function thresholdItem(
   }
 }
 
-/** The lean of the balance as it is now, against the lean before, in words. */
-function leanItem(before: Interval, after: Interval): MovedItem | null {
-  const leanBefore = leanOf(before)
-  const leanAfter = leanOf(after)
-  if (leanAfter === 'even') {
-    return leanBefore === 'even' ? null : { text: 'Your running and cycling are now in balance' }
+/** A balance's size in its own unit, in words: "6 points", or "12%" of energy. */
+function amountText(unit: BalanceReading['unit'], value: number): string {
+  if (unit === 'percent') return formatPercent(value / 100)
+  return plural(Math.round(value), 'point')
+}
+
+/** The lean of the balance now, against the lean before, in words. Both sides share one unit. */
+function leanItem(before: BalanceReading, after: BalanceReading): MovedItem | null {
+  if (after.lean === 'even') {
+    return before.lean === 'even' ? null : { text: 'Your running and cycling are now in balance' }
   }
-  if (leanBefore !== leanAfter) {
-    return { text: `Your balance now leans toward ${SPORT_NOUN[leanAfter]}` }
+  if (before.lean !== after.lean) {
+    return { text: `Your balance now leans toward ${SPORT_NOUN[after.lean]}` }
   }
-  const fromText = formatPercent(leadOf(before, leanAfter))
-  const toText = formatPercent(leadOf(after, leanAfter))
+  const from = Math.abs(before.lead.centre)
+  const to = Math.abs(after.lead.centre)
+  const fromText = amountText(after.unit, from)
+  const toText = amountText(after.unit, to)
   if (fromText === toText) return null
-  const direction = leadOf(after, leanAfter) < leadOf(before, leanAfter) ? 'less' : 'more'
-  const sport = SPORT_NOUN[leanAfter]
+  const direction = to < from ? 'less' : 'more'
+  const sport = SPORT_NOUN[after.lean]
   return {
     text: `Your balance now leans ${direction} toward ${sport} (${fromText} → ${toText})`,
     spoken: `Your balance now leans ${direction} toward ${sport}, from ${fromText} to ${toText}`,
@@ -71,14 +78,34 @@ function leanItem(before: Interval, after: Interval): MovedItem | null {
 }
 
 /**
- * The balance, when both headlines are the same duration and both are calibrated or both are not.
- * Headlines at different durations, or one calibrated by heart rate and one not, do not compare.
+ * The balance, read as the Balance page reads it: in points when both results grade both sports,
+ * otherwise in energy. Energy only compares at the same duration and with the same heart-rate
+ * calibration, and points never compare with energy.
  */
-function balanceItem(before: HeadlinePick, after: HeadlinePick): MovedItem | null {
-  if (before.point.durationS !== after.point.durationS || before.calibrated !== after.calibrated) {
-    return null
+function balanceItem(
+  before: AnalysisResult,
+  after: AnalysisResult,
+  profile: AgeProfile | null,
+  weighted: boolean,
+): MovedItem | null {
+  // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
+  if (!weighted) return null
+  const pickBefore = pickHeadline(before.comparison)
+  const pickAfter = pickHeadline(after.comparison)
+  const gapBefore = profile === null ? null : gapOfHeadline(headlineGrades(before, profile))
+  const gapAfter = profile === null ? null : gapOfHeadline(headlineGrades(after, profile))
+  const readingBefore = balanceOfPick(gapBefore, pickBefore)
+  const readingAfter = balanceOfPick(gapAfter, pickAfter)
+  if (readingBefore === null || readingAfter === null) return null
+  if (readingBefore.unit !== readingAfter.unit) return null
+  if (readingBefore.unit === 'percent') {
+    if (pickBefore === null || pickAfter === null) return null
+    const sameHeadline =
+      pickBefore.point.durationS === pickAfter.point.durationS &&
+      pickBefore.calibrated === pickAfter.calibrated
+    if (!sameHeadline) return null
   }
-  return leanItem(before.point.ratio, after.point.ratio)
+  return leanItem(readingBefore, readingAfter)
 }
 
 /** The best at a duration, in its curve's own unit: W/kg for running, watts for riding; NaN if none. */
@@ -114,12 +141,13 @@ function bestItems(
   after: AnalysisResult,
   massKg: number,
   units: UnitSystem,
+  sports: readonly Sport[],
 ): MovedItem[] {
   const onFile = new Set(
     before.activities.map((activity) => dedupeKey(activity.sport, activity.startMs)),
   )
   const items: MovedItem[] = []
-  for (const sport of SPORTS) {
+  for (const sport of sports) {
     const earlierRecords = sportRecords(before, sport, massKg, units)
     for (const record of sportRecords(after, sport, massKg, units)) {
       const activity = record.activity
@@ -143,25 +171,29 @@ function bestItems(
 /**
  * What an import moved in the athlete's numbers: thresholds, then the balance, then new duration
  * bests, at most four. Only a change that alters the displayed, rounded value is listed. There is
- * no list without an earlier analysis to compare with.
+ * no list without an earlier analysis to compare with. Without a weight (`weighted` false) the ride
+ * items wait for it: the ride threshold, the ride bests and the balance.
  */
 export function whatMoved(
   before: AnalysisResult | null,
   after: AnalysisResult,
   settings: AthleteSettings,
   units: UnitSystem,
+  profile: AgeProfile | null,
+  weighted = true,
 ): MovedItem[] {
   if (before === null) return []
-  const headlineBefore = pickHeadline(before.comparison)
-  const headlineAfter = pickHeadline(after.comparison)
-  const balance =
-    headlineBefore && headlineAfter ? balanceItem(headlineBefore, headlineAfter) : null
+  // Without a weight the ride's figures are worked out from the placeholder, so they wait for it.
   const changes = [
     thresholdItem(before, after, 'run', settings, units),
-    thresholdItem(before, after, 'ride', settings, units),
-    balance,
+    weighted ? thresholdItem(before, after, 'ride', settings, units) : null,
+    balanceItem(before, after, profile, weighted),
   ].filter((item): item is MovedItem => item !== null)
-  return [...changes, ...bestItems(before, after, settings.massKg, units)].slice(0, MAX_ITEMS)
+  const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
+  return [...changes, ...bestItems(before, after, settings.massKg, units, sports)].slice(
+    0,
+    MAX_ITEMS,
+  )
 }
 
 /**
@@ -172,9 +204,11 @@ export function listedMoves(
   change: ImportChange | null,
   settings: AthleteSettings,
   units: UnitSystem,
+  profile: AgeProfile | null,
+  weighted = true,
 ): MovedItem[] {
   if (change === null || change.after === null || addedSentence(change.outcome) === null) {
     return []
   }
-  return whatMoved(change.before, change.after, settings, units)
+  return whatMoved(change.before, change.after, settings, units, profile, weighted)
 }

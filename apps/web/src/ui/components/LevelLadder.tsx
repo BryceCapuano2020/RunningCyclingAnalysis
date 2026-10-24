@@ -2,6 +2,7 @@ import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
 import { LEVEL_BANDS } from '../grades'
 import type { Grade, SportGrade } from '../grades'
+import { formatGrade } from '../gradeFormat'
 import './LevelLadder.css'
 
 export interface LevelLadderProps {
@@ -77,12 +78,12 @@ function beyondScale(grade: SportGrade): 'below' | 'above' | null {
 function ladderLabel(grade: SportGrade): string {
   const { centre, range } = grade
   const basis = range
-    ? `range ${range.low.percent}% to ${range.high.percent}%`
+    ? `range ${formatGrade(range.low.grade)} to ${formatGrade(range.high.grade)}`
     : 'from one activity'
   const side = beyondScale(grade)
   const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
   const beyond = side === null ? '' : `, ${side} the ${scale}`
-  return `Estimated age grade ${centre.percent}%, ${centre.level}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+  return `Estimated age grade ${formatGrade(centre.grade)}, ${centre.level}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
 }
 
 /** The range as a band over the bar, outlined so it stands out from the bar. */

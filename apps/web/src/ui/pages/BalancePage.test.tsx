@@ -6,6 +6,7 @@ import type { AthleteSettings } from '@rca/core/types'
 import type { TrendPoint } from '@rca/core/digest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
+import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
@@ -32,7 +33,8 @@ afterEach(() => {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
-const PROFILE_PROMPT = 'Add your year of birth and sex on your profile to see age-graded levels.'
+const PROFILE_PROMPT =
+  'Add your year of birth and sex on your profile to see the balance in points and levels.'
 
 function renderPage(
   result: AnalysisResult = makeResult(),
@@ -96,6 +98,13 @@ describe('BalancePage', () => {
     renderPage()
     expect(screen.getByRole('region', { name: 'Run' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Ride' })).toBeInTheDocument()
+  })
+
+  it('lays the cards out in the sport order, so the first sport is on the left, as on the meter', () => {
+    renderPage()
+    const [left, right] = screen.getAllByRole('region', { name: /^(Run|Ride)$/ })
+    expect(left).toHaveAccessibleName(SPORT_LABEL[SPORT_ORDER[0]])
+    expect(right).toHaveAccessibleName(SPORT_LABEL[SPORT_ORDER[1]])
   })
 
   it('shows the evidence for the duration the answer is about', () => {
@@ -169,7 +178,7 @@ describe('BalancePage age grades', () => {
 
     expect(
       within(screen.getByRole('region', { name: 'Run' })).getByText(
-        'Estimated age grade 67.6% · Local',
+        'Estimated age grade 67% · Local',
       ),
     ).toBeInTheDocument()
   })
@@ -192,7 +201,7 @@ describe('BalancePage age grades', () => {
 
     const source = screen.getByText(/^Graded on the/)
     expect(source).toHaveTextContent(
-      'Graded on the USATF road age standards (2025), by Alan Jones and Tom Bernhard, licensed CC0 1.0, for a man. Age is counted from your birth year on the date of each effort. Rides are graded through their equal-energy running pace. A level, not a ranking.',
+      'Graded on the USATF road age standards (2025), by Alan Jones and Tom Bernhard, licensed CC0 1.0, for a man. Age is counted from your birth year on the date of each effort. Rides are graded through their running equivalent. A level, not a ranking.',
     )
     expect(
       within(source).getByRole('link', { name: 'USATF road age standards (2025)' }),
@@ -222,17 +231,18 @@ describe('BalancePage age grades', () => {
 })
 
 describe('BalancePage with no weight entered', () => {
-  it('says the ride figures use the placeholder, and links to Profile to add a weight', () => {
+  it('holds the balance and asks for the weight once, on a line that links to Profile', () => {
     renderPage(makeResult(), {}, null, false)
     expect(
-      screen.getByText(/Ride figures use 75 kg until you add your weight on/),
+      screen.getByRole('heading', { level: 1, name: 'Your balance waits for your weight' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
+    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
   })
 
-  it('shows no such line once a weight is entered', () => {
+  it('shows the balance, and no prompt for the weight, once a weight is entered', () => {
     renderPage(makeResult(), {}, null, true)
-    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/waits for your weight/)).not.toBeInTheDocument()
   })
 
   it('leaves the ride estimate and the balance meter off the share card', async () => {
