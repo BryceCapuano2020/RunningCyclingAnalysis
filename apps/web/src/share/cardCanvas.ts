@@ -126,6 +126,20 @@ export function drawLines(
   lines.forEach((line, index) => ctx.fillText(line, x, y + index * style.lineHeight))
 }
 
+/** Traces a bar with round ends, at least as wide as it is tall, for a fill or a stroke. */
+export function tracePill(
+  ctx: CardContext,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const radius = height / 2
+  ctx.arc(x + radius, y + radius, radius, Math.PI / 2, (3 * Math.PI) / 2)
+  ctx.arc(x + width - radius, y + radius, radius, -Math.PI / 2, Math.PI / 2)
+  ctx.closePath()
+}
+
 /** A filled bar with round ends, at least as wide as it is tall. */
 export function drawPill(
   ctx: CardContext,
@@ -135,12 +149,9 @@ export function drawPill(
   height: number,
   color: string,
 ): void {
-  const radius = height / 2
   ctx.fillStyle = color
   ctx.beginPath()
-  ctx.arc(x + radius, y + radius, radius, Math.PI / 2, (3 * Math.PI) / 2)
-  ctx.arc(x + width - radius, y + radius, radius, -Math.PI / 2, Math.PI / 2)
-  ctx.closePath()
+  tracePill(ctx, x, y, width, height)
   ctx.fill()
 }
 

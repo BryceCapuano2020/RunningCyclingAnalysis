@@ -12,7 +12,8 @@ import {
 } from './helpers.js'
 
 /** The charts by the accessible names they are given. The balance meter is named by its sentence. */
-const BALANCE_METER = /^(Running|Cycling) ahead by |^Even within the model's range/
+const BALANCE_METER =
+  /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 const RUN_TREND = /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\./
 const RIDE_TREND = /^Cycling power in watts, best 20 minutes by week\./
 const RUN_CURVE = /^Running grade-adjusted pace per (kilometre|mile) by duration\./
@@ -96,11 +97,11 @@ test('the weight entered in the setup dialog is the one the results use', async 
   browser,
 }, testInfo) => {
   test.setTimeout(90_000)
-  // The same export, answered with the default weight in another context, is the baseline.
+  // The same export, answered with a different weight in another context, is the baseline.
   const baseline = await browser.newContext({ baseURL: testInfo.project.use.baseURL })
   const defaults = await baseline.newPage()
   await defaults.goto('/')
-  await uploadFixtures(defaults, ['sample-export.zip'])
+  await uploadFixtures(defaults, ['sample-export.zip'], '165')
   await expect(defaults.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
     timeout: 30_000,
   })
@@ -123,6 +124,26 @@ test('the weight entered in the setup dialog is the one the results use', async 
   await expect.poll(() => ride.innerText()).not.toBe(defaultRide)
   await goTo(page, 'Profile')
   await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
+})
+
+test('skipping the weight holds the balance until one is entered, and asks for it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
+  await page.locator('input[type="file"]').first().setInputFiles(fixturePath('sample-export.zip'))
+  await expect(setup).toBeVisible()
+  await setup.getByRole('button', { name: 'Skip for now' }).click()
+
+  // Both sports are on file, so the balance waits for the ride's weight; the run still shows.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Your balance waits for your weight',
+    { timeout: 30_000 },
+  )
+  await expect(
+    page.locator('p.lede', { hasText: 'Add your weight on Profile to compare a ride with a run.' }),
+  ).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Run', exact: true })).toBeVisible()
 })
 
 test('skipping the setup dialog leaves the weight unset', async ({ page }) => {

@@ -1,9 +1,28 @@
 // @vitest-environment jsdom
+import type { AnalysisResult } from '@rca/core/pipeline'
+import type { UnitSystem } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
+import type { BalanceGap } from '../ui/balanceGap'
+import { energyReading, gapReading } from '../ui/components/balanceScale'
 import { makeActivity, makeResult } from '../ui/components/fixtures'
-import { HARDER_EFFORTS_TITLE, headlineText } from '../ui/components/headlineText'
+import { HARDER_EFFORTS_TITLE, balanceTitle } from '../ui/components/headlineText'
+import { SPORT_ORDER } from '../ui/sports'
 import { buildShareCard, shareableOrigin } from './cardModel'
+
+/** The card for these inputs: a weight is entered, and there is no heart-rate effort or grade gap unless given. */
+function cardFor(
+  result: AnalysisResult,
+  settings: AthleteSettings,
+  units: UnitSystem,
+  rangeDays: number | null,
+  isSample: boolean,
+  effort: EffortCheck | null = null,
+  weightKnown = true,
+  gap: BalanceGap | null = null,
+) {
+  return buildShareCard(result, settings, units, rangeDays, isSample, effort, weightKnown, gap)
+}
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 const LOW_EFFORT: EffortCheck = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }
@@ -11,23 +30,36 @@ const FOOTNOTE = 'Estimated from my own files. Compares my two sports; not a ran
 
 describe('buildShareCard', () => {
   it('uses the app name as the title', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.title).toBe('RunningCyclingAnalysis')
   })
 
   it('states the headline exactly as the results page does, and the balance it leans to', () => {
     const result = makeResult()
-    const card = buildShareCard(result, SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(result, SETTINGS, 'metric', 42, false)
     const point = result.comparison.prior[0]
     expect(point).toBeDefined()
     if (!point) return
-    expect(card?.headline).toBe(headlineText(point).title)
+    expect(card?.headline).toBe(balanceTitle(energyReading(point.ratio)))
     expect(card?.headline).toBe('Your balance leans toward running')
-    expect(card?.meter).toEqual({ lean: 'run', ratio: point.ratio })
+    expect(card?.meter).toEqual(energyReading(point.ratio))
+  })
+
+  it('states the headline and the meter from the grade gap when there is one', () => {
+    const result = makeResult()
+    const gap: BalanceGap = { centre: -6, low: -10, high: -2, lean: 'ride' }
+    const card = cardFor(result, SETTINGS, 'metric', 42, false, null, true, gap)
+    expect(card?.headline).toBe('Your balance leans toward cycling')
+    expect(card?.meter).toEqual(gapReading(gap))
+  })
+
+  it('lists the heroes in the order the sport order gives, so the columns match the meter', () => {
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
+    expect(card?.heroes.map((hero) => hero.sport)).toEqual([...SPORT_ORDER])
   })
 
   it('has no meter, and says so in the headline, while the sports cannot be compared', () => {
-    const card = buildShareCard(
+    const card = cardFor(
       makeResult({ comparison: { prior: [], calibrated: null } }),
       SETTINGS,
       'metric',
@@ -41,7 +73,7 @@ describe('buildShareCard', () => {
   })
 
   it('states the missing-sport headline in the card wording, asking for nothing', () => {
-    const card = buildShareCard(
+    const card = cardFor(
       makeResult({
         activities: [makeActivity({ id: 'run-1', sport: 'run' })],
         comparison: { prior: [], calibrated: null },
@@ -59,23 +91,19 @@ describe('buildShareCard', () => {
   })
 
   it('gives a one-line effort caveat when the heart-rate check found a low effort', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, LOW_EFFORT, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, LOW_EFFORT)
     expect(card?.caveat).toBe('Best efforts over 20 min may not have been all-out.')
   })
 
   it('has no effort caveat without an effort check or when the efforts were high', () => {
-    expect(
-      buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)?.caveat,
-    ).toBeNull()
+    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.caveat).toBeNull()
     const high: EffortCheck = { durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.95 }
-    expect(
-      buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, high, true)?.caveat,
-    ).toBeNull()
+    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false, high)?.caveat).toBeNull()
   })
 
   it('uses the page units for the running threshold pace', () => {
-    const metric = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
-    const imperial = buildShareCard(makeResult(), SETTINGS, 'imperial', 42, false, null, true)
+    const metric = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
+    const imperial = cardFor(makeResult(), SETTINGS, 'imperial', 42, false)
     expect(metric?.heroes[0]).toMatchObject({
       label: 'Running threshold pace, estimated',
       figure: { number: '23:23', unit: '/km' },
@@ -84,7 +112,7 @@ describe('buildShareCard', () => {
   })
 
   it('labels each estimate as estimated, the way the results page does', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.label)).toEqual([
       'Running threshold pace, estimated',
       'Cycling threshold power, estimated',
@@ -92,7 +120,7 @@ describe('buildShareCard', () => {
   })
 
   it('shows the cycling threshold power in watts, with W/kg for the body mass in the settings', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes[1]).toMatchObject({
       label: 'Cycling threshold power, estimated',
       figure: { number: '48', unit: 'W' },
@@ -102,27 +130,19 @@ describe('buildShareCard', () => {
   })
 
   it('shows both sports in running then cycling order, each with its sport', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.sport)).toEqual(['run', 'ride'])
     expect(card?.heroes.every((hero) => hero.prompt === null)).toBe(true)
   })
 
   it('leaves a sport with no threshold as a figure-less hero, with no sub line', () => {
-    const card = buildShareCard(
-      makeResult({ runCp: null }),
-      SETTINGS,
-      'metric',
-      42,
-      false,
-      null,
-      true,
-    )
+    const card = cardFor(makeResult({ runCp: null }), SETTINGS, 'metric', 42, false)
     expect(card?.heroes[0]).toMatchObject({ figure: null, sub: null })
     expect(card?.heroes[1]?.figure).toEqual({ number: '48', unit: 'W' })
   })
 
   it('shows the one sport that has an estimate, and asks for the other, when only one sport is on file', () => {
-    const card = buildShareCard(
+    const card = cardFor(
       makeResult({
         activities: [makeActivity({ id: 'run-1', sport: 'run' })],
         comparison: { prior: [], calibrated: null },
@@ -145,7 +165,7 @@ describe('buildShareCard', () => {
   })
 
   it('asks for harder efforts, not first efforts, when a sport has activities but no threshold', () => {
-    const card = buildShareCard(
+    const card = cardFor(
       makeResult({
         comparison: { prior: [], calibrated: null },
         rideCp: null,
@@ -161,7 +181,7 @@ describe('buildShareCard', () => {
   })
 
   it('returns nothing when there is no comparison and no threshold, so the button is hidden', () => {
-    const card = buildShareCard(
+    const card = cardFor(
       makeResult({
         activities: [makeActivity({ sport: 'run' })],
         comparison: { prior: [], calibrated: null },
@@ -179,30 +199,22 @@ describe('buildShareCard', () => {
   })
 
   it('names the selected period, and all time when no range is selected', () => {
-    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)?.period).toBe(
-      'Last 6 weeks',
-    )
-    expect(buildShareCard(makeResult(), SETTINGS, 'metric', null, false, null, true)?.period).toBe(
-      'All time',
-    )
+    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.period).toBe('Last 6 weeks')
+    expect(cardFor(makeResult(), SETTINGS, 'metric', null, false)?.period).toBe('All time')
   })
 
   it('carries a sample badge only for sample data', () => {
-    expect(buildShareCard(makeResult(), SETTINGS, 'metric', 42, true, null, true)?.badge).toBe(
-      'Sample data',
-    )
-    expect(
-      buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)?.badge,
-    ).toBeNull()
+    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, true)?.badge).toBe('Sample data')
+    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.badge).toBeNull()
   })
 
   it('states the estimate and not-a-ranking footnote in the first person', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.footnote).toBe(FOOTNOTE)
   })
 
   it('has exactly these keys, so no account, file or activity field can be added unnoticed', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, true, LOW_EFFORT, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, true, LOW_EFFORT)
     expect(Object.keys(card ?? {}).sort()).toEqual(
       [
         'badge',
@@ -225,7 +237,7 @@ describe('buildShareCard', () => {
         makeActivity({ id: 'ride-1', name: 'ada@example.com hill ride', sport: 'ride' }),
       ],
     })
-    const card = buildShareCard(result, SETTINGS, 'metric', 42, false, LOW_EFFORT, true)
+    const card = cardFor(result, SETTINGS, 'metric', 42, false, LOW_EFFORT)
     const json = JSON.stringify(card)
     expect(json).not.toMatch(/Ada|Lovelace|example\.com|@|\.fit|\.gpx|\.tcx|morning run|hill ride/)
     expect(json).not.toMatch(/\d{4}-\d{2}-\d{2}/)
@@ -291,14 +303,14 @@ describe('shareableOrigin', () => {
   })
 
   it('reads the page origin in buildShareCard and omits it when local', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.origin).toBe(shareableOrigin(window.location.origin))
   })
 })
 
 describe('buildShareCard while no weight is entered', () => {
   it('leaves the ride estimate off the card, with a prompt for the weight', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, false)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, false)
     const ride = card?.heroes.find((hero) => hero.sport === 'ride')
     expect(ride).toMatchObject({
       figure: null,
@@ -308,18 +320,25 @@ describe('buildShareCard while no weight is entered', () => {
   })
 
   it('keeps the run estimate, which does not depend on body weight', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, false)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, false)
     expect(card?.heroes.find((hero) => hero.sport === 'run')?.figure).not.toBeNull()
   })
 
+  it('holds a grade gap off the card too, since the gap is worked out from the ride', () => {
+    const gap: BalanceGap = { centre: -6, low: -10, high: -2, lean: 'ride' }
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, false, gap)
+    expect(card?.meter).toBeNull()
+    expect(card?.headline).not.toMatch(/leans/)
+  })
+
   it('leaves the balance off the card, since the balance is worked out from the ride', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, false)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, null, false)
     expect(card?.meter).toBeNull()
     expect(card?.headline).not.toMatch(/leans/)
   })
 
   it('shows the ride estimate and the balance once a weight is entered', () => {
-    const card = buildShareCard(makeResult(), SETTINGS, 'metric', 42, false, null, true)
+    const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.find((hero) => hero.sport === 'ride')?.figure).not.toBeNull()
     expect(card?.meter).not.toBeNull()
   })

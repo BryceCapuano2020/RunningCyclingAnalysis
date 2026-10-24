@@ -4,6 +4,7 @@ import type { AthleteSettings, EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { hasShareableContent } from '../../share/hasShareableContent'
 import { CARD_FILE_NAMES, type CardFormat } from '../../share/cardLayout'
+import type { BalanceGap } from '../balanceGap'
 import './ShareImageButton.css'
 
 export interface ShareImageButtonProps {
@@ -16,6 +17,8 @@ export interface ShareImageButtonProps {
   effort: EffortCheck | null
   /** False while no body weight is entered: the card then leaves out the ride estimate and balance. */
   weightKnown: boolean
+  /** The age-grade gap on the page, so the card states the same balance as the page. */
+  gap: BalanceGap | null
   /** Analysis is running, so the comparison on screen may change. */
   disabled: boolean
 }
@@ -43,6 +46,7 @@ export function ShareImageButton({
   isSample,
   effort,
   weightKnown,
+  gap,
   disabled,
 }: ShareImageButtonProps) {
   const [status, setStatus] = useState('')
@@ -66,7 +70,16 @@ export function ShareImageButton({
         ])
       // The canvas only draws a web font that has loaded, so wait for the card's faces first.
       await loadCardFonts()
-      const card = buildShareCard(result, settings, units, rangeDays, isSample, effort, weightKnown)
+      const card = buildShareCard(
+        result,
+        settings,
+        units,
+        rangeDays,
+        isSample,
+        effort,
+        weightKnown,
+        gap,
+      )
       const canvas = document.createElement('canvas')
       const saved =
         card !== null &&

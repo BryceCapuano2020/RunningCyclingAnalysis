@@ -216,10 +216,10 @@ describe('SportCard run grade', () => {
     )
 
     const card = cardNamed('Run')
-    expect(within(card).getByText('Estimated age grade 67.6% · Local')).toBeInTheDocument()
+    expect(within(card).getByText('Estimated age grade 67% · Local')).toBeInTheDocument()
     expect(
       within(card).getByRole('img', {
-        name: 'Estimated age grade 67.6%, Local, from one activity, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local, from one activity, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
     expect(
@@ -278,13 +278,11 @@ describe('SportCard ride grade', () => {
     )
 
     const card = cardNamed('Ride')
-    expect(
-      within(card).getByText('Estimated age grade 67.6% · Local (63–71.5%)'),
-    ).toBeInTheDocument()
+    expect(within(card).getByText('Estimated age grade 67% · Local (63–71%)')).toBeInTheDocument()
     expect(within(card).getByText(/Graded through its running equivalent/)).toBeInTheDocument()
     expect(
       within(card).getByRole('img', {
-        name: 'Estimated age grade 67.6%, Local, range 63% to 71.5%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })

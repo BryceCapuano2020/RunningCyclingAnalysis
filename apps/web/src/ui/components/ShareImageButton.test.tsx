@@ -36,6 +36,7 @@ function renderButton(overrides: Partial<Parameters<typeof ShareImageButton>[0]>
       isSample={false}
       effort={null}
       weightKnown
+      gap={null}
       disabled={false}
       {...overrides}
     />,
@@ -137,6 +138,20 @@ describe('ShareImageButton', () => {
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
         caveat: 'Best efforts over 20 min may not have been all-out.',
+      }),
+      expect.any(HTMLCanvasElement),
+      'square',
+    )
+  })
+
+  it('gives the card the grade gap on the page, so its headline and meter agree with it', async () => {
+    renderButton({ gap: { centre: -6, low: -10, high: -2, lean: 'ride' } })
+    download(SQUARE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
+    expect(renderShareCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headline: 'Your balance leans toward cycling',
+        meter: expect.objectContaining({ unit: 'points', lean: 'ride' }),
       }),
       expect.any(HTMLCanvasElement),
       'square',

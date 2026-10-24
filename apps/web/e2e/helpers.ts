@@ -9,8 +9,12 @@ import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
 export const LANDING_TITLE = 'How balanced are you as an athlete?'
 
-/** The Balance page's h1: the answer, or what is missing before the two sports can be compared. */
-export const BALANCE_TITLE = /leans toward|in balance|see your balance|balance needs harder efforts/
+/**
+ * The Balance page's h1: the answer, what is missing before the two sports can be compared, or the
+ * balance held until a weight is entered.
+ */
+export const BALANCE_TITLE =
+  /leans toward|in balance|see your balance|balance needs harder efforts|waits for your weight/
 
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa']
 
@@ -87,14 +91,21 @@ const SETUP_DIALOG_WAIT_MS = 2_000
 const ACCOUNT_LOOKUP_MS = 20_000
 
 /**
+ * The body weight the e2e suite answers the setup dialog with: 185 lb, the units the suite runs in,
+ * which is about 83.9 kg. A weight is entered as a real user would, since the balance waits for one.
+ */
+export const DEFAULT_WEIGHT_TEXT = '185'
+
+/**
  * The first import on a device opens the setup dialog once, and holds the files until it is
- * answered. When the dialog appears, this answers it with the values it shows, so the import goes
+ * answered. When the dialog appears, this enters the body weight and answers it, so the import goes
  * on. When it does not appear within the wait, the setup was answered already and there is nothing
  * to do.
  */
 export async function completeSetup(
   page: Page,
   waitMs: number = SETUP_DIALOG_WAIT_MS,
+  weight: string = DEFAULT_WEIGHT_TEXT,
 ): Promise<void> {
   // The dialog waits for the account to be known. The header's placeholder shows until the lookup
   // settles, then gives way to the sign-in button, the account menu, or nothing when accounts are
@@ -108,14 +119,22 @@ export async function completeSetup(
   } catch {
     return
   }
+  await dialog.getByLabel('Body weight').fill(weight)
   await dialog.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(dialog).toBeHidden()
 }
 
-/** Sends files to the hidden file input, then answers the setup dialog if the first import asks. */
-export async function uploadFixtures(page: Page, names: string[]): Promise<void> {
+/**
+ * Sends files to the hidden file input, then answers the setup dialog if the first import asks,
+ * with the body weight given (185 lb by default).
+ */
+export async function uploadFixtures(
+  page: Page,
+  names: string[],
+  weight: string = DEFAULT_WEIGHT_TEXT,
+): Promise<void> {
   await page.locator('input[type="file"]').first().setInputFiles(names.map(fixturePath))
-  await completeSetup(page)
+  await completeSetup(page, SETUP_DIALOG_WAIT_MS, weight)
 }
 
 export async function horizontalOverflow(

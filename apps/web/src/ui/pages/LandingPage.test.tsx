@@ -126,7 +126,9 @@ describe('LandingPage', () => {
     const example = exampleFigure()
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
     expect(
-      within(example).getByRole('img', { name: 'Running ahead by 12% (range 4% to 20%)' }),
+      within(example).getByRole('img', {
+        name: 'Running grades 6 points higher than cycling (range 2 to 10 points)',
+      }),
     ).toBeInTheDocument()
     expect(within(example).getByText('4:08 /km')).toBeInTheDocument()
     expect(within(example).getByText('225 W')).toBeInTheDocument()

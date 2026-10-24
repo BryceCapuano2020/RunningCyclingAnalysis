@@ -1,3 +1,4 @@
+import { energyReading } from '../ui/components/balanceScale'
 import { interval } from '../ui/components/fixtures'
 import type { CardFormat } from './cardLayout'
 import type { ShareCardModel } from './cardModel'
@@ -150,7 +151,7 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
   return {
     title: 'RunningCyclingAnalysis',
     headline: 'Your balance leans toward running',
-    meter: { lean: 'run', ratio: interval(1.05, 1.12, 1.2) },
+    meter: energyReading(interval(1.05, 1.12, 1.2)),
     heroes: [
       {
         sport: 'run',

@@ -1,5 +1,11 @@
 import type { Sport } from '@rca/core/types'
 
+/**
+ * The sports in the order they sit everywhere: the card row, the balance meter and the share card.
+ * The first is on the left, so running is on the left and cycling on the right.
+ */
+export const SPORT_ORDER = ['run', 'ride'] as const
+
 /** The name of each sport in text, shown beside its SportIcon. */
 export const SPORT_LABEL: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
 
