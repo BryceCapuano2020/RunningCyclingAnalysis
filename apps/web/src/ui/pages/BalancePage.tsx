@@ -31,6 +31,8 @@ export interface BalancePageProps {
   controls: ReactNode
   /** False while no body weight is entered, so the share card leaves out what needs one. */
   weightKnown: boolean
+  /** The line that says what the page is based on, at its foot. */
+  footnote?: ReactNode
 }
 
 /**
@@ -60,6 +62,7 @@ export function BalancePage({
   profile,
   controls,
   weightKnown,
+  footnote = null,
 }: BalancePageProps) {
   const { isSample, rangeDays, trend } = analysis.state
   const pick = pickHeadline(result.comparison)
@@ -68,8 +71,11 @@ export function BalancePage({
   const headline = profile === null ? null : headlineGrades(result, profile)
   // The ride's grade, and so the gap, wait for the weight; the run's grade does not.
   const gap = weightKnown && headline !== null ? gapOfHeadline(headline) : null
-  // The standards line is shown only when a grade is, so it never cites grades that are not there.
-  const sourceSex = gradedSexOf(headline, profile)
+  // The standards line is shown only when a grade is on screen, so it never cites grades that are not
+  // there: a ride's grade is on screen only once the weight is entered.
+  const sourceSex = gradedSexOf(headline, profile, weightKnown)
+  // A ride is named as graded only when its grade is on screen, which waits for the weight.
+  const rideGraded = weightKnown && headline?.ride.kind === 'graded'
 
   return (
     <div className="page-stack">
@@ -98,22 +104,26 @@ export function BalancePage({
             result={result}
             units={units}
             massKg={settings.massKg}
-            grade={sport === 'ride' && !weightKnown ? null : (headline?.[sport] ?? null)}
+            grade={headline?.[sport] ?? null}
+            weighted={weightKnown}
           />
         ))}
       </div>
 
       {profile === null && (
-        <p className="muted">
-          <a href={hrefFor({ page: 'profile' })}>
-            Add your year of birth and sex on your profile to see the balance in points and levels.
+        <div className="balance__profile">
+          <p className="muted">
+            The balance in points and levels needs your year of birth and sex.
+          </p>
+          <a className="btn" href={hrefFor({ page: 'profile' })}>
+            Add year of birth and sex
           </a>
-        </p>
+        </div>
       )}
 
       <div className="balance__cards">
         <EvidenceCard effort={effort} />
-        <CrossSportCard result={result} units={units} />
+        <CrossSportCard result={result} units={units} weighted={weightKnown} />
       </div>
 
       {weeksWithValue(trend) >= 2 && (
@@ -150,10 +160,12 @@ export function BalancePage({
       {sourceSex !== null && (
         <p className="muted balance__source">
           Graded on the <StandardsCredit />, for a {SEX_NOUN[sourceSex]}. Age is counted from your
-          birth year on the date of each effort. Rides are graded through their running equivalent.
-          A level, not a ranking.
+          birth year on the date of each effort.
+          {rideGraded && ' Rides are graded through their running equivalent.'} A level, not a
+          ranking.
         </p>
       )}
+      {footnote}
     </div>
   )
 }

@@ -84,7 +84,7 @@ test('How sure is this? keeps the disclaimer that hard best efforts do not prove
   await openSample(page)
   // The sample's best 20 minute efforts both reach 90% of their heart-rate reference, so the
   // Evidence card reports real efforts and the method page says what that does not prove.
-  await expect(page.getByRole('heading', { level: 2, name: 'Built on real efforts' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Built on real efforts' })).toBeVisible()
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()

@@ -1,0 +1,75 @@
+/* The best efforts list: one row per record, with the activity that set it under the figure. */
+.records {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.records__row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.records__label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.records__figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.records__value {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.records__sub {
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.records__grade {
+  grid-column: 2;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* A long activity name is cut short with an ellipsis; its full name is the link's title and label. */
+.records__link {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.records__row .records__link {
+  grid-column: 2;
+}
+
+.records__shared {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1);
+  margin: 0;
+  font-size: 0.875rem;
+}

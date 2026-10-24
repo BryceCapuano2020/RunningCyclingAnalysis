@@ -10,6 +10,7 @@ import {
   curveOf,
   distanceRecords,
   featuredEquivalence,
+  isEstimatedRecord,
   nativeCurve,
   nativeValue,
   sportRecords,
@@ -246,5 +247,33 @@ describe('chipLabels', () => {
 
   it('is empty for an activity that holds nothing', () => {
     expect(chipLabels([])).toEqual([])
+  })
+})
+
+describe('isEstimatedRecord', () => {
+  const ride = (powerSource: 'measured' | 'virtual' | 'none') =>
+    makeActivity({ id: 'ride', sport: 'ride', powerSource })
+
+  it('counts a ride whose watts came from virtual power as estimated', () => {
+    expect(isEstimatedRecord('ride', ride('virtual'))).toBe(true)
+  })
+
+  it('counts a ride with no power source as estimated, as it counts one with no power meter', () => {
+    expect(isEstimatedRecord('ride', ride('none'))).toBe(true)
+  })
+
+  it('does not count a ride whose watts were measured by a power meter', () => {
+    expect(isEstimatedRecord('ride', ride('measured'))).toBe(false)
+  })
+
+  it('counts a ride estimated when the activity that set it is not in the result', () => {
+    expect(isEstimatedRecord('ride', null)).toBe(true)
+  })
+
+  it('never tags a run, whatever its activity or power source', () => {
+    expect(isEstimatedRecord('run', makeActivity({ sport: 'run', powerSource: 'virtual' }))).toBe(
+      false,
+    )
+    expect(isEstimatedRecord('run', null)).toBe(false)
   })
 })

@@ -9,15 +9,27 @@ afterEach(() => {
   cleanup()
 })
 
-function renderTable(equivalents = [makeEquivalence()], units: UnitSystem = 'metric') {
-  return render(<EquivalenceTable equivalents={equivalents} units={units} />)
+function renderTable(
+  equivalents = [makeEquivalence()],
+  units: UnitSystem = 'metric',
+  weighted = true,
+  estimated: (durationS: number) => boolean = () => false,
+) {
+  return render(
+    <EquivalenceTable
+      equivalents={equivalents}
+      units={units}
+      weighted={weighted}
+      estimated={estimated}
+    />,
+  )
 }
 
 describe('EquivalenceTable', () => {
-  it('lists the ride effort, the equal flat running pace and its 90% model range', () => {
+  it('lists the ride effort, the flat running pace it matches and its 90% model range', () => {
     renderTable()
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Cycling effort', 'Equal flat running pace', '90% model range'])
+    expect(headers).toEqual(['Ride effort', 'Flat running pace', '90% model range'])
 
     const row = within(screen.getByRole('row', { name: /20 min at 250 W/ }))
     expect(row.getByText('20 min at 250 W')).toBeInTheDocument()
@@ -44,9 +56,31 @@ describe('EquivalenceTable', () => {
     expect(within(rows[1]!).getByText('1 h at 200 W')).toBeInTheDocument()
   })
 
-  it('asks for a five minute ride when there are no equivalents', () => {
+  it('tags the watts of a row estimated when its ride had no power meter, and not otherwise', () => {
+    renderTable(
+      [
+        makeEquivalence({ durationS: 300, ridePowerW: 300 }),
+        makeEquivalence({ durationS: 3600, ridePowerW: 200 }),
+      ],
+      'metric',
+      true,
+      (durationS) => durationS === 300,
+    )
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(within(rows[0]!).getByText('Estimated')).toBeInTheDocument()
+    expect(within(rows[1]!).queryByText('Estimated')).not.toBeInTheDocument()
+  })
+
+  it('holds every ride figure without a weight, and asks for the weight instead', () => {
+    renderTable([makeEquivalence()], 'metric', false)
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByText('4:10 /km')).not.toBeInTheDocument()
+    expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
+  })
+
+  it('asks for a ride of 3 min when there are no equivalents', () => {
     renderTable([])
-    expect(screen.getByText('Needs at least one ride of five minutes or more')).toBeInTheDocument()
+    expect(screen.getByText('Needs at least one ride of 3 min or more')).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 

@@ -1,4 +1,6 @@
+import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
+import { formatDuration } from '@rca/core/units'
 
 /**
  * The sports in the order they sit everywhere: the card row, the balance meter and the share card.
@@ -12,7 +14,7 @@ export const SPORT_LABEL: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
 /** The full name of each sport as a title, such as a chart legend entry or a table heading. */
 export const SPORT_TITLE: Record<Sport, string> = { run: 'Running', ride: 'Cycling' }
 
-/** The sport as the noun in a sentence, such as "All running records". */
+/** The sport as the noun in a sentence, such as "running and cycling in balance". */
 export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cycling' }
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
@@ -27,4 +29,13 @@ export const THRESHOLD_NOUN: Record<Sport, string> = {
 export const THRESHOLD_LABEL: Record<Sport, string> = {
   run: 'Threshold pace, estimated',
   ride: 'Threshold power, estimated',
+}
+
+/** The efforts a threshold is estimated from, as copy: "3 to 20 min", the fit's own window. */
+export const THRESHOLD_EFFORT_TEXT = `${CP_FIT_MIN_S / 60} to ${formatDuration(CP_FIT_MAX_S)}`
+
+/** A threshold in plain words, for the card that shows it: what the number is. */
+export const THRESHOLD_MEANING: Record<Sport, string> = {
+  run: `The pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
+  ride: `The power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
 }

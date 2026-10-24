@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sex } from '@rca/core/grade'
 import type { Copy } from '@rca/core/session'
@@ -24,8 +24,7 @@ const SAVED_COPY: Copy = {
   durationS: 3600,
 }
 
-const PROFILE_PROMPT =
-  'Add your year of birth and sex on your profile to see the balance in points and levels.'
+const PROFILE_PROMPT = 'Add year of birth and sex'
 
 function renderPage(route: Route, birthYear: number | null, sex: Sex | null, weightKnown = true) {
   const result = makeResult({
@@ -50,7 +49,7 @@ describe('ResultPage age grades', () => {
     renderPage({ page: 'balance' }, 1986, 'male')
 
     const run = screen.getByRole('region', { name: 'Run' })
-    expect(within(run).getByText('Estimated age grade 67% · Local')).toBeInTheDocument()
+    expect(within(run).getByText(/^Local · 67% · on your best 20 min/)).toBeInTheDocument()
     expect(screen.getByText(/Graded on the/)).toHaveTextContent(
       'for a man. Age is counted from your birth year on the date of each effort.',
     )
@@ -111,19 +110,67 @@ describe('ResultPage sport trend', () => {
 })
 
 describe('ResultPage Ride with no weight entered', () => {
-  it('says the ride figures use the placeholder until a weight is entered', () => {
+  it('holds the ride figures and asks for the weight, rather than using a placeholder', () => {
     renderPage({ page: 'ride' }, null, null, false)
-    expect(
-      screen.getByText(/Ride figures use 75 kg until you add your weight on/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
+    expect(screen.queryByText('400 W')).not.toBeInTheDocument()
+    expect(screen.queryByText(/W\/kg/)).not.toBeInTheDocument()
   })
 
-  it('shows no such line on Run, or once a weight is entered', () => {
+  it('shows no such prompt on Run, or once a weight is entered', () => {
     renderPage({ page: 'run' }, null, null, false)
-    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Add your weight on/)).not.toBeInTheDocument()
     cleanup()
     renderPage({ page: 'ride' }, null, null, true)
-    expect(screen.queryByText(/Ride figures use/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Add your weight on/)).not.toBeInTheDocument()
+  })
+})
+
+describe('ResultPage footnote', () => {
+  // A fixed clock: a man born in 1986 is 40 in June 2026.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 5, 10, 12).getTime())
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function renderFooter(route: Route, isSample: boolean) {
+    return render(
+      <ResultPage
+        route={route}
+        analysis={analysisStub({ state: { isSample } })}
+        result={makeResult({
+          runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+        })}
+        settings={{ massKg: 75, bikeMassKg: 9 }}
+        weightKnown={true}
+        units="metric"
+        birthYear={1986}
+        sex="male"
+      />,
+    )
+  }
+
+  it.each([
+    ['balance', { page: 'balance' }],
+    ['run', { page: 'run' }],
+    ['ride', { page: 'ride' }],
+  ] as const)('says what the %s page is based on, with a link to Profile', (_name, route) => {
+    renderFooter(route, false)
+    expect(screen.getByText(/Based on 75 kg, age 40, man\./)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change on Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
+  })
+
+  it('leaves the line off the sample, which has its own persona', () => {
+    renderFooter({ page: 'run' }, true)
+    expect(screen.queryByRole('link', { name: 'Change on Profile' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Based on 75 kg/)).not.toBeInTheDocument()
   })
 })
 

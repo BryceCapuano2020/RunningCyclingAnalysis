@@ -59,13 +59,13 @@ test('the cross-sport card names the ride behind its effort and opens to every d
 }) => {
   await openSample(page)
 
-  const card = page.getByRole('region', { name: /^On foot, your bike is worth / })
+  const card = page.getByRole('region', { name: /^On foot, your ride is worth / })
   await expect(card.getByRole('link', { name: /^Set on / })).toBeVisible()
 
   const details = card.locator('details')
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()
-  await expect(details.getByRole('columnheader', { name: 'Cycling effort' })).toBeVisible()
+  await expect(details.getByRole('columnheader', { name: 'Ride effort' })).toBeVisible()
 })
 
 test('the first upload asks for the athlete once, and a later upload after a reload does not', async ({

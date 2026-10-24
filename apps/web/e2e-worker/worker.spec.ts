@@ -26,7 +26,7 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
   await expect(
-    page.getByRole('heading', { level: 2, name: /^On foot, your bike is worth/ }),
+    page.getByRole('heading', { level: 2, name: /^On foot, your ride is worth/ }),
   ).toBeVisible()
   expect(violations).toEqual([])
 

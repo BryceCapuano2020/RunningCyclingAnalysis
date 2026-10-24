@@ -82,7 +82,8 @@ also read aloud in words. Signed in, the sync status's completion says "Your num
 ## Colour
 
 Ink and volt are the brand. Sport colours mark a sport: its data, its glyph, and the edge of its
-card. They never colour generic chrome such as buttons, links, tabs or focus rings. Status
+card. They never colour text, and never generic chrome such as buttons, links, tabs or focus rings.
+A sport's figure is set in ink, and its shape carries the colour. Status
 colours always come with an icon and a label, so a warning never relies on red beside the run coral.
 
 | Token                  | Light       | Dark        | Use                                                                        |
@@ -181,8 +182,31 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
   its glyph. The key under it gives the range in words: "Band: the ride's 90% range".
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
-  the drawing. A run's estimate, from one activity, is a solid dot in the sport's colour. A ride's
-  estimate is a ring over an outlined band for its model range. Band edges are ticks, not fill.
+  the drawing. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
+  a ring over an outlined band for its model range. The bands the grade falls in are filled in its
+  sport's soft colour and named in bold: the band of its centre, or every band from the low end of a
+  ride's range to its high end. Band edges are ticks. A marker past either end of the scale stays
+  inside the track, outline included, and the key says the grade is below or above the scale.
+- **The key sits under every ladder** as a figure caption, in words: "Solid dot: the grade of one
+  recorded effort." for a run, and "Ring: estimated, with its range." for a ride. The shape is never
+  the only cue.
+- **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
+  unit set at about 40% of the numeral), the threshold in plain words ("The pace you could hold for a
+  long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the ladder
+  with its key, the note that run pace is grade-adjusted (runs only), the caption, then the best
+  efforts. The grade line names the effort it grades: "Local · 64% · on your best 20 min, 6:37 /mi".
+  A ride's line starts "Estimated", and its watts carry "estimated" when they did not come from a
+  power meter.
+- **Best efforts share one list,** `SportRecords`, on the Balance card and the sport page: one row
+  per record with one source size, built by `recordRow`. A run's pace is marked GAP, which the
+  note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
+  record was set in one activity, that activity is named once under the list ("All set on Morning
+  run, Mon 5 Jan"). Otherwise each record links to its own activity. A long activity name is cut
+  short with an ellipsis, and its full name is the link's title and accessible name.
+- **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
+  ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
+  Its ride figures and its table wait for the weight, as the cards' do. The evidence card is a card
+  only for a gap with an action; good news is a quiet line with no heading.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
@@ -228,7 +252,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   whole unit, and "Splits are kept for runs up to 500 km." for one past the limit. When the worker
   cannot answer, the page says "The splits could not be loaded. Open this activity again to retry."
 - **Every number names its source**: the activity that set it, with a link to that activity.
-- **Evidence gaps say what to do**: what to upload or record, and what it would sharpen.
+- **Evidence gaps say what to do, on the card itself**: one plain sentence under the gap, saying how to
+  record a hard, steady 20-minute effort with heart rate on, or how to add heart rate to a file. Its
+  link is "How sure is this?", to the method page, which explains the check. Good news has no how-to.
 - Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A range of months
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
@@ -237,15 +263,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter
   or a weakness, and never give a percentile.
-- **Every grade is an estimate.** A run's grade comes from one activity's grade-adjusted pace, so
-  it is written "Estimated age grade". A ride's grade is estimated through its running
-  equivalent, and it shows its model range rather than one number.
+- **Runs are read as recorded; rides and thresholds are estimates.** A run's grade is the grade of
+  one recorded best effort, so its line reads "Local · 64%" with no estimate word, and its pace is
+  marked GAP and noted as grade-adjusted: "Pace is grade-adjusted (GAP): the flat pace with the same
+  effort." A ride's grade is estimated through its running equivalent, so its line starts
+  "Estimated", it shows its model range in brackets, and a range that crosses a band names both levels
+  ("Local to Regional"). A ride record says the grade is "Estimated through its running equivalent"
+  in full, because a row stands on its own. Thresholds are always estimated. The Method page is the
+  one place that explains the estimates.
 - **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
   standards". The full credit, with the authors, licence and a link, is on the Balance source line,
   the record list's source line and How sure is this?.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Cards say the
-  age they used ("aged 40"). The three pages that carry the full credit say "Age is counted from
+  age they used ("Graded at age 40"). The three pages that carry the full credit say "Age is counted from
   your birth year on the date of each effort." On the Ride page the source line also says that a
   ride's range is its model range.
 - **Removing data asks first.** Removing every kept activity and turning off kept original files
@@ -254,13 +285,22 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   kept in this browser gets a neutral card, and an original kept in the account the red one. Every
   removal's confirm button is the one destructive button, from `ConfirmActions`. The account's
   deletion needs the typed email address.
-- **A missing year of birth or sex asks once,** on the Balance page, in a quiet line that links to
-  Profile. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer
-  not to say" is stored as no sex.
+- **A missing year of birth or sex asks once,** on the Balance page: a muted line says the balance
+  in points and levels needs them, and a secondary button, "Add year of birth and sex", opens Profile.
+  The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer not to say" is
+  stored as no sex.
 - **Weight is never filled in for you.** Setup's Skip leaves the body weight blank, and Profile
-  shows it as not entered. Add it to compare a ride with a run. Until the results screens gate on it,
-  their ride figures use a placeholder of 75 kg. The share card leaves out the ride estimate and the
-  balance while no weight is entered.
+  shows it as not entered. Without it, a ride's figures wait: the ride's threshold, its W/kg and
+  watts, its grade, its records and its trend are held, and the card, the cross-sport idea and the
+  Ride page say "Add your weight on Profile to see ride figures." with a link to Profile. A run's
+  figures still show, and the balance and the share card leave out the ride while no weight is
+  entered. The Balance cards, the Ride page and the cross-sport idea show no ride figure worked out
+  from the placeholder weight. The activity page still shows a ride best's watts from it, for a ride
+  whose power is estimated, until that page holds its ride figures too.
+- **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
+  man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
+  to Profile. It is on the Balance, Run and Ride pages only, and the sample has its own persona and
+  no such line.
 - **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
   A new account takes the language of its sign-in request the same way. The Units choice comes
   first in setup, and a unit typed after a weight ("150 lb") is read as typed.

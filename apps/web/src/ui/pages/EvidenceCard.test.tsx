@@ -17,7 +17,7 @@ describe('EvidenceCard evidence gap', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
 
     const card = screen.getByRole('region', { name: 'Your ride number may be low' })
-    expect(within(card).getByText('Evidence gap')).toBeInTheDocument()
+    expect(within(card).getByText('Could be higher')).toBeInTheDocument()
     expect(
       within(card).getByText(
         'Your best 20 min on the bike reached 80% of your cycling heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
@@ -64,9 +64,21 @@ describe('EvidenceCard hard efforts', () => {
     expect(within(card).getByText('Hard efforts on file')).toBeInTheDocument()
     expect(
       within(card).getByText(
-        'Heart rate shows your best efforts in both sports were hard ones, not easy days, so these numbers rest on real work.',
+        'Heart rate shows your best efforts in both sports were hard ones, not easy days. That makes them hard, but does not prove either was all-out.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('is a quiet line, not a bordered card, when the numbers are good news', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 })
+
+    expect(screen.getByRole('region', { name: 'Built on real efforts' })).not.toHaveClass('card')
+  })
+
+  it('states the good news as a line, not as a heading', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 })
+
+    expect(screen.queryByRole('heading', { name: 'Built on real efforts' })).not.toBeInTheDocument()
   })
 })
 
@@ -88,10 +100,49 @@ describe('EvidenceCard detail link', () => {
   it.each(STATES)('ends %s with a How sure is this? link to the method page', (_, effort, name) => {
     renderCard(effort)
 
-    const card = screen.getByRole('region', { name })
-    const link = within(card).getByRole('link', { name: 'How sure is this?' })
-    expect(link).toHaveAttribute('href', '#/method')
-    expect(card.lastElementChild).toBe(link)
+    const region = screen.getByRole('region', { name })
+    const action = within(region).getByRole('link', { name: 'How sure is this?' })
+    expect(action).toHaveAttribute('href', '#/method')
+    expect(region.lastElementChild).toBe(action)
+  })
+})
+
+describe('EvidenceCard says how to record what is missing, on the card', () => {
+  it('tells a gap how to record a hard 20-minute effort, in plain words', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
+
+    const card = screen.getByRole('region', { name: 'Your ride number may be low' })
+    expect(
+      within(card).getByText(
+        'To record one: after a warm-up, run or ride your hardest steady 20 minutes with heart rate on, then add the file.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('gives a gap on both sports the same how-to', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
+
+    const card = screen.getByRole('region', { name: 'Both numbers may be low' })
+    expect(within(card).getByText(/^To record one: after a warm-up/)).toBeInTheDocument()
+  })
+
+  it('tells a card with no heart rate how to add it', () => {
+    renderCard(null)
+
+    const card = screen.getByRole('region', { name: 'Add heart rate to sharpen this' })
+    expect(
+      within(card).getByText(
+        'Wear a heart-rate strap or a watch that records heart rate, and export files that include it.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('gives good news no how-to, because there is nothing to record', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 })
+
+    const card = screen.getByRole('region', { name: 'Built on real efforts' })
+    expect(card).not.toHaveTextContent('To record one')
+    expect(card).not.toHaveTextContent('Wear a heart-rate strap')
   })
 })
 
