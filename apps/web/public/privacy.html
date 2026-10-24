@@ -7,222 +7,190 @@
     <title>Privacy policy - RunningCyclingAnalysis</title>
     <meta
       name="description"
-      content="What RunningCyclingAnalysis stores, where, how long, and how to delete it."
+      content="What RunningCyclingAnalysis stores, where, for how long, and how to delete it."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/privacy.css" />
   </head>
   <body>
-    <main class="policy">
-      <p class="back"><a href="/">RunningCyclingAnalysis</a></p>
-      <h1>Privacy policy</h1>
-      <p class="updated">Last updated 23 October 2026.</p>
+    <header class="header">
+      <div class="wrap header__inner">
+        <a class="header__brand" href="/">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <rect width="32" height="32" rx="7" fill="#0e1116" />
+            <path
+              d="M5 22C10 21 13 17 16 13C19 9 22 7 27 7"
+              fill="none"
+              stroke="#f0435f"
+              stroke-width="3"
+              stroke-linecap="round"
+            />
+            <path
+              d="M5 12C10 12 13 15 16 18C19 21 22 24 27 24"
+              fill="none"
+              stroke="#4d6ef5"
+              stroke-width="3"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span class="header__name">RunningCyclingAnalysis</span>
+        </a>
+        <a class="header__profile" href="/#/profile">Profile</a>
+      </div>
+    </header>
 
-      <p>
-        RunningCyclingAnalysis analyses your activity files in your browser. If you sign in, some of
-        your data is stored on Cloudflare so it follows you between devices. This page says what is
-        stored, where, for how long, and how to delete it. We do not sell your data. The app
-        contains no analytics or advertising trackers.
+    <main class="wrap policy">
+      <p class="updated">Last updated 24 October 2026</p>
+      <h1>Privacy policy</h1>
+
+      <p class="lede">
+        Analysis runs in your browser. Without an account, files are not uploaded. With an account,
+        your profile and activity summaries are stored on Cloudflare, and original files only if you
+        choose. We do not sell your data, and the app has no analytics or advertising trackers.
       </p>
 
-      <h2>Who operates the service</h2>
       <p>
-        RunningCyclingAnalysis is operated by Bryce Capuano. The source code is public at
+        RunningCyclingAnalysis is run by Bryce Capuano, and its source is public on
         <a href="https://github.com/BryceCapuano2020/RunningCyclingAnalysis">GitHub</a>. Privacy
-        questions and requests go to the repository's
+        requests go to the repository's
         <a href="https://github.com/BryceCapuano2020/RunningCyclingAnalysis/issues">issues</a>. Do
-        not put personal data, activity files or account details in a public issue. Say that you
-        have a privacy request, and you will be asked for the minimum needed to act on it.
+        not put personal data in them.
       </p>
 
       <h2>Without an account</h2>
+      <ul>
+        <li>Files are analysed in your browser and not uploaded.</li>
+        <li>
+          Each activity's summary is kept in this browser's IndexedDB, so results survive a reload.
+          It holds the figures shown (times, distances, heart-rate and power, best efforts, climbs,
+          data-quality flags) and the file name. It has no GPS coordinates, per-second data, file
+          hash or original file, and it does not expire.
+        </li>
+        <li>
+          Settings are kept in this browser's local storage: weight, bike and gear weight, units,
+          year and sex if given, and whether setup is answered. This copy is kept whether or not you
+          have an account.
+        </li>
+      </ul>
       <p>
-        Files you analyse without signing in are read and processed in your browser. They are not
-        uploaded, and nothing from them is stored on our servers. So that your results are still
-        there when you come back, the app keeps a summary of each activity in your browser's
-        IndexedDB storage. It is the analysis summary described below for accounts, without the
-        original file and without any file hash: the activity name and sport, the start time,
-        distance, duration and elevation gain, the heart-rate and power figures, the best efforts,
-        climb sections and data-quality flags. Its identifier includes the name of the file it came
-        from. It holds no GPS coordinates and no per-second recording, and it does not expire. The
-        app also saves your body mass, bike mass, unit preference, and your year of birth and sex if
-        you give them, in your browser's local storage, and records there that the first-analysis
-        questions were answered, so they are not asked again. The settings copy in local storage is
-        kept whether or not you have an account. Nothing else is written there.
-      </p>
-      <p>
-        <em>Start over</em>, offered only when you are signed out, removes every summary kept in
-        this browser, and so does clearing this site's data in your browser. You can also delete one
-        activity from the <em>Kept in this browser</em> list on your <em>Profile</em> page. Signing
-        out does not remove the summaries. Anyone using the same browser profile can see them, so
-        use <em>Start over</em> on a shared computer.
-      </p>
-      <p>
-        Year of birth and sex are optional. They are used only to grade your results against age
-        standards. Without an account they stay in your browser; with an account they are kept in
-        your profile. Clear the year, or choose Prefer not to say for sex, on the Profile page to
-        remove them.
+        Signing out does not remove these summaries, and they are not shown while you are signed in.
+        Start over, offered on Profile only when signed out, removes them, as does clearing this
+        site's data.
       </p>
 
       <h2>With an account</h2>
       <p>
-        You sign in with Google. Signing in uses only the basic <code>openid</code>,
-        <code>email</code> and <code>profile</code> permissions. When you are signed in, each
-        activity you analyse is saved to your library. We store:
+        You sign in with Google, using only the <code>openid</code>, <code>email</code> and
+        <code>profile</code> permissions. We never receive your password. Signed in, each activity
+        you analyse is saved to your library, and we keep these until you delete them or delete your
+        account:
       </p>
       <ul>
         <li>
-          <strong>Your account:</strong> the stable Google account identifier, your email address,
-          your display name, and the profile picture address Google gives us. Your browser loads the
-          picture directly from Google, and it is shown in the account menu.
+          <strong>Account:</strong> Google account ID, email, display name, and profile picture
+          address (loaded from Google), and when the account was created.
         </li>
         <li>
           <strong>Sign-in sessions:</strong> a one-way hash of your session token, your account, and
-          when the session was created and expires. The token itself is kept only in your browser,
-          in an HttpOnly cookie.
+          its creation and expiry times. The token stays in your browser, in a sign-in cookie that
+          lasts until your session ends. Sessions end up to 30 days after last use, and at most 90
+          days after they were created. Expired sessions are removed in daily cleanup.
         </li>
         <li>
-          <strong>Profile settings:</strong> body mass, bike mass, your unit system, whether you
-          keep original files, and your year of birth and sex if you give them.
+          <strong>Profile settings:</strong> weight, bike and gear weight, units, whether you keep
+          original files, and year of birth and sex if given.
         </li>
         <li>
-          <strong>Activity summaries:</strong> for each saved activity, its name, start time and
-          sport, the name and SHA-256 hash of the file it came from, its distance, duration and
-          elevation gain, and the analysis summary computed in your browser. The analysis summary
-          includes best efforts, heart-rate figures, climb sections and data-quality flags. It does
-          not include the per-second recording or route coordinates.
+          <strong>Activity summaries:</strong> name, sport, start and save times; file name and
+          SHA-256 hash; distance, duration and elevation gain; and the analysis summary (best
+          efforts, heart-rate figures, climb sections, data-quality flags). No per-second recording
+          or route data.
         </li>
         <li>
-          <strong>Original activity files:</strong> stored only if you turn on
-          <em>Keep original files in my library</em>. A file is uploaded only while this setting is
-          on. Turning it off deletes the stored originals and keeps the summaries.
+          <strong>Original files:</strong> only while
+          <strong>Keep original files in my library</strong> is on, and uploaded only then. Turning
+          it off deletes them and keeps the summaries.
+        </li>
+        <li>
+          <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile
+          changes and library reads, kept for seven days.
         </li>
       </ul>
       <p>
-        Signed in, your settings are also kept in the local copy described under
-        <em>Without an account</em>: your body mass, bike mass, unit preference, year of birth and
-        sex, and the record that the first-analysis questions were answered on this device. That
-        copy is updated when you change those settings, so signing out shows your latest values. It
-        stays in your browser; the account keeps its own copy in your profile.
-      </p>
-      <p>
-        Google's own privacy policy governs what Google does with your account. We do not receive
-        your Google password.
+        Signed in, your settings are also kept in this browser's local storage, so signing out shows
+        your latest values.
       </p>
 
-      <h2>Where it is stored and who processes it</h2>
+      <h2>Storage, logs and backups</h2>
       <p>
-        Account records, sessions, profile settings and activity summaries are stored in Cloudflare
-        D1. Original files, when kept, are stored in a private Cloudflare R2 bucket. Summaries kept
-        without an account are stored only in your browser's IndexedDB storage (see
-        <em>Without an account</em>); we never receive them. Cloudflare Workers serves the
-        application and its interface. Cloudflare processes these data as our infrastructure
-        provider. Google processes your sign-in under its own policies. When backups are enabled,
-        encrypted copies are stored as GitHub Actions artifacts (see below). We do not sell your
-        data, and we do not give it to anyone other than these providers.
+        Accounts, sessions, settings, summaries and daily counts are in a Cloudflare D1 database.
+        Original files are in a private Cloudflare R2 bucket, under keys that include your account
+        and activity IDs. Summaries kept without an account stay in your browser. Cloudflare hosts
+        and processes this data as our provider, and Google processes sign-in. We do not sell your
+        data.
       </p>
-
-      <h2>Cookies and similar technology</h2>
       <p>
-        The app uses only strictly necessary cookies: a session cookie that keeps you signed in, and
-        short-lived cookies (ten minutes) that protect the Google sign-in. We set no tracking or
-        advertising cookies. Without an account, the app also uses your browser's IndexedDB and
-        local storage, described under <em>Without an account</em>. They are not cookies, they stay
-        in your browser, and they are not sent to us.
+        Error logs hold a request ID, the error type and, for a saved activity that cannot be read,
+        its ID. They never hold request bodies, files, tokens or query strings. Cloudflare sees each
+        request's network address, which we use only as a rate-limit key. Cloudflare's request logs
+        include request URLs with the one-time Google sign-in code, which cannot be reused. Request
+        and error logs are kept three days.
       </p>
-
-      <h2>Logs and rate limits</h2>
       <p>
-        Cloudflare handles each request, including the network address it came from, under its own
-        policies. Cloudflare uses that address for rate limiting, which the application does not
-        store. When the application hits an unexpected error, it logs a request identifier and the
-        error type. Our code does not log request bodies, file contents, tokens or query strings.
-        Cloudflare's request logs, kept for 3 days, record request URLs, including the single-use
-        sign-in code returned by Google, which cannot be reused.
+        Cookies are strictly necessary only: the sign-in cookie, and two cookies that last ten
+        minutes and protect the Google sign-in. There are no tracking or advertising cookies.
       </p>
-
-      <h2>How long we keep it</h2>
-      <ul>
-        <li>
-          Account, profile, activity summaries and original files stay until you delete them or
-          delete your account.
-        </li>
-        <li>
-          Sessions end after 30 days without use, and in any case 90 days after they were created.
-          Expired sessions are removed.
-        </li>
-        <li>Cloudflare's request logs and the application's error logs are kept for three days.</li>
-        <li>
-          Backups are not enabled at the date of this page. When they are, each backup is an
-          encrypted copy of the database, kept for up to 90 days and then deleted. A backup also
-          holds a list of the stored original-file objects (their keys and sizes), but not the files
-          themselves. Deleted data can remain in backups until those backups expire.
-        </li>
-      </ul>
+      <p>
+        If backups are turned on, encrypted copies of the database are stored on GitHub, kept up to
+        90 days, then deleted. A backup also lists original-file objects, with keys and sizes, but
+        not the files. Deleted data can remain in backups until they expire.
+      </p>
 
       <h2>How to delete your data</h2>
+      <p>On the <a href="/#/profile">Profile</a> page you can:</p>
       <ul>
         <li>
-          Turn off <em>Keep original files in my library</em> to delete all stored originals while
-          keeping your summaries.
+          Turn off <strong>Keep original files in my library</strong> to delete stored originals and
+          keep summaries.
         </li>
         <li>
-          Delete an activity from the <em>Saved library</em> on your <em>Profile</em> page to remove
-          its summary and any stored original file.
+          Delete one activity from <strong>Saved library</strong>, or from
+          <strong>Kept in this browser</strong> when signed out. This removes its summary and any
+          original file.
         </li>
         <li>
-          Without an account, choose <em>Start over</em> on your <em>Profile</em> page to remove the
-          summaries kept in your browser.
+          Choose <strong>Start over</strong> when signed out to remove every summary kept in this
+          browser.
         </li>
+        <li>Clear your year of birth, or choose <strong>Prefer not to say</strong> for sex.</li>
         <li>
-          Clear your year of birth or choose Prefer not to say for sex on the Profile page to remove
-          them from your profile.
-        </li>
-        <li>
-          Choose <em>Delete account</em> on the Profile page. This removes your account, sessions,
-          profile, all activity summaries and all stored original files. Deleted data can remain in
-          encrypted backups, if backups are enabled, until those backups expire.
+          Choose <strong>Delete account</strong>. It removes your account, sessions, profile,
+          activity summaries and original files. It does not clear this browser's copy of your
+          settings or summaries kept here before you signed in, until you clear this site's data or
+          use Start over while signed out.
         </li>
       </ul>
 
-      <h2>Your rights</h2>
+      <h2>Your data file</h2>
       <p>
-        Depending on where you live, you may have rights to access, correct, delete or restrict the
-        use of your personal data. To use them, open a privacy request as described above. Deleting
-        your account in the app is always available without a request.
+        Signed in, <strong>Download my data</strong> on the Profile page gives one JSON file: its
+        format and time, your account name and email, profile settings, and each saved activity's
+        ID, sport, start, name, file name, whether an original is stored, save time and summary. It
+        has no original files, and it says how many saved activities could not be read.
       </p>
-      <p>
-        If you are signed in, you can download your saved data at any time. On the Profile page,
-        choose <em>Download my data</em>. The file is one JSON document. It contains:
-      </p>
-      <ul>
-        <li>the export's format name and version, and when it was made;</li>
-        <li>your account name and email address;</li>
-        <li>
-          your profile settings: body mass, bike mass, unit system, whether you keep original files,
-          your year of birth and sex, and when the settings last changed;
-        </li>
-        <li>
-          for each saved activity: its library identifier, sport, start time, name, the name of the
-          file it came from, whether an original file is stored, when it was saved, and its stored
-          analysis summary, including the data-quality flags;
-        </li>
-        <li>
-          the number of saved activities that could not be read, which are therefore left out of the
-          file;
-        </li>
-        <li>notes on what the file leaves out and how values are written.</li>
-      </ul>
-      <p>The file does not include original activity files.</p>
 
-      <h2>Children</h2>
-      <p>The service is not directed at children, and we do not knowingly collect their data.</p>
-
-      <h2>Changes</h2>
+      <h2>Rights and changes</h2>
       <p>
-        When this policy changes, the page is updated and its date changes too. Material changes to
-        what is stored are described here before they take effect.
+        You may have rights to access, correct, delete or restrict your data, which you can request
+        as above. The service is not directed at children, and this page's date changes with the
+        policy.
       </p>
     </main>
+
+    <footer class="footer">
+      <div class="wrap">
+        <p><a href="/">RunningCyclingAnalysis</a> · <a href="/#/profile">Profile</a></p>
+      </div>
+    </footer>
   </body>
 </html>
