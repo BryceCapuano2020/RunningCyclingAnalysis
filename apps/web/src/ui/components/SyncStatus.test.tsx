@@ -250,3 +250,31 @@ describe('SyncStatus', () => {
     expect(screen.queryByText('4 saved')).not.toBeInTheDocument()
   })
 })
+
+describe('SyncStatus: what moved', () => {
+  it('keeps the numbers note in the completion once the list has gone', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0, moved: true })} />)
+    rerender(<SyncStatus {...props({ uploading: 3, moved: true })} />)
+    rerender(<SyncStatus {...props({ uploading: null, moved: true })} />)
+    rerender(<SyncStatus {...props({ uploading: null, moved: false })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Saved 3 activities to your library. Your numbers moved.',
+    )
+  })
+
+  it('says the numbers moved in the completion announcement', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0, moved: true })} />)
+    rerender(<SyncStatus {...props({ uploading: 3, moved: true })} />)
+    rerender(<SyncStatus {...props({ uploading: null, moved: true })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Saved 3 activities to your library. Your numbers moved.',
+    )
+  })
+
+  it('leaves the numbers out of the completion when nothing moved', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 3 })} />)
+    rerender(<SyncStatus {...props({ uploading: null })} />)
+    expect(screen.getByRole('status').textContent).toBe('Saved 3 activities to your library.')
+  })
+})

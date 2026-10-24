@@ -6,14 +6,25 @@ import type { Curve, Sport } from '@rca/core/types'
 import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { UnitSystem } from '@rca/core/units'
-import { formatPace, formatPower, formatWkg } from '@rca/core/units'
+import {
+  formatPace,
+  formatPaceValue,
+  formatPower,
+  formatWatts,
+  formatWkg,
+  PACE_UNIT,
+} from '@rca/core/units'
 
 /** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
 export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
 
 export interface SportNumber {
-  /** The number in the sport's own unit: a pace for running, watts for cycling. */
+  /** The number in the sport's own unit, with the unit: a pace for running, watts for cycling. */
   value: string
+  /** The number alone, such as "7:12" or "225", for a sentence that sets the unit apart. */
+  number: string
+  /** The unit after the number, such as "/mi" or "W". */
+  unit: string
   /** A second reading of the same number, e.g. W/kg for cycling. */
   sub: string | null
 }
@@ -24,12 +35,37 @@ export interface SportRecord extends SportNumber {
   activity: ActivitySummary | null
 }
 
+type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
+
 /**
  * A running value (gross metabolic W/kg) as the flat pace with the same cost, which athletes know
- * as grade-adjusted pace; a cycling value as mechanical watts.
+ * as grade-adjusted pace.
+ */
+function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
+  const speed = metabolicToFlatSpeed(metabolicWkg)
+  return {
+    value: formatPace(speed, units),
+    number: formatPaceValue(speed, units),
+    unit: PACE_UNIT[units],
+  }
+}
+
+/**
+ * A running value (gross metabolic W/kg) as the flat pace with the same cost, which athletes know
+ * as grade-adjusted pace. The one place a pace is formatted: the figure's value.
  */
 export function runPace(metabolicWkg: number, units: UnitSystem): string {
-  return formatPace(metabolicToFlatSpeed(metabolicWkg), units)
+  return paceFigure(metabolicWkg, units).value
+}
+
+/** A cycling value as mechanical watts. */
+function powerFigure(watts: number): Figure {
+  return { value: formatPower(watts), number: formatWatts(watts), unit: 'W' }
+}
+
+/** The best-effort curve a sport's records come from: running W/kg, or cycling watts. */
+export function curveOf(result: AnalysisResult, sport: Sport): Curve {
+  return sport === 'run' ? result.runCurve : result.rideCurve
 }
 
 /**
@@ -77,11 +113,11 @@ export function threshold(
   units: UnitSystem,
 ): SportNumber | null {
   if (sport === 'run') {
-    return result.runCp ? { value: runPace(result.runCp.cp, units), sub: null } : null
+    return result.runCp ? { ...paceFigure(result.runCp.cp, units), sub: null } : null
   }
   if (!result.rideCp) return null
   const watts = metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean)
-  return { value: formatPower(watts), sub: formatWkg(watts / massKg) }
+  return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
 }
 
 /** The best effort at each record duration, with the activity that set it. */
@@ -91,7 +127,7 @@ export function sportRecords(
   massKg: number,
   units: UnitSystem,
 ): SportRecord[] {
-  const curve = sport === 'run' ? result.runCurve : result.rideCurve
+  const curve = curveOf(result, sport)
   const byId = new Map(result.activities.map((activity) => [activity.id, activity]))
   const records: SportRecord[] = []
   for (const durationS of RECORD_DURATIONS_S) {
@@ -100,10 +136,10 @@ export function sportRecords(
     const activity = point.activityId === null ? null : (byId.get(point.activityId) ?? null)
     records.push(
       sport === 'run'
-        ? { durationS, value: runPace(point.value, units), sub: null, activity }
+        ? { durationS, ...paceFigure(point.value, units), sub: null, activity }
         : {
             durationS,
-            value: formatPower(point.value),
+            ...powerFigure(point.value),
             sub: formatWkg(point.value / massKg),
             activity,
           },

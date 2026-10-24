@@ -15,6 +15,8 @@ export interface AppNoticesProps {
   accountError: string | null
   /** Runs an action whose button goes away when it finishes, then puts focus back on the page. */
   runThenFocus: (action: () => void, control?: Element) => void
+  /** The last import's summary lists what moved in the athlete's numbers. */
+  moved?: boolean
 }
 
 /**
@@ -29,6 +31,7 @@ export function AppNotices({
   accountsUnavailable,
   accountError,
   runThenFocus,
+  moved = false,
 }: AppNoticesProps) {
   const { result, isSample, rejected, unsupportedFiles } = analysis.state
   return (
@@ -37,6 +40,7 @@ export function AppNotices({
         uploading={analysis.uploading}
         issues={analysis.state.syncIssues}
         signedIn={signedIn}
+        moved={moved}
       />
       <LibraryNotices
         analysis={analysis}

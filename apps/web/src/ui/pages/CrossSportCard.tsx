@@ -3,6 +3,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
 import { formatDay } from '../format/date'
+import { PER } from '../format/units'
 import { hrefFor } from '../route'
 import { featuredEquivalence } from '../records'
 
@@ -10,8 +11,6 @@ export interface CrossSportCardProps {
   result: AnalysisResult
   units: UnitSystem
 }
-
-const PER: Record<UnitSystem, string> = { imperial: 'per mile', metric: 'per kilometre' }
 
 /**
  * What your bike fitness is worth on foot: the app's most relatable idea, as a headline. It names

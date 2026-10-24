@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SyncIssueCode } from '@rca/core/session'
 import { limitReached } from '../limitCopy'
 import type { WorkerResponse } from '../../worker/protocol'
@@ -26,6 +27,8 @@ interface WorkerEventDeps {
   /** Whether the current worker has been asked for the library kept in this browser. */
   deviceLoadedRef: Box<boolean>
   loadDeviceOnce: () => void
+  /** The analysis an import is compared with, taken when the import was sent. */
+  baselineRef: Box<AnalysisResult | null>
 }
 
 /** The responses that answer a request, as opposed to ones the worker sends on its own. */
@@ -110,7 +113,8 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
 
 /** Shows what a reply reports, and settles the request it answers. */
 function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
-  const { transport, imports, library, addFiles, handleAccountIssue, refreshBusy } = deps
+  const { transport, imports, library, addFiles, handleAccountIssue, refreshBusy, baselineRef } =
+    deps
   // Replies arrive in request order; the first pending request is the one this answers.
   const pending = transport.pendingRepliesRef.current.shift()
   refreshBusy()
@@ -133,7 +137,14 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   }
   imports.setState(message.state)
   if (message.type === 'state') {
-    if (message.outcome) imports.setImportOutcome(message.outcome)
+    if (message.outcome) {
+      imports.setImportOutcome(message.outcome)
+      imports.setImportChange({
+        outcome: message.outcome,
+        before: baselineRef.current,
+        after: message.state.result,
+      })
+    }
     if (pending?.kind === 'loadServer') {
       library.setLibrary('loaded')
       // Imports made while the library loaded join it now, in the order they were made.

@@ -6,6 +6,7 @@ import {
   RECORD_DURATIONS_S,
   activityNames,
   countSport,
+  curveOf,
   featuredEquivalence,
   nativeCurve,
   nativeValue,
@@ -136,5 +137,38 @@ describe('activityNames', () => {
       makeActivity({ id: 'ride-1', name: 'Hill ride' }),
     ])
     expect(names).toEqual({ 'run-1': 'Morning run', 'ride-1': 'Hill ride' })
+  })
+})
+
+describe('figures with their number and unit', () => {
+  it('splits a threshold into the number and the unit it is read in', () => {
+    const run = threshold(makeResult(), 'run', 70, 'imperial')
+    expect(run?.number).toMatch(/^\d+:\d{2}$/)
+    expect(run?.unit).toBe('/mi')
+    expect(run?.value).toBe(`${run?.number} ${run?.unit}`)
+    const ride = threshold(makeResult(), 'ride', 70, 'metric')
+    expect(ride?.number).toMatch(/^\d+$/)
+    expect(ride?.unit).toBe('W')
+    expect(ride?.value).toBe(`${ride?.number} W`)
+  })
+
+  it('splits a record into the number and the unit it is read in', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const result = makeResult({ activities: [ride], rideCurve: [curvePoint(60, 400, 'ride-1')] })
+    const [first] = sportRecords(result, 'ride', 80, 'metric')
+    expect(first?.number).toBe('400')
+    expect(first?.unit).toBe('W')
+    expect(first?.value).toBe('400 W')
+  })
+})
+
+describe('curveOf', () => {
+  it('is the curve each sport records from', () => {
+    const result = makeResult({
+      runCurve: [curvePoint(60, 17, 'run-1')],
+      rideCurve: [curvePoint(60, 400, 'ride-1')],
+    })
+    expect(curveOf(result, 'run')).toBe(result.runCurve)
+    expect(curveOf(result, 'ride')).toBe(result.rideCurve)
   })
 })

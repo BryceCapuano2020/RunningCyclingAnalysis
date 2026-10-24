@@ -12,6 +12,7 @@ import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 import { formatDay } from './format/date'
+import { makeResult } from './components/fixtures'
 
 /** The local time shown for a reset instant, as the limit copy formats it. */
 function localTime(ms: number): string {
@@ -871,6 +872,7 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'state', state: STATE, outcome }))
     act(() => worker().onerror?.({ message: 'failed' } as ErrorEvent))
     expect(result.current.importOutcome).toBeNull()
+    expect(result.current.importChange).toBeNull()
   })
 
   it('clears the summary when the user stops the analysis', () => {
@@ -880,6 +882,82 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'state', state: STATE, outcome }))
     act(() => result.current.stop())
     expect(result.current.importOutcome).toBeNull()
+    expect(result.current.importChange).toBeNull()
+  })
+
+  it('keeps the result an import was added to and the one it made, for what moved', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const before = makeResult({ runCp: null })
+    const after = makeResult()
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: before })
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: after }, outcome }))
+    expect(result.current.importChange).toEqual({ outcome, before, after })
+  })
+
+  it('compares the import with nothing when the sample was on screen', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: makeResult(), isSample: true })
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
+    expect(result.current.importChange?.before).toBeNull()
+  })
+
+  it('forgets what moved when the summary is cleared', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
+    expect(result.current.importChange).not.toBeNull()
+    act(() => result.current.clear())
+    expect(result.current.importChange).toBeNull()
+  })
+
+  it('clears what moved when a signed-in account signs out', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result, rerender } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
+    expect(result.current.importChange).not.toBeNull()
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    expect(result.current.importChange).toBeNull()
+  })
+
+  it('compares two imports sent together with the result on screen when the first was sent', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const shown = makeResult({ runCp: null })
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: shown })
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.addFiles([FILE]))
+    const other = makeResult({ runCp: null, rideCp: null })
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: other }, outcome }))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
+    expect(result.current.importChange?.before).toBe(shown)
+  })
+
+  it('drops what moved when the summary is dismissed', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
+    expect(result.current.importChange).not.toBeNull()
+    act(() => result.current.dismissSummary())
+    expect(result.current.importChange).toBeNull()
+  })
+
+  it('keeps the baseline of an import still in flight when the summary is dismissed', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const shown = makeResult({ runCp: null })
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, result: shown })
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.dismissSummary())
+    act(() => worker().reply({ type: 'state', state: { ...STATE, result: makeResult() }, outcome }))
+    expect(result.current.importChange?.before).toBe(shown)
   })
 
   it('reports no uploads for a progress message that carries none', () => {

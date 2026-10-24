@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { ImportOutcome } from '../../worker/protocol'
-import { addedSentence } from '../analysis/copy'
+import { addedSentence, MOVED_NOTE } from '../analysis/copy'
 import type { ImportProgress } from '../analysis/model'
+import type { MovedItem } from '../analysis/whatMoved'
 import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { hrefFor } from '../route'
 import { plural } from './plural'
@@ -31,6 +32,10 @@ export interface ImportStatusProps {
   waiting?: string | null
   /** On the Balance page the summary's link would point at the page it is already on, so it is left out. */
   atBalance?: boolean
+  /** What the import moved in the athlete's numbers, listed under the summary and announced. */
+  moved?: MovedItem[]
+  /** Called when the summary is dismissed, so the page can drop what moved with it. */
+  onDismiss?: () => void
 }
 
 /** The total a count and a bar can use, or null when the import shows its count alone. */
@@ -66,6 +71,19 @@ function outcomeSentence(outcome: Outcome): string {
   return `Analysed ${plural(outcome.activities, 'activity', 'activities')}.${rejectedText}`
 }
 
+const NO_CHANGES: MovedItem[] = []
+
+/** A change as text, with the arrow hidden from screen readers in favour of the spoken form. */
+function movedText({ text, spoken }: MovedItem) {
+  if (spoken === undefined) return text
+  return (
+    <>
+      <span aria-hidden="true">{text}</span>
+      <span className="sr-only">{spoken}</span>
+    </>
+  )
+}
+
 /**
  * Import feedback for the whole page: the drop listeners, the drag overlay, the one live region and
  * the progress strip. Render it once, under the header, so it stays mounted across pages. A region
@@ -79,6 +97,8 @@ export function ImportStatus({
   outcome = null,
   waiting = null,
   atBalance = false,
+  moved = NO_CHANGES,
+  onDismiss,
 }: ImportStatusProps) {
   const [windowDragging, setWindowDragging] = useState(false)
   // The one live region: announces that a run started and how it ended, and nothing in between.
@@ -136,7 +156,11 @@ export function ImportStatus({
   if (outcome !== announcedOutcome) {
     setAnnouncedOutcome(outcome)
     // Signed in, the sync status announces how the import ended, so this stays silent.
-    if (outcome !== null && !busy && !signedIn) setAnnouncement(outcomeSentence(outcome))
+    if (outcome !== null && !busy && !signedIn) {
+      // The note goes with a summary sentence only, as the list does.
+      const movedNote = moved.length > 0 && addedSentence(outcome) !== null ? ` ${MOVED_NOTE}` : ''
+      setAnnouncement(`${outcomeSentence(outcome)}${movedNote}`)
+    }
   }
 
   const summary =
@@ -145,6 +169,7 @@ export function ImportStatus({
 
   function dismiss(event: MouseEvent<HTMLButtonElement>) {
     setDismissedOutcome(outcome)
+    onDismiss?.()
     // The button leaves with the notice, so focus that was on it moves to the page heading.
     if (document.activeElement === event.currentTarget) {
       document.getElementById(PAGE_HEADING_ID)?.focus({ preventScroll: true })
@@ -172,7 +197,16 @@ export function ImportStatus({
       )}
       {summary !== null && (
         <div className="import-status__notice">
-          <p>{summary}</p>
+          <div className="import-status__body">
+            <p>{summary}</p>
+            {moved.length > 0 && (
+              <ul className="import-status__moved">
+                {moved.map((item) => (
+                  <li key={item.text}>{movedText(item)}</li>
+                ))}
+              </ul>
+            )}
+          </div>
           {atBalance ? null : <a href={hrefFor({ page: 'balance' })}>See your balance</a>}
           <button type="button" className="btn" onClick={dismiss}>
             Dismiss import summary

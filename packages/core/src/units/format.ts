@@ -102,11 +102,17 @@ export function formatMass(kg: number, system: UnitSystem): string {
   return system === 'imperial' ? `${whole(kgToLb(kg))} lb` : `${whole(kg)} kg`
 }
 
-export function formatPower(watts: number): string {
+/** Watts as a whole number, without the unit. */
+export function formatWatts(watts: number): string {
   if (!Number.isFinite(watts)) {
     return DASH
   }
-  return `${whole(watts)} W`
+  return whole(watts)
+}
+
+export function formatPower(watts: number): string {
+  const number = formatWatts(watts)
+  return number === DASH ? DASH : `${number} W`
 }
 
 export function formatWkg(wPerKg: number): string {

@@ -93,3 +93,14 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+.import-status__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* What the import moved, under the summary sentence. */
+.import-status__moved {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}

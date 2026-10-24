@@ -11,6 +11,7 @@ export {
   formatPercent,
   formatPower,
   formatSpeed,
+  formatWatts,
   formatWkg,
   paceSeconds,
 } from './format'

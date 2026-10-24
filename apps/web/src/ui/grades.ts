@@ -11,8 +11,9 @@ import {
 import type { Sex } from '@rca/core/grade'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Curve, Sport } from '@rca/core/types'
+import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
+import { curveOf } from './records'
 
 /** The year of birth and sex that every grade needs. Null on the page when either is missing. */
 export interface AgeProfile {
@@ -139,7 +140,7 @@ export function sportGrade(
   durationS: number,
   profile: AgeProfile,
 ): GradeOutcome {
-  const curve: Curve = sport === 'run' ? result.runCurve : result.rideCurve
+  const curve = curveOf(result, sport)
   const point = curve.find((candidate) => candidate.durationS === durationS)
   if (point === undefined || !Number.isFinite(point.value)) return gap(NEEDS_EFFORT_TEXT)
   const startMs = startOf(result, point.activityId)

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MAX_ACTIVITIES_PER_USER, MAX_FILE_BYTES } from '@rca/contract'
 import type { SyncIssue } from '@rca/core/session'
+import { MOVED_NOTE } from '../analysis/copy'
 import { resetSentence } from '../limitCopy'
 import { plural } from './plural'
 import './SyncStatus.css'
@@ -11,6 +12,8 @@ export interface SyncStatusProps {
   /** Activities in this library session that were not saved, or not kept, and why. */
   issues: SyncIssue[]
   signedIn: boolean
+  /** The import's summary lists what moved in the athlete's numbers, so the completion says so. */
+  moved?: boolean
 }
 
 const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024))
@@ -69,9 +72,10 @@ function issueSentence({ code, count }: SyncIssue): string {
  * here, and the running count is visual only, shown once at least one activity is saved. Issues
  * stay visible until the parent clears them.
  */
-export function SyncStatus({ uploading, issues, signedIn }: SyncStatusProps) {
+export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)
-  const [finished, setFinished] = useState<number | null>(null)
+  // The completion keeps whether its import moved the numbers, so the note outlives the list.
+  const [finished, setFinished] = useState<{ saved: number; moved: boolean } | null>(null)
 
   // Detect the start and the finish of an upload during render, not in an effect.
   if (uploading !== previous) {
@@ -79,17 +83,18 @@ export function SyncStatus({ uploading, issues, signedIn }: SyncStatusProps) {
     if (uploading !== null && previous === null) {
       setFinished(null)
     } else if (uploading === null && previous !== null) {
-      setFinished(previous)
+      setFinished({ saved: previous, moved })
     }
   }
 
   let text: string
   if (issues.length > 0) {
     text = issues.map(issueSentence).join(' ')
-  } else if (finished === 0) {
+  } else if (finished?.saved === 0) {
     text = NOTHING_SAVED
   } else if (finished !== null) {
-    text = `Saved ${plural(finished, 'activity', 'activities')} to your library`
+    const saved = `Saved ${plural(finished.saved, 'activity', 'activities')} to your library.`
+    text = finished.moved ? `${saved} ${MOVED_NOTE}` : saved
   } else {
     text = ''
   }
