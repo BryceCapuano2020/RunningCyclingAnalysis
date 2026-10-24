@@ -78,7 +78,9 @@ export function App() {
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
   }
 
-  const analysis = useAnalysis(analysisAthlete, account)
+  // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
+  const gradeTrend = ageProfile !== null
+  const analysis = useAnalysis(analysisAthlete, account, gradeTrend)
   // Sample data carries its own persona weight, so it is weighted whatever the visitor has entered.
   const weighted = analysis.state.isSample || weightKnown(settings)
   // Called after useAnalysis, so its settings are in place before held files are sent.

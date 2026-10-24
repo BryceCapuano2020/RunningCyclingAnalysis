@@ -351,7 +351,7 @@ describe('SportPage age grades', () => {
     renderPage('run', result, 'metric', null, previous, 'Previous 6 weeks')
 
     expect(
-      screen.getByRole('img', { name: /^Running grade-adjusted pace per kilometre by duration\./ }),
+      screen.getByRole('figure', { name: 'Running grade-adjusted pace per kilometre by duration' }),
     ).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
@@ -374,6 +374,9 @@ describe('SportPage fitness trend', () => {
     rideWkg: null,
     runCount: 1,
     rideCount: 0,
+    runAtMs: Date.UTC(2026, 0, 11 + index * 7, 23, 59, 59, 999),
+    rideAtMs: null,
+    rideRunSpeed: null,
   })
   const TRENDS: Record<EffortLengthS, TrendPoint[]> = {
     [FIVE_MIN_S]: [week(0, 16), week(1, 16.2)],
@@ -387,7 +390,7 @@ describe('SportPage fitness trend', () => {
 
   /** The pace column of the trend chart named by `label`, one entry per week. */
   const paceColumnOf = (label: string): (string | null | undefined)[] => {
-    const figure = screen.getByRole('img', { name: new RegExp(label) }).closest('figure')
+    const figure = screen.getByRole('figure', { name: new RegExp(label) })
     return Array.from(figure?.querySelectorAll('tbody tr') ?? [], (row) => {
       return row.querySelectorAll('th, td')[1]?.textContent
     })
@@ -400,8 +403,8 @@ describe('SportPage fitness trend', () => {
     const choice = screen.getByRole('group', { name: 'Effort length' })
     expect(within(choice).getByRole('radio', { name: '20 min' })).toBeChecked()
     expect(
-      screen.getByRole('img', {
-        name: /^Running grade-adjusted pace per kilometre, best 20 minutes by week\./,
+      screen.getByRole('figure', {
+        name: /^Running grade-adjusted pace per kilometre, best 20 minutes, trailing/,
       }),
     ).toBeInTheDocument()
   })
@@ -412,15 +415,15 @@ describe('SportPage fitness trend', () => {
 
     fireEvent.click(within(choice).getByRole('radio', { name: '5 min' }))
     expect(
-      screen.getByRole('img', {
-        name: /^Running grade-adjusted pace per kilometre, best 5 minutes by week\./,
+      screen.getByRole('figure', {
+        name: /^Running grade-adjusted pace per kilometre, best 5 minutes, trailing/,
       }),
     ).toBeInTheDocument()
     expect(paceColumnOf('best 5 minutes')).toEqual(paceList(TRENDS[FIVE_MIN_S]))
-    expect(screen.queryByRole('img', { name: /best 20 minutes/ })).toBeNull()
+    expect(screen.queryByRole('figure', { name: /best 20 minutes/ })).toBeNull()
 
     fireEvent.click(within(choice).getByRole('radio', { name: '60 min' }))
-    expect(screen.getByRole('img', { name: /best 60 minutes by week\./ })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /best 60 minutes, trailing/ })).toBeInTheDocument()
     expect(paceColumnOf('best 60 minutes')).toEqual(paceList(TRENDS[SIXTY_MIN_S]))
     expect(paceColumnOf('best 60 minutes')).not.toEqual(paceList(TRENDS[TWENTY_MIN_S]))
   })

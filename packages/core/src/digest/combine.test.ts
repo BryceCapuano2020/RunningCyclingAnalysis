@@ -3,6 +3,7 @@ import { DEFAULT_BIKE_MODEL, DURATIONS_S, RESTING_W_PER_KG } from '../constants'
 import { smoothGrade } from '../metabolic'
 import { mulberry32 } from '../math'
 import { airDensityStream } from '../physics/air'
+import { crossCheck } from '../hr'
 import { assessQuality } from '../quality'
 import { generateActivity, sampleDataset } from '../synthetic'
 import type {
@@ -14,7 +15,13 @@ import type {
   HrPoint,
 } from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
-import { atOrBelowCriticalPower, combine, equivalentRunSpeed, sportCurves } from './combine'
+import {
+  atOrBelowCriticalPower,
+  combine,
+  equivalenceFor,
+  equivalentRunSpeed,
+  sportCurves,
+} from './combine'
 import { digestActivity } from './digestActivity'
 import { powerAt } from './terms'
 import type { RideInputs } from './test/reference'
@@ -584,5 +591,23 @@ describe('sportCurves', () => {
     const standard = sportCurves(ride, settings, DEFAULT_BIKE_MODEL).rideCurve
     const drag = sportCurves(ride, settings, heavier).rideCurve
     expect(drag.map((point) => point.value)).not.toEqual(standard.map((point) => point.value))
+  })
+})
+
+describe('equivalenceFor', () => {
+  const hrPoints = (slope: number) =>
+    Array.from({ length: 40 }, (_, i) => ({
+      metabolicPower: 6 + i * 0.1,
+      heartRate: 120 + slope * i * 0.1 + (i % 3),
+      activityId: `a${i}`,
+    }))
+
+  it('gives the same interval as equivalentRunSpeed for each power, under one model', () => {
+    for (const hr of [null, crossCheck(hrPoints(2), hrPoints(2.4))]) {
+      const equivalence = equivalenceFor(hr)
+      for (const watts of [180, 250, 320]) {
+        expect(equivalence(watts, 75)).toEqual(equivalentRunSpeed(watts, 75, hr))
+      }
+    }
   })
 })

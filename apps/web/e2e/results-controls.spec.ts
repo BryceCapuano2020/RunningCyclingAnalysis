@@ -48,12 +48,12 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   })
   await expect(card).toBeVisible()
   await expect(
-    card.getByRole('img', {
-      name: /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\. /,
+    card.getByRole('figure', {
+      name: /^(Age grade|Energy rate) of your best 20 minutes, trailing/,
     }),
   ).toBeAttached()
 
-  // Each chart has its own table view; the running one is checked here.
+  // The trend has its own table view, which is checked here.
   const details = card.locator('details').first()
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()

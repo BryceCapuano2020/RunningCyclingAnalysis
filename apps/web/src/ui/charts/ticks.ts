@@ -1,16 +1,17 @@
 import { formatDuration } from '@rca/core/units'
 import type { AxisTick } from './chartTypes'
 
-/** Below this width, x ticks are capped at four and axis text drops to 11 px. */
+/** Below this width, x ticks are capped at four, and axis text is 12 px rather than 13. */
 export const NARROW_WIDTH = 480
 
 const CHAR_EM = 0.6
 const LABEL_GAP = 8
-/** Candidate duration ticks on a log x axis: 1, 5, 20, 60, 120 and 180 minutes. */
-const TICK_DURATIONS_S = [60, 300, 1200, 3600, 7200, 10800]
+/** Candidate duration ticks on a log x axis: 1, 5, 10, 20, 30, 60, 120 and 180 minutes. */
+const TICK_DURATIONS_S = [60, 300, 600, 1200, 1800, 3600, 7200, 10800]
 
+/** Axis text in px: 13 on a wide chart, and 12 on a narrow one, the smallest that reads comfortably. */
 export function axisFontSize(width: number): number {
-  return width < NARROW_WIDTH ? 11 : 12
+  return width < NARROW_WIDTH ? 12 : 13
 }
 
 /** The candidate duration ticks inside [fromS, toS], placed by x and labelled as durations. */

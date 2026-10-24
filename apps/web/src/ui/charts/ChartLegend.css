@@ -65,6 +65,22 @@
   align-self: center;
 }
 
+/* A point's key, in its sport's colour, drawn as the point is: a dot for running, a diamond for riding. */
+.chart-legend__key--dot {
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 50%;
+}
+
+.chart-legend__key--diamond {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
 .chart-legend__key--run {
   background: var(--series-run);
 }
@@ -77,9 +93,17 @@
   background: var(--neutral-mark);
 }
 
-/* A comparison line drawn dashed, as the previous period is. */
+/* A comparison line drawn dashed, as the previous period is, or an estimate in its sport's colour. */
 .chart-legend__key--dashed {
   height: 0;
   border-top: 2.5px dashed var(--neutral-mark);
   background: none;
+}
+
+.chart-legend__key--dashed-run {
+  border-top-color: var(--series-run);
+}
+
+.chart-legend__key--dashed-ride {
+  border-top-color: var(--series-ride);
 }

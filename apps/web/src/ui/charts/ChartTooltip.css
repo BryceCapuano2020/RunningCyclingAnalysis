@@ -15,8 +15,11 @@
   pointer-events: none;
 }
 
-.chart-tooltip[hidden] {
-  display: none;
+/* An empty tooltip is a zero-size box: no padding, border or shadow, and so nothing to see. */
+.chart-tooltip:empty {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 .chart-tooltip__title {

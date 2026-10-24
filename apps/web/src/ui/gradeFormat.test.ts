@@ -10,6 +10,10 @@ describe('wholeGrade', () => {
   it('never reads above its level band: 89.6% is 89%, not 90%', () => {
     expect(wholeGrade(0.896)).toBe(89)
   })
+
+  it('floors a grade that is 89.95% to its whole percent, not 90, though it reads 89.9% to one decimal', () => {
+    expect(wholeGrade(0.8995)).toBe(89)
+  })
 })
 
 describe('formatGrade', () => {

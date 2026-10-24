@@ -102,7 +102,7 @@ const UNAVAILABLE: Account = { status: 'unavailable', me: null }
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: AthleteSettings }) =>
-      useAnalysis(current, account),
+      useAnalysis(current, account, false),
     { initialProps: { account: initial, current: settings } },
   )
 }
@@ -180,7 +180,7 @@ describe('useAnalysis account handling', () => {
   it('loads the stored activities into the active worker under StrictMode', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account),
+        useAnalysis(current, account, false),
       {
         initialProps: { account: SIGNED_IN_KEEP, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -527,7 +527,7 @@ describe('useAnalysis device library', () => {
   it('sends one device load to the surviving worker under StrictMode when signed out', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account),
+        useAnalysis(current, account, false),
       {
         initialProps: { account: SIGNED_OUT, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -640,6 +640,23 @@ describe('useAnalysis requests', () => {
       { type: 'setRange', rangeDays: 42, settings: SETTINGS },
       { type: 'clear', forgetDevice: true },
     ])
+  })
+
+  it('asks the worker to grade the trend once the athlete has an age and sex, and only then', () => {
+    const { rerender } = renderHook(
+      ({ grade }: { grade: boolean }) => useAnalysis(SETTINGS, SIGNED_OUT, grade),
+      { initialProps: { grade: false } },
+    )
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    rerender({ grade: true })
+    expect(worker().posted).toEqual([
+      DEVICE_LOAD,
+      { type: 'setGradeTrend', on: true, settings: SETTINGS },
+    ])
+    rerender({ grade: true })
+    expect(worker().posted).toHaveLength(2)
+    rerender({ grade: false })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setGradeTrend', on: false, settings: SETTINGS })
   })
 
   it('posts new settings only when the body or bike mass changes', () => {

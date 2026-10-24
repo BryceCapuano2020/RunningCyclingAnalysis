@@ -7,6 +7,7 @@ import type { TrendPoint } from '@rca/core/digest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { flatSpeedToMetabolic } from '@rca/core/metabolic'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { curvePoint } from '../charts/fixtures'
@@ -60,15 +61,38 @@ const GRADED_RUN = makeResult({
   runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
 })
 
+/** Weeks with a run and a ride, each rode with a running equivalent, so the grade trend has both. */
+function trendWithRides(weeks: number): TrendPoint[] {
+  return Array.from({ length: weeks }, (_, index) => {
+    const endMs = new Date(2026, 0, 4 + index * 7, 23, 59).getTime()
+    return {
+      endMs,
+      runWkg: flatSpeedToMetabolic(4),
+      rideWkg: flatSpeedToMetabolic(4.2),
+      runCount: 1,
+      rideCount: 1,
+      runAtMs: endMs,
+      rideAtMs: endMs,
+      rideRunSpeed: { p05: 3.9, p50: 4.2, p95: 4.5 },
+    }
+  })
+}
+
 /** Two weeks with a running value: the fitness trend is shown only from two. */
 function trendWithWeeks(weeks: number): TrendPoint[] {
-  return Array.from({ length: weeks }, (_, index) => ({
-    endMs: new Date(2026, 0, 4 + index * 7, 23, 59).getTime(),
-    runWkg: 3.4,
-    rideWkg: null,
-    runCount: 1,
-    rideCount: 0,
-  }))
+  return Array.from({ length: weeks }, (_, index) => {
+    const endMs = new Date(2026, 0, 4 + index * 7, 23, 59).getTime()
+    return {
+      endMs,
+      runWkg: 3.4,
+      rideWkg: null,
+      runCount: 1,
+      rideCount: 0,
+      runAtMs: endMs,
+      rideAtMs: null,
+      rideRunSpeed: null,
+    }
+  })
 }
 
 describe('BalancePage', () => {
@@ -133,14 +157,85 @@ describe('BalancePage', () => {
     expect(screen.getByRole('heading', { name: 'Fitness over time' })).toBeInTheDocument()
   })
 
-  it('shows the running trend in pace and says when there are not yet two weeks of cycling', () => {
+  it('shows one energy trend for both sports while the age or sex is unknown', () => {
     renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
+    const section = screen.getByRole('region', { name: 'Fitness over time' })
     expect(
-      screen.getByRole('img', {
-        name: /^Running grade-adjusted pace per kilometre, best 20 minutes by week\./,
+      within(section).getByRole('figure', {
+        name: 'Energy rate of your best 20 minutes, trailing 6 weeks',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Add rides in more than one week to see a trend')).toBeInTheDocument()
+    // Only running has a value, so the key has nothing to tell apart.
+    expect(within(section).queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('holds cycling on the age-grade trend while no weight is entered, and draws it when one is', () => {
+    const trend = trendWithRides(3)
+    const held = renderPage(makeResult(), { state: { trend } }, MAN_BORN_1986, false)
+    expect(held.container.querySelector('[data-testid="trend-line"][data-sport="ride"]')).toBeNull()
+    expect(held.container.querySelector('[data-testid="trend-ring"]')).toBeNull()
+    expect(held.container.querySelector('[data-testid="trend-band"]')).toBeNull()
+    const heldSection = screen.getByRole('region', { name: 'Fitness over time' })
+    expect(within(heldSection).queryByText('Cycling, estimated')).toBeNull()
+    expect(within(heldSection).queryByText('Cycling grade, estimated')).toBeNull()
+    expect(
+      within(heldSection).getByText(/Cycling is held until a weight is added/),
+    ).toBeInTheDocument()
+    held.unmount()
+
+    const known = renderPage(makeResult(), { state: { trend } }, MAN_BORN_1986, true)
+    expect(
+      known.container.querySelector('[data-testid="trend-line"][data-sport="ride"]'),
+    ).not.toBeNull()
+    expect(known.container.querySelector('[data-testid="trend-band"]')).not.toBeNull()
+    const section = screen.getByRole('region', { name: 'Fitness over time' })
+    expect(within(section).getByText('Cycling, estimated')).toBeInTheDocument()
+  })
+
+  it('gates the grade trend on each effort’s date, not on the Sunday that ends its week', () => {
+    // Born in 2021: the athlete is 4 in December 2025, which the standards do not cover, and 5 by the
+    // weeks that end in January 2026, which they do. The best efforts are the December ones.
+    const effortMs = new Date(2025, 11, 28, 12).getTime()
+    const trend: TrendPoint[] = [4, 11].map((day) => ({
+      endMs: new Date(2026, 0, day, 23, 59).getTime(),
+      runWkg: flatSpeedToMetabolic(4),
+      rideWkg: null,
+      runCount: 1,
+      rideCount: 0,
+      runAtMs: effortMs,
+      rideAtMs: null,
+      rideRunSpeed: null,
+    }))
+    renderPage(makeResult(), { state: { trend } }, { birthYear: 2021, sex: 'male' })
+    const section = screen.getByRole('region', { name: 'Fitness over time' })
+    expect(within(section).getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
+    expect(within(section).queryByText(/Add runs or rides/)).toBeNull()
+  })
+
+  it('says which ages the grades cover when every week’s age falls outside them', () => {
+    // Born in 1900, the athlete is 125 in 2025: no age standard covers that.
+    const running = trendWithWeeks(2).map((week) =>
+      Object.assign(week, { runWkg: flatSpeedToMetabolic(4) }),
+    )
+    renderPage(makeResult(), { state: { trend: running } }, { birthYear: 1900, sex: 'male' })
+    const section = screen.getByRole('region', { name: 'Fitness over time' })
+    expect(within(section).getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
+    expect(within(section).queryByText(/Add runs or rides in more than one week/)).toBeNull()
+  })
+
+  it('shows the age-grade trend for both sports on one scale once the age and sex are known', () => {
+    // A run at 4 m/s (4:10 /km) is a grade; the fixture's 3.4 W/kg is a walk, with no standard.
+    const running = trendWithWeeks(2).map((week) =>
+      Object.assign(week, { runWkg: flatSpeedToMetabolic(4) }),
+    )
+    renderPage(makeResult(), { state: { trend: running } }, MAN_BORN_1986)
+    const section = screen.getByRole('region', { name: 'Fitness over time' })
+    expect(
+      within(section).getByRole('figure', {
+        name: 'Age grade of your best 20 minutes, trailing 6 weeks',
+      }),
+    ).toBeInTheDocument()
+    expect(within(section).getByText(/^Each point grades your best 20 minutes/)).toBeInTheDocument()
   })
 
   it('links to how sure the answer is once, from the evidence card', () => {

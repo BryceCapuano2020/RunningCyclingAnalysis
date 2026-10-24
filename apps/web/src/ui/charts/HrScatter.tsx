@@ -5,6 +5,8 @@ import { formatWkg } from '@rca/core/units'
 import { keyByContent } from '../contentKeys'
 import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
+import type { ChartLegendEntry } from './ChartLegend'
+import { diamondPath } from './chartInteraction'
 import { ChartTooltip } from './ChartTooltip'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
@@ -23,6 +25,7 @@ const EMPTY =
   'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks per sport across a range of efforts'
 const DOT_R = 4
 const ACTIVE_DOT_R = 6
+
 /** Pointer distance, in px, within which a dot counts as hovered. Wider than the dot. */
 const HIT_RADIUS = 16
 /** Most dots drawn at once. Longer libraries keep every block in the table view and the summary. */
@@ -286,7 +289,11 @@ export function HrScatter({ hr }: HrScatterProps) {
     <ChartFrame
       title="Heart rate against energy rate"
       description="Average heart rate against energy rate for each block of steady effort, with a fitted line for each sport."
-      legend={sports.map((data) => ({ label: SPORT_TITLE[data.sport], kind: data.sport }))}
+      legend={sports.map((data): ChartLegendEntry => ({
+        label: SPORT_TITLE[data.sport],
+        kind: data.sport,
+        swatch: data.sport === 'ride' ? 'diamond' : 'dot',
+      }))}
       summary={{
         caption: 'Summary by sport',
         columns: ['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'],
@@ -346,17 +353,32 @@ export function HrScatter({ hr }: HrScatterProps) {
                 />
               ))}
               {keyByContent(m.dots, (dot) => `${dot.sport}:${dot.bpm}:${dot.metabolicWkg}`).map(
-                ({ key, item: dot, index: i }) => (
-                  <circle
-                    key={key}
-                    data-testid="hr-dot"
-                    data-sport={dot.sport}
-                    className={`hr-scatter__dot hr-scatter__dot--${dot.sport}`}
-                    cx={dot.x}
-                    cy={dot.y}
-                    r={i === active ? ACTIVE_DOT_R : DOT_R}
-                  />
-                ),
+                ({ key, item: dot, index: i }) => {
+                  const r = i === active ? ACTIVE_DOT_R : DOT_R
+                  const className = `hr-scatter__dot hr-scatter__dot--${dot.sport}`
+                  // Rides are diamonds, so the two sports differ in shape as well as colour.
+                  return dot.sport === 'ride' ? (
+                    <path
+                      key={key}
+                      data-testid="hr-dot"
+                      data-sport="ride"
+                      data-shape="diamond"
+                      className={className}
+                      d={diamondPath(dot.x, dot.y, r)}
+                    />
+                  ) : (
+                    <circle
+                      key={key}
+                      data-testid="hr-dot"
+                      data-sport="run"
+                      data-shape="circle"
+                      className={className}
+                      cx={dot.x}
+                      cy={dot.y}
+                      r={r}
+                    />
+                  )
+                },
               )}
             </g>
           </>

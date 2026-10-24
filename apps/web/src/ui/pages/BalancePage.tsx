@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import type { TrendPoint } from '@rca/core/digest'
 import { trendWindowDays, weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { TrendChart } from '../charts'
+import { SharedTrendChart, energyWeeks, gradeWeeks } from '../charts'
 import { ShareImageButton, pickHeadline } from '../components'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { gapOfHeadline } from '../balanceGap'
-import { gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
+import { AGE_RANGE_TEXT, athleteOf, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
 import type { AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_ORDER } from '../sports'
@@ -30,6 +31,21 @@ export interface BalancePageProps {
   controls: ReactNode
   /** False while no body weight is entered, so the share card leaves out what needs one. */
   weightKnown: boolean
+}
+
+/**
+ * Whether any week of the trend falls at an age the standards cover. When none does, the grade
+ * trend has nothing to show, and the page says which ages the standards cover instead. Without a
+ * profile there is no age to grade by, so there is nothing to say.
+ */
+function gradesCoverAge(trend: readonly TrendPoint[], profile: AgeProfile | null): boolean {
+  if (profile === null) return true
+  // Each sport is graded at the age on its own best effort's day, so the test uses those days.
+  return trend.some((point) =>
+    [point.runAtMs, point.rideAtMs].some(
+      (atMs) => atMs !== null && athleteOf(profile, atMs) !== null,
+    ),
+  )
 }
 
 /**
@@ -104,21 +120,14 @@ export function BalancePage({
         <section className="section" aria-labelledby="balance-trend">
           <h2 id="balance-trend">Fitness over time</h2>
           <div className="balance__trends">
-            <TrendChart
-              sport="run"
-              points={trend}
-              massKg={settings.massKg}
-              units={units}
+            {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
+            <SharedTrendChart
+              weeks={profile === null ? energyWeeks(trend) : gradeWeeks(trend, profile)}
+              measure={profile === null ? 'energy' : 'grade'}
               windowDays={trendWindowDays(rangeDays)}
               effortS={HEADLINE_DURATION_S}
-            />
-            <TrendChart
-              sport="ride"
-              points={trend}
-              massKg={settings.massKg}
-              units={units}
-              windowDays={trendWindowDays(rangeDays)}
-              effortS={HEADLINE_DURATION_S}
+              emptyText={gradesCoverAge(trend, profile) ? undefined : AGE_RANGE_TEXT}
+              rideKnown={weightKnown}
             />
           </div>
         </section>

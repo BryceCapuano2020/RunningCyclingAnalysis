@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { nearestByPoint, nearestByX, stepActive } from './hover'
+import { lastAtOrBefore, nearestByPoint, nearestByX, stepActive } from './hover'
 
 describe('nearestByX', () => {
   it('picks the position closest in x and ignores y', () => {
@@ -41,9 +41,28 @@ describe('stepActive', () => {
     expect(stepActive(0, 4, 'ArrowLeft')).toEqual({ index: 0 })
   })
 
+  it('jumps to the first point on Home and the last on End', () => {
+    expect(stepActive(2, 4, 'Home')).toEqual({ index: 0 })
+    expect(stepActive(null, 4, 'End')).toEqual({ index: 3 })
+    expect(stepActive(null, 0, 'Home')).toBeNull()
+  })
+
   it('clears on Escape and ignores other keys', () => {
     expect(stepActive(2, 4, 'Escape')).toEqual({ index: null })
     expect(stepActive(2, 4, 'Enter')).toBeNull()
     expect(stepActive(null, 0, 'ArrowRight')).toBeNull()
+  })
+})
+
+describe('lastAtOrBefore', () => {
+  it('picks the last position at or before x, so a step holds its value until the next sample', () => {
+    expect(lastAtOrBefore([10, 50, 90], 58)).toBe(1)
+    expect(lastAtOrBefore([10, 50, 90], 50)).toBe(1)
+    expect(lastAtOrBefore([10, 50, 90], 200)).toBe(2)
+  })
+
+  it('gives null before the first position, and for no positions', () => {
+    expect(lastAtOrBefore([10, 50], 5)).toBeNull()
+    expect(lastAtOrBefore([], 5)).toBeNull()
   })
 })

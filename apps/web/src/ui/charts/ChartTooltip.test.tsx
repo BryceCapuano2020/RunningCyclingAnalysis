@@ -41,10 +41,10 @@ function giveSize(width: number, height: number) {
 }
 
 describe('ChartTooltip', () => {
-  it('stays in the DOM but hidden while there is no content, so its updates are announced', () => {
+  it('stays in the DOM and empty while there is no content, so its updates are announced', () => {
     const { el } = renderTooltip({ content: null })
     expect(el).toHaveAttribute('role', 'status')
-    expect(el).toHaveAttribute('hidden')
+    expect(el).not.toHaveAttribute('hidden')
     expect(el).toBeEmptyDOMElement()
   })
 

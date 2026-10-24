@@ -65,7 +65,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('img', { name: /^Running grade-adjusted pace per kilometre by duration\./ }),
+      screen.getByRole('figure', { name: 'Running grade-adjusted pace per kilometre by duration' }),
     ).toBeInTheDocument()
     metric.unmount()
 
@@ -79,7 +79,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('img', { name: /^Running grade-adjusted pace per mile by duration\./ }),
+      screen.getByRole('figure', { name: 'Running grade-adjusted pace per mile by duration' }),
     ).toBeInTheDocument()
     imperial.unmount()
 
@@ -93,7 +93,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('img', { name: /^Cycling power in watts by duration\./ }),
+      screen.getByRole('figure', { name: 'Cycling power in watts by duration' }),
     ).toBeInTheDocument()
   })
 
@@ -108,7 +108,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/km)',
+      'Grade-adjusted pace (/km), faster up',
     )
     const labels = yTickLabels(container)
     expect(labels.every((label) => /^\d:\d{2}$/.test(label))).toBe(true)
@@ -133,7 +133,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/mi)',
+      'Grade-adjusted pace (/mi), faster up',
     )
     // 5.0 to 3.5 m/s is 5:22 to 7:40 a mile, so the minute ticks run from 5:00 to 8:00.
     expect(yTickLabels(container)).toEqual(['5:00', '6:00', '7:00', '8:00'])
@@ -193,7 +193,8 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(screen.getByTestId('sport-curve-emphasis')).toBeInTheDocument()
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe('20 min')
+    // The label is the value at the emphasised effort, in watts, not its duration.
+    expect(container.querySelector('.chart-series__label')?.textContent).toBe('250 W')
   })
 
   it('emphasises the longest effort instead when there is no 20-minute one', () => {
@@ -206,7 +207,7 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe('5 min')
+    expect(container.querySelector('.chart-series__label')?.textContent).toBe('320 W')
   })
 
   it('draws the previous period dashed and names it in the legend, when given', () => {
@@ -244,6 +245,23 @@ describe('SportCurveChart', () => {
     )
     expect(container.querySelector('[data-testid="sport-curve-previous"]')).toBeNull()
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('leaves the previous period out of the drawing, legend and table, and says so, when it has no rides', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={RIDE_WATTS}
+        previous={{ curve: [], label: 'Previous 6 weeks' }}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('[data-testid="sport-curve-previous"]')).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(screen.getByText('No rides in the previous 6 weeks')).toBeInTheDocument()
+    const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
+    expect(headers).not.toContain('Previous 6 weeks')
   })
 
   it('shows the pace in the tooltip, with the previous period beside it', () => {

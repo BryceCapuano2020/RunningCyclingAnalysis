@@ -323,12 +323,7 @@ export function RatioChart({ comparison }: RatioChartProps) {
               y1={m.zeroY}
               y2={m.zeroY}
             />
-            <text
-              className="ratio-chart__label"
-              x={plot.right - 6}
-              y={m.zeroY - 6}
-              textAnchor="end"
-            >
+            <text className="ratio-chart__label" x={plot.left + 8} y={m.zeroY - 6}>
               Equal
             </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.top + 14}>

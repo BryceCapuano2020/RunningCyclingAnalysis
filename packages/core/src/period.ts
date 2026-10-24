@@ -1,10 +1,10 @@
-import { DAY_MS } from './constants'
+import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { sportCurves } from './digest/combine'
 import { fitnessTrend } from './digest/trend'
 import type { TrendPoint } from './digest/trend'
 import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
 import type { EffortLengthS } from './digest/trendPoints'
-import type { ActivityDigest, AthleteSettings, BikeModel, SportCurves } from './types'
+import type { ActivityDigest, AthleteSettings, BikeModel, HrCrossCheck, SportCurves } from './types'
 
 export interface Periods {
   /** The digests in the selected period; every visible digest for all time. */
@@ -61,28 +61,35 @@ function sameInputs(
 /**
  * The trend and the previous period's curves, reused between calls while their inputs are the same.
  * Both are priced with the bike model of the selected period, which depends only on the selected
- * digests and the masses, so those are the whole key.
+ * digests and the masses, so those are the whole key. The heart-rate model behind the running
+ * equivalents also depends only on the selected digests and the masses, so it needs no key of its
+ * own; whether the equivalents are wanted does, and it is in the key.
  */
 export class PeriodCache {
   private trendEntries = new Map<
     EffortLengthS,
-    Inputs & { rangeDays: number | null; points: TrendPoint[] }
+    Inputs & { rangeDays: number | null; equivalence: boolean; points: TrendPoint[] }
   >()
   private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
     null
 
-  /** The weekly trend of each effort length over the selected period, reused while its inputs are the same. */
+  /**
+   * The weekly trend of each effort length over the selected period, reused while its inputs are the
+   * same. The headline trend also carries each week's running equivalent, with the heart-rate model
+   * of the selected analysis, when hr is given.
+   */
   trends(
     selected: ActivityDigest[],
     settings: AthleteSettings,
     rangeDays: number | null,
     startMs: number | null,
     bikeModel: BikeModel | undefined,
+    hr: HrCrossCheck | undefined,
   ): Record<EffortLengthS, TrendPoint[]> {
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
         durationS,
-        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS),
+        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, hr),
       ]),
     ) as Record<EffortLengthS, TrendPoint[]>
   }
@@ -95,9 +102,16 @@ export class PeriodCache {
     startMs: number | null,
     bikeModel: BikeModel | undefined,
     durationS: EffortLengthS,
+    hr: HrCrossCheck | undefined,
   ): TrendPoint[] {
+    const equivalence = hr !== undefined && durationS === HEADLINE_DURATION_S
     const cached = this.trendEntries.get(durationS)
-    if (cached && cached.rangeDays === rangeDays && sameInputs(cached, selected, settings)) {
+    if (
+      cached &&
+      cached.rangeDays === rangeDays &&
+      cached.equivalence === equivalence &&
+      sameInputs(cached, selected, settings)
+    ) {
       return cached.points
     }
     const points = fitnessTrend(selected, settings, {
@@ -105,8 +119,15 @@ export class PeriodCache {
       windowDays: trendWindowDays(rangeDays),
       fromMs: startMs ?? undefined,
       bikeModel,
+      equivalence: equivalence && hr !== undefined ? { hr } : undefined,
     })
-    this.trendEntries.set(durationS, { selected, ...masses(settings), rangeDays, points })
+    this.trendEntries.set(durationS, {
+      selected,
+      ...masses(settings),
+      rangeDays,
+      equivalence,
+      points,
+    })
     return points
   }
 

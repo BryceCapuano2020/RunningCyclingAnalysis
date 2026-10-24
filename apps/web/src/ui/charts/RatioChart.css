@@ -53,7 +53,7 @@
   fill: var(--text-secondary);
   font-size: 12px;
   paint-order: stroke;
-  stroke: var(--surface-1);
+  stroke: var(--surface-0);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

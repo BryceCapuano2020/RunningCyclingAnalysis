@@ -1,8 +1,16 @@
+/* One column that can shrink to the page, so a wide table scrolls inside it rather than widening it. */
 .chart-frame {
   margin: 0;
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
+}
+
+.chart-frame__title {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 .chart-frame__stage {
@@ -14,6 +22,7 @@
   display: block;
   width: 100%;
   height: auto;
+  touch-action: pan-y pinch-zoom;
 }
 
 .chart-frame__overlay {
@@ -34,6 +43,21 @@
   font-size: 0.875rem;
 }
 
+/* Hidden until the plot has keyboard focus, when it tells a keyboard reader how to read the values. */
+.chart-frame__hint {
+  display: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.chart-frame:has(.plot-surface:focus-visible) .chart-frame__hint {
+  display: block;
+}
+
+.chart-frame__details {
+  min-width: 0;
+}
+
 /* Layout (flex row, disclosure triangle, 40 px height) comes from the global summary rule. */
 .chart-frame__details summary {
   color: var(--text-secondary);
@@ -41,6 +65,7 @@
 }
 
 .chart-frame__details .table-scroll {
+  max-width: 100%;
   margin-top: var(--space-2);
 }
 

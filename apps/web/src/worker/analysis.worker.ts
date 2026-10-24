@@ -163,6 +163,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':
       return session.setSettings(request.settings)
+    case 'setGradeTrend':
+      return session.setGradeTrend(request.on, request.settings)
     case 'setRange':
       return session.setRange(request.rangeDays, request.settings)
     case 'loadDevice':

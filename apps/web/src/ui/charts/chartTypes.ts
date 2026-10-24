@@ -12,6 +12,8 @@ export interface ChartSize {
   plot: PlotBox
   /** Id of the tooltip's status element, for aria-describedby on the plot surface. */
   tooltipId: string
+  /** The chart's visible title, which the plot surface names the chart by. */
+  title: string
 }
 
 export interface Point {

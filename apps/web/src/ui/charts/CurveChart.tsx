@@ -9,7 +9,15 @@ import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
-import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
+import {
+  diamondPath,
+  markerRadii,
+  plotSurface,
+  sizedOnce,
+  spreadApart,
+  tooltipAt,
+  tooltipOverlay,
+} from './chartInteraction'
 import { Crosshair } from './Crosshair'
 import { durationRows } from './curveRows'
 import { runPace } from '../records'
@@ -34,9 +42,10 @@ const LABEL_OFFSET_X = 8
 const LABEL_BASELINE_OFFSET = 4
 const LABEL_MIN_GAP = 14
 
+/** Each sport's key has the shape of its points: a dot for running, a diamond for riding. */
 const LEGEND: ChartLegendEntry[] = [
-  { label: SPORT_TITLE.run, kind: 'run' },
-  { label: SPORT_TITLE.ride, kind: 'ride' },
+  { label: SPORT_TITLE.run, kind: 'run', swatch: 'dot' },
+  { label: SPORT_TITLE.ride, kind: 'ride', swatch: 'diamond' },
 ]
 
 const TABLE_CAPTION =
@@ -154,15 +163,11 @@ function endLabels(m: Layout): EndLabel[] {
       y: ride.y + LABEL_BASELINE_OFFSET,
     })
   }
-  const [first, second] = ends
-  if (first && second && Math.abs(first.y - second.y) < LABEL_MIN_GAP) {
-    const middle = (first.y + second.y) / 2
-    const upper = first.y <= second.y ? first : second
-    const lower = upper === first ? second : first
-    upper.y = middle - LABEL_MIN_GAP / 2
-    lower.y = middle + LABEL_MIN_GAP / 2
-  }
-  return ends
+  const spread = spreadApart(
+    ends.map((end) => end.y),
+    LABEL_MIN_GAP,
+  )
+  return ends.map((end, i) => ({ text: end.text, x: end.x, y: spread[i] ?? end.y }))
 }
 
 function tableRow(
@@ -236,22 +241,33 @@ export function CurveChart({
       empty={hasData ? undefined : 'Add at least one run and one ride to see both curves'}
       plotRightMargin={(width) => (width < NARROW_WIDTH ? 16 : LABEL_MARGIN)}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
-      overlay={(size) =>
-        tooltipOverlay(
+      overlay={(size) => {
+        const m = layoutOf(size)
+        // The tooltip sits beside the run's point, or the ride's where there is no run.
+        const ys = m?.runPoints.map((point, i) => (point ?? m?.ridePoints[i] ?? null)?.y ?? null)
+        return tooltipOverlay(
           size,
-          tooltipAt(size, layoutOf(size)?.xs ?? null, active, (index, x, y) => {
-            const row = rows[index]
-            return row ? tooltipFor(row, x, y, units, activityNames) : null
-          }),
+          tooltipAt(
+            size,
+            m?.xs ?? null,
+            active,
+            (index, x, y) => {
+              const row = rows[index]
+              return row ? tooltipFor(row, x, y, units, activityNames) : null
+            },
+            ys,
+          ),
         )
-      }
+      }}
     >
       {(size) => {
         const m = layoutOf(size)
         if (m === null) return null
         const narrow = size.width < NARROW_WIDTH
-        const { marker: markerR, active: activeR } = markerRadii(size.width)
+        const { active: activeR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
+        const activeRun = active === null ? undefined : m.runPoints[active]
+        const activeRide = active === null ? undefined : m.ridePoints[active]
         return (
           <>
             <ChartXAxis
@@ -277,34 +293,26 @@ export function CurveChart({
               className="chart-series__line chart-series__line--ride"
               d={linePath(m.ridePoints)}
             />
-            {m.rows.map((row, i) => {
-              const point = m.runPoints[i]
-              return point ? (
-                <circle
-                  key={row.durationS}
-                  data-testid="curve-marker"
-                  data-series="run"
-                  className="chart-series__marker chart-series__marker--run"
-                  cx={point.x}
-                  cy={point.y}
-                  r={i === active ? activeR : markerR}
-                />
-              ) : null
-            })}
-            {m.rows.map((row, i) => {
-              const point = m.ridePoints[i]
-              return point ? (
-                <circle
-                  key={row.durationS}
-                  data-testid="curve-marker"
-                  data-series="ride"
-                  className="chart-series__marker chart-series__marker--ride"
-                  cx={point.x}
-                  cy={point.y}
-                  r={i === active ? activeR : markerR}
-                />
-              ) : null
-            })}
+            {/* Markers only on the duration the reader is on: a dot at every duration breaks the lines. */}
+            {activeRun ? (
+              <circle
+                data-testid="curve-marker"
+                data-series="run"
+                className="chart-series__marker chart-series__marker--run"
+                cx={activeRun.x}
+                cy={activeRun.y}
+                r={activeR}
+              />
+            ) : null}
+            {activeRide ? (
+              <path
+                data-testid="curve-marker"
+                data-series="ride"
+                data-shape="diamond"
+                className="chart-series__marker chart-series__marker--ride"
+                d={diamondPath(activeRide.x, activeRide.y, activeR)}
+              />
+            ) : null}
             {narrow
               ? null
               : endLabels(m).map((label) => (
