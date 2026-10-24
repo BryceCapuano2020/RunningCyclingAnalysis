@@ -17,6 +17,11 @@ export interface ParseLimits {
 export interface ParseOptions {
   /** The clock for the date check, in epoch milliseconds. Defaults to Date.now(). */
   nowMs?: number
+  /**
+   * The name the file's export gives the activity, such as Strava's activities.csv. It is used
+   * before any title in the file.
+   */
+  activityName?: string
 }
 
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */

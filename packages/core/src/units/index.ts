@@ -12,6 +12,7 @@ export {
   formatPercent,
   formatPower,
   formatSpeed,
+  formatTimeOfDay,
   formatWatts,
   formatWkg,
   paceSeconds,

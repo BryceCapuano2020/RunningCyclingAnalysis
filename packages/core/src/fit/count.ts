@@ -1,22 +1,9 @@
 import { DEFAULT_EXTRACT_LIMITS } from './archive'
-import type { ExtractLimits, FitSource } from './archive'
-import {
-  ACTIVITY,
-  DIRECTORY_TAIL_BYTES,
-  isIgnored,
-  readDirectory,
-  walkDirectory,
-  ZIP,
-} from './zipDirectory'
+import type { ExtractLimits } from './archive'
+import { ACTIVITY, directoryOf, isIgnored, readRange, walkDirectory, ZIP } from './zipDirectory'
+import type { RangedSource } from './zipDirectory'
 
-/**
- * A source whose bytes can be read by range, such as a browser File, so that a zip's directory can
- * be read without its entries.
- */
-export interface RangedSource extends FitSource {
-  readonly size: number
-  slice(start: number, end: number): Blob
-}
+export type { RangedSource } from './zipDirectory'
 
 /**
  * How many activity files (FIT, GPX or TCX) the sources deliver, read from each zip's central
@@ -53,23 +40,12 @@ async function countZipEntries(
   source: RangedSource,
   limits: ExtractLimits,
 ): Promise<number | null> {
-  const tailStart = Math.max(0, source.size - DIRECTORY_TAIL_BYTES)
-  const tail = new Uint8Array(await source.slice(tailStart, source.size).arrayBuffer())
-  const directory = readDirectory(tail, tailStart)
-  // A directory that lists more entries, or is larger in bytes, than extraction accepts is refused
-  // before any of it is read.
-  if (
-    directory === null ||
-    directory.count > limits.maxArchiveEntries ||
-    directory.size > limits.maxBufferedBytes ||
-    directory.offset + directory.size > source.size
-  ) {
-    return null
-  }
+  const directory = await directoryOf(source, limits)
+  if (directory === null) return null
   let count = 0
   let nested = false
   const complete = await walkDirectory(
-    async (start, end) => new Uint8Array(await source.slice(start, end).arrayBuffer()),
+    (start, end) => readRange(source, start, end),
     directory.offset,
     directory.size,
     limits.maxArchiveEntries,

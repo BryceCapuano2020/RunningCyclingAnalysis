@@ -32,6 +32,10 @@ const backupWorkflow = await readStylesheet(
 const accountDeletion = await readStylesheet(import.meta.url, '../../api/src/accountDeletion.ts')
 const budget = await readStylesheet(import.meta.url, '../../api/src/budget.ts')
 const storage = await readStylesheet(import.meta.url, '../../api/src/storage.ts')
+const activitiesCsvSource = await readStylesheet(
+  import.meta.url,
+  '../../../packages/core/src/import/activitiesCsv.ts',
+)
 
 /** The page's visible text: markup removed and whitespace collapsed. */
 function textOf(html: string): string {
@@ -302,6 +306,27 @@ describe('the code behind the page', () => {
       'createdAt',
       'digest',
     ])
+  })
+})
+
+describe('privacy page says where activity names come from', () => {
+  it('says so in the summary kept without an account', () => {
+    const sentence = sentenceWith('Its name comes from')
+    expect(sentence).toMatch(/activity list in a Strava export/)
+    expect(sentence).toMatch(/title in the file/)
+    expect(sentence).toMatch(/start time and sport/)
+  })
+
+  it('says so in the account list of activity summaries', () => {
+    const sentence = sentenceWith('Activity summaries')
+    expect(sentence).toMatch(/activity list in a Strava export/)
+    expect(sentence).toMatch(/title in the file/)
+    expect(sentence).toMatch(/start time and sport/)
+  })
+
+  it('names the list and its column as the importer reads them', () => {
+    expect(activitiesCsvSource).toContain("const LIST_NAME = 'activities.csv'")
+    expect(activitiesCsvSource).toContain("columns.indexOf('activity name')")
   })
 })
 

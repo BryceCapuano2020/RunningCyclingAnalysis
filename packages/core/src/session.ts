@@ -1,15 +1,15 @@
 import { combine, digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
-import { countActivityFiles, extractFitFiles } from './fit'
-import { parseActivityFile } from './import'
+import { DEFAULT_EXTRACT_LIMITS } from './fit'
+import type { ExtractLimits } from './fit'
+import type { ImportProgress } from './sessionSource'
+import { importSource } from './sessionSource'
 import { sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
-import { sha256Hex } from './sha256'
 import type { RouteShape } from './route/routeShape'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
-import { ACTIVITY } from './fit/zipDirectory'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
@@ -75,6 +75,8 @@ export class AnalysisSession {
   // Balance trend uses. Off until the page asks for it.
   private gradeTrend = false
   private periods = new PeriodCache()
+  // The extraction limits of every import. The constants unless a test or caller sets others.
+  private readonly limits: ExtractLimits
   // The last record holders, with the digests and masses they were computed from.
   private recordsCache: {
     digests: ActivityDigest[]
@@ -82,6 +84,14 @@ export class AnalysisSession {
     bikeMassKg: number
     records: Map<string, EarnedRecord[]>
   } | null = null
+
+  /**
+   * Production passes no limits, so the constants apply. The argument is a seam for tests, which need
+   * a small budget to reach the limits without a large file.
+   */
+  constructor(limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS) {
+    this.limits = limits
+  }
 
   async addFiles(
     sources: RangedSource[],
@@ -98,51 +108,18 @@ export class AnalysisSession {
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
-    let filesRead = 0
+    const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0 }
     for (const source of sources) {
-      let undecodable = 0
-      const readBefore = filesRead
-      const summary = await extractFitFiles(
-        source,
-        async (file) => {
-          const parsed = parseActivityFile(file.bytes, file.fileName)
-          if (parsed.ok) {
-            outcome.activities += parsed.activities.length
-            const fileHash = sink === undefined ? '' : await sha256Hex(file.bytes)
-            const imported: ImportedFile = { fileName: file.fileName, fileHash, bytes: file.bytes }
-            for (const activity of parsed.activities) {
-              await this.consider(activity, imported, sink, syncExisting, batch)
-            }
-            // A file that now reads cleanly replaces an earlier rejection under the same name.
-            this.rejected.delete(file.fileName)
-            this.rejected.delete(`${file.fileName}.gz`)
-          } else {
-            outcome.rejected++
-            this.rejected.set(parsed.fileName, parsed.reason)
-          }
-          onProgress?.(++filesRead)
-        },
-        (fileName, reason) => {
-          undecodable++
-          outcome.rejected++
-          this.rejected.set(fileName, reason)
-          // An activity file that could not be read was still read, so progress reaches its total.
-          if (ACTIVITY.test(fileName)) onProgress?.(++filesRead)
-        },
-      )
-      // An archive that stops early, or loses an entry, reports nothing for the files it did not
-      // reach. They count as read here, up to the total its directory lists.
-      const expected = (await countActivityFiles([source])) ?? 0
-      for (let left = expected - (filesRead - readBefore); left > 0; left--)
-        onProgress?.(++filesRead)
-      this.unsupported.set(source.name, summary.otherActivityFiles)
-      outcome.rejected += summary.otherActivityFiles
-      // A corrupt file is already reported under its own name, so do not also call it empty.
-      if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
-        outcome.rejected++
-        this.rejected.set(source.name, 'No supported activity files found (FIT, GPX or TCX)')
-      }
+      await importSource(source, {
+        limits: this.limits,
+        progress,
+        outcome,
+        rejected: this.rejected,
+        unsupported: this.unsupported,
+        hashFiles: sink !== undefined,
+        consider: (activity, file) => this.consider(activity, file, sink, syncExisting, batch),
+      })
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
     const hidden = hiddenDigests([...this.digests.values()])

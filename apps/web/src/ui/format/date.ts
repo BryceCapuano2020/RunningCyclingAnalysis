@@ -32,11 +32,5 @@ export function formatMonth(ms: number, withYear: boolean): string {
   return withYear ? `${month} ${date.getFullYear()}` : month
 }
 
-/** The local time of day in twelve-hour form, such as "6:42 am". */
-export function formatTimeOfDay(ms: number): string {
-  const date = new Date(ms)
-  const hour = date.getHours()
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${hour12}:${minute} ${hour < 12 ? 'am' : 'pm'}`
-}
+/** The local time of day in twelve-hour form, such as "6:42 am". Core's formatter, so there is one. */
+export { formatTimeOfDay } from '@rca/core/units'

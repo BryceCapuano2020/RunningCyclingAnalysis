@@ -159,6 +159,29 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    the longer duration. This preference applies to files analyzed together. A saved activity is tied
    to the hash of its original file, so replacing it with a different file requires deleting that
    activity and importing the preferred file again.
+7. **Activity names** (`readActivityNames` in `packages/core/src/import/activitiesCsv.ts`, and
+   `packages/core/src/import/names.ts`). Before any file in a Strava export zip is parsed, the zip's
+   `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit
+   anywhere in the zip. A zip nested inside the export is never searched for a list. Its
+   `Activity Name` column names the file at the path in its `Filename` column, without `.gz`. The
+   header matches in any case, and paths are compared lowercase, with forward slashes and no leading
+   `./` or `/`. The list has at most 10,000 rows in all, and is limited to 32 MiB inflated. The cap
+   is a memory budget: at the cap, reading the list uses about 100–150 MB at peak, holding its
+   compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
+   zip's decompressed-bytes budget, even when the list is malformed.
+   The first row wins for a file that appears twice. A list that ends inside a quoted field is
+   ignored, so it gives no names.
+   A leg's name is the first of these that applies: the list's name, unless it is a device default
+   such as `ACTIVE LOG`, a bare number or a date; the file's own title, which is a GPX track name; or
+   a name made from the start time on the importing device's clock and the sport, such as
+   `Morning Run`. The parts of the day are Night (0:00 to 4:59), Morning (5:00 to 10:59), Lunch
+   (11:00 to 13:59), Afternoon (14:00 to 16:59), Evening (17:00 to 20:59) and Night (21:00 to 23:59).
+   TCX has no title element, and its Notes are free text, so they are not used. When two activities
+   of one file would share a name, each gets its start time: `Brick (Run, 6:11 am)`, or
+   `Morning Run, 6:11 am`. Legs that still share a name, starting in the same minute, are numbered in
+   file order, as in `Morning Run, 6:11 am (2)`. The name is saved with the activity when it is imported, so it does not
+   change afterwards. Names apply only to newly imported activities. Existing library entries keep
+   their names until they are deleted and imported again.
 
 ## Why the digest exists
 

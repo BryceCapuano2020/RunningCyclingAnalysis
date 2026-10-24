@@ -1,3 +1,5 @@
+import type { ExtractLimits, FitSource } from './archive'
+
 /** Activity formats this app reads: FIT, GPX and TCX, each optionally gzipped. */
 export const ACTIVITY = /\.(fit|gpx|tcx)(\.gz)?$/i
 /** Activity formats this app does not read. They are counted, not delivered. */
@@ -17,6 +19,9 @@ const CENTRAL_HEADER_SIGNATURE = 0x02014b50
 const CENTRAL_HEADER_BYTES = 46
 /** Directory bytes read at a time when the headers are walked. Memory stays at this size. */
 const WALK_CHUNK_BYTES = 64 * 1024
+/** A 32-bit size or offset this large means the real value is in the ZIP64 extra field. */
+const ZIP32_MAX = 0xffffffff
+const ZIP64_EXTRA_ID = 0x0001
 
 /** Where an archive's central directory is, and how many entries it lists. */
 export interface Directory {
@@ -24,6 +29,18 @@ export interface Directory {
   offset: number
   size: number
   count: number
+}
+
+/** What a central directory header says about its entry. ZIP64 values replace the 32-bit ones. */
+export interface CentralEntry {
+  flags: number
+  method: number
+  /** Bytes stored in the archive. */
+  compressedSize: number
+  /** Bytes once decompressed, as the header claims. */
+  size: number
+  /** Byte offset of the entry's local header from the start of the archive. */
+  localOffset: number
 }
 
 /**
@@ -41,7 +58,7 @@ export function readDirectory(tail: Uint8Array, tailStart: number): Directory | 
   }
   if (eocd < 0) return null
   const count = view.getUint16(eocd + 10, true)
-  if (count !== 0xffff && view.getUint32(eocd + 16, true) !== 0xffffffff) {
+  if (count !== 0xffff && view.getUint32(eocd + 16, true) !== ZIP32_MAX) {
     return { count, offset: view.getUint32(eocd + 16, true), size: view.getUint32(eocd + 12, true) }
   }
   // ZIP64: the locator sits just before the EOCD and gives the absolute offset of the ZIP64 record.
@@ -61,18 +78,18 @@ export function readDirectory(tail: Uint8Array, tailStart: number): Directory | 
 export type ReadRange = (start: number, end: number) => Promise<Uint8Array>
 
 /**
- * Calls visit with the name of each header in the central directory at [offset, offset + size),
- * reading it in chunks, so only one chunk is held at a time. Returns true only when the walk
- * reaches the end of the directory. It stops early at a header that is missing, short or corrupt,
- * and at more than maxEntries headers, so a directory that lies about its size or count cannot make
- * it run on.
+ * Calls visit with the name and the header of each entry in the central directory at
+ * [offset, offset + size), reading it in chunks, so only one chunk is held at a time. Returns true
+ * only when the walk reaches the end of the directory. It stops early at a header that is missing,
+ * short or corrupt, and at more than maxEntries headers, so a directory that lies about its size or
+ * count cannot make it run on.
  */
 export async function walkDirectory(
   read: ReadRange,
   offset: number,
   size: number,
   maxEntries: number,
-  visit: (name: string) => void,
+  visit: (name: string, entry: CentralEntry) => void,
 ): Promise<boolean> {
   const end = offset + size
   const decoder = new TextDecoder()
@@ -104,10 +121,48 @@ export async function walkDirectory(
     entries++
     if (entries > maxEntries) return false
     const nameStart = local + CENTRAL_HEADER_BYTES
-    visit(decoder.decode(window.subarray(nameStart, nameStart + nameLength)))
+    const name = decoder.decode(window.subarray(nameStart, nameStart + nameLength))
+    visit(name, centralEntry(headerView(), local, nameLength))
     position += headerLength
   }
   return position === end
+}
+
+/**
+ * The header at `local` in `view`. Its extra field's ZIP64 values replace the 32-bit values that
+ * are 0xFFFFFFFF. Reads stay inside the extra field, so a damaged one cannot throw.
+ */
+function centralEntry(view: DataView, local: number, nameLength: number): CentralEntry {
+  const entry: CentralEntry = {
+    flags: view.getUint16(local + 8, true),
+    method: view.getUint16(local + 10, true),
+    compressedSize: view.getUint32(local + 20, true),
+    size: view.getUint32(local + 24, true),
+    localOffset: view.getUint32(local + 42, true),
+  }
+  const extraStart = local + CENTRAL_HEADER_BYTES + nameLength
+  const extraEnd = Math.min(extraStart + view.getUint16(local + 30, true), view.byteLength)
+  let at = extraStart
+  while (at + 4 <= extraEnd) {
+    const end = Math.min(at + 4 + view.getUint16(at + 2, true), extraEnd)
+    if (view.getUint16(at, true) === ZIP64_EXTRA_ID) readZip64(view, at + 4, end, entry)
+    at = end
+  }
+  return entry
+}
+
+/** Fills in the values the header marks as 0xFFFFFFFF, in the order the ZIP64 field gives them. */
+function readZip64(view: DataView, start: number, end: number, entry: CentralEntry): void {
+  let at = start
+  const next = (): number | undefined => {
+    if (at + 8 > end) return undefined
+    const value = Number(view.getBigUint64(at, true))
+    at += 8
+    return value
+  }
+  if (entry.size === ZIP32_MAX) entry.size = next() ?? entry.size
+  if (entry.compressedSize === ZIP32_MAX) entry.compressedSize = next() ?? entry.compressedSize
+  if (entry.localOffset === ZIP32_MAX) entry.localOffset = next() ?? entry.localOffset
 }
 
 /**
@@ -133,6 +188,47 @@ export async function listedEntries(tail: Uint8Array, tailStart: number): Promis
     },
   )
   return complete ? entries : directory.count
+}
+
+/**
+ * A source whose bytes can be read by range, such as a browser File, so that a zip's directory can
+ * be read without its entries.
+ */
+export interface RangedSource extends FitSource {
+  readonly size: number
+  slice(start: number, end: number): Blob
+}
+
+/** The bytes from `start` to `end` of a ranged source, as one array. */
+export async function readRange(
+  source: RangedSource,
+  start: number,
+  end: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await source.slice(start, end).arrayBuffer())
+}
+
+/**
+ * The central directory of a zip, read from its end and checked against the limits. Null when there
+ * is no readable directory, or one that extraction would refuse before reading any of it.
+ */
+export async function directoryOf(
+  source: RangedSource,
+  limits: ExtractLimits,
+): Promise<Directory | null> {
+  const tailStart = Math.max(0, source.size - DIRECTORY_TAIL_BYTES)
+  const directory = readDirectory(await readRange(source, tailStart, source.size), tailStart)
+  // A directory that lists more entries, or is larger in bytes, than extraction accepts is refused
+  // before any of it is read.
+  if (
+    directory === null ||
+    directory.count > limits.maxArchiveEntries ||
+    directory.size > limits.maxBufferedBytes ||
+    directory.offset + directory.size > source.size
+  ) {
+    return null
+  }
+  return directory
 }
 
 /** Directory entries and macOS resource-fork metadata. */

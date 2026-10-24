@@ -141,3 +141,11 @@ export function formatPercent(fraction: number, signed = false): string {
   const plus = signed && percent !== '0' && !percent.startsWith('-') ? '+' : ''
   return `${plus}${percent}%`
 }
+
+/** The local time of day in twelve-hour form, such as "6:42 am", on the clock of the viewing device. */
+export function formatTimeOfDay(ms: number): string {
+  const date = new Date(ms)
+  const hour = date.getHours()
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12
+  return `${hour12}:${String(date.getMinutes()).padStart(2, '0')} ${hour < 12 ? 'am' : 'pm'}`
+}

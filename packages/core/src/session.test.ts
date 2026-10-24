@@ -5,7 +5,9 @@ import { encodeGpx } from './gpx/encode'
 import { encodeTcx } from './tcx/encode'
 import { digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
+import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import { parseActivityFile } from './import'
+import { generatedName } from './import/names'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_TRENDS } from './digest/trendPoints'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
@@ -543,6 +545,102 @@ describe('AnalysisSession', () => {
     const state = session.loadDigests(sampleDataset().activities.map(digestActivity), SETTINGS)
     expect(state.rangeDays).toBe(42)
     expect(state.result?.activities.length).toBeLessThan(sample.length)
+  })
+
+  it('names the activities of a Strava export from its activities.csv, whatever order the files sit in', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities/1002.fit': encodeFit(ride, { gps: true }),
+      'activities.csv': strToU8(
+        'Activity ID,Activity Name,Activity Type,Filename\n' +
+          '1001,"Morning run, 5 K",Run,activities/1001.fit.gz\n' +
+          '1002,Lunch Ride,Ride,activities/1002.fit\n',
+      ),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((a) => [a.sport, a.name]).sort()).toEqual([
+      ['ride', 'Lunch Ride'],
+      ['run', 'Morning run, 5 K'],
+    ])
+  })
+
+  it('matches a list entry to its file whatever the spelling of the path, and keeps the first row', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities.csv': strToU8(
+        'ACTIVITY ID,FILENAME,activity name\n' +
+          '1001,./Activities\\1001.FIT.GZ,Morning run\n' +
+          '1001,activities/1001.fit.gz,Second name\n',
+      ),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((a) => a.name)).toEqual(['Morning run'])
+  })
+
+  it('charges the bytes of the activity list against the decompressed-bytes budget of the export', async () => {
+    const fit = encodeFit(run, { gps: true })
+    // A list longer than the file, so the file alone would fit a budget that the list has used up.
+    const list = strToU8(`Activity Name,Filename\n${'x'.repeat(fit.length)},activities/1001.fit\n`)
+    const bytes = zipSync({ 'activities/1001.fit': fit, 'activities.csv': list })
+    const withRoom = list.length + fit.length
+    const tight = new AnalysisSession({
+      ...DEFAULT_EXTRACT_LIMITS,
+      maxTotalDecompressedBytes: list.length + Math.floor(fit.length / 2),
+    })
+    const roomy = new AnalysisSession({
+      ...DEFAULT_EXTRACT_LIMITS,
+      maxTotalDecompressedBytes: withRoom,
+    })
+
+    const refused = await tight.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+    const accepted = await roomy.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(refused.result?.activities ?? []).toHaveLength(0)
+    expect(accepted.result?.activities).toHaveLength(1)
+  })
+
+  it('stores the export name in the digest the sink receives', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities.csv': strToU8(
+        'Activity ID,Activity Name,Filename\n1001,Hill repeats,activities/1001.fit.gz\n',
+      ),
+    })
+    await session.addFiles([new File([bytes], 'export.zip')], SETTINGS, undefined, async (item) => {
+      items.push(item)
+    })
+
+    expect(items.map((item) => item.digest.name)).toEqual(['Hill repeats'])
+  })
+
+  it('names an activity from its start time and sport when the export has no list', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({ 'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })) })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((a) => a.name)).toEqual([generatedName(run.startMs, 'run')])
+  })
+
+  it('still counts a copy of a Strava activity as a duplicate, whatever the copy is named', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities.csv': strToU8(
+        'Activity ID,Activity Name,Filename\n1001,Named by Strava,activities/1001.fit.gz\n',
+      ),
+    })
+    const state = await session.addFiles(
+      [new File([bytes], 'export.zip'), fitFile('run copy.fit', run)],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
   })
 
   it('calls the sink once per new activity with its digest, file name, hash and bytes', async () => {

@@ -1,5 +1,6 @@
 import { Gunzip, Unzip, UnzipInflate, UnzipPassThrough } from 'fflate'
 import type { UnzipFile } from 'fflate'
+import { concat } from '../bytes'
 import {
   ACTIVITY,
   DIRECTORY_TAIL_BYTES,
@@ -66,7 +67,8 @@ const INCOMPLETE = 'File is incomplete or corrupt'
 const READ_FAILED = 'Could not read this file'
 const ARCHIVE_FAILED = 'Could not read archive'
 const TOO_DEEP = 'Nested archives are too deep'
-const DECOMPRESS_INPUT_CHUNK_BYTES = 16 * 1024
+/** Compressed input is fed to the decompressors this many bytes at a time, so their output stays bounded. */
+export const DECOMPRESS_INPUT_CHUNK_BYTES = 16 * 1024
 /** A zip may hold zips this many levels down. A zip inside the deepest level is rejected. */
 const MAX_NESTED_ARCHIVE_DEPTH = 2
 const DAMAGED_DIRECTORY = 'Archive is damaged; some activities may be missing'
@@ -615,16 +617,6 @@ function bytesSource(name: string, bytes: Uint8Array<ArrayBuffer>): FitSource {
       }),
     arrayBuffer: async () => bytes.slice().buffer,
   }
-}
-
-function concat(chunks: Uint8Array[], total: number): Uint8Array<ArrayBuffer> {
-  const out = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    out.set(chunk, offset)
-    offset += chunk.length
-  }
-  return out
 }
 
 /** A zip with no entries starts with its end-of-central-directory record. */

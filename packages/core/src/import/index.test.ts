@@ -5,6 +5,7 @@ import { encodeTcx } from '../tcx/encode'
 import { sampleDataset } from '../synthetic'
 import type { Activity } from '../types'
 import { parseActivityFile } from './index'
+import { generatedName } from './names'
 
 const run = sampleDataset().activities.find((a) => a.sport === 'run') as Activity
 
@@ -27,7 +28,7 @@ describe('parseActivityFile', () => {
   it('ignores a trailing .gz when choosing the parser', () => {
     const result = parseActivityFile(encodeGpx(run), 'run.gpx.gz')
     expect(result.ok && result.activities).toHaveLength(1)
-    expect(result.ok && result.activities[0]?.name).toBe('run')
+    expect(result.ok && result.activities[0]?.name).toBe(generatedName(run.startMs, 'run'))
   })
 
   it('refuses any other extension with a clear reason and keeps the file name', () => {
