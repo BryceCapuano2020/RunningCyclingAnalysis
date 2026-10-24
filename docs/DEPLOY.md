@@ -234,7 +234,7 @@ before building or deploying.
    scopes and destination match this app. An unexpected unsafe-app screen or broader permissions
    should prompt a review of the OAuth configuration before continuing.
 4. Open `<worker-url>/api/me` in the same browser. It should show your profile as JSON. Without
-   signing in it returns `401`.
+   signing in it returns `200` with a `null` body.
 
 If sign-in fails with `redirect_uri_mismatch`, the redirect URI in the Google client does not match
 `<worker-url>/api/auth/google/callback` exactly, or `APP_URL` in `wrangler.toml` is wrong.

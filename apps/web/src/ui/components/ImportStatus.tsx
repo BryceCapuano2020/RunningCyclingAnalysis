@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { ImportOutcome } from '../../worker/protocol'
-import { addedSentence, MOVED_NOTE } from '../analysis/copy'
+import { addedSentence, MOVED_NOTE, notAddedSentence } from '../analysis/copy'
 import type { ImportProgress } from '../analysis/model'
 import type { MovedItem } from '../analysis/whatMoved'
 import { PAGE_HEADING_ID } from '../pages/pageHeading'
@@ -67,8 +67,8 @@ function outcomeSentence(outcome: Outcome): string {
     outcome.rejected > 0 ? ` ${plural(outcome.rejected, 'file')} could not be used.` : ''
   const added = addedSentence(outcome)
   if (added !== null) return `${added}${rejectedText}`
-  if (outcome.activities === 0) return `No activities were analysed.${rejectedText}`
-  return `Analysed ${plural(outcome.activities, 'activity', 'activities')}.${rejectedText}`
+  // Announced as the summary shows it, so what was read is said once, the same way.
+  return `${notAddedSentence(outcome.activities)}${rejectedText}`
 }
 
 const NO_CHANGES: MovedItem[] = []
@@ -151,7 +151,8 @@ export function ImportStatus({
   // Detect the start and the end of a run during render, not in an effect.
   if (busy !== announcedBusy) {
     setAnnouncedBusy(busy)
-    if (busy) setAnnouncement(waiting ?? 'Reading files')
+    // The run's start is announced, and its end clears that, so "Reading files" does not outlast it.
+    setAnnouncement(busy ? (waiting ?? 'Reading files') : '')
   }
   if (outcome !== announcedOutcome) {
     setAnnouncedOutcome(outcome)
@@ -164,7 +165,11 @@ export function ImportStatus({
   }
 
   const summary =
-    outcome !== null && outcome !== dismissedOutcome && !busy ? addedSentence(outcome) : null
+    outcome !== null && outcome !== dismissedOutcome && !busy
+      ? (addedSentence(outcome) ?? notAddedSentence(outcome.activities))
+      : null
+  // What moved is listed only for an import that added a run or a ride, as the summary says it did.
+  const listMoved = summary !== null && outcome !== null && addedSentence(outcome) !== null
   const percent = percentRead(progress)
 
   function dismiss(event: MouseEvent<HTMLButtonElement>) {
@@ -178,28 +183,30 @@ export function ImportStatus({
 
   return (
     <>
-      {busy && (
-        <div className="import-status">
-          <div className="import-status__bar" aria-hidden="true">
-            <span
-              className={
-                percent === null
-                  ? 'import-status__fill'
-                  : 'import-status__fill import-status__fill--measured'
-              }
-              style={percent === null ? undefined : { width: `${percent}%` }}
-            />
-          </div>
-          <p className="import-status__text" aria-hidden="true">
-            {waiting ?? statusText(progress)}
-          </p>
+      {/* Always in place, so a drop does not move the page: while idle it is hidden, but keeps its height. */}
+      <div
+        className={busy ? 'import-status' : 'import-status import-status--idle'}
+        aria-hidden={busy ? undefined : true}
+      >
+        <div className="import-status__bar" aria-hidden="true">
+          <span
+            className={
+              percent === null
+                ? 'import-status__fill'
+                : 'import-status__fill import-status__fill--measured'
+            }
+            style={percent === null ? undefined : { width: `${percent}%` }}
+          />
         </div>
-      )}
+        <p className="import-status__text" aria-hidden="true">
+          {waiting ?? statusText(progress)}
+        </p>
+      </div>
       {summary !== null && (
         <div className="import-status__notice">
           <div className="import-status__body">
             <p>{summary}</p>
-            {moved.length > 0 && (
+            {listMoved && moved.length > 0 && (
               <ul className="import-status__moved">
                 {moved.map((item) => (
                   <li key={item.text}>{movedText(item)}</li>

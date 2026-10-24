@@ -10,6 +10,8 @@ export const WAITING_FOR_ACCOUNT = 'Waiting for your account…'
 /** A delete asked for before the library it would change has loaded. Nothing is removed. */
 export const LIBRARY_NOT_READY =
   'Your library is still loading, so nothing was deleted. Try again in a moment.'
+export const DEVICE_NOT_LOADED =
+  'Your kept results could not be loaded in this browser, so these files were not added. Add them again.'
 export const LIBRARY_NOT_LOADED =
   'Your library is not loaded, so these files were not imported. Retry loading your library, then add them again.'
 export const STOPPED = 'Analysis is stopped, so this did not run. Restart analysis, then try again.'
@@ -44,6 +46,8 @@ export const SPLITS_NOT_LOADED =
  */
 export const STOPPED_KEPT_RESULTS =
   'Analysis stopped. Your results kept in this browser are reloading; add again any files that were being added.'
+/** Stop while the account is still loading: nothing is claimed about what is kept, so the files are added again. */
+export const STOPPED_WHILE_LOADING = 'Analysis stopped. Add the files again to analyse them.'
 
 /** An error reply from the worker. */
 export type ErrorReply = Extract<WorkerResponse, { type: 'error' }>
@@ -108,6 +112,15 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
   const last = formatMonth(lastStartMs, withYear)
   const span = first === last ? `in ${first}` : `from ${first} to ${last}`
   return `Added ${counts.join(' and ')}, ${span}.`
+}
+
+/**
+ * The line for an import that added no runs or rides, so every import says what it did. What it read
+ * was already in the library, or it read nothing.
+ */
+export function notAddedSentence(activities: number): string {
+  if (activities === 0) return 'No activities were analysed.'
+  return `Nothing new: ${activities.toLocaleString('en-US')} ${activities === 1 ? 'activity' : 'activities'} already in your library.`
 }
 
 /** "412 runs" or "1 ride", with thousands separated. */

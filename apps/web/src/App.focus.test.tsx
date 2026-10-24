@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
-import { app, resetAppMocks, setSession, showResult } from './test/appMocks'
+import { app, resetAppMocks, setAccount, setSession, showResult } from './test/appMocks'
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,
@@ -89,6 +89,27 @@ describe('focus on navigation', () => {
 })
 
 describe('focus when a page changes by itself', () => {
+  it('moves focus to the landing heading when the restoring page gives way to it on its own', () => {
+    vi.useFakeTimers()
+    try {
+      setAccount('loading')
+      app.analysis.restoring = true
+      const view = render(<App />)
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+      ).toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(3_000)
+      })
+      view.rerender(<App />)
+
+      expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('moves focus to the new page when focus was lost with the old one', () => {
     const view = render(<App />)
     showResult()

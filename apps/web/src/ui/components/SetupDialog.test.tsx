@@ -403,6 +403,32 @@ function Dropped({ open }: { open: boolean }) {
   )
 }
 
+describe('SetupDialog: the account answers after the visitor has changed units', () => {
+  const UNSET: AthleteValues = {
+    settings: { massKg: null, bikeMassKg: 9 },
+    units: 'metric',
+    birthYear: null,
+    sex: null,
+  }
+  const SAVED: AthleteValues = {
+    settings: { massKg: 75, bikeMassKg: 9 },
+    units: 'metric',
+    birthYear: null,
+    sex: null,
+  }
+
+  it('shows the saved weight in the units the visitor picked, and keeps those units', async () => {
+    const user = userEvent.setup()
+    const view = render(<SetupDialog initial={UNSET} onConfirm={vi.fn()} onSkip={vi.fn()} />)
+    await user.click(screen.getByRole('radio', { name: 'Imperial' }))
+
+    view.rerender(<SetupDialog initial={SAVED} onConfirm={vi.fn()} onSkip={vi.fn()} />)
+
+    expect(screen.getByLabelText('Body weight')).toHaveValue('165.3')
+    expect(screen.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+  })
+})
+
 describe('SetupDialog focus', () => {
   it('returns focus to the control that opened it when it closes', async () => {
     const user = userEvent.setup()

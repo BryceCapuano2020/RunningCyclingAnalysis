@@ -43,6 +43,8 @@ export type WorkerRequest =
       settings: AthleteSettings
       sync: SyncOptions | null
       saveToDevice?: boolean
+      /** Analysed while the account loads: the page does not summarise the answer as an import result. */
+      provisional?: boolean
     }
   /**
    * Loads the digests kept in this browser, unless the session already holds them or a sample is

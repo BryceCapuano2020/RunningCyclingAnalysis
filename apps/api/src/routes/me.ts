@@ -8,7 +8,7 @@ import { clearSessionCookie } from '../auth/session.ts'
 import { chargeDaily } from '../budget.ts'
 import { finishAccountDeletion, startAccountDeletion } from '../accountDeletion.ts'
 import { HttpError } from '../errors.ts'
-import { currentUser, requireUser, requireUserEvenIfDeleting } from '../middleware.ts'
+import { currentUser, optionalUser, requireUser, requireUserEvenIfDeleting } from '../middleware.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { hasStoredFiles, sweepUserFiles } from '../storage.ts'
 import { must } from '../util.ts'
@@ -18,9 +18,11 @@ const PROFILE_BODY_BYTES = 4 * 1024
 
 export const meRoutes = new Hono<AppEnv>()
 
-meRoutes.get('/me', requireUser, async (c) => {
+meRoutes.get('/me', optionalUser, async (c) => {
   const { deps, db } = c.var
-  const user = currentUser(c)
+  const user = c.var.user
+  // A signed-out visitor gets a null body, not a 401: every page load asks, and a 401 is logged as an error.
+  if (!user) return c.json(null, 200)
   // A constant-size read, bounded by the edge rate limiter. The daily read budget is for library
   // listings, whose cost grows with the library; charging page loads here would lock people out.
   const units = unitsForAcceptLanguage(c.req.header('accept-language'))

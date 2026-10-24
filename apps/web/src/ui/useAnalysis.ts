@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ImportOutcome, SavedActivity, WorkerRequest } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
-import { STOPPED_KEPT_RESULTS, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { STOPPED_KEPT_RESULTS, STOPPED_WHILE_LOADING, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
 import type { ImportChange } from './analysis/importState'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
 import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
-import { EMPTY_SESSION, isDeletion } from './analysis/model'
-import { useLatest } from './analysis/useLatest'
+import { drainBatches, EMPTY_SESSION, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
 import { replyOf } from './routeReply'
@@ -39,6 +37,8 @@ export interface AnalysisController {
   stop: () => void
   retryWorker: () => void
   libraryStatus: LibraryStatus
+  /** A reload of a visit that kept results, before the library they kept has been read. */
+  restoring: boolean
   /** Reads the signed-in library again. Imports are not held for a failed load; they must be added again. */
   retryLibrary: () => void
   /** Saved activities whose original file is not in the library. */
@@ -102,8 +102,6 @@ export function useAnalysis(
   // Created here, not in the transport, because refreshBusy reads it and the transport needs refreshBusy.
   const pendingRepliesRef = useRef<Pending[]>([])
   const [errorNotice, setErrorNotice] = useState<ErrorNotice | null>(null)
-  // The analysis on screen when the last import was sent: what its summary compares with.
-  const baselineRef = useRef<AnalysisResult | null>(null)
 
   const setError = useCallback((message: string | null, issue: SyncIssueCode | null = null) => {
     setErrorNotice(message === null ? null : { message, issue })
@@ -119,7 +117,6 @@ export function useAnalysis(
 
   const library = useLibraryState()
   const imports = useImportState()
-  const latestState = useLatest(imports.state)
   const {
     setLibraryAction,
     setLibraryNotice,
@@ -131,13 +128,14 @@ export function useAnalysis(
     setBusy,
     setWaitingReason,
     pendingAsyncImportsRef,
-    deferredImportsRef,
+    provisionalImportsRef,
     setState,
     setProgress,
     setUploading,
     setRebuildNotice,
     setImportOutcome,
     setImportChange,
+    reportedRef,
   } = imports
 
   /** Recomputes what the page shows as busy, waiting, and in a library change. */
@@ -156,22 +154,10 @@ export function useAnalysis(
     setBusy(
       replies.some((pending) => !quiet(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
-        deferredImportsRef.current.length > 0 ||
         libraryWaitRef.current.length > 0,
     )
-    setWaitingReason(
-      libraryWaitRef.current.length > 0 || deferredImportsRef.current.length > 0
-        ? WAITING_FOR_LIBRARY
-        : null,
-    )
-  }, [
-    deferredImportsRef,
-    libraryWaitRef,
-    pendingAsyncImportsRef,
-    setBusy,
-    setLibraryAction,
-    setWaitingReason,
-  ])
+    setWaitingReason(libraryWaitRef.current.length > 0 ? WAITING_FOR_LIBRARY : null)
+  }, [libraryWaitRef, pendingAsyncImportsRef, setBusy, setLibraryAction, setWaitingReason])
 
   /** The notices a request replaces are cleared as it is sent. */
   const onSend = useCallback(
@@ -187,9 +173,6 @@ export function useAnalysis(
         request.type === 'routeShape' ||
         request.type === 'forgetRoutes'
       if (!keepsError) setError(null)
-      // Taken as the import is sent. An import sent before the one before it replies compares with
-      // the same result, since that reply has not yet changed what is on screen.
-      if (request.type === 'addFiles') baselineRef.current = baselineOf(latestState())
       // A new import or rebuild replaces the outcome of the last library change.
       if (request.type === 'addFiles' || request.type === 'rebuildStale') {
         setLibraryNotice(null)
@@ -209,7 +192,6 @@ export function useAnalysis(
       }
     },
     [
-      latestState,
       refreshBusy,
       setError,
       setImportOutcome,
@@ -267,6 +249,7 @@ export function useAnalysis(
     settingsRef,
     setError,
     setErrorNotice,
+    latestBaseline: () => baselineOf(reportedRef.current),
   })
   const handleAccountIssue = useAccountIssue({
     accountRef,
@@ -274,22 +257,34 @@ export function useAnalysis(
   })
 
   /**
-   * Empties every queue: the requests waiting for a worker, the requests the worker still owes, and
-   * the imports waiting for the account or the library. Both the stop and an account change use it.
+   * Empties every queue: the requests waiting for a worker, the requests the worker still owes, the
+   * files analysed while the account loads, and the imports waiting for the library. Both the stop
+   * and an account change use it.
    */
   const clearQueues = useCallback(() => {
     dropPendingReplies()
     dropUnsent()
-    deferredImportsRef.current = []
-    libraryWaitRef.current = []
+    drainBatches(provisionalImportsRef)
+    drainBatches(libraryWaitRef)
     refreshBusy()
-  }, [deferredImportsRef, dropPendingReplies, dropUnsent, libraryWaitRef, refreshBusy])
+  }, [dropPendingReplies, dropUnsent, libraryWaitRef, provisionalImportsRef, refreshBusy])
 
   /**
    * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
    * waiting for its reply compares with it, and the next import replaces it.
    */
   const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
+
+  // A clear resets the period in the session, so the period the visitor chose is sent again.
+  // Read from the ref setRange keeps current, so a period chosen before the worker answers is kept.
+  const { rangeRef } = imports
+  const clearSession = useCallback(() => {
+    sendToWorker({ type: 'clear', forgetDevice: false })
+    const rangeDays = rangeRef.current
+    if (rangeDays !== null) {
+      sendToWorker({ type: 'setRange', rangeDays, settings: settingsRef.current })
+    }
+  }, [rangeRef, sendToWorker])
 
   const stop = useCallback(() => {
     clearQueues()
@@ -300,10 +295,13 @@ export function useAnalysis(
     setRebuildNotice(null)
     setWorkerStopped(false)
     automaticRestartCountRef.current = 0
+    const { status } = accountRef.current
     setError(
-      accountRef.current.status === 'signed-in'
+      status === 'signed-in'
         ? 'Analysis stopped. Saved activities are reloading; re-import any local files that were not saved.'
-        : STOPPED_KEPT_RESULTS,
+        : status === 'loading'
+          ? STOPPED_WHILE_LOADING
+          : STOPPED_KEPT_RESULTS,
     )
     restartWorker()
   }, [
@@ -334,7 +332,6 @@ export function useAnalysis(
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
-    baselineRef,
   })
 
   const { massKg, bikeMassKg } = settings
@@ -360,6 +357,7 @@ export function useAnalysis(
     loadLibrary: libraryActions.loadLibrary,
     loadDeviceOnce,
     clearQueues,
+    clearSession,
   })
 
   return {
@@ -374,6 +372,7 @@ export function useAnalysis(
     stop,
     retryWorker: transport.retryWorker,
     libraryStatus: library.libraryStatus,
+    restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
     missingOriginals: library.missingOriginals,
     libraryUnreadable: library.libraryUnreadable,

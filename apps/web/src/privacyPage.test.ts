@@ -105,6 +105,11 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('bike and gear weight')
   })
 
+  it('names the flag that remembers kept results in this browser, and says it holds no activity data', () => {
+    expect(text).toContain('named rca.kept.v1')
+    expect(text).toContain('It holds no activity data.')
+  })
+
   it('says signed-in visitors do not see the summaries kept in this browser', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })

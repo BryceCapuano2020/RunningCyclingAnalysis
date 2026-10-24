@@ -58,13 +58,11 @@ async function countRows(h: ReturnType<typeof createHarness>, table: string, use
 }
 
 describe('GET /api/me', () => {
-  it('returns 401 when signed out', async () => {
+  it('answers a signed-out visitor with 200 and a null body, not an error', async () => {
     const h = createHarness()
     const res = await h.send({ path: '/api/me' })
-    expect(res.status).toBe(401)
-    expect(await res.json()).toEqual({
-      error: { code: 'unauthenticated', message: 'Sign in required' },
-    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toBeNull()
   })
 
   it('returns the user and their default profile', async () => {
@@ -606,7 +604,10 @@ describe('DELETE /api/me', () => {
     expect(await countRows(h, 'profiles', aliceId)).toBe(0)
     expect(await countRows(h, 'activities', bobId)).toBe(1)
 
-    expect((await h.send({ path: '/api/me', cookies: { rca_session: alice } })).status).toBe(401)
+    // A deleted account reads as signed out: the server answers /api/me with a null body.
+    expect(
+      await (await h.send({ path: '/api/me', cookies: { rca_session: alice } })).json(),
+    ).toBeNull()
     expect((await h.send({ path: '/api/me', cookies: { rca_session: bob } })).status).toBe(200)
   })
 
@@ -762,7 +763,9 @@ describe('account deletion tombstone', () => {
     const h = createHarness()
     const token = await h.signIn()
     await h.env.DB.prepare('UPDATE users SET deleting_at = ?').bind(START).run()
-    expect((await h.send({ path: '/api/me', cookies: { rca_session: token } })).status).toBe(401)
+    expect(
+      await (await h.send({ path: '/api/me', cookies: { rca_session: token } })).json(),
+    ).toBeNull()
     const res = await h.send({ method: 'DELETE', path: '/api/me', cookies: { rca_session: token } })
     expect(res.status).toBe(204)
     expect(await countRows(h, 'users')).toBe(0)

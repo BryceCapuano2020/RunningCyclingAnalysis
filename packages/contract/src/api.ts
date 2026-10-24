@@ -51,6 +51,8 @@ export const MeSchema = z.object({
   fileRetentionAvailable: z.boolean().optional(),
 })
 export type Me = z.infer<typeof MeSchema>
+/** GET /api/me answers a signed-out visitor with a null body, rather than an error. */
+export const MeResponseSchema = MeSchema.nullable()
 
 export const ActivityCreateSchema = z
   .object({

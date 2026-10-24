@@ -7,6 +7,7 @@ import {
   deleteNoticeText,
   exportFailureText,
   limitedSentence,
+  notAddedSentence,
   rebuildNoticeText,
   workerFailureText,
 } from './copy'
@@ -228,5 +229,16 @@ describe('workerFailureText', () => {
     expect(workerFailureText('unavailable', false, '')).toBe(
       'The analysis worker failed. Add again any files that were being added.',
     )
+  })
+})
+
+describe('notAddedSentence', () => {
+  it('says what was read was already in the library, counting the activities', () => {
+    expect(notAddedSentence(1)).toBe('Nothing new: 1 activity already in your library.')
+    expect(notAddedSentence(1204)).toBe('Nothing new: 1,204 activities already in your library.')
+  })
+
+  it('says no activities were analysed when the import read none', () => {
+    expect(notAddedSentence(0)).toBe('No activities were analysed.')
   })
 })

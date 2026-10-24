@@ -18,7 +18,8 @@ function healthyFetch(overrides = {}) {
           'content-security-policy': "default-src 'self'; frame-ancestors 'none'",
         },
       }),
-    '/api/me': () => new Response('{}', { status: 401 }),
+    '/api/me': () =>
+      new Response('null', { status: 200, headers: { 'content-type': 'application/json' } }),
     '/api/auth/google': () =>
       new Response(null, {
         status: 302,
@@ -76,7 +77,7 @@ test('a Google redirect with the wrong redirect_uri fails the smoke test', async
   assert.match(failures[0], /redirect_uri does not match/)
 })
 
-test('an authenticated-looking /api/me response fails the smoke test', async () => {
+test('a /api/me that answers with a signed-in body fails the smoke test', async () => {
   const failures = await runSmoke({
     origin: ORIGIN,
     appUrl: ORIGIN,
@@ -84,7 +85,21 @@ test('an authenticated-looking /api/me response fails the smoke test', async () 
     fetchImpl: healthyFetch({ '/api/me': () => new Response('{}', { status: 200 }) }),
     sleep: noSleep,
   })
-  assert.match(failures.join('\n'), /GET \/api\/me is unauthenticated: expected 401, got 200/)
+  assert.match(
+    failures.join('\n'),
+    /GET \/api\/me answers a signed-out visitor with 200 and a null body: expected 200 with a null body, got 200 \{\}/,
+  )
+})
+
+test('a 401 for an anonymous /api/me fails the smoke test, since a signed-out visitor gets a null body', async () => {
+  const failures = await runSmoke({
+    origin: ORIGIN,
+    appUrl: ORIGIN,
+    attempts: 1,
+    fetchImpl: healthyFetch({ '/api/me': () => new Response('{}', { status: 401 }) }),
+    sleep: noSleep,
+  })
+  assert.match(failures.join('\n'), /expected 200 with a null body, got 401/)
 })
 
 test('a transient failure is retried before the check is reported', async () => {

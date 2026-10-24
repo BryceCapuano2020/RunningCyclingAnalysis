@@ -47,7 +47,6 @@ export function AppNotices({
         signedIn={signedIn}
         keepFiles={keepFiles}
         fileRetentionAvailable={fileRetentionAvailable}
-        libraryUnavailable={accountsUnavailable}
         onRetry={() => runThenFocus(analysis.retryLibrary)}
       />
       <p role="status" className="sr-only">

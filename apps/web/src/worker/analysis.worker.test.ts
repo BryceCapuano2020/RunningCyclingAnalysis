@@ -1291,6 +1291,119 @@ describe('device library', () => {
   })
 })
 
+describe('an analysis made while the account loads', () => {
+  it('is held in this session only: nothing is listed and nothing is kept', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: null,
+    })
+
+    expect(messages).not.toContainEqual(expect.objectContaining({ type: 'libraryActivities' }))
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'state',
+        state: expect.objectContaining({ totalActivities: 1 }),
+      }),
+    )
+    expect(await keptDevice().all()).toEqual([])
+    expect(mocked.createActivity).not.toHaveBeenCalled()
+  })
+
+  it('is not counted twice once the account library loads, when the account already has the workout', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    await send({ type: 'addFiles', files: [fitFile()], settings: SETTINGS, sync: null })
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    // The account keeps one copy of the workout, so the library still counts it once.
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'state',
+        state: expect.objectContaining({ totalActivities: 1 }),
+      }),
+    )
+  })
+
+  it('is saved once and reported as added when a signed-out visitor is re-run after the kept library loads', async () => {
+    const { send } = await startWorker()
+    await send({ type: 'addFiles', files: [fitFile()], settings: SETTINGS, sync: null })
+    await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await send(signedOutImport())
+
+    expect(await keptDevice().all()).toHaveLength(1)
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'state',
+        outcome: expect.objectContaining({ activities: 1, duplicates: [] }),
+      }),
+    )
+  })
+})
+
+describe('a rejected file dropped while the account loads', () => {
+  const notFit = () => new File(['not a fit'], 'not-a-fit.fit')
+
+  it('is reported again by the signed-out re-run, after the kept library loads', async () => {
+    const { send } = await startWorker()
+    await send({
+      type: 'addFiles',
+      files: [notFit()],
+      settings: SETTINGS,
+      sync: null,
+      provisional: true,
+    })
+    await send({ type: 'loadDevice', settings: SETTINGS })
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [notFit()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'state',
+        state: expect.objectContaining({
+          rejected: [expect.objectContaining({ fileName: 'not-a-fit.fit' })],
+        }),
+      }),
+    )
+  })
+
+  it('is reported by the provisional analysis itself', async () => {
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [notFit()],
+      settings: SETTINGS,
+      sync: null,
+      provisional: true,
+    })
+
+    expect(messages).toContainEqual(
+      expect.objectContaining({
+        type: 'state',
+        state: expect.objectContaining({
+          rejected: [expect.objectContaining({ fileName: 'not-a-fit.fit' })],
+        }),
+      }),
+    )
+  })
+})
+
 describe('account export', () => {
   const ACCOUNT = { name: 'Ada Lovelace', email: 'ada@example.com' }
   const PROFILE = {

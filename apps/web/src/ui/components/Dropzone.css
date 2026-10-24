@@ -45,3 +45,11 @@
   text-align: center;
   font-size: 0.875rem;
 }
+
+/* Says why the sample is off while an import runs, on a line of its own under the button. */
+.dropzone__busy {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+}

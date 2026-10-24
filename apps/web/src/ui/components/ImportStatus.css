@@ -1,10 +1,29 @@
-/* A slim strip under the header, shown only while files are being read. */
+/*
+ * A slim strip under the header, shown while files are being read. Idle, it keeps its height but is
+ * hidden, so the first drop does not push the page down.
+ */
 .import-status {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-2) 0;
+}
+
+.import-status--idle {
+  visibility: hidden;
+}
+
+/* Idle, nothing animates behind the hidden strip. */
+.import-status--idle .import-status__fill {
+  animation: none;
+}
+
+/* A phone wraps the waiting copy to two lines, so the strip reserves two, and its height does not change. */
+@media (max-width: 480px) {
+  .import-status__text {
+    min-height: 3em;
+  }
 }
 
 /* Indeterminate: the total is unknown while files are streamed in. */

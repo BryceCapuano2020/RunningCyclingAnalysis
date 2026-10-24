@@ -46,7 +46,7 @@ intended order:
    and message.
 7. **Smoke test.** `scripts/ops/smoke.mjs` checks the live origin: `GET /api/health` returns
    `{"status":"ok"}`, `GET /api/health/deep` returns 200, `GET /` serves HTML with the
-   Content-Security-Policy header, `GET /api/me` returns 401, and `GET /api/auth/google` returns a
+   Content-Security-Policy header, `GET /api/me` returns 200 with a `null` body, and `GET /api/auth/google` returns a
    302 to `accounts.google.com` whose `redirect_uri` is `APP_URL` plus `/api/auth/google/callback`.
    Each check is retried briefly to allow for propagation.
 8. **Rollback.** If the smoke test fails and `RCA_SAFE_ROLLBACK_VERSION` names an explicitly

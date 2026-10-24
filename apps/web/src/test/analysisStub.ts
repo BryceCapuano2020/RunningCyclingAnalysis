@@ -25,6 +25,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     stop: vi.fn(),
     retryWorker: vi.fn(),
     libraryStatus: 'idle',
+    restoring: false,
     retryLibrary: vi.fn(),
     missingOriginals: 0,
     libraryUnreadable: 0,

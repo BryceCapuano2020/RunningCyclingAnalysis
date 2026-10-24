@@ -209,6 +209,7 @@ describe('saved library', () => {
 
 describe('status messages go into regions that are already mounted', () => {
   it('announces that sign-in is unavailable', () => {
+    setAccount('loading')
     const view = render(<App />)
     const regions = mountedStatusRegions()
     setAccount('unavailable')

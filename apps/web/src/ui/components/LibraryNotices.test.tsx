@@ -47,7 +47,6 @@ function Library({ rebuildStarts = true }: { rebuildStarts?: boolean }) {
         signedIn
         keepFiles
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />
     </>
@@ -108,7 +107,6 @@ describe('LibraryNotices: focus after a rebuild', () => {
         signedIn
         keepFiles
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />,
     )
@@ -134,7 +132,6 @@ describe('LibraryNotices: counts', () => {
         signedIn
         keepFiles
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />,
     )
@@ -154,7 +151,6 @@ describe('LibraryNotices: outdated saved activities', () => {
         signedIn={signedIn}
         keepFiles={signedIn}
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />
     )

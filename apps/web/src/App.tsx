@@ -6,16 +6,18 @@ import { AppNotices } from './ui/components/AppNotices'
 import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
 import { LandingPage } from './ui/pages/LandingPage'
-import { WAITING_FOR_ACCOUNT } from './ui/analysis/copy'
 import { listedMoves } from './ui/analysis/whatMoved'
 import { ageProfileOf } from './ui/grades'
 import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
+import { RestoringPage } from './ui/pages/RestoringPage'
 import { ResultPage } from './ui/pages/ResultPage'
 import type { Route } from './ui/route'
 import { hrefFor, useRoute } from './ui/route'
 import { useAccount } from './ui/useAccount'
 import { useAnalysis } from './ui/useAnalysis'
+import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
+import { useRestoringWindow } from './ui/useRestoringWindow'
 import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
@@ -23,9 +25,10 @@ import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { analysisSettings, weightKnown } from './ui/athlete'
 
 /** A string that changes whenever a different page is on screen. */
-function pageKey(route: Route, hasResult: boolean): string {
+function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
   if (route.page === 'profile') return 'profile'
-  if (!hasResult) return 'landing'
+  // Restoring gives way to the landing page on its own, so the two are different pages to focus.
+  if (!hasResult) return restoring ? 'restoring' : 'landing'
   return route.page === 'activity' ? `activity:${route.id}` : route.page
 }
 
@@ -91,12 +94,14 @@ export function App() {
     addFiles: analysis.addFiles,
     save: saveAnswers,
   })
-  // Files held while the account loads show as waiting: the import cannot start until it is known.
-  const accountWait = account.status === 'loading' && setup.held > 0
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
   const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
-  const key = pageKey(route, hasResult)
+  // The restoring page is bounded: it gives way to the landing page if the account has not answered
+  // within a few seconds, so it never waits on the lookup with no controls.
+  const restoringPage = useRestoringWindow(analysis.restoring, account.status === 'loading')
+  const key = pageKey(route, hasResult, restoringPage)
+  useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
 
   // A new page replaces the old one, so focus moves to the new page's heading and the page shows
   // from the top. A link the user followed always moves them; a page that changes by itself, such
@@ -194,9 +199,9 @@ export function App() {
       {/* Always mounted, under the header: file drops anywhere, progress and announcements. */}
       <ImportStatus
         onFiles={setup.requestImport}
-        busy={analysis.busy || accountWait}
+        busy={analysis.busy}
         progress={analysis.progress}
-        waiting={analysis.waitingReason ?? (accountWait ? WAITING_FOR_ACCOUNT : null)}
+        waiting={analysis.waitingReason}
         signedIn={signedIn}
         outcome={analysis.importOutcome}
         moved={moved}
@@ -249,6 +254,8 @@ export function App() {
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
           />
+        ) : restoringPage ? (
+          <RestoringPage onFiles={setup.requestImport} />
         ) : (
           <LandingPage
             analysis={analysis}

@@ -1,0 +1,26 @@
+/*
+ * The restoring placeholder is still: no motion, so it is the same for reduced-motion users. Its
+ * shapes are the surface tone, not a loading spinner, so it reads as the page waiting, not as broken.
+ */
+.restoring__actions {
+  margin-top: var(--space-4);
+}
+
+.restoring__cards {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.restoring__card {
+  display: block;
+  height: 6.5rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+@media (min-width: 720px) {
+  .restoring__cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

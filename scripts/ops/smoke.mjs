@@ -96,10 +96,14 @@ export function smokeChecks(origin, appUrl) {
       },
     },
     {
-      name: 'GET /api/me is unauthenticated',
+      name: 'GET /api/me answers a signed-out visitor with 200 and a null body',
       run: async (fetchImpl) => {
         const res = await get(origin, '/api/me', fetchImpl)
-        expect(res.status === 401, `expected 401, got ${res.status}`)
+        const body = (await res.text()).trim()
+        expect(
+          res.status === 200 && body === 'null',
+          `expected 200 with a null body, got ${res.status} ${body.slice(0, 80)}`,
+        )
       },
     },
     {

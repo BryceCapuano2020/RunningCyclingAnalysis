@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
@@ -42,8 +43,27 @@ export function isDeletion(kind: WorkerRequest['type']): boolean {
 export interface Pending {
   kind: WorkerRequest['type']
   notice?: string
+  /** The analysis an import is compared with, taken when the import was sent. */
+  baseline?: AnalysisResult | null
   /** Receives the worker's answer, or null when the worker is dropped before answering. */
   settle?: (message: WorkerResponse | null) => void
+  /** An analysis made while the account loads: its answer is not an import result, so it is not summarised. */
+  provisional?: boolean
+  /** An import whose digests the worker keeps on this device. */
+  saveToDevice?: boolean
+  /** Set when the session was cleared after the request was sent: its answer is dropped. */
+  ignored?: boolean
+  /** The session the request was made in (WorkerTransport.sessionEpochRef). A library read from an earlier one is overtaken. */
+  session?: number
+  /** A clear that also empties the library kept in this browser. */
+  forgetDevice?: boolean
+}
+
+/** Empties a queue of file batches and returns them, in the order they were queued. */
+export function drainBatches(queue: Box<File[][]>): File[][] {
+  const batches = queue.current
+  queue.current = []
+  return batches
 }
 
 export const EMPTY_SESSION: SessionState = {

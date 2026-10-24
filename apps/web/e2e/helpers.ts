@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
-import type { APIRequestContext, ConsoleMessage, Locator, Page } from '@playwright/test'
+import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
@@ -52,19 +52,11 @@ export function fixturePath(name: string): string {
   return join(FIXTURE_DIR, name)
 }
 
-/**
- * The app asks /api/me who is signed in on every load, and the API answers 401 when nobody is.
- * The browser logs that as a console error, so this one expected response is not counted.
- */
-function isSignedOutProbe(message: ConsoleMessage): boolean {
-  return message.location().url.endsWith('/api/me') && message.text().includes('status of 401')
-}
-
 /** Collects console errors and uncaught page errors. Attach before navigating. */
 export function trackErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('console', (message) => {
-    if (message.type() === 'error' && !isSignedOutProbe(message)) errors.push(message.text())
+    if (message.type() === 'error') errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(error.message))
   return errors
@@ -84,11 +76,9 @@ export const SETUP_DIALOG_NAME = /^(Before your first analysis|A few details)$/
 
 /**
  * How long an upload waits for the setup dialog. Most uploads do not open it, so the wait is kept
- * short; a caller that expects the dialog only after a slow account lookup passes a longer one.
+ * short. The dialog opens at once on the first import, even while the account is still loading.
  */
 const SETUP_DIALOG_WAIT_MS = 2_000
-/** Longer than a failed account lookup takes to settle (its retries run for about 14 s). */
-const ACCOUNT_LOOKUP_MS = 20_000
 
 /**
  * The body weight the e2e suite answers the setup dialog with: 185 lb, the units the suite runs in,
@@ -107,12 +97,6 @@ export async function completeSetup(
   waitMs: number = SETUP_DIALOG_WAIT_MS,
   weight: string = DEFAULT_WEIGHT_TEXT,
 ): Promise<void> {
-  // The dialog waits for the account to be known. The header's placeholder shows until the lookup
-  // settles, then gives way to the sign-in button, the account menu, or nothing when accounts are
-  // unavailable. A failed lookup takes about 14 s to settle, so the wait allows for that.
-  await expect(page.locator('.account-menu__placeholder')).toHaveCount(0, {
-    timeout: ACCOUNT_LOOKUP_MS,
-  })
   const dialog = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
   try {
     await dialog.waitFor({ state: 'visible', timeout: waitMs })

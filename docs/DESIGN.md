@@ -21,20 +21,29 @@ Hash routes, so the static host needs no fallback rules.
 | `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                                    |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities |
 
-Without a result every route except Profile shows the landing page. The header holds the wordmark,
-the four tabs (once there is a result), one **Add files** button, a **Profile** link (a person glyph
-with its word at every width) and the account control. Below 360 px the brand takes its own row and
-the actions the full width, so they wrap to two rows rather than three. The account menu holds the
-email and Sign out; downloading data and deleting the account are on the Profile page. A file dropped anywhere on the page is imported.
+Without a result every route except Profile shows the landing page. On a reload of a visit that kept
+results, it shows a restoring state in its place, with an **Add files** button, until the library has
+replied, or, while the account is still loading, three seconds have passed, whichever is first. A
+returning visitor is not asked to add their files again and is never left without a control. The header
+holds the wordmark, the four tabs (once there is a result), one **Add files** button, a **Profile** link
+(a person glyph with its word at every width) and the account control. Below 360 px the brand takes its
+own row and the actions the full width, so they wrap to two rows rather than three. The account menu
+holds the email and Sign out; downloading data and deleting the account are on the Profile page. A file
+dropped anywhere on the page is imported. While the account is still loading, the account control reads
+"Checking sign-in…", and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold
+the sign-in button's width, so the header does not move. The import strip keeps its height while idle,
+so a drop does not push the page down. Nothing is held for the account: a file is analysed at once and
+saved once the account is known.
 
 The landing page's step 1 has a **How to get your files** button. It moves focus to the export guides
 below the steps, one closed details per service; guides whose steps could not be checked from the
 vendor's own page say so.
-After an import that added activities, a dismissible notice under the header says what it added and
-links to Balance, except on Balance itself. Under that sentence it lists what the import moved in the
-athlete's numbers: at most four items, thresholds first, then the balance, then new bests at 1, 5, 20
-and 60 minutes, counted only for workouts that were not on file before. A first import, or one that
-replaced the sample, lists nothing, and nor does an import that added no run or ride. Each change is
+After an import, a dismissible notice under the header says what it added, or "Nothing new" when every
+activity was already in the library, and links to Balance, except on Balance itself. An import made on
+Profile or Method moves to Balance, where its result is. Under that sentence it lists what the import
+moved in the athlete's numbers: at most four items, thresholds first, then the balance, then new bests
+at 1, 5, 20 and 60 minutes, counted only for workouts that were not on file before. A first import, or one
+that replaced the sample, lists nothing, and nor does an import that added no run or ride. Each import is compared with the result the worker last reported when it was sent, except a file released from a wait for the library, which keeps the result that wait ended with. After a Start over, the next import is compared with nothing. Each change is
 also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
 
 ## Colour

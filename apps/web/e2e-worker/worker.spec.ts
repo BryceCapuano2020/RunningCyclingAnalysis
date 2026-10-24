@@ -31,7 +31,8 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   expect(violations).toEqual([])
 
   const session = await page.request.get('/api/me')
-  expect(session.status()).toBe(401)
+  expect(session.status()).toBe(200)
+  expect(await session.json()).toBeNull()
   expect(session.headers()['cache-control']).toBe('no-store')
   expect(session.headers()['x-request-id']).toMatch(/^[0-9a-f-]{36}$/)
   const missing = await page.request.get('/api/unknown')

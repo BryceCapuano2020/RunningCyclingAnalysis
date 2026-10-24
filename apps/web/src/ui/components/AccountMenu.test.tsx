@@ -60,15 +60,32 @@ function panel(container: HTMLElement): HTMLElement {
 }
 
 describe('AccountMenu states', () => {
-  it('renders nothing while accounts are unavailable', () => {
-    const { container } = renderMenu({ status: 'unavailable', me: null })
-    expect(container).toBeEmptyDOMElement()
+  it('says sign-in is unavailable right now, in the sign-in slot, with no button', () => {
+    renderMenu({ status: 'unavailable', me: null })
+    expect(screen.getByRole('status')).toHaveTextContent('Sign-in is unavailable right now')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('renders a neutral placeholder while loading, with no button', () => {
-    const { container } = renderMenu({ status: 'loading', me: null })
-    const placeholder = container.querySelector('.account-menu__placeholder')
-    expect(placeholder).toHaveAttribute('aria-hidden', 'true')
+  it('keeps one status region, so a change from checking to unavailable is announced', () => {
+    const view = renderMenu({ status: 'loading', me: null })
+    const region = screen.getByRole('status')
+    expect(region).toHaveTextContent('Checking sign-in…')
+
+    view.rerender(<AccountMenu {...props({ status: 'unavailable', me: null })} />)
+
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('Sign-in is unavailable right now')
+  })
+
+  it('keeps an empty status region once signed out, beside the sign-in button', () => {
+    renderMenu({ status: 'signed-out', me: null })
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+  })
+
+  it('says it is checking sign-in while loading, with no button', () => {
+    renderMenu({ status: 'loading', me: null })
+    expect(screen.getByRole('status')).toHaveTextContent('Checking sign-in…')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 

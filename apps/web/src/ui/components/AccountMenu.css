@@ -113,11 +113,16 @@
 }
 
 /*
- * Holds the header's space while the session loads, so the header does not jump. It is invisible:
- * when the API is slow or down, an empty grey shape would look broken.
+ * Holds the sign-in button's space while the session loads or accounts are unavailable, so the header
+ * does not jump when the answer arrives. The width is the button's own, about 188 px with its label.
  */
-.account-menu__placeholder {
-  display: block;
-  width: 40px;
-  height: 40px;
+.account-menu__pending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 11.75rem;
+  min-height: 40px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
 }

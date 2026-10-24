@@ -76,6 +76,20 @@ export function SetupDialog({
   const [yearText, setYearText] = useState(() => displayBirthYear(initial.birthYear))
   const [sex, setSex] = useState(initial.sex)
   const [errors, setErrors] = useState<FieldErrors>({})
+  // A field the visitor has changed keeps their answer. An untouched one follows the saved value, which
+  // can arrive while the questions are open, since the account may answer after they have opened.
+  const touched = useRef({ units: false, weight: false, year: false, sex: false })
+  useEffect(() => {
+    // The saved weight is shown in the units the visitor is looking at, which they may have changed.
+    const shownUnits = touched.current.units ? units : initial.units
+    if (!touched.current.units) setUnits(initial.units)
+    if (!touched.current.weight) {
+      setValidKg(savedKg)
+      setWeightText(displayWeight(savedKg, shownUnits))
+    }
+    if (!touched.current.year) setYearText(displayBirthYear(initial.birthYear))
+    if (!touched.current.sex) setSex(initial.sex)
+  }, [units, initial.units, initial.birthYear, initial.sex, savedKg])
 
   // Modal while mounted. Focus goes to the heading rather than a field, so a phone does not raise
   // the keyboard before the dialog has been read. It returns to whatever opened the dialog, or to
@@ -100,6 +114,7 @@ export function SetupDialog({
   }, [])
 
   function changeUnits(next: UnitSystem) {
+    touched.current.units = true
     // The weight is read in the units it was typed in, then shown in the new ones.
     const typed = readWeightEntry(weightText, validKg, units)
     if ('error' in typed) {
@@ -181,6 +196,7 @@ export function SetupDialog({
           value={weightText}
           error={errors.weight ?? null}
           onChange={(event) => {
+            touched.current.weight = true
             setErrors((current) => ({ ...current, weight: undefined }))
             setWeightText(event.target.value)
           }}
@@ -196,10 +212,14 @@ export function SetupDialog({
           birthYearRef={yearRef}
           sex={sex}
           onBirthYearChange={(text) => {
+            touched.current.year = true
             setErrors((current) => ({ ...current, year: undefined }))
             setYearText(text)
           }}
-          onSexChange={setSex}
+          onSexChange={(next) => {
+            touched.current.sex = true
+            setSex(next)
+          }}
         />
         {error && (
           <p role="alert" className="setup-dialog__error">
