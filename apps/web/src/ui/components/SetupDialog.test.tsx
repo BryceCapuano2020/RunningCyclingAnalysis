@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteValues } from '../profilePatch'
+import { WEIGHT_PROMPT_TEXT } from '../weightCopy'
 import { SetupDialog } from './SetupDialog'
 import type { SetupDialogProps } from './SetupDialog'
 
@@ -13,7 +14,7 @@ afterEach(() => {
 
 const TITLE = 'Before your first analysis'
 const NUMBER_ERROR = 'Enter a number, such as 75 or 165.5'
-const SKIP_NOTE = 'Add your weight on Profile to compare a ride with a run.'
+const SKIP_NOTE = WEIGHT_PROMPT_TEXT
 const INITIAL: AthleteValues = {
   settings: { massKg: 75, bikeMassKg: 9 },
   units: 'metric',

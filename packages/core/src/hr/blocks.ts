@@ -1,3 +1,5 @@
+import { HR_BLOCK_S, HR_SKIP_S } from '../constants'
+
 export interface BlockOptions {
   blockS?: number
   skipS?: number
@@ -22,8 +24,8 @@ export function averageBlocks(
   validHeartRate: Uint8Array,
   opts: BlockOptions = {},
 ): BlockAverage[] {
-  const blockS = opts.blockS ?? 300
-  const skipS = opts.skipS ?? 600
+  const blockS = opts.blockS ?? HR_BLOCK_S
+  const skipS = opts.skipS ?? HR_SKIP_S
   if (blockS < 1) return []
   const n = Math.min(
     heartRate.length,

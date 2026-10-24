@@ -119,7 +119,15 @@ export function ResultPage({
       )
     }
     case 'method':
-      return <MethodPage result={result} units={units} profile={profile} />
+      return (
+        <MethodPage
+          result={result}
+          units={units}
+          profile={profile}
+          rangeDays={rangeDays}
+          weightKnown={weightKnown}
+        />
+      )
     default:
       return (
         <BalancePage

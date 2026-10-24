@@ -44,8 +44,8 @@ describe('RatioChart', () => {
     expect(headers).toEqual(['Duration', 'Reading', 'Median', '90% range'])
     expect(rows).toEqual([
       ['1 min', 'Equal', '0%', '-8% to +10%'],
-      ['5 min', 'Running ahead by 8%', '+8%', '+2% to +14%'],
-      ['20 min', 'Running ahead by 3%', '+3%', '-2% to +9%'],
+      ['5 min', 'Running 8% higher than cycling', '+8%', '+2% to +14%'],
+      ['20 min', 'Running 3% higher than cycling', '+3%', '-2% to +9%'],
     ])
   })
 
@@ -56,7 +56,7 @@ describe('RatioChart', () => {
     expect(within(legend).getByText('After heart-rate check')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Above the line, your running is ahead at that duration; below it, your cycling is. Shading shows the 90% model range; other errors are not included. The line is the median of the model draws.',
+        'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher. Shading shows the 90% model range. The line is the middle estimate.',
       ),
     ).toBeInTheDocument()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(2)
@@ -73,7 +73,7 @@ describe('RatioChart', () => {
     ])
     expect(rows[1]).toEqual([
       '5 min',
-      'Running ahead by 5%',
+      'Running 5% higher than cycling',
       '+5%',
       '0% to +10%',
       '+8%',
@@ -126,11 +126,11 @@ describe('RatioChart', () => {
 
   it('tints the running side coral above the line and the cycling side blue below it', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
-    const tints = screen.getAllByTestId('ratio-ahead')
+    const tints = screen.getAllByTestId('ratio-higher')
     expect(tints).toHaveLength(2)
     const [running, cycling] = tints
-    expect(running).toHaveClass('ratio-chart__ahead--run')
-    expect(cycling).toHaveClass('ratio-chart__ahead--ride')
+    expect(running).toHaveClass('ratio-chart__higher--run')
+    expect(cycling).toHaveClass('ratio-chart__higher--ride')
     // Running's tint ends where the line of equal energy rate sits, and cycling's starts there.
     const zero = container.querySelector('.ratio-chart__zero')
     expect(
@@ -140,30 +140,30 @@ describe('RatioChart', () => {
   })
 
   it('fills each tint with its sport’s soft series token, not a raw colour', () => {
-    expect(cssRule('.ratio-chart__ahead--run')).toContain('var(--series-run-soft)')
-    expect(cssRule('.ratio-chart__ahead--ride')).toContain('var(--series-ride-soft)')
+    expect(cssRule('.ratio-chart__higher--run')).toContain('var(--series-run-soft)')
+    expect(cssRule('.ratio-chart__higher--ride')).toContain('var(--series-ride-soft)')
   })
 
-  it('says in the caption, and in each table row, which sport is ahead', () => {
+  it('says in the caption, and in each table row, which sport is higher', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
     expect(
       screen.getByText(
-        /Above the line, your running is ahead at that duration; below it, your cycling is\./,
+        /Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher\./,
       ),
     ).toBeInTheDocument()
     expect(tableOf(container).rows.map((row) => row[1])).toEqual([
       'Equal',
-      'Running ahead by 8%',
-      'Running ahead by 3%',
+      'Running 8% higher than cycling',
+      'Running 3% higher than cycling',
     ])
   })
 
-  it('reads a median below equal as cycling ahead, by how much', () => {
+  it('reads a median below equal as cycling higher, by how much', () => {
     const comparison = {
       prior: [comparisonPoint({ durationS: 300, ratio: interval(0.85, 0.92, 0.98) })],
       calibrated: null,
     }
     const { container } = render(<RatioChart comparison={comparison} />)
-    expect(tableOf(container).rows[0]?.[1]).toBe('Cycling ahead by 8%')
+    expect(tableOf(container).rows[0]?.[1]).toBe('Cycling 8% higher than running')
   })
 })

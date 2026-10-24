@@ -7,6 +7,7 @@ import { formatDuration } from '@rca/core/units'
 import { LevelLadder } from '../components/LevelLadder'
 import { SportRecords } from '../components/SportRecords'
 import { recordRow } from '../recordRow'
+import { GradingLink } from '../components/GradingLink'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { HEADLINE_LABEL, GRADE_ADJUSTED_NOTE, gradeRangeBracket, gradeSentence } from '../grades'
@@ -93,6 +94,7 @@ function AgeGrade({
         <GradeHead sport={sport} grade={grade} />
         {` · on your best ${HEADLINE_LABEL}${effort ? `, ${effort}` : ''}`}
       </p>
+      <GradingLink />
       <LevelLadder sport={sport} grade={grade} />
       {!ride && <p className="muted">{GRADE_ADJUSTED_NOTE}</p>}
       <p className="muted">{caption}</p>

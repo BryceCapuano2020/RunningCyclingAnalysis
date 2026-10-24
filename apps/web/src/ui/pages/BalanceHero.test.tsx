@@ -171,7 +171,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your running grades 6 points higher than your cycling, on your best 20 minutes in each.',
+        'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
   })

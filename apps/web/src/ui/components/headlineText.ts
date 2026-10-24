@@ -8,10 +8,6 @@ import { plural } from './plural'
 import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import type { BalanceReading } from './balanceScale'
 
-/** What the comparison is and is not, on the results page and on the share card. */
-export const COMPARISON_DISCLAIMER =
-  'Both sports are put on one energy scale from your own files. It compares your two sports; it does not rank you.'
-
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
 export const HARDER_EFFORTS_TITLE = 'Your balance needs harder efforts'
 
@@ -67,7 +63,7 @@ function leaningGradeSummary(lean: Exclude<Lean, 'even'>, centre: number): strin
   const { leader, other } = leaderOf(lean)
   return (
     `Your ${leader} grades ${points(Math.abs(Math.round(centre)))} higher than your ${other}, ` +
-    `on your best ${HEADLINE_DURATION_S / 60} minutes in each.`
+    `on your best ${formatDuration(HEADLINE_DURATION_S)} in each.`
   )
 }
 

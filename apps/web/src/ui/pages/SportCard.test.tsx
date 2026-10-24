@@ -77,6 +77,24 @@ function heroOf(card: HTMLElement): string | null | undefined {
   return card.querySelector('.hero-number')?.textContent
 }
 
+describe('SportCard grading link', () => {
+  it('places How is this graded? straight after the grade line, linking to the age grades', () => {
+    renderCard(
+      'run',
+      makeResult({
+        activities: [runOnMonday],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+    )
+
+    const card = cardNamed('Run')
+    const line = card.querySelector('.sport-card__grade-line')
+    const link = within(card).getByRole('link', { name: 'How is this graded?' })
+    expect(link).toHaveAttribute('href', '#/method')
+    expect(line?.nextElementSibling).toBe(link)
+  })
+})
+
 describe('SportCard without activities of its sport', () => {
   it('says runs are needed to see the running balance, with no link to empty records', () => {
     renderCard('run', makeResult({ activities: [rideOnFriday], runCurve: [] }))

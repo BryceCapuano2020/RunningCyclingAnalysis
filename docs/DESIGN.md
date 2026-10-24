@@ -18,10 +18,10 @@ Hash routes, so the static host needs no fallback rules.
 | `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes             |
 | `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                                         |
 | `#/activities/:id` | Activity          | Summary, route shape, splits (runs), records earned across the library, efforts set here, data issues                                                                                                                               |
-| `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                                    |
+| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                               |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities |
 
-Without a result every route except Profile shows the landing page. On a reload of a visit that kept
+Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where each chart would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
 has replied, or, while the account is still loading, three seconds have passed, whichever is first.
 A returning visitor is not asked to add their files again and is never left without a control. The
@@ -149,8 +149,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   its value, such as "250 W", and the latest trend value with its window, such as "64%, last 2 weeks". Watts charts also fill the area under
   the line. Pace charts draw the line alone: pace has no zero to fill down to. Every chart has a
   visible title, and a value's label sits clear of its own line.
-- The Method-page ratio chart tints running coral above its line and cycling blue below it, so the
-  side that is ahead reads before the numbers do.
+- The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
+  blue below it, so the side that is higher reads before the numbers do.
+- **Evidence sits behind a disclosure.** On How sure is this? each chart is under a Show the evidence
+  disclosure, and the claim it supports is in words above it. The chart mounts when the disclosure is
+  first opened, so a closed section draws nothing.
+- **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
+  a section's heading, because a fragment would change the hash route.
 - Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
@@ -231,7 +236,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
 - **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
-  than your cycling, on your best 20 minutes in each." When the gap's range spans zero, the best
+  than your cycling, on your best 20 min in each." When the gap's range spans zero, the best
   estimate is named and the range is given: "On the age-grade best estimate, running grades 4 points
   higher, but the range (−2 to +10 points) includes zero, so the two are in balance." When the best
   estimate is level: "On the age-grade best estimate, running and cycling grade the same, and the range
@@ -243,8 +248,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
-  "Energy rate" and "metabolic W/kg" belong on How sure is this?, not on the surface. A plain
-  phrase such as "on the same energy scale" may explain the balance.
+  "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
+  "on the same energy scale" may explain the balance.
+- **How sure is this? opens with three lines**: what is recorded ("Your best efforts are recorded."),
+  what is estimated ("Thresholds, levels and the balance are estimates from N runs and M rides.") and
+  how far to trust it ("These checks show how far to trust them.").
+- **Define a term once, in plain words, where it first appears** on How sure is this?: the energy
+  rate, the 90% range and the median each get one plain sentence. Technical detail (efficiency
+  constants, citations, the bike model, the ISA atmosphere) sits behind More detail.
+- **Durations are written one way.** Effort lengths are numerals with min: "5 min, 20 min or 60 min".
+  Seconds are numerals with s: "10 s". Periods are numerals with the unit in full: "6 weeks", and a
+  trend window is "14 days". Inside a sentence a period is lower case: "last 6 weeks".
+- **Spelling is British**: analyse, centred, summarises, colour, licence.
 - **Caveats become chips and shapes.** Draw a range instead of writing it; a caveat is a chip with
   an icon that links to the detail.
 - **Splits say what happened when they are missing**: "Splits were not kept when this run was added."
@@ -259,6 +274,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
 - One "How sure is this?" link per card at most.
+- **A level says how it is graded.** A level's grade line may link to its age grades with How is this
+  graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
+  the hash route. The request lasts for that one navigation only: any later route change drops it.
 - The app grades, it never ranks: no percentiles, no "top X%", no composite score across sports.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter
@@ -294,8 +312,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   watts, its grade, its records and its trend are held, and the card, the cross-sport idea and the
   Ride page say "Add your weight on Profile to see ride figures." with a link to Profile. A run's
   figures still show, and the balance and the share card leave out the ride while no weight is
-  entered. The Balance cards, the Ride page and the cross-sport idea show no ride figure worked out
-  from the placeholder weight. The activity page still shows a ride best's watts from it, for a ride
+  entered. The Balance cards, the Ride page, the cross-sport idea and How sure is this? show no ride
+  figure worked out from the placeholder weight. How sure is this? holds its energy view and its
+  virtual power check, and draws only the running blocks of its heart-rate chart, with the prompt
+  beneath. The request for a weight is written once, in weightCopy: the linked prompt Balance and
+  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page still shows a ride best's watts from it, for a ride
   whose power is estimated, until that page holds its ride figures too.
 - **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links

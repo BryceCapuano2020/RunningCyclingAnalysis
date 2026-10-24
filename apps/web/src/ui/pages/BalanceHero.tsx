@@ -6,7 +6,7 @@ import { BalanceMeter } from '../components/BalanceMeter'
 import { balanceOfPick } from '../components/balanceScale'
 import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../components/headlineText'
 import { rangePeriod } from '../components/rangeOptions'
-import { hrefFor } from '../route'
+import { WeightPrompt } from '../components/WeightPrompt'
 import { countSport } from '../records'
 import { PAGE_HEADING_ID } from './pageHeading'
 
@@ -86,8 +86,7 @@ export function BalanceHero({
           Your balance waits for your weight
         </h1>
         <p className="lede secondary">
-          Add your weight on <a href={hrefFor({ page: 'profile' })}>Profile</a> to compare a ride
-          with a run.
+          <WeightPrompt />
         </p>
       </section>
     )

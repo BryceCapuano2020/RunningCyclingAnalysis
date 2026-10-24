@@ -14,6 +14,7 @@ import { focusPageHeading } from './ui/pages/pageHeading'
 import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
 import { ResultPage } from './ui/pages/ResultPage'
+import { MethodPage } from './ui/pages/MethodPage'
 import type { Route } from './ui/route'
 import { hrefFor, useRoute } from './ui/route'
 import { restoreScroll, useRouteHistory } from './ui/routeHistory'
@@ -32,7 +33,10 @@ import { analysisSettings, weightKnown } from './ui/athlete'
 function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
   if (route.page === 'profile') return 'profile'
   // Restoring gives way to the landing page on its own, so the two are different pages to focus.
-  if (!hasResult) return restoring ? 'restoring' : 'landing'
+  // How sure is this? shows without a result, so it is its own page there rather than the landing.
+  // A Method with no result is its own page, so when results arrive the page change moves focus to its heading.
+  if (!hasResult)
+    return restoring ? 'restoring' : route.page === 'method' ? 'method-empty' : 'landing'
   return route.page === 'activity' ? `activity:${route.id}` : route.page
 }
 
@@ -281,6 +285,15 @@ export function App() {
           />
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />
+        ) : route.page === 'method' ? (
+          <MethodPage
+            result={null}
+            units={units}
+            profile={null}
+            rangeDays={null}
+            weightKnown={weighted}
+            restoring={analysis.restoring}
+          />
         ) : (
           <LandingPage
             analysis={analysis}

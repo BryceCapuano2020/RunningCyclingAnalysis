@@ -28,6 +28,12 @@ describe('documentTitleFor', () => {
     expect(documentTitleFor({ page: 'profile' }, null)).toBe(`Profile · ${APP}`)
   })
 
+  it('names How sure is this? with no result, since that page shows without one', () => {
+    expect(documentTitleFor({ page: 'method' }, null)).toBe(
+      'How sure is this? · RunningCyclingAnalysis',
+    )
+  })
+
   it('is the app name alone on the landing page, which has no page of its own', () => {
     expect(documentTitleFor({ page: 'run' }, null)).toBe(APP)
     expect(documentTitleFor({ page: 'balance' }, null)).toBe(APP)
