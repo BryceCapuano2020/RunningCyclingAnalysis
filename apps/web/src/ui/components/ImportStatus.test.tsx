@@ -126,17 +126,20 @@ describe('ImportStatus: the drag overlay', () => {
 })
 
 describe('ImportStatus: progress', () => {
-  it('shows an indeterminate bar only while busy', () => {
+  it('keeps the strip in its place while idle, hidden from view and from screen readers', () => {
     const idle = renderStatus()
-    expect(idle.container.querySelector('.import-status__bar')).toBeNull()
+    const strip = idle.container.querySelector('.import-status')
+    expect(strip).toHaveClass('import-status--idle')
+    expect(strip).toHaveAttribute('aria-hidden', 'true')
     cleanup()
     const busy = renderStatus({ busy: true, progress: null })
+    expect(busy.container.querySelector('.import-status')).not.toHaveClass('import-status--idle')
     expect(busy.container.querySelector('.import-status__bar')).not.toBeNull()
   })
 
   it('shows no status when idle', () => {
     renderStatus()
-    expect(screen.queryByText('Analysing')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expect(screen.queryByText(/so far/)).not.toBeInTheDocument()
   })
 
@@ -192,8 +195,8 @@ describe('ImportStatus: progress', () => {
 
   it('hides the progress strip once the import has ended, even when its count fell short', () => {
     const { container } = renderStatus({ busy: false, progress: { filesRead: 9, filesTotal: 10 } })
-    expect(container.querySelector('.import-status')).toBeNull()
-    expect(screen.queryByText(/Reading/)).not.toBeInTheDocument()
+    expect(container.querySelector('.import-status')).toHaveClass('import-status--idle')
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('keeps the indeterminate bar and the count alone when the total is not known', () => {
@@ -228,6 +231,16 @@ describe('ImportStatus: progress', () => {
 })
 
 describe('ImportStatus: announcements', () => {
+  it('clears the "Reading files" announcement when the run ends with no outcome to replace it', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} />)
+    rerender(<ImportStatus {...baseProps()} busy progress={null} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+
+    rerender(<ImportStatus {...baseProps()} busy={false} progress={null} />)
+
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
   it('keeps one always-mounted live region for analysis', () => {
     const { rerender, container } = render(<ImportStatus {...baseProps()} />)
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
@@ -248,7 +261,9 @@ describe('ImportStatus: announcements', () => {
         outcome={{ activities: 3, rejected: 0 }}
       />,
     )
-    expect(screen.getByRole('status')).toHaveTextContent('Analysed 3 activities')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Nothing new: 3 activities already in your library',
+    )
   })
 
   it('announces the reason when an import starts waiting', () => {
@@ -284,7 +299,7 @@ describe('ImportStatus: announcements', () => {
     rerender(<Page {...baseProps()} view="results" outcome={{ activities: 3, rejected: 0 }} />)
     // A region that is mounted with its text is not announced, so it must survive the switch.
     expect(screen.getByRole('status')).toBe(region)
-    expect(region).toHaveTextContent('Analysed 3 activities')
+    expect(region).toHaveTextContent('Nothing new: 3 activities already in your library')
   })
 
   it('announces the rejection summary with the outcome of a run', () => {
@@ -298,7 +313,7 @@ describe('ImportStatus: announcements', () => {
       />,
     )
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Analysed 2 activities. 1 file could not be used.',
+      'Nothing new: 2 activities already in your library. 1 file could not be used.',
     )
   })
 
@@ -324,6 +339,16 @@ describe('ImportStatus: announcements', () => {
 })
 
 describe('ImportStatus: the summary of an import', () => {
+  it('says what an import found when it added nothing new, as a visible line', () => {
+    renderStatus({ outcome: { activities: 1, rejected: 0 } })
+    expect(screen.getByText('Nothing new: 1 activity already in your library.')).toBeVisible()
+  })
+
+  it('says no activities were analysed when the import read none', () => {
+    renderStatus({ outcome: { activities: 0, rejected: 2 } })
+    expect(screen.getByText('No activities were analysed.')).toBeVisible()
+  })
+
   const MARCH_2023 = new Date(2023, 2, 4, 9).getTime()
   const OCTOBER_THIS_YEAR = new Date(new Date().getFullYear(), 9, 20, 7).getTime()
   const ADDED = {
@@ -355,9 +380,10 @@ describe('ImportStatus: the summary of an import', () => {
     expect(screen.queryByText(SENTENCE)).not.toBeInTheDocument()
   })
 
-  it('does not show a notice for an import that added no run or ride', () => {
+  it('says an import that added no run or ride was nothing new, in a notice that can be dismissed', () => {
     renderStatus({ outcome: { activities: 3, rejected: 0, runs: 0, rides: 0 } })
-    expect(screen.queryByRole('button', { name: 'Dismiss import summary' })).not.toBeInTheDocument()
+    expect(screen.getByText('Nothing new: 3 activities already in your library.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Dismiss import summary' })).toBeInTheDocument()
   })
 
   it('dismisses the notice, and keeps the sentence for screen readers', () => {
@@ -499,7 +525,9 @@ describe('ImportStatus: dismissal and what the summary adds', () => {
         moved={MOVED}
       />,
     )
-    expect(screen.getByRole('status').textContent).toBe('Analysed 1 activity.')
+    expect(screen.getByRole('status').textContent).toBe(
+      'Nothing new: 1 activity already in your library.',
+    )
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 })

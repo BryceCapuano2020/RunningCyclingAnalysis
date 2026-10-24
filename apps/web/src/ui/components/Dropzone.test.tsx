@@ -98,6 +98,20 @@ describe('Dropzone', () => {
     expect(sample).toHaveFocus()
   })
 
+  it('says why the sample is off while busy, and names that reason on the button', () => {
+    renderDropzone({ busy: true })
+    expect(
+      screen.getByRole('button', { name: 'See a sample athlete' }),
+    ).toHaveAccessibleDescription('Available when the current import finishes.')
+  })
+
+  it('gives no reason for an off sample while nothing is busy', () => {
+    renderDropzone()
+    expect(
+      screen.queryByText('Available when the current import finishes.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('has no live region or progress of its own, since ImportStatus owns them', () => {
     renderDropzone({ busy: true })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()

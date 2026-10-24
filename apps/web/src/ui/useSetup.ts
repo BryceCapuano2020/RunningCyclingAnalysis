@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLatest } from './analysis/useLatest'
 import type { AccountStatus } from './useAccount'
 import type { ProfilePatch } from './profilePatch'
 
@@ -26,7 +27,10 @@ function messageOf(failure: unknown): string {
 }
 
 export interface SetupOptions {
-  /** While the account loads, files wait without asking, since the answer depends on who is signed in. */
+  /**
+   * While the account loads, the answers kept on this device decide whether to ask. Files are never
+   * held for the account itself.
+   */
   status: AccountStatus
   /** The worker has stopped for good. Imports then go straight through, so its stopped message shows. */
   workerStopped: boolean
@@ -45,7 +49,7 @@ interface Ready {
 export interface SetupController {
   /** Whether the setup dialog should be shown. */
   open: boolean
-  /** How many files are waiting: for the account to be known, or for the answers. */
+  /** How many files are waiting for the answers. */
   held: number
   /** Whether the answers are being stored. */
   saving: boolean
@@ -53,6 +57,8 @@ export interface SetupController {
   saveError: string | null
   /** Every import goes through here. Files wait, and the dialog opens, until setup is answered. */
   requestImport: (files: File[]) => void
+  /** How many imports have been submitted, so a page can tell a new submission from an old one. */
+  submitted: number
   /**
    * Stores the values the athlete changed, then sends the held files. Skip passes an empty patch.
    * A refusal is kept in saveError and nothing is sent.
@@ -64,6 +70,9 @@ export interface SetupController {
  * Asks the first-analysis questions once per device. Files dropped or chosen before then wait,
  * further files join them, and all of them are analysed together once the answers are stored.
  * The sample never comes through here, so it never asks.
+ *
+ * The account is not waited for. Answers given while it loads are sent to the account afterwards,
+ * if the visitor turns out to be signed in.
  */
 export function useSetup({
   status,
@@ -74,18 +83,29 @@ export function useSetup({
 }: SetupOptions): SetupController {
   const signedIn = status === 'signed-in'
   const [deviceDone, setDeviceDone] = useState(deviceSetupDone)
-  const done = signedIn ? deviceDone : preferencesDone
+  // Until the account is known, the answers on this device are all there is to go on.
+  const done =
+    status === 'signed-in'
+      ? deviceDone
+      : status === 'loading'
+        ? preferencesDone || deviceDone
+        : preferencesDone
   const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
-  // Files waiting for the athlete's answer, or for the account to be known.
+  // Files waiting for the athlete's answer.
   const [held, setHeld] = useState<File[]>([])
   // Files whose answer is in place, handed to addFiles by the effect below.
   const [ready, setReady] = useState<Ready | null>(null)
-  const open = held.length > 0 && status !== 'loading' && !done
+  // Answers stored while the account loaded, waiting for it to be known.
+  const answeredWhileLoading = useRef<ProfilePatch | null>(null)
+  const latestSave = useLatest(save)
+  const latestStatus = useLatest(status)
+  const open = held.length > 0 && !done
 
   // Once the answer is in place, the held files move on. This is an update during render, not in an
   // effect, so it happens once per batch: the next render finds nothing held.
-  if (held.length > 0 && status !== 'loading' && done) {
+  if (held.length > 0 && done) {
     setReady({ files: held, add: addFiles })
     setHeld([])
   }
@@ -95,28 +115,61 @@ export function useSetup({
     if (ready !== null) ready.add(ready.files)
   }, [ready])
 
+  /** Sends answers given while the account loaded to the account, now that it is signed in. */
+  const sendToAccount = useCallback(
+    (answers: ProfilePatch) => {
+      // A refusal is kept as the save error, and the device is not marked done, so the questions are
+      // asked again on the next import, with the reason shown.
+      latestSave()(answers).then(
+        () => {
+          markDeviceSetupDone()
+          setDeviceDone(true)
+        },
+        (failure: unknown) => setSaveError(messageOf(failure)),
+      )
+    },
+    [latestSave],
+  )
+
+  // A visitor who turns out signed out keeps the answers in the preferences alone.
+  useEffect(() => {
+    if (status === 'loading' || answeredWhileLoading.current === null) return
+    const answers = answeredWhileLoading.current
+    answeredWhileLoading.current = null
+    if (status === 'signed-in') sendToAccount(answers)
+  }, [sendToAccount, status])
+
   const requestImport = useCallback(
     (files: File[]) => {
       if (files.length === 0) return
-      if (workerStopped || (status !== 'loading' && done)) {
+      setSubmitted((count) => count + 1)
+      if (workerStopped || done) {
         addFiles(files)
         return
       }
       setHeld((current) => [...current, ...files])
     },
-    [addFiles, done, status, workerStopped],
+    [addFiles, done, workerStopped],
   )
 
   const finish = useCallback(
     async (patch: ProfilePatch) => {
       setSaving(true)
       setSaveError(null)
+      const answers = { ...patch, setupDone: true }
+      const answeredLoading = status === 'loading'
       try {
-        await save({ ...patch, setupDone: true })
+        await save(answers)
       } catch (failure) {
         setSaveError(messageOf(failure))
         setSaving(false)
         return
+      }
+      if (answeredLoading) {
+        // The account may have settled while the answers were stored: then they go to it now.
+        const now = latestStatus()
+        if (now === 'loading') answeredWhileLoading.current = answers
+        else if (now === 'signed-in') sendToAccount(answers)
       }
       if (signedIn) {
         markDeviceSetupDone()
@@ -124,8 +177,8 @@ export function useSetup({
       }
       setSaving(false)
     },
-    [save, signedIn],
+    [latestStatus, save, sendToAccount, signedIn, status],
   )
 
-  return { open, held: held.length, saving, saveError, requestImport, finish }
+  return { open, held: held.length, saving, saveError, requestImport, finish, submitted }
 }

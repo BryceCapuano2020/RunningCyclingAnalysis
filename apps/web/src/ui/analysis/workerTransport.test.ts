@@ -83,3 +83,74 @@ describe('worker transport', () => {
     expect(setError).not.toHaveBeenCalled()
   })
 })
+
+const FILE = new File(['x'], 'run.fit')
+
+function renderTransport() {
+  const pendingRepliesRef = { current: [] as Pending[] }
+  return renderHook(() =>
+    useWorkerTransport({ pendingRepliesRef, onSend: vi.fn(), setError: vi.fn() }),
+  )
+}
+
+describe('useWorkerTransport: dropping the analysis of files added while the account loads', () => {
+  it('drops a provisional import that is still queued, and keeps the imports that were saved', () => {
+    const { result } = renderTransport()
+    act(() => {
+      result.current.send({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        provisional: true,
+      })
+    })
+    act(() => {
+      result.current.send({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        saveToDevice: true,
+      })
+    })
+    expect(result.current.unsentRef.current).toHaveLength(2)
+
+    act(() => result.current.dropProvisional())
+
+    expect(result.current.unsentRef.current).toEqual([
+      expect.objectContaining({ request: expect.objectContaining({ saveToDevice: true }) }),
+    ])
+  })
+})
+
+describe('useWorkerTransport: an import already sent when the analysis is dropped', () => {
+  it('is marked ignored, so its answer is not shown', () => {
+    const pendingRepliesRef = { current: [] as Pending[] }
+    const { result } = renderHook(() =>
+      useWorkerTransport({ pendingRepliesRef, onSend: vi.fn(), setError: vi.fn() }),
+    )
+    const posted: unknown[] = []
+    act(() => {
+      result.current.workerRef.current = {
+        postMessage: (message: unknown) => posted.push(message),
+      } as unknown as Worker
+    })
+    act(() => {
+      result.current.send({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        provisional: true,
+      })
+    })
+    expect(posted).toHaveLength(1)
+
+    act(() => result.current.dropProvisional())
+
+    expect(pendingRepliesRef.current).toEqual([
+      expect.objectContaining({ kind: 'addFiles', ignored: true }),
+    ])
+  })
+})

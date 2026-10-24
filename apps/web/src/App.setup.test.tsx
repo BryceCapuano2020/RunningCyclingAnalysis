@@ -183,24 +183,53 @@ describe('setup before the first import, signed in', () => {
     expect(within(dialog() as HTMLElement).getByLabelText('Body weight')).toHaveValue('80')
   })
 
-  it('says the import waits for the account while the account loads, and clears it once known', () => {
+  it('keeps what the visitor typed when the account answers while the questions are open', () => {
     setAccount('loading')
     const view = render(<App />)
-
     chooseFiles(['run.fit'])
-    expect(
-      screen.getByText('Waiting for your account…', { selector: '.import-status__text' }),
-    ).toBeVisible()
-    expect(
-      screen.getByText('Waiting for your account…', { selector: '.sr-only' }),
-    ).toBeInTheDocument()
+    fireEvent.change(within(dialog() as HTMLElement).getByLabelText('Body weight'), {
+      target: { value: '82' },
+    })
 
     setAccount('signed-in')
     view.rerender(<App />)
-    expect(
-      screen.queryByText('Waiting for your account…', { selector: '.import-status__text' }),
-    ).not.toBeInTheDocument()
+
+    expect(within(dialog() as HTMLElement).getByLabelText('Body weight')).toHaveValue('82')
+  })
+
+  it('starts the questions over with the new profile when the account answers while they are open', () => {
+    app.preferences = {
+      ...app.preferences,
+      settings: { massKg: 70, bikeMassKg: 9 },
+      units: 'metric',
+    }
+    setAccount('loading')
+    const view = render(<App />)
+    chooseFiles(['run.fit'])
+    expect(within(dialog() as HTMLElement).getByLabelText('Body weight')).toHaveValue('70')
+
+    // A new profile holds no weight, since none was given: the field the saved value showed is cleared.
+    setAccount('signed-in')
+    if (app.account.me) {
+      app.account.me = {
+        ...app.account.me,
+        profile: { ...app.account.me.profile, massKg: null },
+      }
+    }
+    view.rerender(<App />)
+
+    expect(within(dialog() as HTMLElement).getByLabelText('Body weight')).toHaveValue('')
+  })
+
+  it('opens the questions at once while the account loads, and holds the files for no account', () => {
+    setAccount('loading')
+    render(<App />)
+
+    chooseFiles(['run.fit'])
+
     expect(dialog()).toBeInTheDocument()
+    expect(screen.queryByText(/Waiting for your account/)).not.toBeInTheDocument()
+    expect(app.analysis.addFiles).not.toHaveBeenCalled()
   })
 
   it('titles the questions "A few details" for a returning signed-out visitor with kept results', () => {
@@ -212,12 +241,12 @@ describe('setup before the first import, signed in', () => {
     expect(dialog()).not.toBeInTheDocument()
   })
 
-  it('does not ask while the account is still loading, then asks once it is known', () => {
+  it('asks at once while the account is still loading, and still asks once it is signed in', () => {
     setAccount('loading')
     const view = render(<App />)
 
     chooseFiles(['run.fit'])
-    expect(dialog()).not.toBeInTheDocument()
+    expect(dialog()).toBeInTheDocument()
     expect(app.analysis.addFiles).not.toHaveBeenCalled()
 
     setAccount('signed-in')

@@ -167,7 +167,7 @@ test('a saved library survives reloads and sign-out, and deleting the account re
 
     await expect(headline(page)).toHaveText(LANDING_TITLE)
     await expect(headerSignIn(page)).toBeVisible()
-    expect((await page.request.get('/api/me')).status()).toBe(401)
+    expect(await (await page.request.get('/api/me')).json()).toBeNull()
   })
 
   await test.step('signing back in with the same email brings the library back', async () => {
@@ -190,7 +190,7 @@ test('a saved library survives reloads and sign-out, and deleting the account re
 
     await expect(headline(page)).toHaveText(LANDING_TITLE)
     await expect(headerSignIn(page)).toBeVisible()
-    expect((await page.request.get('/api/me')).status()).toBe(401)
+    expect(await (await page.request.get('/api/me')).json()).toBeNull()
   })
 })
 test('a second user cannot see, fetch or delete the first user activities', async ({

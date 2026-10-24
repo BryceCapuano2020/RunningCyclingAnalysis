@@ -153,8 +153,8 @@ describe('getMe', () => {
     expect(headers.has(CLIENT_HEADER)).toBe(false)
   })
 
-  it('returns null when nobody is signed in', async () => {
-    stubFetch(respond(401, { error: { code: 'unauthenticated', message: 'Sign in required' } }))
+  it('returns null when nobody is signed in, which the server answers with a null body', async () => {
+    stubFetch(respond(200, null))
     expect(await getMe()).toBeNull()
   })
 

@@ -109,7 +109,7 @@ afterEach(() => {
 })
 
 describe('stop empties every queue', () => {
-  it('drops the imports deferred while the account loads', () => {
+  it('drops the files analysed while the account loads, so a visitor who then signs out does not get them again', () => {
     const { result, rerender } = setup(LOADING)
     act(() => result.current.addFiles([FILE]))
     act(() => result.current.stop())
@@ -161,7 +161,7 @@ describe('stop empties every queue', () => {
 })
 
 describe('an account change empties every queue', () => {
-  it('drops the imports deferred before the profile arrived', () => {
+  it('drops the files analysed while the account loads when the account changes', () => {
     const { result, rerender } = setup(LOADING)
     act(() => result.current.addFiles([FILE]))
     rerender({ account: { status: 'signed-in', me: null }, current: SETTINGS })

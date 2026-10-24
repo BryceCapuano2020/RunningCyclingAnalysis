@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { DragEvent as ReactDragEvent, KeyboardEvent } from 'react'
 import { isFileDrag, useFilePicker } from './useFilePicker'
 import './Dropzone.css'
@@ -19,6 +19,7 @@ export interface DropzoneProps {
 export function Dropzone({ onFiles, onSample, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
   const [dragging, setDragging] = useState(false)
+  const busyHintId = useId()
 
   function handleTargetKey(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -70,9 +71,15 @@ export function Dropzone({ onFiles, onSample, busy, signedIn }: DropzoneProps) {
             className="btn btn-primary"
             onClick={handleSample}
             aria-disabled={busy}
+            aria-describedby={busy ? busyHintId : undefined}
           >
             See a sample athlete
           </button>
+          {busy && (
+            <p id={busyHintId} className="dropzone__busy muted">
+              Available when the current import finishes.
+            </p>
+          )}
         </div>
       )}
       <p className="dropzone__privacy muted">

@@ -235,16 +235,6 @@ describe('signed-in and unavailable library', () => {
     expect(screen.getByText(/Activity summaries are saved to your library/)).toBeInTheDocument()
   })
 
-  it('says sign-in is unavailable and that results are kept in this browser', () => {
-    setAccount('unavailable')
-    render(<App />)
-    expect(
-      screen.getByText(
-        'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.',
-      ),
-    ).toBeInTheDocument()
-  })
-
   it('shows the saved library section on the profile page once loaded, even with no activities', () => {
     window.location.hash = '#/profile'
     render(<App />)

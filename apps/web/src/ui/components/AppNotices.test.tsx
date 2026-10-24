@@ -119,14 +119,11 @@ describe('AppNotices alerts and actions', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('says sign-in is unavailable when accounts cannot be reached', () => {
+  it('shows no banner about sign-in when accounts cannot be reached, since the header says so', () => {
     render(<AppNotices {...noticesProps({}, { accountsUnavailable: true })} />)
 
-    expect(
-      screen.getByText(
-        'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/Sign-in is unavailable/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('lists the files that could not be used', () => {

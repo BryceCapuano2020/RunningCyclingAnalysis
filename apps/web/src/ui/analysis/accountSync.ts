@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { SyncIssueCode } from '@rca/core/session'
-import { EMPTY_SESSION } from './model'
+import { drainBatches, EMPTY_SESSION } from './model'
 import type { Account, Box, SetError } from './model'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
@@ -53,6 +53,8 @@ interface AccountTransitionDeps {
   loadDeviceOnce: () => void
   /** Empties every queue, so nothing the previous account started can run for the next one. */
   clearQueues: () => void
+  /** Empties the session, keeping the period the visitor chose. Used before a library load. */
+  clearSession: () => void
 }
 
 /**
@@ -95,9 +97,13 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
         else startSession(current)
       }
     } else if (before === 'loading' && accountStatus !== 'loading') {
-      // Nobody is signed in: start from the library kept in this browser, then add what waited.
+      // Nobody is signed in: the files analysed while the account loaded are saved once the kept
+      // library has loaded, so each is compared with it. The reply to that load adds them. The
+      // analysis queued ahead of the load is repeated, since a worker restart would re-enter here.
+      current.library.libraryWaitRef.current.push(
+        ...drainBatches(current.imports.provisionalImportsRef),
+      )
       current.loadDeviceOnce()
-      flushDeferred(current)
     }
   }, [accountStatus, me, sessionExpired, workerGeneration, latest])
 }
@@ -117,7 +123,7 @@ function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
   // The account's list is no longer this visitor's to manage, and it is not the browser's either.
   deps.library.setSavedActivities([])
   deps.library.setLibraryUnreadable(0)
-  for (const files of deps.library.libraryWaitRef.current.splice(0)) deps.addFiles(files)
+  for (const files of drainBatches(deps.library.libraryWaitRef)) deps.addFiles(files)
 }
 
 /**
@@ -126,7 +132,7 @@ function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
  */
 function switchAccount(deps: AccountTransitionDeps): void {
   const { accountEpochRef, imports, library, transport } = deps
-  const canceled =
+  const cancelled =
     imports.pendingAsyncImportsRef.current > 0 || library.libraryWaitRef.current.length > 0
   accountEpochRef.current += 1
   // Stop A's queued sync operations before a later sign-in can give them B's cookie. The new
@@ -136,7 +142,9 @@ function switchAccount(deps: AccountTransitionDeps): void {
   imports.setProgress(null)
   imports.setUploading(null)
   deps.setError(
-    canceled ? 'An import was canceled because the account changed. Select the files again.' : null,
+    cancelled
+      ? 'An import was cancelled because the account changed. Select the files again.'
+      : null,
   )
   imports.setRebuildNotice(null)
   library.setLibraryNotice(null)
@@ -157,22 +165,26 @@ function switchAccount(deps: AccountTransitionDeps): void {
 /** A sign-in after the account was already known: a new session, and a new worker to load it. */
 function startSession(deps: AccountTransitionDeps): void {
   // A new sign-in starts with a new session, so earlier sync issues are cleared. The new
-  // worker's account pass loads the library and sends the deferred imports.
+  // worker's account pass loads the library.
   deps.imports.setState(EMPTY_SESSION)
   deps.imports.setImportOutcome(null)
   deps.setError(null)
   deps.transport.restartWorker()
 }
 
-/** The first sign-in of the page: load the library, then send the imports that waited for it. */
+/**
+ * The first sign-in of the page: load the library, then save the files analysed while it loaded to
+ * the account. The session they were shown in is cleared first, so a failed load leaves nothing that
+ * was never saved on screen. They join the library's imports, so they wait for it, and a failed load
+ * drops them. The wait is queued before the load, so the page is busy waiting from the first render.
+ */
 function loadSignedInLibrary(deps: AccountTransitionDeps, userId: string): void {
+  // The analysis queued ahead of this load means each file is analysed twice. Restarting the worker
+  // would avoid that, but a restart re-enters this transition, so the repeat is left as it is.
+  const batches = drainBatches(deps.imports.provisionalImportsRef)
+  if (batches.length > 0) {
+    deps.clearSession()
+    deps.library.libraryWaitRef.current.push(...batches)
+  }
   deps.loadLibrary(userId)
-  flushDeferred(deps)
-}
-
-/** Sends the imports that were deferred while the account was loading, in the order they were made. */
-function flushDeferred(deps: AccountTransitionDeps): void {
-  const deferred = deps.imports.deferredImportsRef.current
-  deps.imports.deferredImportsRef.current = []
-  for (const files of deferred) deps.addFiles(files)
 }

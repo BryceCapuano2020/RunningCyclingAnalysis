@@ -114,48 +114,107 @@ describe('useSetup, signed out', () => {
 })
 
 describe('useSetup, while the account loads', () => {
-  it('holds drops without opening the dialog, since the answer depends on the account', () => {
+  it('opens the questions at once on a device that has not answered, without waiting for the account', () => {
     const { result, addFiles } = renderSetup({ status: 'loading' })
 
     act(() => result.current.requestImport([file('a.fit')]))
-
-    expect(result.current.open).toBe(false)
-    expect(addFiles).not.toHaveBeenCalled()
-  })
-
-  it('asks once the account is known to be signed in, when this device has not answered', () => {
-    const { result, addFiles, rerender } = renderSetup({ status: 'loading' })
-    act(() => result.current.requestImport([file('a.fit')]))
-
-    rerender({ ...SIGNED_OUT, status: 'signed-in' })
 
     expect(result.current.open).toBe(true)
     expect(addFiles).not.toHaveBeenCalled()
   })
 
-  it('sends the files without asking when the signed-in device has already answered', () => {
-    localStorage.setItem(DEVICE_KEY, '1')
-    const { result, addFiles, rerender } = renderSetup({ status: 'loading' })
-    act(() => result.current.requestImport([file('a.fit')]))
+  it('analyses at once, without asking, when this device has answered in any mode', () => {
+    const { result, addFiles } = renderSetup({ status: 'loading', preferencesDone: true })
 
-    rerender({ ...SIGNED_OUT, status: 'signed-in' })
+    act(() => result.current.requestImport([file('a.fit')]))
 
     expect(result.current.open).toBe(false)
     expect(addFiles).toHaveBeenCalledTimes(1)
   })
 
-  it('sends the files without asking when signed out and answered here, once the account is known', () => {
-    const { result, addFiles, rerender } = renderSetup({
-      status: 'loading',
-      preferencesDone: true,
-    })
-    act(() => result.current.requestImport([file('a.fit')]))
-    expect(addFiles).not.toHaveBeenCalled()
+  it('analyses at once when a device where a signed-in visitor answered is still loading', () => {
+    localStorage.setItem(DEVICE_KEY, '1')
+    const { result, addFiles } = renderSetup({ status: 'loading' })
 
-    rerender({ ...SIGNED_OUT, preferencesDone: true })
+    act(() => result.current.requestImport([file('a.fit')]))
 
     expect(result.current.open).toBe(false)
     expect(addFiles).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends answers given while loading to the account once the visitor is signed in', async () => {
+    const { result, save, rerender } = renderSetup({ status: 'loading' })
+    act(() => result.current.requestImport([file('a.fit')]))
+    await act(() => result.current.finish({ birthYear: 1990 }))
+    // The answers are kept on this device at once, whatever the account turns out to be.
+    expect(save).toHaveBeenCalledTimes(1)
+
+    await act(async () => rerender({ ...SIGNED_OUT, status: 'signed-in' }))
+
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save).toHaveBeenLastCalledWith({ birthYear: 1990, setupDone: true })
+    expect(localStorage.getItem(DEVICE_KEY)).toBe('1')
+  })
+
+  it('does not send answers given while loading again when the visitor turns out signed out', async () => {
+    const { result, save, rerender } = renderSetup({ status: 'loading' })
+    act(() => result.current.requestImport([file('a.fit')]))
+    await act(() => result.current.finish({ birthYear: 1990 }))
+
+    await act(async () => rerender({ ...SIGNED_OUT, preferencesDone: true }))
+
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem(DEVICE_KEY)).toBeNull()
+  })
+
+  it('sends answers to the account when the sign-in settles while they are being stored', async () => {
+    const { result, save, rerender } = renderSetup({ status: 'loading' })
+    act(() => result.current.requestImport([file('a.fit')]))
+    let storeAnswers: () => void = () => undefined
+    save.mockImplementationOnce(() => new Promise<void>((resolve) => (storeAnswers = resolve)))
+    let pending: Promise<void> = Promise.resolve()
+    act(() => {
+      pending = result.current.finish({ birthYear: 1990 })
+    })
+
+    await act(async () => rerender({ ...SIGNED_OUT, status: 'signed-in' }))
+    await act(async () => {
+      storeAnswers()
+      await pending
+    })
+
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(save).toHaveBeenLastCalledWith({ birthYear: 1990, setupDone: true })
+    expect(localStorage.getItem(DEVICE_KEY)).toBe('1')
+  })
+
+  it('shows why the answers could not reach the account, and asks again on the next import', async () => {
+    const { result, addFiles, save, rerender } = renderSetup({ status: 'loading' })
+    act(() => result.current.requestImport([file('a.fit')]))
+    await act(() => result.current.finish({ birthYear: 1990 }))
+    save.mockRejectedValueOnce(new Error('Could not save your profile.'))
+
+    await act(async () => rerender({ ...SIGNED_OUT, status: 'signed-in' }))
+    await act(async () => undefined)
+
+    expect(result.current.saveError).toBe('Could not save your profile.')
+    expect(localStorage.getItem(DEVICE_KEY)).toBeNull()
+    act(() => result.current.requestImport([file('b.gpx')]))
+    expect(result.current.open).toBe(true)
+    expect(addFiles).not.toHaveBeenCalled()
+  })
+
+  it('asks no more once the answers reached the account, on the same device', async () => {
+    const { result, addFiles, save, rerender } = renderSetup({ status: 'loading' })
+    act(() => result.current.requestImport([file('a.fit')]))
+    await act(() => result.current.finish({ birthYear: 1990 }))
+    await act(async () => rerender({ ...SIGNED_OUT, status: 'signed-in' }))
+    expect(save).toHaveBeenCalledTimes(2)
+
+    act(() => result.current.requestImport([file('b.gpx')]))
+
+    expect(result.current.open).toBe(false)
+    expect(addFiles).toHaveBeenLastCalledWith([file('b.gpx')])
   })
 })
 

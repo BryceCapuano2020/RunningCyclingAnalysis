@@ -70,7 +70,20 @@ describe('app shell', () => {
   it('does not require the header for GET requests', async () => {
     const h = createHarness()
     const res = await h.send({ path: '/api/me', csrf: false })
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toBeNull()
+  })
+
+  it('answers a HEAD for /api/me as the GET does', async () => {
+    const h = createHarness()
+    const res = await h.send({ method: 'HEAD', path: '/api/me', csrf: false })
+    expect(res.status).toBe(200)
+  })
+
+  it('still requires the header for a mutation a signed-out visitor sends', async () => {
+    const h = createHarness()
+    const res = await h.send({ method: 'PUT', path: '/api/profile', json: {}, csrf: false })
+    expect(res.status).toBe(403)
   })
 
   it('turns an unexpected failure into a 500 ApiError', async () => {

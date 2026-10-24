@@ -11,6 +11,7 @@ import {
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
+import { drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 
@@ -69,8 +70,7 @@ export function useLibraryActions({
    */
   const failLibrary = useCallback(() => {
     setLibrary('failed')
-    const dropped = libraryWaitRef.current.length > 0
-    libraryWaitRef.current = []
+    const dropped = drainBatches(libraryWaitRef).length > 0
     refreshBusy()
     return dropped
   }, [libraryWaitRef, refreshBusy, setLibrary])

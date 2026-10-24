@@ -9,7 +9,7 @@ import {
   MAX_PAGE_BODY_BYTES,
   MAX_PAGE_SIZE,
   MAX_FILE_BYTES,
-  MeSchema,
+  MeResponseSchema,
   ProfileSchema,
 } from '@rca/contract'
 import type { ActivityRecord, Me, Profile, ProfileInput } from '@rca/contract'
@@ -201,12 +201,7 @@ async function readJson<T>(
 
 /** The signed-in user and profile, or null when nobody is signed in. */
 export async function getMe(): Promise<Me | null> {
-  try {
-    return await readJson(await request('GET', '/api/me'), MeSchema)
-  } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 401) return null
-    throw error
-  }
+  return readJson(await request('GET', '/api/me'), MeResponseSchema)
 }
 
 export async function updateProfile(input: ProfileInput, userId?: string): Promise<Profile> {

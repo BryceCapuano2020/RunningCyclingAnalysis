@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { SavedActivity } from '../../worker/protocol'
+import { keptLibraryHinted } from './keptLibrary'
 import type { LibraryStatus } from './model'
 
 /**
@@ -12,6 +13,8 @@ export function useLibraryState() {
   // Signed-in imports wait here until the library has loaded. Otherwise a failed load followed by
   // an import would replace the whole library with only the new files.
   const libraryWaitRef = useRef<File[][]>([])
+  // A reload of a visit that kept results restores them until the library has been read.
+  const [restoring, setRestoring] = useState(keptLibraryHinted)
   const [libraryAction, setLibraryAction] = useState<'deleting' | null>(null)
   const [libraryNotice, setLibraryNotice] = useState<string | null>(null)
   const [libraryError, setLibraryError] = useState<string | null>(null)
@@ -34,6 +37,8 @@ export function useLibraryState() {
     libraryStatusRef,
     setLibrary,
     libraryWaitRef,
+    restoring,
+    setRestoring,
     libraryAction,
     setLibraryAction,
     libraryNotice,
