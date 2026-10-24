@@ -76,3 +76,10 @@
 .chart-legend__key--neutral {
   background: var(--neutral-mark);
 }
+
+/* A comparison line drawn dashed, as the previous period is. */
+.chart-legend__key--dashed {
+  height: 0;
+  border-top: 2.5px dashed var(--neutral-mark);
+  background: none;
+}

@@ -14,11 +14,11 @@ Hash routes, so the static host needs no fallback rules.
 
 | Route              | Page              | Holds                                                                                                                                                                                  |
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, trend, share image                                                                              |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each, the best-effort curve                                                                                                   |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                 |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each, the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes          |
 | `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                            |
 | `#/activities/:id` | Activity          | Summary, efforts set here, data issues                                                                                                                                                 |
-| `#/method`         | How sure is this? | Ratio chart, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                        |
+| `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                       |
 | `#/profile`        | Profile           | Weight, units, year of birth and sex, account (email, download, delete), the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over |
 
 Without a result every route except Profile shows the landing page. The header holds the wordmark,
@@ -95,8 +95,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
   a volt button with an ink label in dark, so it stands out on either page colour.
 - A sport glyph (`SportIcon`) sits next to every sport name.
-- Charts get a faint grid, 2.5 px lines with round joins, an area fill under single series and an
-  emphasised latest point.
+- Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
+  of a trend, or the 20-minute effort of a best-effort curve. Watts charts also fill the area under
+  the line. Pace charts draw the line alone: pace has no zero to fill down to.
+- The Method-page ratio chart tints running coral above its line and cycling blue below it, so the
+  side that is ahead reads before the numbers do.
+- Surface charts use the athlete's units. Running is pace per km or mile, faster up; cycling is
+  watts. Tooltips add the cycling W/kg.
+- A period's comparison is the same length before it, drawn as a dashed neutral line and named
+  "Previous 6 weeks", "Previous 3 months" or "Previous year". All time has none. The Balance trends
+  have no period comparison: each already spans the selected period.
+- A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
+  trailing window that ends each week. The window is a third of the period, at most six weeks, so a
+  six-week period uses two-week windows. Every point's window lies inside the period, and a value
+  holds until a faster effort or the window passes.
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
   the drawing. A run's estimate, from one activity, is a solid dot in the sport's colour. A ride's
   estimate is a ring over an outlined band for its model range. Band edges are ticks, not fill.
@@ -113,7 +125,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
-  "Energy rate" and "metabolic W/kg" belong on How sure is this?, not on the surface.
+  "Energy rate" and "metabolic W/kg" belong on How sure is this?, not on the surface. A plain
+  phrase such as "on the same energy scale" may explain the balance.
 - **Caveats become chips and shapes.** Draw a range instead of writing it; a caveat is a chip with
   an icon that links to the detail.
 - **Every number names its source**: the activity that set it, with a link to that activity.

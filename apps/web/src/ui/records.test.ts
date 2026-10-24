@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import {
   RECORD_DURATIONS_S,
+  activityNames,
   countSport,
   featuredEquivalence,
+  nativeCurve,
+  nativeValue,
   sportRecords,
   threshold,
 } from './records'
@@ -103,5 +107,34 @@ describe('featuredEquivalence', () => {
 
   it('is null when there are no equivalences', () => {
     expect(featuredEquivalence([])).toBeNull()
+  })
+})
+
+describe('nativeValue and nativeCurve', () => {
+  it('reads a running value as the flat speed that costs it, and a cycling value as watts', () => {
+    const wkg = RESTING_W_PER_KG + FLAT_RUN_COST * 4
+    expect(nativeValue('run', wkg, 75)).toBeCloseTo(4, 9)
+    expect(nativeValue('ride', 250 / (PRIORS.grossEfficiency.mean * 75), 75)).toBeCloseTo(250, 9)
+  })
+
+  it('gives a running curve in speed, and a cycling curve as it already is, in watts', () => {
+    const curves = {
+      runCurve: [curvePoint(1200, RESTING_W_PER_KG + FLAT_RUN_COST * 4, 'run-1')],
+      rideCurve: [curvePoint(1200, 250, 'ride-1')],
+    }
+    const [run] = nativeCurve('run', curves)
+    expect(run?.value).toBeCloseTo(4, 9)
+    expect(run?.activityId).toBe('run-1')
+    expect(nativeCurve('ride', curves)).toBe(curves.rideCurve)
+  })
+})
+
+describe('activityNames', () => {
+  it('names each activity by its id', () => {
+    const names = activityNames([
+      makeActivity({ id: 'run-1', name: 'Morning run' }),
+      makeActivity({ id: 'ride-1', name: 'Hill ride' }),
+    ])
+    expect(names).toEqual({ 'run-1': 'Morning run', 'ride-1': 'Hill ride' })
   })
 })

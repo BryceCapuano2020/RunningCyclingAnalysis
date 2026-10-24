@@ -14,7 +14,7 @@ import type {
   HrPoint,
 } from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
-import { atOrBelowCriticalPower, combine, equivalentRunSpeed } from './combine'
+import { atOrBelowCriticalPower, combine, equivalentRunSpeed, sportCurves } from './combine'
 import { digestActivity } from './digestActivity'
 import { powerAt } from './terms'
 import type { RideInputs } from './test/reference'
@@ -557,5 +557,32 @@ describe('virtual values are priced with the bike model of the same analysis', (
       const terms = sourceWindow(p).terms!
       expect(powerAt(terms, totalMassKg, DEFAULT_BIKE_MODEL)).toBeCloseTo(p.value, 9)
     }
+  })
+})
+
+describe('sportCurves', () => {
+  it('gives the same run and ride curves that combine reports, given combine’s bike model', () => {
+    const digests = sampleDataset().activities.map(digestActivity)
+    const settings = { massKg: 75, bikeMassKg: 9 }
+    const combined = combine(digests, settings)
+    expect(sportCurves(digests, settings, combined.bikeModel)).toEqual({
+      runCurve: combined.runCurve,
+      rideCurve: combined.rideCurve,
+    })
+  })
+
+  it('prices rides with the bike model it is given', () => {
+    const digests = sampleDataset().activities.map(digestActivity)
+    const settings = { massKg: 75, bikeMassKg: 9 }
+    const heavier = { ...DEFAULT_BIKE_MODEL, cda: DEFAULT_BIKE_MODEL.cda * 1.5 }
+    // A ride on virtual power is priced by the bike model; a measured one is not.
+    const virtual = digests.find(
+      (digest) => digest.sport === 'ride' && digest.curve.some((point) => point.terms !== null),
+    )
+    expect(virtual).toBeDefined()
+    const ride = virtual ? [virtual] : []
+    const standard = sportCurves(ride, settings, DEFAULT_BIKE_MODEL).rideCurve
+    const drag = sportCurves(ride, settings, heavier).rideCurve
+    expect(drag.map((point) => point.value)).not.toEqual(standard.map((point) => point.value))
   })
 })

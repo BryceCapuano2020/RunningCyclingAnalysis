@@ -13,15 +13,17 @@ describe('ChartTable', () => {
     const headers = screen.getAllByRole('columnheader')
     expect(headers.map((th) => th.textContent)).toEqual(['Duration', 'Median'])
     headers.forEach((th) => expect(th).toHaveAttribute('scope', 'col'))
-    const cells = screen.getAllByRole('cell')
-    expect(cells.map((td) => td.textContent)).toEqual(['1 min', '+5%'])
+    // The first cell of each row names it, so it is a row header; the rest are cells.
+    const rowHeader = screen.getByRole('rowheader')
+    expect(rowHeader).toHaveTextContent('1 min')
+    expect(rowHeader).toHaveAttribute('scope', 'row')
+    expect(screen.getAllByRole('cell').map((td) => td.textContent)).toEqual(['+5%'])
   })
 
   it('right-aligns the numeric columns and leaves the label column alone', () => {
     render(<ChartTable columns={['Duration', 'Median']} rows={[['1 min', '+5%']]} />)
-    const [label, value] = screen.getAllByRole('cell')
-    expect(label).not.toHaveClass('num')
-    expect(value).toHaveClass('num')
+    expect(screen.getByRole('rowheader')).not.toHaveClass('num')
+    expect(screen.getByRole('cell')).toHaveClass('num')
     const [labelHead, valueHead] = screen.getAllByRole('columnheader')
     expect(labelHead).not.toHaveClass('num')
     expect(valueHead).toHaveClass('num')

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { CurveChart } from './CurveChart'
 import { curveOf, rideCurveFixture, rideMetabolicCurveFixture, runCurveFixture } from './fixtures'
 
-const TITLE = 'Running and cycling energy rate by duration'
+const TITLE = 'Running and cycling energy rate in W/kg by duration'
 
 /** The static chart image is named by its title, then its description. */
 const named = (title: string) => (name: string) => name.startsWith(title)
@@ -12,7 +12,7 @@ const named = (title: string) => (name: string) => name.startsWith(title)
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
-    Array.from(tr.querySelectorAll('td')).map((td) => td.textContent),
+    Array.from(tr.querySelectorAll('th, td')).map((td) => td.textContent),
   )
   return { headers, rows }
 }
@@ -93,10 +93,11 @@ describe('CurveChart', () => {
       'Cycling from',
     ])
     expect(rows).toEqual([
-      ['1 min', '17.0 W/kg', '4:07 /km', '18.5 W/kg', '1400 W', 'activity-1', 'activity-1'],
-      ['5 min', '15.6 W/kg', '4:31 /km', '16.4 W/kg', '1230 W', 'activity-1', 'activity-1'],
-      ['20 min', '14.2 W/kg', '5:00 /km', '14.0 W/kg', '1050 W', 'activity-1', 'activity-1'],
-      ['1 h', '12.8 W/kg', '5:37 /km', '—', '—', 'activity-1', '—'],
+      // Without activity names the cells stay blank rather than showing a raw id.
+      ['1 min', '17.0 W/kg', '4:07 /km', '18.5 W/kg', '1400 W', '', ''],
+      ['5 min', '15.6 W/kg', '4:31 /km', '16.4 W/kg', '1230 W', '', ''],
+      ['20 min', '14.2 W/kg', '5:00 /km', '14.0 W/kg', '1050 W', '', ''],
+      ['1 h', '12.8 W/kg', '5:37 /km', '—', '—', '', '—'],
     ])
   })
 
@@ -173,5 +174,17 @@ describe('CurveChart', () => {
       screen.getByText('Add at least one run and one ride to see both curves'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
+  })
+
+  it('captions the table with the energy rate in W/kg and the activity behind each value', () => {
+    const { container } = render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('caption')?.textContent).toMatch(/^Best energy rate in W\/kg/)
   })
 })

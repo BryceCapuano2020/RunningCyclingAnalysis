@@ -21,7 +21,7 @@ function tableAt(container: HTMLElement, index: number) {
   if (!table) throw new Error(`no table at ${index}`)
   const headers = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(table.querySelectorAll('tbody tr')).map((tr) =>
-    Array.from(tr.querySelectorAll('td')).map((td) => td.textContent),
+    Array.from(tr.querySelectorAll('th, td')).map((td) => td.textContent),
   )
   return { headers, rows }
 }

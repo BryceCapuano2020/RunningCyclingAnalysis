@@ -151,7 +151,7 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    of each fix. Distance is integrated over time, and a gap longer than 30 seconds credits no
    distance. GPX always uses it. TCX uses it for distance when a file has no `DistanceMeters`, and
    for speed when the file has neither device speed nor device distance.
-6. **Near-duplicate rule** (`packages/core/src/session.ts`). Two activities are near-duplicates when
+6. **Near-duplicate rule** (`packages/core/src/duplicates.ts`). Two activities are near-duplicates when
    they have the same sport, start within 60 seconds of each other, and have durations within 10%
    or within 60 seconds of each other. Groups are transitive: if A matches B and B matches C, all
    three are one group. From a group, the copy from the richest format is kept: FIT, then TCX, then

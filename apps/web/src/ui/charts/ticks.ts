@@ -53,6 +53,11 @@ function every(ticks: AxisTick[], step: number): AxisTick[] {
   return ticks.filter((_, i) => i % step === 0)
 }
 
+/** The width of a tick label in pixels, estimated from its length and the font size. */
+export function labelWidth(label: string, fontPx: number): number {
+  return label.length * fontPx * CHAR_EM
+}
+
 function collides(ticks: AxisTick[], axis: 'x' | 'y', fontPx: number): boolean {
   return ticks.some((tick, i) => {
     const next = ticks[i + 1]
@@ -60,7 +65,7 @@ function collides(ticks: AxisTick[], axis: 'x' | 'y', fontPx: number): boolean {
     const gap = Math.abs(next.position - tick.position)
     const needed =
       axis === 'x'
-        ? ((tick.label.length + next.label.length) / 2) * fontPx * CHAR_EM + LABEL_GAP
+        ? (labelWidth(tick.label, fontPx) + labelWidth(next.label, fontPx)) / 2 + LABEL_GAP
         : fontPx + 4
     return gap < needed
   })

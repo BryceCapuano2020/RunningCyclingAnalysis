@@ -6,7 +6,9 @@ import {
   formatElevation,
   formatMass,
   formatPace,
+  formatClock,
   formatPaceValue,
+  paceSeconds,
   formatPercent,
   formatPower,
   formatSpeed,
@@ -77,6 +79,15 @@ describe('formatPace', () => {
     expect(formatPace(-2, 'imperial')).toBe(DASH)
     expect(formatPace(NaN, 'metric')).toBe(DASH)
     expect(formatPace(Infinity, 'imperial')).toBe(DASH)
+  })
+})
+
+describe('paceSeconds and formatClock', () => {
+  it('gives seconds per kilometre or mile, and clock form rounds the seconds', () => {
+    expect(paceSeconds(1000 / 270, 'metric')).toBeCloseTo(270, 9)
+    expect(paceSeconds(1609.344 / 435, 'imperial')).toBeCloseTo(435, 9)
+    expect(formatClock(269.6)).toBe('4:30')
+    expect(formatClock(65)).toBe('1:05')
   })
 })
 

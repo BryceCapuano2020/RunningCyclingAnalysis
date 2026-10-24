@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SportCurves, TrendPoint } from '@rca/core/digest'
+import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
+import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
+import { formatPace } from '@rca/core/units'
 import { curvePoint } from '../charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
@@ -43,11 +47,18 @@ function renderPage(
   result: AnalysisResult,
   units: 'metric' | 'imperial' = 'metric',
   profile: AgeProfile | null = null,
+  previous: SportCurves | null = null,
+  previousLabel: string | null = null,
+  trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>> = NO_TRENDS,
 ) {
   return render(
     <SportPage
       sport={sport}
       result={result}
+      previous={previous}
+      previousLabel={previousLabel}
+      trends={trends}
+      windowDays={14}
       units={units}
       massKg={75}
       profile={profile}
@@ -326,5 +337,91 @@ describe('SportPage age grades', () => {
 
     expect(screen.queryByText(/Estimated age grade/)).not.toBeInTheDocument()
     expect(screen.queryByText(/are estimates against the/)).not.toBeInTheDocument()
+  })
+
+  it('compares the best efforts with the period before, when one is selected', () => {
+    const result = makeResult({
+      activities: [morningRun],
+      runCurve: [curvePoint(60, flatWkg(5), 'run-1'), curvePoint(1200, flatWkg(4), 'run-1')],
+    })
+    const previous: SportCurves = {
+      runCurve: [curvePoint(60, flatWkg(4.8), 'run-0'), curvePoint(1200, flatWkg(3.8), 'run-0')],
+      rideCurve: [],
+    }
+    renderPage('run', result, 'metric', null, previous, 'Previous 6 weeks')
+
+    expect(
+      screen.getByRole('img', { name: /^Running grade-adjusted pace per kilometre by duration\./ }),
+    ).toBeInTheDocument()
+    const legend = screen.getByRole('list', { name: 'Legend' })
+    expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
+  })
+
+  it('draws no comparison for all time', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+})
+
+describe('SportPage fitness trend', () => {
+  /** The effort lengths, shortest first: 5, 20 and 60 minutes. */
+  const [FIVE_MIN_S, TWENTY_MIN_S, SIXTY_MIN_S] = EFFORT_LENGTHS_S
+
+  /** A week ending on a Sunday, with a running value in metabolic W/kg. */
+  const week = (index: number, runWkg: number): TrendPoint => ({
+    endMs: Date.UTC(2026, 0, 11 + index * 7, 23, 59, 59, 999),
+    runWkg,
+    rideWkg: null,
+    runCount: 1,
+    rideCount: 0,
+  })
+  const TRENDS: Record<EffortLengthS, TrendPoint[]> = {
+    [FIVE_MIN_S]: [week(0, 16), week(1, 16.2)],
+    [TWENTY_MIN_S]: [week(0, 15), week(1, 15.2)],
+    [SIXTY_MIN_S]: [week(0, 14), week(1, 14.2)],
+  }
+
+  /** The pace of a running value, as the trend table shows it, for the given metabolic W/kg. */
+  const paceOf = (wkg: number | null) =>
+    formatPace(wkg === null ? NaN : (wkg - RESTING_W_PER_KG) / FLAT_RUN_COST, 'metric')
+
+  /** The pace column of the trend chart named by `label`, one entry per week. */
+  const paceColumnOf = (label: string): (string | null | undefined)[] => {
+    const figure = screen.getByRole('img', { name: new RegExp(label) }).closest('figure')
+    return Array.from(figure?.querySelectorAll('tbody tr') ?? [], (row) => {
+      return row.querySelectorAll('th, td')[1]?.textContent
+    })
+  }
+
+  const paceList = (points: TrendPoint[]) => points.map((point) => paceOf(point.runWkg))
+
+  it('shows the 20-minute trend first, with an effort length choice', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }), 'metric', null, null, null, TRENDS)
+    const choice = screen.getByRole('group', { name: 'Effort length' })
+    expect(within(choice).getByRole('radio', { name: '20 min' })).toBeChecked()
+    expect(
+      screen.getByRole('img', {
+        name: /^Running grade-adjusted pace per kilometre, best 20 minutes by week\./,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('draws the trend of the effort length chosen, with the length in its name', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }), 'metric', null, null, null, TRENDS)
+    const choice = screen.getByRole('group', { name: 'Effort length' })
+
+    fireEvent.click(within(choice).getByRole('radio', { name: '5 min' }))
+    expect(
+      screen.getByRole('img', {
+        name: /^Running grade-adjusted pace per kilometre, best 5 minutes by week\./,
+      }),
+    ).toBeInTheDocument()
+    expect(paceColumnOf('best 5 minutes')).toEqual(paceList(TRENDS[FIVE_MIN_S]))
+    expect(screen.queryByRole('img', { name: /best 20 minutes/ })).toBeNull()
+
+    fireEvent.click(within(choice).getByRole('radio', { name: '60 min' }))
+    expect(screen.getByRole('img', { name: /best 60 minutes by week\./ })).toBeInTheDocument()
+    expect(paceColumnOf('best 60 minutes')).toEqual(paceList(TRENDS[SIXTY_MIN_S]))
+    expect(paceColumnOf('best 60 minutes')).not.toEqual(paceList(TRENDS[TWENTY_MIN_S]))
   })
 })

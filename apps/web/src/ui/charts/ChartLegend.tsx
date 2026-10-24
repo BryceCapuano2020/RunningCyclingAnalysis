@@ -3,7 +3,7 @@ import type { SeriesKind } from './chartTypes'
 import './ChartLegend.css'
 
 /** Key shape: a square for a fill, a band for a shaded range, or a line for a line. */
-export type LegendSwatch = 'solid' | 'band' | 'band-strong' | 'line'
+export type LegendSwatch = 'solid' | 'band' | 'band-strong' | 'line' | 'dashed'
 
 export interface ChartLegendEntry {
   label: string
@@ -46,6 +46,8 @@ function keyFor(entry: ChartLegendEntry): ReactNode {
           className={`chart-legend__key chart-legend__key--line ${LINE_KIND_CLASS[entry.kind]}`}
         />
       )
+    case 'dashed':
+      return <span aria-hidden="true" className="chart-legend__key chart-legend__key--dashed" />
     case 'solid':
       return <span aria-hidden="true" className={`swatch ${SWATCH_CLASS[entry.kind]}`} />
   }

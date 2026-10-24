@@ -24,11 +24,17 @@ export function ChartTable({ columns, rows, caption }: ChartTableProps) {
         <tbody>
           {keyByContent(rows, (row) => JSON.stringify(row)).map(({ key, item: row }) => (
             <tr key={key}>
-              {keyByContent(row, (cell) => cell).map(({ key: cellKey, item: cell, index: c }) => (
-                <td key={cellKey} className={c === 0 ? undefined : 'num'}>
-                  {cell}
-                </td>
-              ))}
+              {keyByContent(row, (cell) => cell).map(({ key: cellKey, item: cell, index: c }) =>
+                c === 0 ? (
+                  <th key={cellKey} scope="row">
+                    {cell}
+                  </th>
+                ) : (
+                  <td key={cellKey} className="num">
+                    {cell}
+                  </td>
+                ),
+              )}
             </tr>
           ))}
         </tbody>

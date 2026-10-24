@@ -1,25 +1,16 @@
 import { combine, digestActivity } from './digest'
-import { fitnessTrend } from './digest/trend'
-import type { TrendPoint } from './digest/trend'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { countActivityFiles, extractFitFiles } from './fit'
 import { parseActivityFile } from './import'
 import { sampleDataset } from './synthetic'
-import { DAY_MS } from './constants'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
-import {
-  copyOfActivity,
-  copyOfDigest,
-  dedupeKey,
-  fileNameOf,
-  hiddenDigests,
-  isSameWorkout,
-  richer,
-} from './duplicates'
-import type { Workout } from './duplicates'
+import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
 import { ACTIVITY } from './fit/zipDirectory'
+import { PeriodCache, splitPeriods } from './period'
+import { NO_TRENDS } from './digest/trendPoints'
+import { HEADLINE_DURATION_S } from './constants'
 import { haltsImport, SyncFailure } from './saveFailure'
 import type { SyncIssue, SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
@@ -58,11 +49,6 @@ interface SaveBatch {
   added: Map<string, ActivityDigest>
 }
 
-/** Whether two lists hold the same digest objects in the same order. */
-function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
-  return a.length === b.length && a.every((digest, i) => digest === b[i])
-}
-
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   // Every file byte array here is backed by a plain ArrayBuffer, never a SharedArrayBuffer.
   const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
@@ -85,13 +71,7 @@ export class AnalysisSession {
   private unsupported = new Map<string, number>()
   private isSample = false
   private rangeDays: number | null = null
-  // The last trend, with the digests and masses it was computed from.
-  private trendCache: {
-    digests: ActivityDigest[]
-    massKg: number
-    bikeMassKg: number
-    points: TrendPoint[]
-  } | null = null
+  private periods = new PeriodCache()
 
   async addFiles(
     sources: RangedSource[],
@@ -234,20 +214,10 @@ export class AnalysisSession {
     syncExisting: boolean,
     batch: SaveBatch,
   ): Promise<void> {
-    const workout: Workout = {
-      sport: activity.sport,
-      startMs: activity.startMs,
-      durationS: activity.n,
-    }
-    const candidate = copyOfActivity(activity, file.fileName)
-    for (const held of this.digests.values()) {
-      if (isSameWorkout(held, workout) && richer(copyOfDigest(held), candidate)) {
-        batch.duplicates.push({
-          fileName: file.fileName,
-          reason: `Same workout as ${fileNameOf(held.id)}`,
-        })
-        return
-      }
+    const reason = heldCopyReason(this.digests.values(), activity, file.fileName)
+    if (reason !== null) {
+      batch.duplicates.push({ fileName: file.fileName, reason })
+      return
     }
     await this.keep(activity, file, sink, syncExisting, batch)
   }
@@ -268,8 +238,7 @@ export class AnalysisSession {
   ): Promise<void> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
-    const replaces =
-      held !== undefined && richer(copyOfActivity(activity, file.fileName), copyOfDigest(held))
+    const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
     if (
       held !== undefined &&
       !replaces &&
@@ -294,30 +263,6 @@ export class AnalysisSession {
       this.unsynced.set(key, code)
       if (haltsImport(code)) batch.halt = code
     }
-  }
-
-  /**
-   * The trend of the visible set. The period does not change it, so it is reused while the digests
-   * and both masses are the same, and recomputed when any of them change.
-   */
-  private trendFor(visible: ActivityDigest[], settings: AthleteSettings): TrendPoint[] {
-    const cached = this.trendCache
-    if (
-      cached !== null &&
-      cached.massKg === settings.massKg &&
-      cached.bikeMassKg === settings.bikeMassKg &&
-      sameDigests(cached.digests, visible)
-    ) {
-      return cached.points
-    }
-    const points = fitnessTrend(visible, settings)
-    this.trendCache = {
-      digests: visible,
-      massKg: settings.massKg,
-      bikeMassKg: settings.bikeMassKg,
-      points,
-    }
-    return points
   }
 
   private reset(): void {
@@ -345,16 +290,22 @@ export class AnalysisSession {
     const all = [...this.digests.values()]
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
-    let selected = visible
-    if (this.rangeDays !== null && visible.length > 0) {
-      // Anchored to the newest activity, not today, so an old export still shows its last weeks.
-      const newest = visible.reduce((latest, d) => Math.max(latest, d.startMs), -Infinity)
-      const cutoff = newest - this.rangeDays * DAY_MS
-      selected = visible.filter((d) => d.startMs >= cutoff)
-    }
+    const { selected, previous, startMs } = splitPeriods(visible, this.rangeDays)
+    const analysis = settings !== null && selected.length > 0 ? combine(selected, settings) : null
+    // The selected period's bike model prices the trend and the previous period alike.
+    const bikeModel = analysis?.bikeModel
+    const efforts =
+      settings === null
+        ? NO_TRENDS
+        : this.periods.trends(selected, settings, this.rangeDays, startMs, bikeModel)
     return {
-      result: settings !== null && selected.length > 0 ? combine(selected, settings) : null,
-      trend: settings === null ? [] : this.trendFor(visible, settings),
+      result: analysis,
+      trend: efforts[HEADLINE_DURATION_S],
+      effortTrends: efforts,
+      previous:
+        settings !== null && bikeModel !== undefined && previous.length > 0
+          ? this.periods.previousCurves(selected, previous, settings, bikeModel)
+          : null,
       rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,

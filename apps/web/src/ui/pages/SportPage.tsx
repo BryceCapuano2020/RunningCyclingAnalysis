@@ -1,9 +1,14 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import type { SportCurves, TrendPoint } from '@rca/core/digest'
+import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration } from '@rca/core/units'
-import { CurveChart } from '../charts'
+import { SportCurveChart, TrendChart } from '../charts'
+import { SegmentedControl } from '../components/SegmentedControl'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
@@ -13,12 +18,28 @@ import type { AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_LABEL, SPORT_PLURAL, THRESHOLD_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
-import { countSport, sportRecords, threshold } from '../records'
+import {
+  EFFORT_OPTIONS,
+  activityNames,
+  countSport,
+  effortOf,
+  nativeCurve,
+  sportRecords,
+  threshold,
+} from '../records'
 import './SportPage.css'
 
 export interface SportPageProps {
   sport: Sport
   result: AnalysisResult
+  /** The best efforts of the period before the selected one, or null for all time. */
+  previous: SportCurves | null
+  /** The label of that period, such as "Previous 6 weeks". */
+  previousLabel: string | null
+  /** The weekly trend of each effort length over the period. */
+  trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
+  /** The trailing window of each trend point, in days. */
+  windowDays: number
   units: UnitSystem
   massKg: number
   /** The year of birth and sex for the grades, or null while either is missing. */
@@ -28,7 +49,18 @@ export interface SportPageProps {
 }
 
 /** One sport's records in its own units, the best-effort curve and the evidence behind them. */
-export function SportPage({ sport, result, units, massKg, profile, controls }: SportPageProps) {
+export function SportPage({
+  sport,
+  result,
+  previous,
+  previousLabel,
+  trends,
+  windowDays,
+  units,
+  massKg,
+  profile,
+  controls,
+}: SportPageProps) {
   const count = countSport(result.activities, sport)
   const hero = threshold(result, sport, massKg, units)
   const rows = sportRecords(result, sport, massKg, units).map((record) => ({
@@ -42,6 +74,7 @@ export function SportPage({ sport, result, units, massKg, profile, controls }: S
   const anyGrade = rows.some((row) => row.grade !== null)
   // The sex the grades are for, named on the source line when any record shows a grade.
   const gradedSex = anyGrade && profile !== null ? profile.sex : null
+  const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
 
   return (
     <div className="page-stack">
@@ -106,17 +139,43 @@ export function SportPage({ sport, result, units, massKg, profile, controls }: S
               ))}
             </ul>
           </section>
+
+          <section className="section" aria-labelledby={`${sport}-trend`}>
+            <h2 id={`${sport}-trend`}>Fitness over time</h2>
+            <SegmentedControl
+              legend="Effort length"
+              options={EFFORT_OPTIONS}
+              selected={String(effort)}
+              onSelect={(value) => {
+                const next = effortOf(value)
+                if (next !== undefined) setEffort(next)
+              }}
+            />
+            <TrendChart
+              sport={sport}
+              points={trends[effort]}
+              massKg={massKg}
+              units={units}
+              windowDays={windowDays}
+              effortS={effort}
+            />
+          </section>
         </>
       )}
 
       <section className="section" aria-labelledby={`${sport}-curve`}>
         <h2 id={`${sport}-curve`}>Every duration</h2>
-        <CurveChart
-          runCurve={result.runCurve}
-          rideMetabolicCurve={result.rideMetabolicCurve}
-          rideCurve={result.rideCurve}
+        <SportCurveChart
+          sport={sport}
+          curve={nativeCurve(sport, result)}
+          previous={
+            previous && previousLabel
+              ? { curve: nativeCurve(sport, previous), label: previousLabel }
+              : null
+          }
+          massKg={massKg}
           units={units}
-          activityNames={Object.fromEntries(result.activities.map((a) => [a.id, a.name]))}
+          activityNames={activityNames(result.activities)}
         />
       </section>
     </div>

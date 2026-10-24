@@ -55,3 +55,9 @@
   font-size: 0.875rem;
   text-align: left;
 }
+
+/* The line through the active point, shared by every chart with a tooltip. */
+.chart-crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}

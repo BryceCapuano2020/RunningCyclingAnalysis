@@ -1,8 +1,10 @@
 import type { Sex } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { trendWindowDays } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
+import { previousPeriodLabel } from '../components/rangeOptions'
 import type { AgeProfile } from '../grades'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
@@ -48,8 +50,13 @@ export function ResultPage({
     case 'ride':
       return (
         <SportPage
+          key={route.page}
           sport={route.page}
           result={result}
+          previous={analysis.state.previous}
+          previousLabel={previousPeriodLabel(rangeDays)}
+          trends={analysis.state.effortTrends}
+          windowDays={trendWindowDays(rangeDays)}
           units={units}
           massKg={settings.massKg}
           profile={profile}
@@ -68,7 +75,7 @@ export function ResultPage({
         />
       )
     case 'method':
-      return <MethodPage result={result} profile={profile} />
+      return <MethodPage result={result} units={units} profile={profile} />
     default:
       return (
         <BalancePage

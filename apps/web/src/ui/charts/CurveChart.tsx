@@ -1,19 +1,22 @@
 import { useState } from 'react'
-import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDuration, formatPace, formatPower, formatWkg } from '@rca/core/units'
+import { formatDuration, formatPower, formatWkg } from '@rca/core/units'
 import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
+import { activityCell, sourceNote } from './activityText'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
-import { markerRadii, plotSurface, tooltipOverlay } from './chartInteraction'
+import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
+import { Crosshair } from './Crosshair'
+import { durationRows } from './curveRows'
+import { runPace } from '../records'
 import { linePath } from './paths'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
 import { NARROW_WIDTH, axisFontSize, durationTicks, fitTicks } from './ticks'
-import './CurveChart.css'
+import './ChartSeries.css'
 
 export interface CurveChartProps {
   runCurve: Curve
@@ -24,7 +27,6 @@ export interface CurveChartProps {
   activityNames?: Record<string, string>
 }
 
-const MIN_DURATION_S = 60
 /** Right margin that holds the end-of-line labels. */
 const LABEL_MARGIN = 64
 const LABEL_OFFSET_X = 8
@@ -36,6 +38,9 @@ const LEGEND: ChartLegendEntry[] = [
   { label: SPORT_TITLE.run, kind: 'run' },
   { label: SPORT_TITLE.ride, kind: 'ride' },
 ]
+
+const TABLE_CAPTION =
+  'Best energy rate in W/kg for each duration, with the flat pace and power it equals and the activity behind each.'
 
 const TABLE_COLUMNS = [
   'Duration',
@@ -59,32 +64,16 @@ interface CurveRow {
   rideActivityId: string | null
 }
 
-function valueMap(curve: Curve): Map<number, number> {
-  return new Map(curve.map((point): [number, number] => [point.durationS, point.value]))
-}
-
-function activityMap(curve: Curve): Map<number, string | null> {
-  return new Map(curve.map((point): [number, string | null] => [point.durationS, point.activityId]))
-}
-
-/** One row per duration of at least a minute that has a value for either sport. */
+/** One row per duration with a run or a ride value, shortest first. */
 function buildRows(runCurve: Curve, rideMetabolicCurve: Curve, rideCurve: Curve): CurveRow[] {
-  const run = valueMap(runCurve)
-  const rideWkg = valueMap(rideMetabolicCurve)
-  const ridePower = valueMap(rideCurve)
-  const runIds = activityMap(runCurve)
-  const rideIds = activityMap(rideMetabolicCurve)
-  const durations = new Set([...run.keys(), ...rideWkg.keys(), ...ridePower.keys()])
-  return [...durations]
-    .filter((durationS) => durationS >= MIN_DURATION_S)
-    .sort((a, b) => a - b)
-    .map((durationS) => ({
+  return durationRows([runCurve, rideMetabolicCurve, rideCurve])
+    .map(({ durationS, points: [run, rideWkg, ride] }) => ({
       durationS,
-      runWkg: run.get(durationS) ?? NaN,
-      rideWkg: rideWkg.get(durationS) ?? NaN,
-      ridePowerW: ridePower.get(durationS) ?? NaN,
-      runActivityId: runIds.get(durationS) ?? null,
-      rideActivityId: rideIds.get(durationS) ?? null,
+      runWkg: run?.value ?? NaN,
+      rideWkg: rideWkg?.value ?? NaN,
+      ridePowerW: ride?.value ?? NaN,
+      runActivityId: run?.activityId ?? null,
+      rideActivityId: rideWkg?.activityId ?? null,
     }))
     .filter((row) => Number.isFinite(row.runWkg) || Number.isFinite(row.rideWkg))
 }
@@ -176,20 +165,6 @@ function endLabels(m: Layout): EndLabel[] {
   return ends
 }
 
-/** Names the activity behind a value. Null when names were not given. */
-function sourceNote(
-  id: string | null,
-  names: Record<string, string> | undefined,
-): string | undefined {
-  if (names === undefined || id === null) return undefined
-  return `from ${names[id] ?? id}`
-}
-
-function activityCell(id: string | null, names: Record<string, string> | undefined): string {
-  if (id === null) return '—'
-  return names?.[id] ?? id
-}
-
 function tableRow(
   row: CurveRow,
   units: UnitSystem,
@@ -198,7 +173,7 @@ function tableRow(
   return [
     formatDuration(row.durationS),
     formatWkg(row.runWkg),
-    formatPace(metabolicToFlatSpeed(row.runWkg), units),
+    runPace(row.runWkg, units),
     formatWkg(row.rideWkg),
     formatPower(row.ridePowerW),
     activityCell(row.runActivityId, names),
@@ -224,7 +199,7 @@ function tooltipFor(
         label: SPORT_TITLE.run,
         note: sourceNote(row.runActivityId, names),
       },
-      { value: formatPace(metabolicToFlatSpeed(row.runWkg), units), label: 'Flat pace' },
+      { value: runPace(row.runWkg, units), label: 'Flat pace' },
       {
         kind: 'ride',
         value: formatWkg(row.rideWkg),
@@ -234,21 +209,6 @@ function tooltipFor(
       { value: formatPower(row.ridePowerW), label: 'Mechanical power' },
     ],
   }
-}
-
-function contentOf(
-  size: ChartSize,
-  rows: CurveRow[],
-  active: number | null,
-  units: UnitSystem,
-  names: Record<string, string> | undefined,
-): TooltipContent | null {
-  const m = layout(rows, size)
-  const row = active === null ? undefined : rows[active]
-  const anchorX = m && active !== null ? m.xs[active] : undefined
-  return row && anchorX !== undefined
-    ? tooltipFor(row, anchorX, (size.plot.top + size.plot.bottom) / 2, units, names)
-    : null
 }
 
 export function CurveChart({
@@ -261,23 +221,33 @@ export function CurveChart({
   const rows = buildRows(runCurve, rideMetabolicCurve, rideCurve)
   const hasData = rows.length >= 2
   const [active, setActive] = useState<number | null>(null)
+  const layoutOf = sizedOnce((size: ChartSize) => layout(rows, size))
 
   return (
     <ChartFrame
-      title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate by duration`}
+      title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate in W/kg by duration`}
       description={`Best energy rate in watts per kilogram for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, on one axis. Duration is on a log scale.`}
       legend={hasData ? LEGEND : undefined}
       table={{
+        caption: TABLE_CAPTION,
         columns: TABLE_COLUMNS,
         rows: rows.map((row) => tableRow(row, units, activityNames)),
       }}
       empty={hasData ? undefined : 'Add at least one run and one ride to see both curves'}
       plotRightMargin={(width) => (width < NARROW_WIDTH ? 16 : LABEL_MARGIN)}
-      surface={(size) => plotSurface(size, layout(rows, size)?.xs ?? null, active, setActive)}
-      overlay={(size) => tooltipOverlay(size, contentOf(size, rows, active, units, activityNames))}
+      surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
+      overlay={(size) =>
+        tooltipOverlay(
+          size,
+          tooltipAt(size, layoutOf(size)?.xs ?? null, active, (index, x, y) => {
+            const row = rows[index]
+            return row ? tooltipFor(row, x, y, units, activityNames) : null
+          }),
+        )
+      }
     >
       {(size) => {
-        const m = layout(rows, size)
+        const m = layoutOf(size)
         if (m === null) return null
         const narrow = size.width < NARROW_WIDTH
         const { marker: markerR, active: activeR } = markerRadii(size.width)
@@ -296,23 +266,15 @@ export function CurveChart({
               title="Energy rate (W/kg)"
               fontSize={axisFontSize(size.width)}
             />
-            {activeX !== undefined ? (
-              <line
-                className="curve-chart__crosshair"
-                x1={activeX}
-                x2={activeX}
-                y1={size.plot.top}
-                y2={size.plot.bottom}
-              />
-            ) : null}
+            {activeX !== undefined ? <Crosshair x={activeX} plot={size.plot} /> : null}
             <path
               data-testid="curve-line"
-              className="curve-chart__line curve-chart__line--run"
+              className="chart-series__line chart-series__line--run"
               d={linePath(m.runPoints)}
             />
             <path
               data-testid="curve-line"
-              className="curve-chart__line curve-chart__line--ride"
+              className="chart-series__line chart-series__line--ride"
               d={linePath(m.ridePoints)}
             />
             {m.rows.map((row, i) => {
@@ -322,7 +284,7 @@ export function CurveChart({
                   key={row.durationS}
                   data-testid="curve-marker"
                   data-series="run"
-                  className="curve-chart__marker curve-chart__marker--run"
+                  className="chart-series__marker chart-series__marker--run"
                   cx={point.x}
                   cy={point.y}
                   r={i === active ? activeR : markerR}
@@ -336,7 +298,7 @@ export function CurveChart({
                   key={row.durationS}
                   data-testid="curve-marker"
                   data-series="ride"
-                  className="curve-chart__marker curve-chart__marker--ride"
+                  className="chart-series__marker chart-series__marker--ride"
                   cx={point.x}
                   cy={point.y}
                   r={i === active ? activeR : markerR}
@@ -346,7 +308,7 @@ export function CurveChart({
             {narrow
               ? null
               : endLabels(m).map((label) => (
-                  <text key={label.text} className="curve-chart__end-label" x={label.x} y={label.y}>
+                  <text key={label.text} className="chart-series__label" x={label.x} y={label.y}>
                     {label.text}
                   </text>
                 ))}

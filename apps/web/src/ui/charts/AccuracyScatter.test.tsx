@@ -12,7 +12,7 @@ const named = (title: string) => (name: string) => name.startsWith(title)
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
-    Array.from(tr.querySelectorAll('td')).map((td) => td.textContent),
+    Array.from(tr.querySelectorAll('th, td')).map((td) => td.textContent),
   )
   return { headers, rows }
 }

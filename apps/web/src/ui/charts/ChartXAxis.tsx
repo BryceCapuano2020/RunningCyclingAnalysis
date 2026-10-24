@@ -1,4 +1,5 @@
 import type { AxisTick, PlotBox } from './chartTypes'
+import { labelWidth } from './ticks'
 import './ChartXAxis.css'
 
 export interface ChartXAxisProps {
@@ -13,26 +14,37 @@ export interface ChartXAxisProps {
 export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProps) {
   return (
     <g className="chart-x-axis">
-      {ticks.map((tick) => (
-        <g key={tick.position}>
-          <line
-            className="chart-x-axis__grid"
-            x1={tick.position}
-            x2={tick.position}
-            y1={plot.top}
-            y2={plot.bottom}
-          />
-          <text
-            className="chart-x-axis__tick"
-            style={{ fontSize }}
-            x={tick.position}
-            y={plot.bottom + 18}
-            textAnchor="middle"
-          >
-            {tick.label}
-          </text>
-        </g>
-      ))}
+      {ticks.map((tick) => {
+        // A label centred on a tick near either end of the plot would run past it, so it is anchored
+        // to the plot edge instead: the first label starts at its tick and the last ends at it.
+        const half = labelWidth(tick.label, fontSize) / 2
+        const textAnchor =
+          tick.position - half < plot.left
+            ? 'start'
+            : tick.position + half > plot.right
+              ? 'end'
+              : 'middle'
+        return (
+          <g key={tick.position}>
+            <line
+              className="chart-x-axis__grid"
+              x1={tick.position}
+              x2={tick.position}
+              y1={plot.top}
+              y2={plot.bottom}
+            />
+            <text
+              className="chart-x-axis__tick"
+              style={{ fontSize }}
+              x={tick.position}
+              y={plot.bottom + 18}
+              textAnchor={textAnchor}
+            >
+              {tick.label}
+            </text>
+          </g>
+        )
+      })}
       <text
         className="chart-x-axis__title"
         x={(plot.left + plot.right) / 2}

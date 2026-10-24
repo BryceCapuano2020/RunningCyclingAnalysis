@@ -57,3 +57,36 @@ export function tooltipOverlay(size: ChartSize, content: TooltipContent | null):
     />
   )
 }
+
+/**
+ * Where a label sits relative to its point: down and to the left. A curve falls to the right, so
+ * that space is clear of the line, and the label stays inside the plot at the right-hand edge.
+ */
+export const ENDPOINT_LABEL_OFFSET = { x: -8, y: 18 }
+
+/**
+ * The tooltip of the active point, anchored at its pixel x and the middle of the plot. Null when
+ * there is no active point, or when the chart has no positions to anchor it to.
+ */
+export function tooltipAt(
+  size: ChartSize,
+  xs: readonly number[] | null,
+  active: number | null,
+  contentFor: (index: number, x: number, y: number) => TooltipContent | null,
+): TooltipContent | null {
+  if (xs === null || active === null) return null
+  const x = xs[active]
+  return x === undefined ? null : contentFor(active, x, (size.plot.top + size.plot.bottom) / 2)
+}
+
+/**
+ * Computes a value once per chart render. ChartFrame passes the same size object to the drawing,
+ * the surface and the overlay, so they share one layout instead of each building it.
+ */
+export function sizedOnce<T>(compute: (size: ChartSize) => T): (size: ChartSize) => T {
+  let last: { size: ChartSize; value: T } | null = null
+  return (size) => {
+    if (last === null || last.size !== size) last = { size, value: compute(size) }
+    return last.value
+  }
+}

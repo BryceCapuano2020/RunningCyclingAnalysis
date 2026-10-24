@@ -13,8 +13,11 @@ import {
 
 /** The charts by the accessible names they are given. The balance meter is named by its sentence. */
 const BALANCE_METER = /^(Running|Cycling) ahead by |^Even within the model's range/
-const FITNESS = /^Fitness over time\./
-const CURVE = /^Running and cycling energy rate by duration\./
+const RUN_TREND = /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\./
+const RIDE_TREND = /^Cycling power in watts, best 20 minutes by week\./
+const RUN_CURVE = /^Running grade-adjusted pace per (kilometre|mile) by duration\./
+const RIDE_CURVE = /^Cycling power in watts by duration\./
+const ENERGY_SCALE = /^Running and cycling energy rate in W\/kg by duration\./
 const RATIO = /^Running compared with cycling by duration\./
 const HEART_RATE = /^Heart rate against energy rate\./
 const POWER_ACCURACY = /^Estimated against measured power on climbs\./
@@ -28,19 +31,21 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
   await expect(page.getByText('Sample athlete', { exact: true })).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
-  await expect(page.getByRole('img', { name: FITNESS })).toBeVisible()
+  await expect(page.getByRole('img', { name: RUN_TREND })).toBeVisible()
+  await expect(page.getByRole('img', { name: RIDE_TREND })).toBeVisible()
   await expect(
     page.getByRole('status').filter({ hasText: 'Showing a sample athlete.' }),
   ).toHaveCount(1)
 
   await goTo(page, 'Run')
-  await expect(page.getByRole('img', { name: CURVE })).toBeVisible()
+  await expect(page.getByRole('img', { name: RUN_CURVE })).toBeVisible()
   await goTo(page, 'Ride')
-  await expect(page.getByRole('img', { name: CURVE })).toBeVisible()
+  await expect(page.getByRole('img', { name: RIDE_CURVE })).toBeVisible()
 
   await goTo(page, 'Balance')
   await page.getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
+  await expect(page.getByRole('img', { name: ENERGY_SCALE })).toBeVisible()
   await expect(page.getByRole('img', { name: RATIO })).toBeVisible()
   await expect(page.getByRole('img', { name: HEART_RATE })).toBeVisible()
   await expect(page.getByRole('img', { name: POWER_ACCURACY })).toBeVisible()

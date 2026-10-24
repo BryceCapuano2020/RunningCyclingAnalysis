@@ -1,5 +1,7 @@
 import type { AnalysisResult } from './digest'
 import type { TrendPoint } from './digest/trend'
+import type { EffortLengthS } from './digest/trendPoints'
+import type { SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
 
 export interface RejectedFile {
@@ -30,8 +32,15 @@ export interface SessionState {
   /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
   syncIssues: SyncIssue[]
   /**
-   * Weekly fitness trend over the analysed workouts. Ignores the period filter, so it covers the
-   * whole library, and it is the same set as the analysis before that filter.
+   * Weekly best 20-minute values over the selected period, or over the whole library for all time.
+   * Each value is the best in a trailing window that ends that week and lies inside the period.
    */
-  trend: TrendPoint[]
+  trend: readonly TrendPoint[]
+  /** The same weekly trend for each effort length, of which `trend` is the 20-minute one. */
+  effortTrends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
+  /**
+   * The best run and ride curves of the period before the selected one, of the same length. Null for
+   * all time, or when that period has no activities.
+   */
+  previous: SportCurves | null
 }

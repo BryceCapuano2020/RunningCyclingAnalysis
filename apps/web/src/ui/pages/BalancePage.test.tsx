@@ -114,6 +114,16 @@ describe('BalancePage', () => {
     expect(screen.getByRole('heading', { name: 'Fitness over time' })).toBeInTheDocument()
   })
 
+  it('shows the running trend in pace and says when there are not yet two weeks of cycling', () => {
+    renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
+    expect(
+      screen.getByRole('img', {
+        name: /^Running grade-adjusted pace per kilometre, best 20 minutes by week\./,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Add rides in more than one week to see a trend')).toBeInTheDocument()
+  })
+
   it('links to how sure the answer is once, from the evidence card', () => {
     renderPage()
     const links = screen.getAllByRole('link', { name: 'How sure is this?' })

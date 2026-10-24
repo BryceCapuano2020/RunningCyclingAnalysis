@@ -26,6 +26,19 @@ test('the period picker is also on the Run and Ride pages', async ({ page }) => 
   }
 })
 
+test('a six-week period compares the best efforts with the six weeks before it', async ({
+  page,
+}) => {
+  await openSample(page)
+  await goTo(page, 'Run')
+  await expect(page.getByRole('list', { name: 'Legend' })).toHaveCount(0)
+
+  await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
+  await expect(
+    page.getByRole('list', { name: 'Legend' }).getByText('Previous 6 weeks'),
+  ).toBeVisible()
+})
+
 test('the fitness over time card shows for sample data, and its table toggles', async ({
   page,
 }) => {
@@ -35,15 +48,18 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   })
   await expect(card).toBeVisible()
   await expect(
-    card.getByRole('img', { name: /^Fitness over time\. Best estimated energy rate/ }),
+    card.getByRole('img', {
+      name: /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\. /,
+    }),
   ).toBeAttached()
 
-  const details = card.locator('details')
+  // Each chart has its own table view; the running one is checked here.
+  const details = card.locator('details').first()
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()
   await expect(details).toHaveAttribute('open')
   await expect(details.getByRole('columnheader', { name: 'Week ending' })).toBeVisible()
-  await expect(details.getByRole('cell').first()).toHaveText(
+  await expect(details.getByRole('rowheader').first()).toHaveText(
     /^[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}( \d{4})?$/,
   )
 

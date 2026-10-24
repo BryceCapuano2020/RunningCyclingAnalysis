@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
+import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { Me } from '@rca/contract'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
@@ -53,6 +54,8 @@ const STATE = {
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
   trend: [],
+  previous: null,
+  effortTrends: NO_TRENDS,
 }
 
 function me(id: string): Me {

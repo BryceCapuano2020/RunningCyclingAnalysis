@@ -8,15 +8,15 @@ Track one latent value per athlete, sport, and metric (cycling CP, running criti
 
 ## Comparison
 
-| Model                                               | Data needs                              | Identifiability                                       | Transparency                      | Implementation complexity                |
-| --------------------------------------------------- | --------------------------------------- | ----------------------------------------------------- | --------------------------------- | ---------------------------------------- |
-| Banister impulse-response (1975)                    | Dense loads and many performances       | Poor: wide intervals, correlated parameters           | High equations, low trust in fits | Moderate: nonlinear fit, local optima    |
-| Busso variable dose-response (1997, 2003)           | As Banister, plus time-varying terms    | Worse: extra fatigue variable                         | Moderate                          | Moderate to high                         |
-| Fitness-fatigue with Kalman feedback (Kolossa 2017) | Loads and performances                  | Tracking improved (abstract); identifiability unclear | Moderate                          | High                                     |
-| Bayesian Banister with priors (Peng 2023)           | One athlete plus published-value priors | Better than least squares in one case                 | Good if priors are explicit       | High: MCMC                               |
-| Local-level Kalman, random walk (recommended)       | Any sparse efforts                      | Good: one state, noise set externally                 | High                              | Low                                      |
-| Bayesian DLM or hierarchical (Che; Griffin)         | Many athletes for pooling               | Good through pooling                                  | Moderate                          | High                                     |
-| Rolling 42-day best (current)                       | Any                                     | Not applicable                                        | High                              | Trivial, but no uncertainty or censoring |
+| Model                                                                                              | Data needs                              | Identifiability                                       | Transparency                      | Implementation complexity                |
+| -------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------- | --------------------------------- | ---------------------------------------- |
+| Banister impulse-response (1975)                                                                   | Dense loads and many performances       | Poor: wide intervals, correlated parameters           | High equations, low trust in fits | Moderate: nonlinear fit, local optima    |
+| Busso variable dose-response (1997, 2003)                                                          | As Banister, plus time-varying terms    | Worse: extra fatigue variable                         | Moderate                          | Moderate to high                         |
+| Fitness-fatigue with Kalman feedback (Kolossa 2017)                                                | Loads and performances                  | Tracking improved (abstract); identifiability unclear | Moderate                          | High                                     |
+| Bayesian Banister with priors (Peng 2023)                                                          | One athlete plus published-value priors | Better than least squares in one case                 | Good if priors are explicit       | High: MCMC                               |
+| Local-level Kalman, random walk (recommended)                                                      | Any sparse efforts                      | Good: one state, noise set externally                 | High                              | Low                                      |
+| Bayesian DLM or hierarchical (Che; Griffin)                                                        | Many athletes for pooling               | Good through pooling                                  | Moderate                          | High                                     |
+| Per-period rolling best (current): a window of a third of the period, between one week and 42 days | Any                                     | Not applicable                                        | High                              | Trivial, but no uncertainty or censoring |
 
 ## Evidence by topic
 

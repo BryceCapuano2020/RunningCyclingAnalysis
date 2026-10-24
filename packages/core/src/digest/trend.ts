@@ -9,8 +9,8 @@ import {
   runCentralWkg,
   totalCalibration,
 } from './combine'
+import { DEFAULT_WINDOW_DAYS } from './trendPoints'
 
-const DEFAULT_WINDOW_DAYS = 42
 const MAX_POINTS = 260
 const WEEK_MS = 7 * DAY_MS
 
@@ -30,6 +30,13 @@ export interface TrendPoint {
 export interface TrendOptions {
   durationS?: number
   windowDays?: number
+  /**
+   * The earliest instant a trailing window may start at. A point whose window would reach before it
+   * is left out, so a period's trend never counts activity from before the period.
+   */
+  fromMs?: number
+  /** The bike model to price rides with. Fitted to the digests when not given. */
+  bikeModel?: BikeModel
 }
 
 /** The Sunday 23:59:59.999 UTC that ends the calendar week (Monday to Sunday, UTC) of ms. */
@@ -103,7 +110,7 @@ export function fitnessTrend(
 
   const massKg = settings.massKg
   const totalMassKg = settings.massKg + settings.bikeMassKg
-  const bikeModel = fitBikeModelFor(totalCalibration(ordered), totalMassKg).model
+  const bikeModel = opts.bikeModel ?? fitBikeModelFor(totalCalibration(ordered), totalMassKg).model
   const readings: Reading[] = []
   for (const digest of ordered) {
     const wkg = bestAtOrAbove(digest, durationS, massKg, totalMassKg, bikeModel)
@@ -111,7 +118,9 @@ export function fitnessTrend(
   }
 
   const lastEnd = weekEndMs(last.startMs)
-  const firstEnd = Math.max(weekEndMs(first.startMs), lastEnd - (MAX_POINTS - 1) * WEEK_MS)
+  const earliest =
+    opts.fromMs === undefined ? first.startMs : Math.max(first.startMs, opts.fromMs + windowMs)
+  const firstEnd = Math.max(weekEndMs(earliest), lastEnd - (MAX_POINTS - 1) * WEEK_MS)
   const points: TrendPoint[] = []
   for (let endMs = firstEnd; endMs <= lastEnd; endMs += WEEK_MS) {
     const windowStart = endMs - windowMs

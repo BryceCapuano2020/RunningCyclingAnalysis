@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { weeksWithValue } from '@rca/core/digest/trendPoints'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
+import { trendWindowDays, weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -92,7 +93,24 @@ export function BalancePage({
       {weeksWithValue(trend) >= 2 && (
         <section className="section" aria-labelledby="balance-trend">
           <h2 id="balance-trend">Fitness over time</h2>
-          <TrendChart points={trend} />
+          <div className="balance__trends">
+            <TrendChart
+              sport="run"
+              points={trend}
+              massKg={settings.massKg}
+              units={units}
+              windowDays={trendWindowDays(rangeDays)}
+              effortS={HEADLINE_DURATION_S}
+            />
+            <TrendChart
+              sport="ride"
+              points={trend}
+              massKg={settings.massKg}
+              units={units}
+              windowDays={trendWindowDays(rangeDays)}
+              effortS={HEADLINE_DURATION_S}
+            />
+          </div>
         </section>
       )}
 

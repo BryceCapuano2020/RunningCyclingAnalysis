@@ -1,3 +1,12 @@
+/* Where running is ahead the plot is tinted coral above the line, and where cycling is ahead, blue below it. */
+.ratio-chart__ahead--run {
+  fill: var(--series-run-soft);
+}
+
+.ratio-chart__ahead--ride {
+  fill: var(--series-ride-soft);
+}
+
 /*
  * Both bands share one fill, which is too faint to carry the difference on its own (about 1.2:1
  * against the card). The outline does: solid for the calibrated band, dashed for the prior one.
@@ -30,20 +39,18 @@
   stroke-width: 1;
 }
 
-.ratio-chart__crosshair {
-  stroke: var(--text-muted);
-  stroke-width: 1;
-}
-
 .ratio-chart__marker {
   fill: var(--neutral-mark);
   stroke: var(--surface-1);
   stroke-width: 2;
 }
 
-/* Surface-coloured halo keeps the label legible where it crosses the band or the median. */
+/*
+ * Surface-coloured halo keeps the label legible where it crosses the band or the median. Labels sit on
+ * the running and cycling tints, so they use secondary text, which holds 4.5:1 on either tint.
+ */
 .ratio-chart__label {
-  fill: var(--text-muted);
+  fill: var(--text-secondary);
   font-size: 12px;
   paint-order: stroke;
   stroke: var(--surface-1);

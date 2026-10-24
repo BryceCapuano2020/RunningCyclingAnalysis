@@ -21,6 +21,11 @@
   justify-self: start;
 }
 
+.balance__trends {
+  display: grid;
+  gap: var(--space-5);
+}
+
 .balance__footer {
   display: flex;
   flex-wrap: wrap;

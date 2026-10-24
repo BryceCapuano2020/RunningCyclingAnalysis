@@ -49,11 +49,10 @@ These core files are over the 400-line budget and are held by the size ratchet. 
 should leave it smaller; the API's activity routes, the web app's analysis hook and `App.tsx` were
 split this way in the refactor that introduced this document.
 
-| File                                  | Lines | Direction                                                   |
-| ------------------------------------- | ----- | ----------------------------------------------------------- |
-| `packages/core/src/fit/archive.ts`    | 634   | Separate zip, gzip and nesting from the per-entry policy    |
-| `packages/core/src/xml/parse.ts`      | 438   | Separate entity decoding and the tree builder from the scan |
-| `packages/core/src/digest/combine.ts` | 407   | Move the virtual-power accuracy and summaries out           |
+| File                               | Lines | Direction                                                   |
+| ---------------------------------- | ----- | ----------------------------------------------------------- |
+| `packages/core/src/fit/archive.ts` | 634   | Separate zip, gzip and nesting from the per-entry policy    |
+| `packages/core/src/xml/parse.ts`   | 438   | Separate entity decoding and the tree builder from the scan |
 
 Hooks and components compose many small parts, so their function bodies may exceed 60 lines;
 the ratchet is enforced per file.

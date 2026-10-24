@@ -7,6 +7,7 @@ import { digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import { parseActivityFile } from './import'
 import { AnalysisSession, SyncFailure } from './session'
+import { NO_TRENDS } from './digest/trendPoints'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
 import { DEFAULT_ATHLETE, generateActivity, sampleDataset } from './synthetic'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
@@ -368,6 +369,8 @@ describe('AnalysisSession', () => {
       rangeDays: null,
       syncIssues: [],
       trend: [],
+      effortTrends: NO_TRENDS,
+      previous: null,
     })
   })
 
@@ -412,6 +415,8 @@ describe('AnalysisSession', () => {
       rangeDays: 42,
       syncIssues: [],
       trend: [],
+      effortTrends: NO_TRENDS,
+      previous: null,
     })
   })
 
