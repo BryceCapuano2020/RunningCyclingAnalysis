@@ -17,6 +17,8 @@ const sheets = {
   app: await readStylesheet(import.meta.url, '../../App.css'),
   savedLibrary: await readStylesheet(import.meta.url, './SavedLibrary.css'),
   activityPage: await readStylesheet(import.meta.url, '../pages/ActivityPage.css'),
+  dropzone: await readStylesheet(import.meta.url, './Dropzone.css'),
+  exportGuides: await readStylesheet(import.meta.url, './ExportGuides.css'),
 }
 
 /** The control height the tokens give a desktop pointer, which is the shared token's default. */
@@ -79,6 +81,8 @@ describe('the shared control height', () => {
     ['activity page back link', sheets.activityPage, '.activity-page__back'],
     ['delete dialog input', sheets.deleteDialog, '.delete-dialog__input'],
     ['disclosure summary', sheets.summary, 'summary'],
+    ['landing drop-zone link', sheets.dropzone, '.dropzone__link'],
+    ['export guide tile', sheets.exportGuides, '.export-guides__tile'],
   ])('%s takes the shared control height', (_name, css, selector) => {
     expect(bodyOf(css, selector)).toMatch(/min-height:\s*var\(--control-height\)/)
   })

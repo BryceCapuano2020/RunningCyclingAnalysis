@@ -93,6 +93,16 @@ export function PlusIcon({ className }: IconProps) {
   )
 }
 
+/** An arrow rising out of a tray, for choosing files to send in. */
+export function UploadIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M12 15V4.5M7.5 9L12 4.5 16.5 9" />
+      <path d="M4.5 15v4.5h15V15" />
+    </Icon>
+  )
+}
+
 export function ArrowRightIcon({ className }: IconProps) {
   return (
     <Icon className={className}>

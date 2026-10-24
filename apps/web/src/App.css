@@ -129,14 +129,15 @@
   align-items: start;
 }
 
-/* A framed preview, not a card: there is nothing in it to open or act on. */
+/* A solid frame: the dashed outline is for the drop area beside it, so the two are not confused. */
 .landing-example {
   display: grid;
   gap: var(--space-3);
   margin: 0;
   padding: var(--space-5);
-  border: 1px dashed var(--control-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: var(--surface-1);
 }
 
 .landing-example__title {
@@ -149,7 +150,7 @@
 
 .landing-example__stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   gap: var(--space-4);
   margin: 0;
 }
@@ -163,6 +164,26 @@
 }
 
 .landing-example__stats dd {
+  margin: 0;
+}
+
+/* The example's numbers are its first picture, so they are set at the hero size (48 px). */
+.landing-example__stats .stat-number {
+  font-size: 3rem;
+}
+
+/* The method's three sentences, with the link to the full page below them. */
+.landing__method {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 62ch;
+}
+
+.landing__method h2 {
+  margin: 0;
+}
+
+.landing__method p {
   margin: 0;
 }
 

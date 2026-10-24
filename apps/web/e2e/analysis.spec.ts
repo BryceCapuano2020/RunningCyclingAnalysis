@@ -260,7 +260,5 @@ test('removing all activities on the Profile page clears the sample and returns 
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
   // The app moves to the landing page's hash only once the result has been cleared.
   await expect(page).toHaveURL(/#\/$/)
-  await expect(
-    page.getByText('Drop FIT, GPX or TCX files, or a Strava export zip here'),
-  ).toBeVisible()
+  await expect(page.getByText('Add FIT, GPX or TCX files, or a Strava export zip')).toBeVisible()
 })

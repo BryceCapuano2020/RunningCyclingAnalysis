@@ -68,9 +68,21 @@ A deep link to a page that needs a result, with none on this device, stays where
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
-The landing page's step 1 has a **How to get your files** button. It moves focus to the export guides
-below the steps, one closed details per service; guides whose steps could not be checked from the
-vendor's own page say so.
+The landing page is the promise, the drop zone with **Choose files** (its one primary action) and
+**See a sample athlete**, the example result, three steps, three sentences on how the result is worked
+out with a **Full method** link, and the export guides. The drop zone's **No files yet? How to get
+them** link moves focus to the guides below the steps. The guides are one tile per service. Each tile
+is `aria-expanded` and controls the one panel, which opens on Strava. Opening a tile moves focus to
+the panel's heading, so its steps are read from the top. The Strava guide has **Try the sample while
+you wait** right after its wait step, when the page offers the sample. Under the panel, the no-files
+and phone-only path says what to do without an export. Every guide ends with a source line and a link
+to its own service's help. The source line reads "Steps from Strava's help, checked 24 October 2026;
+menus can change." for Strava, which was read on its own help page. For the other four it reads
+"Steps from published guides, checked ...", because their steps came from guides or search summaries,
+not from the services' own pages.
+`HowToGetFilesButton` opens the same guides in a dialog. It is built and tested, but not yet placed:
+it will sit beside **Add rides** on the empty Run and Ride cards, and on Profile, once those pages
+wire it in. The dialog has no sample button, since a sample would replace the visitor's data.
 After an import, a dismissible notice under the header says what it added, or "Nothing new" when every
 activity was already in the library, and links to Balance, except on Balance itself. An import made on
 Profile or Method moves to Balance, where its result is. Under that sentence it lists what the import
@@ -212,6 +224,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.
+- **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
+  its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
+  are a tile grid that opens one service's panel, not a stack of full-width panels.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
@@ -270,6 +285,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Evidence gaps say what to do, on the card itself**: one plain sentence under the gap, saying how to
   record a hard, steady 20-minute effort with heart rate on, or how to add heart rate to a file. Its
   link is "How sure is this?", to the method page, which explains the check. Good news has no how-to.
+- **Export guides cite their sources.** Each guide's steps name only what the sources cited beside
+  them in `apps/web/src/ui/exportGuides.ts` support. The source line says where the steps came from,
+  decided by the guide's `verified` flag, so a guide never claims a help page it did not read. Guides
+  use curly quotes, and say "zip", never ".gz".
 - Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A range of months
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
