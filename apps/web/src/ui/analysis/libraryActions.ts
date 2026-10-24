@@ -1,11 +1,12 @@
 import { useCallback } from 'react'
-import type { AthleteSettings } from '@rca/core/types'
+import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import {
   deleteNoticeText,
   EXPORT_INTERRUPTED,
   exportFailureText,
   LIBRARY_NOT_LOADED,
   SIGN_IN_TO_EXPORT,
+  SPLITS_NOT_LOADED,
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
@@ -150,7 +151,34 @@ export function useLibraryActions({
     [accountRef, send, workerRef],
   )
 
-  return { loadLibrary, holdForLibrary, failLibrary, retryLibrary, deleteActivity, exportData }
+  /**
+   * The run splits of one held activity. Resolves with null when the activity has none. Rejects
+   * when the worker cannot answer, so the page can say the splits did not load.
+   */
+  const activitySplits = useCallback(
+    (id: string) =>
+      new Promise<DigestSplits | null>((resolve, reject) => {
+        if (workerRef.current === null) {
+          reject(new Error(SPLITS_NOT_LOADED))
+          return
+        }
+        send({ type: 'activitySplits', id }, undefined, (message) => {
+          if (message?.type === 'splits') resolve(message.splits)
+          else reject(new Error(SPLITS_NOT_LOADED))
+        })
+      }),
+    [send, workerRef],
+  )
+
+  return {
+    loadLibrary,
+    holdForLibrary,
+    failLibrary,
+    retryLibrary,
+    deleteActivity,
+    exportData,
+    activitySplits,
+  }
 }
 
 export type LibraryActions = ReturnType<typeof useLibraryActions>

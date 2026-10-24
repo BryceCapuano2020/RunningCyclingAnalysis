@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
+import type { DigestSplits } from '@rca/core/types'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { ActivityPage } from './ActivityPage'
@@ -30,6 +31,7 @@ function renderPage(
   result: AnalysisResult = resultWith(),
   units: 'metric' | 'imperial' = 'metric',
   records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
+  loadSplits: (id: string) => Promise<DigestSplits | null> = vi.fn(async () => null),
 ) {
   // As in the app, the page's activity is one of the result's activities.
   const activities = activity ? [activity, ...result.activities] : result.activities
@@ -40,6 +42,7 @@ function renderPage(
       units={units}
       massKg={70}
       records={records}
+      loadSplits={loadSplits}
     />,
   )
 }
@@ -73,6 +76,27 @@ const powerRide = makeActivity({
   elevationGainM: 610,
   powerSource: 'measured',
 })
+
+/** Two whole kilometres: the first slower, so the second is the fastest. */
+const twoKilometres: DigestSplits = {
+  km: [
+    {
+      distanceM: 1000,
+      seconds: 300,
+      gradeAdjustedSeconds: 290,
+      elevationGainM: 12,
+      avgHeartRate: 150,
+    },
+    {
+      distanceM: 1000,
+      seconds: 285,
+      gradeAdjustedSeconds: 280,
+      elevationGainM: 9,
+      avgHeartRate: 155,
+    },
+  ],
+  mile: [],
+}
 
 describe('ActivityPage', () => {
   it('says the activity is not found, and links back to the list, when it is outside the period', () => {
@@ -211,6 +235,50 @@ describe('ActivityPage', () => {
   it('shows no data issues section when the activity has none', () => {
     renderPage(makeActivity({ id: 'activity-1', name: 'Clean run', flags: [] }))
     expect(screen.queryByRole('heading', { name: 'Data issues' })).not.toBeInTheDocument()
+  })
+
+  it('asks for the splits of the run it shows, and shows them in a Splits section', async () => {
+    const loadSplits = vi.fn(async () => twoKilometres)
+    renderPage(morningRun, resultWith(), 'metric', new Map(), loadSplits)
+    expect(loadSplits).toHaveBeenCalledWith('activity-1')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Splits' })).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Pace for each kilometre' })
+    const [first, second] = within(table).getAllByRole('row').slice(1)
+    expect(within(first!).getByText('5:00 /km')).toBeInTheDocument()
+    expect(within(first!).getByText('4:50 /km')).toBeInTheDocument()
+    expect(within(second!).getByText('Fastest')).toBeInTheDocument()
+  })
+
+  it('says a run whose splits were not kept has none, and shows no table', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(async () => null),
+    )
+    expect(
+      await screen.findByText('Splits were not kept when this run was added.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('says the splits could not be loaded when the worker fails to answer', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(async () => Promise.reject(new Error('x'))),
+    )
+    expect(await screen.findByText(/The splits could not be loaded/)).toBeInTheDocument()
+  })
+
+  it('shows no splits section for a ride, and asks for none', () => {
+    const loadSplits = vi.fn(async () => twoKilometres)
+    renderPage(powerRide, resultWith(), 'metric', new Map(), loadSplits)
+    expect(screen.queryByRole('heading', { name: 'Splits' })).not.toBeInTheDocument()
+    expect(loadSplits).not.toHaveBeenCalled()
   })
 })
 

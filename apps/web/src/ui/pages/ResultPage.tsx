@@ -79,6 +79,7 @@ export function ResultPage({
           units={units}
           massKg={settings.massKg}
           records={analysis.state.records}
+          loadSplits={analysis.activitySplits}
         />
       )
     case 'method':

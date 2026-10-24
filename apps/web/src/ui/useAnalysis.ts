@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
+import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ImportOutcome, SavedActivity, WorkerRequest } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { STOPPED_KEPT_RESULTS, WAITING_FOR_LIBRARY } from './analysis/copy'
@@ -60,6 +60,8 @@ export interface AnalysisController {
    * the reason when it cannot be made. An export does not make the page busy.
    */
   exportData: () => Promise<Blob>
+  /** The run splits of one held activity; null when it has none. Does not make the page busy. */
+  activitySplits: (id: string) => Promise<DigestSplits | null>
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
   addFiles: (files: File[]) => void
@@ -133,7 +135,10 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     // Reading the library kept in this browser is quick and queued before anything else, so it
     // does not hold the page busy: the sample and imports stay available while it loads.
     const quiet = (kind: Pending['kind']) =>
-      isDeletion(kind) || kind === 'exportData' || kind === 'loadDevice'
+      isDeletion(kind) ||
+      kind === 'exportData' ||
+      kind === 'activitySplits' ||
+      kind === 'loadDevice'
     setBusy(
       replies.some((pending) => !quiet(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
@@ -163,7 +168,8 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       const keepsError =
         request.type === 'loadServer' ||
         request.type === 'loadDevice' ||
-        request.type === 'exportData'
+        request.type === 'exportData' ||
+        request.type === 'activitySplits'
       if (!keepsError) setError(null)
       // Taken as the import is sent. An import sent before the one before it replies compares with
       // the same result, since that reply has not yet changed what is on screen.
@@ -350,6 +356,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryError: library.libraryError,
     deleteActivity: libraryActions.deleteActivity,
     exportData: libraryActions.exportData,
+    activitySplits: libraryActions.activitySplits,
     rebuildNotice: imports.rebuildNotice,
     rebuildSavedActivities: importActions.rebuildSavedActivities,
     addFiles: importActions.addFiles,

@@ -98,7 +98,8 @@ async function startWorker() {
         (last?.type !== 'state' &&
           last?.type !== 'error' &&
           last?.type !== 'rebuildComplete' &&
-          last?.type !== 'exportReady')
+          last?.type !== 'exportReady' &&
+          last?.type !== 'splits')
       ) {
         throw new Error('still working')
       }
@@ -586,6 +587,23 @@ describe('analysis worker', () => {
       type: 'libraryActivities',
       activities: [{ id: 'rec-tie-a' }, { id: 'rec-tie-b' }, { id: 'rec-older' }],
     })
+  })
+
+  it('answers a splits request from the held digest, and keeps splits out of the library state', async () => {
+    const { send } = await startWorker()
+    const [sample] = await send({ type: 'loadSample', settings: SETTINGS })
+    if (sample?.type !== 'state') throw new Error('expected a state')
+    const run = sampleDataset().activities.find((activity) => activity.sport === 'run')
+    if (!run) throw new Error('The sample has no run')
+    const digest = digestActivity(run)
+    expect(sample.state.result?.activities.find((a) => a.id === digest.id)).not.toHaveProperty(
+      'splits',
+    )
+
+    const reply = await send({ type: 'activitySplits', id: digest.id })
+    expect(reply).toEqual([{ type: 'splits', id: digest.id, splits: digest.splits }])
+    const missing = await send({ type: 'activitySplits', id: 'not-held' })
+    expect(missing).toEqual([{ type: 'splits', id: 'not-held', splits: null }])
   })
 
   it('passes sample, settings, range and clear requests through to the session', async () => {

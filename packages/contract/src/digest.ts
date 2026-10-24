@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { DURATIONS_S, RUN_RECORD_DISTANCES_M } from '@rca/core/constants'
+import {
+  DURATIONS_S,
+  MAX_KM_SPLITS,
+  MAX_MILE_SPLITS,
+  RUN_RECORD_DISTANCES_M,
+} from '@rca/core/constants'
 import type { ActivityDigest } from '@rca/core/types'
 import { MAX_DIGEST_BYTES } from './limits.ts'
 
@@ -85,6 +90,24 @@ const distanceBest = z.object({
   seconds: z.number().positive(),
 })
 
+const digestSplit = z.object({
+  distanceM: z.number().nonnegative(),
+  seconds: z.number().nonnegative().nullable(),
+  gradeAdjustedSeconds: z.number().nonnegative().nullable(),
+  elevationGainM: z.number().nonnegative().nullable(),
+  avgHeartRate: z.number().nonnegative().nullable(),
+})
+
+/**
+ * Runs only, so absent on rides and on digests made before splits were kept. Each unit is bounded
+ * by the shared limit in @rca/core, times the factor: 1 for a create, and the stored factor for a row.
+ */
+const digestSplits = (factor: number) =>
+  z.object({
+    km: z.array(digestSplit).max(MAX_KM_SPLITS * factor),
+    mile: z.array(digestSplit).max(MAX_MILE_SPLITS * factor),
+  })
+
 const climbSection = z.object({
   start: z.number(),
   end: z.number(),
@@ -137,6 +160,8 @@ function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): 
     }
   })
 }
+/** Stored rows may be larger than a create can send, by this factor, and still be read. */
+const STORED_BOUND_FACTOR = 4
 
 /**
  * Wire format of an ActivityDigest. Parsing restores NaN, so the output type is the
@@ -175,6 +200,7 @@ export const ActivityDigestSchema = z
     calibration: calibrationSums.nullable(),
     climbSections: z.array(climbSection).max(MAX_CLIMB_SECTIONS),
     distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
+    splits: digestSplits(1).optional(),
   })
   .superRefine((digest, ctx) => {
     digest.curve.forEach((point, index) => {
@@ -203,9 +229,6 @@ export const ActivityDigestSchema = z
     }
     checkDistanceBests(digest, ctx)
   })
-
-/** Stored rows may be larger than a create can send, by this factor, and still be read. */
-const STORED_BOUND_FACTOR = 4
 
 /**
  * An ActivityDigest as read back from a stored row. Rows written by older revisions can miss the
@@ -239,6 +262,7 @@ const StoredActivityDigestBase = z.object({
   calibration: calibrationSums.nullable(),
   climbSections: z.array(climbSection).max(MAX_CLIMB_SECTIONS * STORED_BOUND_FACTOR),
   distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
+  splits: digestSplits(STORED_BOUND_FACTOR).optional(),
 })
 
 export const StoredActivityDigestSchema = StoredActivityDigestBase.superRefine((digest, ctx) =>

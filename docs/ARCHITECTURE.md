@@ -178,6 +178,16 @@ the server stores only that. A digest holds:
   time is unknown), an invalid motion sample, or a distance step above the top run speed. A timer
   pause is real time and counts. Grade does not matter here. It is absent for rides and for digests
   from before the field, and an empty list for a run under 1 km.
+- **Splits** (runs only): each whole kilometre and mile, with its wall-clock seconds, grade-adjusted
+  seconds (the flat time at the same metabolic cost, as the best efforts pace is), elevation gain and
+  mean heart rate. A split with a boundary inside a gap the device did not record, where the distance is
+  held and then stepped, has null seconds. The gaps are the resampler's `unrecorded` mask: a record gap
+  over 10 s that no timer pause covers, in GPX, TCX and timer-less FIT alike. A split that only contains
+  such a gap keeps its time, and takes the gap at the split's recorded effort, so its grade-adjusted time
+  stays known.
+  Digests made before splits were kept have none, and rides never do. Splits are stored in each digest
+  and load with the library. They are kept out of activity summaries and SessionState, and the activity
+  page reads them from the session on demand.
 
 The virtual-power model is `P = (m (g_a + c_rr r) + CdA a) / η`, where `g_a = v (g sin θ + dv/dt)`,
 `r = g v cos θ` and `a = ½ ρ v³`. The digest stores these per sample, so mass, rolling resistance,

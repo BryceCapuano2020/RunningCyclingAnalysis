@@ -1,5 +1,6 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
+import type { DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import {
   formatDistance,
@@ -15,6 +16,7 @@ import { chipLabels, sportRecords } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { RunSplits } from './RunSplits'
 import './ActivityPage.css'
 
 export interface ActivityPageProps {
@@ -26,6 +28,8 @@ export interface ActivityPageProps {
   massKg: number
   /** The records each activity holds across the library, keyed by activity id. */
   records: ReadonlyMap<string, readonly EarnedRecord[]>
+  /** Asks the worker for a run's splits; a run's splits are not kept in the page's result. */
+  loadSplits: (id: string) => Promise<DigestSplits | null>
 }
 
 const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
@@ -44,7 +48,14 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** One activity: its summary, the library bests it set, and any data issues in its file. */
-export function ActivityPage({ activity, result, units, massKg, records }: ActivityPageProps) {
+export function ActivityPage({
+  activity,
+  result,
+  units,
+  massKg,
+  records,
+  loadSplits,
+}: ActivityPageProps) {
   if (!activity) {
     return (
       <div className="page-title">
@@ -116,6 +127,14 @@ export function ActivityPage({ activity, result, units, massKg, records }: Activ
             ))}
           </div>
         </div>
+      )}
+      {isRun && (
+        <RunSplits
+          activityId={activity.id}
+          units={units}
+          distanceM={activity.distanceM}
+          loadSplits={loadSplits}
+        />
       )}
 
       <section className="section" aria-labelledby="activity-bests">

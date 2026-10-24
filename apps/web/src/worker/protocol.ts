@@ -1,6 +1,6 @@
 import type { Profile } from '@rca/contract'
 import type { RejectedFile, SessionState, SyncIssueCode } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
+import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
 
 export interface SavedActivity {
@@ -58,6 +58,8 @@ export type WorkerRequest =
   | { type: 'deleteDeviceActivity'; id: string; settings: AthleteSettings }
   /** Builds the account's data export from its library. The account and profile come from the page. */
   | { type: 'exportData'; userId: string; account: ExportAccount; profile: Profile }
+  /** The run splits of one held activity, which the activity page asks for; answered by `splits`. */
+  | { type: 'activitySplits'; id: string }
 
 export type WorkerResponse =
   /** `filesTotal` is the activity files the request holds, when that is known before they are read. */
@@ -68,6 +70,8 @@ export type WorkerResponse =
   | { type: 'libraryActivities'; activities: SavedActivity[] }
   /** The account's export, as the JSON file to save. */
   | { type: 'exportReady'; file: Blob }
+  /** The splits of the activity asked for, or null when it is not held or its digest has none. */
+  | { type: 'splits'; id: string; splits: DigestSplits | null }
   /** Stored activities the server could not read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
   /** The import stopped because the account ended or changed. Sent before its state. */

@@ -17,7 +17,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                                                  |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes |
 | `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                             |
-| `#/activities/:id` | Activity          | Summary, records earned across the library, efforts set here, data issues                                                                                                                                               |
+| `#/activities/:id` | Activity          | Summary, splits (runs), records earned across the library, efforts set here, data issues                                                                                                                                |
 | `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                        |
 | `#/profile`        | Profile           | Weight, units, year of birth and sex, account (email, download, delete), the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over                                  |
 
@@ -118,7 +118,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the drawing. A run's estimate, from one activity, is a solid dot in the sport's colour. A ride's
   estimate is a ring over an outlined band for its model range. Band edges are ticks, not fill.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
-  Tables that cannot fit become lists.
+- **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
+  and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
+  are in the page, and a media query shows exactly one at each width, so the accessibility tree
+  holds one representation. Never set `display: block` on a table element, which drops its table
+  semantics. The splits table on the activity page is the first use; record any new one here.
+- **Bars start from zero.** A bar's length is the value relative to the best known one, so the best
+  fills its track. A row with no known value has no bar and cannot be the best.
+- **The best row says so in words.** A small `.chip` reads "Fastest" beside its value, and the value
+  is bold, so the mark does not rest on colour or weight alone.
+- **Missing values** show a dash, with words for a screen reader that say why: "Not measured" for a
+  time the device did not record, or an implied speed over 12.5 m/s that no run reaches; "Not
+  available" for a grade; "No altitude"; or "No heart rate".
 - The share image is a dark canvas card on ink, as a square (1080 by 1080) or a story (1080 by 1920).
   It holds the brand mark and app name, the sample badge for sample data, the headline, the balance
   meter, the running and cycling threshold estimates with W/kg, the period, the heart-rate caveat
@@ -134,6 +145,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   phrase such as "on the same energy scale" may explain the balance.
 - **Caveats become chips and shapes.** Draw a range instead of writing it; a caveat is a chip with
   an icon that links to the detail.
+- **Splits say what happened when they are missing**: "Splits were not kept when this run was added."
+  for a run whose digest predates splits, "This run is too short to split." for one too short for a
+  whole unit, and "Splits are kept for runs up to 500 km." for one past the limit. When the worker
+  cannot answer, the page says "The splits could not be loaded. Open this activity again to retry."
 - **Every number names its source**: the activity that set it, with a link to that activity.
 - **Evidence gaps say what to do**: what to upload or record, and what it would sharpen.
 - Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A range of months

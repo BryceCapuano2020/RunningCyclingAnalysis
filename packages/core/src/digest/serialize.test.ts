@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DURATIONS_S } from '../constants'
+import { DURATIONS_S, MAX_KM_SPLITS } from '../constants'
 import { sampleDataset } from '../synthetic'
 import type { Activity, ActivityDigest, AthleteSettings } from '../types'
 import { combine } from './combine'
@@ -105,6 +105,67 @@ describe('serializeDigest and parseDigest', () => {
     expect(() =>
       parseDigest(edited(digests[0]!, (o) => (o.modelRevision = Number.MAX_SAFE_INTEGER + 1))),
     ).toThrow(/modelRevision must be a positive safe integer/)
+  })
+
+  it('keeps splits through a round trip, and reads a digest without them as having none', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run?.splits) throw new Error('expected a run with splits')
+    expect(parseDigest(serializeDigest(run)).splits).toEqual(run.splits)
+    const older = edited(run, (o) => delete o.splits)
+    expect(parseDigest(older)).not.toHaveProperty('splits')
+  })
+
+  it('rejects a negative split value, as the contract does', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    const negative = { distanceM: 1000, seconds: -1, gradeAdjustedSeconds: null }
+    const split = { ...negative, elevationGainM: 0, avgHeartRate: null }
+    expect(() => parseDigest(edited(run, (o) => (o.splits = { km: [split], mile: [] })))).toThrow(
+      /splits\.km\[0\]\.seconds must not be negative/,
+    )
+  })
+
+  it('rejects splits whose shape is wrong, and names the field', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    expect(() => parseDigest(edited(run, (o) => (o.splits = { km: [] })))).toThrow(
+      /splits\.mile must be an array/,
+    )
+    const split = { distanceM: 1000, seconds: 'soon', gradeAdjustedSeconds: null }
+    const badSeconds = { km: [{ ...split, elevationGainM: 0, avgHeartRate: null }], mile: [] }
+    expect(() => parseDigest(edited(run, (o) => (o.splits = badSeconds)))).toThrow(
+      /splits\.km\[0\]\.seconds must be a finite number/,
+    )
+  })
+
+  it('reads a split whose time or climb is unknown, as null', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    const unknown = {
+      distanceM: 1000,
+      seconds: null,
+      gradeAdjustedSeconds: null,
+      elevationGainM: null,
+      avgHeartRate: null,
+    }
+    const parsed = parseDigest(edited(run, (o) => (o.splits = { km: [unknown], mile: [] })))
+    expect(parsed.splits?.km[0]).toEqual(unknown)
+  })
+
+  it('rejects more splits in a unit than the limit, so a stored row cannot grow without bound', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    const split = {
+      distanceM: 1000,
+      seconds: 1,
+      gradeAdjustedSeconds: 1,
+      elevationGainM: 0,
+      avgHeartRate: null,
+    }
+    const tooMany = Array.from({ length: MAX_KM_SPLITS + 1 }, () => split)
+    expect(() => parseDigest(edited(run, (o) => (o.splits = { km: tooMany, mile: [] })))).toThrow(
+      /splits\.km must have at most 500 entries/,
+    )
   })
 
   it('rejects a curve of the wrong length or with the wrong durations', () => {

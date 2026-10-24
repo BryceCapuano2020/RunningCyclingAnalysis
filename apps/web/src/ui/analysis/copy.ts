@@ -25,6 +25,8 @@ export const RETENTION_UNAVAILABLE =
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
 /** Said after a summary's sentence when the list under it says what moved in the numbers. */
 export const MOVED_NOTE = 'Your numbers moved.'
+export const SPLITS_NOT_LOADED =
+  'The splits could not be loaded. Open this activity again to retry.'
 /**
  * Stop for a visitor who is not signed in. The kept results reload; files being added must be added
  * again.

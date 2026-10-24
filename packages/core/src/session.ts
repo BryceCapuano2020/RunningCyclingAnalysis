@@ -5,7 +5,7 @@ import { countActivityFiles, extractFitFiles } from './fit'
 import { parseActivityFile } from './import'
 import { sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
-import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
+import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
 import { ACTIVITY } from './fit/zipDirectory'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
@@ -272,6 +272,14 @@ export class AnalysisSession {
       this.unsynced.set(key, code)
       if (haltsImport(code)) batch.halt = code
     }
+  }
+
+  /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
+  splitsOf(id: string): DigestSplits | null {
+    for (const digest of this.digests.values()) {
+      if (digest.id === id) return digest.splits ?? null
+    }
+    return null
   }
 
   private reset(): void {
