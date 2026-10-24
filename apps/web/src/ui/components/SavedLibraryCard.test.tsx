@@ -34,7 +34,7 @@ describe('SavedLibraryCard kept in this browser, after the last activity is dele
     const { rerender } = render(kept({ savedActivities: [KEPT_RUN], deleteActivity }))
 
     fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(deleteActivity).toHaveBeenCalledWith('run-1')
 
     rerender(kept({ savedActivities: [], libraryNotice: deleteNoticeText(KEPT_RUN) }))

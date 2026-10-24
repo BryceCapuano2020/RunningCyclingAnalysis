@@ -1155,7 +1155,7 @@ describe('device library', () => {
     ])
   })
 
-  it('empties the session on start over even when the device library refuses to clear', async () => {
+  it('empties the session on removing all activities even when the device library refuses to clear', async () => {
     const { send } = await startWorker()
     await send(signedOutImport())
     kept.library = { ...keptDevice(), clear: () => Promise.reject(new Error('refused')) }

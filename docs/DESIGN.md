@@ -12,19 +12,20 @@ should feel **athletic and energetic** without hiding the honesty of the engine.
 
 Hash routes, so the static host needs no fallback rules.
 
-| Route              | Page              | Holds                                                                                                                                                                                                                   |
-| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                                                  |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes |
-| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                             |
-| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), records earned across the library, efforts set here, data issues                                                                                                                   |
-| `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                        |
-| `#/profile`        | Profile           | Weight, units, year of birth and sex, account (email, download, delete), the saved library (signed in) or the activities kept in this browser (signed out), file retention, Start over                                  |
+| Route              | Page              | Holds                                                                                                                                                                                                                               |
+| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                                                              |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes             |
+| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                                         |
+| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), records earned across the library, efforts set here, data issues                                                                                                                               |
+| `#/method`         | How sure is this? | Ratio chart, both sports on one energy scale, heart-rate check, virtual-power accuracy, age grading, methodology                                                                                                                    |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities |
 
 Without a result every route except Profile shows the landing page. The header holds the wordmark,
-the four tabs (once there is a result), one **Add files** button, a Profile link and the account
-control. The account menu holds the email and Sign out; downloading data and
-deleting the account are on the Profile page. A file dropped anywhere on the page is imported.
+the four tabs (once there is a result), one **Add files** button, a **Profile** link (a person glyph
+with its word at every width) and the account control. Below 360 px the brand takes its own row and
+the actions the full width, so they wrap to two rows rather than three. The account menu holds the
+email and Sign out; downloading data and deleting the account are on the Profile page. A file dropped anywhere on the page is imported.
 
 The landing page's step 1 has a **How to get your files** button. It moves focus to the export guides
 below the steps, one closed details per service; guides whose steps could not be checked from the
@@ -170,6 +171,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   age they used ("aged 40"). The three pages that carry the full credit say "Age is counted from
   your birth year on the date of each effort." On the Ride page the source line also says that a
   ride's range is its model range.
+- **Removing data asks first.** Removing every kept activity and turning off kept original files
+  each open an alert dialog that names what goes and what stays, with Cancel focused. Removing one
+  saved activity opens its confirmation under its row, with a **Delete** button; a summary
+  kept in this browser gets a neutral card, and an original kept in the account the red one. Every
+  removal's confirm button is the one destructive button, from `ConfirmActions`. The account's
+  deletion needs the typed email address.
 - **A missing year of birth or sex asks once,** on the Balance page, in a quiet line that links to
   Profile. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer
   not to say" is stored as no sex.

@@ -98,12 +98,12 @@ export function ArrowRightIcon({ className }: IconProps) {
   )
 }
 
-export function SettingsIcon({ className }: IconProps) {
+/** A person, for the account and profile link. The sliders glyph read as a filter. */
+export function PersonIcon({ className }: IconProps) {
   return (
     <Icon className={className}>
-      <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
-      <circle cx="16" cy="7" r="2" />
-      <circle cx="8" cy="17" r="2" />
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 20c.9-3.7 3.7-5.8 7-5.8s6.1 2.1 7 5.8" />
     </Icon>
   )
 }

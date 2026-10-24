@@ -1,11 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ApiRequestError } from '../../api/client'
+import { ConfirmActions } from './ConfirmActions'
+import { useModalDialog } from './useModalDialog'
 import './DeleteAccountDialog.css'
 
 export interface DeleteAccountDialogProps {
   open: boolean
   email: string
+  /** The control that opened the dialog, which takes focus back when it closes. */
+  opener?: HTMLElement | null
   /** Resolves when the account is gone. Rejects when it could not be deleted. */
   onConfirm: () => Promise<void>
   onClose: () => void
@@ -34,17 +38,23 @@ function failureFrom(error: unknown): Failure {
 }
 
 /**
- * A confirmation for deleting the account. The confirm button looks disabled until the user types
+ * A confirmation for deleting the account. The confirm button looks unavailable until the user types
  * their email address exactly, but stays focusable so activating it can explain why nothing
  * happened. Escape and Cancel close the dialog, except while a delete is in flight.
  */
-export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteAccountDialogProps) {
+export function DeleteAccountDialog({
+  open,
+  email,
+  opener = null,
+  onConfirm,
+  onClose,
+}: DeleteAccountDialogProps) {
   const titleId = useId()
   const bodyId = useId()
   const inputId = useId()
   const hintId = useId()
   const errorId = useId()
-  const dialogRef = useRef<HTMLDialogElement>(null)
+  const dialogRef = useModalDialog(open, opener)
   const failureRef = useRef<HTMLParagraphElement>(null)
   const [typed, setTyped] = useState('')
   const [pending, setPending] = useState(false)
@@ -62,19 +72,6 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
     }
   }
 
-  // jsdom has no showModal, so the open attribute stands in for it there.
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog === null) return
-    if (open && !dialog.hasAttribute('open')) {
-      if (typeof dialog.showModal === 'function') dialog.showModal()
-      else dialog.setAttribute('open', '')
-    } else if (!open && dialog.hasAttribute('open')) {
-      if (typeof dialog.close === 'function') dialog.close()
-      else dialog.removeAttribute('open')
-    }
-  }, [open])
-
   const matches = email !== '' && typed === email
 
   // A refusal removes the confirm button, so focus moves to the explanation instead of the page.
@@ -82,8 +79,7 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
     if (failure !== null && !failure.retryable) failureRef.current?.focus()
   }, [failure])
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function confirmDelete() {
     if (pending || (failure !== null && !failure.retryable)) return
     if (!matches) {
       setBlocked(true)
@@ -102,10 +98,18 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void confirmDelete()
+  }
+
+  const retryable = failure === null || failure.retryable
+
   return (
     <dialog
       ref={dialogRef}
       className="delete-dialog"
+      role="alertdialog"
       aria-labelledby={titleId}
       aria-describedby={bodyId}
       onCancel={(event) => {
@@ -119,8 +123,8 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
         <p id={bodyId} className="delete-dialog__body">
           This permanently deletes your profile, every activity and every stored file. It cannot be
           undone. Activities kept in this browser from before you signed in are not part of your
-          account, so deleting it does not remove them; sign out and choose Start over to remove
-          them.
+          account, so deleting it does not remove them; sign out and choose Remove all my activities
+          to remove them.
         </p>
         <p className="delete-dialog__body">
           Your account is <strong>{email}</strong>.
@@ -164,21 +168,14 @@ export function DeleteAccountDialog({ open, email, onConfirm, onClose }: DeleteA
             {failure.message}
           </p>
         )}
-        <div className="delete-dialog__actions">
-          <button type="button" className="btn" onClick={onClose} disabled={pending}>
-            Cancel
-          </button>
-          {failure === null || failure.retryable ? (
-            <button
-              type="submit"
-              className="btn delete-dialog__confirm"
-              aria-disabled={!matches || pending}
-              aria-describedby={hintId}
-            >
-              {pending ? 'Deleting…' : 'Delete account'}
-            </button>
-          ) : null}
-        </div>
+        <ConfirmActions
+          confirmLabel={pending ? 'Deleting…' : 'Delete account'}
+          busy={pending}
+          unready={!matches}
+          confirmDescribedBy={hintId}
+          onCancel={onClose}
+          onConfirm={retryable ? () => void confirmDelete() : undefined}
+        />
       </form>
     </dialog>
   )

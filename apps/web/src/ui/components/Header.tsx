@@ -3,7 +3,7 @@ import { APP_NAME } from '../../appName'
 import type { Route } from '../route'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
-import { BrandMark, SettingsIcon, SportIcon } from './icons'
+import { BrandMark, PersonIcon, SportIcon } from './icons'
 import './Header.css'
 
 export interface HeaderProps {
@@ -53,7 +53,7 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
           href={hrefFor({ page: 'profile' })}
           aria-current={route?.page === 'profile' ? 'page' : undefined}
         >
-          <SettingsIcon />
+          <PersonIcon />
           <span className="header__profile-label">Profile</span>
         </a>
         {account}

@@ -1227,6 +1227,27 @@ describe('useAnalysis state', () => {
     expect(result.current.libraryError).toBeNull()
   })
 
+  it('says the library is still loading when a delete is asked for before it has loaded', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+
+    act(() => result.current.deleteActivity('a1'))
+
+    expect(result.current.libraryError).toBe(
+      'Your library is still loading, so nothing was deleted. Try again in a moment.',
+    )
+    expect(worker().posted.some((request) => request.type === 'deleteActivity')).toBe(false)
+  })
+
+  it('says the account is still loading when a delete is asked for before the account is known', () => {
+    const { result } = setup(LOADING)
+
+    act(() => result.current.deleteActivity('a1'))
+
+    expect(result.current.libraryError).toBe(
+      'Your library is still loading, so nothing was deleted. Try again in a moment.',
+    )
+  })
+
   it('clears a library message when the session expires', () => {
     const startMs = Date.UTC(2026, 9, 20, 12)
     const markExpired = vi.fn()

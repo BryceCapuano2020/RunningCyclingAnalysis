@@ -2,6 +2,11 @@
   min-width: 0;
 }
 
+/* The account-deleted note; empty, it takes no space but stays mounted to announce. */
+.app__notice:empty {
+  margin: 0;
+}
+
 /* A page: sections separated by space and a heading, not by borders. */
 .page-stack {
   display: grid;

@@ -53,33 +53,3 @@
   color: var(--status-critical);
   font-size: 0.875rem;
 }
-
-.delete-dialog__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-/* Text uses the surface colour so it keeps contrast in both themes. The button is aria-disabled,
-   not disabled, so it stays focusable and looks disabled through the attribute. */
-.btn.delete-dialog__confirm {
-  background: var(--status-critical);
-  border-color: var(--status-critical);
-  color: var(--surface-1);
-}
-
-.btn.delete-dialog__confirm[aria-disabled='true'] {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn.delete-dialog__confirm:hover {
-  background: var(--status-critical);
-  filter: brightness(1.1);
-}
-
-.btn.delete-dialog__confirm[aria-disabled='true']:hover {
-  filter: none;
-}

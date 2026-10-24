@@ -83,8 +83,7 @@
 }
 
 @media (max-width: 560px) {
-  .header__name,
-  .header__profile-label {
+  .header__name {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -95,5 +94,22 @@
 
   .header__tab .icon {
     display: none;
+  }
+}
+
+/* At 359 px and below the brand takes its own row and the actions the whole width. Add files and Profile
+   share a row, and the account control (the Google button, signed out) takes the next, so the
+   actions wrap to two rows rather than three. */
+@media (max-width: 359px) {
+  .header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'brand'
+      'actions'
+      'tabs';
+  }
+
+  .header__actions {
+    justify-content: flex-start;
   }
 }

@@ -17,7 +17,6 @@ const icons = await readStylesheet(import.meta.url, './ui/components/icons.tsx')
 const app = await readStylesheet(import.meta.url, './App.tsx')
 const device = await readStylesheet(import.meta.url, './worker/device.ts')
 const deviceLibrary = await readStylesheet(import.meta.url, './worker/deviceLibrary.ts')
-const profilePage = await readStylesheet(import.meta.url, './ui/pages/ProfilePage.tsx')
 const digestTypes = await readStylesheet(import.meta.url, '../../../packages/core/src/types.ts')
 const routeShapeSource = await readStylesheet(
   import.meta.url,
@@ -89,7 +88,7 @@ describe('privacy page names controls as the app does', () => {
     ['Delete account', 'ui/components/AccountSection.tsx'],
     ['Saved library', 'ui/components/SavedLibraryCard.tsx'],
     ['Kept in this browser', 'ui/components/SavedLibraryCard.tsx'],
-    ['Start over', 'ui/pages/ProfilePage.tsx'],
+    ['Remove all my activities', 'ui/pages/ProfilePage.tsx'],
     ['Prefer not to say', 'ui/components/AthleteFields.tsx'],
   ]
 
@@ -110,9 +109,9 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/signed in[^.]*not shown|not shown[^.]*signed in/i)
   })
 
-  it('says signing out keeps the summaries, and Start over removes them when signed out', () => {
+  it('says signing out keeps the summaries, and removing them clears them when signed out', () => {
     expect(text).toMatch(/Signing out does not remove/)
-    expect(text).toMatch(/Start over[^.]*signed out/i)
+    expect(text).toMatch(/Remove all my activities[^.]*signed out/i)
   })
 
   it('says deleting the account keeps this browser copy until it is cleared', () => {
@@ -213,9 +212,7 @@ describe('the code behind the page', () => {
     expect(outline).not.toMatch(/\b(lat|lon|latitude|longitude|coordinates)\??:/)
   })
 
-  it('offers Start over only when signed out', () => {
-    expect(profilePage).toContain('const canStartOver = !signedIn &&')
-  })
+  // Who sees the removal is a behaviour of the Profile page, pinned in ProfilePage.test.tsx.
 
   it('links the footer Privacy link to /privacy', () => {
     expect(app).toContain('<a href="/privacy">Privacy</a>')

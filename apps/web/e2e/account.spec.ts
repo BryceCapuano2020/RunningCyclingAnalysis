@@ -99,9 +99,13 @@ test('signed out, sign-in is offered only from the header, on the landing page a
 
   await goTo(page, 'Profile')
   await expect(page.getByRole('region', { name: 'Account' })).toContainText(
-    'Sign in with Google, at the top of the page',
+    'Sign in to keep your library on any device',
   )
-  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(1)
+  await expect(
+    page
+      .getByRole('region', { name: 'Account' })
+      .getByRole('button', { name: 'Sign in with Google' }),
+  ).toHaveCount(1)
 })
 
 test('a saved library survives reloads and sign-out, and deleting the account removes it', async ({
@@ -147,8 +151,9 @@ test('a saved library survives reloads and sign-out, and deleting the account re
   await test.step('turning off keep original files deletes the stored files', async () => {
     const keep = page.getByRole('checkbox', { name: KEEP_FILES })
     await expect(keep).toBeChecked()
-    // The checkbox follows the saved profile, so it changes once the PUT has returned.
+    // Turning it off asks first; the checkbox follows the saved profile once the PUT has returned.
     await keep.click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Turn off and delete' }).click()
     await expect(keep).not.toBeChecked()
 
     await expect.poll(() => storedFileCount(page)).toBe(0)
@@ -179,7 +184,7 @@ test('a saved library survives reloads and sign-out, and deleting the account re
     await goTo(page, 'Profile')
     await page.getByRole('button', { name: 'Delete account…' }).click()
 
-    const dialog = page.getByRole('dialog', { name: 'Delete your account?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Delete your account?' })
     await dialog.getByLabel('Email address').fill(email)
     await dialog.getByRole('button', { name: 'Delete account', exact: true }).click()
 
@@ -347,7 +352,7 @@ test('saved activity deletion requires confirmation and persists after reload', 
   await library.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await apiActivities(page.request)).toHaveLength(1)
   await deleteButton(library, record.digest.name).click()
-  await library.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+  await library.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(0)
   await expect(library.getByRole('status')).toContainText(`Deleted ${record.digest.name}`)
   await page.reload()

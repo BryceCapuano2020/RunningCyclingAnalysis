@@ -5,6 +5,7 @@ import {
   EXPORT_INTERRUPTED,
   exportFailureText,
   LIBRARY_NOT_LOADED,
+  LIBRARY_NOT_READY,
   SIGN_IN_TO_EXPORT,
   SPLITS_NOT_LOADED,
   STOPPED,
@@ -86,9 +87,15 @@ export function useLibraryActions({
     (id: string) => {
       const current = accountRef.current
       const signedIn = current.status === 'signed-in'
-      // Signed out, the library is the one kept in this browser; signed in, it must have loaded.
-      if (current.status === 'loading') return
-      if (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded')) return
+      // Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until
+      // then the delete says why nothing happened, rather than closing without a word.
+      if (
+        current.status === 'loading' ||
+        (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
+      ) {
+        setLibraryError(LIBRARY_NOT_READY)
+        return
+      }
       if (workerRef.current === null) {
         setLibraryError(STOPPED)
         return
