@@ -162,6 +162,10 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
 
 ## Why the digest exists
 
+A route shape (`packages/core/src/route/routeShape.ts`) is not part of the digest. It is an outline of
+the GPS track with its position removed, and it stays on the device: beside the digest in the
+device library, or in the worker's memory for an account. No request to the server or export carries it.
+
 The comparison depends on settings (mass, efficiency and economy priors, period) and on the model
 itself. Recomputing it from raw files on every view would mean parsing originals on every request,
 which a free-tier Worker cannot afford. The browser therefore computes a digest once per file and

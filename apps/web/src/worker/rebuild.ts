@@ -1,11 +1,13 @@
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
-import { parseActivityFile } from '@rca/core/import'
 import { haltsImport } from '@rca/core/session'
-import type { AnalysisSession } from '@rca/core/session'
+import type { AnalysisSession, SessionState } from '@rca/core/session'
+import { sha256Hex } from '@rca/core/sha256'
 import type { AthleteSettings } from '@rca/core/types'
-import { createActivity, downloadActivityFile, listActivities } from '../api/client'
-import type { DeviceActions } from './device'
+import { createActivity, listActivities } from '../api/client'
+import { workoutKeyOf, type DeviceActions } from './device'
+import { originalActivity } from './originalActivity'
+import type { WorkerResponse } from './protocol'
 import { syncIssueFor } from './syncIssue'
 
 /** The edge rate limiter's window. */
@@ -17,22 +19,48 @@ function nextUtcMidnightMs(nowMs: number): number {
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
 }
 
-async function hashHex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-/** What a rebuild changes: the session, the library kept in this browser, and the saved records. */
-export interface RebuildContext {
+/**
+ * What loading or rebuilding the account's library changes: the session, the library kept in this
+ * browser, the saved records and the originals still missing, and what the page is told.
+ */
+export interface LibraryContext {
   session: AnalysisSession
   device: Pick<DeviceActions, 'replaced'>
   savedRecords: Map<string, ActivityRecord>
+  missingOriginals: Set<string>
+  post: (message: WorkerResponse) => void
   reportLibrary: () => void
   reportUnreadable: (count: number) => void
 }
 
+/** Fetches the account's digests here, so a large library never crosses the main thread. */
+export async function loadServer(
+  ctx: LibraryContext,
+  settings: AthleteSettings,
+  userId: string,
+): Promise<SessionState> {
+  let unreadable = 0
+  const records = await listActivities(undefined, userId, (count) => {
+    unreadable += count
+  })
+  ctx.savedRecords.clear()
+  for (const record of records) ctx.savedRecords.set(record.id, record)
+  ctx.reportLibrary()
+  ctx.reportUnreadable(unreadable)
+  ctx.missingOriginals.clear()
+  for (const record of records) {
+    if (!record.hasFile) ctx.missingOriginals.add(workoutKeyOf(record.digest))
+  }
+  ctx.post({ type: 'missingOriginals', count: ctx.missingOriginals.size })
+  ctx.device.replaced()
+  return ctx.session.loadDigests(
+    records.map((record) => record.digest),
+    settings,
+  )
+}
+
 /** Rebuild stale digests only from their exact stored original file, retaining partial successes. */
-export async function rebuildStale(ctx: RebuildContext, settings: AthleteSettings, userId: string) {
+export async function rebuildStale(ctx: LibraryContext, settings: AthleteSettings, userId: string) {
   let unreadable = 0
   const records = await listActivities(undefined, userId, (count) => {
     unreadable += count
@@ -55,22 +83,12 @@ export async function rebuildStale(ctx: RebuildContext, settings: AthleteSetting
       continue
     }
     try {
-      const bytes = await downloadActivityFile(record.id, userId)
-      const parsed = parseActivityFile(bytes, record.fileName)
-      if (!parsed.ok) {
-        missing++
-        continue
-      }
-      const activity = parsed.activities.find(
-        (candidate) =>
-          candidate.sport === record.digest.sport &&
-          Math.round(candidate.startMs / 1000) === Math.round(record.digest.startMs / 1000),
-      )
+      const { bytes, activity } = await originalActivity(record, userId)
       if (!activity) {
         missing++
         continue
       }
-      const fileHash = await hashHex(bytes)
+      const fileHash = await sha256Hex(bytes)
       // Replaces this exact activity, so a copy deleted in another tab is not written back.
       const { record: upgraded } = await createActivity(
         digestActivity(activity),

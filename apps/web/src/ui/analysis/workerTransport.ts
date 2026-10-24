@@ -3,6 +3,12 @@ import type { WorkerRequest } from '../../worker/protocol'
 import { STOPPED } from './copy'
 import type { Box, Pending, SetError, Setter } from './model'
 
+/** A request made while there is no worker, with the settle its reply will go to. */
+interface UnsentRequest {
+  request: WorkerRequest
+  settle?: Pending['settle']
+}
+
 /**
  * The worker, the requests sent to it, and which reply answers which request. A request made while
  * there is no worker waits in `unsentRef` for the next one. Replies arrive in request order, so the
@@ -13,7 +19,7 @@ export interface WorkerTransport {
   workerGenerationRef: Box<number>
   workerGeneration: number
   stoppedRef: Box<boolean>
-  unsentRef: Box<WorkerRequest[]>
+  unsentRef: Box<UnsentRequest[]>
   pendingRepliesRef: Box<Pending[]>
   automaticRestartCountRef: Box<number>
   workerStopped: boolean
@@ -21,6 +27,8 @@ export interface WorkerTransport {
   send: (request: WorkerRequest, notice?: string, settle?: Pending['settle']) => void
   flushUnsent: () => void
   dropPendingReplies: () => void
+  /** Forgets the requests waiting for a worker. A route request among them is answered as unread. */
+  dropUnsent: () => void
   restartWorker: () => void
   retryWorker: () => void
 }
@@ -45,7 +53,7 @@ export function useWorkerTransport({
   const stoppedRef = useRef(false)
   const [workerStopped, setWorkerStopped] = useState(false)
   // Requests made while there is no worker (during a restart) wait here, in order.
-  const unsentRef = useRef<WorkerRequest[]>([])
+  const unsentRef = useRef<UnsentRequest[]>([])
   const automaticRestartCountRef = useRef(0)
 
   const restartWorker = useCallback(() => {
@@ -63,17 +71,27 @@ export function useWorkerTransport({
     for (const pending of dropped) pending.settle?.(null)
   }, [pendingRepliesRef])
 
+  /** Answers the route requests waiting for a worker as unread, and forgets the others. */
+  const dropUnsent = useCallback(() => {
+    const dropped = unsentRef.current
+    unsentRef.current = []
+    for (const { settle } of dropped) settle?.(null)
+  }, [])
+
   const send = useCallback(
     (request: WorkerRequest, notice?: string, settle?: Pending['settle']) => {
       const worker = workerRef.current
       if (worker === null) {
-        // Once the worker has stopped for good, nothing is queued for a later restart, so the
-        // user is told to act again. Settings still queue: they must reach the next worker.
+        // Once the worker has stopped for good, nothing is queued for a later restart. A route is
+        // answered as unread, without an error, so its page offers to try again. The user is told
+        // to act again otherwise. Settings still queue: they must reach the next worker. A request
+        // to forget the routes needs no worker, so it is dropped quietly.
         if (stoppedRef.current && request.type !== 'setSettings') {
-          setError(STOPPED)
+          if (request.type === 'routeShape') settle?.(null)
+          else if (request.type !== 'forgetRoutes') setError(STOPPED)
           return
         }
-        unsentRef.current.push(request)
+        unsentRef.current.push({ request, settle })
         return
       }
       pendingRepliesRef.current.push({ kind: request.type, notice, settle })
@@ -84,7 +102,7 @@ export function useWorkerTransport({
   )
 
   const flushUnsent = useCallback(() => {
-    for (const request of unsentRef.current.splice(0)) send(request)
+    for (const { request, settle } of unsentRef.current.splice(0)) send(request, undefined, settle)
   }, [send])
 
   const retryWorker = useCallback(() => {
@@ -107,6 +125,7 @@ export function useWorkerTransport({
     send,
     flushUnsent,
     dropPendingReplies,
+    dropUnsent,
     restartWorker,
     retryWorker,
   }

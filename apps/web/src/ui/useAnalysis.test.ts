@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { Copy } from '@rca/core/session'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { createElement, StrictMode } from 'react'
@@ -6,6 +7,8 @@ import type { ReactNode } from 'react'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
+import type { RouteShape } from '@rca/core/route/routeShape'
+import type { RouteReply } from './routeReply'
 import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
@@ -13,6 +16,14 @@ import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 import { formatDay } from './format/date'
 import { makeResult } from './components/fixtures'
+
+const SAVED_COPY: Copy = {
+  id: 'saved-copy',
+  rank: 3,
+  hasPower: false,
+  hasHeartRate: true,
+  durationS: 3600,
+}
 
 /** The local time shown for a reset instant, as the limit copy formats it. */
 function localTime(ms: number): string {
@@ -549,7 +560,8 @@ describe('useAnalysis device library', () => {
     })
 
     const sent = FakeWorker.instances.flatMap((instance) => instance.posted.map((r) => r.type))
-    expect(sent).toEqual(['loadServer', 'loadServer'])
+    // The expired session also tells the worker to forget its route shapes; no device load is sent.
+    expect(sent).toEqual(['loadServer', 'loadServer', 'forgetRoutes'])
   })
 
   it('sends the device load again to a signed-out worker that is restarted', () => {
@@ -588,7 +600,7 @@ describe('useAnalysis device library', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     finishDeviceLoad()
@@ -1196,7 +1208,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1223,7 +1235,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1246,7 +1258,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
@@ -1280,7 +1292,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
 
@@ -1302,7 +1314,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1325,7 +1337,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1547,5 +1559,147 @@ describe('useAnalysis account export', () => {
     await expect(exported).rejects.toThrow(
       'The download was interrupted. Download your data again.',
     )
+  })
+})
+
+describe('useAnalysis route shapes', () => {
+  const SHAPE: RouteShape = {
+    points: [
+      [0, 0],
+      [1, 1],
+    ],
+    aspect: 1,
+  }
+
+  it('asks the worker for a route under the signed-in user, and resolves with the shape', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('saved-1', false)
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'routeShape',
+      id: 'saved-1',
+      userId: USER_ID,
+      fromOriginal: false,
+    })
+    act(() => worker().reply({ type: 'routeShape', route: SHAPE, original: false }))
+    await expect(loaded).resolves.toEqual({ kind: 'shape', route: SHAPE })
+  })
+
+  it('asks for a signed-out route without a user, since it is read from this browser', async () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+
+    act(() => {
+      void result.current.loadRoute('run-1', false)
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'routeShape',
+      id: 'run-1',
+      fromOriginal: false,
+    })
+  })
+
+  it('asks the worker to read the original only when asked to', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    act(() => {
+      void result.current.loadRoute('saved-1', true)
+    })
+
+    expect(worker().posted.at(-1)).toMatchObject({ type: 'routeShape', fromOriginal: true })
+  })
+
+  it.each([
+    ['in the kept original', { route: null, original: true }, { kind: 'original' }],
+    ['in neither place', { route: null, original: false }, { kind: 'none' }],
+  ])('reports a route %s', async (_, reply, expected) => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('saved-1', false)
+    })
+    act(() => worker().reply({ type: 'routeShape', ...reply }))
+
+    await expect(loaded).resolves.toEqual(expected)
+  })
+
+  it('reports a failed read as failed, and shows no error', async () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('run-1', true)
+    })
+    act(() => worker().reply({ type: 'error', message: 'Too many downloads' }))
+
+    await expect(loaded).resolves.toEqual({ kind: 'failed' })
+    expect(result.current.error).toBeNull()
+  })
+
+  it('answers a route read made after the worker stopped for good as failed, with no error', async () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+    const before = result.current.error
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('run-1', false)
+    })
+
+    await expect(loaded).resolves.toEqual({ kind: 'failed' })
+    expect(result.current.error).toBe(before)
+  })
+
+  it('drops a route reply that answers no route request, and keeps the import it would have answered', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.busy).toBe(true)
+
+    act(() => worker().reply({ type: 'routeShape', route: SHAPE, original: false }))
+
+    expect(result.current.busy).toBe(true)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.busy).toBe(false)
+    expect(result.current.state).toEqual(STATE)
+  })
+
+  it('tells the worker to forget the route shapes when the session expires', () => {
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
+    finishLibraryLoad()
+    expect(result.current.error).toBeNull()
+
+    rerender({
+      account: { status: 'signed-out', me: null, markExpired, sessionExpired: true },
+      current: SETTINGS,
+    })
+
+    expect(worker().posted).toContainEqual({ type: 'forgetRoutes' })
+  })
+
+  it('keeps an error already on screen, and is not busy while a route loads', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => worker().reply({ type: 'error', message: 'The import failed' }))
+
+    act(() => {
+      void result.current.loadRoute('run-1', false)
+    })
+
+    expect(result.current.error).toBe('The import failed')
+    expect(result.current.busy).toBe(false)
   })
 })

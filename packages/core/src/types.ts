@@ -4,6 +4,8 @@
  * in Node tests unchanged.
  */
 
+import type { RouteShape } from './route/routeShape'
+
 export type Sport = 'run' | 'ride'
 
 /**
@@ -42,6 +44,11 @@ export interface Activity {
    * known. Distance bests cannot span these seconds. Absent for an activity built without resampling.
    */
   unrecorded?: Uint8Array
+  /**
+   * The outline of an outdoor GPS track, with its position removed. Kept on the device only, never
+   * in a digest or sent to the server. See route/routeShape.ts.
+   */
+  route?: RouteShape
 }
 
 export interface AthleteSettings {

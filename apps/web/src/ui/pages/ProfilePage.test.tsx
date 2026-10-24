@@ -19,6 +19,7 @@ const KEPT_RUN: SavedActivity = {
   name: 'Morning run',
   startMs: new Date(2026, 9, 20, 12).getTime(),
   sport: 'run',
+  copy: { id: 'run-1', rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
 }
 const EMAIL = 'ada@example.com'
 

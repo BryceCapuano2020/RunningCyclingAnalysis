@@ -57,11 +57,16 @@ export function readPosition(lat: string | undefined, lon: string | undefined): 
  * skipped, so with no positions the track is empty.
  */
 export function trackFromPoints(points: readonly TimedPoint[], maxSpeedMs: number): GpsTrack {
+  return trackFromFixes(fixesOf(points), { maxSpeedMs })
+}
+
+/** The positions of the points that have one, in the order given. */
+export function fixesOf(points: readonly TimedPoint[]): GpsFix[] {
   const fixes: GpsFix[] = []
   for (const point of points) {
     if (point.position !== undefined) {
       fixes.push({ t: point.tMs, lat: point.position.lat, lon: point.position.lon })
     }
   }
-  return trackFromFixes(fixes, { maxSpeedMs })
+  return fixes
 }

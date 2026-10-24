@@ -3,6 +3,7 @@ import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
+import { parseActivityFile } from '@rca/core/import'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { Activity, ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -99,7 +100,8 @@ async function startWorker() {
           last?.type !== 'error' &&
           last?.type !== 'rebuildComplete' &&
           last?.type !== 'exportReady' &&
-          last?.type !== 'splits')
+          last?.type !== 'splits' &&
+          last?.type !== 'routeShape')
       ) {
         throw new Error('still working')
       }
@@ -953,6 +955,7 @@ function refusingLibrary(): DeviceLibrary {
   return {
     all: async () => [],
     get: async () => null,
+    route: async () => null,
     put: refused,
     remove: refused,
     clear: refused,
@@ -1431,5 +1434,221 @@ describe('account export', () => {
     const messages = await send(REQUEST)
 
     expect(messages).toEqual([{ type: 'error', message: 'Offline', issue: 'network' }])
+  })
+})
+
+describe('route shapes', () => {
+  const GPX_BYTES = new Uint8Array(encodeGpx(sampleActivity))
+  /** The route the GPX file of the sample run has, as the import reads it. */
+  const ROUTE = parseActivityFile(GPX_BYTES, 'run.gpx')
+  const expectedRoute = ROUTE.ok ? ROUTE.activities[0]?.route : undefined
+
+  /** The sample run as a record of the account, with or without its original file. */
+  function savedRecord(hasFile: boolean): ActivityRecord {
+    return { ...recordFor(SAMPLE_DIGEST, hasFile), fileName: 'run.gpx' }
+  }
+
+  function routeReply(messages: WorkerResponse[]) {
+    return messages.at(-1)
+  }
+
+  /** The import of the sample run into this tab, signed in without keeping its file. */
+  async function importHere(send: (request: WorkerRequest) => Promise<WorkerResponse[]>) {
+    await send({
+      type: 'addFiles',
+      files: [gpxFile()],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+    const [imported] = mocked.createActivity.mock.calls[0] ?? []
+    return `rec-${imported?.id}`
+  }
+
+  it('gives a route to an activity imported here, and keeps no route in the upload', async () => {
+    const { send } = await startWorker()
+    const id = await importHere(send)
+
+    const [digest, , , userId] = mocked.createActivity.mock.calls[0] ?? []
+    expect(userId).toBe(USER_ID)
+    expect(digest).not.toHaveProperty('route')
+    expect(JSON.stringify(mocked.createActivity.mock.calls)).not.toContain('"points"')
+    expect(JSON.stringify(mocked.createActivity.mock.calls)).not.toContain('"aspect"')
+    expect(expectedRoute?.points.length).toBeGreaterThanOrEqual(2)
+    expect(JSON.stringify(mocked.createActivity.mock.calls)).not.toContain(
+      JSON.stringify(expectedRoute?.points),
+    )
+
+    const reply = await send({ type: 'routeShape', id, userId: USER_ID })
+    expect(routeReply(reply)).toEqual({ type: 'routeShape', route: expectedRoute, original: false })
+    expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+  })
+
+  it('reads the original file only when asked, and then once', async () => {
+    mocked.listActivities.mockResolvedValue([savedRecord(true)])
+    mocked.downloadActivityFile.mockResolvedValue(GPX_BYTES)
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    const id = savedRecord(true).id
+
+    const unasked = await send({ type: 'routeShape', id, userId: USER_ID })
+    expect(routeReply(unasked)).toEqual({ type: 'routeShape', route: null, original: true })
+    expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+
+    const asked = await send({ type: 'routeShape', id, userId: USER_ID, fromOriginal: true })
+    const again = await send({ type: 'routeShape', id, userId: USER_ID })
+
+    expect(routeReply(asked)).toEqual({ type: 'routeShape', route: expectedRoute, original: false })
+    expect(routeReply(again)).toEqual({ type: 'routeShape', route: expectedRoute, original: false })
+    expect(mocked.downloadActivityFile).toHaveBeenCalledOnce()
+    expect(mocked.downloadActivityFile).toHaveBeenCalledWith(id, USER_ID)
+  })
+
+  it('gives no route to a saved activity with no original file, and reads nothing', async () => {
+    mocked.listActivities.mockResolvedValue([savedRecord(false)])
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const asked = await send({
+      type: 'routeShape',
+      id: savedRecord(false).id,
+      userId: USER_ID,
+      fromOriginal: true,
+    })
+
+    expect(routeReply(asked)).toEqual({ type: 'routeShape', route: null, original: false })
+    expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+  })
+
+  it('forgets the shapes of this tab on a restart and when the tab is cleared', async () => {
+    mocked.listActivities.mockResolvedValue([savedRecord(false)])
+    const first = await startWorker()
+    const id = await importHere(first.send)
+    expect(routeReply(await first.send({ type: 'routeShape', id, userId: USER_ID }))).toMatchObject(
+      { route: { points: expect.any(Array) }, original: false },
+    )
+
+    await first.send({ type: 'clear', forgetDevice: false })
+    expect(routeReply(await first.send({ type: 'routeShape', id, userId: USER_ID }))).toEqual({
+      type: 'routeShape',
+      route: null,
+      original: false,
+    })
+
+    vi.resetModules()
+    const restarted = await startWorker()
+    expect(routeReply(await restarted.send({ type: 'routeShape', id, userId: USER_ID }))).toEqual({
+      type: 'routeShape',
+      route: null,
+      original: false,
+    })
+  })
+
+  it('forgets the shape of a saved activity once it is deleted from the account', async () => {
+    // An earlier test leaves the delete refused; this one needs the account to accept it.
+    mocked.deleteActivity.mockResolvedValue(undefined)
+    const { send } = await startWorker()
+    const id = await importHere(send)
+    expect(routeReply(await send({ type: 'routeShape', id, userId: USER_ID }))).toMatchObject({
+      route: { points: expect.any(Array) },
+    })
+
+    await send({ type: 'deleteActivity', id, userId: USER_ID, settings: SETTINGS })
+
+    expect(routeReply(await send({ type: 'routeShape', id, userId: USER_ID }))).toEqual({
+      type: 'routeShape',
+      route: null,
+      original: false,
+    })
+  })
+
+  it('keeps a signed-out route with its digest, across a restart, until the activity is deleted', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(gpxFile()))
+    const id = workoutKeyOf(SAMPLE_DIGEST)
+
+    expect(routeReply(await send({ type: 'routeShape', id }))).toEqual({
+      type: 'routeShape',
+      route: expectedRoute,
+      original: false,
+    })
+
+    vi.resetModules()
+    const restarted = await startWorker()
+    expect(routeReply(await restarted.send({ type: 'routeShape', id }))).toEqual({
+      type: 'routeShape',
+      route: expectedRoute,
+      original: false,
+    })
+
+    await restarted.send({ type: 'deleteDeviceActivity', id, settings: SETTINGS })
+    expect(routeReply(await restarted.send({ type: 'routeShape', id }))).toEqual({
+      type: 'routeShape',
+      route: null,
+      original: false,
+    })
+  })
+
+  it('gives no route to a signed-out activity whose file has no positions', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(fitFile()))
+
+    const reply = await send({ type: 'routeShape', id: workoutKeyOf(SAMPLE_DIGEST) })
+
+    expect(routeReply(reply)).toEqual({ type: 'routeShape', route: null, original: false })
+  })
+
+  it('offers no route for an indoor activity, and reads nothing even when asked', async () => {
+    const indoor = { ...savedRecord(true), digest: { ...SAMPLE_DIGEST, indoor: true } }
+    mocked.listActivities.mockResolvedValue([indoor])
+    mocked.downloadActivityFile.mockResolvedValue(GPX_BYTES)
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+
+    const unasked = await send({ type: 'routeShape', id: indoor.id, userId: USER_ID })
+    const asked = await send({
+      type: 'routeShape',
+      id: indoor.id,
+      userId: USER_ID,
+      fromOriginal: true,
+    })
+
+    expect(routeReply(unasked)).toEqual({ type: 'routeShape', route: null, original: false })
+    expect(routeReply(asked)).toEqual({ type: 'routeShape', route: null, original: false })
+    expect(mocked.downloadActivityFile).not.toHaveBeenCalled()
+  })
+
+  it('forgets the shapes of this tab when the session ends without a sign-out', async () => {
+    const { send } = await startWorker()
+    const id = await importHere(send)
+    expect(routeReply(await send({ type: 'routeShape', id, userId: USER_ID }))).toMatchObject({
+      route: { points: expect.any(Array) },
+    })
+
+    const forgotten = await send({ type: 'forgetRoutes' })
+
+    expect(routeReply(forgotten)).toEqual({ type: 'routeShape', route: null, original: false })
+    expect(routeReply(await send({ type: 'routeShape', id, userId: USER_ID }))).toEqual({
+      type: 'routeShape',
+      route: null,
+      original: false,
+    })
+  })
+
+  it('forgets a signed-out route when Start over clears the library', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(gpxFile()))
+    const id = workoutKeyOf(SAMPLE_DIGEST)
+    expect(routeReply(await send({ type: 'routeShape', id }))).toMatchObject({
+      route: { points: expect.any(Array) },
+    })
+
+    await send({ type: 'clear', forgetDevice: true })
+
+    expect(routeReply(await send({ type: 'routeShape', id }))).toEqual({
+      type: 'routeShape',
+      route: null,
+      original: false,
+    })
+    expect(await keptDevice().all()).toEqual([])
   })
 })

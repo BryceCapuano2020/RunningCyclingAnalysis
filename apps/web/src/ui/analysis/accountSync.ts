@@ -109,6 +109,8 @@ export function useAccountTransitions(deps: AccountTransitionDeps): void {
  */
 function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
   deps.accountEpochRef.current += 1
+  // The worker still holds this account's route shapes, so it is told to forget them.
+  deps.transport.send({ type: 'forgetRoutes' })
   deps.library.setLibrary('idle')
   deps.library.setLibraryNotice(null)
   deps.library.setLibraryError(null)

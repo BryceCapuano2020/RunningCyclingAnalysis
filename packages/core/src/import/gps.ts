@@ -14,7 +14,7 @@ export interface GpsTrack {
   rejected: number
 }
 
-const EARTH_RADIUS_M = 6_371_008.8
+export const EARTH_RADIUS_M = 6_371_008.8
 /** A gap longer than this is a pause: speed is not smoothed across it and no distance is credited. */
 const MAX_GAP_MS = 30_000
 /** Consecutive fixes that must agree with each other before they replace a disagreeing anchor. */
@@ -47,6 +47,44 @@ export function trackFromFixes(
     throw new RangeError('trackFromFixes: maxSpeedMs and halfWindowS must be positive')
   }
 
+  const { accepted, rejected } = acceptFixes(fixes, opts.maxSpeedMs)
+
+  const n = accepted.length
+  const tMs = new Float64Array(n)
+  const distanceM = new Float64Array(n)
+  const speedMs = new Float64Array(n)
+  for (const [i, fix] of accepted.entries()) tMs[i] = fix.t
+
+  let segStart = 0
+  while (segStart < n) {
+    let segEnd = segStart
+    while (segEnd + 1 < n && tMs[segEnd + 1]! - tMs[segEnd]! <= MAX_GAP_MS) segEnd++
+    centredSpeeds(accepted, segStart, segEnd, halfWindowS * 1000, speedMs)
+    segStart = segEnd + 1
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (speedMs[i]! < stillSpeedMs) speedMs[i] = 0
+  }
+
+  for (let i = 1; i < n; i++) {
+    const dtMs = tMs[i]! - tMs[i - 1]!
+    const credit = dtMs <= MAX_GAP_MS ? ((speedMs[i - 1]! + speedMs[i]!) / 2) * (dtMs / 1000) : 0
+    distanceM[i] = distanceM[i - 1]! + credit
+  }
+
+  return { tMs, distanceM, speedMs, rejected }
+}
+
+/**
+ * The fixes that are kept, in time order, and how many were dropped: invalid values, repeated
+ * times, and fixes implying more than twice maxSpeedMs. A run of three fixes that agree with each
+ * other replaces an outlier anchor. The track and the route shape both use these fixes.
+ */
+export function acceptFixes(
+  fixes: GpsFix[],
+  maxSpeedMs: number,
+): { accepted: GpsFix[]; rejected: number } {
   let rejected = 0
   const valid: GpsFix[] = []
   for (const fix of fixes) {
@@ -64,7 +102,7 @@ export function trackFromFixes(
 
   const accepted: GpsFix[] = []
   const pending: GpsFix[] = []
-  const maxStepSpeedMs = 2 * opts.maxSpeedMs
+  const maxStepSpeedMs = 2 * maxSpeedMs
   const implausible = (a: GpsFix, b: GpsFix): boolean =>
     haversineM(a.lat, a.lon, b.lat, b.lon) > maxStepSpeedMs * ((b.t - a.t) / 1000)
 
@@ -105,32 +143,7 @@ export function trackFromFixes(
     pending.length = 0
   }
   rejected += pending.length
-
-  const n = accepted.length
-  const tMs = new Float64Array(n)
-  const distanceM = new Float64Array(n)
-  const speedMs = new Float64Array(n)
-  for (const [i, fix] of accepted.entries()) tMs[i] = fix.t
-
-  let segStart = 0
-  while (segStart < n) {
-    let segEnd = segStart
-    while (segEnd + 1 < n && tMs[segEnd + 1]! - tMs[segEnd]! <= MAX_GAP_MS) segEnd++
-    centredSpeeds(accepted, segStart, segEnd, halfWindowS * 1000, speedMs)
-    segStart = segEnd + 1
-  }
-
-  for (let i = 0; i < n; i++) {
-    if (speedMs[i]! < stillSpeedMs) speedMs[i] = 0
-  }
-
-  for (let i = 1; i < n; i++) {
-    const dtMs = tMs[i]! - tMs[i - 1]!
-    const credit = dtMs <= MAX_GAP_MS ? ((speedMs[i - 1]! + speedMs[i]!) / 2) * (dtMs / 1000) : 0
-    distanceM[i] = distanceM[i - 1]! + credit
-  }
-
-  return { tMs, distanceM, speedMs, rejected }
+  return { accepted, rejected }
 }
 
 function isValidFix(fix: GpsFix): boolean {

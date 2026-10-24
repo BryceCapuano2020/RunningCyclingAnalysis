@@ -714,3 +714,17 @@ describe('encodeTcx options', () => {
     expect(a.speed.every((v) => v === 0)).toBe(true)
   })
 })
+
+describe('parseTcx route shape', () => {
+  it('gives the activity a route shape from its positions', () => {
+    const result = parseTcx(encodeTcx(steadyActivity('run', 600, 3), { gps: true }), 'run.tcx')
+
+    expect(result.ok && result.activities[0]?.route?.points.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('gives an activity without positions no route shape', () => {
+    const result = parseTcx(encodeTcx(steadyActivity('run', 600, 3)), 'nopos.tcx')
+
+    expect(result.ok && result.activities[0]?.route).toBeUndefined()
+  })
+})

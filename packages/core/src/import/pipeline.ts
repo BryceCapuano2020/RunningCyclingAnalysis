@@ -1,7 +1,9 @@
 import { DAY_MS } from '../constants'
 import type { Activity, Sport } from '../types'
+import { routeFromFixes } from '../route/routeShape'
 import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
+import type { GpsFix } from './gps'
 import type { ParseLimits, ParseOptions, ParseResult } from './result'
 import { failure, MAX_FILE_SAMPLES } from './result'
 
@@ -52,6 +54,8 @@ export interface PipelineUnit {
   indoor: boolean
   /** Whether any record has a position. Without one, indoor is inferred from altitude and speed. */
   hasPosition: boolean
+  /** The unit's positions in time order, for its route shape. Absent or empty without GPS. */
+  fixes?: GpsFix[]
 }
 
 /** A pipeline input for one file that holds a single unit. */
@@ -254,12 +258,14 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   const idBase = `${resampled.startMs}-${fileName}`
   const id = multi ? `${idBase}#${index}` : idBase
   const name = multi ? `${base} (${sport})` : base
+  const route = indoor ? null : routeFromFixes(unit.fixes ?? [], first, last, maxSpeed)
   const activity: Activity = {
     id: parts > 1 ? `${id}.${part + 1}` : id,
     name: parts > 1 ? `${name} (part ${part + 1})` : name,
     sport,
     indoor,
     ...resampled,
+    ...(route ? { route } : {}),
   }
   return { ok: true, activity, dropped }
 }

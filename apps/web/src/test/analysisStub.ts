@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import type { SessionState } from '@rca/core/session'
 import { EMPTY_SESSION } from '../ui/analysis/model'
+import type { RouteReply } from '../ui/routeReply'
 import type { AnalysisController } from '../ui/useAnalysis'
 
 export interface AnalysisStubOverrides extends Partial<Omit<AnalysisController, 'state'>> {
@@ -43,6 +44,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     loadSample: vi.fn(),
     setRange: vi.fn(),
     clear: vi.fn(),
+    loadRoute: vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' })),
     ...rest,
   }
 }

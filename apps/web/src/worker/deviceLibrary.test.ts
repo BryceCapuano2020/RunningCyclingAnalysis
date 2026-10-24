@@ -1,4 +1,5 @@
-import { digestActivity } from '@rca/core/digest'
+import { digestActivity, serializeDigest } from '@rca/core/digest'
+import type { RouteShape } from '@rca/core/route/routeShape'
 import { sampleDataset } from '@rca/core/synthetic'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { openDeviceLibrary } from './deviceLibrary'
@@ -250,5 +251,85 @@ describe('device library in IndexedDB', () => {
 
     await expect(library.clear()).rejects.toThrow('Clearing is refused')
     expect(await library.get('run-1')).toEqual(MEASURED)
+  })
+})
+
+describe('device library routes', () => {
+  const ROUTE: RouteShape = {
+    points: [
+      [0, 0],
+      [1, 0.5],
+    ],
+    aspect: 2,
+  }
+
+  it('keeps a route with its digest, and removes it with the digest', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+    const library = openDeviceLibrary()
+
+    await library.put('run-1', MEASURED, ROUTE)
+
+    expect(await library.route('run-1')).toEqual(ROUTE)
+    expect(await library.get('run-1')).toEqual(MEASURED)
+    expect(await library.all()).toEqual([{ workoutKey: 'run-1', digest: MEASURED }])
+
+    await library.remove('run-1')
+    expect(await library.route('run-1')).toBeNull()
+  })
+
+  it('keeps a digest put without a route with no route', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+    const library = openDeviceLibrary()
+
+    await library.put('run-1', MEASURED)
+
+    expect(await library.route('run-1')).toBeNull()
+  })
+
+  it('drops the old route when a replacement comes without one', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+    const library = openDeviceLibrary()
+    await library.put('run-1', MEASURED, ROUTE)
+
+    await library.put('run-1', MEASURED)
+
+    expect(await library.route('run-1')).toBeNull()
+  })
+
+  it('reads a row stored before routes were kept, with no route', async () => {
+    const fake = fakeIndexedDb()
+    vi.stubGlobal('indexedDB', fake.indexedDB)
+    fake.rows.set('run-1', serializeDigest(MEASURED))
+    const library = openDeviceLibrary()
+
+    expect(await library.get('run-1')).toEqual(MEASURED)
+    expect(await library.route('run-1')).toBeNull()
+  })
+
+  it('drops a stored route that is not a route, and keeps the digest', async () => {
+    const fake = fakeIndexedDb()
+    vi.stubGlobal('indexedDB', fake.indexedDB)
+    fake.rows.set('run-1', { digest: serializeDigest(MEASURED), route: { points: 'outline' } })
+    const library = openDeviceLibrary()
+
+    expect(await library.get('run-1')).toEqual(MEASURED)
+    expect(await library.route('run-1')).toBeNull()
+  })
+
+  it('reads no route when storage is unavailable', async () => {
+    vi.stubGlobal('indexedDB', undefined)
+
+    await expect(openDeviceLibrary().route('run-1')).resolves.toBeNull()
+  })
+
+  it('clears the routes with the digests', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+    const library = openDeviceLibrary()
+    await library.put('run-1', MEASURED, ROUTE)
+
+    await library.clear()
+
+    expect(await library.route('run-1')).toBeNull()
+    expect(await library.get('run-1')).toBeNull()
   })
 })

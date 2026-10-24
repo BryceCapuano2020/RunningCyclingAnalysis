@@ -1,4 +1,6 @@
 import { parseDigest, serializeDigest } from '@rca/core/digest'
+import { parseRouteShape } from '@rca/core/route/routeShape'
+import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest } from '@rca/core/types'
 
 /**
@@ -13,7 +15,10 @@ export interface DeviceLibrary {
    */
   all(): Promise<DeviceEntry[]>
   get(workoutKey: string): Promise<ActivityDigest | null>
-  put(workoutKey: string, digest: ActivityDigest): Promise<void>
+  /** The route shape kept with the digest, or null when none was kept or it does not read. */
+  route(workoutKey: string): Promise<RouteShape | null>
+  /** Keeps a digest with its route, which goes with it. A replacement without a route keeps none. */
+  put(workoutKey: string, digest: ActivityDigest, route?: RouteShape | null): Promise<void>
   remove(workoutKey: string): Promise<void>
   clear(): Promise<void>
 }
@@ -53,6 +58,26 @@ function readDigest(value: unknown): ActivityDigest | null {
   } catch {
     return null
   }
+}
+
+/**
+ * A stored row: the digest and the route kept with it. A row written before routes were kept holds
+ * the digest alone, and reads with no route.
+ */
+interface Row {
+  digest: ActivityDigest
+  route: RouteShape | null
+}
+
+function readRow(value: unknown): Row | null {
+  if (typeof value === 'string') {
+    const digest = readDigest(value)
+    return digest === null ? null : { digest, route: null }
+  }
+  if (typeof value !== 'object' || value === null || !('digest' in value)) return null
+  const digest = readDigest(value.digest)
+  const route = 'route' in value ? parseRouteShape(value.route) : null
+  return digest === null ? null : { digest, route }
 }
 
 /**
@@ -108,6 +133,9 @@ export function openDeviceLibrary(): DeviceLibrary {
     }
   }
 
+  const readOne = (workoutKey: string) =>
+    withStore('readonly', async (store) => readRow(await done(store.get(workoutKey))), null)
+
   const write = (change: (store: IDBObjectStore) => void) =>
     withStore(
       'readwrite',
@@ -123,17 +151,18 @@ export function openDeviceLibrary(): DeviceLibrary {
         'readonly',
         async (store) => {
           const [keys, values] = await Promise.all([done(store.getAllKeys()), done(store.getAll())])
-          return keys.map((key, index) => ({ key, digest: readDigest(values[index]) }))
+          return keys.map((key, index) => ({ key, row: readRow(values[index]) }))
         },
         [],
       )
-      return rows.flatMap(({ key, digest }) =>
-        typeof key === 'string' && digest !== null ? [{ workoutKey: key, digest }] : [],
+      return rows.flatMap(({ key, row }) =>
+        typeof key === 'string' && row !== null ? [{ workoutKey: key, digest: row.digest }] : [],
       )
     },
-    get: (workoutKey) =>
-      withStore('readonly', async (store) => readDigest(await done(store.get(workoutKey))), null),
-    put: (workoutKey, digest) => write((store) => store.put(serializeDigest(digest), workoutKey)),
+    get: async (workoutKey) => (await readOne(workoutKey))?.digest ?? null,
+    route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
+    put: (workoutKey, digest, route = null) =>
+      write((store) => store.put({ digest: serializeDigest(digest), route }, workoutKey)),
     remove: (workoutKey) => write((store) => store.delete(workoutKey)),
     clear: () => write((store) => store.clear()),
   }

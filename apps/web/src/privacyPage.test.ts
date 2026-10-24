@@ -16,8 +16,13 @@ const tokensCss = await readStylesheet(import.meta.url, './styles/tokens.css')
 const icons = await readStylesheet(import.meta.url, './ui/components/icons.tsx')
 const app = await readStylesheet(import.meta.url, './App.tsx')
 const device = await readStylesheet(import.meta.url, './worker/device.ts')
+const deviceLibrary = await readStylesheet(import.meta.url, './worker/deviceLibrary.ts')
 const profilePage = await readStylesheet(import.meta.url, './ui/pages/ProfilePage.tsx')
 const digestTypes = await readStylesheet(import.meta.url, '../../../packages/core/src/types.ts')
+const routeShapeSource = await readStylesheet(
+  import.meta.url,
+  '../../../packages/core/src/route/routeShape.ts',
+)
 const sessionSource = await readStylesheet(import.meta.url, '../../api/src/auth/session.ts')
 const authRoutes = await readStylesheet(import.meta.url, '../../api/src/routes/auth.ts')
 const apiLimits = await readStylesheet(import.meta.url, '../../api/LIMITS.md')
@@ -115,6 +120,12 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/until you clear this site's data/)
   })
 
+  it('says the route outline has no location, stays in this browser, is never uploaded, and is drawn from the original only on request', () => {
+    expect(text).toMatch(/outline of the route[^.]*no location/)
+    expect(text).toMatch(/kept only in this browser and is never uploaded/)
+    expect(text).toMatch(/drawn from your original only when you ask for it/)
+  })
+
   it('says what is counted each day, and that the counts are kept seven days', () => {
     expect(text).toMatch(/downloads, saves, deletions, uploads, profile changes and library reads/)
     expect(text).toMatch(/kept for seven days/)
@@ -184,12 +195,22 @@ describe('privacy page states the limits the code sets', () => {
 })
 
 describe('the code behind the page', () => {
-  it('stores only the digest on this device, with no file hash or coordinates', () => {
-    expect(device).toContain('async save({ digest })')
+  it('stores the digest and its route outline on this device, with no file hash or coordinates', () => {
+    expect(device).toContain('async save({ digest, route })')
+    expect(deviceLibrary).toContain(
+      'store.put({ digest: serializeDigest(digest), route }, workoutKey)',
+    )
     expect(digestTypes).toContain('export interface ActivityDigest {')
     const digest = /export interface ActivityDigest \{[\s\S]*?\n\}/.exec(digestTypes)?.[0] ?? ''
     expect(digest).not.toBe('')
     expect(digest).not.toMatch(/\b(fileHash|lat|lon|latitude|longitude|coordinates)\??:/)
+  })
+
+  it('keeps no latitude or longitude in the route outline it stores beside the digest', () => {
+    const outline = /export interface RouteShape \{[\s\S]*?\n\}/.exec(routeShapeSource)?.[0] ?? ''
+    expect(outline).toMatch(/points: \[number, number\]\[\]/)
+    expect(outline).toMatch(/aspect: number/)
+    expect(outline).not.toMatch(/\b(lat|lon|latitude|longitude|coordinates)\??:/)
   })
 
   it('offers Start over only when signed out', () => {

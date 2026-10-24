@@ -1064,3 +1064,65 @@ describe('parseFit hardening', () => {
     expect(later?.n).toBe(600)
   })
 })
+
+describe('parseFit route shape', () => {
+  /** A 10-minute run, one record a second, that walks round a circle of 200 m. */
+  function loopRecords(): TestRecord[] {
+    return secondly(START_MS, 600, { speed: 3 }).map((record, i) => {
+      const angle = (2 * Math.PI * i) / 600
+      const position = {
+        lat: 51.5 + (200 * Math.sin(angle)) / 111_320,
+        lon: -0.12 + (200 * Math.cos(angle)) / (111_320 * Math.cos((51.5 * Math.PI) / 180)),
+      }
+      return Object.assign(record, { position })
+    })
+  }
+
+  it('gives a session with positions a route shape, from the FIT semicircles', () => {
+    const bytes = buildFit({
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 600, records: loopRecords() }],
+    })
+
+    const result = parseFit(bytes, 'loop.fit')
+
+    expect(result.ok && result.activities[0]?.route?.points.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('gives a record whose position is out of range no fix, so the rest of the track keeps its route', () => {
+    const markers = (_: TestRecord, i: number) => i % 10 === 5
+    const mixed = loopRecords().map((record, i) =>
+      markers(record, i) ? Object.assign(record, { position: { lat: 180, lon: 180 } }) : record,
+    )
+    const withoutMarkers = loopRecords().filter((record, i) => !markers(record, i))
+    const route = (records: TestRecord[]) =>
+      parseFit(
+        buildFit({ sessions: [{ sport: 'running', startMs: START_MS, durationS: 600, records }] }),
+        'track.fit',
+      )
+
+    const withMarkers = route(mixed)
+    const plain = route(withoutMarkers)
+
+    expect(withMarkers.ok && withMarkers.activities[0]?.route).toBeDefined()
+    expect(withMarkers.ok && withMarkers.activities[0]?.route).toEqual(
+      plain.ok && plain.activities[0]?.route,
+    )
+  })
+
+  it('gives a session whose records carry only a latitude no route shape', () => {
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 600,
+          records: secondly(START_MS, 600, { speed: 3, gps: true }),
+        },
+      ],
+    })
+
+    const result = parseFit(bytes, 'half.fit')
+
+    expect(result.ok && result.activities[0]?.route).toBeUndefined()
+  })
+})

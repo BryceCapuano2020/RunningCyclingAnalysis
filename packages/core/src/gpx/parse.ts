@@ -5,6 +5,7 @@ import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime } from '../import/time'
 import {
+  fixesOf,
   readNonNegative,
   readNumber,
   readPosition,
@@ -291,6 +292,7 @@ function buildUnit(
     indoor: choice.indoor,
     hasPosition: track.anyPosition,
     refusal: choice.refusal,
+    fixes: fixesOf(ordered),
   }
   return { unit, dropped }
 }

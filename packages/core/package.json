@@ -27,6 +27,8 @@
     "./metabolic": "./src/metabolic/index.ts",
     "./quality": "./src/quality/index.ts",
     "./records": "./src/records/index.ts",
+    "./route/routeShape": "./src/route/routeShape.ts",
+    "./sha256": "./src/sha256.ts",
     "./synthetic": "./src/synthetic/index.ts",
     "./tcx": "./src/tcx/index.ts",
     "./tcx/encode": "./src/tcx/encode.ts",

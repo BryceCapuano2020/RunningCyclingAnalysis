@@ -28,6 +28,8 @@ export interface TestRecord {
   distance?: number
   /** Writes a position so the record counts as outdoor. */
   gps?: boolean
+  /** Writes this position, in degrees, so the record has a route point. */
+  position?: { lat: number; lon: number }
 }
 
 export interface TestSession {
@@ -87,10 +89,16 @@ export function buildFit(file: TestFile): Uint8Array {
   return writer.finish()
 }
 
+/** FIT positions are signed 32-bit semicircles: 2^31 of them span half a turn. */
+function toSemicircles(degrees: number): number {
+  return Math.round((degrees * 2 ** 31) / 180)
+}
+
 function writeRecord(writer: FitWriter, record: TestRecord): void {
   writer.message(RECORD_LAYOUT, {
     timestamp: fitSeconds(record.tMs),
-    positionLat: record.gps ? 1 : undefined,
+    positionLat: record.position ? toSemicircles(record.position.lat) : record.gps ? 1 : undefined,
+    positionLong: record.position ? toSemicircles(record.position.lon) : undefined,
     enhancedSpeed: record.speed === undefined ? undefined : record.speed * 1000,
     enhancedAltitude: record.altitude === undefined ? undefined : (record.altitude + 500) * 5,
     heartRate: record.heartRate,

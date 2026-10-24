@@ -1,8 +1,9 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { digestActivity } from '@rca/core/digest'
-import { AnalysisSession } from '@rca/core/session'
+import { AnalysisSession, copyOfDigest } from '@rca/core/session'
 import type { SyncItem } from '@rca/core/session'
 import { sampleDataset } from '@rca/core/synthetic'
+import type { RouteShape } from '@rca/core/route/routeShape'
 import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import { describe, expect, it } from 'vitest'
 import { deviceActions, workoutKeyOf } from './device'
@@ -30,6 +31,7 @@ function listed(digest: ActivityDigest): SavedActivity {
     name: digest.name,
     startMs: digest.startMs,
     sport: digest.sport,
+    copy: copyOfDigest(digest),
   }
 }
 
@@ -166,5 +168,46 @@ describe('device library actions', () => {
 
     await expect(actions.report()).resolves.toBeUndefined()
     expect(posted).toEqual([])
+  })
+})
+
+describe('device library routes', () => {
+  const ROUTE: RouteShape = {
+    points: [
+      [0, 0],
+      [0, 1],
+    ],
+    aspect: 0.5,
+  }
+
+  it('keeps the route of a signed-out import with its digest', async () => {
+    const { actions, library } = setup()
+
+    await actions.save({ ...itemFor(FIRST, 'run.fit'), route: ROUTE })
+
+    expect(await library.route(workoutKeyOf(FIRST))).toEqual(ROUTE)
+    expect(await actions.route(workoutKeyOf(FIRST))).toEqual(ROUTE)
+  })
+
+  it('answers with no route for an activity without one, and after it is removed', async () => {
+    const { actions, library } = setup()
+    await actions.save({ ...itemFor(FIRST, 'run.fit'), route: ROUTE })
+    await actions.save({ ...itemFor(SECOND, 'ride.fit'), route: undefined })
+
+    expect(await actions.route(workoutKeyOf(SECOND))).toBeNull()
+    await actions.remove(workoutKeyOf(FIRST), SETTINGS)
+
+    expect(await actions.route(workoutKeyOf(FIRST))).toBeNull()
+    expect(await library.route(workoutKeyOf(FIRST))).toBeNull()
+  })
+
+  it('answers with no route when storage cannot be read', async () => {
+    const broken = memoryDeviceLibrary()
+    broken.route = async () => {
+      throw new Error('Device storage failed')
+    }
+    const { actions } = setup(broken)
+
+    await expect(actions.route('run-1')).resolves.toBeNull()
   })
 })

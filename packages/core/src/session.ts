@@ -5,6 +5,8 @@ import { countActivityFiles, extractFitFiles } from './fit'
 import { parseActivityFile } from './import'
 import { sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
+import { sha256Hex } from './sha256'
+import type { RouteShape } from './route/routeShape'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
 import { ACTIVITY } from './fit/zipDirectory'
@@ -33,12 +35,14 @@ export interface SyncItem {
   fileHash: string
   /** The activity file's bytes. The session drops its reference once the sink returns. */
   bytes: Uint8Array
+  /** The route shape of the activity, when it has a GPS track. Kept on the device, never uploaded. */
+  route?: RouteShape
 }
 
 export type SyncSink = (item: SyncItem) => Promise<void>
 
 /** An activity file as the sink receives it. */
-type ImportedFile = Omit<SyncItem, 'digest'>
+type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
 
 /**
  * State shared by the activities of one import: the first halting failure, and the copies skipped
@@ -49,12 +53,6 @@ interface SaveBatch {
   duplicates: RejectedFile[]
   /** The digests this import added to the library, by key. A replacement updates its entry. */
   added: Map<string, ActivityDigest>
-}
-
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  // Every file byte array here is backed by a plain ArrayBuffer, never a SharedArrayBuffer.
-  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 /**
@@ -265,7 +263,7 @@ export class AnalysisSession {
       return
     }
     try {
-      await sink({ digest, ...file })
+      await sink({ digest, route: activity.route, ...file })
       this.unsynced.delete(key)
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'

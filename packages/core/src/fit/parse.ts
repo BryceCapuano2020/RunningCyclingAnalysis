@@ -8,6 +8,7 @@ import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/dec
 import type { FitSportName, FitSubSportName } from './protocol/profile'
 import { isFitFile, TRUNCATED_ERROR } from './protocol/reader'
 import type { RawRecord, RawTimerEvent } from './resample'
+import type { GpsFix } from '../import/gps'
 
 const NOT_FIT = 'Not a FIT file'
 const DECODE_FAILED = 'Could not decode FIT file'
@@ -114,6 +115,7 @@ function toPipelineUnit(
     sportLabel: sport ?? 'unknown',
     hasPosition: unit.records.some((t) => t.record.positionLat !== undefined),
     distanceOrigin,
+    fixes: fitFixes(unit.records),
   }
   if (!mapping.ok) {
     const refusal = { reason: mapping.reason, skipped: mapping.skipped }
@@ -170,6 +172,21 @@ function timedRecords(records: DecodedRecord[]): Timed[] {
     if (record.timestampMs !== undefined) out.push({ tMs: record.timestampMs, record })
   }
   return out.sort((a, b) => a.tMs - b.tMs)
+}
+
+/** FIT stores a position in semicircles; 2^31 of them span half a turn. */
+const DEGREES_PER_SEMICIRCLE = 180 / 2 ** 31
+
+/** The positioned records as GPS fixes in degrees, in time order. Records without both coordinates are skipped. */
+function fitFixes(records: Timed[]): GpsFix[] {
+  const fixes: GpsFix[] = []
+  for (const { tMs, record } of records) {
+    const lat = record.positionLat
+    const lon = record.positionLong
+    if (lat === undefined || lon === undefined) continue
+    fixes.push({ t: tMs, lat: lat * DEGREES_PER_SEMICIRCLE, lon: lon * DEGREES_PER_SEMICIRCLE })
+  }
+  return fixes
 }
 
 /** A decoded FIT record as a RawRecord. Impossible values are dropped later, by the pipeline. */

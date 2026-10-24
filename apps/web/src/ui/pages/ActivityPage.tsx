@@ -9,12 +9,16 @@ import {
   formatPace,
   formatSpeed,
 } from '@rca/core/units'
+import { RouteOffer } from '../components/RouteOffer'
+import { RouteShape as RouteOutline } from '../components/RouteShape'
 import { SportIcon } from '../components/icons'
 import { keyByContent } from '../contentKeys'
 import { formatDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, sportRecords } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
+import type { RouteReply } from '../routeReply'
+import { useRouteShape } from '../useRouteShape'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { RunSplits } from './RunSplits'
 import './ActivityPage.css'
@@ -30,6 +34,10 @@ export interface ActivityPageProps {
   records: ReadonlyMap<string, readonly EarnedRecord[]>
   /** Asks the worker for a run's splits; a run's splits are not kept in the page's result. */
   loadSplits: (id: string) => Promise<DigestSplits | null>
+  /** The library id this activity is saved under, or null when it is not saved, as with the sample. */
+  routeId: string | null
+  /** Reads a saved activity's route. `fromOriginal` reads the kept original file. */
+  loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
 }
 
 const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
@@ -47,7 +55,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** One activity: its summary, the library bests it set, and any data issues in its file. */
+/** One activity: its summary, its route, the library bests it set, and any data issues in its file. */
 export function ActivityPage({
   activity,
   result,
@@ -55,7 +63,10 @@ export function ActivityPage({
   massKg,
   records,
   loadSplits,
+  routeId,
+  loadRoute,
 }: ActivityPageProps) {
+  const { view: route, show } = useRouteShape(routeId, loadRoute)
   if (!activity) {
     return (
       <div className="page-title">
@@ -92,6 +103,13 @@ export function ActivityPage({
           {activity.name}
         </h1>
       </div>
+
+      <RouteOutline
+        shape={route.kind === 'shape' ? route.route : null}
+        sport={activity.sport}
+        takeFocus={route.kind === 'shape' && route.fromRequest}
+      />
+      {route.kind === 'offer' && <RouteOffer status={route.status} onShow={show} />}
 
       <dl className="activity-page__stats">
         <Stat label="Time" value={formatDuration(activity.durationS)} />

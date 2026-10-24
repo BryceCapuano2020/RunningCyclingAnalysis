@@ -1142,3 +1142,59 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+describe('route shapes handed to the sink', () => {
+  it('gives each new activity its route beside its digest, and keeps the route out of the digest', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    await session.addFiles(
+      [new File([new Uint8Array(encodeGpx(run))], 'run.gpx')],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        items.push(item)
+      },
+    )
+
+    const [item] = items
+    expect(item?.route?.points.length).toBeGreaterThanOrEqual(2)
+    expect(item?.digest).not.toHaveProperty('route')
+    expect(JSON.stringify(item?.digest)).not.toContain('route')
+    expect(JSON.stringify(item?.digest)).not.toContain(JSON.stringify(item?.route?.points))
+  })
+
+  it('gives a FIT file with only placeholder positions no route', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, async (item) => {
+      items.push(item)
+    })
+
+    expect(items.map((item) => item.route)).toEqual([undefined])
+  })
+
+  it('keeps no input coordinate in the digest or the route it hands over', async () => {
+    const gpx = encodeGpx(run)
+    const coordinates = new Set(
+      [...new TextDecoder().decode(gpx).matchAll(/(?:lat|lon)="(-?[\d.]+)"/g)].map((m) =>
+        Number(m[1]),
+      ),
+    )
+    const items: SyncItem[] = []
+    await new AnalysisSession().addFiles(
+      [new File([new Uint8Array(gpx)], 'run.gpx')],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        items.push(item)
+      },
+    )
+
+    const [item] = items
+    const stored = JSON.stringify([item?.digest, item?.route])
+    const numbers = [...stored.matchAll(/-?\d+(?:\.\d+)?(?:e[-+]\d+)?/g)].map((m) => Number(m[0]))
+    expect(coordinates.size).toBeGreaterThan(0)
+    expect(numbers.length).toBeGreaterThan(0)
+    expect(numbers.filter((n) => coordinates.has(n))).toEqual([])
+  })
+})

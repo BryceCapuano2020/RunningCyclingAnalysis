@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import type { DigestSplits } from '@rca/core/types'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
 import { makeActivity, makeResult } from '../components/fixtures'
+import type { RouteReply } from '../routeReply'
+import type { ActivityPageProps } from './ActivityPage'
 import { ActivityPage } from './ActivityPage'
 
 // A fixed clock, so the year shown on the date does not depend on when the suite runs.
@@ -26,12 +29,16 @@ function resultWith(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
   return makeResult({ runCurve: runCurveFixture, rideCurve: rideCurveFixture, ...overrides })
 }
 
+/** No saved record and no route: the sample, or an activity this visitor has not kept. */
+const NO_ROUTE = { routeId: null, loadRoute: async (): Promise<RouteReply> => ({ kind: 'none' }) }
+
 function renderPage(
   activity: ActivitySummary | null,
   result: AnalysisResult = resultWith(),
   units: 'metric' | 'imperial' = 'metric',
   records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
   loadSplits: (id: string) => Promise<DigestSplits | null> = vi.fn(async () => null),
+  route: Pick<ActivityPageProps, 'routeId' | 'loadRoute'> = NO_ROUTE,
 ) {
   // As in the app, the page's activity is one of the result's activities.
   const activities = activity ? [activity, ...result.activities] : result.activities
@@ -43,6 +50,7 @@ function renderPage(
       massKg={70}
       records={records}
       loadSplits={loadSplits}
+      {...route}
     />,
   )
 }
@@ -306,5 +314,194 @@ describe('ActivityPage records earned', () => {
   it('shows no Best efforts group for an activity that holds nothing', () => {
     renderPage(morningRun)
     expect(screen.queryByRole('group', { name: 'Records earned' })).toBeNull()
+  })
+})
+
+describe('route shape', () => {
+  const SHAPE = {
+    points: [
+      [0, 0],
+      [1, 1],
+    ] as [number, number][],
+    aspect: 1,
+  }
+  const DRAWN = 'Route shape of this run'
+
+  it('draws a route the device library or this tab holds at once, with no offer to read the file', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'shape', route: SHAPE }))
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+
+    expect(await screen.findByRole('img', { name: DRAWN })).toBeInTheDocument()
+    expect(loadRoute).toHaveBeenCalledOnce()
+    expect(loadRoute).toHaveBeenCalledWith('saved-1', false)
+    expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
+  })
+
+  it('offers to show a route from the kept file, and reads nothing until asked', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'original' }))
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+
+    const button = await screen.findByRole('button', { name: 'Show route' })
+    expect(button).not.toHaveAttribute('aria-disabled', 'true')
+    expect(loadRoute).toHaveBeenCalledOnce()
+    expect(loadRoute).toHaveBeenCalledWith('saved-1', false)
+    expect(screen.queryByRole('img', { name: DRAWN })).toBeNull()
+  })
+
+  it('reads the kept file when asked, shows the button as busy meanwhile, then draws the outline', async () => {
+    const user = userEvent.setup()
+    let finish: (reply: RouteReply) => void = () => undefined
+    const loadRoute = vi.fn((_id: string, fromOriginal: boolean): Promise<RouteReply> =>
+      fromOriginal
+        ? new Promise<RouteReply>((resolve) => {
+            finish = resolve
+          })
+        : Promise.resolve({ kind: 'original' }),
+    )
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Show route' }))
+
+    expect(loadRoute).toHaveBeenLastCalledWith('saved-1', true)
+    expect(screen.getByRole('button', { name: 'Show route' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Reading the route from your original file.',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Show route' }))
+    expect(loadRoute).toHaveBeenCalledTimes(2)
+
+    await act(async () => finish({ kind: 'shape', route: SHAPE }))
+    expect(await screen.findByRole('img', { name: DRAWN })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
+  })
+
+  it('says so neutrally when the file cannot be read, and keeps the button to try again', async () => {
+    const user = userEvent.setup()
+    const loadRoute = vi.fn(async (_id: string, fromOriginal: boolean): Promise<RouteReply> =>
+      fromOriginal ? { kind: 'failed' } : { kind: 'original' },
+    )
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Show route' }))
+
+    expect(
+      await screen.findByText('The route could not be read. Try again later.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show route' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
+  it('says when the kept file has no route to show, and offers nothing more', async () => {
+    const user = userEvent.setup()
+    const loadRoute = vi.fn(async (_id: string, fromOriginal: boolean): Promise<RouteReply> =>
+      fromOriginal ? { kind: 'none' } : { kind: 'original' },
+    )
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Show route' }))
+
+    expect(await screen.findByText('This file has no route to show.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
+  })
+
+  it('asks for no route when the activity is not saved, as with the sample', () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'shape', route: SHAPE }))
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: null,
+      loadRoute,
+    })
+
+    expect(loadRoute).not.toHaveBeenCalled()
+    expect(screen.queryByRole('img', { name: /Route shape/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
+  })
+
+  it('moves focus to the drawn route once a read of the kept file draws it', async () => {
+    const user = userEvent.setup()
+    let finish: (reply: RouteReply) => void = () => undefined
+    const loadRoute = vi.fn((_id: string, fromOriginal: boolean): Promise<RouteReply> =>
+      fromOriginal
+        ? new Promise<RouteReply>((resolve) => {
+            finish = resolve
+          })
+        : Promise.resolve({ kind: 'original' }),
+    )
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Show route' }))
+
+    await act(async () => finish({ kind: 'shape', route: SHAPE }))
+
+    const figure = (await screen.findByRole('img', { name: DRAWN })).closest('figure')
+    expect(figure).toHaveFocus()
+  })
+
+  it('moves focus to the status line when the kept file has no route to show', async () => {
+    const user = userEvent.setup()
+    const loadRoute = vi.fn(async (_id: string, fromOriginal: boolean): Promise<RouteReply> =>
+      fromOriginal ? { kind: 'none' } : { kind: 'original' },
+    )
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Show route' }))
+
+    expect(await screen.findByText('This file has no route to show.')).toHaveFocus()
+  })
+
+  it('keeps focus on the button when the read fails, so the visitor can try again', async () => {
+    const user = userEvent.setup()
+    const loadRoute = vi.fn(async (_id: string, fromOriginal: boolean): Promise<RouteReply> =>
+      fromOriginal ? { kind: 'failed' } : { kind: 'original' },
+    )
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Show route' }))
+
+    expect(
+      await screen.findByText('The route could not be read. Try again later.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show route' })).toHaveFocus()
+  })
+
+  it('offers nothing on the first read when the activity has no route in the kept file either', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' }))
+    renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+
+    await waitFor(() => expect(loadRoute).toHaveBeenCalledWith('saved-1', false))
+    await act(async () => undefined)
+
+    expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
+    expect(screen.queryByRole('img', { name: DRAWN })).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
   })
 })
