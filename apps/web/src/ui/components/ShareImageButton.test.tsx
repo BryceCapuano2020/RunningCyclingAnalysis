@@ -32,7 +32,7 @@ function renderButton(overrides: Partial<Parameters<typeof ShareImageButton>[0]>
       result={makeResult()}
       settings={{ massKg: 75, bikeMassKg: 9 }}
       units="metric"
-      rangeDays={42}
+      period={{ choice: 42, startMs: null, endMs: null, days: 42, fellBack: false }}
       isSample={false}
       effort={null}
       weightKnown

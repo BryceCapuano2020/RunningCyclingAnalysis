@@ -368,7 +368,8 @@ describe('AnalysisSession', () => {
       outdatedActivities: 0,
       incompatibleActivities: 0,
       hiddenDuplicates: 0,
-      rangeDays: null,
+      period: { choice: 'default', startMs: null, endMs: null, days: null, fellBack: false },
+      library: [],
       syncIssues: [],
       trend: [],
       effortTrends: NO_TRENDS,
@@ -390,18 +391,53 @@ describe('AnalysisSession', () => {
     expect(state.result?.activities).toHaveLength(inside.length)
     expect(state.result?.activities.every((activity) => activity.startMs >= cutoff)).toBe(true)
     expect(state.totalActivities).toBe(sample.length)
-    expect(state.rangeDays).toBe(42)
+    expect(state.period).toMatchObject({ choice: 42, days: 42, fellBack: false })
   })
 
-  it('setRange(null) restores every activity', () => {
+  it("setRange('all') restores every activity", () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
     session.setRange(42, SETTINGS)
-    const state = session.setRange(null, SETTINGS)
+    const state = session.setRange('all', SETTINGS)
 
     expect(state.result?.activities).toHaveLength(sample.length)
     expect(state.totalActivities).toBe(sample.length)
-    expect(state.rangeDays).toBeNull()
+    expect(state.period).toMatchObject({ choice: 'all', days: null })
+  })
+
+  it('lists every activity in the library, whatever the period analyses', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    const state = session.setRange(42, SETTINGS)
+
+    expect(state.result?.activities.length).toBeLessThan(sample.length)
+    expect(state.library).toHaveLength(sample.length)
+    expect(state.library[0]?.startMs).toBe(Math.max(...sample.map((a) => a.startMs)))
+  })
+
+  it('analyses only the newest activity for a one-day period, and keeps the library whole', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    const state = session.setRange(1, SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.library).toHaveLength(sample.length)
+  })
+
+  it('analyses the default period, which covers the sample when it is under 12 weeks long', () => {
+    const session = new AnalysisSession()
+    const state = session.loadSample(SETTINGS)
+
+    expect(state.period).toMatchObject({ choice: 'default', fellBack: false })
+    expect(state.result?.activities).toHaveLength(sample.length)
+  })
+
+  it('analyses the sample with its own body and bike masses, whatever the visitor entered', () => {
+    const own = new AnalysisSession().loadSample({ massKg: 60, bikeMassKg: 5 })
+    const persona = new AnalysisSession().loadSample(SETTINGS)
+
+    expect(own.result?.runCurve).toEqual(persona.result?.runCurve)
+    expect(own.result?.rideCurve).toEqual(persona.result?.rideCurve)
   })
 
   it('setRange with nothing loaded gives no result and no activities', () => {
@@ -415,7 +451,8 @@ describe('AnalysisSession', () => {
       outdatedActivities: 0,
       incompatibleActivities: 0,
       hiddenDuplicates: 0,
-      rangeDays: 42,
+      period: { choice: 42, startMs: null, endMs: null, days: null, fellBack: false },
+      library: [],
       syncIssues: [],
       trend: [],
       effortTrends: NO_TRENDS,
@@ -543,7 +580,7 @@ describe('AnalysisSession', () => {
     const session = new AnalysisSession()
     session.setRange(42, SETTINGS)
     const state = session.loadDigests(sampleDataset().activities.map(digestActivity), SETTINGS)
-    expect(state.rangeDays).toBe(42)
+    expect(state.period.choice).toBe(42)
     expect(state.result?.activities.length).toBeLessThan(sample.length)
   })
 
@@ -763,16 +800,16 @@ describe('AnalysisSession', () => {
     expect(session.clear().syncIssues).toEqual([])
   })
 
-  it('clear resets the selected range before the next library is loaded', () => {
+  it('clear keeps the chosen period, which the athlete picked and the next library uses', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
     session.setRange(42, SETTINGS)
     const cleared = session.clear()
-    expect(cleared.rangeDays).toBeNull()
+    expect(cleared.period.choice).toBe(42)
 
     const next = session.loadSample(SETTINGS)
-    expect(next.rangeDays).toBeNull()
-    expect(next.result?.activities).toHaveLength(sample.length)
+    expect(next.period.choice).toBe(42)
+    expect(next.result?.activities.length).toBeLessThan(sample.length)
   })
 
   it('stops calling the sink after a sign-out but still analyses the rest of the import', async () => {

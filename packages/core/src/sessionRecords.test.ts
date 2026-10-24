@@ -60,23 +60,24 @@ describe('AnalysisSession records', () => {
     const session = new AnalysisSession()
     session.loadDigests([runDigest('a', 0, [{ distanceM: 5000, seconds: 1200 }])], SETTINGS)
     const first = session.setRange(42, SETTINGS)
-    const second = session.setRange(null, SETTINGS)
+    const second = session.setRange('all', SETTINGS)
     expect(second.records).toBe(first.records)
   })
 
   it('returns exactly the state fields, with nothing from the cache', () => {
     const session = new AnalysisSession()
     session.loadDigests([runDigest('a', 0, [{ distanceM: 5000, seconds: 1200 }])], SETTINGS)
-    const cached = session.setRange(null, SETTINGS)
+    const cached = session.setRange('all', SETTINGS)
     expect(Object.keys(cached).sort()).toEqual(
       [
         'effortTrends',
         'hiddenDuplicates',
         'incompatibleActivities',
         'isSample',
+        'library',
+        'period',
         'outdatedActivities',
         'previous',
-        'rangeDays',
         'rejected',
         'records',
         'result',

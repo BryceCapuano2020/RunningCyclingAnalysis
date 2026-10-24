@@ -3,6 +3,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { describe, expect, it } from 'vitest'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
+import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../ui/balanceGap'
 import { energyReading, gapReading } from '../ui/components/balanceScale'
 import { makeActivity, makeResult } from '../ui/components/fixtures'
@@ -11,17 +12,31 @@ import { SPORT_ORDER } from '../ui/sports'
 import { buildShareCard, shareableOrigin } from './cardModel'
 
 /** The card for these inputs: a weight is entered, and there is no heart-rate effort or grade gap unless given. */
+/** A period of the given days, or all time for null, with no dates: the card's own tests pass days. */
+function periodOfDays(days: number | null): Period {
+  return { choice: days ?? 'all', startMs: null, endMs: null, days, fellBack: false }
+}
+
 function cardFor(
   result: AnalysisResult,
   settings: AthleteSettings,
   units: UnitSystem,
-  rangeDays: number | null,
+  days: number | null,
   isSample: boolean,
   effort: EffortCheck | null = null,
   weightKnown = true,
   gap: BalanceGap | null = null,
 ) {
-  return buildShareCard(result, settings, units, rangeDays, isSample, effort, weightKnown, gap)
+  return buildShareCard(
+    result,
+    settings,
+    units,
+    periodOfDays(days),
+    isSample,
+    effort,
+    weightKnown,
+    gap,
+  )
 }
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
@@ -198,9 +213,20 @@ describe('buildShareCard', () => {
     expect(card).toBeNull()
   })
 
-  it('names the selected period, and all time when no range is selected', () => {
-    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.period).toBe('Last 6 weeks')
-    expect(cardFor(makeResult(), SETTINGS, 'metric', null, false)?.period).toBe('All time')
+  it('dates the period on the card and says what it counts', () => {
+    const period: Period = {
+      choice: 42,
+      startMs: new Date(2025, 4, 12, 12).getTime(),
+      endMs: new Date(2025, 7, 3, 12).getTime(),
+      days: 42,
+      fellBack: false,
+    }
+    const result = makeResult({
+      activities: [makeActivity({ id: 'run-1' }), makeActivity({ id: 'ride-1', sport: 'ride' })],
+    })
+    expect(
+      buildShareCard(result, SETTINGS, 'metric', period, false, null, true, null)?.period,
+    ).toBe('Based on 12 May – 3 Aug 2025, 1 run, 1 ride')
   })
 
   it('carries a sample badge only for sample data', () => {

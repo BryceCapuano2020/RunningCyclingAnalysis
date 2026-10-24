@@ -1,4 +1,5 @@
 import type { Profile } from '@rca/contract'
+import type { PeriodChoice } from '@rca/core/period'
 import type { Copy, RejectedFile, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
@@ -57,7 +58,7 @@ export type WorkerRequest =
   | { type: 'setSettings'; settings: AthleteSettings }
   /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */
   | { type: 'setGradeTrend'; on: boolean; settings: AthleteSettings }
-  | { type: 'setRange'; rangeDays: number | null; settings: AthleteSettings }
+  | { type: 'setRange'; choice: PeriodChoice; settings: AthleteSettings }
   /** `forgetDevice` also empties the library kept in this browser. */
   | { type: 'clear'; forgetDevice?: boolean }
   | { type: 'deleteActivity'; id: string; userId: string; settings: AthleteSettings }

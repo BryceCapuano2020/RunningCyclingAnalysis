@@ -269,6 +269,13 @@ export function sportCurves(
   return { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
 }
 
+/** The activities of a library as summaries, newest first, as the analysis lists them. */
+export function activitySummaries(digests: ActivityDigest[]): ActivitySummary[] {
+  return orderedCurrent(digests)
+    .map(summaryOf)
+    .sort((a, b) => b.startMs - a.startMs)
+}
+
 /**
  * Combines per-activity digests into the athlete's analysis. Only the bike model, the body and
  * bike masses and the efficiency priors enter here, so the work per settings change is small.
@@ -353,9 +360,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     comparison.prior.map((p) => p.durationS),
   )
 
-  const activities = ordered.map(summaryOf).sort((a, b) => b.startMs - a.startMs)
   return {
-    activities,
+    activities: activitySummaries(digests),
     runCurve,
     rideCurve,
     rideMetabolicCurve,

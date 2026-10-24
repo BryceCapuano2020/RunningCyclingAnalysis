@@ -6,11 +6,6 @@
   overflow: hidden;
 }
 
-/* An empty card is only as tall as its prompt, not stretched to match a full card beside it. */
-.sport-card--empty {
-  align-self: start;
-}
-
 /* The sport's colour as a bar down the card's edge: data colour on a data card, not chrome. */
 .sport-card::before {
   content: '';

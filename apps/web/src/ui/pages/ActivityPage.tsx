@@ -1,6 +1,8 @@
 import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
+import type { Period } from '@rca/core/period'
+import { betweenClause } from '../periodCopy'
 import type { DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import {
@@ -26,7 +28,7 @@ import { RunSplits } from './RunSplits'
 import './ActivityPage.css'
 
 export interface ActivityPageProps {
-  /** The activity the URL names, or null when it is not in the selected period. */
+  /** The activity the URL names, or null when the library does not hold it. The period never hides one. */
   activity: ActivitySummary | null
   result: AnalysisResult
   units: UnitSystem
@@ -40,6 +42,8 @@ export interface ActivityPageProps {
   routeId: string | null
   /** Reads a saved activity's route. `fromOriginal` reads the kept original file. */
   loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
+  /** The period the bests are counted over. The record chips below are all-time, whatever it is. */
+  period?: Period
 }
 
 const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
@@ -80,6 +84,7 @@ export function ActivityPage({
   loadSplits,
   routeId,
   loadRoute,
+  period,
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
   if (!activity) {
@@ -88,7 +93,7 @@ export function ActivityPage({
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           Activity not found
         </h1>
-        <p className="secondary">It may be outside the period you selected.</p>
+        <p className="secondary">It may have been deleted, or it is not in this library.</p>
         <p>
           <a href={hrefFor({ page: 'activities' })} onClick={backToList}>
             Back to activities
@@ -156,7 +161,7 @@ export function ActivityPage({
       {chips.length > 0 && (
         <div className="activity-page__records" role="group" aria-labelledby="activity-records">
           <p id="activity-records" className="eyebrow">
-            Records earned
+            All-time records
           </p>
           <div className="activity-page__chips">
             {chips.map((label) => (
@@ -180,7 +185,7 @@ export function ActivityPage({
         <h2 id="activity-bests">Best efforts set here</h2>
         {bests.length === 0 ? (
           <p className="secondary">
-            None of your best efforts in this period come from this activity.
+            {`None of your best efforts ${betweenClause(period) || 'in this period'} came from this activity.`}
           </p>
         ) : (
           <dl className="activity-page__stats">

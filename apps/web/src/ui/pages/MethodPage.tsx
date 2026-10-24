@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HR_BLOCK_S, HR_SKIP_S } from '@rca/core/constants'
+import type { Period } from '@rca/core/period'
 import { ALL_OUT_FRACTION } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve } from '@rca/core/types'
@@ -19,7 +20,7 @@ import { Methodology, TopicBody } from '../components/Methodology'
 import { HOW_THIS_WORKS, SECTION_ID } from '../components/methodTopics'
 import { plural } from '../components/plural'
 import { WeightPrompt } from '../components/WeightPrompt'
-import { rangePeriod } from '../components/rangeOptions'
+import { periodDates } from '../components/rangeOptions'
 import { gradedSexOf, headlineGrades } from '../grades'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { hrefFor } from '../route'
@@ -35,8 +36,8 @@ export interface MethodPageProps {
   units: UnitSystem
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
-  /** The selected period in days, or null for all time. */
-  rangeDays: number | null
+  /** The period the counts are over, named by its dates. */
+  period?: Period
   /** False while no body weight is entered: the ride figures wait for one, as Balance does. */
   weightKnown: boolean
   /** True while a kept library is still loading, which may still bring the results. */
@@ -123,7 +124,7 @@ export function MethodPage({
   result,
   units,
   profile,
-  rangeDays,
+  period,
   weightKnown,
   restoring = false,
 }: MethodPageProps) {
@@ -142,7 +143,7 @@ export function MethodPage({
   // Without a weight a ride's grade is worked out on the placeholder body mass, so only a run's grade
   // may say whose grades these are.
   const gradedSex = gradedSexOf(weightKnown ? headline : runOnly(headline), profile)
-  const period = rangePeriod(rangeDays).toLowerCase()
+  const periodPhrase = period ? periodDates(period) : 'this period'
   const gradeGapShown = headline !== null && gapOfHeadline(headline) !== null
   const hardEfforts = hardEffortsOnFile(effort)
 
@@ -175,6 +176,7 @@ export function MethodPage({
           How sure is this?
         </h1>
       </div>
+      {period && <p className="muted">{`Counted over ${periodDates(period)}.`}</p>}
 
       <ul className="lede method__answer" aria-label="The short answer">
         <li>
@@ -193,8 +195,8 @@ export function MethodPage({
             {!hasResult
               ? 'Thresholds, levels and the balance are estimates.'
               : weightKnown
-                ? `Thresholds, levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort (${period}).`
-                : `Run thresholds and levels are estimates from ${plural(runs, 'run')} with a usable effort (${period}).`}
+                ? `Thresholds, levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort (${periodPhrase}).`
+                : `Run thresholds and levels are estimates from ${plural(runs, 'run')} with a usable effort (${periodPhrase}).`}
           </span>
         </li>
         <li>

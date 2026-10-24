@@ -35,10 +35,15 @@ const EFFORT_PHRASE = (() => {
   return `${lengths.slice(0, -1).join(', ')} or ${lengths.at(-1)}`
 })()
 
-/** Each period the picker offers, with the window the trend really uses for it, in days. */
+/**
+ * Each fixed period the picker offers, with the window the trend really uses for it, in days. The
+ * default and all time have no fixed length, so they are not listed.
+ */
 const WINDOW_EXAMPLES = listWords(
   RANGE_OPTIONS.flatMap((option) =>
-    option.days === null ? [] : [`${option.label} uses ${trendWindowDays(option.days)} days`],
+    typeof option.choice === 'number'
+      ? [`${option.label} uses ${trendWindowDays(option.choice)} days`]
+      : [],
   ),
 )
 

@@ -59,6 +59,19 @@ describe('worker transport', () => {
     expect(setError).not.toHaveBeenCalled()
   })
 
+  it('answers a period pick with null, and still says the worker has stopped, once the worker has stopped for good', () => {
+    const { result, setError } = setup()
+    result.current.stoppedRef.current = true
+    const settle = vi.fn()
+
+    act(() =>
+      result.current.send({ type: 'setRange', choice: 42, settings: SETTINGS }, undefined, settle),
+    )
+
+    expect(settle).toHaveBeenCalledWith(null)
+    expect(setError).toHaveBeenCalledWith(STOPPED)
+  })
+
   it('still tells the user to act again when an import is made after the worker has stopped', () => {
     const { result, setError } = setup()
     result.current.stoppedRef.current = true

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatTimeOfDay as coreFormatTimeOfDay } from '@rca/core/units'
-import { formatDay, formatMonth, formatTimeOfDay } from './date'
+import { formatDay, formatMonth, formatSpan, formatTimeOfDay } from './date'
 
 // Local constructors keep these cases independent of the zone the suite runs in. The only test
 // that changes the zone says so.
@@ -67,5 +67,19 @@ describe('formatTimeOfDay', () => {
     vi.stubEnv('TZ', 'America/Los_Angeles')
     // 02:30 UTC on 3 June is 19:30 on 2 June in Los Angeles, which is in summer time (UTC-7).
     expect(formatTimeOfDay(Date.UTC(2026, 5, 3, 2, 30))).toBe('7:30 pm')
+  })
+})
+
+describe('formatSpan', () => {
+  it('gives the days and months with the year once, at the end, within one year', () => {
+    expect(formatSpan(new Date(2025, 4, 12, 9).getTime(), new Date(2025, 7, 3, 18).getTime())).toBe(
+      '12 May – 3 Aug 2025',
+    )
+  })
+
+  it('gives the year on both ends when the span crosses a new year', () => {
+    expect(formatSpan(new Date(2024, 7, 3).getTime(), new Date(2025, 10, 2).getTime())).toBe(
+      '3 Aug 2024 – 2 Nov 2025',
+    )
   })
 })

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { Period } from '@rca/core/period'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -39,6 +40,7 @@ function renderPage(
   records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
   loadSplits: (id: string) => Promise<DigestSplits | null> = vi.fn(async () => null),
   route: Pick<ActivityPageProps, 'routeId' | 'loadRoute'> = NO_ROUTE,
+  period?: Period,
 ) {
   // As in the app, the page's activity is one of the result's activities.
   const activities = activity ? [activity, ...result.activities] : result.activities
@@ -50,9 +52,19 @@ function renderPage(
       massKg={70}
       records={records}
       loadSplits={loadSplits}
+      period={period}
       {...route}
     />,
   )
+}
+
+/** The period the bests are counted over, dated from 12 May to 3 August 2025. */
+const DATED: Period = {
+  choice: 42,
+  startMs: new Date(2025, 4, 12, 12).getTime(),
+  endMs: new Date(2025, 7, 3, 12).getTime(),
+  days: 42,
+  fellBack: false,
 }
 
 /** The stat whose label is `label`; its value sits in the same group. */
@@ -107,12 +119,14 @@ const twoKilometres: DigestSplits = {
 }
 
 describe('ActivityPage', () => {
-  it('says the activity is not found, and links back to the list, when it is outside the period', () => {
+  it('says the activity is not found, and links back to the list, when the library does not hold it', () => {
     renderPage(null)
     const heading = screen.getByRole('heading', { level: 1, name: 'Activity not found' })
     expect(heading).toHaveAttribute('id', 'page-heading')
     expect(heading).toHaveAttribute('tabindex', '-1')
-    expect(screen.getByText('It may be outside the period you selected.')).toBeInTheDocument()
+    expect(
+      screen.getByText('It may have been deleted, or it is not in this library.'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to activities' })).toHaveAttribute(
       'href',
       '#/activities',
@@ -209,10 +223,20 @@ describe('ActivityPage', () => {
     expect(screen.queryByText('Best 20 min', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it('says so when this activity set none of the library bests', () => {
-    renderPage(makeActivity({ id: 'run-2', name: 'Easy run' }))
+  it('says so when this activity set none of the bests in the dated period', () => {
+    renderPage(
+      makeActivity({ id: 'run-2', name: 'Easy run' }),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      DATED,
+    )
     expect(
-      screen.getByText('None of your best efforts in this period come from this activity.'),
+      screen.getByText(
+        'None of your best efforts between 12 May and 3 Aug 2025 came from this activity.',
+      ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/grade-adjusted/)).not.toBeInTheDocument()
   })
@@ -302,9 +326,9 @@ describe('ActivityPage records earned', () => {
     ],
   ])
 
-  it('lists every record the activity holds in one Records earned group', () => {
+  it('lists every record the activity holds in one All-time records group', () => {
     renderPage(morningRun, resultWith(), 'metric', held)
-    const group = screen.getByRole('group', { name: 'Records earned' })
+    const group = screen.getByRole('group', { name: 'All-time records' })
     expect(within(group).getByText('Best 5 min')).toBeTruthy()
     expect(within(group).getByText('Best 60 min')).toBeTruthy()
     expect(within(group).getByText('Best 5 km')).toBeTruthy()
@@ -313,7 +337,7 @@ describe('ActivityPage records earned', () => {
 
   it('shows no Best efforts group for an activity that holds nothing', () => {
     renderPage(morningRun)
-    expect(screen.queryByRole('group', { name: 'Records earned' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
   })
 })
 

@@ -290,7 +290,6 @@ export function App() {
             result={null}
             units={units}
             profile={null}
-            rangeDays={null}
             weightKnown={weighted}
             restoring={analysis.restoring}
           />

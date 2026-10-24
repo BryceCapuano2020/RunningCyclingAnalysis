@@ -95,29 +95,6 @@ describe('SportCard grading link', () => {
   })
 })
 
-describe('SportCard without activities of its sport', () => {
-  it('says runs are needed to see the running balance, with no link to empty records', () => {
-    renderCard('run', makeResult({ activities: [rideOnFriday], runCurve: [] }))
-
-    const card = cardNamed('Run')
-    expect(
-      within(card).getByText('Add runs to see your running and your balance.'),
-    ).toBeInTheDocument()
-    expect(within(card).queryByText('Threshold pace, estimated')).not.toBeInTheDocument()
-    expect(within(card).queryByRole('link')).not.toBeInTheDocument()
-  })
-
-  it('says rides are needed to see the cycling balance', () => {
-    renderCard('ride', makeResult({ activities: [runOnMonday], rideCurve: [] }))
-
-    const card = cardNamed('Ride')
-    expect(
-      within(card).getByText('Add rides to see your cycling and your balance.'),
-    ).toBeInTheDocument()
-    expect(within(card).queryByRole('link')).not.toBeInTheDocument()
-  })
-})
-
 describe('SportCard threshold', () => {
   it('shows the running threshold as a named pace estimate', () => {
     renderCard('run', makeResult({ activities: [runOnMonday] }))

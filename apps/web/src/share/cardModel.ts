@@ -1,4 +1,5 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { APP_NAME } from '../appName'
@@ -6,7 +7,8 @@ import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
 import { HARDER_EFFORTS_TITLE, balanceTitle, effortCaveat } from '../ui/components/headlineText'
 import { pickHeadline } from '../ui/components/pickHeadline'
-import { rangePeriod } from '../ui/components/rangeOptions'
+import { periodDates } from '../ui/components/rangeOptions'
+import { plural } from '../ui/components/plural'
 import { countSport, threshold } from '../ui/records'
 import { SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL, SPORT_TITLE, THRESHOLD_NOUN } from '../ui/sports'
 import { hasShareableContent } from './hasShareableContent'
@@ -142,6 +144,11 @@ function heroFor(
   }
 }
 
+/** The period line on the card: its dates and what it counts, such as "Based on 12 May – 3 Aug 2025, 5 runs, 9 rides". */
+function periodLine(period: Period, counts: Record<Sport, number>): string {
+  return `Based on ${periodDates(period)}, ${plural(counts.run, 'run')}, ${plural(counts.ride, 'ride')}`
+}
+
 /**
  * The headline while the sports cannot be compared: the one sport on file, stated as what is there,
  * or the shared harder-efforts title when both sports are on file.
@@ -162,7 +169,7 @@ export function buildShareCard(
   result: AnalysisResult,
   settings: AthleteSettings,
   units: UnitSystem,
-  rangeDays: number | null,
+  period: Period,
   isSample: boolean,
   effort: EffortCheck | null,
   weightKnown: boolean,
@@ -185,7 +192,7 @@ export function buildShareCard(
     headline: reading === null ? headlineWithoutComparison(counts) : balanceTitle(reading),
     meter: reading,
     heroes,
-    period: rangePeriod(rangeDays),
+    period: periodLine(period, counts),
     caveat: effortCaveat(effort)?.short ?? null,
     footnote: FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableOrigin(window.location.origin),

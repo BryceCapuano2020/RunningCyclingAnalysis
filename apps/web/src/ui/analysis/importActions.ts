@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisSettings } from '../athlete'
 import {
@@ -15,6 +16,7 @@ import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION } from './model'
 import type { Account, Box, ErrorNotice, SetError, Setter } from './model'
 import type { WorkerTransport } from './workerTransport'
+import type { WorkerResponse } from '../../worker/protocol'
 
 interface ImportActionDeps {
   imports: ImportState
@@ -45,8 +47,7 @@ export function useImportActions({
   setErrorNotice,
   latestBaseline,
 }: ImportActionDeps) {
-  const { setRebuildNotice, pendingAsyncImportsRef, provisionalImportsRef, rangeRef, reportedRef } =
-    imports
+  const { setRebuildNotice, pendingAsyncImportsRef, provisionalImportsRef, reportedRef } = imports
   const { libraryStatusRef, libraryWaitRef, setRestoring } = library
   // Counts each Start over (in the transport), so an import made before one is not sent after it.
   const { workerGenerationRef, send, sessionEpochRef } = transport
@@ -210,12 +211,16 @@ export function useImportActions({
 
   // The requested period is kept as soon as it is chosen, so a clear that follows can send it again
   // before the worker has answered.
+  // The answer, when given, is called once with the worker's reply to this pick, or with null when the
+  // pick is dropped before a reply.
   const setRange = useCallback(
-    (rangeDays: number | null) => {
-      rangeRef.current = rangeDays
-      send({ type: 'setRange', rangeDays, settings: settingsRef.current })
-    },
-    [rangeRef, send, settingsRef],
+    (choice: PeriodChoice, answered?: (reply: WorkerResponse | null) => void) =>
+      send(
+        { type: 'setRange', choice, settings: settingsRef.current },
+        undefined,
+        answered ? (reply) => answered(reply) : undefined,
+      ),
+    [send, settingsRef],
   )
 
   // Signed out, starting over also forgets the activities kept in this browser. Files analysed while
@@ -228,7 +233,6 @@ export function useImportActions({
     drainBatches(provisionalImportsRef)
     drainBatches(libraryWaitRef)
     transport.dropProvisional()
-    rangeRef.current = null
     // What was cleared is no baseline, even before the worker answers the clear.
     reportedRef.current = EMPTY_SESSION
     send({ type: 'clear', forgetDevice: accountRef.current.status !== 'signed-in' })
@@ -237,7 +241,6 @@ export function useImportActions({
     accountRef,
     libraryWaitRef,
     provisionalImportsRef,
-    rangeRef,
     refreshBusy,
     reportedRef,
     send,

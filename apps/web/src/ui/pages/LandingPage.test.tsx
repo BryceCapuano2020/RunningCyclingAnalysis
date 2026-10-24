@@ -11,7 +11,7 @@ afterEach(() => {
 
 /** The example result's figure, found by its caption. */
 function exampleFigure(): HTMLElement {
-  const figure = screen.getByText('Example result').closest('figure')
+  const figure = screen.getByText('Illustrative: the sample athlete').closest('figure')
   if (!figure) throw new Error('No example figure')
   return figure
 }
@@ -173,12 +173,13 @@ describe('LandingPage', () => {
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
     expect(
       within(example).getByRole('img', {
-        name: 'Running grades 6 points higher than cycling (range 2 to 10 points)',
+        name: 'Running grades 6 points higher than cycling (range 1 to 12 points)',
       }),
     ).toBeInTheDocument()
-    expect(within(example).getByText('4:08 /km')).toBeInTheDocument()
-    expect(within(example).getByText('225 W')).toBeInTheDocument()
-    expect(within(example).getByText('3.0 W/kg')).toBeInTheDocument()
+    expect(within(example).getByText('Running · Local · 64%')).toBeInTheDocument()
+    expect(within(example).getByText('Pace 4:29 /km')).toBeInTheDocument()
+    expect(within(example).getByText('Power 225 W')).toBeInTheDocument()
+    expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()
   })
 
   it('puts running on the left end of the example meter, as the sport cards do', () => {
@@ -195,7 +196,7 @@ describe('LandingPage', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="imperial" onFiles={vi.fn()} />,
     )
-    expect(within(exampleFigure()).getByText('6:39 /mi')).toBeInTheDocument()
+    expect(within(exampleFigure()).getByText('Pace 7:13 /mi')).toBeInTheDocument()
   })
 
   it('explains the result in three plain sentences, with a link to the full method', () => {

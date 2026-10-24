@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
+import type { Period } from '@rca/core/period'
 import type { TrendPoint } from '@rca/core/digest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
@@ -14,6 +15,7 @@ import { curvePoint } from '../charts/fixtures'
 import {
   FIVE_K_IN_20_MIN_WKG,
   MAN_BORN_1986,
+  makeActivity,
   makeEquivalence,
   makeResult,
 } from '../components/fixtures'
@@ -34,6 +36,15 @@ afterEach(() => {
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
+/** A six-week period from 12 May to 3 August 2025, dated in the viewer's zone. */
+const DATED_SIX_WEEKS: Period = {
+  choice: 42,
+  startMs: new Date(2025, 4, 12, 12).getTime(),
+  endMs: new Date(2025, 7, 3, 12).getTime(),
+  days: 42,
+  fellBack: false,
+}
+
 const PROFILE_PROMPT = 'Add year of birth and sex'
 
 function renderPage(
@@ -51,6 +62,7 @@ function renderPage(
       profile={profile}
       controls={<span>Period picker</span>}
       weightKnown={weightKnown}
+      onShowAll={vi.fn()}
     />,
   )
 }
@@ -95,17 +107,65 @@ function trendWithWeeks(weeks: number): TrendPoint[] {
 }
 
 describe('BalancePage', () => {
-  it('opens on the answer, with the period control beside the eyebrow', () => {
+  it('opens on the answer, with the period control under it and no eyebrow above', () => {
     renderPage()
 
-    expect(screen.getByText('Your balance')).toBeInTheDocument()
-    expect(screen.getByText('Period picker')).toBeInTheDocument()
+    expect(screen.queryByText('Your balance')).not.toBeInTheDocument()
+    const heading = screen.getByRole('heading', {
+      level: 1,
+      name: 'Your balance leans toward running',
+    })
+    expect(heading).toHaveAttribute('id', 'page-heading')
+    // The heading comes first in reading order, so the control follows the answer it changes.
+    const picker = screen.getByText('Period picker')
+    expect(heading.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('keeps the comparison slots out when one sport has nothing in the period', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
+
+    expect(screen.queryByText('Your bike on foot')).not.toBeInTheDocument()
+    expect(screen.queryByText('Evidence gap')).not.toBeInTheDocument()
+    expect(screen.queryByText('Built on real efforts')).not.toBeInTheDocument()
+    expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
+  })
+
+  it('offers an empty sport the file chooser as a secondary button, with the count in All time', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    renderPage(makeResult({ activities: [run] }), {
+      state: { library: [run, ride], period: DATED_SIX_WEEKS },
+    })
+
+    const card = screen.getByRole('region', { name: 'Ride' })
     expect(
-      screen.getByRole('heading', {
-        level: 1,
-        name: 'Your balance leans toward running',
-      }),
-    ).toHaveAttribute('id', 'page-heading')
+      within(card).getByText(
+        'No rides between 12 May and 3 Aug 2025. You have 1 ride in All time.',
+      ),
+    ).toBeInTheDocument()
+    const add = within(card).getByRole('button', { name: 'Add rides' })
+    expect(add).toHaveClass('btn')
+    expect(add).not.toHaveClass('btn-primary')
+    expect(within(card).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('tells a sport with no files at all that its files have none, and asks for them', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
+
+    const card = screen.getByRole('region', { name: 'Ride' })
+    expect(
+      within(card).getByText('Your files have no rides yet. Add rides to see your records.'),
+    ).toBeInTheDocument()
+  })
+
+  it('puts both grades under the meter on a phone, hidden from assistive technology', () => {
+    renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+
+    const strip = document.querySelector('.balance-strip')
+    expect(strip).toHaveAttribute('aria-hidden', 'true')
+    expect(strip?.textContent).toMatch(/^Running \d+% \w+$/)
   })
 
   it('marks the sample athlete only when the sample is on screen', () => {
@@ -291,19 +351,22 @@ describe('BalancePage age grades', () => {
     expect(screen.queryByRole('link', { name: PROFILE_PROMPT })).not.toBeInTheDocument()
   })
 
-  it('names the standards, the sex they grade, and that a level is not a ranking', () => {
+  it('says the age, the sex and the standard on one line, without repeating the credit', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
-    const source = screen.getByText(/^Graded on the/)
-    expect(source).toHaveTextContent(
-      'Graded on the USATF road age standards (2025), by Alan Jones and Tom Bernhard, licensed CC0 1.0, for a man. Age is counted from your birth year on the date of each effort. A level, not a ranking.',
+    const source = screen.getByText(
+      /^Graded for a \d+-year-old man on the USATF road standards\. A level, not a ranking\.$/,
     )
-    expect(
-      within(source).getByRole('link', { name: 'USATF road age standards (2025)' }),
-    ).toHaveAttribute('href', ROAD_STANDARDS_SOURCE.url)
+    expect(source).toBeInTheDocument()
+    expect(screen.queryByText(/Alan Jones/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: ROAD_STANDARDS_SOURCE.name })).not.toBeInTheDocument()
   })
 
   it('says rides are graded through their running equivalent only when a ride grade is shown', () => {
+    const { unmount } = renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+    expect(screen.queryByText(/Rides are graded through/)).not.toBeInTheDocument()
+    unmount()
+
     renderPage(
       makeResult({
         equivalents: [makeEquivalence()],
@@ -312,9 +375,9 @@ describe('BalancePage age grades', () => {
       {},
       MAN_BORN_1986,
     )
-    expect(screen.getByText(/^Graded on the/)).toHaveTextContent(
-      'Rides are graded through their running equivalent.',
-    )
+    expect(
+      screen.getByText(/Rides are graded through their running equivalent/),
+    ).toBeInTheDocument()
   })
 
   it('holds the cross-sport idea without a weight, with the same prompt as the cards', () => {
@@ -334,7 +397,7 @@ describe('BalancePage age grades', () => {
       false,
     )
     // The ride's grade is held with its card, so nothing graded is on screen to cite a standard for.
-    expect(screen.queryByText(/^Graded on the/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Graded for a/)).not.toBeInTheDocument()
     expect(
       screen.queryByText(/Rides are graded through their running equivalent/),
     ).not.toBeInTheDocument()
@@ -342,7 +405,7 @@ describe('BalancePage age grades', () => {
 
   it('shows the standards line only when a grade is shown', () => {
     const { unmount } = renderPage(makeResult(), {}, MAN_BORN_1986)
-    expect(screen.queryByText(/^Graded on the/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Graded for a/)).not.toBeInTheDocument()
     unmount()
 
     renderPage(
@@ -353,7 +416,7 @@ describe('BalancePage age grades', () => {
       {},
       MAN_BORN_1986,
     )
-    expect(screen.getByText(/^Graded on the/)).toBeInTheDocument()
+    expect(screen.getByText(/^Graded for a/)).toBeInTheDocument()
   })
 
   it('shows no standards line without the year of birth and sex', () => {

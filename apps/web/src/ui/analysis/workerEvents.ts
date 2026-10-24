@@ -199,6 +199,8 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   if (message.type === 'routeShape' && (front === undefined || !ROUTE_KINDS.has(front.kind))) return
   // Replies arrive in request order; the first pending request is the one this answers.
   const pending = transport.pendingRepliesRef.current.shift()
+  // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
+  if (pending?.kind === 'setRange') pending.settle?.(message)
   refreshBusy()
   // The session was cleared after this request was sent, so its answer must not refill the page.
   if (pending?.ignored) return
@@ -260,6 +262,7 @@ function handleReplyError(
   message: ErrorReply,
 ): void {
   const { library, setError, failLibrary, handleAccountIssue, refreshBusy } = deps
+  if (pending?.kind === 'setRange') pending.settle?.(null)
   if (pending?.kind === 'loadServer') {
     const dropped = failLibrary()
     if (message.issue === 'daily-limit') setError(limitReached('read'), 'daily-limit')

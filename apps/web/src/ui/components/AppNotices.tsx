@@ -1,9 +1,12 @@
 import type { AnalysisController } from '../useAnalysis'
+import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { LibraryNotices } from './LibraryNotices'
 import { RejectedFiles } from './RejectedFiles'
 import { SyncStatus } from './SyncStatus'
+import './AppNotices.css'
 
-const SAMPLE_NOTICE = 'Showing a sample athlete. Add your own files to replace it.'
+/** Shown on every page while the sample is loaded. It says once that the sample is not kept. */
+const SAMPLE_BANNER = `Showing a sample athlete, ${SAMPLE_DESCRIPTION}. The sample is not kept: add your own files and they replace it.`
 
 export interface AppNoticesProps {
   analysis: AnalysisController
@@ -49,8 +52,8 @@ export function AppNotices({
         fileRetentionAvailable={fileRetentionAvailable}
         onRetry={() => runThenFocus(analysis.retryLibrary)}
       />
-      <p role="status" className="sr-only">
-        {result !== null && isSample ? SAMPLE_NOTICE : ''}
+      <p role="status" className={result !== null && isSample ? 'sample-banner' : 'sr-only'}>
+        {result !== null && isSample ? SAMPLE_BANNER : ''}
       </p>
       {accountError && !accountsUnavailable && (
         <p className="notice notice--critical" role="alert">

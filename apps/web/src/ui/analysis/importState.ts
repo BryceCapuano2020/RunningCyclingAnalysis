@@ -45,8 +45,6 @@ export function useImportState() {
   // Files analysed while the account loads, in this session only. Once the account is known they are
   // sent again, to the account when signed in, or through the signed-out import otherwise.
   const provisionalImportsRef = useRef<File[][]>([])
-  // The period the visitor chose, kept as soon as it is chosen; a clear resets the session's period.
-  const rangeRef = useRef<number | null>(null)
 
   return {
     state,
@@ -68,7 +66,6 @@ export function useImportState() {
     setRebuildNotice,
     pendingAsyncImportsRef,
     provisionalImportsRef,
-    rangeRef,
   }
 }
 

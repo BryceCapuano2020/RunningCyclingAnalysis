@@ -16,6 +16,7 @@ import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 import { formatDay } from './format/date'
 import { makeResult } from './components/fixtures'
+import { EMPTY_PERIOD } from './analysis/model'
 
 const SAVED_COPY: Copy = {
   id: 'saved-copy',
@@ -135,7 +136,8 @@ const STATE = {
   unsupportedFiles: 0,
   isSample: false,
   totalActivities: 0,
-  rangeDays: null,
+  period: EMPTY_PERIOD,
+  library: [],
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
@@ -562,7 +564,7 @@ describe('useAnalysis account handling', () => {
       expect(result.current.error).toMatch(/not loaded, so these files were not imported/)
     })
 
-    it('sends the chosen period again after the clear, before the library loads', () => {
+    it('keeps the chosen period through the clear, so the clear is the only request sent', () => {
       const { result, rerender } = setup(LOADING)
       act(() => result.current.addFiles([FILE]))
       act(() => result.current.setRange(42))
@@ -570,10 +572,12 @@ describe('useAnalysis account handling', () => {
 
       rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
 
-      expect(worker().posted.slice(2, 4)).toEqual([
-        { type: 'clear', forgetDevice: false },
-        { type: 'setRange', rangeDays: 42, settings: SETTINGS },
-      ])
+      const posted = worker().posted
+      const clearAt = posted.findIndex((request) => request.type === 'clear')
+      expect(posted[clearAt]).toEqual({ type: 'clear', forgetDevice: false })
+      expect(posted.slice(clearAt + 1)).not.toContainEqual(
+        expect.objectContaining({ type: 'setRange' }),
+      )
     })
 
     it('summarises nothing for the analysis made while the account loads, only for the final import', () => {
@@ -949,7 +953,7 @@ describe('useAnalysis requests', () => {
     expect(worker().posted).toEqual([
       DEVICE_LOAD,
       { type: 'loadSample', settings: SETTINGS },
-      { type: 'setRange', rangeDays: 42, settings: SETTINGS },
+      { type: 'setRange', choice: 42, settings: SETTINGS },
       { type: 'clear', forgetDevice: true },
     ])
   })
@@ -2055,8 +2059,50 @@ describe('useAnalysis route shapes', () => {
   })
 })
 
+describe('a period pick is answered once the worker answers it', () => {
+  it('calls the answer to a pick once with null when Stop drops the pick before the worker answers', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    const answered = vi.fn()
+
+    act(() => result.current.setRange(42, answered))
+    act(() => result.current.stop())
+
+    expect(answered).toHaveBeenCalledTimes(1)
+    expect(answered).toHaveBeenCalledWith(null)
+  })
+
+  it('calls the answer to a pick when the worker answers that pick, and not before', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    const answered = vi.fn()
+
+    act(() => result.current.setRange(42, answered))
+    expect(answered).not.toHaveBeenCalled()
+
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, period: { ...STATE.period, choice: 42 } },
+      }),
+    )
+    expect(answered).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a period pick is quiet', () => {
+  it('does not make the page busy, so Stop and Share keep their state while the worker answers', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+
+    act(() => result.current.setRange(42))
+
+    expect(result.current.busy).toBe(false)
+  })
+})
+
 describe('a period, a clear, and the restore hint, in round 3', () => {
-  it('sends a period chosen while the account loads again after the clear, even before its reply', () => {
+  it('does not resend a period chosen while the account loads, since the session keeps it', () => {
     const { result, rerender } = setup(LOADING)
     act(() => result.current.addFiles([FILE]))
     act(() => result.current.setRange(42))
@@ -2066,11 +2112,9 @@ describe('a period, a clear, and the restore hint, in round 3', () => {
     const posted = worker().posted
     const clearAt = posted.findIndex((request) => request.type === 'clear')
     expect(clearAt).toBeGreaterThan(-1)
-    expect(posted.slice(clearAt + 1)).toContainEqual({
-      type: 'setRange',
-      rangeDays: 42,
-      settings: SETTINGS,
-    })
+    expect(posted.slice(clearAt + 1)).not.toContainEqual(
+      expect.objectContaining({ type: 'setRange' }),
+    )
   })
 
   it('keeps the restore hint when a signed-in visitor clears the session, since the library is kept', () => {
@@ -2229,9 +2273,7 @@ describe('what an import is compared with, and the restore hint, in round 4', ()
 
     const posted = worker().posted
     const afterClear = posted.slice(posted.findIndex((request) => request.type === 'clear') + 1)
-    expect(afterClear).not.toContainEqual(
-      expect.objectContaining({ type: 'setRange', rangeDays: 42 }),
-    )
+    expect(afterClear).not.toContainEqual(expect.objectContaining({ type: 'setRange', choice: 42 }))
   })
 })
 
