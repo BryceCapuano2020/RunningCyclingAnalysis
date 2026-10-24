@@ -15,7 +15,7 @@
 
 /* Dots are fully opaque, with a 2 px surface ring so that overlapping dots stay separate. */
 .hr-scatter__dot {
-  stroke: var(--surface-1);
+  stroke: var(--surface-0);
   stroke-width: 2;
 }
 

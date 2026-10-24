@@ -14,7 +14,7 @@ Hash routes, so the static host needs no fallback rules.
 
 | Route              | Page              | Holds                                                                                                                                                                                                                               |
 | ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, a trend per sport in its own units, share image                                                                                              |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share image                                                                                  |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes             |
 | `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                                         |
 | `#/activities/:id` | Activity          | Summary, route shape, splits (runs), records earned across the library, efforts set here, data issues                                                                                                                               |
@@ -102,19 +102,33 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a volt button with an ink label in dark, so it stands out on either page colour.
 - A sport glyph (`SportIcon`) sits next to every sport name.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
-  of a trend, or the 20-minute effort of a best-effort curve. Watts charts also fill the area under
-  the line. Pace charts draw the line alone: pace has no zero to fill down to.
+  of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
+  its value, such as "250 W", and the latest trend value with its window, such as "64%, last 2 weeks". Watts charts also fill the area under
+  the line. Pace charts draw the line alone: pace has no zero to fill down to. Every chart has a
+  visible title, and a value's label sits clear of its own line.
 - The Method-page ratio chart tints running coral above its line and cycling blue below it, so the
   side that is ahead reads before the numbers do.
-- Surface charts use the athlete's units. Running is pace per km or mile, faster up; cycling is
-  watts. Tooltips add the cycling W/kg.
+- Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
+  watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
+  one scale: the age grade in per cent when the age and sex are known, else the energy rate in
+  metabolic W/kg.
 - A period's comparison is the same length before it, drawn as a dashed neutral line and named
   "Previous 6 weeks", "Previous 3 months" or "Previous year". All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
-  six-week period uses two-week windows. Every point's window lies inside the period, and a value
-  holds until a faster effort or the window passes.
+  six-week period uses two-week windows. Every point's window lies inside the period. The title
+  names the effort and the window. Each line steps from one Sunday to the next and breaks at a week
+  with no value, and each Sunday has a marker. The latest value is labelled with its window, so it
+  can differ from a card's best, which covers the whole period.
+- On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
+  is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
+  each week, its model range is a band, and the key says "estimated". Each grade is taken at the age
+  on the day of its best effort. Without a weight, the Balance trend holds cycling: there is no ride
+  line, ring, band, key or table column, and the chart says so. On an energy trend and on the sport
+  pages, cycling is drawn as measured: a solid line with dots.
+- A previous period is a thin dashed grey line (1.5 px). It appears only when it has values, and
+  otherwise the chart says there were none.
 - The balance meter spans the card row, so its centre is the gap between the two cards. Running is
   on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
   the cards, the meter, the landing example and the share card all follow it. The meter plots the

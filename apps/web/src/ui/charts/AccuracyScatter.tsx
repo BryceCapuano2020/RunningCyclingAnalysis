@@ -25,8 +25,6 @@ const HIT_RADIUS = 16
 const MAX_TICKS = 5
 /** Domain padding on each side, as a fraction of the data span. */
 const DOMAIN_PAD = 0.1
-/** Where along the reference line, from its lower-left end, the label sits. */
-const LABEL_T = 0.2
 
 interface Dot extends Point {
   measuredW: number
@@ -165,6 +163,7 @@ export function AccuracyScatter({ accuracy }: AccuracyScatterProps) {
           ]
         }),
       }}
+      legend={[{ label: 'Perfect estimate', kind: 'neutral', swatch: 'dashed' }]}
       empty={hasData ? undefined : EMPTY}
       note={hasData ? noteFor(accuracy) : undefined}
       surface={(size) => surfaceOf(size, accuracy, active, setActive)}
@@ -174,9 +173,6 @@ export function AccuracyScatter({ accuracy }: AccuracyScatterProps) {
         const m = layout(accuracy, size)
         const { square, reference } = m
         const fontSize = axisFontSize(size.width)
-        // Lower-left part of the line, set just below and right of it so the dots above stay clear.
-        const labelX = reference.x1 + LABEL_T * (reference.x2 - reference.x1) + 8
-        const labelY = reference.y1 + LABEL_T * (reference.y2 - reference.y1) + 16
         return (
           <>
             <ChartXAxis
@@ -199,9 +195,6 @@ export function AccuracyScatter({ accuracy }: AccuracyScatterProps) {
               x2={reference.x2}
               y2={reference.y2}
             />
-            <text className="accuracy-scatter__reference-label" x={labelX} y={labelY}>
-              Perfect estimate
-            </text>
             {keyByContent(m.dots, (dot) => `${dot.measuredW}:${dot.estimatedW}:${dot.lengthS}`).map(
               ({ key, item: dot, index: i }) => (
                 <circle

@@ -2,8 +2,11 @@ import type { ReactNode } from 'react'
 import type { SeriesKind } from './chartTypes'
 import './ChartLegend.css'
 
-/** Key shape: a square for a fill, a band for a shaded range, or a line for a line. */
-export type LegendSwatch = 'solid' | 'band' | 'band-strong' | 'line' | 'dashed'
+/**
+ * Key shape: a square for a fill, a dot or a diamond for a point, a band for a shaded range, a line,
+ * or a dashed line for an estimate or a comparison.
+ */
+export type LegendSwatch = 'solid' | 'dot' | 'diamond' | 'band' | 'band-strong' | 'line' | 'dashed'
 
 export interface ChartLegendEntry {
   label: string
@@ -46,8 +49,27 @@ function keyFor(entry: ChartLegendEntry): ReactNode {
           className={`chart-legend__key chart-legend__key--line ${LINE_KIND_CLASS[entry.kind]}`}
         />
       )
+    case 'diamond':
+      return (
+        <span
+          aria-hidden="true"
+          className={`chart-legend__key chart-legend__key--diamond ${LINE_KIND_CLASS[entry.kind]}`}
+        />
+      )
+    case 'dot':
+      return (
+        <span
+          aria-hidden="true"
+          className={`chart-legend__key chart-legend__key--dot ${LINE_KIND_CLASS[entry.kind]}`}
+        />
+      )
     case 'dashed':
-      return <span aria-hidden="true" className="chart-legend__key chart-legend__key--dashed" />
+      return (
+        <span
+          aria-hidden="true"
+          className={`chart-legend__key chart-legend__key--dashed chart-legend__key--dashed-${entry.kind}`}
+        />
+      )
     case 'solid':
       return <span aria-hidden="true" className={`swatch ${SWATCH_CLASS[entry.kind]}`} />
   }

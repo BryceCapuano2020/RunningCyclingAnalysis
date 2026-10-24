@@ -14,11 +14,11 @@
   stroke: var(--series-ride);
 }
 
-/* The previous period is neutral and dashed, so it never reads as a sport. */
+/* The previous period is a thin dashed neutral line, so it reads as context and never as a sport. */
 .chart-series__line--previous {
   stroke: var(--neutral-mark);
-  stroke-width: 2.5px;
-  stroke-dasharray: 6 4;
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 4;
 }
 
 /*
@@ -29,9 +29,20 @@
   fill: var(--series-ride-soft);
 }
 
-/* Marker with a surface ring, so it stays legible where it crosses a line. */
+/* An estimate: a dashed line and a ring at each week, in the sport's colour, over the surface. */
+.chart-series__line--estimate {
+  stroke-dasharray: 6 4;
+}
+
+.chart-series__ring--ride {
+  fill: var(--surface-0);
+  stroke: var(--series-ride);
+  stroke-width: 2px;
+}
+
+/* A marker ringed in the surface the chart sits on, so it stays legible where it crosses a line. */
 .chart-series__marker {
-  stroke: var(--surface-1);
+  stroke: var(--surface-0);
   stroke-width: 2;
 }
 
@@ -47,13 +58,19 @@
   fill: var(--neutral-mark);
 }
 
+/* A week with no value: a short mark on the date axis, in the muted text colour. */
+.chart-series__gap {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
 /* Surface-coloured halo keeps the label legible over gridlines and lines. */
 .chart-series__label {
   fill: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
   paint-order: stroke;
-  stroke: var(--surface-1);
+  stroke: var(--surface-0);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

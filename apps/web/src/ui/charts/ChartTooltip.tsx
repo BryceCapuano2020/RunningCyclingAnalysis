@@ -16,7 +16,10 @@ function keyClass(kind: SeriesKind | undefined): string {
   return kind ? `chart-tooltip__key chart-tooltip__key--${kind}` : 'chart-tooltip__key'
 }
 
-/** Hidden while there is no content. Stays in the DOM so that its updates are announced. */
+/**
+ * Empty while there is no content. It stays in the DOM and is never hidden, so a screen reader
+ * announces each change to it; the CSS gives an empty box no size.
+ */
 export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -32,7 +35,7 @@ export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
   })
 
   return (
-    <div ref={ref} id={id} role="status" hidden={content === null} className="chart-tooltip">
+    <div ref={ref} id={id} role="status" className="chart-tooltip">
       {content === null ? null : (
         <>
           <div className="chart-tooltip__title">{content.title}</div>

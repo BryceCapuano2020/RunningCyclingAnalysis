@@ -1,13 +1,23 @@
+/* A finger scrolls the page vertically and pinches to zoom over the plot. A tap or a horizontal drag reads it. */
 .plot-surface {
   outline: none;
+  touch-action: pan-y pinch-zoom;
 }
 
 .plot-surface__hit {
   fill: transparent;
   cursor: crosshair;
+  touch-action: pan-y pinch-zoom;
 }
 
-.plot-surface:focus-visible .plot-surface__hit {
+/* The focus ring sits outside the plot, so it never covers the values it lets a reader reach. */
+.plot-surface__ring {
+  fill: none;
   stroke: var(--focus);
   stroke-width: 2px;
+  visibility: hidden;
+}
+
+.plot-surface:focus-visible .plot-surface__ring {
+  visibility: visible;
 }

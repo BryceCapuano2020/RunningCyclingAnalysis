@@ -214,8 +214,8 @@ describe('MethodPage energy scale', () => {
     )
     const section = screen.getByRole('region', { name: 'Both sports on one scale' })
     expect(
-      within(section).getByRole('img', {
-        name: /^Running and cycling energy rate in W\/kg by duration\./,
+      within(section).getByRole('figure', {
+        name: 'Running and cycling energy rate in W/kg by duration',
       }),
     ).toBeInTheDocument()
     expect(within(section).getByText(/metabolic power a sport costs/)).toBeInTheDocument()

@@ -4,10 +4,8 @@ import { AnalysisSession } from './session'
 import { EFFORT_LENGTHS_S } from './digest/trendPoints'
 import { sampleDataset } from './synthetic'
 import { combine, digestActivity, sportCurves } from './digest'
-import { DEFAULT_BIKE_MODEL } from './constants'
+import { DAY_MS, DEFAULT_BIKE_MODEL, HEADLINE_DURATION_S } from './constants'
 import type { AthleteSettings } from './types'
-
-const DAY = 86_400_000
 
 vi.mock('./digest/trend', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./digest/trend')>()
@@ -33,6 +31,22 @@ describe('AnalysisSession trend', () => {
     fitnessTrend.mockClear()
   })
 
+  it('gives the headline trend no running equivalents until the session is asked to grade it', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    const plain = session.setRange(null, SETTINGS)
+    const rides = plain.trend.filter((point) => point.rideWkg !== null)
+    expect(rides.length).toBeGreaterThan(0)
+    expect(rides.every((point) => point.rideRunSpeed === null)).toBe(true)
+
+    const graded = session.setGradeTrend(true, SETTINGS)
+    expect(graded.trend.some((point) => point.rideRunSpeed !== null)).toBe(true)
+    // Asked to stop, the trend goes back to plain points.
+    expect(session.setGradeTrend(false, SETTINGS).trend.every((p) => p.rideRunSpeed === null)).toBe(
+      true,
+    )
+  })
+
   it('recomputes the trend when the period changes, and reuses it for the same period', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
@@ -50,22 +64,25 @@ describe('AnalysisSession trend', () => {
   it('computes the trend of a period from windows that stay inside it', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
+    session.setGradeTrend(true, SETTINGS)
     const state = session.setRange(42, SETTINGS)
     const digests = sampleDigests()
     const newest = Math.max(...digests.map((digest) => digest.startMs))
-    const cutoff = newest - 42 * DAY
+    const cutoff = newest - 42 * DAY_MS
+    const selected = digests.filter((digest) => digest.startMs >= cutoff)
     expect(state.trend).toEqual(
-      trend.fitnessTrend(
-        digests.filter((digest) => digest.startMs >= cutoff),
-        SETTINGS,
-        { windowDays: 14, fromMs: cutoff },
-      ),
+      trend.fitnessTrend(selected, SETTINGS, {
+        windowDays: 14,
+        fromMs: cutoff,
+        equivalence: { hr: combine(selected, SETTINGS).hr },
+      }),
     )
   })
 
   it('reuses the trend for equal settings, and recomputes when mass changes', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
+    session.setGradeTrend(true, SETTINGS)
     const computed = fitnessTrend.mock.calls.length
 
     session.setSettings({ ...SETTINGS })
@@ -73,10 +90,10 @@ describe('AnalysisSession trend', () => {
 
     const state = session.setSettings({ ...SETTINGS, massKg: 80 })
     expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
+    const changed = { ...SETTINGS, massKg: 80 }
     expect(state.trend).toEqual(
-      trend.fitnessTrend(sampleDigests(), {
-        ...SETTINGS,
-        massKg: 80,
+      trend.fitnessTrend(sampleDigests(), changed, {
+        equivalence: { hr: combine(sampleDigests(), changed).hr },
       }),
     )
   })
@@ -84,12 +101,13 @@ describe('AnalysisSession trend', () => {
   it('gives the trend of each effort length over the period, with the 20-minute one as trend', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
+    session.setGradeTrend(true, SETTINGS)
     const state = session.setRange(42, SETTINGS)
     const digests = sampleDigests()
     const newest = Math.max(...digests.map((digest) => digest.startMs))
-    const cutoff = newest - 42 * DAY
+    const cutoff = newest - 42 * DAY_MS
     const selected = digests.filter((digest) => digest.startMs >= cutoff)
-    const { bikeModel } = combine(selected, SETTINGS)
+    const { bikeModel, hr } = combine(selected, SETTINGS)
     for (const durationS of EFFORT_LENGTHS_S) {
       expect(state.effortTrends[durationS]).toEqual(
         trend.fitnessTrend(selected, SETTINGS, {
@@ -97,6 +115,8 @@ describe('AnalysisSession trend', () => {
           windowDays: 14,
           fromMs: cutoff,
           bikeModel,
+          // Only the headline trend carries the running equivalent.
+          equivalence: durationS === HEADLINE_DURATION_S ? { hr } : undefined,
         }),
       )
     }
@@ -106,12 +126,17 @@ describe('AnalysisSession trend', () => {
   it('recomputes every effort length when the bike mass changes, and matches a fresh trend', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
+    session.setGradeTrend(true, SETTINGS)
     const computed = fitnessTrend.mock.calls.length
 
     const bigger = { ...SETTINGS, bikeMassKg: 12 }
     const state = session.setSettings(bigger)
     expect(fitnessTrend.mock.calls.length).toBe(computed + EFFORT_LENGTHS_S.length)
-    expect(state.trend).toEqual(trend.fitnessTrend(sampleDigests(), bigger))
+    expect(state.trend).toEqual(
+      trend.fitnessTrend(sampleDigests(), bigger, {
+        equivalence: { hr: combine(sampleDigests(), bigger).hr },
+      }),
+    )
   })
 
   it('recomputes when the library changes', () => {
@@ -132,17 +157,17 @@ describe('AnalysisSession previous period', () => {
     const older = current.map((digest) => ({
       ...digest,
       id: `${digest.id}-older`,
-      startMs: digest.startMs - 63 * DAY,
+      startMs: digest.startMs - 63 * DAY_MS,
     }))
     session.loadDigests([...current, ...older], SETTINGS)
     const state = session.setRange(42, SETTINGS)
 
     const newest = Math.max(...current.map((digest) => digest.startMs))
     const previousPeriod = older.filter(
-      (digest) => digest.startMs >= newest - 84 * DAY && digest.startMs < newest - 42 * DAY,
+      (digest) => digest.startMs >= newest - 84 * DAY_MS && digest.startMs < newest - 42 * DAY_MS,
     )
     expect(previousPeriod.length).toBeGreaterThan(0)
-    const selected = current.filter((digest) => digest.startMs >= newest - 42 * DAY)
+    const selected = current.filter((digest) => digest.startMs >= newest - 42 * DAY_MS)
     expect(state.previous).toEqual(
       sportCurves(previousPeriod, SETTINGS, combine(selected, SETTINGS).bikeModel),
     )
@@ -158,13 +183,13 @@ describe('AnalysisSession previous period', () => {
     )
     expect(virtual).toBeDefined()
     const sparse = virtual
-      ? [{ ...virtual, id: `${virtual.id}-sparse`, startMs: newest - 50 * DAY }]
+      ? [{ ...virtual, id: `${virtual.id}-sparse`, startMs: newest - 50 * DAY_MS }]
       : []
     session.loadDigests([...current, ...sparse], SETTINGS)
     const state = session.setRange(42, SETTINGS)
 
     const selectedModel = combine(
-      current.filter((digest) => digest.startMs >= newest - 42 * DAY),
+      current.filter((digest) => digest.startMs >= newest - 42 * DAY_MS),
       SETTINGS,
     ).bikeModel
     expect(selectedModel).not.toEqual(DEFAULT_BIKE_MODEL)
@@ -179,7 +204,7 @@ describe('AnalysisSession previous period', () => {
     const older = current.map((digest) => ({
       ...digest,
       id: `${digest.id}-older`,
-      startMs: digest.startMs - 63 * DAY,
+      startMs: digest.startMs - 63 * DAY_MS,
     }))
     session.loadDigests([...current, ...older], SETTINGS)
     session.setRange(42, SETTINGS)
@@ -199,7 +224,7 @@ describe('AnalysisSession previous period', () => {
     const older = current.map((digest) => ({
       ...digest,
       id: `${digest.id}-older`,
-      startMs: digest.startMs - 63 * DAY,
+      startMs: digest.startMs - 63 * DAY_MS,
     }))
     const newest = Math.max(...current.map((digest) => digest.startMs))
     const ride = current.find((digest) => digest.sport === 'ride')
@@ -209,7 +234,7 @@ describe('AnalysisSession previous period', () => {
     const computed = vi.mocked(sportCurves).mock.calls.length
 
     // An older ride lands in the period before, between the two calls; the selected period is unchanged.
-    const loaded = ride ? { ...ride, id: `${ride.id}-loaded`, startMs: newest - 60 * DAY } : null
+    const loaded = ride ? { ...ride, id: `${ride.id}-loaded`, startMs: newest - 60 * DAY_MS } : null
     session.loadDigests([...current, ...older, ...(loaded ? [loaded] : [])], SETTINGS)
     session.setRange(42, SETTINGS)
     expect(vi.mocked(sportCurves).mock.calls.length).toBe(computed + 1)

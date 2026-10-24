@@ -14,9 +14,8 @@ vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
 vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs } = await import('./test/appMocks')
-  const { TrendChart } = await import('./ui/charts/TrendChart')
-  return { ...heavyChartStubs, TrendChart }
+  const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
+  return { ...heavyChartStubs, ...(await trendCharts()) }
 })
 
 const LANDING_HEADING = 'How balanced are you as an athlete?'

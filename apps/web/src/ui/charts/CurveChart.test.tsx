@@ -7,7 +7,6 @@ import { curveOf, rideCurveFixture, rideMetabolicCurveFixture, runCurveFixture }
 const TITLE = 'Running and cycling energy rate in W/kg by duration'
 
 /** The static chart image is named by its title, then its description. */
-const named = (title: string) => (name: string) => name.startsWith(title)
 
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
@@ -31,7 +30,7 @@ describe('CurveChart', () => {
         units="metric"
       />,
     )
-    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: TITLE })).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Running')).toBeInTheDocument()
     expect(within(legend).getByText('Cycling')).toBeInTheDocument()
@@ -58,7 +57,7 @@ describe('CurveChart', () => {
     expect(document.getElementById(describedBy ?? '')).toHaveAttribute('role', 'status')
   })
 
-  it('places one marker per finite point for each sport', () => {
+  it('marks only the duration the reader is on, one marker per sport, so the lines stay unbroken', () => {
     render(
       <CurveChart
         runCurve={runCurveFixture}
@@ -67,10 +66,10 @@ describe('CurveChart', () => {
         units="metric"
       />,
     )
+    expect(screen.queryAllByTestId('curve-marker')).toHaveLength(0)
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const markers = screen.getAllByTestId('curve-marker')
-    expect(markers).toHaveLength(7)
-    expect(markers.filter((m) => m.getAttribute('data-series') === 'run')).toHaveLength(4)
-    expect(markers.filter((m) => m.getAttribute('data-series') === 'ride')).toHaveLength(3)
+    expect(markers.map((m) => m.getAttribute('data-series')).sort()).toEqual(['ride', 'run'])
   })
 
   it('formats each duration in the table view', () => {
@@ -129,7 +128,7 @@ describe('CurveChart', () => {
       />,
     )
     const plot = screen.getByTestId('plot-surface')
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
     const tooltip = screen.getByRole('status')
@@ -143,7 +142,27 @@ describe('CurveChart', () => {
     expect(screen.getByRole('status')).toHaveTextContent('5 min')
 
     fireEvent.keyDown(plot, { key: 'Escape' })
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('keys and marks each sport by its shape: a dot for running, a diamond for riding', () => {
+    const { container } = render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-legend__key--dot')).not.toBeNull()
+    expect(container.querySelector('.chart-legend__key--diamond')).not.toBeNull()
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    const markers = screen.getAllByTestId('curve-marker')
+    const run = markers.find((m) => m.getAttribute('data-series') === 'run')
+    const ride = markers.find((m) => m.getAttribute('data-series') === 'ride')
+    expect(run?.tagName.toLowerCase()).toBe('circle')
+    expect(ride?.tagName.toLowerCase()).toBe('path')
+    expect(ride).toHaveAttribute('data-shape', 'diamond')
   })
 
   it('plots the sport that has data when the other has none', () => {
@@ -155,10 +174,12 @@ describe('CurveChart', () => {
         units="metric"
       />,
     )
-    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: TITLE })).toBeInTheDocument()
+    expect(screen.queryAllByTestId('curve-marker')).toHaveLength(0)
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const markers = screen.getAllByTestId('curve-marker')
-    expect(markers).toHaveLength(3)
-    expect(markers.every((m) => m.getAttribute('data-series') === 'ride')).toBe(true)
+    expect(markers).toHaveLength(1)
+    expect(markers[0]).toHaveAttribute('data-series', 'ride')
   })
 
   it('shows an empty state when fewer than two durations have a value', () => {
@@ -173,7 +194,7 @@ describe('CurveChart', () => {
     expect(
       screen.getByText('Add at least one run and one ride to see both curves'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
+    expect(screen.queryByRole('img')).toBeNull()
   })
 
   it('captions the table with the energy rate in W/kg and the activity behind each value', () => {

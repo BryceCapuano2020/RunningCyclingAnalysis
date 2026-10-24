@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readStylesheet, ruleBody } from '../components/stylesheet'
 import { PlotSurface } from './PlotSurface'
 import type { PlotSurfaceProps } from './PlotSurface'
 import type { ChartSize } from './chartTypes'
+
+const surfaceCss = await readStylesheet(import.meta.url, './PlotSurface.css')
 
 afterEach(() => {
   cleanup()
@@ -15,6 +18,7 @@ const size: ChartSize = {
   height: 200,
   plot: { left: 40, right: 380, top: 20, bottom: 150 },
   tooltipId: 'tip',
+  title: 'Test chart',
 }
 
 function renderSurface() {
@@ -88,7 +92,61 @@ describe('PlotSurface', () => {
     const { surface } = renderSurface()
     expect(surface).toHaveAttribute(
       'aria-label',
-      'Chart data. Use left and right arrow keys to read values',
+      'Test chart. Use the left and right arrow keys to read values',
     )
+  })
+
+  it('opens the tooltip on a tap, at the tapped point', () => {
+    const { surface, onPoint } = renderSurface()
+    fireEvent.pointerDown(surface, { clientX: 60, clientY: 45, pointerType: 'touch' })
+    expect(onPoint).toHaveBeenLastCalledWith({ x: 60, y: 45 })
+  })
+
+  it('keeps a touched tooltip when the finger lifts, so the value stays until a tap elsewhere', () => {
+    const { surface, onPoint } = renderSurface()
+    fireEvent.pointerDown(surface, { clientX: 60, clientY: 45, pointerType: 'touch' })
+    fireEvent.pointerLeave(surface, { pointerType: 'touch' })
+    expect(onPoint).not.toHaveBeenCalledWith(null)
+  })
+
+  it('clears a touched tooltip when a tap lands outside the chart', () => {
+    const { surface, onPoint } = renderSurface()
+    fireEvent.pointerDown(surface, { clientX: 60, clientY: 45, pointerType: 'touch' })
+    fireEvent.pointerDown(document.body, { pointerType: 'touch' })
+    expect(onPoint).toHaveBeenLastCalledWith(null)
+    expect(surface).toBeInTheDocument()
+  })
+
+  it('keeps the tooltip for a tap on the chart itself', () => {
+    const { surface, onPoint } = renderSurface()
+    onPoint.mockClear()
+    fireEvent.pointerDown(surface, { clientX: 60, clientY: 45, pointerType: 'touch' })
+    expect(onPoint).toHaveBeenCalledTimes(1)
+    expect(onPoint).not.toHaveBeenCalledWith(null)
+  })
+
+  it('clears a touched tooltip when the touch is cancelled, as when the page starts to scroll', () => {
+    const { surface, onPoint } = renderSurface()
+    fireEvent.pointerDown(surface, { clientX: 60, clientY: 45, pointerType: 'touch' })
+    fireEvent.pointerCancel(surface, { pointerType: 'touch' })
+    expect(onPoint).toHaveBeenLastCalledWith(null)
+  })
+
+  it('clears a mouse tooltip when the mouse leaves the plot', () => {
+    const { surface, onPoint } = renderSurface()
+    fireEvent.pointerLeave(surface, { pointerType: 'mouse' })
+    expect(onPoint).toHaveBeenLastCalledWith(null)
+  })
+
+  it('lets a finger scroll the page up and down, and pinch to zoom, over the plot', () => {
+    expect(ruleBody(surfaceCss, '.plot-surface')).toMatch(/touch-action:\s*pan-y pinch-zoom/)
+    expect(ruleBody(surfaceCss, '.plot-surface__hit')).toMatch(/touch-action:\s*pan-y pinch-zoom/)
+  })
+
+  it('passes Home and End on, and stops the page from jumping for them', () => {
+    const { surface, onKey } = renderSurface()
+    expect(fireEvent.keyDown(surface, { key: 'Home' })).toBe(false)
+    expect(fireEvent.keyDown(surface, { key: 'End' })).toBe(false)
+    expect(onKey.mock.calls).toEqual([['Home'], ['End']])
   })
 })

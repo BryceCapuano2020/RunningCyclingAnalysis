@@ -24,9 +24,8 @@ vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
 vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs } = await import('./test/appMocks')
-  const { TrendChart } = await import('./ui/charts/TrendChart')
-  return { ...heavyChartStubs, TrendChart }
+  const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
+  return { ...heavyChartStubs, ...(await trendCharts()) }
 })
 
 const LANDING_HEADING = 'How balanced are you as an athlete?'
@@ -38,6 +37,9 @@ const week = (index: number, runWkg: number | null, rideWkg: number | null): Tre
   rideWkg,
   runCount: runWkg === null ? 0 : 1,
   rideCount: rideWkg === null ? 0 : 1,
+  runAtMs: runWkg === null ? null : Date.UTC(2025, 0, 12 + index * 7 - 3),
+  rideAtMs: rideWkg === null ? null : Date.UTC(2025, 0, 12 + index * 7 - 3),
+  rideRunSpeed: null,
 })
 
 beforeEach(() => {
@@ -270,8 +272,8 @@ describe('fitness over time', () => {
     render(<App />)
     expect(screen.getByRole('heading', { level: 2, name: 'Fitness over time' })).toBeInTheDocument()
     expect(
-      screen.getByRole('img', {
-        name: /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\./,
+      screen.getByRole('figure', {
+        name: /^Energy rate of your best 20 minutes, trailing/,
       }),
     ).toBeInTheDocument()
   })

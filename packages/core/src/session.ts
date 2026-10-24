@@ -71,6 +71,9 @@ export class AnalysisSession {
   private unsupported = new Map<string, number>()
   private isSample = false
   private rangeDays: number | null = null
+  // Whether the headline trend carries each week's running equivalent, which only an age-graded
+  // Balance trend uses. Off until the page asks for it.
+  private gradeTrend = false
   private periods = new PeriodCache()
   // The last record holders, with the digests and masses they were computed from.
   private recordsCache: {
@@ -195,6 +198,12 @@ export class AnalysisSession {
   setSettings(settings: AthleteSettings): SessionState {
     requirePositiveFinite('massKg', settings.massKg)
     requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
+    return this.state(settings)
+  }
+
+  /** Asks for the headline trend's running equivalents, which an age-graded Balance trend needs. */
+  setGradeTrend(on: boolean, settings: AthleteSettings): SessionState {
+    this.gradeTrend = on
     return this.state(settings)
   }
 
@@ -339,7 +348,14 @@ export class AnalysisSession {
     const efforts =
       settings === null
         ? NO_TRENDS
-        : this.periods.trends(selected, settings, this.rangeDays, startMs, bikeModel)
+        : this.periods.trends(
+            selected,
+            settings,
+            this.rangeDays,
+            startMs,
+            bikeModel,
+            this.gradeTrend ? analysis?.hr : undefined,
+          )
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],

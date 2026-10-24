@@ -15,9 +15,7 @@ function cssRule(selector: string): string {
 
 const TITLE = 'Running compared with cycling by duration'
 
-/** The static chart image is named by its title, then its description. */
-const named = (title: string) => (name: string) => name.startsWith(title)
-
+/** The chart's figure is named by its visible title. */
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
   const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
@@ -33,7 +31,7 @@ describe('RatioChart', () => {
 
   it('draws the prior band and its median when there is no heart-rate check', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
-    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: TITLE })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(1)
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)
@@ -97,7 +95,15 @@ describe('RatioChart', () => {
     expect(
       screen.getByText('Add at least one run and one ride to compare them'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('sets the Equal label on the left edge, clear of the lines that end at the right', () => {
+    render(<RatioChart comparison={comparisonFixture(false)} />)
+    const equal = screen.getByText('Equal', { selector: 'text' })
+    const edge = screen.getByText('Higher running energy rate', { selector: 'text' })
+    expect(equal).toHaveAttribute('x', edge.getAttribute('x'))
+    expect(equal).not.toHaveAttribute('text-anchor', 'end')
   })
 
   it('distinguishes the two bands by outline as well as fill, so fill alone carries no meaning', () => {

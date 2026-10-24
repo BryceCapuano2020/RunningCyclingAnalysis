@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readStylesheet, ruleBody } from '../components/stylesheet'
 import { ChartFrame } from './ChartFrame'
 import type { ChartFrameProps } from './ChartFrame'
 import type { ChartSize } from './chartTypes'
+
+const frameCss = await readStylesheet(import.meta.url, './ChartFrame.css')
 
 afterEach(() => {
   cleanup()
@@ -33,11 +36,54 @@ function sizeFromChildren(): ChartSize {
 }
 
 describe('ChartFrame', () => {
-  it('names the figure and the svg after the title, and describes the drawing', () => {
+  it('titles the figure with a visible caption, and names the drawing by its description', () => {
     const { container } = renderFrame()
-    expect(container.querySelector('figure')).toHaveAttribute('aria-label', 'Test chart')
-    expect(screen.getByRole('img', { name: 'Test chart. A test description' })).toBeInTheDocument()
-    expect(container.querySelector('svg desc')).toHaveTextContent('A test description')
+    expect(screen.getByRole('figure', { name: 'Test chart' })).toBeInTheDocument()
+    expect(container.querySelector('figcaption')).toHaveTextContent('Test chart')
+    expect(screen.getByRole('img', { name: 'A test description' })).toBeInTheDocument()
+    // One name per element: the svg carries no title or description of its own.
+    expect(container.querySelector('svg title')).toBeNull()
+    expect(container.querySelector('svg desc')).toBeNull()
+  })
+
+  it('lets a finger scroll the page and pinch to zoom over the drawing, not only the plot', () => {
+    expect(ruleBody(frameCss, '.chart-frame__svg')).toMatch(/touch-action:\s*pan-y pinch-zoom/)
+  })
+
+  it('fits the figure to the page width, so a wide table scrolls inside it', () => {
+    expect(ruleBody(frameCss, '.chart-frame')).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+    )
+    expect(ruleBody(frameCss, '.chart-frame__details')).toMatch(/min-width:\s*0/)
+    expect(ruleBody(frameCss, '.chart-frame__details .table-scroll')).toMatch(/max-width:\s*100%/)
+  })
+
+  it('renders an empty chart as its message alone: no drawing, table, hint or reserved height', () => {
+    const { container } = renderFrame({ empty: 'Nothing to show yet', surface: () => null })
+    expect(screen.getByText('Nothing to show yet')).toBeInTheDocument()
+    expect(container.querySelector('svg')).toBeNull()
+    expect(container.querySelector('.chart-frame__hint')).toBeNull()
+    expect(container.querySelector('details')).toBeNull()
+    expect(container.querySelector('.chart-frame__stage')).not.toHaveAttribute('style')
+  })
+
+  it('shows a legend with a single entry when that entry is dashed, as an estimate is', () => {
+    renderFrame({ legend: [{ label: 'Cycling, estimated', kind: 'ride', swatch: 'dashed' }] })
+    expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Cycling, estimated')
+  })
+
+  it('shows no legend for one solid entry, which needs no key', () => {
+    renderFrame({ legend: [{ label: 'Running', kind: 'run' }] })
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('names how to read the values in visible text beside a chart that can be read', () => {
+    const { container } = renderFrame({ surface: () => null })
+    expect(container.querySelector('.chart-frame__hint')).toHaveTextContent(
+      'Left and right arrows read values',
+    )
+    const plain = renderFrame()
+    expect(plain.container.querySelector('.chart-frame__hint')).toBeNull()
   })
 
   it('lays the plot inside fixed margins, so axes have room', () => {

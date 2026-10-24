@@ -105,11 +105,20 @@ function startOf(result: AnalysisResult, activityId: string | null): number | nu
 }
 
 /**
+ * The grade of holding a flat running speed for durationS, for an athlete of a given age and sex.
+ * Every grade the app shows, the cards and the trend alike, comes through here. Null when the
+ * distance has no standard.
+ */
+export function gradeAtSpeed(speedMs: number, durationS: number, athlete: Athlete): Grade | null {
+  return gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+}
+
+/**
  * A run's grade from its flat speed. It is one activity's estimate, drawn as a dot. Null when the
  * distance covered has no standard (under 1 mile or over 200 km).
  */
 function runGradeAt(speedMs: number, durationS: number, athlete: Athlete): SportGrade | null {
-  const centre = gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+  const centre = gradeAtSpeed(speedMs, durationS, athlete)
   return centre === null ? null : { centre, range: null }
 }
 
@@ -124,8 +133,7 @@ function rideGradeAt(
 ): SportGrade | null {
   const equivalent = result.equivalents.find((candidate) => candidate.durationS === durationS)
   if (!equivalent) return null
-  const at = (speedMs: number) =>
-    gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, athlete)
   const low = at(equivalent.runSpeed.p05)
   const centre = at(equivalent.runSpeed.p50)
   const high = at(equivalent.runSpeed.p95)

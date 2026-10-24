@@ -1,4 +1,4 @@
-import { compareSports, weightedQuantile } from '../compare'
+import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import {
   DURATIONS_S,
@@ -92,6 +92,31 @@ const DRAWS = 4000
 const SEED = 1
 
 /**
+ * The flat running speed that costs the same gross metabolic power as riding at a given power,
+ * for one heart-rate model. The efficiency draws and their heart-rate weights depend only on the
+ * model, so they are built once here, and each power costs one pass over them.
+ */
+export function equivalenceFor(
+  hr: HrCrossCheck | null,
+  opts: { draws?: number; seed?: number } = {},
+): (ridePowerW: number, massKg: number) => Interval {
+  const draws = opts.draws ?? DRAWS
+  const { ge, s } = drawPriors(draws, opts.seed ?? SEED)
+  const calibration = calibrationWeights(ge, s, hr)
+  const weights = calibration?.accepted ? calibration.weights : new Float64Array(draws).fill(1)
+  return (ridePowerW, massKg) => {
+    const speeds = new Float64Array(draws)
+    for (let i = 0; i < draws; i++) {
+      const metabolic = ridePowerW / (ge[i]! * massKg)
+      speeds[i] = Math.max(0, (metabolic - RESTING_W_PER_KG) / (s[i]! * FLAT_RUN_COST))
+    }
+    // One sort gives all three percentiles, exactly as three separate calls would.
+    const [p05, p50, p95] = weightedQuantiles(speeds, weights, [0.05, 0.5, 0.95])
+    return { p05: p05!, p50: p50!, p95: p95! }
+  }
+}
+
+/**
  * Flat running speed that costs the same gross metabolic power as riding at
  * `ridePowerW`, with uncertainty from the efficiency priors and, when
  * available, the heart-rate cross-check.
@@ -102,20 +127,7 @@ export function equivalentRunSpeed(
   hr: HrCrossCheck | null,
   opts: { draws?: number; seed?: number } = {},
 ): Interval {
-  const draws = opts.draws ?? DRAWS
-  const { ge, s } = drawPriors(draws, opts.seed ?? SEED)
-  const calibration = calibrationWeights(ge, s, hr)
-  const speeds = new Float64Array(draws)
-  const weights = calibration?.accepted ? calibration.weights : new Float64Array(draws).fill(1)
-  for (let i = 0; i < draws; i++) {
-    const metabolic = ridePowerW / (ge[i]! * massKg)
-    speeds[i] = Math.max(0, (metabolic - RESTING_W_PER_KG) / (s[i]! * FLAT_RUN_COST))
-  }
-  return {
-    p05: weightedQuantile(speeds, weights, 0.05),
-    p50: weightedQuantile(speeds, weights, 0.5),
-    p95: weightedQuantile(speeds, weights, 0.95),
-  }
+  return equivalenceFor(hr, opts)(ridePowerW, massKg)
 }
 
 /**

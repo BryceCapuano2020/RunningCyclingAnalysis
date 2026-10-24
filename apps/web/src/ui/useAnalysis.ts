@@ -18,6 +18,7 @@ import { useWorkerTransport } from './analysis/workerTransport'
 import { replyOf } from './routeReply'
 import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
+import { useGradeTrendRequest } from './analysis/useGradeTrendRequest'
 
 export type { LibraryStatus }
 
@@ -87,7 +88,11 @@ export interface AnalysisController {
  * Hook order is the effect order: the worker effect runs before the settings effect, and both run
  * before the account effect, so a new worker exists before the account pass sends its first request.
  */
-export function useAnalysis(settings: AthleteSettings, account: Account): AnalysisController {
+export function useAnalysis(
+  settings: AthleteSettings,
+  account: Account,
+  gradeTrend: boolean,
+): AnalysisController {
   const settingsRef = useRef(settings)
   const accountRef = useRef<Account>(account)
   const accountEpochRef = useRef(0)
@@ -341,6 +346,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     if (changed) send({ type: 'setSettings', settings: settingsRef.current })
   }, [massKg, bikeMassKg, send])
 
+  useGradeTrendRequest(gradeTrend, settingsRef, send)
   useAccountTransitions({
     account,
     accountEpochRef,
