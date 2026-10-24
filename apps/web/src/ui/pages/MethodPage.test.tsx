@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { EffortCheck } from '@rca/core/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import {
@@ -27,7 +28,14 @@ afterEach(() => {
   cleanup()
 })
 
-const SIX_WEEKS = 42
+/** A six-week period from 12 May to 3 August 2025, dated in the viewer's zone. */
+const DATED_SIX_WEEKS: Period = {
+  choice: 42,
+  startMs: new Date(2025, 4, 12, 12).getTime(),
+  endMs: new Date(2025, 7, 3, 12).getTime(),
+  days: 42,
+  fellBack: false,
+}
 
 /** The page's facts about the comparison: the list that holds the model range fact. */
 function factsOf(): HTMLElement {
@@ -39,7 +47,7 @@ function factsOf(): HTMLElement {
 function renderPage(
   result: AnalysisResult | null = makeResult(),
   profile: AgeProfile | null = null,
-  rangeDays: number | null = SIX_WEEKS,
+  period: Period | null = DATED_SIX_WEEKS,
   weightKnown = true,
   restoring = false,
 ) {
@@ -48,7 +56,7 @@ function renderPage(
       result={result}
       units="metric"
       profile={profile}
-      rangeDays={rangeDays}
+      period={period ?? undefined}
       weightKnown={weightKnown}
       restoring={restoring}
     />,
@@ -120,7 +128,7 @@ describe('MethodPage answer', () => {
       'Running efforts, and ride power from a power meter, are recorded.',
     )
     expect(lines[1]).toHaveTextContent(
-      'Thresholds, levels, the balance and ride power without a meter are estimates from 1 run and 1 ride with a usable effort (last 6 weeks).',
+      'Thresholds, levels, the balance and ride power without a meter are estimates from 1 run and 1 ride with a usable effort (12 May – 3 Aug 2025).',
     )
     expect(lines[2]).toHaveTextContent('These checks show how far to trust them.')
   })
@@ -153,21 +161,27 @@ describe('MethodPage answer', () => {
     ).toBeInTheDocument()
   })
 
-  it('names the selected period, and All time when there is none', () => {
-    renderPage(makeResult(CONTRIBUTING), null, 91)
-    expect(screen.getByText(/\(last 3 months\)\.$/)).toBeInTheDocument()
+  it('names the dated period the estimates rest on, or this period when none is given', () => {
+    renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
+    expect(screen.getByText(/\(12 May – 3 Aug 2025\)\.$/)).toBeInTheDocument()
     cleanup()
 
     renderPage(makeResult(CONTRIBUTING), null, null)
-    expect(screen.getByText(/\(all time\)\.$/)).toBeInTheDocument()
+    expect(screen.getByText(/\(this period\)\.$/)).toBeInTheDocument()
+  })
+
+  it('states the dated period on one line, with no period control', () => {
+    renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
+    expect(screen.getByText('Counted over 12 May – 3 Aug 2025.')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Period' })).not.toBeInTheDocument()
   })
 
   it('with no weight, names only the runs, and holds the balance and ride power out of the estimate', () => {
-    renderPage(makeResult(CONTRIBUTING), null, SIX_WEEKS, false)
+    renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
     const line = screen.getByText(/estimates from 1 run with a usable effort/)
     expect(line).toHaveTextContent(
-      'Run thresholds and levels are estimates from 1 run with a usable effort (last 6 weeks).',
+      'Run thresholds and levels are estimates from 1 run with a usable effort (12 May – 3 Aug 2025).',
     )
     expect(line.textContent).not.toMatch(/balance|ride power|ride/)
   })
@@ -596,7 +610,7 @@ describe('MethodPage copy', () => {
 
 describe('MethodPage without a weight', () => {
   it('asks for the weight once, in the one prompt Balance uses, linked to Profile', () => {
-    const { container } = renderPage(makeResult(CONTRIBUTING), null, SIX_WEEKS, false)
+    const { container } = renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
     const links = screen.getAllByRole('link', { name: 'Profile' })
     expect(links).toHaveLength(1)
@@ -619,7 +633,7 @@ describe('MethodPage without a weight', () => {
         rideCurve: rideCurveFixture,
       }),
       null,
-      SIX_WEEKS,
+      DATED_SIX_WEEKS,
       false,
     )
 
@@ -647,7 +661,7 @@ describe('MethodPage without a weight', () => {
         },
       ),
       null,
-      SIX_WEEKS,
+      DATED_SIX_WEEKS,
       false,
     )
 
@@ -675,7 +689,7 @@ describe('MethodPage without a weight', () => {
         equivalents: [makeEquivalence({ durationS: HEADLINE_DURATION_S })],
       }),
       MAN_BORN_1986,
-      SIX_WEEKS,
+      DATED_SIX_WEEKS,
       false,
     )
 
@@ -689,7 +703,7 @@ describe('MethodPage without a weight', () => {
         equivalents: [makeEquivalence({ durationS: HEADLINE_DURATION_S })],
       }),
       MAN_BORN_1986,
-      SIX_WEEKS,
+      DATED_SIX_WEEKS,
       true,
     )
 
@@ -700,7 +714,7 @@ describe('MethodPage without a weight', () => {
     renderPage(
       makeResult({ runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')] }),
       MAN_BORN_1986,
-      SIX_WEEKS,
+      DATED_SIX_WEEKS,
       false,
     )
 
@@ -709,7 +723,7 @@ describe('MethodPage without a weight', () => {
   })
 
   it('holds the virtual power check: no estimate sentence and no chart, but the method still reads', () => {
-    renderPage(makeResult(), null, SIX_WEEKS, false)
+    renderPage(makeResult(), null, DATED_SIX_WEEKS, false)
 
     const section = screen.getByRole('region', { name: 'Virtual power meter accuracy' })
     expect(within(section).queryByText(/estimated power was within/)).toBeNull()
@@ -731,7 +745,7 @@ describe('MethodPage without a weight', () => {
         rideCurve: rideCurveFixture,
       }),
       null,
-      SIX_WEEKS,
+      DATED_SIX_WEEKS,
       true,
     )
 
@@ -779,7 +793,7 @@ describe('MethodPage without a result', () => {
   })
 
   it('says saved results are loading in each evidence slot while a kept library restores', () => {
-    renderPage(null, null, SIX_WEEKS, true, true)
+    renderPage(null, null, DATED_SIX_WEEKS, true, true)
 
     expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(3)
     expect(screen.queryByText('Add your files to see this evidence.')).toBeNull()

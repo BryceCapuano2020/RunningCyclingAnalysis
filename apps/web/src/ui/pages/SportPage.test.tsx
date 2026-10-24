@@ -53,6 +53,7 @@ function renderPage(
   trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>> = NO_TRENDS,
   weighted = true,
   footnote: ReactNode = null,
+  emptyText = 'Nothing in this period.',
 ) {
   return render(
     <SportPage
@@ -68,6 +69,8 @@ function renderPage(
       profile={profile}
       controls={<span>Period picker</span>}
       footnote={footnote}
+      emptyText={emptyText}
+      onAddFiles={vi.fn()}
     />,
   )
 }
@@ -89,20 +92,71 @@ describe('SportPage', () => {
     expect(screen.getByText('Period picker')).toBeInTheDocument()
   })
 
-  it('asks for runs when there are none in the period', () => {
-    renderPage('run', makeResult({ activities: [makeActivity({ id: 'ride', sport: 'ride' })] }))
+  it("offers the sport's files from its empty page, as a secondary action that hands them on", () => {
+    const onAddFiles = vi.fn()
+    render(
+      <SportPage
+        sport="run"
+        result={makeResult({ activities: [makeActivity({ id: 'ride', sport: 'ride' })] })}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        windowDays={14}
+        units="metric"
+        massKg={75}
+        profile={null}
+        controls={<span>Period picker</span>}
+        weighted
+        emptyText="No runs between 12 May and 3 Aug 2025. You have 1 run in All time."
+        onAddFiles={onAddFiles}
+      />,
+    )
+    const add = screen.getByRole('button', { name: 'Add runs' })
+    expect(add).toHaveClass('btn')
+    expect(add).not.toHaveClass('btn-primary')
+    const file = new File(['x'], 'run.fit')
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, {
+      target: { files: [file] },
+    })
+    expect(onAddFiles).toHaveBeenCalledWith([file])
+  })
+
+  it('shows the empty text it is given, naming the period, when there are none in the period', () => {
+    renderPage(
+      'run',
+      makeResult({ activities: [makeActivity({ id: 'ride', sport: 'ride' })] }),
+      'metric',
+      null,
+      null,
+      null,
+      NO_TRENDS,
+      true,
+      null,
+      'No runs between 12 May and 3 Aug 2025. You have 1 run in All time.',
+    )
 
     expect(
-      screen.getByText('No runs in this period. Add runs to see your records.'),
+      screen.getByText('No runs between 12 May and 3 Aug 2025. You have 1 run in All time.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Best efforts' })).not.toBeInTheDocument()
   })
 
-  it('asks for rides when there are none in the period', () => {
-    renderPage('ride', makeResult({ activities: [morningRun] }))
+  it('asks for rides when the library has none, in the words it is given', () => {
+    renderPage(
+      'ride',
+      makeResult({ activities: [morningRun] }),
+      'metric',
+      null,
+      null,
+      null,
+      NO_TRENDS,
+      true,
+      null,
+      'Your files have no rides yet. Add rides to see your records.',
+    )
 
     expect(
-      screen.getByText('No rides in this period. Add rides to see your records.'),
+      screen.getByText('Your files have no rides yet. Add rides to see your records.'),
     ).toBeInTheDocument()
   })
 

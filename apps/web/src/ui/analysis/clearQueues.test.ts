@@ -5,6 +5,7 @@ import type { Me } from '@rca/contract'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import { useAnalysis } from '../useAnalysis'
+import { EMPTY_PERIOD } from './model'
 
 type Account = Parameters<typeof useAnalysis>[1]
 type Settings = Parameters<typeof useAnalysis>[0]
@@ -48,7 +49,8 @@ const STATE = {
   unsupportedFiles: 0,
   isSample: false,
   totalActivities: 0,
-  rangeDays: null,
+  period: EMPTY_PERIOD,
+  library: [],
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,

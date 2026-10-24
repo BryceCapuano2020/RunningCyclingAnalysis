@@ -34,3 +34,17 @@ export function formatMonth(ms: number, withYear: boolean): string {
 
 /** The local time of day in twelve-hour form, such as "6:42 am". Core's formatter, so there is one. */
 export { formatTimeOfDay } from '@rca/core/units'
+
+/**
+ * A span of dates in the viewer's local zone, such as "12 May – 3 Aug 2025". The year is written
+ * once, at the end, unless the span crosses a year end, when both ends carry one.
+ */
+export function formatSpan(startMs: number, endMs: number): string {
+  const start = new Date(startMs)
+  const end = new Date(endMs)
+  const from = `${start.getDate()} ${MONTHS[start.getMonth()]!}`
+  const to = `${end.getDate()} ${MONTHS[end.getMonth()]!} ${end.getFullYear()}`
+  return start.getFullYear() === end.getFullYear()
+    ? `${from} – ${to}`
+    : `${from} ${start.getFullYear()} – ${to}`
+}

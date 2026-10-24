@@ -13,6 +13,7 @@
     "./duplicates": "./src/duplicates.ts",
     "./math": "./src/math.ts",
     "./pipeline": "./src/pipeline.ts",
+    "./period": "./src/period.ts",
     "./session": "./src/session.ts",
     "./compare": "./src/compare/index.ts",
     "./cp": "./src/cp/index.ts",

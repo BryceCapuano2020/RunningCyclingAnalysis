@@ -82,7 +82,7 @@ function ActivityRow({ activity, units, rowRef, isFirst, records }: ActivityRowP
           )}
         </p>
         {chips.length > 0 && (
-          <div className="activity-list__records" role="group" aria-label="Records earned">
+          <div className="activity-list__records" role="group" aria-label="All-time records">
             {chips.slice(0, CHIPS_PER_ROW).map((label) => (
               <span key={label} className={`chip chip--${activity.sport}`}>
                 {label}

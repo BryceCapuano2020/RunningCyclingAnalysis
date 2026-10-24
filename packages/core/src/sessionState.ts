@@ -1,4 +1,5 @@
-import type { AnalysisResult } from './digest'
+import type { ActivitySummary, AnalysisResult } from './digest'
+import type { Period } from './period'
 import type { TrendPoint } from './digest/trend'
 import type { EffortLengthS } from './digest/trendPoints'
 import type { SportCurves } from './types'
@@ -28,8 +29,10 @@ export interface SessionState {
    * (FIT over TCX over GPX) is saved too. They stay in the library.
    */
   hiddenDuplicates: number
-  /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
-  rangeDays: number | null
+  /** The period analysed: its choice and its dates. The library lists every activity regardless. */
+  period: Period
+  /** Every visible activity, newest first, whatever the period: the activity list and its pages. */
+  library: ActivitySummary[]
   /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
   syncIssues: SyncIssue[]
   /**

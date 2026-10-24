@@ -1,21 +1,26 @@
 import { expect, test } from '@playwright/test'
 import { BALANCE_TITLE, LANDING_TITLE, activitiesRows, goTo, openSample } from './helpers.js'
 
-test('choosing 6 weeks narrows the activities and All time restores them all', async ({ page }) => {
+test('the Activities period narrows its own rows and All time restores them all, and a Balance pick hides none', async ({
+  page,
+}) => {
   await openSample(page)
-  const period = page.getByRole('group', { name: 'Period' })
-  await expect(page.getByText(/of 14 activities/)).toHaveCount(0)
+  // Activities has its own period control, so a pick on Balance leaves every activity listed.
+  await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
+  await expect(await activitiesRows(page)).toHaveCount(14)
+  await expect(page.locator('.range-picker__count')).toHaveCount(0)
 
+  const period = page.getByRole('group', { name: 'Period' })
   await period.getByText('6 weeks', { exact: true }).click()
-  await expect(page.getByText(/^\d+ of 14 activities$/)).toBeVisible()
-  const shown = await (await activitiesRows(page)).count()
+  await expect(page.locator('.range-picker__count')).toHaveText(/^\d+ of 14 activities$/)
+  const rows = page.locator('.activity-list__items > li')
+  const shown = await rows.count()
   expect(shown).toBeGreaterThan(0)
   expect(shown).toBeLessThan(14)
 
-  await goTo(page, 'Balance')
   await period.getByText('All time', { exact: true }).click()
-  await expect(page.getByText(/of 14 activities/)).toHaveCount(0)
-  await expect(await activitiesRows(page)).toHaveCount(14)
+  await expect(page.locator('.range-picker__count')).toHaveCount(0)
+  await expect(rows).toHaveCount(14)
 })
 
 test('the period picker is also on the Run and Ride pages', async ({ page }) => {

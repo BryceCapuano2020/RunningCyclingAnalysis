@@ -166,7 +166,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'setGradeTrend':
       return session.setGradeTrend(request.on, request.settings)
     case 'setRange':
-      return session.setRange(request.rangeDays, request.settings)
+      return session.setRange(request.choice, request.settings)
     case 'loadDevice':
       // A sample on screen, or a library already read, stays as it is: loading it again would
       // drop what was imported since.

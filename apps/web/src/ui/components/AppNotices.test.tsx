@@ -49,8 +49,20 @@ describe('AppNotices live regions', () => {
     props.analysis.state = { ...props.analysis.state, result: makeResult(), isSample: true }
     view.rerender(<AppNotices {...props} />)
 
-    const notice = screen.getByText('Showing a sample athlete. Add your own files to replace it.')
+    const notice = screen.getByText(/Showing a sample athlete, a 37-year-old man at 75 kg\./)
     expect(regions).toContain(notice.closest('[role="status"]'))
+  })
+
+  it('shows the sample banner on screen, and says once that the sample is not kept', () => {
+    const props = noticesProps()
+    const view = render(<AppNotices {...props} />)
+    props.analysis.state = { ...props.analysis.state, result: makeResult(), isSample: true }
+    view.rerender(<AppNotices {...props} />)
+
+    const banner = screen.getByText(/The sample is not kept/)
+    expect(banner).toBeVisible()
+    expect(banner.className).toBe('sample-banner')
+    expect(screen.getAllByText(/The sample is not kept/)).toHaveLength(1)
   })
 })
 

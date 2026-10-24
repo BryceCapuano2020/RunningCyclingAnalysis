@@ -109,8 +109,9 @@ export function useWorkerTransport({
         // to act again otherwise. Settings still queue: they must reach the next worker. A request
         // to forget the routes needs no worker, so it is dropped quietly.
         if (stoppedRef.current && request.type !== 'setSettings') {
-          if (request.type === 'routeShape') entry.settle?.(null)
-          else if (request.type !== 'forgetRoutes') setError(STOPPED)
+          // A period pick is answered with no reply, so the control stops waiting for it.
+          if (request.type === 'routeShape' || request.type === 'setRange') entry.settle?.(null)
+          if (request.type !== 'routeShape' && request.type !== 'forgetRoutes') setError(STOPPED)
           return false
         }
         unsentRef.current.push({ request, entry })

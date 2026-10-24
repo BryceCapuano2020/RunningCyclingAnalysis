@@ -1,16 +1,17 @@
-import { combine, digestActivity } from './digest'
+import { activitySummaries, combine, digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
 import type { ImportProgress } from './sessionSource'
 import { importSource } from './sessionSource'
-import { sampleDataset } from './synthetic'
+import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { RouteShape } from './route/routeShape'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
+import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
 import { haltsImport, SyncFailure } from './saveFailure'
@@ -22,6 +23,7 @@ import type { EarnedRecord } from './records'
 export { haltsImport, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
+export type { Period, PeriodChoice } from './period'
 // The device library keeps one copy per workout by the same rule the analysis uses.
 export { copyOfDigest, dedupeKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
@@ -70,7 +72,8 @@ export class AnalysisSession {
   private rejected = new Map<string, string>()
   private unsupported = new Map<string, number>()
   private isSample = false
-  private rangeDays: number | null = null
+  // The period the athlete picked. The default is the most recent window that holds both sports.
+  private choice: PeriodChoice = 'default'
   // Whether the headline trend carries each week's running equivalent, which only an age-graded
   // Balance trend uses. Off until the page asks for it.
   private gradeTrend = false
@@ -184,14 +187,13 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
-  setRange(rangeDays: number | null, settings: AthleteSettings): SessionState {
-    this.rangeDays = rangeDays
+  setRange(choice: PeriodChoice, settings: AthleteSettings): SessionState {
+    this.choice = choice
     return this.state(settings)
   }
 
   clear(): SessionState {
     this.reset()
-    this.rangeDays = null
     return this.state(null)
   }
 
@@ -313,33 +315,46 @@ export class AnalysisSession {
     return records
   }
 
+  /**
+   * The settings the analysis uses. The sample athlete has its own body and bike masses, so it
+   * ignores the visitor's while it is on screen.
+   */
+  private athleteFor(settings: AthleteSettings): AthleteSettings {
+    if (!this.isSample) return settings
+    return { ...settings, massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
+  }
+
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
     const all = [...this.digests.values()]
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
-    const { selected, previous, startMs } = splitPeriods(visible, this.rangeDays)
-    const analysis = settings !== null && selected.length > 0 ? combine(selected, settings) : null
+    const { period, selected, previous } = splitPeriods(visible, this.choice)
+    const athlete = settings === null ? null : this.athleteFor(settings)
+    // A period with no activities still has a result, so the page can say what is missing from it.
+    const analysis = athlete !== null && visible.length > 0 ? combine(selected, athlete) : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     const efforts =
-      settings === null
+      athlete === null
         ? NO_TRENDS
         : this.periods.trends(
             selected,
-            settings,
-            this.rangeDays,
-            startMs,
+            athlete,
+            period.days,
+            // All time is not clipped at a start, so its trend begins at the first activity.
+            period.days === null ? null : period.startMs,
             bikeModel,
-            this.gradeTrend ? analysis?.hr : undefined,
+            // The sample is graded as its own athlete, so its rides carry their equivalents too.
+            this.gradeTrend || this.isSample ? analysis?.hr : undefined,
           )
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],
       effortTrends: efforts,
       previous:
-        settings !== null && bikeModel !== undefined && previous.length > 0
-          ? this.periods.previousCurves(selected, previous, settings, bikeModel)
+        athlete !== null && bikeModel !== undefined && previous.length > 0
+          ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
           : null,
       rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
@@ -348,10 +363,11 @@ export class AnalysisSession {
       outdatedActivities: this.outdatedKeys.size,
       incompatibleActivities: this.incompatibleKeys.size,
       hiddenDuplicates: hidden.size,
-      rangeDays: this.rangeDays,
+      period,
+      library: settings === null ? [] : activitySummaries(visible),
       syncIssues: this.syncIssues(),
       records:
-        settings === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, settings),
+        athlete === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, athlete),
     }
   }
 }

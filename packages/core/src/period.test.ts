@@ -1,35 +1,240 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from './constants'
 import { digestActivity } from './digest'
-import { splitPeriods } from './period'
+import {
+  DEFAULT_PERIOD_DAYS,
+  DEFAULT_PERIOD_WEEKS,
+  periodOf,
+  splitPeriods,
+  startedWithin,
+  windowEnding,
+} from './period'
 import { sampleDataset } from './synthetic'
-import type { ActivityDigest } from './types'
+import type { Activity, ActivityDigest, Sport } from './types'
 
-const [sample] = sampleDataset().activities
+const sample = sampleDataset().activities
 const NEWEST = Date.UTC(2025, 5, 30, 12)
 
-/** A digest of the sample activity, started at startMs. */
-function at(startMs: number): ActivityDigest {
-  if (sample === undefined) throw new Error('The sample has no activities')
-  const digest = digestActivity({ ...sample, id: `${startMs}`, startMs })
+/** The last millisecond of the local day that holds ms. */
+function endOfDay(ms: number): number {
+  const date = new Date(ms)
+  date.setHours(23, 59, 59, 999)
+  return date.getTime()
+}
+
+/** The first millisecond of the local day that holds ms. */
+function startOfDay(ms: number): number {
+  const date = new Date(ms)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+/** The instant that falls the given number of local calendar days before ms, at the same time of day. */
+function daysBefore(ms: number, days: number): number {
+  const date = new Date(ms)
+  date.setDate(date.getDate() - days)
+  return date.getTime()
+}
+
+/** A sample activity of one sport, so the digests carry real values of that sport. */
+function base(sport: Sport): Activity {
+  const found = sample.find((activity) => activity.sport === sport)
+  if (found === undefined) throw new Error(`The sample has no ${sport} activity`)
+  return found
+}
+
+/** A digest of a sample activity of the sport, started at startMs. */
+function at(startMs: number, sport: Sport = 'run'): ActivityDigest {
+  const digest = digestActivity({ ...base(sport), id: `${sport}-${startMs}`, startMs })
   return { ...digest, id: `${startMs}-${digest.sport}` }
 }
+
+describe('windowEnding', () => {
+  it('is the calendar days ending on the newest activity’s day, from the first millisecond to the last', () => {
+    expect(windowEnding(NEWEST, 42)).toEqual({
+      startMs: daysBefore(startOfDay(NEWEST), 41),
+      endMs: endOfDay(NEWEST),
+    })
+  })
+})
+
+describe('the default period', () => {
+  it('is 12 weeks, the one place the cap is written', () => {
+    expect(DEFAULT_PERIOD_WEEKS).toBe(12)
+    expect(DEFAULT_PERIOD_DAYS).toBe(84)
+  })
+
+  it('is the 84 calendar days up to the newest activity’s day, when they hold a run and a ride', () => {
+    // The library spans more than 12 weeks, so the window is not clipped to its first activity.
+    const period = periodOf(
+      [at(NEWEST - 90 * DAY_MS, 'ride'), at(NEWEST - 5 * DAY_MS, 'run'), at(NEWEST, 'ride')],
+      'default',
+    )
+    expect(period).toEqual({
+      choice: 'default',
+      startMs: daysBefore(startOfDay(NEWEST), 83),
+      endMs: endOfDay(NEWEST),
+      days: DEFAULT_PERIOD_DAYS,
+      fellBack: false,
+    })
+  })
+
+  it('starts on the same day whether the newest activity is at 06:00 or at 12:00', () => {
+    // A run 83 calendar days before the newest day, then the newest ride on that day at 06:00 or 12:00.
+    const newestDay = new Date(2025, 5, 30).getTime()
+    const run = at(daysBefore(newestDay, 83) + 9 * 3_600_000, 'run')
+    const early = periodOf([run, at(newestDay + 6 * 3_600_000, 'ride')], 'default')
+    const late = periodOf([run, at(newestDay + 12 * 3_600_000, 'ride')], 'default')
+    expect(early.startMs).toBe(daysBefore(startOfDay(newestDay), 83))
+    expect(late.startMs).toBe(early.startMs)
+    expect(early.days).toBe(DEFAULT_PERIOD_DAYS)
+    expect(late.days).toBe(DEFAULT_PERIOD_DAYS)
+  })
+
+  it('falls back to all time when the 84 days up to the newest activity lack a sport, and never picks an older window', () => {
+    // An older window holds a run and a ride, but the newest 12 weeks hold only a ride. The period
+    // must still reach the newest activity, so it is All time, not that older window.
+    const period = periodOf(
+      [
+        at(NEWEST - 100 * DAY_MS, 'run'),
+        at(NEWEST - 90 * DAY_MS, 'ride'),
+        at(NEWEST - DAY_MS, 'ride'),
+      ],
+      'default',
+    )
+    expect(period).toMatchObject({
+      startMs: NEWEST - 100 * DAY_MS,
+      endMs: endOfDay(NEWEST - DAY_MS),
+      days: null,
+      fellBack: true,
+    })
+  })
+
+  it('is dated from the first activity’s day when the library is shorter than 12 weeks', () => {
+    const first = NEWEST - 20 * DAY_MS
+    const period = periodOf([at(first, 'run'), at(NEWEST, 'ride')], 'default')
+    expect(period).toMatchObject({
+      startMs: startOfDay(first),
+      endMs: endOfDay(NEWEST),
+      days: 21,
+      fellBack: false,
+    })
+  })
+
+  it('falls back to all time, with its dates, when no 12 weeks holds both sports', () => {
+    // A 2015 run and a 2019 ride, as in a multi-year export: they are not in one window.
+    const run = NEWEST - 4000 * DAY_MS
+    const ride = NEWEST - 2400 * DAY_MS
+    expect(periodOf([at(run, 'run'), at(ride, 'ride')], 'default')).toEqual({
+      choice: 'default',
+      startMs: run,
+      endMs: endOfDay(ride),
+      days: null,
+      fellBack: true,
+    })
+  })
+
+  it('falls back when there is only one sport', () => {
+    const period = periodOf([at(NEWEST - DAY_MS, 'run'), at(NEWEST, 'run')], 'default')
+    expect(period).toMatchObject({ days: null, fellBack: true })
+  })
+})
+
+describe('periodOf', () => {
+  const visible = [at(NEWEST, 'run'), at(NEWEST - 10 * DAY_MS, 'ride')]
+
+  it('dates a number of calendar days back from the newest activity’s day, to the end of that day', () => {
+    expect(periodOf(visible, 42)).toEqual({
+      choice: 42,
+      startMs: daysBefore(startOfDay(NEWEST), 41),
+      endMs: endOfDay(NEWEST),
+      days: 42,
+      fellBack: false,
+    })
+  })
+
+  it('dates all time from the first activity to the end of the newest activity’s day', () => {
+    expect(periodOf(visible, 'all')).toEqual({
+      choice: 'all',
+      startMs: NEWEST - 10 * DAY_MS,
+      endMs: endOfDay(NEWEST),
+      days: null,
+      fellBack: false,
+    })
+  })
+
+  it('has no dates for an empty library', () => {
+    expect(periodOf([], 'default')).toEqual({
+      choice: 'default',
+      startMs: null,
+      endMs: null,
+      days: null,
+      fellBack: false,
+    })
+  })
+
+  it('takes in an activity later on the newest activity’s day, 11 hours on, as part of the period', () => {
+    // The morning run and the evening ride share a local day, and the ride is the newest activity.
+    const morning = new Date(2025, 5, 30, 8).getTime()
+    const evening = morning + 11 * 3_600_000
+    const both = [at(morning, 'run'), at(evening, 'ride')]
+    const { selected, period } = splitPeriods(both, 'all')
+    expect(period.endMs).toBe(endOfDay(evening))
+    expect(selected).toHaveLength(2)
+  })
+})
 
 describe('splitPeriods', () => {
   const visible = [at(NEWEST), at(NEWEST - 10 * DAY_MS), at(NEWEST - 30 * DAY_MS)]
 
-  it('selects the last rangeDays days up to the newest activity, and the period before it', () => {
-    const { selected, previous, startMs } = splitPeriods(visible, 7)
-    expect(startMs).toBe(NEWEST - 7 * DAY_MS)
+  it('selects the last days up to the newest activity’s day, and the same number of days before it', () => {
+    const { selected, previous, period } = splitPeriods(visible, 7)
+    expect(period.startMs).toBe(daysBefore(startOfDay(NEWEST), 6))
     expect(selected.map((d) => d.startMs)).toEqual([NEWEST])
     expect(previous.map((d) => d.startMs)).toEqual([NEWEST - 10 * DAY_MS])
   })
 
-  it('gives everything as selected, with no previous period, for all time', () => {
-    expect(splitPeriods(visible, null)).toEqual({ selected: visible, previous: [], startMs: null })
+  it('selects everything for all time, with no period before it', () => {
+    const { selected, previous, period } = splitPeriods(visible, 'all')
+    expect(selected).toEqual(visible)
+    expect(previous).toEqual([])
+    expect(period.days).toBeNull()
+  })
+
+  it('selects the default window, and the same number of days before its start', () => {
+    const inside = at(NEWEST - 50 * DAY_MS, 'run')
+    const before = at(NEWEST - 120 * DAY_MS, 'ride')
+    const outside = at(NEWEST - 200 * DAY_MS, 'run')
+    const { selected, previous, period } = splitPeriods(
+      [inside, before, outside, at(NEWEST, 'ride')],
+      'default',
+    )
+    expect(period.days).toBe(DEFAULT_PERIOD_DAYS)
+    expect(selected.map((d) => d.startMs)).toEqual([inside.startMs, NEWEST])
+    expect(previous.map((d) => d.startMs)).toEqual([before.startMs])
   })
 
   it('gives nothing for an empty library', () => {
-    expect(splitPeriods([], 7)).toEqual({ selected: [], previous: [], startMs: null })
+    expect(splitPeriods([], 7)).toEqual({ period: periodOf([], 7), selected: [], previous: [] })
+  })
+})
+
+describe('startedWithin', () => {
+  const items = [
+    { startMs: NEWEST },
+    { startMs: NEWEST - 10 * DAY_MS },
+    { startMs: NEWEST - 50 * DAY_MS },
+  ]
+
+  it('keeps the items started within the calendar days counted back from the newest', () => {
+    expect(startedWithin(items, 42)).toEqual(items.slice(0, 2))
+  })
+
+  it('keeps every item for all time', () => {
+    expect(startedWithin(items, null)).toEqual(items)
+  })
+
+  it('keeps nothing from an empty list', () => {
+    expect(startedWithin([], 42)).toEqual([])
   })
 })

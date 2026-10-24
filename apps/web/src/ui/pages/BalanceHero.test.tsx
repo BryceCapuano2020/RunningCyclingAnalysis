@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Period } from '@rca/core/period'
 import type { BalanceGap } from '../balanceGap'
 import type { HeadlinePick } from '../components'
 import type { Interval } from '@rca/core/types'
@@ -11,8 +12,29 @@ afterEach(() => {
   cleanup()
 })
 
-/** The props for the all-time period, which the balance copy names without a period. */
-const ALL_TIME = { rangeDays: null, onShowAll: () => undefined, weightKnown: true }
+const ALL_TIME_PERIOD: Period = {
+  choice: 'all',
+  startMs: null,
+  endMs: null,
+  days: null,
+  fellBack: false,
+}
+/** A six-week period from 12 May to 3 August 2025, dated in the viewer's zone. */
+const SIX_WEEKS: Period = {
+  choice: 42,
+  startMs: new Date(2025, 4, 12, 12).getTime(),
+  endMs: new Date(2025, 7, 3, 12).getTime(),
+  days: 42,
+  fellBack: false,
+}
+
+/** The props shared by every test: all time, with no library, unless a test says otherwise. */
+const ALL_TIME = {
+  period: ALL_TIME_PERIOD,
+  library: [],
+  onShowAll: () => undefined,
+  weightKnown: true,
+}
 
 function pickFor(ratio: Interval): HeadlinePick {
   return { point: comparisonPoint({ ratio }), calibrated: false }
@@ -248,38 +270,56 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
-  it('asks for rides when only runs are present, and points down to the running', () => {
+  it('answers with the run level when the run is graded, and asks for a ride', () => {
+    const run = makeActivity({ sport: 'run' })
     render(
       <BalanceHero
         {...ALL_TIME}
-        result={makeResult({
-          activities: [makeActivity({ sport: 'run' })],
-          comparison: { prior: [], calibrated: null },
-        })}
+        library={[run]}
+        runLevel="Local"
+        result={makeResult({ activities: [run], comparison: { prior: [], calibrated: null } })}
         pick={null}
         gap={null}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Your running is at Local level. Add a ride to see your balance.',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('asks for a ride when only runs are present, and points down to the running', () => {
+    const run = makeActivity({ sport: 'run' })
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        library={[run]}
+        result={makeResult({ activities: [run], comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Your running is below.')).toBeInTheDocument()
   })
 
-  it('asks for runs when only rides are present, and points down to the cycling', () => {
+  it('asks for a run when only rides are present, and points down to the cycling', () => {
+    const ride = makeActivity({ sport: 'ride' })
     render(
       <BalanceHero
         {...ALL_TIME}
-        result={makeResult({
-          activities: [makeActivity({ sport: 'ride' })],
-          comparison: { prior: [], calibrated: null },
-        })}
+        library={[ride]}
+        result={makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })}
         pick={null}
         gap={null}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add runs to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Add a run to see your balance' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Your cycling is below.')).toBeInTheDocument()
   })
@@ -302,63 +342,86 @@ describe('BalanceHero without a comparison yet', () => {
       ),
     ).toBeInTheDocument()
   })
-})
 
-describe('BalanceHero without a comparison yet, in a period', () => {
-  it('names the period when it holds no runs, and offers all time', () => {
-    const onShowAll = vi.fn()
+  it('sets the aside beside the headline, so the share buttons sit with the answer', () => {
     render(
       <BalanceHero
         {...ALL_TIME}
-        result={makeResult({
-          activities: [makeActivity({ sport: 'ride' })],
-          comparison: { prior: [], calibrated: null },
-        })}
+        aside={<button type="button">Download square image</button>}
+        result={makeResult({ activities: [], comparison: { prior: [], calibrated: null } })}
         pick={null}
         gap={null}
-        rangeDays={42}
+      />,
+    )
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading.parentElement).toHaveClass('balance-hero__head')
+    expect(heading.parentElement).toContainElement(
+      screen.getByRole('button', { name: 'Download square image' }),
+    )
+  })
+})
+
+describe('BalanceHero without a comparison yet, in a period', () => {
+  it('names the dates when the period holds no runs, counts the runs in All time, and offers all time', () => {
+    const onShowAll = vi.fn()
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        period={SIX_WEEKS}
+        library={[ride, run]}
+        result={makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
         onShowAll={onShowAll}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'No runs in the last 6 weeks' }),
+      screen.getByRole('heading', { level: 1, name: 'No runs between 12 May and 3 Aug 2025' }),
     ).toBeInTheDocument()
+    expect(screen.getByText('You have 1 run in All time.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Show all time' }))
     expect(onShowAll).toHaveBeenCalledTimes(1)
   })
 
-  it('names the period when it holds neither sport', () => {
+  it('names the dates when the period holds neither sport, and counts both in All time', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     render(
       <BalanceHero
         {...ALL_TIME}
+        period={SIX_WEEKS}
+        library={[run, ride]}
         result={makeResult({ activities: [], comparison: { prior: [], calibrated: null } })}
         pick={null}
         gap={null}
-        rangeDays={91}
-        onShowAll={vi.fn()}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'No runs or rides in the last 3 months' }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'No runs or rides between 12 May and 3 Aug 2025',
+      }),
     ).toBeInTheDocument()
+    expect(screen.getByText('You have 1 run and 1 ride in All time.')).toBeInTheDocument()
   })
 
   it('asks for the sport with no period and offers no period button when the period is all time', () => {
     render(
       <BalanceHero
         {...ALL_TIME}
+        library={[makeActivity({ sport: 'ride' })]}
         result={makeResult({
           activities: [makeActivity({ sport: 'ride' })],
           comparison: { prior: [], calibrated: null },
         })}
         pick={null}
         gap={null}
-        rangeDays={null}
-        onShowAll={vi.fn()}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add runs to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Add a run to see your balance' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show all time' })).toBeNull()
   })
@@ -389,11 +452,13 @@ describe('BalanceHero while no weight is entered', () => {
   })
 
   it('still names the missing ride when only runs are on file, since a ride is needed first', () => {
+    const run = makeActivity({ sport: 'run' })
     render(
       <BalanceHero
         {...ALL_TIME}
+        library={[run]}
         result={makeResult({
-          activities: [makeActivity({ sport: 'run' })],
+          activities: [run],
           comparison: { prior: [], calibrated: null },
         })}
         pick={null}
@@ -402,7 +467,7 @@ describe('BalanceHero while no weight is entered', () => {
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+      screen.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
     ).toBeInTheDocument()
   })
 

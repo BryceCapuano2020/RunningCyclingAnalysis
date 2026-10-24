@@ -1,0 +1,37 @@
+import type { Sport } from '@rca/core/types'
+import { plural } from './components/plural'
+import type { Period } from '@rca/core/period'
+import { periodDates } from './components/rangeOptions'
+import type { Span } from './components/rangeOptions'
+import { SPORT_PLURAL } from './sports'
+
+/**
+ * The clause that names a span's dates, "between 12 May and 3 Aug 2025", or '' when the span has no
+ * dates to name. Every sentence that says what a period is missing uses this one clause.
+ */
+export function betweenClause(span: Span | undefined): string {
+  const dates = span === undefined ? '' : periodDates(span).replace(' – ', ' and ')
+  return dates === '' ? '' : `between ${dates}`
+}
+
+/**
+ * What an activity list says when its period and sport leave nothing: "No runs between 21 Apr and 1
+ * Jun 2026.", over the window the list counts back over. With no window, the files have none.
+ */
+export function listEmptyText(sport: Sport | 'all', window: Span | null): string {
+  const noun = sport === 'all' ? 'activities' : SPORT_PLURAL[sport]
+  if (window === null) return `No ${noun} in your files.`
+  return `No ${noun} ${betweenClause(window)}.`
+}
+
+/**
+ * What a sport's page says when it has nothing in the period on screen. It names the period and the
+ * count in All time, so the athlete knows the switch is one tap away. With no activities at all in
+ * the sport, it says so and asks for files.
+ */
+export function sportEmptyText(sport: Sport, period: Period, inLibrary: number): string {
+  const noun = SPORT_PLURAL[sport]
+  if (inLibrary === 0) return `Your files have no ${noun} yet. Add ${noun} to see your records.`
+  const when = period.days === null ? '' : ` ${betweenClause(period)}`
+  return `No ${noun}${when}. You have ${plural(inLibrary, sport)} in All time.`
+}

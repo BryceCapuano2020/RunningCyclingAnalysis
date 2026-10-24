@@ -295,7 +295,7 @@ describe('ActivityList records earned', () => {
       ],
     ])
     renderList([run], 'metric', records)
-    const group = screen.getByRole('group', { name: 'Records earned' })
+    const group = screen.getByRole('group', { name: 'All-time records' })
     expect(within(group).getByText('Best 20 min')).toBeTruthy()
     expect(chipTexts(group)).toEqual(['Best 20 min', 'Best 5 km'])
     expect(within(group).queryByText(/more/)).toBeNull()
@@ -314,7 +314,7 @@ describe('ActivityList records earned', () => {
       ],
     ])
     renderList([run], 'metric', records)
-    const group = screen.getByRole('group', { name: 'Records earned' })
+    const group = screen.getByRole('group', { name: 'All-time records' })
     expect(chipTexts(group)).toEqual(['Best 5 min', 'Best 20 min'])
     expect(within(group).getByText('+2 more records')).toBeTruthy()
   })
@@ -324,15 +324,15 @@ describe('ActivityList records earned', () => {
       ['run-1', [{ kind: 'distance', distanceM: 1000 }]],
     ])
     renderList([run, other], 'metric', records)
-    const held = within(rowFor('Morning run')).getByRole('group', { name: 'Records earned' })
+    const held = within(rowFor('Morning run')).getByRole('group', { name: 'All-time records' })
     expect(held).toBeTruthy()
     expect(
-      within(rowFor('Evening run')).queryByRole('group', { name: 'Records earned' }),
+      within(rowFor('Evening run')).queryByRole('group', { name: 'All-time records' }),
     ).toBeNull()
   })
 
   it('shows no records group for an activity that holds nothing', () => {
     renderList([run])
-    expect(screen.queryByRole('group', { name: 'Records earned' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
   })
 })

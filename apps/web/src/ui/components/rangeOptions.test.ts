@@ -1,9 +1,65 @@
 import { describe, expect, it } from 'vitest'
-import { previousPeriodLabel, rangePeriod } from './rangeOptions'
+import type { Period } from '@rca/core/period'
+import {
+  FALLBACK_NOTE,
+  LIBRARY_RANGE_OPTIONS,
+  RANGE_OPTIONS,
+  choiceOfValue,
+  optionValue,
+  periodDates,
+  previousPeriodLabel,
+} from './rangeOptions'
+
+const JUNE = new Date(2025, 5, 3, 12).getTime()
+const MAY = new Date(2025, 4, 12, 12).getTime()
+
+function period(overrides: Partial<Period>): Period {
+  return { choice: 'default', startMs: MAY, endMs: JUNE, days: 22, fellBack: false, ...overrides }
+}
+
+describe('RANGE_OPTIONS', () => {
+  it('offers the default, then the fixed lengths and all time, in that order', () => {
+    expect(RANGE_OPTIONS.map((option) => option.label)).toEqual([
+      'Default',
+      '6 weeks',
+      '3 months',
+      '1 year',
+      'All time',
+    ])
+  })
+
+  it('leaves the default out of the library, which has no default window', () => {
+    expect(LIBRARY_RANGE_OPTIONS.map((option) => option.label)).toEqual([
+      '6 weeks',
+      '3 months',
+      '1 year',
+      'All time',
+    ])
+  })
+
+  it('round-trips each choice through its control value', () => {
+    for (const option of RANGE_OPTIONS) {
+      expect(optionValue(option.choice)).toBe(option.value)
+      expect(choiceOfValue(option.value)).toEqual(option.choice)
+    }
+    expect(choiceOfValue('nonsense')).toBeUndefined()
+  })
+})
+
+describe('periodDates', () => {
+  it('dates a period from its first day to its last', () => {
+    expect(periodDates(period({ startMs: MAY, endMs: JUNE }))).toBe('12 May – 3 Jun 2025')
+  })
+
+  it('has no dates for an empty library', () => {
+    expect(periodDates(period({ startMs: null, endMs: null, days: null }))).toBe('')
+  })
+})
 
 describe('previousPeriodLabel', () => {
   it('names the period before a selected period of the same length', () => {
     expect(previousPeriodLabel(42)).toBe('Previous 6 weeks')
+    expect(previousPeriodLabel(84)).toBe('Previous 12 weeks')
     expect(previousPeriodLabel(91)).toBe('Previous 3 months')
     expect(previousPeriodLabel(365)).toBe('Previous year')
   })
@@ -12,8 +68,15 @@ describe('previousPeriodLabel', () => {
     expect(previousPeriodLabel(null)).toBeNull()
   })
 
-  it('counts in days for a period that is not one of the options', () => {
-    expect(previousPeriodLabel(7)).toBe('Previous 7 days')
-    expect(rangePeriod(7)).toBe('Last 7 days')
+  it('counts in days for a period that is not one of the named lengths', () => {
+    expect(previousPeriodLabel(55)).toBe('Previous 55 days')
+  })
+})
+
+describe('FALLBACK_NOTE', () => {
+  it('says the 12 weeks up to the newest activity lack both sports, and that the period shows all time', () => {
+    expect(FALLBACK_NOTE).toBe(
+      'The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time.',
+    )
   })
 })

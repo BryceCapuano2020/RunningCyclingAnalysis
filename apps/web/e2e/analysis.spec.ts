@@ -40,7 +40,9 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
   await expect(page.getByRole('figure', { name: BALANCE_TREND })).toBeVisible()
   await expect(
-    page.getByRole('status').filter({ hasText: 'Showing a sample athlete.' }),
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Showing a sample athlete, a 37-year-old man at 75 kg.' }),
   ).toHaveCount(1)
 
   await goTo(page, 'Run')
@@ -90,13 +92,13 @@ test('the first upload asks for the athlete once, and a later upload after a rel
   await setup.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(setup).toBeHidden()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
   ).toBeVisible()
 
   // The kept summaries bring the result back on reload, and the next file joins it without a dialog.
   await page.reload()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
   ).toBeVisible()
   await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-ride.gpx'))
   await expect(await activitiesRows(page)).toHaveCount(2)
@@ -167,7 +169,7 @@ test('skipping the setup dialog leaves the weight unset', async ({ page }) => {
 
   await expect(setup).toBeHidden()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
   ).toBeVisible()
   await goTo(page, 'Profile')
   // Skip keeps nothing that was typed: the field is empty and says what a weight is for.
@@ -215,7 +217,7 @@ test('uploading a single run names cycling as the missing sport and keeps the ru
   await uploadFixtures(page, ['one-run.fit'])
 
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Add rides to see your balance' }),
+    page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
   ).toBeVisible()
   const run = page.getByRole('region', { name: 'Run', exact: true })
   await expect(run).toBeVisible()

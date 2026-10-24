@@ -16,8 +16,8 @@ Hash routes, so the static host needs no fallback rules.
 | ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share image                                                                                  |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes             |
-| `#/activities`     | Activities        | Every activity, newest first; a row opens its activity page                                                                                                                                                                         |
-| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), records earned across the library, efforts set here, data issues                                                                                                                               |
+| `#/activities`     | Activities        | Every activity in the library, newest first, with its own period and sport filters and a count of the activities they show; a row opens its activity page                                                                           |
+| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), all-time records across the library, efforts set here, data issues                                                                                                                             |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                               |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities |
 
@@ -68,6 +68,10 @@ A deep link to a page that needs a result, with none on this device, stays where
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
+**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, 1 year or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period and sport filters, which start with the whole library. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out.
+
+**The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
+
 The landing page is the promise, the drop zone with **Choose files** (its one primary action) and
 **See a sample athlete**, the example result, three steps, three sentences on how the result is worked
 out with a **Full method** link, and the export guides. The drop zone's **No files yet? How to get
@@ -80,9 +84,8 @@ to its own service's help. The source line reads "Steps from Strava's help, chec
 menus can change." for Strava, which was read on its own help page. For the other four it reads
 "Steps from published guides, checked ...", because their steps came from guides or search summaries,
 not from the services' own pages.
-`HowToGetFilesButton` opens the same guides in a dialog. It is built and tested, but not yet placed:
-it will sit beside **Add rides** on the empty Run and Ride cards, and on Profile, once those pages
-wire it in. The dialog has no sample button, since a sample would replace the visitor's data.
+`HowToGetFilesButton` opens the same guides in a dialog. It sits beside **Add rides** (or **Add runs**)
+on an empty Run or Ride card, as a secondary action; Profile can wire it in the same way. The dialog has no sample button, since a sample would replace the visitor's data.
 After an import, a dismissible notice under the header says what it added, or "Nothing new" when every
 activity was already in the library, and links to Balance, except on Balance itself. An import made on
 Profile or Method moves to Balance, where its result is. Under that sentence it lists what the import
@@ -172,6 +175,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
   metabolic W/kg.
+- **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest activity's day, when they hold a run and a ride. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same day give the same window, and an older window never hides recent activities. It is clipped to the first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12 weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and the control says why: "The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time." The period is computed in `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the newest activity's day.
 - A period's comparison is the same length before it, drawn as a dashed neutral line and named
   "Previous 6 weeks", "Previous 3 months" or "Previous year". All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
@@ -227,6 +231,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
+- **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this? and the source lines of the sport pages and the record list, not on Balance.
+- **On a phone, the two grades sit under the meter** in one line, "Running 64% Local / Cycling 58% Recreational". The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
@@ -292,6 +298,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A range of months
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
+- **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov 2025", so a span reads without the current date. The period control, the Balance caption and the card's period line show the same dates.
+- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, and offers the file chooser as a secondary button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots.
 - One "How sure is this?" link per card at most.
 - **A level says how it is graded.** A level's grade line may link to its age grades with How is this
   graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
@@ -309,11 +317,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   in full, because a row stands on its own. Thresholds are always estimated. The Method page is the
   one place that explains the estimates.
 - **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
-  standards". The full credit, with the authors, licence and a link, is on the Balance source line,
-  the record list's source line and How sure is this?.
+  standards". The full credit, with the authors, licence and a link, is on the sport pages' source
+  lines, the record list's source line and How sure is this?.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Cards say the
-  age they used ("Graded at age 40"). The three pages that carry the full credit say "Age is counted from
+  age they used ("Graded at age 40"). The pages that carry the full credit say "Age is counted from
   your birth year on the date of each effort." On the Ride page the source line also says that a
   ride's range is its model range.
 - **Removing data asks first.** Removing every kept activity and turning off kept original files

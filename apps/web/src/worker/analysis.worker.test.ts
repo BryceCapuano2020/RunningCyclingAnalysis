@@ -613,20 +613,30 @@ describe('analysis worker', () => {
     const sample = await send({ type: 'loadSample', settings: SETTINGS })
     expect(sample).toEqual([{ type: 'state', state: expect.objectContaining({ isSample: true }) }])
 
-    const range = await send({ type: 'setRange', rangeDays: 42, settings: SETTINGS })
-    expect(range).toEqual([{ type: 'state', state: expect.objectContaining({ rangeDays: 42 }) }])
+    const range = await send({ type: 'setRange', choice: 42, settings: SETTINGS })
+    expect(range).toEqual([
+      {
+        type: 'state',
+        state: expect.objectContaining({ period: expect.objectContaining({ choice: 42 }) }),
+      },
+    ])
 
     const settings = await send({
       type: 'setSettings',
       settings: { massKg: 80, bikeMassKg: 9 },
     })
-    expect(settings).toEqual([{ type: 'state', state: expect.objectContaining({ rangeDays: 42 }) }])
+    expect(settings).toEqual([
+      {
+        type: 'state',
+        state: expect.objectContaining({ period: expect.objectContaining({ choice: 42 }) }),
+      },
+    ])
 
     const cleared = await send({ type: 'clear' })
     expect(cleared).toEqual([
       {
         type: 'state',
-        state: expect.objectContaining({ isSample: false, totalActivities: 0, rangeDays: null }),
+        state: expect.objectContaining({ isSample: false, totalActivities: 0, library: [] }),
       },
     ])
   })

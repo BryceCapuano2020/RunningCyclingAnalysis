@@ -1,0 +1,12 @@
+/* Phones only: the two cards stack there, so the grades sit together under the meter. */
+.balance-strip {
+  display: none;
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .balance-strip {
+    display: block;
+  }
+}

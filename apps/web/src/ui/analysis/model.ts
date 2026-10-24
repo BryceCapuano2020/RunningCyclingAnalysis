@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
@@ -66,13 +67,23 @@ export function drainBatches(queue: Box<File[][]>): File[][] {
   return batches
 }
 
+/** The period before any activities are loaded: the default, with no dates yet. */
+export const EMPTY_PERIOD: Period = {
+  choice: 'default',
+  startMs: null,
+  endMs: null,
+  days: null,
+  fellBack: false,
+}
+
 export const EMPTY_SESSION: SessionState = {
   result: null,
   rejected: [],
   unsupportedFiles: 0,
   isSample: false,
   totalActivities: 0,
-  rangeDays: null,
+  period: EMPTY_PERIOD,
+  library: [],
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,

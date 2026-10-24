@@ -8,6 +8,7 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration } from '@rca/core/units'
 import { SportCurveChart, TrendChart } from '../charts'
+import { AddSportFiles } from '../components/AddSportFiles'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { SportRecords } from '../components/SportRecords'
 import { recordRow } from '../recordRow'
@@ -54,6 +55,10 @@ export interface SportPageProps {
   controls: ReactNode
   /** The line that says what the page is based on, at its foot. */
   footnote?: ReactNode
+  /** What to say when the sport has nothing in the period, naming the period. */
+  emptyText: string
+  /** Adds files, from the action an empty sport page offers. */
+  onAddFiles: (files: File[]) => void
 }
 
 /** One sport's records in its own units, the best-effort curve and the evidence behind them. */
@@ -70,6 +75,8 @@ export function SportPage({
   profile,
   controls,
   footnote = null,
+  emptyText,
+  onAddFiles,
 }: SportPageProps) {
   const count = countSport(result.activities, sport)
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
@@ -118,9 +125,10 @@ export function SportPage({
       </a>
 
       {count === 0 ? (
-        <p className="secondary">
-          {`No ${SPORT_PLURAL[sport]} in this period. Add ${SPORT_PLURAL[sport]} to see your records.`}
-        </p>
+        <>
+          <p className="secondary">{emptyText}</p>
+          <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+        </>
       ) : held ? (
         <WeightNote />
       ) : (

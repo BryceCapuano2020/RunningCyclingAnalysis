@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { SessionState, SyncIssueCode } from '@rca/core/session'
+import type { PeriodChoice, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
-import type { ImportOutcome, SavedActivity, WorkerRequest } from '../worker/protocol'
+import type {
+  ImportOutcome,
+  SavedActivity,
+  WorkerRequest,
+  WorkerResponse,
+} from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { STOPPED_KEPT_RESULTS, STOPPED_WHILE_LOADING, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
+import { isQuietRequest } from './analysis/quietRequests'
 import type { ImportChange } from './analysis/importState'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
@@ -69,7 +75,7 @@ export interface AnalysisController {
   rebuildSavedActivities: () => void
   addFiles: (files: File[]) => void
   loadSample: () => void
-  setRange: (rangeDays: number | null) => void
+  setRange: (choice: PeriodChoice, answered?: (reply: WorkerResponse | null) => void) => void
   clear: () => void
   /**
    * The route of a saved activity, by its library id. `fromOriginal` reads the kept original file,
@@ -142,17 +148,8 @@ export function useAnalysis(
   const refreshBusy = useCallback(() => {
     const replies = pendingRepliesRef.current
     setLibraryAction(replies.some((pending) => isDeletion(pending.kind)) ? 'deleting' : null)
-    // Reading the library kept in this browser is quick and queued before anything else, so it
-    // does not hold the page busy: the sample and imports stay available while it loads.
-    const quiet = (kind: Pending['kind']) =>
-      isDeletion(kind) ||
-      kind === 'exportData' ||
-      kind === 'activitySplits' ||
-      kind === 'loadDevice' ||
-      kind === 'routeShape' ||
-      kind === 'forgetRoutes'
     setBusy(
-      replies.some((pending) => !quiet(pending.kind)) ||
+      replies.some((pending) => !isQuietRequest(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
         libraryWaitRef.current.length > 0,
     )
@@ -275,16 +272,11 @@ export function useAnalysis(
    */
   const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
 
-  // A clear resets the period in the session, so the period the visitor chose is sent again.
-  // Read from the ref setRange keeps current, so a period chosen before the worker answers is kept.
-  const { rangeRef } = imports
-  const clearSession = useCallback(() => {
-    sendToWorker({ type: 'clear', forgetDevice: false })
-    const rangeDays = rangeRef.current
-    if (rangeDays !== null) {
-      sendToWorker({ type: 'setRange', rangeDays, settings: settingsRef.current })
-    }
-  }, [rangeRef, sendToWorker])
+  // A clear keeps the chosen period: the session holds it, so nothing else is sent.
+  const clearSession = useCallback(
+    () => sendToWorker({ type: 'clear', forgetDevice: false }),
+    [sendToWorker],
+  )
 
   const stop = useCallback(() => {
     clearQueues()

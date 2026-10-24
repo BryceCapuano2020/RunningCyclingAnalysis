@@ -34,9 +34,7 @@ function settle(): Promise<void> {
 }
 
 function methodPage() {
-  return (
-    <MethodPage result={makeResult()} units="metric" profile={null} rangeDays={42} weightKnown />
-  )
+  return <MethodPage result={makeResult()} units="metric" profile={null} weightKnown />
 }
 
 function gradesHeading(): HTMLElement {

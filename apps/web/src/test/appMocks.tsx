@@ -124,7 +124,7 @@ export function setSession(patch: Partial<SessionState>): void {
 
 /** Gives the page a result to show, as a finished import would. */
 export function showResult(result: AnalysisResult = makeResult()): void {
-  setSession({ result, totalActivities: result.activities.length })
+  setSession({ result, library: result.activities, totalActivities: result.activities.length })
 }
 
 /** The text of every status region on the page, mounted or not. */

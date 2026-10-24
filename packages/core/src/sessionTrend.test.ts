@@ -33,8 +33,8 @@ describe('AnalysisSession trend', () => {
 
   it('gives the headline trend no running equivalents until the session is asked to grade it', () => {
     const session = new AnalysisSession()
-    session.loadSample(SETTINGS)
-    const plain = session.setRange(null, SETTINGS)
+    session.loadDigests(sampleDigests(), SETTINGS)
+    const plain = session.setRange('all', SETTINGS)
     const rides = plain.trend.filter((point) => point.rideWkg !== null)
     expect(rides.length).toBeGreaterThan(0)
     expect(rides.every((point) => point.rideRunSpeed === null)).toBe(true)
@@ -47,6 +47,14 @@ describe('AnalysisSession trend', () => {
     )
   })
 
+  it('gives the sample’s rides running equivalents without being asked, since the sample is graded as its own athlete', () => {
+    const session = new AnalysisSession()
+    const state = session.loadSample(SETTINGS)
+    const rides = state.trend.filter((point) => point.rideWkg !== null)
+    expect(rides.length).toBeGreaterThan(0)
+    expect(rides.some((point) => point.rideRunSpeed !== null)).toBe(true)
+  })
+
   it('recomputes the trend when the period changes, and reuses it for the same period', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
@@ -57,7 +65,7 @@ describe('AnalysisSession trend', () => {
     expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
     session.setRange(42, SETTINGS)
     expect(fitnessTrend.mock.calls.length).toBe(computed + 1 * EFFORTS)
-    session.setRange(null, SETTINGS)
+    session.setRange('all', SETTINGS)
     expect(fitnessTrend.mock.calls.length).toBe(computed + 2 * EFFORTS)
   })
 
@@ -81,7 +89,8 @@ describe('AnalysisSession trend', () => {
 
   it('reuses the trend for equal settings, and recomputes when mass changes', () => {
     const session = new AnalysisSession()
-    session.loadSample(SETTINGS)
+    session.loadDigests(sampleDigests(), SETTINGS)
+    session.setRange('all', SETTINGS)
     session.setGradeTrend(true, SETTINGS)
     const computed = fitnessTrend.mock.calls.length
 
@@ -125,7 +134,8 @@ describe('AnalysisSession trend', () => {
 
   it('recomputes every effort length when the bike mass changes, and matches a fresh trend', () => {
     const session = new AnalysisSession()
-    session.loadSample(SETTINGS)
+    session.loadDigests(sampleDigests(), SETTINGS)
+    session.setRange('all', SETTINGS)
     session.setGradeTrend(true, SETTINGS)
     const computed = fitnessTrend.mock.calls.length
 
@@ -246,7 +256,7 @@ describe('AnalysisSession previous period', () => {
   it('gives no previous period for all time, or when the period before has no activities', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
-    expect(session.setRange(null, SETTINGS).previous).toBeNull()
+    expect(session.setRange('all', SETTINGS).previous).toBeNull()
     // The sample's last activity is 3 June; nothing lies in the three days before 31 May.
     expect(session.setRange(3, SETTINGS).previous).toBeNull()
   })

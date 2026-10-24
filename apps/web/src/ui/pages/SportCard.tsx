@@ -20,13 +20,7 @@ import {
   THRESHOLD_LABEL,
   THRESHOLD_MEANING,
 } from '../sports'
-import {
-  CHIP_DURATIONS_S,
-  countSport,
-  isEstimatedRecord,
-  sportRecords,
-  threshold,
-} from '../records'
+import { CHIP_DURATIONS_S, isEstimatedRecord, sportRecords, threshold } from '../records'
 import './SportCard.css'
 
 export interface SportCardProps {
@@ -41,11 +35,6 @@ export interface SportCardProps {
   grade: GradeOutcome | null
   /** False while no body weight is entered; a ride's figures then wait for it. */
   weighted: boolean
-}
-
-const ADD: Record<Sport, string> = {
-  run: 'Add runs to see your running and your balance.',
-  ride: 'Add rides to see your cycling and your balance.',
 }
 
 /**
@@ -107,11 +96,10 @@ function AgeGrade({
  * efforts that show it, each naming the activity that set it. A ride's figures wait for the weight.
  */
 export function SportCard({ sport, result, units, massKg, grade, weighted }: SportCardProps) {
-  const count = countSport(result.activities, sport)
   const headingId = `sport-card-${sport}`
   // A ride's figures use the body mass, so they are held until it is entered; a run's are not.
   const held = sport === 'ride' && !weighted
-  const hero = count > 0 && !held ? threshold(result, sport, massKg, units) : null
+  const hero = held ? null : threshold(result, sport, massKg, units)
   const records = held
     ? []
     : sportRecords(result, sport, massKg, units).filter((record) =>
@@ -123,51 +111,42 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
     : null
 
   return (
-    <section
-      className={`card sport-card sport-card--${sport}${count === 0 ? ' sport-card--empty' : ''}`}
-      aria-labelledby={headingId}
-    >
+    <section className={`card sport-card sport-card--${sport}`} aria-labelledby={headingId}>
       <h2 id={headingId} className="sport-card__name">
         <SportIcon sport={sport} />
         {SPORT_LABEL[sport]}
       </h2>
-      {count === 0 ? (
-        <p className="secondary">{ADD[sport]}</p>
-      ) : (
-        <>
-          <div className="sport-card__hero">
-            <p className="eyebrow">{THRESHOLD_LABEL[sport]}</p>
-            {held ? (
-              <WeightNote />
-            ) : hero ? (
-              <p>
-                <span className="hero-number">
-                  {hero.number}
-                  <span className="hero-number__unit"> {hero.unit}</span>
-                </span>
-                {hero.sub && <span className="sport-card__sub">{hero.sub}</span>}
-              </p>
-            ) : (
-              <p className="secondary">{`Needs a hard effort of ${THRESHOLD_EFFORT_TEXT}.`}</p>
-            )}
-            {!held && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
-          </div>
-          {!held && grade && <AgeGrade sport={sport} outcome={grade} effort={effort} />}
-          {records.length > 0 && (
-            <SportRecords
-              rows={records.map((record) =>
-                recordRow(sport, record, { label: formatDuration(record.durationS), grade: null }),
-              )}
-            />
+      <>
+        <div className="sport-card__hero">
+          <p className="eyebrow">{THRESHOLD_LABEL[sport]}</p>
+          {held ? (
+            <WeightNote />
+          ) : hero ? (
+            <p>
+              <span className="hero-number">
+                {hero.number}
+                <span className="hero-number__unit"> {hero.unit}</span>
+              </span>
+              {hero.sub && <span className="sport-card__sub">{hero.sub}</span>}
+            </p>
+          ) : (
+            <p className="secondary">{`Needs a hard effort of ${THRESHOLD_EFFORT_TEXT}.`}</p>
           )}
-        </>
-      )}
-      {count > 0 && (
-        <a className="link-arrow" href={hrefFor({ page: sport })}>
-          {`All ${SPORT_PLURAL[sport]}`}
-          <ArrowRightIcon />
-        </a>
-      )}
+          {!held && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+        </div>
+        {!held && grade && <AgeGrade sport={sport} outcome={grade} effort={effort} />}
+        {records.length > 0 && (
+          <SportRecords
+            rows={records.map((record) =>
+              recordRow(sport, record, { label: formatDuration(record.durationS), grade: null }),
+            )}
+          />
+        )}
+      </>
+      <a className="link-arrow" href={hrefFor({ page: sport })}>
+        {`All ${SPORT_PLURAL[sport]}`}
+        <ArrowRightIcon />
+      </a>
     </section>
   )
 }
