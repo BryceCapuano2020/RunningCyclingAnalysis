@@ -7,6 +7,7 @@ import {
   trendWindowDays,
 } from '@rca/core/digest/trendPoints'
 import { HEADLINE_LABEL } from '../grades'
+import { effortLabel } from '../records'
 import { RANGE_OPTIONS } from './rangeOptions'
 
 /** The ids of the sections on How sure is this?, which the contents list and the links name. */
@@ -18,16 +19,13 @@ export const SECTION_ID = {
   how: 'method-how',
 } as const
 
-/** An effort length in copy, always in minutes: "20 min", so "60 min" reads the same as "5 min". */
-const minutesLabel = (durationS: number) => `${Math.round(durationS / 60)} min`
-
 /** "a, b and c", for a short list in a sentence. */
 const listWords = (items: readonly string[]) =>
   `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
 
 /** The effort lengths the trend offers, as copy: "5 min, 20 min or 60 min". */
 const EFFORT_PHRASE = (() => {
-  const lengths = EFFORT_LENGTHS_S.map(minutesLabel)
+  const lengths = EFFORT_LENGTHS_S.map((durationS) => effortLabel(durationS))
   return `${lengths.slice(0, -1).join(', ')} or ${lengths.at(-1)}`
 })()
 

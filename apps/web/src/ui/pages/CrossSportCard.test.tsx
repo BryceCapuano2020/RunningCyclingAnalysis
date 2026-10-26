@@ -107,6 +107,16 @@ describe('CrossSportCard', () => {
     ).toBeInTheDocument()
   })
 
+  it('names an hour effort in minutes in the headline line, as the records list does', () => {
+    renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 3600, ridePowerW: 200 })] }))
+
+    expect(
+      screen.getByText(
+        'Your best 60 min on the bike, 200 W (estimated), takes the same effort as running on the flat.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('tags the watts estimated when the ride that set the effort had virtual power', () => {
     renderCard(
       makeResult({

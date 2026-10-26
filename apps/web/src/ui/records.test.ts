@@ -16,7 +16,6 @@ import {
   effortLabel,
   EFFORT_OPTIONS,
   featuredEquivalence,
-  recordDurationLabel,
   isEstimatedRecord,
   nativeCurve,
   nativeValue,
@@ -380,12 +379,16 @@ describe('isEstimatedRecord', () => {
   })
 })
 
-describe('recordDurationLabel', () => {
+describe('effortLabel', () => {
   it('names every record length in minutes, the hour too, as DESIGN names them', () => {
-    expect(recordDurationLabel(3600)).toBe('60 min')
-    expect(recordDurationLabel(1200)).toBe('20 min')
-    expect(recordDurationLabel(300)).toBe('5 min')
-    expect(recordDurationLabel(60)).toBe('1 min')
+    expect(effortLabel(3600)).toBe('60 min')
+    expect(effortLabel(1200)).toBe('20 min')
+    expect(effortLabel(300)).toBe('5 min')
+    expect(effortLabel(60)).toBe('1 min')
+  })
+
+  it('names a length under a minute in seconds, not as a fraction of a minute', () => {
+    expect(effortLabel(45)).toBe('45 s')
   })
 })
 

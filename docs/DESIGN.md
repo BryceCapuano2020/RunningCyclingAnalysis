@@ -295,7 +295,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   record's source is dated without its weekday, such as "5 Jan".
 - **A duration's grade says the distance it is taken at.** A run's grade at 1, 5, 20 or 60 min is taken at
   the distance it covers at its flat pace, so its grade line reads "Local · 64% · 5.0 km in 20 min", written
-  as any distance is. An hour is "60 min" there too, as on the records list, never "1 h". A ride's grade is not given a distance, because it goes through its running equivalent.
+  as any distance is. An effort's length reads the same in every record, trend and headline line, in whole minutes, so an hour is "60 min", never "1 h"; a length under a minute reads in seconds. A ride's grade is not given a distance, because it goes through its running equivalent.
 - Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in

@@ -8,6 +8,7 @@ import {
   formatPaceValue,
   formatPower,
 } from '@rca/core/units'
+import { effortLabel } from '../records'
 import { WeightNote } from './WeightNote'
 import './EquivalenceTable.css'
 
@@ -27,7 +28,7 @@ const RANGE_LABEL = '90% range'
 
 /** An effort in words: its duration and its watts. */
 function effortOf(equivalent: Equivalence): string {
-  return `${formatDuration(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`
+  return `${effortLabel(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`
 }
 
 /** The model range of the flat pace, from its slow end to its fast end, in the viewer's unit. */

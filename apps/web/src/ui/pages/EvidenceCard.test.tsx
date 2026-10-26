@@ -73,6 +73,17 @@ describe('EvidenceCard hard efforts', () => {
     ).toBeInTheDocument()
   })
 
+  it('names an hour effort in minutes, as the records list does', () => {
+    renderCard({ durationS: 3600, runHrFraction: 0.9, rideHrFraction: 0.95 })
+
+    const card = screen.getByRole('region', { name: 'Hard efforts on file' })
+    expect(
+      within(card).getByText(
+        'Heart rate shows your best 60 min in both sports were hard, not easy. Still, that does not prove either was your hardest.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('is a quiet line, not a bordered card, when the numbers are good news', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.9, rideHrFraction: 0.95 })
 

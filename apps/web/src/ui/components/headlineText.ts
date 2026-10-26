@@ -5,6 +5,7 @@ import type { Comparison, ComparisonPoint } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import type { Lean } from '../balanceGap'
 import { plural } from './plural'
+import { effortLabel } from '../records'
 import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import type { BalanceReading } from './balanceScale'
 
@@ -115,7 +116,7 @@ function energySummary({ lean, lead }: BalanceReading, duration: string): string
 
 /** The summary under the headline. A grade gap is on the headline duration; the energy ratio on the duration given. */
 export function balanceSummary(reading: BalanceReading, durationS: number): string {
-  if (reading.unit === 'percent') return energySummary(reading, formatDuration(durationS))
+  if (reading.unit === 'percent') return energySummary(reading, effortLabel(durationS))
   if (reading.lean === 'even') return inBalanceSummary(reading)
   return leaningGradeSummary(reading.lean, reading.lead.centre)
 }

@@ -65,7 +65,7 @@ describe('EquivalenceTable', () => {
     const rows = screen.getAllByRole('row').slice(1)
     expect(rows).toHaveLength(2)
     expect(within(rows[0]!).getByText('5 min at 300 W')).toBeInTheDocument()
-    expect(within(rows[1]!).getByText('1 h at 200 W')).toBeInTheDocument()
+    expect(within(rows[1]!).getByText('60 min at 200 W')).toBeInTheDocument()
   })
 
   it('tags the watts of a row estimated when its ride had no power meter, and not otherwise', () => {

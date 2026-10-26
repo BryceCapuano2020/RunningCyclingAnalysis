@@ -217,6 +217,12 @@ describe('balanceSummary', () => {
     )
   })
 
+  it('names an hour in the energy ratio in minutes, as the records list does', () => {
+    expect(balanceSummary(energyReading(interval(1.05, 1.12, 1.2)), 3600)).toBe(
+      'Over 60 min, your running is about 12% higher than your cycling, as energy per kilogram.',
+    )
+  })
+
   it.each([
     ['a grade gap', gapReading(gap())],
     ['an even grade gap', gapReading(gap({ centre: 1, low: -2, high: 4, lean: 'even' }))],
