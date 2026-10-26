@@ -191,7 +191,7 @@ describe('HrScatter', () => {
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const tooltip = screen.getByRole('status')
     expect(within(tooltip).getByText('Run')).toBeInTheDocument()
-    expect(tooltip).toHaveTextContent('13.5 W/kg')
+    expect(tooltip).toHaveTextContent('13.5 metabolic W/kg')
     expect(tooltip).toHaveTextContent('150 bpm')
   })
 

@@ -39,7 +39,7 @@ const DATED_SIX_WEEKS: Period = {
 
 /** The page's facts about the comparison: the list that holds the model range fact. */
 function factsOf(): HTMLElement {
-  const list = screen.getByText(/^Running against cycling, 90% model range/).closest('ul')
+  const list = screen.getByText(/^Running against cycling, 90% range/).closest('ul')
   if (!list) throw new Error('No facts list')
   return list
 }
@@ -315,9 +315,7 @@ describe('MethodPage energy view', () => {
     renderPage()
 
     const facts = within(factsOf())
-    expect(
-      facts.getByText('Running against cycling, 90% model range: +5% to +20%.'),
-    ).toBeInTheDocument()
+    expect(facts.getByText('Running against cycling, 90% range: +5% to +20%.')).toBeInTheDocument()
     expect(facts.getByText('Model range based on population assumptions.')).toBeInTheDocument()
     expect(facts.getByText('The range does not include every source of error.')).toBeInTheDocument()
   })
@@ -325,7 +323,7 @@ describe('MethodPage energy view', () => {
   it('reuses the headline range text rather than writing its own', () => {
     renderPage()
 
-    expect(screen.getAllByText(/^Running against cycling, 90% model range/)).toHaveLength(1)
+    expect(screen.getAllByText(/^Running against cycling, 90% range/)).toHaveLength(1)
   })
 
   it('says the range was adjusted when the heart-rate comparison is used', () => {
@@ -394,7 +392,7 @@ describe('MethodPage energy view', () => {
 
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(within(section).queryByRole('list')).not.toBeInTheDocument()
-    expect(screen.queryByText(/90% model range/)).not.toBeInTheDocument()
+    expect(within(section).queryByText(/90% range/)).not.toBeInTheDocument()
   })
 
   it('defines the 90% range once, and what the range leaves out once', async () => {
@@ -669,9 +667,7 @@ describe('MethodPage without a weight', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(section.querySelector('details.method__evidence')).toBeNull()
     expect(within(section).queryByRole('list')).toBeNull()
-    expect(section.textContent).not.toMatch(
-      /90% model range|cross-check|energy ratio|energy rate by/,
-    )
+    expect(section.textContent).not.toMatch(/90% range|cross-check|energy ratio|energy rate by/)
     expect(within(section).getByText('Waits for your weight, as Balance does.')).toBeInTheDocument()
     expect(within(section).queryByRole('link', { name: 'Profile' })).toBeNull()
     expect(container.querySelector('figure')).not.toBeInTheDocument()
@@ -785,7 +781,7 @@ describe('MethodPage without a weight', () => {
     )
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(within(section).getByText(/90% model range/)).toBeInTheDocument()
+    expect(within(section).getByText(/^Running against cycling, 90% range/)).toBeInTheDocument()
     expect(within(section).queryByText(/Add your weight on Profile/)).toBeNull()
     expect(container.querySelector('details.method__evidence')).not.toBeNull()
   })

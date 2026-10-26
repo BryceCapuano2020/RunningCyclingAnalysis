@@ -1,6 +1,6 @@
 import { formatCount } from '../format/count'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
-import { ENERGY_RATE_UNIT, formatWkg } from '@rca/core/units'
+import { ENERGY_RATE_UNIT, formatEnergyRate } from '@rca/core/units'
 import { SPORT_LABEL, SPORT_NOUN } from '../sports'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
@@ -231,7 +231,7 @@ export function tooltipFor(dot: Dot): TooltipContent {
     y: dot.y,
     title: SPORT_LABEL[dot.sport],
     rows: [
-      { kind: dot.sport, value: formatWkg(dot.metabolicWkg), label: 'Energy rate' },
+      { kind: dot.sport, value: formatEnergyRate(dot.metabolicWkg), label: 'Energy rate' },
       { kind: dot.sport, value: `${Math.round(dot.bpm)} bpm`, label: 'Heart rate' },
     ],
   }

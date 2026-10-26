@@ -6,6 +6,8 @@ export {
   formatDuration,
   formatElevation,
   ENERGY_RATE_UNIT,
+  formatEnergyRate,
+  formatEnergyRateValue,
   PACE_UNIT,
   formatMass,
   formatPace,

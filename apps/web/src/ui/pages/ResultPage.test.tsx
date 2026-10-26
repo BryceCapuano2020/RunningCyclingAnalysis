@@ -203,7 +203,7 @@ describe('ResultPage How sure is this? with no weight entered', () => {
     renderPage({ page: 'method' }, 1986, 'male', false)
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
     expect(screen.getByRole('region', { name: 'The energy view' }).textContent).not.toMatch(
-      /90% model range/,
+      /90% range/,
     )
   })
 

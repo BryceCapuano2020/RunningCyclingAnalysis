@@ -333,7 +333,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
   published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
-  ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, each on two lines so the two figures line up. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
+  ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
@@ -459,9 +459,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   in one sentence, where it explains the heart-rate check.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
-  "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes and column
-  headings of the energy charts, the energy rate's unit is "metabolic W/kg", never plain W/kg; watts per
-  kilogram of measured power stay "W/kg".
+  "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes, headings,
+  tooltips, notes and end labels of the energy charts, the energy rate's unit is "metabolic W/kg", never
+  plain W/kg; watts per kilogram of measured power stay "W/kg". A table cell under a heading that already
+  names the unit gives the bare number, as the other tables do, so the energy tables read "17.0" under
+  "Run energy rate (metabolic W/kg)".
 - **How sure is this? opens with three lines**: what is recorded ("Running efforts, and ride power from
   a power meter, are recorded."), the balance in Balance's words with whether even is inside the range
   ("Your balance leans toward running. Even is outside its range."), and how far to trust it ("These

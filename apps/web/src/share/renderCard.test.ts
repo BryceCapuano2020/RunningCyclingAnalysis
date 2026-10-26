@@ -154,6 +154,20 @@ describe('renderShareCard', () => {
     expect(at(story, '48') ?? 0).toBeGreaterThan(at(story, '21:35') ?? Infinity)
   })
 
+  it('lines the figures up side by side when one hero label wraps to two lines and the other to one', () => {
+    const heroes = cardModel().heroes
+    const run = heroes[0]
+    const ride = heroes[1]
+    if (run === undefined || ride === undefined) throw new Error('The card has two heroes')
+    const texts = draw(cardModel({ heroes: [run, { ...ride, label: 'Power' }] }), 'square').texts
+    // The run's label wraps to a second line; the ride's short label is one line, POWER.
+    expect(texts.some((text) => text.text === 'FROM YOUR BEST 3 TO 20 MIN')).toBe(true)
+    expect(texts.filter((text) => text.text === 'POWER')).toHaveLength(1)
+    const figureY = (figure: string) => texts.find((text) => text.text === figure)?.y
+    expect(figureY('21:35')).toBeDefined()
+    expect(figureY('21:35')).toBe(figureY('48'))
+  })
+
   it('steps the headline down until it fits on two lines of a square', () => {
     const headline = draw(cardModel()).texts.filter(isHeadline)
     expect(headline.map((text) => text.text)).toEqual(['YOUR BALANCE LEANS', 'TOWARD RUNNING'])

@@ -85,6 +85,8 @@ interface Column {
   hero: ShareHero
   label: string[]
   labelStyle: TextStyle
+  /** The label rows this column reserves: the tallest label's, shared by every column. */
+  labelRows: number
   /** The lines under the figure: the second reading, then the level. */
   lines: string[]
   height: number
@@ -100,21 +102,27 @@ function bodyLines(
   return text === null ? [] : wrapIn(ctx, text, BODY, width, maxLines)
 }
 
+/** A hero's label, in capitals, wrapped to two lines at most. */
+function labelLines(ctx: CardContext, hero: ShareHero, style: TextStyle, width: number): string[] {
+  return wrapIn(ctx, hero.label.toUpperCase(), style, width, 2)
+}
+
 function measureColumn(
   ctx: CardContext,
   hero: ShareHero,
   width: number,
   size: number,
   style: TextStyle,
+  labelRows: number,
 ): Column {
-  const label = wrapIn(ctx, hero.label.toUpperCase(), style, width, 2)
+  const label = labelLines(ctx, hero, style, width)
   const lines = [...bodyLines(ctx, hero.sub, width, 1), ...bodyLines(ctx, hero.grade, width, 2)]
   const height =
-    label.length * style.lineHeight +
+    labelRows * style.lineHeight +
     SPACE +
     figureStyle(size).lineHeight +
     lines.length * BODY.lineHeight
-  return { hero, label, labelStyle: style, lines, height }
+  return { hero, label, labelStyle: style, labelRows, lines, height }
 }
 
 /** The number at its size, with the unit after it on the same baseline. */
@@ -182,7 +190,7 @@ function drawColumn(
   const glyphY = y + (column.labelStyle.lineHeight - GLYPH_SIZE) / 2
   drawSportGlyph(ctx, hero.sport, x + EDGE_WIDTH + GLYPH_GAP, glyphY, GLYPH_SIZE, CARD_COLORS.text)
   drawLines(ctx, column.label, textX, y, column.labelStyle, CARD_COLORS.muted)
-  let lineY = y + column.label.length * column.labelStyle.lineHeight + SPACE
+  let lineY = y + column.labelRows * column.labelStyle.lineHeight + SPACE
   // The figure is text, so it takes the text colour; only the edge above carries the sport.
   drawFigure(ctx, hero.figure, size, textX, lineY, CARD_COLORS.text)
   lineY += figureStyle(size).lineHeight
@@ -215,7 +223,13 @@ export function heroBlock(
   const textWidth = columnWidth - EDGE_WIDTH - TEXT_INSET
   const size = figureSize(ctx, heroes, layout.figure, textWidth)
   const label = labelStyle(labelSizeFor(ctx, heroes, textWidth))
-  const columns = heroes.map((hero) => measureColumn(ctx, hero, textWidth, size, label))
+  // Every column's figure sits below the tallest label, so the figures line up across the columns
+  // even where one label wraps to a single line and another to two.
+  const labelRows = Math.max(
+    0,
+    ...heroes.map((hero) => labelLines(ctx, hero, label, textWidth).length),
+  )
+  const columns = heroes.map((hero) => measureColumn(ctx, hero, textWidth, size, label, labelRows))
   const height = layout.stacked
     ? columns.reduce((sum, column) => sum + column.height, 0) + COLUMN_GAP * (columns.length - 1)
     : Math.max(...columns.map((column) => column.height))

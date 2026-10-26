@@ -1,5 +1,5 @@
 import { levelOf } from '@rca/core/grade'
-import { ENERGY_RATE_UNIT, formatWkg } from '@rca/core/units'
+import { ENERGY_RATE_UNIT, formatEnergyRate, formatEnergyRateValue } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import type { SharedWeek } from './gradeTrend'
 import { weekDay } from './trendText'
@@ -60,13 +60,19 @@ export function copyOf(measure: SharedMeasure, effort: string, windowText: strin
   }
 }
 
-/** Grades are drawn in per cent, so the axis reads in whole steps. Energy stays in W/kg. */
+/** Grades are drawn in per cent, so the axis reads in whole steps. Energy stays in metabolic W/kg. */
 export function plotted(measure: SharedMeasure, value: number): number {
   return measure === 'grade' ? value * 100 : value
 }
 
+/** A value in words, for a tooltip, a note or an end label: an energy rate carries its unit. */
 export function formatValue(measure: SharedMeasure, value: number): string {
-  return measure === 'grade' ? formatGrade(value) : formatWkg(value)
+  return measure === 'grade' ? formatGrade(value) : formatEnergyRate(value)
+}
+
+/** A table cell's value. An energy rate is a bare number, since its column heading names the unit. */
+export function tableValue(measure: SharedMeasure, value: number): string {
+  return measure === 'grade' ? formatGrade(value) : formatEnergyRateValue(value)
 }
 
 /** A week with cycling held back: its run kept, and no ride value, range or count. */

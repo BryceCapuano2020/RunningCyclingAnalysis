@@ -151,6 +151,17 @@ export function formatWkg(wPerKg: number): string {
   return `${wPerKg.toFixed(1)} W/kg`
 }
 
+/** A metabolic energy rate to one decimal, without the unit: for a column whose heading already names it. */
+export function formatEnergyRateValue(wPerKg: number): string {
+  return Number.isFinite(wPerKg) ? wPerKg.toFixed(1) : DASH
+}
+
+/** A metabolic energy rate to one decimal, with ENERGY_RATE_UNIT: for a tooltip, a note or an end label. */
+export function formatEnergyRate(wPerKg: number): string {
+  const value = formatEnergyRateValue(wPerKg)
+  return value === DASH ? DASH : `${value} ${ENERGY_RATE_UNIT}`
+}
+
 export function formatPercent(fraction: number, signed = false): string {
   if (!Number.isFinite(fraction)) {
     return DASH
