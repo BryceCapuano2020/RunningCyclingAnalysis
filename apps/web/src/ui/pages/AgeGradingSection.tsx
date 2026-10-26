@@ -3,6 +3,7 @@ import { StandardsCredit } from '../components/StandardsCredit'
 import { SECTION_ID } from '../components/methodTopics'
 import { LEVEL_BANDS, SEX_NOUN } from '../grades'
 import { hrefFor } from '../route'
+import './AgeGradingSection.css'
 
 export interface AgeGradingSectionProps {
   /** The sex the grades are for, when a grade shows on this page; null when none does. */
@@ -50,20 +51,21 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
       <p className="secondary">
         A ride has no published cycling standard. Its best effort is converted to the flat running
         speed that costs the same energy over the same time, the running equivalent, and graded like
-        a run. Its range is the model’s 90% range for that conversion, so a ride grade is an
-        estimate.
+        a run, so a ride grade is an estimate.
       </p>
       <p className="secondary">
         Each effort is graded at the age on its own date, not the newest activity’s, because age
-        changes across a period. Age is counted from your birth year on the date of each effort. A
-        run takes the date of its best effort at that duration. A ride takes the date of its own
-        best ride at that duration, because its running equivalent comes from that ride.
+        changes across a period. A run takes the date of its best effort at that duration. A ride
+        takes the date of its own best ride at that duration, because its running equivalent comes
+        from that ride.
       </p>
       <p className="secondary">
         {gradedSex !== null && `Your grades are for a ${SEX_NOUN[gradedSex]}. `}
-        <a href={hrefFor({ page: 'profile' })}>Change age and sex</a>
+        <a className="age-grading__link" href={hrefFor({ page: 'profile' })}>
+          Change age and sex
+        </a>
       </p>
-      <p className="muted">
+      <p className="muted age-grading__source">
         Source: <StandardsCredit />, a public domain dedication.
       </p>
       <ul className="method__facts">

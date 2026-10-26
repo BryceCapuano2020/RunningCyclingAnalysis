@@ -29,13 +29,17 @@ describe('Methodology', () => {
     expect(summary?.querySelector('h2, h3')).toBeNull()
   })
 
-  it('is collapsed by default, and opens when asked', () => {
+  it('is collapsed by default, and when open shows its topics with no disclosure at all', () => {
     const { container, unmount } = render(<Methodology />)
-    expect(container.querySelector('details')).not.toHaveAttribute('open')
+    const disclosure = container.querySelector('details.methodology__disclosure')
+    expect(disclosure).not.toBeNull()
+    expect(disclosure).not.toHaveAttribute('open')
     unmount()
 
     const opened = render(<Methodology open />)
-    expect(opened.container.querySelector('details')).toHaveAttribute('open')
+    expect(opened.container.querySelector('details.methodology__disclosure')).toBeNull()
+    expect(screen.queryByText('Show the assumptions')).toBeNull()
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(8)
   })
 
   it('lists every topic when no list is given, in order', () => {

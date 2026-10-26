@@ -1,0 +1,9 @@
+/* A finger needs a control's height to tap a link in this section. A mouse keeps the line's own height. */
+@media (pointer: coarse) {
+  .age-grading__link,
+  .age-grading__source a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
+}

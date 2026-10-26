@@ -48,7 +48,7 @@ describe('SetupDialog', () => {
     expect(screen.getByRole('heading', { level: 2, name: TITLE })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Enter your weight so a ride and a run sit on one scale. Add your age and sex to see your level in each sport; standards differ for women and men. Your age and sex stay on this device unless you sign in.',
+        'Your year of birth and sex set your level in each sport. They stay on this device unless you sign in.',
       ),
     ).toBeInTheDocument()
   })
@@ -104,6 +104,21 @@ describe('SetupDialog', () => {
   it('shows the kilograms the imperial weight is stored as', () => {
     renderDialog({ ...INITIAL, units: 'imperial' })
     expect(screen.getByText('Stored as 75 kg')).toBeInTheDocument()
+  })
+
+  it('does not say a weight is stored when it is outside 45 to 160 kg, since it is not kept yet', async () => {
+    const user = userEvent.setup()
+    renderDialog({ ...INITIAL, units: 'imperial' })
+    await user.clear(weight())
+    await user.type(weight(), '90')
+    expect(screen.queryByText(/Stored as/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the footer row for the weight note in place when no note shows, so the dialog holds still', () => {
+    const { dialog } = renderDialog()
+    const row = dialog.querySelector('.setup-dialog__notes')
+    expect(row).not.toBeNull()
+    expect(row?.children).toHaveLength(0)
   })
 
   it('offers Analyse my files as the primary button and Skip for now as the other', () => {
@@ -411,6 +426,10 @@ describe('SetupDialog: a body weight outside 45 to 160 kg', () => {
     await user.type(weight(), '34')
     await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
     expect(screen.getByRole('alert')).toHaveTextContent('That is 34.0 kg, outside 45 to 160 kg.')
+    // The button's name is joined with non-breaking spaces, so it never wraps alone at a line's end.
+    expect(screen.getByRole('alert').textContent).toContain(
+      'press Analyse my files again to keep it.',
+    )
     expect(weight()).toHaveFocus()
     expect(onConfirm).not.toHaveBeenCalled()
 

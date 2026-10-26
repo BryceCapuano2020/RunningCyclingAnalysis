@@ -16,3 +16,14 @@
 .athlete-fields__hint {
   font-size: var(--text-sm);
 }
+
+.athlete-fields .number-field {
+  margin-top: var(--space-1);
+}
+
+/* At a phone's width the sex options share a narrow row, so their words get the room (ui/layoutBreakpoints.ts). */
+@media (max-width: 420px) {
+  .athlete-fields .segmented-control__option {
+    padding-inline: var(--space-1);
+  }
+}

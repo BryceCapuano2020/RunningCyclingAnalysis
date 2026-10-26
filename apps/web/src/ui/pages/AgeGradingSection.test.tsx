@@ -33,15 +33,14 @@ describe('AgeGradingSection', () => {
     expect(section()).not.toHaveTextContent(/a fact from the file/)
   })
 
-  it('says a ride grade is an estimate through its running equivalent, with the model range', () => {
+  it('says a ride grade is an estimate through its running equivalent', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(section()).toHaveTextContent(
-      'A ride has no published cycling standard. Its best effort is converted to the flat running speed that costs the same energy over the same time, the running equivalent, and graded like a run.',
+      'A ride has no published cycling standard. Its best effort is converted to the flat running speed that costs the same energy over the same time, the running equivalent, and graded like a run, so a ride grade is an estimate.',
     )
-    expect(section()).toHaveTextContent(
-      'Its range is the model’s 90% range for that conversion, so a ride grade is an estimate.',
-    )
+    // The 90% range is explained once, in the energy view, so this paragraph does not repeat it.
+    expect(section()).not.toHaveTextContent('Its range is the model’s 90% range')
   })
 
   it('explains why each effort is graded at its own date, and which date a ride takes', () => {
@@ -66,11 +65,31 @@ describe('AgeGradingSection', () => {
     )
   })
 
-  it('says age is counted from the birth year on the date of each effort', () => {
+  it('does not repeat the birth-year rule that its first limit already states', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
-    expect(section()).toHaveTextContent(
+    expect(section()).not.toHaveTextContent(
       'Age is counted from your birth year on the date of each effort.',
+    )
+    expect(within(section()).getAllByRole('listitem')[0]).toHaveTextContent(
+      'Only the birth year is used',
+    )
+  })
+
+  it('keeps the source link inside the source line, where its tap target is styled', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(section().querySelector('.age-grading__source a')).toHaveAttribute(
+      'href',
+      ROAD_STANDARDS_SOURCE.url,
+    )
+  })
+
+  it('gives the Profile link its own class, where its tap target is styled', () => {
+    render(<AgeGradingSection gradedSex="male" />)
+
+    expect(within(section()).getByRole('link', { name: 'Change age and sex' })).toHaveClass(
+      'age-grading__link',
     )
   })
 

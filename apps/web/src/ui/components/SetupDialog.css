@@ -1,7 +1,11 @@
+/* The top is pinned, so the dialog does not re-centre as its notes come and go. */
 .setup-dialog {
   width: min(30rem, calc(100vw - 2 * var(--space-4)));
   max-height: calc(100dvh - 2 * var(--space-4));
+  margin-block: var(--space-5) auto;
   overflow-y: auto;
+  /* The sticky footer covers the foot of the dialog, so a focused field scrolls clear of it. */
+  scroll-padding-bottom: 11rem;
   padding: var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -33,6 +37,12 @@
   font-size: var(--text-sm);
 }
 
+/* The row holds the note's line, empty or not, so the footer keeps its height as the note comes and goes. */
+.setup-dialog__notes {
+  min-height: 1lh;
+  font-size: var(--text-sm);
+}
+
 /* The answers and the buttons stay in view while a phone's keyboard covers the middle. */
 .setup-dialog__footer {
   position: sticky;
@@ -54,4 +64,16 @@
 .setup-dialog__error {
   color: var(--status-critical);
   font-size: var(--text-sm);
+}
+
+/* At a phone's width each button takes a full row, and the weight note wraps to two lines at 320 px
+   (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
+@media (max-width: 420px) {
+  .setup-dialog__actions .btn {
+    flex: 1 1 100%;
+  }
+
+  .setup-dialog__notes {
+    min-height: 2lh;
+  }
 }

@@ -150,8 +150,8 @@ export function referenceDefinition(): string {
 
 /**
  * The heart rate each sport's best efforts were judged against; null when neither is known. A
- * sport's own highest sustained heart rate is named as such; a reference taken from the other
- * sport is labelled with that source.
+ * sport's own highest sustained heart rate is stated bare; a reference taken from the other sport is
+ * labelled with that source.
  */
 export function referenceText(result: AnalysisResult): string | null {
   const parts: string[] = []
@@ -160,7 +160,7 @@ export function referenceText(result: AnalysisResult): string | null {
     const own = run === result.runObservedMaxHeartRate
     parts.push(
       own
-        ? `running ${Math.round(run)} bpm (your highest sustained heart rate)`
+        ? `running ${Math.round(run)} bpm`
         : `running ${Math.round(run)} bpm (your cycling maximum)`,
     )
   }
@@ -168,7 +168,7 @@ export function referenceText(result: AnalysisResult): string | null {
     const own = ride === result.rideObservedMaxHeartRate
     parts.push(
       own
-        ? `cycling ${Math.round(ride)} bpm (your highest sustained heart rate)`
+        ? `cycling ${Math.round(ride)} bpm`
         : `cycling ${Math.round(ride)} bpm (${RIDE_MAX_OFFSET_BPM} bpm below your running maximum)`,
     )
   }

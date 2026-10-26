@@ -37,9 +37,9 @@ function Harness({
 }
 
 describe('AthleteFields', () => {
-  it('groups the year and sex as an optional level', () => {
+  it('groups the year and sex as optional age grades', () => {
     render(<Harness />)
-    const group = screen.getByRole('group', { name: 'Your level (optional)' })
+    const group = screen.getByRole('group', { name: 'For age grades (optional)' })
     expect(within(group).getByLabelText('Year of birth')).toBeInTheDocument()
     expect(within(group).getByRole('group', { name: 'Sex' })).toBeInTheDocument()
   })

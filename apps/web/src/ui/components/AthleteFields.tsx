@@ -53,7 +53,7 @@ export function AthleteFields({
   const selected: SexChoice | null = sex ?? (declined ? 'unspecified' : null)
   return (
     <fieldset className="athlete-fields">
-      <legend className="athlete-fields__legend">Your level (optional)</legend>
+      <legend className="athlete-fields__legend">For age grades (optional)</legend>
       <NumberField
         ref={birthYearRef}
         id={`${baseId}-year`}

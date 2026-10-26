@@ -30,9 +30,16 @@ const SAVED_COPY: Copy = {
 
 const PROFILE_PROMPT = 'Add your year of birth and sex'
 
-function renderPage(route: Route, birthYear: number | null, sex: Sex | null, weightKnown = true) {
+function renderPage(
+  route: Route,
+  birthYear: number | null,
+  sex: Sex | null,
+  weightKnown = true,
+  withRide = false,
+) {
   const result = makeResult({
     runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+    ...(withRide && { rideCurve: [curvePoint(HEADLINE_DURATION_S, 3, 'ride-1')] }),
   })
   return render(
     <ResultPage
@@ -229,8 +236,8 @@ describe('ResultPage footnote', () => {
 })
 
 describe('ResultPage How sure is this? with no weight entered', () => {
-  it('holds the energy view and asks for the weight, as Balance does', () => {
-    renderPage({ page: 'method' }, 1986, 'male', false)
+  it('holds the energy view and asks for the weight, as Balance does, once a ride is on file', () => {
+    renderPage({ page: 'method' }, 1986, 'male', false, true)
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')
     expect(screen.getByRole('region', { name: 'The energy view' }).textContent).not.toMatch(
       /90% range/,

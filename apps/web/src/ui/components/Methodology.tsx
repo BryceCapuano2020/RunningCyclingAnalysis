@@ -26,7 +26,7 @@ export function TopicBody({ id }: { id: TopicId }) {
 export interface MethodologyProps {
   /** The topics to list, in this order. Every topic when none is given. */
   topics?: readonly TopicId[]
-  /** Starts open. The landing page keeps it closed. */
+  /** Shown at once, with no disclosure to open. Closed, the topics sit behind Show the assumptions. */
   open?: boolean
 }
 
@@ -35,25 +35,32 @@ export function Methodology({
   topics = TOPICS.map((topic) => topic.id),
   open = false,
 }: MethodologyProps) {
+  const sections = (
+    <div className="methodology__sections">
+      {topics.map((id) => {
+        const topic = topicOf(id)
+        return (
+          <section key={id} className="methodology__section" aria-labelledby={`method-${id}`}>
+            <h3 id={`method-${id}`}>{topic.title}</h3>
+            <TopicBody id={id} />
+          </section>
+        )
+      })}
+    </div>
+  )
   return (
     <section className="methodology" aria-labelledby={SECTION_ID.how}>
       <h2 id={SECTION_ID.how} tabIndex={-1}>
         How this works and what it assumes
       </h2>
-      <details className="methodology__disclosure" open={open}>
-        <summary>Show the assumptions</summary>
-        <div className="methodology__sections">
-          {topics.map((id) => {
-            const topic = topicOf(id)
-            return (
-              <section key={id} className="methodology__section" aria-labelledby={`method-${id}`}>
-                <h3 id={`method-${id}`}>{topic.title}</h3>
-                <TopicBody id={id} />
-              </section>
-            )
-          })}
-        </div>
-      </details>
+      {open ? (
+        sections
+      ) : (
+        <details className="methodology__disclosure">
+          <summary>Show the assumptions</summary>
+          {sections}
+        </details>
+      )}
     </section>
   )
 }

@@ -1,7 +1,7 @@
 /* The three-line answer: what is recorded, the balance, and how far to trust it. */
 .method__answer {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-4);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -14,11 +14,19 @@
   gap: var(--space-2);
 }
 
+/* One pixel above the compact phone width (ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX), a line's
+   text sits beside its chip rather than wrapping beneath it. */
+@media (min-width: 561px) {
+  .method__answer li > span {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
 /* A chip that is a button moves focus to its section. It keeps the chip's type and is a full control. */
 .method__answer button.method__chip {
   min-height: var(--control-height);
   border: 0;
-  font-family: inherit;
   line-height: inherit;
   cursor: pointer;
 }
@@ -43,6 +51,20 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+/* A contents button thickens its underline on hover, as a link does, and presses to the secondary ink. */
+.method__contents button:hover {
+  text-decoration-thickness: 2px;
+}
+
+.method__contents button:active {
+  color: var(--text-secondary);
+}
+
+/* The paragraphs of each section are held to a readable measure, as the lists are. */
+.method > .section > p {
+  max-width: 68ch;
 }
 
 .method__facts {
