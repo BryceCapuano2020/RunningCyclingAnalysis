@@ -121,6 +121,13 @@ export interface CurvePoint {
 
 export type Curve = CurvePoint[]
 
+/**
+ * Why a critical-power fit is refused. 'missing': the efforts are not there, under four in the window
+ * or none reaching 20 minutes. 'shape': the efforts are there but show no threshold, being flat, below
+ * the least work capacity, or with an intercept above their lowest effort.
+ */
+export type CriticalPowerRefusal = 'missing' | 'shape'
+
 export interface CriticalPowerFit {
   /** Asymptote, in the unit of the fitted curve. */
   cp: number

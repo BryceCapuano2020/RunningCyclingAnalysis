@@ -76,6 +76,8 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     rideMetabolicCurve: [],
     runCp: { cp: 4.0, wPrime: 20, cpSe: 0.05, r2: 0.99, nPoints: 6 },
     rideCp: { cp: 3.0, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 6 },
+    runCpRefusal: null,
+    rideCpRefusal: null,
     hr: { run: null, ride: null, kappa: null, lnKappaSe: null },
     comparison,
     equivalents: [],

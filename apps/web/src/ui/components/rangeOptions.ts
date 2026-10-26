@@ -62,3 +62,11 @@ export const FALLBACK_NOTE = `The ${DEFAULT_PERIOD_WEEKS} weeks up to your newes
 export function previousPeriodLabel(days: number | null): string | null {
   return days === null ? null : `Previous ${lengthOf(days)}`
 }
+
+/**
+ * Where a figure's numbers come from, as the phrase after "Based on" or "No runs":
+ * "in this period" when a window is set, and "in all your files" under All time, which has no period.
+ */
+export function scopeText(rangeDays: number | null): string {
+  return rangeDays === null ? 'in all your files' : 'in this period'
+}

@@ -31,6 +31,23 @@ export const HEADLINE_DURATION_S = 1200
 /** The shortest and longest efforts, s, the critical-power fit uses: 3 to 20 minutes. */
 export const CP_FIT_MIN_S = 180
 export const CP_FIT_MAX_S = 1200
+/**
+ * How far short of its longest effort a fit window may stop and still reach it: 5%, so the window
+ * must reach 1140 s. The curve holds durations of 900 s and 1200 s here, so in practice the fit needs
+ * its 20 minute effort.
+ */
+export const CP_FIT_REACH_TOLERANCE = 0.05
+/**
+ * The least work a critical-power fit may show. The floors sit well below published work capacities,
+ * even for untrained athletes: the review brief quotes cycling W' of about 10 to 25 kJ and running D'
+ * of about 100 to 300 m, from the model in Jones et al. (2010) and Skiba et al. (2012), cited in
+ * docs/research/evolving-capability.md section 4 (whose DOIs that note flags as unverified). The
+ * floors refuse only fits indistinguishable from flat. On the fitted line they put the 20 minute value at
+ * least W'/1200 s above cp (about 1% for a 250 W rider, 0.33% for a runner at 3.5 m/s), but the efforts
+ * themselves can sit closer to cp than that, so a kept threshold can be close to the best 20 minutes. Running D' becomes energy per kilogram at the flat cost of running (FLAT_RUN_COST).
+ */
+export const W_PRIME_FLOOR_J = 3_000
+export const D_PRIME_FLOOR_M = 15
 
 /** The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. */
 export const EQUIVALENCE_DURATIONS_S: readonly number[] = [

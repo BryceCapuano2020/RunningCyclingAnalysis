@@ -115,6 +115,7 @@ export function ResultPage({
           massKg={athlete.massKg}
           weighted={weightKnown}
           profile={profile}
+          rangeDays={period.days}
           controls={control(
             countSport(result.activities, route.page),
             countSport(library, route.page),

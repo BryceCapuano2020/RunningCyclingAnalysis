@@ -104,11 +104,11 @@ describe('SportCard threshold', () => {
     expect(heroOf(card)).toBe('23:23 /km')
   })
 
-  it('says in plain words what the threshold is, under the number', () => {
+  it('says in plain words what the threshold is, about that pace, under the number', () => {
     renderCard('run', makeResult({ activities: [runOnMonday] }))
     expect(
       within(cardNamed('Run')).getByText(
-        'The pace you could hold for a long, steady effort, estimated from your best 3 to 20 min efforts.',
+        'About the pace you could hold for a long, steady effort, estimated from your best 3 to 20 min efforts.',
       ),
     ).toBeInTheDocument()
   })
@@ -134,19 +134,33 @@ describe('SportCard threshold', () => {
     expect(within(card).getByText('0.6 W/kg')).toBeInTheDocument()
   })
 
-  it('asks for a hard effort instead of a number when a sport has no threshold yet', () => {
+  it('hides the number and asks for efforts between 3 and 20 min when there is no threshold', () => {
     renderCard('run', makeResult({ activities: [runOnMonday], runCp: null }))
 
     const card = cardNamed('Run')
-    expect(within(card).getByText('Needs a hard effort of 3 to 20 min.')).toBeInTheDocument()
+    expect(within(card).getByText('Needs efforts between 3 and 20 min')).toBeInTheDocument()
     expect(card.querySelector('.hero-number')).toBeNull()
   })
 
-  it('asks for a hard effort on the cycling card when there is no cycling threshold', () => {
+  it('asks for a harder effort between 3 and 20 min when the efforts show no threshold', () => {
+    renderCard('run', makeResult({ activities: [runOnMonday], runCp: null, runCpRefusal: 'shape' }))
+
+    const card = cardNamed('Run')
+    expect(within(card).getByText('Needs a harder effort between 3 and 20 min')).toBeInTheDocument()
+    expect(within(card).queryByText('Needs efforts between 3 and 20 min')).not.toBeInTheDocument()
+  })
+
+  it('shows no threshold meaning when there is no threshold to explain', () => {
+    renderCard('run', makeResult({ activities: [runOnMonday], runCp: null }))
+
+    expect(within(cardNamed('Run')).queryByText(/About the pace/)).not.toBeInTheDocument()
+  })
+
+  it('asks for efforts between 3 and 20 min on the cycling card when there is no cycling threshold', () => {
     renderCard('ride', makeResult({ activities: [rideOnFriday], rideCp: null }))
 
     const card = cardNamed('Ride')
-    expect(within(card).getByText('Needs a hard effort of 3 to 20 min.')).toBeInTheDocument()
+    expect(within(card).getByText('Needs efforts between 3 and 20 min')).toBeInTheDocument()
     expect(within(card).queryByText(/W\/kg/)).not.toBeInTheDocument()
   })
 })
@@ -361,7 +375,7 @@ describe('SportCard ride grade', () => {
     expect(within(card).getByText('Ring: estimated, with its range.')).toBeInTheDocument()
   })
 
-  it('says it is graded through its running equivalent, and that the range is the 90% model range', () => {
+  it('says it is graded through its running equivalent, and that the bracketed range is the 90% range', () => {
     renderCard(
       'ride',
       makeResult({
@@ -378,7 +392,7 @@ describe('SportCard ride grade', () => {
 
     expect(
       within(cardNamed('Ride')).getByText(
-        'Graded through its running equivalent, at age 40, on the USATF road standards. The range is the 90% model range.',
+        'Graded through its running equivalent, at age 40, on the USATF road standards. The range in brackets is the 90% range.',
       ),
     ).toBeInTheDocument()
     expect(

@@ -8,6 +8,7 @@ import {
   optionValue,
   periodDates,
   previousPeriodLabel,
+  scopeText,
 } from './rangeOptions'
 
 const JUNE = new Date(2025, 5, 3, 12).getTime()
@@ -78,5 +79,16 @@ describe('FALLBACK_NOTE', () => {
     expect(FALLBACK_NOTE).toBe(
       'The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time.',
     )
+  })
+})
+
+describe('scopeText', () => {
+  it('says in this period when a window is set', () => {
+    expect(scopeText(42)).toBe('in this period')
+    expect(scopeText(7)).toBe('in this period')
+  })
+
+  it('says in all your files for all time, which has no period to name', () => {
+    expect(scopeText(null)).toBe('in all your files')
   })
 })
