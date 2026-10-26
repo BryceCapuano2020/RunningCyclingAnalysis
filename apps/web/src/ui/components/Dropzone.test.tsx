@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HISTORY_ADVICE } from '../exportGuides'
+import { STRIP_DELAY_MS } from './ImportStatus'
 import { Dropzone } from './Dropzone'
 import type { DropzoneProps } from './Dropzone'
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
 })
 
 function baseProps(): DropzoneProps {
@@ -26,7 +28,7 @@ function renderDropzone(overrides: Partial<DropzoneProps> = {}) {
   const input = view.container.querySelector<HTMLInputElement>('input[type="file"]')
   const zone = view.container.querySelector<HTMLElement>('.dropzone')
   if (!input || !zone) throw new Error('drop zone missing')
-  const choose = screen.getByRole('button', { name: 'Choose files' })
+  const choose = screen.getByRole('button', { name: 'Add files' })
   return { ...props, input, choose, zone }
 }
 
@@ -48,17 +50,17 @@ describe('Dropzone', () => {
     expect(screen.getByText(HISTORY_ADVICE)).toBeInTheDocument()
   })
 
-  it('makes Choose files a real button, and the one primary action', () => {
+  it('makes Add files a real button, and the one primary action', () => {
     renderDropzone({ signedIn: false })
-    expect(screen.getByRole('button', { name: 'Choose files' })).toHaveClass('btn', 'btn-primary')
+    expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn', 'btn-primary')
     expect(screen.getByRole('button', { name: 'See a sample athlete' })).not.toHaveClass(
       'btn-primary',
     )
   })
 
-  it('draws an upload glyph on Choose files, decoration only, not the Add files plus', () => {
+  it('draws an upload glyph on Add files, decoration only, not the Add files plus', () => {
     renderDropzone()
-    const glyph = screen.getByRole('button', { name: 'Choose files' }).querySelector('svg')
+    const glyph = screen.getByRole('button', { name: 'Add files' }).querySelector('svg')
     expect(glyph).toHaveClass('icon')
     expect(glyph).toHaveAttribute('aria-hidden', 'true')
     expect(glyph?.innerHTML).not.toContain('M12 5v14')
@@ -80,7 +82,7 @@ describe('Dropzone', () => {
     expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
   })
 
-  it('opens the file picker from Choose files by click, Enter and Space', async () => {
+  it('opens the file picker from Add files by click, Enter and Space', async () => {
     const user = userEvent.setup()
     const { input, choose } = renderDropzone()
     const pick = vi.spyOn(input, 'click')
@@ -92,7 +94,7 @@ describe('Dropzone', () => {
     expect(pick).toHaveBeenCalledTimes(3)
   })
 
-  it('still opens the file picker from Choose files while busy', () => {
+  it('still opens the file picker from Add files while busy', () => {
     const { input, choose } = renderDropzone({ busy: true })
     const pick = vi.spyOn(input, 'click')
     fireEvent.click(choose)
@@ -114,10 +116,10 @@ describe('Dropzone', () => {
     expect(onSample).toHaveBeenCalledTimes(1)
   })
 
-  it('leaves the sample out for a signed-in user, and keeps Choose files', () => {
+  it('leaves the sample out for a signed-in user, and keeps Add files', () => {
     renderDropzone({ signedIn: true })
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Choose files' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
   })
 
   it('marks only the sample button aria-disabled while busy, and ignores its clicks', async () => {
@@ -144,11 +146,42 @@ describe('Dropzone', () => {
     expect(sample).toHaveFocus()
   })
 
-  it('says why the sample is off while busy, and names that reason on the button', () => {
-    renderDropzone({ busy: true })
-    expect(
-      screen.getByRole('button', { name: 'See a sample athlete' }),
-    ).toHaveAccessibleDescription('Available when the current import finishes.')
+  describe('the reason the sample is off', () => {
+    const REASON = 'Available when the current import finishes.'
+
+    it('shows only once the import has lasted as long as the busy strip waits, so a quick one does not flash it', () => {
+      vi.useFakeTimers()
+      renderDropzone({ busy: true })
+      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS - 1))
+      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(1))
+      expect(screen.getByText(REASON)).toBeInTheDocument()
+    })
+
+    it('names that reason on the sample button once it shows', () => {
+      vi.useFakeTimers()
+      renderDropzone({ busy: true })
+      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS))
+      expect(
+        screen.getByRole('button', { name: 'See a sample athlete' }),
+      ).toHaveAccessibleDescription(REASON)
+    })
+
+    it('hides the reason when the import ends, and waits the delay again on the next one', () => {
+      vi.useFakeTimers()
+      const view = render(<Dropzone {...baseProps()} busy />)
+      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS))
+      expect(screen.getByText(REASON)).toBeInTheDocument()
+
+      view.rerender(<Dropzone {...baseProps()} busy={false} />)
+      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
+
+      view.rerender(<Dropzone {...baseProps()} busy />)
+      expect(screen.queryByText(REASON)).not.toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(STRIP_DELAY_MS))
+      expect(screen.getByText(REASON)).toBeInTheDocument()
+    })
   })
 
   it('gives no reason for an off sample while nothing is busy', () => {

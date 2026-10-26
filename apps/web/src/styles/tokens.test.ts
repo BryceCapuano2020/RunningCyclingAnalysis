@@ -293,12 +293,18 @@ describe('level ladder stylesheet', () => {
     )
   })
 
-  it('strokes the band edges in neutral-mark', () => {
-    expect(declarations(ladderCss, '.level-ladder__edge').get('stroke')).toBe('var(--neutral-mark)')
+  it('draws the band edges in neutral-mark', () => {
+    expect(declarations(ladderCss, '.level-ladder__edge').get('background')).toBe(
+      'var(--neutral-mark)',
+    )
   })
 
   it('fills the range with the sport’s band token', () => {
-    expect(declarations(ladderCss, '.level-ladder__range').get('fill')).toBe('var(--ladder-band)')
+    expect(
+      declarations(ladderCss.slice(0, ladderCss.indexOf('@media')), '.level-ladder__range').get(
+        'background',
+      ),
+    ).toBe('var(--ladder-band)')
   })
 })
 

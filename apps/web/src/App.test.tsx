@@ -96,19 +96,27 @@ describe('header', () => {
   it('makes Add files the primary button only with a result or when signed in', () => {
     setAccount('signed-out')
     const { unmount } = render(<App />)
-    expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn')
-    expect(screen.getByRole('button', { name: 'Add files' })).not.toHaveClass('btn-primary')
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: 'Add files' }),
+    ).toHaveClass('btn')
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: 'Add files' }),
+    ).not.toHaveClass('btn-primary')
     unmount()
 
     setAccount('signed-in')
     const signedIn = render(<App />)
-    expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: 'Add files' }),
+    ).toHaveClass('btn-primary')
     signedIn.unmount()
 
     setAccount('signed-out')
     showResult()
     render(<App />)
-    expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: 'Add files' }),
+    ).toHaveClass('btn-primary')
   })
 
   it.each([

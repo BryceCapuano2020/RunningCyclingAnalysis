@@ -20,7 +20,7 @@ type Outcome = Pick<
 >
 
 /** Work shorter than this shows neither the busy strip nor its Stop button, so a quick change does not flash them. */
-const STRIP_DELAY_MS = 400
+export const STRIP_DELAY_MS = 400
 
 export interface ImportStatusProps {
   /** Receives the files of every drop on the page, including while busy. */

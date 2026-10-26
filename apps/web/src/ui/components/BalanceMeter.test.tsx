@@ -138,6 +138,12 @@ describe('BalanceMeter with a grade gap', () => {
     expect(key?.textContent).toMatch(/2 to 10\u00a0points/)
     expect(key?.textContent).toMatch(/Scale: age\u2011grade points\./)
   })
+
+  it('sets the key as a paragraph, as the ladder key is, rather than a figure caption', () => {
+    const { container } = render(<BalanceMeter reading={leaning('run')} />)
+    expect(container.querySelector('p.balance-meter__key')).not.toBeNull()
+    expect(container.querySelector('figcaption')).toBeNull()
+  })
 })
 
 describe('BalanceMeter with the energy ratio', () => {

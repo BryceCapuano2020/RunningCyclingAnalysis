@@ -10,15 +10,16 @@ export interface GradeSentenceProps {
 }
 
 /**
- * A grade's sentence, with its level and percent, and its range, each kept on one line: a 320 px
- * screen breaks between the parts of the sentence, never inside one of them.
+ * A grade's sentence: its level, then its percent and its range. A ride's range can name two levels,
+ * so the level may wrap between its words. The percent and the range each stay whole on one line.
  */
 export function GradeSentence({ sport, grade, where = 'card' }: GradeSentenceProps) {
   const { lead, level, value, range } = gradeParts(sport, grade, where)
   return (
     <>
       {lead && <>{`${lead} · `}</>}
-      <span className="grade-sentence__unbroken">{`${level} · ${value}`}</span>
+      {level}
+      <span className="grade-sentence__unbroken">{` · ${value}`}</span>
       {range && (
         <>
           {' '}

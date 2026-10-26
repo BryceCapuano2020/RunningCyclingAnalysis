@@ -240,9 +240,8 @@ describe('forced colours', () => {
 
   it('keeps the level ladder track, current band and chevrons in the system colours', () => {
     const forced = mediaOf(ladder, FORCED)
-    expect(rulesWith(forced, '.level-ladder__track')).toMatch(/stroke:\s*CanvasText/)
-    expect(rulesWith(forced, '.level-ladder__band--current')).toMatch(/fill:\s*Highlight/)
-    expect(rulesWith(forced, '.level-ladder__beyond')).toMatch(/fill:\s*CanvasText/)
+    expect(rulesWith(forced, '.level-ladder__track')).toMatch(/border-color:\s*CanvasText/)
+    expect(rulesWith(forced, '.level-ladder__band--current')).toMatch(/background:\s*Highlight/)
     expect(rulesWith(forced, '.level-ladder__beyond')).toMatch(/stroke:\s*CanvasText/)
   })
 

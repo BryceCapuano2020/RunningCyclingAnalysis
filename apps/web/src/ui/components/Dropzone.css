@@ -1,6 +1,7 @@
 /* The dashed outline marks the drop area, and only that; the example beside it is solid. */
 .dropzone {
   display: grid;
+  align-content: center;
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-5);
@@ -23,10 +24,6 @@
   padding: var(--space-4);
   border-radius: calc(var(--radius) - 1px);
   text-align: center;
-}
-
-.dropzone__target:hover {
-  background: var(--surface-2);
 }
 
 .dropzone__title {

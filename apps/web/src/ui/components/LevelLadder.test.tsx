@@ -23,7 +23,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="run" grade={RUN} />)
     expect(
       screen.getByRole('img', {
-        name: 'Age grade 67%, Local, from your best 20 min, on the USATF road standards.',
+        name: 'Age grade 67%, Local, on your best 20 min, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -32,7 +32,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67%, Local to Regional, from your best 20 min, range 63% to 71%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local to Regional, on your best 20 min, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -41,7 +41,7 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />)
     expect(
       screen.getByRole('img', {
-        name: 'Age grade 25%, Recreational, from your best 20 min, below the 30% to 100% scale, on the USATF road standards.',
+        name: 'Age grade 25%, Recreational, on your best 20 min, below the 30% to 100% scale, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -62,7 +62,18 @@ describe('LevelLadder', () => {
     run.unmount()
 
     render(<LevelLadder sport="ride" grade={RIDE} />)
-    expect(screen.getByText('Ring: estimated, with its range.')).toBeInTheDocument()
+    expect(screen.getByText('Ring: estimated, with its 90% range in brackets.')).toBeInTheDocument()
+  })
+
+  it('sets the key as a paragraph under the drawing, and leaves it out when asked', () => {
+    const { container } = render(<LevelLadder sport="run" grade={RUN} />)
+    expect(container.querySelector('p.level-ladder__key')).toHaveTextContent(
+      'Solid dot: the grade of one recorded effort.',
+    )
+    cleanup()
+
+    const bare = render(<LevelLadder sport="run" grade={RUN} showKey={false} />)
+    expect(bare.container.querySelector('.level-ladder__key')).toBeNull()
   })
 
   it('says in its key when a grade sits below the scale', () => {
@@ -91,18 +102,18 @@ describe('LevelLadder', () => {
   })
 })
 
-/** The drawing's width, from its viewBox: the shapes are placed as fractions of it. */
-function drawingWidth(container: HTMLElement): number {
-  const width = Number(container.querySelector('svg')?.getAttribute('viewBox')?.split(' ')[2])
-  if (!width) throw new Error('The ladder has no drawing width')
-  return width
+/** Where a shape sits on the bar, as a fraction from 0 (left) to 1 (right), from its left or width in percent. */
+function fraction(container: HTMLElement, selector: string, property: 'left' | 'width'): number {
+  const shape = container.querySelector<HTMLElement>(selector)
+  if (shape === null) throw new Error(`No ${selector} in the ladder`)
+  return parseFloat(shape.style[property]) / 100
 }
 
-/** Where a shape's attribute falls across the drawing, as a fraction from 0 (left) to 1 (right). */
-function fraction(container: HTMLElement, selector: string, attribute: string): number {
-  const shape = container.querySelector(selector)
-  if (shape === null) throw new Error(`No ${selector} in the ladder`)
-  return Number(shape.getAttribute(attribute)) / drawingWidth(container)
+/** The marker's centre on the bar, from the percent it is set at. Its CSS keeps the marker inside the track. */
+function markerFraction(container: HTMLElement): number {
+  const marker = container.querySelector<HTMLElement>('.level-ladder__dot, .level-ladder__ring')
+  if (marker === null) throw new Error('The ladder has no marker')
+  return parseFloat(marker.style.getPropertyValue('--at')) / 100
 }
 
 /** The scale is 30% to 100%, so a grade's place along it is (grade - 30) / 70. */
@@ -124,37 +135,35 @@ describe('LevelLadder shapes', () => {
 
   it('places the marker where the grade falls on the scale', () => {
     const { container } = render(<LevelLadder sport="run" grade={RUN} />)
-    expect(fraction(container, '.level-ladder__dot', 'cx')).toBeCloseTo(SCALE_FRACTION(0.676), 2)
+    expect(markerFraction(container)).toBeCloseTo(SCALE_FRACTION(0.676), 2)
   })
 
   it('draws the range from its low end to its high end', () => {
     const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
-    const left = fraction(container, '.level-ladder__range', 'x')
+    const left = fraction(container, '.level-ladder__range', 'left')
     const width = fraction(container, '.level-ladder__range', 'width')
     expect(left).toBeCloseTo(SCALE_FRACTION(0.63), 2)
     expect(left + width).toBeCloseTo(SCALE_FRACTION(0.715), 2)
   })
 
-  it('keeps a marker below the scale inside the track, at its left end, and one above it at its right end', () => {
+  it('sets a marker past either end of the scale at that end of the bar', () => {
     const below = render(
       <LevelLadder sport="run" grade={{ centre: gradeAt(10, 'Recreational'), range: null }} />,
     )
-    // The dot's radius plus half its stroke, so its outline stays inside the track at each end.
-    const clearOfEdge = (8 + 1) / 320
-    expect(fraction(below.container, '.level-ladder__dot', 'cx')).toBeCloseTo(clearOfEdge, 4)
+    expect(markerFraction(below.container)).toBe(0)
     below.unmount()
 
     const above = render(
       <LevelLadder sport="run" grade={{ centre: gradeAt(310, 'World'), range: null }} />,
     )
-    expect(fraction(above.container, '.level-ladder__dot', 'cx')).toBeCloseTo(1 - clearOfEdge, 4)
+    expect(markerFraction(above.container)).toBe(1)
   })
 
   it('fills the band that holds the grade, and names that band in bold', () => {
     const { container } = render(<LevelLadder sport="run" grade={RUN} />)
     const current = container.querySelectorAll('.level-ladder__band--current')
     expect(current).toHaveLength(1)
-    expect(fraction(container, '.level-ladder__band--current', 'x')).toBeCloseTo(
+    expect(fraction(container, '.level-ladder__band--current', 'left')).toBeCloseTo(
       SCALE_FRACTION(0.6),
       2,
     )
@@ -193,7 +202,7 @@ describe('LevelLadder off the scale', () => {
     )
   })
 
-  it('draws the chevron just outside the bar end it points past, so it never sits on the marker', () => {
+  it('draws the chevron on the side of the bar its grade lies past, and only there', () => {
     const above = render(
       <LevelLadder
         sport="ride"
@@ -203,22 +212,15 @@ describe('LevelLadder off the scale', () => {
         }}
       />,
     )
-    // The path reads "M edge y L tip y L edge y": the edge is the bar's end, the tip points past it.
-    const [, edge, , , tip] = (
-      above.container.querySelector('.level-ladder__beyond')?.getAttribute('d') ?? ''
-    ).split(' ')
-    expect(Number(edge)).toBe(320)
-    expect(Number(tip)).toBeGreaterThan(320)
+    expect(above.container.querySelector('.level-ladder__beyond--above')).not.toBeNull()
+    expect(above.container.querySelector('.level-ladder__beyond--below')).toBeNull()
     above.unmount()
 
     const below = render(
       <LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />,
     )
-    const [, belowEdge, , , belowTip] = (
-      below.container.querySelector('.level-ladder__beyond')?.getAttribute('d') ?? ''
-    ).split(' ')
-    expect(Number(belowEdge)).toBe(0)
-    expect(Number(belowTip)).toBeLessThan(0)
+    expect(below.container.querySelector('.level-ladder__beyond--below')).not.toBeNull()
+    expect(below.container.querySelector('.level-ladder__beyond--above')).toBeNull()
   })
 
   it('draws no chevron for a grade on the scale', () => {

@@ -1,7 +1,8 @@
+import type { CSSProperties } from 'react'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
 import { HEADLINE_LABEL, LEVEL_BANDS, gradeLevelText } from '../grades'
-import type { Grade, SportGrade } from '../grades'
+import type { SportGrade } from '../grades'
 import { formatGrade } from '../gradeFormat'
 import './LevelLadder.css'
 
@@ -12,32 +13,18 @@ export interface LevelLadderProps {
    * The grade is always the headline effort's, so the drawing names that effort's duration.
    */
   grade: SportGrade
+  /** The key under the drawing, in words. The landing example leaves it out, since it is illustrative. */
+  showKey?: boolean
 }
 
 /** The scale runs from 30% to 100%, the span the level bands cover. */
 const SCALE_MIN = 0.3
 const SCALE_MAX = 1
 
-/** The shapes are drawn on a fixed grid; the labels are HTML placed by percentage of the same span. */
-const WIDTH = 320
-const HEIGHT = 30
-const BAR_Y = 7
-const BAR_H = 16
-const MID_Y = BAR_Y + BAR_H / 2
-const MARK_R = 8
-/**
- * The marker's outline is 2 px, centred on its edge, so half of it lies outside the circle. The
- * drawing is 320 units wide and about 320 px on a phone, so one unit of half-stroke is close enough.
- */
-const MARK_STROKE_HALF = 1
-/** The off-scale chevron stands this far past the bar end, with arms this long. */
-const BEYOND_TIP = 6
-const BEYOND_ARM = 6
-
 /** What each sport's shape means, in words beside the drawing: the key a colour-blind reader needs. */
 const KEY: Record<Sport, string> = {
   run: 'Solid dot: the grade of one recorded effort.',
-  ride: 'Ring: estimated, with its range.',
+  ride: 'Ring: estimated, with its 90% range in brackets.',
 }
 
 interface Band {
@@ -61,24 +48,23 @@ const EDGES = BANDS.filter((band) => band.low > SCALE_MIN).map((band) => band.lo
  */
 const SCALE_TICKS = [SCALE_MIN, ...EDGES]
 
-/** A grade's place along the scale, in percent of its width, held at the ends. */
+/** A grade's place along the scale, in percent of the bar's width, held at the ends. */
 function place(grade: number): number {
   const clamped = Math.min(Math.max(grade, SCALE_MIN), SCALE_MAX)
   return ((clamped - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100
 }
 
-/** A grade's place in the drawing's own units, for the shapes. */
-function x(grade: number): number {
-  return (place(grade) / 100) * WIDTH
+/** A shape on the bar from one grade to another: its left edge and its width, both in percent. */
+function spanStyle(from: number, to: number): CSSProperties {
+  return { left: `${place(from)}%`, width: `${place(to) - place(from)}%` }
 }
 
 /**
- * The marker's centre: the grade's place, kept so the whole marker, outline included, stays inside
- * the track, so an off-scale dot sits at the end of the bar and not over its edge.
+ * The marker's centre, handed to the stylesheet as a custom property. The stylesheet holds the whole
+ * marker inside the track, so a grade past either end sits at that end of the bar, not over its edge.
  */
-function markerX(grade: number): number {
-  const reach = MARK_R + MARK_STROKE_HALF
-  return Math.min(Math.max(x(grade), reach), WIDTH - reach)
+function markerStyle(grade: number): CSSProperties {
+  return { ['--at' as string]: `${place(grade)}%` }
 }
 
 function percentText(value: number): string {
@@ -103,7 +89,7 @@ function beyondScale(grade: SportGrade): 'below' | 'above' | null {
 /** What a screen reader hears: the grade, its level, its range or single activity, and the scale. */
 function ladderLabel(sport: Sport, grade: SportGrade): string {
   const { centre, range } = grade
-  const effort = `from your best ${HEADLINE_LABEL}`
+  const effort = `on your best ${HEADLINE_LABEL}`
   const basis = range
     ? `${effort}, range ${formatGrade(range.low.grade)} to ${formatGrade(range.high.grade)}`
     : effort
@@ -142,24 +128,53 @@ function currentBands(grade: SportGrade): Set<string> {
  * rather than on the marker, so a grade whose centre is on the scale still reads cleanly.
  */
 function BeyondMark({ side }: { side: 'below' | 'above' }) {
-  const below = side === 'below'
-  const edge = below ? 0 : WIDTH
-  const tip = below ? -BEYOND_TIP : WIDTH + BEYOND_TIP
-  const d = `M ${edge} ${MID_Y - BEYOND_ARM} L ${tip} ${MID_Y} L ${edge} ${MID_Y + BEYOND_ARM}`
-  return <path className="level-ladder__beyond" d={d} data-side={side} />
+  const d = side === 'below' ? 'M6 0 L0 6 L6 12' : 'M0 0 L6 6 L0 12'
+  return (
+    <svg
+      className={`level-ladder__beyond level-ladder__beyond--${side}`}
+      data-side={side}
+      viewBox="0 0 6 12"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  )
 }
 
-/** The range as a band over the bar, outlined so it stands out from the bar. */
-function RangeBand({ range }: { range: { low: Grade; high: Grade } }) {
-  const left = x(range.low.grade)
+/** The bar: the bands and the range clipped to its rounded ends, the edges, the marker and any chevron. */
+function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
+  const { centre, range } = grade
+  const current = currentBands(grade)
+  const side = beyondScale(grade)
+  const markerKind = range ? 'level-ladder__ring' : 'level-ladder__dot'
   return (
-    <rect
-      className="level-ladder__range"
-      x={left}
-      y={BAR_Y}
-      width={Math.max(2, x(range.high.grade) - left)}
-      height={BAR_H}
-    />
+    <div className="level-ladder__track" role="img" aria-label={ladderLabel(sport, grade)}>
+      <div className="level-ladder__fill">
+        {BANDS.map((band) => (
+          <span
+            key={band.name}
+            className={
+              current.has(band.name)
+                ? 'level-ladder__band level-ladder__band--current'
+                : 'level-ladder__band'
+            }
+            style={spanStyle(band.low, band.high)}
+          />
+        ))}
+        {range && (
+          <span
+            className="level-ladder__range"
+            style={spanStyle(range.low.grade, range.high.grade)}
+          />
+        )}
+      </div>
+      {/* Drawn after the range, so the edges stay visible inside a ride's band. */}
+      {EDGES.map((edge) => (
+        <span key={edge} className="level-ladder__edge" style={{ left: `${place(edge)}%` }} />
+      ))}
+      <span className={`level-ladder__marker ${markerKind}`} style={markerStyle(centre.grade)} />
+      {side && <BeyondMark side={side} />}
+    </div>
   )
 }
 
@@ -168,10 +183,8 @@ function RangeBand({ range }: { range: { low: Grade; high: Grade } }) {
  * A ride is estimated: a ring over a band for its model range. The band the grade falls in is filled
  * and its name is bold, and the names, percentages and key are visible text beside the drawing.
  */
-export function LevelLadder({ sport, grade }: LevelLadderProps) {
-  const { centre, range } = grade
+export function LevelLadder({ sport, grade, showKey = true }: LevelLadderProps) {
   const current = currentBands(grade)
-  const side = beyondScale(grade)
   return (
     <figure className={`scale-figure level-ladder level-ladder--${sport}`}>
       <div className="level-ladder__scale" aria-hidden="true">
@@ -185,46 +198,7 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
           </span>
         ))}
       </div>
-      <svg
-        className="level-ladder__svg"
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        role="img"
-        aria-label={ladderLabel(sport, grade)}
-      >
-        <rect className="level-ladder__track" x="0" y={BAR_Y} width={WIDTH} height={BAR_H} rx="8" />
-        {BANDS.map((band) => (
-          <rect
-            key={band.name}
-            className={
-              current.has(band.name)
-                ? 'level-ladder__band level-ladder__band--current'
-                : 'level-ladder__band'
-            }
-            x={x(band.low)}
-            y={BAR_Y}
-            width={x(band.high) - x(band.low)}
-            height={BAR_H}
-          />
-        ))}
-        {range && <RangeBand range={range} />}
-        {/* Drawn after the range, so the edges stay visible inside a ride's band. */}
-        {EDGES.map((edge) => (
-          <line
-            key={edge}
-            className="level-ladder__edge"
-            x1={x(edge)}
-            x2={x(edge)}
-            y1={BAR_Y - 3}
-            y2={BAR_Y + BAR_H + 3}
-          />
-        ))}
-        {range ? (
-          <circle className="level-ladder__ring" cx={markerX(centre.grade)} cy={MID_Y} r={MARK_R} />
-        ) : (
-          <circle className="level-ladder__dot" cx={markerX(centre.grade)} cy={MID_Y} r={MARK_R} />
-        )}
-        {side && <BeyondMark side={side} />}
-      </svg>
+      <LadderTrack sport={sport} grade={grade} />
       <div className="level-ladder__names" aria-hidden="true">
         {BANDS.map((band, index) => (
           <span
@@ -236,7 +210,7 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
           </span>
         ))}
       </div>
-      <figcaption className="level-ladder__key">{keyText(sport, grade)}</figcaption>
+      {showKey && <p className="level-ladder__key">{keyText(sport, grade)}</p>}
     </figure>
   )
 }

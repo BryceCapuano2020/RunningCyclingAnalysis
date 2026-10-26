@@ -22,11 +22,15 @@ describe('Dropzone stylesheet', () => {
 })
 
 describe('Dropzone target', () => {
-  it('fills the drop area on hover, so it reads as a place to drop files', () => {
-    expect(ruleBody(css, '.dropzone__target:hover')).toMatch(/background:\s*var\(--surface-2\)/)
+  it('draws no fill on hover, since the drop area is not a control', () => {
+    expect(ruleBody(css, '.dropzone__target:hover')).toBe('')
   })
 
   it('draws no press of its own, since the drop area is not a control', () => {
     expect(ruleBody(css, '.dropzone__target:active')).toBe('')
+  })
+
+  it('centres its content vertically, so a taller example leaves the drop area centred', () => {
+    expect(ruleBody(css, '.dropzone')).toMatch(/align-content:\s*center/)
   })
 })

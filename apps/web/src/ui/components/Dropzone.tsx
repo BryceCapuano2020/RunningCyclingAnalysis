@@ -1,7 +1,8 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { DragEvent as ReactDragEvent } from 'react'
 import { HISTORY_ADVICE } from '../exportGuides'
 import { UploadIcon } from './icons'
+import { STRIP_DELAY_MS } from './ImportStatus'
 import { SampleButton } from './SampleButton'
 import { isFileDrag, useFilePicker } from './useFilePicker'
 import './Dropzone.css'
@@ -24,7 +25,22 @@ export interface DropzoneProps {
 export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
   const [dragging, setDragging] = useState(false)
+  // The reason the sample is off waits for the same delay as the busy strip, so a quick import shows nothing.
+  const [hintDue, setHintDue] = useState(false)
+  const [timedBusy, setTimedBusy] = useState(busy)
   const busyHintId = useId()
+
+  // A run that starts or ends starts the delay again, so the reason waits for each run.
+  if (busy !== timedBusy) {
+    setTimedBusy(busy)
+    setHintDue(false)
+  }
+  useEffect(() => {
+    if (!busy) return
+    const timer = setTimeout(() => setHintDue(true), STRIP_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [busy])
+  const hintShown = busy && hintDue
 
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
@@ -53,7 +69,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         <p className="dropzone__drag">Drag them onto this box, or</p>
         <button type="button" className="btn btn-primary" onClick={picker.open}>
           <UploadIcon />
-          Choose files
+          Add files
         </button>
       </div>
       <p className="dropzone__guides">
@@ -64,10 +80,14 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
       </p>
       {signedIn ? null : (
         <div className="dropzone__actions">
-          <SampleButton busy={busy} onSample={onSample} describedBy={busyHintId}>
+          <SampleButton
+            busy={busy}
+            onSample={onSample}
+            describedBy={hintShown ? busyHintId : undefined}
+          >
             See a sample athlete
           </SampleButton>
-          {busy && (
+          {hintShown && (
             <p id={busyHintId} className="dropzone__busy muted">
               Available when the current import finishes.
             </p>

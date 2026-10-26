@@ -95,7 +95,7 @@
 
 .app__steps li {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
   align-content: start;
 }
 
@@ -154,7 +154,7 @@
   display: grid;
   gap: var(--space-5);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-landing)), 1fr));
-  align-items: start;
+  align-items: stretch;
 }
 
 /* A solid frame: the dashed outline is for the drop area beside it, so the two are not confused. */
@@ -179,27 +179,16 @@
 
 .landing-example__stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: var(--space-4);
   margin: 0;
 }
 
-.landing-example__stats dt {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.landing-example__stats dd {
-  margin: 0;
-}
-
-/* The example's numbers are its first picture, so they are set at the hero size (48 px). */
-.landing-example__stats .stat-number {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 3rem;
+/* Two ladders side by side at a phone width run their scale labels into each other, so they stack. */
+@media (max-width: 560px) {
+  .landing-example__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* The method's three sentences, with the link to the full page below them. */

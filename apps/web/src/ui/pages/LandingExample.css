@@ -1,8 +1,12 @@
-/* One sport in the example: its name, level and grade, then its level band and its measure. */
+/*
+ * One sport in the example: its name, level and grade, then its level band and its measure. Its
+ * three rows are the example's rows, so the two sports' names, bands and measures line up.
+ */
 .landing-example__sport {
   display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
   gap: var(--space-2);
-  align-content: start;
 }
 
 .landing-example__sport-name {

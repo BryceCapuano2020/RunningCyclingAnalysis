@@ -14,17 +14,15 @@ export interface AgeGradeBlockProps {
   effort: string | null
   /**
    * Whether the caption names the age and the standard. A Balance card leaves that to the source line
-   * under the cards, so its caption keeps only a ride's range note.
+   * under the cards, so it has no caption.
    */
   namesStandard?: boolean
 }
 
-/** What a ride's bracketed range is, under a ride's grade. */
-const RANGE_NOTE = 'The range in brackets is the 90% range.'
-
 /**
- * The grade, its level ladder and what it grades: the grade line names the effort it is for, and
- * its pace or watts. A ride's grade is estimated, and says so.
+ * The grade, its level ladder and what it grades: the effort it is for, and its pace or watts, on a
+ * line of its own under the level. A ride's grade is estimated, and says so. Its ladder's key says
+ * what the bracketed range is, so the caption does not repeat it.
  */
 export function AgeGradeBlock({
   sport,
@@ -39,21 +37,18 @@ export function AgeGradeBlock({
     <div className="age-grade">
       <p className="age-grade__line">
         <GradeSentence sport={sport} grade={grade} />
-        {` · on your best ${HEADLINE_LABEL}${effort ? `, ${effort}` : ''}`}
+      </p>
+      <p className="age-grade__effort">
+        {`on your best ${HEADLINE_LABEL}${effort ? `, ${effort}` : ''}`}
       </p>
       <GradingLink />
       <LevelLadder sport={sport} grade={grade} />
-      {(namesStandard || ride) && (
+      {namesStandard && (
         <p className="muted">
-          {namesStandard && (
-            <>
-              {ride
-                ? `Graded through its running equivalent, at age ${age}, on the `
-                : `Graded at age ${age}, on the `}
-              <GradesLink>{ROAD_STANDARDS_SOURCE.shortName}</GradesLink>.{` ${LEVEL_NOT_RANKING}`}
-            </>
-          )}
-          {ride && `${namesStandard ? ' ' : ''}${RANGE_NOTE}`}
+          {ride
+            ? `Graded through its running equivalent, at age ${age}, on the `
+            : `Graded at age ${age}, on the `}
+          <GradesLink>{ROAD_STANDARDS_SOURCE.shortName}</GradesLink>.{` ${LEVEL_NOT_RANKING}`}
         </p>
       )}
     </div>

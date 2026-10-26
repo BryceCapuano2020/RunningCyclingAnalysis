@@ -30,8 +30,8 @@ header holds the wordmark, the four tabs (once there is a result, and while resu
 account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window
-and appears only once a run has lasted about 400 ms, so a quick change never moves the page; on a
-phone it sits above the tab bar. Nothing is held for the account: a file is analysed at once and saved
+and appears only once a run has lasted about 400 ms, so a quick change never moves the page. The reason
+the sample is off waits the same time. On a phone the strip sits above the tab bar. Nothing is held for the account: a file is analysed at once and saved
 once the account is known.
 
 The header stays at
@@ -100,7 +100,7 @@ as the 3 months of an earlier version, reads as the default.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
-The landing page is the promise, the drop zone with **Choose files** (its one primary action) and
+The landing page is the promise, the drop zone with **Add files** (its one primary action) and
 **See a sample athlete**, the example result, three steps, three sentences on how the result is worked
 out with a **Full method** link, and the export guides. The drop zone's **No files yet? How to get
 them** link moves focus to the guides below the steps. The guides are one tile per service. Each tile
@@ -332,23 +332,25 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
   its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio.
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
-  the drawing and fills its column, with no fixed width. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
+  the drawing and fills its column, with no fixed width. Its bar is the same height at every width,
+  and its marker a fixed size, so the labels stay on the bar as the column narrows. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
   a ring over an outlined band for its model range. The bands the grade falls in are filled in its
   sport's soft colour and named in bold: the band of its centre, or every band from the low end of a
   ride's range to its high end. Band edges are ticks. A marker past either end of the scale stays
   inside the track, outline included, and a chevron stands just outside that end; the key says the
   grade is below or above the scale.
-- **The key sits under every ladder** as a figure caption, in words: "Solid dot: the grade of one
-  recorded effort." for a run, and "Ring: estimated, with its range." for a ride. The shape is never
-  the only cue.
+- **The key sits under every ladder**, as a paragraph, in words: "Solid dot: the grade of one
+  recorded effort." for a run, and "Ring: estimated, with its 90% range in brackets." for a ride. The
+  shape is never the only cue. The landing example has no key, since it is illustrative.
 - **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
   unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could hold
   for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the
-  ladder with its key, then a ride's note that its bracketed range is the 90% range, then the best efforts, with the Flat note under them on a run. A card names no age or standard: the source line under the cards does. On a
+  ladder with its key, then the best efforts, with the Flat note under them on a run. A card names no age or standard: the source line under the cards does. On a
   phone, 560 px and below, the best efforts sit in a closed disclosure titled "Best efforts", so the
   answer and the ladder read first; from wider screens it is open. A visitor's own choice holds across a
   resize.
-  The grade line names the effort it grades: "Local · 64% · on your best 20 min, 6:37 /mi". A
+  The grade line gives the level and its percent. The effort it grades sits on a line of its own under
+  it: "on your best 20 min, 6:37 /mi". A
   ride's line starts "Estimated", and its watts carry "estimated" when they did not come from a
   power meter. A run card that shows a Flat mark says what it means under its records, on every run
   card that has records, with or without a grade: "Flat pace: your pace allowing for hills, as if
@@ -423,7 +425,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.
-- **Only the drop area is dashed, and it fills on hover.** On the landing page the example beside it is a solid frame, with
+- **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.

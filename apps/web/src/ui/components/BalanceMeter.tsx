@@ -102,9 +102,7 @@ export function BalanceMeter({ reading }: BalanceMeterProps) {
           {SPORT_LABEL[RIGHT]}
         </span>
       </div>
-      <figcaption className="balance-meter__key">
-        {`${KEY}, ${rangeText(reading)}. ${SCALE_KEY[unit]}`}
-      </figcaption>
+      <p className="balance-meter__key">{`${KEY}, ${rangeText(reading)}. ${SCALE_KEY[unit]}`}</p>
     </figure>
   )
 }

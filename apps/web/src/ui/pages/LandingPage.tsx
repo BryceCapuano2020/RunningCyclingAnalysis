@@ -2,7 +2,6 @@ import { useRef } from 'react'
 import type { UnitSystem } from '@rca/core/units'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
-import { HISTORY_ADVICE } from '../exportGuides'
 import { HEADLINE_LABEL } from '../grades'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
@@ -52,10 +51,8 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
         <li>
           <h2>1. Add your files</h2>
           <p className="secondary">
-            FIT, GPX or TCX files from Garmin, Wahoo, COROS or Zwift, or the zip from Strava’s
-            account export.
+            Exports from Garmin, Wahoo, COROS or Zwift, or the zip from Strava’s account export.
           </p>
-          <p className="secondary">{HISTORY_ADVICE}</p>
         </li>
         <li>
           <h2>2. Both sports on one scale</h2>

@@ -24,12 +24,12 @@ describe('GradeSentence', () => {
     )
   })
 
-  it('keeps each level with its percent, and the range in brackets, on one line', () => {
+  it('keeps each percent and its range in brackets on one line, and leaves the level free to wrap', () => {
     const { container } = render(<GradeSentence sport="ride" grade={RIDE} />)
-    const unbroken = Array.from(
-      container.querySelectorAll('.grade-sentence__unbroken'),
-      (part) => part.textContent,
+    const unbroken = Array.from(container.querySelectorAll('.grade-sentence__unbroken'), (part) =>
+      part.textContent?.trim(),
     )
-    expect(unbroken).toEqual(['Local · 66%', '(63–69%)'])
+    expect(unbroken).toEqual(['· 66%', '(63–69%)'])
+    expect(container.textContent).toBe('Estimated · Local · 66% (63–69%)')
   })
 })

@@ -118,7 +118,9 @@ describe('LandingPage', () => {
       within(steps[2]!).getByRole('heading', { level: 2, name: '3. See your balance' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/FIT, GPX or TCX files from Garmin, Wahoo, COROS or Zwift/),
+      screen.getByText(
+        'Exports from Garmin, Wahoo, COROS or Zwift, or the zip from Strava’s account export.',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -136,15 +138,16 @@ describe('LandingPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('says in step 1 how much history to bring, and has no button there', () => {
+  it('says how much history to bring once, in the drop zone, and not again in step 1', () => {
     const { container } = render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="metric" onFiles={vi.fn()} />,
     )
     const list = container.querySelector('.app__steps')
     if (!list) throw new Error('No steps list')
     const [first] = within(list as HTMLElement).getAllByRole('listitem')
-    expect(within(first!).getByText(HISTORY_ADVICE)).toBeInTheDocument()
+    expect(within(first!).queryByText(HISTORY_ADVICE)).not.toBeInTheDocument()
     expect(within(first!).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getAllByText(HISTORY_ADVICE)).toHaveLength(1)
   })
 
   it('moves focus to the export guides from the drop zone, without changing the hash route', () => {
