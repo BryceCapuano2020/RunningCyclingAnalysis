@@ -31,7 +31,7 @@
 /* The labels and each row's values share three columns, so the labels sit over the values they name. */
 .equivalence-list__labels,
 .equivalence-list dl {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.75fr) minmax(0, 1.25fr);
   gap: var(--space-1) var(--space-2);
   margin: 0;
 }

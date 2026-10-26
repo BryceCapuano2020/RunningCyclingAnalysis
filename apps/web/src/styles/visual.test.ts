@@ -504,12 +504,12 @@ describe('balance hero, meter and evidence', () => {
   it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {
     const phone = mediaOf(equivalenceCss, '(max-width: 479px)')
     expect(phone).toMatch(/\.equivalence-list__labels \{[^}]*display:\s*grid/)
-    expect(rulesWith(equivalenceCss, '.equivalence-list__labels')).toMatch(
-      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.9fr\)\s*minmax\(0,\s*1\.1fr\)/,
-    )
-    expect(rulesWith(equivalenceCss, '.equivalence-list dl')).toMatch(
-      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.9fr\)\s*minmax\(0,\s*1\.1fr\)/,
-    )
+    // The base columns, above 379 px: the phone's own columns are pinned with its own width.
+    const base = outsideMedia(equivalenceCss)
+    const columns =
+      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.75fr\)\s*minmax\(0,\s*1\.25fr\)/
+    expect(rulesWith(base, '.equivalence-list__labels')).toMatch(columns)
+    expect(rulesWith(base, '.equivalence-list dl')).toMatch(columns)
   })
 })
 
