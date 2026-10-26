@@ -93,7 +93,9 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
           )}
           {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
         </div>
-        {!held && grade && <AgeGradeBlock sport={sport} outcome={grade} effort={effort} />}
+        {!held && grade && (
+          <AgeGradeBlock sport={sport} outcome={grade} effort={effort} namesStandard={false} />
+        )}
         {/* On a phone the records fold away, so the card's answer and its ladder read first. */}
         {records.length > 0 && (
           <details className="sport-card__records" open={recordsOpen}>

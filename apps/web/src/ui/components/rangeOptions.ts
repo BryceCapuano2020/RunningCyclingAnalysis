@@ -18,14 +18,18 @@ export interface RangeOption {
 
 /** The period lengths, in days. Named once: the control, its labels and the tests read these. */
 export const SIX_WEEKS_DAYS = 42
-export const THREE_MONTHS_DAYS = 91
 export const ONE_YEAR_DAYS = 365
 
+/** The words for the lengths, named once: the control's labels and the "Previous ..." labels share them. */
+const SIX_WEEKS_LABEL = '6 weeks'
+const DEFAULT_LABEL = `${DEFAULT_PERIOD_WEEKS} weeks`
+const ONE_YEAR_LABEL = '12 months'
+
+/** The periods the control offers, shortest first. Every period counts back from the newest activity. */
 export const RANGE_OPTIONS: RangeOption[] = [
-  { value: 'default', label: 'Default', choice: 'default' },
-  { value: String(SIX_WEEKS_DAYS), label: '6 weeks', choice: SIX_WEEKS_DAYS },
-  { value: String(THREE_MONTHS_DAYS), label: '3 months', choice: THREE_MONTHS_DAYS },
-  { value: String(ONE_YEAR_DAYS), label: 'Last 12 months', choice: ONE_YEAR_DAYS },
+  { value: String(SIX_WEEKS_DAYS), label: SIX_WEEKS_LABEL, choice: SIX_WEEKS_DAYS },
+  { value: 'default', label: DEFAULT_LABEL, choice: 'default' },
+  { value: String(ONE_YEAR_DAYS), label: ONE_YEAR_LABEL, choice: ONE_YEAR_DAYS },
   { value: 'all', label: 'All time', choice: 'all' },
 ]
 
@@ -48,10 +52,9 @@ export function periodDates(span: Span): string {
 
 /** A length in words for the named periods, and in days for any other. */
 function lengthOf(days: number): string {
-  if (days === SIX_WEEKS_DAYS) return '6 weeks'
-  if (days === DEFAULT_PERIOD_DAYS) return `${DEFAULT_PERIOD_WEEKS} weeks`
-  if (days === THREE_MONTHS_DAYS) return '3 months'
-  if (days === ONE_YEAR_DAYS) return '12 months'
+  if (days === SIX_WEEKS_DAYS) return SIX_WEEKS_LABEL
+  if (days === DEFAULT_PERIOD_DAYS) return DEFAULT_LABEL
+  if (days === ONE_YEAR_DAYS) return ONE_YEAR_LABEL
   return `${days} days`
 }
 
@@ -61,12 +64,4 @@ export const FALLBACK_NOTE = `The ${DEFAULT_PERIOD_WEEKS} weeks up to your newes
 /** The label of the period before the one selected, or null when there is none (all time). */
 export function previousPeriodLabel(days: number | null): string | null {
   return days === null ? null : `Previous ${lengthOf(days)}`
-}
-
-/**
- * Where a figure's numbers come from, as the phrase after "Based on" or "No runs":
- * "in this period" when a window is set, and "in all your files" under All time, which has no period.
- */
-export function scopeText(rangeDays: number | null): string {
-  return rangeDays === null ? 'in all your files' : 'in this period'
 }

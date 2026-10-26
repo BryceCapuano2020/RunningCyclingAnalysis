@@ -348,9 +348,7 @@ describe('SportCard run grade', () => {
     expect(
       within(card).getByText('Flat pace: your pace allowing for hills, as if on level ground.'),
     ).toBeInTheDocument()
-    expect(
-      within(card).getByText('Graded at age 40, on the USATF road standards.'),
-    ).toBeInTheDocument()
+    expect(within(card).queryByText(/^Graded at age/)).not.toBeInTheDocument()
   })
 
   it('marks each run record’s pace Flat, so its pace reads as a flat pace', () => {
@@ -423,7 +421,7 @@ describe('SportCard ride grade', () => {
     expect(within(card).getByText('Ring: estimated, with its range.')).toBeInTheDocument()
   })
 
-  it('says it is graded through its running equivalent, and that the bracketed range is the 90% range', () => {
+  it('says the bracketed range is the 90% range, and leaves the standard to the source line under the cards', () => {
     renderCard(
       'ride',
       makeResult({
@@ -439,9 +437,7 @@ describe('SportCard ride grade', () => {
     )
 
     expect(
-      within(cardNamed('Ride')).getByText(
-        'Graded through its running equivalent, at age 40, on the USATF road standards. The range in brackets is the 90% range.',
-      ),
+      within(cardNamed('Ride')).getByText('The range in brackets is the 90% range.'),
     ).toBeInTheDocument()
     expect(
       within(cardNamed('Ride')).queryByText(

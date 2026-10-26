@@ -104,9 +104,7 @@ describe('Methodology', () => {
       `a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days`,
     )
     // The example periods are the picker's own options, with the window the trend really uses.
-    expect(section).toHaveTextContent(
-      '6 weeks uses 14 days, 3 months uses 30 days and last 12 months uses 42 days.',
-    )
+    expect(section).toHaveTextContent('6 weeks uses 14 days and 12 months uses 42 days.')
     expect(section).toHaveTextContent('Each window lies inside the period you chose.')
     expect(section).toHaveTextContent(
       'A gap means no run or ride of that length fell inside the window.',

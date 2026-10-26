@@ -41,8 +41,9 @@ export interface RangePickerProps {
 
 /**
  * The period control: a row of segments, and beneath it the dates and the count of what is in the
- * period, then a note. Each keeps its line, so nothing moves when it fills. The control shows the
- * pick the athlete made last, so a worker answer to an earlier pick cannot move it back.
+ * period, then a note when there is one. The dates keep their line, so nothing moves when the count
+ * fills in. The control shows the pick the athlete made last, so a worker answer to an earlier pick
+ * cannot move it back.
  */
 export function RangePicker({
   choice,
@@ -78,6 +79,8 @@ export function RangePicker({
         ? `Showing ${shown} of ${totalPhrase}`
         : `Showing all ${totalPhrase}`
   const choiceLabel = options.find((option) => option.value === optionValue(checked))?.label
+  // While a pick waits for an import, the note says so instead of the page's note.
+  const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
   const announcement = [counted, choiceLabel, dates]
     .filter((part) => part !== undefined && part !== '')
     .join(', ')
@@ -106,7 +109,7 @@ export function RangePicker({
       <p role="status" className="sr-only">
         {announcement}
       </p>
-      <p className="range-picker__note muted">{waiting && busy ? WAITS_FOR_IMPORT : note}</p>
+      {noteText && <p className="range-picker__note muted">{noteText}</p>}
     </div>
   )
 }

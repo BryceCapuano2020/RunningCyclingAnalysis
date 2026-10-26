@@ -76,6 +76,35 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   await expect(details).not.toHaveAttribute('open')
 })
 
+test('the period control offers 6 weeks, 12 weeks, 12 months and All time, on one row at 390 px', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  const options = page.getByRole('group', { name: 'Period' }).locator('.segmented-control__option')
+  await expect(options).toHaveText(['6 weeks', '12 weeks', '12 months', 'All time'])
+  const tops = await options.evaluateAll((elements) =>
+    elements.map((element) => Math.round(element.getBoundingClientRect().top)),
+  )
+  expect(new Set(tops).size).toBe(1)
+})
+
+test('on a phone the grades sit under the meter, with the meter’s own gap', async ({
+  page,
+}, testInfo) => {
+  test.skip(!testInfo.project.use.isMobile, 'the grade strip shows only on a phone')
+  await openSample(page)
+  const key = await page.locator('.balance-meter__key').boundingBox()
+  const strip = page.locator('.balance-strip')
+  await expect(strip).toBeVisible()
+  const stripBox = await strip.boundingBox()
+  expect(key).not.toBeNull()
+  expect(stripBox).not.toBeNull()
+  // The meter's own gap is 8 px; the page's gap between sections is 48 px, which the strip must not take.
+  const gap = (stripBox?.y ?? 0) - ((key?.y ?? 0) + (key?.height ?? 0))
+  expect(gap).toBeLessThan(16)
+})
+
 test('period labels remain clickable at a narrow viewport with enlarged text', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 })
   await openSample(page)

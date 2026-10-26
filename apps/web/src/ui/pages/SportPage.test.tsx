@@ -19,7 +19,7 @@ import {
   makeEquivalence,
   makeResult,
 } from '../components/fixtures'
-import type { AgeProfile } from '../grades'
+import type { AgeGap, AgeProfile } from '../grades'
 import { SportPage } from './SportPage'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
@@ -55,6 +55,7 @@ function renderPage(
   footnote: ReactNode = null,
   rangeDays: number | null = 42,
   emptyText = 'Nothing in this period.',
+  missingAge: AgeGap | null = profile === null ? 'year of birth and sex' : null,
 ) {
   return render(
     <SportPage
@@ -68,6 +69,7 @@ function renderPage(
       massKg={75}
       weighted={weighted}
       profile={profile}
+      missingAge={missingAge}
       rangeDays={rangeDays}
       controls={<span>Period picker</span>}
       footnote={footnote}
@@ -108,6 +110,7 @@ describe('SportPage', () => {
         units="metric"
         massKg={75}
         profile={null}
+        missingAge="year of birth and sex"
         controls={<span>Period picker</span>}
         weighted
         rangeDays={42}
@@ -290,6 +293,7 @@ describe('SportPage', () => {
         massKg={75}
         weighted
         profile={null}
+        missingAge="year of birth and sex"
         controls={<span>Period picker</span>}
         rangeDays={42}
         inLibrary={1}
@@ -867,11 +871,47 @@ describe('SportPage depth', () => {
     )
   })
 
+  it('names only the field that is missing, in the note and on its link', () => {
+    renderPage(
+      'run',
+      makeResult({ activities: [morningRun] }),
+      'metric',
+      null,
+      null,
+      null,
+      NO_TRENDS,
+      true,
+      null,
+      42,
+      'Nothing in this period.',
+      'sex',
+    )
+
+    expect(screen.getByText('Age grades need your sex.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Add your sex' })).toHaveAttribute('href', '#/profile')
+  })
+
+  it('keeps the age and the standard under a sport page’s grade', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    expect(
+      screen.getByText(/^Graded at age \d+, on the USATF road standards\.$/),
+    ).toBeInTheDocument()
+  })
+
   it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     expect(screen.getByText('Age grades need your year of birth and sex.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Add year of birth and sex' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Add your year of birth and sex' })).toHaveAttribute(
       'href',
       '#/profile',
     )
@@ -978,7 +1018,7 @@ describe('SportPage depth', () => {
     })
     renderPage('run', makeResult({ activities: [run] }))
 
-    expect(screen.getByText('Last run Mon 5 Jan · 1 run · 10.0 km')).toBeInTheDocument()
+    expect(screen.getByText('Last run 5 Jan · 1 run · 10.0 km')).toBeInTheDocument()
   })
 
   it('says which watts are estimated when no power meter measured the rides', () => {
@@ -1039,6 +1079,7 @@ describe('SportPage with nothing to show', () => {
         units="metric"
         massKg={75}
         profile={null}
+        missingAge="year of birth and sex"
         controls={<span>Period picker</span>}
         weighted
         rangeDays={42}
@@ -1062,6 +1103,7 @@ describe('SportPage with nothing to show', () => {
         units="metric"
         massKg={75}
         profile={null}
+        missingAge="year of birth and sex"
         controls={<span>Period picker</span>}
         weighted
         rangeDays={42}
@@ -1099,6 +1141,7 @@ describe('SportPage with nothing to show', () => {
         units="metric"
         massKg={75}
         profile={null}
+        missingAge="year of birth and sex"
         controls={<span>Period picker</span>}
         weighted
         rangeDays={null}

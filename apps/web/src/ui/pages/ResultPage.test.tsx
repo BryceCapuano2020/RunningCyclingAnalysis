@@ -28,7 +28,7 @@ const SAVED_COPY: Copy = {
   durationS: 3600,
 }
 
-const PROFILE_PROMPT = 'Add year of birth and sex'
+const PROFILE_PROMPT = 'Add your year of birth and sex'
 
 function renderPage(route: Route, birthYear: number | null, sex: Sex | null, weightKnown = true) {
   const result = makeResult({
@@ -63,13 +63,29 @@ describe('ResultPage age grades', () => {
     ).toBeInTheDocument()
   })
 
-  it('asks once for the year of birth and sex when either is missing', () => {
+  it('asks once for the year of birth alone when only that is missing', () => {
     renderPage({ page: 'balance' }, null, 'male')
 
-    const prompts = screen.getAllByRole('link', { name: PROFILE_PROMPT })
+    const prompts = screen.getAllByRole('link', { name: 'Add your year of birth' })
     expect(prompts).toHaveLength(1)
     expect(prompts[0]).toHaveAttribute('href', '#/profile')
+    expect(
+      screen.getByText('The balance in points and levels needs your year of birth.'),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Graded on the/)).not.toBeInTheDocument()
+  })
+
+  it('asks for the sex alone when only that is missing', () => {
+    renderPage({ page: 'balance' }, 1986, null)
+
+    expect(screen.getByRole('link', { name: 'Add your sex' })).toHaveAttribute('href', '#/profile')
+    expect(screen.getByText('The balance in points and levels needs your sex.')).toBeInTheDocument()
+  })
+
+  it('asks for both when both are missing', () => {
+    renderPage({ page: 'balance' }, null, null)
+
+    expect(screen.getByRole('link', { name: PROFILE_PROMPT })).toHaveAttribute('href', '#/profile')
   })
 
   it('states on the method page which sex the grades are for, for the same profile', () => {
@@ -348,7 +364,7 @@ describe('ResultPage period', () => {
   })
 
   it('keeps All time when the athlete takes it from the answer, as from the control', () => {
-    localStorage.setItem(PERIOD_KEY, JSON.stringify(91))
+    localStorage.setItem(PERIOD_KEY, JSON.stringify(365))
     const setRange = vi.fn()
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const run = makeActivity({ id: 'run-1', sport: 'run' })
@@ -357,10 +373,10 @@ describe('ResultPage period', () => {
         result: makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } }),
         library: [ride, run],
         period: {
-          choice: 91,
+          choice: 365,
           startMs: new Date(2025, 4, 12, 12).getTime(),
           endMs: new Date(2025, 7, 3, 12).getTime(),
-          days: 91,
+          days: 365,
           fellBack: false,
         },
       },
@@ -386,9 +402,67 @@ describe('ResultPage period', () => {
   it('stores and sends a period the athlete picks', () => {
     const setRange = vi.fn()
     renderBalance(setRange)
-    fireEvent.click(screen.getByRole('radio', { name: '3 months' }))
-    expect(setRange).toHaveBeenCalledWith(91)
-    expect(JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')).toBe(91)
+    expect(screen.queryByRole('radio', { name: '3 months' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: '12 months' }))
+    expect(setRange).toHaveBeenCalledWith(365)
+    expect(JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')).toBe(365)
+  })
+
+  /** A balance page over one run from 3 June 2025, with the clock at 25 October 2026. */
+  function renderOldLibrary(fellBack: boolean) {
+    const old = makeActivity({
+      id: 'old-run',
+      sport: 'run',
+      startMs: new Date(2025, 5, 3, 7).getTime(),
+    })
+    const period = {
+      choice: 'default' as const,
+      startMs: new Date(2025, 4, 12, 12).getTime(),
+      endMs: new Date(2025, 7, 3, 12).getTime(),
+      days: fellBack ? null : 84,
+      fellBack,
+    }
+    return render(
+      <ResultPage
+        route={{ page: 'balance' }}
+        analysis={analysisStub({
+          state: { result: makeResult({ activities: [old] }), library: [old], period },
+        })}
+        result={makeResult({ activities: [old] })}
+        settings={SETTINGS}
+        weightKnown
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+  }
+
+  it('puts the latest activity, once it is old, in the period control’s note, under the dates', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 25, 12))
+    try {
+      const { container } = renderOldLibrary(false)
+      const caption = container.querySelector('.range-picker__caption')
+      const note = container.querySelector('.range-picker__note')
+      expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 16 months ago')
+      expect(caption?.compareDocumentPosition(note as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says why the default is all time, and the latest activity, in the same note', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 25, 12))
+    try {
+      const { container } = renderOldLibrary(true)
+      expect(container.querySelector('.range-picker__note')).toHaveTextContent(
+        'so this shows all time. Latest activity 3 Jun 2025, 16 months ago',
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

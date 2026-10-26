@@ -33,6 +33,8 @@ export interface BalanceHeroProps {
   /** Each sport's level as the cards show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
   rideLevel?: string | null
+  /** The grades under the meter on a phone. They share the meter's group, so they keep its gap. */
+  strip?: ReactNode
 }
 
 interface Missing {
@@ -124,6 +126,7 @@ export function BalanceHero({
   aside,
   runLevel = null,
   rideLevel = null,
+  strip = null,
 }: BalanceHeroProps) {
   const reading = weightKnown ? balanceOfPick(gap, pick) : null
   const head = (title: ReactNode, className?: string) => (
@@ -141,12 +144,15 @@ export function BalanceHero({
     countSport(result.activities, 'ride') > 0
   ) {
     return (
-      <section className="balance-hero">
-        {head('Your balance waits for your weight')}
-        <p className="lede secondary">
-          <WeightPrompt />
-        </p>
-      </section>
+      <>
+        <section className="balance-hero">
+          {head('Your balance waits for your weight')}
+          <p className="lede secondary">
+            <WeightPrompt />
+          </p>
+        </section>
+        {strip}
+      </>
     )
   }
   if (reading === null) {
@@ -155,17 +161,20 @@ export function BalanceHero({
       ride: rideLevel,
     })
     return (
-      <section className="balance-hero">
-        {head(title)}
-        <p className="lede secondary">{detail}</p>
-        {canShowAll && (
-          <p>
-            <button type="button" className="btn" onClick={onShowAll}>
-              Show all time
-            </button>
-          </p>
-        )}
-      </section>
+      <>
+        <section className="balance-hero">
+          {head(title)}
+          <p className="lede secondary">{detail}</p>
+          {canShowAll && (
+            <p>
+              <button type="button" className="btn" onClick={onShowAll}>
+                Show all time
+              </button>
+            </p>
+          )}
+        </section>
+        {strip}
+      </>
     )
   }
   const summary = balanceSummary(reading, pick?.point.durationS ?? HEADLINE_DURATION_S)
@@ -177,7 +186,10 @@ export function BalanceHero({
         {head(balanceTitle(reading), 'balance-hero__title')}
         <p className="lede secondary">{dates === '' ? summary : `${dates}. ${summary}`}</p>
       </section>
-      <BalanceMeter reading={reading} />
+      <div className="balance-hero__meter">
+        <BalanceMeter reading={reading} />
+        {strip}
+      </div>
     </>
   )
 }

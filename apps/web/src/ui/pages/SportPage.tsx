@@ -21,7 +21,7 @@ import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import { FLAT_PACE_NOTE, SEX_NOUN, distanceGrade, sportGrade } from '../grades'
-import type { AgeProfile } from '../grades'
+import type { AgeGap, AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
 import {
@@ -69,6 +69,8 @@ export interface SportPageProps {
   weighted: boolean
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
+  /** The year of birth or sex the grades still need, which the note names; null when both are given. */
+  missingAge: AgeGap | null
   /** The window in days, or null for all time: the figures' scope is named by it. */
   rangeDays: number | null
   /** The period control, shown beside the heading. */
@@ -93,12 +95,12 @@ function setTags(activity: ActivitySummary | null, openedAt: number): string[] {
   return activity === null ? [] : [setAgoText(calendarDaysBetween(activity.startMs, openedAt))]
 }
 
-/** The age grades need a year of birth and a sex: asked once here, under the best efforts. */
-function AgeNote() {
+/** The age grades need the field that is missing: asked once here, under the best efforts. */
+function AgeNote({ missing }: { missing: AgeGap }) {
   return (
     <p className="muted">
-      Age grades need your year of birth and sex.{' '}
-      <a href={hrefFor({ page: 'profile' })}>Add year of birth and sex</a>
+      {`Age grades need your ${missing}.`}{' '}
+      <a href={hrefFor({ page: 'profile' })}>{`Add your ${missing}`}</a>
     </p>
   )
 }
@@ -115,6 +117,7 @@ export function SportPage({
   massKg,
   weighted,
   profile,
+  missingAge,
   rangeDays,
   controls,
   footnote = null,
@@ -255,7 +258,7 @@ export function SportPage({
                 {`. Age is counted from your birth year on the date of each effort${sport === 'ride' ? ', and a ride’s range is its model range' : ''}. A level, not a ranking.`}
               </p>
             )}
-            {profile === null && <AgeNote />}
+            {missingAge !== null && <AgeNote missing={missingAge} />}
             {sport === 'ride' && someEstimated && (
               <p className="muted">
                 {`Power meters measured ${measuredRides} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}{' '}

@@ -12,19 +12,35 @@ export interface AgeGradeBlockProps {
   outcome: GradeOutcome
   /** The headline effort the grade is for, such as "6:37 /mi, estimated", or null when none. */
   effort: string | null
+  /**
+   * Whether the caption names the age and the standard. A Balance card leaves that to the source line
+   * under the cards, so its caption keeps only a ride's range note.
+   */
+  namesStandard?: boolean
 }
+
+/** What a ride's bracketed range is, under a ride's grade. */
+const RANGE_NOTE = 'The range in brackets is the 90% range.'
 
 /**
  * The grade, its level ladder and what it grades: the grade line names the effort it is for, and
  * its pace or watts. A ride's grade is estimated, and says so.
  */
-export function AgeGradeBlock({ sport, outcome, effort }: AgeGradeBlockProps) {
+export function AgeGradeBlock({
+  sport,
+  outcome,
+  effort,
+  namesStandard = true,
+}: AgeGradeBlockProps) {
   if (outcome.kind === 'gap') return <p className="secondary">{outcome.reason}</p>
   const { age, grade } = outcome
   const ride = sport === 'ride'
-  const caption = ride
-    ? `Graded through its running equivalent, at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}. The range in brackets is the 90% range.`
+  const standard = ride
+    ? `Graded through its running equivalent, at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
     : `Graded at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+  const caption = [namesStandard ? standard : null, ride ? RANGE_NOTE : null]
+    .filter(Boolean)
+    .join(' ')
   return (
     <div className="age-grade">
       <p className="age-grade__line">
@@ -33,7 +49,7 @@ export function AgeGradeBlock({ sport, outcome, effort }: AgeGradeBlockProps) {
       </p>
       <GradingLink />
       <LevelLadder sport={sport} grade={grade} />
-      <p className="muted">{caption}</p>
+      {caption !== '' && <p className="muted">{caption}</p>}
     </div>
   )
 }

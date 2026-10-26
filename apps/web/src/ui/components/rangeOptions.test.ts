@@ -8,7 +8,6 @@ import {
   optionValue,
   periodDates,
   previousPeriodLabel,
-  scopeText,
 } from './rangeOptions'
 
 const JUNE = new Date(2025, 5, 3, 12).getTime()
@@ -19,21 +18,27 @@ function period(overrides: Partial<Period>): Period {
 }
 
 describe('RANGE_OPTIONS', () => {
-  it('offers the default, then the fixed lengths and all time, in that order', () => {
+  it('offers 6 weeks, then the 12 weeks default, 12 months and all time, in that order', () => {
     expect(RANGE_OPTIONS.map((option) => option.label)).toEqual([
-      'Default',
       '6 weeks',
-      '3 months',
-      'Last 12 months',
+      '12 weeks',
+      '12 months',
       'All time',
     ])
+  })
+
+  it('labels the default as its 12 weeks, and keeps its stored value', () => {
+    expect(RANGE_OPTIONS.find((option) => option.choice === 'default')).toEqual({
+      value: 'default',
+      label: '12 weeks',
+      choice: 'default',
+    })
   })
 
   it('leaves the default out of the library, which has no default window', () => {
     expect(LIBRARY_RANGE_OPTIONS.map((option) => option.label)).toEqual([
       '6 weeks',
-      '3 months',
-      'Last 12 months',
+      '12 months',
       'All time',
     ])
   })
@@ -44,6 +49,10 @@ describe('RANGE_OPTIONS', () => {
       expect(choiceOfValue(option.value)).toEqual(option.choice)
     }
     expect(choiceOfValue('nonsense')).toBeUndefined()
+  })
+
+  it('no longer offers 3 months, so its stored value has no option', () => {
+    expect(choiceOfValue('91')).toBeUndefined()
   })
 })
 
@@ -61,7 +70,6 @@ describe('previousPeriodLabel', () => {
   it('names the period before a selected period of the same length', () => {
     expect(previousPeriodLabel(42)).toBe('Previous 6 weeks')
     expect(previousPeriodLabel(84)).toBe('Previous 12 weeks')
-    expect(previousPeriodLabel(91)).toBe('Previous 3 months')
     expect(previousPeriodLabel(365)).toBe('Previous 12 months')
   })
 
@@ -79,16 +87,5 @@ describe('FALLBACK_NOTE', () => {
     expect(FALLBACK_NOTE).toBe(
       'The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time.',
     )
-  })
-})
-
-describe('scopeText', () => {
-  it('says in this period when a window is set', () => {
-    expect(scopeText(42)).toBe('in this period')
-    expect(scopeText(7)).toBe('in this period')
-  })
-
-  it('says in all your files for all time, which has no period to name', () => {
-    expect(scopeText(null)).toBe('in all your files')
   })
 })

@@ -9,9 +9,9 @@ import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { FALLBACK_NOTE, periodDates, previousPeriodLabel } from '../components/rangeOptions'
 import { usePeriodChoice } from '../periodPreference'
-import { ageProfileOf } from '../grades'
+import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
-import { sportEmptyText } from '../periodCopy'
+import { latestActivityText, sportEmptyText } from '../periodCopy'
 import type { SavedActivity } from '../../worker/protocol'
 import type { Route } from '../route'
 import type { AnalysisController } from '../useAnalysis'
@@ -71,6 +71,8 @@ export function ResultPage({
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
   // The sample athlete has its own age, sex and masses, whatever the visitor has entered.
   const profile = isSample ? SAMPLE_PROFILE : ageProfileOf(birthYear, sex)
+  // The prompt for a missing field names only that field; the sample has all of them.
+  const missingAge = isSample ? null : missingAgeOf(birthYear, sex)
   const athlete = isSample ? SAMPLE_SETTINGS : settings
   // The saved copy each activity is kept as, which is what Delete removes; a removal is busy until done.
   const keptIds = keptIdsOf(library, analysis.savedActivities)
@@ -96,11 +98,24 @@ export function ResultPage({
     storeChoice(choice)
     setRange(choice, answered)
   }
-  const control = (shown: number, total: number, noun?: Sport): ReactNode => (
+  // The newest activity in the library dates the answer: a library last written to long ago says so.
+  const newestMs = library.reduce<number | null>(
+    (newest, activity) =>
+      newest === null || activity.startMs > newest ? activity.startMs : newest,
+    null,
+  )
+  const latest = latestActivityText(newestMs)
+  // The note under the dates says why the default is all time, then how old the newest activity is.
+  const control = (
+    shown: number,
+    total: number,
+    noun?: Sport,
+    dated: string | null = null,
+  ): ReactNode => (
     <RangePicker
       choice={period.choice}
       dates={periodDates(period)}
-      note={period.fellBack ? FALLBACK_NOTE : undefined}
+      note={[period.fellBack ? FALLBACK_NOTE : null, dated].filter(Boolean).join(' ')}
       shown={shown}
       total={total}
       noun={noun}
@@ -124,6 +139,7 @@ export function ResultPage({
           massKg={athlete.massKg}
           weighted={weightKnown}
           profile={profile}
+          missingAge={missingAge}
           rangeDays={period.days}
           controls={control(
             countSport(result.activities, route.page),
@@ -194,7 +210,8 @@ export function ResultPage({
           weightKnown={weightKnown}
           units={units}
           profile={profile}
-          controls={control(result.activities.length, totalActivities)}
+          missingAge={missingAge}
+          controls={control(result.activities.length, totalActivities, undefined, latest)}
           onShowAll={() => pickPeriod('all')}
           footnote={footnote}
         />

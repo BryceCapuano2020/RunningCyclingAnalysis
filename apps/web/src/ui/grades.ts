@@ -26,6 +26,15 @@ export function ageProfileOf(birthYear: number | null, sex: Sex | null): AgeProf
   return birthYear !== null && sex !== null ? { birthYear, sex } : null
 }
 
+/** The part of the profile the grades still need, named as the prompts name it. */
+export type AgeGap = 'year of birth' | 'sex' | 'year of birth and sex'
+
+/** What the grades are missing, so a prompt names only that; null when both are given. */
+export function missingAgeOf(birthYear: number | null, sex: Sex | null): AgeGap | null {
+  if (birthYear === null) return sex === null ? 'year of birth and sex' : 'year of birth'
+  return sex === null ? 'sex' : null
+}
+
 /** The athlete's age today, from the year of birth alone; null outside the ages the app can read. */
 export function ageToday(birthYear: number): number | null {
   return ageAt(birthYear, Date.now())

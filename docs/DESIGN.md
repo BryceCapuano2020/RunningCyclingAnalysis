@@ -78,9 +78,9 @@ A deep link to a page that needs a result, with none on this device, stays where
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
-**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, Last 12 months or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
+**Period.** Balance and the sport pages show one period, picked with the control under the answer: 6 weeks, 12 weeks (the default), 12 months or All time, in that order and on one row at 390 px. The control's dates sit beneath it, with the count of activities in the period when some are left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
 counted back from the newest activity, not from today, so when that activity is more than six weeks old
-the line "Latest activity Tue 3 Jun 2025, 16 months ago" sits under the period control.
+the note under the dates reads "Latest activity 3 Jun 2025, 16 months ago". The note says why the default is all time too, when it is, and an empty note takes no line. A stored pick the control no longer offers, such as the 3 months of an earlier version, reads as the default.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
@@ -232,7 +232,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom: the threshold, its grade and level ladder for the best 20 minutes
-  (the same grade line as the card), a line of recent form ("Last run Wed 14 Jan · 9 runs · 42.10
+  (the same grade line as the card), a line of recent form ("Last run 14 Jan · 9 runs · 42.10
   km"), the best efforts, with **See your runs** under them, which opens Activities filtered to that
   sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
   for running and "Power curve" for cycling. The threshold carries no count: the period control beside
@@ -250,7 +250,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   metabolic W/kg.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest activity's day, when they hold a run and a ride. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same day give the same window, and an older window never hides recent activities. It is clipped to the first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12 weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and the control says why: "The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time." The period is computed in `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the newest activity's day.
 - A period's comparison is the same length before it, drawn as a thin dashed mid-grey line and named
-  "Previous 6 weeks", "Previous 3 months" or "Previous 12 months". All time has none. The Balance trends
+  "Previous 6 weeks", "Previous 12 weeks" or "Previous 12 months". All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
@@ -291,7 +291,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
   unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could hold
   for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the
-  ladder with its key, the caption, then the best efforts, with the Flat note under them on a run. On a
+  ladder with its key, then a ride's note that its bracketed range is the 90% range, then the best efforts, with the Flat note under them on a run. A card names no age or standard: the source line under the cards does. On a
   phone, 560 px and below, the best efforts sit in a closed disclosure titled "Best efforts", so the
   answer and the ladder read first; from wider screens it is open. A visitor's own choice holds across a
   resize.
@@ -368,7 +368,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this? and the source lines of the sport pages and the record list, not on Balance.
-- **On a phone, the two grades sit under the meter** in one line, "Running 64% Local / Cycling 58% Recreational". The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
+- **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, in one line, "Run 64% Local / Ride 58% Recreational". The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
@@ -486,7 +486,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   them in `apps/web/src/ui/exportGuides.ts` support. The source line says where the steps came from,
   decided by the guide's `verified` flag, so a guide never claims a help page it did not read. Guides
   use curly quotes, and say "zip", never ".gz".
-- Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. The names of the days
+- Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A summary line, such as the latest activity or a sport's last run, dates its day without the weekday: "3 Jun 2025". The names of the days
   and months are the viewer's language, from the browser; the order stays day first. A distance has one
   decimal, as in "6.2 mi" or "10.0 km"; under a tenth of a unit it reads "<0.1 km". A range of months
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
@@ -521,12 +521,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   says the bracketed range is the 90% range. A ride record says the grade is "Estimated through its
   running equivalent" in full, because a row stands on its own. Thresholds are always estimated. The
   Method page is the one place that explains the estimates.
-- **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
-  standards". The full credit, with the authors, licence and a link, is on the sport pages' source
+- **Every grade names its standard.** Sport pages' captions and the ladder's label say "on the USATF road
+  standards". A Balance card leaves that to the source line under the cards. The full credit, with the authors, licence and a link, is on the sport pages' source
   lines, the record list's source line and How sure is this?.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
-  from the birth year alone. A ride is dated by its own best ride at that duration. Cards say the
-  age they used ("Graded at age 40"). The pages that carry the full credit say "Age is counted from
+  from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the
+  age they used ("Graded at age 40"), and the Balance source line says the age its cards use, naming both ("aged 38 on runs and 39 on rides") when they differ. The pages that carry the full credit say "Age is counted from
   your birth year on the date of each effort." On the Ride page the source line also says that a
   ride's range is its model range.
 - **Removing data asks first.** Removing every kept activity and turning off kept original files
@@ -537,9 +537,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the one filled destructive button is the confirmation's. The account's
   deletion needs the typed email address.
 - **A missing year of birth or sex asks once on each page that grades,** Balance, Run and Ride. On
-  Balance a muted line says the balance in points and levels needs them, and a secondary button, "Add
-  year of birth and sex", opens Profile. On Run and Ride the best efforts say "Age grades need your
-  year of birth and sex." with that link. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer not to say" is
+  Balance a muted line says the balance in points and levels needs what is missing, and a secondary
+  button, "Add your sex", opens Profile. The prompt names only the missing field, as "year of birth",
+  "sex" or "year of birth and sex", in its line and on its button. On Run and Ride the best efforts
+  say "Age grades need your sex." with that link. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer not to say" is
   stored as no sex. The sex choices use the grades' own words, woman and man.
 - **Weight is never filled in for you.** Setup's Skip keeps the valid answers typed and leaves the rest
   unanswered, and Profile

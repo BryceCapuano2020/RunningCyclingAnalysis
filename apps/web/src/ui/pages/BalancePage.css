@@ -11,6 +11,13 @@
   justify-items: start;
 }
 
+/* The meter and, on a phone, the grades under it: one group, so the grades take the meter's gap. */
+.balance-hero__meter {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 /* The headline with the sample chip and the share buttons beside it; they wrap on a phone. */
 .balance-hero__head {
   display: flex;

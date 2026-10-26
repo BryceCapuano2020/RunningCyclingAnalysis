@@ -5,8 +5,9 @@
 }
 
 /*
- * Five periods can outgrow a 320 px phone, so the segments wrap onto a second row rather than
- * overflowing the page. Each keeps its own border, so the wrap needs no shared edges.
+ * Four periods fit one row at 390 px, with 8 px either side of each label. A narrower phone wraps
+ * them onto a second row rather than overflowing the page. Each keeps its own border, so the wrap
+ * needs no shared edges.
  */
 .range-picker .segmented-control__options {
   flex-wrap: wrap;
@@ -16,13 +17,18 @@
 .range-picker .segmented-control__option {
   flex: 1 1 auto;
   margin: 0;
+  padding-inline: var(--space-2);
   border-radius: var(--radius-sm);
 }
 
-/* One line for the dates and count, and one for the note, each reserved so nothing moves when filled. */
-.range-picker__caption,
-.range-picker__note {
+/* The dates and count keep their line, so nothing moves when the count fills in. The note has none reserved. */
+.range-picker__caption {
   min-height: 1.5em;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.range-picker__note {
   margin: 0;
   font-size: var(--text-sm);
 }
