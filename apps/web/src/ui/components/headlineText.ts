@@ -160,7 +160,7 @@ export function referenceText(result: AnalysisResult): string | null {
     const own = run === result.runObservedMaxHeartRate
     parts.push(
       own
-        ? `running ${Math.round(run)} bpm (your highest sustained heart rate)`
+        ? `running ${Math.round(run)} bpm`
         : `running ${Math.round(run)} bpm (your cycling maximum)`,
     )
   }
@@ -168,7 +168,7 @@ export function referenceText(result: AnalysisResult): string | null {
     const own = ride === result.rideObservedMaxHeartRate
     parts.push(
       own
-        ? `cycling ${Math.round(ride)} bpm (your highest sustained heart rate)`
+        ? `cycling ${Math.round(ride)} bpm`
         : `cycling ${Math.round(ride)} bpm (${RIDE_MAX_OFFSET_BPM} bpm below your running maximum)`,
     )
   }

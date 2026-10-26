@@ -177,7 +177,7 @@ export function SetupDialog({
     if (unusualKg !== null) {
       setConfirmKg(unusualKg)
       setErrors({
-        weight: `${unusualWeightSentence(unusualKg, weightText, units)} Check the units, or press Analyse my files again to keep it.`,
+        weight: `${unusualWeightSentence(unusualKg, weightText, units)} Check the units, or press Analyse my files again to keep it.`,
       })
       weightRef.current?.focus()
       return
@@ -187,7 +187,9 @@ export function SetupDialog({
 
   const entry = readWeightEntry(weightText, validKg, units)
   const weightBlank = !('error' in entry) && entry.kg === null
-  const storedKg = !('error' in entry) && entry.kg !== null ? entry.kg : null
+  // Only a typical weight reads as stored: one outside the range is kept only once it is confirmed.
+  const storedKg =
+    !('error' in entry) && entry.kg !== null && isTypicalBodyKg(entry.kg) ? entry.kg : null
 
   return (
     <dialog
@@ -206,9 +208,8 @@ export function SetupDialog({
           A few details
         </h2>
         <p id={helpId} className="setup-dialog__help">
-          Enter your weight so a ride and a run sit on one scale. Add your age and sex to see your
-          level in each sport; standards differ for women and men. Your age and sex stay on this
-          device unless you sign in.
+          Your year of birth and sex set your level in each sport. They stay on this device unless
+          you sign in.
         </p>
         <SegmentedControl
           legend="Units"
@@ -267,7 +268,9 @@ export function SetupDialog({
           </p>
         )}
         <div className="setup-dialog__footer">
-          {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_PROMPT_TEXT}</p>}
+          <div className="setup-dialog__notes">
+            {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_PROMPT_TEXT}</p>}
+          </div>
           <div className="setup-dialog__actions">
             <button
               type="button"

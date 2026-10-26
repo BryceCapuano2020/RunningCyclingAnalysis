@@ -187,18 +187,37 @@ describe('MethodPage answer', () => {
     ).toBeInTheDocument()
   })
 
-  it('says zero when no activity sets an effort, rather than counting the files', () => {
+  it('says no run has a usable effort when none sets one, rather than counting the files', () => {
     renderPage(makeResult({ runCurve: [], rideCurve: [] }))
 
-    expect(
-      screen.getByText(/estimates from 0 runs and 0 rides with a usable effort/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('No run has a usable effort yet.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/estimates from 0 runs/)
+  })
+
+  it('says no run has a usable effort when the weight is not known either', () => {
+    renderPage(makeResult({ runCurve: [], rideCurve: [] }), null, DATED_SIX_WEEKS, false)
+
+    expect(screen.getByText('No run has a usable effort yet.')).toBeInTheDocument()
   })
 
   it('dates the period once, in Counted over, so the estimates line does not repeat it', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
     expect(screen.getByText('Counted over 12 May – 3 Aug 2025.')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/\(12 May – 3 Aug 2025\)|\(this period\)/)
+  })
+
+  it('sets the dated period in the page head, beside the heading', () => {
+    renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
+
+    expect(
+      screen.getByText('Counted over 12 May – 3 Aug 2025.').closest('.page-head'),
+    ).not.toBeNull()
+  })
+
+  it('sets the page on the method class, which holds its paragraphs to a 68 character measure', () => {
+    const { container } = renderPage()
+
+    expect(container.firstElementChild).toHaveClass('page-stack', 'method')
   })
 
   it('states the dated period on one line, with no period control', () => {
@@ -365,9 +384,7 @@ describe('MethodPage energy view', () => {
     )
 
     expect(
-      screen.getByText(
-        'Best efforts are judged against running 188 bpm (your highest sustained heart rate); cycling 182 bpm (your highest sustained heart rate).',
-      ),
+      screen.getByText('Best efforts are judged against running 188 bpm; cycling 182 bpm.'),
     ).toBeInTheDocument()
   })
 
@@ -453,6 +470,34 @@ describe('MethodPage evidence disclosures', () => {
         name: 'Running and cycling energy rate (metabolic W/kg) by duration',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('names its summary by the action it takes: Show while closed, and Hide while open', async () => {
+    renderPage()
+
+    const energy = disclosureFor('energy view')
+    expect(energy.querySelector('summary')).toHaveTextContent(
+      'Show the evidence for the energy view',
+    )
+    await openEvidence(energy)
+    expect(energy.querySelector('summary')).toHaveTextContent(
+      'Hide the evidence for the energy view',
+    )
+    fireEvent.click(energy.querySelector('summary')!)
+    await waitFor(() => expect(energy).not.toHaveAttribute('open'))
+    expect(energy.querySelector('summary')).toHaveTextContent(
+      'Show the evidence for the energy view',
+    )
+  })
+
+  it('does not repeat the chart title in the energy disclosure', async () => {
+    renderPage()
+    await openEvidence(disclosureFor('energy view'))
+
+    expect(disclosureFor('energy view')).not.toHaveTextContent('Each line shows one sport')
+    expect(disclosureFor('energy view')).toHaveTextContent(
+      'The app shows each sport in its own units everywhere else.',
+    )
   })
 
   it('keeps the heart-rate and power-accuracy charts behind their own disclosures', async () => {
@@ -566,11 +611,12 @@ describe('MethodPage age grading', () => {
 })
 
 describe('MethodPage how this works', () => {
-  it('ends with the methodology, open, with each topic once on the page', () => {
+  it('ends with the methodology, its topics shown at once with no disclosure, each topic once', () => {
     renderPage()
 
     const section = screen.getByRole('region', { name: 'How this works and what it assumes' })
-    expect(section.querySelector('details')).toHaveAttribute('open')
+    expect(section.querySelector('details.methodology__disclosure')).toBeNull()
+    expect(within(section).queryByText('Show the assumptions')).toBeNull()
     expect(
       within(section).getByRole('heading', { level: 3, name: 'Best 20 min, week by week' }),
     ).toBeInTheDocument()
@@ -671,6 +717,24 @@ describe('MethodPage without a weight', () => {
     expect(within(section).getByText('Waits for your weight, as Balance does.')).toBeInTheDocument()
     expect(within(section).queryByRole('link', { name: 'Profile' })).toBeNull()
     expect(container.querySelector('figure')).not.toBeInTheDocument()
+  })
+
+  it('says a one-run library needs a ride to compare, and asks for no weight', () => {
+    // A library with no ride has no virtual power accuracy either, since the check rests on rides.
+    renderPage(
+      makeResult({
+        runCurve: [curvePoint(HEADLINE_DURATION_S, 4, 'run-1')],
+        virtualAccuracy: null,
+      }),
+      null,
+      DATED_SIX_WEEKS,
+      false,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(within(section).getByText('Needs a ride to compare with running.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/[Ww]aits for your weight/)
+    expect(screen.queryByRole('link', { name: 'Profile' })).toBeNull()
   })
 
   it('draws only the run blocks of the heart-rate check, with its reference and hard-efforts facts', async () => {
@@ -815,18 +879,23 @@ describe('MethodPage without a result', () => {
     expect(document.body.textContent).not.toMatch(/\(last 6 weeks\)|\(all time\)|estimates from \d/)
   })
 
-  it('shows one plain line where each chart would be, and no chart', () => {
+  it('shows one plain line under the energy view, where the charts would be, and no chart', () => {
     const { container } = renderPage(null)
 
     expect(container.querySelector('details.method__evidence')).toBeNull()
     expect(container.querySelector('figure')).toBeNull()
-    expect(screen.getAllByText('Add your files to see this evidence.')).toHaveLength(3)
+    expect(screen.getAllByText('Add your files to see this evidence.')).toHaveLength(1)
+    expect(
+      within(screen.getByRole('region', { name: 'The energy view' })).getByText(
+        'Add your files to see this evidence.',
+      ),
+    ).toBeInTheDocument()
   })
 
-  it('says saved results are loading in each evidence slot while a kept library restores', () => {
+  it('says saved results are loading once, under the energy view, while a kept library restores', () => {
     renderPage(null, null, DATED_SIX_WEEKS, true, true)
 
-    expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(3)
+    expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
     expect(screen.queryByText('Add your files to see this evidence.')).toBeNull()
   })
 
@@ -836,7 +905,7 @@ describe('MethodPage without a result', () => {
     expect(screen.queryByRole('link', { name: /Back to Balance/ })).toBeNull()
   })
 
-  it('keeps the accuracy entry in the contents, since its section shows a plain line', () => {
+  it('keeps the accuracy entry in the contents, with no results too', () => {
     renderPage(null)
 
     const nav = screen.getByRole('navigation', { name: 'On this page' })

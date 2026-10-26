@@ -21,7 +21,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                               |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                                                                       |
 
-Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where each chart would be. On a reload of a visit that kept
+Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where the charts would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
 has replied, or, while the account is still loading, three seconds have passed, whichever is first.
 A returning visitor is not asked to add their files again and is never left without a control. The
@@ -266,8 +266,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   "Even" on the axis, and its key names the bands "Before heart-rate check: 90% range" and "After
   heart-rate check: 90% range".
 - **Evidence sits behind a disclosure.** On How sure is this? each chart is under a Show the evidence
-  disclosure, and the claim it supports is in words above it. The chart mounts when the disclosure is
-  first opened, so a closed section draws nothing.
+  disclosure, which reads Hide the evidence while it is open, and the claim it supports is in words
+  above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom: the threshold, its grade and level ladder for the best 20 minutes
@@ -596,8 +596,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the
   age they used ("Graded at age 40"), and the Balance source line says the age its cards use, naming
-  both ("aged 38 on runs and 39 on rides") when they differ. How sure is this? says "Age is counted
-  from your birth year on the date of each effort." A ride's caption says the bracketed range is the
+  both ("aged 38 on runs and 39 on rides") when they differ. How sure is this? says in its first limit
+  that only the birth year is used. A ride's caption says the bracketed range is the
   90% range, as its last sentence.
 - **Removing data asks first.** Removing every kept activity and turning off kept original files
   each open an alert dialog that names what goes and what stays, with Cancel focused. Removing one
@@ -621,7 +621,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   entered. The Balance cards, the Ride page, the cross-sport idea and How sure is this? show no ride
   figure worked out from the placeholder weight. How sure is this? holds its energy view and its
   virtual power check, and draws only the running blocks of its heart-rate chart, with the prompt
-  beneath. The request for a weight is written once, in weightCopy: the linked prompt Balance and
+  beneath once a ride is on file. With no ride, its energy view says it needs one to compare with
+  running, and asks for no weight. The request for a weight is written once, in weightCopy: the linked prompt Balance and
   Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to see ride figures." in their place.
 - **A body weight outside 45 to 160 kg is confirmed before it is kept.** The API accepts a wider range,
   but a kilogram figure typed into a pound field would otherwise pass as a headline. Setup asks again
@@ -649,7 +650,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A figure's scope is named by the period control beside its heading,** which shows the dates of a
   window. The threshold carries no count under it, since a count of runs is not what it is fitted from.
   Under All time the control shows the span of the whole library.
-  Method's lede names its dated period in brackets instead, as "(12 May – 3 Aug 2025)".
+  Method names its dated period on its "Counted over" line, as "Counted over 12 May – 3 Aug 2025.".
 - **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
   A new account takes the language of its sign-in request the same way. The Units choice comes
   first in setup and on Profile, and a unit typed after a weight ("150 lb") is read as typed.

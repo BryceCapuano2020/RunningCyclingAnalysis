@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect } from 'react'
 import { HR_BLOCK_S, HR_SKIP_S } from '@rca/core/constants'
 import type { Period } from '@rca/core/period'
 import { ALL_OUT_FRACTION } from '@rca/core/effort'
@@ -31,6 +31,7 @@ import { hrefFor } from '../route'
 import { activityNames } from '../records'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { AgeGradingSection } from './AgeGradingSection'
+import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import './MethodPage.css'
 
@@ -61,6 +62,10 @@ const ENERGY_CROSS_CHECK = `The energy view is a cross-check of the age-grade ga
 const ENERGY_FALLBACK = `When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, measured as the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight.`
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
+/** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
+const NEEDS_RIDE = 'Needs a ride to compare with running.'
+/** The answer's estimates line when no run has a usable effort to count. */
+const NO_RUN_EFFORT = 'No run has a usable effort yet.'
 /** Line two of the answer while a ride's grade waits for the weight. */
 const WAITS_FOR_WEIGHT = 'Your balance waits for your weight.'
 
@@ -73,6 +78,18 @@ function answerVerdict(balance: BalanceReading | null, waitsForWeight: boolean):
   if (balance === null) return null
   const even = balance.lean === 'even' ? 'inside' : 'outside'
   return `${balanceTitle(balance)}. Even is ${even} its range.`
+}
+
+/**
+ * The estimates line of the answer, once there are results: the counts it rests on. With no run that
+ * has a usable effort, there is no run estimate to count, so the line says that instead.
+ */
+function estimatesOf(runs: number, rides: number, weightKnown: boolean): string {
+  if (runs === 0) return NO_RUN_EFFORT
+  if (!weightKnown) {
+    return `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort.`
+  }
+  return `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
 }
 
 interface ContentsEntry {
@@ -119,27 +136,6 @@ function runOnly(headline: HeadlineGrades | null): HeadlineGrades | null {
 function contributorsOf(curve: Curve): number {
   const ids = curve.flatMap((point) => (point.activityId === null ? [] : [point.activityId]))
   return new Set(ids).size
-}
-
-/**
- * A chart's disclosure. It starts closed, and the chart mounts only once it has been opened, so a
- * closed section costs nothing and no chart is measured while it is hidden.
- */
-function EvidenceDisclosure({ section, children }: { section: string; children: ReactNode }) {
-  const [opened, setOpened] = useState(false)
-  return (
-    <details
-      className="method__evidence"
-      onToggle={(event) => {
-        if (event.currentTarget.open) setOpened(true)
-      }}
-    >
-      <summary>
-        Show the evidence<span className="sr-only"> for {section}</span>
-      </summary>
-      {opened && children}
-    </details>
-  )
 }
 
 /** The model's own checks: the answer first, then the energy view, the grades and the evidence. */
@@ -191,7 +187,7 @@ export function MethodPage({
   }, [])
 
   return (
-    <div className="page-stack">
+    <div className="page-stack method">
       {hasResult && (
         <a className="link-arrow" href={hrefFor({ page: 'balance' })}>
           <span aria-hidden="true">&larr;</span> Back to Balance
@@ -201,8 +197,8 @@ export function MethodPage({
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           How sure is this?
         </h1>
+        {period && <p className="muted">{`Counted over ${periodDates(period)}.`}</p>}
       </div>
-      {period && <p className="muted">{`Counted over ${periodDates(period)}.`}</p>}
 
       <ul className="lede method__answer" aria-label="The short answer">
         <li>
@@ -230,11 +226,9 @@ export function MethodPage({
           <span className="method__answer-text">
             {verdict !== null && <span>{verdict} </span>}
             <span>
-              {!hasResult
-                ? 'Thresholds, ride levels and the balance are estimates.'
-                : weightKnown
-                  ? `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
-                  : `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort.`}
+              {hasResult
+                ? estimatesOf(runs, rides, weightKnown)
+                : 'Thresholds, ride levels and the balance are estimates.'}
             </span>
           </span>
         </li>
@@ -296,8 +290,7 @@ export function MethodPage({
               <RatioChart comparison={result.comparison} />
               <h3>Energy rate by effort length</h3>
               <p className="secondary">
-                Each line shows one sport&rsquo;s energy rate at each effort length. The app shows
-                each sport in its own units everywhere else.
+                The app shows each sport in its own units everywhere else.
               </p>
               <CurveChart
                 runCurve={result.runCurve}
@@ -309,7 +302,7 @@ export function MethodPage({
             </EvidenceDisclosure>
           </>
         ) : (
-          <p className="secondary">{HELD_ENERGY}</p>
+          <p className="secondary">{rides > 0 ? HELD_ENERGY : NEEDS_RIDE}</p>
         )}
       </section>
 
@@ -333,11 +326,9 @@ export function MethodPage({
             )}
           </ul>
         )}
-        {!hasResult ? (
-          <p className="secondary">{noResultLine}</p>
-        ) : (
+        {hasResult && (
           <>
-            {!weightKnown && (
+            {!weightKnown && rides > 0 && (
               <p className="secondary">
                 <WeightPrompt />
               </p>
@@ -362,22 +353,21 @@ export function MethodPage({
             Virtual power meter accuracy
           </h2>
           <TopicBody id="virtual" />
-          {accuracy === null ? (
-            <p className="secondary">{noResultLine}</p>
-          ) : weightKnown ? (
-            <>
-              {accuracy.nSegments > 0 && (
-                <p>
-                  {`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
-                </p>
-              )}
-              <EvidenceDisclosure section="the virtual power meter">
-                <AccuracyScatter accuracy={accuracy} />
-              </EvidenceDisclosure>
-            </>
-          ) : (
-            <p className="secondary">{HELD_NOTE}</p>
-          )}
+          {accuracy !== null &&
+            (weightKnown ? (
+              <>
+                {accuracy.nSegments > 0 && (
+                  <p>
+                    {`On ${plural(accuracy.nSegments, 'climb')}, estimated power was within ${formatPercent(accuracy.mape)} of your power meter on average.`}
+                  </p>
+                )}
+                <EvidenceDisclosure section="the virtual power meter">
+                  <AccuracyScatter accuracy={accuracy} />
+                </EvidenceDisclosure>
+              </>
+            ) : (
+              <p className="secondary">{HELD_NOTE}</p>
+            ))}
         </section>
       )}
 

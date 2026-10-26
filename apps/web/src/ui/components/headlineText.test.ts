@@ -85,7 +85,7 @@ describe('referenceText', () => {
     expect(referenceText(makeResult())).toBeNull()
   })
 
-  it('labels each sport figure as its own highest sustained heart rate', () => {
+  it('gives each sport its own highest sustained heart rate, with no parenthetical', () => {
     const result = makeResult({
       runMaxHeartRate: 188,
       runObservedMaxHeartRate: 188,
@@ -93,7 +93,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: 182,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 188 bpm (your highest sustained heart rate); cycling 182 bpm (your highest sustained heart rate).',
+      'Best efforts are judged against running 188 bpm; cycling 182 bpm.',
     )
   })
 
@@ -105,7 +105,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: null,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 188 bpm (your highest sustained heart rate); cycling 182 bpm (6 bpm below your running maximum).',
+      'Best efforts are judged against running 188 bpm; cycling 182 bpm (6 bpm below your running maximum).',
     )
   })
 
@@ -117,7 +117,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: 182,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 182 bpm (your cycling maximum); cycling 182 bpm (your highest sustained heart rate).',
+      'Best efforts are judged against running 182 bpm (your cycling maximum); cycling 182 bpm.',
     )
   })
 
@@ -129,7 +129,7 @@ describe('referenceText', () => {
       rideObservedMaxHeartRate: 185,
     })
     expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 185 bpm (your cycling maximum); cycling 185 bpm (your highest sustained heart rate).',
+      'Best efforts are judged against running 185 bpm (your cycling maximum); cycling 185 bpm.',
     )
   })
 
@@ -139,9 +139,7 @@ describe('referenceText', () => {
       runObservedMaxHeartRate: 187.6,
       rideMaxHeartRate: null,
     })
-    expect(referenceText(result)).toBe(
-      'Best efforts are judged against running 188 bpm (your highest sustained heart rate).',
-    )
+    expect(referenceText(result)).toBe('Best efforts are judged against running 188 bpm.')
   })
 
   it('names only the sport that has a reference', () => {
@@ -150,9 +148,7 @@ describe('referenceText', () => {
       rideMaxHeartRate: 182,
       rideObservedMaxHeartRate: 182,
     })
-    expect(referenceText(result)).toBe(
-      'Best efforts are judged against cycling 182 bpm (your highest sustained heart rate).',
-    )
+    expect(referenceText(result)).toBe('Best efforts are judged against cycling 182 bpm.')
   })
 })
 

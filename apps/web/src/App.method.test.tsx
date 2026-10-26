@@ -61,7 +61,7 @@ describe('How sure is this? with no result loaded', () => {
     )
   })
 
-  it('says saved results are loading in each evidence slot once the restoring page gives way, while a kept library still loads', () => {
+  it('says saved results are loading once, under the energy view, when the restoring page gives way, while a kept library still loads', () => {
     vi.useFakeTimers()
     try {
       setAccount('loading')
@@ -74,7 +74,7 @@ describe('How sure is this? with no result loaded', () => {
         vi.advanceTimersByTime(3_000)
       })
 
-      expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(3)
+      expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
       expect(screen.queryByText('Add your files to see this evidence.')).toBeNull()
     } finally {
       vi.useRealTimers()
