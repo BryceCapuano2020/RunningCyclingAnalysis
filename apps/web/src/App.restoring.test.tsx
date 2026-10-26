@@ -52,6 +52,16 @@ describe('restoring kept results on a reload', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows Add files in the header on Profile while the results restore, since that page has none of its own', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    window.location.hash = '#/profile'
+    render(<App />)
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', { name: 'Add files' }),
+    ).toBeInTheDocument()
+  })
+
   it('keeps the restoring state and the tabs past three seconds, while the account is still loading', () => {
     vi.useFakeTimers()
     try {
