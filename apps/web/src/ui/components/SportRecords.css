@@ -72,7 +72,7 @@
   max-width: 100%;
   min-height: 24px;
   overflow: hidden;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

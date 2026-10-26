@@ -12,8 +12,6 @@ export interface ChartSize {
   plot: PlotBox
   /** Id of the tooltip's status element, for aria-describedby on the plot surface. */
   tooltipId: string
-  /** Id of the chart's visible title, which names the plot surface. */
-  titleId: string
   /** Id of the arrow-key hint, which describes the plot surface. */
   hintId: string
 }

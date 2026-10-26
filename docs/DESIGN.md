@@ -59,7 +59,7 @@ Profile's two columns.
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
-links in a records list, the cross-sport idea and the two footer links, which are padded to that
+links in a records list, the cross-sport idea, the standards link under a grade and the two footer links, which are padded to that
 height on a finger. A footer link is 24 px tall with a mouse, the smallest target WCAG allows. At
 360 px and below the tab labels and the sex choices shrink a step, so "ACTIVITIES" keeps its
 line in a four-tab bar and "Prefer not to say" keeps two. Where the tabs overflow, the bar
@@ -215,6 +215,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so it stays in
   lower case, as in "/mi", and the space before it is a non-breaking space, so the unit never starts
   a line.
+- **Inline source links and disclosure summaries are set at the body size, `--text-md`,** so a link
+  reads at the size of the text it sits in. Only a best efforts label stays an eyebrow, at `--text-sm`.
 - **Cards only for things you can open or act on.** Sections are separated by space and a heading,
   not a border. A card has a 12 px radius, a 1 px border and no shadow.
 - One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
@@ -232,7 +234,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   press, and shows the state by brightness, so the generic hover never blanks it.
   A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
 - A sport glyph (`SportIcon`) sits next to every sport name. Its path data is in `iconPaths.ts`, the one
-  source for the icon and for the glyph on the share card.
+  source for the icon and for the glyph on the share card. Each glyph's ink starts at the icon's edge.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
@@ -256,8 +258,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   A best-effort curve marks the 1, 5, 20 and
   60 minute efforts, the same ones its records list names, and labels its last point with its value
   where there is room beside the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
-  the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
-  visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
+  the line alone: pace has no zero to fill down to. Every chart has a visible title, which names the
+  figure once: the plot inside it is described by its tooltip and arrow-key hint, not named again, and a
+  value's label sits clear of its own line. A week's marker is enlarged when the
   reader points at it, as well as the latest one. A tooltip names its week, as "Week ending Sun 12 Jan
   2025", since the card title names the effort and window. A dashed key is an estimate or a previous
   period. A chart's key keeps its row wherever the chart can have a key, so the plot does not move when

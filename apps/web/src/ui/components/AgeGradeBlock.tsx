@@ -48,7 +48,10 @@ export function AgeGradeBlock({
           {ride
             ? `Graded through its running equivalent, at age ${age}, on the `
             : `Graded at age ${age}, on the `}
-          <GradesLink>{ROAD_STANDARDS_SOURCE.shortName}</GradesLink>.{` ${LEVEL_NOT_RANKING}`}
+          <GradesLink className="age-grade__standards">
+            {ROAD_STANDARDS_SOURCE.shortName}
+          </GradesLink>
+          .{` ${LEVEL_NOT_RANKING}`}
         </p>
       )}
     </div>

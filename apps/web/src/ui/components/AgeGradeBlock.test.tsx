@@ -49,4 +49,12 @@ describe('AgeGradeBlock', () => {
     expect(container.querySelector('.muted')).toBeNull()
     expect(screen.getByText('Ring: estimated, with its 90% range in brackets.')).toBeInTheDocument()
   })
+
+  it('gives the standards link its own class, so a phone can size it as a control', () => {
+    const { container } = render(<AgeGradeBlock sport="run" outcome={RUN} effort={null} />)
+    const link = container.querySelector('.age-grade__standards')
+    expect(link?.tagName).toBe('A')
+    expect(link?.textContent).toBe('USATF road standards')
+    expect(link?.getAttribute('href')).toBe('#/method')
+  })
 })
