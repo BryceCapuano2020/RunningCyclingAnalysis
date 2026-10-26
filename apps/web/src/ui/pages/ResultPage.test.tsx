@@ -440,12 +440,18 @@ describe('ResultPage period', () => {
   })
 
   /** A balance page over one run from 3 June 2025, with the clock at 25 October 2026. */
-  function renderOldLibrary(fellBack: boolean) {
+  function renderOldLibrary(fellBack: boolean, withRide = false) {
     const old = makeActivity({
       id: 'old-run',
       sport: 'run',
       startMs: new Date(2025, 5, 3, 7).getTime(),
     })
+    const ride = makeActivity({
+      id: 'old-ride',
+      sport: 'ride',
+      startMs: new Date(2025, 5, 2, 7).getTime(),
+    })
+    const activities = withRide ? [old, ride] : [old]
     const period = {
       choice: 'default' as const,
       startMs: new Date(2025, 4, 12, 12).getTime(),
@@ -457,9 +463,9 @@ describe('ResultPage period', () => {
       <ResultPage
         route={{ page: 'balance' }}
         analysis={analysisStub({
-          state: { result: makeResult({ activities: [old] }), library: [old], period },
+          state: { result: makeResult({ activities }), library: activities, period },
         })}
-        result={makeResult({ activities: [old] })}
+        result={makeResult({ activities })}
         settings={SETTINGS}
         weightKnown
         units="metric"
@@ -476,20 +482,33 @@ describe('ResultPage period', () => {
       const { container } = renderOldLibrary(false)
       const caption = container.querySelector('.range-picker__caption')
       const note = container.querySelector('.range-picker__note')
-      expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 17 months ago')
+      expect(note).toHaveTextContent('Latest activity 17 months ago')
       expect(caption?.compareDocumentPosition(note as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('says why the default is all time, and the latest activity, in the same note', () => {
+  it('says why the default is all time, and the latest activity, in the same note, when both sports are held', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 25, 12))
+    try {
+      const { container } = renderOldLibrary(true, true)
+      expect(container.querySelector('.range-picker__note')).toHaveTextContent(
+        "Your last 12 weeks don't hold both sports, so this shows all time. Latest activity 17 months ago",
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('leaves out the fallback note when the library holds one sport, and keeps the latest activity', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 9, 25, 12))
     try {
       const { container } = renderOldLibrary(true)
       expect(container.querySelector('.range-picker__note')).toHaveTextContent(
-        'so this shows all time. Latest activity 3 Jun 2025, 17 months ago',
+        /^Latest activity 17 months ago$/,
       )
     } finally {
       vi.useRealTimers()

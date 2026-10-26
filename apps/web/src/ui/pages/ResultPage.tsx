@@ -109,6 +109,8 @@ export function ResultPage({
     null,
   )
   const latest = latestActivityText(newestMs)
+  // The fallback names both sports, so with one sport in the library there is nothing for it to say.
+  const bothSports = countSport(library, 'run') > 0 && countSport(library, 'ride') > 0
   // The note under the dates says why the default is all time, then how old the newest activity is.
   const control = (
     shown: number,
@@ -119,7 +121,7 @@ export function ResultPage({
     <RangePicker
       choice={period.choice}
       dates={periodDates(period)}
-      note={[period.fellBack ? FALLBACK_NOTE : null, dated].filter(Boolean).join(' ')}
+      note={[period.fellBack && bothSports ? FALLBACK_NOTE : null, dated].filter(Boolean).join(' ')}
       shown={shown}
       total={total}
       noun={noun}

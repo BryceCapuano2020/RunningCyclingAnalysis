@@ -8,11 +8,37 @@
   margin: 0;
 }
 
+/*
+ * Sport and Sort share a row from 761 px, which is SPLIT_FILTERS_MIN_WIDTH_PX in ui/layoutBreakpoints.ts,
+ * the first width past the phone layout. They stack below it.
+ */
+.activities__filters {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .activities__filters {
+    grid-template-columns: auto auto;
+    align-items: start;
+    justify-content: start;
+    column-gap: var(--space-5);
+  }
+}
+
 .activities__sort {
   display: inline-grid;
   gap: var(--space-1);
   justify-self: start;
   font-weight: 600;
+}
+
+/* The label is set like the Period and Sport legends: small, regular and in the secondary colour. */
+.activities__sort > span {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .activities__sort select {

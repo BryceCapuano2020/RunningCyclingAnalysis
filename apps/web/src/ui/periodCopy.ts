@@ -5,7 +5,6 @@ import type { Period } from '@rca/core/period'
 import { SIX_WEEKS_DAYS, periodDates } from './components/rangeOptions'
 import type { Span } from './components/rangeOptions'
 import { agoText } from './format/ago'
-import { formatDayMonth } from './format/date'
 import { SPORT_PLURAL } from './sports'
 
 /**
@@ -43,13 +42,14 @@ export function sportEmptyText(sport: Sport, period: Period, inLibrary: number):
 const STALE_DAYS = SIX_WEEKS_DAYS
 
 /**
- * The line that dates the library's newest activity once it is more than six weeks old, so a 6-week
- * period is not read as current. Null while the newest activity is recent, or when
- * there is none. The clock is a parameter, so the line is tested at a fixed day.
+ * The line that says how old the library's newest activity is once it is more than six weeks old, so
+ * a 6-week period is not read as current. Its date is the end of the caption above, so the line
+ * gives only the age. Null while the newest activity is recent, or when there is none. The clock is
+ * a parameter, so the line is tested at a fixed day.
  */
 export function latestActivityText(newestMs: number | null, nowMs = Date.now()): string | null {
   if (newestMs === null) return null
   const days = Math.floor((nowMs - newestMs) / DAY_MS)
   if (days <= STALE_DAYS) return null
-  return `Latest activity ${formatDayMonth(newestMs, nowMs)}, ${agoText(days)}`
+  return `Latest activity ${agoText(days)}`
 }

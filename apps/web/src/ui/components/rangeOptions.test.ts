@@ -84,8 +84,6 @@ describe('previousPeriodLabel', () => {
 
 describe('FALLBACK_NOTE', () => {
   it('says the 12 weeks up to the newest activity lack both sports, and that the period shows all time', () => {
-    expect(FALLBACK_NOTE).toBe(
-      'The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time.',
-    )
+    expect(FALLBACK_NOTE).toBe("Your last 12 weeks don't hold both sports, so this shows all time.")
   })
 })

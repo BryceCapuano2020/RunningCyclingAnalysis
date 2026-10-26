@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { startsOnScreen } from './onScreen'
 
 /** Activity lists, saved and imported, show this many rows to a page. */
 export const PAGE_SIZE = 20
@@ -36,8 +37,15 @@ export function usePagination<T, E extends HTMLElement>(
     if (move === null || move.page !== page) return
     moveRef.current = null
     const control = move.control
-    if (control?.isConnected && !control.hasAttribute('disabled')) control.focus()
-    else firstItemRef.current?.focus()
+    // A control now below the screen is not focused, since focus would scroll the page back down to it.
+    // Focus then goes to the first row. A list that turned its page has scrolled that row into view, and
+    // a page that did not turn its list relies on focus to bring the row into view.
+    const onScreen = control !== null && startsOnScreen(control.getBoundingClientRect().top)
+    if (control?.isConnected && !control.hasAttribute('disabled') && onScreen) {
+      control.focus()
+    } else {
+      firstItemRef.current?.focus()
+    }
   }, [page])
 
   function changePage(nextPage: number, control: HTMLElement | null = null) {

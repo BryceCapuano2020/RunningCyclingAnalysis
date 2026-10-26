@@ -102,7 +102,8 @@ export { formatTimeOfDay } from '@rca/core/units'
 
 /**
  * A span of dates in the viewer's local zone, such as "12 May – 3 Aug 2025". The year is written
- * once, at the end, unless the span crosses a year end, when both ends carry one.
+ * once, at the end, unless the span crosses a year end, when both ends carry one. A span of one day
+ * is written once, such as "14 Jun 2025".
  */
 export function formatSpan(startMs: number, endMs: number): string {
   const dayAndMonth = (ms: number) => {
@@ -113,7 +114,6 @@ export function formatSpan(startMs: number, endMs: number): string {
   const end = new Date(endMs)
   const from = dayAndMonth(startMs)
   const to = `${dayAndMonth(endMs)} ${end.getFullYear()}`
-  return start.getFullYear() === end.getFullYear()
-    ? `${from} – ${to}`
-    : `${from} ${start.getFullYear()} – ${to}`
+  if (start.getFullYear() !== end.getFullYear()) return `${from} ${start.getFullYear()} – ${to}`
+  return from === dayAndMonth(endMs) ? to : `${from} – ${to}`
 }

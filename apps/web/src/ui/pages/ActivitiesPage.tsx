@@ -111,6 +111,8 @@ export function ActivitiesPage({
   )
   const runs = countSport(activities, 'run')
   const rides = countSport(activities, 'ride')
+  // The period counts the library, or the one sport the list is narrowed to, in that sport's own words.
+  const counted = sport === 'all' ? activities.length : countSport(activities, sport)
   // A new filter or sort is a new list, so it starts on its first page.
   const narrow = (patch: Partial<ActivitiesView>) => {
     removal.clear()
@@ -135,34 +137,37 @@ export function ActivitiesPage({
             choice={period}
             options={LIBRARY_RANGE_OPTIONS}
             shown={shown.length}
-            total={activities.length}
+            total={counted}
+            noun={sport === 'all' ? 'activity' : sport}
             onChange={(next, answered) => {
               narrow({ period: periodFromChoice(next) })
               answered(null)
             }}
           />
-          <SegmentedControl
-            legend="Sport"
-            options={SPORT_OPTIONS}
-            selected={sport}
-            onSelect={(next) => narrow({ sport: next })}
-          />
-          <label className="activities__sort">
-            <span>Sort by</span>
-            <select
-              value={sort}
-              onChange={(event) => {
-                const next = ACTIVITY_SORTS.find((option) => option === event.target.value)
-                if (next !== undefined) narrow({ sort: next })
-              }}
-            >
-              {ACTIVITY_SORTS.map((option) => (
-                <option key={option} value={option}>
-                  {SORT_LABELS[option]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="activities__filters">
+            <SegmentedControl
+              legend="Sport"
+              options={SPORT_OPTIONS}
+              selected={sport}
+              onSelect={(next) => narrow({ sport: next })}
+            />
+            <label className="activities__sort">
+              <span>Sort by</span>
+              <select
+                value={sort}
+                onChange={(event) => {
+                  const next = ACTIVITY_SORTS.find((option) => option === event.target.value)
+                  if (next !== undefined) narrow({ sort: next })
+                }}
+              >
+                {ACTIVITY_SORTS.map((option) => (
+                  <option key={option} value={option}>
+                    {SORT_LABELS[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
       )}
       {removal.outcome !== null &&

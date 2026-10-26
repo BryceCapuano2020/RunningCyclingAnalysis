@@ -12,7 +12,7 @@ import {
 } from '@rca/core/units'
 import { movingTimeOf, skippedCountOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
-import { formatRowDay, formatTimeOfDay } from '../format/date'
+import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
@@ -30,6 +30,11 @@ export interface ActivityRowProps {
   /** The first row of a page takes focus when the page changes, so it alone is focusable. */
   isFirst: boolean
   rowRef?: Ref<HTMLLIElement>
+  /**
+   * In date order the month heading names the month, so a row gives only its weekday and day. Any
+   * other order gives the month and year too.
+   */
+  dateOrder?: boolean
   /** The saved copy this activity is kept as, or null when it is not kept, as with the sample. */
   keptId: string | null
   /** False while no body weight is entered: a ride's record chips wait for it, as its page's do. */
@@ -75,12 +80,14 @@ export function ActivityRow({
   records,
   isFirst,
   rowRef,
+  dateOrder = false,
   keptId,
   weightKnown,
   busy,
   onDelete,
 }: ActivityRowProps) {
   const skipped = skippedCountOf(activity)
+  const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const chips = activity.sport === 'ride' && !weightKnown ? [] : chipLabels(records)
   const hero = heroOf(activity, units)
@@ -99,7 +106,7 @@ export function ActivityRow({
               />
               {SPORT_LABEL[activity.sport]}
             </span>
-            <span>{`${formatRowDay(activity.startMs)}, ${formatTimeOfDay(activity.startMs)}`}</span>
+            <span>{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
             {activity.indoor && <span className="chip">Indoor</span>}
             {skipped > 0 && (
               <span className="chip chip--warning">

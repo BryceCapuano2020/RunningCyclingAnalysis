@@ -48,8 +48,10 @@
   margin-left: -1px;
 }
 
+/* The hover fills the segment and darkens its border, so it reads as hovered in both schemes. */
 .segmented-control__option:not(.segmented-control__option--selected):hover {
   background: var(--surface-2);
+  border-color: var(--text-secondary);
 }
 
 /* A pressed segment takes the pressed fill and a ring; the selected one keeps its fill and a light ring. */

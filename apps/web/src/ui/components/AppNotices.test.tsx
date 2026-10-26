@@ -119,7 +119,7 @@ describe('AppNotices: one notice region', () => {
 })
 
 describe('AppNotices: the library on the Activities page', () => {
-  it('says what is kept on this device, with the count of the library', () => {
+  it('says what is kept in this browser, without repeating the count the subtitle gives', () => {
     render(
       <AppNotices
         {...noticesProps(
@@ -128,7 +128,7 @@ describe('AppNotices: the library on the Activities page', () => {
         )}
       />,
     )
-    expect(screen.getByText('Kept on this device: 3 activities.')).toBeInTheDocument()
+    expect(screen.getByText('Kept in this browser.')).toBeInTheDocument()
   })
 
   it('says the account holds the library when signed in', () => {
@@ -140,12 +140,12 @@ describe('AppNotices: the library on the Activities page', () => {
         )}
       />,
     )
-    expect(screen.getByText('Saved to your account: 1 activity.')).toBeInTheDocument()
+    expect(screen.getByText('Saved to your account.')).toBeInTheDocument()
   })
 
   it('says nothing about the library off the Activities page', () => {
     render(<AppNotices {...noticesProps({ savedActivities: [makeSaved()] })} />)
-    expect(screen.queryByText(/Kept on this device/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Kept in this browser/)).not.toBeInTheDocument()
   })
 })
 

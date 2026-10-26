@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { usePagination } from './usePagination'
 
 afterEach(() => {
@@ -78,6 +78,32 @@ describe('usePagination', () => {
     act(() => result.current.changePage(1))
     expect(document.activeElement).toBe(first)
     first.remove()
+  })
+
+  // A page that does not scroll on a turn, such as the saved library on Profile, relies on focus to bring
+  // the row into view, so focus must not ask for no scroll.
+  it('focuses the first item with a plain focus, so a row the page does not scroll to is brought into view', () => {
+    const first = document.createElement('li')
+    first.tabIndex = -1
+    document.body.append(first)
+    const focus = vi.spyOn(first, 'focus')
+    const { result } = renderHook(() => usePagination<number, HTMLLIElement>(numbers(25), 20))
+    result.current.firstItemRef.current = first
+
+    act(() => result.current.changePage(1))
+    expect(focus).toHaveBeenCalledWith()
+    first.remove()
+  })
+
+  it('focuses the pressed control with a plain focus while it is on screen', () => {
+    const control = document.createElement('button')
+    document.body.append(control)
+    const focus = vi.spyOn(control, 'focus')
+    const { result } = renderHook(() => usePagination<number, HTMLLIElement>(numbers(25), 20))
+
+    act(() => result.current.changePage(1, control))
+    expect(focus).toHaveBeenCalledWith()
+    control.remove()
   })
 })
 

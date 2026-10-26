@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PeriodChoice } from '@rca/core/period'
 import { RangePicker } from './RangePicker'
 import type { RangePickerProps } from './RangePicker'
@@ -193,5 +193,70 @@ describe('RangePicker', () => {
     rerender(picker({ choice: 42, onChange }))
     act(() => answers[2]?.(null))
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
+  })
+})
+
+describe('RangePicker dates line', () => {
+  it('renders no caption line when there are no dates and nothing is left out, so an empty line takes no room', () => {
+    const { container } = render(picker({ dates: '', shown: 5, total: 5 }))
+    expect(container.querySelector('.range-picker__caption')).toBeNull()
+  })
+})
+
+describe('RangePicker keeps the pressed control on screen', () => {
+  // The control's top edge, as the layout reports it; a test moves it to stand for a longer or shorter lede.
+  let top = 400
+  beforeEach(() => {
+    top = 400
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+      () =>
+        ({
+          top,
+          bottom: top + 40,
+          left: 0,
+          right: 0,
+          height: 40,
+          width: 0,
+          x: 0,
+          y: top,
+        }) as DOMRect,
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function pickThenAnswer(startTop: number, endTop: number) {
+    const answers: Array<(reply: unknown) => void> = []
+    const onChange = vi.fn((_choice: PeriodChoice, answered: (reply: unknown) => void) => {
+      answers.push(answered)
+    })
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
+    const { rerender } = render(picker({ choice: 'default', dates: 'before', onChange }))
+    top = startTop
+    fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
+    // The answer changes the dates, and so the height of the text above the control.
+    top = endTop
+    rerender(picker({ choice: 42, dates: 'after', onChange }))
+    expect(scrollBy).not.toHaveBeenCalled()
+    act(() => answers[0]?.(null))
+    return scrollBy
+  }
+
+  it('scrolls the page by the distance the control moved, once the answer lands', () => {
+    expect(pickThenAnswer(400, 427)).toHaveBeenCalledWith(0, 27)
+  })
+
+  it('scrolls back up when the text above the control gets shorter', () => {
+    expect(pickThenAnswer(400, 371)).toHaveBeenCalledWith(0, -29)
+  })
+
+  it('leaves the page alone when the control was out of view at the pick', () => {
+    expect(pickThenAnswer(900, 927)).not.toHaveBeenCalled()
+  })
+
+  it('leaves the page alone when the control did not move', () => {
+    expect(pickThenAnswer(400, 400)).not.toHaveBeenCalled()
   })
 })

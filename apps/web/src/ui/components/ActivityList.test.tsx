@@ -75,13 +75,29 @@ describe('ActivityList rows', () => {
     )
     const row = within(rowFor('Tempo run'))
     expect(row.getByText('Run')).toBeInTheDocument()
-    expect(row.getByText('Mon 5, 7:30 am')).toBeInTheDocument()
+    expect(row.getByText('Mon 5 Jan, 7:30 am')).toBeInTheDocument()
+  })
+
+  it('gives a row its weekday, day and month in date order, where a heading names the month', () => {
+    renderList(
+      [
+        makeActivity({
+          id: 'run-1',
+          name: 'Tempo run',
+          startMs: new Date(2026, 0, 5, 7, 30).getTime(),
+        }),
+      ],
+      'metric',
+      new Map(),
+      { dateOrder: true },
+    )
+    expect(within(rowFor('Tempo run')).getByText('Mon 5, 7:30 am')).toBeInTheDocument()
   })
 
   it('shows the local day and time of an evening activity, not the UTC ones', () => {
     // 02:30 UTC on 1 June is 19:30 on 31 May in Los Angeles.
     renderList([makeActivity({ name: 'Evening run', startMs: Date.UTC(2026, 5, 1, 2, 30) })])
-    expect(within(rowFor('Evening run')).getByText('Sun 31, 7:30 pm')).toBeInTheDocument()
+    expect(within(rowFor('Evening run')).getByText('Sun 31 May, 7:30 pm')).toBeInTheDocument()
   })
 
   it('labels a run its elapsed time, distance, climb and pace, when moving time is not kept', () => {
@@ -273,6 +289,11 @@ describe('ActivityList months', () => {
 })
 
 describe('ActivityList paging', () => {
+  // jsdom has no layout, so it has no scrollIntoView; a page turn scrolls the list to its top.
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
   it('mounts the page status before a second page exists, so its first message is announced', () => {
     const activity = (i: number) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })
     const { rerender } = renderList(Array.from({ length: 20 }, (_, i) => activity(i)))
@@ -341,6 +362,43 @@ describe('ActivityList paging', () => {
     expect(rowFor('Run number 0')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Run number 20' })).not.toBeInTheDocument()
     expect(document.activeElement).toBe(rowFor('Run number 0'))
+  })
+
+  it('moves the list to its top when a click turns the page', async () => {
+    const user = userEvent.setup()
+    const { container } = renderList(
+      Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
+    )
+    const list = container.querySelector<HTMLElement>('.activity-list')
+    if (list === null) throw new Error('No list is shown')
+    list.scrollIntoView = vi.fn()
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(list.scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
+  })
+
+  it('does not move the list when the page is given by the address', () => {
+    // The spy is installed before the first render, so a scroll on mount is seen.
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    renderList(
+      Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
+      'metric',
+      new Map(),
+      { initialPage: 1 },
+    )
+    expect(screen.getByText('Showing 21–40 of 45 activities. Page 2 of 3.')).toBeVisible()
+    expect(scroll).not.toHaveBeenCalled()
+  })
+
+  it('moves focus to the first row when the pressed control is below the screen once the page turns', async () => {
+    const user = userEvent.setup()
+    renderList(
+      Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
+    )
+    const next = screen.getByRole('button', { name: 'Next page' })
+    next.getBoundingClientRect = () => ({ top: 1200 }) as DOMRect
+    await user.click(next)
+    expect(rowFor('Run number 20')).toHaveFocus()
   })
 
   it('starts on the page it is given, and tells each page change', () => {
