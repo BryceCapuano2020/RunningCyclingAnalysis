@@ -1,4 +1,4 @@
-/* The three-line answer: what is recorded, what is estimated, and how far to trust it. */
+/* The three-line answer: what is recorded, the balance, and how far to trust it. */
 .method__answer {
   display: grid;
   gap: var(--space-2);
@@ -12,6 +12,15 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* A chip that is a button moves focus to its section. It keeps the chip's type and is a full control. */
+.method__answer button.method__chip {
+  min-height: var(--control-height);
+  border: 0;
+  font-family: inherit;
+  line-height: inherit;
+  cursor: pointer;
 }
 
 /* The on-page contents. Each entry is a button that moves focus, since a fragment would change the hash route. */

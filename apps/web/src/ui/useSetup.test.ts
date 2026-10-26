@@ -105,6 +105,20 @@ describe('useSetup, signed out', () => {
     expect(addFiles).not.toHaveBeenCalled()
   })
 
+  it('does not ask for a drop of files it cannot read, and sends them to the skipped list', () => {
+    const { result, addFiles } = renderSetup()
+    act(() => result.current.requestImport([file('notes.txt'), file('photo.png')]))
+    expect(result.current.open).toBe(false)
+    expect(names(addFiles)).toEqual(['notes.txt', 'photo.png'])
+  })
+
+  it('asks when a readable file is in the drop, and holds the whole drop for the answer', () => {
+    const { result, addFiles } = renderSetup()
+    act(() => result.current.requestImport([file('notes.txt'), file('run.fit')]))
+    expect(result.current.open).toBe(true)
+    expect(addFiles).not.toHaveBeenCalled()
+  })
+
   it('does not write the signed-in device flag while signed out', async () => {
     const { result } = renderSetup()
     act(() => result.current.requestImport([file('a.fit')]))
@@ -252,6 +266,77 @@ describe('useSetup, when the worker has stopped for good', () => {
 
     expect(result.current.open).toBe(false)
     expect(addFiles).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useSetup, skipping with answers kept', () => {
+  it('releases the files and closes when the kept answers are refused, and does not mark setup done', async () => {
+    const { result, addFiles, save } = renderSetup()
+    save.mockRejectedValueOnce(new Error('Could not save your profile.'))
+    act(() => result.current.requestImport([file('a.fit')]))
+
+    await act(() => result.current.skip({ settings: { massKg: 80, bikeMassKg: 9 } }))
+
+    expect(save).toHaveBeenCalledWith({ settings: { massKg: 80, bikeMassKg: 9 }, setupDone: true })
+    expect(addFiles).toHaveBeenCalledTimes(1)
+    expect(names(addFiles)).toEqual(['a.fit'])
+    expect(result.current.open).toBe(false)
+    expect(result.current.saveError).toBeNull()
+
+    // Setup was not marked done, so the questions come back on the next import.
+    act(() => result.current.requestImport([file('b.gpx')]))
+    expect(result.current.open).toBe(true)
+  })
+
+  it('imports a file dropped while a refused Skip is still saving, once, with the rest', async () => {
+    const { result, addFiles, save } = renderSetup()
+    let refuse: (failure: unknown) => void = () => undefined
+    save.mockImplementationOnce(
+      () =>
+        new Promise<void>((_, reject) => {
+          refuse = reject
+        }),
+    )
+    act(() => result.current.requestImport([file('a.fit')]))
+
+    let skipping: Promise<void> = Promise.resolve()
+    act(() => {
+      skipping = result.current.skip({ birthYear: 1990 })
+    })
+    act(() => result.current.requestImport([file('c.gpx')]))
+    await act(async () => {
+      refuse(new Error('offline'))
+      await skipping
+    })
+
+    expect(addFiles).toHaveBeenCalledTimes(1)
+    expect(names(addFiles)).toEqual(['a.fit', 'c.gpx'])
+  })
+
+  it('sends one save for a Skip pressed again while the first is still saving', async () => {
+    const { result, save } = renderSetup()
+    save.mockImplementationOnce(() => new Promise<void>(() => undefined))
+    act(() => result.current.requestImport([file('a.fit')]))
+
+    act(() => {
+      void result.current.skip({ birthYear: 1990 })
+    })
+    await act(async () => {
+      await result.current.skip({ birthYear: 1990 })
+    })
+
+    expect(save).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends the held files once the kept answers are saved, as a finish does', async () => {
+    const { result, addFiles, rerender } = renderSetup()
+    act(() => result.current.requestImport([file('a.fit')]))
+
+    await act(() => result.current.skip({ birthYear: 1990 }))
+    expect(addFiles).not.toHaveBeenCalled()
+    rerender({ ...SIGNED_OUT, preferencesDone: true })
+
+    expect(names(addFiles)).toEqual(['a.fit'])
   })
 })
 

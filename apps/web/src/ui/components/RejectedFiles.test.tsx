@@ -95,6 +95,21 @@ describe('RejectedFiles: what was skipped, and why', () => {
     expect(first?.closest('details')).toBeNull()
   })
 
+  it('offers the guides beneath the list of skipped files, so a skipped file has a next step', () => {
+    const { container } = render(
+      <Skipped
+        rejected={[skipped('notes.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    const guides = screen.getByRole('button', { name: 'Where do I get my files?' })
+    const list = container.querySelector('details')
+    expect(list).not.toBeNull()
+    expect(list!.compareDocumentPosition(guides) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('renders nothing when no file was skipped', () => {
     const { container } = render(<Skipped rejected={[]} unsupportedFiles={0} duplicates={[]} />)
     expect(container).toBeEmptyDOMElement()

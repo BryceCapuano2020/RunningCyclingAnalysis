@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { Ref } from 'react'
 import type { Sex } from '@rca/contract'
+import { SEX_NOUN } from '../grades'
 import { NumberField } from './NumberField'
 import { SegmentedControl } from './SegmentedControl'
 import type { SegmentedControlOption } from './SegmentedControl'
@@ -22,11 +23,16 @@ export interface AthleteFieldsProps {
 
 type SexChoice = Sex | 'unspecified'
 
+/** The sex terms are the grades' own (SEX_NOUN), so the form and the grades use the same words. */
 const SEX_OPTIONS: SegmentedControlOption<SexChoice>[] = [
-  { value: 'female', label: 'Female' },
-  { value: 'male', label: 'Male' },
+  { value: 'female', label: capitalised(SEX_NOUN.female) },
+  { value: 'male', label: capitalised(SEX_NOUN.male) },
   { value: 'unspecified', label: 'Prefer not to say' },
 ]
+
+function capitalised(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1)
+}
 
 /**
  * The optional year of birth and sex, used only to grade results by age. Callers own the values.

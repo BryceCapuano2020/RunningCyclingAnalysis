@@ -164,11 +164,14 @@ test('skipping the weight holds the balance until one is entered, and asks for i
   await expect(page.getByRole('region', { name: 'Run', exact: true })).toBeVisible()
 })
 
-test('skipping the setup dialog leaves the weight unset', async ({ page }) => {
+test('skipping the setup dialog keeps a weight typed before it, as a valid answer', async ({
+  page,
+}) => {
   await page.goto('/')
   const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
   await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
   await expect(setup).toBeVisible()
+  // Imperial by default, so this is 185 lb, about 83.9 kg: inside the typical range, so it is kept.
   await setup.getByLabel('Body weight').fill('185')
   await setup.getByRole('button', { name: 'Skip for now' }).click()
 
@@ -177,7 +180,24 @@ test('skipping the setup dialog leaves the weight unset', async ({ page }) => {
     page.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
   ).toBeVisible()
   await goTo(page, 'Profile')
-  // Skip keeps nothing that was typed: the field is empty and says what a weight is for.
+  await expect(page.getByLabel('Body weight')).toHaveValue(/^185(\.0)?$/)
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('rca.preferences.v1') ?? 'null'),
+  )
+  expect(stored?.setupDone).toBe(true)
+  expect(stored?.settings?.massKg).toBeCloseTo(185 * 0.45359237, 3)
+})
+
+test('skipping the setup dialog with nothing typed leaves the weight unset', async ({ page }) => {
+  await page.goto('/')
+  const setup = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
+  await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
+  await expect(setup).toBeVisible()
+  await setup.getByRole('button', { name: 'Skip for now' }).click()
+
+  await expect(setup).toBeHidden()
+  await goTo(page, 'Profile')
+  // Nothing was typed, so the field is empty and says what a weight is for.
   await expect(page.getByLabel('Body weight')).toHaveValue('')
   await expect(
     page.getByText('Not entered. Add your weight to compare a ride with a run.'),

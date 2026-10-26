@@ -25,7 +25,7 @@ export const RANGE_OPTIONS: RangeOption[] = [
   { value: 'default', label: 'Default', choice: 'default' },
   { value: String(SIX_WEEKS_DAYS), label: '6 weeks', choice: SIX_WEEKS_DAYS },
   { value: String(THREE_MONTHS_DAYS), label: '3 months', choice: THREE_MONTHS_DAYS },
-  { value: String(ONE_YEAR_DAYS), label: '1 year', choice: ONE_YEAR_DAYS },
+  { value: String(ONE_YEAR_DAYS), label: 'Last 12 months', choice: ONE_YEAR_DAYS },
   { value: 'all', label: 'All time', choice: 'all' },
 ]
 
@@ -51,7 +51,7 @@ function lengthOf(days: number): string {
   if (days === SIX_WEEKS_DAYS) return '6 weeks'
   if (days === DEFAULT_PERIOD_DAYS) return `${DEFAULT_PERIOD_WEEKS} weeks`
   if (days === THREE_MONTHS_DAYS) return '3 months'
-  if (days === ONE_YEAR_DAYS) return 'year'
+  if (days === ONE_YEAR_DAYS) return '12 months'
   return `${days} days`
 }
 

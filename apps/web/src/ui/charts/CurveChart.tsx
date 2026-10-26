@@ -231,7 +231,7 @@ export function CurveChart({
   return (
     <ChartFrame
       title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate (metabolic W/kg) by duration`}
-      description={`Best energy rate in watts per kilogram for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, on one axis. Duration is on a log scale.`}
+      description={`Best energy rate in metabolic watts per kilogram for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, on one axis. Duration is on a log scale.`}
       legend={hasData ? LEGEND : undefined}
       table={{
         caption: TABLE_CAPTION,

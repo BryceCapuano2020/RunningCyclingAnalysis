@@ -6,3 +6,28 @@
 .profile-save:not(:empty) {
   margin-top: var(--space-2);
 }
+
+/* About you and Body and bike stand side by side on a wide screen, and stack on a narrow one. */
+.profile-pair {
+  display: grid;
+  gap: var(--space-7);
+  min-width: 0;
+}
+
+/* The width is PROFILE_PAIR_MIN_WIDTH_PX in layoutBreakpoints.ts; change it there and here together. */
+@media (min-width: 900px) {
+  .profile-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6) var(--space-7);
+  }
+}
+
+/* Outlined in the critical colour: the removal's confirmation is the one filled destructive button. */
+.btn.profile-remove {
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+
+.btn.profile-remove:hover {
+  background: var(--status-critical-bg);
+}

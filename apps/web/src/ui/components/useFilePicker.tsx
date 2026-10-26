@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import type { ChangeEvent, ReactElement } from 'react'
+import { READABLE_ACCEPT } from '../readableFiles'
 
 export interface FilePicker {
   /** Opens the system file chooser. */
@@ -29,7 +30,7 @@ export function useFilePicker(onFiles: (files: File[]) => void): FilePicker {
         ref={inputRef}
         type="file"
         multiple
-        accept=".fit,.gpx,.tcx,.gz,.zip"
+        accept={READABLE_ACCEPT}
         hidden
         onChange={handleChange}
       />

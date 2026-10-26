@@ -201,7 +201,7 @@ describe('profile persistence', () => {
     setAccount('signed-in', { units: 'metric' })
     render(<App />)
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
 
     await waitFor(() =>
       expect(setPreferences).toHaveBeenCalledWith(
@@ -216,7 +216,7 @@ describe('profile persistence', () => {
     updateProfile.mockRejectedValueOnce(new Error('offline'))
     render(<App />)
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
     await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(1))
     await new Promise((resolve) => setTimeout(resolve, 0))
 

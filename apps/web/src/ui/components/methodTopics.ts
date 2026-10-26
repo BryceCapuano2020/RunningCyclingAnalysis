@@ -42,7 +42,7 @@ const EFFORT_PHRASE = (() => {
 const WINDOW_EXAMPLES = listWords(
   RANGE_OPTIONS.flatMap((option) =>
     typeof option.choice === 'number'
-      ? [`${option.label} uses ${trendWindowDays(option.choice)} days`]
+      ? [`${option.label.toLowerCase()} uses ${trendWindowDays(option.choice)} days`]
       : [],
   ),
 )

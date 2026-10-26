@@ -117,7 +117,7 @@ describe('MethodPage answer', () => {
     expect(screen.getByRole('link', { name: 'Back to Balance' })).toHaveAttribute('href', '#/')
   })
 
-  it('opens with three lines: what is recorded, what is estimated, and how far to trust it', () => {
+  it('opens with three lines: what is recorded, the balance verdict, and how far to trust it', () => {
     renderPage(makeResult(CONTRIBUTING))
 
     const lines = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
@@ -128,9 +128,43 @@ describe('MethodPage answer', () => {
       'Running efforts, and ride power from a power meter, are recorded.',
     )
     expect(lines[1]).toHaveTextContent(
-      'Thresholds, levels, the balance and ride power without a meter are estimates from 1 run and 1 ride with a usable effort (12 May – 3 Aug 2025).',
+      'Thresholds, ride levels, the balance and ride power without a meter are estimates from 1 run and 1 ride with a usable effort (12 May – 3 Aug 2025).',
     )
     expect(lines[2]).toHaveTextContent('These checks show how far to trust them.')
+  })
+
+  it('states the lean the comparison gives, with even outside its range, in the second line', () => {
+    // The fixture's ratio puts running 5% to 20% ahead, so the range never reaches even: the balance
+    // leans toward running. A reversed lean would read toward cycling and fail here.
+    renderPage(makeResult(CONTRIBUTING))
+
+    const line = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
+      'listitem',
+    )[1]
+    expect(line).toHaveTextContent('Your balance leans toward running. Even is outside its range.')
+    expect(line).not.toHaveTextContent('leans toward cycling')
+  })
+
+  it('says the balance waits for the weight, and keeps the run estimate on its own', () => {
+    renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
+
+    const line = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
+      'listitem',
+    )[1]
+    expect(line).toHaveTextContent('Your balance waits for your weight.')
+  })
+
+  it('names each chip by its word and where it goes, and moves focus there', () => {
+    renderPage(makeResult(CONTRIBUTING))
+    const answer = within(screen.getByRole('list', { name: 'The short answer' }))
+
+    // A run's grade is read as recorded, and a ride's as an estimate, both in the same section.
+    fireEvent.click(answer.getByRole('button', { name: 'Recorded: see Age grades and levels' }))
+    expect(screen.getByRole('heading', { name: 'Age grades and levels' })).toHaveFocus()
+    fireEvent.click(answer.getByRole('button', { name: 'Estimated: see Age grades and levels' }))
+    expect(screen.getByRole('heading', { name: 'Age grades and levels' })).toHaveFocus()
+    fireEvent.click(answer.getByRole('button', { name: 'Checks below: see Heart-rate check' }))
+    expect(screen.getByRole('heading', { name: 'Heart-rate check' })).toHaveFocus()
   })
 
   it('counts only the runs and rides that set an effort, not every activity on file', () => {
@@ -181,9 +215,9 @@ describe('MethodPage answer', () => {
 
     const line = screen.getByText(/estimates from 1 run with a usable effort/)
     expect(line).toHaveTextContent(
-      'Run thresholds and levels are estimates from 1 run with a usable effort (12 May – 3 Aug 2025).',
+      'Run thresholds are estimates from 1 run with a usable effort (12 May – 3 Aug 2025).',
     )
-    expect(line.textContent).not.toMatch(/balance|ride power|ride/)
+    expect(line.textContent).not.toMatch(/balance|ride power|ride|levels/)
   })
 
   it('no longer says every number is an estimate', () => {
@@ -256,7 +290,7 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy each sport costs per kilogram of body weight, in watts per kilogram (W/kg), which the app calls the energy rate.',
+        'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/energy ratio/)
@@ -269,7 +303,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(/cross-check of the age-grade gap/)
     expect(
       within(section).getByText(
-        'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, the energy each sport costs per kilogram of body weight, in watts per kilogram (W/kg), which the app calls the energy rate.',
+        'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, measured as the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.',
       ),
     ).toBeInTheDocument()
   })
@@ -786,7 +820,7 @@ describe('MethodPage without a result', () => {
     const lines = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
       'listitem',
     )
-    expect(lines[1]).toHaveTextContent('Thresholds, levels and the balance are estimates.')
+    expect(lines[1]).toHaveTextContent('Thresholds, ride levels and the balance are estimates.')
     expect(document.body.textContent).not.toMatch(/\(last 6 weeks\)|\(all time\)|estimates from \d/)
   })
 

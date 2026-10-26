@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -276,15 +276,152 @@ describe('SettingsBar', () => {
   })
 })
 
+describe('SettingsBar: a body weight outside 45 to 160 kg', () => {
+  it('is not saved when the field is left, and asks to be saved as typed', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.type(body, '34')
+    await user.tab()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('That is 34.0 kg, outside 45 to 160 kg.')
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).toBeInTheDocument()
+  })
+
+  it('saves it once the athlete chooses to save it', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.type(body, '34')
+    await user.tab()
+    await user.click(screen.getByRole('button', { name: 'Save 34.0 kg' }))
+    expect(onChange).toHaveBeenCalledWith({ massKg: 34 })
+  })
+
+  it('drops the question when the weight is typed again', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.type(body, '34')
+    await user.tab()
+    await user.click(body)
+    await user.type(body, '5')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save 34.0 kg' })).not.toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('saves a weight in 45 to 160 kg at once, as before', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    await user.clear(body)
+    await user.type(body, '70')
+    await user.tab()
+    expect(onChange).toHaveBeenCalledWith({ massKg: 70 })
+  })
+
+  it('keeps the save control, with the reason, when the save is refused', async () => {
+    const user = userEvent.setup()
+    const { body, onChange } = renderBar()
+    onChange.mockRejectedValueOnce(new Error('offline'))
+    await user.clear(body)
+    await user.type(body, '34')
+    await user.tab()
+    await user.click(screen.getByRole('button', { name: 'Save 34.0 kg' }))
+    expect(screen.getByRole('status')).toHaveTextContent("Couldn't save. Try again.")
+    expect(screen.getByRole('alert')).toHaveTextContent('That is 34.0 kg, outside 45 to 160 kg.')
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).toBeInTheDocument()
+  })
+
+  it('shows the question and its save control only once the field is left', async () => {
+    const user = userEvent.setup()
+    const { body } = renderBar()
+    await user.clear(body)
+    await user.type(body, '34')
+    expect(body).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'Save 34.0 kg' })).not.toBeInTheDocument()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).toBeInTheDocument()
+  })
+
+  it('moves focus to the save control when Tab leaves the body weight for the bike weight', async () => {
+    const user = userEvent.setup()
+    const { body } = renderBar()
+    await user.clear(body)
+    await user.type(body, '34')
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).toHaveFocus()
+  })
+
+  it('never shows the save control while pounds are typed, however the figure builds up', async () => {
+    const user = userEvent.setup()
+    const { body } = renderBar('imperial')
+    await user.clear(body)
+    for (const digit of ['1', '8', '0']) {
+      await user.type(body, digit)
+      expect(screen.queryByRole('button', { name: /^Save / })).not.toBeInTheDocument()
+    }
+  })
+
+  it('does not take focus when the field is left for a control outside the bar', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <SettingsBar settings={SETTINGS} units="metric" onChange={vi.fn()} />
+        <button type="button">Outside</button>
+      </>,
+    )
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '34')
+    await user.click(screen.getByRole('button', { name: 'Outside' }))
+    expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus()
+  })
+
+  it('does not take focus when the field is left with no control to move to', () => {
+    const { body } = renderBar()
+    body.focus()
+    fireEvent.change(body, { target: { value: '34' } })
+    fireEvent.blur(body)
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).not.toHaveFocus()
+  })
+
+  it('drops a question about pounds when the units switch, with its save control', () => {
+    const onChange = vi.fn()
+    const view = render(<SettingsBar settings={SETTINGS} units="imperial" onChange={onChange} />)
+    const body = screen.getByLabelText('Body weight')
+    fireEvent.change(body, { target: { value: '75' } })
+    fireEvent.blur(body)
+    expect(screen.getByRole('alert')).toHaveTextContent('75 lb is 34.0 kg, outside 45 to 160 kg.')
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).toBeInTheDocument()
+
+    view.rerender(<SettingsBar settings={SETTINGS} units="metric" onChange={onChange} />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Save/ })).not.toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('quotes a pound figure as typed when the field is in pounds', async () => {
+    const user = userEvent.setup()
+    renderBar('imperial')
+    await user.clear(screen.getByLabelText('Body weight'))
+    await user.type(screen.getByLabelText('Body weight'), '75')
+    await user.tab()
+    expect(screen.getByRole('alert')).toHaveTextContent('75 lb is 34.0 kg, outside 45 to 160 kg.')
+    expect(screen.getByRole('button', { name: 'Save 34.0 kg' })).toBeInTheDocument()
+  })
+})
+
 describe('SettingsBar units agree with what is saved', () => {
   it('saves a metric entry as kilograms, unconverted, under a kg label', async () => {
     const user = userEvent.setup()
     const { body, onChange } = renderBar('metric')
     expect(screen.getByLabelText('Body weight').parentElement).toHaveTextContent('kg')
     await user.clear(body)
-    await user.type(body, '185')
+    await user.type(body, '82')
     await user.tab()
-    expect(onChange).toHaveBeenCalledWith({ massKg: 185 })
+    expect(onChange).toHaveBeenCalledWith({ massKg: 82 })
   })
 
   it('saves an imperial entry as kilograms, converted, under an lb label', async () => {

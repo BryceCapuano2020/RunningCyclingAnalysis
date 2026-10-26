@@ -54,7 +54,9 @@ export function DeleteAccountDialog({
   const inputId = useId()
   const hintId = useId()
   const errorId = useId()
-  const dialogRef = useModalDialog(open, opener)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  // The warning is read first: focus goes to the heading, not the email field, so no keyboard rises.
+  const dialogRef = useModalDialog(open, opener, headingRef)
   const failureRef = useRef<HTMLParagraphElement>(null)
   const [typed, setTyped] = useState('')
   const [pending, setPending] = useState(false)
@@ -119,7 +121,9 @@ export function DeleteAccountDialog({
       }}
     >
       <form className="delete-dialog__form" onSubmit={handleSubmit}>
-        <h2 id={titleId}>Delete your account?</h2>
+        <h2 id={titleId} ref={headingRef} tabIndex={-1}>
+          Delete your account?
+        </h2>
         <p id={bodyId} className="delete-dialog__body">
           This permanently deletes your profile, every activity and every stored file. It cannot be
           undone. Activities kept in this browser from before you signed in are not part of your

@@ -19,7 +19,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                            |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                             |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                               |
-| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                                                                                                              |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                                                                       |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where each chart would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
@@ -45,14 +45,15 @@ bar along its foot (its top edge on a phone) and by its colour. Sign-in stays
 one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
 screen readers. Below 420 px **Add files** shows its plus only, and keeps its name for screen
 readers. The account menu holds the email and Sign out; downloading data and deleting the account
-are on the Profile page. A file dropped anywhere on the page is imported. On a short page the footer
+are on the Profile page. A file dropped anywhere on the page is imported. A drop with no file the import can read, such as a
+.txt, asks nothing: its files go straight to the skipped list. On a short page the footer
 sits at the foot of the window, sized to the small viewport so the phone's toolbar does not move it, and the brand mark's two sport strokes are 4 px, so the crossing reads at 32 px.
 
 The header's sizes are custom properties in `tokens.css`. The header is 113 px on a wide screen and
 69 px on a phone, and the scroll padding follows it, so a control that focus or Back brings into
 view is not hidden under the header. The breakpoints are named once, in
-`apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 560 px for the compact one and
-420 px for the narrow one.
+`apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 560 px for the compact one, 420 px
+for the narrow one, and 900 px for Profile's two columns.
 
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
@@ -71,13 +72,13 @@ Back and Forward return to the page the visitor left, where they left it. A page
 starts at the top. **Back to activities** on an activity goes Back when the list was the page before; an activity opened
 from Run or Ride reads **Back to Run** (or **Back to Ride**), keeps that tab lit and goes back there.
 Run and Ride link to **How sure is this?**, which links back to **Back to Balance**; the footer links
-to it too.
+to it too. The Balance tab stays lit on How sure is this?, since its answer is Balance's.
 
 A deep link to a page that needs a result, with none on this device, stays where it is and says
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
-**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, 1 year or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
+**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, Last 12 months or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
 counted back from the newest activity, not from today, so when that activity is more than six weeks old
 the line "Latest activity Tue 3 Jun 2025, 16 months ago" sits under the period control.
 
@@ -105,7 +106,8 @@ what the import moved in the athlete's numbers: at most four items, thresholds f
 then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 5 km, 10 km and a half marathon), counted only for workouts that were not on file before. A
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
 or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
-group names its files with a plain reason and gives one suggested action. The summary's first skipped
+group names its files with a plain reason and gives one suggested action. The list ends with **How to get your files**, which opens the guides.
+The summary's first skipped
 file is shown beside the line, and the summary is announced with the same count it shows. Each import
 is compared with the result the worker last reported when it was sent, except a file released from a
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
@@ -248,7 +250,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   metabolic W/kg.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest activity's day, when they hold a run and a ride. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same day give the same window, and an older window never hides recent activities. It is clipped to the first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12 weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and the control says why: "The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time." The period is computed in `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the newest activity's day.
 - A period's comparison is the same length before it, drawn as a thin dashed mid-grey line and named
-  "Previous 6 weeks", "Previous 3 months" or "Previous year". All time has none. The Balance trends
+  "Previous 6 weeks", "Previous 3 months" or "Previous 12 months". All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
@@ -432,10 +434,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   in one sentence, where it explains the heart-rate check.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
-  "as energy per kilogram" may explain the balance.
-- **How sure is this? opens with three lines**: what is recorded ("Your best efforts are recorded."),
-  what is estimated ("Thresholds, levels and the balance are estimates from N runs and M rides.") and
-  how far to trust it ("These checks show how far to trust them.").
+  "as energy per kilogram" may explain the balance. On How sure is this? the energy rate is named with
+  its unit as "the energy rate (metabolic W/kg)", never as plain W/kg; watts per kilogram of measured
+  power stay "W/kg".
+- **How sure is this? opens with three lines**: what is recorded ("Running efforts, and ride power from
+  a power meter, are recorded."), the balance in Balance's words with whether even is inside the range
+  ("Your balance leans toward running. Even is outside its range."), and how far to trust it ("These
+  checks show how far to trust them."). The estimates sentence follows the balance: "Thresholds, ride
+  levels, the balance and ride power without a meter are estimates from N runs and M rides." Each
+  chip is a button named with its word and its destination, and moves focus there. Recorded and Estimated
+  both go to Age grades and levels, where a run's grade is read as recorded and a ride's grade is an
+  estimate. Checks below goes to the heart-rate check.
 - **Define a term once, in plain words, where it first appears** on How sure is this?: the energy
   rate, the 90% range and the median each get one plain sentence. Technical detail (efficiency
   constants, citations, the bike model, the ISA atmosphere) sits behind More detail.
@@ -524,14 +533,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   each open an alert dialog that names what goes and what stays, with Cancel focused. Removing one
   saved activity opens its confirmation under its row, with a **Delete** button; a summary
   kept in this browser gets a neutral card, and an original kept in the account the red one. Every
-  removal's confirm button is the one destructive button, from `ConfirmActions`. The account's
+  removal's confirm button is the one destructive button, from `ConfirmActions`. The button that starts a removal on Profile is outlined in the critical colour, so
+  the one filled destructive button is the confirmation's. The account's
   deletion needs the typed email address.
 - **A missing year of birth or sex asks once on each page that grades,** Balance, Run and Ride. On
   Balance a muted line says the balance in points and levels needs them, and a secondary button, "Add
   year of birth and sex", opens Profile. On Run and Ride the best efforts say "Age grades need your
   year of birth and sex." with that link. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer not to say" is
-  stored as no sex.
-- **Weight is never filled in for you.** Setup's Skip leaves the body weight blank, and Profile
+  stored as no sex. The sex choices use the grades' own words, woman and man.
+- **Weight is never filled in for you.** Setup's Skip keeps the valid answers typed and leaves the rest
+  unanswered, and Profile
   shows it as not entered. Without it, a ride's figures wait: the ride's threshold, its W/kg and
   watts, its grade, its records and its trend are held, and the card, the cross-sport idea and the
   Ride page say "Add your weight on Profile to see ride figures." with a link to Profile. A run's
@@ -541,6 +552,24 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   virtual power check, and draws only the running blocks of its heart-rate chart, with the prompt
   beneath. The request for a weight is written once, in weightCopy: the linked prompt Balance and
   Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to see ride figures." in their place.
+- **A body weight outside 45 to 160 kg is confirmed before it is kept.** The API accepts a wider range,
+  but a kilogram figure typed into a pound field would otherwise pass as a headline. Setup asks again
+  when Analyse my files is pressed once more. Profile shows the question with a "Save 34.0 kg" control
+  directly after the body weight. The question and its control appear when the field is left, so a
+  figure still being typed never shows one. When Tab or a click leaves the field for another control in
+  the settings bar, focus moves on to the control once it renders; focus that leaves the bar stays where
+  it went. Leaving the field does not save it. A change of units clears the question. Skip
+  and Escape never confirm: they keep a weight only when it is within 45 to 160 kg, and drop one that was
+  asked about. A pound figure is quoted as typed, "75 lb is 34.0 kg, outside 45 to 160 kg."; a kilogram
+  figure reads "That is 34.0 kg, outside 45 to 160 kg.". Kilograms show one decimal, rounded out of the
+  range: the nearest tenth, or one tenth further out when that would sit on the edge.
+- **Setup checks a field when it is left.** A weight that cannot be read, or a year outside its range,
+  shows its error beside the field, and Analyse my files moves focus to the first field in error. A birth
+  year before 1920 is refused as a typing slip. A year from 1920 that puts the athlete past the graded
+  ages is kept, and their efforts are not graded: they read "Age grades cover ages 5 to 100."
+- **A Skip whose kept answers cannot be stored still goes on.** The dialog closes and every file held
+  then is imported, including one dropped while the Skip was saving, with setup not marked done, so the
+  questions come back on the next import. Nothing is saved. A second Skip while one is saving does nothing.
 - **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
   to Profile. It is on the Balance, Run and Ride pages only, and the sample has its own persona and
@@ -551,7 +580,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Method's lede names its dated period in brackets instead, as "(12 May – 3 Aug 2025)".
 - **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
   A new account takes the language of its sign-in request the same way. The Units choice comes
-  first in setup, and a unit typed after a weight ("150 lb") is read as typed.
+  first in setup and on Profile, and a unit typed after a weight ("150 lb") is read as typed.
 - **The export may hold a null body mass,** written as null, for a weight that was never entered.
 
 ## Accessibility

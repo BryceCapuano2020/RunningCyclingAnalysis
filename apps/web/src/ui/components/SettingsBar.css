@@ -4,12 +4,23 @@
   min-width: 0;
 }
 
-/* Both fields in one row. They wrap onto separate lines on narrow screens. */
+/*
+ * Both fields in one row. They wrap onto separate lines on narrow screens. Aligned to the top, so an
+ * error under one field does not move the other field's box.
+ */
 .settings-bar__fields {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--space-3) var(--space-5);
+}
+
+/* A field and the line under it, stacked. */
+.settings-bar__field {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  justify-items: start;
 }
 
 .settings-bar__hint {
