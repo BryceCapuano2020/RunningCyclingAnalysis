@@ -17,7 +17,6 @@ const PADDING = 24
 /** Retina-sharp output. Lower this to 1.5 if a PNG grows past 600 kB. */
 const SCALE = 2
 const DESKTOP = { width: 1280, height: 800 }
-const MOBILE = { width: 390, height: 844 }
 
 type ColorScheme = 'light' | 'dark'
 
@@ -65,10 +64,30 @@ async function paddedClip(page: Page, targets: Locator[]): Promise<Box> {
   return { x: left, y: top, width: right - left, height: bottom - top }
 }
 
+/**
+ * The clip once the targets hold still. A chart measures itself after it mounts, so a box read right
+ * after a click can differ from the one the screenshot finds; reads repeat until two agree.
+ */
+async function settledClip(page: Page, targets: Locator[]): Promise<Box> {
+  let clip = await paddedClip(page, targets)
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        }),
+    )
+    const next = await paddedClip(page, targets)
+    if (JSON.stringify(next) === JSON.stringify(clip)) return next
+    clip = next
+  }
+  throw new Error('A screenshot target kept changing size')
+}
+
 /** Saves the area around the targets. Scrolls to the top first so boxes are page coordinates. */
 async function capture(page: Page, targets: Locator[], fileName: string): Promise<void> {
   await page.evaluate(() => window.scrollTo(0, 0))
-  const clip = await paddedClip(page, targets)
+  const clip = await settledClip(page, targets)
   await page.screenshot({
     path: join(DOCS_DIR, fileName),
     clip,
@@ -106,22 +125,12 @@ async function settle(page: Page): Promise<void> {
   await page.mouse.move(0, 0)
 }
 
-/** Loads the sample athlete and waits for the Balance page to show its cards. */
+/** Loads the sample athlete and waits for the Balance page to show its run and ride cards. */
 async function openSample(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
-  await page
-    .getByRole('heading', { level: 2, name: 'Your bike on foot, at every duration' })
-    .waitFor()
-  await settle(page)
-}
-
-/** Opens a page from the Sections navigation and waits for its heading. */
-async function openSection(page: Page, name: string): Promise<void> {
-  await page
-    .getByRole('navigation', { name: 'Sections' })
-    .getByRole('link', { name, exact: true })
-    .click()
-  await page.getByRole('heading', { level: 1, name, exact: true }).waitFor()
+  for (const name of ['Run', 'Ride']) {
+    await page.getByRole('heading', { level: 2, name, exact: true }).waitFor()
+  }
   await settle(page)
 }
 
@@ -136,18 +145,10 @@ async function main(): Promise<void> {
   try {
     browser = await chromium.launch()
     await withPage(browser, DESKTOP, 'light', async (page) => {
-      await page.getByRole('heading', { level: 1 }).waitFor()
-      await settle(page)
-      await capture(
-        page,
-        [page.locator('.app__pitch'), page.locator('.landing__start')],
-        'screenshot-landing.png',
-      )
-    })
-    await withPage(browser, DESKTOP, 'light', async (page) => {
       await openSample(page)
       await capture(page, balanceTargets(page), 'screenshot-light.png')
-      await page.getByRole('link', { name: 'How sure is this?' }).click()
+      // The footer has a second link of this name, so the one in the page's main content is used.
+      await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
       await page.getByRole('heading', { level: 1, name: 'How sure is this?' }).waitFor()
       await showEvidence(page, 'heart-rate check')
       await showEvidence(page, 'virtual power meter')
@@ -157,30 +158,10 @@ async function main(): Promise<void> {
         [sectionWith(page, 'Heart-rate check'), sectionWith(page, 'Virtual power meter accuracy')],
         'screenshot-checks.png',
       )
-      await openSection(page, 'Run')
-      await capture(
-        page,
-        [page.locator('.page-head'), sectionWith(page, 'Every duration')],
-        'screenshot-run.png',
-      )
-      await openSection(page, 'Activities')
-      await capture(
-        page,
-        [page.locator('.page-head'), page.locator('.activity-list')],
-        'screenshot-activities.png',
-      )
     })
     await withPage(browser, DESKTOP, 'dark', async (page) => {
       await openSample(page)
       await capture(page, balanceTargets(page), 'screenshot-dark.png')
-    })
-    await withPage(browser, MOBILE, 'light', async (page) => {
-      await openSample(page)
-      await capture(page, [page.locator('.balance-hero')], 'screenshot-mobile.png')
-    })
-    await withPage(browser, MOBILE, 'dark', async (page) => {
-      await openSample(page)
-      await capture(page, [page.locator('.balance-hero')], 'screenshot-mobile-dark.png')
     })
   } finally {
     await browser?.close()

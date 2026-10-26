@@ -2,8 +2,9 @@
 
 How do your running and cycling energy estimates compare? Watts on the bike and pace on the run
 cannot be compared directly. This app converts both into an **energy rate** (gross metabolic power in
-watts of energy burned per kilogram of body weight, W/kg), compares your best efforts in each sport, and reports the gap with a
-model range. This estimates energy use; it does not rank sporting ability.
+watts of energy burned per kilogram of body weight, W/kg), compares your best efforts in each sport,
+grades each one against the standard for your age and sex, and reports the gap with a model range.
+This estimates energy use; it does not rank sporting ability.
 
 [Open the live app](https://rca-api.nutritioncoachapp.workers.dev) ·
 [Reviews](docs/REVIEWS.md) · [Operations and verification](docs/PRODUCTION.md)
@@ -24,7 +25,7 @@ sent to Cloudflare, and Remove all my activities removes them (on Profile, when 
     <img
       src="docs/screenshot-light.png"
       width="640"
-      alt="Results page with sample data. The headline compares estimated running and cycling energy use, followed by the Best efforts in one unit chart, where running and cycling power curves are plotted as energy rate in watts per kilogram against duration from 1 minute to 2 hours."
+      alt="Balance page with sample data. The headline says the balance leans toward running, shown on a meter of age-grade points. Below it are the period control, set to 12 weeks, and a run card and a ride card, each with its threshold, its level and its best efforts."
     />
   </picture>
 </p>
@@ -32,13 +33,19 @@ sent to Cloudflare, and Remove all my activities removes them (on Profile, when 
 ## Where this is going
 
 The app is becoming a platform that estimates an athlete's evolving performance in running, cycling,
-strength and swimming from the activity files and simple logs people already have. Each sport gets
-its own model and units. Results always separate what was demonstrated from what is estimated, and
+weight training and swimming from the activity files and simple logs people already have. Each sport
+gets its own model and units. Results always separate what was demonstrated from what is estimated, and
 they state the uncertainty and the evidence still missing. The plan is in
 [docs/VISION.md](docs/VISION.md).
 
 ## What it does
 
+- **Age-graded levels and balance.** With your age, sex and weight, each sport's best 20 minute
+  effort is graded against the USATF road standards for your age and sex, and shown as a level such
+  as Local or Regional. The balance is the gap between the two grades, in points, drawn with the
+  ride's 90% range. A ride's grade needs your weight and is graded through its running equivalent.
+  With grades, the energy comparison below is their cross-check; without an age and sex, the balance
+  uses the energy comparison instead. A level is not a ranking.
 - **Reads FIT, GPX and TCX files** from Garmin, Wahoo, Strava and similar devices, singly, gzipped,
   or inside a Strava account-export zip. GPX files never carry device speed, and TCX files only
   sometimes do. Where a file has no speed, speed is worked out from distance or from GPS positions.
@@ -62,8 +69,9 @@ they state the uncertainty and the evidence still missing. The plan is in
   scored leave-one-ride-out, so the accuracy figure is out-of-sample.
 - **Effort context.** Heart rate below the highest sustained value on file can suggest missing
   harder efforts. Being near that recorded value does not establish that an effort was all-out.
-- **Period filter.** Fitness changes, so the comparison can be limited to the last 6 weeks, 3
-  months or year.
+- **Period filter.** Fitness changes, so the comparison covers the last 12 weeks by default. The
+  period control also offers the last 6 weeks, the last 12 months or all time, each counted back from
+  your newest activity.
 - **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
   example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
 - **Accounts and sync.** Sign in with Google to keep your profile and activity library on
@@ -80,7 +88,7 @@ in [docs/ROADMAP.md](docs/ROADMAP.md). Operational limits, release gates and rem
 evidence are in [docs/PRODUCTION.md](docs/PRODUCTION.md); the local benchmark is in
 [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Service and storage limits are in
 [apps/api/LIMITS.md](apps/api/LIMITS.md). Engineering rules are in
-[docs/ENGINEERING.md](docs/ENGINEERING.md); that file arrives with the refactor PR.
+[docs/ENGINEERING.md](docs/ENGINEERING.md).
 
 ## The model
 
@@ -95,7 +103,7 @@ evidence are in [docs/PRODUCTION.md](docs/PRODUCTION.md); the local benchmark is
 
 `M` is gross metabolic power in W/kg, `P` is mechanical power in W, and `rest` is 1.22 W/kg.
 
-![Heart-rate check and virtual power meter accuracy cards for the sample data](docs/screenshot-checks.png)
+![Heart-rate check and virtual power meter accuracy sections for the sample data, with their evidence open](docs/screenshot-checks.png)
 
 The heart-rate check plots each five-minute block for both sports, and the virtual power meter is
 scored only on rides it was not tuned on.
@@ -200,8 +208,8 @@ Setup, Google sign-in, local development with real sign-in, costs and rollback a
 [docs/DEPLOY.md](docs/DEPLOY.md). A gated **Deploy** workflow exists, but releases so far have been
 deployed from a local, authorised Wrangler session because the workflow's Cloudflare secrets are not
 yet configured. The encrypted-backup and uptime workflows are likewise present but switched off
-until the age recipient and their secrets are set up, so there is no active backup job or uptime
-monitor yet. See [docs/PRODUCTION.md](docs/PRODUCTION.md).
+until their repository variables (`RCA_BACKUP_ENABLED` and `RCA_UPTIME_ENABLED`) are set, so there
+is no active backup job or uptime monitor yet. See [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## Built with
 
