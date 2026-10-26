@@ -4,7 +4,7 @@ import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { RECORD_DURATIONS_S } from '../records'
-import { SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { activityCell, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -25,6 +25,7 @@ import { durationRows } from './curveRows'
 import { areaPath, linePath } from './paths'
 import { labelWidthPx, rootFontPx } from './rootFont'
 import { logScale } from './scale'
+import { keyOf } from './sportCurveKey'
 import {
   axisTitle,
   fillsArea,
@@ -219,18 +220,6 @@ function tableRow(row: CurveRow, view: View): string[] {
 }
 
 /**
- * The key for a drawn curve. With no previous period it is empty, not absent: the key's row is still
- * kept, so the plot does not move when a previous period appears or goes.
- */
-function keyOf(sport: Sport, previous: PreviousCurve | null): ChartLegendEntry[] {
-  if (previous === null) return []
-  return [
-    { label: SPORT_LABEL[sport], kind: sport, swatch: 'line' },
-    { label: previous.label, kind: 'neutral', swatch: 'dashed' },
-  ]
-}
-
-/**
  * A sport's best efforts by duration, in its own unit: pace for running, faster up, and power for
  * cycling. The 20-minute effort is marked, and the period before is a dashed line when given.
  */
@@ -254,7 +243,7 @@ export function SportCurveChart({
   const lastIndex = rows.findLastIndex((row) => Number.isFinite(row.value))
   const [rootPx] = useState(rootFontPx)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
-  const legend: ChartLegendEntry[] | undefined = hasData ? keyOf(sport, shown) : undefined
+  const legend: ChartLegendEntry[] | undefined = hasData ? keyOf(sport, shown, previous) : undefined
   const noPrevious =
     previous && !shown && hasData
       ? `No ${SPORT_PLURAL[sport]} in the ${previous.label.toLowerCase()}`

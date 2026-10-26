@@ -83,6 +83,13 @@ describe('privacy page type matches the app', () => {
     // Prettier may break a long stack over lines; the stack is the same without that whitespace.
     expect(privacyCss.replace(/\s+/g, ' ')).toContain(stack ?? '')
   })
+
+  it('sets the lead size from the same --text-lead value as tokens.css, with no literal copy', () => {
+    const lead = /--text-lead: ([^;]+);/.exec(tokensCss)?.[1]
+    expect(lead).toBeDefined()
+    expect(privacyCss).toContain(`--text-lead: ${lead};`)
+    expect(privacyCss).not.toMatch(/font-size: 1\.(125|0625)rem/)
+  })
 })
 
 describe('privacy page names controls as the app does', () => {

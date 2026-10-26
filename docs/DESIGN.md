@@ -193,8 +193,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
 - **The type scale is tokens:** `--text-xs` (12 px), `--text-sm` (14 px), `--text-md` (16 px),
   `--text-label` (15 px, the phone's tab labels and the chart and notice labels) and `--text-lead`
-  (18 px, the one display size a step above the body: the lead paragraph, the small headings, the
-  tabs, the phone's wordmark and the skip link). Eyebrows, chips, the tabs and the capitals of the
+  (18 px, the one display size a step above the body, such as the lead paragraph, the small
+  headings, the tabs, the phone's wordmark and the skip link). Eyebrows, chips, the tabs and the capitals of the
   header share `--tracking-caps`, and the phone's tab labels take `--tracking-tab`. Sizes above 18 px,
   such as the page headings and the figures, have no token: each is set where it is used, with a
   comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so it stays in
@@ -237,8 +237,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
   visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
   reader points at it, as well as the latest one. A tooltip names its week and its window, as "Week
-  ending Sun 12 Jan 2025, best 20 min over 2 weeks". A chart's key keeps one line of height in every
-  period whenever the chart draws a plot, so the plot does not move when a key appears or goes. A
+  ending Sun 12 Jan 2025, best 20 min over 2 weeks". A sport curve keeps its key's row in any
+  period that has a period before it, even when that period has nothing to draw, so the plot does not
+  move as the dashed line appears or goes; All time has no period before it and no row. A
   chart with no plot shows only its message. Axis text is set in rem, so it follows the
   reader's text size. A data table with more than 12 rows keeps to a height of 24 rem and scrolls inside
   itself, and a keyboard reader can reach it.
@@ -384,7 +385,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   first. Otherwise each record links to its own activity, with its own count. A long activity name is
   cut short with an ellipsis, and its full name is the link's title and accessible name.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
-  ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
+  ride is worth 4:10 /km", with a no-break space), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
   the dates the period is missing a ride between. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.

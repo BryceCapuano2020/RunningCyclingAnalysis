@@ -90,12 +90,6 @@ describe('RatioChart', () => {
     expect(tooltip).toHaveTextContent('-8% to +10% 90% range')
   })
 
-  it('reserves the key row without a heart-rate check, so the key appearing does not move the plot', () => {
-    const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
-    expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
-    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
-  })
-
   it('shows an empty state when there are no comparison points', () => {
     const { container } = render(<RatioChart comparison={{ prior: [], calibrated: null }} />)
     expect(

@@ -248,7 +248,21 @@ describe('SportCurveChart', () => {
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
   })
 
-  it('reserves the key row without a previous period, so the plot does not move when one appears', () => {
+  it('reserves the key row when the period before has nothing to draw, so the plot does not move', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={RUN_SPEEDS}
+        previous={{ ...PREVIOUS_RUN, curve: [] }}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('keeps no key row under All time, which has no period before it', () => {
     const { container } = render(
       <SportCurveChart
         sport="run"
@@ -258,8 +272,7 @@ describe('SportCurveChart', () => {
         units="metric"
       />,
     )
-    expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
-    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(container.querySelector('.chart-frame__legend')).toBeNull()
   })
 
   it('reserves the key row with a previous period, so the plot does not move when it goes', () => {
