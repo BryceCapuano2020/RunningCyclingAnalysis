@@ -67,8 +67,9 @@
           the activity list in a Strava export, else the title in the file, else the start time and
           sport. For an outdoor activity with GPS it also holds an outline of the route: the track
           with its position and scale removed, so it shows no location. The outline is kept only in
-          this browser and is never uploaded. The summary has no GPS coordinates, per-second data,
-          file hash or original file, and it does not expire.
+          this browser and is never uploaded. The summary has no GPS coordinates, per-second data or
+          original file, and it does not expire. When one file holds more than one activity, each of
+          its summaries keeps a SHA-256 hash of that file, so they are shown together.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
