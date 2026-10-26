@@ -90,24 +90,18 @@ describe('focus on navigation', () => {
 
 describe('focus when a page changes by itself', () => {
   it('moves focus to the landing heading when the restoring page gives way to it on its own', () => {
-    vi.useFakeTimers()
-    try {
-      setAccount('loading')
-      app.analysis.restoring = true
-      const view = render(<App />)
-      expect(
-        screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-      ).toBeInTheDocument()
+    setAccount('loading')
+    app.analysis.restoring = true
+    const view = render(<App />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+    ).toBeInTheDocument()
 
-      act(() => {
-        vi.advanceTimersByTime(3_000)
-      })
-      view.rerender(<App />)
+    // The library replies with nothing kept, so the landing page takes the restoring page's place.
+    app.analysis.restoring = false
+    view.rerender(<App />)
 
-      expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
   })
 
   it('moves focus to the new page when focus was lost with the old one', () => {

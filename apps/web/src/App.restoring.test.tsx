@@ -3,7 +3,6 @@ import { act, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { keptLibraryHinted } from './ui/analysis/keptLibrary'
-import { RESTORING_BOUND_MS } from './ui/useRestoringWindow'
 import { app, resetAppMocks, setAccount, showResult } from './test/appMocks'
 
 vi.mock('./ui/useAccount', async () => ({
@@ -43,24 +42,35 @@ describe('restoring kept results on a reload', () => {
     expect(header.queryByRole('button', { name: 'Add files' })).not.toBeInTheDocument()
   })
 
-  it('keeps the tabs after the restoring page gives way, while the account is still loading', () => {
+  it('keeps the restoring state and the tabs past three seconds, while the account is still loading', () => {
     vi.useFakeTimers()
     try {
       setAccount('loading')
       app.analysis.restoring = true
       render(<App />)
       act(() => {
-        vi.advanceTimersByTime(RESTORING_BOUND_MS + 100)
+        vi.advanceTimersByTime(60_000)
       })
       expect(
-        screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
-      ).not.toBeInTheDocument()
+        screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+      ).toBeInTheDocument()
       expect(
         within(screen.getByRole('banner')).getByRole('navigation', { name: 'Sections' }),
       ).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('gives way to the landing page only when the library has replied, while the account is still loading', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    const view = render(<App />)
+    app.analysis.restoring = false
+    view.rerender(<App />)
+    expect(
+      screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the landing page once the library has loaded with nothing in it', () => {

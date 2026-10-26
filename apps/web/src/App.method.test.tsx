@@ -61,21 +61,22 @@ describe('How sure is this? with no result loaded', () => {
     )
   })
 
-  it('says saved results are loading once, under the energy view, when the restoring page gives way, while a kept library still loads', () => {
+  it('keeps the restoring page on How sure is this? past three seconds, while a kept library still loads', () => {
     vi.useFakeTimers()
     try {
       setAccount('loading')
       app.analysis.restoring = true
       window.location.hash = '#/method'
       render(<App />)
-      expect(screen.queryAllByText('Your saved results are loading.')).toHaveLength(0)
 
       act(() => {
         vi.advanceTimersByTime(3_000)
       })
 
-      expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
-      expect(screen.queryByText('Add your files to see this evidence.')).toBeNull()
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
+      ).toBeInTheDocument()
+      expect(screen.queryAllByText('Your saved results are loading.')).toHaveLength(0)
     } finally {
       vi.useRealTimers()
     }

@@ -18,16 +18,12 @@ describe('setup dialog', () => {
     expect(ruleBody(dialogCss, '.setup-dialog')).toMatch(/margin-block:\s*var\(--space-5\) auto/)
   })
 
-  it('keeps the footer note row one line tall, so the footer holds still', () => {
-    expect(ruleBody(dialogCss, '.setup-dialog__notes')).toMatch(/min-height:\s*1lh/)
+  it('keeps no note row in the sticky footer, so the footer is only the buttons', () => {
+    expect(dialogCss).not.toMatch(/setup-dialog__notes/)
   })
 
   it('gives each button a full row at phone width', () => {
     expect(narrowBody(dialogCss)).toMatch(/\.setup-dialog__actions \.btn \{[^}]*flex:\s*1 1 100%/)
-  })
-
-  it('holds two lines for the footer note at phone width, where the weight note wraps at 320 px', () => {
-    expect(narrowBody(dialogCss)).toMatch(/\.setup-dialog__notes \{[^}]*min-height:\s*2lh/)
   })
 })
 
