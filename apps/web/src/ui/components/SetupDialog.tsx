@@ -262,7 +262,9 @@ export function SetupDialog({
             setSex(next)
           }}
         />
-        {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_PROMPT_TEXT}</p>}
+        <div className="setup-dialog__notes">
+          {weightBlank && <p className="setup-dialog__note muted">{WEIGHT_PROMPT_TEXT}</p>}
+        </div>
         {error && (
           <p role="alert" className="setup-dialog__error">
             {error}

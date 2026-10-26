@@ -106,10 +106,8 @@ export function App() {
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
   const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
-  // The restoring page holds until the kept library replies, so the landing page never shows over
-  // results that are still loading. It has Add files, so it is never a dead end. Profile and How sure
-  // is this? are not the landing page: each shows its own page while results restore, so the restoring
-  // page does not replace it.
+  // The restoring page holds until the kept library replies. Profile and How sure is this? keep their
+  // own pages while results restore, so it stands in for the landing page only.
   const restoringPage = analysis.restoring && route.page !== 'profile' && route.page !== 'method'
   const key = pageKey(route, hasResult, restoringPage)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)

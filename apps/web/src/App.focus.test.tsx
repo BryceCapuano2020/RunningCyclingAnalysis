@@ -89,7 +89,7 @@ describe('focus on navigation', () => {
 })
 
 describe('focus when a page changes by itself', () => {
-  it('moves focus to the landing heading when the restoring page gives way to it on its own', () => {
+  it('moves focus to the landing heading when the library replies and the restoring page gives way', () => {
     setAccount('loading')
     app.analysis.restoring = true
     const view = render(<App />)

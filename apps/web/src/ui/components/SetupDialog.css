@@ -37,6 +37,12 @@
   font-size: var(--text-sm);
 }
 
+/* The row holds the note's line, empty or not, so the buttons keep their place as the note comes and goes. */
+.setup-dialog__notes {
+  min-height: 1lh;
+  font-size: var(--text-sm);
+}
+
 /* The buttons stay in view while a phone's keyboard covers the middle. */
 .setup-dialog__footer {
   position: sticky;
@@ -60,9 +66,13 @@
   font-size: var(--text-sm);
 }
 
-/* At a phone's width each button takes a full row (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
+/* At a phone's width each button takes a full row, and the note wraps to two lines (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
 @media (max-width: 420px) {
   .setup-dialog__actions .btn {
     flex: 1 1 100%;
+  }
+
+  .setup-dialog__notes {
+    min-height: 2lh;
   }
 }

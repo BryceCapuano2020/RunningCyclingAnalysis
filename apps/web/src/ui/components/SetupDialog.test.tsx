@@ -123,6 +123,20 @@ describe('SetupDialog', () => {
     expect(note.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('keeps the row for the weight note in the form, with the note in it when no weight is entered', () => {
+    const { dialog } = renderDialog(UNSET)
+    const row = dialog.querySelector('form .setup-dialog__notes') as HTMLElement
+    expect(row).not.toBeNull()
+    expect(row.contains(screen.getByText(SKIP_NOTE))).toBe(true)
+  })
+
+  it('keeps the row for the weight note in the form, empty, when a weight is entered', () => {
+    const { dialog } = renderDialog()
+    const row = dialog.querySelector('form .setup-dialog__notes')
+    expect(row).not.toBeNull()
+    expect(row?.children).toHaveLength(0)
+  })
+
   it('offers Analyse my files as the primary button and Skip for now as the other', () => {
     renderDialog()
     expect(screen.getByRole('button', { name: 'Analyse my files' })).toHaveClass('btn-primary')
