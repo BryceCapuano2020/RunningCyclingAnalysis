@@ -19,7 +19,7 @@ export interface DeleteConfirmationProps {
  * modal dialog, so the page stays live around it. It takes focus when it opens. Escape cancels from
  * inside the card, or from anywhere while no modal dialog is open. Tab cycles inside the card, and
  * Tab pressed outside it is left to the browser, so a dialog opened over it keeps its own focus.
- * Mount it with a key per activity.
+ * Each row mounts its own, so it takes focus each time it opens.
  */
 export function DeleteConfirmation({
   name,

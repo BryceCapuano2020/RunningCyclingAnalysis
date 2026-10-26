@@ -26,6 +26,10 @@ describe('ProfilePage stylesheet', () => {
     expect(bare).toMatch(/\.profile-save \{[^}]*min-height:\s*1lh;/)
   })
 
+  it('gives the status line no margin of its own, so the line is the only space it adds', () => {
+    expect(bare).toMatch(/\.profile-save \{[^}]*margin:\s*0;/)
+  })
+
   it('balances the lines of a unit or sex option label, so a short last word does not sit alone', () => {
     expect(ruleBody(segmented, '.segmented-control__option span')).toMatch(/text-wrap:\s*balance;/)
   })

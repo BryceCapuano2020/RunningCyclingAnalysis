@@ -445,7 +445,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   pace only when some split has one that differs from its Pace, so a run with no altitude or no flat pace shows neither column. A partial last split, shorter than one unit, reads to
   two decimals, such as "0.97 mi", rounded down so it never reads as a whole unit. Below 480 px a split
   leads with its split and pace, then its other figures, which wrap as the width needs: two or three lines. The splits table on the activity page is the first use, and the efforts table on a Balance card
-  is the second, whose list shows below 480 px with its labels once above the rows. The saved library on Profile is a third, switched in code rather than CSS: a table, which drops its sport column below 560 px so the sport sits under the name, and below 420 px a list of blocks, each with a full-width Delete. Record any new one here.
+  is the second, whose list shows below 480 px with its labels once above the rows. The saved library on Profile is a third, switched in code rather than CSS: a table, which drops its sport column at 560 px and below, so the sport sits under the name, and at 420 px and below a list of blocks, each with a full-width Delete. Record any new one here.
 - **Bars start from zero.** A bar's length is the value relative to the best known one, so the best
   fills its track. A row with no known value has no bar and cannot be the best.
 - **The best row says so in words.** A small `.chip` reads "Fastest" beside its value, and the value

@@ -40,13 +40,13 @@
   gap: var(--space-1);
 }
 
-/* Below 560 px the sport sits under the name, in the same cell. */
+/* At 560 px and below the sport sits under the name, in the same cell. */
 .saved-library__name + .saved-library__sport {
   margin-top: var(--space-1);
 }
 
 /*
- * Below 420 px each activity is a block: its name, its date and sport on one muted line, then a
+ * At 420 px and below each activity is a block: its name, its date and sport on one muted line, then a
  * full-width Delete. ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX.
  */
 .saved-library__list {

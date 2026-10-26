@@ -585,7 +585,7 @@ describe('SavedLibrary on a narrow screen', () => {
     noMatchMedia()
   })
 
-  it('lists each saved activity as a block with its date and sport on one muted line below 420 px', () => {
+  it('lists each saved activity as a block with its date and sport on one muted line at 420 px and below', () => {
     viewportAt(390)
     render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
 
@@ -608,7 +608,7 @@ describe('SavedLibrary on a narrow screen', () => {
     expect(confirmation.closest('li')).toHaveTextContent('Saved activity 1')
   })
 
-  it('keeps the table, with the sport under each name and no sport column, from 420 to 560 px', () => {
+  it('keeps the table, with the sport under each name and no sport column, above 420 px and at 560 px and below', () => {
     viewportAt(480)
     render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
 
@@ -636,5 +636,41 @@ describe('SavedLibrary on a narrow screen', () => {
 
   it('sets the library buttons to the body size, not the smaller control size', () => {
     expect(ruleBody(libraryCss, '.saved-library .btn')).toMatch(/font-size:\s*var\(--text-md\);/)
+  })
+})
+
+describe('SavedLibrary list at 390 px', () => {
+  afterEach(() => {
+    noMatchMedia()
+  })
+
+  it('moves focus to the first item once paging leaves Next with nothing to press', () => {
+    viewportAt(390)
+    render(<SavedLibrary activities={activities(21)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(screen.getAllByRole('listitem')[0]).toHaveFocus()
+  })
+
+  it('confirms a delete in the list, calling onDelete with that activity', () => {
+    viewportAt(390)
+    const onDelete = vi.fn()
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={onDelete} {...idle} />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Delete Saved activity 1/ })[0]!)
+    fireEvent.click(within(region()).getByRole('button', { name: 'Delete' }))
+
+    expect(onDelete).toHaveBeenCalledWith('saved-1')
+  })
+
+  it('keeps focus in the library when a resize across 420 px removes the focused Delete', () => {
+    const screenWidth = viewportAt(600)
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+    deleteButtonFor(0).focus()
+
+    screenWidth.resize(390)
+
+    expect(region()).toHaveFocus()
   })
 })

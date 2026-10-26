@@ -64,7 +64,7 @@ function unreadableNote(count: number): string {
 /** What every row of the list shares: its confirmation, its delete, and the focus it takes on a page change. */
 interface RowContext {
   busy: boolean
-  /** Below 560 px the sport sits under the name, and the table has no sport column. */
+  /** At 560 px and below the sport sits under the name, and the table has no sport column. */
   compact: boolean
   rule: DeleteRule
   confirmingId: string | null
@@ -153,7 +153,7 @@ function TableRow({
   )
 }
 
-/** Below 420 px a saved activity is a block: its name, its date and sport, then a full-width Delete. */
+/** At 420 px and below a saved activity is a block: its name, its date and sport, then a full-width Delete. */
 function ListItem({
   activity,
   first,
@@ -248,6 +248,36 @@ export function SavedLibrary({
   function attachFirst(node: HTMLElement | null) {
     firstItemRef.current = node
   }
+
+  // A resize across a breakpoint replaces the rows. Focus inside the library is given back to the
+  // library then, rather than to the page's body, where the keyboard would be lost.
+  const layout = narrow ? 'list' : compact ? 'compact' : 'table'
+  const shownLayout = useRef(layout)
+  const focusInside = useRef(false)
+  useEffect(() => {
+    const region = regionRef.current
+    if (region === null) return undefined
+    const onFocusIn = () => {
+      focusInside.current = true
+    }
+    const onFocusOut = (event: FocusEvent) => {
+      focusInside.current =
+        event.relatedTarget instanceof Node && region.contains(event.relatedTarget)
+    }
+    region.addEventListener('focusin', onFocusIn)
+    region.addEventListener('focusout', onFocusOut)
+    return () => {
+      region.removeEventListener('focusin', onFocusIn)
+      region.removeEventListener('focusout', onFocusOut)
+    }
+  }, [])
+  useEffect(() => {
+    if (shownLayout.current === layout) return
+    shownLayout.current = layout
+    if (focusInside.current && document.activeElement === document.body) {
+      regionRef.current?.focus()
+    }
+  }, [layout])
 
   const ctx: RowContext = {
     busy,

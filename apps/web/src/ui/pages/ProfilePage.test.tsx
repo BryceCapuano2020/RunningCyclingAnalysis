@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteSettings } from '@rca/core/types'
@@ -8,6 +8,7 @@ import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { makeResult } from '../components/fixtures'
 import type { SavedActivity } from '../../worker/protocol'
 import type { ProfilePageProps } from './ProfilePage'
+import type { ProfilePatch } from '../profilePatch'
 import { ProfilePage } from './ProfilePage'
 
 afterEach(() => {
@@ -746,7 +747,50 @@ describe('ProfilePage nothing kept', () => {
   })
 })
 
+describe('ProfilePage a refused save', () => {
+  /** A save that refuses the year and accepts everything else. */
+  function refuseYear() {
+    return vi.fn(async (next: ProfilePatch) => {
+      if ('birthYear' in next) throw new Error('Offline')
+    })
+  }
+
+  function refusedYear() {
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+    return screen.findByText("Year of birth: Couldn't save. Try again.")
+  }
+
+  it('keeps a refused year in view when a later sex save succeeds', async () => {
+    renderProfile({ onSaveProfile: refuseYear() })
+    await refusedYear()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(screen.getByText("Year of birth: Couldn't save. Try again.")).toBeInTheDocument()
+    expect(screen.queryByText('Sex: Saved.')).not.toBeInTheDocument()
+  })
+
+  it('lets go of a refused year when the year is edited again', async () => {
+    renderProfile({ onSaveProfile: refuseYear() })
+    await refusedYear()
+
+    fireEvent.change(screen.getByLabelText('Year of birth'), { target: { value: '1986' } })
+
+    expect(screen.queryByText("Year of birth: Couldn't save. Try again.")).not.toBeInTheDocument()
+  })
+})
+
 describe('ProfilePage one status line', () => {
+  it('keeps the status line in its own wrapper with the pair, so it adds a line, not a page gap', () => {
+    renderProfile()
+    const pair = document.querySelector('.profile-pair')
+    expect(pair?.parentElement).not.toHaveClass('page-stack')
+    expect(pair?.parentElement?.querySelector('.profile-save')).not.toBeNull()
+  })
+
   it('shows every save in one status line under the two sections, so no save moves the fields', async () => {
     renderProfile()
     const year = screen.getByLabelText('Year of birth')

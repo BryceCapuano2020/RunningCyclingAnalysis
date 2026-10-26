@@ -355,6 +355,12 @@ describe('privacy page layout and copy', () => {
     expect(page).toContain('<title>Privacy policy · RunningCyclingAnalysis</title>')
   })
 
+  it('says summaries kept without an account stay in the browser, where it allows', () => {
+    expect(text).toContain(
+      'Summaries kept without an account stay in your browser, where it allows.',
+    )
+  })
+
   it('says summaries are kept in this browser where the browser allows', () => {
     expect(text).toContain("kept in this browser's IndexedDB where the browser allows")
   })

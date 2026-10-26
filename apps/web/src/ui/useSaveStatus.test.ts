@@ -50,4 +50,19 @@ describe('useSaveStatus', () => {
     expect(result.current.states.sex).toBe('saved')
     expect(result.current.states.units).toBeUndefined()
   })
+
+  it('forgets a field’s state when it is cleared, so a refusal is not kept once the field is edited', async () => {
+    const { result } = renderHook(() => useSaveStatus<'year' | 'sex'>())
+
+    await act(async () => {
+      await result.current.save('year', async () => {
+        throw new Error('Offline')
+      })
+      await result.current.save('sex', async () => {})
+    })
+    act(() => result.current.clear('year'))
+
+    expect(result.current.states.year).toBeUndefined()
+    expect(result.current.states.sex).toBe('saved')
+  })
 })
