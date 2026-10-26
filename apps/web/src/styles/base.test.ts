@@ -48,3 +48,16 @@ describe('headings', () => {
     expect(ruleBody(baseCss, 'h3')).toMatch(/text-wrap:\s*pretty/)
   })
 })
+
+describe('text wrap', () => {
+  it('wraps paragraphs, figure captions and list items with pretty wrapping, as headings are', () => {
+    // Prettier sets a selector list one selector to a line, so the list is matched across lines.
+    expect(baseCss).toMatch(/\np,\s*figcaption,\s*li \{\s*text-wrap:\s*pretty;/)
+  })
+})
+
+describe('links and summaries', () => {
+  it('thickens the underline of a link or a summary under the pointer', () => {
+    expect(baseCss).toMatch(/\na:hover,\s*summary:hover \{\s*text-decoration-thickness:\s*2px;/)
+  })
+})

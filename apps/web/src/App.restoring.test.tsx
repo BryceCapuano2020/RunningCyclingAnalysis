@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { keptLibraryHinted } from './ui/analysis/keptLibrary'
+import { RESTORING_BOUND_MS } from './ui/useRestoringWindow'
 import { app, resetAppMocks, setAccount, showResult } from './test/appMocks'
 
 vi.mock('./ui/useAccount', async () => ({
@@ -31,6 +32,35 @@ describe('restoring kept results on a reload', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows the tabs, and no Add files in the header, while the results restore', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    render(<App />)
+    const header = within(screen.getByRole('banner'))
+    expect(header.getByRole('navigation', { name: 'Sections' })).toBeInTheDocument()
+    expect(header.queryByRole('button', { name: 'Add files' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the tabs after the restoring page gives way, while the account is still loading', () => {
+    vi.useFakeTimers()
+    try {
+      setAccount('loading')
+      app.analysis.restoring = true
+      render(<App />)
+      act(() => {
+        vi.advanceTimersByTime(RESTORING_BOUND_MS + 100)
+      })
+      expect(
+        screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
+      ).not.toBeInTheDocument()
+      expect(
+        within(screen.getByRole('banner')).getByRole('navigation', { name: 'Sections' }),
+      ).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows the landing page once the library has loaded with nothing in it', () => {

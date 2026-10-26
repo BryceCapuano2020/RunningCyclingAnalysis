@@ -5,8 +5,8 @@ import {
   COMPACT_PHONE_MAX_WIDTH_PX,
   NARROW_PHONE_MAX_WIDTH_PX,
   PHONE_MAX_WIDTH_PX,
-  HEADER_GUIDES_MIN_WIDTH_PX,
   SMALL_PHONE_MAX_WIDTH_PX,
+  WORDMARK_HIDDEN_MAX_WIDTH_PX,
 } from '../layoutBreakpoints'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import { Header } from './Header'
@@ -106,7 +106,7 @@ describe('Header on a phone', () => {
     )
     expect(tokensCss).toMatch(/--tab-bar-height:\s*48px;/)
     expect(mediaBlock(tokensCss, PHONE_MAX_WIDTH_PX)).toContain(
-      '--header-height: calc(var(--space-5) + var(--control-height) + 1px);',
+      '--header-height: calc(var(--space-5) + var(--control-height) + var(--space-2) + 1px);',
     )
     expect(headerCss).not.toMatch(/--header-height:/)
     expect(headerCss).toMatch(/html \{[^}]*scroll-padding-top:\s*var\(--header-height\)/)
@@ -166,7 +166,7 @@ describe('Header on a phone', () => {
     expect(headerCss).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
     expect(headerCss).toContain(`@media (max-width: ${NARROW_PHONE_MAX_WIDTH_PX}px)`)
     expect(headerCss).toContain(`@media (max-width: ${SMALL_PHONE_MAX_WIDTH_PX}px)`)
-    expect(headerCss).toContain(`@media (min-width: ${HEADER_GUIDES_MIN_WIDTH_PX}px)`)
+    expect(headerCss).toContain(`@media (max-width: ${WORDMARK_HIDDEN_MAX_WIDTH_PX}px)`)
   })
 
   it('drops only the fade once the bar is scrolled to its end: the labels stay left-aligned', () => {
@@ -313,5 +313,40 @@ describe('Header glyphs and wordmark', () => {
   it('spells the wordmark in words, so it does not read as a file name', () => {
     render(<Header route={{ page: 'balance' }} />)
     expect(screen.getByRole('link', { name: 'Running Cycling Analysis' })).toBeInTheDocument()
+  })
+})
+
+describe('Header height', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.documentElement.style.removeProperty('--header-height')
+  })
+
+  it('sets --header-height to the header as measured, and keeps it so as the header resizes', () => {
+    // The tab bar has an observer too, so the one watching the header is found by its target.
+    const observers: { observed: Element[]; fire: () => void }[] = []
+    class FakeResizeObserver {
+      observed: Element[] = []
+      constructor(callback: ResizeObserverCallback) {
+        observers.push({
+          observed: this.observed,
+          fire: () => callback([], this as unknown as ResizeObserver),
+        })
+      }
+      observe(element: Element) {
+        this.observed.push(element)
+      }
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(161)
+
+    render(<Header route={{ page: 'run' }} />)
+    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('161px')
+
+    height.mockReturnValue(113)
+    const header = document.querySelector('header')
+    observers.find((observer) => observer.observed.includes(header as Element))?.fire()
+    expect(document.documentElement.style.getPropertyValue('--header-height')).toBe('113px')
   })
 })

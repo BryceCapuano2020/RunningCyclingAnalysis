@@ -5,6 +5,8 @@ import { horizontalOverflow, openSample } from './helpers.js'
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 const NOTE = 'Made on this device. Nothing is uploaded.'
 const SHEET = 'Share image'
+/** A story-sized card is drawn and encoded on the page's thread, which takes seconds on a busy runner. */
+const DRAW_TIMEOUT_MS = 20_000
 const FILE_NAME = /^balance-.*-square\.png$/
 
 /**
@@ -50,7 +52,7 @@ for (const { choice, preview: previewName, file, width, height } of SHAPES) {
     await sheet.getByText(choice, { exact: true }).click()
     // The picture for the shape chosen, by its own name: the last shape's picture stays until this one draws.
     const preview = sheet.getByRole('img', { name: previewName })
-    await expect(preview).toBeVisible()
+    await expect(preview).toBeVisible({ timeout: DRAW_TIMEOUT_MS })
     // A picture the browser cannot load is still a visible broken image, so check that it decoded.
     await expect
       .poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth))

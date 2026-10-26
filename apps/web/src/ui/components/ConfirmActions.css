@@ -13,8 +13,22 @@
   color: var(--surface-1);
 }
 
+/* The generic .btn hover and press would blank the red fill to a grey, so both keep it. */
+.btn.confirm-actions__confirm:hover,
+.btn.confirm-actions__confirm:active:not([aria-disabled='true']) {
+  border-color: var(--status-critical);
+  background: var(--status-critical);
+  color: var(--surface-1);
+}
+
 .btn.confirm-actions__confirm:hover {
   filter: brightness(1.1);
+}
+
+/* A press darkens the red and rings it in the label colour, as the primary button's press does. */
+.btn.confirm-actions__confirm:active:not([aria-disabled='true']) {
+  filter: brightness(0.9);
+  box-shadow: inset 0 0 0 2px var(--surface-1);
 }
 
 .btn.confirm-actions__confirm[aria-disabled='true'] {

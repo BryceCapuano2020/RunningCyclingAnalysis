@@ -43,14 +43,15 @@ describe('ImportStatus: the busy strip on a phone', () => {
     expect(lifted.map((rule) => rule.selector)).toEqual([
       '.page:has(> .header > .header__tabs) .import-status',
     ])
+    // The tab bar's own 1 px top border sits above its 48 px, so the strip clears the border too.
     expect(lifted[0]?.body).toBe(
-      'bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));',
+      'bottom: calc(var(--tab-bar-height) + 1px + env(safe-area-inset-bottom));',
     )
   })
 
   it('makes that lift part of the phone breakpoint, not of every screen', () => {
     expect(mediaBlock(css, PHONE_MAX_WIDTH_PX)).toContain(
-      '.page:has(> .header > .header__tabs) .import-status { bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom)); }',
+      '.page:has(> .header > .header__tabs) .import-status { bottom: calc(var(--tab-bar-height) + 1px + env(safe-area-inset-bottom)); }',
     )
   })
 

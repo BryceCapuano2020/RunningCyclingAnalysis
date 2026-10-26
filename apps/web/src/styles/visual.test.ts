@@ -31,6 +31,7 @@ const iconsCss = await read('../ui/components/icons.css')
 const balanceMeterTsx = await read('../ui/components/BalanceMeter.tsx')
 const ladderTsx = await read('../ui/components/LevelLadder.tsx')
 const sportRecords = await read('../ui/components/SportRecords.css')
+const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
 function rulesWith(css: string, selector: string): string {
@@ -248,17 +249,10 @@ describe('forced colours', () => {
   })
 })
 
-describe('header guides', () => {
-  it('hides the header guides button below 1100 px, where it would wrap the actions onto a second row', () => {
-    expect(rulesWith(outsideMedia(header), '.header__actions .header__guides')).toMatch(
-      /display:\s*none/,
-    )
-  })
-
-  it('shows the header guides button from 1100 px, beside Add files', () => {
-    expect(
-      rulesWith(mediaOf(header, '(min-width: 1100px)'), '.header__actions .header__guides'),
-    ).toMatch(/display:\s*inline-flex/)
+describe('header actions', () => {
+  it('keeps the guides button out of the header, which holds Add files, Profile and the account', () => {
+    expect(header).not.toMatch(/header__guides/)
+    expect(header).not.toMatch(/min-width:\s*1100px/)
   })
 })
 
@@ -444,5 +438,170 @@ describe('sport records', () => {
       )
     }
     expect(rulesWith(sportRecords, '.records__set')).toMatch(/color:\s*var\(--text-muted\)/)
+  })
+})
+
+describe('header details', () => {
+  it('sets the phone tab focus ring inside the tab bar, which would otherwise clip it', () => {
+    expect(rulesWith(mediaOf(header, PHONE), '.header__tab:focus-visible')).toMatch(
+      /outline-offset:\s*-4px/,
+    )
+  })
+
+  it('sets the first wide tab flush with the brand, so its glyph lines up under the wordmark', () => {
+    expect(rulesWith(mediaOf(header, '(min-width: 761px)'), '.header__tab:first-child')).toMatch(
+      /padding-left:\s*0/,
+    )
+  })
+
+  it('sets Profile in sentence case, keeping its outline', () => {
+    expect(rulesWith(header, '.header__profile')).toMatch(/text-transform:\s*none/)
+    expect(rulesWith(header, '.header__profile')).toMatch(
+      /border:\s*1px solid var\(--control-border\)/,
+    )
+  })
+
+  it('draws the tab labels in the system text colour in forced colours', () => {
+    expect(rulesWith(mediaOf(header, FORCED), '.header__tab')).toMatch(/color:\s*CanvasText/)
+  })
+
+  it('hides the wordmark from 840 px down, and the account name only from 560 px down', () => {
+    expect(rulesWith(mediaOf(header, '(max-width: 840px)'), '.header__name')).toMatch(
+      /position:\s*absolute/,
+    )
+    expect(
+      rulesWith(mediaOf(header, '(max-width: 560px)'), '.header__account .account-menu__name'),
+    ).toMatch(/position:\s*absolute/)
+  })
+
+  it('underlines the wordmark on hover, as the brand is a link', () => {
+    expect(rulesWith(header, '.header__brand:hover .header__name')).toMatch(
+      /text-decoration:\s*underline/,
+    )
+  })
+
+  it('pads the foot of the phone header, so its row clears the border below it', () => {
+    expect(rulesWith(mediaOf(header, PHONE), '.header')).toMatch(
+      /padding-bottom:\s*var\(--space-2\)/,
+    )
+  })
+
+  it('draws a wide header with no tabs as one row, so no empty gap sits under it', () => {
+    expect(rulesWith(header, '.header:not(:has(.header__tabs))')).toMatch(
+      /grid-template-areas:\s*'brand actions'/,
+    )
+  })
+
+  it('presses Profile as a tab does, with the pressed fill and an inset outline', () => {
+    const pressed = rulesWith(header, '.header__profile:active')
+    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
+    expect(pressed).toMatch(/outline:\s*2px solid var\(--control-border\)/)
+    expect(pressed).toMatch(/outline-offset:\s*-2px/)
+    expect(rulesWith(mediaOf(header, FORCED), '.header__profile:active')).toMatch(
+      /outline:\s*2px solid CanvasText/,
+    )
+  })
+
+  it('presses the account trigger as a button does, with the pressed fill and a pixel drop', () => {
+    const pressed = rulesWith(accountMenu, '.account-menu__trigger:active')
+    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
+    expect(pressed).toMatch(/transform:\s*translateY\(1px\)/)
+    expect(rulesWith(mediaOf(accountMenu, FORCED), '.account-menu__trigger:active')).toMatch(
+      /outline:\s*2px solid CanvasText/,
+    )
+  })
+
+  it('keeps the skip link at rest at the top of the page, hidden by its translate, not under the header', () => {
+    const rest = rulesWith(skipLink, '.skip-link')
+    expect(rest).toMatch(/top:\s*var\(--space-2\)/)
+    expect(rest).not.toMatch(/--header-height/)
+    expect(rest).toMatch(/transform:\s*translateY\(-200%\)/)
+  })
+
+  it('moves the skip link under the header on focus, and clears its translate there', () => {
+    const focus = rulesWith(skipLink, '.skip-link:focus')
+    expect(focus).toMatch(/top:\s*calc\(var\(--header-height\) \+ var\(--space-2\)\)/)
+    expect(focus).toMatch(/transform:\s*none/)
+  })
+})
+
+describe('sign-in button', () => {
+  it('sets the sign-in button to the width of the pending status, so the header does not move', () => {
+    expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(/min-width:\s*11\.75rem/)
+    expect(rulesWith(googleSignIn, '.google-sign-in')).toMatch(/justify-content:\s*center/)
+  })
+
+  it('lets the compact phone sign-in shrink to the control height, past that minimum', () => {
+    expect(rulesWith(mediaOf(header, PHONE), '.header__account .google-sign-in')).toMatch(
+      /min-width:\s*0/,
+    )
+  })
+})
+
+describe('global controls', () => {
+  it('draws a button edge in the secondary text colour on hover', () => {
+    expect(rulesWith(components, '.btn:hover')).toMatch(/border-color:\s*var\(--text-secondary\)/)
+  })
+
+  it('sets the link arrow and the activity back link to their own width, not the full row', () => {
+    expect(rulesWith(app, '.link-arrow')).toMatch(/justify-self:\s*start/)
+    expect(rulesWith(activityPage, '.activity-page__back')).toMatch(/justify-self:\s*start/)
+  })
+
+  it('keeps the primary button fill on hover and press, since its rules come after the generic button rules', () => {
+    const at = (selector: string) => components.indexOf(`\n${selector} {`)
+    expect(at('.btn-primary:hover')).toBeGreaterThan(at('.btn:hover'))
+    expect(at(".btn-primary:active:not([aria-disabled='true'])")).toBeGreaterThan(
+      at(".btn:active:not([aria-disabled='true'])"),
+    )
+  })
+
+  it('keeps the current Pager page filled on hover and press, as its rule outranks the generic button rules', () => {
+    expect(rulesWith(pagerCss, ".pager .pager__page[aria-current='page']")).toMatch(
+      /background:\s*var\(--selected\)/,
+    )
+  })
+
+  it('nudges the link arrow 2 px on hover', () => {
+    expect(rulesWith(app, '.link-arrow:hover svg')).toMatch(/translateX\(2px\)/)
+  })
+
+  it('draws the primary button in the system highlight in forced colours', () => {
+    const forced = rulesWith(mediaOf(components, FORCED), '.btn-primary')
+    expect(forced).toMatch(/background:\s*Highlight/)
+    expect(forced).toMatch(/color:\s*HighlightText/)
+    expect(forced).toMatch(/border-color:\s*Highlight/)
+  })
+
+  it('outlines a chip in forced colours, since its fill is dropped there', () => {
+    expect(rulesWith(mediaOf(components, FORCED), '.chip')).toMatch(
+      /outline:\s*1px solid CanvasText/,
+    )
+  })
+
+  it('keeps the focus ring on a chip button in forced colours, outside its outline', () => {
+    const focus = rulesWith(mediaOf(components, FORCED), '.chip:focus-visible')
+    expect(focus).toMatch(/outline:\s*2px solid CanvasText/)
+    expect(focus).toMatch(/outline-offset:\s*2px/)
+  })
+
+  it('draws the disclosure triangle as a solid shape in forced colours, not as a box of borders', () => {
+    const triangle = rulesWith(mediaOf(base, FORCED), 'summary::before')
+    expect(triangle).toMatch(/background:\s*CanvasText/)
+    expect(triangle).toMatch(/clip-path:\s*polygon\(/)
+    expect(triangle).toMatch(/border:\s*0/)
+  })
+})
+
+describe('footer', () => {
+  it('sets every footer link at least 24 px tall, the smallest target WCAG allows', () => {
+    expect(rulesWith(outsideMedia(app), '.app__footer a')).toMatch(/min-height:\s*24px/)
+  })
+
+  it('sets the footer links as flex boxes at the control height on a finger, so a tap lands on them', () => {
+    const finger = mediaOf(app, '(pointer: coarse)')
+    expect(rulesWith(finger, '.app__footer a')).toMatch(/display:\s*inline-flex/)
+    expect(rulesWith(finger, '.app__footer a')).toMatch(/align-items:\s*center/)
+    expect(rulesWith(finger, '.app__footer a')).toMatch(/min-height:\s*var\(--control-height\)/)
   })
 })

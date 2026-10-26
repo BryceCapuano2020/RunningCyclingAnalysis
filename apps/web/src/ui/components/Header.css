@@ -24,17 +24,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* ui/layoutBreakpoints.ts: HEADER_GUIDES_MIN_WIDTH_PX. The guides are a secondary action beside Add
-   files, shown only where the actions still share the first row with the brand. */
-/* Named with the actions, so it outranks .btn, which also sets a display. */
-.header__actions .header__guides {
-  display: none;
-}
-
-@media (min-width: 1100px) {
-  .header__actions .header__guides {
-    display: inline-flex;
-  }
+/* With no tabs, the header is one row: the empty second row would leave a gap under the actions. */
+.header:not(:has(.header__tabs)) {
+  grid-template-areas: 'brand actions';
 }
 
 /* Keeps a control that the browser scrolls to clear of the header, and of the tab bar on a phone. */
@@ -60,6 +52,12 @@ html {
   font-weight: 800;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+}
+
+/* The brand is a link home, so its name underlines on hover, as the links in the page do. */
+.header__brand:hover .header__name {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }
 
 .header__tabs {
@@ -88,9 +86,12 @@ html {
   white-space: nowrap;
 }
 
-/* Profile is an account, so it is outlined like a button; the tabs are not. */
+/* Profile is an account, so it is outlined like a button; the tabs are not. It is set in sentence
+   case, not capitals. */
 .header__profile {
   border: 1px solid var(--control-border);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .header__tab:hover,
@@ -102,6 +103,13 @@ html {
 /* A pressed tab takes the pressed fill and an inset outline. The tab bar's current mark is a flat bar,
    not an inset shadow, so the press uses an outline. */
 .header__tab:active {
+  background: var(--surface-pressed);
+  outline: 2px solid var(--control-border);
+  outline-offset: -2px;
+}
+
+/* Profile presses as a tab does, with the pressed fill and an inset outline, not an inset shadow. */
+.header__profile:active {
   background: var(--surface-pressed);
   outline: 2px solid var(--control-border);
   outline-offset: -2px;
@@ -175,7 +183,7 @@ html {
   }
 
   /* The wordmark is set a step smaller on a phone, so the brand and the actions share one row
-     from 561 px up, where the wordmark is still shown. */
+     from 841 px up, where the wordmark is still shown. */
   .header__name {
     /* The phone wordmark: a step below the wide size, so the brand and actions share a row. */
     font-size: var(--text-lead);
@@ -186,6 +194,16 @@ html {
   .header__tab[aria-current='page']::after {
     top: 0;
     bottom: auto;
+  }
+
+  /* The tab bar scrolls and would clip a ring drawn outside a tab, so the keyboard ring sits inside. */
+  .header__tab:focus-visible {
+    outline-offset: -4px;
+  }
+
+  /* The row keeps a little space above the border, so the brand and the actions do not sit on it. */
+  .header {
+    padding-bottom: var(--space-2);
   }
 
   /* Tabs that do not all fit fade at the edge while there is more to scroll to. */
@@ -212,6 +230,7 @@ html {
   /* Sign-in stays one tap away as the Google mark alone; its name is kept for screen readers. */
   .header__account .google-sign-in {
     width: var(--control-height);
+    min-width: 0;
     padding: 0;
     justify-content: center;
   }
@@ -230,9 +249,21 @@ html {
   }
 }
 
+/* ui/layoutBreakpoints.ts: WORDMARK_HIDDEN_MAX_WIDTH_PX. The wordmark goes first, so the brand
+   mark and the actions keep one row. */
+@media (max-width: 840px) {
+  .header__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 /* ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX. */
 @media (max-width: 560px) {
-  .header__name,
   .header__account .account-menu__name {
     position: absolute;
     width: 1px;
@@ -244,6 +275,14 @@ html {
 
   .header__tab .icon {
     display: none;
+  }
+}
+
+/* From just above the phone layout, the first tab sits flush with the brand, so its glyph lines up
+   under the wordmark's edge. */
+@media (min-width: 761px) {
+  .header__tab:first-child {
+    padding-left: 0;
   }
 }
 
@@ -276,7 +315,12 @@ html {
 /* In forced colours the current tab's bar is drawn in the system highlight, so the mark survives
    the loss of the page's colours. */
 @media (forced-colors: active) {
-  .header__tab:active {
+  .header__tab {
+    color: CanvasText;
+  }
+
+  .header__tab:active,
+  .header__profile:active {
     outline: 2px solid CanvasText;
     outline-offset: -2px;
   }

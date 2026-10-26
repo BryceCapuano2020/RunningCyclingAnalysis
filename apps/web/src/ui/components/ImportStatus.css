@@ -20,10 +20,11 @@
 }
 
 /* Phones (ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX): the tab bar is fixed to the foot of the
-   screen, and it is shown only once there is a result. So the strip sits above it only then. */
+   screen, and it is shown only once there is a result. So the strip sits above it only then, and
+   above the bar's own 1 px top border. */
 @media (max-width: 760px) {
   .page:has(> .header > .header__tabs) .import-status {
-    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+    bottom: calc(var(--tab-bar-height) + 1px + env(safe-area-inset-bottom));
   }
 
   /* The strip sits above the tab bar, so the page's foot clears both. */

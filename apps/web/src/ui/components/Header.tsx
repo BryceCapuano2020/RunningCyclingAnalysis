@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { APP_WORDS } from '../../appName'
 import type { Route } from '../route'
@@ -6,6 +6,7 @@ import { hrefFor } from '../route'
 import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
 import { ActivitiesIcon, BalanceIcon, BrandMark, PersonIcon, SportIcon } from './icons'
+import { useHeaderHeight } from './useHeaderHeight'
 import './Header.css'
 
 export interface HeaderProps {
@@ -49,6 +50,8 @@ function tabOf(route: Route): Route['page'] | null {
 
 export function Header({ route, showTabs = route !== null, addFiles, account }: HeaderProps) {
   const current = route ? tabOf(route) : null
+  const headerRef = useRef<HTMLElement>(null)
+  useHeaderHeight(headerRef)
   const [tabs, setTabs] = useState<HTMLElement | null>(null)
   const [tabsOverflow, setTabsOverflow] = useState(false)
   const [tabsFaded, setTabsFaded] = useState(false)
@@ -76,7 +79,7 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
     }
   }, [tabs])
   return (
-    <header className="header">
+    <header ref={headerRef} className="header">
       <a className="header__brand" href={hrefFor({ page: 'balance' })}>
         <BrandMark />
         <span className="header__name">{APP_WORDS}</span>

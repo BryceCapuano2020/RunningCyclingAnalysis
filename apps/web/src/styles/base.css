@@ -72,6 +72,19 @@ a {
   text-underline-offset: 2px;
 }
 
+/* The underline thickens under the pointer, since a faint line reads as no link at all. */
+a:hover,
+summary:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* A paragraph, a figure caption or a list item does not leave one word on its last line. */
+p,
+figcaption,
+li {
+  text-wrap: pretty;
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -174,4 +187,16 @@ details[open] > summary::before {
 
 summary::-webkit-details-marker {
   display: none;
+}
+
+/* In forced colours the triangle's transparent borders are drawn too, so it becomes a box. It is
+   drawn as a solid shape in the system colour instead. */
+@media (forced-colors: active) {
+  summary::before {
+    width: 5px;
+    height: 10px;
+    border: 0;
+    background: CanvasText;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+  }
 }
