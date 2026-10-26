@@ -256,13 +256,16 @@ function overlayOf(
 export function RatioChart({ comparison }: RatioChartProps) {
   const rows = buildRows(comparison)
   const hasCalibrated = comparison.calibrated !== null
+  // The heart-rate check is per period, so its key can come or go on a period change. The key's row
+  // is kept beside a drawn plot, empty when there is no check, so the plot does not move.
+  const calibratedKey = hasCalibrated ? LEGEND_CALIBRATED : []
   const [active, setActive] = useState<number | null>(null)
 
   return (
     <ChartFrame
       title={`${SPORT_TITLE.run} compared with ${SPORT_NOUN.ride} by duration`}
       description={`${SPORT_TITLE.run} energy rate as a percentage of ${SPORT_NOUN.ride} at each duration, with 90% ranges. Zero means equal. Duration is on a log scale.`}
-      legend={rows.length > 0 && hasCalibrated ? LEGEND_CALIBRATED : undefined}
+      legend={rows.length > 0 ? calibratedKey : undefined}
       table={tableFor(rows, hasCalibrated)}
       empty={rows.length > 0 ? undefined : EMPTY}
       note={rows.length > 0 ? `${CAPTION} ${NOTE}` : undefined}

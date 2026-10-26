@@ -219,6 +219,18 @@ function tableRow(row: CurveRow, view: View): string[] {
 }
 
 /**
+ * The key for a drawn curve. With no previous period it is empty, not absent: the key's row is still
+ * kept, so the plot does not move when a previous period appears or goes.
+ */
+function keyOf(sport: Sport, previous: PreviousCurve | null): ChartLegendEntry[] {
+  if (previous === null) return []
+  return [
+    { label: SPORT_LABEL[sport], kind: sport, swatch: 'line' },
+    { label: previous.label, kind: 'neutral', swatch: 'dashed' },
+  ]
+}
+
+/**
  * A sport's best efforts by duration, in its own unit: pace for running, faster up, and power for
  * cycling. The 20-minute effort is marked, and the period before is a dashed line when given.
  */
@@ -242,13 +254,7 @@ export function SportCurveChart({
   const lastIndex = rows.findLastIndex((row) => Number.isFinite(row.value))
   const [rootPx] = useState(rootFontPx)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
-  const legend: ChartLegendEntry[] | undefined =
-    shown && hasData
-      ? [
-          { label: SPORT_LABEL[sport], kind: sport, swatch: 'line' },
-          { label: shown.label, kind: 'neutral', swatch: 'dashed' },
-        ]
-      : undefined
+  const legend: ChartLegendEntry[] | undefined = hasData ? keyOf(sport, shown) : undefined
   const noPrevious =
     previous && !shown && hasData
       ? `No ${SPORT_PLURAL[sport]} in the ${previous.label.toLowerCase()}`

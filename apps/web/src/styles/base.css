@@ -60,8 +60,7 @@ h2 {
 }
 
 h3 {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.125rem;
+  font-size: var(--text-lead);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-wrap: pretty;

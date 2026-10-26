@@ -246,7 +246,7 @@ describe('BalancePage', () => {
   it('shows the bike on foot in the cross-sport card, which opens to every duration', () => {
     renderPage(makeResult({ equivalents: [makeEquivalence()] }))
 
-    const card = screen.getByRole('region', { name: 'On foot, your ride is worth 4:10 /km' })
+    const card = screen.getByRole('region', { name: 'On foot, your ride is worth 4:10\u00a0/km' })
     expect(within(card).getByText('See the pace curve')).toBeInTheDocument()
     expect(
       screen.queryByRole('region', { name: 'Your ride on foot, at every duration' }),

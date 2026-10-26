@@ -67,6 +67,8 @@
   --text-label: 0.9375rem;
   /* The 12 px size of chart axes, tooltips and the ladder's marks. */
   --text-xs: 0.75rem;
+  /* The 18 px lead size, the one display size a step above the body: lead paragraphs, small headings, tabs. */
+  --text-lead: 1.125rem;
   /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
   --tracking-tab: 0.02em;
   /* Eyebrows, chips and the capitals of the tabs share one tracking. */
