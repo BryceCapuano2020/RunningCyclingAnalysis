@@ -17,6 +17,9 @@
   font-size: var(--text-sm);
   font-weight: 500;
   white-space: nowrap;
+  /* As wide as the header's pending status, so the header does not move when the answer arrives. */
+  min-width: 11.75rem;
+  justify-content: center;
 }
 
 .google-sign-in:hover {

@@ -25,10 +25,9 @@ Without a result every route except Profile and How sure is this? shows the land
 results, it shows a restoring state in its place, with an **Add files** button, until the library
 has replied, or, while the account is still loading, three seconds have passed, whichever is first.
 A returning visitor is not asked to add their files again and is never left without a control. The
-header holds the wordmark, the four tabs (once there is a result), one **Add files** button, from 1100 px
-a **How to get your files** button beside it (a secondary action; below 1100 px, and on a phone, the guides are
-reached from Profile and the landing), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
-account control. While the account is still loading, the account control reads "Checking sign-in…",
+header holds the wordmark, the four tabs (once there is a result, and while results restore), one
+**Add files** button (not while they restore), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
+account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window
 and appears only once a run has lasted about 400 ms, so a quick change never moves the page; on a
@@ -49,22 +48,25 @@ are on the Profile page. A file dropped anywhere on the page is imported. A drop
 .txt, asks nothing: its files go straight to the skipped list. On a short page the footer
 sits at the foot of the window, sized to the small viewport so the phone's toolbar does not move it, and the brand mark's two sport strokes are 4 px, so the crossing reads at 32 px.
 
-The header's sizes are custom properties in `tokens.css`. The header is 113 px on a wide screen and
-69 px on a phone, and the scroll padding follows it, so a control that focus or Back brings into
-view is not hidden under the header. The breakpoints are named once, in
-`apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 560 px for the compact one, 420 px
-for the narrow one, and 900 px for Profile's two columns.
+The header's sizes are custom properties in `tokens.css`, and the header measures its own height into
+`--header-height` as it resizes, so the scroll padding and the skip link follow the real height at any
+text size. A control that focus or Back brings into view is not hidden under the header. Below 800 px
+the wordmark is hidden, so the brand mark and the actions keep one row. The breakpoints are named once,
+in `apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 800 px for the wordmark, 560 px
+for the compact one (the tab glyphs and the account name), 420 px for the narrow one, and 900 px for
+Profile's two columns.
 
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
 links in a records list, the cross-sport idea and the two footer links, which are padded to that
-height. At 360 px and below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
+height on a finger. A footer link is 24 px tall with a mouse, the smallest target WCAG allows. At
+360 px and below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
 overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
 
 Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
 and an activity by its own name. The first control on a page is **Skip to content**, which moves
-focus to the page heading past the header. The heading is underlined only when keyboard focus reaches it, so a click that moves focus leaves the
+focus to the page heading past the header, and appears under the header when a keyboard user reaches it. The heading is underlined only when keyboard focus reaches it, so a click that moves focus leaves the
 title plain. The app's routes are hashes, so it is a button, not a
 fragment link.
 
@@ -185,7 +187,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Barlow** (400, 500, 600) for text, **Barlow Condensed** (700, 800) for numbers and headings.
   Both are self-hosted from `@fontsource` (OFL-1.1), so no third-party font request is made.
 - Headings are condensed and upper case. The page title is 800 weight; the page title and the section
-  headings are set with `text-wrap: pretty`, so a single word is not left alone on the last line. Section
+  headings, paragraphs, figure captions and list items are set with `text-wrap: pretty`, so a single word is not left alone on the last line. Section
   headings are 700.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
@@ -208,8 +210,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   primary button) with an inset ring, so it reads in both schemes even where the fill barely changes.
   A tab's ring is an inset outline, since the tab bar's current mark is a flat bar, not an inset shadow.
   The current Activities page number keeps its selected look while pressed, and in forced colours it takes
-  the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped.
-  A button is a sentence, so it is set in sentence case, not capitals.
+  the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped,
+  the primary button takes the system highlight, and a chip is outlined.
+  A button's hover also darkens its edge to `--text-secondary`, so the hover shows against the page.
+  The one destructive button, a removal's confirm, keeps its red fill and white label on hover and
+  press, and shows the state by brightness, so the generic hover never blanks it.
+  A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
 - A sport glyph (`SportIcon`) sits next to every sport name. Its path data is in `iconPaths.ts`, the one
   source for the icon and for the glyph on the share card.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value

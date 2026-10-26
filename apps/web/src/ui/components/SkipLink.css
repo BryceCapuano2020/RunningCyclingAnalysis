@@ -1,7 +1,7 @@
-/* Hidden above the page until a keyboard user reaches it, then shown at the top left. */
+/* Hidden above the page until a keyboard user reaches it, then shown under the header, at the left. */
 .skip-link {
   position: absolute;
-  top: var(--space-2);
+  top: calc(var(--header-height) + var(--space-2));
   left: var(--space-4);
   z-index: 50;
   min-height: var(--control-height);

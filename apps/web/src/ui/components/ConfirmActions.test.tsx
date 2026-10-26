@@ -7,6 +7,18 @@ import { ConfirmActions } from './ConfirmActions'
 
 const actionsCss = await readStylesheet(import.meta.url, './ConfirmActions.css')
 
+/**
+ * The declarations of every rule whose selector list names `selector` exactly, joined. A rule that
+ * lists several selectors counts for each of them, which ruleBody does not allow.
+ */
+function declarationsFor(css: string, selector: string): string {
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, list = '']) => list.split(',').some((part) => part.trim() === selector))
+    .map(([, , body = '']) => body)
+    .join('\n')
+}
+
 afterEach(() => {
   cleanup()
 })
@@ -110,5 +122,34 @@ describe('ConfirmActions', () => {
     expect(ruleBody(actionsCss, '.btn.confirm-actions__confirm')).toMatch(
       /color:\s*var\(--surface-1\)/,
     )
+  })
+
+  it('keeps the critical fill and the white label while the pointer is over the confirm button', () => {
+    const hover = declarationsFor(actionsCss, '.btn.confirm-actions__confirm:hover')
+    expect(hover).toMatch(/background:\s*var\(--status-critical\)/)
+    expect(hover).toMatch(/border-color:\s*var\(--status-critical\)/)
+    expect(hover).toMatch(/color:\s*var\(--surface-1\)/)
+  })
+
+  it('keeps the critical fill and the white label while the confirm button is pressed', () => {
+    const pressed = declarationsFor(
+      actionsCss,
+      ".btn.confirm-actions__confirm:active:not([aria-disabled='true'])",
+    )
+    expect(pressed).toMatch(/background:\s*var\(--status-critical\)/)
+    expect(pressed).toMatch(/border-color:\s*var\(--status-critical\)/)
+    expect(pressed).toMatch(/color:\s*var\(--surface-1\)/)
+  })
+
+  it('changes the confirm button visibly on hover and on press, so the state shows on the red', () => {
+    expect(declarationsFor(actionsCss, '.btn.confirm-actions__confirm:hover')).toMatch(
+      /filter:\s*brightness\(1\.1\)/,
+    )
+    expect(
+      declarationsFor(
+        actionsCss,
+        ".btn.confirm-actions__confirm:active:not([aria-disabled='true'])",
+      ),
+    ).toMatch(/filter:\s*brightness\(0\.9\)/)
   })
 })

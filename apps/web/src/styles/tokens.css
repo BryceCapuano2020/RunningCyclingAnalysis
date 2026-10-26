@@ -130,9 +130,9 @@
   }
 }
 
-/* ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone's header is one row. */
+/* ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX. A phone's header is one row, with a space below it. */
 @media (max-width: 760px) {
   :root {
-    --header-height: calc(var(--space-5) + var(--control-height) + 1px);
+    --header-height: calc(var(--space-5) + var(--control-height) + var(--space-2) + 1px);
   }
 }

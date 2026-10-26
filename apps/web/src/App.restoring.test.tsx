@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { keptLibraryHinted } from './ui/analysis/keptLibrary'
@@ -31,6 +31,15 @@ describe('restoring kept results on a reload', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows the tabs, and no Add files in the header, while the results restore', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    render(<App />)
+    const header = within(screen.getByRole('banner'))
+    expect(header.getByRole('navigation', { name: 'Sections' })).toBeInTheDocument()
+    expect(header.queryByRole('button', { name: 'Add files' })).not.toBeInTheDocument()
   })
 
   it('shows the landing page once the library has loaded with nothing in it', () => {

@@ -8,12 +8,12 @@
 export const PHONE_MAX_WIDTH_PX = 760
 
 /**
- * From this width the header's guides button sits beside Add files. Below it the actions would wrap onto
- * a second row, so the phone and the narrow desktop reach the guides from Profile and the landing.
+ * At or below this width the header's wordmark is hidden, so the brand mark and the actions keep one
+ * row. It is separate from COMPACT_PHONE_MAX_WIDTH_PX, which the sport card also reads.
  */
-export const HEADER_GUIDES_MIN_WIDTH_PX = 1100
+export const WORDMARK_HIDDEN_MAX_WIDTH_PX = 800
 
-/** At or below this width a phone's wordmark and its account name are hidden to make room. */
+/** At or below this width a phone's account name is hidden to make room. */
 export const COMPACT_PHONE_MAX_WIDTH_PX = 560
 
 /** At or below this width Add files shows its plus only. */

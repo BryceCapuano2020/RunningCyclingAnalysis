@@ -3,6 +3,7 @@
   align-items: center;
   min-height: var(--control-height);
   align-self: start;
+  justify-self: start;
 }
 
 .activity-page__eyebrow {

@@ -28,6 +28,11 @@ describe('AddFilesButton', () => {
     expect(input).not.toBeDisabled()
   })
 
+  it('titles the button, so the plus-only button on a narrow phone still says what it does', () => {
+    const { button } = renderAddFiles()
+    expect(button).toHaveAttribute('title', 'Add files')
+  })
+
   it('opens the file chooser on click', async () => {
     const user = userEvent.setup()
     const { button, input } = renderAddFiles()

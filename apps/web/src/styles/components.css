@@ -122,8 +122,10 @@
   font-weight: 500;
 }
 
+/* The hover also darkens the edge to the secondary text colour, so it shows on the page. */
 .btn:hover {
   background: var(--surface-2);
+  border-color: var(--text-secondary);
 }
 
 /* A press drops the control a pixel, takes the pressed fill and an inset ring, so the press shows in
@@ -166,6 +168,22 @@
   .btn:active:not([aria-disabled='true']) {
     outline: 2px solid CanvasText;
     outline-offset: -2px;
+  }
+
+  /* The primary button keeps its fill as the system highlight, so it still reads as the one action. Its
+     hover and press are listed too, since their own accent fills are not system colours. */
+  .btn-primary,
+  .btn-primary:hover,
+  .btn-primary:active:not([aria-disabled='true']) {
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+
+  /* A chip's fill is dropped in forced colours, so its edge is drawn as an outline. */
+  .chip {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
   }
 }
 

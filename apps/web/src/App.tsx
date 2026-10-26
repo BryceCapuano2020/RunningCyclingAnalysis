@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
-import { HowToGetFilesButton } from './ui/components/HowToGetFiles'
 import { AppNotices } from './ui/components/AppNotices'
 import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
@@ -213,14 +212,14 @@ export function App() {
   return (
     <div className="page">
       <SkipLink />
+      {/* While results restore, the tabs show and Add files is left to the restoring page. */}
       <Header
         route={route}
-        showTabs={hasResult}
+        showTabs={hasResult || restoringPage}
         addFiles={
-          <>
+          restoringPage ? null : (
             <AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />
-            <HowToGetFilesButton className="btn header__guides" />
-          </>
+          )
         }
         account={
           <AccountMenu

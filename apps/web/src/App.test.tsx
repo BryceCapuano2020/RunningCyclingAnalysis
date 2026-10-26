@@ -85,14 +85,12 @@ describe('header', () => {
     )
   })
 
-  it('offers the export guides beside Add files as a secondary button, so the import has a route to its files', () => {
+  it('keeps the export guides out of the header, which holds only Add files, Profile and the account', () => {
     showResult()
     render(<App />)
-    const guides = within(screen.getByRole('banner')).getByRole('button', {
-      name: 'How to get your files',
-    })
-    expect(guides).toHaveClass('btn')
-    expect(guides).not.toHaveClass('btn-primary')
+    expect(
+      within(screen.getByRole('banner')).queryByRole('button', { name: 'How to get your files' }),
+    ).not.toBeInTheDocument()
   })
 
   it('makes Add files the primary button only with a result or when signed in', () => {

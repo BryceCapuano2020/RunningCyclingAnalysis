@@ -52,14 +52,25 @@
   max-width: 62ch;
 }
 
+/* Its own width, not the row's: a link arrow is a target of its label, not a full-width bar. */
 .link-arrow {
   display: inline-flex;
+  justify-self: start;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control-height);
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
+}
+
+/* The arrow nudges on hover, the way the disclosure chevron turns. */
+.link-arrow svg {
+  transition: transform 0.15s;
+}
+
+.link-arrow:hover svg {
+  transform: translateX(2px);
 }
 
 .app__pitch {
@@ -121,6 +132,13 @@
   border-top: 1px solid var(--border);
   font-size: var(--text-sm);
   text-align: start;
+}
+
+/* 24 px is the smallest target WCAG allows, so a footer link is never a line-high sliver. */
+.app__footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
 }
 
 /* A finger needs a control's height to tap a footer link. A mouse keeps the line's own height. */
