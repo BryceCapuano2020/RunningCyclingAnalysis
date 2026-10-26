@@ -81,23 +81,19 @@ function tooLargeCopy(detail: string | undefined): string {
   return `Too large to read (over ${sizeText(bytes)}).`
 }
 
-/**
- * Whether a refused file's line gives advice that its group's suggested action would repeat. A lone
- * file keeps the advice in its line, and its group shows no action. With two or more, the group gives
- * the advice once, and the lines leave it out.
- */
+/** Whether a refused file's reason gives advice in its line, so the line can carry it. */
 export function lineNamesAction(file: RejectedFile): boolean {
   return LINE_ADVICE[file.code] !== undefined
 }
 
 /**
- * The plain sentence for one refused file. Pass true when the file's group gives its suggested action,
- * so the line leaves out the advice it would repeat.
+ * The plain sentence for one refused file. Its advice follows when the file carries it, which is the
+ * default. A line that does not carry the advice leaves it out.
  */
-export function rejectionCopy(file: RejectedFile, groupGivesAction = false): string {
+export function rejectionCopy(file: RejectedFile, carriesAdvice = true): string {
   const sentence = REASON_COPY[file.code](file.detail)
   const advice = LINE_ADVICE[file.code]
-  return advice === undefined || groupGivesAction ? sentence : `${sentence} ${advice}`
+  return advice === undefined || !carriesAdvice ? sentence : `${sentence} ${advice}`
 }
 
 export type SkippedGroup =
@@ -159,4 +155,30 @@ export function groupRejected(files: RejectedFile[]): SkippedFiles[] {
     const members = files.filter((file) => GROUP_OF[file.code] === group)
     return members.length === 0 ? [] : [{ group, files: members }]
   })
+}
+
+/**
+ * The refused files whose line carries its advice. A reason with advice carries it when its file is
+ * alone in its group, or when it is the summary's first file, which sits under the count and shows
+ * whether or not the group is open. Every other line leaves the advice out, so it is said once.
+ */
+export function adviceCarriers(
+  groups: SkippedFiles[],
+  first: RejectedFile | undefined,
+): ReadonlySet<RejectedFile> {
+  const carriers = new Set<RejectedFile>()
+  for (const { files } of groups) {
+    for (const file of files) {
+      if (lineNamesAction(file) && (files.length === 1 || file === first)) carriers.add(file)
+    }
+  }
+  return carriers
+}
+
+/** Whether a group shows its suggested action: it does not when one of its lines carries the advice. */
+export function groupShowsAction(
+  files: RejectedFile[],
+  carriers: ReadonlySet<RejectedFile>,
+): boolean {
+  return !files.some((file) => carriers.has(file))
 }

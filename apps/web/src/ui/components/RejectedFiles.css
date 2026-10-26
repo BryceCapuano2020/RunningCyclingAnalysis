@@ -46,3 +46,10 @@
   padding-left: var(--space-5);
   overflow-wrap: anywhere;
 }
+
+/* The summary computes to the link colour in forced colours, so the first file's reason takes the text colour. */
+@media (forced-colors: active) {
+  .rejected-files__first {
+    color: CanvasText;
+  }
+}

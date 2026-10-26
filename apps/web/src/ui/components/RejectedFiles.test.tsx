@@ -45,7 +45,7 @@ describe('RejectedFiles: what was skipped, and why', () => {
     expect(screen.queryByText('core reason', { exact: false })).not.toBeInTheDocument()
   })
 
-  it('gives each group one suggested action', () => {
+  it('gives a group its one suggested action unless one of its lines already gives the advice', () => {
     render(
       <Skipped
         rejected={[
@@ -58,7 +58,9 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Export the file again from your device or app.'),
+    ).not.toBeInTheDocument()
     expect(
       screen.getByText('Only runs and rides are analysed, so these were left out on purpose.'),
     ).toBeInTheDocument()
@@ -84,7 +86,7 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeInTheDocument()
   })
 
-  it('says the export advice once: in the group action, not in the lines, when a group has two or more damaged files', () => {
+  it('says the export advice once, in the first file line, when a group has two or more damaged files', () => {
     render(
       <Skipped
         rejected={[skipped('bad.fit', 'corrupt'), skipped('bad2.fit', 'corrupt')]}
@@ -93,8 +95,13 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
-    expect(screen.queryAllByText(/Export it again/)).toHaveLength(0)
+    expect(
+      screen.queryByText('Export the file again from your device or app.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
+    ).toBeInTheDocument()
+    expect(screen.queryAllByText(/Export it again/)).toHaveLength(1)
     expect(screen.getByText('bad2.fit: Damaged, so it could not be read.')).toBeInTheDocument()
   })
 
@@ -115,10 +122,11 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeInTheDocument()
   })
 
-  it('says the shorter-range advice once when a group has two or more too-large files', () => {
+  it("shows a too-large pair's group action, and leaves the advice out of their lines, when the first file is damaged", () => {
     render(
       <Skipped
         rejected={[
+          skipped('bad.fit', 'corrupt'),
           skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
           skipped('big2.fit', 'too-large', String(64 * 1024 ** 2)),
         ]}
@@ -132,9 +140,34 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeInTheDocument()
     expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(0)
     expect(screen.getByText('big2.fit: Too large to read (over 64 MB).')).toBeInTheDocument()
+    expect(
+      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
+    ).toBeInTheDocument()
   })
 
-  it('says the shorter-range advice once when a group has two or more too-much-data files', () => {
+  it('says the shorter-range advice once, in the first file line, when a group has two too-large files', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
+          skipped('big2.fit', 'too-large', String(64 * 1024 ** 2)),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.queryByText('Check the recording on your device, or export a shorter range.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('big.fit: Too large to read (over 64 MB). Export a shorter range.'),
+    ).toBeInTheDocument()
+    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(1)
+    expect(screen.getByText('big2.fit: Too large to read (over 64 MB).')).toBeInTheDocument()
+  })
+
+  it('says the shorter-range advice once, in the first file line, when a group has two too-much-data files', () => {
     render(
       <Skipped
         rejected={[skipped('a.fit', 'too-much-data'), skipped('b.fit', 'too-much-data')]}
@@ -143,7 +176,13 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(0)
+    expect(
+      screen.queryByText('Check the recording on your device, or export a shorter range.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('a.fit: Too much data for one file. Export a shorter range.'),
+    ).toBeInTheDocument()
+    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(1)
     expect(screen.getByText('b.fit: Too much data for one file.')).toBeInTheDocument()
   })
 
