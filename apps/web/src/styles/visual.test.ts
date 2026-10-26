@@ -478,7 +478,10 @@ describe('balance hero, meter and evidence', () => {
       '.balance-meter--ride .balance-meter__dot',
     ]) {
       expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
-      expect(rulesWith(forced, selector), selector).toMatch(/box-shadow:\s*0 0 0 2px Canvas/)
+      // Forced colours drop box-shadow, so the ring is an outline, which they keep.
+      expect(rulesWith(forced, selector), selector).toMatch(/outline:\s*2px solid Canvas/)
+      expect(rulesWith(forced, selector), selector).toMatch(/outline-offset:\s*0/)
+      expect(rulesWith(forced, selector), selector).not.toMatch(/box-shadow/)
     }
   })
 

@@ -115,7 +115,8 @@ describe('TrendChart', () => {
     expect(
       Array.from(container.querySelectorAll('.chart-x-axis__tick')).map((t) => t.textContent),
     ).toEqual(['12 Jan', '19 Jan', '26 Jan', '2 Feb', '9 Feb', '16 Feb'])
-    expect(container.querySelector('.chart-x-axis__title')?.textContent).toBe('Date')
+    // The tick labels are the dates, so the date axis has no title of its own.
+    expect(container.querySelector('.chart-x-axis__title')).toBeNull()
   })
 
   it('marks each weekly value, and labels the latest one', () => {

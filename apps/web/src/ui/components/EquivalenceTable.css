@@ -61,3 +61,21 @@
     display: grid;
   }
 }
+
+/* Below 360 px the columns are too narrow for the values at the body size, so the list sets them a step
+   smaller and keeps each value whole. An estimated effort's chip wraps under its effort. */
+@media (max-width: 359px) {
+  .equivalence-list__labels,
+  .equivalence-list dl {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 1.1fr);
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+  }
+
+  .equivalence-list dd {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-1);
+    white-space: nowrap;
+  }
+}

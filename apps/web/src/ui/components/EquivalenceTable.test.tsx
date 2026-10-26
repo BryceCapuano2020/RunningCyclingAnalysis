@@ -155,4 +155,21 @@ describe('EquivalenceTable', () => {
       /\.equivalence-table__wide \{\s*display: none;/,
     )
   })
+
+  it('sets a 320 px phone’s list a step smaller, with its own columns and gap, and keeps each value on one line', () => {
+    const narrow = mediaBody(equivalenceCss, '(max-width: 359px)')
+    // The labels and the rows share the columns and the gap, so each label sits over its values.
+    const shared = '\\.equivalence-list__labels,\\s*\\.equivalence-list dl \\{[^}]*'
+    expect(narrow).toMatch(
+      new RegExp(
+        `${shared}grid-template-columns:\\s*minmax\\(0,\\s*1\\.1fr\\)\\s*minmax\\(0,\\s*0\\.6fr\\)\\s*minmax\\(0,\\s*1\\.1fr\\)`,
+      ),
+    )
+    expect(narrow).toMatch(new RegExp(`${shared}gap:\\s*var\\(--space-1\\);`))
+    expect(narrow).toMatch(new RegExp(`${shared}font-size:\\s*var\\(--text-sm\\)`))
+    // A value stays whole, and an estimated effort's chip wraps under its effort, not into the pace.
+    expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*white-space:\s*nowrap/)
+    expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*display:\s*flex/)
+    expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*flex-wrap:\s*wrap/)
+  })
 })

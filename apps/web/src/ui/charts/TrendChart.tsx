@@ -282,12 +282,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
         const latestPoint = m.points[latest] ?? null
         return (
           <>
-            <ChartXAxis
-              ticks={m.xTicks}
-              plot={plot}
-              title="Date"
-              fontSize={axisFontSize(size.width)}
-            />
+            <ChartXAxis ticks={m.xTicks} plot={plot} fontSize={axisFontSize(size.width)} />
             <ChartYAxis
               ticks={m.yTicks}
               plot={plot}

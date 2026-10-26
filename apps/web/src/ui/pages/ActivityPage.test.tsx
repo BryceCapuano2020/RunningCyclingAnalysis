@@ -6,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import type { DigestSplits } from '@rca/core/types'
+import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
-import { MAN_BORN_1986, makeActivity, makeResult } from '../components/fixtures'
+import { MAN_BORN_1986, makeActivity, makeEquivalence, makeResult } from '../components/fixtures'
 import { FLAT_PACE_NOTE } from '../grades'
 import type { RouteReply } from '../routeReply'
 import type { ActivityPageProps } from './ActivityPage'
@@ -293,6 +294,54 @@ describe('ActivityPage', () => {
     expect(screen.getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
       'href',
       '#/method',
+    )
+  })
+
+  it('shows the mile’s time alone in miles, since its pace is its time, and a 5 km pace beside its time', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Tempo run',
+        distanceBests: [
+          { distanceM: METRES_PER_MILE, seconds: 347 },
+          { distanceM: 5 * METRES_PER_KM, seconds: 1300 },
+        ],
+      }),
+      resultWith(),
+      'imperial',
+    )
+    expect(bestRow('Best 1 mi').querySelector('.records__sub')).toBeNull()
+    expect(bestRow('Best 5 km').querySelector('.records__sub')?.textContent).toMatch(/ \/mi$/)
+  })
+
+  it('says a run’s no-standard gap once under the bests, and leaves its row without a grade', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Tempo run',
+        distanceBests: [{ distanceM: METRES_PER_KM, seconds: 240 }],
+      }),
+    )
+    expect(within(bestsSection()).getAllByText('No age standard under 1 mile')).toHaveLength(1)
+    expect(bestRow('Best 1 km').querySelector('.records__grade')).toBeNull()
+  })
+
+  it('says a ride’s estimated grade once under the bests, and not on each row', () => {
+    renderPage(
+      powerRide,
+      resultWith({
+        rideCurve: rideCurveFixture,
+        equivalents: [makeEquivalence({ durationS: 300 }), makeEquivalence({ durationS: 1200 })],
+      }),
+    )
+    expect(
+      within(bestsSection()).getAllByText(/Estimated through its running equivalent/),
+    ).toHaveLength(1)
+    expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).toMatch(
+      /Recreational|Local|Regional|National|World/,
+    )
+    expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).not.toMatch(
+      /running equivalent/,
     )
   })
 

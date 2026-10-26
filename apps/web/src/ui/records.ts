@@ -320,6 +320,11 @@ function distanceRecordOf(
   }
 }
 
+/** Whether a distance's pace is its time: the mile in miles, or the kilometre in kilometres. */
+export function paceIsTime(distanceM: number, units: UnitSystem): boolean {
+  return distanceM === (units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM)
+}
+
 /** Whether a distance is one that a run record is kept for. */
 function isRunRecordDistance(distanceM: number): distanceM is RunRecordDistanceM {
   return RUN_RECORD_DISTANCES_M.some((record) => record === distanceM)
