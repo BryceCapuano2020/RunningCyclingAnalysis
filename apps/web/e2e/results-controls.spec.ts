@@ -49,7 +49,11 @@ test('the fitness over time card shows for sample data, and its table toggles', 
 }) => {
   await openSample(page)
   const card = page.locator('section').filter({
-    has: page.getByRole('heading', { level: 2, name: 'Fitness over time', exact: true }),
+    has: page.getByRole('heading', {
+      level: 2,
+      name: 'Best 20 min, week by week',
+      exact: true,
+    }),
   })
   await expect(card).toBeVisible()
   await expect(

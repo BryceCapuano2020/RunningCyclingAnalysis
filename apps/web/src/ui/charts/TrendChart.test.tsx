@@ -85,7 +85,7 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByRole('figure', {
-        name: 'Running grade-adjusted pace per kilometre, best 20 minutes, trailing 2 weeks',
+        name: 'Running flat pace per kilometre, best 20 minutes, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="trend-line"]')).toHaveLength(1)
@@ -106,7 +106,7 @@ describe('TrendChart', () => {
     const labels = ticks.map((tick) => tick.textContent)
     expect(labels).toContain('4:00')
     expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
-      'Grade-adjusted pace (/km), faster up',
+      'Flat pace (/km), faster up',
     )
     // A faster pace sits higher, so the 3:30 tick is above the 4:30 one.
     const yOf = (label: string) =>
@@ -332,7 +332,7 @@ describe('TrendChart', () => {
     )
     const { headers } = tableOf(container)
     expect(within(container).queryByText('W/kg')).toBeNull()
-    expect(headers).toEqual(['Week ending', 'Grade-adjusted pace', 'Runs'])
+    expect(headers).toEqual(['Week ending', 'Flat pace', 'Runs'])
   })
 
   it('fills no area under a pace line, and leaves no NaN or Infinity for a zero effort', () => {
@@ -368,7 +368,7 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByRole('figure', {
-        name: 'Running grade-adjusted pace per kilometre, best 5 minutes, trailing 2 weeks',
+        name: 'Running flat pace per kilometre, best 5 minutes, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(container.querySelector('caption')?.textContent).toMatch(/best 5 minutes in the 2 weeks/)

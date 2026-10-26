@@ -24,11 +24,11 @@ describe('AgeGradingSection', () => {
     )
   })
 
-  it('reads a run’s grade as recorded, from its recorded pace, which the cards call grade-adjusted', () => {
+  it('reads a run’s grade as recorded, from its flat pace, which the cards call flat pace', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(section()).toHaveTextContent(
-      'A run’s grade is read as recorded: the run’s recorded pace, corrected for hills with a published energy-cost curve, is its grade-adjusted pace.',
+      'A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for hills with a published energy-cost curve.',
     )
     expect(section()).not.toHaveTextContent(/a fact from the file/)
   })

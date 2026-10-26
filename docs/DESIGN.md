@@ -12,14 +12,14 @@ should feel **athletic and energetic** without hiding the honesty of the engine.
 
 Hash routes, so the static host needs no fallback rules.
 
-| Route              | Page              | Holds                                                                                                                                                                                                                               |
-| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share image                                                                                  |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold, records in native units with the age grade of each (runs also at 1 km, 1 mi, 5 km and 10 km), the best-effort curve in pace or watts with the previous period dashed, a weekly trend for 5, 20 or 60 minutes             |
-| `#/activities`     | Activities        | Every activity in the library, newest first, with its own period and sport filters and a count of the activities they show; a row opens its activity page                                                                           |
-| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), all-time records across the library, efforts set here, data issues                                                                                                                             |
-| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                               |
-| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities |
+| Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share image                                                                                                                                                                                                             |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, a line of recent form, records in native units with the age grade of each and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed |
+| `#/activities`     | Activities        | Every activity in the library, newest first, with its own period and sport filters and a count of the activities they show; a row opens its activity page                                                                                                                                                                                                      |
+| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), all-time records across the library, efforts set here, data issues                                                                                                                                                                                                                                                        |
+| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                          |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                            |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where each chart would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
@@ -92,7 +92,7 @@ sample is loaded, then the sync, library and sample notices and any error. After
 when every activity was already in the library, and links to Balance, except on Balance itself. An
 import made on Profile or Method moves to Balance, where its result is. Under that sentence it lists
 what the import moved in the athlete's numbers: at most four items, thresholds first, then the balance,
-then new bests at 1, 5, 20 and 60 minutes, counted only for workouts that were not on file before. A
+then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 5 km, 10 km and a half marathon), counted only for workouts that were not on file before. A
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
 or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
 group names its files with a plain reason and gives one suggested action. The summary's first skipped
@@ -186,6 +186,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
+- A sport page reads top to bottom: the threshold, its grade and level ladder for the best 20 minutes
+  (the same grade line as the card), a line of recent form ("Last run Wed 14 Jan · 9 runs · 42.10
+  km"), the best efforts, the week-by-week trend under the heading "Week by week", then the curve,
+  headed "Pace curve" for running and "Power curve" for cycling.
 - Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
@@ -222,17 +226,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a ring over an outlined band for its model range. The bands the grade falls in are filled in its
   sport's soft colour and named in bold: the band of its centre, or every band from the low end of a
   ride's range to its high end. Band edges are ticks. A marker past either end of the scale stays
-  inside the track, outline included, and the key says the grade is below or above the scale.
+  inside the track, outline included, and a chevron stands just outside that end; the key says the
+  grade is below or above the scale.
 - **The key sits under every ladder** as a figure caption, in words: "Solid dot: the grade of one
   recorded effort." for a run, and "Ring: estimated, with its range." for a ride. The shape is never
   the only cue.
 - **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
   unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could hold
   for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the
-  ladder with its key, the note that run pace is grade-adjusted (runs only), the caption, then the
-  best efforts. The grade line names the effort it grades: "Local · 64% · on your best 20 min,
-  6:37 /mi". A ride's line starts "Estimated", and its watts carry "estimated" when they did not come
-  from a power meter.
+  ladder with its key, the caption, then the best efforts, with the Flat note under them on a run.
+  The grade line names the effort it grades: "Local · 64% · on your best 20 min, 6:37 /mi". A
+  ride's line starts "Estimated", and its watts carry "estimated" when they did not come from a
+  power meter. A run card that shows a Flat mark says what it means under its records, on every run
+  card that has records, with or without a grade: "Flat pace: your pace allowing for hills, as if
+  on level ground."
 - **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
   each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
   20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
@@ -241,11 +248,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   not below the lowest of the efforts it was fitted to, since a threshold cannot be faster than an effort
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
   published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
-  and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The ride's floor is the same at every body mass. The share card asks for the same
-  efforts in its own words. The line "About ... estimated from your best 3 to 20 min efforts" sits under
+  and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
+  ride's floor is the same at every body mass. The share card asks for the same efforts in its own words. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
+- **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
+  previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
+  figure has not moved. It is absent for All time. A record with no grade says why in its grade slot,
+  such as "No age standard under 1 mile", so every row has the same cells.
+- **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
+  a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
+  estimated." The line links to How sure is this?.
 - **Best efforts share one list,** `SportRecords`, on the Balance card and the sport page: one row
-  per record with one source size, built by `recordRow`. A run's pace is marked GAP, which the
+  per record with one source size, built by `recordRow`. A run's pace is marked Flat, which the
   note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
   record was set in one activity, that activity is named once under the list ("All set on Morning
   run, Mon 5 Jan"). Otherwise each record links to its own activity. A long activity name is cut
@@ -341,17 +355,24 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
   the hash route. The request lasts for that one navigation only: any later route change drops it.
 - The app grades, it never ranks: no percentiles, no "top X%", no composite score across sports.
+- **Flat pace, and grade for age only.** Every running pace worked out as a flat pace is called
+  "flat pace" in charts, axes, tables, records and copy. Its record mark is "Flat", and its note reads
+  "Flat pace: your pace allowing for hills, as if on level ground." "Grade" means an age grade and
+  nothing else.
+- **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. A
+  run added before the half marathon was recorded gets it only when it is added again: the library
+  is not re-digested, and the model revision does not change.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter
   or a weakness, and never give a percentile.
 - **Runs are read as recorded; rides and thresholds are estimates.** A run's grade is the grade of
   one recorded best effort, so its line reads "Local · 64%" with no estimate word, and its pace is
-  marked GAP and noted as grade-adjusted: "Pace is grade-adjusted (GAP): the flat pace with the same
-  effort." A ride's grade is estimated through its running equivalent, so its line starts
-  "Estimated", it shows its 90% range in brackets, and a range that crosses a band names both levels
-  ("Local to Regional"). The card's caption says the bracketed range is the 90% range. A ride record
-  says the grade is "Estimated through its running equivalent" in full, because a row stands on its
-  own. Thresholds are always estimated. The Method page is the one place that explains the estimates.
+  marked Flat and noted: "Flat pace: your pace allowing for hills, as if on level ground." A ride's grade
+  is estimated through its running equivalent, so its line starts "Estimated", it shows its 90% range in
+  brackets, and a range that crosses a band names both levels ("Local to Regional"). The card's caption
+  says the bracketed range is the 90% range. A ride record says the grade is "Estimated through its
+  running equivalent" in full, because a row stands on its own. Thresholds are always estimated. The
+  Method page is the one place that explains the estimates.
 - **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
   standards". The full credit, with the authors, licence and a link, is on the sport pages' source
   lines, the record list's source line and How sure is this?.
@@ -366,9 +387,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   kept in this browser gets a neutral card, and an original kept in the account the red one. Every
   removal's confirm button is the one destructive button, from `ConfirmActions`. The account's
   deletion needs the typed email address.
-- **A missing year of birth or sex asks once,** on the Balance page: a muted line says the balance
-  in points and levels needs them, and a secondary button, "Add year of birth and sex", opens Profile.
-  The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer not to say" is
+- **A missing year of birth or sex asks once on each page that grades,** Balance, Run and Ride. On
+  Balance a muted line says the balance in points and levels needs them, and a secondary button, "Add
+  year of birth and sex", opens Profile. On Run and Ride the best efforts say "Age grades need your
+  year of birth and sex." with that link. The cards show no grade and no prompt in that case. Sex is never preselected; "Prefer not to say" is
   stored as no sex.
 - **Weight is never filled in for you.** Setup's Skip leaves the body weight blank, and Profile
   shows it as not entered. Without it, a ride's figures wait: the ride's threshold, its W/kg and

@@ -1,7 +1,16 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
-import { LANDING_TITLE, WCAG_TAGS, activitiesRows, goTo, openSample } from './helpers.js'
+import {
+  LANDING_TITLE,
+  WCAG_TAGS,
+  activitiesRows,
+  goTo,
+  openSample,
+  SETUP_DIALOG_NAME,
+  fixturePath,
+  uploadFixtures,
+} from './helpers.js'
 
 /** One line per violation, so a failure names the rule and the elements it hit. */
 async function violationsOf(page: Page) {
@@ -11,6 +20,23 @@ async function violationsOf(page: Page) {
     impact: violation.impact,
     targets: violation.nodes.map((node) => node.target.join(' ')),
   }))
+}
+
+/** Opens the sample with a year of birth and a sex saved, so the age grades and levels show. */
+async function openGradedSample(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'rca.preferences.v1',
+      JSON.stringify({
+        settings: { massKg: 75, bikeMassKg: 9 },
+        units: 'metric',
+        birthYear: 1986,
+        sex: 'male',
+        setupDone: true,
+      }),
+    )
+  })
+  await openSample(page)
 }
 
 const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
@@ -27,6 +53,38 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     open: async (page) => {
       await openSample(page)
       await goTo(page, 'Run')
+    },
+  },
+  {
+    name: 'Run, graded',
+    open: async (page) => {
+      await openGradedSample(page)
+      await goTo(page, 'Run')
+    },
+  },
+  {
+    name: 'Ride, graded',
+    open: async (page) => {
+      await openGradedSample(page)
+      await goTo(page, 'Ride')
+    },
+  },
+  {
+    name: 'setup dialog',
+    open: async (page) => {
+      await page.goto('/')
+      await page.locator('input[type="file"]').first().setInputFiles(fixturePath('one-run.fit'))
+      await expect(page.getByRole('dialog', { name: SETUP_DIALOG_NAME })).toBeVisible()
+    },
+  },
+  {
+    name: 'remove activities confirmation',
+    open: async (page) => {
+      await page.goto('/')
+      await uploadFixtures(page, ['one-run.fit'])
+      await goTo(page, 'Profile')
+      await page.getByRole('button', { name: 'Remove all my activities' }).click()
+      await expect(page.getByRole('alertdialog')).toBeVisible()
     },
   },
   {
@@ -71,3 +129,23 @@ for (const scheme of ['light', 'dark'] as const) {
     })
   }
 }
+
+test('the level ladder labels are at least 11 px, and the page does not scroll sideways at 320 px', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'narrow-320',
+    'Only the 320 px project measures the narrowest screen',
+  )
+  await openGradedSample(page)
+  await goTo(page, 'Run')
+  const sizes = await page
+    .locator('.level-ladder__pct, .level-ladder__name')
+    .evaluateAll((labels) => labels.map((label) => parseFloat(getComputedStyle(label).fontSize)))
+  expect(sizes.length).toBeGreaterThan(0)
+  expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(0)
+})

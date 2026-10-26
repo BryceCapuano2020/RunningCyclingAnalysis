@@ -25,7 +25,7 @@ const MIN_DURATION_S = 60
 const ACTIVE_MARKER_R = 5
 /** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
 const HEADROOM = 0.05
-const EMPTY = 'Add at least one run and one ride to compare them'
+const EMPTY = 'Add at least one run and one ride to compare them.'
 const PERCENT_AXIS_TITLE = `${SPORT_TITLE.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
 const CAPTION =
   'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher.'

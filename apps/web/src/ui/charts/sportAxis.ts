@@ -31,12 +31,12 @@ export function formatNative(sport: Sport, value: number, units: UnitSystem): st
 
 /** What a sport's own number is called, in table headings, tooltips and legends. */
 export function nativeLabel(sport: Sport): string {
-  return sport === 'run' ? 'Grade-adjusted pace' : 'Power'
+  return sport === 'run' ? 'Flat pace' : 'Power'
 }
 
 /** The vertical axis's title. Pace says which way is faster, since its axis runs the other way. */
 export function axisTitle(sport: Sport, units: UnitSystem): string {
-  return sport === 'run' ? `Grade-adjusted pace (${PACE_UNIT[units]}), faster up` : 'Power (W)'
+  return sport === 'run' ? `Flat pace (${PACE_UNIT[units]}), faster up` : 'Power (W)'
 }
 
 /** The pace unit spelt out, for a chart's name: "per kilometre" or "per mile". */

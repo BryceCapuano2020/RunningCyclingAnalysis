@@ -47,7 +47,7 @@ describe('Methodology', () => {
     expect(headings).toEqual([
       'One unit for both sports',
       'Why there is a range',
-      'Fitness over time',
+      'Best 20 min, week by week',
       'Heart-rate check',
       'Virtual power meter',
       'Data checks',
@@ -60,7 +60,9 @@ describe('Methodology', () => {
     render(<Methodology topics={['trend', 'limits']} />)
 
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2)
-    expect(screen.getByRole('heading', { level: 3, name: 'Fitness over time' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Best 20 min, week by week' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Heart-rate check' })).not.toBeInTheDocument()
   })
 
@@ -93,7 +95,7 @@ describe('Methodology', () => {
   it('explains the fitness trend in three plain facts, in durations written one way', () => {
     render(<Methodology topics={['trend']} />)
 
-    const section = plainOf('Fitness over time')
+    const section = plainOf('Best 20 min, week by week')
     expect(section).toHaveTextContent('one week, ending on a Sunday in UTC')
     expect(section).toHaveTextContent('5 min, 20 min or 60 min')
     expect(section).toHaveTextContent(`Balance uses ${HEADLINE_DURATION_S / 60} min.`)
@@ -115,11 +117,11 @@ describe('Methodology', () => {
   it('keeps the technical trend detail, with the median and the bike model, behind the disclosure', () => {
     render(<Methodology topics={['trend']} />)
 
-    const detail = plainOf('Fitness over time').querySelector('details')
+    const detail = plainOf('Best 20 min, week by week').querySelector('details')
     expect(detail).toHaveTextContent('the median, the middle of the model’s simulated answers')
     expect(detail).toHaveTextContent('period’s one bike model')
-    expect(plainOf('Fitness over time')).toHaveTextContent(
-      'Running is shown as grade-adjusted pace, which is pace corrected for the hill, and cycling as power in watts.',
+    expect(plainOf('Best 20 min, week by week')).toHaveTextContent(
+      'Running is shown as flat pace: your pace allowing for hills, as if on level ground, and cycling as power in watts.',
     )
   })
 

@@ -16,6 +16,12 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
     { name: 'mobile-webkit', use: { ...devices['iPhone 13'] } },
+    // The narrowest phone the layout must work at, checked by the accessibility suite.
+    {
+      name: 'narrow-320',
+      use: { ...devices['Pixel 7'], viewport: { width: 320, height: 640 } },
+      testMatch: /accessibility\.spec\.ts$/,
+    },
   ],
   webServer: [
     {
