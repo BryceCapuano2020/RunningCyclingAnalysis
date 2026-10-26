@@ -11,7 +11,7 @@ export const PHONE_MAX_WIDTH_PX = 760
  * At or below this width the header's wordmark is hidden, so the brand mark and the actions keep one
  * row. It is separate from COMPACT_PHONE_MAX_WIDTH_PX, which the sport card also reads.
  */
-export const WORDMARK_HIDDEN_MAX_WIDTH_PX = 800
+export const WORDMARK_HIDDEN_MAX_WIDTH_PX = 840
 
 /** At or below this width a phone's account name is hidden to make room. */
 export const COMPACT_PHONE_MAX_WIDTH_PX = 560

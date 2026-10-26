@@ -465,8 +465,8 @@ describe('header details', () => {
     expect(rulesWith(mediaOf(header, FORCED), '.header__tab')).toMatch(/color:\s*CanvasText/)
   })
 
-  it('hides the wordmark from 800 px down, and the account name only from 560 px down', () => {
-    expect(rulesWith(mediaOf(header, '(max-width: 800px)'), '.header__name')).toMatch(
+  it('hides the wordmark from 840 px down, and the account name only from 560 px down', () => {
+    expect(rulesWith(mediaOf(header, '(max-width: 840px)'), '.header__name')).toMatch(
       /position:\s*absolute/,
     )
     expect(
@@ -511,10 +511,17 @@ describe('header details', () => {
     )
   })
 
-  it('sets the skip link under the header, so focus on it is not hidden by the header', () => {
-    expect(rulesWith(skipLink, '.skip-link')).toMatch(
-      /top:\s*calc\(var\(--header-height\) \+ var\(--space-2\)\)/,
-    )
+  it('keeps the skip link at rest at the top of the page, hidden by its translate, not under the header', () => {
+    const rest = rulesWith(skipLink, '.skip-link')
+    expect(rest).toMatch(/top:\s*var\(--space-2\)/)
+    expect(rest).not.toMatch(/--header-height/)
+    expect(rest).toMatch(/transform:\s*translateY\(-200%\)/)
+  })
+
+  it('moves the skip link under the header on focus, and clears its translate there', () => {
+    const focus = rulesWith(skipLink, '.skip-link:focus')
+    expect(focus).toMatch(/top:\s*calc\(var\(--header-height\) \+ var\(--space-2\)\)/)
+    expect(focus).toMatch(/transform:\s*none/)
   })
 })
 
@@ -570,6 +577,12 @@ describe('global controls', () => {
     expect(rulesWith(mediaOf(components, FORCED), '.chip')).toMatch(
       /outline:\s*1px solid CanvasText/,
     )
+  })
+
+  it('keeps the focus ring on a chip button in forced colours, outside its outline', () => {
+    const focus = rulesWith(mediaOf(components, FORCED), '.chip:focus-visible')
+    expect(focus).toMatch(/outline:\s*2px solid CanvasText/)
+    expect(focus).toMatch(/outline-offset:\s*2px/)
   })
 
   it('draws the disclosure triangle as a solid shape in forced colours, not as a box of borders', () => {

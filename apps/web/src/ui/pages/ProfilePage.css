@@ -28,6 +28,8 @@
   color: var(--status-critical);
 }
 
+/* The generic .btn hover sets a grey edge, so the hover keeps the critical outline too. */
 .btn.profile-remove:hover {
+  border-color: var(--status-critical);
   background: var(--status-critical-bg);
 }

@@ -1,3 +1,5 @@
+import { NARROW_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
+import { useNarrowScreen } from '../useNarrowScreen'
 import { PlusIcon } from './icons'
 import { useFilePicker } from './useFilePicker'
 
@@ -15,14 +17,15 @@ export interface AddFilesButtonProps {
  */
 export function AddFilesButton({ onFiles, primary = true }: AddFilesButtonProps) {
   const picker = useFilePicker(onFiles)
-  // The title names the plus-only button on a narrow phone, where the words are hidden.
+  // At the narrow phone the words are hidden and the button is the plus only, so it names itself.
+  const plusOnly = useNarrowScreen(NARROW_PHONE_MAX_WIDTH_PX)
   return (
     <>
       <button
         type="button"
         className={primary ? 'btn btn-primary' : 'btn'}
         onClick={picker.open}
-        title={LABEL}
+        title={plusOnly ? LABEL : undefined}
       >
         <PlusIcon />
         <span className="add-files__label">{LABEL}</span>

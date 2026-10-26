@@ -215,7 +215,7 @@ export function App() {
       {/* While results restore, the tabs show and Add files is left to the restoring page. */}
       <Header
         route={route}
-        showTabs={hasResult || restoringPage}
+        showTabs={hasResult || analysis.restoring}
         addFiles={
           restoringPage ? null : (
             <AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />

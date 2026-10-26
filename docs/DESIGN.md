@@ -42,17 +42,17 @@ the brand and the actions, since one row would need more width than the 1,080 px
 beam for Balance, the runner, the rider and a list for Activities. The current tab is marked by a flat
 bar along its foot (its top edge on a phone) and by its colour. Sign-in stays
 one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
-screen readers. Below 420 px **Add files** shows its plus only, and keeps its name for screen
-readers. The account menu holds the email and Sign out; downloading data and deleting the account
+screen readers. Below 420 px **Add files** shows its plus only; its name is kept for screen readers and
+is its title, so a pointer shows it on hover. The account menu holds the email and Sign out; downloading data and deleting the account
 are on the Profile page. A file dropped anywhere on the page is imported. A drop with no file the import can read, such as a
 .txt, asks nothing: its files go straight to the skipped list. On a short page the footer
 sits at the foot of the window, sized to the small viewport so the phone's toolbar does not move it, and the brand mark's two sport strokes are 4 px, so the crossing reads at 32 px.
 
 The header's sizes are custom properties in `tokens.css`, and the header measures its own height into
 `--header-height` as it resizes, so the scroll padding and the skip link follow the real height at any
-text size. A control that focus or Back brings into view is not hidden under the header. Below 800 px
-the wordmark is hidden, so the brand mark and the actions keep one row. The breakpoints are named once,
-in `apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 800 px for the wordmark, 560 px
+text size. A control that focus or Back brings into view is not hidden under the header. At 840 px and
+below the wordmark is hidden, so the brand mark and the actions keep one row. The breakpoints are named once,
+in `apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 840 px for the wordmark, 560 px
 for the compact one (the tab glyphs and the account name), 420 px for the narrow one, and 900 px for
 Profile's two columns.
 

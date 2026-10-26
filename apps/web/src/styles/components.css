@@ -180,10 +180,16 @@
     color: HighlightText;
   }
 
-  /* A chip's fill is dropped in forced colours, so its edge is drawn as an outline. */
+  /* A chip's fill is dropped in forced colours, so its edge is drawn as an outline. A chip that is a
+     button keeps its focus ring outside that outline, where the outline would otherwise cover it. */
   .chip {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
+  }
+
+  .chip:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
   }
 }
 

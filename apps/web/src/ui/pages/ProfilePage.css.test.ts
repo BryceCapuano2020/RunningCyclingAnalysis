@@ -23,4 +23,9 @@ describe('ProfilePage stylesheet', () => {
     expect(remove).toMatch(/color:\s*var\(--status-critical\);/)
     expect(remove).not.toMatch(/background:\s*var\(--status-critical\)/)
   })
+
+  it('keeps the critical outline on hover, where the generic button hover would take it back to grey', () => {
+    const hover = /\.btn\.profile-remove:hover \{([^}]*)\}/.exec(bare)?.[1] ?? ''
+    expect(hover).toMatch(/border-color:\s*var\(--status-critical\);/)
+  })
 })

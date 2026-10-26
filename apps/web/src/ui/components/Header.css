@@ -183,7 +183,7 @@ html {
   }
 
   /* The wordmark is set a step smaller on a phone, so the brand and the actions share one row
-     from 801 px up, where the wordmark is still shown. */
+     from 841 px up, where the wordmark is still shown. */
   .header__name {
     /* The phone wordmark: a step below the wide size, so the brand and actions share a row. */
     font-size: var(--text-lead);
@@ -251,7 +251,7 @@ html {
 
 /* ui/layoutBreakpoints.ts: WORDMARK_HIDDEN_MAX_WIDTH_PX. The wordmark goes first, so the brand
    mark and the actions keep one row. */
-@media (max-width: 800px) {
+@media (max-width: 840px) {
   .header__name {
     position: absolute;
     width: 1px;

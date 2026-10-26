@@ -6,7 +6,21 @@ import { AddFilesButton } from './AddFilesButton'
 
 afterEach(() => {
   cleanup()
+  Reflect.deleteProperty(window, 'matchMedia')
 })
+
+/** Stubs the narrow phone's width query, which is what hides the words on a phone. */
+function setNarrow(narrow: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      matches: narrow && query === '(max-width: 420px)',
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  })
+}
 
 function fitFile(name: string): File {
   return new File(['data'], name, { type: 'application/octet-stream' })
@@ -28,7 +42,14 @@ describe('AddFilesButton', () => {
     expect(input).not.toBeDisabled()
   })
 
-  it('titles the button, so the plus-only button on a narrow phone still says what it does', () => {
+  it('has no title on a wide screen, where its words show', () => {
+    setNarrow(false)
+    const { button } = renderAddFiles()
+    expect(button).not.toHaveAttribute('title')
+  })
+
+  it('titles the button on a narrow phone, where only the plus shows, so it still says what it does', () => {
+    setNarrow(true)
     const { button } = renderAddFiles()
     expect(button).toHaveAttribute('title', 'Add files')
   })
