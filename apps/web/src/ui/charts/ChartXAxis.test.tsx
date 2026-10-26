@@ -22,6 +22,16 @@ function anchors(container: HTMLElement): (string | null)[] {
 }
 
 describe('ChartXAxis', () => {
+  it('draws no axis title when none is given, since the dates on it say what they are', () => {
+    const { container } = render(
+      <svg>
+        <ChartXAxis ticks={[{ position: 180, label: 'Sun 12 Jan' }]} plot={PLOT} />
+      </svg>,
+    )
+    expect(container.querySelector('.chart-x-axis__title')).toBeNull()
+    expect(container.querySelector('.chart-x-axis__tick')).toHaveTextContent('Sun 12 Jan')
+  })
+
   it('takes its tick size from the chart width alone, so no stylesheet size competes with it', () => {
     expect(ruleBody(axisCss, '.chart-x-axis__tick')).not.toMatch(/font-size/)
   })

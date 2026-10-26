@@ -132,10 +132,28 @@ describe('TrendChart', () => {
     // Weeks 0, 1 and 3 are marked; week 5 is the latest value, which has its own larger marker.
     expect(screen.getAllByTestId('trend-marker')).toHaveLength(3)
     expect(screen.getByTestId('trend-latest')).toBeInTheDocument()
-    // The latest run is 4.3 m/s, which is 3:53 /km, and its label names the window it covers.
-    expect(container.querySelector('.chart-series__label')?.textContent).toBe(
-      '3:53 /km, last 2 weeks',
+    // The latest run is 4.3 m/s, which is 3:53 /km. Its label gives the value alone, since the title names the window.
+    expect(container.querySelector('.chart-series__label')?.textContent).toBe('3:53 /km')
+  })
+
+  it('places the latest label above its point where the stepped line would run under it, below', () => {
+    // A week-10 dip, which the step back up at week 11 draws through the place a label below would take.
+    const dip = Array.from({ length: 13 }, (_, week) =>
+      point(week, runWkgAt(week === 10 ? 3.85 : 4), null),
     )
+    const { container } = render(
+      <TrendChart
+        sport="run"
+        points={dip}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    const latestY = Number(screen.getByTestId('trend-latest').getAttribute('cy'))
+    const labelY = Number(container.querySelector('.chart-series__label')?.getAttribute('y'))
+    expect(labelY).toBeLessThan(latestY)
   })
 
   it('breaks the line at a gap instead of bridging it', () => {
@@ -285,7 +303,7 @@ describe('TrendChart', () => {
     ).toBeInTheDocument()
   })
 
-  it('says each point is the best effort in its window, and that each line steps to the next Sunday', () => {
+  it('says under the chart only how each line steps to the next Sunday, since the caption names the window', () => {
     render(
       <TrendChart
         sport="run"
@@ -298,9 +316,10 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByText(
-        'Each point is the best 20 min in the 2 weeks to that Sunday. Each line steps from one Sunday to the next, and breaks where a week has no value.',
+        'Each line steps from one Sunday to the next, and breaks where a week has no value.',
       ),
     ).toBeInTheDocument()
+    expect(screen.queryByText(/Each point is/)).toBeNull()
     expect(screen.queryByText(/holds/)).toBeNull()
   })
 
@@ -372,6 +391,22 @@ describe('TrendChart', () => {
       }),
     ).toBeInTheDocument()
     expect(container.querySelector('caption')?.textContent).toMatch(/best 5 min in the 2 weeks/)
+  })
+
+  it('names an hour-long effort in the segment’s own label, as 60 min, not as an hour', () => {
+    render(
+      <TrendChart
+        sport="ride"
+        points={RIDE_POINTS}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={3600}
+      />,
+    )
+    expect(
+      screen.getByRole('figure', { name: 'Cycling power in watts, best 60 min, trailing 2 weeks' }),
+    ).toBeInTheDocument()
   })
 
   it('reads the week before the pointer, since a stepped line holds that week’s value to the next', () => {

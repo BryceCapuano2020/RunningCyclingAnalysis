@@ -1,11 +1,21 @@
-import { LABEL_GAP_X, endLabelAt, pointBefore } from './chartInteraction'
+import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore } from './chartInteraction'
+import {
+  ASCENT_EM,
+  DESCENT_EM,
+  bandBoxes,
+  meetsBoxes,
+  stepBoxes,
+  stretchesUnder,
+} from './chartBoxes'
+import type { Box } from './chartBoxes'
+import { SPORT_LABEL } from '../sports'
 import type { AxisTick, ChartSize, PlotBox, Point } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { labelSizePx, labelWidthPx, rootFontPx } from './rootFont'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import { formatValue, plotted } from './sharedTrendText'
 import type { SharedMeasure } from './sharedTrendText'
-import { NARROW_WIDTH, fitTicks } from './ticks'
+import { fitTicks } from './ticks'
 import { trendDateTicks } from './trendTicks'
 
 /** A value at the end of a line, labelled with its window, and where its label sits. */
@@ -30,19 +40,10 @@ export interface SharedLayout {
   yTicks: AxisTick[]
 }
 
-/** A label's box reaches an em above its baseline and a quarter em below, as its ink does. */
-const ASCENT_EM = 1
-const DESCENT_EM = 0.25
 /** The space a label's box keeps from the drawn band, so that the two do not touch. */
 export const BAND_CLEAR_PX = 2
-
-/** A rectangle on the chart, in px. */
-interface Box {
-  left: number
-  right: number
-  top: number
-  bottom: number
-}
+/** The space a run label's box keeps from the run's own line and markers, where it can. */
+const LINE_CLEAR_PX = 4
 
 /** The baselines that keep a label's box inside the plot's top and bottom. */
 interface Span {
@@ -66,6 +67,8 @@ interface LabelPlan {
   spots: number[]
   /** The drawn band it must keep clear of, or null for a label with none. */
   band: Box[] | null
+  /** The drawn line and markers of its own sport it must keep clear of, or null for none. */
+  line: Box[] | null
 }
 
 /** A label at a baseline: its plan, and the y it takes. */
@@ -76,8 +79,6 @@ interface Spot {
 
 interface LabelRules {
   measure: SharedMeasure
-  /** What follows the value, or null where the title already says it. */
-  note: string | null
   rootPx: number
   plot: PlotBox
   span: Span
@@ -114,59 +115,13 @@ function clampToSpan(y: number, span: Span): number {
 }
 
 /**
- * The ride band as stepBandPath draws it, in boxes: a stretch from each week's x to the next, which holds
- * the earlier week's range, and the two step connectors at the later week's x. A stretch is drawn only
- * where both of its weeks have a range, since stepBandPath breaks the band at a week without one.
- */
-function bandBoxes(
-  xs: readonly number[],
-  upper: readonly (Point | null)[],
-  lower: readonly (Point | null)[],
-): Box[] {
-  return xs.flatMap((left, i) => {
-    const right = xs[i + 1]
-    const high = upper[i] ?? null
-    const low = lower[i] ?? null
-    const nextHigh = upper[i + 1] ?? null
-    const nextLow = lower[i + 1] ?? null
-    if (right === undefined || !high || !low || !nextHigh || !nextLow) return []
-    return [
-      { left, right, top: high.y, bottom: low.y },
-      {
-        left: right,
-        right,
-        top: Math.min(high.y, nextHigh.y),
-        bottom: Math.max(high.y, nextHigh.y),
-      },
-      { left: right, right, top: Math.min(low.y, nextLow.y), bottom: Math.max(low.y, nextLow.y) },
-    ]
-  })
-}
-
-/** The pieces of the band that an x-range meets. */
-function stretchesUnder(band: readonly Box[], left: number, right: number): Box[] {
-  return band.filter((stretch) => stretch.left <= right && stretch.right >= left)
-}
-
-/** Whether a box comes within pad px of any piece of the band. A box that only touches it at pad 0 does not. */
-function meetsBand(box: Box, band: readonly Box[], pad: number): boolean {
-  return band.some(
-    (piece) =>
-      piece.left - pad < box.right &&
-      piece.right + pad > box.left &&
-      piece.top - pad < box.bottom &&
-      piece.bottom + pad > box.top,
-  )
-}
-
-/**
- * The baselines that set a label's box just above, or just below, each edge of the band under it, at the
- * clearance the band keeps and at none. Each gap between neighbouring edges has its two ends here, so a
+ * The baselines that set a label's box just above, or just below, each edge of the drawn pieces under it,
+ * at the clearance they keep and at none. Each gap between neighbouring edges has its two ends here, so a
  * box that fits in a gap is among the spots.
  */
-function bandSpots(under: readonly Box[], em: number): number[] {
+function edgeSpots(under: readonly Box[], em: number, clearance: number): number[] {
   return under.flatMap((piece) =>
-    [BAND_CLEAR_PX, 0].flatMap((clear) => [
+    [clearance, 0].flatMap((clear) => [
       piece.top - clear - DESCENT_EM * em,
       piece.bottom + clear + ASCENT_EM * em,
     ]),
@@ -188,24 +143,24 @@ function sideOf(
 }
 
 /**
- * The label at the latest value of one sport. Its preferred place is left of its point, and below it
- * unless the line arrives from below. Its other spots are the other side of its point, and the baselines
- * beside the band's edges under it, each kept inside the plot. Null when the sport has no value.
+ * The label at the latest value of one sport, named by its sport and its value, such as "Run 64%". Its
+ * preferred place is left of its point, and below it unless the line arrives from below. Its other spots
+ * are the other side of its point, and the baselines beside the band's edges and the line's under it, each
+ * kept inside the plot. Null when the sport has no value.
  */
 function endLabel(
   kind: EndLabel['kind'],
   weeks: readonly SharedWeek[],
   points: readonly (Point | null)[],
   pick: (week: SharedWeek) => number | null,
-  rules: LabelRules & { band: Box[] | null },
+  rules: LabelRules & Pick<LabelPlan, 'band' | 'line'>,
 ): LabelPlan | null {
   const latest = points.findLastIndex((point) => point !== null)
   const point = points[latest] ?? null
   const week = weeks[latest]
   const value = week === undefined ? null : pick(week)
   if (point === null || value === null) return null
-  const shown = formatValue(rules.measure, value)
-  const text = rules.note === null ? shown : `${shown}, ${rules.note}`
+  const text = `${SPORT_LABEL[kind]} ${formatValue(rules.measure, value)}`
   const em = labelSizePx(rules.rootPx)
   const width = labelWidthPx(text, rules.rootPx)
   const { anchor, x } = sideOf(point, width, rules.plot)
@@ -213,7 +168,8 @@ function endLabel(
   // A line arriving from below puts the label above its point, so this stands in for that arrival.
   const other = endLabelAt(point, preferred > point.y ? { x: point.x, y: point.y + 1 } : null).y
   const left = anchor === 'end' ? x - width : x
-  const under = rules.band === null ? [] : stretchesUnder(rules.band, left, left + width)
+  const underBand = rules.band === null ? [] : stretchesUnder(rules.band, left, left + width)
+  const underLine = rules.line === null ? [] : stretchesUnder(rules.line, left, left + width)
   const clamp = (y: number) => clampToSpan(y, rules.span)
   return {
     kind,
@@ -223,9 +179,25 @@ function endLabel(
     width,
     em,
     preferredY: clamp(preferred),
-    spots: [clamp(preferred), clamp(other), ...bandSpots(under, em).map(clamp)],
+    spots: [
+      clamp(preferred),
+      clamp(other),
+      ...edgeSpots(underBand, em, BAND_CLEAR_PX).map(clamp),
+      ...edgeSpots(underLine, em, LINE_CLEAR_PX).map(clamp),
+    ],
     band: rules.band,
+    line: rules.line,
   }
+}
+
+/** Whether counts a are fewer than counts b, comparing the first count, then the next. */
+function nearer(a: readonly number[], b: readonly number[]): boolean {
+  const first = a.findIndex((count, i) => count !== b[i])
+  return first !== -1 && (a[first] ?? 0) < (b[first] ?? 0)
+}
+
+function sameNear(a: readonly number[], b: readonly number[]): boolean {
+  return a.every((count, i) => count === b[i])
 }
 
 /** Every way to take one item from each list, in the order of the lists. */
@@ -259,33 +231,55 @@ function spreadSpots(spots: readonly Spot[], gap: number, span: Span): Spot[] {
   return placed
 }
 
-/** Whether a spot's box is inside the plot, both ways, and does not overlap the band its label keeps clear of. */
+/** Whether a spot's box is inside the plot, both ways, and touches neither drawn piece its label keeps clear of. */
 function fits(spot: Spot, plot: PlotBox): boolean {
   const box = boxOf(spot.plan, spot.y)
-  return insidePlot(box, plot) && (spot.plan.band === null || !meetsBand(box, spot.plan.band, 0))
+  return insidePlot(box, plot) && !overlapsDrawn(box, spot.plan, 0)
+}
+
+/** Whether a box comes within pad px of a drawn piece its label keeps clear of, the band or the line. */
+function overlapsDrawn(box: Box, plan: LabelPlan, pad: number): boolean {
+  return (
+    (plan.band !== null && meetsBoxes(box, plan.band, pad)) ||
+    (plan.line !== null && meetsBoxes(box, plan.line, pad))
+  )
 }
 
 /** Whether a spot's box keeps BAND_CLEAR_PX from the band its label keeps clear of. */
 function clearOfBand(spot: Spot): boolean {
   const { plan } = spot
-  return plan.band === null || !meetsBand(boxOf(plan, spot.y), plan.band, BAND_CLEAR_PX)
+  return plan.band === null || !meetsBoxes(boxOf(plan, spot.y), plan.band, BAND_CLEAR_PX)
+}
+
+/** Whether a spot's box keeps LINE_CLEAR_PX from the run's own line and markers, which its label keeps clear of. */
+function clearOfLine(spot: Spot): boolean {
+  const { plan } = spot
+  return plan.line === null || !meetsBoxes(boxOf(plan, spot.y), plan.line, LINE_CLEAR_PX)
 }
 
 /**
  * Where each label's baseline goes. Each combination of the labels' spots is spread apart, so the
  * positions that are checked are the final ones. A combination must keep every box inside the plot and
- * off the band. Of those, the one with fewest labels within BAND_CLEAR_PX of the band wins, and then the
- * one nearest the preferred places. Where no combination keeps every label off the band, the labels keep
- * their preferred places, spread apart and inside the plot.
+ * off the drawn band and line. Of those, the one with fewest labels within BAND_CLEAR_PX of the band wins,
+ * then the fewest within LINE_CLEAR_PX of the line, then the one nearest the preferred places. Where no
+ * combination keeps every label off the drawn pieces, the labels keep their preferred places, spread apart
+ * and inside the plot.
  */
 function placeLabels(plans: readonly LabelPlan[], plot: PlotBox, span: Span, gap: number): Spot[] {
-  let best: { spots: Spot[]; near: number; cost: number } | null = null
+  let best: { spots: Spot[]; near: number[]; cost: number } | null = null
   for (const picks of cartesian(plans.map((plan) => plan.spots.map((y) => ({ plan, y }))))) {
     const spots = spreadSpots(picks, gap, span)
     if (!spots.every((spot) => fits(spot, plot))) continue
-    const near = spots.filter((spot) => !clearOfBand(spot)).length
+    const near = [
+      spots.filter((spot) => !clearOfBand(spot)).length,
+      spots.filter((spot) => !clearOfLine(spot)).length,
+    ]
     const cost = spots.reduce((sum, spot) => sum + Math.abs(spot.y - spot.plan.preferredY), 0)
-    if (best === null || near < best.near || (near === best.near && cost < best.cost)) {
+    if (
+      best === null ||
+      nearer(near, best.near) ||
+      (sameNear(near, best.near) && cost < best.cost)
+    ) {
       best = { spots, near, cost }
     }
   }
@@ -295,13 +289,12 @@ function placeLabels(plans: readonly LabelPlan[], plot: PlotBox, span: Span, gap
 
 /**
  * The drawn layout of a shared trend at a chart size: each sport's points and band, its end labels and
- * its axes. A narrow chart shows each end label's value alone, since its title names the effort and the
- * window. Null with fewer than two weeks, which is too few for a line.
+ * its axes. Each end label names its sport and value, such as "Run 64%", at every width. Null with fewer
+ * than two weeks, which is too few for a line.
  */
 export function sharedTrendLayout(
   weeks: readonly SharedWeek[],
   measure: SharedMeasure,
-  latestNote: string,
   size: ChartSize,
 ): SharedLayout | null {
   const first = weeks[0]
@@ -330,15 +323,18 @@ export function sharedTrendLayout(
   const em = labelSizePx(rootPx)
   const span = { lo: plot.top + ASCENT_EM * em, hi: plot.bottom - DESCENT_EM * em }
   const band = bandBoxes(xs, rideHigh, rideLow)
-  const rules: LabelRules = {
-    measure,
-    note: width < NARROW_WIDTH ? null : latestNote,
-    rootPx,
-    plot,
-    span,
-  }
-  const runLabel = endLabel('run', weeks, run, (week) => week.run, { ...rules, band })
-  const rideLabel = endLabel('ride', weeks, ride, (week) => week.ride, { ...rules, band: null })
+  const runLine = stepBoxes(run, markerRadii(width).active)
+  const rules: LabelRules = { measure, rootPx, plot, span }
+  const runLabel = endLabel('run', weeks, run, (week) => week.run, {
+    ...rules,
+    band,
+    line: runLine,
+  })
+  const rideLabel = endLabel('ride', weeks, ride, (week) => week.ride, {
+    ...rules,
+    band: null,
+    line: null,
+  })
   const plans = [runLabel, rideLabel].flatMap((label) => (label === null ? [] : [label]))
   const spots = placeLabels(plans, plot, span, (ASCENT_EM + DESCENT_EM) * em)
   return {

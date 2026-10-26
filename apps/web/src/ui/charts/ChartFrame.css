@@ -11,6 +11,7 @@
   color: var(--text-primary);
   font-size: var(--text-label);
   font-weight: 600;
+  text-wrap: balance;
 }
 
 /* One line of key, reserved in every period, so the plot keeps its place when a key appears. */
@@ -48,15 +49,29 @@
   font-size: var(--text-sm);
 }
 
-/* Hidden until the plot has keyboard focus, when it tells a keyboard reader how to read the values. */
+/*
+ * Hidden until the plot has keyboard focus, when it tells a keyboard reader how to read the values. It sits
+ * inside the plot's top corner, in the overlay, so nothing below it moves. A tooltip takes its place once a
+ * point is active.
+ */
 .chart-frame__hint {
+  position: absolute;
   display: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
 .chart-frame:has(.plot-surface:focus-visible) .chart-frame__hint {
   display: block;
+}
+
+.chart-frame:has(.chart-tooltip__title) .chart-frame__hint {
+  display: none;
 }
 
 /* The table is wider than a phone, so it scrolls inside the figure rather than widening it. */

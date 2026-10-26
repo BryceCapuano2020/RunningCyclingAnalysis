@@ -5,7 +5,8 @@ import './ChartXAxis.css'
 export interface ChartXAxisProps {
   ticks: AxisTick[]
   plot: PlotBox
-  title: string
+  /** Optional axis title under the ticks. Leave it out when the dates or durations say what they are. */
+  title?: string
   /** Tick text size in px. */
   fontSize?: number
 }
@@ -47,14 +48,16 @@ export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProp
           </g>
         )
       })}
-      <text
-        className="chart-x-axis__title"
-        x={(plot.left + plot.right) / 2}
-        y={plot.bottom + 38}
-        textAnchor="middle"
-      >
-        {title}
-      </text>
+      {title ? (
+        <text
+          className="chart-x-axis__title"
+          x={(plot.left + plot.right) / 2}
+          y={plot.bottom + 38}
+          textAnchor="middle"
+        >
+          {title}
+        </text>
+      ) : null}
     </g>
   )
 }

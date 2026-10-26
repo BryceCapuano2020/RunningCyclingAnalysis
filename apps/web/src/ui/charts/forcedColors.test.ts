@@ -4,6 +4,8 @@ import { readStylesheet, ruleBody } from '../components/stylesheet'
 const seriesCss = await readStylesheet(import.meta.url, './ChartSeries.css')
 const ratioCss = await readStylesheet(import.meta.url, './RatioChart.css')
 const scatterCss = await readStylesheet(import.meta.url, './HrScatter.css')
+const legendCss = await readStylesheet(import.meta.url, './ChartLegend.css')
+const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 
 /** The rules inside a stylesheet's forced-colours block, which the browser applies in place of the tints. */
 function forcedBody(css: string): string {
@@ -27,6 +29,27 @@ describe('forced colours keep the chart marks visible', () => {
     expect(forced).toMatch(/\.chart-series__marker \{[^}]*stroke: Canvas/)
     expect(ruleBody(seriesCss, '.chart-series__ring--ride')).toMatch(/stroke: var/)
     expect(forced).toMatch(/\.chart-series__ring--ride \{[^}]*stroke: Highlight/)
+  })
+
+  it('draws the run and ride line keys as system-coloured lines in the legend and the tooltip', () => {
+    expect(forcedBody(legendCss)).toMatch(
+      /\.chart-legend__key--line \{[^}]*border-top: 2px solid CanvasText/,
+    )
+    expect(forcedBody(tooltipCss)).toMatch(
+      /\.chart-tooltip__key \{[^}]*border-top: 2px solid CanvasText/,
+    )
+  })
+
+  it('keeps the dashed estimate and previous keys dashed in the tooltip, in forced colours', () => {
+    expect(forcedBody(tooltipCss)).toMatch(
+      /\.chart-tooltip__key--dashed \{[^}]*border-top-style: dashed/,
+    )
+  })
+
+  it('gives the previous period’s line a system colour in forced colours, so it stays visible', () => {
+    expect(forcedBody(seriesCss)).toMatch(
+      /\.chart-series__line--previous \{[^}]*stroke: CanvasText/,
+    )
   })
 
   it('gives the heart-rate dots a system fill, so they read without their tints', () => {

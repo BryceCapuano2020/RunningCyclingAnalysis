@@ -337,8 +337,8 @@ describe('BalancePage', () => {
         name: 'Energy rate of your best 20 min, trailing 6 weeks',
       }),
     ).toBeInTheDocument()
-    // Only running has a value, so the key has nothing to tell apart.
-    expect(within(section).queryByRole('list', { name: 'Legend' })).toBeNull()
+    // Only running has a value, so its one line is named alone in the key.
+    expect(within(section).getByRole('list', { name: 'Legend' })).toHaveTextContent('Run')
   })
 
   it('holds cycling on the age-grade trend while no weight is entered, and draws it when one is', () => {
@@ -407,7 +407,7 @@ describe('BalancePage', () => {
         name: 'Age grade of your best 20 min, trailing 6 weeks',
       }),
     ).toBeInTheDocument()
-    expect(within(section).getByText(/^Each point grades your best 20 min in/)).toBeInTheDocument()
+    expect(within(section).getByText(/^Each point is the best 20 min in/)).toBeInTheDocument()
   })
 
   it('links to the method page once, from the evidence card, whatever the card says to do', () => {

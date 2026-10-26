@@ -3,7 +3,8 @@
   left: 0;
   top: 0;
   z-index: 1;
-  max-width: min(280px, 100%);
+  /* At most 280 px, and 24 px narrower than the chart, so a narrow chart keeps a margin either side. */
+  max-width: min(280px, calc(100% - 24px));
   padding: var(--space-2) var(--space-3);
   background: var(--surface-1);
   border: 1px solid var(--border);
@@ -54,6 +55,21 @@
   background: var(--neutral-mark);
 }
 
+/* A dashed key is an estimate, in its series colour, or the previous period, in its own mark. */
+.chart-tooltip__key--dashed {
+  height: 0;
+  background: none;
+  border-top: 2px dashed var(--previous-mark);
+}
+
+.chart-tooltip__key--dashed-run {
+  border-top-color: var(--series-run);
+}
+
+.chart-tooltip__key--dashed-ride {
+  border-top-color: var(--series-ride);
+}
+
 .chart-tooltip__value {
   font-weight: 600;
 }
@@ -67,4 +83,18 @@
   padding-left: 18px;
   color: var(--text-muted);
   font-size: var(--text-xs);
+  text-wrap: pretty;
+}
+
+/* In forced colours a key's tint is dropped, so each key is a system-coloured rule, dashed where it is dashed. */
+@media (forced-colors: active) {
+  .chart-tooltip__key {
+    height: 0;
+    background: none;
+    border-top: 2px solid CanvasText;
+  }
+
+  .chart-tooltip__key--dashed {
+    border-top-style: dashed;
+  }
 }

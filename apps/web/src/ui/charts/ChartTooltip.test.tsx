@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChartTooltip } from './ChartTooltip'
 import type { ChartTooltipProps } from './ChartTooltip'
 import type { TooltipContent } from './chartTypes'
+import { readStylesheet, ruleBody } from '../components/stylesheet'
+
+const tooltipCss = await readStylesheet(import.meta.url, './ChartTooltip.css')
 
 afterEach(() => {
   cleanup()
@@ -24,7 +27,8 @@ const content: TooltipContent = {
 function renderTooltip(overrides: Partial<ChartTooltipProps> = {}) {
   const props: ChartTooltipProps = {
     content: null,
-    bounds: { width: 400, height: 300 },
+    // A wide chart, so that the tooltip sits beside its point rather than at the top of the plot.
+    bounds: { width: 600, height: 300 },
     id: 'tip',
     ...overrides,
   }
@@ -70,6 +74,57 @@ describe('ChartTooltip', () => {
     keys.forEach((key) => expect(key).toHaveAttribute('aria-hidden', 'true'))
   })
 
+  it('draws a dashed key for an estimate, in its series colour, and for the previous period in its own mark', () => {
+    const { el } = renderTooltip({
+      content: {
+        ...content,
+        rows: [
+          { kind: 'ride', value: '58%', label: 'Ride, estimated', swatch: 'dashed' },
+          { kind: 'neutral', value: '50%', label: 'Previous 6 weeks', swatch: 'dashed' },
+        ],
+      },
+    })
+    const [ride, previous] = Array.from(el.querySelectorAll('.chart-tooltip__key'))
+    expect(ride).toHaveClass('chart-tooltip__key--dashed', 'chart-tooltip__key--dashed-ride')
+    expect(ride).not.toHaveClass('chart-tooltip__key--ride')
+    expect(previous).toHaveClass('chart-tooltip__key--dashed')
+    expect(previous).not.toHaveClass('chart-tooltip__key--neutral')
+  })
+
+  it('draws the previous period’s dashed key in the previous-period mark, not the neutral one', () => {
+    expect(ruleBody(tooltipCss, '.chart-tooltip__key--dashed')).toMatch(
+      /border-top:\s*2px dashed var\(--previous-mark\)/,
+    )
+    expect(ruleBody(tooltipCss, '.chart-tooltip__key--dashed-ride')).toMatch(
+      /border-top-color:\s*var\(--series-ride\)/,
+    )
+  })
+
+  it('sets a tooltip’s note in balanced lines, so it does not end on one word', () => {
+    expect(ruleBody(tooltipCss, '.chart-tooltip__note')).toMatch(/text-wrap:\s*pretty/)
+  })
+
+  it('caps a tooltip at the chart width less 24 px, so it stays inside a narrow chart', () => {
+    expect(ruleBody(tooltipCss, '.chart-tooltip')).toMatch(
+      /max-width:\s*min\(280px, calc\(100% - 24px\)\)/,
+    )
+  })
+
+  it('sits at the top of the plot below 480 px, rather than on its point', () => {
+    giveSize(100, 40)
+    const narrow = renderTooltip({
+      content: { ...content, y: 150 },
+      bounds: { width: 320, height: 300, plotTop: 28 },
+    })
+    expect(narrow.el.style.top).toBe('28px')
+    narrow.unmount()
+    const wide = renderTooltip({
+      content: { ...content, y: 150 },
+      bounds: { width: 480, height: 300, plotTop: 28 },
+    })
+    expect(wide.el.style.top).toBe('130px')
+  })
+
   it('places the tooltip to the right of the point, offset from it', () => {
     giveSize(100, 40)
     const { el } = renderTooltip({ content })
@@ -79,7 +134,10 @@ describe('ChartTooltip', () => {
 
   it('flips to the left of the point when it would run past the right edge', () => {
     giveSize(100, 40)
-    const { el } = renderTooltip({ content: { ...content, x: 350 } })
+    const { el } = renderTooltip({
+      content: { ...content, x: 350 },
+      bounds: { width: 400, height: 300 },
+    })
     expect(el.style.left).toBe('238px')
   })
 

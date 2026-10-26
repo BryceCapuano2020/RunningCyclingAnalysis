@@ -13,6 +13,8 @@ import {
   countSport,
   curveOf,
   distanceRecords,
+  effortLabel,
+  EFFORT_OPTIONS,
   featuredEquivalence,
   recordDurationLabel,
   isEstimatedRecord,
@@ -394,5 +396,15 @@ describe('the half marathon as a run record', () => {
       '21:40',
     ])
     expect(ownDistanceRecords(makeActivity({ sport: 'ride' }), 'metric')).toEqual([])
+  })
+})
+
+describe('effortLabel', () => {
+  it('names each effort length in minutes, the same way the trend’s segment control does', () => {
+    expect(effortLabel(1200)).toBe('20 min')
+    expect(effortLabel(3600)).toBe('60 min')
+    expect(EFFORT_OPTIONS.map((option) => option.label)).toEqual(
+      EFFORT_OPTIONS.map((option) => effortLabel(Number(option.value))),
+    )
   })
 })

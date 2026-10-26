@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { DAY_MS } from '@rca/core/constants'
+import { levelOf } from '@rca/core/grade'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SharedTrendChart } from './SharedTrendChart'
 import type { SharedTrendChartProps } from './SharedTrendChart'
@@ -147,7 +148,8 @@ describe('SharedTrendChart', () => {
     const warnings = vi.spyOn(console, 'error').mockImplementation(() => {})
     const weeks = [week(0, 0.64, 0.64, true), week(1, 0.66, 0.66, true)]
     const { rerender } = renderChart({ weeks })
-    expect(screen.getAllByText('66%, best 20 min, last 2 weeks')).toHaveLength(2)
+    expect(screen.getByText('Run 66%')).toBeInTheDocument()
+    expect(screen.getByText('Ride 66%')).toBeInTheDocument()
     rerender(
       <SharedTrendChart
         weeks={weeks}
@@ -156,7 +158,8 @@ describe('SharedTrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(screen.getAllByText('66%, best 20 min, last 2 weeks')).toHaveLength(2)
+    expect(screen.getByText('Run 66%')).toBeInTheDocument()
+    expect(screen.getByText('Ride 66%')).toBeInTheDocument()
     const keyWarnings = warnings.mock.calls.filter((call) => String(call[0]).includes('same key'))
     expect(keyWarnings).toEqual([])
     warnings.mockRestore()
@@ -173,12 +176,26 @@ describe('SharedTrendChart', () => {
     expect(hovered).toBeGreaterThan(plain)
   })
 
-  it('names the window in the tooltip, so a week reads as the best of its window', () => {
+  it('titles the tooltip with its week alone, since the card title already names the effort and window', () => {
     renderChart()
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Week ending Sun 12 Jan 2025, best 20 min over 2 weeks',
-    )
+    const tooltip = screen.getByRole('status')
+    expect(tooltip).toHaveTextContent('Week ending Sun 12 Jan 2025')
+    expect(tooltip).not.toHaveTextContent('best 20 min')
+  })
+
+  it('names cycling as an estimate in the tooltip, with its key dashed and only its level beneath', () => {
+    const { container } = renderChart({ weeks: [week(0, 0.6, 0.52), week(1, 0.62, 0.54)] })
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    const tooltip = screen.getByRole('status')
+    expect(within(tooltip).getByText('Ride, estimated')).toBeInTheDocument()
+    expect(tooltip).not.toHaveTextContent('Estimated from its running equivalent')
+    expect(levelOf(0.52)).not.toBeNull()
+    expect(tooltip).toHaveTextContent(`${levelOf(0.52)}`)
+    const rideKey = tooltip.querySelector('.chart-tooltip__key--dashed-ride')
+    expect(rideKey).toHaveClass('chart-tooltip__key--dashed')
+    expect(tooltip.querySelector('.chart-tooltip__key--ride')).toBeNull()
+    expect(container.querySelector('.chart-tooltip__key--dashed')).not.toBeNull()
   })
 
   it('says no cycling was ridden in a week with no ride, in the tooltip, as the trend chart does', () => {
@@ -220,11 +237,13 @@ describe('SharedTrendChart', () => {
     expect(legend).not.toHaveTextContent('Run')
   })
 
-  it('shows no legend when only running has values, since one solid key needs none', () => {
+  it('shows the running key alone when only running has values, so the one line is named', () => {
     renderChart({
       weeks: [week(0, 0.6, null), week(1, 0.62, null), week(2, null, null), week(3, 0.64, null)],
     })
-    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    const legend = screen.getByRole('list', { name: 'Legend' })
+    expect(legend).toHaveTextContent('Run, as recorded')
+    expect(legend).not.toHaveTextContent('Ride')
   })
 
   it('holds cycling while a weight is missing: no ride line, ring, band, key or column, and it says so', () => {
@@ -232,20 +251,20 @@ describe('SharedTrendChart', () => {
     expect(container.querySelector('[data-testid="trend-line"][data-sport="ride"]')).toBeNull()
     expect(container.querySelector('[data-testid="trend-ring"]')).toBeNull()
     expect(container.querySelector('[data-testid="trend-band"]')).toBeNull()
-    // Running alone is one solid key, which needs no legend.
-    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    // Running alone is one solid key, which names its line.
+    expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Run, as recorded')
     const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
     expect(headers).toEqual(['Week ending', 'Run grade', 'Runs'])
     expect(screen.getByText(/Cycling is held until a weight is added/)).toBeInTheDocument()
   })
 
-  it('labels the latest values with their value alone under 480 px, since the title names the effort and window', () => {
+  it('labels the latest values with their sport and value at every width, since the title names the effort and window', () => {
     chartWidth(340)
     const { container } = renderChart()
     const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
       (label) => label.textContent,
     )
-    expect(labels).toEqual(['66%', '58%'])
+    expect(labels).toEqual(['Run 66%', 'Ride 58%'])
   })
 
   it('sets a run label at the plot’s left edge to the right of its point, clear of the y tick labels', () => {
@@ -254,12 +273,12 @@ describe('SharedTrendChart', () => {
       weeks: [week(0, 0.6, 0.52), week(1, null, 0.54), week(2, null, 0.56)],
     })
     const run = Array.from(container.querySelectorAll('.chart-series__label')).find(
-      (label) => label.textContent === '60%',
+      (label) => label.textContent === 'Run 60%',
     )
     expect(run?.getAttribute('text-anchor')).toBe('start')
   })
 
-  it('names an energy end label in its full unit from 480 px, with its effort and window', () => {
+  it('names an energy end label with its sport and full unit', () => {
     chartWidth(480)
     const { container } = renderChart({
       measure: 'energy',
@@ -268,16 +287,47 @@ describe('SharedTrendChart', () => {
     const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
       (label) => label.textContent,
     )
-    expect(labels).toEqual([
-      '4.2 metabolic W/kg, best 20 min, last 2 weeks',
-      '3.1 metabolic W/kg, best 20 min, last 2 weeks',
-    ])
+    expect(labels).toEqual(['Run 4.2 metabolic W/kg', 'Ride 3.1 metabolic W/kg'])
   })
 
-  it('labels the latest value with the window it covers, so it can differ from the card’s best', () => {
+  it('labels each latest value with its sport and value, as the table and tooltip name the sport', () => {
     renderChart()
-    expect(screen.getByText('66%, best 20 min, last 2 weeks')).toBeInTheDocument()
-    expect(screen.getByText('58%, best 20 min, last 2 weeks')).toBeInTheDocument()
+    expect(screen.getByText('Run 66%')).toBeInTheDocument()
+    expect(screen.getByText('Ride 58%')).toBeInTheDocument()
+  })
+
+  it('draws the grade axis with its name and no date title under the dates', () => {
+    const { container } = renderChart()
+    expect(container.querySelector('.chart-y-axis__title')).toHaveTextContent('Age grade')
+    expect(container.querySelector('.chart-x-axis__title')).toBeNull()
+  })
+
+  it('says how each line steps in the table caption, and not beneath the chart', () => {
+    const { container } = renderChart()
+    expect(container.querySelector('caption')).toHaveTextContent(
+      'Each line steps from one Sunday to the next, and breaks where a week has no value.',
+    )
+    expect(container.querySelector('.chart-frame__note')).not.toHaveTextContent('steps')
+  })
+
+  it('marks the run and ride count columns as phone-hidden, so a phone shows the grades alone', () => {
+    const { container } = renderChart()
+    const hidden = Array.from(container.querySelectorAll('thead .chart-table__phone-hidden')).map(
+      (cell) => cell.textContent,
+    )
+    expect(hidden).toEqual(['Runs', 'Rides'])
+  })
+
+  it('shows the held message in place of the chart when only a held ride has a value, with the held note under it', () => {
+    const { container } = renderChart({
+      rideKnown: false,
+      weeks: [week(0, null, 0.52), week(1, null, 0.54)],
+    })
+    expect(
+      screen.getByText('Your rides are held until you add a weight on Profile.'),
+    ).toBeInTheDocument()
+    expect(container.querySelector('svg')).toBeNull()
+    expect(screen.getByText(/Cycling is held until a weight is added/)).toBeInTheDocument()
   })
 
   it('labels the grade axis in per cent, and shows the grade in the tooltip, floored to the whole percent', () => {
@@ -345,11 +395,11 @@ describe('SharedTrendChart', () => {
     expect(screen.getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
   })
 
-  it('explains a low point as a window of easy efforts, in either measure', () => {
+  it('explains a low point as a window of easy efforts, in one sentence under the chart', () => {
     renderChart()
     expect(
       screen.getByText(
-        /A low point can be a window of easy efforts: each is the best in its window, not an average\./,
+        'Each point is the best 20 min in the 2 weeks to that Sunday. A low point is a window of easy efforts, not an average.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/easy runs/)).toBeNull()
@@ -358,9 +408,7 @@ describe('SharedTrendChart', () => {
   it('explains a low energy point the same way, in the energy measure', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(
-      screen.getByText(
-        /A low point can be a window of easy efforts: each is the best in its window, not an average\./,
-      ),
+      screen.getByText(/A low point is a window of easy efforts, not an average\./),
     ).toBeInTheDocument()
   })
 
