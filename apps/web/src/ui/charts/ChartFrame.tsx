@@ -84,7 +84,6 @@ export function ChartFrame({
     height,
     plot: plotBoxOf(width, height, rightMargin, plotBottomMargin),
     tooltipId: `${id}-tooltip`,
-    titleId,
     hintId,
   }
 

@@ -59,11 +59,11 @@ Profile's two columns.
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
-links in a records list, the cross-sport idea and the two footer links, which are padded to that
-height on a finger. A footer link is 24 px tall with a mouse, the smallest target WCAG allows. At
-360 px and below the tab labels and the sex choices shrink a step, so "ACTIVITIES" keeps its
-line in a four-tab bar and "Prefer not to say" keeps two. Where the tabs overflow, the bar
-scrolls from the left and fades at its edge until it is scrolled to the end.
+links in a records list, the cross-sport idea, the standards link under a grade and the two footer
+links, which are padded to that height on a finger. A footer link is 24 px tall with a mouse, the
+smallest target WCAG allows. At 360 px and below the tab labels and the sex choices shrink a step,
+so "ACTIVITIES" keeps its line in a four-tab bar and "Prefer not to say" keeps two. Where the tabs
+overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
 
 Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
 and an activity by its own name. The first control on a page is **Skip to content**, which moves
@@ -201,8 +201,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Barlow** (400, 500, 600) for text, **Barlow Condensed** (700, 800) for numbers and headings.
   Both are self-hosted from `@fontsource` (OFL-1.1), so no third-party font request is made.
 - Headings are condensed and upper case. The page title is 800 weight; the page title and the section
-  headings, paragraphs, figure captions and list items are set with `text-wrap: pretty`, so a single word is not left alone on the last line. Section
-  headings are 700.
+  headings, paragraphs, figure captions and list items are set with `text-wrap: pretty`, so a single
+  word is not left alone on the last line. The Balance headline is balanced instead, and sets at
+  2rem below 360 px, so no word is left alone at 320 px. Section headings are 700.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
@@ -214,7 +215,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   such as the page headings and the figures, have no token: each is set where it is used, with a
   comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so it stays in
   lower case, as in "/mi", and the space before it is a non-breaking space, so the unit never starts
-  a line.
+  a line. Inline source links are set at `--text-md`, and on Balance and the sport pages so are the
+  disclosure summaries, except a best efforts label, an eyebrow at `--text-sm`.
 - **Cards only for things you can open or act on.** Sections are separated by space and a heading,
   not a border. A card has a 12 px radius, a 1 px border and no shadow.
 - One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
@@ -256,8 +258,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   A best-effort curve marks the 1, 5, 20 and
   60 minute efforts, the same ones its records list names, and labels its last point with its value
   where there is room beside the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
-  the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
-  visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
+  the line alone: pace has no zero to fill down to. Every chart has a visible title, which names
+  the figure once; the plot is described by its tooltip and arrow-key hint, not named again, and a
+  value's label sits clear of its own line. A week's marker is enlarged when the
   reader points at it, as well as the latest one. A tooltip names its week, as "Week ending Sun 12 Jan
   2025", since the card title names the effort and window. A dashed key is an estimate or a previous
   period. A chart's key keeps its row wherever the chart can have a key, so the plot does not move when

@@ -82,7 +82,7 @@
 /* Layout (flex row, disclosure triangle, 40 px height) comes from the global summary rule. */
 .chart-frame__details summary {
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
 }
 
 .chart-frame__details .table-scroll {

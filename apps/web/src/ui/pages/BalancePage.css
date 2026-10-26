@@ -29,6 +29,14 @@
   text-wrap: balance;
 }
 
+/* At or below 359 px, which is HEADLINE_SMALL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts. */
+@media (max-width: 359px) {
+  .balance-hero__head h1 {
+    /* A display size with no type token; see DESIGN.md, Type. */
+    font-size: 2rem;
+  }
+}
+
 /* The sport cards share one height, so their "All runs" and "All rides" links sit on one line. */
 .balance__sports,
 .balance__cards {

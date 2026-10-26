@@ -517,6 +517,10 @@ describe('balance hero, meter and evidence', () => {
     )
   })
 
+  it('sets the Set on link at the body size, as the other inline source links are', () => {
+    expect(rulesWith(crossSport, '.cross-sport__link')).toMatch(/font-size:\s*var\(--text-md\)/)
+  })
+
   it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {
     const phone = mediaOf(equivalenceCss, '(max-width: 479px)')
     expect(phone).toMatch(/\.equivalence-list__labels \{[^}]*display:\s*grid/)
@@ -748,6 +752,10 @@ describe('sport records, on the card and the page', () => {
 
   it('keeps every record link at least 24 px tall, for a pointer as for a finger', () => {
     expect(rulesWith(sportRecords, '.records__link')).toMatch(/min-height:\s*24px/)
+  })
+
+  it('sets every record link at the body size, as the other inline source links are', () => {
+    expect(rulesWith(sportRecords, '.records__link')).toMatch(/font-size:\s*var\(--text-md\)/)
   })
 
   it('lets the shared line’s link wrap, so the date is never cut short', () => {

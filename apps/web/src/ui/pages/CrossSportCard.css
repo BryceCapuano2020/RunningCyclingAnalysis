@@ -27,6 +27,11 @@
   color: var(--series-run);
 }
 
+/* The link to the activity is an inline source link, at the body size like the others. */
+.cross-sport__link {
+  font-size: var(--text-md);
+}
+
 /* A finger, or a phone's narrow screen, needs a control's height to tap the link to the activity. */
 @media (max-width: 760px), (pointer: coarse) {
   .cross-sport__link {

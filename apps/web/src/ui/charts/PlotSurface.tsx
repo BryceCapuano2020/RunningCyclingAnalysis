@@ -77,7 +77,6 @@ export function PlotSurface({ size, onPoint, onKey, onBlur }: PlotSurfaceProps) 
       tabIndex={0}
       ref={surface}
       aria-roledescription="chart"
-      aria-labelledby={size.titleId}
       aria-describedby={`${size.tooltipId} ${size.hintId}`}
       onPointerDown={handleMove}
       onPointerMove={handleMove}

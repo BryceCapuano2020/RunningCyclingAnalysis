@@ -7,7 +7,6 @@ const SIZE: ChartSize = {
   height: 300,
   plot: { left: 40, right: 380, top: 20, bottom: 260 },
   tooltipId: 'tip',
-  titleId: 'chart-title',
   hintId: 'chart-hint',
 }
 

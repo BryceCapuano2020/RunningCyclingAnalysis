@@ -63,6 +63,12 @@ describe('ChartFrame', () => {
     expect(ruleBody(frameCss, '.chart-frame__details .table-scroll')).toMatch(/max-width:\s*100%/)
   })
 
+  it('sets the View as table disclosure at the body size, as the pace curve disclosure is', () => {
+    expect(ruleBody(frameCss, '.chart-frame__details summary')).toMatch(
+      /font-size:\s*var\(--text-md\)/,
+    )
+  })
+
   it('renders an empty chart as its message alone: no drawing, table, hint or reserved height', () => {
     const { container } = renderFrame({ empty: 'Nothing to show yet', surface: () => null })
     expect(screen.getByText('Nothing to show yet')).toBeInTheDocument()
@@ -252,7 +258,7 @@ describe('ChartFrame legend row', () => {
   })
 
   describe('ChartFrame naming', () => {
-    it('names the plot surface by the chart’s visible title, and describes it by the arrow-key hint', () => {
+    it('names the figure by the visible title only, and describes the plot surface by the arrow-key hint', () => {
       renderFrame({
         surface: (size) => (
           <PlotSurface
@@ -264,8 +270,8 @@ describe('ChartFrame legend row', () => {
         ),
       })
       const surface = screen.getByTestId('plot-surface')
-      const named = document.getElementById(surface.getAttribute('aria-labelledby') ?? '')
-      expect(named).toHaveTextContent('Test chart')
+      expect(surface).not.toHaveAttribute('aria-labelledby')
+      expect(screen.getByRole('figure', { name: 'Test chart' })).toBeInTheDocument()
       const hint = document.querySelector('.chart-frame__hint')
       expect(hint?.id).toBeTruthy()
       expect(surface.getAttribute('aria-describedby')?.split(' ')).toContain(hint?.id)
