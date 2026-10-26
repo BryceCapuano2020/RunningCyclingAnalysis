@@ -27,6 +27,7 @@
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .activity-page__summary {
@@ -62,6 +63,13 @@
   margin: 0;
 }
 
+/* On a phone the stats sit two to a row, so a lone last one spans both columns. */
+@media (max-width: 479px) {
+  .activity-page__stat:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
 .activity-page__nav {
   display: flex;
   flex-wrap: wrap;
@@ -74,11 +82,17 @@
   display: inline-flex;
   align-items: center;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
+/* The bullets are hidden with an empty marker, not list-style none, which Safari drops with the list's semantics. */
 .activity-page__flags {
   margin: 0;
-  padding-left: var(--space-4);
+  padding-left: 0;
+}
+
+.activity-page__flags li::marker {
+  content: '';
 }
 
 .activity-page__flags li + li {

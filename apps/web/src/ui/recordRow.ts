@@ -4,6 +4,9 @@ import type { Sport } from '@rca/core/types'
 import { isEstimatedRecord } from './records'
 import type { SportRecord } from './records'
 
+/** The mark a run's pace carries, as a flat pace: its word on a row, and the note that explains it. */
+export const FLAT_MARK = 'Flat'
+
 /** One best effort as a row of a records list, whichever page or card lists it. */
 export interface RecordRow {
   key: string
@@ -41,7 +44,7 @@ export function recordRow(
   },
 ): RecordRow {
   const marks =
-    sport === 'run' ? ['Flat'] : isEstimatedRecord(sport, record.activity) ? ['Estimated'] : []
+    sport === 'run' ? [FLAT_MARK] : isEstimatedRecord(sport, record.activity) ? ['Estimated'] : []
   return {
     key: String(record.durationS),
     label: options.label,

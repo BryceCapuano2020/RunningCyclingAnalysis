@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react'
 import type { DigestSplits } from '@rca/core/types'
-import type { UnitSystem } from '@rca/core/units'
-import { SplitsTable, type SplitsLoad } from '../components/SplitsTable'
+import type { SplitsLoad } from './components/splitRows'
 
-export interface RunSplitsProps {
-  activityId: string
-  units: UnitSystem
-  distanceM: number
-  loadSplits: (id: string) => Promise<DigestSplits | null>
-}
-
-/** A run's splits, asked for from the worker when the activity page shows it. */
-export function RunSplits({ activityId, units, distanceM, loadSplits }: RunSplitsProps) {
+/**
+ * A run's splits, asked for from the worker once the activity page shows it. The page keeps the answer,
+ * so the best efforts can place the flat pace note by it. A null id asks for nothing and stays loading.
+ */
+export function useRunSplits(
+  activityId: string | null,
+  loadSplits: (id: string) => Promise<DigestSplits | null>,
+): SplitsLoad {
   const [answer, setAnswer] = useState<{ id: string; load: SplitsLoad } | null>(null)
   useEffect(() => {
+    if (activityId === null) return
     // A reply for an activity the page has left is dropped.
     let current = true
     loadSplits(activityId).then(
@@ -28,6 +27,5 @@ export function RunSplits({ activityId, units, distanceM, loadSplits }: RunSplit
       current = false
     }
   }, [activityId, loadSplits])
-  const load: SplitsLoad = answer?.id === activityId ? answer.load : { status: 'loading' }
-  return <SplitsTable load={load} units={units} distanceM={distanceM} />
+  return answer?.id === activityId ? answer.load : { status: 'loading' }
 }

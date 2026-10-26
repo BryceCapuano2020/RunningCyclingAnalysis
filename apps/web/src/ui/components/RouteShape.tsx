@@ -5,7 +5,7 @@ import { SPORT_LABEL } from '../sports'
 import './RouteShape.css'
 
 /** The box the outline sits in is kept between these aspect ratios, so a straight track still has room. */
-const MIN_BOX_ASPECT = 0.5
+const MIN_BOX_ASPECT = 0.8
 const MAX_BOX_ASPECT = 2
 
 export interface RouteShapeProps {

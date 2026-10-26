@@ -1,41 +1,24 @@
-import type { DigestSplit, DigestSplits } from '@rca/core/types'
+import type { DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import {
-  METRES_PER_KM,
-  METRES_PER_MILE,
-  formatDistance,
-  formatElevation,
-  formatPace,
-} from '@rca/core/units'
+import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '@rca/core/constants'
 import { SPLITS_NOT_LOADED } from '../analysis/copy'
 import './SplitsTable.css'
 import { FLAT_PACE_NOTE } from '../grades'
-
-/** What the page knows about one run's splits: still loading, not loaded, or loaded. */
-export type SplitsLoad =
-  | { status: 'loading' }
-  | { status: 'failed' }
-  /** `splits` is null when the run's digest was made before splits were kept. */
-  | { status: 'loaded'; splits: DigestSplits | null }
+import {
+  cellsOf,
+  columnsOf,
+  rowsOf,
+  type Columns,
+  type SplitCells,
+  type SplitsLoad,
+} from './splitRows'
 
 export interface SplitsTableProps {
   load: SplitsLoad
   units: UnitSystem
   /** The run's distance, which tells a run past the limit from one too short to split. */
   distanceM: number
-}
-
-/** One row, as both representations show it. A null field is a value the digest could not give. */
-interface SplitCells {
-  label: string
-  fastest: boolean
-  pace: string | null
-  /** Width of the pace bar, from zero to the fastest known pace, as a percentage. */
-  barPercent: number | null
-  gradeAdjustedPace: string | null
-  elevation: string | null
-  heartRate: string | null
 }
 
 const UNIT_NAME: Record<UnitSystem, string> = { imperial: 'mile', metric: 'kilometre' }
@@ -48,37 +31,6 @@ function Missing({ words }: { words: string }) {
       <span className="sr-only">{words}</span>
     </>
   )
-}
-
-/**
- * The rows in display form. A split whose time is unknown has no pace, so it is not marked fastest
- * and does not set the bar scale. Elevation is shown whenever the activity has altitude, even when
- * its flat pace is unknown.
- */
-function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
-  const unitMetres = units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM
-  const speeds = rows.map((split) =>
-    split.seconds === null ? null : split.distanceM / split.seconds,
-  )
-  const known = speeds.filter((speed): speed is number => speed !== null)
-  const fastest = known.length > 0 ? Math.max(...known) : null
-  // Only the first split at the fastest pace is marked, so a tie does not mark two rows.
-  const fastestIndex = fastest === null ? -1 : speeds.indexOf(fastest)
-  return rows.map((split, index) => {
-    const speed = speeds[index]!
-    const gradeAdjusted = split.gradeAdjustedSeconds
-    return {
-      label: split.distanceM < unitMetres ? formatDistance(split.distanceM, units) : `${index + 1}`,
-      fastest: index === fastestIndex,
-      pace: speed === null ? null : formatPace(speed, units),
-      barPercent: speed === null || fastest === null ? null : (speed / fastest) * 100,
-      gradeAdjustedPace:
-        gradeAdjusted === null ? null : formatPace(split.distanceM / gradeAdjusted, units),
-      elevation:
-        split.elevationGainM === null ? null : formatElevation(split.elevationGainM, units),
-      heartRate: split.avgHeartRate === null ? null : `${Math.round(split.avgHeartRate)} bpm`,
-    }
-  })
 }
 
 /** The pace value, with the Fastest chip beside it when this split is the fastest. */
@@ -103,7 +55,7 @@ function PaceBar({ percent }: { percent: number | null }) {
 }
 
 /** One split as a row of the table. */
-function SplitRow({ cell }: { cell: SplitCells }) {
+function SplitRow({ cell, columns }: { cell: SplitCells; columns: Columns }) {
   return (
     <tr>
       <th scope="row">{cell.label}</th>
@@ -111,15 +63,27 @@ function SplitRow({ cell }: { cell: SplitCells }) {
         <PaceValue cell={cell} />
         <PaceBar percent={cell.barPercent} />
       </td>
-      <td className="num">{cell.gradeAdjustedPace ?? <Missing words="Not available" />}</td>
-      <td className="num">{cell.elevation ?? <Missing words="No altitude" />}</td>
+      {columns.flat && (
+        <td className="num">{cell.gradeAdjustedPace ?? <Missing words="Not available" />}</td>
+      )}
+      {columns.elevation && (
+        <td className="num">{cell.elevation ?? <Missing words="No altitude" />}</td>
+      )}
       <td className="num">{cell.heartRate ?? <Missing words="No heart rate" />}</td>
     </tr>
   )
 }
 
 /** The splits as a table, shown from 480 px wide. */
-function SplitTable({ cells, caption }: { cells: SplitCells[]; caption: string }) {
+function SplitTable({
+  cells,
+  caption,
+  columns,
+}: {
+  cells: SplitCells[]
+  caption: string
+  columns: Columns
+}) {
   return (
     <div className="splits-wide">
       <table className="splits-table">
@@ -130,12 +94,16 @@ function SplitTable({ cells, caption }: { cells: SplitCells[]; caption: string }
             <th scope="col" className="num">
               Pace
             </th>
-            <th scope="col" className="num">
-              Flat pace
-            </th>
-            <th scope="col" className="num">
-              Elevation gain
-            </th>
+            {columns.flat && (
+              <th scope="col" className="num">
+                Flat pace
+              </th>
+            )}
+            {columns.elevation && (
+              <th scope="col" className="num">
+                Elevation gain
+              </th>
+            )}
             <th scope="col" className="num">
               Heart rate
             </th>
@@ -143,7 +111,7 @@ function SplitTable({ cells, caption }: { cells: SplitCells[]; caption: string }
         </thead>
         <tbody>
           {cells.map((cell) => (
-            <SplitRow key={cell.label} cell={cell} />
+            <SplitRow key={cell.label} cell={cell} columns={columns} />
           ))}
         </tbody>
       </table>
@@ -152,7 +120,7 @@ function SplitTable({ cells, caption }: { cells: SplitCells[]; caption: string }
 }
 
 /** One split as an item of the list, below 480 px. Its values are the row's. */
-function SplitItem({ cell }: { cell: SplitCells }) {
+function SplitItem({ cell, columns }: { cell: SplitCells; columns: Columns }) {
   return (
     <li className="splits-list__item">
       <dl>
@@ -167,14 +135,18 @@ function SplitItem({ cell }: { cell: SplitCells }) {
             <PaceBar percent={cell.barPercent} />
           </dd>
         </div>
-        <div>
-          <dt>Flat pace</dt>
-          <dd>{cell.gradeAdjustedPace ?? <Missing words="Not available" />}</dd>
-        </div>
-        <div>
-          <dt>Elevation gain</dt>
-          <dd>{cell.elevation ?? <Missing words="No altitude" />}</dd>
-        </div>
+        {columns.flat && (
+          <div>
+            <dt>Flat pace</dt>
+            <dd>{cell.gradeAdjustedPace ?? <Missing words="Not available" />}</dd>
+          </div>
+        )}
+        {columns.elevation && (
+          <div>
+            <dt>Elevation gain</dt>
+            <dd>{cell.elevation ?? <Missing words="No altitude" />}</dd>
+          </div>
+        )}
         <div>
           <dt>Heart rate</dt>
           <dd>{cell.heartRate ?? <Missing words="No heart rate" />}</dd>
@@ -185,11 +157,19 @@ function SplitItem({ cell }: { cell: SplitCells }) {
 }
 
 /** The same splits, one definition list per split, below 480 px. */
-function SplitList({ cells, caption }: { cells: SplitCells[]; caption: string }) {
+function SplitList({
+  cells,
+  caption,
+  columns,
+}: {
+  cells: SplitCells[]
+  caption: string
+  columns: Columns
+}) {
   return (
     <ol className="splits-list" aria-label={caption}>
       {cells.map((cell) => (
-        <SplitItem key={cell.label} cell={cell} />
+        <SplitItem key={cell.label} cell={cell} columns={columns} />
       ))}
     </ol>
   )
@@ -216,15 +196,16 @@ function SplitsRows({
   units: UnitSystem
   distanceM: number
 }) {
-  const rows = units === 'imperial' ? splits.mile : splits.km
+  const rows = rowsOf(splits, units)
   if (rows.length === 0) return <p className="secondary">{noSplitsCopy(distanceM, units)}</p>
   const cells = cellsOf(rows, units)
+  const columns = columnsOf(rows, cells)
   const caption = `Pace for each ${UNIT_NAME[units]}`
   return (
     <>
-      <SplitTable cells={cells} caption={caption} />
-      <SplitList cells={cells} caption={caption} />
-      <p className="muted">{FLAT_PACE_NOTE}</p>
+      <SplitTable cells={cells} caption={caption} columns={columns} />
+      <SplitList cells={cells} caption={caption} columns={columns} />
+      {columns.flat && <p className="muted">{FLAT_PACE_NOTE}</p>}
     </>
   )
 }

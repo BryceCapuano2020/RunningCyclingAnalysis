@@ -3,7 +3,7 @@
   caption-side: top;
   text-align: left;
   color: var(--text-secondary);
-  padding: 0 var(--space-2) var(--space-2);
+  padding: 0 0 var(--space-2);
 }
 
 .splits-table th,
@@ -21,6 +21,11 @@
 
 .splits-table__fastest {
   font-weight: 700;
+}
+
+/* The Fastest chip sits in its row without making the row taller. */
+.splits-table .chip {
+  margin-block: -3px;
 }
 
 /* The bar runs from zero to the width of the fastest known pace. */
@@ -44,7 +49,11 @@
   display: none;
   margin: 0;
   padding: 0;
-  list-style: none;
+}
+
+/* The numbers are hidden with an empty marker, not list-style none, so the list keeps its semantics. */
+.splits-list__item::marker {
+  content: '';
 }
 
 .splits-list__item + .splits-list__item {
@@ -53,16 +62,25 @@
   border-top: 1px solid var(--border);
 }
 
+/* Below 480 px a split leads with its split and pace, then its other figures, which wrap as the width needs: two or three lines. */
 .splits-list dl {
-  display: grid;
-  gap: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
   margin: 0;
 }
 
 .splits-list dl > div {
   display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-1);
+}
+
+/* The pace sits at the right, beside the split, where the first line ends. */
+.splits-list dl > div:nth-child(2) {
+  margin-left: auto;
 }
 
 .splits-list dt {

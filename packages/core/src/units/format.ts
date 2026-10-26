@@ -42,7 +42,7 @@ export function formatDuration(seconds: number): string {
 
 /**
  * A total time for a list row or a hero figure: under an hour, as formatDuration writes it; from an
- * hour on, hours and minutes, such as "6 h 33 m", with the seconds left out.
+ * hour on, hours and minutes, such as "6 h 33 min", with the seconds left out.
  */
 export function formatTotalTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < SECONDS_PER_HOUR) {
@@ -50,7 +50,7 @@ export function formatTotalTime(seconds: number): string {
   }
   const hours = Math.floor(seconds / SECONDS_PER_HOUR)
   const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / 60)
-  return minutes > 0 ? `${hours} h ${minutes} m` : `${hours} h`
+  return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
 }
 
 /** A time as m:ss, or h:mm:ss from an hour on, for record times. */
@@ -104,15 +104,33 @@ export function formatSpeed(speedMs: number, system: UnitSystem): string {
     : `${(speedMs * KMH_PER_MS).toFixed(1)} km/h`
 }
 
+/** The unit words of a distance, and the metres in one of them, for each system. */
+const DISTANCE_UNIT: Record<UnitSystem, { unit: string; metres: number }> = {
+  imperial: { unit: 'mi', metres: METRES_PER_MILE },
+  metric: { unit: 'km', metres: METRES_PER_KM },
+}
+
 export function formatDistance(metres: number, system: UnitSystem): string {
   if (!Number.isFinite(metres)) {
     return DASH
   }
-  const [unit, metresPerUnit] =
-    system === 'imperial' ? (['mi', METRES_PER_MILE] as const) : (['km', METRES_PER_KM] as const)
+  const { unit, metres: metresPerUnit } = DISTANCE_UNIT[system]
   const amount = metres / metresPerUnit
   // One decimal, so a tiny distance would read 0.0; it is under a tenth of a unit instead.
   return amount > 0 && amount < 0.1 ? `<0.1 ${unit}` : `${amount.toFixed(1)} ${unit}`
+}
+
+/**
+ * A partial distance, shorter than one unit, to two decimals. It rounds down, so it never reads as a
+ * whole unit: "0.97 mi", not "1.0 mi". Under a hundredth it reads "<0.01 mi".
+ */
+export function formatPartialDistance(metres: number, system: UnitSystem): string {
+  if (!Number.isFinite(metres)) {
+    return DASH
+  }
+  const { unit, metres: metresPerUnit } = DISTANCE_UNIT[system]
+  const hundredths = Math.floor((metres * 100) / metresPerUnit)
+  return hundredths === 0 ? `<0.01 ${unit}` : `${(hundredths / 100).toFixed(2)} ${unit}`
 }
 
 export function formatElevation(metres: number, system: UnitSystem): string {

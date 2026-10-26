@@ -359,7 +359,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   best 20 min, 6:37 /mi". A ride's line starts "Estimated", and its watts carry "estimated" when
   they did not come from a power meter. A run card that shows a Flat mark says what it means under
   its records, on every run card that has records, with or without a grade: "Flat pace: your pace
-  allowing for hills, as if on level ground."
+  allowing for hills, as if on level ground." On an activity page the note sits under its splits when they show a flat pace column.
+  Otherwise, when the splits are not kept, too short, or show no flat pace, it sits under the best efforts,
+  if one carries a Flat mark, and it waits for the splits to settle.
 - **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
   each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
   20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
@@ -388,9 +390,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   climb, average heart rate with the highest, and average power follow. An indoor ride reports no speed
   anywhere, since a trainer's speed is virtual rather than measured on a road. A ride without a power meter says so in a line beneath
   the figures: "Power here is estimated from speed and climbs. No power meter recorded it." Earlier and
-  Later name the activities either side in the library, then links to the sport's records and to How
-  sure is this?. Then the all-time records as chips, each linking to its sport's page (underlined on hover, not at rest), the splits, the best efforts set here, the skipped
-  readings, and Delete. A ride with no power curve says why in a line: estimated power is made only on
+  Later name the activities either side in the library, then a link to the sport's records. Then the all-time records as chips, each linking to its sport's page (underlined on hover, not at rest), the splits, the best efforts set here, the skipped
+  readings, and Delete. A ride with no power curve says why in a line: an estimate is made only on
   climbs, and a ride with no power data has none. A ride's bests and chips wait for the weight. An
   activity from before moving time was kept shows its elapsed time, and says so.
 - **A list row reads the same figures.** The name, sport, day and start time, with the **Indoor**
@@ -440,7 +441,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
   are in the page, and a media query shows exactly one at each width, so the accessibility tree
   holds one representation. Never set `display: block` on a table element, which drops its table
-  semantics. The splits table on the activity page is the first use, and the efforts table on a Balance card
+  semantics. A split's columns earn their place: Elevation gain shows only when some split climbs, and Flat
+  pace only when some split has one that differs from its Pace, so a run with no altitude or no flat pace shows neither column. A partial last split, shorter than one unit, reads to
+  two decimals, such as "0.97 mi", rounded down so it never reads as a whole unit. Below 480 px a split
+  leads with its split and pace, then its other figures, which wrap as the width needs: two or three lines. The splits table on the activity page is the first use, and the efforts table on a Balance card
   is the second, whose list shows below 480 px with its labels once above the rows; record any new one here.
 - **Bars start from zero.** A bar's length is the value relative to the best known one, so the best
   fills its track. A row with no known value has no bar and cannot be the best.
@@ -523,7 +527,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   rate, the 90% range and the median each get one plain sentence. Technical detail (efficiency
   constants, citations, the bike model, the ISA atmosphere) sits behind More detail.
 - **Durations are written one way.** Effort lengths are numerals with min: "5 min, 20 min or 60 min".
-  Seconds are numerals with s: "10 s". Periods are numerals with the unit in full: "6 weeks", and a
+  A total of an hour or more is hours, then minutes: "6 h 33 min". Seconds are numerals with s: "10 s". Periods are numerals with the unit in full: "6 weeks", and a
   trend window is "14 days". Inside a sentence a period is lower case: "last 6 weeks".
 - **Spelling is British**: analyse, centred, summarises, colour, licence.
 - **The share card speaks in one voice,** the reader's: "Your balance leans toward running", never
@@ -543,11 +547,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   was left out on purpose." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
   The data notes are grouped by kind, one line for each kind with its true count and the times of the
-  readings the digest kept. Only the kinds that remove readings are counted, on the row and the page, as
-  "Readings skipped once" or "Readings skipped N times". An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
+  readings the digest kept. Only the kinds that remove readings are counted, on the row, as
+  "Readings skipped once" or "Readings skipped N times"; the page gives each kind's count in its own line
+  and says no total. An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
   are left out of the figures. A missing altitude is one note for the whole activity, so it has no count. Without any
   skipped reading the section reads "Data notes"; with one it reads "Skipped readings". The words are
-  `flagKindSentence` and `flagSpanText`, and the count is `skippedReadingsText`, all in
+  `flagKindSentence` and `flagSpanText` on the page, and the row's count is `skippedReadingsText`, all in
   `apps/web/src/ui/analysis/flagCopy.ts`. The activity page uses them, so the core's English is never
   shown. The words say what happened, never "impossible".
 - **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your

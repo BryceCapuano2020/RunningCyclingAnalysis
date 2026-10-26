@@ -3,7 +3,8 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { DigestSplit, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SplitsTable, type SplitsLoad } from './SplitsTable'
+import { SplitsTable } from './SplitsTable'
+import { splitsShowFlatNote, type SplitsLoad } from './splitRows'
 
 afterEach(() => {
   cleanup()
@@ -39,6 +40,13 @@ function bodyRows(name?: string): HTMLElement[] {
   return within(table(name)).getAllByRole('row').slice(1)
 }
 
+/** The column headers of the table, in order. */
+function columnHeaders(): (string | null)[] {
+  return within(table())
+    .getAllByRole('columnheader')
+    .map((cell) => cell.textContent)
+}
+
 /** The list items of the narrow representation. */
 function listItems(name = 'Pace for each kilometre'): HTMLElement[] {
   return within(screen.getByRole('list', { name })).getAllByRole('listitem')
@@ -71,6 +79,44 @@ describe('SplitsTable', () => {
     expect(within(second!).getByText('4:45 /km')).toBeInTheDocument()
   })
 
+  it('leaves out the elevation gain column when no split climbs, in the table and the list', () => {
+    renderSplits(
+      loaded({
+        km: [split({ elevationGainM: 0 }), split({ elevationGainM: null, seconds: 285 })],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Flat pace', 'Heart rate'])
+    expect(screen.queryByText('Elevation gain', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('leaves out the flat pace column when it equals the pace in every split, in the table and the list', () => {
+    renderSplits(
+      loaded({
+        km: [
+          split({ gradeAdjustedSeconds: 300 }),
+          split({ seconds: 285, gradeAdjustedSeconds: 285 }),
+        ],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Elevation gain', 'Heart rate'])
+    expect(screen.queryByText('Flat pace', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the flat pace column while one split differs from its pace', () => {
+    renderSplits(
+      loaded({
+        km: [
+          split({ gradeAdjustedSeconds: 300 }),
+          split({ seconds: 285, gradeAdjustedSeconds: 280 }),
+        ],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toContain('Flat pace')
+  })
+
   it('uses mile splits in imperial, names the table after them, and shows feet', () => {
     renderSplits(
       loaded({
@@ -84,7 +130,7 @@ describe('SplitsTable', () => {
     expect(within(bodyRows('Pace for each mile')[0]!).getByText('39 ft')).toBeInTheDocument()
   })
 
-  it('labels the partial split with its own distance and paces it over that distance', () => {
+  it('labels the partial split with its own distance to two decimals, and paces it over that distance', () => {
     renderSplits(
       loaded({
         km: [split(), split(), split({ distanceM: 420, seconds: 135, gradeAdjustedSeconds: 130 })],
@@ -92,8 +138,30 @@ describe('SplitsTable', () => {
       }),
     )
     const rows = bodyRows()
-    expect(within(rows[2]!).getByRole('rowheader', { name: '0.4 km' })).toBeInTheDocument()
+    expect(within(rows[2]!).getByRole('rowheader', { name: '0.42 km' })).toBeInTheDocument()
     expect(within(rows[2]!).getByText('5:21 /km')).toBeInTheDocument()
+  })
+
+  it('labels a partial last mile as 0.97 mi, so it never reads as a whole mile', () => {
+    renderSplits(
+      loaded({
+        km: [],
+        mile: [
+          split({ distanceM: 1609.344, seconds: 480, gradeAdjustedSeconds: 470 }),
+          // 1562 m is 0.9706 mi, which reads 0.97 rounded down.
+          split({ distanceM: 1562, seconds: 470, gradeAdjustedSeconds: 460 }),
+        ],
+      }),
+      'imperial',
+    )
+    const rows = bodyRows('Pace for each mile')
+    expect(within(rows[0]!).getByRole('rowheader', { name: '1' })).toBeInTheDocument()
+    expect(within(rows[1]!).getByRole('rowheader', { name: '0.97 mi' })).toBeInTheDocument()
+  })
+
+  it('rounds a partial split down, so 999 m reads 0.99 km and not a whole kilometre', () => {
+    renderSplits(loaded({ km: [split({ distanceM: 999 })], mile: [] }))
+    expect(within(bodyRows()[0]!).getByRole('rowheader', { name: '0.99 km' })).toBeInTheDocument()
   })
 
   it('shows an unknown time as a dash that says the pace is not measured, and leaves it out of the fastest', () => {
@@ -112,7 +180,7 @@ describe('SplitsTable', () => {
     expect(within(known!).getByText('Fastest')).toBeInTheDocument()
   })
 
-  it('keeps elevation when the flat pace is unknown, and says so when there is no altitude', () => {
+  it('keeps elevation when the flat pace is unknown, and leaves out a flat pace column with nothing to show', () => {
     renderSplits(
       loaded({
         km: [
@@ -122,11 +190,25 @@ describe('SplitsTable', () => {
         mile: [],
       }),
     )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Elevation gain', 'Heart rate'])
     const [withClimb, noAltitude] = bodyRows()
     expect(within(withClimb!).getByText('12 m')).toBeInTheDocument()
-    expect(within(withClimb!).getAllByRole('cell', { name: 'Not available' })).toHaveLength(1)
     expect(within(noAltitude!).getByRole('cell', { name: 'No altitude' })).toBeInTheDocument()
-    expect(within(noAltitude!).getByRole('cell', { name: 'Not available' })).toBeInTheDocument()
+    expect(screen.queryByRole('cell', { name: 'Not available' })).not.toBeInTheDocument()
+  })
+
+  it('leaves out both optional columns for a run with no altitude and no flat pace, so no column is all dashes', () => {
+    renderSplits(
+      loaded({
+        km: [
+          split({ gradeAdjustedSeconds: null, elevationGainM: null }),
+          split({ seconds: 285, gradeAdjustedSeconds: null, elevationGainM: null }),
+        ],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Heart rate'])
+    expect(screen.queryByText('–', { selector: '[aria-hidden="true"]' })).toBeNull()
   })
 
   it('shows a missing heart rate as a dash with words for a screen reader', () => {
@@ -259,5 +341,36 @@ describe('SplitsTable', () => {
     expect(
       screen.getByText('The splits could not be loaded. Open this activity again to retry.'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('splitsShowFlatNote', () => {
+  it('is true when the splits show a flat pace column, which is where the flat pace note goes', () => {
+    expect(splitsShowFlatNote(loaded({ km: [split()], mile: [] }), 'metric')).toBe(true)
+  })
+
+  it('is false when every split has its flat pace equal to its pace, so no flat pace column shows', () => {
+    expect(
+      splitsShowFlatNote(
+        loaded({ km: [split({ gradeAdjustedSeconds: 300 })], mile: [] }),
+        'metric',
+      ),
+    ).toBe(false)
+  })
+
+  it('is false when no split has a flat pace to show, so the column would be all dashes', () => {
+    expect(
+      splitsShowFlatNote(
+        loaded({ km: [split({ gradeAdjustedSeconds: null })], mile: [] }),
+        'metric',
+      ),
+    ).toBe(false)
+  })
+
+  it('is false when the splits have no rows in these units, or are not kept, or are still loading', () => {
+    expect(splitsShowFlatNote(loaded({ km: [], mile: [] }), 'metric')).toBe(false)
+    expect(splitsShowFlatNote(loaded(null), 'metric')).toBe(false)
+    expect(splitsShowFlatNote({ status: 'loading' }, 'metric')).toBe(false)
+    expect(splitsShowFlatNote({ status: 'failed' }, 'metric')).toBe(false)
   })
 })

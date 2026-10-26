@@ -8,6 +8,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { ActivityDelete } from '../components/ActivityDelete'
 import { RouteOffer } from '../components/RouteOffer'
 import { RouteShape as RouteOutline } from '../components/RouteShape'
+import { SplitsTable } from '../components/SplitsTable'
 import { SportIcon } from '../components/icons'
 import { formatDay, formatTimeOfDay } from '../format/date'
 import type { AgeProfile } from '../grades'
@@ -19,12 +20,12 @@ import { SPORT_LABEL } from '../sports'
 import type { RouteReply } from '../routeReply'
 import { useDeleteOutcome } from '../useDeleteOutcome'
 import { useRouteShape } from '../useRouteShape'
+import { useRunSplits } from '../useRunSplits'
 import { ActivityBests } from './ActivityBests'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
 import { PAGE_HEADING_ID } from './pageHeading'
-import { RunSplits } from './RunSplits'
 import './ActivityPage.css'
 
 export interface ActivityPageProps {
@@ -111,6 +112,8 @@ export function ActivityPage({
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
   const removal = useDeleteOutcome(libraryNotice, libraryError)
+  // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
+  const splitsLoad = useRunSplits(activity?.sport === 'run' ? activity.id : null, loadSplits)
   // Once the library has removed the activity, the list replaces this page in the history, so Back never
   // lands on an activity that is gone. A failed removal stays here, with its reason beside Delete.
   const removed = removal.outcome !== null && !removal.outcome.failed
@@ -188,14 +191,7 @@ export function ActivityPage({
           </div>
         </div>
       )}
-      {isRun && (
-        <RunSplits
-          activityId={activity.id}
-          units={units}
-          distanceM={activity.distanceM}
-          loadSplits={loadSplits}
-        />
-      )}
+      {isRun && <SplitsTable load={splitsLoad} units={units} distanceM={activity.distanceM} />}
 
       <ActivityBests
         activity={activity}
@@ -206,6 +202,7 @@ export function ActivityPage({
         profile={profile}
         inPeriod={inPeriod}
         period={period}
+        splitsLoad={splitsLoad}
       />
       <ActivityIssues activity={activity} />
 

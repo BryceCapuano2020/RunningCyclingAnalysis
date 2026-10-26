@@ -85,6 +85,22 @@ function bestRow(label: string): HTMLElement {
   return row
 }
 
+/** The Best efforts section, which holds the flat pace note when the splits do not. */
+function bestsSection(): HTMLElement {
+  const section = screen
+    .getByRole('heading', { level: 2, name: 'Best efforts set here' })
+    .closest('section')
+  if (!section) throw new Error('No Best efforts section')
+  return section
+}
+
+/** The Splits section, which holds the flat pace note when its flat pace column shows. */
+function splitsSection(): HTMLElement {
+  const section = screen.getByRole('heading', { level: 2, name: 'Splits' }).closest('section')
+  if (!section) throw new Error('No Splits section')
+  return section
+}
+
 /** The stat whose label is `label`; its value sits in the same group. */
 function statFor(label: string): HTMLElement {
   const parent = screen.getByText(label, { selector: 'dt' }).parentElement
@@ -247,7 +263,7 @@ describe('ActivityPage', () => {
     expect(screen.queryByText('Average speed', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it('lists the run best efforts this activity set, with the pace each was run at', () => {
+  it('lists the run best efforts this activity set, with the pace each was run at', async () => {
     renderPage(morningRun)
     expect(
       screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
@@ -257,7 +273,8 @@ describe('ActivityPage', () => {
     expect(within(bestRow('Best 20 min')).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 60 min')).getByText('5:37 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 1 min')).getByText('Flat')).toBeInTheDocument()
-    expect(screen.getAllByText(FLAT_PACE_NOTE)).toHaveLength(1)
+    // The splits are not kept here, so the bests explain their Flat marks.
+    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
     expect(screen.queryByText(/GAP/)).not.toBeInTheDocument()
   })
 
@@ -283,9 +300,7 @@ describe('ActivityPage', () => {
       makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource: 'virtual' }),
     )
     expect(
-      screen.getByText(
-        'No power curve: power on this ride is estimated, and an estimate is made only on climbs.',
-      ),
+      screen.getByText('No power curve: an estimate is made only on climbs.'),
     ).toBeInTheDocument()
   })
 
@@ -415,7 +430,8 @@ describe('ActivityPage', () => {
       }),
     )
     expect(screen.getByRole('heading', { level: 2, name: 'Skipped readings' })).toBeInTheDocument()
-    expect(screen.getByText('Readings skipped 3 times')).toBeInTheDocument()
+    // Each kind's line carries its count, so the page does not also say the total.
+    expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
         'Heart rate was missing or too low while moving 2 times. We left those out of your figures.',
@@ -467,7 +483,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 7 },
       }),
     )
-    expect(screen.getByText('Readings skipped 7 times')).toBeInTheDocument()
+    expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
         'Heart rate was missing or too low while moving 7 times. We left those out of your figures.',
@@ -521,7 +537,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 60 },
       }),
     )
-    expect(screen.getByText('Readings skipped 60 times')).toBeInTheDocument()
+    expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(screen.getByText('Showing the first 1 of 60.')).toBeInTheDocument()
   })
 
@@ -549,10 +565,8 @@ describe('ActivityPage', () => {
       '#/activities/older',
     )
     expect(screen.getByRole('link', { name: 'Your run records' })).toHaveAttribute('href', '#/run')
-    expect(screen.getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
-      'href',
-      '#/method',
-    )
+    // The footer links to How sure is this? on every page, so the activity's own links do not.
+    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
   })
 
   it('offers Delete for a saved activity, and asks before it removes the saved copy', async () => {
@@ -649,6 +663,7 @@ describe('ActivityPage', () => {
     expect(within(first!).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(first!).getByText('4:50 /km')).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
+    expect(screen.getAllByText(FLAT_PACE_NOTE)).toHaveLength(1)
   })
 
   it('says a run whose splits were not kept has none, and shows no table', async () => {
@@ -681,6 +696,124 @@ describe('ActivityPage', () => {
     renderPage(powerRide, resultWith(), 'metric', new Map(), loadSplits)
     expect(screen.queryByRole('heading', { name: 'Splits' })).not.toBeInTheDocument()
     expect(loadSplits).not.toHaveBeenCalled()
+  })
+})
+
+describe('the flat pace note', () => {
+  /** Splits whose flat pace equals the pace, so the splits show no flat pace column. */
+  const samePace: DigestSplits = {
+    km: [
+      {
+        distanceM: 1000,
+        seconds: 300,
+        gradeAdjustedSeconds: 300,
+        elevationGainM: 12,
+        avgHeartRate: 150,
+      },
+    ],
+    mile: [],
+  }
+
+  it('sits under the splits, and not under the bests, when the splits show a flat pace', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(async () => twoKilometres),
+    )
+    await screen.findByRole('table', { name: 'Pace for each kilometre' })
+    expect(within(splitsSection()).getByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+    expect(within(bestsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('moves under the bests when the splits show no flat pace, and a best carries a Flat mark', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(async () => samePace),
+    )
+    await screen.findByRole('table', { name: 'Pace for each kilometre' })
+    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+  })
+
+  it('sits under the bests when the splits are not kept', async () => {
+    renderPage(morningRun)
+    expect(
+      await screen.findByText('Splits were not kept when this run was added.'),
+    ).toBeInTheDocument()
+    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('sits under the bests when the run is too short to split', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(async () => ({ km: [], mile: [] })),
+    )
+    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+    expect(within(splitsSection()).getByText('This run is too short to split.')).toBeInTheDocument()
+  })
+
+  it('is left out when no best carries a Flat mark and the splits are not kept', async () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Tempo run',
+        distanceBests: [{ distanceM: 5000, seconds: 1300 }],
+      }),
+      resultWith({ runCurve: curveOf({}) }),
+    )
+    expect(
+      await screen.findByText('Splits were not kept when this run was added.'),
+    ).toBeInTheDocument()
+    expect(bestRow('Best 5 km')).toBeInTheDocument()
+    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('waits for the splits before it is placed, so it is never in two places at once', () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(() => new Promise<DigestSplits | null>(() => undefined)),
+    )
+    expect(screen.getByText('Loading splits.')).toBeInTheDocument()
+    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('sits under the bests when the splits fail to load and a best carries a Flat mark', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(() => Promise.reject(new Error('worker down'))),
+    )
+    expect(await screen.findByText(/The splits could not be loaded/)).toBeInTheDocument()
+    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('never sits on a ride, whose best efforts carry no Flat mark', () => {
+    renderPage(
+      powerRide,
+      resultWith({ rideCurve: rideCurveFixture }),
+      'metric',
+      new Map(),
+      undefined,
+    )
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
   })
 })
 

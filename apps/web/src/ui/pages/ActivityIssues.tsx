@@ -1,12 +1,6 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { keyByContent } from '../contentKeys'
-import {
-  flagKindSentence,
-  flagSpanText,
-  listsTimesOf,
-  skippedKinds,
-  skippedReadingsText,
-} from '../analysis/flagCopy'
+import { flagKindSentence, flagSpanText, listsTimesOf, skippedKinds } from '../analysis/flagCopy'
 import { skippedCountOf } from '../activityFigures'
 
 /**
@@ -24,7 +18,6 @@ export function ActivityIssues({ activity }: { activity: ActivitySummary }) {
   return (
     <section className="section" aria-labelledby="activity-issues">
       <h2 id="activity-issues">{skipped > 0 ? 'Skipped readings' : 'Data notes'}</h2>
-      {skipped > 0 && <p className="secondary">{skippedReadingsText(skipped)}</p>}
       <ul className="activity-page__flags">
         {kinds.map((kind) => {
           const flags = activity.flags.filter((flag) => flag.kind === kind)
