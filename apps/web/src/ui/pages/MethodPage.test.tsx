@@ -200,6 +200,34 @@ describe('MethodPage answer', () => {
     expect(screen.getByText('No run has a usable effort yet.')).toBeInTheDocument()
   })
 
+  it('names only the run estimate for a run-only library, even with the weight known', () => {
+    renderPage(
+      makeResult({ runCurve: [curvePoint(HEADLINE_DURATION_S, 4, 'run-1')], rideCurve: [] }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    expect(
+      screen.getByText('Run thresholds are estimates from 1 run with a usable effort.'),
+    ).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/ride levels|ride power without a meter/)
+  })
+
+  it('names the ride estimates for a ride-only library, since the estimated chip needs something to name', () => {
+    renderPage(
+      makeResult({ runCurve: [], rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')] }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    expect(
+      screen.getByText(
+        'Ride levels and ride power without a meter are estimates from 1 ride with a usable effort.',
+      ),
+    ).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/No run has a usable effort/)
+  })
+
   it('dates the period once, in Counted over, so the estimates line does not repeat it', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
     expect(screen.getByText('Counted over 12 May – 3 Aug 2025.')).toBeInTheDocument()
@@ -298,6 +326,38 @@ describe('MethodPage contents', () => {
 })
 
 describe('MethodPage energy view', () => {
+  it('says a run-only library needs a ride to compare, with no ratio, facts or evidence', () => {
+    const { container } = renderPage(
+      makeResult({ runCurve: [curvePoint(HEADLINE_DURATION_S, 4, 'run-1')], rideCurve: [] }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(within(section).getByText('Needs a ride to compare with running.')).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(
+      /energy ratio|cross-check|90% model range|range does not/,
+    )
+    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(container.querySelector('figure')).toBeNull()
+  })
+
+  it('says a ride-only library needs a run to compare, with no ratio, facts or evidence', () => {
+    const { container } = renderPage(
+      makeResult({ runCurve: [], rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')] }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(within(section).getByText('Needs a run to compare with cycling.')).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(
+      /energy ratio|cross-check|90% model range|range does not/,
+    )
+    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(container.querySelector('figure')).toBeNull()
+  })
+
   it('is a cross-check of the age-grade gap when Balance shows one', () => {
     renderPage(GRADED, MAN_BORN_1986)
 
@@ -331,7 +391,7 @@ describe('MethodPage energy view', () => {
   })
 
   it('states the 90% range, the basis and what the range leaves out', () => {
-    renderPage()
+    renderPage(makeResult(CONTRIBUTING))
 
     const facts = within(factsOf())
     expect(facts.getByText('Running against cycling, 90% range: +5% to +20%.')).toBeInTheDocument()
@@ -340,14 +400,14 @@ describe('MethodPage energy view', () => {
   })
 
   it('reuses the headline range text rather than writing its own', () => {
-    renderPage()
+    renderPage(makeResult(CONTRIBUTING))
 
     expect(screen.getAllByText(/^Running against cycling, 90% range/)).toHaveLength(1)
   })
 
   it('says the range was adjusted when the heart-rate comparison is used', () => {
     const point = comparisonPoint()
-    renderPage(makeResult({ comparison: { prior: [point], calibrated: [point] } }))
+    renderPage(makeResult({ ...CONTRIBUTING, comparison: { prior: [point], calibrated: [point] } }))
 
     expect(
       within(factsOf()).getByText('Model range adjusted using your heart-rate data.'),
@@ -358,6 +418,7 @@ describe('MethodPage energy view', () => {
     const point = comparisonPoint()
     renderPage(
       makeResult({
+        ...CONTRIBUTING,
         comparison: {
           prior: [point],
           calibrated: null,
@@ -473,7 +534,7 @@ describe('MethodPage evidence disclosures', () => {
   })
 
   it('names its summary by the action it takes: Show while closed, and Hide while open', async () => {
-    renderPage()
+    renderPage(makeResult(CONTRIBUTING))
 
     const energy = disclosureFor('energy view')
     expect(energy.querySelector('summary')).toHaveTextContent(
@@ -491,7 +552,7 @@ describe('MethodPage evidence disclosures', () => {
   })
 
   it('does not repeat the chart title in the energy disclosure', async () => {
-    renderPage()
+    renderPage(makeResult(CONTRIBUTING))
     await openEvidence(disclosureFor('energy view'))
 
     expect(disclosureFor('energy view')).not.toHaveTextContent('Each line shows one sport')

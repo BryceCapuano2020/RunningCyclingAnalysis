@@ -66,9 +66,14 @@
   font-size: var(--text-sm);
 }
 
-/* At a phone's width each button takes a full row (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
+/* At a phone's width each button takes a full row, and the weight note wraps to two lines at 320 px
+   (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
 @media (max-width: 420px) {
   .setup-dialog__actions .btn {
     flex: 1 1 100%;
+  }
+
+  .setup-dialog__notes {
+    min-height: 2lh;
   }
 }

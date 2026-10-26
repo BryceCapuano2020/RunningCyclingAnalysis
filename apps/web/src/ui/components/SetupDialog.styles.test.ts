@@ -25,6 +25,10 @@ describe('setup dialog', () => {
   it('gives each button a full row at phone width', () => {
     expect(narrowBody(dialogCss)).toMatch(/\.setup-dialog__actions \.btn \{[^}]*flex:\s*1 1 100%/)
   })
+
+  it('holds two lines for the footer note at phone width, where the weight note wraps at 320 px', () => {
+    expect(narrowBody(dialogCss)).toMatch(/\.setup-dialog__notes \{[^}]*min-height:\s*2lh/)
+  })
 })
 
 describe('athlete fields', () => {

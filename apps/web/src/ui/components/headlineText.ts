@@ -150,8 +150,8 @@ export function referenceDefinition(): string {
 
 /**
  * The heart rate each sport's best efforts were judged against; null when neither is known. A
- * sport's own highest sustained heart rate is named as such; a reference taken from the other
- * sport is labelled with that source.
+ * sport's own highest sustained heart rate is stated bare; a reference taken from the other sport is
+ * labelled with that source.
  */
 export function referenceText(result: AnalysisResult): string | null {
   const parts: string[] = []

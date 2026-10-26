@@ -64,6 +64,8 @@ const ENERGY_FALLBACK = `When Balance has no age-grade gap to show, it shows the
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
 const NEEDS_RIDE = 'Needs a ride to compare with running.'
+/** The energy view with no run to compare a ride with: the run-equivalent of NEEDS_RIDE. */
+const NEEDS_RUN = 'Needs a run to compare with cycling.'
 /** The answer's estimates line when no run has a usable effort to count. */
 const NO_RUN_EFFORT = 'No run has a usable effort yet.'
 /** Line two of the answer while a ride's grade waits for the weight. */
@@ -81,13 +83,16 @@ function answerVerdict(balance: BalanceReading | null, waitsForWeight: boolean):
 }
 
 /**
- * The estimates line of the answer, once there are results: the counts it rests on. With no run that
- * has a usable effort, there is no run estimate to count, so the line says that instead.
+ * The estimates line of the answer, once there are results: what the library's counts estimate. A ride
+ * figure needs the weight and a ride, and a run threshold needs a run, so the line names only those.
  */
 function estimatesOf(runs: number, rides: number, weightKnown: boolean): string {
-  if (runs === 0) return NO_RUN_EFFORT
-  if (!weightKnown) {
+  if (!weightKnown || rides === 0) {
+    if (runs === 0) return NO_RUN_EFFORT
     return `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort.`
+  }
+  if (runs === 0) {
+    return `Ride levels and ride power without a meter are estimates from ${plural(rides, 'ride')} with a usable effort.`
   }
   return `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
 }
@@ -268,7 +273,15 @@ export function MethodPage({
             <TopicBody id="range" />
             <p className="secondary">{noResultLine}</p>
           </>
-        ) : weightKnown ? (
+        ) : !weightKnown ? (
+          <p className="secondary">{rides > 0 ? HELD_ENERGY : NEEDS_RIDE}</p>
+        ) : runs === 0 || rides === 0 ? (
+          <>
+            <p className="secondary">{rides === 0 ? NEEDS_RIDE : NEEDS_RUN}</p>
+            <TopicBody id="unit" />
+            <TopicBody id="range" />
+          </>
+        ) : (
           <>
             <p className="secondary">{gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK}</p>
             {pick && (
@@ -301,8 +314,6 @@ export function MethodPage({
               />
             </EvidenceDisclosure>
           </>
-        ) : (
-          <p className="secondary">{rides > 0 ? HELD_ENERGY : NEEDS_RIDE}</p>
         )}
       </section>
 

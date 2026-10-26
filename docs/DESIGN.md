@@ -21,7 +21,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                               |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                                                                       |
 
-Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where the charts would be. On a reload of a visit that kept
+Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line under the energy view, where the charts would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
 has replied, or, while the account is still loading, three seconds have passed, whichever is first.
 A returning visitor is not asked to add their files again and is never left without a control. The
@@ -503,8 +503,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **How sure is this? opens with three lines**: what is recorded ("Running efforts, and ride power from
   a power meter, are recorded."), the balance in Balance's words with whether even is inside the range
   ("Your balance leans toward running. Even is outside its range."), and how far to trust it ("These
-  checks show how far to trust them."). The estimates sentence follows the balance: "Thresholds, ride
-  levels, the balance and ride power without a meter are estimates from N runs and M rides." It does
+  checks show how far to trust them."). The estimates sentence follows the balance and names only what the
+  library holds: "Thresholds, ride levels, the balance and ride power without a meter are estimates
+  from N runs and M rides." With no weight or no ride it reads "Run thresholds are estimates from N
+  runs with a usable effort." With no usable run it reads "No run has a usable effort yet.", or, with
+  a weight and a ride, "Ride levels and ride power without a meter are estimates from M rides with a
+  usable effort." It does
   not repeat the period, which "Counted over" names above it. Each chip is a button named with its
   word and its destination, and moves focus there. Recorded and Estimated both go to Age grades and
   levels, where a run's grade is read as recorded and a ride's grade is an estimate. Checks below
@@ -622,7 +626,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   figure worked out from the placeholder weight. How sure is this? holds its energy view and its
   virtual power check, and draws only the running blocks of its heart-rate chart, with the prompt
   beneath once a ride is on file. With no ride, its energy view says it needs one to compare with
-  running, and asks for no weight. The request for a weight is written once, in weightCopy: the linked prompt Balance and
+  running, and asks for no weight. With a run and no ride, or a ride and no run, the energy view names
+  the sport it needs and draws no ratio, so the ratio and its chart appear only with both. The request
+  for a weight is written once, in weightCopy: the linked prompt Balance and
   Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to see ride figures." in their place.
 - **A body weight outside 45 to 160 kg is confirmed before it is kept.** The API accepts a wider range,
   but a kilogram figure typed into a pound field would otherwise pass as a headline. Setup asks again
