@@ -23,29 +23,28 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
   const duration = formatDuration(durationS)
   if (run !== null && run < ALL_OUT && ride !== null && ride < ALL_OUT) {
     return {
-      title: 'Both numbers may be low',
+      title: 'Both numbers could be higher',
       text:
         `Your best ${duration} reached ${Math.round(run * 100)}% of your running reference heart rate ` +
-        `and ${Math.round(ride * 100)}% of your cycling one, so neither was probably your hardest. ` +
-        'A recent race or a hard effort of this length in each sport would sharpen both.',
+        `and ${Math.round(ride * 100)}% of your cycling one, so neither was probably your hardest.`,
       short: `Best efforts over ${duration} may not have been your hardest.`,
     }
   }
   if (ride !== null && ride < ALL_OUT) {
     return {
-      title: 'Your ride number may be low',
+      title: 'Your ride number could be higher',
       text:
         `Your best ${duration} on the bike reached ${Math.round(ride * 100)}% of your cycling reference heart rate, ` +
-        'so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
+        'so it was probably not your hardest.',
       short: `Best cycling effort over ${duration} may not have been your hardest.`,
     }
   }
   if (run !== null && run < ALL_OUT) {
     return {
-      title: 'Your run number may be low',
+      title: 'Your run number could be higher',
       text:
         `Your best ${duration} running reached ${Math.round(run * 100)}% of your running reference heart rate, ` +
-        'so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
+        'so it was probably not your hardest.',
       short: `Best running effort over ${duration} may not have been your hardest.`,
     }
   }

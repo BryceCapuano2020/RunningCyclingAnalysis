@@ -29,6 +29,15 @@ const hillRide = makeActivity({
   startMs: new Date(2026, 0, 9, 17, 0).getTime(),
 })
 
+/** A ride under the 3 min an equivalence needs, so no power curve can be read from it. */
+const shortRide = makeActivity({
+  id: 'ride-2',
+  name: 'Warm-up spin',
+  sport: 'ride',
+  startMs: new Date(2026, 0, 10, 17, 0).getTime(),
+  durationS: 120,
+})
+
 const ALL_TIME_PERIOD: Period = {
   choice: 'all',
   startMs: null,
@@ -93,7 +102,7 @@ describe('CrossSportCard', () => {
     // The ride that set the effort is not in this result, so its watts count as estimated.
     expect(
       screen.getByText(
-        'Your best 20 min on the bike, 250 W (estimated), takes the same effort as running 4:10 per kilometre on the flat.',
+        'Your best 20 min on the bike, 250 W (estimated), takes the same effort as running on the flat.',
       ),
     ).toBeInTheDocument()
   })
@@ -119,7 +128,7 @@ describe('CrossSportCard', () => {
     )
     expect(
       screen.getByText(
-        'Your best 20 min on the bike, 250 W, takes the same effort as running 4:10 per kilometre on the flat.',
+        'Your best 20 min on the bike, 250 W, takes the same effort as running on the flat.',
       ),
     ).toBeInTheDocument()
   })
@@ -159,7 +168,8 @@ describe('CrossSportCard', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'On foot, your ride is worth 6:42\u00a0/mi' }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/running 6:42 per mile on the flat\.$/)).toBeInTheDocument()
+    expect(screen.getByText(/takes the same effort as running on the flat\.$/)).toBeInTheDocument()
+    expect(screen.queryByText(/6:42/, { selector: 'p' })).not.toBeInTheDocument()
   })
 
   it('features the 20 minute effort rather than a shorter or longer one', () => {
@@ -223,18 +233,33 @@ describe('CrossSportCard', () => {
   })
 
   it('names the dates the period covers in its needs-a-ride line', () => {
-    renderCard(makeResult({ activities: [hillRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
+    renderCard(makeResult({ activities: [shortRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
     expect(
       screen.getByText('Needs a ride of 3 min or more between 12 May and 3 Aug 2025.'),
     ).toBeInTheDocument()
   })
 
-  it('asks for a ride of 3 min when there is no effort to compare', () => {
-    renderCard(makeResult({ activities: [hillRide], equivalents: [] }))
+  it('asks for a ride of 3 min when no ride is that long', () => {
+    renderCard(makeResult({ activities: [shortRide], equivalents: [] }))
 
     expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
     expect(screen.getByText('Needs a ride of 3 min or more.')).toBeInTheDocument()
     expect(screen.queryByText('See the pace curve')).not.toBeInTheDocument()
+  })
+
+  it('names the power as the missing reason when a ride is long enough but has no power curve', () => {
+    renderCard(makeResult({ activities: [hillRide], equivalents: [] }))
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Your ride on foot' })).toBeInTheDocument()
+    expect(screen.getByText('Needs a ride of 3 min or more with power.')).toBeInTheDocument()
+    expect(screen.queryByText('Needs a ride of 3 min or more.')).not.toBeInTheDocument()
+  })
+
+  it('names the power and the dates when a long ride has no power curve in the period', () => {
+    renderCard(makeResult({ activities: [hillRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
+    expect(
+      screen.getByText('Needs a ride of 3 min or more with power between 12 May and 3 Aug 2025.'),
+    ).toBeInTheDocument()
   })
 
   it('asks for a ride instead of a pace when the effort gives no valid running pace', () => {

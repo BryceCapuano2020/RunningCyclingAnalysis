@@ -7,7 +7,6 @@ import type { HeadlinePick } from '../components'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { balanceOfPick } from '../components/balanceScale'
 import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../components/headlineText'
-import { periodDates } from '../components/rangeOptions'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
@@ -29,12 +28,12 @@ export interface BalanceHeroProps {
   onShowAll: () => void
   /** False while no body weight is entered: a ride's figures wait for it, so the balance does too. */
   weightKnown: boolean
-  /** Set beside the headline: the sample's chip and the share buttons. */
-  aside?: ReactNode
+  /** Set under the lede, on the text column: the share button, which opens its sheet from the answer. */
+  action?: ReactNode
   /** Each sport's level as the cards show it, when it is graded. A missing sport's title can name the other's. */
   runLevel?: string | null
   rideLevel?: string | null
-  /** The grades under the meter on a phone. They share the meter's group, so they keep its gap. */
+  /** The grades under the meter on a phone, shown only beside a meter. They keep the meter's gap. */
   strip?: ReactNode
 }
 
@@ -124,7 +123,7 @@ export function BalanceHero({
   period,
   onShowAll,
   weightKnown,
-  aside,
+  action = null,
   runLevel = null,
   rideLevel = null,
   strip = null,
@@ -135,7 +134,6 @@ export function BalanceHero({
       <h1 id={PAGE_HEADING_ID} tabIndex={-1} className={className}>
         {title}
       </h1>
-      {aside}
     </div>
   )
   // Once both sports are on file, the balance is held for the weight: the one prompt says why.
@@ -151,8 +149,8 @@ export function BalanceHero({
           <p className="lede secondary">
             <WeightPrompt />
           </p>
+          {action}
         </section>
-        {strip}
       </>
     )
   }
@@ -173,19 +171,18 @@ export function BalanceHero({
               </button>
             </p>
           )}
+          {action}
         </section>
-        {strip}
       </>
     )
   }
   const summary = balanceSummary(reading, pick?.point.durationS ?? HEADLINE_DURATION_S)
-  // A dated period names its dates ahead of the answer, so the lede says what it covers.
-  const dates = period.days === null ? '' : periodDates(period)
   return (
     <>
       <section className="balance-hero">
         {head(balanceTitle(reading), 'balance-hero__title')}
-        <p className="lede secondary">{dates === '' ? summary : `${dates}. ${summary}`}</p>
+        <p className="lede secondary">{summary}</p>
+        {action}
       </section>
       <div className="balance-hero__meter">
         <BalanceMeter reading={reading} />

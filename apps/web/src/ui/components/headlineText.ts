@@ -27,6 +27,26 @@ function points(count: number): string {
   return plural(count, 'point')
 }
 
+/** A no-break space, so a number and its unit never part across a line. */
+const NO_BREAK = '\u00a0'
+
+/** A count of points with its unit held to it: "6\u00a0points". */
+function pointsUnit(count: number): string {
+  return plural(count, 'point').replace(' ', NO_BREAK)
+}
+
+/**
+ * A percent edge of a range, in words. An edge that rounds to 0 shows one decimal, so the range
+ * reads as a value, not as a zero.
+ */
+function percentEdge(percent: number, signed: boolean): string {
+  if (percent === 0 || Math.round(percent) !== 0) return formatPercent(percent / 100, signed)
+  // Below a twentieth of a percent, one decimal would print 0.0, so the edge says it is under a tenth.
+  if (Math.abs(percent) < 0.05) return 'under 0.1%'
+  const plus = signed && percent > 0 ? '+' : ''
+  return `${plus}${percent.toFixed(1)}%`
+}
+
 /** A signed count with a true minus sign, so an even range reads both ways: "−2", "+10". */
 function signedCount(count: number): string {
   const rounded = Math.round(count)
@@ -47,15 +67,17 @@ function leaderOf(lean: Exclude<Lean, 'even'>): { leader: string; other: string 
  */
 export function rangeText({ unit, lean, lead }: BalanceReading): string {
   if (unit === 'points') {
-    if (lean === 'even') return `${signedCount(lead.low)} to ${signedCount(lead.high)} points`
+    if (lean === 'even') {
+      return `${signedCount(lead.low)} to ${signedCount(lead.high)}${NO_BREAK}points`
+    }
     const [low, high] = lean === 'ride' ? [-lead.high, -lead.low] : [lead.low, lead.high]
-    return `${Math.round(low)} to ${plural(Math.round(high), 'point')}`
+    return `${Math.round(low)} to ${pointsUnit(Math.round(high))}`
   }
   if (lean === 'even') {
-    return `${formatPercent(lead.low / 100, true)} to ${formatPercent(lead.high / 100, true)}`
+    return `${percentEdge(lead.low, true)} to ${percentEdge(lead.high, true)}`
   }
   const [low, high] = lean === 'ride' ? [-lead.high, -lead.low] : [lead.low, lead.high]
-  return `${formatPercent(low / 100)} to ${formatPercent(high / 100)}`
+  return `${percentEdge(low, false)} to ${percentEdge(high, false)}`
 }
 
 /** A leaning grade gap on the headline duration: "Your running grades 6 points higher than your cycling, ...". */

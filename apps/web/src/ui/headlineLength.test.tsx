@@ -71,7 +71,9 @@ describe('the headline length', () => {
     expect(
       screen.getByText(/A hard 45 min run or ride would let them be compared\./),
     ).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Best 45 min, week by week' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: /of your best 45 min, trailing/ }),
+    ).toBeInTheDocument()
 
     const trend = TOPICS.find((topic) => topic.id === 'trend')
     expect(trend?.title).toBe('Best 45 min, week by week')

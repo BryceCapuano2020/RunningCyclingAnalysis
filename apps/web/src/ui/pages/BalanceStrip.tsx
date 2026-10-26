@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { Sport } from '@rca/core/types'
 import type { GradeOutcome } from '../grades'
 import { formatGrade } from '../gradeFormat'
@@ -19,14 +20,22 @@ export function BalanceStrip({ grades }: BalanceStripProps) {
     const outcome = grades[sport]
     return outcome?.kind === 'graded'
       ? [
-          `${SPORT_LABEL[sport]} ${formatGrade(outcome.grade.centre.grade)} ${outcome.grade.centre.level}`,
+          {
+            sport,
+            text: `${SPORT_LABEL[sport]} ${formatGrade(outcome.grade.centre.grade)} ${outcome.grade.centre.level}`,
+          },
         ]
       : []
   })
   if (graded.length === 0) return null
   return (
     <p className="balance-strip" aria-hidden="true">
-      {graded.join(' / ')}
+      {graded.map((part, index) => (
+        <Fragment key={part.sport}>
+          {index > 0 && ' / '}
+          <span className="balance-strip__sport">{part.text}</span>
+        </Fragment>
+      ))}
     </p>
   )
 }

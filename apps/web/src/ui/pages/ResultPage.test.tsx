@@ -526,7 +526,7 @@ describe('ResultPage sample athlete', () => {
       /Local · \d+% · on your best 20 min/,
     )
     expect(screen.queryByText(PROFILE_PROMPT)).not.toBeInTheDocument()
-    expect(screen.getByText('Sample athlete')).toBeInTheDocument()
+    expect(screen.queryByText('Sample athlete')).not.toBeInTheDocument()
   })
 })
 
@@ -616,6 +616,8 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
         sex={null}
       />,
     )
-    expect(screen.getByRole('heading', { name: 'Best 20 min, week by week' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /of your best 20 min, trailing/ }),
+    ).toBeInTheDocument()
   })
 })

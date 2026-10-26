@@ -211,7 +211,7 @@ describe('BalanceHero on the age-grade gap', () => {
     )
     expect(
       screen.getByRole('img', { name: /Running grades 6 points higher than cycling/ }),
-    ).toHaveAccessibleName(/range 2 to 10 points/)
+    ).toHaveAccessibleName(/range 2 to 10\u00a0points/)
   })
 
   it('answers from the gap alone when there is no energy comparison yet', () => {
@@ -365,7 +365,7 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
-  it('names the dated period in the lede when the period is not all time', () => {
+  it('leaves the dates out of the lede when the period is not all time, since the caption names them', () => {
     render(
       <BalanceHero
         {...ALL_TIME}
@@ -377,9 +377,10 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        '12 May – 3 Aug 2025. Your running grades 6 points higher than your cycling, on your best 20 min in each.',
+        'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
+    expect(screen.queryByText(/12 May/)).not.toBeInTheDocument()
   })
 
   it('leaves the dates out of the lede under all time', () => {
@@ -398,20 +399,23 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
-  it('sets the aside beside the headline, so the share buttons sit with the answer', () => {
+  it('sets the action under the lede, on the text column, so the share button sits with the answer', () => {
     render(
       <BalanceHero
         {...ALL_TIME}
-        aside={<button type="button">Download square image</button>}
+        action={<button type="button">Download square image</button>}
         result={makeResult({ activities: [], comparison: { prior: [], calibrated: null } })}
         pick={null}
         gap={null}
       />,
     )
     const heading = screen.getByRole('heading', { level: 1 })
+    const action = screen.getByRole('button', { name: 'Download square image' })
     expect(heading.parentElement).toHaveClass('balance-hero__head')
-    expect(heading.parentElement).toContainElement(
-      screen.getByRole('button', { name: 'Download square image' }),
+    expect(heading.parentElement).not.toContainElement(action)
+    expect(action.parentElement).toHaveClass('balance-hero')
+    expect(action.previousElementSibling).toBe(
+      screen.getByText('Your files have no running or cycling activities yet.'),
     )
   })
 })

@@ -33,6 +33,9 @@ const ladderTsx = await read('../ui/components/LevelLadder.tsx')
 const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
 const emptySportCard = await read('../ui/pages/EmptySportCard.css')
+const balanceStrip = await read('../ui/pages/BalanceStrip.css')
+const equivalenceCss = await read('../ui/components/EquivalenceTable.css')
+const weightNote = await read('../ui/components/WeightNote.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
 function rulesWith(css: string, selector: string): string {
@@ -414,6 +417,103 @@ describe('shared layout', () => {
   it('wraps a long activity name in the cross-sport idea, so the page does not widen', () => {
     expect(rulesWith(crossSport, '.cross-sport')).toMatch(/min-width:\s*0/)
     expect(rulesWith(crossSport, '.cross-sport')).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+})
+
+describe('balance hero, meter and evidence', () => {
+  it('stacks the share button under the lede, so the headline is a block, and balances its line', () => {
+    expect(rulesWith(balancePage, '.balance-hero__head')).not.toMatch(/flex/)
+    expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
+  })
+
+  it('gives the quiet evidence card a gap between its chip, sentence and link', () => {
+    const quiet = rulesWith(balancePage, '.balance__cards .evidence-card--quiet')
+    expect(quiet).toMatch(/display:\s*grid/)
+    expect(quiet).toMatch(/gap:\s*var\(--space-2\)/)
+    expect(quiet).toMatch(/justify-items:\s*start/)
+  })
+
+  it('takes the card heading’s paragraph up to the heading', () => {
+    expect(rulesWith(balancePage, '.balance__cards .card > h2 + p')).toMatch(/margin-top:\s*0/)
+  })
+
+  it('insets the cross-sport idea past a boxed card’s border, only where the cards sit side by side', () => {
+    expect(
+      rulesWith(
+        mediaOf(balancePage, '(min-width: 45.5rem)'),
+        '.balance__cards > .card + .cross-sport',
+      ),
+    ).toMatch(/padding-inline:\s*calc\(var\(--space-5\) \+ 1px\)/)
+    expect(rulesWith(outsideMedia(balancePage), '.balance__cards > .card + .cross-sport')).toBe('')
+  })
+
+  it('gives the meter’s value flag room above the track, clear of the even line', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/padding-top:\s*1\.75rem/)
+  })
+
+  it('sets the meter ticks a step below the track', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__ticks')).toMatch(
+      /margin-top:\s*var\(--space-1\)/,
+    )
+  })
+
+  it('clamps the flag and the dot to one edge inside the plot, so they stay centred together', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--meter-edge:\s*2rem/)
+    const clamp =
+      /left:\s*clamp\(var\(--meter-edge\),\s*var\(--at\),\s*calc\(100% - var\(--meter-edge\)\)\)/
+    expect(rulesWith(balanceMeter, '.balance-meter__flag')).toMatch(clamp)
+    expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(clamp)
+  })
+
+  it('draws the dot in the system text colour in forced colours, past the sport colour rule', () => {
+    const forced = mediaOf(balanceMeter, FORCED)
+    for (const selector of [
+      '.balance-meter--run .balance-meter__dot',
+      '.balance-meter--ride .balance-meter__dot',
+    ]) {
+      expect(rulesWith(forced, selector), selector).toMatch(/background:\s*CanvasText/)
+      expect(rulesWith(forced, selector), selector).toMatch(/box-shadow:\s*0 0 0 2px Canvas/)
+    }
+  })
+
+  it('keeps each grade on the phone strip in the secondary colour, at the body weight', () => {
+    expect(rulesWith(balanceStrip, '.balance-strip')).toMatch(/font-weight:\s*400/)
+    expect(rulesWith(balanceStrip, '.balance-strip')).toMatch(/color:\s*var\(--text-secondary\)/)
+    expect(rulesWith(balanceStrip, '.balance-strip__sport')).toMatch(/white-space:\s*nowrap/)
+  })
+
+  it('gives the held note’s Profile link and the Set on link the control height on a phone', () => {
+    const phone = '(max-width: 760px), (pointer: coarse)'
+    expect(mediaOf(weightNote, phone)).toMatch(
+      /\.weight-note__link \{[^}]*min-height:\s*var\(--control-height\)/,
+    )
+    expect(mediaOf(crossSport, phone)).toMatch(
+      /\.cross-sport__link \{[^}]*min-height:\s*var\(--control-height\)/,
+    )
+  })
+
+  it('sets the phone list’s labels once, above the rows, in the same columns as each row', () => {
+    const phone = mediaOf(equivalenceCss, '(max-width: 479px)')
+    expect(phone).toMatch(/\.equivalence-list__labels \{[^}]*display:\s*grid/)
+    expect(rulesWith(equivalenceCss, '.equivalence-list__labels')).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.9fr\)\s*minmax\(0,\s*1\.1fr\)/,
+    )
+    expect(rulesWith(equivalenceCss, '.equivalence-list dl')).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*0\.9fr\)\s*minmax\(0,\s*1\.1fr\)/,
+    )
+  })
+})
+
+describe('balance sport cards', () => {
+  it('stretches the sport cards to one height, so their links sit on one line at the foot', () => {
+    expect(rulesWith(balancePage, '.balance__sports')).toMatch(/align-items:\s*stretch/)
+    expect(rulesWith(balancePage, '.balance__cards')).toMatch(/align-items:\s*start/)
+  })
+
+  it('lets a sport card fill its height, with its link pushed to the foot', () => {
+    expect(rulesWith(sportCard, '.sport-card')).toMatch(/align-content:\s*normal/)
+    expect(rulesWith(sportCard, '.sport-card')).not.toMatch(/align-content:\s*start/)
+    expect(rulesWith(sportCard, '.sport-card > .link-arrow')).toMatch(/margin-top:\s*auto/)
   })
 })
 

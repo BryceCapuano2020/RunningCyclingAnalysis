@@ -33,6 +33,19 @@ describe('BalanceStrip', () => {
     expect(container.querySelector('.balance-strip')?.textContent).toBe('Run 64% Local')
   })
 
+  it('keeps each sport’s grade in its own unbroken span, so a phone never splits one', () => {
+    const { container } = render(
+      <BalanceStrip
+        grades={{ run: graded(0.6424, 'Local'), ride: graded(0.5801, 'Recreational') }}
+      />,
+    )
+    const sports = [...container.querySelectorAll<HTMLElement>('.balance-strip__sport')]
+    expect(sports.map((sport) => sport.textContent)).toEqual([
+      'Run 64% Local',
+      'Ride 58% Recreational',
+    ])
+  })
+
   it('renders nothing when no grade is shown', () => {
     const { container } = render(
       <BalanceStrip grades={{ run: { kind: 'gap', reason: 'No best effort' }, ride: null }} />,

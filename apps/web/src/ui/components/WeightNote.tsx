@@ -1,5 +1,6 @@
 import { WEIGHT_FIGURES_PURPOSE, WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import { hrefFor } from '../route'
+import './WeightNote.css'
 
 /**
  * Where ride figures wait for a weight. Nothing assumes one, so a ride's figures are held until the
@@ -10,7 +11,10 @@ export function WeightNote() {
   return (
     <p className="muted">
       {WEIGHT_PROMPT_PARTS.lead}{' '}
-      <a href={hrefFor({ page: 'profile' })}>{WEIGHT_PROMPT_PARTS.page}</a> {WEIGHT_FIGURES_PURPOSE}
+      <a className="weight-note__link" href={hrefFor({ page: 'profile' })}>
+        {WEIGHT_PROMPT_PARTS.page}
+      </a>{' '}
+      {WEIGHT_FIGURES_PURPOSE}
     </p>
   )
 }

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import { balanceSentence, rangeText } from './headlineText'
 import {
@@ -25,10 +26,17 @@ function percentAt(lead: number): number {
 /** The sport at each end of the track: the first in SPORT_ORDER is on the left. */
 const [LEFT, RIGHT] = SPORT_ORDER
 
-/** What the scale counts, and the band, for the caption under the meter. */
-const KEY = {
-  points: "Dot: best estimate. Band: the ride's 90% range",
-  percent: 'Dot: best estimate. Band: 90% model range',
+/** The key under the meter: what the dot and the band are, in the same words for both scales. */
+const KEY = 'Dot: best estimate. Band: 90% range'
+/** What the scale counts, in words, after the range in the key. The non-breaking hyphen keeps "age-grade" whole. */
+const SCALE_KEY: Record<BalanceReading['unit'], string> = {
+  points: 'Scale: age\u2011grade points.',
+  percent: 'Scale: energy per kilogram.',
+}
+
+/** A lead's place on the track, as the custom property the stylesheet clamps inside the plot. */
+function placedAt(lead: number): CSSProperties {
+  return { '--at': `${percentAt(lead)}%` } as CSSProperties
 }
 
 /**
@@ -58,7 +66,7 @@ export function BalanceMeter({ reading }: BalanceMeterProps) {
   return (
     <figure className={`scale-figure balance-meter balance-meter--${lean}`}>
       <div className="balance-meter__plot" role="img" aria-label={balanceSentence(reading)}>
-        <span className="balance-meter__flag" style={{ left: `${percentAt(lead.centre)}%` }}>
+        <span className="balance-meter__flag" style={placedAt(lead.centre)}>
           {flag}
         </span>
         <div className="balance-meter__track">
@@ -67,7 +75,7 @@ export function BalanceMeter({ reading }: BalanceMeterProps) {
             style={{ left: `${(bandLeft + bandRight) / 2}%`, width: `${bandRight - bandLeft}%` }}
           />
           <span className="balance-meter__even" />
-          <span className="balance-meter__dot" style={{ left: `${percentAt(lead.centre)}%` }} />
+          <span className="balance-meter__dot" style={placedAt(lead.centre)} />
         </div>
         <div className="balance-meter__ticks">
           {ticks.map((tick) => (
@@ -95,9 +103,7 @@ export function BalanceMeter({ reading }: BalanceMeterProps) {
         </span>
       </div>
       <figcaption className="balance-meter__key">
-        {unit === 'points'
-          ? `${KEY.points}, ${rangeText(reading)}. Scale: age-grade points.`
-          : `${KEY.percent}, ${rangeText(reading)}. Scale: percent of energy.`}
+        {`${KEY}, ${rangeText(reading)}. ${SCALE_KEY[unit]}`}
       </figcaption>
     </figure>
   )

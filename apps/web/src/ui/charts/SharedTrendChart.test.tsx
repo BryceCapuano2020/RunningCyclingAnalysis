@@ -77,7 +77,7 @@ describe('SharedTrendChart', () => {
     renderChart()
     expect(
       screen.getByRole('figure', {
-        name: 'Age grade of your best 20 minutes, trailing 2 weeks',
+        name: 'Age grade of your best 20 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Run and ride age grades/ })).toBeInTheDocument()
@@ -87,7 +87,7 @@ describe('SharedTrendChart', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(
       screen.getByRole('figure', {
-        name: 'Energy rate of your best 20 minutes, trailing 2 weeks',
+        name: 'Energy rate of your best 20 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(screen.getByText('Energy rate (metabolic W/kg)')).toBeInTheDocument()
@@ -327,7 +327,7 @@ describe('SharedTrendChart', () => {
     expect(screen.queryByRole('img')).toBeNull()
     // The chart keeps its visible title above the line of text, so every chart has a name.
     expect(
-      screen.getByRole('figure', { name: 'Age grade of your best 20 minutes, trailing 2 weeks' }),
+      screen.getByRole('figure', { name: 'Age grade of your best 20 min, trailing 2 weeks' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
   })

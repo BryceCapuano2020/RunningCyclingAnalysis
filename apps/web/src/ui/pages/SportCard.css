@@ -2,8 +2,13 @@
   position: relative;
   display: grid;
   gap: var(--space-4);
-  align-content: start;
+  align-content: normal;
   overflow: hidden;
+}
+
+/* The card's link sits at the foot, so a card stretched to its row keeps its links in one line. */
+.sport-card > .link-arrow {
+  margin-top: auto;
 }
 
 /* The sport's colour as a bar down the card's edge: data colour on a data card, not chrome. */
