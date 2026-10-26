@@ -2,17 +2,24 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PrivacyNote } from './PrivacyNote'
+import { readStylesheet, ruleBody } from './stylesheet'
+
+const noteCss = await readStylesheet(import.meta.url, './PrivacyNote.css')
 
 afterEach(() => {
   cleanup()
 })
 
 describe('PrivacyNote', () => {
+  it('keeps the note to a 36rem measure beside the footer links', () => {
+    expect(ruleBody(noteCss, '.privacy-note')).toMatch(/max-width:\s*36rem;/)
+  })
+
   it('says nothing is uploaded when signed out', () => {
     render(<PrivacyNote signedIn={false} keepFiles={false} />)
     expect(
       screen.getByText(
-        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Remove all my activities removes them.',
+        'Nothing is uploaded; analysis runs in your browser. Summaries are kept in this browser where it allows, so anyone using it can see them. Remove all my activities removes them.',
       ),
     ).toBeInTheDocument()
   })
@@ -21,7 +28,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn={false} keepFiles />)
     expect(
       screen.getByText(
-        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Remove all my activities removes them.',
+        'Nothing is uploaded; analysis runs in your browser. Summaries are kept in this browser where it allows, so anyone using it can see them. Remove all my activities removes them.',
       ),
     ).toBeInTheDocument()
   })

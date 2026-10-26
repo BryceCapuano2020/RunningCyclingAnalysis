@@ -125,6 +125,18 @@ body {
   }
 }
 
+/* As the app's header does, the wordmark is hidden from sight so the header is one row. */
+@media (max-width: 560px) {
+  .header__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 .header__profile {
   display: inline-flex;
   align-items: center;
@@ -185,6 +197,7 @@ h2 {
 
 p,
 li {
+  max-width: 68ch;
   overflow-wrap: anywhere;
 }
 
@@ -205,6 +218,10 @@ a {
   color: var(--link);
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
 }
 
 :focus-visible {
@@ -229,6 +246,18 @@ code {
 
 .footer p {
   margin: 0;
+}
+
+.footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .footer a {
+    min-height: var(--control-height);
+  }
 }
 
 @media (min-width: 600px) {

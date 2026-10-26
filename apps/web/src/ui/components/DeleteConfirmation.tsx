@@ -82,7 +82,7 @@ export function DeleteConfirmation({
       ref={dialogRef}
     >
       <h3 id={`${baseId}-confirm-title`} tabIndex={-1} ref={headingRef}>
-        Delete “{name}”?
+        Delete “<span className="saved-library__confirm-name">{name}</span>”?
       </h3>
       <p id={`${baseId}-confirm-description`}>{description}</p>
       <ConfirmActions confirmLabel="Delete" busy={busy} onCancel={onCancel} onConfirm={onConfirm} />

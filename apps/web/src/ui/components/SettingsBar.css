@@ -15,11 +15,16 @@
   gap: var(--space-3) var(--space-5);
 }
 
-/* A field and the line under it, stacked. */
+/*
+ * A field and the line under it, stacked. Capped, so an error or a Save wraps inside its own column
+ * and does not widen it onto the next row. At 8rem the bike field stays beside the body field from 320 px,
+ * with the longest warning and its Save open; at 9rem it wraps at 320 px (measured in Chromium).
+ */
 .settings-bar__field {
   display: grid;
   gap: var(--space-2);
   min-width: 0;
+  max-width: 8rem;
   justify-items: start;
 }
 
