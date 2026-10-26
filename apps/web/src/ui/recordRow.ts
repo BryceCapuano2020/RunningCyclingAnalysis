@@ -7,7 +7,7 @@ import type { SportRecord } from './records'
 /** One best effort as a row of a records list, whichever page or card lists it. */
 export interface RecordRow {
   key: string
-  /** The duration the record names, such as "20 min" or "Best 1 km". */
+  /** The duration the record names, such as "20 min" or "1 km". */
   label: string
   /** The figure in the sport's own unit, such as "4:00 /km" or "250 W". */
   value: string

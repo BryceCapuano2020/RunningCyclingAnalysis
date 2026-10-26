@@ -100,7 +100,7 @@ menus can change." for Strava, which was read on its own help page. For the othe
 "Steps from published guides, checked ...", because their steps came from guides or search summaries,
 not from the services' own pages.
 `HowToGetFilesButton` opens the same guides in a dialog. It sits beside **Add rides** (or **Add runs**)
-on an empty Run or Ride card, as a secondary action; Profile can wire it in the same way. The dialog has no sample button, since a sample would replace the visitor's data.
+on an empty Run or Ride page or card, as a secondary action; Profile can wire it in the same way. The dialog has no sample button, since a sample would replace the visitor's data.
 The notice region sits under the header and holds one summary per import, the sample banner while the
 sample is loaded, then the sync, library and sample notices and any error. After an import, a dismissible summary says what it added, or "Nothing new"
 when every activity was already in the library, and links to Balance, except on Balance itself. An
@@ -259,16 +259,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom: the threshold, its grade and level ladder for the best 20 minutes
   (the same grade line as the card), a line of recent form ("Last run 14 Jan · 9 runs · 42.10
-  km"), the best efforts, with **See your runs** under them, which opens Activities filtered to that
-  sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
+  km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
+  opens Activities filtered to that sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
   for running and "Power curve" for cycling. The threshold carries no count: the period control beside
   the heading names the dates the efforts come from. A sport the library has no activities for has no
-  period control and no curve, and asks for files.
-- **A record says how long ago it was set**, as quiet text beside its figure, such as "Set 12 days
-  ago" or "Set today". The count runs in calendar days from today, read once when the page opens, so
+  period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
+  **How to get your files** side by side.
+- **A record says how long ago it was set**, as quiet text after the name of the activity that set it,
+  on the same line, such as "Morning run, 5 Jan · 12 days ago" or "Morning run, 5 Jan · today". The count
+  runs in calendar days from today, read once when the page opens, so
   a later render does not move it. It reads in whole days to 13, then in weeks to 59 days, months to
   23 months, then years, each rounded to the nearest unit. When every record was set in one
-  activity, the count moves to the source line: "All set on Morning run, 5 Jan, 5 months ago". A
+  activity, the count moves to the source line: "All set on Morning run, 5 Jan · 5 months ago". A
   record's source is dated without its weekday, such as "5 Jan".
 - **A duration's grade says the distance it is taken at.** A run's grade at 1, 5, 20 or 60 min is taken at
   the distance it covers at its flat pace, so its grade line reads "Local · 64% · 5.0 km in 20 min", written
@@ -343,7 +345,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
   figure has not moved. It is absent for All time. A record with no grade says why in its grade slot,
-  such as "No age standard under 1 mile", so every row has the same cells.
+  such as "No age standard under 1 mile", so every row has the same cells. A sport page's list says a
+  ride's "Estimated through its running equivalent" and a run's "No age standard under 1 mile" once,
+  under the list, and each row then reads only its level.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a
@@ -386,9 +390,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
   this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
   record was set in one activity, that activity is named once under the list ("All set on Morning run,
-  5 Jan, 5 months ago"), the link and its count on one line in the second column, the link cut short
-  first. Otherwise each record links to its own activity, with its own count. A long activity name is
-  cut short with an ellipsis, and its full name is the link's title and accessible name.
+  5 Jan · 5 months ago"), the link and its count on one line in the second column, the name wrapping
+  so the date stays whole. Otherwise each record links to its own activity, with its own count on the
+  link's line. A long activity name is cut short with an ellipsis, and its full name is the link's
+  title and accessible name.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
   ride is worth 4:10 /km", with a no-break space), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
@@ -541,8 +546,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   "flat pace" in charts, axes, tables, records and copy. Its record mark is "Flat", and its note reads
   "Flat pace: your pace allowing for hills, as if on level ground." A run's threshold keeps its name,
   "Threshold pace, estimated" on the app's cards and pages, where the page's Flat note says that pace is a flat pace. The share card has no Flat note, so its run threshold reads "Threshold flat pace, estimated". "Grade" means an age grade and nothing else.
-- **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. A
-  run added before the half marathon was recorded gets it only when it is added again: the library
+- **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. In each
+  unit, the record at that unit's own distance shows its time alone, since its pace is that time: 1 mi in
+  imperial, 1 km in metric. A run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter
@@ -610,8 +616,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   questions come back on the next import. Nothing is saved. A second Skip while one is saving does nothing.
 - **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
-  to Profile. It is on the Balance, Run and Ride pages only, and the sample has its own persona and
-  no such line.
+  to Profile. A ride held for its weight, whose own note already links there, leaves out the link on
+  "Your details are not set yet.". It is on the Balance, Run and Ride pages only, and the sample has its
+  own persona and no such line.
 - **A figure's scope is named by the period control beside its heading,** which shows the dates of a
   window. The threshold carries no count under it, since a count of runs is not what it is fitted from.
   Under All time the control shows the span of the whole library.

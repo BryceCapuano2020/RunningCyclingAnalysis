@@ -162,7 +162,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
   const hasData = rows.filter(hasValue).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const windowText = windowPhrase(windowDays)
-  const effort = `${effortS / 60} minutes`
+  const effort = `${effortS / 60} min`
   const view: View = { sport, units, massKg }
   const latest = rows.findLastIndex(hasValue)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))

@@ -30,3 +30,16 @@
   font-size: 1.5rem;
   font-weight: 700;
 }
+
+/* The threshold's label is a heading that sets as the eyebrow above a value, on the eyebrow's line. */
+.sport-page__threshold {
+  line-height: 1.5;
+}
+
+/* The add action and the guides sit side by side on an empty sport page, and wrap on a narrow phone. */
+.sport-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

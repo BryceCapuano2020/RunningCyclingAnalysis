@@ -51,6 +51,20 @@ describe('ProfileFootnote', () => {
     )
   })
 
+  it('leaves its link off the unset line where the page already links to Profile from a note of its own', () => {
+    render(
+      <ProfileFootnote
+        massKg={null}
+        units="metric"
+        birthYear={null}
+        sex={null}
+        unsetLink={false}
+      />,
+    )
+    expect(screen.getByText('Your details are not set yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
   it('asks for the details when none is set, still linking to Profile', () => {
     render(<ProfileFootnote massKg={null} units="metric" birthYear={null} sex={null} />)
     expect(screen.getByText('Your details are not set yet.')).toBeInTheDocument()

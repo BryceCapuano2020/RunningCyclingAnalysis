@@ -28,8 +28,6 @@ import {
   formatRecordTime,
   formatDuration,
 } from '@rca/core/units'
-import { plural } from './components/plural'
-import { agoText } from './format/ago'
 
 /** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
 export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
@@ -50,10 +48,9 @@ function distanceName(distanceM: RunRecordDistanceM): string {
     : `${distanceM / METRES_PER_KM} km`
 }
 
-/** A record's duration as its label: "20 min", or "1 hour" for a whole hour. */
+/** A record's duration as its label in minutes, such as "20 min" or "60 min" for an hour. */
 export function recordDurationLabel(durationS: number): string {
-  const wholeHours = durationS >= 3600 && durationS % 3600 === 0
-  return wholeHours ? plural(durationS / 3600, 'hour') : formatDuration(durationS)
+  return durationS % 60 === 0 ? `${durationS / 60} min` : formatDuration(durationS)
 }
 
 export interface SportNumber {
@@ -236,14 +233,6 @@ export function countSport(activities: ActivitySummary[], sport: Sport): number 
  */
 export function calendarDaysBetween(earlierMs: number, laterMs: number): number {
   return Math.round((startOfLocalDay(laterMs) - startOfLocalDay(earlierMs)) / DAY_MS)
-}
-
-/**
- * When a record was set, in days from the day the page opened: "Set today", "Set 2 weeks ago". A record
- * dated after that day reads as today, since a count below zero says nothing.
- */
-export function setAgoText(days: number): string {
-  return days <= 0 ? 'Set today' : `Set ${agoText(days)}`
 }
 
 /**

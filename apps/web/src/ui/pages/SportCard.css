@@ -38,8 +38,16 @@
   gap: var(--space-1);
 }
 
+/* The sub-line sits on the numeral's baseline, beside it, so a card's grade block starts at the same height. */
+.sport-card__hero > p:has(.hero-number) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+}
+
 .sport-card__sub {
-  margin-left: var(--space-3);
+  margin-left: 0;
   color: var(--text-secondary);
   font-family: var(--font-display);
   /* A display size with no type token; see DESIGN.md, Type. */
@@ -51,4 +59,18 @@
 .sport-card .hero-number__unit {
   /* The unit sits at about 40% of the numeral, on its baseline; see DESIGN.md. */
   font-size: 0.4em;
+}
+
+/* The best efforts summary is a label, set as an eyebrow, not as body text. */
+.sport-card summary {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+/* A gap sets the shared line off from the rows above it. */
+.sport-card__records > .records__shared {
+  margin-top: var(--space-3);
 }

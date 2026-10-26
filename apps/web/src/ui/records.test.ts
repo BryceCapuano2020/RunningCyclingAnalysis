@@ -19,7 +19,6 @@ import {
   nativeCurve,
   nativeValue,
   ownDistanceRecords,
-  setAgoText,
   sportRecords,
   threshold,
 } from './records'
@@ -131,27 +130,6 @@ describe('calendar days from today', () => {
     vi.stubEnv('TZ', 'America/Santiago')
     const sunday = new Date(2026, 8, 6, 12).getTime()
     expect(calendarDaysBetween(sunday, new Date(2026, 8, 7, 12).getTime())).toBe(1)
-  })
-
-  it('says when a record was set, in whole days, and says today for none', () => {
-    expect(setAgoText(0)).toBe('Set today')
-    expect(setAgoText(1)).toBe('Set 1 day ago')
-    expect(setAgoText(12)).toBe('Set 12 days ago')
-  })
-
-  it('never says a record was set a negative number of days ago, since it reads as today', () => {
-    expect(setAgoText(-1)).toBe('Set today')
-  })
-
-  it('counts days to two weeks, then weeks, months to 23 months, and years from two years', () => {
-    expect(setAgoText(13)).toBe('Set 13 days ago')
-    expect(setAgoText(14)).toBe('Set 2 weeks ago')
-    expect(setAgoText(59)).toBe('Set 8 weeks ago')
-    expect(setAgoText(60)).toBe('Set 2 months ago')
-    expect(setAgoText(365)).toBe('Set 12 months ago')
-    expect(setAgoText(700)).toBe('Set 23 months ago')
-    expect(setAgoText(730)).toBe('Set 2 years ago')
-    expect(setAgoText(1826)).toBe('Set 5 years ago')
   })
 })
 
@@ -323,7 +301,7 @@ describe('distanceRecords', () => {
 })
 
 describe('chipLabels', () => {
-  it('names duration bests of 5 and 20 minutes, 1 hour and every run distance', () => {
+  it('names duration bests of 5 and 20 minutes, 60 minutes and every run distance', () => {
     expect(
       chipLabels([
         { kind: 'duration', durationS: 300 },
@@ -336,7 +314,7 @@ describe('chipLabels', () => {
     ).toEqual([
       'Best 5 min',
       'Best 20 min',
-      'Best 1 hour',
+      'Best 60 min',
       'Best 1 mi',
       'Best 10 km',
       'Best half marathon',
@@ -381,10 +359,10 @@ describe('isEstimatedRecord', () => {
 })
 
 describe('recordDurationLabel', () => {
-  it('names a whole hour in words, and a shorter effort in minutes', () => {
-    expect(recordDurationLabel(3600)).toBe('1 hour')
-    expect(recordDurationLabel(7200)).toBe('2 hours')
+  it('names every record length in minutes, the hour too, as DESIGN names them', () => {
+    expect(recordDurationLabel(3600)).toBe('60 min')
     expect(recordDurationLabel(1200)).toBe('20 min')
+    expect(recordDurationLabel(300)).toBe('5 min')
     expect(recordDurationLabel(60)).toBe('1 min')
   })
 })

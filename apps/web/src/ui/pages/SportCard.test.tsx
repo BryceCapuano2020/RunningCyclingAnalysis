@@ -187,7 +187,7 @@ describe('SportCard records', () => {
     expect(records).toHaveLength(3)
     expect(within(card).getByText('5 min')).toBeInTheDocument()
     expect(within(card).getByText('20 min')).toBeInTheDocument()
-    expect(within(card).getByText('1 hour')).toBeInTheDocument()
+    expect(within(card).getByText('60 min')).toBeInTheDocument()
     expect(within(card).queryByText('1 min')).not.toBeInTheDocument()
     expect(card.querySelector('.records__shared')).toHaveTextContent(
       'All set on Morning run, 5 Jan',
@@ -281,7 +281,7 @@ describe('SportCard run grade', () => {
     expect(within(card).queryByText(/Estimated · /)).not.toBeInTheDocument()
   })
 
-  it('labels the hour record in words, as the sport page does', () => {
+  it('labels the hour record in minutes, as the sport page does', () => {
     renderCard(
       'run',
       makeResult({
@@ -290,7 +290,7 @@ describe('SportCard run grade', () => {
       }),
     )
 
-    expect(within(cardNamed('Run')).getByText('1 hour')).toBeInTheDocument()
+    expect(within(cardNamed('Run')).getByText('60 min')).toBeInTheDocument()
   })
 
   it('explains the Flat mark on a run card that has records but no grade, as without a profile', () => {
@@ -485,7 +485,8 @@ describe('SportCard with no weight entered', () => {
     )
 
     const card = cardNamed('Ride')
-    expect(within(card).getByText('Threshold power, estimated')).toBeInTheDocument()
+    // The withheld figure has no threshold eyebrow above it either: the card holds the whole threshold.
+    expect(within(card).queryByText('Threshold power, estimated')).not.toBeInTheDocument()
     expect(card.querySelector('.hero-number')).toBeNull()
     expect(within(card).queryByText(/W\/kg/)).not.toBeInTheDocument()
     expect(within(card).queryByText('400 W')).not.toBeInTheDocument()
@@ -573,6 +574,29 @@ describe('SportCard best efforts on a phone', () => {
 
     const disclosure = within(cardNamed('Run')).getByText('Best efforts').closest('details')
     expect(disclosure).toHaveAttribute('open')
+  })
+
+  it('takes the press on its summary itself, so the browser’s own toggle cannot undo it', () => {
+    viewportAt(390)
+    renderCard('run', makeResult({ activities: [runOnMonday], runCurve }))
+    const summary = within(cardNamed('Run')).getByText('Best efforts')
+
+    // fireEvent returns false when the press was cancelled. A cancelled press leaves the browser's
+    // toggle alone, so a press opens the disclosure once, not open and then shut again.
+    expect(fireEvent.click(summary)).toBe(false)
+    expect(summary.closest('details')).toHaveAttribute('open')
+  })
+
+  it('opens on one press and closes on the next, each press one change', () => {
+    viewportAt(390)
+    renderCard('run', makeResult({ activities: [runOnMonday], runCurve }))
+    const summary = within(cardNamed('Run')).getByText('Best efforts')
+    const disclosure = summary.closest('details')
+
+    fireEvent.click(summary)
+    expect(disclosure).toHaveAttribute('open')
+    fireEvent.click(summary)
+    expect(disclosure).not.toHaveAttribute('open')
   })
 
   it('keeps the disclosure the visitor chose on its summary, even when the window resizes before the toggle', () => {

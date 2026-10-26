@@ -161,6 +161,22 @@ describe('ResultPage footnote', () => {
     vi.useRealTimers()
   })
 
+  /** The ride page with no weight and no year of birth or sex, holding the ride when one is in the library. */
+  function renderHeldRide(ride: ReturnType<typeof makeActivity> | null) {
+    return render(
+      <ResultPage
+        route={{ page: 'ride' }}
+        analysis={analysisStub()}
+        result={makeResult({ activities: ride ? [ride] : [] })}
+        settings={{ massKg: 75, bikeMassKg: 9 }}
+        weightKnown={false}
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+  }
+
   function renderFooter(route: Route, isSample: boolean) {
     return render(
       <ResultPage
@@ -186,6 +202,21 @@ describe('ResultPage footnote', () => {
     renderFooter(route, false)
     expect(screen.getByText(/Based on 75 kg, age 40, man\./)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Change on Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
+  })
+
+  it('drops the Add them link from a held ride’s footnote, since its weight note above links to Profile', () => {
+    renderHeldRide(makeActivity({ id: 'ride-1', sport: 'ride' }))
+    expect(screen.getByText('Your details are not set yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add them on Profile' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
+  })
+
+  it('keeps the Add them link on a ride page with no ride to hold, where nothing else links', () => {
+    renderHeldRide(null)
+    expect(screen.getByRole('link', { name: 'Add them on Profile' })).toHaveAttribute(
       'href',
       '#/profile',
     )

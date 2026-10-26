@@ -146,3 +146,26 @@ test('focus moves to the Balance heading after sample data, and to the landing h
   await page.getByRole('alertdialog').getByRole('button', { name: 'Clear', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeFocused()
 })
+
+test('the Balance run card’s best efforts open and shut on each press, by mouse and by Enter, at 390 px', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  const fold = page.locator('section.sport-card--run details.sport-card__records')
+  const summary = fold.locator('summary')
+  // On a phone the best efforts start folded away.
+  await expect(fold).not.toHaveAttribute('open')
+
+  // Each press is one change: the first press opens the fold, rather than the browser shutting it again.
+  await summary.click()
+  await expect(fold).toHaveAttribute('open')
+  await summary.click()
+  await expect(fold).not.toHaveAttribute('open')
+
+  await summary.focus()
+  await page.keyboard.press('Enter')
+  await expect(fold).toHaveAttribute('open')
+  await page.keyboard.press('Enter')
+  await expect(fold).not.toHaveAttribute('open')
+})

@@ -3,7 +3,6 @@ import { formatDayMonth } from '../format/date'
 import { agoText } from '../format/ago'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
-import { setAgoText } from '../records'
 import './SportRecords.css'
 
 export interface SportRecordsProps {
@@ -45,21 +44,26 @@ export function SportRecords({ rows }: SportRecordsProps) {
                   {tag}
                 </span>
               ))}
-              {shared === null && row.setDays !== null && (
-                <span className="records__set">{setAgoText(row.setDays)}</span>
-              )}
             </span>
             {row.grade && <span className="records__grade">{row.grade}</span>}
             {row.change && <span className="records__change">{row.change}</span>}
             {shared === null && row.activity && (
-              <a
-                className="records__link"
-                href={hrefFor({ page: 'activity', id: row.activity.id })}
-                title={sourceText(row.activity)}
-                aria-label={`${row.label}, from ${sourceText(row.activity)}`}
-              >
-                {sourceText(row.activity)}
-              </a>
+              <span className="records__source">
+                <a
+                  className="records__link"
+                  href={hrefFor({ page: 'activity', id: row.activity.id })}
+                  title={sourceText(row.activity)}
+                  aria-label={`${row.label}, from ${sourceText(row.activity)}`}
+                >
+                  {sourceText(row.activity)}
+                </a>
+                {row.setDays !== null && (
+                  <>
+                    {' '}
+                    <span className="records__set">{`· ${agoText(row.setDays)}`}</span>
+                  </>
+                )}
+              </span>
             )}
           </li>
         ))}
@@ -76,7 +80,10 @@ export function SportRecords({ rows }: SportRecordsProps) {
               {sourceText(shared)}
             </a>
             {sharedDays !== null && (
-              <span className="records__set">{`, ${agoText(sharedDays)}`}</span>
+              <>
+                {' '}
+                <span className="records__set">{`· ${agoText(sharedDays)}`}</span>
+              </>
             )}
           </span>
         </p>
