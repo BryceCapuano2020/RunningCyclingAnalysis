@@ -5,6 +5,7 @@ export {
   formatDistance,
   formatDuration,
   formatElevation,
+  ENERGY_RATE_UNIT,
   PACE_UNIT,
   formatMass,
   formatPace,

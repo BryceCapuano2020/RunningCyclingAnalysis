@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ENERGY_RATE_UNIT,
   PACE_UNIT,
   formatClock,
   formatTimeOfDay,
@@ -225,6 +226,13 @@ describe('formatPower', () => {
 
   it('returns a dash for NaN', () => {
     expect(formatPower(NaN)).toBe(DASH)
+  })
+})
+
+describe('ENERGY_RATE_UNIT', () => {
+  it('names a metabolic energy rate, while formatWkg still writes measured power per kilogram', () => {
+    expect(ENERGY_RATE_UNIT).toBe('metabolic W/kg')
+    expect(formatWkg(3.8)).toBe('3.8 W/kg')
   })
 })
 

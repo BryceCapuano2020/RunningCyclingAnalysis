@@ -67,6 +67,9 @@ export function formatRecordTime(seconds: number): string {
 
 export const PACE_UNIT: Record<UnitSystem, string> = { imperial: '/mi', metric: '/km' }
 
+/** The unit of a metabolic energy rate, which is not watts per kilogram of measured power: formatWkg writes that. */
+export const ENERGY_RATE_UNIT = 'metabolic W/kg'
+
 /** Seconds per mile or per kilometre at a speed in m/s. */
 export function paceSeconds(speedMs: number, system: UnitSystem): number {
   return (system === 'imperial' ? METRES_PER_MILE : METRES_PER_KM) / speedMs

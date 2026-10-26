@@ -333,7 +333,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
   published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
-  ride's floor is the same at every body mass. The share card labels its threshold "Threshold pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, each on two lines so the two figures line up. The line "About ... estimated from your best 3 to 20 min efforts" sits under
+  ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, each on two lines so the two figures line up. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
@@ -418,7 +418,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   file is named by the period's dates, such as `balance-2025-05-12_2025-08-03-square.png`.
 - The card holds the brand mark, in the two sport colours, and the app name in volt. Under the
   headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
-  the meter reads. Then the balance meter, each sport's threshold, "Threshold pace, estimated from your
+  the meter reads. Then the balance meter, each sport's threshold, "Threshold flat pace, estimated from your
   best 3 to 20 min" for a run, with its W/kg and its level, such as "Local · 64% on best 20 min", under
   the figure, and a glyph beside each label for its sport; the period; the heart-rate caveat as a starred line when there is one; the footnote; and the
   site's host when it is public.
@@ -453,15 +453,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   "Running compared with cycling by duration". Legends, tooltips, table headings, axis names and the strip
   say Run and Ride, as "Run, as recorded" and "Ride, estimated"; prose may say running and cycling. The
   Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
-  table caption, with "Energy rate (W/kg)" on its axis.
+  table caption, with "Energy rate (metabolic W/kg)" on its axis. The shared energy trend and the heart-rate chart name their unit the same way, in their axes and column headings.
 - **Effort checks say "your hardest".** A best effort below 90% of your reference heart rate is "probably not
   your hardest", never "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
   in one sentence, where it explains the heart-rate check.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
-  "as energy per kilogram" may explain the balance. On How sure is this? the energy rate is named with
-  its unit as "the energy rate (metabolic W/kg)", never as plain W/kg; watts per kilogram of measured
-  power stay "W/kg".
+  "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes and column
+  headings of the energy charts, the energy rate's unit is "metabolic W/kg", never plain W/kg; watts per
+  kilogram of measured power stay "W/kg".
 - **How sure is this? opens with three lines**: what is recorded ("Running efforts, and ride power from
   a power meter, are recorded."), the balance in Balance's words with whether even is inside the range
   ("Your balance leans toward running. Even is outside its range."), and how far to trust it ("These
@@ -532,7 +532,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Flat pace, and grade for age only.** Every running pace worked out as a flat pace is called
   "flat pace" in charts, axes, tables, records and copy. Its record mark is "Flat", and its note reads
   "Flat pace: your pace allowing for hills, as if on level ground." A run's threshold keeps its name,
-  "Threshold pace, estimated"; the page's Flat note says that pace is a flat pace. "Grade" means an age grade and nothing else.
+  "Threshold pace, estimated" on the app's cards and pages, where the page's Flat note says that pace is a flat pace. The share card has no Flat note, so its run threshold reads "Threshold flat pace, estimated". "Grade" means an age grade and nothing else.
 - **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. A
   run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.

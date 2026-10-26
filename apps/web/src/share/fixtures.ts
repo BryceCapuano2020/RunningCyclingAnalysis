@@ -177,7 +177,7 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
     heroes: [
       {
         sport: 'run',
-        label: 'Threshold pace, estimated from your best 3 to 20 min',
+        label: 'Threshold flat pace, estimated from your best 3 to 20 min',
         figure: { number: '21:35', unit: '/km' },
         sub: null,
         grade: RUN_GRADE,

@@ -16,6 +16,15 @@ import { countSport, threshold } from '../ui/records'
 import { SPORT_ORDER, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
 import { hasShareableContent } from './hasShareableContent'
 
+/**
+ * A threshold's name on the share card. A run says "flat pace" here, since the card has no page Flat
+ * note to say so; the app's own cards and pages keep THRESHOLD_LABEL.
+ */
+const CARD_THRESHOLD_LABEL: Record<Sport, string> = {
+  run: 'Threshold flat pace, estimated',
+  ride: THRESHOLD_LABEL.ride,
+}
+
 /** An estimate's number and unit, so that the unit can be set smaller than the number. */
 export interface ShareFigure {
   number: string
@@ -25,7 +34,7 @@ export interface ShareFigure {
 /** One sport's threshold on the card. A card is offered only when every sport has one. */
 export interface ShareHero {
   sport: Sport
-  /** The estimate's name and the efforts it rests on, such as "Threshold pace, estimated from your best 3 to 20 min". */
+  /** The estimate's name and the efforts it rests on, such as "Threshold flat pace, estimated from your best 3 to 20 min". */
   label: string
   figure: ShareFigure
   /** A second reading of the estimate, such as W/kg. */
@@ -133,8 +142,8 @@ function heroFor(
   if (estimate === null) return null
   return {
     sport,
-    // Says "estimated" and the efforts it rests on, in the words the page's threshold label uses.
-    label: `${THRESHOLD_LABEL[sport]} from your best ${THRESHOLD_EFFORT_TEXT}`,
+    // Says "estimated" and the efforts it rests on, in the words the card's threshold label uses.
+    label: `${CARD_THRESHOLD_LABEL[sport]} from your best ${THRESHOLD_EFFORT_TEXT}`,
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
     grade: outcome?.kind === 'graded' ? heroGradeLine(sport, outcome.grade) : null,

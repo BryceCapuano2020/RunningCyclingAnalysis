@@ -89,6 +89,18 @@ describe('CurveChart', () => {
     expect(markers.map((m) => m.getAttribute('data-series')).sort()).toEqual(['ride', 'run'])
   })
 
+  it('names the energy rate on its axis in metabolic W/kg', () => {
+    render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+      />,
+    )
+    expect(screen.getByText('Energy rate (metabolic W/kg)')).toBeInTheDocument()
+  })
+
   it('formats each duration in the table view', () => {
     const { container } = render(
       <CurveChart
@@ -101,9 +113,9 @@ describe('CurveChart', () => {
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual([
       'Duration',
-      'Run energy rate (W/kg)',
+      'Run energy rate (metabolic W/kg)',
       'Flat pace',
-      'Ride energy rate (W/kg)',
+      'Ride energy rate (metabolic W/kg)',
       'Ride power',
       'Run activity',
       'Ride activity',

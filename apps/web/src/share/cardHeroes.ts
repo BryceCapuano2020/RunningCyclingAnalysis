@@ -37,7 +37,8 @@ const GLYPH_GAP = 4
 const GLYPH_GRID = 24
 const GLYPH_STROKE = 2
 
-const LABEL: TextStyle = { ...CONDENSED_700, size: 30, lineHeight: 34 }
+/** The hero label's sizes, largest first: it steps down only where a label would run past two lines. */
+const LABEL_SIZES = [30, 28, 26]
 const BODY: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
 
 function figureStyle(size: number): TextStyle {
@@ -48,6 +49,10 @@ function figureStyle(size: number): TextStyle {
 function unitStyle(size: number): TextStyle {
   const unit = Math.max(28, Math.round(size * 0.4))
   return { ...CONDENSED_700, size: unit, lineHeight: unit }
+}
+
+function labelStyle(size: number): TextStyle {
+  return { ...CONDENSED_700, size, lineHeight: 34 }
 }
 
 function sportColour(sport: Sport): string {
@@ -79,6 +84,7 @@ function figureSize(
 interface Column {
   hero: ShareHero
   label: string[]
+  labelStyle: TextStyle
   /** The lines under the figure: the second reading, then the level. */
   lines: string[]
   height: number
@@ -94,15 +100,21 @@ function bodyLines(
   return text === null ? [] : wrapIn(ctx, text, BODY, width, maxLines)
 }
 
-function measureColumn(ctx: CardContext, hero: ShareHero, width: number, size: number): Column {
-  const label = wrapIn(ctx, hero.label.toUpperCase(), LABEL, width, 2)
+function measureColumn(
+  ctx: CardContext,
+  hero: ShareHero,
+  width: number,
+  size: number,
+  style: TextStyle,
+): Column {
+  const label = wrapIn(ctx, hero.label.toUpperCase(), style, width, 2)
   const lines = [...bodyLines(ctx, hero.sub, width, 1), ...bodyLines(ctx, hero.grade, width, 2)]
   const height =
-    label.length * LABEL.lineHeight +
+    label.length * style.lineHeight +
     SPACE +
     figureStyle(size).lineHeight +
     lines.length * BODY.lineHeight
-  return { hero, label, lines, height }
+  return { hero, label, labelStyle: style, lines, height }
 }
 
 /** The number at its size, with the unit after it on the same baseline. */
@@ -167,14 +179,26 @@ function drawColumn(
   ctx.fillStyle = sportColour(hero.sport)
   ctx.fillRect(x, y, EDGE_WIDTH, edgeHeight)
   // The glyph sits in the inset, centred on the label's first line.
-  const glyphY = y + (LABEL.lineHeight - GLYPH_SIZE) / 2
+  const glyphY = y + (column.labelStyle.lineHeight - GLYPH_SIZE) / 2
   drawSportGlyph(ctx, hero.sport, x + EDGE_WIDTH + GLYPH_GAP, glyphY, GLYPH_SIZE, CARD_COLORS.text)
-  drawLines(ctx, column.label, textX, y, LABEL, CARD_COLORS.muted)
-  let lineY = y + column.label.length * LABEL.lineHeight + SPACE
+  drawLines(ctx, column.label, textX, y, column.labelStyle, CARD_COLORS.muted)
+  let lineY = y + column.label.length * column.labelStyle.lineHeight + SPACE
   // The figure is text, so it takes the text colour; only the edge above carries the sport.
   drawFigure(ctx, hero.figure, size, textX, lineY, CARD_COLORS.text)
   lineY += figureStyle(size).lineHeight
   drawLines(ctx, column.lines, textX, lineY, BODY, CARD_COLORS.secondary)
+}
+
+/**
+ * The largest label size, from the list, at which every hero's label fits two lines, so the two
+ * figures line up. Where no size fits, the smallest is used and its last line is cut, as before.
+ */
+function labelSizeFor(ctx: CardContext, heroes: ShareHero[], width: number): number {
+  const fits = (size: number) =>
+    heroes.every(
+      (hero) => wrapIn(ctx, hero.label.toUpperCase(), labelStyle(size), width).length <= 2,
+    )
+  return LABEL_SIZES.find(fits) ?? Math.min(...LABEL_SIZES)
 }
 
 /**
@@ -190,7 +214,8 @@ export function heroBlock(
   const columnWidth = layout.stacked ? contentWidth : (contentWidth - COLUMN_GAP) / heroes.length
   const textWidth = columnWidth - EDGE_WIDTH - TEXT_INSET
   const size = figureSize(ctx, heroes, layout.figure, textWidth)
-  const columns = heroes.map((hero) => measureColumn(ctx, hero, textWidth, size))
+  const label = labelStyle(labelSizeFor(ctx, heroes, textWidth))
+  const columns = heroes.map((hero) => measureColumn(ctx, hero, textWidth, size, label))
   const height = layout.stacked
     ? columns.reduce((sum, column) => sum + column.height, 0) + COLUMN_GAP * (columns.length - 1)
     : Math.max(...columns.map((column) => column.height))

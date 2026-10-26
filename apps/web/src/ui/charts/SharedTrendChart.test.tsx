@@ -83,14 +83,24 @@ describe('SharedTrendChart', () => {
     expect(screen.getByRole('img', { name: /Run and ride age grades/ })).toBeInTheDocument()
   })
 
-  it('titles an energy trend in W/kg, when there is no age to grade by', () => {
+  it('titles an energy trend in metabolic W/kg, when there is no age to grade by', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(
       screen.getByRole('figure', {
         name: 'Energy rate of your best 20 minutes, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Energy rate (W/kg)')).toBeInTheDocument()
+    expect(screen.getByText('Energy rate (metabolic W/kg)')).toBeInTheDocument()
+  })
+
+  it('heads the energy trend’s run and ride columns in metabolic W/kg', () => {
+    const { container } = renderChart({
+      measure: 'energy',
+      weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)],
+    })
+    const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
+    expect(headers).toContain('Run (metabolic W/kg)')
+    expect(headers).toContain('Ride (metabolic W/kg)')
   })
 
   it('draws running as a solid line with a dot per week, and cycling as a dashed line with rings', () => {

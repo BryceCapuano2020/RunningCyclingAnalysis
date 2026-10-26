@@ -36,10 +36,10 @@ function renderTable(
 }
 
 describe('EquivalenceTable', () => {
-  it('lists the ride effort, the flat running pace it matches and its 90% model range', () => {
+  it('lists the ride effort, the flat running pace it matches and its 90% range', () => {
     renderTable()
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Ride effort', 'Flat pace', '90% model range'])
+    expect(headers).toEqual(['Ride effort', 'Flat pace', '90% range'])
 
     const row = within(screen.getByRole('row', { name: /20 min at 250 W/ }))
     expect(row.getByText('20 min at 250 W')).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('EquivalenceTable', () => {
     expect(Array.from(item.querySelectorAll('dt')).map((term) => term.textContent)).toEqual([
       'Ride effort',
       'Flat pace',
-      '90% model range',
+      '90% range',
     ])
     expect(within(item).getByText('4:10 /km')).toBeInTheDocument()
     expect(within(item).getByText('3:58 to 4:23 /km')).toBeInTheDocument()

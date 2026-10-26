@@ -736,6 +736,13 @@ describe('ProfilePage privacy', () => {
     renderProfile()
     expect(screen.queryByText(/Nothing is uploaded/)).not.toBeInTheDocument()
   })
+
+  it('does not repeat that analysis runs in the browser in the account section', () => {
+    renderProfile()
+    const section = screen.getByRole('region', { name: 'Account' })
+    expect(section).toHaveTextContent('Sign in to keep your library on any device')
+    expect(section).not.toHaveTextContent('Analysis still runs in your browser')
+  })
 })
 
 describe('Profile guides', () => {

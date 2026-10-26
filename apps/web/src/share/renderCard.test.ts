@@ -64,7 +64,7 @@ describe('renderShareCard', () => {
       SPORT_LABEL[SPORT_ORDER[0]],
       'Even',
       SPORT_LABEL[SPORT_ORDER[1]],
-      'THRESHOLD PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
       '21:35',
       '/km',
       'THRESHOLD POWER, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
@@ -126,7 +126,7 @@ describe('renderShareCard', () => {
             arc.x >= label.x - 40 && arc.x < label.x && arc.y >= label.y && arc.y < label.y + 34,
         )
       }
-      expect(glyphBeside('THRESHOLD PACE,')).toBe(true)
+      expect(glyphBeside('THRESHOLD FLAT PACE,')).toBe(true)
       expect(glyphBeside('THRESHOLD POWER')).toBe(true)
       expect(
         ctx.paths.some((path) => path.color === CARD_COLORS.text && path.segments.includes('arc')),
@@ -322,6 +322,17 @@ describe('the card figures, levels and copy', () => {
     )
     expect(name?.color).toBe(CARD_COLORS.brand)
   })
+
+  it.each(FORMATS)(
+    'draws the run’s threshold label whole, flat pace included, on the %s card',
+    (format) => {
+      const { ok, ctx } = render(cardModel(), format)
+      expect(ok).toBe(true)
+      expect(words(ctx.texts)).toContain(
+        'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      )
+    },
+  )
 
   it.each(FORMATS)(
     'fits the card with its magnitude, grades and caveat on the %s card',
