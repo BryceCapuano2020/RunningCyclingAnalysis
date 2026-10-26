@@ -66,13 +66,13 @@ describe('latestActivityText', () => {
 
   it('names the newest activity’s day and how many months ago it was, once it is older', () => {
     expect(latestActivityText(new Date(2025, 5, 3, 7).getTime(), NOW)).toBe(
-      'Latest activity 3 Jun 2025, 16 months ago',
+      'Latest activity 3 Jun 2025, 17 months ago',
     )
   })
 
   it('counts weeks for a gap of less than two months', () => {
     expect(latestActivityText(new Date(2026, 8, 1, 12).getTime(), NOW)).toBe(
-      'Latest activity 1 Sep, 7 weeks ago',
+      'Latest activity 1 Sep, 8 weeks ago',
     )
   })
 

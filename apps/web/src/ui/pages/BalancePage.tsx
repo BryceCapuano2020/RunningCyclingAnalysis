@@ -10,7 +10,14 @@ import { ShareImageButton, pickHeadline } from '../components'
 import { gapOfHeadline } from '../balanceGap'
 import { countSport } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
-import { AGE_RANGE_TEXT, athleteOf, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
+import {
+  AGE_RANGE_TEXT,
+  LEVEL_NOT_RANKING,
+  athleteOf,
+  gradedSexOf,
+  headlineGrades,
+  SEX_NOUN,
+} from '../grades'
 import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_ORDER } from '../sports'
@@ -126,7 +133,7 @@ export function BalancePage({
           ? `Graded for a ${SEX_NOUN[sourceSex]} aged ${runAge} on runs and ${rideAge} on rides, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
           : `Graded for a ${age}-year-old ${SEX_NOUN[sourceSex]} on the ${ROAD_STANDARDS_SOURCE.shortName}.`}
         {rideGraded && ' Rides are graded through their running equivalent.'}
-        {' A level, not a ranking.'}
+        {` ${LEVEL_NOT_RANKING}`}
       </p>
     ) : null
 

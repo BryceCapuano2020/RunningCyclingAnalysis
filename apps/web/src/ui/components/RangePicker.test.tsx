@@ -152,11 +152,11 @@ describe('RangePicker', () => {
 
   it('puts the note straight under the dates, in the same control', () => {
     const { container } = render(
-      picker({ dates: '12 May – 3 Aug 2025', note: 'Latest activity 3 Jun 2025, 16 months ago' }),
+      picker({ dates: '12 May – 3 Aug 2025', note: 'Latest activity 3 Jun 2025, 17 months ago' }),
     )
     const caption = container.querySelector('.range-picker__caption')
     const note = container.querySelector('.range-picker__note')
-    expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 16 months ago')
+    expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 17 months ago')
     expect(caption?.compareDocumentPosition(note as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 

@@ -69,6 +69,8 @@ export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
 export const EQUIVALENCE_MIN_S = EQUIVALENCE_DURATIONS_S[0]!
 
 export const DAY_MS = 86_400_000
+/** A calendar month on average: 365.25 days over twelve months. */
+export const DAYS_PER_MONTH = 30.4375
 
 export const G = 9.80665
 /** Air density at 15 C, sea level, kg/m^3. */

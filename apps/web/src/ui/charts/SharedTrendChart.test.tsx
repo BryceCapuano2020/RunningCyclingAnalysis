@@ -46,8 +46,30 @@ function renderChart(overrides: Partial<SharedTrendChartProps> = {}) {
   return render(<SharedTrendChart {...props} />)
 }
 
+/** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
+function chartWidth(width: number) {
+  class SizedObserver {
+    private readonly callback: ResizeObserverCallback
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback
+    }
+
+    observe() {
+      const entry = { contentRect: { width } } as unknown as ResizeObserverEntry
+      this.callback([entry], this as unknown as ResizeObserver)
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', SizedObserver)
+}
+
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
 })
 
 describe('SharedTrendChart', () => {
@@ -205,6 +227,26 @@ describe('SharedTrendChart', () => {
     const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
     expect(headers).toEqual(['Week ending', 'Run grade', 'Runs'])
     expect(screen.getByText(/Cycling is held until a weight is added/)).toBeInTheDocument()
+  })
+
+  it('labels the latest values with their value alone under 480 px, since the title names the effort and window', () => {
+    chartWidth(340)
+    const { container } = renderChart()
+    const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual(['66%', '58%'])
+  })
+
+  it('sets a run label at the plot’s left edge to the right of its point, clear of the y tick labels', () => {
+    chartWidth(340)
+    const { container } = renderChart({
+      weeks: [week(0, 0.6, 0.52), week(1, null, 0.54), week(2, null, 0.56)],
+    })
+    const run = Array.from(container.querySelectorAll('.chart-series__label')).find(
+      (label) => label.textContent === '60%',
+    )
+    expect(run?.getAttribute('text-anchor')).toBe('start')
   })
 
   it('labels the latest value with the window it covers, so it can differ from the card’s best', () => {

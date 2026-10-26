@@ -169,7 +169,6 @@ export function MethodPage({
   // Without a weight a ride's grade is worked out on the placeholder body mass, so only a run's grade
   // may say whose grades these are.
   const gradedSex = gradedSexOf(weightKnown ? headline : runOnly(headline), profile)
-  const periodPhrase = period ? periodDates(period) : 'this period'
   const gap = headline === null ? null : gapOfHeadline(headline)
   const gradeGapShown = gap !== null
   // The balance is the one Balance states, so the answer and the headline cannot disagree.
@@ -237,8 +236,8 @@ export function MethodPage({
               {!hasResult
                 ? 'Thresholds, ride levels and the balance are estimates.'
                 : weightKnown
-                  ? `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort (${periodPhrase}).`
-                  : `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort (${periodPhrase}).`}
+                  ? `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
+                  : `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort.`}
             </span>
           </span>
         </li>

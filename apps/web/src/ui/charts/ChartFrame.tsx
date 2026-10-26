@@ -4,6 +4,7 @@ import { ChartLegend } from './ChartLegend'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartTable } from './ChartTable'
 import type { ChartSize, ChartTableData } from './chartTypes'
+import { PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { useSize } from './useSize'
 import './ChartFrame.css'
 
@@ -41,7 +42,6 @@ function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
 }
 
 const DEFAULT_HEIGHT = 320
-const MARGIN = { top: 28, right: 16, bottom: 52, left: 56 }
 /** Shown under a chart that can be read by keyboard. The CSS reveals it while the plot has focus. */
 const READING_HINT = 'Left and right arrows read values'
 
@@ -63,16 +63,11 @@ export function ChartFrame({
   const id = useId()
   const titleId = `${id}-title`
   const hintId = `${id}-hint`
-  const rightMargin = plotRightMargin ? plotRightMargin(width) : MARGIN.right
+  const rightMargin = plotRightMargin ? plotRightMargin(width) : PLOT_MARGIN.right
   const size: ChartSize = {
     width,
     height,
-    plot: {
-      left: MARGIN.left,
-      right: Math.max(MARGIN.left + 1, width - rightMargin),
-      top: MARGIN.top,
-      bottom: height - MARGIN.bottom,
-    },
+    plot: plotBoxOf(width, height, rightMargin),
     tooltipId: `${id}-tooltip`,
     titleId,
     hintId,

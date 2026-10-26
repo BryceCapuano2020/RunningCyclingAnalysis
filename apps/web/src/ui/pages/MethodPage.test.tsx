@@ -128,7 +128,7 @@ describe('MethodPage answer', () => {
       'Running efforts, and ride power from a power meter, are recorded.',
     )
     expect(lines[1]).toHaveTextContent(
-      'Thresholds, ride levels, the balance and ride power without a meter are estimates from 1 run and 1 ride with a usable effort (12 May – 3 Aug 2025).',
+      'Thresholds, ride levels, the balance and ride power without a meter are estimates from 1 run and 1 ride with a usable effort.',
     )
     expect(lines[2]).toHaveTextContent('These checks show how far to trust them.')
   })
@@ -195,13 +195,10 @@ describe('MethodPage answer', () => {
     ).toBeInTheDocument()
   })
 
-  it('names the dated period the estimates rest on, or this period when none is given', () => {
+  it('dates the period once, in Counted over, so the estimates line does not repeat it', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS)
-    expect(screen.getByText(/\(12 May – 3 Aug 2025\)\.$/)).toBeInTheDocument()
-    cleanup()
-
-    renderPage(makeResult(CONTRIBUTING), null, null)
-    expect(screen.getByText(/\(this period\)\.$/)).toBeInTheDocument()
+    expect(screen.getByText('Counted over 12 May – 3 Aug 2025.')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/\(12 May – 3 Aug 2025\)|\(this period\)/)
   })
 
   it('states the dated period on one line, with no period control', () => {
@@ -214,9 +211,7 @@ describe('MethodPage answer', () => {
     renderPage(makeResult(CONTRIBUTING), null, DATED_SIX_WEEKS, false)
 
     const line = screen.getByText(/estimates from 1 run with a usable effort/)
-    expect(line).toHaveTextContent(
-      'Run thresholds are estimates from 1 run with a usable effort (12 May – 3 Aug 2025).',
-    )
+    expect(line).toHaveTextContent('Run thresholds are estimates from 1 run with a usable effort.')
     expect(line.textContent).not.toMatch(/balance|ride power|ride|levels/)
   })
 

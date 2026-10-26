@@ -142,6 +142,17 @@ describe('calendar days from today', () => {
   it('never says a record was set a negative number of days ago, since it reads as today', () => {
     expect(setAgoText(-1)).toBe('Set today')
   })
+
+  it('counts days to two weeks, then weeks, months to 23 months, and years from two years', () => {
+    expect(setAgoText(13)).toBe('Set 13 days ago')
+    expect(setAgoText(14)).toBe('Set 2 weeks ago')
+    expect(setAgoText(59)).toBe('Set 8 weeks ago')
+    expect(setAgoText(60)).toBe('Set 2 months ago')
+    expect(setAgoText(365)).toBe('Set 12 months ago')
+    expect(setAgoText(700)).toBe('Set 23 months ago')
+    expect(setAgoText(730)).toBe('Set 2 years ago')
+    expect(setAgoText(1826)).toBe('Set 5 years ago')
+  })
 })
 
 describe('countSport', () => {

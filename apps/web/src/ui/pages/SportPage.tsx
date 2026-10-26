@@ -13,14 +13,13 @@ import { AgeGradeBlock } from '../components/AgeGradeBlock'
 import { recordGradeCell } from '../components/recordGrade'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { SportRecords } from '../components/SportRecords'
-import { StandardsCredit } from '../components/StandardsCredit'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { FLAT_PACE_NOTE, SEX_NOUN, distanceGrade, sportGrade } from '../grades'
+import { FLAT_PACE_NOTE, distanceGrade, sportGrade } from '../grades'
 import type { AgeGap, AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
@@ -45,7 +44,6 @@ import {
   nativeCurve,
   recordDurationLabel,
   refusalOf,
-  setAgoText,
   sportRecords,
   threshold,
   valueAt,
@@ -90,9 +88,9 @@ export interface SportPageProps {
   onAddFiles: (files: File[]) => void
 }
 
-/** A record's tag for how long ago it was set, counted in days from the day the page opened. */
-function setTags(activity: ActivitySummary | null, openedAt: number): string[] {
-  return activity === null ? [] : [setAgoText(calendarDaysBetween(activity.startMs, openedAt))]
+/** Days from the day the page opened to the day an activity was done, or null without an activity. */
+function setDaysOf(activity: ActivitySummary | null, openedAt: number): number | null {
+  return activity === null ? null : calendarDaysBetween(activity.startMs, openedAt)
 }
 
 /** The age grades need the field that is missing: asked once here, under the best efforts. */
@@ -146,11 +144,6 @@ export function SportPage({
       ? null
       : distanceGrade(record.distanceM, record.seconds, record.activity.startMs, profile),
   )
-  const anyGraded =
-    graded.some((item) => item.outcome?.kind === 'graded') ||
-    distanceOutcomes.some((outcome) => outcome?.kind === 'graded')
-  // The sex the grades are for, named on the source line when any record shows a grade.
-  const gradedSex = anyGraded && profile !== null ? profile.sex : null
   const headline =
     profile === null || held ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   const current = nativeCurve(sport, result)
@@ -170,7 +163,7 @@ export function SportPage({
       label: `Best ${recordDurationLabel(record.durationS)}`,
       grade: recordGradeCell(sport, outcome, record.covered),
       change: changeOf(record.durationS),
-      tags: setTags(record.activity, openedAt),
+      setDays: setDaysOf(record.activity, openedAt),
     }),
   )
   // A distance best is the run's own pace, not a flat pace, so it carries no Flat mark.
@@ -180,8 +173,9 @@ export function SportPage({
     value: record.time,
     sub: record.pace,
     grade: recordGradeCell(sport, distanceOutcomes[index] ?? null),
-    tags: setTags(record.activity, openedAt),
+    tags: [],
     change: null,
+    setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,
   }))
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
@@ -201,10 +195,6 @@ export function SportPage({
         </h1>
         {inLibrary > 0 && controls}
       </div>
-      <a className="link-arrow" href={hrefFor({ page: 'method' })}>
-        How sure is this?
-      </a>
-
       {count === 0 ? (
         <>
           <p className="secondary">{emptyText}</p>
@@ -249,15 +239,6 @@ export function SportPage({
             <h2 id={`${sport}-records`}>Best efforts</h2>
             {form && <p className="muted">{form}</p>}
             {sport === 'run' && <p className="muted">{FLAT_PACE_NOTE}</p>}
-            {gradedSex !== null && (
-              <p className="muted">
-                {sport === 'ride'
-                  ? `Ride age grades for a ${SEX_NOUN[gradedSex]} are estimates through the running equivalent, against the `
-                  : `Age grades for a ${SEX_NOUN[gradedSex]} use the `}
-                <StandardsCredit />
-                {`. Age is counted from your birth year on the date of each effort${sport === 'ride' ? ', and a ride’s range is its model range' : ''}. A level, not a ranking.`}
-              </p>
-            )}
             {missingAge !== null && <AgeNote missing={missingAge} />}
             {sport === 'ride' && someEstimated && (
               <p className="muted">

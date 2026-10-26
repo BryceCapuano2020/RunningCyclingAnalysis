@@ -113,6 +113,8 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await period.getByText('6 weeks', { exact: true }).click()
   await expect(page.getByText(/^\d+ of 14 activities$/)).toBeVisible()
   await period.getByText('All time', { exact: true }).click()
+  // The count leaves the caption once the pick is answered; a slow runner can still be applying it.
+  await expect(page.getByText(/^\d+ of 14 activities$/)).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(14)
 })
 

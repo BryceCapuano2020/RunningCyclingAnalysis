@@ -1,7 +1,9 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { formatDayMonth } from '../format/date'
+import { agoText } from '../format/ago'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
+import { setAgoText } from '../records'
 import './SportRecords.css'
 
 export interface SportRecordsProps {
@@ -21,13 +23,14 @@ function sharedActivity(rows: RecordRow[]): ActivitySummary | null {
 }
 
 /**
- * A sport's best efforts, one row each: the duration, the figure, its second reading, its grade and
- * the activity that set it. When every record was set in one activity, that activity is named once
- * under the list rather than repeated on each row. A long name is cut short by the layout, with its
- * whole text as the link's title.
+ * A sport's best efforts, one row each: the duration, the figure, its second reading, its grade, how
+ * long ago it was set and the activity that set it. When every record was set in one activity, that
+ * activity is named once under the list rather than repeated on each row, with how long ago it was.
+ * A long name is cut short by the layout, with its whole text as the link's title.
  */
 export function SportRecords({ rows }: SportRecordsProps) {
   const shared = sharedActivity(rows)
+  const sharedDays = shared === null ? null : (rows[0]?.setDays ?? null)
   return (
     <>
       <ul className="records">
@@ -42,6 +45,9 @@ export function SportRecords({ rows }: SportRecordsProps) {
                   {tag}
                 </span>
               ))}
+              {shared === null && row.setDays !== null && (
+                <span className="records__set">{setAgoText(row.setDays)}</span>
+              )}
             </span>
             {row.grade && <span className="records__grade">{row.grade}</span>}
             {row.change && <span className="records__change">{row.change}</span>}
@@ -61,13 +67,18 @@ export function SportRecords({ rows }: SportRecordsProps) {
       {shared && (
         <p className="records__shared">
           <span>All set on</span>{' '}
-          <a
-            className="records__link"
-            href={hrefFor({ page: 'activity', id: shared.id })}
-            title={sourceText(shared)}
-          >
-            {sourceText(shared)}
-          </a>
+          <span className="records__source">
+            <a
+              className="records__link"
+              href={hrefFor({ page: 'activity', id: shared.id })}
+              title={sourceText(shared)}
+            >
+              {sourceText(shared)}
+            </a>
+            {sharedDays !== null && (
+              <span className="records__set">{`, ${agoText(sharedDays)}`}</span>
+            )}
+          </span>
         </p>
       )}
     </>

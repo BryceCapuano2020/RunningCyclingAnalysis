@@ -30,6 +30,7 @@ const icons = await read('../ui/components/icons.tsx')
 const iconsCss = await read('../ui/components/icons.css')
 const balanceMeterTsx = await read('../ui/components/BalanceMeter.tsx')
 const ladderTsx = await read('../ui/components/LevelLadder.tsx')
+const sportRecords = await read('../ui/components/SportRecords.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
 function rulesWith(css: string, selector: string): string {
@@ -403,5 +404,30 @@ describe('shared layout', () => {
   it('wraps a long activity name in the cross-sport idea, so the page does not widen', () => {
     expect(rulesWith(crossSport, '.cross-sport')).toMatch(/min-width:\s*0/)
     expect(rulesWith(crossSport, '.cross-sport')).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+})
+
+describe('sport records', () => {
+  it('sets the shared line’s link and count in one flex column that can shrink', () => {
+    expect(rulesWith(sportRecords, '.records__source')).toMatch(/display:\s*flex/)
+    expect(rulesWith(sportRecords, '.records__source')).toMatch(/min-width:\s*0/)
+    expect(rulesWith(sportRecords, '.records__source .records__link')).toMatch(/min-width:\s*0/)
+    expect(rulesWith(sportRecords, '.records__source .records__link')).toMatch(/flex:\s*0 1 auto/)
+  })
+
+  it('keeps the shared count whole while the link gives way, so it never wraps alone', () => {
+    expect(rulesWith(sportRecords, '.records__source > .records__set')).toMatch(/flex:\s*none/)
+    expect(rulesWith(sportRecords, '.records__source > .records__set')).toMatch(
+      /white-space:\s*nowrap/,
+    )
+  })
+
+  it('sets every count as quiet text, not as a chip, in the row and on the shared line', () => {
+    for (const selector of ['.records__set', '.records__source > .records__set']) {
+      expect(rulesWith(sportRecords, selector), selector).not.toMatch(
+        /text-transform|background|border|padding/,
+      )
+    }
+    expect(rulesWith(sportRecords, '.records__set')).toMatch(/color:\s*var\(--text-muted\)/)
   })
 })

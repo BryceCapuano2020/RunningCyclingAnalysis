@@ -116,6 +116,7 @@ export function ActivityBests({
       grade: recordGradeCell(sport, outcome),
       tags: [],
       change: null,
+      setDays: null,
       activity: null,
     })),
   ]

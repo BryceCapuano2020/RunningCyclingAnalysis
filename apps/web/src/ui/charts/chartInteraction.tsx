@@ -61,7 +61,8 @@ export function tooltipOverlay(size: ChartSize, content: TooltipContent | null):
   )
 }
 
-const LABEL_GAP_X = 8
+/** How far a label's text sits left of, or right of, its point. */
+export const LABEL_GAP_X = 8
 const LABEL_DROP = 18
 const LABEL_RISE = 10
 
