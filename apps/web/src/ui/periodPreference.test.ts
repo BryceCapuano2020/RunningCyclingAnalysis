@@ -13,8 +13,12 @@ describe('parsePeriodChoice', () => {
 
   it('reads back a period the athlete picked', () => {
     expect(parsePeriodChoice(JSON.stringify('all'))).toBe('all')
-    expect(parsePeriodChoice(JSON.stringify(91))).toBe(91)
+    expect(parsePeriodChoice(JSON.stringify(365))).toBe(365)
     expect(parsePeriodChoice(JSON.stringify('default'))).toBe('default')
+  })
+
+  it('falls back to the default for 3 months, which the control no longer offers', () => {
+    expect(parsePeriodChoice(JSON.stringify(91))).toBe('default')
   })
 })
 

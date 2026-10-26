@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PeriodChoice } from '@rca/core/period'
@@ -15,21 +15,23 @@ function picker(props: Partial<RangePickerProps> = {}) {
 }
 
 describe('RangePicker', () => {
-  it('offers the default and the fixed periods in a group named Period', () => {
+  it('offers 6 weeks, 12 weeks, 12 months and all time, in a group named Period, in that order', () => {
     render(picker())
-    expect(screen.getByRole('group', { name: 'Period' })).toBeInTheDocument()
-    for (const label of ['Default', '6 weeks', '3 months', 'Last 12 months', 'All time']) {
-      expect(screen.getByRole('radio', { name: label })).toBeInTheDocument()
-    }
+    const group = screen.getByRole('group', { name: 'Period' })
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent),
+    ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time'])
   })
 
   it('checks the segment for the choice on screen', () => {
     const { unmount } = render(picker({ choice: 'default' }))
-    expect(screen.getByRole('radio', { name: 'Default' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
     unmount()
-    render(picker({ choice: 91 }))
-    expect(screen.getByRole('radio', { name: '3 months' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Default' })).not.toBeChecked()
+    render(picker({ choice: 365 }))
+    expect(screen.getByRole('radio', { name: '12 months' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
   })
 
   it('reports the choice of the segment picked', async () => {
@@ -40,7 +42,7 @@ describe('RangePicker', () => {
     expect(onChange).toHaveBeenLastCalledWith(42, expect.any(Function))
     await user.click(screen.getByRole('radio', { name: 'All time' }))
     expect(onChange).toHaveBeenLastCalledWith('all', expect.any(Function))
-    await user.click(screen.getByRole('radio', { name: 'Default' }))
+    await user.click(screen.getByRole('radio', { name: '12 weeks' }))
     expect(onChange).toHaveBeenLastCalledWith('default', expect.any(Function))
   })
 
@@ -117,15 +119,15 @@ describe('RangePicker', () => {
   it('keeps the pick the athlete made last, so a reply to an earlier pick cannot re-check a segment they left', () => {
     const { rerender } = render(picker({ choice: 'default' }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'Default' }))
+    fireEvent.click(screen.getByRole('radio', { name: '12 weeks' }))
 
-    // The 6-week answer lands after the Default pick: it must not move the control back.
+    // The 6-week answer lands after the 12-week pick: it must not move the control back.
     rerender(picker({ choice: 42 }))
-    expect(screen.getByRole('radio', { name: 'Default' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
 
-    // The answer to the Default pick settles it, and the page's choice is shown again.
+    // The answer to the 12-week pick settles it, and the page's choice is shown again.
     rerender(picker({ choice: 'default' }))
-    expect(screen.getByRole('radio', { name: 'Default' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).toBeChecked()
     expect(screen.getByRole('radio', { name: '6 weeks' })).not.toBeChecked()
   })
 
@@ -143,9 +145,19 @@ describe('RangePicker', () => {
     expect(screen.queryByText('Applies when the current import finishes')).not.toBeInTheDocument()
   })
 
-  it('keeps the note’s space whether or not there is a note, so a note appearing does not move the page', () => {
+  it('renders no note line when there is nothing to say, so an empty line takes no room', () => {
     const { container } = render(picker({ dates: '12 May – 3 Aug 2025' }))
-    expect(container.querySelector('.range-picker__note')).toBeInTheDocument()
+    expect(container.querySelector('.range-picker__note')).toBeNull()
+  })
+
+  it('puts the note straight under the dates, in the same control', () => {
+    const { container } = render(
+      picker({ dates: '12 May – 3 Aug 2025', note: 'Latest activity 3 Jun 2025, 16 months ago' }),
+    )
+    const caption = container.querySelector('.range-picker__caption')
+    const note = container.querySelector('.range-picker__note')
+    expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 16 months ago')
+    expect(caption?.compareDocumentPosition(note as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
   it('announces zero activities plainly, with no "all 0"', () => {
@@ -163,7 +175,7 @@ describe('RangePicker', () => {
     })
     const { rerender } = render(picker({ choice: 'default', onChange }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'Default' }))
+    fireEvent.click(screen.getByRole('radio', { name: '12 weeks' }))
     fireEvent.click(screen.getByRole('radio', { name: '6 weeks' }))
 
     // The answer to the first 6 weeks: the page now shows 6 weeks, which is the latest pick too.
@@ -171,13 +183,13 @@ describe('RangePicker', () => {
     act(() => answers[0]?.(null))
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
 
-    // The answer to Default: the latest pick is still 6 weeks, so Default must not be shown.
+    // The answer to the 12-week pick: the latest pick is still 6 weeks, so 12 weeks must not be shown.
     rerender(picker({ choice: 'default', onChange }))
     act(() => answers[1]?.(null))
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Default' })).not.toBeChecked()
+    expect(screen.getByRole('radio', { name: '12 weeks' })).not.toBeChecked()
 
-    // The answer to the last 6 weeks settles it.
+    // The answer to the 6-week pick settles it.
     rerender(picker({ choice: 42, onChange }))
     act(() => answers[2]?.(null))
     expect(screen.getByRole('radio', { name: '6 weeks' })).toBeChecked()

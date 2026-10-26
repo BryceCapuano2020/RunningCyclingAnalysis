@@ -25,8 +25,8 @@ describe('recordChange', () => {
   it('reads a run pace in kilometres when the units are metric', () => {
     const now = 1000 / 240 // 4:00 /km
     const before = 1000 / 250 // 4:10 /km
-    expect(recordChange('run', now, before, 'metric', 'Previous 3 months')).toBe(
-      '0:10 /km faster than previous 3 months',
+    expect(recordChange('run', now, before, 'metric', 'Previous 6 weeks')).toBe(
+      '0:10 /km faster than previous 6 weeks',
     )
   })
 

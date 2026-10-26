@@ -9,10 +9,9 @@ import { SharedTrendChart, energyWeeks, gradeWeeks } from '../charts'
 import { ShareImageButton, pickHeadline } from '../components'
 import { gapOfHeadline } from '../balanceGap'
 import { countSport } from '../records'
-import { latestActivityText } from '../periodCopy'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { AGE_RANGE_TEXT, athleteOf, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
-import type { AgeProfile, GradeOutcome } from '../grades'
+import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
@@ -31,6 +30,8 @@ export interface BalancePageProps {
   units: UnitSystem
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
+  /** The year of birth or sex the grades still need, which the prompt names; null when both are given. */
+  missingAge: AgeGap | null
   /** The period control, shown under the answer it changes. */
   controls: ReactNode
   /** False while no body weight is entered, so the share card leaves out what needs one. */
@@ -71,6 +72,7 @@ export function BalancePage({
   settings,
   units,
   profile,
+  missingAge,
   controls,
   weightKnown,
   onShowAll,
@@ -112,21 +114,17 @@ export function BalancePage({
   const bothInPeriod = counts.run > 0 && counts.ride > 0
   // A ride is named as graded only when its grade is on screen, which waits for the weight.
   const rideGraded = grades.ride?.kind === 'graded'
-  // The age the footer names is the age on the first graded effort's day, as the level line says it.
-  const gradedAge = [grades.run, grades.ride].find((outcome) => outcome?.kind === 'graded')
-  const age = gradedAge?.kind === 'graded' ? gradedAge.age : null
-  // The newest activity in the library dates the answer: a library last written to long ago says so.
-  const newestMs = library.reduce<number | null>(
-    (newest, activity) =>
-      newest === null || activity.startMs > newest ? activity.startMs : newest,
-    null,
-  )
-  const latest = latestActivityText(newestMs)
+  // Each grade is at the age on its own effort's day, so the footer names both ages when they differ.
+  const runAge = grades.run?.kind === 'graded' ? grades.run.age : null
+  const rideAge = grades.ride?.kind === 'graded' ? grades.ride.age : null
+  const age = runAge ?? rideAge
   // The source line sits under the cards it grades, not under the trend beneath them.
   const sourceLine =
     sourceSex !== null && age !== null ? (
       <p className="muted balance__source">
-        {`Graded for a ${age}-year-old ${SEX_NOUN[sourceSex]} on the ${ROAD_STANDARDS_SOURCE.shortName}.`}
+        {runAge !== null && rideAge !== null && runAge !== rideAge
+          ? `Graded for a ${SEX_NOUN[sourceSex]} aged ${runAge} on runs and ${rideAge} on rides, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+          : `Graded for a ${age}-year-old ${SEX_NOUN[sourceSex]} on the ${ROAD_STANDARDS_SOURCE.shortName}.`}
         {rideGraded && ' Rides are graded through their running equivalent.'}
         {' A level, not a ranking.'}
       </p>
@@ -144,6 +142,7 @@ export function BalancePage({
         weightKnown={weightKnown}
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
+        strip={<BalanceStrip grades={grades} />}
         aside={
           <>
             {isSample && <span className="chip">Sample athlete</span>}
@@ -163,10 +162,7 @@ export function BalancePage({
         }
       />
 
-      <BalanceStrip grades={grades} />
-
       {controls}
-      {latest !== null && <p className="muted">{latest}</p>}
 
       <div className="balance__sports">
         {SPORT_ORDER.map((sport) =>
@@ -194,13 +190,11 @@ export function BalancePage({
 
       {sourceLine}
 
-      {profile === null && (
+      {missingAge !== null && (
         <div className="balance__profile">
-          <p className="muted">
-            The balance in points and levels needs your year of birth and sex.
-          </p>
+          <p className="muted">{`The balance in points and levels needs your ${missingAge}.`}</p>
           <a className="btn" href={hrefFor({ page: 'profile' })}>
-            Add year of birth and sex
+            {`Add your ${missingAge}`}
           </a>
         </div>
       )}

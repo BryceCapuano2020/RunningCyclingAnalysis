@@ -19,7 +19,7 @@ import {
   makeEquivalence,
   makeResult,
 } from '../components/fixtures'
-import type { AgeProfile } from '../grades'
+import type { AgeGap, AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
 
 vi.mock('../../share/download', () => ({
@@ -63,13 +63,14 @@ const DATED_SIX_WEEKS: Period = {
   fellBack: false,
 }
 
-const PROFILE_PROMPT = 'Add year of birth and sex'
+const PROFILE_PROMPT = 'Add your year of birth and sex'
 
 function renderPage(
   result: AnalysisResult = makeResult(),
   overrides: AnalysisStubOverrides = {},
   profile: AgeProfile | null = null,
   weightKnown = true,
+  missingAge: AgeGap | null = profile === null ? 'year of birth and sex' : null,
 ) {
   return render(
     <BalancePage
@@ -78,6 +79,7 @@ function renderPage(
       settings={SETTINGS}
       units="metric"
       profile={profile}
+      missingAge={missingAge}
       controls={<span>Period picker</span>}
       weightKnown={weightKnown}
       onShowAll={vi.fn()}
@@ -93,6 +95,13 @@ function settle() {
 /** A run with a best 20-minute effort at 5 km, so the run has a grade to show. */
 const GRADED_RUN = makeResult({
   runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+})
+
+/** A run and a ride, both graded, so the balance meter and the grade strip both show. */
+const BOTH_SPORTS = makeResult({
+  runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+  rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+  equivalents: [makeEquivalence()],
 })
 
 /** Weeks with a run and a ride, each rode with a running equivalent, so the grade trend has both. */
@@ -272,20 +281,19 @@ describe('BalancePage', () => {
     expect(source.compareDocumentPosition(trend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('says when the newest activity is more than six weeks old, with its date and how long ago', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 9, 25, 12))
-    try {
-      const old = makeActivity({
-        id: 'old-run',
-        sport: 'run',
-        startMs: new Date(2025, 5, 3, 7).getTime(),
-      })
-      renderPage(makeResult({ activities: [old] }), { state: { library: [old] } })
-      expect(screen.getByText('Latest activity Tue 3 Jun 2025, 16 months ago')).toBeInTheDocument()
-    } finally {
-      vi.useRealTimers()
-    }
+  it('names only the missing field, in the prompt and on its button', () => {
+    renderPage(makeResult(), {}, null, true, 'sex')
+    expect(screen.getByText('The balance in points and levels needs your sex.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Add your sex' })).toHaveAttribute('href', '#/profile')
+    expect(screen.queryByRole('link', { name: PROFILE_PROMPT })).not.toBeInTheDocument()
+  })
+
+  it('keeps the grade strip in the meter’s group, so it takes the meter’s gap', () => {
+    const { container } = renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    const group = container.querySelector('.balance-hero__meter')
+    expect(group).not.toBeNull()
+    expect(group?.querySelector('.balance-meter')).not.toBeNull()
+    expect(group?.querySelector('.balance-strip')).not.toBeNull()
   })
 
   it('shows one energy trend for both sports while the age or sex is unknown', () => {
@@ -405,6 +413,12 @@ describe('BalancePage age grades', () => {
     expect(grade).toHaveTextContent(/^Local · 67% · on your best 20 min/)
   })
 
+  it('drops the standards line from each card, since the source line under the cards names it', () => {
+    renderPage(GRADED_RUN, {}, MAN_BORN_1986)
+    expect(screen.queryByText(/^Graded at age/)).not.toBeInTheDocument()
+    expect(screen.getByText(/^Graded for a \d+-year-old man/)).toBeInTheDocument()
+  })
+
   it('asks once, on this page, for the year of birth and sex, and not on each card', () => {
     renderPage(GRADED_RUN)
 
@@ -416,6 +430,23 @@ describe('BalancePage age grades', () => {
   it('does not ask for the profile once it has the year of birth and sex', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
     expect(screen.queryByRole('link', { name: PROFILE_PROMPT })).not.toBeInTheDocument()
+  })
+
+  it('names each sport’s age when the run and the ride were graded in different years', () => {
+    const result = makeResult({
+      ...BOTH_SPORTS,
+      activities: [
+        makeActivity({ id: 'run-1', sport: 'run', startMs: Date.UTC(2024, 2, 10, 7, 30) }),
+        makeActivity({ id: 'ride-1', sport: 'ride', startMs: Date.UTC(2025, 8, 2, 7, 30) }),
+      ],
+    })
+    renderPage(result, {}, MAN_BORN_1986)
+
+    expect(
+      screen.getByText(
+        /^Graded for a man aged 38 on runs and 39 on rides, on the USATF road standards\./,
+      ),
+    ).toBeInTheDocument()
   })
 
   it('says the age, the sex and the standard on one line, without repeating the credit', () => {
@@ -540,6 +571,7 @@ describe('BalancePage with no weight entered', () => {
         settings={SETTINGS}
         units="metric"
         profile={MAN_BORN_1986}
+        missingAge={null}
         controls={<span>Period picker</span>}
         weightKnown
         onShowAll={vi.fn()}
