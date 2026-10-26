@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import type { DragEvent as ReactDragEvent } from 'react'
 import { HISTORY_ADVICE } from '../exportGuides'
+import { useDelayedFlag } from '../useDelayedFlag'
 import { UploadIcon } from './icons'
 import { STRIP_DELAY_MS } from './ImportStatus'
 import { SampleButton } from './SampleButton'
@@ -17,6 +18,30 @@ export interface DropzoneProps {
   signedIn: boolean
 }
 
+interface SampleActionsProps {
+  busy: boolean
+  onSample: () => void
+  /** The id of the reason line, which the sample button describes itself by while it shows. */
+  hintId: string
+  hintShown: boolean
+}
+
+/** The sample button, and beside it the reason it is off while an import runs. */
+function SampleActions({ busy, onSample, hintId, hintShown }: SampleActionsProps) {
+  return (
+    <div className="dropzone__actions">
+      <SampleButton busy={busy} onSample={onSample} describedBy={hintShown ? hintId : undefined}>
+        See a sample athlete
+      </SampleButton>
+      {hintShown && (
+        <p id={hintId} className="dropzone__busy muted">
+          Available when the current import finishes.
+        </p>
+      )}
+    </div>
+  )
+}
+
 /**
  * The landing page's drop target. Files are accepted even while busy: the analysis worker handles
  * requests in order, so a file chosen during a load is queued rather than lost. Only the sample
@@ -25,22 +50,9 @@ export interface DropzoneProps {
 export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
   const [dragging, setDragging] = useState(false)
-  // The reason the sample is off waits for the same delay as the busy strip, so a quick import shows nothing.
-  const [hintDue, setHintDue] = useState(false)
-  const [timedBusy, setTimedBusy] = useState(busy)
   const busyHintId = useId()
-
-  // A run that starts or ends starts the delay again, so the reason waits for each run.
-  if (busy !== timedBusy) {
-    setTimedBusy(busy)
-    setHintDue(false)
-  }
-  useEffect(() => {
-    if (!busy) return
-    const timer = setTimeout(() => setHintDue(true), STRIP_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [busy])
-  const hintShown = busy && hintDue
+  // The reason the sample is off waits for the busy strip's delay, so a quick import shows nothing.
+  const hintShown = useDelayedFlag(busy, STRIP_DELAY_MS)
 
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
@@ -79,20 +91,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         </button>
       </p>
       {signedIn ? null : (
-        <div className="dropzone__actions">
-          <SampleButton
-            busy={busy}
-            onSample={onSample}
-            describedBy={hintShown ? busyHintId : undefined}
-          >
-            See a sample athlete
-          </SampleButton>
-          {hintShown && (
-            <p id={busyHintId} className="dropzone__busy muted">
-              Available when the current import finishes.
-            </p>
-          )}
-        </div>
+        <SampleActions busy={busy} onSample={onSample} hintId={busyHintId} hintShown={hintShown} />
       )}
       {picker.input}
     </div>

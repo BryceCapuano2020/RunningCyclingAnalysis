@@ -29,10 +29,10 @@ header holds the wordmark, the four tabs (once there is a result, and while resu
 **Add files** button (not while they restore), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
 account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
-button's width, so the header does not move. The busy strip is fixed to the bottom of the window
-and appears only once a run has lasted about 400 ms, so a quick change never moves the page. The reason
-the sample is off waits the same time. On a phone the strip sits above the tab bar. Nothing is held for the account: a file is analysed at once and saved
-once the account is known.
+button's width, so the header does not move. The busy strip is fixed to the bottom of the window and
+appears only once a run has lasted about 400 ms, so a quick change never moves the page. The reason
+the sample is off waits the same time. On a phone the strip sits above the tab bar. Nothing is held
+for the account: a file is analysed at once and saved once the account is known.
 
 The header stays at
 the top of the screen while the page scrolls. On a phone (760 px and below) the tabs move to a bar
@@ -343,18 +343,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   recorded effort." for a run, and "Ring: estimated, with its 90% range in brackets." for a ride. The
   shape is never the only cue. The landing example has no key, since it is illustrative.
 - **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
-  unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could hold
-  for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the
-  ladder with its key, then the best efforts, with the Flat note under them on a run. A card names no age or standard: the source line under the cards does. On a
-  phone, 560 px and below, the best efforts sit in a closed disclosure titled "Best efforts", so the
-  answer and the ladder read first; from wider screens it is open. A visitor's own choice holds across a
-  resize.
-  The grade line gives the level and its percent. The effort it grades sits on a line of its own under
-  it: "on your best 20 min, 6:37 /mi". A
-  ride's line starts "Estimated", and its watts carry "estimated" when they did not come from a
-  power meter. A run card that shows a Flat mark says what it means under its records, on every run
-  card that has records, with or without a grade: "Flat pace: your pace allowing for hills, as if
-  on level ground."
+  unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could
+  hold for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line,
+  the ladder with its key, then the best efforts, with the Flat note under them on a run. A card
+  names no age or standard: the source line under the cards does. On a phone, 560 px and below, the
+  best efforts sit in a closed disclosure titled "Best efforts", so the answer and the ladder read
+  first; from wider screens it is open. A visitor's own choice holds across a resize. The grade line
+  gives the level and its percent. The effort it grades sits on a line of its own under it: "on your
+  best 20 min, 6:37 /mi". A ride's line starts "Estimated", and its watts carry "estimated" when
+  they did not come from a power meter. A run card that shows a Flat mark says what it means under
+  its records, on every run card that has records, with or without a grade: "Flat pace: your pace
+  allowing for hills, as if on level ground."
 - **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
   each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
   20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between

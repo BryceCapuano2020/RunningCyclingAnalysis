@@ -32,9 +32,33 @@ describe('Level ladder chevrons', () => {
   })
 })
 
+describe('Level ladder outlines', () => {
+  it('outlines the range with a border, not a shadow, since forced colours drop shadows', () => {
+    expect(ruleBody(css, '.level-ladder__range')).toMatch(
+      /border:\s*2px solid var\(--ladder-colour\)/,
+    )
+    expect(ruleBody(css, '.level-ladder__range')).not.toMatch(/box-shadow/)
+  })
+
+  it('outlines the band the grade falls in with a border, not a shadow', () => {
+    expect(ruleBody(css, '.level-ladder__band--current')).toMatch(
+      /border:\s*1px solid var\(--ladder-colour\)/,
+    )
+    expect(ruleBody(css, '.level-ladder__band--current')).not.toMatch(/box-shadow/)
+  })
+})
+
 describe('Level ladder forced colours', () => {
   it('draws the range as an outline only, with no band tint', () => {
     expect(forced).toMatch(/\.level-ladder__range \{\s*background:\s*none;/)
+  })
+
+  it('takes the range outline in the system text colour, so it stays visible in forced colours', () => {
+    expect(forced).toMatch(/\.level-ladder__range \{[^}]*border-color:\s*CanvasText/)
+  })
+
+  it('takes the outline of every band in the system text colour', () => {
+    expect(forced).toMatch(/\.level-ladder__band \{[^}]*border-color:\s*CanvasText/)
   })
 
   it('keeps the track edged in the system colours', () => {

@@ -119,7 +119,7 @@ describe('LandingPage', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Exports from Garmin, Wahoo, COROS or Zwift, or the zip from Strava’s account export.',
+        'Export from Garmin, Wahoo, COROS or Zwift, or download the zip from Strava’s account export.',
       ),
     ).toBeInTheDocument()
   })

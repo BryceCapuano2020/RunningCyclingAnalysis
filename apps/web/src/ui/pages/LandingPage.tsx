@@ -51,7 +51,8 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
         <li>
           <h2>1. Add your files</h2>
           <p className="secondary">
-            Exports from Garmin, Wahoo, COROS or Zwift, or the zip from Strava’s account export.
+            Export from Garmin, Wahoo, COROS or Zwift, or download the zip from Strava’s account
+            export.
           </p>
         </li>
         <li>
