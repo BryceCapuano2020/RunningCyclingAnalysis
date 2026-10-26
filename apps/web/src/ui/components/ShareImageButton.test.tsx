@@ -48,6 +48,18 @@ const RUN_GRADE: GradeOutcome = {
   age: 37,
   grade: { centre: { grade: 0.64, level: 'Local' }, range: null },
 }
+/** The sheet's box on screen, so a click can be placed inside its padding or outside it. */
+const SHEET_BOX = {
+  left: 100,
+  top: 100,
+  right: 500,
+  bottom: 500,
+  width: 400,
+  height: 400,
+  x: 100,
+  y: 100,
+  toJSON: () => ({}),
+} as DOMRect
 const PERIOD: Period = { choice: 42, startMs: null, endMs: null, days: 42, fellBack: false }
 
 function buttonProps(overrides: Partial<ShareImageButtonProps> = {}): ShareImageButtonProps {
@@ -358,23 +370,28 @@ describe('ShareImageButton', () => {
     expect(within(dialog).getByRole('button', { name: SAVE })).toBeEnabled()
   })
 
-  it('closes the sheet when its backdrop is clicked, but not when a click lands inside it', async () => {
+  it('closes the sheet on a click on the backdrop, but not on a click in its padding', async () => {
     renderButton()
     const dialog = await openSheet()
+    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue(SHEET_BOX)
     fireEvent.click(within(dialog).getByText(NOTE))
     expect(dialog).toHaveAttribute('open')
-    fireEvent.click(dialog)
+    // The dialog's own padding is inside its box, so a click there is still the sheet.
+    fireEvent.click(dialog, { clientX: 120, clientY: 120 })
+    expect(dialog).toHaveAttribute('open')
+    fireEvent.click(dialog, { clientX: 20, clientY: 20 })
     await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
   })
 
-  it('puts the status above the actions, so the sticky actions never cover it', async () => {
+  it('keeps the status and the actions in one foot, with the status first, so the status stays in view', async () => {
     renderButton()
     const dialog = await openSheet()
-    const actions = dialog.querySelector('.share-sheet__actions')!
-    expect(
-      screen.getByRole('status').compareDocumentPosition(actions) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    const foot = dialog.querySelector<HTMLElement>('.share-sheet__foot')!
+    const status = screen.getByRole('status')
+    const action = within(foot).getByRole('button', { name: SAVE })
+    expect(foot).toContainElement(status)
+    expect(foot).toContainElement(within(foot).getByRole('button', { name: 'Close' }))
+    expect(status.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('starts loading the card and its fonts when the trigger is pointed at, before the sheet opens', async () => {
@@ -382,6 +399,19 @@ describe('ShareImageButton', () => {
     expect(loadCardFonts).not.toHaveBeenCalled()
     fireEvent.pointerEnter(screen.getByRole('button', { name: TRIGGER }))
     await waitFor(() => expect(loadCardFonts).toHaveBeenCalled())
+  })
+
+  it('loads the card once, however often the trigger is pointed at or focused', async () => {
+    renderButton()
+    const trigger = screen.getByRole('button', { name: TRIGGER })
+    fireEvent.pointerEnter(trigger)
+    await waitFor(() => expect(loadCardFonts).toHaveBeenCalledTimes(1))
+    await settle()
+    act(() => trigger.focus())
+    await settle()
+    fireEvent.pointerEnter(trigger)
+    await settle()
+    expect(loadCardFonts).toHaveBeenCalledTimes(1)
   })
 
   it('opens the sheet without focusing its action, so the first control takes focus', async () => {

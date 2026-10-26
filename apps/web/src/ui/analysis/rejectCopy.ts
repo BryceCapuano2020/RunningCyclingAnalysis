@@ -53,9 +53,9 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = 
 function corruptCopy(detail: string | undefined): string {
   const count = Number(detail)
   if (detail === undefined || !Number.isInteger(count) || count < 1) {
-    return 'Damaged, so it could not be read.'
+    return 'Damaged, so it could not be read. Export it again.'
   }
-  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged.`
+  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged. Export it again.`
 }
 
 /** The size limit, as the core gives it in bytes, in whole megabytes. */
@@ -63,6 +63,14 @@ function tooLargeCopy(detail: string | undefined): string {
   const bytes = Number(detail)
   if (detail === undefined || !Number.isFinite(bytes)) return REASON_COPY['too-large'](undefined)
   return `Too large to read (over ${sizeText(bytes)}). Export a shorter range.`
+}
+
+/**
+ * Whether a refused file's own line already says what to do, so its group's suggested action would
+ * repeat it when the file is the only one in the group.
+ */
+export function lineNamesAction(file: RejectedFile): boolean {
+  return file.code === 'corrupt'
 }
 
 /** The plain sentence for one refused file. */

@@ -7,10 +7,25 @@ const NOTE = 'Made on this device. Nothing is uploaded.'
 const SHEET = 'Share image'
 const FILE_NAME = /^balance-.*-square\.png$/
 
-/** The shape the sheet offers, the file it saves, and the pixel size the PNG must have. */
+/**
+ * The shape the sheet offers, the preview it shows, the file it saves, and the pixel size the PNG must
+ * have.
+ */
 const SHAPES = [
-  { choice: 'Square (feed)', file: FILE_NAME, width: 1080, height: 1080 },
-  { choice: 'Tall (story)', file: /^balance-.*-story\.png$/, width: 1080, height: 1920 },
+  {
+    choice: 'Square (feed)',
+    preview: 'Preview of the square card',
+    file: FILE_NAME,
+    width: 1080,
+    height: 1080,
+  },
+  {
+    choice: 'Tall (story)',
+    preview: 'Preview of the tall card',
+    file: /^balance-.*-story\.png$/,
+    width: 1080,
+    height: 1920,
+  },
 ]
 
 /** Opens the share sheet from the Balance page, where the share button sits beside the answer. */
@@ -21,7 +36,7 @@ async function openSheet(page: Page) {
   return sheet
 }
 
-for (const { choice, file, width, height } of SHAPES) {
+for (const { choice, preview: previewName, file, width, height } of SHAPES) {
   test(`sample data saves a ${width} by ${height} PNG of the balance from the sheet as ${choice}`, async ({
     page,
   }, testInfo) => {
@@ -33,7 +48,8 @@ for (const { choice, file, width, height } of SHAPES) {
     const sheet = await openSheet(page)
     await expect(sheet.getByText(NOTE)).toBeVisible()
     await sheet.getByText(choice, { exact: true }).click()
-    const preview = sheet.getByRole('img', { name: /^Preview of the/ })
+    // The picture for the shape chosen, by its own name: the last shape's picture stays until this one draws.
+    const preview = sheet.getByRole('img', { name: previewName })
     await expect(preview).toBeVisible()
     // A picture the browser cannot load is still a visible broken image, so check that it decoded.
     await expect

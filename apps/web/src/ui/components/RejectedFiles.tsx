@@ -1,5 +1,10 @@
 import type { RejectedFile } from '@rca/core/session'
-import { groupRejected, rejectionCopy, SKIPPED_GROUP_COPY } from '../analysis/rejectCopy'
+import {
+  groupRejected,
+  lineNamesAction,
+  rejectionCopy,
+  SKIPPED_GROUP_COPY,
+} from '../analysis/rejectCopy'
 import type { SkippedFiles } from '../analysis/rejectCopy'
 import { skippedSentence } from '../analysis/copy'
 import { keyByContent } from '../contentKeys'
@@ -42,12 +47,18 @@ export function RejectedFiles({
           const groupCount = files.length + (group === 'not-activity' ? unsupportedFiles : 0)
           // The first file is shown beneath the disclosure, so the list leaves it out.
           const beneath = files.filter((file) => file !== first)
+          // A lone first file whose line already gives the action does not get the group's action again.
+          const repeats =
+            first !== undefined &&
+            files.length === 1 &&
+            files[0] === first &&
+            lineNamesAction(first)
           return (
             <div key={group} className="rejected-files__group">
               <p className="rejected-files__title">
                 <strong>{title(groupCount)}</strong>
               </p>
-              <p className="rejected-files__action">{action}</p>
+              {!repeats && <p className="rejected-files__action">{action}</p>}
               {beneath.length > 0 && (
                 <ul className="rejected-files__list">
                   {keyByContent(beneath, (file) => file.fileName).map(({ key, item: file }) => (
@@ -62,7 +73,7 @@ export function RejectedFiles({
       {first !== undefined && (
         <p className="rejected-files__first">{`${first.fileName}: ${rejectionCopy(first)}`}</p>
       )}
-      <HowToGetFilesButton label="How to get your files" />
+      <HowToGetFilesButton />
     </div>
   )
 }

@@ -17,7 +17,14 @@ function bodyOf(source: string, selector: string): string {
 
 describe('the share sheet: its preview and its actions', () => {
   it('reserves the final height of the preview, so the sheet does not jump when it draws', () => {
-    expect(bodyOf(css, '.share-sheet__preview')).toContain('min-height: min(55vh, 28rem);')
+    expect(bodyOf(css, '.share-sheet__preview')).toContain(
+      'min-height: min(var(--share-picture-vh), 28rem);',
+    )
+  })
+
+  it('names the picture height once, so the preview and its cap cannot drift apart', () => {
+    expect(bodyOf(css, '.share-sheet')).toContain('--share-picture-vh: 55vh;')
+    expect(css.match(/55vh/g)).toHaveLength(1)
   })
 
   it('starts the preview at the left edge, under the shape choice', () => {
@@ -26,14 +33,15 @@ describe('the share sheet: its preview and its actions', () => {
 
   it('caps the picture so the actions stay on a short screen', () => {
     expect(bodyOf(css, '.share-sheet__preview img')).toContain(
-      'max-height: min(55vh, calc(100vh - 24rem));',
+      'max-height: min(var(--share-picture-vh), calc(100vh - 24rem));',
     )
   })
 
-  it('scrolls the sheet, and keeps its action row at the bottom of it', () => {
+  it('scrolls the sheet, and keeps its status and actions in a foot at the bottom of it', () => {
     expect(bodyOf(css, '.share-sheet')).toContain('overflow: auto;')
-    expect(bodyOf(css, '.share-sheet__actions')).toMatch(/position: sticky;/)
-    expect(bodyOf(css, '.share-sheet__actions')).toContain('bottom: 0;')
+    expect(bodyOf(css, '.share-sheet__foot')).toMatch(/position: sticky;/)
+    expect(bodyOf(css, '.share-sheet__foot')).toContain('bottom: 0;')
+    expect(bodyOf(css, '.share-sheet__foot')).toContain('background: var(--surface-1);')
   })
 
   it('keeps the first action the same width as its label changes, so Close does not move', () => {

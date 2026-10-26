@@ -1,6 +1,8 @@
 /*
  * The busy strip: a fixed bar along the bottom of the window, shown only once a run has lasted about
- * 400 ms. Fixed, not in flow, so it never moves the page, and it covers content only while busy.
+ * 400 ms. Fixed, not in flow, so it never shifts the content above it. While it shows, the page pads
+ * its foot by the strip's height, so the footer can scroll clear of it; at the bottom of the page that
+ * padding makes the page a little longer.
  */
 .import-status {
   position: fixed;

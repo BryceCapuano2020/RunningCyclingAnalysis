@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
@@ -85,7 +85,7 @@ function deliveredText(format: CardFormat, delivery: CanvasDelivery): string {
  * The card's code and its fonts. The card loads on the first use, so it is not in the app's first
  * download. The canvas only draws a web font that has loaded, so the faces are waited for first.
  */
-async function loadCard() {
+async function loadCardModules() {
   const [cardModel, renderCard] = await Promise.all([
     import('../../share/cardModel'),
     import('../../share/renderCard'),
@@ -94,16 +94,18 @@ async function loadCard() {
   return { buildShareCard: cardModel.buildShareCard, renderShareCard: renderCard.renderShareCard }
 }
 
-/** Starts loading the card, so the first preview does not wait for it. A failed load is retried at the draw. */
-function preloadCard() {
-  loadCard().catch(() => undefined)
-}
+type CardModules = Awaited<ReturnType<typeof loadCardModules>>
 
 /**
  * Draws the card in a shape and encodes it as a PNG file, or gives null when there is no card to
  * draw.
  */
-async function makeFile(inputs: CardInputs, format: CardFormat, when: Date): Promise<File | null> {
+async function makeFile(
+  inputs: CardInputs,
+  format: CardFormat,
+  when: Date,
+  loadCard: () => Promise<CardModules>,
+): Promise<File | null> {
   const { buildShareCard, renderShareCard } = await loadCard()
   const card = buildShareCard(
     inputs.result,
@@ -146,6 +148,22 @@ export function ShareImageButton(props: ShareImageButtonProps) {
   const noteId = useId()
   const titleId = useId()
   const dialogRef = useModalDialog(open, trigger)
+  // The card loads once for this sheet, so the trigger's pointer and focus and the first draw share it. A
+  // failed load is dropped, so the next attempt loads again.
+  const cardLoad = useRef<Promise<CardModules> | null>(null)
+  const loadCard = useCallback(() => {
+    if (cardLoad.current === null) {
+      cardLoad.current = loadCardModules().catch((error: unknown) => {
+        cardLoad.current = null
+        throw error
+      })
+    }
+    return cardLoad.current
+  }, [])
+  // Starts the load before anything is drawn, so the first preview does not wait for it.
+  const preloadCard = () => {
+    loadCard().catch(() => undefined)
+  }
 
   // A new analysis, period or unit system makes the status describe an older card, so it is cleared.
   if (basis.result !== result || basis.period !== period || basis.units !== units) {
@@ -187,7 +205,15 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     const dialog = dialogRef.current
     if (dialog === null) return
     const closeOnBackdrop = (event: MouseEvent) => {
-      if (event.target === dialog) setOpen(false)
+      // The dialog itself is the target for a click on its backdrop and on its padding, so the box decides.
+      if (event.target !== dialog) return
+      const box = dialog.getBoundingClientRect()
+      const inside =
+        event.clientX >= box.left &&
+        event.clientX <= box.right &&
+        event.clientY >= box.top &&
+        event.clientY <= box.bottom
+      if (!inside) setOpen(false)
     }
     dialog.addEventListener('click', closeOnBackdrop)
     return () => dialog.removeEventListener('click', closeOnBackdrop)
@@ -207,7 +233,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       gap,
       grades,
     }
-    makeFile(source, format, new Date()).then(
+    makeFile(source, format, new Date(), loadCard).then(
       (file) => {
         if (current) setPreview({ format, file, url: file === null ? null : previewUrl(file) })
       },
@@ -218,7 +244,20 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     return () => {
       current = false
     }
-  }, [open, format, result, settings, units, period, isSample, effort, weightKnown, gap, grades])
+  }, [
+    open,
+    format,
+    result,
+    settings,
+    units,
+    period,
+    isSample,
+    effort,
+    weightKnown,
+    gap,
+    grades,
+    loadCard,
+  ])
 
   if (!hasShareableContent(result, gap, weightKnown)) return null
 
@@ -305,22 +344,24 @@ export function ShareImageButton(props: ShareImageButtonProps) {
               <p className="muted">{shown === null ? PREVIEW_WAITING : PREVIEW_FAILED}</p>
             )}
           </div>
-          <p role="status" className="share-sheet__status">
-            {status}
-          </p>
-          <div className="share-sheet__actions">
-            <button
-              type="button"
-              className="btn share-sheet__action"
-              // aria-disabled, not disabled: a disabled button drops the focus it is holding.
-              aria-disabled={generating || readyFile === null}
-              onClick={onAction}
-            >
-              {actionLabel}
-            </button>
-            <button type="button" className="btn" onClick={() => setOpen(false)}>
-              Close
-            </button>
+          <div className="share-sheet__foot">
+            <p role="status" className="share-sheet__status">
+              {status}
+            </p>
+            <div className="share-sheet__actions">
+              <button
+                type="button"
+                className="btn share-sheet__action"
+                // aria-disabled, not disabled: a disabled button drops the focus it is holding.
+                aria-disabled={generating || readyFile === null}
+                onClick={onAction}
+              >
+                {actionLabel}
+              </button>
+              <button type="button" className="btn" onClick={() => setOpen(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </dialog>

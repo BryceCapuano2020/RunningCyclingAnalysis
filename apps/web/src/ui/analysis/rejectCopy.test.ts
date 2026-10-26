@@ -13,7 +13,7 @@ function file(
 describe('rejectionCopy: one plain sentence per reason code', () => {
   it.each([
     ['not-activity', 'Not a FIT, GPX or TCX file, so it cannot be read.'],
-    ['corrupt', 'Damaged, so it could not be read.'],
+    ['corrupt', 'Damaged, so it could not be read. Export it again.'],
     ['empty', 'It has no activity records in it.'],
     ['too-short', 'Too short: it records less than a minute.'],
     ['too-sparse', 'Recorded too sparsely: its points are more than 10 seconds apart.'],
@@ -76,10 +76,10 @@ describe('rejectCopy: details the core gives', () => {
 
   it('says how many entries a damaged archive lost, from the count the core gives', () => {
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }))).toBe(
-      '2 entries could not be read because the archive is damaged.',
+      '2 entries could not be read because the archive is damaged. Export it again.',
     )
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '1' }))).toBe(
-      '1 entry could not be read because the archive is damaged.',
+      '1 entry could not be read because the archive is damaged. Export it again.',
     )
   })
 

@@ -40,12 +40,31 @@ describe('RejectedFiles: what was skipped, and why', () => {
     )
 
     expect(
-      screen.getAllByText('bad.fit: Damaged, so it could not be read.').length,
+      screen.getAllByText('bad.fit: Damaged, so it could not be read. Export it again.').length,
     ).toBeGreaterThan(0)
     expect(screen.queryByText('core reason', { exact: false })).not.toBeInTheDocument()
   })
 
   it('gives each group one suggested action', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('bad.fit', 'corrupt'),
+          skipped('bad2.fit', 'corrupt'),
+          skipped('walk.fit', 'unsupported-sport', 'walking'),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Only runs and rides are analysed, so these were left out on purpose.'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not repeat the group action for a lone damaged file, since its line already says to export it again', () => {
     render(
       <Skipped
         rejected={[
@@ -57,9 +76,25 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
     expect(
-      screen.getByText('Only runs and rides are analysed, so these were left out on purpose.'),
+      screen.queryByText('Export the file again from your device or app.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the group action for a lone first file whose line gives no action', () => {
+    render(
+      <Skipped
+        rejected={[skipped('notes.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.getByText('Export your activities as FIT, GPX or TCX files, then add them again.'),
     ).toBeInTheDocument()
   })
 

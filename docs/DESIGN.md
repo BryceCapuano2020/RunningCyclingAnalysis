@@ -108,8 +108,7 @@ then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
 or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
 group names its files with a plain reason and gives one suggested action. The list ends with **How to get your files**, which opens the guides.
-The count line comes
-first, and the summary's first skipped file is shown below the disclosure. The groups list the others, so no file is named twice, and the summary is announced with the same count it shows. Each import
+The summary's first skipped file is shown below the count line, with its suggested action, and the summary is announced with the same count it shows. Each import
 is compared with the result the worker last reported when it was sent, except a file released from a
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
@@ -414,11 +413,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   when the device's share sheet can take this image; otherwise it reads "Save image" and downloads the
   PNG. The PNG is encoded once, for the preview, so the share starts within the tap. Until the chosen
   shape is drawn, the action reads "Preparing…" and is held: a tap does nothing, and the last picture
-  stays in view, dimmed. The sheet is titled "Share image". Its status sits above the action row, and
-  the action row stays at the foot of the sheet on a short screen. A click on the backdrop closes it,
-  and a saved file reads "Square image saved". The sheet's action is outlined like the other buttons,
-  so the page's one primary action stays Add files. The
-  file is named by the period's dates, such as `balance-2025-05-12_2025-08-03-square.png`.
+  stays, dimmed. A click on the backdrop closes the sheet. The sheet's action is outlined like the other
+  buttons, so the page's one primary action stays Add files. The file is named by the period's dates,
+  such as `balance-2025-05-12_2025-08-03-square.png`.
 - The card holds the brand mark, in the two sport colours, and the app name in words, in volt. Under the
   headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
   the meter reads. Then the balance meter, each sport's threshold, "Threshold flat pace, estimated from your
@@ -495,7 +492,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   cannot answer, the page says "The splits could not be loaded. Open this activity again to retry."
 - **Plain words for what went wrong.** A refused file's reason comes from its code in
   `apps/web/src/ui/analysis/rejectCopy.ts`, never the core's English: "Damaged, so it could not be
-  read.", "Too large to read (over 64 MB). Export a shorter range.", "Same workout as
+  read. Export it again.", "Too large to read (over 64 MB). Export a shorter range.", "Same workout as
   run.fit, so it was not counted twice." Sport names are words: "A walk is not a run or a ride, so it
   was left out on purpose." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
