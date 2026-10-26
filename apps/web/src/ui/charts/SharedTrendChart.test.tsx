@@ -58,7 +58,7 @@ describe('SharedTrendChart', () => {
         name: 'Age grade of your best 20 minutes, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /Running and cycling age grades/ })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Run and ride age grades/ })).toBeInTheDocument()
   })
 
   it('titles an energy trend in W/kg, when there is no age to grade by', () => {
@@ -97,7 +97,7 @@ describe('SharedTrendChart', () => {
       container.querySelectorAll('[data-testid="trend-marker"][data-sport="ride"]'),
     ).toHaveLength(2)
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(legend).toHaveTextContent('Cycling')
+    expect(legend).toHaveTextContent('Ride')
     expect(legend).not.toHaveTextContent('estimated')
   })
 
@@ -115,7 +115,7 @@ describe('SharedTrendChart', () => {
     const warnings = vi.spyOn(console, 'error').mockImplementation(() => {})
     const weeks = [week(0, 0.64, 0.64, true), week(1, 0.66, 0.66, true)]
     const { rerender } = renderChart({ weeks })
-    expect(screen.getAllByText('66%, last 2 weeks')).toHaveLength(2)
+    expect(screen.getAllByText('66%, best 20 min, last 2 weeks')).toHaveLength(2)
     rerender(
       <SharedTrendChart
         weeks={weeks}
@@ -124,10 +124,29 @@ describe('SharedTrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(screen.getAllByText('66%, last 2 weeks')).toHaveLength(2)
+    expect(screen.getAllByText('66%, best 20 min, last 2 weeks')).toHaveLength(2)
     const keyWarnings = warnings.mock.calls.filter((call) => String(call[0]).includes('same key'))
     expect(keyWarnings).toEqual([])
     warnings.mockRestore()
+  })
+
+  it('enlarges the hovered week’s marker, and not only the latest value', () => {
+    const { container } = renderChart()
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    const runMarkers = Array.from(
+      container.querySelectorAll('[data-testid="trend-marker"][data-sport="run"]'),
+    )
+    const hovered = Number(runMarkers[0]?.getAttribute('r'))
+    const plain = Number(runMarkers[1]?.getAttribute('r'))
+    expect(hovered).toBeGreaterThan(plain)
+  })
+
+  it('names the window in the tooltip, so a week reads as the best of its window', () => {
+    renderChart()
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Week ending Sun 12 Jan 2025, best 20 min over 2 weeks',
+    )
   })
 
   it('says no cycling was ridden in a week with no ride, in the tooltip, as the trend chart does', () => {
@@ -156,8 +175,8 @@ describe('SharedTrendChart', () => {
   it('names the two sports in a legend, with cycling marked as an estimate, when both have values', () => {
     renderChart()
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(within(legend).getByText('Running, as recorded')).toBeInTheDocument()
-    expect(within(legend).getByText('Cycling, estimated')).toBeInTheDocument()
+    expect(within(legend).getByText('Run, as recorded')).toBeInTheDocument()
+    expect(within(legend).getByText('Ride, estimated')).toBeInTheDocument()
   })
 
   it('shows the cycling key alone, as a one-entry legend, when only cycling has values', () => {
@@ -165,8 +184,8 @@ describe('SharedTrendChart', () => {
       weeks: [week(0, null, 0.52), week(1, null, null), week(2, null, 0.54), week(3, null, 0.56)],
     })
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(legend).toHaveTextContent('Cycling, estimated')
-    expect(legend).not.toHaveTextContent('Running')
+    expect(legend).toHaveTextContent('Ride, estimated')
+    expect(legend).not.toHaveTextContent('Run')
   })
 
   it('shows no legend when only running has values, since one solid key needs none', () => {
@@ -184,14 +203,14 @@ describe('SharedTrendChart', () => {
     // Running alone is one solid key, which needs no legend.
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
-    expect(headers).toEqual(['Week ending', 'Running grade', 'Runs'])
+    expect(headers).toEqual(['Week ending', 'Run grade', 'Runs'])
     expect(screen.getByText(/Cycling is held until a weight is added/)).toBeInTheDocument()
   })
 
   it('labels the latest value with the window it covers, so it can differ from the card’s best', () => {
     renderChart()
-    expect(screen.getByText('66%, last 2 weeks')).toBeInTheDocument()
-    expect(screen.getByText('58%, last 2 weeks')).toBeInTheDocument()
+    expect(screen.getByText('66%, best 20 min, last 2 weeks')).toBeInTheDocument()
+    expect(screen.getByText('58%, best 20 min, last 2 weeks')).toBeInTheDocument()
   })
 
   it('labels the grade axis in per cent, and shows the grade in the tooltip, floored to the whole percent', () => {
@@ -204,7 +223,7 @@ describe('SharedTrendChart', () => {
     const tooltip = screen.getByRole('status')
     expect(tooltip).toHaveTextContent('89%')
     expect(tooltip).not.toHaveTextContent('89.9%')
-    expect(tooltip).toHaveTextContent('Running')
+    expect(within(tooltip).getByText('Run')).toBeInTheDocument()
     // 89.95% is in the National band, which starts at 80%.
     expect(tooltip).toHaveTextContent('National')
   })
@@ -220,13 +239,7 @@ describe('SharedTrendChart', () => {
   it('shows each week’s values in a table, with cycling as an estimate', () => {
     const { container } = renderChart()
     const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
-    expect(headers).toEqual([
-      'Week ending',
-      'Running grade',
-      'Cycling grade, estimated',
-      'Runs',
-      'Rides',
-    ])
+    expect(headers).toEqual(['Week ending', 'Run grade', 'Ride grade, estimated', 'Runs', 'Rides'])
     const first = container.querySelectorAll('tbody tr')[0]
     expect(Array.from(first?.querySelectorAll('th, td') ?? []).map((c) => c.textContent)).toEqual([
       'Sun 12 Jan 2025',
@@ -237,8 +250,23 @@ describe('SharedTrendChart', () => {
     ])
   })
 
-  it('shows an empty state with fewer than two weeks of either sport', () => {
+  it('says the one value in a line, with its week, when only one week has a value', () => {
     renderChart({ weeks: [week(0, 0.6, null)] })
+    expect(
+      screen.getByText(
+        'Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend needs two weeks with values.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('img')).toBeNull()
+    // The chart keeps its visible title above the line of text, so every chart has a name.
+    expect(
+      screen.getByRole('figure', { name: 'Age grade of your best 20 minutes, trailing 2 weeks' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('shows an empty state when no week has a value', () => {
+    renderChart({ weeks: [week(0, null, null), week(1, null, null)] })
     expect(
       screen.getByText('Add runs or rides in more than one week to see your age grades'),
     ).toBeInTheDocument()
@@ -248,5 +276,31 @@ describe('SharedTrendChart', () => {
   it('shows the empty message the caller gives, such as the ages the standards cover', () => {
     renderChart({ weeks: [], emptyText: 'Age grades cover ages 5 to 100.' })
     expect(screen.getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
+  })
+
+  it('explains a low point as a window of easy efforts, in either measure', () => {
+    renderChart()
+    expect(
+      screen.getByText(
+        /A low point can be a window of easy efforts: each is the best in its window, not an average\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/easy runs/)).toBeNull()
+  })
+
+  it('explains a low energy point the same way, in the energy measure', () => {
+    renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
+    expect(
+      screen.getByText(
+        /A low point can be a window of easy efforts: each is the best in its window, not an average\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('names the single value in the unit the chart draws it in: per cent for an age grade, W/kg for an energy trend', () => {
+    renderChart({ measure: 'energy', weeks: [week(0, 4, null, false)] })
+    expect(
+      screen.getByText(/^Only one week has a value: Run \d+(\.\d+)? W\/kg, week ending/),
+    ).toBeInTheDocument()
   })
 })

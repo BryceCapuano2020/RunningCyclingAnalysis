@@ -14,11 +14,16 @@
   stroke: var(--series-ride);
 }
 
-/* The previous period is a thin dashed neutral line, so it reads as context and never as a sport. */
+/* The previous period is a thin dashed mid grey line, under the current one, so it reads as context and never as a sport. */
 .chart-series__line--previous {
-  stroke: var(--neutral-mark);
+  stroke: var(--previous-mark);
   stroke-width: 1.5px;
   stroke-dasharray: 5 4;
+}
+
+/* An area is filled, never outlined: its colour comes from the modifier that names its sport. */
+.chart-series__area {
+  stroke: none;
 }
 
 /*
@@ -27,6 +32,16 @@
  */
 .chart-series__area--ride {
   fill: var(--series-ride-soft);
+}
+
+/*
+ * The cycling range on an age-grade trend: a soft tint between its edges, with an outline in the ride
+ * colour, which keeps the edges at 3:1 or better against the surface.
+ */
+.chart-series__band--ride {
+  fill: var(--series-ride-soft);
+  stroke: var(--series-ride);
+  stroke-width: 1px;
 }
 
 /* An estimate: a dashed line and a ring at each week, in the sport's colour, over the surface. */
@@ -55,7 +70,7 @@
 }
 
 .chart-series__marker--previous {
-  fill: var(--neutral-mark);
+  fill: var(--previous-mark);
 }
 
 /* A week with no value: a short mark on the date axis, in the muted text colour. */
@@ -84,5 +99,33 @@
 
   .chart-series__line--ride {
     stroke: Highlight;
+  }
+
+  /* The markers and the estimate's ring keep their edges, since their tints go in forced colours. */
+  .chart-series__marker {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+
+  .chart-series__ring--ride {
+    fill: Canvas;
+    stroke: Highlight;
+  }
+
+  .chart-series__band--ride {
+    fill: Canvas;
+    stroke: Highlight;
+  }
+
+  /* A run marker is solid and a ride marker hollow, so the two sports differ by more than their colour. */
+  .chart-series__marker--run {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+
+  .chart-series__marker--ride {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 2px;
   }
 }

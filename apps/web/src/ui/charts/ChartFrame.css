@@ -13,6 +13,11 @@
   font-weight: 600;
 }
 
+/* One line of key, reserved in every period, so the plot keeps its place when a key appears. */
+.chart-frame__legend {
+  min-height: 1.5rem;
+}
+
 .chart-frame__stage {
   position: relative;
   min-width: 0;

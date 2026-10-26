@@ -41,9 +41,16 @@ import { renderShareCard } from '../../share/renderCard'
 import { canvasFile } from '../../share/download'
 
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   vi.clearAllMocks()
 })
+
+/** A fixed day, so the latest-activity line never depends on when the suite runs. */
+function pinClock() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 0, 20, 12))
+}
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 
@@ -138,6 +145,7 @@ describe('BalancePage', () => {
   })
 
   it('keeps the comparison slots out when one sport has nothing in the period', () => {
+    pinClock()
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
 
@@ -148,6 +156,7 @@ describe('BalancePage', () => {
   })
 
   it('offers an empty sport the file chooser as a secondary button, with the count in All time', () => {
+    pinClock()
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     renderPage(makeResult({ activities: [run] }), {
@@ -166,7 +175,19 @@ describe('BalancePage', () => {
     expect(within(card).queryByRole('link')).not.toBeInTheDocument()
   })
 
+  it('shows one Add rides button on a one-sport Balance, from the empty ride card', () => {
+    pinClock()
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    // No prior comparison, so the answer is in its missing branch, where a second file chooser would show.
+    renderPage(makeResult({ activities: [run], comparison: { prior: [], calibrated: null } }), {
+      state: { library: [run] },
+    })
+
+    expect(screen.getAllByRole('button', { name: 'Add rides' })).toHaveLength(1)
+  })
+
   it('tells a sport with no files at all that its files have none, and asks for them', () => {
+    pinClock()
     const run = makeActivity({ id: 'run-1', sport: 'run' })
     renderPage(makeResult({ activities: [run] }), { state: { library: [run] } })
 
@@ -181,7 +202,7 @@ describe('BalancePage', () => {
 
     const strip = document.querySelector('.balance-strip')
     expect(strip).toHaveAttribute('aria-hidden', 'true')
-    expect(strip?.textContent).toMatch(/^Running \d+% \w+$/)
+    expect(strip?.textContent).toMatch(/^Run \d+% \w+$/)
   })
 
   it('marks the sample athlete only when the sample is on screen', () => {
@@ -223,15 +244,48 @@ describe('BalancePage', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows the fitness trend only once two weeks have a value', () => {
-    const { unmount } = renderPage(makeResult(), { state: { trend: trendWithWeeks(1) } })
+  it('shows the fitness trend once a week has a value, and says so in a line when there is only one', () => {
+    const { unmount } = renderPage(makeResult(), { state: { trend: trendWithWeeks(0) } })
     expect(
-      screen.queryByRole('heading', { name: 'Best 20 min, week by week' }),
+      screen.queryByRole('region', { name: 'Best 20 min, week by week' }),
     ).not.toBeInTheDocument()
     unmount()
 
+    renderPage(makeResult(), { state: { trend: trendWithWeeks(1) } })
+    expect(screen.getByRole('region', { name: 'Best 20 min, week by week' })).toBeInTheDocument()
+    expect(screen.getByText(/^Only one week has a value: Run /)).toBeInTheDocument()
+    expect(
+      screen.getByRole('figure', { name: /^Energy rate of your best 20 minutes, trailing/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the trend heading for screen readers only, so the chart title is the one visible name', () => {
     renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
-    expect(screen.getByRole('heading', { name: 'Best 20 min, week by week' })).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { name: 'Best 20 min, week by week' })
+    expect(heading).toHaveClass('sr-only')
+  })
+
+  it('puts the grading source directly under the cards, ahead of the trend', () => {
+    renderPage(GRADED_RUN, { state: { trend: trendWithWeeks(2) } }, MAN_BORN_1986)
+    const source = screen.getByText(/^Graded for a/)
+    const trend = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    expect(source.compareDocumentPosition(trend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('says when the newest activity is more than six weeks old, with its date and how long ago', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 25, 12))
+    try {
+      const old = makeActivity({
+        id: 'old-run',
+        sport: 'run',
+        startMs: new Date(2025, 5, 3, 7).getTime(),
+      })
+      renderPage(makeResult({ activities: [old] }), { state: { library: [old] } })
+      expect(screen.getByText('Latest activity Tue 3 Jun 2025, 16 months ago')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows one energy trend for both sports while the age or sex is unknown', () => {
@@ -253,7 +307,7 @@ describe('BalancePage', () => {
     expect(held.container.querySelector('[data-testid="trend-ring"]')).toBeNull()
     expect(held.container.querySelector('[data-testid="trend-band"]')).toBeNull()
     const heldSection = screen.getByRole('region', { name: 'Best 20 min, week by week' })
-    expect(within(heldSection).queryByText('Cycling, estimated')).toBeNull()
+    expect(within(heldSection).queryByText('Ride, estimated')).toBeNull()
     expect(within(heldSection).queryByText('Cycling grade, estimated')).toBeNull()
     expect(
       within(heldSection).getByText(/Cycling is held until a weight is added/),
@@ -266,7 +320,7 @@ describe('BalancePage', () => {
     ).not.toBeNull()
     expect(known.container.querySelector('[data-testid="trend-band"]')).not.toBeNull()
     const section = screen.getByRole('region', { name: 'Best 20 min, week by week' })
-    expect(within(section).getByText('Cycling, estimated')).toBeInTheDocument()
+    expect(within(section).getByText('Ride, estimated')).toBeInTheDocument()
   })
 
   it('gates the grade trend on each effort’s date, not on the Sunday that ends its week', () => {

@@ -26,6 +26,22 @@ describe('ChartXAxis', () => {
     expect(ruleBody(axisCss, '.chart-x-axis__tick')).not.toMatch(/font-size/)
   })
 
+  it('sets its tick text in rem, so it grows with the reader’s text size', () => {
+    const { container } = render(
+      <svg>
+        <ChartXAxis
+          ticks={[{ position: 180, label: '20 min' }]}
+          plot={PLOT}
+          title="Duration"
+          fontSize={13}
+        />
+      </svg>,
+    )
+    expect(container.querySelector('.chart-x-axis__tick')?.getAttribute('style')).toContain(
+      'font-size: 0.8125rem',
+    )
+  })
+
   it('centres a label that has room on both sides of its tick', () => {
     const { container } = render(
       <svg>
@@ -61,7 +77,7 @@ describe('ChartXAxis', () => {
     // edge and the last ends inside its right edge.
     const extentOf = (label: Element) => {
       const x = Number(label.getAttribute('x'))
-      const width = labelWidth(label.textContent ?? '', 12)
+      const width = labelWidth(label.textContent ?? '', 12, 1)
       const anchor = label.getAttribute('text-anchor')
       const left = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2
       return { left, right: left + width }

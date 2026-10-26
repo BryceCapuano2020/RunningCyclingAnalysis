@@ -37,7 +37,7 @@ describe('leadSentence', () => {
 
   it('names the lead in percent of energy when there is no grade gap', () => {
     expect(leadSentence(energyReading(interval(1.05, 1.12, 1.2)))).toBe(
-      'Running 12% higher on the energy scale',
+      'Running 12% higher, as energy per kilogram',
     )
   })
 
@@ -215,7 +215,7 @@ describe('balanceSummary', () => {
 
   it('states the energy ratio, with the duration, when the balance is only an energy reading', () => {
     expect(balanceSummary(energyReading(interval(1.05, 1.12, 1.2)), 300)).toBe(
-      'Over 5 min, your running is about 12% higher than your cycling once both are put on the same energy scale.',
+      'Over 5 min, your running is about 12% higher than your cycling, as energy per kilogram.',
     )
   })
 
@@ -248,15 +248,15 @@ describe('balanceSentence', () => {
     )
   })
 
-  it('says how far running is higher on the energy scale, with the range', () => {
+  it('says how far running is higher, as energy per kilogram, with the range', () => {
     expect(balanceSentence(energyReading(interval(1.05, 1.12, 1.2)))).toBe(
-      'Running 12% higher on the energy scale (range 5% to 20%)',
+      'Running 12% higher, as energy per kilogram (range 5% to 20%)',
     )
   })
 
-  it('says how far cycling is higher on the energy scale, with the range', () => {
+  it('says how far cycling is higher, as energy per kilogram, with the range', () => {
     expect(balanceSentence(energyReading(interval(0.75, 0.8, 0.9)))).toBe(
-      'Cycling 25% higher on the energy scale (range 11% to 33%)',
+      'Cycling 25% higher, as energy per kilogram (range 11% to 33%)',
     )
   })
 

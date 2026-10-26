@@ -3,8 +3,10 @@
  * font size. Without a window or styles, as in a worker or a test, the browser's default of 16 px stands.
  */
 const LABEL_REM = 0.75
-const GLYPH_EM = 0.6
-const DEFAULT_ROOT_PX = 16
+/** A glyph's average width, in em, for estimating a label's width from its length. */
+export const GLYPH_EM = 0.6
+/** The browser's default root font size, which the chart layouts are measured at. */
+export const DEFAULT_ROOT_PX = 16
 
 /** The root font size in px, read from the page. */
 export function rootFontPx(): number {

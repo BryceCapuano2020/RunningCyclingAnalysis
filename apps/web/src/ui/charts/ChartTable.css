@@ -1,0 +1,5 @@
+/* A long table keeps to a fixed height and scrolls inside itself, so it does not run the page on. */
+.table-scroll--long {
+  max-height: 24rem;
+  overflow-y: auto;
+}

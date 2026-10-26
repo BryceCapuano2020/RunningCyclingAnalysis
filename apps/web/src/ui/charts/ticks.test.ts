@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AxisTick } from './chartTypes'
-import { axisFontSize, durationTicks, fitTicks, labelWidth } from './ticks'
+import { axisFontRem, axisFontSize, durationTicks, fitTicks, labelWidth, rootScale } from './ticks'
 
 function ticksAt(positions: number[], label: string): AxisTick[] {
   return positions.map((position) => ({ position, label }))
@@ -56,7 +56,58 @@ describe('durationTicks', () => {
 
 describe('labelWidth', () => {
   it('estimates a label as 0.6 em a character', () => {
-    expect(labelWidth('Jun 2025', 12)).toBeCloseTo(8 * 12 * 0.6, 9)
-    expect(labelWidth('', 12)).toBe(0)
+    expect(labelWidth('Jun 2025', 12, 1)).toBeCloseTo(8 * 12 * 0.6, 9)
+    expect(labelWidth('', 12, 1)).toBe(0)
+  })
+})
+
+describe('axisFontRem', () => {
+  it('expresses an axis text size in rem, so it follows the reader’s text size', () => {
+    expect(axisFontRem(13)).toBe('0.8125rem')
+    expect(axisFontRem(12)).toBe('0.75rem')
+  })
+
+  describe('fitTicks keeps a named tick', () => {
+    it('keeps the zero tick the caller names, even where the others are thinned away', () => {
+      const ticks = Array.from({ length: 9 }, (_, i) => ({
+        position: i * 40,
+        label: i === 4 ? 'Even' : `${i}%`,
+      }))
+      const fitted = fitTicks(ticks, {
+        axis: 'y',
+        width: 600,
+        maxCount: 3,
+        keep: (tick) => tick.label === 'Even',
+      })
+      expect(fitted.map((tick) => tick.label)).toContain('Even')
+    })
+  })
+
+  describe('tick labels at a larger root text size', () => {
+    afterEach(() => {
+      document.documentElement.style.fontSize = ''
+    })
+
+    it('widens a label as the root text size grows, so the collision maths follows the rem text', () => {
+      expect(labelWidth('20 min', 13, rootScale())).toBeCloseTo(46.8)
+      document.documentElement.style.fontSize = '20px'
+      expect(labelWidth('20 min', 13, rootScale())).toBeCloseTo(58.5)
+    })
+
+    it('reads the root text size once for a whole fit, however many labels it checks', () => {
+      const spy = vi.spyOn(globalThis, 'getComputedStyle')
+      const ticks = [0, 60, 120, 180].map((position) => ({ position, label: '20 min' }))
+      document.documentElement.style.fontSize = '20px'
+      fitTicks(ticks, { axis: 'x', width: 600 })
+      expect(spy.mock.calls.length).toBeLessThanOrEqual(1)
+      spy.mockRestore()
+    })
+
+    it('thins a row of labels further at a 20 px root, where the same labels no longer fit', () => {
+      const ticks = [0, 60, 120, 180].map((position) => ({ position, label: '20 min' }))
+      expect(fitTicks(ticks, { axis: 'x', width: 600 })).toHaveLength(4)
+      document.documentElement.style.fontSize = '20px'
+      expect(fitTicks(ticks, { axis: 'x', width: 600 })).toHaveLength(2)
+    })
   })
 })

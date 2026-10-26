@@ -443,7 +443,7 @@ describe('ShareImageButton', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('saved'))
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
-        caveat: 'Best efforts over 20 min may not have been all-out.',
+        caveat: 'Best efforts over 20 min may not have been your hardest.',
       }),
       expect.any(HTMLCanvasElement),
       'square',

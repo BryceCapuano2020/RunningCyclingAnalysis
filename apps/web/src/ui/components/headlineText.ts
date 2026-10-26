@@ -9,7 +9,7 @@ import { SPORT_NOUN, SPORT_TITLE } from '../sports'
 import type { BalanceReading } from './balanceScale'
 
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
-export const HARDER_EFFORTS_TITLE = 'Your balance needs harder efforts'
+export const HARDER_EFFORTS_TITLE = 'Not enough to compare yet'
 
 const TITLE: Record<Lean, string> = {
   run: 'Your balance leans toward running',
@@ -84,11 +84,11 @@ function inBalanceSummary(reading: BalanceReading): string {
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
 function energySummary({ lean, lead }: BalanceReading, duration: string): string {
   if (lean === 'even') {
-    return `Over ${duration}, your running and your cycling are within the model's range of each other, once both are put on the same energy scale.`
+    return `Over ${duration}, your running and your cycling are within the model's range of each other, as energy per kilogram.`
   }
   const { leader, other } = leaderOf(lean)
   const percent = formatPercent(Math.abs(lead.centre) / 100)
-  return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other} once both are put on the same energy scale.`
+  return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other}, as energy per kilogram.`
 }
 
 /** The summary under the headline. A grade gap is on the headline duration; the energy ratio on the duration given. */
@@ -115,6 +115,15 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
   return calibrated
     ? 'Model range adjusted using your heart-rate data.'
     : 'Model range based on population assumptions.'
+}
+
+/**
+ * The reference heart rate in one sentence, as the heart-rate check derives it: running's is the higher
+ * of the two sports' maxima, and cycling's is the higher of its own and the running reference less
+ * RIDE_MAX_OFFSET_BPM, so cycling is never judged against an artificially low maximum.
+ */
+export function referenceDefinition(): string {
+  return `Your reference heart rate is your highest sustained heart rate: running’s is the higher of your running and cycling maxima, and cycling’s is the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`
 }
 
 /**
@@ -158,7 +167,7 @@ function leadingSentence({
     return `${SPORT_TITLE[lean]} grades ${points(Math.abs(Math.round(lead.centre)))} higher than ${other}`
   }
   const percent = formatPercent(Math.abs(lead.centre) / 100)
-  return `${SPORT_TITLE[lean]} ${percent} higher on the energy scale`
+  return `${SPORT_TITLE[lean]} ${percent} higher, as energy per kilogram`
 }
 
 /** The lead in one line, or null for an even balance, which the headline already says. */

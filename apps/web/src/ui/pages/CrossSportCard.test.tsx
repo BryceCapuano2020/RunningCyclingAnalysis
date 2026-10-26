@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { curvePoint } from '../charts/fixtures'
 import { interval, makeActivity, makeEquivalence, makeResult } from '../components/fixtures'
@@ -28,8 +29,31 @@ const hillRide = makeActivity({
   startMs: new Date(2026, 0, 9, 17, 0).getTime(),
 })
 
-function renderCard(result: AnalysisResult, units: UnitSystem = 'metric', weighted = true) {
-  return render(<CrossSportCard result={result} units={units} weighted={weighted} />)
+const ALL_TIME_PERIOD: Period = {
+  choice: 'all',
+  startMs: null,
+  endMs: null,
+  days: null,
+  fellBack: false,
+}
+/** A six-week period from 12 May to 3 August 2025, dated in the viewer's zone. */
+const SIX_WEEKS: Period = {
+  choice: 42,
+  startMs: new Date(2025, 4, 12, 12).getTime(),
+  endMs: new Date(2025, 7, 3, 12).getTime(),
+  days: 42,
+  fellBack: false,
+}
+
+function renderCard(
+  result: AnalysisResult,
+  units: UnitSystem = 'metric',
+  weighted = true,
+  period: Period = ALL_TIME_PERIOD,
+) {
+  return render(
+    <CrossSportCard result={result} units={units} weighted={weighted} period={period} />,
+  )
 }
 
 /** The ride the best 20 minutes came from, measured or virtual, as the result holds it. */
@@ -182,6 +206,13 @@ describe('CrossSportCard', () => {
     expect(details).not.toHaveAttribute('open')
     expect(within(details).getByRole('columnheader', { name: 'Ride effort' })).toBeInTheDocument()
     expect(within(details).getAllByRole('row')).toHaveLength(4)
+  })
+
+  it('names the dates the period covers in its needs-a-ride line', () => {
+    renderCard(makeResult({ activities: [hillRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
+    expect(
+      screen.getByText('Needs a ride of 3 min or more between 12 May and 3 Aug 2025.'),
+    ).toBeInTheDocument()
   })
 
   it('asks for a ride of 3 min when there is no effort to compare', () => {

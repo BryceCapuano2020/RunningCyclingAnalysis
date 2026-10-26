@@ -9,7 +9,12 @@ import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
 import { pickHeadline } from '../components'
-import { headlineBasis, headlineText, referenceText } from '../components/headlineText'
+import {
+  headlineBasis,
+  headlineText,
+  referenceDefinition,
+  referenceText,
+} from '../components/headlineText'
 import { hardEffortsOnFile } from '../effortCaveat'
 import { CheckIcon, WarningIcon } from '../components/icons'
 import { Methodology, TopicBody } from '../components/Methodology'
@@ -272,12 +277,13 @@ export function MethodPage({
         <TopicBody id="heart" />
         {(reference !== null || hardEfforts) && (
           <ul className="method__facts">
+            {reference && <li>{referenceDefinition()}</li>}
             {reference && <li>{reference}</li>}
             {hardEfforts && (
               <li>
                 Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
-                sport&rsquo;s heart-rate reference. That makes them hard, but does not prove either
-                was all-out.
+                sport&rsquo;s reference heart rate. That makes them hard, but does not prove either
+                was your hardest.
               </li>
             )}
           </ul>

@@ -1,8 +1,4 @@
 /* The level ladder: labels as text placed by percentage, the bar as shapes, the marker in the sport's colour. */
-.level-ladder {
-  max-width: 420px;
-}
-
 .level-ladder--run {
   --ladder-colour: var(--series-run);
   --ladder-band: var(--ladder-run-band);

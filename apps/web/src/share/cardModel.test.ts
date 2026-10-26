@@ -108,7 +108,7 @@ describe('buildShareCard', () => {
 
   it('gives a one-line effort caveat when the heart-rate check found a low effort', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false, LOW_EFFORT)
-    expect(card?.caveat).toBe('Best efforts over 20 min may not have been all-out.')
+    expect(card?.caveat).toBe('Best efforts over 20 min may not have been your hardest.')
   })
 
   it('has no effort caveat without an effort check or when the efforts were high', () => {

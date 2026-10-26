@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
-import { betweenClause, listEmptyText, sportEmptyText } from './periodCopy'
+import { betweenClause, latestActivityText, listEmptyText, sportEmptyText } from './periodCopy'
 
 const SIX_WEEKS: Period = {
   choice: 42,
@@ -53,5 +53,30 @@ describe('listEmptyText', () => {
 
   it('says the files have none, with no dates, for all activities', () => {
     expect(listEmptyText('all', null)).toBe('No activities in your files.')
+  })
+})
+
+describe('latestActivityText', () => {
+  /** A fixed clock: 25 October 2026, so the months and weeks ago do not depend on the day run. */
+  const NOW = new Date(2026, 9, 25, 12).getTime()
+
+  it('says nothing while the newest activity is within six weeks', () => {
+    expect(latestActivityText(new Date(2026, 8, 20, 12).getTime(), NOW)).toBeNull()
+  })
+
+  it('names the newest activity’s day and how many months ago it was, once it is older', () => {
+    expect(latestActivityText(new Date(2025, 5, 3, 7).getTime(), NOW)).toBe(
+      'Latest activity Tue 3 Jun 2025, 16 months ago',
+    )
+  })
+
+  it('counts weeks for a gap of less than two months', () => {
+    expect(latestActivityText(new Date(2026, 8, 1, 12).getTime(), NOW)).toBe(
+      'Latest activity Tue 1 Sep, 7 weeks ago',
+    )
+  })
+
+  it('says nothing when the library has no activity', () => {
+    expect(latestActivityText(null, NOW)).toBeNull()
   })
 })

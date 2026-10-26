@@ -9,6 +9,7 @@ import { SharedTrendChart, energyWeeks, gradeWeeks } from '../charts'
 import { ShareImageButton, pickHeadline } from '../components'
 import { gapOfHeadline } from '../balanceGap'
 import { countSport } from '../records'
+import { latestActivityText } from '../periodCopy'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { AGE_RANGE_TEXT, athleteOf, gradedSexOf, headlineGrades, SEX_NOUN } from '../grades'
 import type { AgeProfile, GradeOutcome } from '../grades'
@@ -114,6 +115,22 @@ export function BalancePage({
   // The age the footer names is the age on the first graded effort's day, as the level line says it.
   const gradedAge = [grades.run, grades.ride].find((outcome) => outcome?.kind === 'graded')
   const age = gradedAge?.kind === 'graded' ? gradedAge.age : null
+  // The newest activity in the library dates the answer: a library last written to long ago says so.
+  const newestMs = library.reduce<number | null>(
+    (newest, activity) =>
+      newest === null || activity.startMs > newest ? activity.startMs : newest,
+    null,
+  )
+  const latest = latestActivityText(newestMs)
+  // The source line sits under the cards it grades, not under the trend beneath them.
+  const sourceLine =
+    sourceSex !== null && age !== null ? (
+      <p className="muted balance__source">
+        {`Graded for a ${age}-year-old ${SEX_NOUN[sourceSex]} on the ${ROAD_STANDARDS_SOURCE.shortName}.`}
+        {rideGraded && ' Rides are graded through their running equivalent.'}
+        {' A level, not a ranking.'}
+      </p>
+    ) : null
 
   return (
     <div className="page-stack">
@@ -149,6 +166,7 @@ export function BalancePage({
       <BalanceStrip grades={grades} />
 
       {controls}
+      {latest !== null && <p className="muted">{latest}</p>}
 
       <div className="balance__sports">
         {SPORT_ORDER.map((sport) =>
@@ -174,6 +192,8 @@ export function BalancePage({
         )}
       </div>
 
+      {sourceLine}
+
       {profile === null && (
         <div className="balance__profile">
           <p className="muted">
@@ -188,13 +208,16 @@ export function BalancePage({
       {bothInPeriod && (
         <div className="balance__cards">
           <EvidenceCard effort={effort} />
-          <CrossSportCard result={result} units={units} weighted={weightKnown} />
+          <CrossSportCard result={result} units={units} weighted={weightKnown} period={period} />
         </div>
       )}
 
-      {weeksWithValue(trend) >= 2 && (
+      {weeksWithValue(trend) >= 1 && (
         <section className="section" aria-labelledby="balance-trend">
-          <h2 id="balance-trend">Best 20 min, week by week</h2>
+          {/* Visible once, as the chart's title; the heading is for navigation and the name only. */}
+          <h2 id="balance-trend" className="sr-only">
+            Best 20 min, week by week
+          </h2>
           <div className="balance__trends">
             {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
             <SharedTrendChart
@@ -209,13 +232,6 @@ export function BalancePage({
         </section>
       )}
 
-      {sourceSex !== null && age !== null && (
-        <p className="muted balance__source">
-          {`Graded for a ${age}-year-old ${SEX_NOUN[sourceSex]} on the ${ROAD_STANDARDS_SOURCE.shortName}.`}
-          {rideGraded && ' Rides are graded through their running equivalent.'}
-          {' A level, not a ranking.'}
-        </p>
-      )}
       {footnote}
     </div>
   )

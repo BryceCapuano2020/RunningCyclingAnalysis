@@ -7,7 +7,8 @@ const SIZE: ChartSize = {
   height: 300,
   plot: { left: 40, right: 380, top: 20, bottom: 260 },
   tooltipId: 'tip',
-  title: 'Test chart',
+  titleId: 'chart-title',
+  hintId: 'chart-hint',
 }
 
 const CONTENT: TooltipContent = { x: 0, y: 0, title: 'x', rows: [] }

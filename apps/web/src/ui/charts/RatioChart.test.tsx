@@ -35,15 +35,15 @@ describe('RatioChart', () => {
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(1)
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)
-    // The label on the line itself; the table also says Equal, for its own row.
-    expect(screen.getByText('Equal', { selector: 'text' })).toBeInTheDocument()
+    // The zero tick on the axis reads Even; the table says Even for its own row.
+    expect(screen.getByText('Even', { selector: 'text' })).toBeInTheDocument()
     expect(screen.getByText('Higher running energy rate')).toBeInTheDocument()
     expect(screen.getByText('Higher cycling energy rate')).toBeInTheDocument()
 
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual(['Duration', 'Reading', 'Median', '90% range'])
     expect(rows).toEqual([
-      ['1 min', 'Equal', '0%', '-8% to +10%'],
+      ['1 min', 'Even', '0%', '-8% to +10%'],
       ['5 min', 'Running 8% higher than cycling', '+8%', '+2% to +14%'],
       ['20 min', 'Running 3% higher than cycling', '+3%', '-2% to +9%'],
     ])
@@ -52,8 +52,8 @@ describe('RatioChart', () => {
   it('layers the calibrated band over the prior one and adds both legend entries', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(true)} />)
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(within(legend).getByText('Before heart-rate check')).toBeInTheDocument()
-    expect(within(legend).getByText('After heart-rate check')).toBeInTheDocument()
+    expect(within(legend).getByText('Before heart-rate check: 90% range')).toBeInTheDocument()
+    expect(within(legend).getByText('After heart-rate check: 90% range')).toBeInTheDocument()
     expect(
       screen.getByText(
         'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher. Shading shows the 90% model range. The line is the middle estimate.',
@@ -98,12 +98,14 @@ describe('RatioChart', () => {
     expect(screen.queryByRole('img')).toBeNull()
   })
 
-  it('sets the Equal label on the left edge, clear of the lines that end at the right', () => {
-    render(<RatioChart comparison={comparisonFixture(false)} />)
-    const equal = screen.getByText('Equal', { selector: 'text' })
-    const edge = screen.getByText('Higher running energy rate', { selector: 'text' })
-    expect(equal).toHaveAttribute('x', edge.getAttribute('x'))
-    expect(equal).not.toHaveAttribute('text-anchor', 'end')
+  it('names the zero line on the axis, outside the plot, so it does not sit on the bands', () => {
+    const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
+    const even = screen.getByText('Even', { selector: 'text' })
+    expect(even).toHaveClass('chart-y-axis__tick')
+    expect(container.querySelectorAll('.ratio-chart__label').length).toBeGreaterThan(0)
+    expect(
+      Array.from(container.querySelectorAll('.ratio-chart__label')).map((el) => el.textContent),
+    ).not.toContain('Even')
   })
 
   it('distinguishes the two bands by outline as well as fill, so fill alone carries no meaning', () => {
@@ -121,7 +123,7 @@ describe('RatioChart', () => {
 
   it('labels the percentage axis with what the signs mean', () => {
     render(<RatioChart comparison={comparisonFixture(false)} />)
-    expect(screen.getByText('Running above (+) or below (−) cycling, %')).toBeInTheDocument()
+    expect(screen.getByText('Run above (+) or below (−) cycling, %')).toBeInTheDocument()
   })
 
   it('tints the running side coral above the line and the cycling side blue below it', () => {
@@ -152,7 +154,7 @@ describe('RatioChart', () => {
       ),
     ).toBeInTheDocument()
     expect(tableOf(container).rows.map((row) => row[1])).toEqual([
-      'Equal',
+      'Even',
       'Running 8% higher than cycling',
       'Running 3% higher than cycling',
     ])

@@ -26,3 +26,22 @@
 .hr-scatter__dot--ride {
   fill: var(--series-ride);
 }
+
+/* In forced colours the tints go: a run dot is solid and a ride dot hollow, so the sports differ by more than colour. */
+@media (forced-colors: active) {
+  .hr-scatter__dot {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+
+  .hr-scatter__dot--run {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+
+  .hr-scatter__dot--ride {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 2px;
+  }
+}

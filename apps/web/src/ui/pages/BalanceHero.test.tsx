@@ -74,7 +74,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     )
     expect(
       screen.getByText(
-        'Over 20 min, your running is about 12% higher than your cycling once both are put on the same energy scale.',
+        'Over 20 min, your running is about 12% higher than your cycling, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -89,7 +89,9 @@ describe('BalanceHero answer on the energy ratio', () => {
       />,
     )
     expect(
-      screen.getByRole('img', { name: 'Running 12% higher on the energy scale (range 5% to 20%)' }),
+      screen.getByRole('img', {
+        name: 'Running 12% higher, as energy per kilogram (range 5% to 20%)',
+      }),
     ).toBeInTheDocument()
   })
 
@@ -110,7 +112,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Over 20 min, your cycling is about 25% higher than your running once both are put on the same energy scale.',
+        'Over 20 min, your cycling is about 25% higher than your running, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -126,7 +128,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     )
     expect(
       screen.getByRole('img', {
-        name: 'Cycling 25% higher on the energy scale (range 11% to 33%)',
+        name: 'Cycling 25% higher, as energy per kilogram (range 11% to 33%)',
       }),
     ).toBeInTheDocument()
   })
@@ -304,7 +306,21 @@ describe('BalanceHero without a comparison yet', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Add a ride to see your balance' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your running is below.')).toBeInTheDocument()
+    expect(screen.getByText('Your run results are below.')).toBeInTheDocument()
+  })
+
+  it('leaves the file chooser to the empty sport card, so the answer offers none', () => {
+    const run = makeActivity({ sport: 'run' })
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        library={[run]}
+        result={makeResult({ activities: [run], comparison: { prior: [], calibrated: null } })}
+        pick={null}
+        gap={null}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Add rides' })).not.toBeInTheDocument()
   })
 
   it('asks for a run when only rides are present, and points down to the cycling', () => {
@@ -321,24 +337,63 @@ describe('BalanceHero without a comparison yet', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Add a run to see your balance' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Your cycling is below.')).toBeInTheDocument()
+    expect(screen.getByText('Your ride results are below.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add runs' })).not.toBeInTheDocument()
   })
 
-  it('says the efforts must be harder when both sports are present but cannot be compared', () => {
+  it('says there is not enough to compare yet, from the runs and rides on file', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run' })
+    const rides = [1, 2].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
     render(
       <BalanceHero
         {...ALL_TIME}
-        result={makeResult({ comparison: { prior: [], calibrated: null } })}
+        result={makeResult({
+          activities: [run, ...rides],
+          comparison: { prior: [], calibrated: null },
+        })}
         pick={null}
         gap={null}
       />,
     )
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Your balance needs harder efforts' }),
+      screen.getByRole('heading', { level: 1, name: 'Not enough to compare yet' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Both sports are in your files, but no efforts of the same length could be compared yet.',
+        'From 1 run and 2 rides. A hard 20 min run or ride would let them be compared.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('names the dated period in the lede when the period is not all time', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        period={SIX_WEEKS}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+      />,
+    )
+    expect(
+      screen.getByText(
+        '12 May – 3 Aug 2025. Your running grades 6 points higher than your cycling, on your best 20 min in each.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('leaves the dates out of the lede under all time', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+      />,
+    )
+    expect(
+      screen.getByText(
+        'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
   })

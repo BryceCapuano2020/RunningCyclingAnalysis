@@ -1,4 +1,8 @@
 import { keyByContent } from '../contentKeys'
+import './ChartTable.css'
+
+/** Above this many rows the table is a scroll region with a height cap, so a long one does not run the page on. */
+const LONG_ROWS = 12
 
 export interface ChartTableProps {
   columns: string[]
@@ -8,8 +12,15 @@ export interface ChartTableProps {
 
 /** The text twin of a chart: every value a chart shows, in a real table. */
 export function ChartTable({ columns, rows, caption }: ChartTableProps) {
+  // A scroll region with a height cap is reached by keyboard, so a reader can scroll it.
+  const long = rows.length > LONG_ROWS
   return (
-    <div className="table-scroll">
+    <div
+      className={long ? 'table-scroll table-scroll--long' : 'table-scroll'}
+      role={long ? 'region' : undefined}
+      aria-label={long ? (caption ?? 'Table') : undefined}
+      tabIndex={long ? 0 : undefined}
+    >
       <table>
         {caption ? <caption>{caption}</caption> : null}
         <thead>

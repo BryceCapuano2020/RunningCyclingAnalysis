@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { HrCrossCheck, HrPoint, LinearFit } from '@rca/core/types'
 import { hrFixture, hrRunOnlyFixture } from './fixtures'
@@ -59,8 +59,8 @@ describe('HrScatter', () => {
       screen.getByText('Slopes: running 10.0 and cycling 12.0 bpm per W/kg'),
     ).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(legend).toHaveTextContent('Running')
-    expect(legend).toHaveTextContent('Cycling')
+    expect(within(legend).getByText('Run')).toBeInTheDocument()
+    expect(within(legend).getByText('Ride')).toBeInTheDocument()
   })
 
   it('draws cycling dots as diamonds, so the two sports differ in shape as well as colour', () => {
@@ -81,8 +81,8 @@ describe('HrScatter', () => {
     const { headers, rows } = tableAt(container, 0)
     expect(headers).toEqual(['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'])
     expect(rows).toEqual([
-      ['Running', '3', '10.0', '0.95'],
-      ['Cycling', '2', '12.0', '0.90'],
+      ['Run', '3', '10.0', '0.95'],
+      ['Ride', '2', '12.0', '0.90'],
     ])
   })
 
@@ -91,11 +91,11 @@ describe('HrScatter', () => {
     const { headers, rows } = tableAt(container, 1)
     expect(headers).toEqual(['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'])
     expect(rows).toEqual([
-      ['Running', '13.5', '150'],
-      ['Running', '14.5', '160'],
-      ['Running', '15.5', '170'],
-      ['Cycling', '14.0', '140'],
-      ['Cycling', '15.0', '152'],
+      ['Run', '13.5', '150'],
+      ['Run', '14.5', '160'],
+      ['Run', '15.5', '170'],
+      ['Ride', '14.0', '140'],
+      ['Ride', '15.0', '152'],
     ])
   })
 
@@ -116,7 +116,7 @@ describe('HrScatter', () => {
       ),
     ).toBeInTheDocument()
     expect(tableAt(container, 1).rows).toHaveLength(2000)
-    expect(tableAt(container, 0).rows).toEqual([['Running', '2500', '10.0', '0.90']])
+    expect(tableAt(container, 0).rows).toEqual([['Run', '2500', '10.0', '0.90']])
   })
 
   it('spaces the drawn blocks across the whole data, keeps the last block, and keeps both axis extremes', () => {
@@ -182,7 +182,7 @@ describe('HrScatter', () => {
     render(<HrScatter hr={hrFixture} />)
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const tooltip = screen.getByRole('status')
-    expect(tooltip).toHaveTextContent('Running')
+    expect(within(tooltip).getByText('Run')).toBeInTheDocument()
     expect(tooltip).toHaveTextContent('13.5 W/kg')
     expect(tooltip).toHaveTextContent('150 bpm')
   })
@@ -252,7 +252,7 @@ describe('HrScatter with rides held', () => {
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     expect(screen.queryByText(/Slopes:/)).toBeNull()
     expect(screen.queryByText(/Not enough steady heart-rate data for cycling/)).toBeNull()
-    expect(tableAt(container, 0).rows).toEqual([['Running', '3', '10.0', '0.95']])
+    expect(tableAt(container, 0).rows).toEqual([['Run', '3', '10.0', '0.95']])
   })
 
   it('lists only running blocks in the table view, so the table matches what is drawn', () => {
@@ -260,7 +260,7 @@ describe('HrScatter with rides held', () => {
 
     const plotted = tableAt(container, 1).rows
     expect(plotted).toHaveLength(3)
-    expect(plotted.every((row) => row[0] === 'Running')).toBe(true)
+    expect(plotted.every((row) => row[0] === 'Run')).toBe(true)
   })
 
   it('describes the chart as running alone while the rides are held', () => {

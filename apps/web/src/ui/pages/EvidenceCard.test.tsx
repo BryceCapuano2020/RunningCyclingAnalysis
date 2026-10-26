@@ -20,7 +20,7 @@ describe('EvidenceCard evidence gap', () => {
     expect(within(card).getByText('Could be higher')).toBeInTheDocument()
     expect(
       within(card).getByText(
-        'Your best 20 min on the bike reached 80% of your cycling heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
+        'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
       ),
     ).toBeInTheDocument()
   })
@@ -31,7 +31,7 @@ describe('EvidenceCard evidence gap', () => {
     const card = screen.getByRole('region', { name: 'Your run number may be low' })
     expect(
       within(card).getByText(
-        'Your best 20 min running reached 70% of your running heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
+        'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
       ),
     ).toBeInTheDocument()
   })
@@ -42,7 +42,7 @@ describe('EvidenceCard evidence gap', () => {
     const card = screen.getByRole('region', { name: 'Both numbers may be low' })
     expect(
       within(card).getByText(
-        'Your best 20 min reached 70% of your running heart-rate reference and 80% of your cycling one, so neither was probably all-out. A recent race or a hard effort of this length in each sport would sharpen both.',
+        'Your best 20 min reached 70% of your running reference heart rate and 80% of your cycling one, so neither was probably your hardest. A recent race or a hard effort of this length in each sport would sharpen both.',
       ),
     ).toBeInTheDocument()
   })
@@ -64,7 +64,7 @@ describe('EvidenceCard hard efforts', () => {
     expect(within(card).getByText('Hard efforts on file')).toBeInTheDocument()
     expect(
       within(card).getByText(
-        'Heart rate shows your best efforts in both sports were hard ones, not easy days. That makes them hard, but does not prove either was all-out.',
+        'Heart rate shows your best efforts in both sports were hard ones, not easy days. That makes them hard, but does not prove either was your hardest.',
       ),
     ).toBeInTheDocument()
   })

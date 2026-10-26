@@ -1,4 +1,5 @@
 import type { AxisTick, PlotBox } from './chartTypes'
+import { axisFontRem } from './ticks'
 import './ChartYAxis.css'
 
 export interface ChartYAxisProps {
@@ -25,7 +26,7 @@ export function ChartYAxis({ ticks, plot, title, fontSize = 12 }: ChartYAxisProp
           />
           <text
             className="chart-y-axis__tick"
-            style={{ fontSize }}
+            style={{ fontSize: axisFontRem(fontSize) }}
             x={plot.left - 8}
             y={tick.position}
             textAnchor="end"

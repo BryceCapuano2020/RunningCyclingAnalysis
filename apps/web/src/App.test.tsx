@@ -297,13 +297,18 @@ describe('signed-in and unavailable library', () => {
 })
 
 describe('fitness over time', () => {
-  it('is on the Balance page, and shown only once two weeks have a run or ride value', () => {
+  it('is on the Balance page, and shown once a run or ride has a value, in a line while only one week has one', () => {
     showResult()
-    setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, null, null)] })
-    const { unmount } = render(<App />)
+    setSession({ trend: [week(0, null, null)] })
+    const { unmount: unmountEmpty } = render(<App />)
     expect(
       screen.queryByRole('heading', { level: 2, name: 'Best 20 min, week by week' }),
     ).toBeNull()
+    unmountEmpty()
+
+    setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, null, null)] })
+    const { unmount } = render(<App />)
+    expect(screen.getByText(/^Only one week has a value: Run /)).toBeInTheDocument()
     unmount()
 
     setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, 15.2, 14)] })

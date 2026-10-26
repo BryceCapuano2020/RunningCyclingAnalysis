@@ -19,7 +19,15 @@ import {
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import type { SharedMeasure } from './sharedTrendText'
-import { copyOf, formatValue, levelNote, plotted, rideNote, withRideHeld } from './sharedTrendText'
+import {
+  copyOf,
+  formatValue,
+  levelNote,
+  plotted,
+  rideNote,
+  singleValueText,
+  withRideHeld,
+} from './sharedTrendText'
 export type { SharedMeasure } from './sharedTrendText'
 import { lastAtOrBefore } from './hover'
 import { stepBandPath, stepPath } from './paths'
@@ -68,7 +76,7 @@ const LABEL_GAP_PX = 14
 function layout(
   weeks: readonly SharedWeek[],
   measure: SharedMeasure,
-  windowText: string,
+  latestNote: string,
   size: ChartSize,
 ): Layout | null {
   const first = weeks[0]
@@ -91,8 +99,8 @@ function layout(
   const run = pointsOf((week) => week.run)
   const ride = pointsOf((week) => week.ride)
   const labels = [
-    endLabel('run', weeks, run, (week) => week.run, measure, windowText),
-    endLabel('ride', weeks, ride, (week) => week.ride, measure, windowText),
+    endLabel('run', weeks, run, (week) => week.run, measure, latestNote),
+    endLabel('ride', weeks, ride, (week) => week.ride, measure, latestNote),
   ].flatMap((label) => (label === null ? [] : [label]))
   return {
     xs: weeks.map((week) => x(week.endMs)),
@@ -129,7 +137,7 @@ function endLabel(
   points: readonly (Point | null)[],
   pick: (week: SharedWeek) => number | null,
   measure: SharedMeasure,
-  windowText: string,
+  latestNote: string,
 ): EndLabel | null {
   const latest = points.findLastIndex((point) => point !== null)
   const point = points[latest] ?? null
@@ -138,7 +146,7 @@ function endLabel(
   if (point === null || value === null) return null
   return {
     kind,
-    text: `${formatValue(measure, value)}, last ${windowText}`,
+    text: `${formatValue(measure, value)}, ${latestNote}`,
     at: endLabelAt(point, pointBefore(points, latest)),
   }
 }
@@ -150,13 +158,14 @@ function tooltipFor(
   y: number,
   measure: SharedMeasure,
   rideKnown: boolean,
+  bestOf: string,
 ): TooltipContent {
   const rows: TooltipRow[] = [
     week.run === null
-      ? { kind: 'run', label: 'Running', value: '—', note: `No ${SPORT_PLURAL.run} in the window` }
+      ? { kind: 'run', label: 'Run', value: '—', note: `No ${SPORT_PLURAL.run} in the window` }
       : {
           kind: 'run',
-          label: 'Running',
+          label: 'Run',
           value: formatValue(measure, week.run),
           note: levelNote(measure, week.run),
         },
@@ -166,19 +175,19 @@ function tooltipFor(
       week.ride === null
         ? {
             kind: 'ride',
-            label: 'Cycling',
+            label: 'Ride',
             value: '—',
             note: `No ${SPORT_PLURAL.ride} in the window`,
           }
         : {
             kind: 'ride',
-            label: 'Cycling',
+            label: 'Ride',
             value: formatValue(measure, week.ride),
             note: rideNote(measure, week.ride),
           },
     )
   }
-  return { x, y, title: `Week ending ${weekDay(week.endMs)}`, rows }
+  return { x, y, title: `Week ending ${weekDay(week.endMs)}, ${bestOf}`, rows }
 }
 
 /**
@@ -199,11 +208,15 @@ export function SharedTrendChart({
   const effort = `${effortS / 60} minutes`
   const windowText = windowPhrase(windowDays)
   const copy = copyOf(measure, effort, windowText)
+  // The effort's own length, as the trend's end labels and tooltips name it: "best 20 min".
+  const effortMin = `${effortS / 60} min`
+  const latestNote = `best ${effortMin}, last ${windowText}`
+  const bestOf = `best ${effortMin} over ${windowText}`
   // Only an age-graded trend grades cycling through its running equivalent, so only it estimates it.
   const estimate = measure === 'grade'
   const hasData = weeks.filter((week) => week.run !== null || week.ride !== null).length >= 2
   const [active, setActive] = useState<number | null>(null)
-  const layoutOf = sizedOnce((size: ChartSize) => layout(weeks, measure, windowText, size))
+  const layoutOf = sizedOnce((size: ChartSize) => layout(weeks, measure, latestNote, size))
   const hasRun = weeks.some((week) => week.run !== null)
   const hasRide = weeks.some((week) => week.ride !== null)
   const legend: ChartLegendEntry[] = [
@@ -219,12 +232,15 @@ export function SharedTrendChart({
       : []),
   ]
   const note = rideKnown ? copy.note : `${copy.note} Cycling is held until a weight is added.`
+  // One week with a value is named in a line under the chart's own title, since one point shows no trend.
+  const valued = weeks.filter((week) => week.run !== null || week.ride !== null)
+  const single = valued.length === 1 ? valued[0] : undefined
 
   return (
     <ChartFrame
       title={copy.title}
       description={copy.description}
-      legend={legend}
+      legend={single === undefined ? legend : undefined}
       note={hasData ? note : undefined}
       table={{
         caption: copy.caption,
@@ -243,7 +259,13 @@ export function SharedTrendChart({
           ...(rideKnown ? [String(week.rideCount)] : []),
         ]),
       }}
-      empty={hasData ? undefined : (emptyText ?? copy.empty)}
+      empty={
+        single !== undefined
+          ? singleValueText(single, measure, rideKnown)
+          : hasData
+            ? undefined
+            : (emptyText ?? copy.empty)
+      }
       surface={(size) =>
         plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive, lastAtOrBefore)
       }
@@ -257,7 +279,7 @@ export function SharedTrendChart({
             active,
             (index, x, y) => {
               const week = weeks[index]
-              return week ? tooltipFor(week, x, y, measure, rideKnown) : null
+              return week ? tooltipFor(week, x, y, measure, rideKnown, bestOf) : null
             },
             m?.ys,
           ),
@@ -328,14 +350,14 @@ export function SharedTrendChart({
                   className="chart-series__marker chart-series__marker--run"
                   cx={point.x}
                   cy={point.y}
-                  r={i === runLatest ? activeR : markerR}
+                  r={i === runLatest || i === active ? activeR : markerR}
                 />
               ) : null
             })}
             {weeks.map((week, i) => {
               const point = m.ride[i]
               if (!point) return null
-              const r = i === rideLatest ? activeR : markerR
+              const r = i === rideLatest || i === active ? activeR : markerR
               return estimate ? (
                 <circle
                   key={week.endMs}

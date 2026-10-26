@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from '../ui/components/stylesheet'
+import { readStylesheet, ruleBody } from '../ui/components/stylesheet'
 import { contrast, over } from './contrastMath'
 import { colour, declarations, declared, resolved, type Tokens } from './tokenSheet'
 
@@ -56,6 +56,8 @@ const PAIRS: [string, string, number][] = [
   ['text-secondary', 'surface-1', TEXT],
   ['text-muted', 'surface-0', TEXT],
   ['text-muted', 'surface-1', TEXT],
+  ['previous-mark', 'surface-0', GRAPHIC],
+  ['previous-mark', 'surface-1', GRAPHIC],
   ['control-border', 'surface-0', GRAPHIC],
   ['control-border', 'surface-1', GRAPHIC],
   ['control-border', 'surface-2', GRAPHIC],
@@ -257,6 +259,10 @@ describe('record chip contrast', () => {
 })
 
 describe('level ladder stylesheet', () => {
+  it('lets the ladder fill its column rather than stop at a fixed width', () => {
+    expect(ruleBody(ladderCss, '.level-ladder')).not.toMatch(/max-width/)
+  })
+
   it('paints each sport’s band with that sport’s ladder band token', () => {
     expect(declarations(ladderCss, '.level-ladder--run').get('--ladder-band')).toBe(
       'var(--ladder-run-band)',

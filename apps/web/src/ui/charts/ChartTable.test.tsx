@@ -57,4 +57,17 @@ describe('ChartTable', () => {
     const { container } = render(<ChartTable columns={['A']} rows={[['1']]} />)
     expect(container.firstElementChild).toHaveClass('table-scroll')
   })
+
+  it('makes a long table a scroll region a keyboard reader can reach', () => {
+    const rows = Array.from({ length: 13 }, (_, i) => [`Week ${i}`, String(i)])
+    const { container } = render(<ChartTable columns={['Week', 'Value']} rows={rows} />)
+    const region = container.querySelector('.table-scroll')
+    expect(region).toHaveClass('table-scroll--long')
+    expect(region).toHaveAttribute('tabindex', '0')
+  })
+
+  it('leaves a short table out of the focus order, since it does not scroll', () => {
+    const { container } = render(<ChartTable columns={['Week']} rows={[['Week 1']]} />)
+    expect(container.querySelector('.table-scroll')).not.toHaveAttribute('tabindex')
+  })
 })

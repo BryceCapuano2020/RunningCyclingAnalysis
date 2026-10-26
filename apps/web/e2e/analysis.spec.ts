@@ -19,7 +19,7 @@ const BALANCE_METER =
 const BALANCE_TREND = /^(Age grade|Energy rate) of your best 20 minutes, trailing/
 const RUN_CURVE = /^Running flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Cycling power in watts by duration$/
-const ENERGY_SCALE = /^Running and cycling energy rate in W\/kg by duration$/
+const ENERGY_SCALE = /^Running and cycling energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Running compared with cycling by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
 const POWER_ACCURACY = /^Estimated against measured power on climbs$/
@@ -70,6 +70,7 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
 
 test('the cross-sport card names the ride behind its effort and opens to every duration', async ({
   page,
+  isMobile,
 }) => {
   await openSample(page)
 
@@ -79,7 +80,11 @@ test('the cross-sport card names the ride behind its effort and opens to every d
   const details = card.locator('details')
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()
-  await expect(details.getByRole('columnheader', { name: 'Ride effort' })).toBeVisible()
+  // A phone shows the efforts as a list, and a wider screen as a table.
+  const rideEffort = isMobile
+    ? details.getByRole('term').filter({ hasText: 'Ride effort' }).first()
+    : details.getByRole('columnheader', { name: 'Ride effort' })
+  await expect(rideEffort).toBeVisible()
 })
 
 test('the first upload asks for the athlete once, and a later upload after a reload does not', async ({
@@ -245,10 +250,15 @@ test('a chart plot responds to the arrow keys with a tooltip', async ({ page }) 
   await plot.focus()
   await page.keyboard.press('ArrowRight')
 
-  // The toolbar has its own status region, so follow the plot's aria-describedby to its tooltip.
-  const tooltipId = await plot.getAttribute('aria-describedby')
+  // The plot is described by its tooltip and its arrow-key hint. The toolbar has its own status region,
+  // so the tooltip is found by its id, and the hint must resolve to an element of its own.
+  const described = ((await plot.getAttribute('aria-describedby')) ?? '').split(' ')
+  const tooltipId = described.find((id) => id.endsWith('-tooltip'))
+  const hintId = described.find((id) => id.endsWith('-hint'))
   expect(tooltipId).toBeTruthy()
+  expect(hintId).toBeTruthy()
   await expect(page.locator(`[id="${tooltipId}"]`)).toBeVisible()
+  await expect(page.locator(`[id="${hintId}"]`)).toHaveCount(1)
 })
 
 test('removing all activities on the Profile page clears the sample and returns to the landing page', async ({
