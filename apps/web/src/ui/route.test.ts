@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canonicalHash, hrefFor, parseRoute } from './route'
+import { canonicalHash, hashQuery, hrefFor, parseRoute } from './route'
 import type { Route } from './route'
 
 describe('parseRoute', () => {
@@ -65,4 +65,17 @@ describe('canonicalHash', () => {
       expect(canonicalHash(hash)).toBe(hash)
     },
   )
+})
+
+describe('a query on a hash route', () => {
+  it('is not part of the page, so an Activities list keeps its place in the address', () => {
+    expect(parseRoute('#/activities?page=2&sort=distance')).toEqual({ page: 'activities' })
+    expect(parseRoute('#/activities/abc?x=1')).toEqual({ page: 'activity', id: 'abc' })
+    expect(canonicalHash('#/activities?page=2')).toBe('#/activities?page=2')
+  })
+
+  it('reads the query of a hash', () => {
+    expect(hashQuery('#/activities?page=2').get('page')).toBe('2')
+    expect(hashQuery('#/activities').toString()).toBe('')
+  })
 })

@@ -9,7 +9,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { SportCurveChart, TrendChart } from '../charts'
 import { AddSportFiles } from '../components/AddSportFiles'
 import { AgeGradeBlock } from '../components/AgeGradeBlock'
-import { GradeSentence } from '../components/GradeSentence'
+import { recordGradeCell } from '../components/recordGrade'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { SportRecords } from '../components/SportRecords'
 import { StandardsCredit } from '../components/StandardsCredit'
@@ -20,8 +20,8 @@ import { scopeText } from '../components/rangeOptions'
 import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { FLAT_PACE_NOTE, SEX_NOUN, distanceGrade, gapRecordText, sportGrade } from '../grades'
-import type { AgeProfile, GradeOutcome } from '../grades'
+import { FLAT_PACE_NOTE, SEX_NOUN, distanceGrade, sportGrade } from '../grades'
+import type { AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
 import {
@@ -77,15 +77,6 @@ export interface SportPageProps {
   emptyText: string
   /** Adds files, from the action an empty sport page offers. */
   onAddFiles: (files: File[]) => void
-}
-
-/** A record's grade cell: the grade as its sentence, or the words that say why there is none. */
-function gradeCell(sport: Sport, outcome: GradeOutcome | null): ReactNode {
-  if (outcome === null) return null
-  if (outcome.kind === 'graded') {
-    return <GradeSentence sport={sport} grade={outcome.grade} where="record" />
-  }
-  return gapRecordText(sport, outcome)
 }
 
 /** The age grades need a year of birth and a sex: asked once here, under the best efforts. */
@@ -155,7 +146,7 @@ export function SportPage({
   const rows: RecordRow[] = graded.map(({ record, outcome }) =>
     recordRow(sport, record, {
       label: `Best ${recordDurationLabel(record.durationS)}`,
-      grade: gradeCell(sport, outcome),
+      grade: recordGradeCell(sport, outcome),
       change: changeOf(record.durationS),
     }),
   )
@@ -165,7 +156,7 @@ export function SportPage({
     label: `Best ${record.label}`,
     value: record.time,
     sub: record.pace,
-    grade: gradeCell(sport, distanceOutcomes[index] ?? null),
+    grade: recordGradeCell(sport, distanceOutcomes[index] ?? null),
     tags: [],
     change: null,
     activity: record.activity,

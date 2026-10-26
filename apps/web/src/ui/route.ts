@@ -11,8 +11,9 @@ export type Route =
 const SIMPLE_PAGES = ['run', 'ride', 'activities', 'method', 'profile'] as const
 
 export function parseRoute(hash: string): Route {
-  // One trailing slash is ignored, so '#/run/' and '#/run' are the same page.
-  const [first, second, ...rest] = hash.replace(/^#\/?/, '').replace(/\/$/, '').split('/')
+  // A query is not part of the page. One trailing slash is ignored, so '#/run/' and '#/run' are the same page.
+  const path = hash.replace(/^#\/?/, '').split('?')[0]!.replace(/\/$/, '')
+  const [first, second, ...rest] = path.split('/')
   if (first === 'activities' && second && rest.length === 0) {
     try {
       return { page: 'activity', id: decodeURIComponent(second) }
@@ -22,6 +23,12 @@ export function parseRoute(hash: string): Route {
   }
   const simple = SIMPLE_PAGES.find((page) => page === first)
   return simple && !second ? { page: simple } : { page: 'balance' }
+}
+
+/** The query of a hash route, such as '#/activities?page=2', as search parameters. */
+export function hashQuery(hash: string): URLSearchParams {
+  const at = hash.indexOf('?')
+  return new URLSearchParams(at === -1 ? '' : hash.slice(at + 1))
 }
 
 /**

@@ -1,6 +1,7 @@
 import { FLAT_RUN_COST, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { RejectedFile } from '@rca/core/session'
+import { countFlags } from '@rca/core/digest'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import type { AgeProfile } from '../grades'
 
@@ -30,6 +31,7 @@ export function comparisonPoint(overrides: Partial<ComparisonPoint> = {}): Compa
 }
 
 export function makeActivity(overrides: Partial<ActivitySummary> = {}): ActivitySummary {
+  const flags = overrides.flags ?? []
   return {
     id: 'activity-1',
     name: 'Morning run',
@@ -39,8 +41,11 @@ export function makeActivity(overrides: Partial<ActivitySummary> = {}): Activity
     distanceM: 10000,
     elevationGainM: 120,
     hasHeartRate: true,
+    indoor: false,
     powerSource: 'none',
-    flags: [],
+    flags,
+    flagCounts: countFlags(flags),
+    maxHeartRate: null,
     ...overrides,
   }
 }

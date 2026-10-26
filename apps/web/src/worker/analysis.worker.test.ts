@@ -4,6 +4,7 @@ import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
+import { AnalysisSession } from '@rca/core/session'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { Activity, ActivityDigest } from '@rca/core/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -1773,5 +1774,97 @@ describe('route shapes', () => {
       original: false,
     })
     expect(await keptDevice().all()).toEqual([])
+  })
+})
+
+describe('deleting a signed-in activity', () => {
+  it('removes its device copy as well, so it cannot come back after sign-out', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    mocked.deleteActivity.mockResolvedValue(undefined)
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await keptDevice().put(workoutKeyOf(SAMPLE_DIGEST), SAMPLE_DIGEST)
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: `rec-${SAMPLE_DIGEST.id}`,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(mocked.deleteActivity).toHaveBeenCalledWith(`rec-${SAMPLE_DIGEST.id}`, USER_ID)
+    expect(await keptDevice().get(workoutKeyOf(SAMPLE_DIGEST))).toBeNull()
+    expect(messages.at(-1)).toEqual(expect.objectContaining({ type: 'state' }))
+  })
+})
+
+describe('a signed-in delete whose device copy cannot be removed', () => {
+  it('still reports the delete as done, since the account copy is gone', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    mocked.deleteActivity.mockResolvedValue(undefined)
+    const { send } = await startWorker()
+    await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    await keptDevice().put(workoutKeyOf(SAMPLE_DIGEST), SAMPLE_DIGEST)
+    vi.spyOn(keptDevice(), 'remove').mockRejectedValueOnce(new Error('storage refused'))
+
+    const messages = await send({
+      type: 'deleteActivity',
+      id: `rec-${SAMPLE_DIGEST.id}`,
+      userId: USER_ID,
+      settings: SETTINGS,
+    })
+
+    expect(mocked.deleteActivity).toHaveBeenCalledWith(`rec-${SAMPLE_DIGEST.id}`, USER_ID)
+    expect(messages.at(-1)).toEqual(expect.objectContaining({ type: 'state' }))
+    expect(messages.some((message) => message.type === 'error')).toBe(false)
+  })
+})
+
+/** A real multisport file from the corpus, read through a variable specifier so the browser build never resolves node:fs. */
+async function corpusUpload(name: string): Promise<Uint8Array> {
+  const specifier = 'node:fs'
+  const fs = (await import(/* @vite-ignore */ specifier)) as {
+    readFileSync: (path: URL) => Uint8Array
+  }
+  return new Uint8Array(
+    fs.readFileSync(
+      new URL(`../../../../packages/core/test-corpus/fitparse/${name}`, import.meta.url),
+    ),
+  )
+}
+
+describe('rebuilding a multisport leg keeps its session key', () => {
+  it('rebuilds a leg under the session key its import gave it', async () => {
+    const MULTISPORT = await corpusUpload('activity-large-fenxi2-multisport.fit')
+    // The key the import gives this upload's legs, read from a real import of the same bytes.
+    const imported = await new AnalysisSession().addFiles(
+      [new File([new Uint8Array(MULTISPORT)], 'ACTIVITY.FIT')],
+      SETTINGS,
+    )
+    const leg = imported.result?.activities.find((activity) => activity.sport === 'ride')
+    if (leg?.sessionKey === undefined) throw new Error('the import gave the leg no session key')
+
+    const original = parseActivityFile(MULTISPORT, 'ACTIVITY.FIT', undefined, {
+      sessionKey: leg.sessionKey,
+    })
+    if (!original.ok) throw new Error('the upload was refused')
+    const match = original.activities.find((activity) => activity.id === leg.id)
+    if (match === undefined) throw new Error('the upload has no such leg')
+    const stale = { ...digestActivity(match), modelRevision: 1 }
+
+    mocked.downloadActivityFile.mockResolvedValueOnce(MULTISPORT)
+    mocked.listActivities
+      .mockResolvedValueOnce([recordFor(stale, true)])
+      .mockResolvedValueOnce([recordFor({ ...stale, modelRevision: MODEL_REVISION }, true)])
+    const { send } = await startWorker()
+    await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(mocked.createActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionKey: leg.sessionKey }),
+      'run.fit',
+      expect.stringMatching(/^[0-9a-f]{64}$/),
+      USER_ID,
+      `rec-${stale.id}`,
+    )
   })
 })

@@ -578,3 +578,35 @@ describe('distance bests', () => {
     expect(schema.safeParse(run(overrides)).success).toBe(false)
   })
 })
+
+describe('moving time and averages', () => {
+  it('accepts them on a create and on a stored row', () => {
+    const wire = atRevision(MODEL_REVISION, { movingS: 3000, avgHeartRate: 150, avgPowerW: null })
+    expect(ActivityDigestSchema.parse(wire).movingS).toBe(3000)
+    expect(ActivityDigestSchema.parse(wire).avgHeartRate).toBe(150)
+    expect(StoredActivityDigestSchema.parse(wire).avgPowerW).toBeNull()
+  })
+
+  it('reads a digest without them as having none', () => {
+    expect(ActivityDigestSchema.parse(digestWire)).not.toHaveProperty('movingS')
+  })
+
+  it('rejects a negative moving time', () => {
+    expect(() => ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { movingS: -1 }))).toThrow()
+  })
+})
+
+describe('moving time against duration, and the session key', () => {
+  it('rejects a moving time longer than the duration, on a create and on a stored row', () => {
+    const wire = atRevision(MODEL_REVISION, { durationS: 3600, movingS: 3601 })
+    expect(() => ActivityDigestSchema.parse(wire)).toThrow()
+    expect(() => StoredActivityDigestSchema.parse(wire)).toThrow()
+  })
+
+  it('accepts a session key on a create and on a stored row, and reads a digest without one', () => {
+    const wire = atRevision(MODEL_REVISION, { sessionKey: 'brick.fit' })
+    expect(ActivityDigestSchema.parse(wire).sessionKey).toBe('brick.fit')
+    expect(StoredActivityDigestSchema.parse(wire).sessionKey).toBe('brick.fit')
+    expect(ActivityDigestSchema.parse(digestWire)).not.toHaveProperty('sessionKey')
+  })
+})

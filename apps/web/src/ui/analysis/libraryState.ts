@@ -1,5 +1,6 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { SavedActivity } from '../../worker/protocol'
+import { hasRemovedMark } from '../activitiesView'
 import { keptLibraryHinted } from './keptLibrary'
 import type { LibraryStatus } from './model'
 
@@ -26,6 +27,19 @@ export function useLibraryState() {
   useLayoutEffect(() => {
     savedActivitiesRef.current = savedActivities
   }, [savedActivities])
+
+  // A removal's notice or error belongs to the page it was made on. Moving to another page clears it, so
+  // Profile does not show an old "Deleted ..."; a move to the list with the removal's marker keeps it, for
+  // the list to announce.
+  useEffect(() => {
+    const leaving = () => {
+      if (hasRemovedMark(window.location.hash)) return
+      setLibraryNotice(null)
+      setLibraryError(null)
+    }
+    window.addEventListener('hashchange', leaving)
+    return () => window.removeEventListener('hashchange', leaving)
+  }, [])
 
   const setLibrary = useCallback((next: LibraryStatus) => {
     libraryStatusRef.current = next

@@ -31,6 +31,16 @@ export interface SourceImport {
   ) => Promise<void>
 }
 
+/**
+ * The upload's hash, which its legs share as their session key, so two uploads of one name are two
+ * sessions. Where crypto.subtle is unavailable, as on an origin that is not secure (a phone reached over
+ * http on a LAN), there is no hash: the legs then share no session, and the import still reads.
+ */
+export async function sessionHashOf(bytes: Uint8Array): Promise<string | undefined> {
+  if ((globalThis.crypto as Crypto | undefined)?.subtle === undefined) return undefined
+  return sha256Hex(bytes)
+}
+
 /** The part of a refused parse result that the import keeps. */
 function rejectionOf({ reason, code, detail }: { reason: string } & Rejection): Rejection {
   return { reason, code, detail }
@@ -62,12 +72,15 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   const summary = await extractFitFiles(
     source,
     async (file) => {
+      const sessionKey = await sessionHashOf(file.bytes)
       const parsed = parseActivityFile(file.bytes, file.fileName, undefined, {
         activityName: listed?.names.get(entryKey(file.fileName)),
+        sessionKey,
       })
       if (parsed.ok) {
         outcome.activities += parsed.activities.length
-        const fileHash = ctx.hashFiles ? await sha256Hex(file.bytes) : ''
+        // A kept file is hashed as it always was, reusing the session key's hash when one was made.
+        const fileHash = ctx.hashFiles ? (sessionKey ?? (await sha256Hex(file.bytes))) : ''
         const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
         for (const activity of parsed.activities) await ctx.consider(activity, imported)
         // A file that now reads cleanly replaces an earlier rejection under the same name.

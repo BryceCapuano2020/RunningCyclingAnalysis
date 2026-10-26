@@ -43,6 +43,17 @@ const MAX_HR_BLOCKS = Math.floor((MAX_SECONDS - 600) / 300)
 /** Each climb section is at least 120 s and sections do not overlap. */
 const MAX_CLIMB_SECTIONS = Math.floor(MAX_SECONDS / 120)
 
+/**
+ * Moving time and averages, added after the first digests were stored. Older digests lack them and
+ * read as absent, so they carry no model revision.
+ */
+const movingAverageFields = {
+  movingS: z.number().int().nonnegative().optional(),
+  avgHeartRate: nullableNumber.optional(),
+  avgPowerW: nullableNumber.optional(),
+  sessionKey: text.optional(),
+}
+
 const qualityKind = z.enum([
   'hr-dropout',
   'hr-spike',
@@ -160,6 +171,20 @@ function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): 
     }
   })
 }
+/** Moving seconds are a part of the duration: a pause or a record gap is never more than the whole. */
+function checkMovingTime(
+  digest: { durationS: number; movingS?: number },
+  ctx: z.RefinementCtx,
+): void {
+  if (digest.movingS !== undefined && digest.movingS > digest.durationS) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['movingS'],
+      message: 'Moving time exceeds the duration',
+    })
+  }
+}
+
 /** Stored rows may be larger than a create can send, by this factor, and still be read. */
 const STORED_BOUND_FACTOR = 4
 
@@ -201,6 +226,7 @@ export const ActivityDigestSchema = z
     climbSections: z.array(climbSection).max(MAX_CLIMB_SECTIONS),
     distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
     splits: digestSplits(1).optional(),
+    ...movingAverageFields,
   })
   .superRefine((digest, ctx) => {
     digest.curve.forEach((point, index) => {
@@ -228,6 +254,7 @@ export const ActivityDigestSchema = z
       })
     }
     checkDistanceBests(digest, ctx)
+    checkMovingTime(digest, ctx)
   })
 
 /**
@@ -263,11 +290,13 @@ const StoredActivityDigestBase = z.object({
   climbSections: z.array(climbSection).max(MAX_CLIMB_SECTIONS * STORED_BOUND_FACTOR),
   distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
   splits: digestSplits(STORED_BOUND_FACTOR).optional(),
+  ...movingAverageFields,
 })
 
-export const StoredActivityDigestSchema = StoredActivityDigestBase.superRefine((digest, ctx) =>
-  checkDistanceBests(digest, ctx),
-)
+export const StoredActivityDigestSchema = StoredActivityDigestBase.superRefine((digest, ctx) => {
+  checkDistanceBests(digest, ctx)
+  checkMovingTime(digest, ctx)
+})
 
 export type ActivityDigestJson = z.input<typeof ActivityDigestSchema>
 

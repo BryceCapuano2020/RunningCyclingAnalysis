@@ -16,6 +16,7 @@ import {
   formatWatts,
   formatSpeed,
   formatWkg,
+  formatTotalTime,
 } from './format'
 
 const DASH = '—'
@@ -303,5 +304,24 @@ describe('formatTimeOfDay', () => {
     [23, 59, '11:59 pm'],
   ])('shows %i:%i as %s', (hour, minute, text) => {
     expect(formatTimeOfDay(at(hour, minute))).toBe(text)
+  })
+})
+
+describe('formatTotalTime', () => {
+  it('keeps the seconds of a duration under an hour, as formatDuration writes them', () => {
+    expect(formatTotalTime(2530)).toBe(formatDuration(2530))
+    expect(formatTotalTime(2530)).toBe('42 min 10 s')
+  })
+
+  it('writes hours and minutes from an hour on, without seconds', () => {
+    expect(formatTotalTime(6 * 3600 + 33 * 60 + 12)).toBe('6 h 33 m')
+  })
+
+  it('writes whole hours without minutes', () => {
+    expect(formatTotalTime(2 * 3600)).toBe('2 h')
+  })
+
+  it('shows a missing duration as formatDuration does', () => {
+    expect(formatTotalTime(Number.NaN)).toBe(formatDuration(Number.NaN))
   })
 })

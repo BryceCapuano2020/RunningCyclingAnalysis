@@ -7,3 +7,24 @@
 .activities__empty p {
   margin: 0;
 }
+
+.activities__sort {
+  display: inline-grid;
+  gap: var(--space-1);
+  justify-self: start;
+  font-weight: 600;
+}
+
+.activities__sort select {
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.activities__outcome {
+  margin: 0;
+}

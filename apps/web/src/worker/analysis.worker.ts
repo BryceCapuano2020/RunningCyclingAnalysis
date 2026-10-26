@@ -201,6 +201,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       savedRecords.delete(record.id)
       routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
+      // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
+      // account copy is already gone, so a copy that cannot be removed here does not fail the delete.
+      await device.dropKept(activityKey(record.digest)).catch(() => undefined)
       reportLibrary()
       post({ type: 'missingOriginals', count: missingOriginals.size })
       return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)

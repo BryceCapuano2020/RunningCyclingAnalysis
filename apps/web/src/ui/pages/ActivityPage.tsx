@@ -1,40 +1,45 @@
+import { useEffect } from 'react'
 import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import type { Period } from '@rca/core/period'
-import { betweenClause } from '../periodCopy'
 import type { DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import {
-  formatDistance,
-  formatDuration,
-  formatElevation,
-  formatPace,
-  formatSpeed,
-} from '@rca/core/units'
+import { ActivityDelete } from '../components/ActivityDelete'
 import { RouteOffer } from '../components/RouteOffer'
 import { RouteShape as RouteOutline } from '../components/RouteShape'
 import { SportIcon } from '../components/icons'
-import { keyByContent } from '../contentKeys'
 import { formatDay, formatTimeOfDay } from '../format/date'
-import { chipLabels, recordDurationLabel, sportRecords } from '../records'
+import type { AgeProfile } from '../grades'
+import { chipLabels } from '../records'
 import { hrefFor } from '../route'
+import { removedHash } from '../activitiesView'
 import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
 import type { RouteReply } from '../routeReply'
+import { useDeleteOutcome } from '../useDeleteOutcome'
 import { useRouteShape } from '../useRouteShape'
+import { ActivityBests } from './ActivityBests'
+import { ActivityIssues } from './ActivityIssues'
+import { ActivityNav } from './ActivityNav'
+import { ActivityStats } from './ActivityStats'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { RunSplits } from './RunSplits'
 import './ActivityPage.css'
-import { FLAT_PACE_NOTE } from '../grades'
 
 export interface ActivityPageProps {
   /** The activity the URL names, or null when the library does not hold it. The period never hides one. */
   activity: ActivitySummary | null
+  /** The whole library, newest first, so the activities either side of this one can be linked. */
+  library: ActivitySummary[]
   result: AnalysisResult
   units: UnitSystem
-  /** Body mass, kg, for the W/kg of cycling bests. */
+  /** Body mass, kg, for the W/kg of cycling bests. Only used while weightKnown. */
   massKg: number
+  /** False while no body weight is entered: a ride's figures wait for it. */
+  weightKnown: boolean
+  /** The age and sex the grades are worked out with; null before the athlete gives them. */
+  profile: AgeProfile | null
   /** The records each activity holds across the library, keyed by activity id. */
   records: ReadonlyMap<string, readonly EarnedRecord[]>
   /** Asks the worker for a run's splits; a run's splits are not kept in the page's result. */
@@ -45,21 +50,13 @@ export interface ActivityPageProps {
   loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
   /** The period the bests are counted over. The record chips below are all-time, whatever it is. */
   period?: Period
-}
-
-const POWER_LABEL: Record<ActivitySummary['powerSource'], string> = {
-  measured: 'Power meter',
-  virtual: 'Estimated on climbs',
-  none: 'None',
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="activity-page__stat">
-      <dt className="eyebrow">{label}</dt>
-      <dd className="stat-number">{value}</dd>
-    </div>
-  )
+  /** A removal is already running, so Delete waits. */
+  busy?: boolean
+  /** Removes the activity's saved copy. Without it, or without a saved copy, there is no Delete. */
+  onDelete?: (savedId: string) => void
+  /** The library's notice and error, which say how a removal from this page ended. */
+  libraryNotice?: string | null
+  libraryError?: string | null
 }
 
 /**
@@ -75,19 +72,36 @@ function backToList(event: MouseEvent<HTMLAnchorElement>) {
   window.history.back()
 }
 
-/** One activity: its summary, its route, the library bests it set, and any data issues in its file. */
+/**
+ * One activity: its figures, its route, its best efforts and records, its splits, its skipped
+ * readings, and the links that explain its numbers.
+ */
 export function ActivityPage({
   activity,
+  library,
   result,
   units,
   massKg,
+  weightKnown,
+  profile,
   records,
   loadSplits,
   routeId,
   loadRoute,
   period,
+  busy = false,
+  onDelete,
+  libraryNotice = null,
+  libraryError = null,
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
+  const removal = useDeleteOutcome(libraryNotice, libraryError)
+  // Once the library has removed the activity, the list replaces this page in the history, so Back never
+  // lands on an activity that is gone. A failed removal stays here, with its reason beside Delete.
+  const removed = removal.outcome !== null && !removal.outcome.failed
+  useEffect(() => {
+    if (removed) window.location.replace(removedHash())
+  }, [removed])
   if (!activity) {
     return (
       <div className="page-title">
@@ -105,11 +119,11 @@ export function ActivityPage({
   }
 
   const isRun = activity.sport === 'run'
-  // The library's best efforts that this activity set, in the sport's own units.
-  const bests = sportRecords(result, activity.sport, massKg, units).filter(
-    (record) => record.activity?.id === activity.id,
-  )
-  const chips = chipLabels(records.get(activity.id) ?? [])
+  // The period's result holds only the activities in it, so one outside it is not in the result.
+  const inPeriod = result.activities.some((candidate) => candidate.id === activity.id)
+  // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
+  const chips =
+    activity.sport === 'ride' && !weightKnown ? [] : chipLabels(records.get(activity.id) ?? [])
   return (
     <div className="page-stack">
       <div className="page-title">
@@ -125,6 +139,7 @@ export function ActivityPage({
           <span>{SPORT_LABEL[activity.sport]}</span>
           <span>{formatDay(activity.startMs)}</span>
           <span>{formatTimeOfDay(activity.startMs)}</span>
+          {activity.indoor && <span className="chip">Indoor</span>}
         </p>
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
           {activity.name}
@@ -138,26 +153,13 @@ export function ActivityPage({
       />
       {route.kind === 'offer' && <RouteOffer status={route.status} onShow={show} />}
 
-      <dl className="activity-page__stats">
-        <Stat label="Time" value={formatDuration(activity.durationS)} />
-        <Stat label="Distance" value={formatDistance(activity.distanceM, units)} />
-        {activity.elevationGainM > 0 && (
-          <Stat label="Climb" value={formatElevation(activity.elevationGainM, units)} />
-        )}
-        {isRun ? (
-          <Stat
-            label="Avg pace"
-            value={formatPace(activity.distanceM / activity.durationS, units)}
-          />
-        ) : (
-          <Stat
-            label="Avg speed"
-            value={formatSpeed(activity.distanceM / activity.durationS, units)}
-          />
-        )}
-        <Stat label="Heart rate" value={activity.hasHeartRate ? 'Recorded' : 'Not recorded'} />
-        {!isRun && <Stat label="Power" value={POWER_LABEL[activity.powerSource]} />}
-      </dl>
+      <ActivityStats activity={activity} units={units} />
+      {activity.powerSource === 'virtual' && (
+        <p className="secondary">
+          Power here is estimated from speed and climbs. No power meter recorded it.
+        </p>
+      )}
+      <ActivityNav activity={activity} library={library} />
 
       {chips.length > 0 && (
         <div className="activity-page__records" role="group" aria-labelledby="activity-records">
@@ -182,39 +184,35 @@ export function ActivityPage({
         />
       )}
 
-      <section className="section" aria-labelledby="activity-bests">
-        <h2 id="activity-bests">Best efforts set here</h2>
-        {bests.length === 0 ? (
-          <p className="secondary">
-            {`None of your best efforts ${betweenClause(period) || 'in this period'} came from this activity.`}
-          </p>
-        ) : (
-          <dl className="activity-page__stats">
-            {bests.map((best) => (
-              <Stat
-                key={best.durationS}
-                label={`Best ${recordDurationLabel(best.durationS)}`}
-                value={isRun ? `${best.value} flat pace` : best.value}
-              />
-            ))}
-          </dl>
-        )}
-        {isRun && bests.length > 0 && <p className="muted">{FLAT_PACE_NOTE}</p>}
-      </section>
+      <ActivityBests
+        activity={activity}
+        result={result}
+        units={units}
+        massKg={massKg}
+        weightKnown={weightKnown}
+        profile={profile}
+        inPeriod={inPeriod}
+        period={period}
+      />
+      <ActivityIssues activity={activity} />
 
-      {activity.flags.length > 0 && (
-        <section className="section" aria-labelledby="activity-issues">
-          <h2 id="activity-issues">Data issues</h2>
-          <ul className="activity-page__flags">
-            {keyByContent(activity.flags, (flag) => `${flag.kind}:${flag.start}-${flag.end}`).map(
-              ({ key, item: flag }) => (
-                <li key={key}>
-                  {`${flag.message} (${formatDuration(flag.start)} to ${formatDuration(flag.end)})`}
-                </li>
-              ),
-            )}
-          </ul>
-        </section>
+      {routeId !== null && onDelete && (
+        <div className="activity-page__remove">
+          <ActivityDelete
+            savedId={routeId}
+            name={activity.name}
+            busy={busy}
+            onDelete={(savedId) => {
+              removal.begin()
+              onDelete(savedId)
+            }}
+          />
+          {removal.outcome?.failed && (
+            <p role="alert" className="activity-page__outcome">
+              {removal.outcome.text}
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

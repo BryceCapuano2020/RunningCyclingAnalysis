@@ -7,7 +7,8 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import type { DigestSplits } from '@rca/core/types'
 import { curveOf, rideCurveFixture, runCurveFixture } from '../charts/fixtures'
-import { makeActivity, makeResult } from '../components/fixtures'
+import { MAN_BORN_1986, makeActivity, makeResult } from '../components/fixtures'
+import { FLAT_PACE_NOTE } from '../grades'
 import type { RouteReply } from '../routeReply'
 import type { ActivityPageProps } from './ActivityPage'
 import { ActivityPage } from './ActivityPage'
@@ -33,7 +34,7 @@ function resultWith(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
 /** No saved record and no route: the sample, or an activity this visitor has not kept. */
 const NO_ROUTE = { routeId: null, loadRoute: async (): Promise<RouteReply> => ({ kind: 'none' }) }
 
-function renderPage(
+function pageElement(
   activity: ActivitySummary | null,
   result: AnalysisResult = resultWith(),
   units: 'metric' | 'imperial' = 'metric',
@@ -41,21 +42,31 @@ function renderPage(
   loadSplits: (id: string) => Promise<DigestSplits | null> = vi.fn(async () => null),
   route: Pick<ActivityPageProps, 'routeId' | 'loadRoute'> = NO_ROUTE,
   period?: Period,
+  extra: Partial<ActivityPageProps> = {},
 ) {
-  // As in the app, the page's activity is one of the result's activities.
+  // As in the app, the page's activity is one of the result's activities, and of the library.
   const activities = activity ? [activity, ...result.activities] : result.activities
-  return render(
+  return (
     <ActivityPage
       activity={activity}
+      library={activities}
       result={{ ...result, activities }}
       units={units}
       massKg={70}
+      weightKnown
+      profile={MAN_BORN_1986}
       records={records}
       loadSplits={loadSplits}
       period={period}
       {...route}
-    />,
+      {...extra}
+    />
   )
+}
+
+/** Renders the page with the arguments pageElement takes, so a test can rerender it with a delete's outcome. */
+function renderPage(...args: Parameters<typeof pageElement>) {
+  return render(pageElement(...args))
 }
 
 /** The period the bests are counted over, dated from 12 May to 3 August 2025. */
@@ -65,6 +76,13 @@ const DATED: Period = {
   endMs: new Date(2025, 7, 3, 12).getTime(),
   days: 42,
   fellBack: false,
+}
+
+/** The records-list row that names the best effort `label`, such as "Best 5 min". */
+function bestRow(label: string): HTMLElement {
+  const row = screen.getByText(label, { selector: '.records__label' }).closest('li')
+  if (!row) throw new Error(`No record row named `)
+  return row
 }
 
 /** The stat whose label is `label`; its value sits in the same group. */
@@ -119,21 +137,7 @@ const twoKilometres: DigestSplits = {
 }
 
 describe('ActivityPage', () => {
-  it('says the activity is not found, and links back to the list, when the library does not hold it', () => {
-    renderPage(null)
-    const heading = screen.getByRole('heading', { level: 1, name: 'Activity not found' })
-    expect(heading).toHaveAttribute('id', 'page-heading')
-    expect(heading).toHaveAttribute('tabindex', '-1')
-    expect(
-      screen.getByText('It may have been deleted, or it is not in this library.'),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to activities' })).toHaveAttribute(
-      'href',
-      '#/activities',
-    )
-  })
-
-  it('shows a run with its sport, date, time and summary, and a link back to the list', () => {
+  it('shows a run with its heading, sport, day and time, and a link back to the list', () => {
     renderPage(morningRun)
     const heading = screen.getByRole('heading', { level: 1, name: 'Morning run' })
     expect(heading).toHaveAttribute('id', 'page-heading')
@@ -145,16 +149,32 @@ describe('ActivityPage', () => {
     expect(screen.getByText('Run')).toBeInTheDocument()
     expect(screen.getByText('Mon 5 Jan')).toBeInTheDocument()
     expect(screen.getByText('7:30 am')).toBeInTheDocument()
-
-    expect(within(statFor('Time')).getByText('1 h')).toBeInTheDocument()
-    expect(within(statFor('Distance')).getByText('10.00 km')).toBeInTheDocument()
-    expect(within(statFor('Climb')).getByText('120 m')).toBeInTheDocument()
-    expect(within(statFor('Avg pace')).getByText('6:00 /km')).toBeInTheDocument()
-    expect(within(statFor('Heart rate')).getByText('Recorded')).toBeInTheDocument()
-    expect(screen.queryByText('Power', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it('shows no heart rate as not recorded, and leaves out a zero climb', () => {
+  it('leads with the elapsed time when no moving time is kept, with distance, pace and climb', () => {
+    renderPage(morningRun)
+    expect(screen.getByText('Elapsed time', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText('1 h', { selector: 'p' })).toBeInTheDocument()
+    expect(within(statFor('Distance')).getByText('10.00 km')).toBeInTheDocument()
+    expect(within(statFor('Average pace')).getByText('6:00 /km')).toBeInTheDocument()
+    expect(within(statFor('Climb')).getByText('120 m')).toBeInTheDocument()
+  })
+
+  it('leads with the moving time when it is kept, with the elapsed time under it, and paces the moving time', () => {
+    renderPage({ ...morningRun, movingS: 3000 })
+    expect(screen.getByText('Moving time', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText('50 min', { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText('Elapsed 1 h')).toBeInTheDocument()
+    expect(within(statFor('Average pace')).getByText('5:00 /km')).toBeInTheDocument()
+  })
+
+  it('shows average and highest heart rate, and leaves out a missing heart rate and a zero climb', () => {
+    const { unmount } = renderPage(
+      makeActivity({ id: 'activity-1', name: 'Heart run', avgHeartRate: 150, maxHeartRate: 171 }),
+    )
+    expect(within(statFor('Average heart rate')).getByText('150 bpm')).toBeInTheDocument()
+    expect(screen.getByText('Highest 171 bpm')).toBeInTheDocument()
+    unmount()
     renderPage(
       makeActivity({
         id: 'activity-1',
@@ -163,117 +183,361 @@ describe('ActivityPage', () => {
         elevationGainM: 0,
       }),
     )
-    expect(within(statFor('Heart rate')).getByText('Not recorded')).toBeInTheDocument()
+    expect(screen.queryByText('Average heart rate', { selector: 'dt' })).not.toBeInTheDocument()
     expect(screen.queryByText('Climb', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it('shows a ride with its climb and no pace, and its power source', () => {
+  it('shows a ride with its climb and its average speed, and no pace', () => {
     renderPage(powerRide)
-    expect(screen.getByText('Ride')).toBeInTheDocument()
     expect(within(statFor('Climb')).getByText('610 m')).toBeInTheDocument()
-    expect(within(statFor('Power')).getByText('Power meter')).toBeInTheDocument()
-    expect(screen.queryByText('Avg pace', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(within(statFor('Average speed')).getByText('30.0 km/h')).toBeInTheDocument()
+    expect(screen.queryByText('Average pace', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it.each([
-    ['measured', 'Power meter'],
-    ['virtual', 'Estimated on climbs'],
-    ['none', 'None'],
-  ] as const)('names a %s power source as %s', (powerSource, label) => {
-    renderPage({ ...powerRide, powerSource })
-    expect(within(statFor('Power')).getByText(label)).toBeInTheDocument()
+  it("shows a ride's average power when a power meter measured it", () => {
+    renderPage({ ...powerRide, avgPowerW: 210 })
+    expect(within(statFor('Average power')).getByText('210 W')).toBeInTheDocument()
   })
 
-  it('shows a ride with its average speed', () => {
-    renderPage(powerRide)
-    expect(within(statFor('Avg speed')).getByText('30.0 km/h')).toBeInTheDocument()
-    expect(screen.queryByText('Avg pace', { selector: 'dt' })).not.toBeInTheDocument()
+  it('says a ride without a power meter has estimated power, and gives no power figure', () => {
+    renderPage({ ...powerRide, powerSource: 'virtual' })
+    expect(screen.queryByText('Power', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Power here is estimated from speed and climbs. No power meter recorded it.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Average power', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('shows no power for a run', () => {
+    renderPage(morningRun)
+    expect(screen.queryByText('Power', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
   it('shows a run in imperial units', () => {
     renderPage(morningRun, resultWith(), 'imperial')
     expect(within(statFor('Distance')).getByText('6.21 mi')).toBeInTheDocument()
-    expect(within(statFor('Avg pace')).getByText('9:39 /mi')).toBeInTheDocument()
+    expect(within(statFor('Average pace')).getByText('9:39 /mi')).toBeInTheDocument()
   })
 
-  it('explains the flat pace under a run’s best efforts, once', () => {
-    renderPage(morningRun)
-    expect(
-      screen.getAllByText('Flat pace: your pace allowing for hills, as if on level ground.'),
-    ).toHaveLength(1)
+  it('shows an indoor ride as indoor, with no distance or speed to report', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Trainer ride',
+        sport: 'ride',
+        indoor: true,
+        distanceM: 0,
+        elevationGainM: 0,
+      }),
+    )
+    expect(screen.getByText('Indoor')).toBeInTheDocument()
+    expect(screen.queryByText('Distance', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Average speed', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
-  it('lists the run best efforts this activity set, as flat pace', () => {
+  it('lists the run best efforts this activity set, with the pace each was run at', () => {
     renderPage(morningRun)
     expect(
       screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
     ).toBeInTheDocument()
-    expect(within(statFor('Best 1 min')).getByText('4:07 /km flat pace')).toBeInTheDocument()
-    expect(within(statFor('Best 5 min')).getByText('4:31 /km flat pace')).toBeInTheDocument()
-    expect(within(statFor('Best 20 min')).getByText('5:00 /km flat pace')).toBeInTheDocument()
-    expect(within(statFor('Best 1 hour')).getByText('5:37 /km flat pace')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).getByText('4:07 /km')).toBeInTheDocument()
+    expect(within(bestRow('Best 5 min')).getByText('4:31 /km')).toBeInTheDocument()
+    expect(within(bestRow('Best 20 min')).getByText('5:00 /km')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 hour')).getByText('5:37 /km')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).getByText('Flat')).toBeInTheDocument()
+    expect(screen.getAllByText(FLAT_PACE_NOTE)).toHaveLength(1)
+    expect(screen.queryByText(/GAP/)).not.toBeInTheDocument()
   })
 
-  it('lists the ride best efforts this activity set, in watts', () => {
+  it('gives a distance best its level, with a link to How is this graded?', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Tempo run',
+        distanceBests: [{ distanceM: 5000, seconds: 1300 }],
+      }),
+    )
+    expect(bestRow('Best 5 km').querySelector('.records__grade')?.textContent).toMatch(
+      /Recreational|Local|Regional|National|World/,
+    )
+    expect(screen.getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
+      'href',
+      '#/method',
+    )
+  })
+
+  it('says why a ride with estimated power has no power curve', () => {
+    renderPage(
+      makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource: 'virtual' }),
+    )
+    expect(
+      screen.getByText(
+        'No power curve: power on this ride is estimated, and an estimate is made only on climbs.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says a ride with no power data has no power curve', () => {
+    renderPage(
+      makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource: 'none' }),
+    )
+    expect(screen.getByText('No power curve: this ride has no power data.')).toBeInTheDocument()
+  })
+
+  it('shows no speed for an indoor ride, though it has a distance', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Trainer ride',
+        sport: 'ride',
+        indoor: true,
+        distanceM: 20000,
+        elevationGainM: 0,
+      }),
+    )
+    expect(within(statFor('Distance')).getByText('20.00 km')).toBeInTheDocument()
+    expect(screen.queryByText('Average speed', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('names the level each best effort earned, with its grade', () => {
+    renderPage(morningRun)
+    expect(bestRow('Best 20 min').querySelector('.records__grade')?.textContent).toMatch(
+      /Recreational|Local|Regional|National|World/,
+    )
+  })
+
+  it('lists the ride best efforts in watts, marked estimated only when no power meter measured them', () => {
     renderPage(powerRide, resultWith({ rideCurve: rideCurveFixture }))
-    expect(within(statFor('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
-    expect(within(statFor('Best 5 min')).getByText('1,230 W')).toBeInTheDocument()
-    expect(within(statFor('Best 20 min')).getByText('1,050 W')).toBeInTheDocument()
-    // The fixture has no best at one hour, so none is listed.
-    expect(screen.queryByText('Best 1 h', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).getByText('1,400 W')).toBeInTheDocument()
+    expect(within(bestRow('Best 20 min')).getByText('1,050 W')).toBeInTheDocument()
+    expect(within(bestRow('Best 1 min')).queryByText('Estimated')).not.toBeInTheDocument()
+  })
+
+  it('marks a ride best as estimated when its power is estimated', () => {
+    renderPage(
+      { ...powerRide, powerSource: 'virtual' },
+      resultWith({ rideCurve: rideCurveFixture }),
+    )
+    expect(within(bestRow('Best 1 min')).getByText('Estimated')).toBeInTheDocument()
+  })
+
+  it("holds a ride's best efforts until the weight is entered, with the prompt to add it", () => {
+    renderPage(
+      powerRide,
+      resultWith({ rideCurve: rideCurveFixture }),
+      'metric',
+      new Map(),
+      undefined,
+      undefined,
+      undefined,
+      { weightKnown: false },
+    )
+    expect(screen.queryByText('1,400 W')).not.toBeInTheDocument()
+    expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
+  })
+
+  it('shows no ride record chips until the weight is entered', () => {
+    renderPage(
+      powerRide,
+      resultWith(),
+      'metric',
+      new Map([['activity-1', [{ kind: 'duration', durationS: 1200 }]]]),
+      undefined,
+      undefined,
+      undefined,
+      { weightKnown: false },
+    )
+    expect(screen.queryByRole('group', { name: 'All-time records' })).toBeNull()
   })
 
   it('lists only the durations this activity set', () => {
     renderPage(morningRun, resultWith({ runCurve: curveOf({ 300: 15.6 }) }))
-    expect(within(statFor('Best 5 min')).getByText('4:31 /km flat pace')).toBeInTheDocument()
-    expect(screen.queryByText('Best 1 min', { selector: 'dt' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Best 20 min', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(within(bestRow('Best 5 min')).getByText('4:31 /km')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Best 1 min', { selector: '.records__label' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Best 20 min', { selector: '.records__label' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('says so when this activity set none of the bests in the dated period', () => {
-    renderPage(
-      makeActivity({ id: 'run-2', name: 'Easy run' }),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      DATED,
+  it('shows no best efforts section when the activity set none, rather than saying so', () => {
+    renderPage(makeActivity({ id: 'run-2', name: 'Easy run' }))
+    expect(screen.queryByRole('heading', { name: 'Best efforts set here' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/None of your best efforts/)).not.toBeInTheDocument()
+  })
+
+  it('says an activity outside the period is not counted, with the dates of the period', () => {
+    render(
+      <ActivityPage
+        activity={morningRun}
+        library={[morningRun]}
+        result={resultWith()}
+        units="metric"
+        massKg={70}
+        weightKnown
+        profile={MAN_BORN_1986}
+        records={new Map()}
+        loadSplits={vi.fn(async () => null)}
+        routeId={null}
+        loadRoute={NO_ROUTE.loadRoute}
+        period={DATED}
+      />,
     )
     expect(
-      screen.getByText(
-        'None of your best efforts between 12 May and 3 Aug 2025 came from this activity.',
-      ),
+      screen.getByText('Outside 12 May – 3 Aug 2025, so its best efforts are not counted.'),
     ).toBeInTheDocument()
-    expect(screen.queryByText(/flat pace/)).not.toBeInTheDocument()
   })
 
-  it('lists each data issue with the time range it covers', () => {
+  it('lists each skipped reading as a sentence with its clock times, and says how many', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
         name: 'Noisy run',
-        flags: [
-          {
-            kind: 'hr-dropout',
-            start: 65,
-            end: 125,
-            message: 'Heart rate read zero for over ten seconds',
-          },
-          { kind: 'speed-spike', start: 300, end: 301, message: 'Speed jumped to 40 m/s' },
-        ],
+        flags: [{ kind: 'hr-dropout', start: 65, end: 125, message: 'Heart rate read zero' }],
       }),
     )
-    expect(screen.getByRole('heading', { level: 2, name: 'Data issues' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Skipped readings' })).toBeInTheDocument()
+    expect(screen.getByText('1 reading skipped')).toBeInTheDocument()
     expect(
-      screen.getByText('Heart rate read zero for over ten seconds (1 min 5 s to 2 min 5 s)'),
+      screen.getByText(
+        'Heart rate was missing or too low while moving from 1:05 to 2:05. We left those 1 min out.',
+      ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Speed jumped to 40 m/s (5 min to 5 min 1 s)')).toBeInTheDocument()
   })
 
-  it('shows no data issues section when the activity has none', () => {
-    renderPage(makeActivity({ id: 'activity-1', name: 'Clean run', flags: [] }))
-    expect(screen.queryByRole('heading', { name: 'Data issues' })).not.toBeInTheDocument()
+  it('shows no skipped readings when the activity has none', () => {
+    renderPage(morningRun)
+    expect(screen.queryByRole('heading', { name: 'Skipped readings' })).not.toBeInTheDocument()
+  })
+
+  it('says how many are listed when there are more readings skipped than the digest keeps', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Strap run',
+        flags: [{ kind: 'hr-dropout', start: 65, end: 125, message: 'Heart rate read zero' }],
+        flagCounts: { 'hr-dropout': 60 },
+      }),
+    )
+    expect(screen.getByText('60 readings skipped')).toBeInTheDocument()
+    expect(screen.getByText('Showing the first 1 of 60.')).toBeInTheDocument()
+  })
+
+  it('links to the activities either side of this one in the library, and to its sport and method', () => {
+    const day = 86_400_000
+    const newer = makeActivity({
+      id: 'newer',
+      name: 'Newer run',
+      startMs: morningRun.startMs + day,
+    })
+    const older = makeActivity({
+      id: 'older',
+      name: 'Older run',
+      startMs: morningRun.startMs - day,
+    })
+    renderPage(morningRun, resultWith(), 'metric', new Map(), undefined, undefined, undefined, {
+      library: [newer, morningRun, older],
+    })
+    expect(screen.getByRole('link', { name: 'Later: Newer run' })).toHaveAttribute(
+      'href',
+      '#/activities/newer',
+    )
+    expect(screen.getByRole('link', { name: 'Earlier: Older run' })).toHaveAttribute(
+      'href',
+      '#/activities/older',
+    )
+    expect(screen.getByRole('link', { name: 'Your run records' })).toHaveAttribute('href', '#/run')
+    expect(screen.getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
+      'href',
+      '#/method',
+    )
+  })
+
+  it('offers Delete for a saved activity, and asks before it removes the saved copy', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      undefined,
+      { routeId: 'saved-1', loadRoute: NO_ROUTE.loadRoute },
+      undefined,
+      { onDelete },
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    expect(onDelete).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onDelete).toHaveBeenCalledWith('saved-1')
+  })
+
+  it('stays on the activity, and says why, when the delete fails', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    const route = { routeId: 'saved-1', loadRoute: NO_ROUTE.loadRoute }
+    window.history.replaceState(null, '', '#/activities/activity-1')
+    const view = renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      undefined,
+      route,
+      undefined,
+      { onDelete },
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    view.rerender(
+      pageElement(morningRun, resultWith(), 'metric', new Map(), undefined, route, undefined, {
+        onDelete,
+        libraryError: 'Could not delete this activity. Try again.',
+      }),
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not delete this activity. Try again.',
+    )
+    expect(screen.getByRole('heading', { level: 1, name: 'Morning run' })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/activities/activity-1')
+  })
+
+  it('goes to the list once the delete has worked, replacing this page in the history', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    const route = { routeId: 'saved-1', loadRoute: NO_ROUTE.loadRoute }
+    window.history.replaceState(null, '', '#/activities/activity-1')
+    const entries = window.history.length
+    const view = renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      undefined,
+      route,
+      undefined,
+      { onDelete },
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(window.location.hash).toBe('#/activities/activity-1')
+    view.rerender(
+      pageElement(morningRun, resultWith(), 'metric', new Map(), undefined, route, undefined, {
+        onDelete,
+        libraryNotice: 'Deleted Morning run.',
+      }),
+    )
+    await waitFor(() => expect(window.location.hash).toBe('#/activities?removed=1'))
+    expect(window.history.length).toBe(entries)
+    window.history.replaceState(null, '', '#/')
+  })
+
+  it('offers no Delete for an activity that is not saved, as with the sample', () => {
+    renderPage(morningRun)
+    expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument()
   })
 
   it('asks for the splits of the run it shows, and shows them in a Splits section', async () => {

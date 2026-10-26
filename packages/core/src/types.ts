@@ -45,6 +45,11 @@ export interface Activity {
    */
   unrecorded?: Uint8Array
   /**
+   * The file an activity came from, when that file holds more than one activity: the legs of a
+   * multisport session, or the parts of one unit split by a long gap. Absent for a lone activity.
+   */
+  sessionKey?: string
+  /**
    * The outline of an outdoor GPS track, with its position removed. Kept on the device only, never
    * in a digest or sent to the server. See route/routeShape.ts.
    */
@@ -355,6 +360,17 @@ export interface ActivityDigest {
   distanceBests?: DigestDistanceBest[]
   /** Runs only. Absent on rides and on digests made before splits were kept. */
   splits?: DigestSplits
+  /**
+   * Seconds the device was recording: neither paused nor in a record gap, so at most durationS.
+   * Absent on older digests.
+   */
+  movingS?: number
+  /** Mean heart rate over the moving seconds, bpm; null without a heart-rate stream. Absent on older digests. */
+  avgHeartRate?: number | null
+  /** Mean measured power over the moving seconds, W; null without a power meter. Absent on older digests. */
+  avgPowerW?: number | null
+  /** The file this activity came from, when that file holds more than one activity. See Activity.sessionKey. */
+  sessionKey?: string
 }
 
 /** The best run and ride curves of one set of digests. See sportCurves. */
