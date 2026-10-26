@@ -202,7 +202,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Both are self-hosted from `@fontsource` (OFL-1.1), so no third-party font request is made.
 - Headings are condensed and upper case. The page title is 800 weight; the page title and the section
   headings, paragraphs, figure captions and list items are set with `text-wrap: pretty`, so a single word is not left alone on the last line. Section
-  headings are 700.
+  headings are 700. The Balance headline is balanced, and below 360 px it sets at 2rem, one step down,
+  so no word is left alone on a line at 320 px.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
