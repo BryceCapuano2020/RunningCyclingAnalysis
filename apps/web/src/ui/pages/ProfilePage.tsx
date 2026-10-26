@@ -6,6 +6,7 @@ import { AccountSection } from '../components/AccountSection'
 import { AthleteFields } from '../components/AthleteFields'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { FileRetention } from '../components/FileRetention'
+import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { plural } from '../components/plural'
 import { SavedLibraryCard } from '../components/SavedLibraryCard'
@@ -244,6 +245,17 @@ export function ProfilePage({
           </section>
         )
       )}
+
+      <section className="section" aria-labelledby="profile-get-files">
+        <h2 id="profile-get-files">Get your files</h2>
+        <p className="secondary">
+          The files come from the app or device that recorded your activities. Each guide says how
+          to export them.
+        </p>
+        <div>
+          <HowToGetFilesButton />
+        </div>
+      </section>
 
       {signedIn && (
         <section className="section" aria-labelledby="profile-files">

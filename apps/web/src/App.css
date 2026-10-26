@@ -45,6 +45,7 @@
 }
 
 .lede {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.125rem;
   max-width: 62ch;
 }
@@ -55,10 +56,8 @@
   gap: var(--space-2);
   min-height: var(--control-height);
   font-family: var(--font-display);
-  font-size: 1.0625rem;
+  font-size: var(--text-md);
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .app__pitch {
@@ -69,6 +68,7 @@
 }
 
 .app__pitch p {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.0625rem;
 }
 
@@ -118,14 +118,14 @@
   gap: var(--space-2);
   padding-top: var(--space-5);
   border-top: 1px solid var(--border);
-  font-size: 0.8125rem;
-  text-align: center;
+  font-size: var(--text-sm);
+  text-align: start;
 }
 
 .landing__start {
   display: grid;
   gap: var(--space-5);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-landing)), 1fr));
   align-items: start;
 }
 
@@ -142,6 +142,7 @@
 
 .landing-example__title {
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.05;
@@ -160,7 +161,7 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .landing-example__stats dd {
@@ -169,6 +170,7 @@
 
 /* The example's numbers are its first picture, so they are set at the hero size (48 px). */
 .landing-example__stats .stat-number {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 3rem;
 }
 
@@ -187,11 +189,11 @@
   margin: 0;
 }
 
-.landing-example__run {
+.icon.landing-example__run {
   color: var(--series-run);
 }
 
-.landing-example__ride {
+.icon.landing-example__ride {
   color: var(--series-ride);
 }
 
@@ -205,5 +207,5 @@
 
 .file-retention__help {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
 }

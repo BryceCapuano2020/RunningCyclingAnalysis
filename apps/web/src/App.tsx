@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
+import { HowToGetFilesButton } from './ui/components/HowToGetFiles'
 import { AppNotices } from './ui/components/AppNotices'
 import { ImportStatus } from './ui/components/ImportStatus'
 import { SetupDialog } from './ui/components/SetupDialog'
@@ -215,7 +216,12 @@ export function App() {
       <Header
         route={route}
         showTabs={hasResult}
-        addFiles={<AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />}
+        addFiles={
+          <>
+            <AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />
+            <HowToGetFilesButton className="btn header__guides" />
+          </>
+        }
         account={
           <AccountMenu
             status={account.status}
@@ -323,7 +329,6 @@ export function App() {
           initial={athleteValues}
           saving={setup.saving}
           error={setup.saveError}
-          returning={!signedIn && hasResult}
           onConfirm={(patch) => void setup.finish(patch)}
           onSkip={() => void setup.finish({})}
         />

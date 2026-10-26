@@ -8,6 +8,8 @@ export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
+  // The sample's wait (openSample, 20 s) must fit inside a test, so each test gets 60 s.
+  timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   failOnFlakyTests: !!process.env.CI,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',

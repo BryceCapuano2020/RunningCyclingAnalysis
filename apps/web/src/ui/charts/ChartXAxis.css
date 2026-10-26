@@ -10,5 +10,5 @@
 
 .chart-x-axis__title {
   fill: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }

@@ -34,7 +34,7 @@ function colourTable(section: string): Map<string, { light: string; dark: string
 
 /** Spacing, radius, type and shadow tokens are not colours, so they need no table row. */
 const NOT_COLOUR =
-  /^(space-\d|radius(-sm)?$|control-height$|header-height$|tab-bar-height$|font-|shadow$)/
+  /^(space-\d|radius(-sm)?$|control-height$|header-height$|tab-bar-height$|font-|shadow$|text-(xs|sm|md|label)$|tracking-(caps|tab)$|column-landing$)/
 
 const lightRaw = declared(tokensCss, ':root')
 const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
@@ -104,6 +104,11 @@ const PRIVACY_TOKENS: Record<string, string> = {
   muted: 'text-muted',
   link: 'link',
   rule: 'border',
+  'control-height': 'control-height',
+  'mark-tile': 'mark-tile',
+  'mark-ring': 'mark-ring',
+  'series-run': 'series-run',
+  'series-ride': 'series-ride',
 }
 
 describe('privacy page', () => {

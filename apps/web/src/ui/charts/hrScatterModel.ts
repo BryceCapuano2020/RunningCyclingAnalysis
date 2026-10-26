@@ -1,3 +1,4 @@
+import { formatCount } from '../format/count'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
 import { formatWkg } from '@rca/core/units'
 import { SPORT_NOUN, SPORT_TITLE } from '../sports'
@@ -221,7 +222,7 @@ export function layoutCache(
 }
 
 export function thinningNote(total: number, drawn: number): string {
-  return `To keep the chart responsive, ${drawn.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} blocks are plotted, spaced evenly through your data.`
+  return `To keep the chart responsive, ${formatCount(drawn)} of ${formatCount(total)} blocks are plotted, spaced evenly through your data.`
 }
 
 export function tooltipFor(dot: Dot): TooltipContent {

@@ -73,7 +73,13 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
                 {hero.number}
                 <span className="hero-number__unit"> {hero.unit}</span>
               </span>
-              {hero.sub && <span className="sport-card__sub">{hero.sub}</span>}
+              {hero.sub && (
+                <>
+                  {/* Hidden space: the sub-line sits apart on screen, and reads apart in the text too. */}
+                  <span className="sr-only"> </span>
+                  <span className="sport-card__sub">{hero.sub}</span>
+                </>
+              )}
             </p>
           ) : (
             <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>

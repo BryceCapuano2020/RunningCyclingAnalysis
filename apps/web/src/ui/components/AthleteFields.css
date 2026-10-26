@@ -10,9 +10,9 @@
 .athlete-fields__legend {
   padding: 0;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .athlete-fields__hint {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }

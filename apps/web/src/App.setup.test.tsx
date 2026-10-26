@@ -27,8 +27,7 @@ vi.mock('./ui/charts', async () => {
   return { ...heavyChartStubs, ...(await trendCharts()) }
 })
 
-const TITLE = 'Before your first analysis'
-const RETURNING_TITLE = 'A few details'
+const TITLE = 'A few details'
 const SETUP_KEY = 'rca.setup.v1'
 
 function file(name: string): File {
@@ -232,13 +231,12 @@ describe('setup before the first import, signed in', () => {
     expect(app.analysis.addFiles).not.toHaveBeenCalled()
   })
 
-  it('titles the questions "A few details" for a returning signed-out visitor with kept results', () => {
+  it('titles the questions "A few details" when a signed-out visitor drops files with results kept', () => {
     showResult()
     renderSignedOut()
     fireEvent.drop(window, { dataTransfer: { files: [file('ride.gpx')], types: ['Files'] } })
 
-    expect(screen.getByRole('dialog', { name: RETURNING_TITLE })).toBeInTheDocument()
-    expect(dialog()).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: TITLE })).toBeInTheDocument()
   })
 
   it('asks at once while the account is still loading, and still asks once it is signed in', () => {

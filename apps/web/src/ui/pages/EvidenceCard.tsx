@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { EffortCheck } from '@rca/core/types'
-import { effortCaveat, hardEffortsOnFile } from '../components/headlineText'
+import { effortCaveat, hardEffortsOnFile } from '../effortCaveat'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from '../components/icons'
 import { hrefFor } from '../route'
 

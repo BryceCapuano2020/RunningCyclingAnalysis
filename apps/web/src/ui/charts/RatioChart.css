@@ -51,7 +51,7 @@
  */
 .ratio-chart__label {
   fill: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   paint-order: stroke;
   stroke: var(--surface-0);
   stroke-width: 3px;

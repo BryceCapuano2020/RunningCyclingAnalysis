@@ -14,7 +14,7 @@
 
 .account-section__status {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 /* Deleting the account is set apart from the everyday actions above it. */

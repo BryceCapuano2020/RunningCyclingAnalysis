@@ -10,7 +10,7 @@
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.4;
   pointer-events: none;
 }
@@ -66,5 +66,5 @@
   width: 100%;
   padding-left: 18px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }

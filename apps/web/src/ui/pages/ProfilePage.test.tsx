@@ -714,3 +714,10 @@ describe('ProfilePage privacy', () => {
     expect(screen.queryByText(/Nothing is uploaded/)).not.toBeInTheDocument()
   })
 })
+
+describe('Profile guides', () => {
+  it('offers the export guides, so a visitor can find the files to add', () => {
+    renderProfile()
+    expect(screen.getByRole('button', { name: 'How to get your files' })).toBeInTheDocument()
+  })
+})

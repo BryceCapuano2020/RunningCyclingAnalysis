@@ -42,11 +42,13 @@
   margin-left: var(--space-3);
   color: var(--text-secondary);
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.25rem;
   font-weight: 700;
 }
 
 /* The unit sits at about 40% of the numeral's size, on the same baseline. */
 .sport-card .hero-number__unit {
+  /* The unit sits at about 40% of the numeral, on its baseline; see DESIGN.md. */
   font-size: 0.4em;
 }

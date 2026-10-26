@@ -25,8 +25,6 @@ export interface SetupDialogProps {
   saving?: boolean
   /** Why the answers could not be stored. The dialog stays open with what was typed. */
   error?: string | null
-  /** A signed-out visitor whose results are already kept in this browser gets a lighter heading. */
-  returning?: boolean
   /** Receives only the fields the athlete changed, so a save leaves the others alone. */
   onConfirm: (patch: ProfilePatch) => void
   /** Escape and Skip. Nothing the athlete typed is kept. */
@@ -58,7 +56,6 @@ export function SetupDialog({
   initial,
   saving = false,
   error = null,
-  returning = false,
   onConfirm,
   onSkip,
 }: SetupDialogProps) {
@@ -174,7 +171,7 @@ export function SetupDialog({
     >
       <form className="setup-dialog__form" onSubmit={handleSubmit} noValidate>
         <h2 id={titleId} ref={headingRef} tabIndex={-1}>
-          {returning ? 'A few details' : 'Before your first analysis'}
+          A few details
         </h2>
         <p id={helpId} className="setup-dialog__help">
           Your weight puts rides and runs on one scale. Age and sex are optional: they set your

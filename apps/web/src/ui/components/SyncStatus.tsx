@@ -1,3 +1,4 @@
+import { formatCount } from '../format/count'
 import { useState } from 'react'
 import { MAX_ACTIVITIES_PER_USER, MAX_FILE_BYTES } from '@rca/contract'
 import type { SyncIssue } from '@rca/core/session'
@@ -36,7 +37,7 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'account-changed':
       return `Your account changed in another tab, so ${activities} ${wereOrWas} not saved. Reload this page.`
     case 'activity-quota':
-      return `Your library is full (${MAX_ACTIVITIES_PER_USER.toLocaleString('en-US')} activities), so ${activities} ${wereOrWas} not saved. Delete older activities to make room.`
+      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities), so ${activities} ${wereOrWas} not saved. Delete older activities to make room.`
     case 'storage-quota':
       return `Your original-file storage is full, so ${originals} ${wereOrWas} not kept. ${summaries}`
     case 'storage-budget':

@@ -7,7 +7,7 @@
 
 .share-image__note {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .share-sheet {
@@ -60,6 +60,6 @@
 
 .share-sheet__status {
   min-height: 1.5rem;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }

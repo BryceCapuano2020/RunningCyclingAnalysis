@@ -5,6 +5,7 @@ import {
   COMPACT_PHONE_MAX_WIDTH_PX,
   NARROW_PHONE_MAX_WIDTH_PX,
   PHONE_MAX_WIDTH_PX,
+  HEADER_GUIDES_MIN_WIDTH_PX,
   SMALL_PHONE_MAX_WIDTH_PX,
 } from '../layoutBreakpoints'
 import { GoogleSignInButton } from './GoogleSignInButton'
@@ -125,7 +126,7 @@ describe('Header on a phone', () => {
     const tab = /\.header__tab \{([^}]*)\}/.exec(phoneBlock(headerCss))?.[1] ?? ''
     expect(tab).toMatch(/flex:\s*1 1 0/)
     expect(tab).toMatch(/min-width:\s*0/)
-    expect(tab).toMatch(/font-size:\s*0\.9375rem/)
+    expect(tab).toMatch(/font-size:\s*var\(--text-label\)/)
   })
 
   it('fits Activities, the longest label, in its tab slot at 320 px with the small label size, and at 361 px with the phone size, at 100% text', () => {
@@ -133,9 +134,11 @@ describe('Header on a phone', () => {
     const gap = spacePx(tokensCss, 'space-1')
     const padding = spacePx(tokensCss, 'space-1')
     const slot = (bar: number) => (bar - 3 * gap) / 4 - 2 * padding
+    // A size is a literal in a block, or the phone label token, which tokens.css holds.
     const fontPx = (block: string) => {
-      const rem = /\.header__tab \{[^}]*font-size:\s*([\d.]+)rem/.exec(block)?.[1]
-      return Number(rem) * 16
+      const literal = /\.header__tab \{[^}]*font-size:\s*([\d.]+)rem/.exec(block)?.[1]
+      const token = /--text-label:\s*([\d.]+)rem/.exec(tokensCss)?.[1]
+      return Number(literal ?? token) * 16
     }
     const narrowest = 320
     const smallFont = fontPx(smallPhoneBlock(headerCss))
@@ -163,6 +166,7 @@ describe('Header on a phone', () => {
     expect(headerCss).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
     expect(headerCss).toContain(`@media (max-width: ${NARROW_PHONE_MAX_WIDTH_PX}px)`)
     expect(headerCss).toContain(`@media (max-width: ${SMALL_PHONE_MAX_WIDTH_PX}px)`)
+    expect(headerCss).toContain(`@media (min-width: ${HEADER_GUIDES_MIN_WIDTH_PX}px)`)
   })
 
   it('drops only the fade once the bar is scrolled to its end: the labels stay left-aligned', () => {
@@ -215,7 +219,7 @@ describe('Header profile link', () => {
 describe('Header', () => {
   it('links the wordmark home', () => {
     render(<Header route={null} />)
-    expect(screen.getByRole('link', { name: 'RunningCyclingAnalysis' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Running Cycling Analysis' })).toHaveAttribute(
       'href',
       '#/',
     )
@@ -268,12 +272,26 @@ describe('Header', () => {
         account={<button type="button">Sign in</button>}
       />,
     )
-    const brand = screen.getByRole('link', { name: 'RunningCyclingAnalysis' })
+    const brand = screen.getByRole('link', { name: 'Running Cycling Analysis' })
     const addFiles = screen.getByRole('button', { name: 'Add files' })
     const profile = screen.getByRole('link', { name: 'Profile' })
     const tabs = screen.getByRole('navigation', { name: 'Sections' })
     expect(follows(brand, addFiles)).toBe(true)
     expect(follows(addFiles, profile)).toBe(true)
     expect(follows(profile, tabs)).toBe(true)
+  })
+})
+
+describe('Header glyphs and wordmark', () => {
+  it('gives every tab a glyph, so the four tabs read as one set', () => {
+    render(<Header route={{ page: 'balance' }} />)
+    const tabs = within(screen.getByRole('navigation', { name: 'Sections' })).getAllByRole('link')
+    expect(tabs).toHaveLength(4)
+    for (const tab of tabs) expect(tab.querySelector('svg')).not.toBeNull()
+  })
+
+  it('spells the wordmark in words, so it does not read as a file name', () => {
+    render(<Header route={{ page: 'balance' }} />)
+    expect(screen.getByRole('link', { name: 'Running Cycling Analysis' })).toBeInTheDocument()
   })
 })

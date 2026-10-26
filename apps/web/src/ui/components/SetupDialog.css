@@ -30,7 +30,7 @@
 }
 
 .setup-dialog__note {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 /* The answers and the buttons stay in view while a phone's keyboard covers the middle. */
@@ -53,5 +53,5 @@
 
 .setup-dialog__error {
   color: var(--status-critical);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }

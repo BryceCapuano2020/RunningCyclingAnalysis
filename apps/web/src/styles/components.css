@@ -41,14 +41,15 @@
 
 .eyebrow {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
 .hero-number {
   display: block;
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: clamp(3rem, 9vw, 4.5rem);
   font-weight: 800;
   line-height: 0.9;
@@ -56,6 +57,7 @@
 }
 
 .stat-number {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.05;
@@ -70,9 +72,9 @@
   border-radius: 4px;
   background: var(--surface-2);
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
@@ -126,18 +128,31 @@
   cursor: not-allowed;
 }
 
+/* A button is a sentence, so it is set in sentence case, not capitals. */
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-contrast);
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
+/* The hover is a visible change in both schemes: the fill moves to --accent-hover. */
 .btn-primary:hover {
-  background: var(--accent);
-  filter: brightness(1.1);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* A unit is set apart from its figure, so a capitalised heading does not turn "/mi" into "/MI". */
+.unit {
+  text-transform: none;
+}
+
+/* The shared stack for a balance meter and a level ladder: a figure with no margin of its own. */
+.scale-figure {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  overflow: visible;
 }
 
 .swatch {

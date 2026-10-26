@@ -10,7 +10,7 @@
 .segmented-control__legend {
   padding: 0;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 /* The options share the row and never wrap onto a second row, so the segments stay one control. */
@@ -30,7 +30,7 @@
   min-width: 0;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--control-border);
   background: var(--surface-1);

@@ -92,7 +92,7 @@ describe('SplitsTable', () => {
       }),
     )
     const rows = bodyRows()
-    expect(within(rows[2]!).getByRole('rowheader', { name: '0.42 km' })).toBeInTheDocument()
+    expect(within(rows[2]!).getByRole('rowheader', { name: '0.4 km' })).toBeInTheDocument()
     expect(within(rows[2]!).getByText('5:21 /km')).toBeInTheDocument()
   })
 

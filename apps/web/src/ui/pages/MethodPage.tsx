@@ -9,12 +9,8 @@ import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
 import { pickHeadline } from '../components'
-import {
-  hardEffortsOnFile,
-  headlineBasis,
-  headlineText,
-  referenceText,
-} from '../components/headlineText'
+import { headlineBasis, headlineText, referenceText } from '../components/headlineText'
+import { hardEffortsOnFile } from '../effortCaveat'
 import { CheckIcon, WarningIcon } from '../components/icons'
 import { Methodology, TopicBody } from '../components/Methodology'
 import { HOW_THIS_WORKS, SECTION_ID } from '../components/methodTopics'

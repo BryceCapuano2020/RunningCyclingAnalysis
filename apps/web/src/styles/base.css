@@ -2,7 +2,7 @@
 :root {
   color-scheme: light;
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: var(--text-md);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -41,6 +41,7 @@ h3 {
 }
 
 h1 {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: clamp(2.25rem, 6vw, 3.5rem);
   font-weight: 800;
   line-height: 0.95;
@@ -49,6 +50,7 @@ h1 {
 }
 
 h2 {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.05;
@@ -56,6 +58,7 @@ h2 {
 }
 
 h3 {
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -92,7 +95,7 @@ select {
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 th,

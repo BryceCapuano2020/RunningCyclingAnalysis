@@ -56,7 +56,7 @@ export function BalanceMeter({ reading }: BalanceMeterProps) {
   )
 
   return (
-    <figure className={`balance-meter balance-meter--${lean}`}>
+    <figure className={`scale-figure balance-meter balance-meter--${lean}`}>
       <div className="balance-meter__plot" role="img" aria-label={balanceSentence(reading)}>
         <span className="balance-meter__flag" style={{ left: `${percentAt(lead.centre)}%` }}>
           {flag}

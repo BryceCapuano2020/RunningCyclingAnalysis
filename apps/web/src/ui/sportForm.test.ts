@@ -16,7 +16,7 @@ describe('formLine', () => {
       makeActivity({ id: 'c', sport: 'ride', startMs: WED_14_JAN + 1000, distanceM: 40000 }),
     ]
     expect(formLine(activities, 'run', 'metric', NOW)).toBe(
-      'Last run Wed 14 Jan · 2 runs · 15.00 km',
+      'Last run Wed 14 Jan · 2 runs · 15.0 km',
     )
   })
 
@@ -25,7 +25,7 @@ describe('formLine', () => {
       makeActivity({ id: 'r', sport: 'ride', startMs: MON_5_JAN, distanceM: 16093.44 }),
     ]
     expect(formLine(activities, 'ride', 'imperial', NOW)).toBe(
-      'Last ride Mon 5 Jan · 1 ride · 10.00 mi',
+      'Last ride Mon 5 Jan · 1 ride · 10.0 mi',
     )
   })
 
@@ -34,7 +34,7 @@ describe('formLine', () => {
       makeActivity({ id: 'a', sport: 'run', startMs: MON_5_JAN, distanceM: 5000 }),
     ]
     expect(formLine(activities, 'run', 'metric', new Date(2027, 0, 1).getTime())).toBe(
-      'Last run Mon 5 Jan 2026 · 1 run · 5.00 km',
+      'Last run Mon 5 Jan 2026 · 1 run · 5.0 km',
     )
   })
 
@@ -43,7 +43,7 @@ describe('formLine', () => {
       makeActivity({ id: 'a', sport: 'run', startMs: THU_15_MAY_2025, distanceM: 5000 }),
     ]
     expect(formLine(activities, 'run', 'metric', new Date(2025, 9, 1).getTime())).toBe(
-      'Last run Thu 15 May · 1 run · 5.00 km',
+      'Last run Thu 15 May · 1 run · 5.0 km',
     )
   })
 

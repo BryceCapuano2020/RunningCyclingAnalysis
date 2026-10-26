@@ -544,3 +544,10 @@ describe('SportCard links', () => {
     )
   })
 })
+
+describe('SportCard hero sub-line', () => {
+  it('keeps the watts and the W/kg apart in the text, as they are apart on screen', () => {
+    renderCard('ride', makeResult({ activities: [rideOnFriday] }))
+    expect(cardNamed('Ride').textContent).toContain('48 W 0.6 W/kg')
+  })
+})
