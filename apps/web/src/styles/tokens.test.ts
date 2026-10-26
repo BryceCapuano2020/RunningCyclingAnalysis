@@ -100,28 +100,35 @@ describe('colour tokens', () => {
   })
 })
 
-/** The privacy page's custom properties, mapped to the tokens they copy. */
+/** The privacy page's colour properties, mapped to the tokens they copy in each theme. */
 const PRIVACY_TOKENS: Record<string, string> = {
   page: 'surface-0',
   ink: 'text-primary',
   muted: 'text-muted',
   link: 'link',
   rule: 'border',
-  'control-height': 'control-height',
   'mark-tile': 'mark-tile',
   'mark-ring': 'mark-ring',
   'series-run': 'series-run',
   'series-ride': 'series-ride',
 }
 
+/** The privacy page's sizes, which no theme changes, mapped to the tokens they copy. */
+const PRIVACY_SIZES: Record<string, string> = {
+  'control-height': 'control-height',
+  'text-lead': 'text-lead',
+}
+
 describe('privacy page', () => {
   const privacyLight = declared(privacyCss, ':root')
   const privacyDark = declared(privacyCss, ":root:not([data-theme='light'])")
 
-  it('declares exactly the mapped properties in each theme', () => {
-    const names = Object.keys(PRIVACY_TOKENS).sort()
-    expect([...privacyLight.keys()].sort()).toEqual(names)
-    expect([...privacyDark.keys()].sort()).toEqual(names)
+  it('declares the colours and sizes in light, and only the colours in dark', () => {
+    const colours = Object.keys(PRIVACY_TOKENS)
+    expect([...privacyLight.keys()].sort()).toEqual(
+      [...colours, ...Object.keys(PRIVACY_SIZES)].sort(),
+    )
+    expect([...privacyDark.keys()].sort()).toEqual(colours.sort())
   })
 
   it.each(Object.entries(PRIVACY_TOKENS))(
@@ -131,6 +138,10 @@ describe('privacy page', () => {
       expect(privacyDark.get(name)).toBe(dark.get(token))
     },
   )
+
+  it.each(Object.entries(PRIVACY_SIZES))('--%s matches --%s in tokens.css', (name, token) => {
+    expect(privacyLight.get(name)).toBe(light.get(token))
+  })
 })
 
 /** The marks that sit on a running or cycling tint in the ratio chart, and the least ratio each reaches. */
