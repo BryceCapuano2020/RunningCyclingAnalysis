@@ -376,7 +376,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
-  figure has not moved. It is absent for All time. A record with no grade leaves its grade slot empty, so
+  figure has not moved. It is absent for All time. A record with no grade leaves its grade out, so
   every row keeps the same columns. A sport page's and an activity page's list says a ride's "Estimated
   through its running equivalent" and a run's "No age standard under 1 mile" once, under the list, and
   each row then reads only its level.
@@ -601,9 +601,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   marked Flat and noted: "Flat pace: your pace allowing for hills, as if on level ground." A ride's grade
   is estimated through its running equivalent, so its line starts "Estimated", it shows its 90% range in
   brackets, and a range that crosses a band names both levels ("Local to Regional"). The card's caption
-  says the bracketed range is the 90% range. A ride record says the grade is "Estimated through its
-  running equivalent" in full, because a row stands on its own. Thresholds are always estimated. The
-  Method page is the one place that explains the estimates.
+  says the bracketed range is the 90% range. A ride's record list names "Estimated through its running
+  equivalent" once, under the list, not on each row. Thresholds are always estimated. The Method page is
+  the one place that explains the estimates.
 - **Every grade names its standard.** Sport pages' captions and the ladder's label say "on the USATF road
   standards", and that name links to the age grades on How sure is this?. A sport page's caption then
   ends "A level, not a ranking.", so the page says what a grade is. A Balance card leaves the standard

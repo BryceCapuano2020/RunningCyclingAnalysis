@@ -157,6 +157,14 @@ describe('EquivalenceTable', () => {
     )
   })
 
+  it('keeps the columns 8 px apart above the small-text width, so an imperial range fits at 390 and 396 px', () => {
+    // The base rules are those before the first media query; the labels and the rows share their gap.
+    const base = equivalenceCss.slice(0, equivalenceCss.indexOf('@media'))
+    expect(base).toMatch(
+      /\.equivalence-list__labels,\s*\.equivalence-list dl \{[^}]*gap:\s*var\(--space-1\) var\(--space-2\);/,
+    )
+  })
+
   it('takes its width from layoutBreakpoints.ts, past a 375 px phone, and names it beside the query', () => {
     expect(EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX).toBeGreaterThanOrEqual(375)
     expect(equivalenceCss).toContain(`@media (max-width: ${EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX}px)`)

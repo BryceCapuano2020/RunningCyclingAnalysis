@@ -4,6 +4,7 @@ import { DAY_MS } from '@rca/core/constants'
 import { levelOf } from '@rca/core/grade'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { HELD_EMPTY } from './sharedTrendText'
 import { SharedTrendChart } from './SharedTrendChart'
 import type { SharedTrendChartProps } from './SharedTrendChart'
@@ -302,6 +303,10 @@ describe('SharedTrendChart', () => {
     const { container } = renderChart()
     expect(container.querySelector('.chart-y-axis__title')).toHaveTextContent('Age grade')
     expect(container.querySelector('.chart-x-axis__title')).toBeNull()
+    // With no x title the plot leaves room only for the tick labels, as TrendChart's does.
+    expect(Number(container.querySelector('.chart-x-axis__tick')?.getAttribute('y'))).toBe(
+      320 - PLOT_BOTTOM_WITHOUT_X_TITLE + 18,
+    )
   })
 
   it('says how each line steps in the table caption, and not beneath the chart', () => {

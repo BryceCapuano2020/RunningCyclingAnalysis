@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { TrendChart } from './TrendChart'
 
 const WEEK_MS = 7 * 86_400_000
@@ -91,7 +92,7 @@ describe('TrendChart', () => {
     expect(container.querySelectorAll('[data-testid="trend-line"]')).toHaveLength(1)
   })
 
-  it('labels the vertical axis in pace, faster up, and the date axis with each week’s end', () => {
+  it('labels the vertical axis in pace, faster up, and the weeks by their end dates', () => {
     const { container } = render(
       <TrendChart
         sport="run"
@@ -115,8 +116,12 @@ describe('TrendChart', () => {
     expect(
       Array.from(container.querySelectorAll('.chart-x-axis__tick')).map((t) => t.textContent),
     ).toEqual(['12 Jan', '19 Jan', '26 Jan', '2 Feb', '9 Feb', '16 Feb'])
-    // The tick labels are the dates, so the date axis has no title of its own.
+    // The tick labels are the dates, so the date axis has no title of its own, and the plot leaves room
+    // only for them: they sit 18 px below the plot, which ends the untitled margin above the chart's foot.
     expect(container.querySelector('.chart-x-axis__title')).toBeNull()
+    expect(Number(container.querySelector('.chart-x-axis__tick')?.getAttribute('y'))).toBe(
+      320 - PLOT_BOTTOM_WITHOUT_X_TITLE + 18,
+    )
   })
 
   it('marks each weekly value, and labels the latest one', () => {

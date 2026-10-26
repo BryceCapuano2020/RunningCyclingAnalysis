@@ -37,6 +37,7 @@ import {
   sportYAxis,
   usable,
 } from './sportAxis'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { trendDateTicks } from './trendTicks'
 import { STEPPED_LINE_TEXT, weekDay, windowPhrase } from './trendText'
 import { axisFontSize, fitTicks } from './ticks'
@@ -233,6 +234,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
 
   return (
     <ChartFrame
+      plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={titleOf(sport, units, effort, windowText)}
       description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'flat pace, faster up'}.`}
       note={hasData ? STEPPED_LINE_TEXT : undefined}

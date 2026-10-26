@@ -30,6 +30,8 @@ export interface ChartFrameProps {
   note?: string
   /** Right margin of the plot, as a function of width. Default 16 px. */
   plotRightMargin?: (width: number) => number
+  /** Bottom margin of the plot, which holds the x-axis title. A chart with no x title passes PLOT_BOTTOM_WITHOUT_X_TITLE. */
+  plotBottomMargin?: number
   /** The static drawing: gridlines, axes and marks. Exposed to screen readers as one image. */
   children: (size: ChartSize) => ReactNode
   /** Interactive layer, drawn above the drawing: the focusable plot surface. */
@@ -67,6 +69,7 @@ export function ChartFrame({
   keyNote,
   note,
   plotRightMargin,
+  plotBottomMargin,
   children,
   surface,
   overlay,
@@ -79,7 +82,7 @@ export function ChartFrame({
   const size: ChartSize = {
     width,
     height,
-    plot: plotBoxOf(width, height, rightMargin),
+    plot: plotBoxOf(width, height, rightMargin, plotBottomMargin),
     tooltipId: `${id}-tooltip`,
     titleId,
     hintId,
