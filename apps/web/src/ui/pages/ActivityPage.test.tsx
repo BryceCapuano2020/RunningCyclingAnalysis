@@ -210,6 +210,16 @@ describe('ActivityPage', () => {
     expect(screen.queryByText('Average power', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
+  it('guards an average power that carries estimated watts, as estimated', () => {
+    renderPage({ ...powerRide, powerSource: 'virtual', avgPowerW: 180 })
+    expect(within(statFor('Average power')).getByText('Estimated')).toBeInTheDocument()
+  })
+
+  it("leaves the mark off a ride's average power when a power meter measured it", () => {
+    renderPage({ ...powerRide, avgPowerW: 210 })
+    expect(within(statFor('Average power')).queryByText('Estimated')).not.toBeInTheDocument()
+  })
+
   it('shows no power for a run', () => {
     renderPage(morningRun)
     expect(screen.queryByText('Power', { selector: 'dt' })).not.toBeInTheDocument()
@@ -391,20 +401,109 @@ describe('ActivityPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('lists each skipped reading as a sentence with its clock times, and says how many', () => {
+  it('groups the skipped readings by kind, one line for each kind, with the times of its readings', () => {
     renderPage(
       makeActivity({
         id: 'activity-1',
         name: 'Noisy run',
-        flags: [{ kind: 'hr-dropout', start: 65, end: 125, message: 'Heart rate read zero' }],
+        flags: [
+          { kind: 'hr-dropout', start: 65, end: 125, message: 'Heart rate read zero' },
+          { kind: 'speed-spike', start: 300, end: 301, message: 'GPS jumped' },
+          { kind: 'hr-dropout', start: 600, end: 630, message: 'Heart rate read zero' },
+        ],
+        flagCounts: { 'hr-dropout': 2, 'speed-spike': 1 },
       }),
     )
     expect(screen.getByRole('heading', { level: 2, name: 'Skipped readings' })).toBeInTheDocument()
-    expect(screen.getByText('1 reading skipped')).toBeInTheDocument()
+    expect(screen.getByText('Readings skipped 3 times')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Heart rate was missing or too low while moving from 1:05 to 2:05. We left those 1 min out.',
+        'Heart rate was missing or too low while moving 2 times. We left those out of your figures.',
       ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('from 1:05 to 2:05, 1 min')).toBeInTheDocument()
+    expect(screen.getByText('from 10:00 to 10:30, 30 s')).toBeInTheDocument()
+    expect(
+      screen.getByText('GPS speed jumped suddenly once. We left that out of your figures.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/impossible/)).not.toBeInTheDocument()
+  })
+
+  it('keeps altitude notes out of the skipped count, under a Data notes heading', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Barometer run',
+        flags: [
+          { kind: 'altitude-jump', start: 754, end: 755, message: 'Altitude jumped' },
+          { kind: 'missing-altitude', start: 0, end: 3600, message: 'No altitude' },
+        ],
+        flagCounts: { 'altitude-jump': 1, 'missing-altitude': 1 },
+      }),
+    )
+    expect(screen.getByRole('heading', { level: 2, name: 'Data notes' })).toBeInTheDocument()
+    expect(screen.queryByText(/readings? skipped/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Altitude jumped in a single second once. We left the climb and the slope-based figures near that jump out of your figures.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('No altitude was recorded, so climb and slope-based figures are not shown.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/from 0:00/)).not.toBeInTheDocument()
+  })
+
+  it('gives the true count of a kind, not the number of its flags the digest kept', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Strap run',
+        flags: [
+          { kind: 'hr-dropout', start: 65, end: 125, message: 'Heart rate read zero' },
+          { kind: 'hr-dropout', start: 300, end: 330, message: 'Heart rate read zero' },
+          { kind: 'hr-dropout', start: 600, end: 640, message: 'Heart rate read zero' },
+        ],
+        flagCounts: { 'hr-dropout': 7 },
+      }),
+    )
+    expect(screen.getByText('Readings skipped 7 times')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Heart rate was missing or too low while moving 7 times. We left those out of your figures.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Showing the first 3 of 7.')).toBeInTheDocument()
+  })
+
+  it('hides the Climb figure when elevation gain is zero, so a missing altitude shows no climb', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'No altitude run',
+        elevationGainM: 0,
+        flags: [{ kind: 'missing-altitude', start: 0, end: 3600, message: 'No altitude' }],
+        flagCounts: { 'missing-altitude': 1 },
+      }),
+    )
+    expect(screen.queryByText('Climb', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText('No altitude was recorded, so climb and slope-based figures are not shown.'),
+    ).toBeInTheDocument()
+  })
+
+  it('lists no kind whose count is zero', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Quiet run',
+        flags: [{ kind: 'speed-spike', start: 300, end: 301, message: 'GPS jumped' }],
+        flagCounts: { 'hr-dropout': 0, 'speed-spike': 1 },
+      }),
+    )
+    expect(screen.queryByText(/Heart rate was missing/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText('GPS speed jumped suddenly once. We left that out of your figures.'),
     ).toBeInTheDocument()
   })
 
@@ -422,7 +521,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 60 },
       }),
     )
-    expect(screen.getByText('60 readings skipped')).toBeInTheDocument()
+    expect(screen.getByText('Readings skipped 60 times')).toBeInTheDocument()
     expect(screen.getByText('Showing the first 1 of 60.')).toBeInTheDocument()
   })
 
@@ -604,6 +703,12 @@ describe('ActivityPage records earned', () => {
     expect(within(group).getByText('Best 1 hour')).toBeTruthy()
     expect(within(group).getByText('Best 5 km')).toBeTruthy()
     expect(within(group).queryByText(/more/)).toBeNull()
+  })
+
+  it('links each all-time record chip to the sport page its records are on', () => {
+    renderPage(morningRun, resultWith(), 'metric', held)
+    const group = screen.getByRole('group', { name: 'All-time records' })
+    expect(within(group).getByRole('link', { name: 'Best 5 min' })).toHaveAttribute('href', '#/run')
   })
 
   it('shows no Best efforts group for an activity that holds nothing', () => {

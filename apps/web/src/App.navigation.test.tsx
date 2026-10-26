@@ -3,7 +3,8 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
-import { app, resetAppMocks, showResult } from './test/appMocks'
+import { makeActivity, makeResult } from './ui/components/fixtures'
+import { app, resetAppMocks, setSession, showResult } from './test/appMocks'
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,
@@ -45,6 +46,15 @@ describe('document title', () => {
   it('is the app name alone on the landing page', () => {
     render(<App />)
     expect(document.title).toBe(APP)
+  })
+
+  it('names an activity outside the period by its own name, from the whole library', () => {
+    const result = makeResult()
+    const outside = makeActivity({ id: 'old-ride', name: 'Hill Repeats', sport: 'ride' })
+    setSession({ result, library: [...result.activities, outside] })
+    window.location.hash = '#/activities/old-ride'
+    render(<App />)
+    expect(document.title).toBe(`Hill Repeats · ${APP}`)
   })
 })
 

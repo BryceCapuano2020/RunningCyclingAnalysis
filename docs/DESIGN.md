@@ -45,7 +45,8 @@ bar along its foot (its top edge on a phone) and by its colour. Sign-in stays
 one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
 screen readers. Below 420 px **Add files** shows its plus only, and keeps its name for screen
 readers. The account menu holds the email and Sign out; downloading data and deleting the account
-are on the Profile page. A file dropped anywhere on the page is imported.
+are on the Profile page. A file dropped anywhere on the page is imported. On a short page the footer
+sits at the foot of the window, sized to the small viewport so the phone's toolbar does not move it, and the brand mark's two sport strokes are 4 px, so the crossing reads at 32 px.
 
 The header's sizes are custom properties in `tokens.css`. The header is 113 px on a wide screen and
 69 px on a phone, and the scroll padding follows it, so a control that focus or Back brings into
@@ -130,6 +131,7 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                               |
 | `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs, chart plot                                                  |
 | `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                       |
+| `--surface-pressed`    | `#dde2ea`   | `#101318`   | A button's fill while it is pressed                                        |
 | `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                       |
 | `--grid`               | `#e9ecf1`   | `#232830`   | Chart gridlines                                                            |
 | `--control-border`     | `#7f8694`   | `#6b7380`   | Input and button outlines (3:1 or better)                                  |
@@ -142,6 +144,7 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
 | `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
 | `--accent-hover`       | `#474f5c`   | `#d9f55a`   | Primary button fill on hover, a visible change in both schemes             |
+| `--accent-pressed`     | `#000000`   | `#b4da2f`   | Primary button fill while it is pressed, with a 1 px drop                  |
 | `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                  |
 | `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page   |
 | `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                    |
@@ -174,7 +177,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 
 - **Barlow** (400, 500, 600) for text, **Barlow Condensed** (700, 800) for numbers and headings.
   Both are self-hosted from `@fontsource` (OFL-1.1), so no third-party font request is made.
-- Headings are condensed and upper case. The page title is 800 weight; section headings are 700.
+- Headings are condensed and upper case. The page title is 800 weight; the page title and the section
+  headings are set with `text-wrap: pretty`, so a single word is not left alone on the last line. Section
+  headings are 700.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
@@ -188,8 +193,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   not a border. A card has a 12 px radius, a 1 px border and no shadow.
 - One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
   a volt button with an ink label in dark, so it stands out on either page colour. Its hover moves
-  the fill to `--accent-hover`, a visible change in both schemes. A button is a sentence, so it is set
-  in sentence case, not capitals.
+  the fill to `--accent-hover`, a visible change in both schemes. A press shows on every control: the
+  control drops a pixel and takes its pressed fill (`--surface-pressed`, or `--accent-pressed` for the
+  primary button) with an inset ring, so it reads in both schemes even where the fill barely changes.
+  A tab's ring is an inset outline, since the tab bar's current mark is a flat bar, not an inset shadow.
+  The current Activities page number keeps its selected look while pressed, and in forced colours it takes
+  the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped.
+  A button is a sentence, so it is set in sentence case, not capitals.
 - A sport glyph (`SportIcon`) sits next to every sport name.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
@@ -274,7 +284,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   such as "No age standard under 1 mile", so every row has the same cells.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
-  estimated." The line links to How sure is this?.
+  estimated." The line links to How sure is this?. The pipeline writes an average power only from a
+  power meter, so the **Estimated** mark on the activity page and in its list row guards a summary that
+  carries estimated watts.
 - **An activity page reads top to bottom:** the name, the sport, the day and start time (with an
   **Indoor** chip for a trainer ride), the route when it was kept, then the moving time as the hero, with
   the elapsed time under it when the file kept both. Distance, average pace or speed over the moving time,
@@ -282,7 +294,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   anywhere, since a trainer's speed is virtual rather than measured on a road. A ride without a power meter says so in a line beneath
   the figures: "Power here is estimated from speed and climbs. No power meter recorded it." Earlier and
   Later name the activities either side in the library, then links to the sport's records and to How
-  sure is this?. Then the all-time records as chips, the splits, the best efforts set here, the skipped
+  sure is this?. Then the all-time records as chips, each linking to its sport's page (underlined on hover, not at rest), the splits, the best efforts set here, the skipped
   readings, and Delete. A ride with no power curve says why in a line: estimated power is made only on
   climbs, and a ride with no power data has none. A ride's bests and chips wait for the weight. An
   activity from before moving time was kept shows its elapsed time, and says so.
@@ -297,7 +309,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   each leg is a row of its own. The time sort orders by the time each row shows, which is its moving time.
   Month headings group the rows when the list is in date order; another sort drops them, and at a page
   break a month heading repeats, so each page names its months. The page is counted over rows, so a
-  session is never split across two pages, and the summary counts its activities.
+  session is never split across two pages, and the summary counts its activities. The pages are
+  numbered beside Previous and Next: the first and last, and the pages either side of the one shown. A
+  single page between two numbers is numbered too; a gap stands for two or more, and a screen reader hears
+  "pages skipped" for it. Moving a page keeps focus on the control pressed while it can still be pressed
+  (a page number, or Next while a page follows); otherwise focus goes to the first row. The page status
+  reads the new range. Legs of one session are listed in the order they were ridden, even in a newest-first list.
   A removal made on an activity's page goes to the list, which announces it once, and the list's address
   drops the marker that brought the visitor. A notice or error from a removal clears when the visitor moves
   to another page, so Profile shows no old "Deleted ...". The list's own outcome also clears when its sort,
@@ -313,7 +330,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.
-- **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
+- **Only the drop area is dashed, and it fills on hover.** On the landing page the example beside it is a solid frame, with
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this? and the source lines of the sport pages and the record list, not on Balance.
@@ -399,8 +416,14 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   run.fit, so it was not counted twice." Sport names are words: "A walk is not a run or a ride, so it
   was left out on purpose." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
-  The words for a skipped reading are `flagSentence` and its count `skippedReadingsText`, both in
-  `apps/web/src/ui/analysis/flagCopy.ts`. The activity page and the list use them, so the core's English is never shown.
+  The data notes are grouped by kind, one line for each kind with its true count and the times of the
+  readings the digest kept. Only the kinds that remove readings are counted, on the row and the page, as
+  "Readings skipped once" or "Readings skipped N times". An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
+  are left out of the figures. A missing altitude is one note for the whole activity, so it has no count. Without any
+  skipped reading the section reads "Data notes"; with one it reads "Skipped readings". The words are
+  `flagKindSentence` and `flagSpanText`, and the count is `skippedReadingsText`, all in
+  `apps/web/src/ui/analysis/flagCopy.ts`. The activity page uses them, so the core's English is never
+  shown. The words say what happened, never "impossible".
 - **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your
   time.", never UTC.
 - **Every number names its source**: the activity that set it, with a link to that activity.

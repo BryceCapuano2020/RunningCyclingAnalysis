@@ -21,6 +21,7 @@ const activityPage = await read('../ui/pages/ActivityPage.css')
 const activityList = await read('../ui/components/ActivityList.css')
 const accountMenu = await read('../ui/components/AccountMenu.css')
 const segmented = await read('../ui/components/SegmentedControl.css')
+const pagerCss = await read('../ui/components/Pager.css')
 const methodPage = await read('../ui/pages/MethodPage.css')
 const skipLink = await read('../ui/components/SkipLink.css')
 const exportGuides = await read('../ui/components/ExportGuides.css')
@@ -128,6 +129,12 @@ describe('brand mark', () => {
     expect(icons).toMatch(/brand-mark__tile"\s+x="0\.5"\s+y="0\.5"\s+width="31"\s+height="31"/)
   })
 
+  it('draws both sport strokes at 4 px, so the crossing reads at 32 px', () => {
+    expect(icons).toMatch(/brand-mark__run"[\s\S]*?strokeWidth="4"/)
+    expect(icons).toMatch(/brand-mark__ride"[\s\S]*?strokeWidth="4"/)
+    expect(icons).not.toMatch(/brand-mark__(run|ride)"[\s\S]*?strokeWidth="3"/)
+  })
+
   it('rings the tile in dark, so it does not vanish on the dark page', () => {
     expect(rulesWith(iconsCss, '.brand-mark__tile')).toMatch(/stroke:\s*var\(--mark-ring\)/)
   })
@@ -145,6 +152,30 @@ describe('buttons and links', () => {
   it('sets the export guide tiles and the skip link in sentence case', () => {
     expect(rulesWith(exportGuides, '.export-guides__tile')).not.toMatch(/text-transform/)
     expect(rulesWith(skipLink, '.skip-link')).not.toMatch(/text-transform/)
+  })
+
+  it('draws a pressed button one pixel lower, in its pressed fill', () => {
+    const pressed = rulesWith(components, ".btn:active:not([aria-disabled='true'])")
+    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
+    expect(pressed).toMatch(/transform:\s*translateY\(1px\)/)
+    expect(pressed).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--control-border\)/)
+  })
+
+  it('draws a pressed primary button in its own pressed fill, after its hover', () => {
+    const pressed = rulesWith(components, ".btn-primary:active:not([aria-disabled='true'])")
+    expect(pressed).toMatch(/background:\s*var\(--accent-pressed\)/)
+    expect(pressed).toMatch(/border-color:\s*var\(--accent-pressed\)/)
+    expect(pressed).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--accent-contrast\)/)
+    expect(components.indexOf('.btn-primary:active')).toBeGreaterThan(
+      components.indexOf('.btn-primary:hover'),
+    )
+  })
+
+  it('sets the pressed fills to the values in DESIGN.md, in both schemes', () => {
+    expect(declared(tokens, ':root').get('surface-pressed')).toBe('#dde2ea')
+    expect(declared(tokens, DARK).get('surface-pressed')).toBe('#101318')
+    expect(declared(tokens, ':root').get('accent-pressed')).toBe('#000000')
+    expect(declared(tokens, DARK).get('accent-pressed')).toBe('#b4da2f')
   })
 
   it('changes the primary button visibly on hover, in light as in dark', () => {
@@ -172,6 +203,17 @@ describe('colour tokens the chrome uses', () => {
 })
 
 describe('page chrome', () => {
+  it('pins the footer to the foot of the window on a short page, and lets the main part grow', () => {
+    expect(rulesWith(components, '.page')).toMatch(/min-height:\s*100svh/)
+    expect(rulesWith(components, '.page')).toMatch(/display:\s*flex/)
+    expect(rulesWith(app, '.app__main')).toMatch(/flex-grow:\s*1/)
+  })
+
+  it('lets a page title and the page stack shrink to the phone width, so a long name cannot widen the page', () => {
+    expect(rulesWith(app, '.page-title')).toMatch(/min-width:\s*0/)
+    expect(rulesWith(app, '.page-stack')).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/)
+  })
+
   it('left-aligns the footer to the content edge', () => {
     expect(rulesWith(app, '.app__footer')).toMatch(/text-align:\s*start/)
   })
@@ -221,6 +263,66 @@ describe('activity pages', () => {
   it('wraps a long activity name on the activity page, so the page does not widen', () => {
     expect(rulesWith(activityPage, '.activity-page__title')).toMatch(/overflow-wrap:\s*anywhere/)
     expect(rulesWith(activityList, '.activity-list__name')).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+})
+
+describe('activity record links', () => {
+  it('sets a record chip that links to its sport page at the control height, a target of its own', () => {
+    expect(rulesWith(activityPage, '.activity-page__chips a.chip')).toMatch(
+      /min-height:\s*var\(--control-height\)/,
+    )
+  })
+
+  it('takes the underline off a record chip link, which underlines on hover', () => {
+    expect(rulesWith(activityPage, '.activity-page__chips a.chip')).toMatch(
+      /text-decoration:\s*none/,
+    )
+    expect(rulesWith(activityPage, '.activity-page__chips a.chip:hover')).toMatch(
+      /text-decoration:\s*underline/,
+    )
+  })
+})
+
+describe('pressed states', () => {
+  it('draws a pressed tab in the pressed fill, with an inset outline and no inset shadow', () => {
+    const pressed = rulesWith(header, '.header__tab:active')
+    expect(pressed).toMatch(/background:\s*var\(--surface-pressed\)/)
+    expect(pressed).toMatch(/outline:\s*2px solid var\(--control-border\)/)
+    expect(pressed).toMatch(/outline-offset:\s*-2px/)
+  })
+
+  it('draws a pressed unselected segment in the pressed fill, and a pressed selected one with a light ring', () => {
+    const unselected = rulesWith(
+      segmented,
+      '.segmented-control__option:not(.segmented-control__option--selected):active',
+    )
+    expect(unselected).toMatch(/background:\s*var\(--surface-pressed\)/)
+    expect(unselected).toMatch(/box-shadow:\s*inset 0 0 0 2px var\(--control-border\)/)
+    expect(rulesWith(segmented, '.segmented-control__option--selected:active')).toMatch(
+      /box-shadow:\s*inset 0 0 0 2px var\(--selected-contrast\)/,
+    )
+  })
+
+  it('gives each pressed control an outline in forced colours, since its fill and shadow are dropped', () => {
+    expect(
+      rulesWith(mediaOf(components, FORCED), ".btn:active:not([aria-disabled='true'])"),
+    ).toMatch(/outline:\s*2px solid CanvasText/)
+    expect(rulesWith(mediaOf(header, FORCED), '.header__tab:active')).toMatch(
+      /outline:\s*2px solid CanvasText/,
+    )
+    expect(rulesWith(mediaOf(segmented, FORCED), '.segmented-control__option:active')).toMatch(
+      /outline:\s*2px solid CanvasText/,
+    )
+  })
+
+  it('keeps the current Pager page in the system highlight in forced colours, as segments are', () => {
+    const forced = mediaOf(pagerCss, FORCED)
+    expect(rulesWith(forced, ".pager .pager__page[aria-current='page']")).toMatch(
+      /background:\s*Highlight/,
+    )
+    expect(rulesWith(forced, ".pager .pager__page[aria-current='page']")).toMatch(
+      /color:\s*HighlightText/,
+    )
   })
 })
 

@@ -6,6 +6,7 @@
   --surface-0: #f5f6f8;
   --surface-1: #ffffff;
   --surface-2: #eceff3;
+  --surface-pressed: #dde2ea;
   --border: #e1e4ea;
   --control-border: #7f8694;
   --text-primary: #0e1116;
@@ -15,6 +16,7 @@
   --accent: #0e1116;
   --accent-contrast: var(--brand);
   --accent-hover: #474f5c;
+  --accent-pressed: #000000;
   /* The brand mark's tile is ink; its ring is ink too in light, where the tile needs none. */
   --mark-tile: #0e1116;
   --mark-ring: #0e1116;
@@ -81,6 +83,7 @@
     --surface-0: #0f1115;
     --surface-1: #171a20;
     --surface-2: #1e232c;
+    --surface-pressed: #101318;
     --border: #2a2f38;
     --control-border: #6b7380;
     --text-primary: #eef0f3;
@@ -89,6 +92,7 @@
     --accent: var(--brand);
     --accent-contrast: #0e1116;
     --accent-hover: #d9f55a;
+    --accent-pressed: #b4da2f;
     --mark-ring: #6b7380;
     --selected: #eef0f3;
     --selected-contrast: #0e1116;

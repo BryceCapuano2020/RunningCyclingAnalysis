@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet } from './stylesheet'
+import { readStylesheet, ruleBody } from './stylesheet'
 
 const css = await readStylesheet(import.meta.url, './Dropzone.css')
 
@@ -18,5 +18,15 @@ describe('Dropzone stylesheet', () => {
     expect(mediaBody('(pointer: fine)')).toMatch(/\.dropzone__touch \{\s*display: none;/)
     const outsideTouch = css.replace(mediaBody('(pointer: coarse)'), '')
     expect(outsideTouch).not.toMatch(/\.dropzone__drag \{\s*display: none/)
+  })
+})
+
+describe('Dropzone target', () => {
+  it('fills the drop area on hover, so it reads as a place to drop files', () => {
+    expect(ruleBody(css, '.dropzone__target:hover')).toMatch(/background:\s*var\(--surface-2\)/)
+  })
+
+  it('draws no press of its own, since the drop area is not a control', () => {
+    expect(ruleBody(css, '.dropzone__target:active')).toBe('')
   })
 })

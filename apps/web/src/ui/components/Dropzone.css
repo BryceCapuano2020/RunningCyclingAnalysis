@@ -21,7 +21,12 @@
   gap: var(--space-2);
   min-width: 0;
   padding: var(--space-4);
+  border-radius: calc(var(--radius) - 1px);
   text-align: center;
+}
+
+.dropzone__target:hover {
+  background: var(--surface-2);
 }
 
 .dropzone__title {

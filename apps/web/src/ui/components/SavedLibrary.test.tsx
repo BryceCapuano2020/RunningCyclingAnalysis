@@ -266,7 +266,14 @@ describe('SavedLibrary', () => {
     expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 
-  it('moves focus to the first row of the page it moves to', () => {
+  it('keeps focus on Next page while a page follows the one shown', () => {
+    render(<SavedLibrary activities={activities(45)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByRole('button', { name: 'Next page' })).toHaveFocus()
+  })
+
+  it('moves focus to the first row once Next is disabled on the last page', () => {
     render(<SavedLibrary activities={activities(25)} busy={false} onDelete={vi.fn()} {...idle} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))

@@ -100,6 +100,14 @@ html {
   color: var(--text-primary);
 }
 
+/* A pressed tab takes the pressed fill and an inset outline. The tab bar's current mark is a flat bar,
+   not an inset shadow, so the press uses an outline. */
+.header__tab:active {
+  background: var(--surface-pressed);
+  outline: 2px solid var(--control-border);
+  outline-offset: -2px;
+}
+
 /* The current page is marked by a flat bar along its foot, and by colour, so the mark does not rest
    on colour alone. The bar is a pseudo-element, so the tab's rounded corners do not curl it. */
 .header__tab[aria-current='page'],
@@ -269,6 +277,11 @@ html {
 /* In forced colours the current tab's bar is drawn in the system highlight, so the mark survives
    the loss of the page's colours. */
 @media (forced-colors: active) {
+  .header__tab:active {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+
   .header__tab[aria-current='page']::after,
   .header__profile[aria-current='page']::after {
     background: Highlight;

@@ -13,7 +13,7 @@ import {
 import { movingTimeOf, skippedCountOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
 import { formatRowDay, formatTimeOfDay } from '../format/date'
-import { chipLabels } from '../records'
+import { chipLabels, isEstimatedRecord } from '../records'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
 import { ActivityDelete } from './ActivityDelete'
@@ -42,6 +42,8 @@ export interface ActivityRowProps {
 interface Hero {
   label: string
   value: string
+  /** True for watts that no power meter measured, which the row says in words. */
+  estimated?: boolean
 }
 
 /**
@@ -57,7 +59,11 @@ function heroOf(activity: ActivitySummary, units: UnitSystem): Hero | null {
     return { label: 'Speed', value: formatSpeed(activity.distanceM / moving, units) }
   }
   if (typeof activity.avgPowerW === 'number') {
-    return { label: 'Power', value: formatPower(activity.avgPowerW) }
+    return {
+      label: 'Power',
+      value: formatPower(activity.avgPowerW),
+      estimated: isEstimatedRecord(activity.sport, activity),
+    }
   }
   return null
 }
@@ -143,6 +149,7 @@ export function ActivityRow({
           <p className="activity-list__hero">
             <span className="eyebrow">{hero.label}</span>
             <span className="stat-number">{hero.value}</span>
+            {hero.estimated && <span className="chip">Estimated</span>}
           </p>
         )}
         <ArrowRightIcon className="activity-list__chevron" />

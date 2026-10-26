@@ -58,9 +58,9 @@ describe('Pager', () => {
     render(pager({ page: 1, onPageChange }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous page' }))
-    expect(onPageChange).toHaveBeenLastCalledWith(0)
+    expect(onPageChange).toHaveBeenLastCalledWith(0, expect.any(HTMLElement))
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(onPageChange).toHaveBeenLastCalledWith(2)
+    expect(onPageChange).toHaveBeenLastCalledWith(2, expect.any(HTMLElement))
   })
 
   it('keeps both buttons focusable while busy, and ignores clicks on them', () => {
@@ -126,5 +126,61 @@ describe('Pager', () => {
     expect(onFocusWithinChange).toHaveBeenLastCalledWith(true)
     await user.click(screen.getByRole('button', { name: 'Elsewhere' }))
     expect(onFocusWithinChange).toHaveBeenLastCalledWith(false)
+  })
+})
+
+describe('Pager page numbers', () => {
+  it('numbers each page, and marks the page shown as the current one', () => {
+    render(pager())
+    expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: 'Page 2' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('button', { name: 'Page 3' })).toBeInTheDocument()
+  })
+
+  it('asks for the numbered page that is pressed', () => {
+    const onPageChange = vi.fn()
+    render(pager({ page: 0, onPageChange }))
+    fireEvent.click(screen.getByRole('button', { name: 'Page 3' }))
+    expect(onPageChange).toHaveBeenLastCalledWith(2, expect.any(HTMLElement))
+  })
+
+  it('shows the first and last pages and the pages either side of the current one, with a gap', () => {
+    render(pager({ page: 14, pageCount: 30, total: 600 }))
+    for (const name of ['Page 1', 'Page 14', 'Page 15', 'Page 16', 'Page 30']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', { name: 'Page 5' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Page 13' })).not.toBeInTheDocument()
+  })
+
+  it('says the pages a gap leaves out, for a screen reader', () => {
+    render(pager({ page: 14, pageCount: 30, total: 600 }))
+    expect(screen.getAllByText('pages skipped')).toHaveLength(2)
+  })
+
+  it('shows the one page a gap would hide, as its own number', () => {
+    render(pager({ page: 0, pageCount: 4, total: 80 }))
+    expect(screen.getByRole('button', { name: 'Page 3' })).toBeInTheDocument()
+    expect(screen.queryByText('pages skipped')).not.toBeInTheDocument()
+  })
+
+  it('keeps a gap that hides two or more pages', () => {
+    render(pager({ page: 0, pageCount: 5, total: 100 }))
+    expect(screen.queryByRole('button', { name: 'Page 3' })).not.toBeInTheDocument()
+    expect(screen.getByText('pages skipped')).toBeInTheDocument()
+  })
+
+  it('shows every page when there are few, with no gap', () => {
+    render(pager({ page: 1, pageCount: 4, total: 80 }))
+    expect(screen.getAllByRole('button', { name: /^Page \d$/ })).toHaveLength(4)
+  })
+
+  it('ignores a numbered page while busy, and keeps it focusable', () => {
+    const onPageChange = vi.fn()
+    render(pager({ page: 0, busy: true, onPageChange }))
+    const third = screen.getByRole('button', { name: 'Page 3' })
+    expect(third).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(third)
+    expect(onPageChange).not.toHaveBeenCalled()
   })
 })

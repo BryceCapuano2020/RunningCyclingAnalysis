@@ -120,7 +120,7 @@ const TOPIC_LIST = [
     id: 'data',
     title: 'Data checks',
     plain: [
-      'Sensor dropouts and impossible readings are left out automatically. Each activity lists its problems with the time they occurred.',
+      'Sensor dropouts and implausible readings are left out automatically. Each activity lists its problems with the time they occurred.',
     ],
   },
   {

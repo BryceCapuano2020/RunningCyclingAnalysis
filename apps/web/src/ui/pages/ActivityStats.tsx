@@ -10,6 +10,7 @@ import {
 } from '@rca/core/units'
 import { movingTimeOf, timeLabelOf } from '../activityFigures'
 import { StatFigure } from '../components/StatFigure'
+import { isEstimatedRecord } from '../records'
 
 /**
  * The figures an activity's page leads with. Its moving time is the hero, with the elapsed time under
@@ -91,6 +92,7 @@ export function ActivityStats({
           <StatFigure
             label="Average power"
             value={formatPower(activity.avgPowerW)}
+            sub={isEstimatedRecord(activity.sport, activity) ? 'Estimated' : undefined}
             className="activity-page__stat"
             labelClassName="eyebrow"
             valueClassName="stat-number"
