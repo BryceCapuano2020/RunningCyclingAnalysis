@@ -1,5 +1,5 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
-import { formatDay } from '../format/date'
+import { formatDayMonth } from '../format/date'
 import { hrefFor } from '../route'
 import type { RecordRow } from '../recordRow'
 import './SportRecords.css'
@@ -8,9 +8,9 @@ export interface SportRecordsProps {
   rows: RecordRow[]
 }
 
-/** The activity's name and the day it was set, as a link's text: "Morning run, Mon 5 Jan". */
+/** The activity's name and the day it was set, as a link's text: "Morning run, 5 Jan". */
 function sourceText(activity: ActivitySummary): string {
-  return `${activity.name}, ${formatDay(activity.startMs)}`
+  return `${activity.name}, ${formatDayMonth(activity.startMs)}`
 }
 
 /** The one activity every row was set in, when there are several rows and they all share it. */

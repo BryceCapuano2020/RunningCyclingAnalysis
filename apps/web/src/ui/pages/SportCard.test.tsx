@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
@@ -16,6 +16,7 @@ import {
   makeResult,
 } from '../components/fixtures'
 import { headlineGrades } from '../grades'
+import { noMatchMedia, viewportAt } from '../../test/viewport'
 import type { AgeProfile } from '../grades'
 import { SportCard } from './SportCard'
 
@@ -189,7 +190,7 @@ describe('SportCard records', () => {
     expect(within(card).getByText('1 hour')).toBeInTheDocument()
     expect(within(card).queryByText('1 min')).not.toBeInTheDocument()
     expect(card.querySelector('.records__shared')).toHaveTextContent(
-      'All set on Morning run, Mon 5 Jan',
+      'All set on Morning run, 5 Jan',
     )
   })
 
@@ -204,7 +205,7 @@ describe('SportCard records', () => {
 
     expect(
       within(cardNamed('Run')).getByRole('link', {
-        name: '20 min, from Morning run, Mon 5 Jan',
+        name: '20 min, from Morning run, 5 Jan',
       }),
     ).toHaveAttribute('href', '#/activities/run-1')
   })
@@ -235,7 +236,7 @@ describe('SportCard records', () => {
     const card = cardNamed('Ride')
     expect(within(card).getByText('400 W')).toBeInTheDocument()
     expect(
-      within(card).getByRole('link', { name: '5 min, from Hill ride, Fri 9 Jan' }),
+      within(card).getByRole('link', { name: '5 min, from Hill ride, 9 Jan' }),
     ).toHaveAttribute('href', '#/activities/ride-1')
   })
 
@@ -549,5 +550,64 @@ describe('SportCard hero sub-line', () => {
   it('keeps the watts and the W/kg apart in the text, as they are apart on screen', () => {
     renderCard('ride', makeResult({ activities: [rideOnFriday] }))
     expect(cardNamed('Ride').textContent).toContain('48 W 0.6 W/kg')
+  })
+})
+
+describe('SportCard best efforts on a phone', () => {
+  const runCurve = [curvePoint(1200, FIVE_K_IN_20_MIN_WKG, 'run-1')]
+
+  afterEach(() => {
+    noMatchMedia()
+  })
+
+  it('folds the best efforts behind a closed disclosure on a phone, and keeps them in the card', () => {
+    viewportAt(390)
+    renderCard('run', makeResult({ activities: [runOnMonday], runCurve }))
+
+    const disclosure = within(cardNamed('Run')).getByText('Best efforts').closest('details')
+    expect(disclosure).not.toHaveAttribute('open')
+    expect(within(disclosure as HTMLElement).getByText('20 min')).toBeInTheDocument()
+  })
+
+  it('opens the best efforts on a desktop', () => {
+    viewportAt(1280)
+    renderCard('run', makeResult({ activities: [runOnMonday], runCurve }))
+
+    const disclosure = within(cardNamed('Run')).getByText('Best efforts').closest('details')
+    expect(disclosure).toHaveAttribute('open')
+  })
+
+  it('keeps the disclosure the visitor chose on its summary, even when the window resizes before the toggle', () => {
+    const viewport = viewportAt(1280)
+    renderCard('run', makeResult({ activities: [runOnMonday], runCurve }))
+    const summary = within(cardNamed('Run')).getByText('Best efforts')
+    const disclosure = summary.closest('details')
+
+    // The visitor closes it. The choice is made on the click, so a resize before the browser's toggle
+    // event cannot undo it.
+    fireEvent.click(summary)
+    viewport.resize(390)
+    viewport.resize(1280)
+
+    expect(disclosure).not.toHaveAttribute('open')
+  })
+
+  it('follows the breakpoint until the visitor chooses: it reopens on a desktop, and a choice then holds', () => {
+    const viewport = viewportAt(390)
+    renderCard('run', makeResult({ activities: [runOnMonday], runCurve }))
+    const summary = within(cardNamed('Run')).getByText('Best efforts')
+    const disclosure = summary.closest('details')
+    expect(disclosure).not.toHaveAttribute('open')
+
+    viewport.resize(1280)
+    expect(disclosure).toHaveAttribute('open')
+    viewport.resize(390)
+    expect(disclosure).not.toHaveAttribute('open')
+
+    // On the phone, the visitor opens it; the choice then holds across the breakpoint.
+    fireEvent.click(summary)
+    viewport.resize(1280)
+    viewport.resize(390)
+    expect(disclosure).toHaveAttribute('open')
   })
 })

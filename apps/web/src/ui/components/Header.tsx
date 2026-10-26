@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { APP_WORDS } from '../../appName'
 import type { Route } from '../route'
 import { hrefFor } from '../route'
+import { previousRoute } from '../routeHistory'
 import { SPORT_LABEL } from '../sports'
 import { ActivitiesIcon, BalanceIcon, BrandMark, PersonIcon, SportIcon } from './icons'
 import './Header.css'
@@ -32,9 +33,15 @@ const TABS: Tab[] = [
   { label: 'Activities', route: { page: 'activities' }, glyph: <ActivitiesIcon /> },
 ]
 
-/** The tab a page belongs to. An activity belongs to Activities; the method page to Balance. */
+/**
+ * The tab a page belongs to. An activity keeps the tab of the sport it was opened from, and otherwise
+ * belongs to Activities; the method page belongs to Balance.
+ */
 function tabOf(route: Route): Route['page'] | null {
-  if (route.page === 'activity') return 'activities'
+  if (route.page === 'activity') {
+    const from = previousRoute()?.page
+    return from === 'run' || from === 'ride' ? from : 'activities'
+  }
   if (route.page === 'method') return 'balance'
   if (route.page === 'profile') return null
   return route.page

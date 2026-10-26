@@ -73,9 +73,9 @@ describe('SportRecords', () => {
         rows={[row({ label: '20 min' }), row({ key: 'late', label: '5 min', activity: lateRun })]}
       />,
     )
-    const first = screen.getByRole('link', { name: '20 min, from Morning run, Mon 5 Jan' })
+    const first = screen.getByRole('link', { name: '20 min, from Morning run, 5 Jan' })
     expect(first).toHaveAttribute('href', '#/activities/run-1')
-    expect(screen.getByRole('link', { name: '5 min, from Late run, Fri 9 Jan' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: '5 min, from Late run, 9 Jan' })).toHaveAttribute(
       'href',
       '#/activities/run-2',
     )
@@ -90,11 +90,11 @@ describe('SportRecords', () => {
     render(<SportRecords rows={[row({ activity: long }), row({ key: 'b', activity: lateRun })]} />)
     expect(
       screen.getByRole('link', {
-        name: '20 min, from Threshold test: 3, 6, 12 and 20 minute efforts on the hill loop, Mon 5 Jan',
+        name: '20 min, from Threshold test: 3, 6, 12 and 20 minute efforts on the hill loop, 5 Jan',
       }),
     ).toHaveAttribute(
       'title',
-      'Threshold test: 3, 6, 12 and 20 minute efforts on the hill loop, Mon 5 Jan',
+      'Threshold test: 3, 6, 12 and 20 minute efforts on the hill loop, 5 Jan',
     )
   })
 
@@ -108,10 +108,10 @@ describe('SportRecords', () => {
       />,
     )
     expect(screen.getByText(/All set on/).closest('p')).toHaveTextContent(
-      'All set on Morning run, Mon 5 Jan',
+      'All set on Morning run, 5 Jan',
     )
     expect(screen.getAllByRole('link')).toHaveLength(1)
-    expect(screen.getByRole('link', { name: 'Morning run, Mon 5 Jan' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Morning run, 5 Jan' })).toHaveAttribute(
       'href',
       '#/activities/run-1',
     )
@@ -160,6 +160,7 @@ describe('recordRow', () => {
     unit: '/km',
     sub: null,
     activity: morningRun,
+    covered: null,
   }
 
   it('tags a run’s pace Flat, since it is a flat pace', () => {

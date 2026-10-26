@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { EffortCheck } from '@rca/core/types'
 import { effortCaveat, hardEffortsOnFile } from '../effortCaveat'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from '../components/icons'
+import { HEADLINE_LABEL } from '../grades'
 import { hrefFor } from '../route'
 
 export interface EvidenceCardProps {
@@ -14,8 +15,7 @@ export interface EvidenceCardProps {
  * reaches 90% of the highest sustained heart rate on file, so a hard, steady effort with heart rate
  * recorded is what narrows it.
  */
-const RECORD_HARD_EFFORT =
-  'To record one: after a warm-up, run or ride your hardest steady 20 minutes with heart rate on, then add the file.'
+const RECORD_HARD_EFFORT = `To record one: after a warm-up, run or ride your hardest steady ${HEADLINE_LABEL} with heart rate on, then add the file.`
 /** What to do when a file has no heart rate: the check cannot read effort without it. */
 const ADD_HEART_RATE =
   'Wear a heart-rate strap or a watch that records heart rate, and export files that include it.'

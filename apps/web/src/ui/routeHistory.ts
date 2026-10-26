@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { parseRoute } from './route'
 import type { Route } from './route'
 
@@ -71,9 +71,14 @@ export function previousRoute(): Route | null {
   return typeof from === 'string' && from !== '' ? parseRoute(from) : null
 }
 
-/** Keeps each entry's scroll position, and marks each entry as it is opened. */
+/**
+ * Keeps each entry's scroll position, and marks each entry as it is opened. The hashchange listener is
+ * added in a layout effect: React runs every layout effect before the passive effect that subscribes the
+ * route, so this listener runs first for each hashchange. The origin is then written before the route
+ * re-renders, and a page reads it as it renders.
+ */
 export function useRouteHistory(): void {
-  useEffect(() => {
+  useLayoutEffect(() => {
     claimEntry('')
     const onHashChange = (event: HashChangeEvent) => claimEntry(hashOf(event.oldURL))
     window.addEventListener('hashchange', onHashChange)

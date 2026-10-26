@@ -264,3 +264,24 @@ test('removing all activities on the Profile page clears the sample and returns 
   await expect(page).toHaveURL(/#\/$/)
   await expect(page.getByText('Add FIT, GPX or TCX files, or a Strava export zip')).toBeVisible()
 })
+
+test('a record link opened from Run keeps the Run tab lit and offers Back to Run', async ({
+  page,
+}) => {
+  await openSample(page)
+  await goTo(page, 'Run')
+
+  await page
+    .getByRole('region', { name: 'Best efforts' })
+    .locator('a.records__link')
+    .first()
+    .click()
+
+  await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(BALANCE_TITLE)
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Sections' })
+      .getByRole('link', { name: 'Run', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
+})

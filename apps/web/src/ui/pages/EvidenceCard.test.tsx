@@ -114,7 +114,7 @@ describe('EvidenceCard says how to record what is missing, on the card', () => {
     const card = screen.getByRole('region', { name: 'Your ride number may be low' })
     expect(
       within(card).getByText(
-        'To record one: after a warm-up, run or ride your hardest steady 20 minutes with heart rate on, then add the file.',
+        'To record one: after a warm-up, run or ride your hardest steady 20 min with heart rate on, then add the file.',
       ),
     ).toBeInTheDocument()
   })

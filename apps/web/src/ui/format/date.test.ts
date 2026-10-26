@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatTimeOfDay as coreFormatTimeOfDay } from '@rca/core/units'
-import { formatDay, formatMonth, formatRowDay, formatSpan, formatTimeOfDay } from './date'
+import {
+  formatDay,
+  formatDayMonth,
+  formatMonth,
+  formatRowDay,
+  formatSpan,
+  formatTimeOfDay,
+} from './date'
 
 // Local constructors keep these cases independent of the zone the suite runs in. The only test
 // that changes the zone says so.
@@ -19,6 +26,16 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
+})
+
+describe('formatDayMonth', () => {
+  it('gives the day and month with no weekday, and no year in the current year', () => {
+    expect(formatDayMonth(new Date(2026, 5, 3, 7, 30).getTime(), JUNE_10_2026)).toBe('3 Jun')
+  })
+
+  it('adds the year when the day is in another year', () => {
+    expect(formatDayMonth(new Date(2025, 5, 3).getTime(), JUNE_10_2026)).toBe('3 Jun 2025')
+  })
 })
 
 describe('formatDay', () => {

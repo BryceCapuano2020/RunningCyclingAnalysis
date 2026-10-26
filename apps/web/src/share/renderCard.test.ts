@@ -113,6 +113,27 @@ describe('renderShareCard', () => {
     },
   )
 
+  it.each(FORMATS)(
+    'draws each sport’s glyph in the text colour, beside its label, on the %s card',
+    (format) => {
+      const ctx = draw(cardModel(), format)
+      // A glyph's dots are arcs, so one sits in the inset left of its label's first line.
+      const glyphBeside = (labelStart: string) => {
+        const label = ctx.texts.find((text) => text.text.startsWith(labelStart))
+        if (label === undefined) throw new Error(`no label starting ${labelStart}`)
+        return ctx.arcs.some(
+          (arc) =>
+            arc.x >= label.x - 40 && arc.x < label.x && arc.y >= label.y && arc.y < label.y + 34,
+        )
+      }
+      expect(glyphBeside('THRESHOLD PACE,')).toBe(true)
+      expect(glyphBeside('THRESHOLD POWER')).toBe(true)
+      expect(
+        ctx.paths.some((path) => path.color === CARD_COLORS.text && path.segments.includes('arc')),
+      ).toBe(true)
+    },
+  )
+
   it('draws the sample badge only when the model has one', () => {
     expect(words(draw(cardModel({ badge: null })).texts)).not.toContain('Sample data')
     expect(words(draw(cardModel({ badge: 'Sample data' })).texts)).toContain('Sample data')

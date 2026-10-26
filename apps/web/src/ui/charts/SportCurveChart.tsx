@@ -3,6 +3,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
+import { RECORD_DURATIONS_S } from '../records'
 import { SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { activityCell, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
@@ -22,6 +23,7 @@ import {
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
 import { durationRows } from './curveRows'
 import { areaPath, linePath } from './paths'
+import { labelWidthPx, rootFontPx } from './rootFont'
 import { logScale } from './scale'
 import {
   axisTitle,
@@ -74,6 +76,33 @@ function buildRows(curve: Curve, before: Curve): CurveRow[] {
       activityId: current?.activityId ?? null,
     }))
     .filter((row) => Number.isFinite(row.value) || Number.isFinite(row.previous))
+}
+
+/**
+ * The last point's value, placed at its point, or null when there is none to show. It is left out
+ * when its text would start left of the emphasised point, since the emphasised label sits there.
+ */
+function lastLabelOf(
+  m: Layout,
+  lastIndex: number,
+  emphasis: number,
+  sport: Sport,
+  units: UnitSystem,
+  row: CurveRow | undefined,
+  rootPx: number,
+): { at: Point; text: string } | null {
+  const last = m.points[lastIndex] ?? null
+  const emphasised = m.points[emphasis] ?? null
+  if (last === null || row === undefined || lastIndex === emphasis) return null
+  const text = formatNative(sport, row.value, units)
+  const at = endLabelAt(last, pointBefore(m.points, lastIndex))
+  const clear = emphasised === null || at.x - labelWidthPx(text, rootPx) > emphasised.x
+  return clear ? { at, text } : null
+}
+
+/** A duration the records list names, which the curve marks at each of its points. */
+function isRecordDuration(durationS: number): boolean {
+  return (RECORD_DURATIONS_S as readonly number[]).includes(durationS)
 }
 
 /** The best 20 minutes when there is one, else the longest effort. Its index in rows, or -1. */
@@ -209,6 +238,9 @@ export function SportCurveChart({
   const hasData = rows.filter((row) => Number.isFinite(row.value)).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const emphasis = emphasisIndex(rows)
+  // The last effort with a value: the end of the line, which is labelled with its value.
+  const lastIndex = rows.findLastIndex((row) => Number.isFinite(row.value))
+  const [rootPx] = useState(rootFontPx)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
   const legend: ChartLegendEntry[] | undefined =
     shown && hasData
@@ -260,6 +292,7 @@ export function SportCurveChart({
         const activeX = active === null ? undefined : m.xs[active]
         const emphasised = m.points[emphasis] ?? null
         const emphasisRow = rows[emphasis]
+        const lastLabel = lastLabelOf(m, lastIndex, emphasis, sport, units, rows[lastIndex], rootPx)
         const beforeEmphasis = pointBefore(m.points, emphasis)
         const activePoint = active === null ? null : (m.points[active] ?? null)
         const activeEarlier = active === null ? null : (m.earlier[active] ?? null)
@@ -313,6 +346,25 @@ export function SportCurveChart({
                   {formatNative(sport, emphasisRow.value, units)}
                 </text>
               </>
+            ) : null}
+            {m.points.map((point, index) =>
+              point !== null &&
+              index !== emphasis &&
+              isRecordDuration(rows[index]?.durationS ?? NaN) ? (
+                <circle
+                  key={rows[index]?.durationS}
+                  data-testid="sport-curve-record"
+                  className={`chart-series__marker chart-series__marker--${sport}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={markerR}
+                />
+              ) : null,
+            )}
+            {lastLabel !== null ? (
+              <text className="chart-series__label" textAnchor="end" {...lastLabel.at}>
+                {lastLabel.text}
+              </text>
             ) : null}
             {activePoint ? (
               <circle

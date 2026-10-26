@@ -1,10 +1,12 @@
 import {
+  DAY_MS,
   HALF_MARATHON_M,
   HEADLINE_DURATION_S,
   PRIORS,
   RUN_RECORD_DISTANCES_M,
 } from '@rca/core/constants'
 import type { RunRecordDistanceM } from '@rca/core/constants'
+import { startOfLocalDay } from '@rca/core/period'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
@@ -22,6 +24,7 @@ import {
   PACE_UNIT,
   METRES_PER_KM,
   METRES_PER_MILE,
+  formatDistance,
   formatRecordTime,
   formatDuration,
 } from '@rca/core/units'
@@ -67,6 +70,16 @@ export interface SportRecord extends SportNumber {
   durationS: number
   /** The activity that set the record; null when it is outside the period or missing. */
   activity: ActivitySummary | null
+  /**
+   * How far a run covered in the record's time at its flat pace, such as "5.0 km in 20 min". A grade
+   * at a duration is taken at that distance. Null for a ride, whose grade goes through its equivalent.
+   */
+  covered: string | null
+}
+
+/** The distance covered in a time, in the unit preference, such as "5.0 km in 20 min". */
+export function coveredText(metres: number, durationS: number, units: UnitSystem): string {
+  return `${formatDistance(metres, units)} in ${formatDuration(durationS)}`
 }
 
 type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
@@ -183,12 +196,19 @@ export function sportRecords(
     const activity = point.activityId === null ? null : (byId.get(point.activityId) ?? null)
     records.push(
       sport === 'run'
-        ? { durationS, ...paceFigure(point.value, units), sub: null, activity }
+        ? {
+            durationS,
+            ...paceFigure(point.value, units),
+            sub: null,
+            activity,
+            covered: coveredText(metabolicToFlatSpeed(point.value) * durationS, durationS, units),
+          }
         : {
             durationS,
             ...powerFigure(point.value),
             sub: formatWkg(point.value / massKg),
             activity,
+            covered: null,
           },
     )
   }
@@ -207,6 +227,22 @@ export function headlineEffort(sport: Sport, records: readonly SportRecord[]): s
 
 export function countSport(activities: ActivitySummary[], sport: Sport): number {
   return activities.filter((activity) => activity.sport === sport).length
+}
+
+/**
+ * Whole calendar days from one moment to a later one, in the device's zone. A clock change inside a
+ * day does not make it a day short, since each moment is taken at the start of its own day.
+ */
+export function calendarDaysBetween(earlierMs: number, laterMs: number): number {
+  return Math.round((startOfLocalDay(laterMs) - startOfLocalDay(earlierMs)) / DAY_MS)
+}
+
+/**
+ * When a record was set, in days from the day the page opened: "Set today", "Set 1 day ago". A record
+ * dated after that day reads as today, since a count below zero says nothing.
+ */
+export function setAgoText(days: number): string {
+  return days <= 0 ? 'Set today' : `Set ${plural(days, 'day', 'days')} ago`
 }
 
 /**

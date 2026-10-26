@@ -218,7 +218,7 @@ describe('LandingPage', () => {
     const section = container.querySelector('.landing__method')
     if (!section) throw new Error('No method section')
     expect(section.textContent).toContain('If the two could be level, it says they are in balance')
-    expect(section.textContent).toContain('your best 20 minutes')
+    expect(section.textContent).toContain('judged on your best 20 min: running')
     expect(section.textContent).not.toMatch(/grade|graded|grade-adjusted/i)
   })
 

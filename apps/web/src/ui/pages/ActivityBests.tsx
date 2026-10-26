@@ -103,7 +103,7 @@ export function ActivityBests({
     ...durationItems.map(({ record, outcome }) => {
       const row = recordRow(sport, record, {
         label: `Best ${recordDurationLabel(record.durationS)}`,
-        grade: recordGradeCell(sport, outcome),
+        grade: recordGradeCell(sport, outcome, record.covered),
       })
       row.activity = null
       return row

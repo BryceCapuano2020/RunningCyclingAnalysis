@@ -5,7 +5,7 @@ import { PACE_UNIT, formatDuration, formatPaceValue, formatPower } from '@rca/co
 import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
-import { formatDay } from '../format/date'
+import { formatDayMonth } from '../format/date'
 import { PER } from '../format/units'
 import { hrefFor } from '../route'
 import { countSport, featuredEquivalence, isEstimatedRecord } from '../records'
@@ -71,8 +71,8 @@ export function CrossSportCard({ result, units, weighted }: CrossSportCardProps)
       </p>
       {source && (
         <p>
-          <a href={hrefFor({ page: 'activity', id: source.id })}>
-            {`Set on ${source.name}, ${formatDay(source.startMs)}`}
+          <a className="cross-sport__link" href={hrefFor({ page: 'activity', id: source.id })}>
+            {`Set on ${source.name}, ${formatDayMonth(source.startMs)}`}
           </a>
         </p>
       )}

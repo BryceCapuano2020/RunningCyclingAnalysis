@@ -1,4 +1,4 @@
-import { BRAND_RIDING, BRAND_RUNNING, type PathStep } from '../ui/components/iconPaths'
+import { BRAND_RIDING, BRAND_RUNNING } from '../ui/components/iconPaths'
 import { CARD_COLORS } from './cardColors'
 import {
   CONDENSED_800,
@@ -11,6 +11,7 @@ import {
   placer,
   setFont,
   strokeWith,
+  traceSteps,
   wrapIn,
   type CardCanvas,
   type CardContext,
@@ -43,30 +44,6 @@ export const CAVEAT: TextStyle = { ...SANS_500, size: 30, lineHeight: 36 }
 const FOOTNOTE: TextStyle = { ...SANS_400, size: 30, lineHeight: 36 }
 export const ORIGIN: TextStyle = { ...SANS_500, size: 30, lineHeight: 36 }
 const HEADLINE_LINE_RATIO = 0.95
-
-/** Traces path steps on the canvas, placing each point with `at`. */
-function traceSteps(
-  ctx: CardContext,
-  steps: readonly PathStep[],
-  at: (px: number, py: number) => [number, number],
-): void {
-  for (const step of steps) {
-    switch (step.op) {
-      case 'M':
-        ctx.moveTo(...at(step.x, step.y))
-        break
-      case 'L':
-        ctx.lineTo(...at(step.x, step.y))
-        break
-      case 'C':
-        ctx.bezierCurveTo(...at(step.x1, step.y1), ...at(step.x2, step.y2), ...at(step.x, step.y))
-        break
-      case 'Z':
-        ctx.closePath()
-        break
-    }
-  }
-}
 
 /** The brand mark: two curves crossing on ink, from the icon's own path data. The ink is the card. */
 function drawBrandMark(ctx: CardContext, x: number, y: number, size: number): void {

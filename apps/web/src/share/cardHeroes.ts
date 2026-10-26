@@ -1,11 +1,15 @@
 import type { Sport } from '@rca/core/types'
+import { SPORT_GLYPHS } from '../ui/components/iconPaths'
 import { CARD_COLORS } from './cardColors'
 import {
   CONDENSED_700,
   CONDENSED_800,
   SANS_600,
   drawLines,
+  placer,
   setFont,
+  strokeWith,
+  traceSteps,
   wrapIn,
   type CardContext,
   type TextStyle,
@@ -23,6 +27,15 @@ const SPACE = 8
 const UNIT_GAP = 10
 /** Where the figure's baseline sits in its line, as a share of its size. */
 const BASELINE = 0.8
+/**
+ * A sport's glyph sits in the inset beside the first line of its label, so it takes no height: a card
+ * with no room to spare would shed its origin or its magnitude line to fit one above. Its grid and
+ * stroke are the icon's own.
+ */
+const GLYPH_SIZE = 22
+const GLYPH_GAP = 4
+const GLYPH_GRID = 24
+const GLYPH_STROKE = 2
 
 const LABEL: TextStyle = { ...CONDENSED_700, size: 30, lineHeight: 34 }
 const BODY: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
@@ -112,6 +125,35 @@ function drawFigure(
   ctx.textBaseline = 'top'
 }
 
+/** A sport's glyph at a size and top-left corner, traced from the path data icons.tsx also draws. */
+function drawSportGlyph(
+  ctx: CardContext,
+  sport: Sport,
+  x: number,
+  y: number,
+  size: number,
+  colour: string,
+): void {
+  const glyph = SPORT_GLYPHS[sport]
+  const scale = size / GLYPH_GRID
+  const at = placer(x, y, scale)
+  for (const dot of glyph.dots) {
+    const [cx, cy] = at(dot.cx, dot.cy)
+    const arc = () => ctx.arc(cx, cy, dot.r * scale, 0, Math.PI * 2)
+    if (dot.filled) {
+      ctx.beginPath()
+      arc()
+      ctx.fillStyle = colour
+      ctx.fill()
+    } else {
+      strokeWith(ctx, colour, GLYPH_STROKE * scale, arc)
+    }
+  }
+  for (const steps of glyph.paths) {
+    strokeWith(ctx, colour, GLYPH_STROKE * scale, () => traceSteps(ctx, steps, at))
+  }
+}
+
 function drawColumn(
   ctx: CardContext,
   column: Column,
@@ -124,6 +166,9 @@ function drawColumn(
   const textX = x + EDGE_WIDTH + TEXT_INSET
   ctx.fillStyle = sportColour(hero.sport)
   ctx.fillRect(x, y, EDGE_WIDTH, edgeHeight)
+  // The glyph sits in the inset, centred on the label's first line.
+  const glyphY = y + (LABEL.lineHeight - GLYPH_SIZE) / 2
+  drawSportGlyph(ctx, hero.sport, x + EDGE_WIDTH + GLYPH_GAP, glyphY, GLYPH_SIZE, CARD_COLORS.text)
   drawLines(ctx, column.label, textX, y, LABEL, CARD_COLORS.muted)
   let lineY = y + column.label.length * LABEL.lineHeight + SPACE
   // The figure is text, so it takes the text colour; only the edge above carries the sport.

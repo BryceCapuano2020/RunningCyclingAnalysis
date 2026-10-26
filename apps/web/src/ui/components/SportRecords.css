@@ -82,3 +82,11 @@
   margin: 0;
   font-size: var(--text-sm);
 }
+
+/* A finger needs a control's height to tap a record's link. A mouse keeps the line's own height. */
+@media (pointer: coarse) {
+  .records__link {
+    min-height: var(--control-height);
+    line-height: var(--control-height);
+  }
+}

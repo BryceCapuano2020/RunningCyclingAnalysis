@@ -12,14 +12,14 @@ should feel **athletic and energetic** without hiding the honesty of the engine.
 
 Hash routes, so the static host needs no fallback rules.
 
-| Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                             |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, a line of recent form, records in native units with the age grade of each and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed |
-| `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                       |
-| `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                        |
-| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                          |
-| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                         |
+| Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                                                                                                                                  |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed |
+| `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                            |
+| `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                             |
+| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                               |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                                                                                                              |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where each chart would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
@@ -56,7 +56,8 @@ view is not hidden under the header. The breakpoints are named once, in
 
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
-menu, the sign-in button, the link arrows, the disclosure summaries and the form fields. At 360 px and
+menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
+links in a records list and the cross-sport idea, which are padded to that height. At 360 px and
 below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
 overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
 
@@ -67,7 +68,7 @@ fragment link.
 
 Back and Forward return to the page the visitor left, where they left it. A page opened by a link
 starts at the top. **Back to activities** on an activity goes Back when the list was the page before; an activity opened
-from Run or Ride reads **Back to Run** (or **Back to Ride**) and goes back there.
+from Run or Ride reads **Back to Run** (or **Back to Ride**), keeps that tab lit and goes back there.
 Run and Ride link to **How sure is this?**, which links back to **Back to Balance**; the footer links
 to it too.
 
@@ -200,10 +201,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   The current Activities page number keeps its selected look while pressed, and in forced colours it takes
   the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped.
   A button is a sentence, so it is set in sentence case, not capitals.
-- A sport glyph (`SportIcon`) sits next to every sport name.
+- A sport glyph (`SportIcon`) sits next to every sport name. Its path data is in `iconPaths.ts`, the one
+  source for the icon and for the glyph on the share card.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
-  its value, such as "250 W", and the latest trend value with its window, such as "64%, last 2 weeks". Watts charts also fill the area under
+  its value, such as "250 W", and the latest trend value with its window, such as "64%, last 2 weeks".
+  A best-effort curve marks the 1, 5, 20 and 60 minute efforts, the same ones its records list names,
+  and labels its last point with its value where there is room beside the 20 minute label. Watts charts also fill the area under
   the line. Pace charts draw the line alone: pace has no zero to fill down to. Every chart has a
   visible title, and a value's label sits clear of its own line.
 - The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
@@ -215,8 +219,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom: the threshold, its grade and level ladder for the best 20 minutes
   (the same grade line as the card), a line of recent form ("Last run Wed 14 Jan · 9 runs · 42.10
-  km"), the best efforts, the week-by-week trend under the heading "Week by week", then the curve,
-  headed "Pace curve" for running and "Power curve" for cycling.
+  km"), the best efforts, with **See your runs** under them, which opens Activities filtered to that
+  sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
+  for running and "Power curve" for cycling. The threshold carries no count: the period control beside
+  the heading names the dates the efforts come from. A sport the library has no activities for has no
+  period control and no curve, and asks for files.
+- **A record says how long ago it was set**, as a tag such as "Set 12 days ago" or "Set today". The count
+  runs in calendar days from today, read once when the page opens, so a later render does not move it.
+  A record's source is dated without its weekday, such as "5 Jan".
+- **A duration's grade says the distance it is taken at.** A run's grade at 1, 5, 20 or 60 min is taken at
+  the distance it covers at its flat pace, so its grade line reads "Local · 64% · 5.0 km in 20 min", written
+  as any distance is. A ride's grade is not given a distance, because it goes through its running equivalent.
 - Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
@@ -261,7 +274,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
   unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could hold
   for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the
-  ladder with its key, the caption, then the best efforts, with the Flat note under them on a run.
+  ladder with its key, the caption, then the best efforts, with the Flat note under them on a run. On a
+  phone, 560 px and below, the best efforts sit in a closed disclosure titled "Best efforts", so the
+  answer and the ladder read first; from wider screens it is open. A visitor's own choice holds across a
+  resize.
   The grade line names the effort it grades: "Local · 64% · on your best 20 min, 6:37 /mi". A
   ride's line starts "Estimated", and its watts carry "estimated" when they did not come from a
   power meter. A run card that shows a Flat mark says what it means under its records, on every run
@@ -276,7 +292,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
   published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
-  ride's floor is the same at every body mass. The share card labels its threshold "Threshold pace, estimated from your best 3 to 20 min", printed in capitals. The line "About ... estimated from your best 3 to 20 min efforts" sits under
+  ride's floor is the same at every body mass. The share card labels its threshold "Threshold pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, each on two lines so the two figures line up. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
@@ -324,7 +340,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
   this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
   record was set in one activity, that activity is named once under the list ("All set on Morning
-  run, Mon 5 Jan"). Otherwise each record links to its own activity. A long activity name is cut
+  run, 5 Jan"). Otherwise each record links to its own activity. A long activity name is cut
   short with an ellipsis, and its full name is the link's title and accessible name.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
   ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
@@ -359,8 +375,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - The card holds the brand mark, in the two sport colours, and the app name in volt. Under the
   headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
   the meter reads. Then the balance meter, each sport's threshold, "Threshold pace, estimated from your
-  best 3 to 20 min", with its W/kg and its level, such as "Local · 64% on best 20 min", under the
-  figure; the period; the heart-rate caveat as a starred line when there is one; the footnote; and the
+  best 3 to 20 min" for a run, with its W/kg and its level, such as "Local · 64% on best 20 min", under
+  the figure, and a glyph beside each label for its sport; the period; the heart-rate caveat as a starred line when there is one; the footnote; and the
   site's host when it is public.
 - Figures are drawn in text colour. Sport colour appears only on the brand mark, the edge of each
   column, and the meter's band, dot and outline. It never colours text.
@@ -440,7 +456,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
 - **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov 2025", so a span reads without the current date. The period control, the Balance caption and the card's period line show the same dates.
-- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, and offers the file chooser as a secondary button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots.
+- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, shows no period control, and offers the file chooser as a secondary button. A sport the files have, with none in the period, offers **Show all time** as its one button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots.
 - One "How sure is this?" link per card at most.
 - **A level says how it is graded.** A level's grade line may link to its age grades with How is this
   graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
@@ -448,8 +464,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - The app grades, it never ranks: no percentiles, no "top X%", no composite score across sports.
 - **Flat pace, and grade for age only.** Every running pace worked out as a flat pace is called
   "flat pace" in charts, axes, tables, records and copy. Its record mark is "Flat", and its note reads
-  "Flat pace: your pace allowing for hills, as if on level ground." "Grade" means an age grade and
-  nothing else.
+  "Flat pace: your pace allowing for hills, as if on level ground." A run's threshold keeps its name,
+  "Threshold pace, estimated"; the page's Flat note says that pace is a flat pace. "Grade" means an age grade and nothing else.
 - **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. A
   run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.
@@ -497,8 +513,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
   to Profile. It is on the Balance, Run and Ride pages only, and the sample has its own persona and
   no such line.
-- **A figure's scope is named by the period.** A window is named "in this period", as in "Based on 6
-  runs in this period." Under All time there is no period, so the same line reads "in all your files".
+- **A figure's scope is named by the period control beside its heading,** which shows the dates of a
+  window. The threshold carries no count under it, since a count of runs is not what it is fitted from.
+  Under All time the control shows the span of the whole library.
   Method's lede names its dated period in brackets instead, as "(12 May – 3 Aug 2025)".
 - **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
   A new account takes the language of its sign-in request the same way. The Units choice comes

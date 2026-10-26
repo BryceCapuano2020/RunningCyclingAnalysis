@@ -245,6 +245,26 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Balance' })).toHaveAttribute('aria-current', 'page')
   })
 
+  describe('an activity opened from a sport', () => {
+    afterEach(() => window.history.replaceState(null, '', '#/'))
+
+    it('keeps that sport’s tab lit, since the visitor came from it', () => {
+      window.history.replaceState({ rcaFrom: '#/run' }, '', '#/activities/a1')
+      render(<Header route={{ page: 'activity', id: 'a1' }} />)
+      expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveAttribute('aria-current')
+    })
+
+    it('keeps Activities lit when it was opened from the list', () => {
+      window.history.replaceState({ rcaFrom: '#/activities' }, '', '#/activities/a1')
+      render(<Header route={{ page: 'activity', id: 'a1' }} />)
+      expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+    })
+  })
+
   it('always links to the profile, marked current there', () => {
     const { rerender } = render(<Header route={null} />)
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '#/profile')

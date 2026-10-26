@@ -30,9 +30,9 @@ export interface RecordRow {
 export function recordRow(
   sport: Sport,
   record: SportRecord,
-  options: { label: string; grade: ReactNode; change?: string | null },
+  options: { label: string; grade: ReactNode; change?: string | null; tags?: string[] },
 ): RecordRow {
-  const tags =
+  const marks =
     sport === 'run' ? ['Flat'] : isEstimatedRecord(sport, record.activity) ? ['Estimated'] : []
   return {
     key: String(record.durationS),
@@ -40,7 +40,7 @@ export function recordRow(
     value: record.value,
     sub: record.sub,
     grade: options.grade,
-    tags,
+    tags: [...marks, ...(options.tags ?? [])],
     change: options.change ?? null,
     activity: record.activity,
   }

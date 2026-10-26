@@ -149,7 +149,7 @@ describe('CrossSportCard', () => {
       }),
     )
 
-    expect(screen.getByRole('link', { name: 'Set on Hill ride, Fri 9 Jan' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Set on Hill ride, 9 Jan' })).toHaveAttribute(
       'href',
       '#/activities/ride-1',
     )

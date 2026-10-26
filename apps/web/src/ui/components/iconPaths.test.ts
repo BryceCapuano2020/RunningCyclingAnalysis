@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { BRAND_RIDING, BRAND_RUNNING, WARNING_STEM, WARNING_TRIANGLE, pathData } from './iconPaths'
+import {
+  BRAND_RIDING,
+  BRAND_RUNNING,
+  SPORT_GLYPHS,
+  WARNING_STEM,
+  WARNING_TRIANGLE,
+  pathData,
+} from './iconPaths'
 
 describe('pathData', () => {
   // The brand curves were written as relative SVG commands; these are the same curves, absolute.
@@ -15,5 +22,31 @@ describe('pathData', () => {
 
   it('writes nothing for no steps', () => {
     expect(pathData([])).toBe('')
+  })
+})
+
+describe('SPORT_GLYPHS', () => {
+  // The run and ride glyphs were written as SVG in icons.tsx; these are the same shapes, absolute.
+  it('writes the run glyph as the icon always drew it: a head and five strokes', () => {
+    expect(SPORT_GLYPHS.run.dots).toEqual([{ cx: 15, cy: 4, r: 2, filled: true }])
+    expect(SPORT_GLYPHS.run.paths.map(pathData)).toEqual([
+      'M13.5 8.5L11 13.5',
+      'M13.5 9L17 10.5L18.5 8',
+      'M13.5 9L10 10.5L7.5 12.5',
+      'M11 13.5L14.5 15.5L13.5 20.5',
+      'M11 13.5L8.5 17L4.5 18.5',
+    ])
+  })
+
+  it('writes the ride glyph as the icon always drew it: two wheels and a frame', () => {
+    expect(SPORT_GLYPHS.ride.dots).toEqual([
+      { cx: 5.5, cy: 16.5, r: 3.8, filled: false },
+      { cx: 18.5, cy: 16.5, r: 3.8, filled: false },
+    ])
+    expect(SPORT_GLYPHS.ride.paths.map(pathData)).toEqual([
+      'M5.5 16.5L9.5 9.5L16.5 9.5L18.5 16.5',
+      'M9.5 9.5L12.5 16.5L5.5 16.5',
+      'M14 6L17 6',
+    ])
   })
 })

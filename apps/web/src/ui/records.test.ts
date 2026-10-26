@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fitCriticalPower } from '@rca/core/cp'
 import { FLAT_RUN_COST, HALF_MARATHON_M, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
+import { metabolicToFlatSpeed } from '@rca/core/metabolic'
+import { formatDistance } from '@rca/core/units'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import {
   RECORD_DURATIONS_S,
   activityNames,
+  calendarDaysBetween,
   chipLabels,
   countSport,
   curveOf,
@@ -16,6 +19,7 @@ import {
   nativeCurve,
   nativeValue,
   ownDistanceRecords,
+  setAgoText,
   sportRecords,
   threshold,
 } from './records'
@@ -92,6 +96,51 @@ describe('sportRecords', () => {
     const [first] = sportRecords(runs, 'run', 70, 'imperial')
     expect(first?.value).toMatch(/\/mi$/)
     expect(first?.sub).toBeNull()
+  })
+
+  it('says how far a run covered in its duration, at its flat pace, in the unit preference', () => {
+    const runs = makeResult({ runCurve: [curvePoint(1200, 15, 'run-1')] })
+    const [first] = sportRecords(runs, 'run', 70, 'imperial')
+    const covered = formatDistance(metabolicToFlatSpeed(15) * 1200, 'imperial')
+    expect(first?.covered).toBe(`${covered} in 20 min`)
+    expect(first?.covered).toMatch(/^\d+\.\d mi in 20 min$/)
+  })
+
+  it('gives a ride no distance covered, since its grade goes through the running equivalent', () => {
+    const [first] = sportRecords(result, 'ride', 70, 'metric')
+    expect(first?.covered).toBeNull()
+  })
+})
+
+describe('calendar days from today', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('counts whole calendar days between two moments, across a clock change', () => {
+    const day = new Date(2026, 2, 28, 23).getTime()
+    expect(calendarDaysBetween(day, new Date(2026, 2, 29, 1).getTime())).toBe(1)
+    expect(calendarDaysBetween(day, new Date(2026, 3, 4, 0, 30).getTime())).toBe(7)
+    expect(calendarDaysBetween(day, new Date(2026, 2, 28, 1).getTime())).toBe(0)
+  })
+
+  it('counts a 23 hour day as a whole day, whatever zone the suite runs in', () => {
+    // Santiago's clocks go forward at midnight on this Sunday, so the day is 23 hours long and the
+    // gap from its start to the next day's start is 23 hours. A count of whole days from elapsed time
+    // would call it none.
+    vi.stubEnv('TZ', 'America/Santiago')
+    const sunday = new Date(2026, 8, 6, 12).getTime()
+    expect(calendarDaysBetween(sunday, new Date(2026, 8, 7, 12).getTime())).toBe(1)
+  })
+
+  it('says when a record was set, in whole days, and says today for none', () => {
+    expect(setAgoText(0)).toBe('Set today')
+    expect(setAgoText(1)).toBe('Set 1 day ago')
+    expect(setAgoText(12)).toBe('Set 12 days ago')
+  })
+
+  it('never says a record was set a negative number of days ago, since it reads as today', () => {
+    expect(setAgoText(-1)).toBe('Set today')
   })
 })
 

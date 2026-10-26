@@ -400,3 +400,120 @@ describe('SportCurveChart', () => {
     expect(tableOf(container).rows.flat().join(' ')).not.toMatch(/NaN|Infinity/)
   })
 })
+
+describe('SportCurveChart record marks', () => {
+  it('marks the 1, 5, 20 and 60 minute efforts, and labels the last point with its value', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={[
+          curvePoint(60, 400, 'ride-1'),
+          curvePoint(300, 320, 'ride-1'),
+          curvePoint(600, 260, 'ride-1'),
+          curvePoint(1200, 250, 'ride-1'),
+          curvePoint(3600, 210, 'ride-1'),
+        ]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+
+    // The 20-minute effort is the emphasised point; the 1, 5 and 60 minute efforts are marked too,
+    // and 10 minutes is not a record, so it is left unmarked.
+    expect(container.querySelectorAll('[data-testid="sport-curve-record"]')).toHaveLength(3)
+    const labels = [...container.querySelectorAll('.chart-series__label')].map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual(['250 W', '210 W'])
+  })
+})
+
+describe('the last point’s label beside the 20 minute label', () => {
+  /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
+  function chartWidth(width: number) {
+    class SizedObserver {
+      private readonly callback: ResizeObserverCallback
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback
+      }
+
+      observe() {
+        const entry = { contentRect: { width } } as unknown as ResizeObserverEntry
+        this.callback([entry], this as unknown as ResizeObserver)
+      }
+
+      unobserve() {}
+
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', SizedObserver)
+  }
+
+  const CURVE = [
+    curvePoint(60, 400, 'ride-1'),
+    curvePoint(300, 320, 'ride-1'),
+    curvePoint(1200, 250, 'ride-1'),
+    curvePoint(1800, 230, 'ride-1'),
+  ]
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.documentElement.style.fontSize = ''
+  })
+
+  it('leaves the last label out at a large root font, where its text is wider than at the default', () => {
+    // The label is 0.75 rem, so at a 32 px root its text is about 72 px wide for "230 W". The last point
+    // sits about 60 px past the 20 minute label, so the label would overlap it there.
+    document.documentElement.style.fontSize = '32px'
+    chartWidth(575)
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={CURVE}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    const labels = [...container.querySelectorAll('.chart-series__label')].map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual(['250 W'])
+  })
+
+  it('leaves the last label out when it would sit on the 20 minute label on a 280 px chart', () => {
+    chartWidth(280)
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={CURVE}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    const labels = [...container.querySelectorAll('.chart-series__label')].map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual(['250 W'])
+  })
+
+  it('labels the last point where there is room beside the 20 minute label', () => {
+    chartWidth(900)
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={CURVE}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    const labels = [...container.querySelectorAll('.chart-series__label')].map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual(['250 W', '230 W'])
+  })
+})
