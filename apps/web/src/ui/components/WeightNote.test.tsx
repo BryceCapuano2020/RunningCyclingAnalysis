@@ -21,4 +21,11 @@ describe('WeightNote', () => {
     )
     expect(WEIGHT_FIGURES_PURPOSE).toBe('to see ride figures.')
   })
+
+  it('gives the Profile link its own class, so a phone can give it a finger-sized target', () => {
+    render(<WeightNote />)
+    expect(screen.getByRole('link', { name: WEIGHT_PROMPT_PARTS.page })).toHaveClass(
+      'weight-note__link',
+    )
+  })
 })

@@ -173,7 +173,7 @@ describe('LandingPage', () => {
     expect(within(example).getByText('Your balance leans toward running')).toBeInTheDocument()
     expect(
       within(example).getByRole('img', {
-        name: 'Running grades 6 points higher than cycling (range 1 to 12 points)',
+        name: 'Running grades 6 points higher than cycling (range 1 to 12\u00a0points)',
       }),
     ).toBeInTheDocument()
     expect(within(example).getByText('Running · Local · 64%')).toBeInTheDocument()

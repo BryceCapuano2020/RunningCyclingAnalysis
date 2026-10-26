@@ -26,12 +26,18 @@
 
 .equivalence-list dl {
   display: grid;
-  grid-template-columns: auto 1fr;
+}
+
+/* The labels and each row's values share three columns, so the labels sit over the values they name. */
+.equivalence-list__labels,
+.equivalence-list dl {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: var(--space-1) var(--space-3);
   margin: 0;
 }
 
-.equivalence-list dt {
+.equivalence-list__labels {
+  display: none;
   color: var(--text-secondary);
 }
 
@@ -49,5 +55,9 @@
 @media (max-width: 479px) {
   .equivalence-table__wide {
     display: none;
+  }
+
+  .equivalence-list__labels {
+    display: grid;
   }
 }

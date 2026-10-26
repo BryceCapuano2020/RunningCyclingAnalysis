@@ -7,7 +7,6 @@ import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { formatDayMonth } from '../format/date'
-import { PER } from '../format/units'
 import { hrefFor } from '../route'
 import { countSport, featuredEquivalence, isEstimatedRecord } from '../records'
 import { betweenClause } from '../periodCopy'
@@ -28,10 +27,21 @@ function rideAt(result: AnalysisResult, durationS: number): ActivitySummary | nu
   return result.activities.find((activity) => activity.id === id) ?? null
 }
 
-/** The line for a ride too short to compare: the duration, and the dates it is missing between. */
-function needsRideText(period: Period): string {
+/** Whether a ride lasts as long as an equivalence needs, so it could have a power curve to compare. */
+function hasLongRide(result: AnalysisResult): boolean {
+  return result.activities.some(
+    (activity) => activity.sport === 'ride' && activity.durationS >= EQUIVALENCE_MIN_S,
+  )
+}
+
+/**
+ * The line for a ride that cannot be compared yet: the duration it needs, the dates it is missing
+ * between, and "with power" when a ride is long enough but has no power curve to read.
+ */
+function needsRideText(period: Period, withPower: boolean): string {
   const when = betweenClause(period)
-  return `Needs a ride of ${formatDuration(EQUIVALENCE_MIN_S)} or more${when === '' ? '' : ` ${when}`}.`
+  const need = `Needs a ride of ${formatDuration(EQUIVALENCE_MIN_S)} or more${withPower ? ' with power' : ''}`
+  return `${need}${when === '' ? '' : ` ${when}`}.`
 }
 
 /**
@@ -56,7 +66,9 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
     return (
       <section className="cross-sport" aria-labelledby="cross-sport-card">
         <h2 id="cross-sport-card">Your ride on foot</h2>
-        <p className="secondary">{needsRideText(period)}</p>
+        <p className="secondary">
+          {needsRideText(period, featured === null && hasLongRide(result))}
+        </p>
       </section>
     )
   }
@@ -79,7 +91,7 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
         <span className="unit">{PACE_UNIT[units]}</span>
       </h2>
       <p className="secondary">
-        {`Your best ${formatDuration(featured.durationS)} on the bike, ${watts}, takes the same effort as running ${paceNumber} ${PER[units]} on the flat.`}
+        {`Your best ${formatDuration(featured.durationS)} on the bike, ${watts}, takes the same effort as running on the flat.`}
       </p>
       {source && (
         <p>

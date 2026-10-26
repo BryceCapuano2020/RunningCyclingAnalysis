@@ -53,7 +53,6 @@ interface Preview {
 const TRIGGER = 'Share image'
 const SHEET_TITLE = 'Share image'
 const PRIVACY_NOTE = 'Made on this device. Nothing is uploaded.'
-const WAITING_NOTE = 'Available when the analysis finishes.'
 const SAVE = 'Save image'
 const SHARE = 'Share file'
 const PREPARING = 'Preparing…'
@@ -145,7 +144,6 @@ export function ShareImageButton(props: ShareImageButtonProps) {
   const inFlight = useRef(false)
   // When the last action was accepted, so a double click is one press.
   const lastPress = useRef(0)
-  const noteId = useId()
   const titleId = useId()
   const dialogRef = useModalDialog(open, trigger)
   // The card loads once for this sheet, so the trigger's pointer and focus and the first draw share it. A
@@ -303,17 +301,14 @@ export function ShareImageButton(props: ShareImageButtonProps) {
         type="button"
         className="btn"
         aria-haspopup="dialog"
-        disabled={disabled}
-        aria-describedby={disabled ? noteId : undefined}
-        onClick={() => setOpen(true)}
+        // aria-disabled, not disabled: a disabled button drops the focus it holds.
+        aria-disabled={disabled}
+        onClick={() => {
+          if (!disabled) setOpen(true)
+        }}
       >
         {TRIGGER}
       </button>
-      {disabled && (
-        <p id={noteId} className="share-image__note muted">
-          {WAITING_NOTE}
-        </p>
-      )}
       <dialog
         ref={dialogRef}
         className="share-sheet"

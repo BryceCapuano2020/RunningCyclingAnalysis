@@ -18,36 +18,55 @@
   min-width: 0;
 }
 
-/* The headline with the sample chip and the share buttons beside it; they wrap on a phone. */
+/* The headline on its own line; the share button sits under the lede, on the same text column. */
 .balance-hero__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-4);
+  display: block;
 }
 
 .balance-hero__head h1 {
   min-width: 0;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
-/*
- * The cards top-align, so an empty sport's card stays its own height rather than stretching to the
- * height of the card beside it.
- */
+/* The sport cards share one height, so their "All runs" and "All rides" links sit on one line. */
 .balance__sports,
 .balance__cards {
   display: grid;
   gap: var(--space-4);
-  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+
+.balance__sports {
+  align-items: stretch;
+}
+
+/* The evidence cards top-align, so a card stays its own height beside the one that is taller. */
+.balance__cards {
+  align-items: start;
 }
 
 .balance__cards .card {
   display: grid;
   gap: var(--space-2);
   align-content: start;
+}
+
+/* The heading's paragraph sits under the heading with the card's own gap, not a second margin. */
+.balance__cards .card > h2 + p {
+  margin-top: 0;
+}
+
+/* The quiet evidence card has no border, so its chip, sentence and link take a gap between them. */
+.balance__cards .evidence-card--quiet {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+/* Beside a boxed evidence card, the cross-sport idea is inset by the card's padding, so their text lines up. */
+.balance__cards > .card + .cross-sport {
+  padding-inline: var(--space-5);
 }
 
 .balance__cards .chip {

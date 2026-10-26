@@ -1,0 +1,8 @@
+/* A finger needs a control's height to tap the link to Profile, on a phone or a coarse pointer. */
+@media (max-width: 760px), (pointer: coarse) {
+  .weight-note__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
+}

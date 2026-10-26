@@ -4,39 +4,39 @@ import { effortCaveat, hardEffortsOnFile } from './effortCaveat'
 describe('effortCaveat', () => {
   it('gives the card wording and a one-line version when the cycling effort was low', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
-    expect(caveat?.title).toBe('Your ride number may be low')
+    expect(caveat?.title).toBe('Your ride number could be higher')
     expect(caveat?.text).toBe(
-      'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
+      'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest.',
     )
     expect(caveat?.short).toBe('Best cycling effort over 20 min may not have been your hardest.')
   })
 
   it('gives the running wording when the running effort was low', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.95 })
-    expect(caveat?.title).toBe('Your run number may be low')
+    expect(caveat?.title).toBe('Your run number could be higher')
     expect(caveat?.text).toBe(
-      'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
+      'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest.',
     )
     expect(caveat?.short).toBe('Best running effort over 20 min may not have been your hardest.')
   })
 
   it('names both sports when both efforts were low', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 })
-    expect(caveat?.title).toBe('Both numbers may be low')
+    expect(caveat?.title).toBe('Both numbers could be higher')
     expect(caveat?.text).toBe(
-      'Your best 20 min reached 70% of your running reference heart rate and 80% of your cycling one, so neither was probably your hardest. A recent race or a hard effort of this length in each sport would sharpen both.',
+      'Your best 20 min reached 70% of your running reference heart rate and 80% of your cycling one, so neither was probably your hardest.',
     )
     expect(caveat?.short).toBe('Best efforts over 20 min may not have been your hardest.')
   })
 
   it('does not count an effort of exactly 90% as low', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.9 })
-    expect(caveat?.title).toBe('Your run number may be low')
+    expect(caveat?.title).toBe('Your run number could be higher')
   })
 
   it('still names the cycling effort when the running check is missing', () => {
     const caveat = effortCaveat({ durationS: 1200, runHrFraction: null, rideHrFraction: 0.8 })
-    expect(caveat?.title).toBe('Your ride number may be low')
+    expect(caveat?.title).toBe('Your ride number could be higher')
   })
 
   it('has no caveat when both efforts reached 90% or when nothing is known', () => {

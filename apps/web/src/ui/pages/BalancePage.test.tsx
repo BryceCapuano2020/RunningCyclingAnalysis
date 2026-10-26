@@ -214,12 +214,8 @@ describe('BalancePage', () => {
     expect(strip?.textContent).toMatch(/^Run \d+% \w+$/)
   })
 
-  it('marks the sample athlete only when the sample is on screen', () => {
-    const { unmount } = renderPage(makeResult(), { state: { isSample: true } })
-    expect(screen.getByText('Sample athlete')).toBeInTheDocument()
-    unmount()
-
-    renderPage()
+  it('leaves the sample chip off the answer, since the banner above every page says so once', () => {
+    renderPage(makeResult(), { state: { isSample: true } })
     expect(screen.queryByText('Sample athlete')).not.toBeInTheDocument()
   })
 
@@ -240,7 +236,34 @@ describe('BalancePage', () => {
     renderPage(
       makeResult({ effort: [{ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 }] }),
     )
-    expect(screen.getByRole('region', { name: 'Your ride number may be low' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Your ride number could be higher' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no heart-rate card with no comparison while the files have heart rate', () => {
+    renderPage(
+      makeResult({
+        comparison: { prior: [], calibrated: null },
+        effort: [],
+        maxHeartRate: 170,
+      }),
+    )
+    expect(screen.queryByText('No heart-rate check')).not.toBeInTheDocument()
+    expect(screen.queryByText('Add heart rate to sharpen this')).not.toBeInTheDocument()
+  })
+
+  it('asks for heart rate with no comparison when the files have none', () => {
+    renderPage(
+      makeResult({
+        comparison: { prior: [], calibrated: null },
+        effort: [],
+        maxHeartRate: null,
+      }),
+    )
+    expect(
+      screen.getByRole('region', { name: 'Add heart rate to sharpen this' }),
+    ).toBeInTheDocument()
   })
 
   it('shows the bike on foot in the cross-sport card, which opens to every duration', () => {
@@ -390,11 +413,12 @@ describe('BalancePage', () => {
     expect(screen.getByRole('button', { name: 'Share image' })).toBeEnabled()
   })
 
-  it('holds the share image until the analysis finishes', () => {
+  it('holds the share image until the analysis finishes, without a note that moves the answer', () => {
     renderPage(makeResult(), { busy: true })
 
-    expect(screen.getByRole('button', { name: 'Share image' })).toBeDisabled()
-    expect(screen.getByText('Available when the analysis finishes.')).toBeInTheDocument()
+    const share = screen.getByRole('button', { name: 'Share image' })
+    expect(share).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByText('Available when the analysis finishes.')).not.toBeInTheDocument()
   })
 
   it('offers no image when there is neither a comparison nor a sport estimate to draw', () => {

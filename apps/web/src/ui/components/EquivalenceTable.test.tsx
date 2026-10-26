@@ -114,6 +114,21 @@ describe('EquivalenceTable', () => {
     expect(within(item).getByText('3:58 to 4:23 /km')).toBeInTheDocument()
   })
 
+  it('shows the three labels once above the phone list, and keeps each term for a screen reader', () => {
+    const { container } = renderTable([
+      makeEquivalence({ durationS: 1200, ridePowerW: 250 }),
+      makeEquivalence({ durationS: 1800, ridePowerW: 220 }),
+    ])
+    const labels = container.querySelector<HTMLElement>('.equivalence-list__labels')
+    expect(labels).toHaveAttribute('aria-hidden', 'true')
+    expect(
+      Array.from(labels?.querySelectorAll('span') ?? []).map((span) => span.textContent),
+    ).toEqual(['Ride effort', 'Flat pace', '90% model range'])
+    const terms = [...container.querySelectorAll<HTMLElement>('.equivalence-list dt')]
+    expect(terms).toHaveLength(6)
+    for (const term of terms) expect(term).toHaveClass('sr-only')
+  })
+
   it('keeps the phone list a list for Safari, which drops a list’s role when its bullets are removed', () => {
     // list-style: none is what strips the role, so the bullets are hidden at the marker instead.
     const body = ruleBody(equivalenceCss, '.equivalence-list')

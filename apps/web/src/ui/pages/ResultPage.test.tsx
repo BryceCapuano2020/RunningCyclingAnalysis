@@ -526,7 +526,7 @@ describe('ResultPage sample athlete', () => {
       /Local · \d+% · on your best 20 min/,
     )
     expect(screen.queryByText(PROFILE_PROMPT)).not.toBeInTheDocument()
-    expect(screen.getByText('Sample athlete')).toBeInTheDocument()
+    expect(screen.queryByText('Sample athlete')).not.toBeInTheDocument()
   })
 })
 

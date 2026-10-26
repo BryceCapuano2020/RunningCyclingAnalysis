@@ -27,8 +27,8 @@
   color: var(--series-run);
 }
 
-/* A finger needs a control's height to tap the link to the activity. A mouse keeps its line. */
-@media (pointer: coarse) {
+/* A finger, or a phone's narrow screen, needs a control's height to tap the link to the activity. */
+@media (max-width: 760px), (pointer: coarse) {
   .cross-sport__link {
     display: inline-flex;
     align-items: center;

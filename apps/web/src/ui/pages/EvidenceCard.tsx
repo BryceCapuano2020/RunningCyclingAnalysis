@@ -1,13 +1,19 @@
 import type { ReactNode } from 'react'
 import type { EffortCheck } from '@rca/core/types'
+import { formatDuration } from '@rca/core/units'
 import { effortCaveat, hardEffortsOnFile } from '../effortCaveat'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from '../components/icons'
 import { HEADLINE_LABEL } from '../grades'
 import { hrefFor } from '../route'
 
 export interface EvidenceCardProps {
-  /** Heart-rate check for the headline duration, or null when it is unavailable. */
+  /** Heart-rate check for the headline duration, or null when there is no comparison to check. */
   effort: EffortCheck | null
+  /**
+   * True when the files have no heart rate. With no comparison, the card then asks for heart rate;
+   * without one, and with heart rate on file, it says nothing.
+   */
+  noHeartRate: boolean
 }
 
 /**
@@ -16,24 +22,21 @@ export interface EvidenceCardProps {
  * recorded is what narrows it.
  */
 const RECORD_HARD_EFFORT = `To record one: after a warm-up, run or ride your hardest steady ${HEADLINE_LABEL} with heart rate on, then add the file.`
-/** What to do when a file has no heart rate: the check cannot read effort without it. */
+/** What to do when a file has no heart rate: the check cannot read effort without it, and this says why. */
 const ADD_HEART_RATE =
-  'Wear a heart-rate strap or a watch that records heart rate, and export files that include it.'
+  'Heart rate shows how hard each best effort was. Wear a strap or a watch that records it, and export files that include it.'
 
 interface Evidence {
   chip: { className: string; icon: ReactNode; label: string }
-  title: string
+  /** The gap's heading. Null for good news, which is a quiet line with no heading. */
+  title: string | null
   text: string
   /** The plain how-to for a card with something to act on; null for good news. */
   howTo: string | null
-  /**
-   * A gap has something to act on, so it is a card with its title as a heading. Good news is a
-   * quiet line: a chip and a sentence, with no heading and no border.
-   */
-  boxed: boolean
 }
 
-function evidenceFor(effort: EffortCheck | null): Evidence {
+/** What the card says, or null when there is nothing to say: no comparison, and heart rate on file. */
+function evidenceFor(effort: EffortCheck | null, noHeartRate: boolean): Evidence | null {
   const caveat = effortCaveat(effort)
   if (caveat) {
     return {
@@ -41,24 +44,22 @@ function evidenceFor(effort: EffortCheck | null): Evidence {
       title: caveat.title,
       text: caveat.text,
       howTo: RECORD_HARD_EFFORT,
-      boxed: true,
     }
   }
-  if (hardEffortsOnFile(effort)) {
+  if (effort !== null && hardEffortsOnFile(effort)) {
     return {
       chip: { className: 'chip chip--good', icon: <CheckIcon />, label: 'Hard efforts on file' },
-      title: 'Built on real efforts',
-      text: 'Heart rate shows your best efforts in both sports were hard ones, not easy days. That makes them hard, but does not prove either was your hardest.',
+      title: null,
+      text: `Heart rate shows your best ${formatDuration(effort.durationS)} in both sports were hard, not easy. Still, that does not prove either was your hardest.`,
       howTo: null,
-      boxed: false,
     }
   }
+  if (effort === null && !noHeartRate) return null
   return {
-    chip: { className: 'chip', icon: <WarningIcon />, label: 'No heart-rate check' },
+    chip: { className: 'chip', icon: null, label: 'No heart-rate check' },
     title: 'Add heart rate to sharpen this',
-    text: 'Files with heart rate show how hard your best efforts were, which narrows the range.',
-    howTo: ADD_HEART_RATE,
-    boxed: true,
+    text: ADD_HEART_RATE,
+    howTo: null,
   }
 }
 
@@ -66,17 +67,19 @@ function evidenceFor(effort: EffortCheck | null): Evidence {
  * Turns the heart-rate check into something to act on: an evidence gap says what to record, and
  * hard efforts on file are said plainly, in a quiet line. The detail is on How sure is this?
  */
-export function EvidenceCard({ effort }: EvidenceCardProps) {
-  const { chip, title, text, howTo, boxed } = evidenceFor(effort)
+export function EvidenceCard({ effort, noHeartRate }: EvidenceCardProps) {
+  const evidence = evidenceFor(effort, noHeartRate)
+  if (evidence === null) return null
+  const { chip, title, text, howTo } = evidence
   const action = (
     <a className="link-arrow" href={hrefFor({ page: 'method' })}>
       How sure is this?
       <ArrowRightIcon />
     </a>
   )
-  if (!boxed) {
+  if (title === null) {
     return (
-      <section className="evidence-card evidence-card--quiet" aria-label={title}>
+      <section className="evidence-card evidence-card--quiet" aria-label={chip.label}>
         <span className={chip.className}>
           {chip.icon}
           {chip.label}

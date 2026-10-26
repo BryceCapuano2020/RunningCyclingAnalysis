@@ -151,22 +151,19 @@ export function BalancePage({
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
         strip={<BalanceStrip grades={grades} />}
-        aside={
-          <>
-            {isSample && <span className="chip">Sample athlete</span>}
-            <ShareImageButton
-              result={result}
-              settings={settings}
-              units={units}
-              period={period}
-              isSample={isSample}
-              effort={effort}
-              weightKnown={weightKnown}
-              gap={gap}
-              grades={grades}
-              disabled={analysis.busy}
-            />
-          </>
+        action={
+          <ShareImageButton
+            result={result}
+            settings={settings}
+            units={units}
+            period={period}
+            isSample={isSample}
+            effort={effort}
+            weightKnown={weightKnown}
+            gap={gap}
+            grades={grades}
+            disabled={analysis.busy}
+          />
         }
       />
 
@@ -209,7 +206,7 @@ export function BalancePage({
 
       {bothInPeriod && (
         <div className="balance__cards">
-          <EvidenceCard effort={effort} />
+          <EvidenceCard effort={effort} noHeartRate={result.maxHeartRate === null} />
           <CrossSportCard result={result} units={units} weighted={weightKnown} period={period} />
         </div>
       )}

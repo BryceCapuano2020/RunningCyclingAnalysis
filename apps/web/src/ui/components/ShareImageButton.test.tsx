@@ -33,7 +33,6 @@ afterEach(() => {
 })
 
 const NOTE = 'Made on this device. Nothing is uploaded.'
-const WAITING = 'Available when the analysis finishes.'
 const PREVIEW_FAILED = 'The preview could not be made.'
 const LOW_EFFORT: EffortCheck = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }
 const TRIGGER = 'Share image'
@@ -452,11 +451,14 @@ describe('ShareImageButton', () => {
     expect(vi.mocked(canvasFile).mock.calls.length).toBe(drawn)
   })
 
-  it('holds the share button while the analysis runs, and says when it is available', () => {
-    renderButton({ disabled: true })
+  it('holds the share button while the analysis runs: it is aria-disabled, and a tap does not open the sheet', () => {
+    const { container } = renderButton({ disabled: true })
     const trigger = screen.getByRole('button', { name: TRIGGER })
-    expect(trigger).toBeDisabled()
-    expect(trigger).toHaveAccessibleDescription(WAITING)
+    expect(trigger).not.toBeDisabled()
+    expect(trigger).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(trigger)
+    expect(container.querySelector('dialog')).not.toHaveAttribute('open')
+    expect(container.querySelector('.share-image__note')).toBeNull()
   })
 
   it('renders nothing when there is neither a comparison nor a grade gap to share', () => {

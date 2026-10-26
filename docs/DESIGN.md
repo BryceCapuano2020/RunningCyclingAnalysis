@@ -308,7 +308,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ("30%+" in percent). The best estimate is printed over the dot as "6 pts". Its scale is the gap in
   points when both sports are graded, and the energy ratio in percent when they are not. The track has
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
-  its glyph. The key under it gives the range in words: "Band: the ride's 90% range".
+  its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio.
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
   the drawing and fills its column, with no fixed width. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
   a ring over an outlined band for its model range. The bands the grade falls in are filled in its
@@ -397,20 +397,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
   ride is worth 4:10 /km", with a no-break space), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
-  the dates the period is missing a ride between. The evidence card is a card
+  the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.
 - **Only the drop area is dashed, and it fills on hover.** On the landing page the example beside it is a solid frame, with
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
-- **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, in one line, "Run 64% Local / Ride 58% Recreational". The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
+- **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, in one line, "Run 64% Local / Ride 58% Recreational", with each sport's grade kept whole. The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
   are in the page, and a media query shows exactly one at each width, so the accessibility tree
   holds one representation. Never set `display: block` on a table element, which drops its table
   semantics. The splits table on the activity page is the first use, and the efforts table on a Balance card
-  is the second, whose list shows below 480 px; record any new one here.
+  is the second, whose list shows below 480 px with its labels once above the rows; record any new one here.
 - **Bars start from zero.** A bar's length is the value relative to the best known one, so the best
   fills its track. A row with no known value has no bar and cannot be the best.
 - **The best row says so in words.** A small `.chip` reads "Fastest" beside its value, and the value
@@ -419,8 +419,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   time the device did not record, or an implied speed over 12.5 m/s that no run reaches; "Not
   available" for a grade; "No altitude"; or "No heart rate".
 - The share image is a dark canvas card on ink, as a square (1080 by 1080, "Square (feed)") or a tall
-  story (1080 by 1920, "Tall (story)"). Share opens a sheet beside the answer: a preview, the choice of
-  shape, the note that it is made on this device, and one action. The action reads "Share file" only
+  story (1080 by 1920, "Tall (story)"). Share sits under the answer's lede, dimmed and inert while the analysis runs, and opens a sheet: a
+  preview, the choice of shape, the note that it is made on this device, and one action. The action reads "Share file" only
   when the device's share sheet can take this image; otherwise it reads "Save image" and downloads the
   PNG. The PNG is encoded once, for the preview, so the share starts within the tap. Until the chosen
   shape is drawn, the action reads "Preparing…" and is held: a tap does nothing, and the last picture
@@ -454,9 +454,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   (−2 to +2 points) includes zero, so the two are in balance." Never "ahead of". Without an age and
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
   cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
-  levels. Without a weight, the headline names the period's dates ahead of the answer when the period is
-  not All time: "12 May – 3 Aug 2025. Your running grades 6 points higher than your cycling, on your best
-  20 min in each."
+  levels. The lede names no dates: the period control's caption under the meter gives them when the period is
+  not All time, so the lede reads "Your running grades 6 points higher than your cycling, on your best
+  20 min in each." on its own.
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
@@ -518,7 +518,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your
   time.", never UTC.
 - **Every number names its source**: the activity that set it, with a link to that activity.
-- **Evidence gaps say what to do, on the card itself**: one plain sentence under the gap, saying how to
+- **Evidence gaps say what to do, on the card itself**: one plain paragraph under the gap, saying how to
   record a hard, steady 20-minute effort with heart rate on, or how to add heart rate to a file. Its
   link is "How sure is this?", to the method page, which explains the check. Good news has no how-to.
 - **Export guides cite their sources.** Each guide's steps name only what the sources cited beside

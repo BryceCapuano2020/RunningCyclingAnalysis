@@ -103,7 +103,8 @@ describe('the shared control height', () => {
  */
 function coarseBodyOf(css: string, selector: string): string {
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
-  const block = /@media \(pointer: coarse\)\s*\{([\s\S]*?)\n\}/.exec(bare)?.[1] ?? ''
+  // A coarse-pointer block may share its query with a width, as the phone's control height does.
+  const block = /@media [^{]*\(pointer: coarse\)[^{]*\{([\s\S]*?)\n\}/.exec(bare)?.[1] ?? ''
   return bodyOf(block, selector)
 }
 

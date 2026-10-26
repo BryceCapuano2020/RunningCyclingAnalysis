@@ -193,7 +193,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, running grades 4 points higher, but the range (−2 to +10 points) includes zero, so the two are in balance.',
+      'On the age-grade best estimate, running grades 4 points higher, but the range (−2 to +10\u00a0points) includes zero, so the two are in balance.',
     )
   })
 
@@ -201,7 +201,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 0, low: -2, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, running and cycling grade the same, and the range (−2 to +2 points) includes zero, so the two are in balance.',
+      'On the age-grade best estimate, running and cycling grade the same, and the range (−2 to +2\u00a0points) includes zero, so the two are in balance.',
     )
   })
 
@@ -209,7 +209,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -4, low: -10, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, cycling grades 4 points higher, but the range (−10 to +2 points) includes zero, so the two are in balance.',
+      'On the age-grade best estimate, cycling grades 4 points higher, but the range (−10 to +2\u00a0points) includes zero, so the two are in balance.',
     )
   })
 
@@ -232,19 +232,19 @@ describe('balanceSummary', () => {
 describe('balanceSentence', () => {
   it('names the leading sport, its gap in points and the range, for a grade gap', () => {
     expect(balanceSentence(gapReading(gap({ centre: 6, low: 2, high: 10, lean: 'run' })))).toBe(
-      'Running grades 6 points higher than cycling (range 2 to 10 points)',
+      'Running grades 6 points higher than cycling (range 2 to 10\u00a0points)',
     )
   })
 
   it('names cycling and its range the same way when cycling grades higher', () => {
     expect(balanceSentence(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })))).toBe(
-      'Cycling grades 6 points higher than running (range 2 to 10 points)',
+      'Cycling grades 6 points higher than running (range 2 to 10\u00a0points)',
     )
   })
 
   it('states the gap and its range in words when the grades are in balance', () => {
     expect(balanceSentence(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })))).toBe(
-      'In balance: best estimate running +4 points against cycling, range −2 to +10 points',
+      'In balance: best estimate running +4 points against cycling, range −2 to +10\u00a0points',
     )
   })
 
@@ -270,20 +270,30 @@ describe('balanceSentence', () => {
 describe('rangeText', () => {
   it('gives the range as magnitudes in the leading sport, in points', () => {
     expect(rangeText(gapReading(gap({ centre: 6, low: 2, high: 10, lean: 'run' })))).toBe(
-      '2 to 10 points',
+      '2 to 10\u00a0points',
     )
   })
 
   it('gives a cycling range as magnitudes too, since its lead is negative', () => {
     expect(rangeText(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })))).toBe(
-      '2 to 10 points',
+      '2 to 10\u00a0points',
     )
   })
 
   it('signs the range of an even balance, running against cycling', () => {
     expect(rangeText(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })))).toBe(
-      '−2 to +10 points',
+      '−2 to +10\u00a0points',
     )
+  })
+
+  it('keeps each number with its unit, so a line never breaks between them', () => {
+    expect(rangeText(gapReading(gap({ centre: 6, low: 2, high: 10, lean: 'run' })))).not.toMatch(
+      / points/,
+    )
+  })
+
+  it('shows a percent edge that rounds to 0 with one decimal, so it reads as a value', () => {
+    expect(rangeText(energyReading(interval(1.003, 1.12, 1.2)))).toBe('0.3% to 20%')
   })
 })
 

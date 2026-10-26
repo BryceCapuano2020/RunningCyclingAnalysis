@@ -2,7 +2,13 @@
 .balance-strip {
   display: none;
   margin: 0;
-  font-weight: 600;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* Each sport's grade stays on one line, so a phone breaks the strip only between sports. */
+.balance-strip__sport {
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {

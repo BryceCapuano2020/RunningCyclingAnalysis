@@ -20,6 +20,56 @@ export interface EquivalenceTableProps {
   estimated: (durationS: number) => boolean
 }
 
+/** The three columns, named once for the table's heads, and again for the phone list's labels. */
+const EFFORT_LABEL = 'Ride effort'
+const PACE_LABEL = 'Flat pace'
+const RANGE_LABEL = '90% model range'
+
+/** An effort in words: its duration and its watts. */
+function effortOf(equivalent: Equivalence): string {
+  return `${formatDuration(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`
+}
+
+/** The model range of the flat pace, from its slow end to its fast end, in the viewer's unit. */
+function rangeOf(equivalent: Equivalence, units: UnitSystem): string {
+  const { p95, p05 } = equivalent.runSpeed
+  return `${formatPaceValue(p95, units)} to ${formatPaceValue(p05, units)} ${PACE_UNIT[units]}`
+}
+
+/** Below 480 px each effort reads as a list. The labels show once above the rows; each row keeps its own for a screen reader. */
+function EffortList({
+  equivalents,
+  units,
+  estimated,
+}: Pick<EquivalenceTableProps, 'equivalents' | 'units' | 'estimated'>) {
+  return (
+    <>
+      <p className="equivalence-list__labels" aria-hidden="true">
+        <span>{EFFORT_LABEL}</span>
+        <span>{PACE_LABEL}</span>
+        <span>{RANGE_LABEL}</span>
+      </p>
+      <ol className="equivalence-list">
+        {equivalents.map((equivalent) => (
+          <li key={equivalent.durationS}>
+            <dl>
+              <dt className="sr-only">{EFFORT_LABEL}</dt>
+              <dd>
+                {effortOf(equivalent)}
+                {estimated(equivalent.durationS) && <span className="chip">Estimated</span>}
+              </dd>
+              <dt className="sr-only">{PACE_LABEL}</dt>
+              <dd>{formatPace(equivalent.runSpeed.p50, units)}</dd>
+              <dt className="sr-only">{RANGE_LABEL}</dt>
+              <dd>{rangeOf(equivalent, units)}</dd>
+            </dl>
+          </li>
+        ))}
+      </ol>
+    </>
+  )
+}
+
 /** Each ride effort in its own watts, with the flat running pace it matches and its model range. */
 export function EquivalenceTable({
   equivalents,
@@ -39,12 +89,12 @@ export function EquivalenceTable({
         <table className="equivalence-table">
           <thead>
             <tr>
-              <th scope="col">Ride effort</th>
+              <th scope="col">{EFFORT_LABEL}</th>
               <th scope="col" className="num">
-                Flat pace
+                {PACE_LABEL}
               </th>
               <th scope="col" className="num">
-                90% range
+                {RANGE_LABEL}
               </th>
             </tr>
           </thead>
@@ -52,38 +102,18 @@ export function EquivalenceTable({
             {equivalents.map((equivalent) => (
               <tr key={equivalent.durationS}>
                 <td>
-                  {`${formatDuration(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`}
+                  {effortOf(equivalent)}
                   {estimated(equivalent.durationS) && <span className="chip">Estimated</span>}
                 </td>
                 <td className="num">{formatPace(equivalent.runSpeed.p50, units)}</td>
-                <td className="num">
-                  {`${formatPaceValue(equivalent.runSpeed.p95, units)} to ${formatPaceValue(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
-                </td>
+                <td className="num">{rangeOf(equivalent, units)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {/* Below 480 px the table is hidden and each effort reads as a list, with the same values. */}
-      <ol className="equivalence-list">
-        {equivalents.map((equivalent) => (
-          <li key={equivalent.durationS}>
-            <dl>
-              <dt>Ride effort</dt>
-              <dd>
-                {`${formatDuration(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`}
-                {estimated(equivalent.durationS) && <span className="chip">Estimated</span>}
-              </dd>
-              <dt>Flat pace</dt>
-              <dd>{formatPace(equivalent.runSpeed.p50, units)}</dd>
-              <dt>90% range</dt>
-              <dd>
-                {`${formatPaceValue(equivalent.runSpeed.p95, units)} to ${formatPaceValue(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
-              </dd>
-            </dl>
-          </li>
-        ))}
-      </ol>
+      {/* Below 480 px the table is hidden and the list shows, with the same values. */}
+      <EffortList equivalents={equivalents} units={units} estimated={estimated} />
     </>
   )
 }

@@ -12,10 +12,13 @@ afterEach(() => {
   cleanup()
 })
 
-/** The centre dot's position along the track, in percent from its left end. */
+/**
+ * The centre dot's position along the track, in percent from its left end. The meter sets it as a
+ * custom property, which the stylesheet clamps so the dot stays inside the plot.
+ */
 function dotLeft(container: HTMLElement): number {
   const dot = container.querySelector<HTMLElement>('.balance-meter__dot')
-  return Number.parseFloat(dot?.style.left ?? '')
+  return Number.parseFloat(dot?.style.getPropertyValue('--at') ?? '')
 }
 
 /** The label at one end of the track, which names the sport that sits there. */
@@ -42,7 +45,7 @@ describe('BalanceMeter with a grade gap', () => {
     render(<BalanceMeter reading={leaning('run')} />)
     const image = screen.getByRole('img')
     expect(image).toHaveAccessibleName(/Running grades 6 points higher than cycling/)
-    expect(image).toHaveAccessibleName(/range 2 to 10 points/)
+    expect(image).toHaveAccessibleName(/range 2 to 10\u00a0points/)
   })
 
   it('names the cycling lead in the same words, with the sport that leads first', () => {
@@ -105,7 +108,19 @@ describe('BalanceMeter with a grade gap', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
     const flag = container.querySelector<HTMLElement>('.balance-meter__flag')
     expect(flag?.textContent).toBe('6 pts')
-    expect(Number.parseFloat(flag?.style.left ?? '')).toBeCloseTo(dotLeft(container), 6)
+    expect(Number.parseFloat(flag?.style.getPropertyValue('--at') ?? '')).toBeCloseTo(
+      dotLeft(container),
+      6,
+    )
+  })
+
+  it('places the flag and the dot by a custom property, not a bare left, so the CSS can clamp them', () => {
+    const { container } = render(<BalanceMeter reading={leaning('run')} />)
+    for (const selector of ['.balance-meter__flag', '.balance-meter__dot']) {
+      const placed = container.querySelector<HTMLElement>(selector)
+      expect(placed?.style.left, selector).toBe('')
+      expect(placed?.style.getPropertyValue('--at'), selector).toMatch(/%$/)
+    }
   })
 
   it('caps a lead past the scale at its end with a 30+ marker, not beyond the track', () => {
@@ -120,8 +135,8 @@ describe('BalanceMeter with a grade gap', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
     const key = container.querySelector('.balance-meter__key')
     expect(key?.textContent).toMatch(/Dot: best estimate/)
-    expect(key?.textContent).toMatch(/2 to 10 points/)
-    expect(key?.textContent).toMatch(/age-grade points/)
+    expect(key?.textContent).toMatch(/2 to 10\u00a0points/)
+    expect(key?.textContent).toMatch(/Scale: age\u2011grade points\./)
   })
 })
 
@@ -133,11 +148,13 @@ describe('BalanceMeter with the energy ratio', () => {
     )
   })
 
-  it('says its scale is a percent of energy, not points of grade', () => {
+  it('reads the same key in words as the points, with its scale in energy per kilogram', () => {
     const { container } = render(
       <BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} />,
     )
-    expect(container.querySelector('.balance-meter__key')?.textContent).toMatch(/percent of energy/)
+    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
+      'Dot: best estimate. Band: 90% range, 5% to 20%. Scale: energy per kilogram.',
+    )
   })
 
   it('prints its ticks in percent', () => {
@@ -189,10 +206,10 @@ describe('BalanceMeter scale details', () => {
     }
   })
 
-  it('says the band is the ride’s range in the key, for a grade gap', () => {
+  it('says the band is the 90% range in the key, with its range, for a grade gap', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
-    expect(container.querySelector('.balance-meter__key')?.textContent).toMatch(
-      /Band: the ride's 90% range/,
+    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
+      'Dot: best estimate. Band: 90% range, 2 to 10\u00a0points. Scale: age\u2011grade points.',
     )
   })
 })
