@@ -335,6 +335,22 @@ describe('ActivitiesPage sort, months and address', () => {
     await user.click(screen.getByRole('button', { name: 'Delete New run' }))
     expect(screen.getByText(/It is removed from this browser\./)).toBeTruthy()
   })
+
+  it('says a kept activity is removed from your library when the visitor is signed in', async () => {
+    const user = userEvent.setup()
+    render(
+      <ActivitiesPage
+        activities={trips}
+        units="metric"
+        records={new Map()}
+        signedIn
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    expect(screen.getByText(/It is removed from your library\./)).toBeTruthy()
+  })
 })
 
 describe('ActivitiesPage delete outcome and the address', () => {

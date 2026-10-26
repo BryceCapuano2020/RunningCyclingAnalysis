@@ -61,8 +61,9 @@ control is 44 px (`--control-height` in `tokens.css`): the header's controls, bu
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
 links in a records list, the cross-sport idea and the two footer links, which are padded to that
 height on a finger. A footer link is 24 px tall with a mouse, the smallest target WCAG allows. At
-360 px and below the tab labels and the sex choices shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar and "Prefer not to say" keeps two. Where the tabs
-overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
+360 px and below the tab labels and the sex choices shrink a step, so "ACTIVITIES" keeps its
+line in a four-tab bar and "Prefer not to say" keeps two. Where the tabs overflow, the bar
+scrolls from the left and fades at its edge until it is scrolled to the end.
 
 Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
 and an activity by its own name. The first control on a page is **Skip to content**, which moves

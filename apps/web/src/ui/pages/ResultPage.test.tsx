@@ -659,3 +659,40 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     ).toBeInTheDocument()
   })
 })
+
+describe('ResultPage activities route, by sign-in state', () => {
+  it.each([
+    { signedIn: true, from: 'your library' },
+    { signedIn: false, from: 'this browser' },
+  ])('says a kept activity is removed from $from', ({ signedIn, from }) => {
+    const analysis = analysisStub({
+      state: { result: makeResult({ activities: [ACTIVITY] }), library: [ACTIVITY] },
+      savedActivities: [
+        {
+          id: 'saved-9',
+          name: ACTIVITY.name,
+          startMs: ACTIVITY.startMs,
+          sport: 'run',
+          copy: SAVED_COPY,
+        },
+      ],
+    })
+    render(
+      <ResultPage
+        signedIn={signedIn}
+        route={{ page: 'activities' }}
+        analysis={analysis}
+        result={makeResult({ activities: [ACTIVITY] })}
+        settings={SETTINGS}
+        units="metric"
+        birthYear={null}
+        sex={null}
+        weightKnown
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: `Delete ${ACTIVITY.name}` }))
+    expect(
+      screen.getByText(`Delete “${ACTIVITY.name}”? It is removed from ${from}.`),
+    ).toBeInTheDocument()
+  })
+})
