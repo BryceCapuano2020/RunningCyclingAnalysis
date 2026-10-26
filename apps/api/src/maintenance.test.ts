@@ -20,6 +20,8 @@ import { sha256Hex } from './util.ts'
 
 const DAY = 24 * 60 * 60 * 1000
 const HOUR = 60 * 60 * 1000
+/** An hour past the orphan grace period for an object put at START. */
+const AFTER_GRACE = START + ORPHAN_GRACE_MS + HOUR
 const R2_CALLS = new Set(['list', 'delete', 'head', 'get', 'put'])
 
 function at(now: number) {
@@ -147,7 +149,7 @@ describe('scheduled maintenance', () => {
     ).json()) as { id: string }
     // The stored state an upload leaves behind, written directly so this test does not depend on
     // the upload route.
-    const files = testEnv().FILES!
+    const files = h.env.FILES!
     await h.env.DB.prepare('UPDATE activities SET file_key = ?, file_size = ? WHERE id = ?')
       .bind(activityFileKey(uid, created.id), content.byteLength, created.id)
       .run()
@@ -157,13 +159,13 @@ describe('scheduled maintenance', () => {
     await files.put('health/sentinel', 'owned by another check')
     await files.put('shared/report.csv', 'owned by another feature')
 
-    const tooSoon = await runMaintenance(h.env, at(Date.now()))
+    const tooSoon = await runMaintenance(h.env, at(START))
     expect(tooSoon.orphansDeleted).toBe(0)
     expect(await files.get(`${userFilePrefix(uid)}ghost-activity`)).not.toBeNull()
     expect(await files.get('health/sentinel')).not.toBeNull()
     expect(await files.get('shared/report.csv')).not.toBeNull()
 
-    const later = await runMaintenance(h.env, at(Date.now() + ORPHAN_GRACE_MS + HOUR))
+    const later = await runMaintenance(h.env, at(AFTER_GRACE))
     expect(later.orphansDeleted).toBe(2)
     expect(await files.get(`${userFilePrefix(uid)}ghost-activity`)).toBeNull()
     expect(await files.get('users/deleted-user/whatever')).toBeNull()
@@ -175,15 +177,14 @@ describe('scheduled maintenance', () => {
   it('bounds orphan sweeping per run and resumes from the saved cursor on the next run', async () => {
     const h = createHarness()
     await h.signIn()
-    const files = testEnv().FILES!
+    const files = h.env.FILES!
     await Promise.all(
       Array.from({ length: 200 }, (_, i) =>
         files.put(`users/gone/${String(i).padStart(3, '0')}`, 'x'),
       ),
     )
-    const later = Date.now() + ORPHAN_GRACE_MS + HOUR
 
-    const first = await runMaintenance(h.env, at(later))
+    const first = await runMaintenance(h.env, at(AFTER_GRACE))
     expect(first.orphansDeleted).toBeLessThan(200)
     expect((await files.list({ prefix: 'users/gone/' })).objects.length).toBeGreaterThan(0)
     expect(
@@ -194,7 +195,7 @@ describe('scheduled maintenance', () => {
 
     let runs = 1
     while ((await files.list({ prefix: 'users/gone/' })).objects.length > 0 && runs < 10) {
-      await runMaintenance(h.env, at(later))
+      await runMaintenance(h.env, at(AFTER_GRACE))
       runs += 1
     }
     expect((await files.list({ prefix: 'users/gone/' })).objects).toHaveLength(0)
@@ -222,12 +223,12 @@ describe('scheduled maintenance', () => {
         wrongKey,
       ),
     ])
-    const files = testEnv().FILES!
+    const files = h.env.FILES!
     await files.put(linkedKey, 'linked')
     await files.put(activityFileKey(uid, unlinked), 'row has no file_key')
     await files.put(activityFileKey(uid, wrongKey), 'row names another key')
 
-    const report = await runMaintenance(h.env, at(Date.now() + ORPHAN_GRACE_MS + HOUR))
+    const report = await runMaintenance(h.env, at(AFTER_GRACE))
 
     expect(report.orphansDeleted).toBe(2)
     expect(await files.get(linkedKey)).not.toBeNull()
@@ -240,25 +241,28 @@ describe('scheduled maintenance', () => {
     const { token, uid } = await signedInUser(h, 'lease@example.com')
     const inFlight = await addActivity(h, token, START)
     const key = activityFileKey(uid, inFlight)
-    const files = testEnv().FILES!
+    const files = h.env.FILES!
     await files.put(key, 'mid-upload')
-    const later = Date.now() + ORPHAN_GRACE_MS + HOUR
     await h.env.DB.prepare(
       'INSERT INTO upload_slots (user_id, slot_id, expires_at) VALUES (?, ?, ?)',
     )
-      .bind(uid, 'in-flight', later + 1)
+      .bind(uid, 'in-flight', AFTER_GRACE + 1)
       .run()
 
-    expect((await runMaintenance(h.env, at(later))).orphansDeleted).toBe(0)
+    expect((await runMaintenance(h.env, at(AFTER_GRACE))).orphansDeleted).toBe(0)
     expect(await files.get(key)).not.toBeNull()
 
-    expect((await runMaintenance(h.env, at(later + 2))).orphansDeleted).toBe(1)
+    expect((await runMaintenance(h.env, at(AFTER_GRACE + 2))).orphansDeleted).toBe(1)
     expect(await files.get(key)).toBeNull()
   })
 
-  it('never issues more than MAX_MAINTENANCE_OPERATIONS D1 statements and R2 calls in a run, and finishes a worst-case backlog over later runs', async () => {
+  // Seeding 2,202 objects through Miniflare takes over half of this test, and on a loaded machine
+  // the whole test can pass the 30 s default.
+  it('never issues more than MAX_MAINTENANCE_OPERATIONS D1 statements and R2 calls in a run, and finishes a worst-case backlog over later runs', async ({
+    signal,
+  }) => {
     const setup = createHarness()
-    const files = testEnv().FILES!
+    const files = setup.env.FILES!
     const uids: string[] = []
     for (const email of ['first@example.com', 'second@example.com']) {
       const { token, uid } = await signedInUser(setup, email)
@@ -302,13 +306,15 @@ describe('scheduled maintenance', () => {
       },
     })
     const env = testEnv({ DB: counted.db, FILES: countedFiles })
-    const later = Date.now() + ORPHAN_GRACE_MS + HOUR
 
     const reports: MaintenanceReport[] = []
     for (let run = 0; run < 10; run += 1) {
+      // Vitest moves on from a timed-out test without stopping it. This stops the runs after the
+      // one in flight from writing into the bindings the next test has just reset.
+      signal.throwIfAborted()
       counted.reset()
       r2Calls = 0
-      const report = await runMaintenance(env, at(later))
+      const report = await runMaintenance(env, at(AFTER_GRACE))
       reports.push(report)
       expect(report.operations).toBeLessThanOrEqual(MAX_MAINTENANCE_OPERATIONS)
       expect(counted.count() + r2Calls).toBeLessThanOrEqual(MAX_MAINTENANCE_OPERATIONS)
@@ -318,7 +324,7 @@ describe('scheduled maintenance', () => {
     expect(reports.reduce((sum, r) => sum + r.finishedDeletions, 0)).toBe(2)
     expect(await countOf('SELECT COUNT(*) AS n FROM pending_account_deletions')).toBe(0)
     expect((await files.list({ prefix: 'users/gone/' })).objects).toHaveLength(0)
-  })
+  }, 120_000)
 
   it('finishes interrupted account deletions that were recorded before the process stopped', async () => {
     const h = createHarness()

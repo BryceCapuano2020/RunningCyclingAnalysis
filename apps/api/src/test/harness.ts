@@ -141,7 +141,10 @@ export interface RequestSpec {
   csrf?: boolean
 }
 
-/** A fresh app with deterministic clock, randomness and Google stub. */
+/**
+ * A fresh app with deterministic clock, randomness and Google stub. Its R2 bucket lists upload
+ * times on that clock; a FILES given in envOverrides is used as given.
+ */
 export function createHarness(
   overrides: Partial<Deps> = {},
   envOverrides: Partial<Bindings> = {},
@@ -163,7 +166,11 @@ export function createHarness(
     ...overrides,
   }
   const app = createApp(deps)
-  const env = testEnv({ ENVIRONMENT: 'development', ...envOverrides })
+  const env = testEnv({
+    ENVIRONMENT: 'development',
+    FILES: clockedBucket(testEnv().FILES, clock),
+    ...envOverrides,
+  })
 
   const send = (spec: RequestSpec): Promise<Response> => {
     const method = spec.method ?? 'GET'
@@ -271,6 +278,46 @@ export function countingDb(target: D1Database): { db: D1Database; count(): numbe
     },
   })
   return { db, count: () => calls, reset: () => (calls = 0) }
+}
+
+/**
+ * Lists each object with the harness time it was put at. In production R2 and the Worker share one
+ * clock, but Miniflare stamps uploads with the machine's, months after START, so without this a
+ * test of upload age has to mix Date.now() into the harness's fixed timeline. Only list() is
+ * restamped, because the orphan sweep reads upload times from listings alone, and the times are
+ * kept per harness.
+ */
+function clockedBucket(target: R2Bucket, clock: { now: number }): R2Bucket {
+  const putAt = new Map<string, number>()
+  const restamp = (object: R2Object): R2Object => {
+    const at = putAt.get(object.key)
+    if (at === undefined) return object
+    return new Proxy(object, {
+      get(obj, prop) {
+        if (prop === 'uploaded') return new Date(at)
+        const value: unknown = Reflect.get(obj, prop, obj)
+        return typeof value === 'function' ? value.bind(obj) : value
+      },
+    })
+  }
+  return new Proxy(target, {
+    get(obj, prop) {
+      if (prop === 'put') {
+        return (key: string, ...rest: unknown[]) => {
+          putAt.set(key, clock.now)
+          return Reflect.apply(obj.put, obj, [key, ...rest])
+        }
+      }
+      if (prop === 'list') {
+        return async (options?: R2ListOptions) => {
+          const page = await obj.list(options)
+          return { ...page, objects: page.objects.map(restamp) }
+        }
+      }
+      const value: unknown = Reflect.get(obj, prop, obj)
+      return typeof value === 'function' ? value.bind(obj) : value
+    },
+  })
 }
 
 /** Runs onFirstDelete once, right after the first R2 delete: a stand-in for an upload that races it. */
