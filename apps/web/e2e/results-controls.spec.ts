@@ -51,13 +51,13 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   const card = page.locator('section').filter({
     has: page.getByRole('heading', {
       level: 2,
-      name: /^(Age grade|Energy rate) of your best 20 minutes, trailing/,
+      name: /^(Age grade|Energy rate) of your best 20 min, trailing/,
     }),
   })
   await expect(card).toBeVisible()
   await expect(
     card.getByRole('figure', {
-      name: /^(Age grade|Energy rate) of your best 20 minutes, trailing/,
+      name: /^(Age grade|Energy rate) of your best 20 min, trailing/,
     }),
   ).toBeAttached()
 

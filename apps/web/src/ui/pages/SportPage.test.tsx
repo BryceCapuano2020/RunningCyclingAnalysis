@@ -912,7 +912,7 @@ describe('SportPage cycling figures without a weight', () => {
 
     expect(screen.queryByRole('region', { name: 'Threshold power, estimated' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Best efforts' })).toBeNull()
-    expect(screen.queryByRole('region', { name: /of your best 20 minutes, trailing/ })).toBeNull()
+    expect(screen.queryByRole('region', { name: /of your best 20 min, trailing/ })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Every duration' })).toBeNull()
     expect(screen.queryByText('400 W')).toBeNull()
     expect(screen.queryByText(/W\/kg/)).toBeNull()

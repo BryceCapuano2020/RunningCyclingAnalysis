@@ -617,7 +617,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
       />,
     )
     expect(
-      screen.getByRole('heading', { name: /of your best 20 minutes, trailing/ }),
+      screen.getByRole('heading', { name: /of your best 20 min, trailing/ }),
     ).toBeInTheDocument()
   })
 })

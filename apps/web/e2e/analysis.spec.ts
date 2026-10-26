@@ -16,7 +16,7 @@ import {
 const BALANCE_METER =
   /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /** The Balance trend: one chart for both sports, as age grades when the age and sex are known. */
-const BALANCE_TREND = /^(Age grade|Energy rate) of your best 20 minutes, trailing/
+const BALANCE_TREND = /^(Age grade|Energy rate) of your best 20 min, trailing/
 const RUN_CURVE = /^Running flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Cycling power in watts by duration$/
 const ENERGY_SCALE = /^Running and cycling energy rate \(metabolic W\/kg\) by duration$/

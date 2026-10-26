@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDuration } from '@rca/core/units'
 import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -95,7 +96,7 @@ export function SharedTrendChart({
   emptyText,
 }: SharedTrendChartProps) {
   const weeks = rideKnown ? given : given.map(withRideHeld)
-  const effort = `${effortS / 60} minutes`
+  const effort = formatDuration(effortS)
   const windowText = windowPhrase(windowDays)
   const copy = copyOf(measure, effort, windowText)
   // The effort's own length, as the trend's end labels and tooltips name it: "best 20 min".

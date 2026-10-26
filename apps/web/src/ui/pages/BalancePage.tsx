@@ -78,9 +78,8 @@ function trendMeasureOf(profile: AgeProfile | null): SharedMeasure {
  * with, so the section and the chart name it in the same words.
  */
 function trendTitleOf(profile: AgeProfile | null, period: Period): string {
-  const effort = `${HEADLINE_DURATION_S / 60} minutes`
   const windowText = windowPhrase(trendWindowDays(period.days))
-  return copyOf(trendMeasureOf(profile), effort, windowText).title
+  return copyOf(trendMeasureOf(profile), HEADLINE_LABEL, windowText).title
 }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
