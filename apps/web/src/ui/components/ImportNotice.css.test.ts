@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { readStylesheet } from './stylesheet'
 
 const css = await readStylesheet(import.meta.url, './ImportNotice.css')
@@ -20,10 +19,13 @@ describe('ImportNotice: the summary on a phone and a desktop', () => {
     expect(bodyOf(css, '.import-notice > a')).toContain('min-height: var(--control-height);')
   })
 
-  it('puts space above Dismiss below the compact phone width, named in layoutBreakpoints.ts', () => {
-    expect(css).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
-    expect(flat(css)).toContain(
-      `@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px) { .import-notice > .btn { margin-top: var(--space-3); } }`,
-    )
+  it('spaces wrapped controls by one row gap at every width, so a wrapped notice keeps one gap', () => {
+    expect(bodyOf(css, '.import-notice')).toContain('row-gap: var(--space-3);')
+    // Set once: an override at a narrow width would make the gap differ from one width to another.
+    expect(flat(css).match(/row-gap/g)).toHaveLength(1)
+  })
+
+  it('has no margin on Dismiss, which would sit it lower than "See your balance" on a shared row', () => {
+    expect(flat(css)).not.toContain('.import-notice > .btn')
   })
 })

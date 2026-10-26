@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from '@rca/core/constants'
 import type { ChartSize, PlotBox } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
-import { plotBoxOf } from './plotBox'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
 import { BAND_CLEAR_PX, sharedTrendLayout } from './sharedTrendLayout'
 import type { EndLabel, SharedLayout } from './sharedTrendLayout'
@@ -175,7 +175,7 @@ function sizeAt(width: number, height = 320): ChartSize {
   return {
     width,
     height,
-    plot: plotBoxOf(width, height),
+    plot: plotBoxOf(width, height, PLOT_MARGIN.right, PLOT_BOTTOM_WITHOUT_X_TITLE),
     tooltipId: 'tooltip',
     titleId: 'title',
     hintId: 'hint',

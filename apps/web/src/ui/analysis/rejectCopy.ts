@@ -28,7 +28,23 @@ function sportSubject(label: string | undefined): string {
   )
 }
 
-/** The sentence for each reason code. The duplicate and the sport take the detail the core gives. */
+const EXPORT_AGAIN = 'Export it again.'
+const EXPORT_SHORTER_RANGE = 'Export a shorter range.'
+
+/**
+ * The advice a reason's line gives, for the reasons whose line gives any. A line says it only when it is
+ * alone in its group or is the summary's first file; otherwise its group's suggested action says it once.
+ */
+const LINE_ADVICE: Partial<Record<RejectCode, string>> = {
+  corrupt: EXPORT_AGAIN,
+  'too-large': EXPORT_SHORTER_RANGE,
+  'too-much-data': EXPORT_SHORTER_RANGE,
+}
+
+/**
+ * The sentence for each reason code, without the advice in LINE_ADVICE. The duplicate and the sport take
+ * the detail the core gives.
+ */
 const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = {
   'not-activity': () => 'Not a FIT, GPX or TCX file, so it cannot be read.',
   corrupt: (detail) => corruptCopy(detail),
@@ -36,7 +52,7 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = 
   'too-short': () => 'Too short: it records less than a minute.',
   'too-sparse': () => 'Recorded too sparsely: its points are more than 10 seconds apart.',
   'too-long': () => 'Longer than 48 hours, so it is left out.',
-  'too-much-data': () => 'Too much data for one file. Export a shorter range.',
+  'too-much-data': () => 'Too much data for one file.',
   'no-date': () => 'Its times are device time only, so it cannot be placed in your history.',
   'implausible-date': () => 'Its date is not plausible, so it is left out.',
   'unsupported-sport': (detail) =>
@@ -46,37 +62,38 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = 
   duplicate: (detail) =>
     `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
   unreadable: () => 'This file could not be read.',
-  'too-large': () => 'Too large to read. Export a shorter range.',
+  'too-large': (detail) => tooLargeCopy(detail),
 }
 
 /** A damaged file, or an archive that lost entries: the count the core gives is the detail. */
 function corruptCopy(detail: string | undefined): string {
   const count = Number(detail)
   if (detail === undefined || !Number.isInteger(count) || count < 1) {
-    return 'Damaged, so it could not be read. Export it again.'
+    return 'Damaged, so it could not be read.'
   }
-  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged. Export it again.`
+  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged.`
 }
 
 /** The size limit, as the core gives it in bytes, in whole megabytes. */
 function tooLargeCopy(detail: string | undefined): string {
   const bytes = Number(detail)
-  if (detail === undefined || !Number.isFinite(bytes)) return REASON_COPY['too-large'](undefined)
-  return `Too large to read (over ${sizeText(bytes)}). Export a shorter range.`
+  if (detail === undefined || !Number.isFinite(bytes)) return 'Too large to read.'
+  return `Too large to read (over ${sizeText(bytes)}).`
+}
+
+/** Whether a refused file's reason gives advice in its line, so the line can carry it. */
+export function lineNamesAction(file: RejectedFile): boolean {
+  return LINE_ADVICE[file.code] !== undefined
 }
 
 /**
- * Whether a refused file's own line already says what to do, so its group's suggested action would
- * repeat it when the file is the only one in the group.
+ * The plain sentence for one refused file. Its advice follows when the file carries it, which is the
+ * default. A line that does not carry the advice leaves it out.
  */
-export function lineNamesAction(file: RejectedFile): boolean {
-  return file.code === 'corrupt'
-}
-
-/** The plain sentence for one refused file. */
-export function rejectionCopy(file: RejectedFile): string {
-  if (file.code === 'too-large') return tooLargeCopy(file.detail)
-  return REASON_COPY[file.code](file.detail)
+export function rejectionCopy(file: RejectedFile, carriesAdvice = true): string {
+  const sentence = REASON_COPY[file.code](file.detail)
+  const advice = LINE_ADVICE[file.code]
+  return advice === undefined || !carriesAdvice ? sentence : `${sentence} ${advice}`
 }
 
 export type SkippedGroup =
@@ -138,4 +155,38 @@ export function groupRejected(files: RejectedFile[]): SkippedFiles[] {
     const members = files.filter((file) => GROUP_OF[file.code] === group)
     return members.length === 0 ? [] : [{ group, files: members }]
   })
+}
+
+/**
+ * The refused files whose line carries its advice. A reason with advice carries it when its file is
+ * alone in its group, or when it is the summary's first file, which sits under the count and shows
+ * whether or not the group is open. Every other line leaves the advice out, so it is said once, by the
+ * line or by its group's action.
+ */
+export function adviceCarriers(
+  groups: SkippedFiles[],
+  first: RejectedFile | undefined,
+): ReadonlySet<RejectedFile> {
+  const carriers = new Set<RejectedFile>()
+  for (const { files } of groups) {
+    for (const file of files) {
+      if (lineNamesAction(file) && (files.length === 1 || file === first)) carriers.add(file)
+    }
+  }
+  return carriers
+}
+
+/**
+ * Whether a group shows its suggested action. A group that is covered by one of its lines' advice does
+ * not: every file in it gives that same advice, so the line says it for all of them. A mixed group keeps
+ * its action, so a file whose reason gives no advice is not left without one.
+ */
+export function groupShowsAction(
+  files: RejectedFile[],
+  carriers: ReadonlySet<RejectedFile>,
+): boolean {
+  const carrier = files.find((file) => carriers.has(file))
+  if (carrier === undefined) return true
+  const advice = LINE_ADVICE[carrier.code]
+  return !files.every((file) => LINE_ADVICE[file.code] === advice)
 }

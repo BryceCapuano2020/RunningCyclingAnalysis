@@ -85,7 +85,7 @@ function leaningGradeSummary(lean: Exclude<Lean, 'even'>, centre: number): strin
   const { leader, other } = leaderOf(lean)
   return (
     `Your ${leader} grades ${points(Math.abs(Math.round(centre)))} higher than your ${other}, ` +
-    `on your best ${formatDuration(HEADLINE_DURATION_S)} in each.`
+    `on your best ${formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)} in each.`
   )
 }
 

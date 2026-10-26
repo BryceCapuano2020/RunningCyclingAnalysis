@@ -12,6 +12,7 @@ import {
   showResult,
 } from './test/appMocks'
 import { ORIGINALS_UNAVAILABLE } from './ui/analysis/copy'
+import { makeActivity, makeResult } from './ui/components/fixtures'
 
 const SAVED_COPY: Copy = {
   id: 'saved-copy',
@@ -212,6 +213,32 @@ describe('saved library', () => {
       'aria-disabled',
       'true',
     )
+  })
+})
+
+describe('a kept activity on the Activities page, by sign-in state', () => {
+  it.each([
+    { signedIn: true, from: 'your library' },
+    { signedIn: false, from: 'this browser' },
+  ])('says the removal is from $from', ({ signedIn, from }) => {
+    window.location.hash = '#/activities'
+    setAccount(signedIn ? 'signed-in' : 'signed-out')
+    const run = makeActivity({
+      id: 'run-1',
+      name: 'Morning run',
+      sport: 'run',
+      startMs: Date.UTC(2026, 9, 20, 7),
+    })
+    showResult(makeResult({ activities: [run] }))
+    app.analysis.savedActivities = [
+      { id: 'saved-1', name: run.name, startMs: run.startMs, sport: 'run', copy: SAVED_COPY },
+    ]
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    expect(
+      screen.getByText(`Delete “Morning run”? It is removed from ${from}.`),
+    ).toBeInTheDocument()
   })
 })
 

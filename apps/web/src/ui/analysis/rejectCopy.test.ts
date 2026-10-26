@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { RejectCode, RejectedFile } from '@rca/core/session'
-import { groupRejected, rejectionCopy, SKIPPED_GROUP_COPY } from './rejectCopy'
+import {
+  adviceCarriers,
+  groupRejected,
+  groupShowsAction,
+  lineNamesAction,
+  rejectionCopy,
+  SKIPPED_GROUP_COPY,
+} from './rejectCopy'
 import type { SkippedGroup } from './rejectCopy'
 
 function file(
@@ -87,6 +94,104 @@ describe('rejectCopy: details the core gives', () => {
     expect(
       rejectionCopy(file('big.zip', { code: 'too-large', detail: String(2 * 1024 ** 3) })),
     ).toBe('Too large to read (over 2 GB). Export a shorter range.')
+  })
+})
+
+describe('rejectionCopy: a line keeps its advice unless it is told not to', () => {
+  it('keeps the advice in a damaged file line by default', () => {
+    expect(rejectionCopy(file('bad.fit', { code: 'corrupt' }))).toBe(
+      'Damaged, so it could not be read. Export it again.',
+    )
+  })
+
+  it('leaves the advice out of a damaged file line that does not carry it', () => {
+    expect(rejectionCopy(file('bad.fit', { code: 'corrupt' }), false)).toBe(
+      'Damaged, so it could not be read.',
+    )
+  })
+
+  it('leaves the advice out of an archive line that does not carry it', () => {
+    expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }), false)).toBe(
+      '2 entries could not be read because the archive is damaged.',
+    )
+  })
+
+  it('leaves the advice out of a too-large line that does not carry it', () => {
+    expect(
+      rejectionCopy(file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) }), false),
+    ).toBe('Too large to read (over 64 MB).')
+  })
+
+  it('leaves the advice out of a too-much-data line that does not carry it', () => {
+    expect(rejectionCopy(file('big.fit', { code: 'too-much-data' }), false)).toBe(
+      'Too much data for one file.',
+    )
+  })
+
+  it('names the reasons whose lines can carry the advice, and no others', () => {
+    for (const code of ['corrupt', 'too-large', 'too-much-data'] as const) {
+      expect(lineNamesAction(file('x', { code }))).toBe(true)
+    }
+    expect(lineNamesAction(file('empty.fit', { code: 'empty' }))).toBe(false)
+    expect(lineNamesAction(file('long.fit', { code: 'too-long' }))).toBe(false)
+  })
+})
+
+describe('adviceCarriers: the advice is said once, in the first file line or the group action', () => {
+  it('lets the first of two damaged files carry the advice, so their group shows no action', () => {
+    const bad = file('bad.fit', { code: 'corrupt' })
+    const groups = groupRejected([bad, file('bad2.fit', { code: 'corrupt' })])
+    const carriers = adviceCarriers(groups, bad)
+    expect([...carriers]).toEqual([bad])
+    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(false)
+  })
+
+  it('lets a lone damaged file carry its advice, as its group shows no action', () => {
+    const bad = file('bad.fit', { code: 'corrupt' })
+    const carriers = adviceCarriers(groupRejected([bad]), undefined)
+    expect([...carriers]).toEqual([bad])
+  })
+
+  it('lets the first of two too-large files carry the advice, so their group shows no action', () => {
+    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
+    const groups = groupRejected([big, file('big2.fit', { code: 'too-large' })])
+    const carriers = adviceCarriers(groups, big)
+    expect([...carriers]).toEqual([big])
+    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(false)
+  })
+
+  it('leaves a pair of too-large files to their group action when the first file is in another group', () => {
+    const bad = file('bad.fit', { code: 'corrupt' })
+    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
+    const big2 = file('big2.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
+    const groups = groupRejected([bad, big, big2])
+    const carriers = adviceCarriers(groups, bad)
+    expect([...carriers]).toEqual([bad])
+    const notUsable = groups.find((group) => group.group === 'not-usable')!
+    expect(groupShowsAction(notUsable.files, carriers)).toBe(true)
+  })
+
+  it('keeps a mixed group action when its first file gives advice and another file gives none', () => {
+    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
+    const short = file('short.fit', { code: 'too-short' })
+    const groups = groupRejected([big, short])
+    const carriers = adviceCarriers(groups, big)
+    expect([...carriers]).toEqual([big])
+    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(true)
+  })
+
+  it('keeps a mixed damaged group action when its first file gives advice and another file gives none', () => {
+    const bad = file('bad.fit', { code: 'corrupt' })
+    const groups = groupRejected([bad, file('empty.fit', { code: 'empty' })])
+    const carriers = adviceCarriers(groups, bad)
+    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(true)
+  })
+
+  it('gives no carrier to a reason without advice, even when it is alone and first', () => {
+    const empty = file('empty.fit', { code: 'empty' })
+    const carriers = adviceCarriers(groupRejected([empty]), empty)
+    expect(carriers.size).toBe(0)
+    expect(groupShowsAction([empty], carriers)).toBe(true)
   })
 })
 

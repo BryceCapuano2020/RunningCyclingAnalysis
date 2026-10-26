@@ -30,24 +30,45 @@ function activities(runs: number, rides: number): ActivitySummary[] {
 
 describe('ActivitiesPage', () => {
   it('has a focusable page heading named Activities', () => {
-    render(<ActivitiesPage activities={[]} units="metric" records={new Map()} />)
+    render(<ActivitiesPage signedIn={false} activities={[]} units="metric" records={new Map()} />)
     const heading = screen.getByRole('heading', { level: 1, name: 'Activities' })
     expect(heading).toHaveAttribute('id', 'page-heading')
     expect(heading).toHaveAttribute('tabindex', '-1')
   })
 
   it('counts the activities by sport in one line', () => {
-    render(<ActivitiesPage activities={activities(8, 6)} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage
+        signedIn={false}
+        activities={activities(8, 6)}
+        units="metric"
+        records={new Map()}
+      />,
+    )
     expect(screen.getByText('14 activities: 8 runs, 6 rides')).toBeInTheDocument()
   })
 
   it('uses the singular for one activity of a sport', () => {
-    render(<ActivitiesPage activities={activities(1, 0)} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage
+        signedIn={false}
+        activities={activities(1, 0)}
+        units="metric"
+        records={new Map()}
+      />,
+    )
     expect(screen.getByText('1 activity: 1 run, 0 rides')).toBeInTheDocument()
   })
 
   it('lists the activities, each linking to its page', () => {
-    render(<ActivitiesPage activities={activities(1, 1)} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage
+        signedIn={false}
+        activities={activities(1, 1)}
+        units="metric"
+        records={new Map()}
+      />,
+    )
     expect(screen.getByRole('link', { name: 'Run 0' })).toHaveAttribute(
       'href',
       '#/activities/run-0',
@@ -59,7 +80,7 @@ describe('ActivitiesPage', () => {
   })
 
   it('says there are no activities yet, and shows no list, when the period is empty', () => {
-    render(<ActivitiesPage activities={[]} units="metric" records={new Map()} />)
+    render(<ActivitiesPage signedIn={false} activities={[]} units="metric" records={new Map()} />)
     expect(screen.getByText('No activities yet')).toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
     expect(screen.queryByText(/activities:/)).not.toBeInTheDocument()
@@ -86,14 +107,18 @@ describe('ActivitiesPage period and sport', () => {
   ]
 
   it('shows the whole library, with no count, until a period or sport is picked', () => {
-    render(<ActivitiesPage activities={library} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={library} units="metric" records={new Map()} />,
+    )
     expect(screen.getByRole('link', { name: 'Old run' })).toBeInTheDocument()
     expect(screen.queryByText(/of 3 activities/)).not.toBeInTheDocument()
   })
 
   it('narrows to a period and counts how many of the library it holds', async () => {
     const user = userEvent.setup()
-    render(<ActivitiesPage activities={library} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={library} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('radio', { name: '6 weeks' }))
     expect(screen.queryByRole('link', { name: 'Old run' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Recent run' })).toBeInTheDocument()
@@ -102,7 +127,9 @@ describe('ActivitiesPage period and sport', () => {
 
   it('filters to one sport, and shows no count while every ride is in the list', async () => {
     const user = userEvent.setup()
-    render(<ActivitiesPage activities={library} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={library} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('radio', { name: 'Rides' }))
     expect(screen.getByRole('link', { name: 'Recent ride' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Recent run' })).not.toBeInTheDocument()
@@ -121,7 +148,9 @@ describe('ActivitiesPage period and sport', () => {
       }),
       makeActivity({ id: 'run-new', name: 'Recent run', sport: 'run', startMs: NEWEST }),
     ]
-    render(<ActivitiesPage activities={rides} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={rides} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('radio', { name: '6 weeks' }))
     await user.click(screen.getByRole('radio', { name: 'Rides' }))
     expect(screen.getByText('1 of 2 rides')).toBeInTheDocument()
@@ -131,7 +160,9 @@ describe('ActivitiesPage period and sport', () => {
   it('offers to show every activity again when the filters leave none', async () => {
     const user = userEvent.setup()
     const rides = library.filter((activity) => activity.sport === 'ride')
-    render(<ActivitiesPage activities={rides} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={rides} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('radio', { name: 'Runs' }))
     expect(screen.getByText('No runs in your files.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Show all activities' }))
@@ -143,11 +174,15 @@ describe('ActivitiesPage period and sport', () => {
     const many = Array.from({ length: 25 }, (_, i) =>
       makeActivity({ id: `a-${i}`, name: `Run ${i}`, sport: 'run', startMs: NEWEST - i * DAY_MS }),
     )
-    const view = render(<ActivitiesPage activities={many} units="metric" records={new Map()} />)
+    const view = render(
+      <ActivitiesPage signedIn={false} activities={many} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     expect(screen.getByRole('link', { name: 'Run 20' })).toBeInTheDocument()
 
-    view.rerender(<ActivitiesPage activities={many} units="metric" records={new Map()} />)
+    view.rerender(
+      <ActivitiesPage signedIn={false} activities={many} units="metric" records={new Map()} />,
+    )
 
     expect(screen.getByRole('link', { name: 'Run 20' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Run 0' })).not.toBeInTheDocument()
@@ -168,7 +203,14 @@ describe('ActivitiesPage period and sport', () => {
       sport: 'run',
       startMs: newest - 100 * DAY_MS,
     })
-    render(<ActivitiesPage activities={[recentRide, oldRun]} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage
+        signedIn={false}
+        activities={[recentRide, oldRun]}
+        units="metric"
+        records={new Map()}
+      />,
+    )
     await user.click(screen.getByRole('radio', { name: '6 weeks' }))
     await user.click(screen.getByRole('radio', { name: 'Runs' }))
     expect(screen.getByText('No runs between 21 Apr and 1 Jun 2026.')).toBeInTheDocument()
@@ -194,7 +236,9 @@ describe('ActivitiesPage sort, months and address', () => {
 
   it('sorts from the sort menu, and the list it shows is the sort the menu names', async () => {
     const user = userEvent.setup()
-    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={trips} units="metric" records={new Map()} />,
+    )
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
     const names = screen.getAllByRole('link').map((link) => link.textContent)
     expect(names.slice(0, 3)).toEqual(['Hill ride', 'Long run', 'New run'])
@@ -202,7 +246,9 @@ describe('ActivitiesPage sort, months and address', () => {
 
   it('heads months only when the list is in date order', async () => {
     const user = userEvent.setup()
-    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={trips} units="metric" records={new Map()} />,
+    )
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
       'Jun 2026',
       'May 2026',
@@ -217,24 +263,30 @@ describe('ActivitiesPage sort, months and address', () => {
     const many = Array.from({ length: 25 }, (_, i) =>
       makeActivity({ id: `r-${i}`, name: `Run ${i}`, startMs: NEWEST - i * DAY_MS }),
     )
-    const view = render(<ActivitiesPage activities={many} units="metric" records={new Map()} />)
+    const view = render(
+      <ActivitiesPage signedIn={false} activities={many} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     expect(window.location.hash).toBe('#/activities?page=2')
     view.unmount()
 
-    render(<ActivitiesPage activities={many} units="metric" records={new Map()} />)
+    render(<ActivitiesPage signedIn={false} activities={many} units="metric" records={new Map()} />)
     expect(screen.getByText('Showing 21–25 of 25 activities. Page 2 of 2.')).toBeVisible()
   })
 
   it('keeps a sport and sort in the address, and restores them on the next visit', async () => {
     const user = userEvent.setup()
-    const view = render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    const view = render(
+      <ActivitiesPage signedIn={false} activities={trips} units="metric" records={new Map()} />,
+    )
     await user.click(screen.getByRole('radio', { name: 'Rides' }))
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'time')
     expect(window.location.hash).toBe('#/activities?sport=ride&sort=time')
     view.unmount()
 
-    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={trips} units="metric" records={new Map()} />,
+    )
     expect(screen.getByRole('radio', { name: 'Rides' })).toBeChecked()
     expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('time')
     expect(screen.queryByRole('link', { name: 'New run' })).not.toBeInTheDocument()
@@ -242,7 +294,9 @@ describe('ActivitiesPage sort, months and address', () => {
 
   it('writes the address without a history entry, so Back still leaves the page', async () => {
     const user = userEvent.setup()
-    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage signedIn={false} activities={trips} units="metric" records={new Map()} />,
+    )
     const before = window.history.length
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
     expect(window.history.length).toBe(before)
@@ -253,6 +307,7 @@ describe('ActivitiesPage sort, months and address', () => {
     const onDelete = vi.fn()
     render(
       <ActivitiesPage
+        signedIn={false}
         activities={trips}
         units="metric"
         records={new Map()}
@@ -263,6 +318,38 @@ describe('ActivitiesPage sort, months and address', () => {
     await user.click(screen.getByRole('button', { name: 'Delete New run' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onDelete).toHaveBeenCalledWith('saved-new')
+  })
+
+  it('says a kept activity is removed from this browser when the visitor is signed out', async () => {
+    const user = userEvent.setup()
+    render(
+      <ActivitiesPage
+        activities={trips}
+        units="metric"
+        records={new Map()}
+        signedIn={false}
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    expect(screen.getByText(/It is removed from this browser\./)).toBeTruthy()
+  })
+
+  it('says a kept activity is removed from your library when the visitor is signed in', async () => {
+    const user = userEvent.setup()
+    render(
+      <ActivitiesPage
+        activities={trips}
+        units="metric"
+        records={new Map()}
+        signedIn
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    expect(screen.getByText(/It is removed from your library\./)).toBeTruthy()
   })
 })
 
@@ -278,6 +365,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
     const onDelete = vi.fn()
     const view = render(
       <ActivitiesPage
+        signedIn={false}
         activities={[trip]}
         units="metric"
         records={new Map()}
@@ -289,6 +377,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     view.rerender(
       <ActivitiesPage
+        signedIn={false}
         activities={[]}
         units="metric"
         records={new Map()}
@@ -304,6 +393,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
     const user = userEvent.setup()
     const view = render(
       <ActivitiesPage
+        signedIn={false}
         activities={[trip]}
         units="metric"
         records={new Map()}
@@ -315,6 +405,7 @@ describe('ActivitiesPage delete outcome and the address', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     view.rerender(
       <ActivitiesPage
+        signedIn={false}
         activities={[trip]}
         units="metric"
         records={new Map()}
@@ -332,7 +423,14 @@ describe('ActivitiesPage delete outcome and the address', () => {
   it('follows the address when it changes, so a plain Activities link resets the sort and page', async () => {
     const user = userEvent.setup()
     window.history.replaceState(null, '', '#/activities')
-    render(<ActivitiesPage activities={trip ? [trip] : []} units="metric" records={new Map()} />)
+    render(
+      <ActivitiesPage
+        signedIn={false}
+        activities={trip ? [trip] : []}
+        units="metric"
+        records={new Map()}
+      />,
+    )
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
     expect(window.location.hash).toBe('#/activities?sort=distance')
     window.location.hash = '#/activities'
@@ -353,6 +451,7 @@ describe('ActivitiesPage announces a removal from the activity page', () => {
     window.history.replaceState(null, '', '#/activities?removed=1')
     render(
       <ActivitiesPage
+        signedIn={false}
         activities={[]}
         units="metric"
         records={new Map()}
@@ -367,6 +466,7 @@ describe('ActivitiesPage announces a removal from the activity page', () => {
     window.history.replaceState(null, '', '#/activities')
     render(
       <ActivitiesPage
+        signedIn={false}
         activities={[trip]}
         units="metric"
         records={new Map()}
@@ -390,6 +490,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
     const user = userEvent.setup()
     const view = render(
       <ActivitiesPage
+        signedIn={false}
         activities={many}
         units="metric"
         records={new Map()}
@@ -401,6 +502,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     view.rerender(
       <ActivitiesPage
+        signedIn={false}
         activities={many.slice(1)}
         units="metric"
         records={new Map()}
@@ -418,6 +520,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
     const user = userEvent.setup()
     const view = render(
       <ActivitiesPage
+        signedIn={false}
         activities={many}
         units="metric"
         records={new Map()}
@@ -429,6 +532,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     view.rerender(
       <ActivitiesPage
+        signedIn={false}
         activities={many.slice(1)}
         units="metric"
         records={new Map()}
@@ -452,6 +556,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
     })
     const list = render(
       <ActivitiesPage
+        signedIn={false}
         activities={[trip]}
         units="metric"
         records={new Map()}
@@ -465,6 +570,7 @@ describe('ActivitiesPage clears a delete outcome when the list changes', () => {
     window.history.replaceState(null, '', '#/activities?removed=1')
     render(
       <ActivitiesPage
+        signedIn={false}
         activities={[]}
         units="metric"
         records={new Map()}

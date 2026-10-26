@@ -25,6 +25,7 @@ import {
   withRideHeld,
 } from './sharedTrendText'
 import { effortLabel } from '../records'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisFontSize } from './ticks'
 import { weekDay, windowPhrase } from './trendText'
 import './ChartSeries.css'
@@ -143,6 +144,7 @@ export function SharedTrendChart({
 
   return (
     <ChartFrame
+      plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={copy.title}
       description={copy.description}
       legend={single === undefined ? legend : undefined}

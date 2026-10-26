@@ -43,6 +43,7 @@ function renderPage(
   })
   return render(
     <ResultPage
+      signedIn={false}
       route={route}
       analysis={analysisStub()}
       result={result}
@@ -108,6 +109,7 @@ describe('ResultPage sport trend', () => {
     })
     const page = (route: Route) => (
       <ResultPage
+        signedIn={false}
         route={route}
         analysis={analysisStub()}
         result={result}
@@ -171,6 +173,7 @@ describe('ResultPage footnote', () => {
   function renderHeldRide(ride: ReturnType<typeof makeActivity> | null) {
     return render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'ride' }}
         analysis={analysisStub()}
         result={makeResult({ activities: ride ? [ride] : [] })}
@@ -186,6 +189,7 @@ describe('ResultPage footnote', () => {
   function renderFooter(route: Route, isSample: boolean) {
     return render(
       <ResultPage
+        signedIn={false}
         route={route}
         analysis={analysisStub({ state: { isSample } })}
         result={makeResult({
@@ -268,6 +272,7 @@ function renderActivity(
   })
   return render(
     <ResultPage
+      signedIn={false}
       route={{ page: 'activity', id: ACTIVITY.id }}
       analysis={analysis}
       result={makeResult({ activities: [ACTIVITY] })}
@@ -345,6 +350,7 @@ describe('ResultPage activity route, outside the period', () => {
     })
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'activity', id: ACTIVITY.id }}
         analysis={analysis}
         result={makeResult({ activities: [] })}
@@ -375,6 +381,7 @@ describe('ResultPage period', () => {
     })
     return render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysis}
         result={makeResult()}
@@ -421,6 +428,7 @@ describe('ResultPage period', () => {
     })
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysis}
         result={makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })}
@@ -467,6 +475,7 @@ describe('ResultPage period', () => {
     }
     return render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({
           state: { result: makeResult({ activities }), library: activities, period },
@@ -534,6 +543,7 @@ describe('ResultPage sample athlete', () => {
     })
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysis}
         result={makeResult({
@@ -568,6 +578,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     const result = makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'method' }}
         analysis={analysisStub({ state: { result, library: [ride], period: DATED } })}
         result={result}
@@ -588,6 +599,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     })
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'activity', id: ACTIVITY.id }}
         analysis={analysis}
         result={makeResult({ activities: [ACTIVITY] })}
@@ -606,6 +618,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     const result = makeResult({ activities: [ride], comparison: { prior: [], calibrated: null } })
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({ state: { result, library: [ride], period: DATED }, busy: true })}
         result={result}
@@ -628,6 +641,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     expect(weeks.some((week) => week.ride !== null)).toBe(true)
     render(
       <ResultPage
+        signedIn={false}
         route={{ page: 'balance' }}
         analysis={analysisStub({
           state: { ...sample, library: sample.library, period: sample.period },
@@ -642,6 +656,43 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     )
     expect(
       screen.getByRole('heading', { name: /of your best 20 min, trailing/ }),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('ResultPage activities route, by sign-in state', () => {
+  it.each([
+    { signedIn: true, from: 'your library' },
+    { signedIn: false, from: 'this browser' },
+  ])('says a kept activity is removed from $from', ({ signedIn, from }) => {
+    const analysis = analysisStub({
+      state: { result: makeResult({ activities: [ACTIVITY] }), library: [ACTIVITY] },
+      savedActivities: [
+        {
+          id: 'saved-9',
+          name: ACTIVITY.name,
+          startMs: ACTIVITY.startMs,
+          sport: 'run',
+          copy: SAVED_COPY,
+        },
+      ],
+    })
+    render(
+      <ResultPage
+        signedIn={signedIn}
+        route={{ page: 'activities' }}
+        analysis={analysis}
+        result={makeResult({ activities: [ACTIVITY] })}
+        settings={SETTINGS}
+        units="metric"
+        birthYear={null}
+        sex={null}
+        weightKnown
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: `Delete ${ACTIVITY.name}` }))
+    expect(
+      screen.getByText(`Delete “${ACTIVITY.name}”? It is removed from ${from}.`),
     ).toBeInTheDocument()
   })
 })

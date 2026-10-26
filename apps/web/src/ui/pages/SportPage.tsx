@@ -5,7 +5,6 @@ import type { SportCurves, TrendPoint } from '@rca/core/digest'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
-import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { DEFAULT_VIEW, queryFromView } from '../activitiesView'
 import { SportCurveChart, TrendChart } from '../charts'
@@ -44,6 +43,7 @@ import {
   headlineEffort,
   isEstimatedRecord,
   nativeCurve,
+  paceIsTime,
   recordDurationLabel,
   refusalOf,
   sportRecords,
@@ -108,11 +108,6 @@ function AgeNote({ missing }: { missing: AgeGap }) {
 /** A run distance's row label in sentence case, such as "Half marathon" from its record name. */
 function rowLabel(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
-}
-
-/** Whether a distance's pace is its time: the mile in miles, or the kilometre in kilometres. */
-function paceIsTime(distanceM: number, units: UnitSystem): boolean {
-  return distanceM === (units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM)
 }
 
 /** One sport's records in its own units, the best-effort curve and the evidence behind them. */

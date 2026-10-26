@@ -7,11 +7,11 @@ import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
 import { periodDates } from '../components/rangeOptions'
 import { splitsShowFlatNote, type SplitsLoad } from '../components/splitRows'
-import { FLAT_PACE_NOTE, distanceGrade, sportGrade } from '../grades'
+import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import { FLAT_MARK, recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { ownDistanceRecords, recordDurationLabel, sportRecords } from '../records'
+import { ownDistanceRecords, paceIsTime, recordDurationLabel, sportRecords } from '../records'
 
 export interface ActivityBestsProps {
   activity: ActivitySummary
@@ -113,15 +113,16 @@ export function ActivityBests({
         ? null
         : distanceGrade(record.distanceM, record.seconds, activity.startMs, profile),
   }))
-  const anyGraded = [...durationItems, ...distanceItems].some(
-    (item) => item.outcome?.kind === 'graded',
-  )
+  const outcomes = [...durationItems, ...distanceItems].map((item) => item.outcome)
+  const anyGraded = outcomes.some((outcome) => outcome?.kind === 'graded')
+  // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
+  const listNotes = listedGradeNotes(sport, outcomes)
   // The page is the activity, so its rows name no activity of their own.
   const rows: RecordRow[] = [
     ...durationItems.map(({ record, outcome }) => {
       const row = recordRow(sport, record, {
         label: `Best ${recordDurationLabel(record.durationS)}`,
-        grade: recordGradeCell(sport, outcome, record.covered),
+        grade: recordGradeCell(sport, outcome, record.covered, 'row'),
       })
       row.activity = null
       return row
@@ -130,8 +131,9 @@ export function ActivityBests({
       key: `distance-${record.distanceM}`,
       label: `Best ${record.label}`,
       value: record.time,
-      sub: record.pace,
-      grade: recordGradeCell(sport, outcome),
+      // In miles the mile, and in kilometres the kilometre, is its own time, so it has no pace to show.
+      sub: paceIsTime(record.distanceM, units) ? null : record.pace,
+      grade: recordGradeCell(sport, outcome, null, 'row'),
       tags: [],
       change: null,
       setDays: null,
@@ -142,6 +144,11 @@ export function ActivityBests({
     <section className="section" aria-labelledby="activity-bests">
       <h2 id="activity-bests">Best efforts set here</h2>
       <SportRecords rows={rows} />
+      {listNotes.map((note) => (
+        <p key={note} className="muted">
+          {note}
+        </p>
+      ))}
       {flatNoteHere(sport, splitsLoad, units, rows) && <p className="muted">{FLAT_PACE_NOTE}</p>}
       {anyGraded && <GradingLink />}
     </section>

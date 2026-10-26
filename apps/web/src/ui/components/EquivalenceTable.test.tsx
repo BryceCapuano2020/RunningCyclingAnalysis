@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { UnitSystem } from '@rca/core/units'
+import { EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { readStylesheet, ruleBody } from './stylesheet'
 import { interval, makeEquivalence } from './fixtures'
 import { EquivalenceTable } from './EquivalenceTable'
@@ -154,5 +155,40 @@ describe('EquivalenceTable', () => {
     expect(mediaBody(equivalenceCss, '(max-width: 479px)')).toMatch(
       /\.equivalence-table__wide \{\s*display: none;/,
     )
+  })
+
+  it('keeps the columns 8 px apart above the small-text width, so an imperial range fits at 390 and 396 px', () => {
+    // The base rules are those before the first media query; the labels and the rows share their gap.
+    const base = equivalenceCss.slice(0, equivalenceCss.indexOf('@media'))
+    expect(base).toMatch(
+      /\.equivalence-list__labels,\s*\.equivalence-list dl \{[^}]*gap:\s*var\(--space-1\) var\(--space-2\);/,
+    )
+  })
+
+  it('takes its width from layoutBreakpoints.ts, past a 375 px phone, and names it beside the query', () => {
+    expect(EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX).toBeGreaterThanOrEqual(375)
+    expect(equivalenceCss).toContain(`@media (max-width: ${EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX}px)`)
+    expect(equivalenceCss).toContain('layoutBreakpoints.ts')
+  })
+
+  it('sets a 320 px phone’s list a step smaller, with its own columns and gap, and keeps each value on one line', () => {
+    const narrow = mediaBody(
+      equivalenceCss,
+      `(max-width: ${EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX}px)`,
+    )
+    // The labels and the rows share the columns and the gap, so each label sits over its values.
+    const shared = '\\.equivalence-list__labels,\\s*\\.equivalence-list dl \\{[^}]*'
+    expect(narrow).toMatch(
+      new RegExp(
+        `${shared}grid-template-columns:\\s*minmax\\(0,\\s*1\\.1fr\\)\\s*minmax\\(0,\\s*0\\.6fr\\)\\s*minmax\\(0,\\s*1\\.1fr\\)`,
+      ),
+    )
+    expect(narrow).toMatch(new RegExp(`${shared}gap:\\s*var\\(--space-1\\);`))
+    expect(narrow).toMatch(new RegExp(`${shared}font-size:\\s*var\\(--text-sm\\)`))
+    // Enlarged text wraps in its column rather than running into the next one, and an estimated
+    // effort's chip wraps under its effort, not into the pace.
+    expect(narrow).not.toMatch(/\.equivalence-list dd \{[^}]*white-space:\s*nowrap/)
+    expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*display:\s*flex/)
+    expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*flex-wrap:\s*wrap/)
   })
 })

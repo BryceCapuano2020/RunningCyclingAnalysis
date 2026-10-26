@@ -172,11 +172,13 @@
     background: CanvasText;
   }
 
-  /* The sport rules are more specific than the base dot, so the forced dot is named in each. */
+  /* The sport rules are more specific than the base dot, so the forced dot is named in each. Forced
+     colours drop box-shadow, so the ring is an outline, which they keep. */
   .balance-meter--run .balance-meter__dot,
   .balance-meter--ride .balance-meter__dot,
   .balance-meter__dot {
     background: CanvasText;
-    box-shadow: 0 0 0 2px Canvas;
+    outline: 2px solid Canvas;
+    outline-offset: 0;
   }
 }

@@ -328,7 +328,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
             selected={format}
             onSelect={setFormat}
           />
-          <div className="share-sheet__preview">
+          <div className={`share-sheet__preview share-sheet__preview--${format}`}>
             {preview?.url ? (
               <img
                 className={preview.format === format ? undefined : 'share-sheet__picture--stale'}

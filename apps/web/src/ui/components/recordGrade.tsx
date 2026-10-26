@@ -13,8 +13,8 @@ import { GradeSentence } from './GradeSentence'
 export function recordGradeCell(
   sport: Sport,
   outcome: GradeOutcome | null,
-  covered: string | null = null,
-  where: GradeContext = 'record',
+  covered: string | null,
+  where: GradeContext,
 ): ReactNode {
   if (outcome === null) return null
   if (outcome.kind === 'graded') {

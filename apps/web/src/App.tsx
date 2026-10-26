@@ -138,11 +138,15 @@ export function App() {
   const previousHash = useRef(window.location.hash)
   useEffect(() => {
     if (previousKey.current === key) return
+    const fromLanding = previousKey.current === 'landing'
     previousKey.current = key
     const followed = previousHash.current !== window.location.hash
     previousHash.current = window.location.hash
     if (!followed && !focusWasLost()) return
-    restoreScroll()
+    // A first result replaces the landing page, where the visitor may have scrolled down to a sample
+    // button that is now gone. That scroll is not a place they left, so the result starts at the top.
+    if (fromLanding && !followed) window.scrollTo(0, 0)
+    else restoreScroll()
     // Focus without a scroll of its own, so the position just restored is kept.
     focusPageHeading({ preventScroll: true })
   }, [key])
@@ -290,6 +294,7 @@ export function App() {
             units={units}
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
+            signedIn={signedIn}
           />
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />

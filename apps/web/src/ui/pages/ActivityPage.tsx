@@ -53,6 +53,8 @@ export interface ActivityPageProps {
   period?: Period
   /** A removal is already running, so Delete waits. */
   busy?: boolean
+  /** Whether the visitor is signed in, which says where a removal takes the activity from. */
+  signedIn: boolean
   /** Removes the activity's saved copy. Without it, or without a saved copy, there is no Delete. */
   onDelete?: (savedId: string) => void
   /** The library's notice and error, which say how a removal from this page ended. */
@@ -106,6 +108,7 @@ export function ActivityPage({
   loadRoute,
   period,
   busy = false,
+  signedIn,
   onDelete,
   libraryNotice = null,
   libraryError = null,
@@ -212,6 +215,7 @@ export function ActivityPage({
             savedId={routeId}
             name={activity.name}
             busy={busy}
+            signedIn={signedIn}
             onDelete={(savedId) => {
               removal.begin()
               onDelete(savedId)

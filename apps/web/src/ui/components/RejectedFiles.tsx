@@ -1,7 +1,8 @@
 import type { RejectedFile } from '@rca/core/session'
 import {
+  adviceCarriers,
   groupRejected,
-  lineNamesAction,
+  groupShowsAction,
   rejectionCopy,
   SKIPPED_GROUP_COPY,
 } from '../analysis/rejectCopy'
@@ -25,8 +26,9 @@ export interface RejectedFilesProps {
 const NO_DUPLICATES: RejectedFile[] = []
 
 /**
- * The files an import skipped: the first one's reason in plain words, then one neutral line that
- * opens the groups. Each group says what the files are and gives one suggested action.
+ * The files an import skipped: one neutral line, the count, that opens the groups, with the first
+ * file's reason under it in both states. Each group says what its files are and gives one suggested
+ * action, unless one of its lines already carries the advice that every file in it shares.
  */
 export function RejectedFiles({
   count,
@@ -38,31 +40,33 @@ export function RejectedFiles({
   if (count === 0) return null
   const groups = withUnsupported(groupRejected(listed), unsupportedFiles)
   const first = listed[0]
+  const carriers = adviceCarriers(groups, first)
   return (
     <div className="rejected-files">
       <details>
-        <summary>{skippedSentence(count)}</summary>
+        <summary>
+          <span>{skippedSentence(count)}</span>
+          {first !== undefined && (
+            <span className="rejected-files__first">{fileLine(first, carriers)}</span>
+          )}
+        </summary>
         {groups.map(({ group, files }) => {
           const { title, action } = SKIPPED_GROUP_COPY[group]
           const groupCount = files.length + (group === 'not-activity' ? unsupportedFiles : 0)
-          // The first file is shown beneath the disclosure, so the list leaves it out.
+          // The first file is shown under the count line, so the list leaves it out.
           const beneath = files.filter((file) => file !== first)
-          // A lone first file whose line already gives the action does not get the group's action again.
-          const repeats =
-            first !== undefined &&
-            files.length === 1 &&
-            files[0] === first &&
-            lineNamesAction(first)
           return (
             <div key={group} className="rejected-files__group">
               <p className="rejected-files__title">
                 <strong>{title(groupCount)}</strong>
               </p>
-              {!repeats && <p className="rejected-files__action">{action}</p>}
+              {groupShowsAction(files, carriers) && (
+                <p className="rejected-files__action">{action}</p>
+              )}
               {beneath.length > 0 && (
                 <ul className="rejected-files__list">
                   {keyByContent(beneath, (file) => file.fileName).map(({ key, item: file }) => (
-                    <li key={key}>{`${file.fileName}: ${rejectionCopy(file)}`}</li>
+                    <li key={key}>{fileLine(file, carriers)}</li>
                   ))}
                 </ul>
               )}
@@ -70,12 +74,14 @@ export function RejectedFiles({
           )
         })}
       </details>
-      {first !== undefined && (
-        <p className="rejected-files__first">{`${first.fileName}: ${rejectionCopy(first)}`}</p>
-      )}
       <HowToGetFilesButton />
     </div>
   )
+}
+
+/** A file's name and its reason in plain words, with the advice when its line carries it. */
+function fileLine(file: RejectedFile, carriers: ReadonlySet<RejectedFile>): string {
+  return `${file.fileName}: ${rejectionCopy(file, carriers.has(file))}`
 }
 
 /** Unsupported files are counted in the "not an activity file" group, which is shown even with no names. */

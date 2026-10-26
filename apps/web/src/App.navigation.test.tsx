@@ -130,6 +130,44 @@ describe('scroll when Back returns to a page', () => {
   })
 })
 
+describe('scroll when the first result replaces the landing page', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    Object.defineProperty(window, 'scrollY', { configurable: true, writable: true, value: 0 })
+  })
+
+  it('starts at the top, not where the landing page was scrolled, then focuses the heading', () => {
+    window.location.hash = '#/'
+    const log: string[] = []
+    vi.spyOn(window, 'scrollTo').mockImplementation((_x, y) => {
+      log.push(`scroll:${String(y)}`)
+    })
+    const originalFocus = HTMLElement.prototype.focus
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      if (this.id === 'page-heading') {
+        log.push(`focus:${options?.preventScroll === true ? 'no-scroll' : 'scroll'}`)
+      }
+      originalFocus.call(this, options)
+    })
+
+    // The sample button sits below the fold on a phone; the visitor scrolls down to it and taps it.
+    const view = render(<App />)
+    Object.defineProperty(window, 'scrollY', { configurable: true, writable: true, value: 400 })
+    act(() => {
+      window.dispatchEvent(new Event('scroll'))
+    })
+    log.length = 0
+
+    showResult()
+    view.rerender(<App />)
+
+    expect(log).toEqual(['scroll:0', 'focus:no-scroll'])
+  })
+})
+
 describe('deep links without a result', () => {
   it('say what the page needs, and keep the address the visitor followed', () => {
     window.location.hash = '#/activities/abc'

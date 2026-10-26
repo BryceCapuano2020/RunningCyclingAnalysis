@@ -3,9 +3,13 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readStylesheet, ruleBody } from '../components/stylesheet'
 import { ChartFrame } from './ChartFrame'
+import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, X_TICK_BASELINE_PX } from './plotBox'
 import { PlotSurface } from './PlotSurface'
 import type { ChartFrameProps } from './ChartFrame'
 import type { ChartSize } from './chartTypes'
+
+/** The descent of the largest x tick label, at a 20 px root, in px. */
+const LARGE_TICK_DESCENT_PX = 4
 
 const frameCss = await readStylesheet(import.meta.url, './ChartFrame.css')
 
@@ -124,6 +128,18 @@ describe('ChartFrame', () => {
       top: 28,
       bottom: size.height - 52,
     })
+  })
+
+  it('takes a smaller bottom margin for a chart with no x-axis title, which needs room for its tick labels only', () => {
+    expect(PLOT_BOTTOM_WITHOUT_X_TITLE).toBeLessThan(PLOT_MARGIN.bottom)
+    // A tick label at a 20 px root is about 16 px, with about 4 px below its baseline: keep that inside.
+    expect(PLOT_BOTTOM_WITHOUT_X_TITLE - X_TICK_BASELINE_PX).toBeGreaterThanOrEqual(
+      LARGE_TICK_DESCENT_PX + 2,
+    )
+    const children = vi.fn<(size: ChartSize) => null>(() => null)
+    renderFrame({ children, plotBottomMargin: PLOT_BOTTOM_WITHOUT_X_TITLE })
+    const size = children.mock.calls[0]?.[0]
+    expect(size?.plot.bottom).toBe((size?.height ?? 0) - PLOT_BOTTOM_WITHOUT_X_TITLE)
   })
 
   it('uses the default height unless one is given', () => {

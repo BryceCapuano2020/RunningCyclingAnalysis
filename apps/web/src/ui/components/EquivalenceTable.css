@@ -31,8 +31,8 @@
 /* The labels and each row's values share three columns, so the labels sit over the values they name. */
 .equivalence-list__labels,
 .equivalence-list dl {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: var(--space-1) var(--space-3);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: var(--space-1) var(--space-2);
   margin: 0;
 }
 
@@ -59,5 +59,24 @@
 
   .equivalence-list__labels {
     display: grid;
+  }
+}
+
+/* At or below 379 px, which is EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the columns
+   are too narrow for the values at the body size, so the list sets them a step smaller, which keeps each
+   value on one line. Enlarged text wraps rather than overflowing its column. An estimated effort's chip
+   wraps under its effort. */
+@media (max-width: 379px) {
+  .equivalence-list__labels,
+  .equivalence-list dl {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 1.1fr);
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+  }
+
+  .equivalence-list dd {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-1);
   }
 }

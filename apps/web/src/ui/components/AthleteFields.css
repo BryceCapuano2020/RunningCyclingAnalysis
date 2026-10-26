@@ -27,3 +27,11 @@
     padding-inline: var(--space-1);
   }
 }
+
+/* At 320 px "Prefer not to say" takes three lines at the body size, so at the small phone width the
+   labels take a step smaller and keep two (ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX). */
+@media (max-width: 360px) {
+  .athlete-fields .segmented-control__option {
+    font-size: var(--text-sm);
+  }
+}

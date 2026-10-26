@@ -40,6 +40,8 @@ export interface ActivityRowProps {
   /** False while no body weight is entered: a ride's record chips wait for it, as its page's do. */
   weightKnown: boolean
   busy: boolean
+  /** Whether the visitor is signed in, which says where a removal takes the activity from. */
+  signedIn: boolean
   /** Removes the kept copy. Without it, the row offers no Delete. */
   onDelete?: (savedId: string) => void
 }
@@ -84,6 +86,7 @@ export function ActivityRow({
   keptId,
   weightKnown,
   busy,
+  signedIn,
   onDelete,
 }: ActivityRowProps) {
   const skipped = skippedCountOf(activity)
@@ -149,7 +152,13 @@ export function ActivityRow({
             </div>
           )}
           {keptId !== null && onDelete && (
-            <ActivityDelete savedId={keptId} name={activity.name} busy={busy} onDelete={onDelete} />
+            <ActivityDelete
+              savedId={keptId}
+              name={activity.name}
+              busy={busy}
+              signedIn={signedIn}
+              onDelete={onDelete}
+            />
           )}
         </div>
         {hero && (

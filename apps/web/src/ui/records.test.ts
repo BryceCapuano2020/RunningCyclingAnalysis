@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fitCriticalPower } from '@rca/core/cp'
 import { FLAT_RUN_COST, HALF_MARATHON_M, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
-import { formatDistance } from '@rca/core/units'
+import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import {
@@ -21,6 +21,7 @@ import {
   nativeCurve,
   nativeValue,
   ownDistanceRecords,
+  paceIsTime,
   sportRecords,
   threshold,
 } from './records'
@@ -299,6 +300,19 @@ describe('distanceRecords', () => {
     const older = makeActivity({ id: 'older', startMs: 1 })
     const ride = makeActivity({ id: 'ride', sport: 'ride', startMs: 2 })
     expect(distanceRecords([older, ride], 'metric')).toEqual({ records: [], partial: false })
+  })
+})
+
+describe('paceIsTime', () => {
+  it('is true for the mile in imperial and the kilometre in metric, whose pace is their time', () => {
+    expect(paceIsTime(METRES_PER_MILE, 'imperial')).toBe(true)
+    expect(paceIsTime(METRES_PER_KM, 'metric')).toBe(true)
+  })
+
+  it('is false for the other unit’s distance, and for any other distance', () => {
+    expect(paceIsTime(METRES_PER_KM, 'imperial')).toBe(false)
+    expect(paceIsTime(METRES_PER_MILE, 'metric')).toBe(false)
+    expect(paceIsTime(5000, 'metric')).toBe(false)
   })
 })
 

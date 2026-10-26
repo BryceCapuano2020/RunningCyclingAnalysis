@@ -61,8 +61,9 @@ control is 44 px (`--control-height` in `tokens.css`): the header's controls, bu
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
 links in a records list, the cross-sport idea and the two footer links, which are padded to that
 height on a finger. A footer link is 24 px tall with a mouse, the smallest target WCAG allows. At
-360 px and below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
-overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
+360 px and below the tab labels and the sex choices shrink a step, so "ACTIVITIES" keeps its
+line in a four-tab bar and "Prefer not to say" keeps two. Where the tabs overflow, the bar
+scrolls from the left and fades at its edge until it is scrolled to the end.
 
 Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
 and an activity by its own name. The first control on a page is **Skip to content**, which moves
@@ -122,8 +123,8 @@ what the import moved in the athlete's numbers: at most four items, thresholds f
 then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 5 km, 10 km and a half marathon), counted only for workouts that were not on file before. A
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
 or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
-group names its files with a plain reason and gives one suggested action. The list ends with **How to get your files**, which opens the guides.
-The summary's first skipped file is shown below the count line, with its suggested action, and the summary is announced with the same count it shows. Each import
+group names its files with a plain reason and gives one suggested action, said once. A reason that advises ("Export it again.", "Export a shorter range.") keeps that advice in its line when its file is alone in its group or is the summary's first file. A group whose files all give that advice shows no action once such a line carries it, and its other lines leave it out. A mixed group keeps its action, so the advice can appear twice rather than not at all. The list ends with **How to get your files**, which opens the guides.
+The summary's first skipped file is shown under the count line, in both states, with its plain reason and its advice, and the summary is announced with the same count it shows. Each import
 is compared with the result the worker last reported when it was sent, except a file released from a
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
@@ -375,10 +376,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
-  figure has not moved. It is absent for All time. A record with no grade says why in its grade slot,
-  such as "No age standard under 1 mile", so every row has the same cells. A sport page's list says a
-  ride's "Estimated through its running equivalent" and a run's "No age standard under 1 mile" once,
-  under the list, and each row then reads only its level.
+  figure has not moved. It is absent for All time. A record with no grade leaves its grade out, so
+  every row keeps the same columns. A sport page's and an activity page's list says a ride's "Estimated
+  through its running equivalent" and its no-standard note, such as a run's "No age standard under 1
+  mile" or a ride's "No age standard for this duration", once, under the list, and each row then reads
+  only its level.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a
@@ -600,9 +602,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   marked Flat and noted: "Flat pace: your pace allowing for hills, as if on level ground." A ride's grade
   is estimated through its running equivalent, so its line starts "Estimated", it shows its 90% range in
   brackets, and a range that crosses a band names both levels ("Local to Regional"). The card's caption
-  says the bracketed range is the 90% range. A ride record says the grade is "Estimated through its
-  running equivalent" in full, because a row stands on its own. Thresholds are always estimated. The
-  Method page is the one place that explains the estimates.
+  says the bracketed range is the 90% range. A ride's record list names "Estimated through its running
+  equivalent" once, under the list, not on each row. Thresholds are always estimated. The Method page is
+  the one place that explains the estimates.
 - **Every grade names its standard.** Sport pages' captions and the ladder's label say "on the USATF road
   standards", and that name links to the age grades on How sure is this?. A sport page's caption then
   ends "A level, not a ranking.", so the page says what a grade is. A Balance card leaves the standard
