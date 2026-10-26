@@ -442,9 +442,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   are in the page, and a media query shows exactly one at each width, so the accessibility tree
   holds one representation. Never set `display: block` on a table element, which drops its table
   semantics. A split's columns earn their place: Elevation gain shows only when some split climbs, and Flat
-  pace only when it differs from Pace in some split. A partial last split, shorter than one unit, reads to
-  two decimals, such as "0.97 mi", rounded down so it never reads as a whole unit. Below 480 px a split is two lines, its split and pace
-  first, then its other figures, which wrap as the width needs. The splits table on the activity page is the first use, and the efforts table on a Balance card
+  pace only when some split has one that differs from its Pace, so a run with no altitude or no flat pace shows neither column. A partial last split, shorter than one unit, reads to
+  two decimals, such as "0.97 mi", rounded down so it never reads as a whole unit. Below 480 px a split
+  leads with its split and pace, then its other figures, which wrap as the width needs: two or three lines. The splits table on the activity page is the first use, and the efforts table on a Balance card
   is the second, whose list shows below 480 px with its labels once above the rows; record any new one here.
 - **Bars start from zero.** A bar's length is the value relative to the best known one, so the best
   fills its track. A row with no known value has no bar and cannot be the best.

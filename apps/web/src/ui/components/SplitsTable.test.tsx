@@ -3,8 +3,8 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { DigestSplit, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SplitsTable, type SplitsLoad } from './SplitsTable'
-import { splitsShowFlatNote } from './splitRows'
+import { SplitsTable } from './SplitsTable'
+import { splitsShowFlatNote, type SplitsLoad } from './splitRows'
 
 afterEach(() => {
   cleanup()
@@ -180,7 +180,7 @@ describe('SplitsTable', () => {
     expect(within(known!).getByText('Fastest')).toBeInTheDocument()
   })
 
-  it('keeps elevation when the flat pace is unknown, and says so when there is no altitude', () => {
+  it('keeps elevation when the flat pace is unknown, and leaves out a flat pace column with nothing to show', () => {
     renderSplits(
       loaded({
         km: [
@@ -190,11 +190,25 @@ describe('SplitsTable', () => {
         mile: [],
       }),
     )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Elevation gain', 'Heart rate'])
     const [withClimb, noAltitude] = bodyRows()
     expect(within(withClimb!).getByText('12 m')).toBeInTheDocument()
-    expect(within(withClimb!).getAllByRole('cell', { name: 'Not available' })).toHaveLength(1)
     expect(within(noAltitude!).getByRole('cell', { name: 'No altitude' })).toBeInTheDocument()
-    expect(within(noAltitude!).getByRole('cell', { name: 'Not available' })).toBeInTheDocument()
+    expect(screen.queryByRole('cell', { name: 'Not available' })).not.toBeInTheDocument()
+  })
+
+  it('leaves out both optional columns for a run with no altitude and no flat pace, so no column is all dashes', () => {
+    renderSplits(
+      loaded({
+        km: [
+          split({ gradeAdjustedSeconds: null, elevationGainM: null }),
+          split({ seconds: 285, gradeAdjustedSeconds: null, elevationGainM: null }),
+        ],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Heart rate'])
+    expect(screen.queryByText('–', { selector: '[aria-hidden="true"]' })).toBeNull()
   })
 
   it('shows a missing heart rate as a dash with words for a screen reader', () => {
@@ -339,6 +353,15 @@ describe('splitsShowFlatNote', () => {
     expect(
       splitsShowFlatNote(
         loaded({ km: [split({ gradeAdjustedSeconds: 300 })], mile: [] }),
+        'metric',
+      ),
+    ).toBe(false)
+  })
+
+  it('is false when no split has a flat pace to show, so the column would be all dashes', () => {
+    expect(
+      splitsShowFlatNote(
+        loaded({ km: [split({ gradeAdjustedSeconds: null })], mile: [] }),
         'metric',
       ),
     ).toBe(false)

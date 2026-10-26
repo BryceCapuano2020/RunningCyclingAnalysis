@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { DigestSplits } from '@rca/core/types'
-import type { SplitsLoad } from './components/SplitsTable'
+import type { SplitsLoad } from './components/splitRows'
 
 /**
  * A run's splits, asked for from the worker once the activity page shows it. The page keeps the answer,

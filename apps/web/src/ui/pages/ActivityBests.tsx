@@ -6,12 +6,11 @@ import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
 import { periodDates } from '../components/rangeOptions'
-import type { SplitsLoad } from '../components/SplitsTable'
-import { splitsShowFlatNote } from '../components/splitRows'
+import { splitsShowFlatNote, type SplitsLoad } from '../components/splitRows'
 import { FLAT_PACE_NOTE, distanceGrade, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
+import { FLAT_MARK, recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { recordRow } from '../recordRow'
 import { ownDistanceRecords, recordDurationLabel, sportRecords } from '../records'
 
 export interface ActivityBestsProps {
@@ -48,7 +47,7 @@ function flatNoteHere(
   rows: readonly RecordRow[],
 ): boolean {
   if (sport !== 'run' || splitsLoad.status === 'loading') return false
-  return !splitsShowFlatNote(splitsLoad, units) && rows.some((row) => row.tags.includes('Flat'))
+  return !splitsShowFlatNote(splitsLoad, units) && rows.some((row) => row.tags.includes(FLAT_MARK))
 }
 
 function outsideText(period: Period | undefined): string {

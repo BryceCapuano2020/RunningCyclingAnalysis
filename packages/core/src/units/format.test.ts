@@ -8,6 +8,7 @@ import {
   formatTimeOfDay,
   formatDistance,
   formatDuration,
+  formatPartialDistance,
   formatElevation,
   formatMass,
   formatPace,
@@ -167,6 +168,27 @@ describe('formatDistance', () => {
   it('returns a dash for NaN', () => {
     expect(formatDistance(NaN, 'metric')).toBe(DASH)
     expect(formatDistance(NaN, 'imperial')).toBe(DASH)
+  })
+})
+
+describe('formatPartialDistance', () => {
+  it('writes a partial distance to two decimals, so it never reads as a whole unit', () => {
+    expect(formatPartialDistance(1562, 'imperial')).toBe('0.97 mi')
+    expect(formatPartialDistance(420, 'metric')).toBe('0.42 km')
+  })
+
+  it('rounds down, so 999 m reads 0.99 km and not 1.00', () => {
+    expect(formatPartialDistance(999, 'metric')).toBe('0.99 km')
+    expect(formatPartialDistance(1561, 'imperial')).toBe('0.96 mi')
+  })
+
+  it('says a distance under a hundredth of a unit is under it', () => {
+    expect(formatPartialDistance(4, 'metric')).toBe('<0.01 km')
+    expect(formatPartialDistance(4, 'imperial')).toBe('<0.01 mi')
+  })
+
+  it('returns a dash for NaN', () => {
+    expect(formatPartialDistance(NaN, 'metric')).toBe(DASH)
   })
 })
 

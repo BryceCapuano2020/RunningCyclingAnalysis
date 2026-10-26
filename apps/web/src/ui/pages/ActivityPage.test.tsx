@@ -788,6 +788,33 @@ describe('the flat pace note', () => {
     expect(screen.getByText('Loading splits.')).toBeInTheDocument()
     expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
   })
+
+  it('sits under the bests when the splits fail to load and a best carries a Flat mark', async () => {
+    renderPage(
+      morningRun,
+      resultWith(),
+      'metric',
+      new Map(),
+      vi.fn(() => Promise.reject(new Error('worker down'))),
+    )
+    expect(await screen.findByText(/The splits could not be loaded/)).toBeInTheDocument()
+    expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
+    expect(within(splitsSection()).queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('never sits on a ride, whose best efforts carry no Flat mark', () => {
+    renderPage(
+      powerRide,
+      resultWith({ rideCurve: rideCurveFixture }),
+      'metric',
+      new Map(),
+      undefined,
+    )
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
+  })
 })
 
 describe('ActivityPage records earned', () => {

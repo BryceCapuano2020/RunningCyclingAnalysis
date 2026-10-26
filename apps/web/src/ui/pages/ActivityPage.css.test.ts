@@ -30,11 +30,16 @@ describe('activity page stylesheet', () => {
     expect(declarations(page, '.activity-page__nav a')).toMatch(/text-wrap:\s*balance;/)
   })
 
-  it('leaves out the bullets of the skipped readings, and their indent with them', () => {
+  it('hides the bullets of the skipped readings with an empty marker, so the list keeps its semantics', () => {
     const flags = declarations(page, '.activity-page__flags')
-    expect(flags).toMatch(/list-style:\s*none;/)
+    expect(flags).not.toMatch(/list-style:\s*none;/)
     expect(flags).toMatch(/padding-left:\s*0;/)
-    expect(declarations(page, '.activity-page__flag-times')).toMatch(/list-style:\s*none;/)
+    expect(declarations(page, '.activity-page__flags li::marker')).toMatch(/content:\s*'';/)
+  })
+
+  it('keeps the splits list a list, hiding its numbers with an empty marker and not list-style none', () => {
+    expect(declarations(splits, '.splits-list')).not.toMatch(/list-style:\s*none;/)
+    expect(declarations(splits, '.splits-list__item::marker')).toMatch(/content:\s*'';/)
   })
 
   it('spans a lone last stat across both columns on a phone', () => {
@@ -65,7 +70,7 @@ describe('splits table', () => {
     )
   })
 
-  it('sets each split on two lines below 480 px, its split and pace first, and wraps the rest', () => {
+  it('sets each split on two or three lines below 480 px, its split and pace first, and wraps the rest', () => {
     expect(declarations(splits, '.splits-list dl')).toMatch(/flex-wrap:\s*wrap;/)
     expect(declarations(splits, '.splits-list dl > div:nth-child(2)')).toMatch(
       /margin-left:\s*auto;/,

@@ -1,7 +1,19 @@
 import type { DigestSplit, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { METRES_PER_KM, METRES_PER_MILE, formatElevation, formatPace } from '@rca/core/units'
-import type { SplitsLoad } from './SplitsTable'
+import {
+  METRES_PER_KM,
+  METRES_PER_MILE,
+  formatElevation,
+  formatPace,
+  formatPartialDistance,
+} from '@rca/core/units'
+
+/** What the page knows about one run's splits: still loading, not loaded, or loaded. */
+export type SplitsLoad =
+  | { status: 'loading' }
+  | { status: 'failed' }
+  /** `splits` is null when the run's digest was made before splits were kept. */
+  | { status: 'loaded'; splits: DigestSplits | null }
 
 /** One row, as both representations show it. A null field is a value the digest could not give. */
 export interface SplitCells {
@@ -22,20 +34,8 @@ export interface Columns {
 }
 
 /**
- * A partial split, shorter than one unit, to two decimals. It rounds down, so it never reads as a whole
- * unit: 0.97 mi, not 1.0 mi. Under a hundredth it reads "<0.01 mi".
- */
-function partialLabel(distanceM: number, units: UnitSystem): string {
-  const [unit, metresPerUnit] =
-    units === 'imperial' ? (['mi', METRES_PER_MILE] as const) : (['km', METRES_PER_KM] as const)
-  const hundredths = Math.floor((distanceM * 100) / metresPerUnit)
-  return hundredths === 0 ? `<0.01 ${unit}` : `${(hundredths / 100).toFixed(2)} ${unit}`
-}
-
-/**
  * The rows in display form. A split whose time is unknown has no pace, so it is not marked fastest
- * and does not set the bar scale. Elevation is shown whenever the activity has altitude, even when
- * its flat pace is unknown.
+ * and does not set the bar scale. Whether a column shows is columnsOf's decision, not this one's.
  */
 export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
   const unitMetres = units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM
@@ -50,7 +50,10 @@ export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
     const speed = speeds[index]!
     const gradeAdjusted = split.gradeAdjustedSeconds
     return {
-      label: split.distanceM < unitMetres ? partialLabel(split.distanceM, units) : `${index + 1}`,
+      label:
+        split.distanceM < unitMetres
+          ? formatPartialDistance(split.distanceM, units)
+          : `${index + 1}`,
       fastest: index === fastestIndex,
       pace: speed === null ? null : formatPace(speed, units),
       barPercent: speed === null || fastest === null ? null : (speed / fastest) * 100,
@@ -64,13 +67,15 @@ export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
 }
 
 /**
- * Elevation gain has a column when some split climbs, and flat pace when it differs from the pace in
- * some split, so a column never repeats the one beside it.
+ * Elevation gain has a column when some split climbs. Flat pace has one when some split has a flat pace
+ * that differs from its pace, so a column never repeats the one beside it, and never holds only dashes.
  */
 export function columnsOf(rows: DigestSplit[], cells: SplitCells[]): Columns {
   return {
     elevation: rows.some((split) => (split.elevationGainM ?? 0) > 0),
-    flat: cells.some((cell) => cell.gradeAdjustedPace !== cell.pace),
+    flat: cells.some(
+      (cell) => cell.gradeAdjustedPace !== null && cell.gradeAdjustedPace !== cell.pace,
+    ),
   }
 }
 

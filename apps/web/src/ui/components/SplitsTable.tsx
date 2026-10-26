@@ -5,14 +5,14 @@ import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '@rca/core/constants'
 import { SPLITS_NOT_LOADED } from '../analysis/copy'
 import './SplitsTable.css'
 import { FLAT_PACE_NOTE } from '../grades'
-import { cellsOf, columnsOf, rowsOf, type Columns, type SplitCells } from './splitRows'
-
-/** What the page knows about one run's splits: still loading, not loaded, or loaded. */
-export type SplitsLoad =
-  | { status: 'loading' }
-  | { status: 'failed' }
-  /** `splits` is null when the run's digest was made before splits were kept. */
-  | { status: 'loaded'; splits: DigestSplits | null }
+import {
+  cellsOf,
+  columnsOf,
+  rowsOf,
+  type Columns,
+  type SplitCells,
+  type SplitsLoad,
+} from './splitRows'
 
 export interface SplitsTableProps {
   load: SplitsLoad

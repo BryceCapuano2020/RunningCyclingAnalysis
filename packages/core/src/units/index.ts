@@ -4,6 +4,7 @@ export {
   formatRecordTime,
   formatDistance,
   formatDuration,
+  formatPartialDistance,
   formatElevation,
   ENERGY_RATE_UNIT,
   formatEnergyRate,
