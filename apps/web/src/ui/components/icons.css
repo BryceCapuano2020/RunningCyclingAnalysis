@@ -12,3 +12,18 @@
   width: 32px;
   height: 32px;
 }
+
+/* The tile is ink in both schemes; the ring keeps it visible on the dark page. */
+.brand-mark__tile {
+  fill: var(--mark-tile);
+  stroke: var(--mark-ring);
+  stroke-width: 1px;
+}
+
+.brand-mark__run {
+  stroke: var(--series-run);
+}
+
+.brand-mark__ride {
+  stroke: var(--series-ride);
+}

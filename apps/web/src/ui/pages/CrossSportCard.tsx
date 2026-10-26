@@ -1,7 +1,7 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { UnitSystem } from '@rca/core/units'
 import { EQUIVALENCE_MIN_S } from '@rca/core/constants'
-import { formatDuration, formatPace, formatPaceValue, formatPower } from '@rca/core/units'
+import { PACE_UNIT, formatDuration, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
@@ -50,7 +50,6 @@ export function CrossSportCard({ result, units, weighted }: CrossSportCardProps)
       </section>
     )
   }
-  const pace = formatPace(featured.runSpeed.p50, units)
   const paceNumber = formatPaceValue(featured.runSpeed.p50, units)
   const source = rideAt(result, featured.durationS)
   const watts = `${formatPower(featured.ridePowerW)}${isEstimatedRecord('ride', source) ? ' (estimated)' : ''}`
@@ -62,7 +61,11 @@ export function CrossSportCard({ result, units, weighted }: CrossSportCardProps)
         <ArrowRightIcon />
         <SportIcon sport="run" />
       </p>
-      <h2 id="cross-sport-card">{`On foot, your ride is worth ${pace}`}</h2>
+      <h2 id="cross-sport-card">
+        {`On foot, your ride is worth ${paceNumber}`}{' '}
+        {/* The unit is set apart, so the upper-case heading does not turn it into capitals. */}
+        <span className="unit">{PACE_UNIT[units]}</span>
+      </h2>
       <p className="secondary">
         {`Your best ${formatDuration(featured.durationS)} on the bike, ${watts}, takes the same effort as running ${paceNumber} ${PER[units]} on the flat.`}
       </p>

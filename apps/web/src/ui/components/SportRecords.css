@@ -19,7 +19,7 @@
 
 .records__label {
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .records__figure {
@@ -32,6 +32,7 @@
 
 .records__value {
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.05;
@@ -41,6 +42,7 @@
 .records__sub {
   color: var(--text-secondary);
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.25rem;
   font-weight: 700;
 }
@@ -48,14 +50,14 @@
 .records__grade {
   grid-column: 2;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 /* The change on the period before, in words, under the figure. */
 .records__change {
   grid-column: 2;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 /* A long activity name is cut short with an ellipsis; its full name is the link's title and label. */
@@ -64,7 +66,7 @@
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -78,5 +80,5 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-1);
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }

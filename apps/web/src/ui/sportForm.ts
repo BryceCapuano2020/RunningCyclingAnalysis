@@ -8,7 +8,7 @@ import { SPORT_LABEL, SPORT_PLURAL } from './sports'
 
 /**
  * A sport's recent form in one line: the last activity's day, the number of activities and their
- * total distance, such as "Last run Wed 14 Jan · 2 runs · 15.00 km". The year shows only when the
+ * total distance, such as "Last run Wed 14 Jan · 2 runs · 15.0 km". The year shows only when the
  * day is not in the year of `nowMs`, the time the page is read at. Null when the sport has none.
  */
 export function formLine(

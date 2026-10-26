@@ -23,10 +23,9 @@
   background: var(--surface-1);
   color: var(--text-primary);
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.0625rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   cursor: pointer;
 }
 
@@ -53,6 +52,7 @@
 .export-guide h3 {
   margin: 0;
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -79,7 +79,7 @@
 }
 
 .export-guide__checked {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .export-guides__none {

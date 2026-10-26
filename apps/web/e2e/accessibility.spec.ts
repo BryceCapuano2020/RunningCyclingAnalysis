@@ -149,3 +149,23 @@ test('the level ladder labels are at least 11 px, and the page does not scroll s
   )
   expect(overflow).toBeLessThanOrEqual(0)
 })
+
+// The phone header keeps the brand and the actions on one row at the widths where the wordmark is
+// still shown, so the tabs' bar and the header do not wrap or widen the page.
+for (const width of [600, 760]) {
+  test(`the phone header keeps its brand and actions on one row at ${width} px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await openSample(page)
+    const brand = await page.locator('.header__brand').boundingBox()
+    const actions = await page.locator('.header__actions').boundingBox()
+    expect(brand).not.toBeNull()
+    expect(actions).not.toBeNull()
+    expect(Math.abs((brand?.y ?? 0) - (actions?.y ?? 0))).toBeLessThan(4)
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  })
+}

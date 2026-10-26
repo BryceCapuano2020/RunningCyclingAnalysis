@@ -19,14 +19,15 @@ Hash routes, so the static host needs no fallback rules.
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                       |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                        |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                          |
-| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                            |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), the export guides, account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                         |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line where each chart would be. On a reload of a visit that kept
 results, it shows a restoring state in its place, with an **Add files** button, until the library
 has replied, or, while the account is still loading, three seconds have passed, whichever is first.
 A returning visitor is not asked to add their files again and is never left without a control. The
-header holds the wordmark, the four tabs (once there is a result), one **Add files** button, a
-**Profile** link (a person glyph with its word at every width, outlined as an account) and the
+header holds the wordmark, the four tabs (once there is a result), one **Add files** button, from 1100 px
+a **How to get your files** button beside it (a secondary action; below 1100 px, and on a phone, the guides are
+reached from Profile and the landing), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
 account control. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window
@@ -37,7 +38,10 @@ once the account is known.
 The header stays at
 the top of the screen while the page scrolls. On a phone (760 px and below) the tabs move to a bar
 fixed to the foot of the screen, 48 px tall, with four equal tabs of 15 px labels. Where they do not
-all fit, the bar scrolls and fades at its edge. The brand and actions share one row. Sign-in stays
+all fit, the bar scrolls and fades at its edge. On a phone the brand and actions share one row. On a wide screen the tabs take a second row under
+the brand and the actions, since one row would need more width than the 1,080 px page holds. Every tab has a glyph from 561 px: a balance
+beam for Balance, the runner, the rider and a list for Activities. The current tab is marked by a flat
+bar along its foot (its top edge on a phone) and by its colour. Sign-in stays
 one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
 screen readers. Below 420 px **Add files** shows its plus only, and keeps its name for screen
 readers. The account menu holds the email and Sign out; downloading data and deleting the account
@@ -61,7 +65,8 @@ focus to the page heading past the header. The app's routes are hashes, so it is
 fragment link.
 
 Back and Forward return to the page the visitor left, where they left it. A page opened by a link
-starts at the top. **Back to activities** on an activity goes Back when the list was the page before.
+starts at the top. **Back to activities** on an activity goes Back when the list was the page before; an activity opened
+from Run or Ride reads **Back to Run** (or **Back to Ride**) and goes back there.
 Run and Ride link to **How sure is this?**, which links back to **Back to Balance**; the footer links
 to it too.
 
@@ -111,6 +116,10 @@ is replaced and the kept library reloads behind it.
 
 ## Colour
 
+**The page follows the system colour scheme.** There is no theme switch, so the `data-theme` hooks in
+`tokens.css`, `base.css` and `GoogleSignInButton.css` are unused. They stay as the place a switch would
+set the attribute, and no switch is planned.
+
 Ink and volt are the brand. Sport colours mark a sport: its data, its glyph, and the edge of its
 card. They never colour text, and never generic chrome such as buttons, links, tabs or focus rings.
 A sport's figure is set in ink, and its shape carries the colour. Status
@@ -132,6 +141,9 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                              |
 | `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
 | `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
+| `--accent-hover`       | `#474f5c`   | `#d9f55a`   | Primary button fill on hover, a visible change in both schemes             |
+| `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                  |
+| `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page   |
 | `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                    |
 | `--selected-contrast`  | `#ffffff`   | `#0e1116`   | Label on a selected tab or segment                                         |
 | `--link`               | `#0e1116`   | `#eef0f3`   | Links, always underlined                                                   |
@@ -166,13 +178,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
-
-## Layout
-
+- **The small sizes are tokens:** `--text-xs` (12 px), `--text-sm` (14 px), `--text-md` (16 px) and
+  `--text-label` (15 px, the phone's tab labels and the chart and notice labels). Eyebrows, chips, the
+  tabs and the capitals of the header share `--tracking-caps`, and the phone's tab labels take
+  `--tracking-tab`. Display sizes, the headings and the figures, have no token: each is set where it
+  is used, with a comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so
+  it stays in lower case, as in "/mi".
 - **Cards only for things you can open or act on.** Sections are separated by space and a heading,
   not a border. A card has a 12 px radius, a 1 px border and no shadow.
 - One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
-  a volt button with an ink label in dark, so it stands out on either page colour.
+  a volt button with an ink label in dark, so it stands out on either page colour. Its hover moves
+  the fill to `--accent-hover`, a visible change in both schemes. A button is a sentence, so it is set
+  in sentence case, not capitals.
 - A sport glyph (`SportIcon`) sits next to every sport name.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
@@ -394,7 +411,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   them in `apps/web/src/ui/exportGuides.ts` support. The source line says where the steps came from,
   decided by the guide's `verified` flag, so a guide never claims a help page it did not read. Guides
   use curly quotes, and say "zip", never ".gz".
-- Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. A range of months
+- Dates are friendly: "Tue 3 Jun", with the year only when it is not this year. The names of the days
+  and months are the viewer's language, from the browser; the order stays day first. A distance has one
+  decimal, as in "6.2 mi" or "10.0 km"; under a tenth of a unit it reads "<0.1 km". A range of months
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
 - **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov 2025", so a span reads without the current date. The period control, the Balance caption and the card's period line show the same dates.

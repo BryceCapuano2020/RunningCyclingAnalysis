@@ -141,14 +141,24 @@ describe('formatSpeed', () => {
 })
 
 describe('formatDistance', () => {
-  it('formats miles with two decimals in imperial', () => {
-    expect(formatDistance(10000, 'imperial')).toBe('6.21 mi')
-    expect(formatDistance(1609.344, 'imperial')).toBe('1.00 mi')
+  it('formats miles with one decimal in imperial', () => {
+    expect(formatDistance(10000, 'imperial')).toBe('6.2 mi')
+    expect(formatDistance(1609.344, 'imperial')).toBe('1.0 mi')
   })
 
-  it('formats kilometres with two decimals in metric', () => {
-    expect(formatDistance(10000, 'metric')).toBe('10.00 km')
-    expect(formatDistance(1500, 'metric')).toBe('1.50 km')
+  it('formats kilometres with one decimal in metric', () => {
+    expect(formatDistance(10000, 'metric')).toBe('10.0 km')
+    expect(formatDistance(1500, 'metric')).toBe('1.5 km')
+  })
+
+  it('says a distance under a tenth of a unit is under it, rather than reading 0.0', () => {
+    expect(formatDistance(40, 'metric')).toBe('<0.1 km')
+    expect(formatDistance(40, 'imperial')).toBe('<0.1 mi')
+  })
+
+  it('reads a distance of nothing as 0.0, and a tenth as 0.1', () => {
+    expect(formatDistance(0, 'metric')).toBe('0.0 km')
+    expect(formatDistance(100, 'metric')).toBe('0.1 km')
   })
 
   it('returns a dash for NaN', () => {

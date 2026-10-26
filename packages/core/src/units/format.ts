@@ -105,9 +105,11 @@ export function formatDistance(metres: number, system: UnitSystem): string {
   if (!Number.isFinite(metres)) {
     return DASH
   }
-  return system === 'imperial'
-    ? `${(metres / METRES_PER_MILE).toFixed(2)} mi`
-    : `${(metres / METRES_PER_KM).toFixed(2)} km`
+  const [unit, metresPerUnit] =
+    system === 'imperial' ? (['mi', METRES_PER_MILE] as const) : (['km', METRES_PER_KM] as const)
+  const amount = metres / metresPerUnit
+  // One decimal, so a tiny distance would read 0.0; it is under a tenth of a unit instead.
+  return amount > 0 && amount < 0.1 ? `<0.1 ${unit}` : `${amount.toFixed(1)} ${unit}`
 }
 
 export function formatElevation(metres: number, system: UnitSystem): string {

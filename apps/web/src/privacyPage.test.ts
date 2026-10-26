@@ -1,7 +1,7 @@
 import type { ActivityRecord, Profile } from '@rca/contract'
 import { describe, expect, it } from 'vitest'
 import { buildAccountExport } from './export/accountExport'
-import { APP_NAME } from './appName'
+import { APP_WORDS } from './appName'
 import { BRAND_RIDING, BRAND_RUNNING, pathData } from './ui/components/iconPaths'
 import { readStylesheet } from './ui/components/stylesheet'
 
@@ -55,7 +55,7 @@ function sentenceWith(phrase: string): string {
 
 describe('privacy page brand', () => {
   it('shows the app name in the header, as the app does', () => {
-    expect(page).toContain(`<span class="header__name">${APP_NAME}</span>`)
+    expect(page).toContain(`<span class="header__name">${APP_WORDS}</span>`)
   })
 
   it('draws the brand mark with the same paths as the app', () => {
@@ -63,10 +63,10 @@ describe('privacy page brand', () => {
     expect(page).toContain(`d="${pathData(BRAND_RIDING)}"`)
   })
 
-  it('draws the brand mark in the same colours as the app', () => {
-    for (const colour of ['fill="#0e1116"', 'stroke="#f0435f"', 'stroke="#4d6ef5"']) {
-      expect(icons).toContain(colour)
-      expect(page).toContain(colour)
+  it('draws the brand mark with the same classes as the app, so its colours come from the same tokens', () => {
+    for (const name of ['brand-mark__tile', 'brand-mark__run', 'brand-mark__ride']) {
+      expect(icons).toContain(name)
+      expect(page).toContain(`class="${name}"`)
     }
   })
 

@@ -1,28 +1,74 @@
+/** The weekday, day and month of a moment, named in the viewer's language by the browser. */
+type DateName = 'weekday' | 'day' | 'month'
+
+/** English names, used only when the browser gives none, so a date is still written. */
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
-const MONTHS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * One formatter per field set and zone offset, so a list of dates builds each formatter once, not once
+ * a row. A formatter keeps the zone it was built in; the offset at the moment shows a change of zone.
+ */
+const FORMATTERS = new Map<string, Intl.DateTimeFormat>()
+
+function formatterFor(fields: Intl.DateTimeFormatOptions, ms: number): Intl.DateTimeFormat {
+  const key = `${new Date(ms).getTimezoneOffset()}|${JSON.stringify(fields)}`
+  const cached = FORMATTERS.get(key)
+  if (cached !== undefined) return cached
+  const formatter = new Intl.DateTimeFormat(undefined, fields)
+  FORMATTERS.set(key, formatter)
+  return formatter
+}
+
+/** The English names of a moment, in the viewer's zone. */
+function englishNames(ms: number): Record<DateName, string> {
+  const date = new Date(ms)
+  return {
+    weekday: WEEKDAYS[date.getDay()] ?? '',
+    day: String(date.getDate()),
+    month: MONTHS[date.getMonth()] ?? '',
+  }
+}
+
+/**
+ * The parts of a date that the fields ask for, in the viewer's zone and language. The app writes
+ * every date through this one helper, so the names follow the browser and the order stays the
+ * app's own: weekday, then day, then month (DESIGN.md, "Tue 3 Jun"). A part the browser does not
+ * give is taken from the English names.
+ */
+function namesOf(
+  ms: number,
+  fields: Intl.DateTimeFormatOptions,
+): Partial<Record<DateName, string>> {
+  const named: Partial<Record<DateName, string>> = {}
+  for (const part of formatterFor(fields, ms).formatToParts(ms)) {
+    if (part.type === 'weekday' || part.type === 'day' || part.type === 'month') {
+      named[part.type] = part.value
+    }
+  }
+  const english = englishNames(ms)
+  for (const name of ['weekday', 'day', 'month'] as const) {
+    if (fields[name] !== undefined && named[name] === undefined) named[name] = english[name]
+  }
+  return named
+}
+
+/** The weekday and day of a moment, such as "Tue 3". */
+function weekdayAndDay(ms: number): string {
+  const { weekday = '', day = '' } = namesOf(ms, { weekday: 'short', day: 'numeric' })
+  return `${weekday} ${day}`
+}
 
 /**
  * A day in the viewer's local zone, such as "Tue 3 Jun", with the year added only when it is not
- * the year of nowMs. The names are spelt out, so the text does not depend on the browser locale.
+ * the year of nowMs.
  */
 export function formatDay(ms: number, nowMs = Date.now()): string {
-  const date = new Date(ms)
-  const day = `${WEEKDAYS[date.getDay()]!} ${date.getDate()} ${MONTHS[date.getMonth()]!}`
-  const sameYear = date.getFullYear() === new Date(nowMs).getFullYear()
-  return sameYear ? day : `${day} ${date.getFullYear()}`
+  const { month = '' } = namesOf(ms, { month: 'short' })
+  const day = `${weekdayAndDay(ms)} ${month}`
+  const year = new Date(ms).getFullYear()
+  const sameYear = year === new Date(nowMs).getFullYear()
+  return sameYear ? day : `${day} ${year}`
 }
 
 /**
@@ -30,15 +76,13 @@ export function formatDay(ms: number, nowMs = Date.now()): string {
  * the month nor the year, which the heading gives.
  */
 export function formatRowDay(ms: number): string {
-  const date = new Date(ms)
-  return `${WEEKDAYS[date.getDay()]!} ${date.getDate()}`
+  return weekdayAndDay(ms)
 }
 
 /** A month in the viewer's local zone, such as "Mar", or "Mar 2023" when withYear is set. */
 export function formatMonth(ms: number, withYear: boolean): string {
-  const date = new Date(ms)
-  const month = MONTHS[date.getMonth()]!
-  return withYear ? `${month} ${date.getFullYear()}` : month
+  const { month = '' } = namesOf(ms, { month: 'short' })
+  return withYear ? `${month} ${new Date(ms).getFullYear()}` : month
 }
 
 /** The local time of day in twelve-hour form, such as "6:42 am". Core's formatter, so there is one. */
@@ -49,10 +93,14 @@ export { formatTimeOfDay } from '@rca/core/units'
  * once, at the end, unless the span crosses a year end, when both ends carry one.
  */
 export function formatSpan(startMs: number, endMs: number): string {
+  const dayAndMonth = (ms: number) => {
+    const { day = '', month = '' } = namesOf(ms, { day: 'numeric', month: 'short' })
+    return `${day} ${month}`
+  }
   const start = new Date(startMs)
   const end = new Date(endMs)
-  const from = `${start.getDate()} ${MONTHS[start.getMonth()]!}`
-  const to = `${end.getDate()} ${MONTHS[end.getMonth()]!} ${end.getFullYear()}`
+  const from = dayAndMonth(startMs)
+  const to = `${dayAndMonth(endMs)} ${end.getFullYear()}`
   return start.getFullYear() === end.getFullYear()
     ? `${from} – ${to}`
     : `${from} ${start.getFullYear()} – ${to}`

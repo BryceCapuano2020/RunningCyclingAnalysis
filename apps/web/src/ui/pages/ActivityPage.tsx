@@ -59,15 +59,30 @@ export interface ActivityPageProps {
   libraryError?: string | null
 }
 
+/** A modified or non-primary click is the browser's to open in a tab, as a link is. */
+function isPlainClick(event: MouseEvent<HTMLAnchorElement>): boolean {
+  return !(event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+}
+
 /**
  * Back to the list. When the list is the page before this one, Back returns to it where it was left,
  * rather than opening it again as a new page.
  */
 function backToList(event: MouseEvent<HTMLAnchorElement>) {
-  // A modified or non-primary click is the browser's to open in a tab, as a link is.
-  const modified =
-    event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
-  if (modified || previousRoute()?.page !== 'activities') return
+  if (!isPlainClick(event) || previousRoute()?.page !== 'activities') return
+  event.preventDefault()
+  window.history.back()
+}
+
+/** The page the activity was opened from, when that is the list, Run or Ride; otherwise null. */
+function originOf(): 'activities' | 'run' | 'ride' | null {
+  const page = previousRoute()?.page
+  return page === 'activities' || page === 'run' || page === 'ride' ? page : null
+}
+
+/** Back to where the activity was opened from, so Back and the link agree, as backToList does. */
+function backToOrigin(event: MouseEvent<HTMLAnchorElement>) {
+  if (!isPlainClick(event) || originOf() === null) return
   event.preventDefault()
   window.history.back()
 }
@@ -127,13 +142,7 @@ export function ActivityPage({
   return (
     <div className="page-stack">
       <div className="page-title">
-        <a
-          className="activity-page__back"
-          href={hrefFor({ page: 'activities' })}
-          onClick={backToList}
-        >
-          Back to activities
-        </a>
+        <BackLink origin={originOf()} />
         <p className="eyebrow activity-page__eyebrow">
           <SportIcon sport={activity.sport} className={`activity-page__icon--${activity.sport}`} />
           <span>{SPORT_LABEL[activity.sport]}</span>
@@ -215,5 +224,20 @@ export function ActivityPage({
         </div>
       )}
     </div>
+  )
+}
+
+/** The link back at the top of an activity: to the list, or to the Run or Ride page it was opened from. */
+function BackLink({ origin }: { origin: 'activities' | 'run' | 'ride' | null }) {
+  const label =
+    origin === 'run' || origin === 'ride' ? `Back to ${SPORT_LABEL[origin]}` : 'Back to activities'
+  return (
+    <a
+      className="activity-page__back"
+      href={hrefFor({ page: origin ?? 'activities' })}
+      onClick={backToOrigin}
+    >
+      {label}
+    </a>
   )
 }

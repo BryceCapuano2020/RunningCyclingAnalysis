@@ -210,3 +210,14 @@ describe('CrossSportCard', () => {
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('CrossSportCard pace unit', () => {
+  it('sets the pace unit apart, so the upper-case headline does not turn it into capitals', () => {
+    renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }))
+    const heading = screen.getByRole('heading', {
+      level: 2,
+      name: 'On foot, your ride is worth 4:10 /km',
+    })
+    expect(heading.querySelector('.unit')).toHaveTextContent('/km')
+  })
+})

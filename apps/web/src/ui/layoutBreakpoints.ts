@@ -7,6 +7,12 @@
 /** At or below this width the tabs are a bar at the foot of the screen; the header is one row. */
 export const PHONE_MAX_WIDTH_PX = 760
 
+/**
+ * From this width the header's guides button sits beside Add files. Below it the actions would wrap onto
+ * a second row, so the phone and the narrow desktop reach the guides from Profile and the landing.
+ */
+export const HEADER_GUIDES_MIN_WIDTH_PX = 1100
+
 /** At or below this width a phone's wordmark and its account name are hidden to make room. */
 export const COMPACT_PHONE_MAX_WIDTH_PX = 560
 

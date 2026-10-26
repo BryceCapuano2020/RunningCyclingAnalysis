@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatTimeOfDay as coreFormatTimeOfDay } from '@rca/core/units'
 import { formatDay, formatMonth, formatRowDay, formatSpan, formatTimeOfDay } from './date'
 
@@ -6,8 +6,19 @@ import { formatDay, formatMonth, formatRowDay, formatSpan, formatTimeOfDay } fro
 // that changes the zone says so.
 const JUNE_10_2026 = new Date(2026, 5, 10, 12).getTime()
 
+const RealDateTimeFormat = Intl.DateTimeFormat
+
+// The app asks the browser's language for the names. The expectations here are English, so the
+// tests pass in any runner locale: every formatter is built for en-US, whatever the runner's default.
+beforeEach(() => {
+  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function (_locale, options) {
+    return new RealDateTimeFormat('en-US', options)
+  } as typeof Intl.DateTimeFormat)
+})
+
 afterEach(() => {
   vi.unstubAllEnvs()
+  vi.restoreAllMocks()
 })
 
 describe('formatDay', () => {
@@ -87,5 +98,30 @@ describe('formatSpan', () => {
 describe('formatRowDay', () => {
   it('gives the weekday and the day, with no month or year, for a row under its heading', () => {
     expect(formatRowDay(new Date(2025, 5, 14, 7, 5).getTime())).toBe('Sat 14')
+  })
+})
+
+describe('the names of days and months', () => {
+  it('builds each formatter once, not on every call', () => {
+    formatDay(new Date(2026, 5, 3).getTime(), JUNE_10_2026)
+    const spy = vi.mocked(Intl.DateTimeFormat)
+    const built = spy.mock.calls.length
+    formatDay(new Date(2026, 5, 4).getTime(), JUNE_10_2026)
+    formatRowDay(new Date(2026, 5, 5).getTime())
+    formatMonth(new Date(2026, 5, 6).getTime(), false)
+    expect(spy.mock.calls.length).toBe(built)
+  })
+
+  it('falls back to English names when the browser gives none', () => {
+    vi.spyOn(RealDateTimeFormat.prototype, 'formatToParts').mockReturnValue([])
+    expect(formatDay(new Date(2026, 5, 3).getTime(), JUNE_10_2026)).toBe('Wed 3 Jun')
+    expect(formatMonth(new Date(2026, 5, 3).getTime(), true)).toBe('Jun 2026')
+  })
+
+  it('keeps the day first, as DESIGN.md states, in every span and row', () => {
+    expect(formatRowDay(new Date(2026, 5, 3).getTime())).toBe('Wed 3')
+    expect(formatSpan(new Date(2026, 4, 12).getTime(), new Date(2026, 7, 3).getTime())).toBe(
+      '12 May – 3 Aug 2026',
+    )
   })
 })

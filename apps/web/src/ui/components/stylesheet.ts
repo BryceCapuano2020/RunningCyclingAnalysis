@@ -6,6 +6,7 @@
 
 interface FileSystem {
   readFileSync: (path: URL, encoding: 'utf8') => string
+  readdirSync: (path: URL, options: { recursive: true }) => string[]
 }
 
 /** The source of a stylesheet, located relative to the test file's own URL. */
@@ -15,8 +16,26 @@ export async function readStylesheet(testUrl: string, relativePath: string): Pro
   return fs.readFileSync(new URL(relativePath, testUrl), 'utf8')
 }
 
-/** The declarations of the rule whose selector is exactly `selector`, or '' when there is none. */
+/**
+ * The declarations of every top-level rule whose selector is exactly `selector`, in source order and
+ * joined, or '' when there is none. A selector can be declared more than once, so every block counts.
+ */
 export function ruleBody(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(?:^|\\n)${escaped} \\{([^}]*)\\}`).exec(css)?.[1] ?? ''
+  const pattern = new RegExp(`(?:^|\\n)${escaped} \\{([^}]*)\\}`, 'g')
+  return [...css.matchAll(pattern)].map((match) => match[1] ?? '').join('\n')
+}
+
+/** Every stylesheet under a directory, as its path and its source, for a test that sweeps them. */
+export async function readStylesheetsUnder(
+  testUrl: string,
+  relativeDir: string,
+): Promise<{ path: string; css: string }[]> {
+  const specifier = 'node:fs'
+  const fs = (await import(/* @vite-ignore */ specifier)) as FileSystem
+  const root = new URL(relativeDir, testUrl)
+  return fs
+    .readdirSync(root, { recursive: true })
+    .filter((path) => path.endsWith('.css'))
+    .map((path) => ({ path, css: fs.readFileSync(new URL(path, root), 'utf8') }))
 }

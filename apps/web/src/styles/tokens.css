@@ -14,6 +14,10 @@
   --brand: #c8f03c;
   --accent: #0e1116;
   --accent-contrast: var(--brand);
+  --accent-hover: #474f5c;
+  /* The brand mark's tile is ink; its ring is ink too in light, where the tile needs none. */
+  --mark-tile: #0e1116;
+  --mark-ring: #0e1116;
   --selected: #0e1116;
   --selected-contrast: #ffffff;
   --link: #0e1116;
@@ -53,6 +57,19 @@
   /* The header is two rows on a wide screen and one row on a phone; the phone tab bar is 48 px. */
   --header-height: calc(var(--space-5) + var(--control-height) * 2 + var(--space-2) + 1px);
   --tab-bar-height: 48px;
+  /* The type scale: the small sizes the app uses, each one value. */
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  /* The 15 px label: the phone's tab labels, and the chart and notice labels set at the same size. */
+  --text-label: 0.9375rem;
+  /* The 12 px size of chart axes, tooltips and the ladder's marks. */
+  --text-xs: 0.75rem;
+  /* The phone's tab labels are set a touch loose, so four of them fit a 360 px bar. */
+  --tracking-tab: 0.02em;
+  /* Eyebrows, chips and the capitals of the tabs share one tracking. */
+  --tracking-caps: 0.08em;
+  /* The narrowest column a landing card or example is laid out at, before it wraps. */
+  --column-landing: 360px;
   --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -71,6 +88,8 @@
     --text-muted: #8d95a2;
     --accent: var(--brand);
     --accent-contrast: #0e1116;
+    --accent-hover: #d9f55a;
+    --mark-ring: #6b7380;
     --selected: #eef0f3;
     --selected-contrast: #0e1116;
     --link: #eef0f3;

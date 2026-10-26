@@ -67,10 +67,22 @@
 /* Surface-coloured halo keeps the label legible over gridlines and lines. */
 .chart-series__label {
   fill: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   paint-order: stroke;
   stroke: var(--surface-0);
   stroke-width: 3px;
   stroke-linejoin: round;
+}
+
+/* In forced colours the sport strokes take the system's text and highlight colours, so the two
+   lines stay apart without the tints. */
+@media (forced-colors: active) {
+  .chart-series__line--run {
+    stroke: CanvasText;
+  }
+
+  .chart-series__line--ride {
+    stroke: Highlight;
+  }
 }

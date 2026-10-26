@@ -855,7 +855,7 @@ describe('SportPage depth', () => {
     })
     renderPage('run', makeResult({ activities: [run] }))
 
-    expect(screen.getByText('Last run Mon 5 Jan · 1 run · 10.00 km')).toBeInTheDocument()
+    expect(screen.getByText('Last run Mon 5 Jan · 1 run · 10.0 km')).toBeInTheDocument()
   })
 
   it('says which watts are estimated when no power meter measured the rides', () => {

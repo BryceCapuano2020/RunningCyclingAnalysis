@@ -98,7 +98,7 @@ describe('ActivityList rows', () => {
     expect(row.getByText('Elapsed time')).toBeInTheDocument()
     expect(row.getByText('1 h')).toBeInTheDocument()
     expect(row.getByText('Distance')).toBeInTheDocument()
-    expect(row.getByText('10.00 km')).toBeInTheDocument()
+    expect(row.getByText('10.0 km')).toBeInTheDocument()
     expect(row.getByText('Climb')).toBeInTheDocument()
     expect(row.getByText('120 m')).toBeInTheDocument()
     expect(row.getByText('Pace')).toBeInTheDocument()
@@ -160,7 +160,7 @@ describe('ActivityList rows', () => {
   it('uses miles and minutes per mile in imperial units', () => {
     renderList([makeActivity({ name: 'Tempo run', durationS: 3600, distanceM: 10000 })], 'imperial')
     const row = within(rowFor('Tempo run'))
-    expect(row.getByText('6.21 mi')).toBeInTheDocument()
+    expect(row.getByText('6.2 mi')).toBeInTheDocument()
     expect(row.getByText('9:39 /mi')).toBeInTheDocument()
   })
 

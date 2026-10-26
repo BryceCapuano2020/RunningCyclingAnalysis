@@ -1,10 +1,10 @@
 import { useLayoutEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { APP_NAME } from '../../appName'
+import { APP_WORDS } from '../../appName'
 import type { Route } from '../route'
 import { hrefFor } from '../route'
 import { SPORT_LABEL } from '../sports'
-import { BrandMark, PersonIcon, SportIcon } from './icons'
+import { ActivitiesIcon, BalanceIcon, BrandMark, PersonIcon, SportIcon } from './icons'
 import './Header.css'
 
 export interface HeaderProps {
@@ -21,14 +21,15 @@ export interface HeaderProps {
 interface Tab {
   label: string
   route: Route
-  sport?: 'run' | 'ride'
+  glyph: ReactNode
 }
 
+/** Every tab has a glyph, so the four read as one set; on a phone the glyphs are hidden with the names' size. */
 const TABS: Tab[] = [
-  { label: 'Balance', route: { page: 'balance' } },
-  { label: SPORT_LABEL.run, route: { page: 'run' }, sport: 'run' },
-  { label: SPORT_LABEL.ride, route: { page: 'ride' }, sport: 'ride' },
-  { label: 'Activities', route: { page: 'activities' } },
+  { label: 'Balance', route: { page: 'balance' }, glyph: <BalanceIcon /> },
+  { label: SPORT_LABEL.run, route: { page: 'run' }, glyph: <SportIcon sport="run" /> },
+  { label: SPORT_LABEL.ride, route: { page: 'ride' }, glyph: <SportIcon sport="ride" /> },
+  { label: 'Activities', route: { page: 'activities' }, glyph: <ActivitiesIcon /> },
 ]
 
 /** The tab a page belongs to. An activity belongs to Activities; the method page to Balance. */
@@ -71,7 +72,7 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
     <header className="header">
       <a className="header__brand" href={hrefFor({ page: 'balance' })}>
         <BrandMark />
-        <span className="header__name">{APP_NAME}</span>
+        <span className="header__name">{APP_WORDS}</span>
       </a>
       <div className="header__actions">
         {addFiles}
@@ -104,7 +105,7 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
               href={hrefFor(tab.route)}
               aria-current={current === tab.route.page ? 'page' : undefined}
             >
-              {tab.sport && <SportIcon sport={tab.sport} />}
+              {tab.glyph}
               {tab.label}
             </a>
           ))}

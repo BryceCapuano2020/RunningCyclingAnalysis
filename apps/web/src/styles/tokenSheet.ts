@@ -28,6 +28,7 @@ export function resolved(tokens: Tokens): Tokens {
   )
 }
 
+/** The value of a token that must be an opaque six-digit hex colour; throws when it is not. */
 export function colour(tokens: Tokens, name: string): string {
   const value = tokens.get(name)
   if (value === undefined || !/^#[0-9a-f]{6}$/.test(value)) {
@@ -36,8 +37,27 @@ export function colour(tokens: Tokens, name: string): string {
   return value
 }
 
+/**
+ * The stylesheet without its forced-colours block. That block restates a rule's colours for the
+ * system palette, so it is not a second declaration of the rule the colours are read from.
+ */
+function withoutForcedColours(css: string): string {
+  const open = css.indexOf('@media (forced-colors: active) {')
+  if (open < 0) return css
+  let depth = 0
+  for (let i = open; i < css.length; i += 1) {
+    if (css[i] === '{') depth += 1
+    if (css[i] === '}') {
+      depth -= 1
+      if (depth === 0) return withoutForcedColours(css.slice(0, open) + css.slice(i + 1))
+    }
+  }
+  return css.slice(0, open)
+}
+
 /** The declarations of the rule whose selector is exactly this, as property to value. */
-export function declarations(css: string, selector: string): Map<string, string> {
+export function declarations(stylesheet: string, selector: string): Map<string, string> {
+  const css = withoutForcedColours(stylesheet)
   const start = css.indexOf(`${selector} {`)
   if (start < 0) throw new Error(`no ${selector} rule in the stylesheet`)
   if (css.indexOf(`${selector} {`, start + 1) >= 0) throw new Error(`${selector} is declared twice`)

@@ -121,7 +121,29 @@ export function PersonIcon({ className }: IconProps) {
   )
 }
 
-/** The brand mark: a rising running curve crossing a falling riding curve, on ink. */
+/** A balance beam on a post, for the Balance tab: two pans hang level from the beam. */
+export function BalanceIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M3 7h18M12 4v16M8 20h8" />
+      <path d="M6 7l-2.5 6h5L6 7zM18 7l-2.5 6h5L18 7z" />
+    </Icon>
+  )
+}
+
+/** A list with a mark at each line, for the Activities tab. */
+export function ActivitiesIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M4 6.5h.01M4 12h.01M4 17.5h.01M8.5 6.5H20M8.5 12H20M8.5 17.5H20" />
+    </Icon>
+  )
+}
+
+/**
+ * The brand mark: a rising running curve crossing a falling riding curve, on ink. The tile and
+ * the strokes take their colours from custom properties, so the tile has a ring in dark.
+ */
 export function BrandMark({ className }: IconProps) {
   return (
     <svg
@@ -130,18 +152,18 @@ export function BrandMark({ className }: IconProps) {
       aria-hidden="true"
       focusable="false"
     >
-      <rect width="32" height="32" rx="7" fill="#0e1116" />
+      <rect className="brand-mark__tile" x="0.5" y="0.5" width="31" height="31" rx="6.5" />
       <path
+        className="brand-mark__run"
         d={pathData(BRAND_RUNNING)}
         fill="none"
-        stroke="#f0435f"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
+        className="brand-mark__ride"
         d={pathData(BRAND_RIDING)}
         fill="none"
-        stroke="#4d6ef5"
         strokeWidth="3"
         strokeLinecap="round"
       />

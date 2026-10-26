@@ -30,7 +30,7 @@
 }
 
 .delete-dialog__field label {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
@@ -46,10 +46,10 @@
 
 .delete-dialog__hint {
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .delete-dialog__error {
   color: var(--status-critical);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }

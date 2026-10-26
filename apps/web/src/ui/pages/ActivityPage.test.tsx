@@ -155,7 +155,7 @@ describe('ActivityPage', () => {
     renderPage(morningRun)
     expect(screen.getByText('Elapsed time', { selector: 'p' })).toBeInTheDocument()
     expect(screen.getByText('1 h', { selector: 'p' })).toBeInTheDocument()
-    expect(within(statFor('Distance')).getByText('10.00 km')).toBeInTheDocument()
+    expect(within(statFor('Distance')).getByText('10.0 km')).toBeInTheDocument()
     expect(within(statFor('Average pace')).getByText('6:00 /km')).toBeInTheDocument()
     expect(within(statFor('Climb')).getByText('120 m')).toBeInTheDocument()
   })
@@ -217,7 +217,7 @@ describe('ActivityPage', () => {
 
   it('shows a run in imperial units', () => {
     renderPage(morningRun, resultWith(), 'imperial')
-    expect(within(statFor('Distance')).getByText('6.21 mi')).toBeInTheDocument()
+    expect(within(statFor('Distance')).getByText('6.2 mi')).toBeInTheDocument()
     expect(within(statFor('Average pace')).getByText('9:39 /mi')).toBeInTheDocument()
   })
 
@@ -297,7 +297,7 @@ describe('ActivityPage', () => {
         elevationGainM: 0,
       }),
     )
-    expect(within(statFor('Distance')).getByText('20.00 km')).toBeInTheDocument()
+    expect(within(statFor('Distance')).getByText('20.0 km')).toBeInTheDocument()
     expect(screen.queryByText('Average speed', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
@@ -801,19 +801,37 @@ describe('route shape', () => {
   })
 })
 
-describe('the back link to the list', () => {
+describe('the back link', () => {
   afterEach(() => {
     window.history.replaceState(null, '')
     vi.restoreAllMocks()
   })
 
-  it('goes Back when the list was the page before, so the list comes back where it was left', async () => {
-    window.history.replaceState({ rcaEntry: 'activity-entry', rcaFrom: '#/activities' }, '')
-    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
-    renderPage(morningRun)
-    await userEvent.click(screen.getByRole('link', { name: 'Back to activities' }))
-    expect(back).toHaveBeenCalledTimes(1)
-  })
+  // Each origin sets its own history entry, so no case depends on the one before it. Back is taken
+  // only for the list, Run and Ride; a visitor from any other page follows the link.
+  it.each([
+    { from: '#/run', label: 'Back to Run', href: '#/run', goesBack: true },
+    { from: '#/ride', label: 'Back to Ride', href: '#/ride', goesBack: true },
+    { from: '#/activities', label: 'Back to activities', href: '#/activities', goesBack: true },
+    { from: '#/balance', label: 'Back to activities', href: '#/activities', goesBack: false },
+    { from: undefined, label: 'Back to activities', href: '#/activities', goesBack: false },
+  ])(
+    'from $from reads "$label", links to $href, and takes Back only when $goesBack',
+    async ({ from, label, href, goesBack }) => {
+      window.history.replaceState(
+        from === undefined
+          ? { rcaEntry: 'activity-entry' }
+          : { rcaEntry: 'activity-entry', rcaFrom: from },
+        '',
+      )
+      const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
+      renderPage(morningRun)
+      const link = screen.getByRole('link', { name: label })
+      expect(link).toHaveAttribute('href', href)
+      await userEvent.click(link)
+      expect(back).toHaveBeenCalledTimes(goesBack ? 1 : 0)
+    },
+  )
 
   it.each([
     ['a command click', { metaKey: true }],
@@ -826,14 +844,6 @@ describe('the back link to the list', () => {
     const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
     renderPage(morningRun)
     fireEvent.click(screen.getByRole('link', { name: 'Back to activities' }), modifier)
-    expect(back).not.toHaveBeenCalled()
-  })
-
-  it('links to the list when the visitor came from another page, so the list is a page of its own', async () => {
-    window.history.replaceState({ rcaEntry: 'activity-entry', rcaFrom: '#/run' }, '')
-    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined)
-    renderPage(morningRun)
-    await userEvent.click(screen.getByRole('link', { name: 'Back to activities' }))
     expect(back).not.toHaveBeenCalled()
   })
 })

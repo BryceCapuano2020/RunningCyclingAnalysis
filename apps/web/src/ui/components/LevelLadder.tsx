@@ -173,7 +173,7 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const current = currentBands(grade)
   const side = beyondScale(grade)
   return (
-    <figure className={`level-ladder level-ladder--${sport}`}>
+    <figure className={`scale-figure level-ladder level-ladder--${sport}`}>
       <div className="level-ladder__scale" aria-hidden="true">
         {SCALE_TICKS.map((tick, index) => (
           <span

@@ -12,7 +12,7 @@ afterEach(() => {
   cleanup()
 })
 
-const TITLE = 'Before your first analysis'
+const TITLE = 'A few details'
 const NUMBER_ERROR = 'Enter a number, such as 75 or 165.5'
 const SKIP_NOTE = WEIGHT_PROMPT_TEXT
 const INITIAL: AthleteValues = {
@@ -42,8 +42,9 @@ function year() {
 }
 
 describe('SetupDialog', () => {
-  it('is a dialog headed "Before your first analysis", with the help line', () => {
+  it('is a dialog headed "A few details", with the help line', () => {
     renderDialog()
+    expect(screen.getByRole('dialog', { name: TITLE })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: TITLE })).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -52,11 +53,10 @@ describe('SetupDialog', () => {
     ).toBeInTheDocument()
   })
 
-  it('is headed "A few details" for a returning visitor whose results are kept here', () => {
-    render(<SetupDialog initial={INITIAL} onConfirm={vi.fn()} onSkip={vi.fn()} returning />)
-    expect(screen.getByRole('dialog', { name: 'A few details' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'A few details' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: TITLE })).not.toBeInTheDocument()
+  it('has the one heading on a first visit and a returning one, so the words are not doubled', () => {
+    render(<SetupDialog initial={INITIAL} onConfirm={vi.fn()} onSkip={vi.fn()} />)
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 2, name: TITLE })).toBeInTheDocument()
   })
 
   it('asks for units, body weight, year of birth and sex', () => {

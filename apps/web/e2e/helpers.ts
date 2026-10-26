@@ -62,17 +62,22 @@ export function trackErrors(page: Page): string[] {
   return errors
 }
 
+/**
+ * How long the sample takes to reach Balance. The analysis runs in a worker, and under load it has
+ * taken longer than the default 5 s. This is inside the 60 s test timeout in playwright.config.ts.
+ */
+const SAMPLE_READY_MS = 20_000
+
 export async function openSample(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE, {
+    timeout: SAMPLE_READY_MS,
+  })
 }
 
-/**
- * The setup dialog's name. Its heading is shorter for a returning visitor whose results are kept in
- * this browser, so either name matches.
- */
-export const SETUP_DIALOG_NAME = /^(Before your first analysis|A few details)$/
+/** The setup dialog's name. It has one heading for every visitor. */
+export const SETUP_DIALOG_NAME = /^A few details$/
 
 /**
  * How long an upload waits for the setup dialog. Most uploads do not open it, so the wait is kept

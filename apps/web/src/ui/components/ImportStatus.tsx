@@ -1,3 +1,4 @@
+import { formatCount } from '../format/count'
 import { useEffect, useRef, useState } from 'react'
 import type { ImportOutcome } from '../../worker/protocol'
 import {
@@ -53,7 +54,7 @@ function statusText(progress: ImportProgress | null): string {
   const total = knownTotal(progress)
   if (total === null) return `Read ${plural(progress.filesRead, 'file')} so far`
   const noun = total === 1 ? 'file' : 'files'
-  const [read, all] = [progress.filesRead, total].map((count) => count.toLocaleString('en-US'))
+  const [read, all] = [progress.filesRead, total].map((count) => formatCount(count))
   return `Reading ${read} of ${all} ${noun}`
 }
 

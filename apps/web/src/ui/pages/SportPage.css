@@ -26,6 +26,7 @@
 
 .sport-page__hero-sub {
   font-family: var(--font-display);
+  /* A display size with no type token; see DESIGN.md, Type. */
   font-size: 1.5rem;
   font-weight: 700;
 }

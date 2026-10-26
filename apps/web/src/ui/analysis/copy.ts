@@ -1,3 +1,4 @@
+import { formatCount } from '../format/count'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { SavedActivity, WorkerResponse } from '../../worker/protocol'
 import { limitReached, resetSentence } from '../limitCopy'
@@ -141,12 +142,12 @@ export function skippedSentence(count: number): string {
  */
 export function notAddedSentence(activities: number): string {
   if (activities === 0) return 'No activities were analysed.'
-  return `Nothing new: ${activities.toLocaleString('en-US')} ${activities === 1 ? 'activity' : 'activities'} already in your library.`
+  return `Nothing new: ${formatCount(activities)} ${activities === 1 ? 'activity' : 'activities'} already in your library.`
 }
 
 /** "412 runs" or "1 ride", with thousands separated. */
 function countText(count: number, singular: string): string {
-  return `${count.toLocaleString('en-US')} ${count === 1 ? singular : `${singular}s`}`
+  return `${formatCount(count)} ${count === 1 ? singular : `${singular}s`}`
 }
 
 export function deleteFailureText(message: ErrorReply): string {
