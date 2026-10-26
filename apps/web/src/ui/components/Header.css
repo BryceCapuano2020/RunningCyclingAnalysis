@@ -319,6 +319,11 @@ html {
     color: CanvasText;
   }
 
+  /* The current tab's own colour is more specific than the rule above, so it is set here too. */
+  .header__tab[aria-current='page'] {
+    color: CanvasText;
+  }
+
   .header__tab:active,
   .header__profile:active {
     outline: 2px solid CanvasText;

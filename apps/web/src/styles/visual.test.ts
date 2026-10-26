@@ -103,6 +103,13 @@ describe('header', () => {
     )
   })
 
+  it('sets the current tab in the system text colour in forced colours, as its neighbours are', () => {
+    // The current tab's own rule is more specific than the tab's, so forced colours must name it too.
+    expect(rulesWith(mediaOf(header, FORCED), ".header__tab[aria-current='page']")).toMatch(
+      /color:\s*CanvasText/,
+    )
+  })
+
   it('sets the wordmark in capitals, in the tab type', () => {
     expect(rulesWith(header, '.header__name')).toMatch(/text-transform:\s*uppercase/)
   })

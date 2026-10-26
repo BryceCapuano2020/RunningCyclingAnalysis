@@ -34,9 +34,10 @@
   min-height: var(--control-height);
 }
 
-/* ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX. */
+/* ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX. Wrapped controls are spaced by the row gap. A
+   margin on Dismiss would move it off the line that See your balance sits on. */
 @media (max-width: 560px) {
-  .import-notice > .btn {
-    margin-top: var(--space-3);
+  .import-notice {
+    row-gap: var(--space-3);
   }
 }
