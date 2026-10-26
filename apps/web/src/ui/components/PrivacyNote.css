@@ -1,4 +1,5 @@
 .privacy-note {
+  max-width: 36rem;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }

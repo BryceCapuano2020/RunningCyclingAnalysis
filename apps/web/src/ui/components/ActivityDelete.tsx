@@ -51,7 +51,7 @@ export function ActivityDelete({ savedId, name, busy, onDelete }: ActivityDelete
 
   return (
     <div className="activity-delete__question" role="group" aria-labelledby={questionId}>
-      <p id={questionId}>{`Delete ${name}? It is removed from your library.`}</p>
+      <p id={questionId}>{`Delete “${name}”? It is removed from your library.`}</p>
       <ConfirmActions
         confirmLabel="Delete"
         busy={busy}

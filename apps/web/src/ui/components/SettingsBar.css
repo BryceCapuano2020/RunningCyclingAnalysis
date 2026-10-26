@@ -5,22 +5,58 @@
 }
 
 /*
- * Both fields in one row. They wrap onto separate lines on narrow screens. Aligned to the top, so an
- * error under one field does not move the other field's box.
+ * The weights are two columns, each the width of its input, with the label above it, and a third track
+ * takes the rest of the row. A warning and its Save span all three, and wrap across the row. The columns
+ * are fixed rather than sized to their content, because a spanning warning would otherwise widen them.
+ * A field and its number field are not boxes of their own, so their parts sit in this grid.
  */
 .settings-bar__fields {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-3) var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 11ch)) minmax(0, 1fr);
+  justify-content: start;
+  align-items: start;
+  column-gap: var(--space-5);
+  row-gap: var(--space-1);
 }
 
-/* A field and the line under it, stacked. */
 .settings-bar__field {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-  justify-items: start;
+  display: contents;
+}
+
+.settings-bar__fields .number-field {
+  display: contents;
+}
+
+/* Body weight is the first column and bike and gear weight the second; labels sit above inputs. */
+.settings-bar__field:first-child > .number-field > .number-field__label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.settings-bar__field:first-child > .number-field > .number-field__input {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.settings-bar__field:last-child > .number-field > .number-field__label {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.settings-bar__field:last-child > .number-field > .number-field__input {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* A warning and its Save take the row under both weights. */
+.settings-bar__fields .number-field__error {
+  grid-column: 1 / -1;
+  margin-top: var(--space-1);
+}
+
+.settings-bar__fields .btn {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
 .settings-bar__hint {
@@ -28,9 +64,9 @@
   font-size: var(--text-sm);
 }
 
-/* Kept as a line of its own so a saved or failed change does not move the fields below it. */
+/* Kept as a line of its own, one line high, so a saved or failed change does not move the fields below it. */
 .settings-bar__status {
-  min-height: 1.25rem;
+  min-height: 1lh;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }

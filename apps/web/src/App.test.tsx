@@ -340,7 +340,7 @@ describe('removing all activities', () => {
     showResult()
     const view = render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear the analysis' }))
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
     expect(app.analysis.clear).toHaveBeenCalledOnce()
     expect(window.location.hash).toBe('#/profile')

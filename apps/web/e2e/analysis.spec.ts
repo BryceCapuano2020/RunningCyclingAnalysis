@@ -290,7 +290,8 @@ test('removing all activities on the Profile page clears the sample and returns 
 }) => {
   await openSample(page)
   await goTo(page, 'Profile')
-  await page.getByRole('button', { name: 'Remove all my activities' }).click()
+  // The sample is never kept, so with nothing kept the trigger clears the analysis on screen.
+  await page.getByRole('button', { name: 'Clear the analysis' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Clear', exact: true }).click()
 
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()

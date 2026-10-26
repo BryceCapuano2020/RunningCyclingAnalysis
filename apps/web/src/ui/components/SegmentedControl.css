@@ -39,6 +39,11 @@
   text-align: center;
 }
 
+/* A label of two lines balances them, so a short last word does not sit alone on the second. */
+.segmented-control__option span {
+  text-wrap: balance;
+}
+
 .segmented-control__option:first-of-type {
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }

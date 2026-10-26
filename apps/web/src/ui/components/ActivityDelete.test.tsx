@@ -33,7 +33,7 @@ describe('ActivityDelete', () => {
     const onDelete = renderDelete()
     await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
     expect(onDelete).not.toHaveBeenCalled()
-    expect(screen.getByText('Delete Morning run? It is removed from your library.')).toBeTruthy()
+    expect(screen.getByText('Delete “Morning run”? It is removed from your library.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onDelete).toHaveBeenCalledWith('saved-1')

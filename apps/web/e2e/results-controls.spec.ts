@@ -141,7 +141,7 @@ test('focus moves to the Balance heading after sample data, and to the landing h
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
 
   await goTo(page, 'Profile')
-  await page.getByRole('button', { name: 'Remove all my activities' }).click()
+  await page.getByRole('button', { name: 'Clear the analysis' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Clear', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeFocused()
 })

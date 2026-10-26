@@ -44,9 +44,7 @@ export function SavedLibraryCard({
   return (
     <section className="section" aria-labelledby="kept-in-browser">
       <h2 id="kept-in-browser">Kept in this browser</h2>
-      <p className="secondary">
-        Anyone using this browser can see these. Remove all my activities removes them all.
-      </p>
+      <p className="secondary">Anyone using this browser can see these.</p>
       {list('device')}
     </section>
   )

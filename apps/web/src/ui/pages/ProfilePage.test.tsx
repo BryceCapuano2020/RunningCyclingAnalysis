@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteSettings } from '@rca/core/types'
@@ -8,6 +8,7 @@ import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import { makeResult } from '../components/fixtures'
 import type { SavedActivity } from '../../worker/protocol'
 import type { ProfilePageProps } from './ProfilePage'
+import type { ProfilePatch } from '../profilePatch'
 import { ProfilePage } from './ProfilePage'
 
 afterEach(() => {
@@ -441,11 +442,7 @@ describe('ProfilePage kept in this browser', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Kept in this browser' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Anyone using this browser can see these. Remove all my activities removes them all.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Anyone using this browser can see these.')).toBeInTheDocument()
     const section = screen.getByRole('region', { name: 'Kept in this browser' })
     expect(
       within(section).getByRole('button', { name: /^Delete Morning run, Run, / }),
@@ -544,7 +541,7 @@ describe('ProfilePage remove activities', () => {
   it('names only the analysis on screen when nothing is kept in this browser', () => {
     renderProfile({}, { state: { result: makeResult() } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear the analysis' }))
 
     expect(
       screen.getByRole('alertdialog', { name: 'Clear the analysis on this page?' }),
@@ -619,7 +616,7 @@ describe('ProfilePage remove activities', () => {
   it('holds the button while an analysis is busy, and says when it will be available', () => {
     renderProfile({}, { busy: true, state: { result: makeResult() } })
 
-    expect(screen.getByRole('button', { name: 'Remove all my activities' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Clear the analysis' })).toBeDisabled()
     expect(screen.getByText('Available when the current analysis finishes.')).toBeInTheDocument()
   })
 })
@@ -728,6 +725,89 @@ describe('ProfilePage questions follow their sections', () => {
     expect(
       screen.queryByRole('alertdialog', { name: 'Remove all 1 activity kept in this browser?' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage nothing kept', () => {
+  it('reads Clear the analysis on the trigger, and says what it clears, when nothing is kept', () => {
+    renderProfile({}, { state: { result: makeResult() } })
+
+    expect(screen.getByRole('button', { name: 'Clear the analysis' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Remove all my activities' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Clears the analysis on screen. Nothing is kept in this browser.'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps Remove all my activities on the trigger once an activity is kept', () => {
+    renderProfile({}, { state: { result: makeResult() }, savedActivities: [KEPT_RUN] })
+    expect(screen.getByRole('button', { name: 'Remove all my activities' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage a refused save', () => {
+  /** A save that refuses the year and accepts everything else. */
+  function refuseYear() {
+    return vi.fn(async (next: ProfilePatch) => {
+      if ('birthYear' in next) throw new Error('Offline')
+    })
+  }
+
+  function refusedYear() {
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+    return screen.findByText("Year of birth: Couldn't save. Try again.")
+  }
+
+  it('keeps a refused year in view when a later sex save succeeds', async () => {
+    renderProfile({ onSaveProfile: refuseYear() })
+    await refusedYear()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(screen.getByText("Year of birth: Couldn't save. Try again.")).toBeInTheDocument()
+    expect(screen.queryByText('Sex: Saved.')).not.toBeInTheDocument()
+  })
+
+  it('lets go of a refused year when the year is edited again', async () => {
+    renderProfile({ onSaveProfile: refuseYear() })
+    await refusedYear()
+
+    fireEvent.change(screen.getByLabelText('Year of birth'), { target: { value: '1986' } })
+
+    expect(screen.queryByText("Year of birth: Couldn't save. Try again.")).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage one status line', () => {
+  it('keeps the status line in its own wrapper with the pair, so it adds a line, not a page gap', () => {
+    renderProfile()
+    const pair = document.querySelector('.profile-pair')
+    expect(pair?.parentElement).not.toHaveClass('page-stack')
+    expect(pair?.parentElement?.querySelector('.profile-save')).not.toBeNull()
+  })
+
+  it('shows every save in one status line under the two sections, so no save moves the fields', async () => {
+    renderProfile()
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    const status = await screen.findByText('Year of birth: Saved.')
+    expect(status.closest('.profile-pair')).toBeNull()
+    expect(document.querySelectorAll('.profile-save')).toHaveLength(1)
+    expect(document.querySelector('.profile-pair')?.nextElementSibling).toBe(status)
+  })
+
+  it('holds the account wait in the same line, outside the held fields', () => {
+    renderProfile({ accountLoading: true })
+    const waiting = screen.getByText('Waiting for your account…')
+    expect(waiting.closest('.profile-pair')).toBeNull()
+    expect(document.querySelectorAll('.profile-save')).toHaveLength(1)
   })
 })
 

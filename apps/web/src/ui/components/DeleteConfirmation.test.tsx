@@ -35,6 +35,12 @@ function renderConfirmation(busy = false, critical = true) {
 }
 
 describe('DeleteConfirmation', () => {
+  it('sets the activity name in its own span, so the heading does not change its case', () => {
+    const { dialog } = renderConfirmation()
+    const heading = within(dialog).getByRole('heading')
+    expect(heading.querySelector('.saved-library__confirm-name')).toHaveTextContent('Morning run')
+  })
+
   it('describes what the delete removes, as the caller words it', () => {
     const { dialog } = renderConfirmation()
     expect(dialog).toHaveAccessibleDescription(DESCRIPTION)

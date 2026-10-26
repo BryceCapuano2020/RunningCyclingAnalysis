@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SavedLibraryActivity } from './SavedLibrary'
 import { SavedLibrary } from './SavedLibrary'
 import { readStylesheet, ruleBody } from './stylesheet'
+import { noMatchMedia, viewportAt } from '../../test/viewport'
 
 const libraryCss = await readStylesheet(import.meta.url, './SavedLibrary.css')
 
@@ -576,5 +577,100 @@ describe('SavedLibrary confirmation in the row', () => {
   it('keeps the date, sport and action on one line, so the activity name takes the wrapping', () => {
     expect(ruleBody(libraryCss, '.saved-library__nowrap')).toMatch(/white-space:\s*nowrap/)
     expect(ruleBody(libraryCss, '.saved-library__name')).toMatch(/overflow-wrap:\s*anywhere/)
+  })
+})
+
+describe('SavedLibrary on a narrow screen', () => {
+  afterEach(() => {
+    noMatchMedia()
+  })
+
+  it('lists each saved activity as a block with its date and sport on one muted line at 420 px and below', () => {
+    viewportAt(390)
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    const item = screen.getAllByRole('listitem')[0]!
+    expect(within(item).getByText('Saved activity 0')).toBeInTheDocument()
+    expect(within(item).getByText(`${dayLabel(0)} · ${sportName(0)}`)).toHaveClass('muted')
+    expect(
+      within(item).getByRole('button', { name: /^Delete Saved activity 0/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the confirmation inside its list item, so it stays within the container', () => {
+    viewportAt(390)
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Delete Saved activity 1/ })[0]!)
+
+    const confirmation = screen.getByRole('group', { name: 'Delete “Saved activity 1”?' })
+    expect(confirmation.closest('li')).toHaveTextContent('Saved activity 1')
+  })
+
+  it('keeps the table, with the sport under each name and no sport column, above 420 px and at 560 px and below', () => {
+    viewportAt(480)
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Sport' })).not.toBeInTheDocument()
+    expect(within(rowFor('Saved activity 1')).getByText('Ride')).toBeInTheDocument()
+  })
+
+  it('keeps the four-column table with a sport column above 560 px', () => {
+    viewportAt(600)
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    expect(screen.getByRole('columnheader', { name: 'Sport' })).toBeInTheDocument()
+  })
+
+  it('lets the confirmation wrap inside its row, which the global table cell rule would stop', () => {
+    expect(ruleBody(libraryCss, '.saved-library__confirm-row > td')).toMatch(
+      /white-space:\s*normal;/,
+    )
+  })
+
+  it('keeps the activity name in a confirmation heading in its own case', () => {
+    expect(ruleBody(libraryCss, '.saved-library__confirm-name')).toMatch(/text-transform:\s*none;/)
+  })
+
+  it('sets the library buttons to the body size, not the smaller control size', () => {
+    expect(ruleBody(libraryCss, '.saved-library .btn')).toMatch(/font-size:\s*var\(--text-md\);/)
+  })
+})
+
+describe('SavedLibrary list at 390 px', () => {
+  afterEach(() => {
+    noMatchMedia()
+  })
+
+  it('moves focus to the first item once paging leaves Next with nothing to press', () => {
+    viewportAt(390)
+    render(<SavedLibrary activities={activities(21)} busy={false} onDelete={vi.fn()} {...idle} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(screen.getAllByRole('listitem')[0]).toHaveFocus()
+  })
+
+  it('confirms a delete in the list, calling onDelete with that activity', () => {
+    viewportAt(390)
+    const onDelete = vi.fn()
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={onDelete} {...idle} />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Delete Saved activity 1/ })[0]!)
+    fireEvent.click(within(region()).getByRole('button', { name: 'Delete' }))
+
+    expect(onDelete).toHaveBeenCalledWith('saved-1')
+  })
+
+  it('keeps focus in the library when a resize across 420 px removes the focused Delete', () => {
+    const screenWidth = viewportAt(600)
+    render(<SavedLibrary activities={activities(2)} busy={false} onDelete={vi.fn()} {...idle} />)
+    deleteButtonFor(0).focus()
+
+    screenWidth.resize(390)
+
+    expect(region()).toHaveFocus()
   })
 })

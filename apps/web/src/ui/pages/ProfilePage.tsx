@@ -55,29 +55,48 @@ const FIELD_LABEL: Record<SavedField, string> = {
   units: 'Units',
 }
 
-/** A field's save status. It stays mounted, empty until the field has saved, so each outcome is announced. */
-function FieldStatus({ field, state }: { field: SavedField; state: SaveState | undefined }) {
-  return (
-    <p role="status" className="profile-save secondary">
-      {state === undefined ? '' : `${FIELD_LABEL[field]}: ${SAVE_STATE_TEXT[state]}`}
-    </p>
-  )
+/** The fields whose saves the one status line reports. */
+const SAVED_FIELDS: SavedField[] = ['year', 'sex', 'units']
+
+/**
+ * The one status line's text. A save under way shows first. A refused field then shows until it saves
+ * or is edited, so a later success elsewhere does not hide it. Otherwise the last save shows, such as
+ * "Sex: Saved.", or '' before any save.
+ */
+function statusText(
+  lastSaved: SavedField | null,
+  saves: Partial<Record<SavedField, SaveState>>,
+): string {
+  const last = lastSaved === null ? undefined : saves[lastSaved]
+  const text = (field: SavedField, state: SaveState) =>
+    `${FIELD_LABEL[field]}: ${SAVE_STATE_TEXT[state]}`
+  if (lastSaved !== null && last === 'saving') return text(lastSaved, last)
+  const refused = SAVED_FIELDS.find((field) => saves[field] === 'failed')
+  if (refused !== undefined) return text(refused, 'failed')
+  return lastSaved !== null && last !== undefined ? text(lastSaved, last) : ''
 }
 
 /**
- * The question for removing the activities kept in this browser, named by how many there are. The
- * analysis on screen is named only when there is one, since it goes with them.
+ * The removal's trigger, its lead line and its question, named by how many activities are kept. With
+ * none kept, only the analysis on screen goes, so the trigger says that. The analysis on screen is
+ * named only when there is one, since it goes with them.
  */
 function removalCopy(kept: number, onScreen: boolean) {
   const screen = onScreen ? ' and the analysis on screen with them' : ''
   if (kept === 0) {
     return {
+      trigger: 'Clear the analysis',
+      lead: 'Clears the analysis on screen. Nothing is kept in this browser.',
       title: 'Clear the analysis on this page?',
       description: 'Nothing is kept in this browser, so only the analysis on screen is cleared.',
       confirmLabel: 'Clear',
     }
   }
   return {
+    trigger: 'Remove all my activities',
+    lead: onScreen
+      ? 'Removes every activity kept in this browser, and the analysis on screen.'
+      : 'Removes every activity kept in this browser.',
     title: `Remove all ${plural(kept, 'activity', 'activities')} kept in this browser?`,
     description: `Their summaries are removed from this browser${screen}. This cannot be undone. Add their files again to bring them back.`,
     confirmLabel: 'Remove all',
@@ -105,12 +124,14 @@ export function ProfilePage({
 }: ProfilePageProps) {
   // The year as typed. Null means the field shows the saved year; it is saved when left.
   const [yearDraft, setYearDraft] = useState<string | null>(null)
+  // The field whose save the status line reports: the last one started.
+  const [lastSaved, setLastSaved] = useState<SavedField | null>(null)
   const [yearError, setYearError] = useState<string | null>(null)
   const yearSaving = useRef(false)
   // A sex or unit choice shows at once while it saves, and returns to the saved value if it fails.
   const [sexDraft, setSexDraft] = useState<{ value: Sex | null } | null>(null)
   const [unitsDraft, setUnitsDraft] = useState<{ value: UnitSystem } | null>(null)
-  const { states: saves, save: saveField } = useSaveStatus<SavedField>()
+  const { states: saves, save: saveField, clear: clearSave } = useSaveStatus<SavedField>()
   const [removing, setRemoving] = useState(false)
   // The retention and account questions are held here, so any open dialog can close a row confirmation.
   const [retentionAsking, setRetentionAsking] = useState(false)
@@ -138,12 +159,14 @@ export function ProfilePage({
 
   async function changeSex(next: Sex | null) {
     setSexDraft({ value: next })
+    setLastSaved('sex')
     await saveField('sex', () => onSaveProfile({ sex: next }))
     setSexDraft(null)
   }
 
   async function changeUnits(next: UnitSystem) {
     setUnitsDraft({ value: next })
+    setLastSaved('units')
     await saveField('units', () => onSaveProfile({ units: next }))
     setUnitsDraft(null)
   }
@@ -162,66 +185,66 @@ export function ProfilePage({
       return
     }
     yearSaving.current = true
+    setLastSaved('year')
     const saved = await saveField('year', () => onSaveProfile({ birthYear: read.year }))
     yearSaving.current = false
-    // A refused year stays in the field, with its status beside it, until it is corrected or saved.
+    // A refused year stays in the field, with its status under the sections, until it is corrected or saved.
     if (saved) setYearDraft(null)
   }
 
   const removal = removalCopy(analysis.savedActivities.length, hasResult)
+  const status = accountLoading ? WAITING_FOR_ACCOUNT : statusText(lastSaved, saves)
 
   return (
-    <div className="page-stack">
+    <div className="page-stack profile-page">
       <div className="page-head">
         <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
           Profile
         </h1>
       </div>
 
-      <div className="profile-pair">
-        <section className="section" aria-labelledby="profile-about">
-          <div>
+      {/* The pair and its one status line are one grid item, so the line adds a line, not a page gap. */}
+      <div className="profile-sections">
+        <div className="profile-pair">
+          <section className="section" aria-labelledby="profile-about">
             <h2 id="profile-about">About you</h2>
-            {/* Outside the held fields, so the wait is announced while they cannot be changed. */}
-            <p role="status" className="profile-save secondary">
-              {accountLoading ? WAITING_FOR_ACCOUNT : ''}
-            </p>
-          </div>
-          <div inert={accountLoading}>
-            <AthleteFields
-              birthYear={yearDraft ?? displayBirthYear(birthYear)}
-              birthYearError={yearError}
-              sex={shownSex}
-              onBirthYearChange={(text) => {
-                setYearError(null)
-                setYearDraft(text)
-              }}
-              onBirthYearCommit={() => void commitYear()}
-              onSexChange={(next) => void changeSex(next)}
-            />
-            <FieldStatus field="year" state={saves.year} />
-            <FieldStatus field="sex" state={saves.sex} />
-          </div>
-        </section>
+            <div inert={accountLoading}>
+              <AthleteFields
+                birthYear={yearDraft ?? displayBirthYear(birthYear)}
+                birthYearError={yearError}
+                sex={shownSex}
+                onBirthYearChange={(text) => {
+                  setYearError(null)
+                  clearSave('year')
+                  setYearDraft(text)
+                }}
+                onBirthYearCommit={() => void commitYear()}
+                onSexChange={(next) => void changeSex(next)}
+              />
+            </div>
+          </section>
 
-        <section className="section" aria-labelledby="profile-body">
-          <h2 id="profile-body">Body and bike</h2>
-          <div inert={accountLoading}>
-            {/* The units come first: they say what the weights below are measured in. */}
-            <SegmentedControl
-              legend="Units"
-              options={UNIT_OPTIONS}
-              selected={shownUnits}
-              onSelect={(next) => void changeUnits(next)}
-            />
-            <FieldStatus field="units" state={saves.units} />
-            <SettingsBar
-              settings={settings}
-              units={shownUnits}
-              onChange={(next) => onSaveProfile({ settings: next })}
-            />
-          </div>
-        </section>
+          <section className="section" aria-labelledby="profile-body">
+            <h2 id="profile-body">Body and bike</h2>
+            <div inert={accountLoading}>
+              {/* The units come first: they say what the weights below are measured in. */}
+              <SegmentedControl
+                legend="Units"
+                options={UNIT_OPTIONS}
+                selected={shownUnits}
+                onSelect={(next) => void changeUnits(next)}
+              />
+              <SettingsBar
+                settings={settings}
+                units={shownUnits}
+                onChange={(next) => onSaveProfile({ settings: next })}
+              />
+            </div>
+          </section>
+        </div>
+        <p role="status" className="profile-save secondary">
+          {status}
+        </p>
       </div>
 
       {email !== null ? (
@@ -283,11 +306,7 @@ export function ProfilePage({
       {canRemoveAll && (
         <section className="section" aria-labelledby="profile-remove">
           <h2 id="profile-remove">Remove activities</h2>
-          <p className="secondary">
-            {hasResult
-              ? 'Removes every activity kept in this browser, and the analysis on screen.'
-              : 'Removes every activity kept in this browser.'}
-          </p>
+          <p className="secondary">{removal.lead}</p>
           <div>
             <button
               type="button"
@@ -298,7 +317,7 @@ export function ProfilePage({
                 setRemoving(true)
               }}
             >
-              Remove all my activities
+              {removal.trigger}
             </button>
           </div>
           {analysis.busy && (

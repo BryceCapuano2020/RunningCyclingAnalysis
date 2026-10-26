@@ -1,17 +1,24 @@
-/* A status line with nothing to say takes no space, but stays mounted so it can announce. */
+/*
+ * The one status line under the two sections, in the same grid item as them, so it adds a line and no
+ * page gap. It stays mounted and holds a line's height when empty, so a save that adds its text moves
+ * no field.
+ */
 .profile-save {
   margin: 0;
-}
-
-.profile-save:not(:empty) {
-  margin-top: var(--space-2);
+  min-height: 1lh;
 }
 
 /* About you and Body and bike stand side by side on a wide screen, and stack on a narrow one. */
 .profile-pair {
   display: grid;
   gap: var(--space-7);
+  align-items: start;
   min-width: 0;
+}
+
+/* The sections' prose stops at 68 characters, so a line stays readable on a wide screen. */
+.profile-page .section > p {
+  max-width: 68ch;
 }
 
 /* The width is PROFILE_PAIR_MIN_WIDTH_PX in layoutBreakpoints.ts; change it there and here together. */

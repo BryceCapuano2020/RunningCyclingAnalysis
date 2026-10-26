@@ -19,7 +19,7 @@ export interface DeleteConfirmationProps {
  * modal dialog, so the page stays live around it. It takes focus when it opens. Escape cancels from
  * inside the card, or from anywhere while no modal dialog is open. Tab cycles inside the card, and
  * Tab pressed outside it is left to the browser, so a dialog opened over it keeps its own focus.
- * Mount it with a key per activity.
+ * Each row mounts its own, so it takes focus each time it opens.
  */
 export function DeleteConfirmation({
   name,
@@ -82,7 +82,7 @@ export function DeleteConfirmation({
       ref={dialogRef}
     >
       <h3 id={`${baseId}-confirm-title`} tabIndex={-1} ref={headingRef}>
-        Delete “{name}”?
+        Delete “<span className="saved-library__confirm-name">{name}</span>”?
       </h3>
       <p id={`${baseId}-confirm-description`}>{description}</p>
       <ConfirmActions confirmLabel="Delete" busy={busy} onCancel={onCancel} onConfirm={onConfirm} />

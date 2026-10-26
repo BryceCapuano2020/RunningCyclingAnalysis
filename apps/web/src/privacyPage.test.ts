@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildAccountExport } from './export/accountExport'
 import { APP_WORDS } from './appName'
 import { BRAND_RIDING, BRAND_RUNNING, pathData } from './ui/components/iconPaths'
-import { readStylesheet } from './ui/components/stylesheet'
+import { readStylesheet, ruleBody } from './ui/components/stylesheet'
 
 /*
  * These tests check the privacy page's stated facts against the source files they name: the
@@ -344,5 +344,47 @@ describe('privacy page loads nothing from elsewhere', () => {
       (match) => new URL(match[1] ?? '').host,
     )
     expect(new Set(hosts)).toEqual(new Set(['github.com']))
+  })
+})
+
+describe('privacy page layout and copy', () => {
+  const darkBlock =
+    /@media \(prefers-color-scheme: dark\) \{([\s\S]*?)\n\}/.exec(privacyCss)?.[1] ?? ''
+
+  it('titles the page with a middle dot, as the app names its pages', () => {
+    expect(page).toContain('<title>Privacy policy · RunningCyclingAnalysis</title>')
+  })
+
+  it('says summaries kept without an account stay in the browser, where it allows', () => {
+    expect(text).toContain(
+      'Summaries kept without an account stay in your browser, where it allows.',
+    )
+  })
+
+  it('says summaries are kept in this browser where the browser allows', () => {
+    expect(text).toContain("kept in this browser's IndexedDB where the browser allows")
+  })
+
+  it('takes the control height from the phone rule, not the dark scheme, so a phone gets 44 px', () => {
+    expect(darkBlock).not.toBe('')
+    expect(darkBlock).not.toMatch(/--control-height/)
+  })
+
+  it('gives the footer links a 24 px target at least', () => {
+    expect(ruleBody(privacyCss, '.footer a')).toMatch(/min-height:\s*24px;/)
+  })
+
+  it('hides the wordmark at 560 px and below, so the header is one row', () => {
+    expect(privacyCss).toMatch(
+      /@media \(max-width: 560px\) \{\s*\.header__name \{[^}]*clip-path:\s*inset\(50%\);/,
+    )
+  })
+
+  it('measures prose at 68 characters', () => {
+    expect(ruleBody(privacyCss, 'p,\nli')).toMatch(/max-width:\s*68ch;/)
+  })
+
+  it('thickens the underline of a link on hover, as the app does', () => {
+    expect(ruleBody(privacyCss, 'a:hover')).toMatch(/text-decoration-thickness:\s*2px;/)
   })
 })
