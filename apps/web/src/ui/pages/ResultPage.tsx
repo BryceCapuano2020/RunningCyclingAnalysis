@@ -131,6 +131,8 @@ export function ResultPage({
             route.page,
           )}
           emptyText={sportEmptyText(route.page, period, countSport(library, route.page))}
+          inLibrary={countSport(library, route.page)}
+          onShowAll={() => pickPeriod('all')}
           onAddFiles={analysis.addFiles}
           footnote={footnote}
         />

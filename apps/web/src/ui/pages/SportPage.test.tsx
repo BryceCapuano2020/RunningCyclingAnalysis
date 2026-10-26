@@ -72,6 +72,7 @@ function renderPage(
       controls={<span>Period picker</span>}
       footnote={footnote}
       emptyText={emptyText}
+      inLibrary={result.activities.filter((activity) => activity.sport === sport).length}
       onAddFiles={vi.fn()}
     />,
   )
@@ -110,6 +111,7 @@ describe('SportPage', () => {
         controls={<span>Period picker</span>}
         weighted
         rangeDays={42}
+        inLibrary={0}
         emptyText="No runs between 12 May and 3 Aug 2025. You have 1 run in All time."
         onAddFiles={onAddFiles}
       />,
@@ -165,26 +167,16 @@ describe('SportPage', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows the running threshold as a named pace estimate, and what it rests on', () => {
+  it('shows the running threshold as a named pace estimate, with no run count beside it', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
     expect(within(section).getByText('23:23 /km')).toBeInTheDocument()
-    expect(within(section).getByText('Based on 1 run in this period.')).toBeInTheDocument()
+    // The count was the runs in the period, not the efforts the threshold is fitted from.
+    expect(within(section).queryByText(/Based on/)).not.toBeInTheDocument()
   })
 
-  it('says what the threshold means, about the pace, and names its 3 to 20 min basis', () => {
-    renderPage('run', makeResult({ activities: [morningRun] }))
-
-    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(
-      within(section).getByText(
-        'About the pace you could hold for a long, steady effort, estimated from your best 3 to 20 min efforts.',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('says the figures are in all your files under All time, not in a period', () => {
+  it('names the period by its control beside the heading, not with a count under the threshold', () => {
     renderPage(
       'run',
       makeResult({ activities: [morningRun] }),
@@ -198,19 +190,132 @@ describe('SportPage', () => {
       null,
     )
 
-    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(within(section).getByText('Based on 1 run in all your files.')).toBeInTheDocument()
-    expect(within(section).queryByText(/in this period/)).not.toBeInTheDocument()
+    expect(screen.getByText('Period picker')).toBeInTheDocument()
+    expect(screen.queryByText(/Based on/)).not.toBeInTheDocument()
   })
 
-  it('pluralises what the threshold rests on for several rides', () => {
+  it('does not count the rides a cycling threshold rests on', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     renderPage(
       'ride',
       makeResult({ activities: [ride, makeActivity({ id: 'ride-2', sport: 'ride' })] }),
     )
 
-    expect(screen.getByText('Based on 2 rides in this period.')).toBeInTheDocument()
+    expect(screen.queryByText(/Based on/)).not.toBeInTheDocument()
+    expect(screen.getByText('48 W')).toBeInTheDocument()
+  })
+
+  it('links to the sport’s own activities, filtered to it in the address', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+
+    expect(screen.getByRole('link', { name: 'See your runs' })).toHaveAttribute(
+      'href',
+      '#/activities?sport=run',
+    )
+  })
+
+  it('tags each record with how long ago it was set, in days from today', () => {
+    const june = makeActivity({
+      id: 'run-june',
+      name: 'Late run',
+      sport: 'run',
+      startMs: new Date(2026, 5, 1, 7).getTime(),
+    })
+    renderPage(
+      'run',
+      makeResult({
+        activities: [june],
+        runCurve: [curvePoint(1200, 3.6, 'run-june')],
+      }),
+    )
+
+    // June is the newest and only activity, but today is 10 June, so the best was set nine days ago.
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 20 min')).getByText('Set 9 days ago'),
+    ).toBeInTheDocument()
+  })
+
+  it('says a record dated after the page opened was set today, not a negative number of days ago', () => {
+    const tomorrow = makeActivity({
+      id: 'run-tomorrow',
+      name: 'Tomorrow run',
+      sport: 'run',
+      startMs: new Date(2026, 5, 11, 7).getTime(),
+    })
+    renderPage(
+      'run',
+      makeResult({ activities: [tomorrow], runCurve: [curvePoint(60, 5.5, 'run-tomorrow')] }),
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(within(recordNamed(records, 'Best 1 min')).getByText('Set today')).toBeInTheDocument()
+  })
+
+  it('says a record was set today when its activity is from today', () => {
+    const today = makeActivity({
+      id: 'run-today',
+      name: 'Today run',
+      sport: 'run',
+      startMs: new Date(2026, 5, 10, 7).getTime(),
+    })
+    renderPage(
+      'run',
+      makeResult({ activities: [today], runCurve: [curvePoint(60, 5.5, 'run-today')] }),
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(within(recordNamed(records, 'Best 1 min')).getByText('Set today')).toBeInTheDocument()
+  })
+
+  it('reads the clock once when the page opens, so a later render does not move the count', () => {
+    const june = makeActivity({
+      id: 'run-june',
+      name: 'Late run',
+      sport: 'run',
+      startMs: new Date(2026, 5, 1, 7).getTime(),
+    })
+    const page = () => (
+      <SportPage
+        sport="run"
+        result={makeResult({
+          activities: [june],
+          runCurve: [curvePoint(1200, 3.6, 'run-june')],
+        })}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        windowDays={14}
+        units="metric"
+        massKg={75}
+        weighted
+        profile={null}
+        controls={<span>Period picker</span>}
+        rangeDays={42}
+        inLibrary={1}
+        emptyText="Nothing in this period."
+        onAddFiles={vi.fn()}
+      />
+    )
+    const { rerender } = render(page())
+    vi.setSystemTime(NOW + 2 * 24 * 60 * 60 * 1000)
+    rerender(page())
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 20 min')).getByText('Set 9 days ago'),
+    ).toBeInTheDocument()
+  })
+
+  it('says what the threshold means, about the pace, and names its 3 to 20 min basis', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+
+    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(
+      within(section).getByText(
+        'About the pace you could hold for a long, steady effort, estimated from your best 3 to 20 min efforts.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('shows the cycling threshold in watts with its W/kg', () => {
@@ -262,9 +367,10 @@ describe('SportPage', () => {
     expect(within(records).getByText('Best 5 min')).toBeInTheDocument()
     expect(within(records).getByText('Best 20 min')).toBeInTheDocument()
     expect(within(records).getByText('Best 1 hour')).toBeInTheDocument()
-    expect(
-      within(records).getAllByRole('link', { name: 'Morning run, Mon 5 Jan' })[0],
-    ).toHaveAttribute('href', '#/activities/run-1')
+    expect(within(records).getAllByRole('link', { name: 'Morning run, 5 Jan' })[0]).toHaveAttribute(
+      'href',
+      '#/activities/run-1',
+    )
   })
 
   it('marks each run record’s pace Flat on the run page', () => {
@@ -323,6 +429,23 @@ describe('SportPage age grades', () => {
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
     expect(within(recordNamed(records, 'Best 20 min')).getByText('Local · 67%')).toBeInTheDocument()
+  })
+
+  it('says the distance a duration grade is taken at, after the grade', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(recordNamed(records, 'Best 20 min').textContent).toContain(
+      'Local · 67% · 5.0 km in 20 min',
+    )
   })
 
   it('shows no grade for a run record that covers under a mile', () => {
@@ -899,5 +1022,93 @@ describe('SportPage depth', () => {
 
     expect(screen.getByRole('heading', { name: 'Week by week' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Power curve' })).toBeInTheDocument()
+  })
+})
+
+describe('SportPage with nothing to show', () => {
+  /** A run page with no runs in its result, and the given count of runs in the library. */
+  function renderEmptyRuns(inLibrary: number, onShowAll = vi.fn()) {
+    return render(
+      <SportPage
+        sport="run"
+        result={makeResult({ activities: [makeActivity({ id: 'ride', sport: 'ride' })] })}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        windowDays={14}
+        units="metric"
+        massKg={75}
+        profile={null}
+        controls={<span>Period picker</span>}
+        weighted
+        rangeDays={42}
+        inLibrary={inLibrary}
+        emptyText="No runs between 12 May and 3 Aug 2025. You have 3 runs in All time."
+        onShowAll={onShowAll}
+        onAddFiles={vi.fn()}
+      />,
+    )
+  }
+
+  it('drops the period control and the empty curve when the files hold no runs at all', () => {
+    render(
+      <SportPage
+        sport="run"
+        result={makeResult({ activities: [makeActivity({ id: 'ride', sport: 'ride' })] })}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        windowDays={14}
+        units="metric"
+        massKg={75}
+        profile={null}
+        controls={<span>Period picker</span>}
+        weighted
+        rangeDays={42}
+        inLibrary={0}
+        emptyText="Your files have no runs yet. Add runs to see your records."
+        onAddFiles={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Period picker')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Pace curve' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add runs' })).toBeInTheDocument()
+  })
+
+  it('offers All time, not files, when the period holds no runs but the library has some', () => {
+    const onShowAll = vi.fn()
+    renderEmptyRuns(3, onShowAll)
+
+    expect(screen.getByText('Period picker')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add runs' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Pace curve' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all time' }))
+    expect(onShowAll).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers no All time button once the page already shows all time', () => {
+    render(
+      <SportPage
+        sport="run"
+        result={makeResult({ activities: [makeActivity({ id: 'ride', sport: 'ride' })] })}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        windowDays={14}
+        units="metric"
+        massKg={75}
+        profile={null}
+        controls={<span>Period picker</span>}
+        weighted
+        rangeDays={null}
+        inLibrary={3}
+        emptyText="No runs. You have 3 runs in All time."
+        onShowAll={vi.fn()}
+        onAddFiles={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Show all time' })).not.toBeInTheDocument()
   })
 })

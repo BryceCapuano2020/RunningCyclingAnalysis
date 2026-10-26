@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { makeActivity, makeResult } from './ui/components/fixtures'
 import { app, resetAppMocks, setSession, showResult } from './test/appMocks'
+import { browserHashChange, recordHashListeners } from './test/hashchange'
 
 vi.mock('./ui/useAccount', async () => ({
   useAccount: (await import('./test/appMocks')).useAccountMock,
@@ -185,5 +186,23 @@ describe('Back to Balance from the method page', () => {
     render(<App />)
     await userEvent.click(screen.getByRole('link', { name: 'Back to Balance' }))
     await waitFor(() => expect(window.location.hash).toBe('#/'))
+  })
+})
+
+describe('an activity opened from a sport', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('keeps the Run tab lit and reads Back to Run when a record link opens the activity', async () => {
+    showResult()
+    window.history.replaceState(null, '', '#/run')
+    const listeners = recordHashListeners()
+    render(<App />)
+
+    const oldURL = window.location.href
+    window.history.pushState(null, '', '#/activities/run-1')
+    await browserHashChange(listeners, oldURL)
+
+    expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Back to Run' })).toHaveAttribute('href', '#/run')
   })
 })

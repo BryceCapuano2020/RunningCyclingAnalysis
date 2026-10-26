@@ -26,3 +26,12 @@
 .cross-sport__pair .icon:last-child {
   color: var(--series-run);
 }
+
+/* A finger needs a control's height to tap the link to the activity. A mouse keeps its line. */
+@media (pointer: coarse) {
+  .cross-sport__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
+}

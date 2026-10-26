@@ -1,3 +1,5 @@
+import type { PathStep } from '../ui/components/iconPaths'
+
 /** The 2D context of either canvas kind; the card uses only the members they share. */
 export type CardContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
 
@@ -178,6 +180,30 @@ export function placer(
   scale: number,
 ): (px: number, py: number) => [number, number] {
   return (px, py) => [x + px * scale, y + py * scale]
+}
+
+/** Traces path steps on the canvas, placing each point with `at`. */
+export function traceSteps(
+  ctx: CardContext,
+  steps: readonly PathStep[],
+  at: (px: number, py: number) => [number, number],
+): void {
+  for (const step of steps) {
+    switch (step.op) {
+      case 'M':
+        ctx.moveTo(...at(step.x, step.y))
+        break
+      case 'L':
+        ctx.lineTo(...at(step.x, step.y))
+        break
+      case 'C':
+        ctx.bezierCurveTo(...at(step.x1, step.y1), ...at(step.x2, step.y2), ...at(step.x, step.y))
+        break
+      case 'Z':
+        ctx.closePath()
+        break
+    }
+  }
 }
 
 /** How long the card waits for its fonts before it gives up, so a stalled load cannot hang the download. */

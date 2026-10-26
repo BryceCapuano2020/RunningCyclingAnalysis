@@ -3,9 +3,10 @@ import type { ReactNode } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { SportCurves, TrendPoint } from '@rca/core/digest'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
-import type { AnalysisResult } from '@rca/core/pipeline'
+import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { DEFAULT_VIEW, queryFromView } from '../activitiesView'
 import { SportCurveChart, TrendChart } from '../charts'
 import { AddSportFiles } from '../components/AddSportFiles'
 import { AgeGradeBlock } from '../components/AgeGradeBlock'
@@ -14,9 +15,8 @@ import { SegmentedControl } from '../components/SegmentedControl'
 import { SportRecords } from '../components/SportRecords'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { WeightNote } from '../components/WeightNote'
-import { SportIcon } from '../components/icons'
+import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
-import { scopeText } from '../components/rangeOptions'
 import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
@@ -36,6 +36,7 @@ import { PAGE_HEADING_ID } from './pageHeading'
 import {
   EFFORT_OPTIONS,
   activityNames,
+  calendarDaysBetween,
   countSport,
   distanceRecords,
   effortOf,
@@ -44,6 +45,7 @@ import {
   nativeCurve,
   recordDurationLabel,
   refusalOf,
+  setAgoText,
   sportRecords,
   threshold,
   valueAt,
@@ -75,8 +77,20 @@ export interface SportPageProps {
   footnote?: ReactNode
   /** What to say when the sport has nothing in the period, naming the period. */
   emptyText: string
+  /**
+   * How many of the sport's activities the library holds, in all time. With none, the page has no period
+   * to pick and asks for files; with some and none in the period, it offers All time.
+   */
+  inLibrary: number
+  /** Shows every activity, from the All time action an empty period offers. */
+  onShowAll?: () => void
   /** Adds files, from the action an empty sport page offers. */
   onAddFiles: (files: File[]) => void
+}
+
+/** A record's tag for how long ago it was set, counted in days from the day the page opened. */
+function setTags(activity: ActivitySummary | null, openedAt: number): string[] {
+  return activity === null ? [] : [setAgoText(calendarDaysBetween(activity.startMs, openedAt))]
 }
 
 /** The age grades need a year of birth and a sex: asked once here, under the best efforts. */
@@ -105,9 +119,14 @@ export function SportPage({
   controls,
   footnote = null,
   emptyText,
+  inLibrary,
+  onShowAll,
   onAddFiles,
 }: SportPageProps) {
   const count = countSport(result.activities, sport)
+  // The time the page was opened at: a record's age counts from it, and a year shows only when the last
+  // run is from an earlier year. Read once, so a later render does not move either.
+  const [openedAt] = useState(() => Date.now())
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
   const hero = threshold(result, sport, massKg, units)
@@ -146,8 +165,9 @@ export function SportPage({
   const rows: RecordRow[] = graded.map(({ record, outcome }) =>
     recordRow(sport, record, {
       label: `Best ${recordDurationLabel(record.durationS)}`,
-      grade: recordGradeCell(sport, outcome),
+      grade: recordGradeCell(sport, outcome, record.covered),
       change: changeOf(record.durationS),
+      tags: setTags(record.activity, openedAt),
     }),
   )
   // A distance best is the run's own pace, not a flat pace, so it carries no Flat mark.
@@ -157,13 +177,12 @@ export function SportPage({
     value: record.time,
     sub: record.pace,
     grade: recordGradeCell(sport, distanceOutcomes[index] ?? null),
-    tags: [],
+    tags: setTags(record.activity, openedAt),
     change: null,
     activity: record.activity,
   }))
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
   // The time the page was opened at, so a year shows only when the last run is from an earlier year.
-  const [openedAt] = useState(() => Date.now())
   const form = formLine(result.activities, sport, units, openedAt)
   const measuredRides = result.activities.filter(
     (activity) => activity.sport === 'ride' && activity.powerSource === 'measured',
@@ -177,7 +196,7 @@ export function SportPage({
           <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>
-        {controls}
+        {inLibrary > 0 && controls}
       </div>
       <a className="link-arrow" href={hrefFor({ page: 'method' })}>
         How sure is this?
@@ -186,7 +205,16 @@ export function SportPage({
       {count === 0 ? (
         <>
           <p className="secondary">{emptyText}</p>
-          <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+          {inLibrary === 0 ? (
+            <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+          ) : (
+            rangeDays !== null &&
+            onShowAll && (
+              <button type="button" className="btn" onClick={onShowAll}>
+                Show all time
+              </button>
+            )
+          )}
         </>
       ) : held ? (
         <WeightNote />
@@ -205,9 +233,6 @@ export function SportPage({
               <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
             )}
             {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
-            <p className="muted">
-              {`Based on ${plural(count, SPORT_LABEL[sport].toLowerCase(), SPORT_PLURAL[sport])} ${scopeText(rangeDays)}.`}
-            </p>
             {headline && (
               <AgeGradeBlock
                 sport={sport}
@@ -244,6 +269,13 @@ export function SportPage({
                 be the fastest. Add those runs again to include them.
               </p>
             )}
+            <a
+              className="link-arrow"
+              href={`#/activities?${queryFromView({ ...DEFAULT_VIEW, sport })}`}
+            >
+              {`See your ${SPORT_PLURAL[sport]}`}
+              <ArrowRightIcon />
+            </a>
           </section>
 
           <section className="section" aria-labelledby={`${sport}-trend`}>
@@ -269,7 +301,7 @@ export function SportPage({
         </>
       )}
 
-      {!held && (
+      {!held && count > 0 && (
         <section className="section" aria-labelledby={`${sport}-curve`}>
           <h2 id={`${sport}-curve`}>{CURVE_TITLE[sport]}</h2>
           <SportCurveChart

@@ -6,11 +6,13 @@ import type { ReactNode } from 'react'
 import {
   BRAND_RIDING,
   BRAND_RUNNING,
+  SPORT_GLYPHS,
   WARNING_DOT,
   WARNING_STEM,
   WARNING_TRIANGLE,
   pathData,
 } from './iconPaths'
+import type { SportGlyph } from './iconPaths'
 import './icons.css'
 
 export type IconSport = 'run' | 'ride' | 'swim'
@@ -37,23 +39,35 @@ function Icon({ className, children }: IconProps & { children: ReactNode }) {
   )
 }
 
+/** A glyph's dots and paths, drawn from the path data the share card also draws. */
+function GlyphShapes({ glyph }: { glyph: SportGlyph }) {
+  return (
+    <>
+      {glyph.dots.map((dot) =>
+        dot.filled ? (
+          <circle
+            key={`${dot.cx},${dot.cy}`}
+            cx={dot.cx}
+            cy={dot.cy}
+            r={dot.r}
+            fill="currentColor"
+            stroke="none"
+          />
+        ) : (
+          <circle key={`${dot.cx},${dot.cy}`} cx={dot.cx} cy={dot.cy} r={dot.r} />
+        ),
+      )}
+      {glyph.paths.map((steps) => (
+        <path key={pathData(steps)} d={pathData(steps)} />
+      ))}
+    </>
+  )
+}
+
 const SPORT_PATHS: Record<IconSport, ReactNode> = {
-  // A runner: leaning forward, arms bent, one knee high and one leg stretched back. A walker's
-  // upright figure reads as a pedestrian, and the app does not count walking. Checked at 16 and
-  // 24 px; a raised forearm merged with the head at 16 px.
-  run: (
-    <>
-      <circle cx="15" cy="4" r="2" fill="currentColor" stroke="none" />
-      <path d="M13.5 8.5L11 13.5M13.5 9l3.5 1.5 1.5-2.5M13.5 9L10 10.5 7.5 12.5M11 13.5l3.5 2-1 5M11 13.5l-2.5 3.5-4 1.5" />
-    </>
-  ),
-  ride: (
-    <>
-      <circle cx="5.5" cy="16.5" r="3.8" />
-      <circle cx="18.5" cy="16.5" r="3.8" />
-      <path d="M5.5 16.5l4-7h7l2 7M9.5 9.5l3 7h-7M14 6h3" />
-    </>
-  ),
+  // The runner and the rider are in iconPaths.ts, so the share card draws the same figures.
+  run: <GlyphShapes glyph={SPORT_GLYPHS.run} />,
+  ride: <GlyphShapes glyph={SPORT_GLYPHS.ride} />,
   swim: (
     <>
       <circle cx="17" cy="6" r="2.2" fill="currentColor" stroke="none" />

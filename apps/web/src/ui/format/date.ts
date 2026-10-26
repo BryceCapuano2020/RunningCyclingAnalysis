@@ -59,16 +59,28 @@ function weekdayAndDay(ms: number): string {
   return `${weekday} ${day}`
 }
 
+/** The year, added to a day's text only when the day is not in the year of nowMs. */
+function withYearUnless(text: string, ms: number, nowMs: number): string {
+  const year = new Date(ms).getFullYear()
+  return year === new Date(nowMs).getFullYear() ? text : `${text} ${year}`
+}
+
 /**
  * A day in the viewer's local zone, such as "Tue 3 Jun", with the year added only when it is not
  * the year of nowMs.
  */
 export function formatDay(ms: number, nowMs = Date.now()): string {
   const { month = '' } = namesOf(ms, { month: 'short' })
-  const day = `${weekdayAndDay(ms)} ${month}`
-  const year = new Date(ms).getFullYear()
-  const sameYear = year === new Date(nowMs).getFullYear()
-  return sameYear ? day : `${day} ${year}`
+  return withYearUnless(`${weekdayAndDay(ms)} ${month}`, ms, nowMs)
+}
+
+/**
+ * A day without its weekday, such as "3 Jun", with the year added only when it is not the year of
+ * nowMs. A record's source is dated this way: the weekday adds nothing to a best effort.
+ */
+export function formatDayMonth(ms: number, nowMs = Date.now()): string {
+  const { day = '', month = '' } = namesOf(ms, { day: 'numeric', month: 'short' })
+  return withYearUnless(`${day} ${month}`, ms, nowMs)
 }
 
 /**

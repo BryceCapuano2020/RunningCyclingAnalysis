@@ -19,6 +19,8 @@ const sheets = {
   activityPage: await readStylesheet(import.meta.url, '../pages/ActivityPage.css'),
   dropzone: await readStylesheet(import.meta.url, './Dropzone.css'),
   exportGuides: await readStylesheet(import.meta.url, './ExportGuides.css'),
+  sportRecords: await readStylesheet(import.meta.url, './SportRecords.css'),
+  crossSportCard: await readStylesheet(import.meta.url, '../pages/CrossSportCard.css'),
 }
 
 /** The control height the tokens give a desktop pointer, which is the shared token's default. */
@@ -92,5 +94,24 @@ describe('the shared control height', () => {
     expect(sheets.tokens).toMatch(
       /@media \(max-width: 760px\), \(pointer: coarse\) \{\s*:root \{\s*--control-height:\s*44px/,
     )
+  })
+})
+
+/**
+ * The declarations a rule sets inside the finger's media block, `(pointer: coarse)`, for a selector.
+ * Small inline links are only padded to the finger's size there, so a mouse keeps its line.
+ */
+function coarseBodyOf(css: string, selector: string): string {
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const block = /@media \(pointer: coarse\)\s*\{([\s\S]*?)\n\}/.exec(bare)?.[1] ?? ''
+  return bodyOf(block, selector)
+}
+
+describe('inline links on a finger', () => {
+  it.each([
+    ['record link', sheets.sportRecords, '.records__link'],
+    ['cross-sport link', sheets.crossSportCard, '.cross-sport__link'],
+  ])('%s is a control height tall on a coarse pointer', (_name, css, selector) => {
+    expect(coarseBodyOf(css, selector)).toMatch(/min-height:\s*var\(--control-height\)/)
   })
 })

@@ -3,6 +3,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { Dropzone } from '../components/Dropzone'
 import { ExportGuides } from '../components/ExportGuides'
 import { HISTORY_ADVICE } from '../exportGuides'
+import { HEADLINE_LABEL } from '../grades'
 import type { AnalysisController } from '../useAnalysis'
 import { LandingExample } from './LandingExample'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -78,9 +79,7 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
       <section className="landing__method" aria-labelledby={METHOD_HEADING_ID}>
         <h2 id={METHOD_HEADING_ID}>How the result is worked out</h2>
         <p className="secondary">
-          Each sport is judged on your best 20 minutes: running by its pace, allowing for hills, and
-          cycling by its power, which is estimated from speed, gradient and weight when there is no
-          power meter.
+          {`Each sport is judged on your best ${HEADLINE_LABEL}: running by its pace, allowing for hills, and cycling by its power, which is estimated from speed, gradient and weight when there is no power meter.`}
         </p>
         <p className="secondary">
           Each result is compared with the standard for your age and sex on the day of that effort.
