@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { UnitSystem } from '@rca/core/units'
 import type { WeightSettings } from '../athlete'
+import { hrefFor } from '../route'
 import { WEIGHT_PURPOSE } from '../weightCopy'
 import { SettingsBar } from './SettingsBar'
 
@@ -273,6 +274,47 @@ describe('SettingsBar', () => {
   it('keeps the status line mounted, so it can announce each change', () => {
     renderBar()
     expect(screen.getByRole('status')).toHaveTextContent('')
+  })
+
+  it('offers the link it is given beside the saved sentence, once the change is stored', async () => {
+    const user = userEvent.setup()
+    render(
+      <SettingsBar
+        settings={SETTINGS}
+        units="metric"
+        onChange={vi.fn()}
+        seeLevels={<a href={hrefFor({ page: 'balance' })}>See your levels</a>}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: 'See your levels' })).not.toBeInTheDocument()
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '76')
+    await user.tab()
+    expect(await screen.findByText(SAVED)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'See your levels' })).toHaveAttribute(
+      'href',
+      hrefFor({ page: 'balance' }),
+    )
+  })
+
+  it('shows no link while a change is saving', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn(() => new Promise<void>(() => undefined))
+    render(
+      <SettingsBar
+        settings={SETTINGS}
+        units="metric"
+        onChange={onChange}
+        seeLevels={<a href={hrefFor({ page: 'balance' })}>See your levels</a>}
+      />,
+    )
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '76')
+    await user.tab()
+    expect(screen.getByRole('status')).toHaveTextContent('Saving…')
+    expect(screen.queryByRole('link', { name: 'See your levels' })).not.toBeInTheDocument()
   })
 })
 

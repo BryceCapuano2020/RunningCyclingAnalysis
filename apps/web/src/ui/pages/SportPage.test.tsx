@@ -19,6 +19,7 @@ import {
   makeResult,
 } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
+import { THRESHOLD_MEANING } from '../sports'
 import { SportPage } from './SportPage'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
@@ -1171,8 +1172,83 @@ describe('SportPage depth', () => {
     )
 
     expect(
-      screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
+      screen.getByText('Power meters measured 0 of 1 ride, so watts for the rest are estimated.'),
     ).toBeInTheDocument()
+  })
+
+  it('merges a ride’s heart-rate line into the paragraph of its watts, under the best efforts', () => {
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      name: 'Hill ride',
+      powerSource: 'virtual',
+    })
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCurve: [curvePoint(60, 400, 'ride-1')],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: null, rideHrFraction: 0.8 }],
+      }),
+    )
+
+    const note = screen.getByText(/^Power meters measured 0 of 1 ride/).closest('p')
+    expect(note).toHaveTextContent(
+      'Power meters measured 0 of 1 ride, so watts for the rest are estimated. Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest.',
+    )
+    expect(note).toHaveClass('muted')
+  })
+
+  it('gives a ride with all its power measured a heart-rate line of its own', () => {
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      name: 'Hill ride',
+      powerSource: 'measured',
+    })
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCurve: [curvePoint(60, 400, 'ride-1')],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: null, rideHrFraction: 0.95 }],
+      }),
+    )
+
+    expect(
+      screen.getByText(
+        'Your best 20 min on the bike reached 95% of your cycling reference heart rate, so it was hard.',
+      ),
+    ).toHaveClass('muted')
+    expect(screen.queryByText(/Power meters measured/)).not.toBeInTheDocument()
+  })
+
+  it('puts a run’s heart-rate line under its threshold meaning', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: 0.7, rideHrFraction: null }],
+      }),
+    )
+
+    const line = screen.getByText(
+      'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest.',
+    )
+    expect(line).toHaveClass('muted')
+    expect(line.previousElementSibling).toHaveTextContent(THRESHOLD_MEANING.run)
+  })
+
+  it('shows no heart-rate line when heart rate is not on file for the sport', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: null, rideHrFraction: 0.8 }],
+      }),
+    )
+
+    expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
   })
 
   it('links the power note to How sure is this?', () => {

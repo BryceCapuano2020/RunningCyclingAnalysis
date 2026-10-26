@@ -9,6 +9,7 @@ import { makeResult } from '../components/fixtures'
 import type { SavedActivity } from '../../worker/protocol'
 import type { ProfilePageProps } from './ProfilePage'
 import type { ProfilePatch } from '../profilePatch'
+import { hrefFor } from '../route'
 import { ProfilePage } from './ProfilePage'
 
 afterEach(() => {
@@ -829,5 +830,84 @@ describe('Profile guides', () => {
   it('offers the export guides, so a visitor can find the files to add', () => {
     renderProfile()
     expect(screen.getByRole('button', { name: 'How to get your files' })).toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage see your levels', () => {
+  const LEVELS = { name: 'See your levels' }
+
+  it('offers See your levels after a save, once year of birth and sex are known and a result is on screen', async () => {
+    renderProfile({}, { state: { result: makeResult() } })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toHaveAttribute('href', hrefFor({ page: 'balance' }))
+  })
+
+  it('offers it after a sex is saved, too', async () => {
+    renderProfile({ sex: 'male' }, { state: { result: makeResult() } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Woman' }))
+
+    expect(await screen.findByText('Sex: Saved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+  })
+
+  it('offers it after a body weight is saved, beside its own saved sentence', async () => {
+    renderProfile({}, { state: { result: makeResult() } })
+    const body = screen.getByLabelText('Body weight')
+    fireEvent.change(body, { target: { value: '76' } })
+    fireEvent.blur(body)
+
+    expect(
+      await screen.findByText('Saved. Balance and ride results now use this.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+  })
+
+  it('does not offer it while year of birth is still missing', async () => {
+    renderProfile({ birthYear: null }, { state: { result: makeResult() } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
+
+    expect(await screen.findByText('Sex: Saved.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+
+  it('does not offer it while sex is still unknown', async () => {
+    renderProfile({ sex: null }, { state: { result: makeResult() } })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+
+  it('does not offer it with no result on screen', async () => {
+    renderProfile({})
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+
+  it('shows one link at a time, on the save made last', async () => {
+    renderProfile({}, { state: { result: makeResult() } })
+    const body = screen.getByLabelText('Body weight')
+    fireEvent.change(body, { target: { value: '76' } })
+    fireEvent.blur(body)
+    expect(
+      await screen.findByText('Saved. Balance and ride results now use this.'),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('link', LEVELS)).toHaveLength(1)
+
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+    expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', LEVELS)).toHaveLength(1)
   })
 })

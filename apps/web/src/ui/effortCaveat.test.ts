@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effortCaveat, hardEffortsOnFile } from './effortCaveat'
+import { effortCaveat, effortShareLine, hardEffortsOnFile } from './effortCaveat'
 
 describe('effortCaveat', () => {
   it('gives the card wording and a one-line version when the cycling effort was low', () => {
@@ -69,5 +69,39 @@ describe('hardEffortsOnFile', () => {
     )
     expect(hardEffortsOnFile(null)).toBe(false)
     expect(hardEffortsOnFile(undefined)).toBe(false)
+  })
+})
+
+describe('effortShareLine', () => {
+  it('says how far a run reached its reference, and that it was probably not the hardest', () => {
+    expect(
+      effortShareLine('run', { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }),
+    ).toBe(
+      'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest.',
+    )
+  })
+
+  it('reads the cycling figure for a ride, on the bike', () => {
+    expect(
+      effortShareLine('ride', { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }),
+    ).toBe(
+      'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest.',
+    )
+  })
+
+  it('says a best effort at 90% or more was hard', () => {
+    expect(
+      effortShareLine('run', { durationS: 1200, runHrFraction: 0.95, rideHrFraction: null }),
+    ).toBe(
+      'Your best 20 min running reached 95% of your running reference heart rate, so it was hard.',
+    )
+  })
+
+  it('says nothing for a sport with no heart rate, or with no check', () => {
+    expect(
+      effortShareLine('ride', { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }),
+    ).toBeNull()
+    expect(effortShareLine('run', null)).toBeNull()
+    expect(effortShareLine('run', undefined)).toBeNull()
   })
 })

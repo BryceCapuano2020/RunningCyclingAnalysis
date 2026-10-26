@@ -159,12 +159,15 @@ export function useSetup({
       if (files.length === 0) return
       setSubmitted((count) => count + 1)
       // A drop with no file the import can read asks nothing: its files go to the skipped list now.
-      const readable = files.some((file) => isReadableFileName(file.name))
-      if (workerStopped || done || !readable) {
+      const readable = files.filter((file) => isReadableFileName(file.name))
+      if (workerStopped || done || readable.length === 0) {
         addFiles(files)
         return
       }
-      setHeld((current) => [...current, ...files])
+      // In a mixed drop the unreadable files are skipped at once; only the readable ones wait for the answer.
+      const unreadable = files.filter((file) => !isReadableFileName(file.name))
+      if (unreadable.length > 0) addFiles(unreadable)
+      setHeld((current) => [...current, ...readable])
     },
     [addFiles, done, workerStopped],
   )
