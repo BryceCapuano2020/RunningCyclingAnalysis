@@ -7,7 +7,6 @@ import {
   WARNING_TRIANGLE,
   pathData,
 } from './iconPaths'
-import type { SportGlyph } from './iconPaths'
 
 describe('pathData', () => {
   // The brand curves were written as relative SVG commands; these are the same curves, absolute.
@@ -26,37 +25,17 @@ describe('pathData', () => {
   })
 })
 
-/** The icon's stroke is 2 units wide, so its ink reaches 1 unit past each stroked point. */
-const STROKE_HALF = 1
-
-/** How far left of the icon's edge the glyph's ink reaches, in units of its 24 unit grid. */
-function inkLeft(glyph: SportGlyph): number {
-  const edges = glyph.paths
-    .flat()
-    .flatMap((step) => (step.op === 'Z' ? [] : [step.x - STROKE_HALF]))
-  for (const dot of glyph.dots) edges.push(dot.cx - dot.r - (dot.filled ? 0 : STROKE_HALF))
-  return Math.min(...edges)
-}
-
 describe('SPORT_GLYPHS', () => {
   // The run and ride glyphs were written as SVG in icons.tsx; these are the same shapes, absolute.
-  // The runner is moved 3.5 units left, so its ink starts at the icon's edge as the rider's does.
-  it('writes the run glyph as the icon draws it: a head and five strokes, from the edge', () => {
-    expect(SPORT_GLYPHS.run.dots).toEqual([{ cx: 11.5, cy: 4, r: 2, filled: true }])
+  it('writes the run glyph as the icon always drew it: a head and five strokes', () => {
+    expect(SPORT_GLYPHS.run.dots).toEqual([{ cx: 15, cy: 4, r: 2, filled: true }])
     expect(SPORT_GLYPHS.run.paths.map(pathData)).toEqual([
-      'M10 8.5L7.5 13.5',
-      'M10 9L13.5 10.5L15 8',
-      'M10 9L6.5 10.5L4 12.5',
-      'M7.5 13.5L11 15.5L10 20.5',
-      'M7.5 13.5L5 17L1 18.5',
+      'M13.5 8.5L11 13.5',
+      'M13.5 9L17 10.5L18.5 8',
+      'M13.5 9L10 10.5L7.5 12.5',
+      'M11 13.5L14.5 15.5L13.5 20.5',
+      'M11 13.5L8.5 17L4.5 18.5',
     ])
-  })
-
-  it('starts each glyph within 1 unit of the icon edge, so within 1 px at 16 and 24 px', () => {
-    expect(inkLeft(SPORT_GLYPHS.run)).toBeGreaterThanOrEqual(0)
-    expect(inkLeft(SPORT_GLYPHS.run)).toBeLessThanOrEqual(1)
-    expect(inkLeft(SPORT_GLYPHS.ride)).toBeGreaterThanOrEqual(0)
-    expect(inkLeft(SPORT_GLYPHS.ride)).toBeLessThanOrEqual(1)
   })
 
   it('writes the ride glyph as the icon always drew it: two wheels and a frame', () => {

@@ -29,10 +29,7 @@
   text-wrap: balance;
 }
 
-/*
- * At or below 359 px, which is PERIOD_GRID_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the headline sets
- * a step smaller, so no word is left alone on its line at 320 px.
- */
+/* At or below 359 px, which is HEADLINE_SMALL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts. */
 @media (max-width: 359px) {
   .balance-hero__head h1 {
     /* A display size with no type token; see DESIGN.md, Type. */

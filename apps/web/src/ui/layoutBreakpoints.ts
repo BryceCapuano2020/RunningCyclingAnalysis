@@ -37,5 +37,8 @@ export const PERIOD_GRID_MAX_WIDTH_PX = 359
  */
 export const EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX = 379
 
+/** At or below this width the Balance headline sets a step smaller, so no word is left alone at 320 px. */
+export const HEADLINE_SMALL_MAX_WIDTH_PX = 359
+
 /** From this width Sport and Sort share a row on Activities, the first width past the phone layout. */
 export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1

@@ -71,36 +71,35 @@ export interface SportGlyph {
 /**
  * The run and ride glyphs, drawn by icons.tsx as SVG and by the share card on canvas. The runner is
  * leaning forward, arms bent, one knee high and one leg stretched back: a walker's upright figure
- * reads as a pedestrian, and the app does not count walking. The runner is set 3.5 units left, so
- * its ink starts at the icon's edge as the rider's does. Checked at 16 and 24 px.
+ * reads as a pedestrian, and the app does not count walking. Checked at 16 and 24 px.
  */
 export const SPORT_GLYPHS: Record<'run' | 'ride', SportGlyph> = {
   run: {
-    dots: [{ cx: 11.5, cy: 4, r: 2, filled: true }],
+    dots: [{ cx: 15, cy: 4, r: 2, filled: true }],
     paths: [
       [
-        { op: 'M', x: 10, y: 8.5 },
-        { op: 'L', x: 7.5, y: 13.5 },
+        { op: 'M', x: 13.5, y: 8.5 },
+        { op: 'L', x: 11, y: 13.5 },
       ],
       [
-        { op: 'M', x: 10, y: 9 },
-        { op: 'L', x: 13.5, y: 10.5 },
-        { op: 'L', x: 15, y: 8 },
+        { op: 'M', x: 13.5, y: 9 },
+        { op: 'L', x: 17, y: 10.5 },
+        { op: 'L', x: 18.5, y: 8 },
       ],
       [
-        { op: 'M', x: 10, y: 9 },
-        { op: 'L', x: 6.5, y: 10.5 },
-        { op: 'L', x: 4, y: 12.5 },
+        { op: 'M', x: 13.5, y: 9 },
+        { op: 'L', x: 10, y: 10.5 },
+        { op: 'L', x: 7.5, y: 12.5 },
       ],
       [
-        { op: 'M', x: 7.5, y: 13.5 },
-        { op: 'L', x: 11, y: 15.5 },
-        { op: 'L', x: 10, y: 20.5 },
+        { op: 'M', x: 11, y: 13.5 },
+        { op: 'L', x: 14.5, y: 15.5 },
+        { op: 'L', x: 13.5, y: 20.5 },
       ],
       [
-        { op: 'M', x: 7.5, y: 13.5 },
-        { op: 'L', x: 5, y: 17 },
-        { op: 'L', x: 1, y: 18.5 },
+        { op: 'M', x: 11, y: 13.5 },
+        { op: 'L', x: 8.5, y: 17 },
+        { op: 'L', x: 4.5, y: 18.5 },
       ],
     ],
   },

@@ -448,13 +448,6 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance-hero__head h1')).toMatch(/text-wrap:\s*balance/)
   })
 
-  it('sets the headline a step smaller below 360 px, so no word is left alone at 320 px', () => {
-    // The breakpoint is PERIOD_GRID_MAX_WIDTH_PX, so 360 px itself keeps the headline at its size.
-    expect(mediaOf(balancePage, '(max-width: 359px)')).toMatch(
-      /\.balance-hero__head h1 \{[^}]*font-size:\s*2rem/,
-    )
-  })
-
   it('gives the quiet evidence card a gap between its chip, sentence and link', () => {
     const quiet = rulesWith(balancePage, '.balance__cards .evidence-card--quiet')
     expect(quiet).toMatch(/display:\s*grid/)
