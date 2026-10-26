@@ -35,3 +35,11 @@ describe('hero numbers', () => {
     expect(ruleBody(componentsCss, '.hero-number')).toMatch(/display:\s*block/)
   })
 })
+
+describe('headings', () => {
+  it('wraps every heading with pretty wrapping, so a single word is not left on the last line', () => {
+    expect(ruleBody(baseCss, 'h1')).toMatch(/text-wrap:\s*pretty/)
+    expect(ruleBody(baseCss, 'h2')).toMatch(/text-wrap:\s*pretty/)
+    expect(ruleBody(baseCss, 'h3')).toMatch(/text-wrap:\s*pretty/)
+  })
+})

@@ -1,4 +1,5 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { skippedReadings } from './analysis/flagCopy'
 
 /**
  * The figures an activity's list row and its page both show, worked out in one place. An activity
@@ -16,9 +17,10 @@ export function timeLabelOf(activity: ActivitySummary): string {
 }
 
 /**
- * The readings the app left out of an activity's figures, counted as the flags of each kind. The
- * summary keeps only the first flags, so the count comes from flagCounts.
+ * The readings the app left out of an activity's figures: the true counts of the kinds that remove
+ * readings. The summary keeps only the first flags, so the count comes from flagCounts. Altitude
+ * notes are not readings, so they are not counted.
  */
 export function skippedCountOf(activity: ActivitySummary): number {
-  return Object.values(activity.flagCounts).reduce((sum, count) => sum + (count ?? 0), 0)
+  return skippedReadings(activity.flagCounts)
 }

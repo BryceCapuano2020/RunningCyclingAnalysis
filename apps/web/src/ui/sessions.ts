@@ -30,6 +30,13 @@ export function listEntries(activities: readonly ActivitySummary[]): ListEntry[]
       entries.push({ kind: 'activity', startMs: activity.startMs, activity })
     }
   }
+  // A list may be newest first, so each session's legs go back into the order they were ridden.
+  for (const entry of entries) {
+    if (entry.kind === 'session') {
+      entry.legs.sort((a, b) => a.startMs - b.startMs)
+      entry.startMs = entry.legs[0]?.startMs ?? entry.startMs
+    }
+  }
   return entries
 }
 

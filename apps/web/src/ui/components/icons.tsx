@@ -157,14 +157,14 @@ export function BrandMark({ className }: IconProps) {
         className="brand-mark__run"
         d={pathData(BRAND_RUNNING)}
         fill="none"
-        strokeWidth="3"
+        strokeWidth="4"
         strokeLinecap="round"
       />
       <path
         className="brand-mark__ride"
         d={pathData(BRAND_RIDING)}
         fill="none"
-        strokeWidth="3"
+        strokeWidth="4"
         strokeLinecap="round"
       />
     </svg>

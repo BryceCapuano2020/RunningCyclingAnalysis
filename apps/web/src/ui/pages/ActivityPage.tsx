@@ -177,9 +177,13 @@ export function ActivityPage({
           </p>
           <div className="activity-page__chips">
             {chips.map((label) => (
-              <span key={label} className={`chip chip--${activity.sport}`}>
+              <a
+                key={label}
+                className={`chip chip--${activity.sport}`}
+                href={hrefFor({ page: activity.sport })}
+              >
                 {label}
-              </span>
+              </a>
             ))}
           </div>
         </div>

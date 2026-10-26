@@ -114,7 +114,7 @@ export function App() {
   const key = pageKey(route, hasResult, restoringPage)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()
-  useDocumentTitle(documentTitleFor(route, analysis.state.result))
+  useDocumentTitle(documentTitleFor(route, analysis.state.result, analysis.state.library))
   // The account and a signed-in library must answer before the landing page is the true state.
   const settled =
     account.status !== 'loading' &&

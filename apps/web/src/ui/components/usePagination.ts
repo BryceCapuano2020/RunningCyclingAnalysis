@@ -13,8 +13,9 @@ export interface PaginationOptions {
 /**
  * Pages a list. The page is clamped to the pages that exist and stored that way, so a list that
  * shrinks and grows again does not jump back. A new resetKey, such as a new collection of
- * activities, starts again on the first page. Moving pages moves focus to the first item shown,
- * which is the element firstItemRef is attached to.
+ * activities, starts again on the first page. After a move, focus stays on the control that asked
+ * for it while that control can still be pressed; otherwise it goes to the first item shown, which
+ * is the element firstItemRef is attached to.
  */
 export function usePagination<T, E extends HTMLElement>(
   items: readonly T[],
@@ -24,20 +25,23 @@ export function usePagination<T, E extends HTMLElement>(
 ) {
   const [state, setState] = useState({ key: resetKey, page: options.initialPage ?? 0 })
   const firstItemRef = useRef<E>(null)
-  const focusPageRef = useRef<number | null>(null)
+  const moveRef = useRef<{ page: number; control: HTMLElement | null } | null>(null)
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
   const requested = state.key === resetKey ? state.page : 0
   const page = Math.min(requested, pageCount - 1)
   if (state.key !== resetKey || state.page !== page) setState({ key: resetKey, page })
 
   useEffect(() => {
-    if (focusPageRef.current !== page) return
-    firstItemRef.current?.focus()
-    focusPageRef.current = null
+    const move = moveRef.current
+    if (move === null || move.page !== page) return
+    moveRef.current = null
+    const control = move.control
+    if (control?.isConnected && !control.hasAttribute('disabled')) control.focus()
+    else firstItemRef.current?.focus()
   }, [page])
 
-  function changePage(nextPage: number) {
-    focusPageRef.current = nextPage
+  function changePage(nextPage: number, control: HTMLElement | null = null) {
+    moveRef.current = { page: nextPage, control }
     setState({ key: resetKey, page: nextPage })
     options.onPageChange?.(nextPage)
   }

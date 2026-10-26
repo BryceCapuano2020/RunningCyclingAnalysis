@@ -7,11 +7,16 @@
   font-family: var(--font-display);
 }
 
+/* The page fills the window at least, and is a column, so the footer stays at its foot on a short page.
+   The small viewport height keeps the footer still while the phone's toolbar animates. */
 .page {
   max-width: 1080px;
+  min-height: 100vh;
+  min-height: 100svh;
   margin: 0 auto;
   padding: var(--space-5) var(--space-4) var(--space-7);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-5);
 }
 
@@ -121,6 +126,14 @@
   background: var(--surface-2);
 }
 
+/* A press drops the control a pixel, takes the pressed fill and an inset ring, so the press shows in
+   both schemes even where the fill barely changes. */
+.btn:active:not([aria-disabled='true']) {
+  background: var(--surface-pressed);
+  box-shadow: inset 0 0 0 2px var(--control-border);
+  transform: translateY(1px);
+}
+
 /* aria-disabled keeps a busy button focusable; it looks the same as a disabled one. */
 .btn:disabled,
 .btn[aria-disabled='true'] {
@@ -140,6 +153,20 @@
 .btn-primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+
+.btn-primary:active:not([aria-disabled='true']) {
+  background: var(--accent-pressed);
+  border-color: var(--accent-pressed);
+  box-shadow: inset 0 0 0 2px var(--accent-contrast);
+}
+
+/* Forced colours drop the fill and the shadow of a press, so a pressed control gets an outline. */
+@media (forced-colors: active) {
+  .btn:active:not([aria-disabled='true']) {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
 }
 
 /* A unit is set apart from its figure, so a capitalised heading does not turn "/mi" into "/MI". */

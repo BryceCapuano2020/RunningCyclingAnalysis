@@ -112,9 +112,9 @@ export function SavedLibrary({
   }
 
   // Moving pages ends a confirmation, because its row may not be on the new page.
-  function turnPage(next: number) {
+  function turnPage(next: number, control: HTMLElement) {
     setSelected(null)
-    changePage(next)
+    changePage(next, control)
   }
 
   const rule = DELETE_FOR[scope]

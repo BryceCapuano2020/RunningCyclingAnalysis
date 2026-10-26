@@ -10,6 +10,49 @@
 
 .pager__controls {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+}
+
+.pager__pages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+/* A numbered page is a square control, at least as wide as it is tall. */
+.pager__page {
+  min-width: var(--control-height);
+  justify-content: center;
+  padding: 0 var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The page shown is the selected segment, as the Activities tabs and segments are. Pressing it does
+   nothing, so it keeps the selected look rather than the pressed fill, which would lose its label. */
+.pager .pager__page[aria-current='page'],
+.pager .pager__page[aria-current='page']:active {
+  background: var(--selected);
+  border-color: var(--selected);
+  color: var(--selected-contrast);
+  font-weight: 700;
+}
+
+.pager__gap {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--text-muted);
+}
+
+/* Forced colours drop the fill, so the current page takes the system highlight, as a selected segment does. */
+@media (forced-colors: active) {
+  .pager .pager__page[aria-current='page'] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
 }

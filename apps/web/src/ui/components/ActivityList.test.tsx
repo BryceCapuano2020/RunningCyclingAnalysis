@@ -157,6 +157,22 @@ describe('ActivityList rows', () => {
     expect(row.getByText('250 W')).toBeInTheDocument()
   })
 
+  it("marks an indoor ride's average power as estimated when no power meter measured it", () => {
+    renderList([
+      makeActivity({
+        name: 'Zwift ride',
+        sport: 'ride',
+        indoor: true,
+        distanceM: 0,
+        powerSource: 'virtual',
+        avgPowerW: 180,
+      }),
+    ])
+    const row = within(rowFor('Zwift ride'))
+    expect(row.getByText('180 W')).toBeInTheDocument()
+    expect(row.getByText('Estimated')).toBeInTheDocument()
+  })
+
   it('uses miles and minutes per mile in imperial units', () => {
     renderList([makeActivity({ name: 'Tempo run', durationS: 3600, distanceM: 10000 })], 'imperial')
     const row = within(rowFor('Tempo run'))
@@ -173,9 +189,20 @@ describe('ActivityList rows', () => {
         flags: [flag('Heart rate read zero'), flag('Speed jumped'), flag('Power spiked')],
       }),
     ])
-    expect(within(rowFor('Noisy run')).getByText('3 readings skipped')).toBeInTheDocument()
+    expect(within(rowFor('Noisy run')).getByText('Readings skipped 3 times')).toBeInTheDocument()
     expect(within(rowFor('Clean run')).queryByText(/skipped/)).not.toBeInTheDocument()
     expect(screen.getAllByText(/skipped/)).toHaveLength(1)
+  })
+
+  it('leaves altitude notes off the skipped chip, since they remove no reading', () => {
+    renderList([
+      makeActivity({
+        name: 'Hilly run',
+        flags: [],
+        flagCounts: { 'altitude-jump': 2, 'missing-altitude': 1 },
+      }),
+    ])
+    expect(within(rowFor('Hilly run')).queryByText(/skipped/)).not.toBeInTheDocument()
   })
 
   it('counts every reading skipped, not only the flags the digest keeps', () => {
@@ -186,12 +213,14 @@ describe('ActivityList rows', () => {
         flagCounts: { 'hr-dropout': 60 },
       }),
     ])
-    expect(within(rowFor('Noisy strap run')).getByText('60 readings skipped')).toBeInTheDocument()
+    expect(
+      within(rowFor('Noisy strap run')).getByText('Readings skipped 60 times'),
+    ).toBeInTheDocument()
   })
 
-  it('uses the singular for one reading skipped', () => {
+  it('says once for one reading skipped', () => {
     renderList([makeActivity({ name: 'One skip run', flags: [flag('Heart rate read zero')] })])
-    expect(within(rowFor('One skip run')).getByText('1 reading skipped')).toBeInTheDocument()
+    expect(within(rowFor('One skip run')).getByText('Readings skipped once')).toBeInTheDocument()
   })
 
   it('is a list rather than a table, so it reflows on a phone', () => {
@@ -260,6 +289,38 @@ describe('ActivityList paging', () => {
     expect(region).toHaveTextContent('Showing 1–20 of 25 activities. Page 1 of 2.')
   })
 
+  it('keeps focus on Next page while a page follows the one shown', async () => {
+    const user = userEvent.setup()
+    renderList(
+      Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
+    )
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByText('Showing 21–40 of 45 activities. Page 2 of 3.')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Next page' })).toHaveFocus()
+  })
+
+  it('moves focus to the first row once the pressed control is disabled on the last page', async () => {
+    const user = userEvent.setup()
+    renderList(
+      Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
+    )
+    await user.click(screen.getByRole('button', { name: 'Page 2' }))
+    expect(screen.getByRole('button', { name: 'Page 2' })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(rowFor('Run number 40')).toHaveFocus()
+  })
+
+  it('announces the new range in the page status when a numbered page is pressed', async () => {
+    const user = userEvent.setup()
+    renderList(
+      Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
+    )
+    await user.click(screen.getByRole('button', { name: 'Page 2' }))
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 21–40 of 45 activities. Page 2 of 3.',
+    )
+  })
+
   it('pages through activities and moves focus to the first row on the new page', () => {
     const activities = Array.from({ length: 25 }, (_, i) =>
       makeActivity({ id: `a-${i}`, name: `Run number ${i}` }),
@@ -301,7 +362,7 @@ describe('ActivityList paging', () => {
     renderList(activities)
 
     expect(rowsShown()).toHaveLength(20)
-    expect(screen.getAllByText('1 reading skipped')).toHaveLength(20)
+    expect(screen.getAllByText('Readings skipped once')).toHaveLength(20)
     expect(screen.getByText('Showing 1–20 of 5000 activities. Page 1 of 250.')).toBeVisible()
   })
 
@@ -525,6 +586,25 @@ describe('ActivityList sessions', () => {
       .map((link) => link.textContent)
     expect(legs).toEqual(['Brick run', 'Brick ride', 'Brick run to finish'])
     expect(screen.getByRole('link', { name: 'Other run' })).toBeInTheDocument()
+  })
+
+  it('lists the legs of a session in the order they were ridden, even in a newest-first list', () => {
+    const start = new Date(2026, 5, 2, 7).getTime()
+    renderList(
+      [
+        leg('run-b', 'Brick run to finish', start + 7_200_000, 'run'),
+        leg('ride-a', 'Brick ride', start + 3_600_000, 'ride'),
+        leg('run-a', 'Brick run', start, 'run'),
+      ],
+      'metric',
+      new Map(),
+      { dateOrder: true },
+    )
+    const group = screen.getByRole('group', { name: '3 legs in one session' })
+    const legs = within(group)
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+    expect(legs).toEqual(['Brick run', 'Brick ride', 'Brick run to finish'])
   })
 
   it('shows two same-named uploads as two sessions, since each has its own key', () => {

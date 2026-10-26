@@ -16,7 +16,7 @@ export const LANDING_TITLE = 'How balanced are you as an athlete?'
 export const BALANCE_TITLE =
   /leans toward|in balance|see your balance|balance needs harder efforts|waits for your weight/
 
-export const WCAG_TAGS = ['wcag2a', 'wcag2aa']
+export const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag22aa']
 
 export type Destination = 'Balance' | 'Run' | 'Ride' | 'Activities' | 'Profile'
 

@@ -20,6 +20,13 @@ describe('documentTitleFor', () => {
     expect(documentTitleFor({ page: 'activity', id: 'run-1' }, result)).toBe(`Morning run · ${APP}`)
   })
 
+  it('names an activity outside the period by its own name, read from the whole library', () => {
+    const outside = makeActivity({ id: 'old-ride', name: 'Hill Repeats', sport: 'ride' })
+    expect(documentTitleFor({ page: 'activity', id: 'old-ride' }, result, [outside])).toBe(
+      `Hill Repeats · ${APP}`,
+    )
+  })
+
   it('falls back to the word Activity for an id that is not in the library', () => {
     expect(documentTitleFor({ page: 'activity', id: 'missing' }, result)).toBe(`Activity · ${APP}`)
   })
