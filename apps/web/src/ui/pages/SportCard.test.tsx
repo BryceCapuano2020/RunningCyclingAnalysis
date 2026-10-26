@@ -80,7 +80,7 @@ function heroOf(card: HTMLElement): string | null | undefined {
 }
 
 describe('SportCard grading link', () => {
-  it('places How is this graded? straight after the grade line, linking to the age grades', () => {
+  it('places How is this graded? straight after the effort under the grade line, linking to the age grades', () => {
     renderCard(
       'run',
       makeResult({
@@ -90,10 +90,9 @@ describe('SportCard grading link', () => {
     )
 
     const card = cardNamed('Run')
-    const line = card.querySelector('.age-grade__line')
     const link = within(card).getByRole('link', { name: 'How is this graded?' })
     expect(link).toHaveAttribute('href', '#/method')
-    expect(line?.nextElementSibling).toBe(link)
+    expect(card.querySelector('.age-grade__effort')?.nextElementSibling).toBe(link)
   })
 })
 
@@ -274,8 +273,9 @@ describe('SportCard run grade', () => {
     )
 
     const card = cardNamed('Run')
-    expect(card.querySelector('.age-grade__line')).toHaveTextContent(
-      'Local · 67% · on your best 20 min, 4:00 /km',
+    expect(card.querySelector('.age-grade__line')).toHaveTextContent('Local · 67%')
+    expect(card.querySelector('.age-grade__effort')).toHaveTextContent(
+      'on your best 20 min, 4:00 /km',
     )
     expect(within(card).queryByText(/Estimated age grade/)).not.toBeInTheDocument()
     expect(within(card).queryByText(/Estimated · /)).not.toBeInTheDocument()
@@ -339,7 +339,7 @@ describe('SportCard run grade', () => {
     const card = cardNamed('Run')
     expect(
       within(card).getByRole('img', {
-        name: 'Age grade 67%, Local, from your best 20 min, on the USATF road standards.',
+        name: 'Age grade 67%, Local, on your best 20 min, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
     expect(
@@ -411,17 +411,22 @@ describe('SportCard ride grade', () => {
 
     const card = cardNamed('Ride')
     expect(card.querySelector('.age-grade__line')).toHaveTextContent(
-      'Estimated · Local to Regional · 67% (63–71%) · on your best 20 min, 400 W, estimated',
+      'Estimated · Local to Regional · 67% (63–71%)',
+    )
+    expect(card.querySelector('.age-grade__effort')).toHaveTextContent(
+      'on your best 20 min, 400 W, estimated',
     )
     expect(
       within(card).getByRole('img', {
-        name: 'Estimated age grade 67%, Local to Regional, from your best 20 min, range 63% to 71%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local to Regional, on your best 20 min, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
-    expect(within(card).getByText('Ring: estimated, with its range.')).toBeInTheDocument()
+    expect(
+      within(card).getByText('Ring: estimated, with its 90% range in brackets.'),
+    ).toBeInTheDocument()
   })
 
-  it('says the bracketed range is the 90% range, and leaves the standard to the source line under the cards', () => {
+  it('explains the bracketed range in the key, and leaves the standard to the source line under the cards', () => {
     renderCard(
       'ride',
       makeResult({
@@ -437,7 +442,7 @@ describe('SportCard ride grade', () => {
     )
 
     expect(
-      within(cardNamed('Ride')).getByText('The range in brackets is the 90% range.'),
+      within(cardNamed('Ride')).getByText('Ring: estimated, with its 90% range in brackets.'),
     ).toBeInTheDocument()
     expect(
       within(cardNamed('Ride')).queryByText(

@@ -524,7 +524,7 @@ describe('SportPage age grades', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '20 min')).getByText('Local · 67%')).toBeInTheDocument()
+    expect(recordNamed(records, '20 min').textContent).toContain('Local · 67%')
   })
 
   it('says the distance a duration grade is taken at, after the grade', () => {
@@ -642,7 +642,7 @@ describe('SportPage age grades', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('says a ride’s grade is estimated, and that its bracketed range is the 90% range, under the ladder', () => {
+  it('says a ride’s grade is estimated, and leaves its bracketed range to the key under the ladder', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
     renderPage(
       'ride',
@@ -661,7 +661,7 @@ describe('SportPage age grades', () => {
     )
     const caption = screen.getByText(/^Graded through its running equivalent, at age 40, on the/)
     expect(caption).toHaveTextContent(
-      'Graded through its running equivalent, at age 40, on the USATF road standards. A level, not a ranking. The range in brackets is the 90% range.',
+      'Graded through its running equivalent, at age 40, on the USATF road standards. A level, not a ranking.',
     )
     expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
       'href',
@@ -997,10 +997,11 @@ describe('SportPage depth', () => {
 
     const threshold = screen.getByRole('region', { name: 'Threshold pace, estimated' })
     expect(
-      within(threshold).getByRole('img', { name: /Age grade 67%, Local, from your best 20 min/ }),
+      within(threshold).getByRole('img', { name: /Age grade 67%, Local, on your best 20 min/ }),
     ).toBeInTheDocument()
-    expect(threshold.querySelector('.age-grade__line')).toHaveTextContent(
-      'Local · 67% · on your best 20 min, 4:00 /km',
+    expect(threshold.querySelector('.age-grade__line')).toHaveTextContent('Local · 67%')
+    expect(threshold.querySelector('.age-grade__effort')).toHaveTextContent(
+      'on your best 20 min, 4:00 /km',
     )
   })
 

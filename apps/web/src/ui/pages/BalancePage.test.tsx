@@ -444,7 +444,10 @@ describe('BalancePage age grades', () => {
     renderPage(GRADED_RUN, {}, MAN_BORN_1986)
 
     const grade = screen.getByRole('region', { name: 'Run' }).querySelector('.age-grade__line')
-    expect(grade).toHaveTextContent(/^Local · 67% · on your best 20 min/)
+    expect(grade).toHaveTextContent(/^Local · 67%$/)
+    expect(
+      screen.getByRole('region', { name: 'Run' }).querySelector('.age-grade__effort'),
+    ).toHaveTextContent(/^on your best 20 min/)
   })
 
   it('drops the standards line from each card, since the source line under the cards names it', () => {

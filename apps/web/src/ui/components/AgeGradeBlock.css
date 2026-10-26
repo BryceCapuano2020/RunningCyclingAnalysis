@@ -1,7 +1,9 @@
-/* The grade block: the grade line, the level ladder and what the grade is for. */
+/* The grade block: the grade line, the level ladder and what the grade is for. One column, which may shrink. */
 .age-grade {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
+  min-width: 0;
 }
 
 /* The level, sized as a line directly under the threshold it sits beneath. */
@@ -11,4 +13,11 @@
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
+}
+
+/* The effort the grade is for, in body size under the level, so the level line stays to two lines. */
+.age-grade__effort {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
 }

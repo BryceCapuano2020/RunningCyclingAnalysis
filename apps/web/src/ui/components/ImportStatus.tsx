@@ -10,6 +10,7 @@ import {
 } from '../analysis/copy'
 import type { ImportProgress } from '../analysis/model'
 import type { MovedItem } from '../analysis/whatMoved'
+import { useDelayedFlag } from '../useDelayedFlag'
 import { plural } from './plural'
 import { isFileDrag } from './useFilePicker'
 import './ImportStatus.css'
@@ -20,7 +21,7 @@ type Outcome = Pick<
 >
 
 /** Work shorter than this shows neither the busy strip nor its Stop button, so a quick change does not flash them. */
-const STRIP_DELAY_MS = 400
+export const STRIP_DELAY_MS = 400
 
 export interface ImportStatusProps {
   /** Receives the files of every drop on the page, including while busy. */
@@ -99,25 +100,13 @@ export function ImportStatus({
   const [announcedOutcome, setAnnouncedOutcome] = useState(outcome)
   const [announcement, setAnnouncement] = useState('')
   // Whether the run has lasted long enough for the strip and Stop to show.
-  const [stripDue, setStripDue] = useState(false)
-  const [timedBusy, setTimedBusy] = useState(busy)
+  const stripDue = useDelayedFlag(busy, STRIP_DELAY_MS)
   // The window listeners read the latest callback without being rebound on every render.
   const latestOnFiles = useRef(onFiles)
 
   useEffect(() => {
     latestOnFiles.current = onFiles
   })
-
-  // A run that starts or ends starts the delay again, so the strip waits for each run.
-  if (busy !== timedBusy) {
-    setTimedBusy(busy)
-    setStripDue(false)
-  }
-  useEffect(() => {
-    if (!busy) return
-    const timer = setTimeout(() => setStripDue(true), STRIP_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [busy])
 
   // A file dropped anywhere on the page is read here, and the browser never navigates to it. Text
   // and links are left alone, so they can still be dropped into a field.

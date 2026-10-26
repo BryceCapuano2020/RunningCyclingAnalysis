@@ -52,6 +52,12 @@ describe('LandingExample', () => {
     expect(screen.getByText('Power 225 W')).toBeInTheDocument()
   })
 
+  it('leaves the ladder keys out, since the example is illustrative and says so', () => {
+    render(<LandingExample units="metric" />)
+    expect(screen.queryByText(/Solid dot:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Ring:/)).not.toBeInTheDocument()
+  })
+
   it('drops the watts per kilogram, which a first-time visitor does not need', () => {
     render(<LandingExample units="metric" />)
     expect(screen.queryByText(/W\/kg/)).not.toBeInTheDocument()

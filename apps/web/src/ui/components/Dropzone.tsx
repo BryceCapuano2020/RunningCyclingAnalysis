@@ -1,7 +1,9 @@
 import { useId, useState } from 'react'
 import type { DragEvent as ReactDragEvent } from 'react'
 import { HISTORY_ADVICE } from '../exportGuides'
+import { useDelayedFlag } from '../useDelayedFlag'
 import { UploadIcon } from './icons'
+import { STRIP_DELAY_MS } from './ImportStatus'
 import { SampleButton } from './SampleButton'
 import { isFileDrag, useFilePicker } from './useFilePicker'
 import './Dropzone.css'
@@ -16,6 +18,30 @@ export interface DropzoneProps {
   signedIn: boolean
 }
 
+interface SampleActionsProps {
+  busy: boolean
+  onSample: () => void
+  /** The id of the reason line, which the sample button describes itself by while it shows. */
+  hintId: string
+  hintShown: boolean
+}
+
+/** The sample button, and beside it the reason it is off while an import runs. */
+function SampleActions({ busy, onSample, hintId, hintShown }: SampleActionsProps) {
+  return (
+    <div className="dropzone__actions">
+      <SampleButton busy={busy} onSample={onSample} describedBy={hintShown ? hintId : undefined}>
+        See a sample athlete
+      </SampleButton>
+      {hintShown && (
+        <p id={hintId} className="dropzone__busy muted">
+          Available when the current import finishes.
+        </p>
+      )}
+    </div>
+  )
+}
+
 /**
  * The landing page's drop target. Files are accepted even while busy: the analysis worker handles
  * requests in order, so a file chosen during a load is queued rather than lost. Only the sample
@@ -25,6 +51,8 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
   const picker = useFilePicker(onFiles)
   const [dragging, setDragging] = useState(false)
   const busyHintId = useId()
+  // The reason the sample is off waits for the busy strip's delay, so a quick import shows nothing.
+  const hintShown = useDelayedFlag(busy, STRIP_DELAY_MS)
 
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
@@ -53,7 +81,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         <p className="dropzone__drag">Drag them onto this box, or</p>
         <button type="button" className="btn btn-primary" onClick={picker.open}>
           <UploadIcon />
-          Choose files
+          Add files
         </button>
       </div>
       <p className="dropzone__guides">
@@ -63,16 +91,7 @@ export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: Dr
         </button>
       </p>
       {signedIn ? null : (
-        <div className="dropzone__actions">
-          <SampleButton busy={busy} onSample={onSample} describedBy={busyHintId}>
-            See a sample athlete
-          </SampleButton>
-          {busy && (
-            <p id={busyHintId} className="dropzone__busy muted">
-              Available when the current import finishes.
-            </p>
-          )}
-        </div>
+        <SampleActions busy={busy} onSample={onSample} hintId={busyHintId} hintShown={hintShown} />
       )}
       {picker.input}
     </div>
