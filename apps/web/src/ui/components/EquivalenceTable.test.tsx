@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { UnitSystem } from '@rca/core/units'
+import { EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { readStylesheet, ruleBody } from './stylesheet'
 import { interval, makeEquivalence } from './fixtures'
 import { EquivalenceTable } from './EquivalenceTable'
@@ -156,8 +157,17 @@ describe('EquivalenceTable', () => {
     )
   })
 
+  it('takes its width from layoutBreakpoints.ts, past a 375 px phone, and names it beside the query', () => {
+    expect(EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX).toBeGreaterThanOrEqual(375)
+    expect(equivalenceCss).toContain(`@media (max-width: ${EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX}px)`)
+    expect(equivalenceCss).toContain('layoutBreakpoints.ts')
+  })
+
   it('sets a 320 px phone’s list a step smaller, with its own columns and gap, and keeps each value on one line', () => {
-    const narrow = mediaBody(equivalenceCss, '(max-width: 359px)')
+    const narrow = mediaBody(
+      equivalenceCss,
+      `(max-width: ${EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX}px)`,
+    )
     // The labels and the rows share the columns and the gap, so each label sits over its values.
     const shared = '\\.equivalence-list__labels,\\s*\\.equivalence-list dl \\{[^}]*'
     expect(narrow).toMatch(

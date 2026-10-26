@@ -62,9 +62,10 @@
   }
 }
 
-/* Below 360 px the columns are too narrow for the values at the body size, so the list sets them a step
-   smaller and keeps each value whole. An estimated effort's chip wraps under its effort. */
-@media (max-width: 359px) {
+/* At or below 379 px, which is EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the columns
+   are too narrow for the values at the body size, so the list sets them a step smaller and keeps each
+   value whole. An estimated effort's chip wraps under its effort. */
+@media (max-width: 379px) {
   .equivalence-list__labels,
   .equivalence-list dl {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.6fr) minmax(0, 1.1fr);

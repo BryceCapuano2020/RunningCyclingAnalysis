@@ -31,5 +31,11 @@ export const PERIOD_FULL_WIDTH_MAX_WIDTH_PX = 479
 /** At or below this width the four periods take a 2 by 2 grid; from 360 px they fit one row. */
 export const PERIOD_GRID_MAX_WIDTH_PX = 359
 
+/**
+ * At or below this width the equivalence list sets its values a step smaller, with narrower columns,
+ * so each effort reads on one line on a 375 px phone. It is its own width, not the period grid's.
+ */
+export const EQUIVALENCE_SMALL_TEXT_MAX_WIDTH_PX = 379
+
 /** From this width Sport and Sort share a row on Activities, the first width past the phone layout. */
 export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1
