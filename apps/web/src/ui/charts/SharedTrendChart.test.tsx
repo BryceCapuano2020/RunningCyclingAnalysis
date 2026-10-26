@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { DAY_MS } from '@rca/core/constants'
 import { levelOf } from '@rca/core/grade'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
+import { HELD_EMPTY } from './sharedTrendText'
 import { SharedTrendChart } from './SharedTrendChart'
 import type { SharedTrendChartProps } from './SharedTrendChart'
 import type { SharedWeek } from './gradeTrend'
@@ -327,7 +329,15 @@ describe('SharedTrendChart', () => {
       screen.getByText('Your rides are held until you add a weight on Profile.'),
     ).toBeInTheDocument()
     expect(container.querySelector('svg')).toBeNull()
-    expect(screen.getByText(/Cycling is held until a weight is added/)).toBeInTheDocument()
+    // Nothing is drawn, so the note says only that cycling is held, not what each point is.
+    expect(screen.getByText('Cycling is held until a weight is added.')).toBeInTheDocument()
+    expect(screen.queryByText(/Each point is/)).toBeNull()
+  })
+
+  it('names Profile in the held message from the weight copy, so the words are written once', () => {
+    expect(HELD_EMPTY).toBe(
+      `Your rides are held until you add a weight on ${WEIGHT_PROMPT_PARTS.page}.`,
+    )
   })
 
   it('labels the grade axis in per cent, and shows the grade in the tooltip, floored to the whole percent', () => {

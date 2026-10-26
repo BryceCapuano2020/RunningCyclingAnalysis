@@ -137,7 +137,7 @@ function overlayOf(
   const dot = m && active !== null ? m.dots[active] : undefined
   return (
     <ChartTooltip
-      bounds={{ width: size.width, height: size.height }}
+      bounds={{ width: size.width, height: size.height, plotTop: size.plot.top }}
       content={dot ? tooltipFor(dot) : null}
       id={size.tooltipId}
     />

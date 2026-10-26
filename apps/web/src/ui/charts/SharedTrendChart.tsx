@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { formatDuration } from '@rca/core/units'
 import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -17,6 +16,7 @@ import { stepBandPath, stepPath } from './paths'
 import { sharedTrendLayout } from './sharedTrendLayout'
 import {
   HELD_EMPTY,
+  HELD_NOTE,
   copyOf,
   formatValue,
   levelNote,
@@ -24,6 +24,7 @@ import {
   tableValue,
   withRideHeld,
 } from './sharedTrendText'
+import { effortLabel } from '../records'
 import { axisFontSize } from './ticks'
 import { weekDay, windowPhrase } from './trendText'
 import './ChartSeries.css'
@@ -101,7 +102,8 @@ export function SharedTrendChart({
   emptyText,
 }: SharedTrendChartProps) {
   const weeks = rideKnown ? given : given.map(withRideHeld)
-  const effort = formatDuration(effortS)
+  // The effort is named as its segment's label is, so the title reads "best 20 min", as the sport trend's does.
+  const effort = effortLabel(effortS)
   const windowText = windowPhrase(windowDays)
   const copy = copyOf(measure, effort, windowText)
   // Only an age-graded trend grades cycling through its running equivalent, so only it estimates it.
@@ -125,7 +127,7 @@ export function SharedTrendChart({
         ]
       : []),
   ]
-  const note = rideKnown ? copy.note : `${copy.note} Cycling is held until a weight is added.`
+  const note = rideKnown ? copy.note : `${copy.note} ${HELD_NOTE}`
   const columns = [
     'Week ending',
     copy.runHeading,
@@ -144,7 +146,7 @@ export function SharedTrendChart({
       title={copy.title}
       description={copy.description}
       legend={single === undefined ? legend : undefined}
-      note={hasData || heldRide ? note : undefined}
+      note={hasData ? note : heldRide ? HELD_NOTE : undefined}
       table={{
         caption: copy.caption,
         columns,

@@ -233,8 +233,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   source for the icon and for the glyph on the share card.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
-  its value, such as "250 W". A trend's end labels name their sport and value at every width, such as
-  "Run 64%", since the title names the effort and window. At every width, a trend's run label keeps clear of the ride band, and 4 px where it can of the run's own
+  its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
+  width, such as "Run 64%", since the title names the effort and window. On a sport trend the latest label
+  is its value alone, such as "5:12 /km", beside its point: below it, above it where the line would run
+  under it, or to its right where both of those would cross the line. At every width, a trend's run label keeps clear of the ride band, and 4 px where it can of the run's own
   line and markers, after the band. The band is drawn only where both of
   its weeks have a range, with a step at each week's x. The label's box stays inside the plot both
   ways and 2 px from the band. Its box sits on the left of its point unless that would cross the
@@ -312,8 +314,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
   six-week period uses two-week windows. Every point's window lies inside the period. The title
   names the effort as its segment labels it, such as "best 60 min", and the window. Each line steps from one Sunday to the next and breaks at a week
-  with no value, and each Sunday has a marker. The latest value is labelled with its sport, and the title
-  names its window, so it can differ from a card's best, which covers the whole period.
+  with no value, and each Sunday has a marker. The latest value is labelled with its value alone, and the
+  title names its effort and window, so it can differ from a card's best, which covers the whole period.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
   each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the

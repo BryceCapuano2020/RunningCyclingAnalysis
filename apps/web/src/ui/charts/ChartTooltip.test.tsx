@@ -110,6 +110,15 @@ describe('ChartTooltip', () => {
     )
   })
 
+  it('keeps its point’s placement below 480 px when the chart gives no plot top', () => {
+    giveSize(100, 40)
+    const { el } = renderTooltip({
+      content: { ...content, y: 150 },
+      bounds: { width: 320, height: 300 },
+    })
+    expect(el.style.top).toBe('130px')
+  })
+
   it('sits at the top of the plot below 480 px, rather than on its point', () => {
     giveSize(100, 40)
     const narrow = renderTooltip({

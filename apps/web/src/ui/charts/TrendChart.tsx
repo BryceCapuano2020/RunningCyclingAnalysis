@@ -12,6 +12,7 @@ import { Crosshair } from './Crosshair'
 import { ChartYAxis } from './ChartYAxis'
 import { GapMarks } from './GapMarks'
 import {
+  LABEL_GAP_X,
   endLabelAt,
   markerRadii,
   plotSurface,
@@ -20,11 +21,11 @@ import {
   tooltipAt,
   tooltipOverlay,
 } from './chartInteraction'
-import { meetsBoxes, stepBoxes, textBox } from './chartBoxes'
+import { ASCENT_EM, DESCENT_EM, meetsBoxes, stepBoxes, textBox } from './chartBoxes'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { lastAtOrBefore } from './hover'
 import { stepAreaPath, stepPath } from './paths'
-import { rootFontPx } from './rootFont'
+import { labelSizePx, rootFontPx } from './rootFont'
 import { linearScale } from './scale'
 import {
   axisTitle,
@@ -91,26 +92,58 @@ interface Layout {
   xTicks: AxisTick[]
   yTicks: AxisTick[]
   /** The latest value, named by its value alone, and where its text sits. */
-  label: { text: string; at: Point } | null
+  label: LatestLabel | null
+}
+
+/** A spot a label's text can take: where its anchor sits, and which way the text runs from it. */
+interface LabelSpot {
+  at: Point
+  anchor: 'start' | 'end'
+}
+
+/** The latest value's label: its text, and the spot it takes. */
+interface LatestLabel extends LabelSpot {
+  text: string
 }
 
 /**
- * The latest value's label, left of its point and below it, or above where the stepped line would run
- * under it: a step that crosses the place below the point, so the line is drawn through the label.
+ * The latest value's label. It sits left of its point, below it, or above it where the stepped line would
+ * run under it. When both the spots below and above are crossed by the line, it sits to the right of the
+ * point if there is room there, and otherwise above. Its box is kept clear of the line's own steps.
  */
 function latestLabelOf(
   text: string,
   points: readonly (Point | null)[],
   latest: number,
   size: ChartSize,
-): { text: string; at: Point } | null {
+): LatestLabel | null {
   const point = points[latest] ?? null
   if (point === null) return null
-  const below = endLabelAt(point, pointBefore(points, latest), size.plot.bottom)
-  const box = textBox(text, below, rootFontPx())
-  const crosses = meetsBoxes(box, stepBoxes(points, markerRadii(size.width).active), 0)
-  // A point with a line from below sits its label above, so this stands in for that arrival.
-  return { text, at: crosses ? endLabelAt(point, { x: point.x, y: point.y + 1 }) : below }
+  const rootPx = rootFontPx()
+  const line = stepBoxes(points, markerRadii(size.width).active)
+  const crosses = (spot: LabelSpot) =>
+    meetsBoxes(textBox(text, spot.at, rootPx, spot.anchor), line, 0)
+  // A point with a line from below sits its label above, so the above spot is the one that line leaves.
+  const preferred = endLabelAt(point, pointBefore(points, latest), size.plot.bottom)
+  const above = endLabelAt(point, { x: point.x, y: point.y + 1 })
+  // Beside the point, its text's middle level with the point, which needs room to the plot's right edge.
+  const beside: LabelSpot = {
+    at: {
+      x: point.x + LABEL_GAP_X,
+      y: point.y + ((ASCENT_EM - DESCENT_EM) / 2) * labelSizePx(rootPx),
+    },
+    anchor: 'start',
+  }
+  const room = textBox(text, beside.at, rootPx, 'start').right <= size.plot.right
+  const vertical: LabelSpot[] = [
+    { at: preferred, anchor: 'end' },
+    { at: above, anchor: 'end' },
+  ]
+  for (const spot of vertical) {
+    if (!crosses(spot)) return { text, ...spot }
+  }
+  if (room && !crosses(beside)) return { text, ...beside }
+  return { text, at: above, anchor: 'end' }
 }
 
 function layout(rows: WeekRow[], view: View, size: ChartSize): Layout | null {
@@ -297,7 +330,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
                   cy={latestPoint.y}
                   r={activeR}
                 />
-                <text className="chart-series__label" textAnchor="end" {...m.label.at}>
+                <text className="chart-series__label" textAnchor={m.label.anchor} {...m.label.at}>
                   {m.label.text}
                 </text>
               </>

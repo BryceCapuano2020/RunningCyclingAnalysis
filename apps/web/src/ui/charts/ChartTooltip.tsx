@@ -6,8 +6,8 @@ import './ChartTooltip.css'
 export interface ChartTooltipProps {
   content: TooltipContent | null
   /**
-   * Area the tooltip must stay inside, in SVG pixels. plotTop is the top of the plot, where a tooltip
-   * sits on a narrow chart rather than on its point.
+   * Area the tooltip must stay inside, in SVG pixels. Given plotTop, the top of the plot, a tooltip on a
+   * narrow chart sits there rather than on its point.
    */
   bounds: { width: number; height: number; plotTop?: number }
   /** Id the plot surface points at with aria-describedby. */
@@ -40,8 +40,9 @@ export function ChartTooltip({ content, bounds, id }: ChartTooltipProps) {
     let left = content.x + OFFSET
     if (left + w > bounds.width) left = content.x - OFFSET - w
     el.style.left = `${Math.max(0, Math.min(left, bounds.width - w))}px`
-    // A narrow chart puts the tooltip at the top of its plot, so it does not cover the point it names.
-    const top = bounds.width < NARROW_WIDTH ? (bounds.plotTop ?? 0) : content.y - h / 2
+    // A narrow chart with a plot top puts the tooltip there, so it does not cover the point it names.
+    const plotTop = bounds.plotTop
+    const top = plotTop !== undefined && bounds.width < NARROW_WIDTH ? plotTop : content.y - h / 2
     el.style.top = `${Math.max(0, Math.min(top, bounds.height - h))}px`
   })
 

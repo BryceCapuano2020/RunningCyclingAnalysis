@@ -247,7 +247,7 @@ function overlayOf(
   const content = row && anchor ? tooltipFor(row, anchor.x, anchor.y) : null
   return (
     <ChartTooltip
-      bounds={{ width: size.width, height: size.height }}
+      bounds={{ width: size.width, height: size.height, plotTop: size.plot.top }}
       content={content}
       id={size.tooltipId}
     />

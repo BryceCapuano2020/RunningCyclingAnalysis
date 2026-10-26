@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from '@rca/core/constants'
-import { endLabelAt, pointBefore } from './chartInteraction'
 import type { ChartSize, PlotBox } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { plotBoxOf } from './plotBox'
@@ -386,14 +385,13 @@ describe('sharedTrendLayout end labels', () => {
     expect(overlaps(boxOf(run), rideBand(layout), BAND_CLEAR_PX)).toBe(false)
   })
 
-  it('keeps the run label on its preferred spot where the stretch it would meet is not drawn', () => {
+  it('keeps the run label clear of the drawn band where the stretch it would meet is not drawn', () => {
+    // The label's estimated width is padded, so it sits clear of the drawn stretch and of its own marker,
+    // and the stretch that is not drawn does not count against it.
     const layout = layoutOf(UNDRAWN_STRETCH_WEEKS, 340, 320)
     const run = labelOf(layout, 'run')
-    const latest = layout.run.findLastIndex((point) => point !== null)
-    const point = layout.run[latest]
-    if (point === null || point === undefined) throw new Error('No run point')
-    expect(run.at.y).toBe(endLabelAt(point, pointBefore(layout.run, latest)).y)
     expect(overlaps(boxOf(run), rideBand(layout))).toBe(false)
+    expect(overlaps(boxOf(run), rideBand(layout), BAND_CLEAR_PX)).toBe(false)
   })
 
   it('keeps the run label off the run’s own stepped line, where an earlier step would run under it', () => {

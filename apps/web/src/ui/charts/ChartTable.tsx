@@ -13,6 +13,7 @@ const NO_COLUMNS: number[] = []
  */
 function useOverflows(ref: RefObject<HTMLDivElement | null>): boolean {
   const [overflows, setOverflows] = useState(false)
+  // No dependencies: the table's rows and columns change what it draws, so it is measured after each render.
   useLayoutEffect(() => {
     const el = ref.current
     if (el === null || typeof ResizeObserver === 'undefined') return
@@ -21,7 +22,7 @@ function useOverflows(ref: RefObject<HTMLDivElement | null>): boolean {
     observer.observe(el)
     measure()
     return () => observer.disconnect()
-  }, [ref])
+  })
   return overflows
 }
 

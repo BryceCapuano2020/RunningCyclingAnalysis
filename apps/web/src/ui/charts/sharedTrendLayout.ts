@@ -15,10 +15,9 @@ import { labelSizePx, labelWidthPx, rootFontPx } from './rootFont'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import { formatValue, plotted } from './sharedTrendText'
 import type { SharedMeasure } from './sharedTrendText'
-import { fitTicks } from './ticks'
-import { trendDateTicks } from './trendTicks'
+import { axisTicksOf } from './sharedTrendAxes'
 
-/** A value at the end of a line, labelled with its window, and where its label sits. */
+/** A value at the end of a line, labelled with its sport and value, such as "Run 64%", and where that label sits. */
 export interface EndLabel {
   kind: 'run' | 'ride'
   text: string
@@ -319,24 +318,6 @@ export function sharedTrendLayout(
   const ride = pointsOf((week) => week.ride)
   const rideLow = pointsOf((week) => week.rideLow)
   const rideHigh = pointsOf((week) => week.rideHigh)
-  const rootPx = rootFontPx()
-  const em = labelSizePx(rootPx)
-  const span = { lo: plot.top + ASCENT_EM * em, hi: plot.bottom - DESCENT_EM * em }
-  const band = bandBoxes(xs, rideHigh, rideLow)
-  const runLine = stepBoxes(run, markerRadii(width).active)
-  const rules: LabelRules = { measure, rootPx, plot, span }
-  const runLabel = endLabel('run', weeks, run, (week) => week.run, {
-    ...rules,
-    band,
-    line: runLine,
-  })
-  const rideLabel = endLabel('ride', weeks, ride, (week) => week.ride, {
-    ...rules,
-    band: null,
-    line: null,
-  })
-  const plans = [runLabel, rideLabel].flatMap((label) => (label === null ? [] : [label]))
-  const spots = placeLabels(plans, plot, span, (ASCENT_EM + DESCENT_EM) * em)
   return {
     xs,
     run,
@@ -344,40 +325,50 @@ export function sharedTrendLayout(
     rideLow,
     rideHigh,
     ys: weeks.map((_, i) => (run[i] ?? ride[i])?.y ?? null),
-    labels: spots.map(({ plan, y: at }) => ({
-      kind: plan.kind,
-      text: plan.text,
-      anchor: plan.anchor,
-      at: { x: plan.x, y: at },
-    })),
+    labels: labelsOf(weeks, { run, ride, xs, rideHigh, rideLow }, measure, size),
     ...axisTicksOf(weeks, x, y, ticks, decimals, measure, width),
   }
 }
 
-/** The x and y axis ticks of a shared trend, each fitted to the chart's width. */
-function axisTicksOf(
+/** The drawn points of a shared trend: each sport's values, and the ride's range, at each week's x. */
+interface Drawn {
+  run: (Point | null)[]
+  ride: (Point | null)[]
+  xs: number[]
+  rideHigh: (Point | null)[]
+  rideLow: (Point | null)[]
+}
+
+/**
+ * The end labels of a shared trend, each at a baseline that keeps it inside the plot and clear of the
+ * ride band and the run's own line. A label is named by its sport and value, so the title needs no window.
+ */
+function labelsOf(
   weeks: readonly SharedWeek[],
-  x: (value: number) => number,
-  y: (value: number) => number,
-  ticks: readonly number[],
-  decimals: number,
+  drawn: Drawn,
   measure: SharedMeasure,
-  width: number,
-): { xTicks: AxisTick[]; yTicks: AxisTick[] } {
-  return {
-    xTicks: fitTicks(
-      trendDateTicks(
-        weeks.map((week) => week.endMs),
-        x,
-      ),
-      { axis: 'x', width },
-    ),
-    yTicks: fitTicks(
-      ticks.map((tick) => ({
-        position: y(tick),
-        label: measure === 'grade' ? `${tick.toFixed(decimals)}%` : tick.toFixed(decimals),
-      })),
-      { axis: 'y', width },
-    ),
-  }
+  size: ChartSize,
+): EndLabel[] {
+  const { plot, width } = size
+  const rootPx = rootFontPx()
+  const em = labelSizePx(rootPx)
+  const span = { lo: plot.top + ASCENT_EM * em, hi: plot.bottom - DESCENT_EM * em }
+  const rules: LabelRules = { measure, rootPx, plot, span }
+  const runLabel = endLabel('run', weeks, drawn.run, (week) => week.run, {
+    ...rules,
+    band: bandBoxes(drawn.xs, drawn.rideHigh, drawn.rideLow),
+    line: stepBoxes(drawn.run, markerRadii(width).active),
+  })
+  const rideLabel = endLabel('ride', weeks, drawn.ride, (week) => week.ride, {
+    ...rules,
+    band: null,
+    line: null,
+  })
+  const plans = [runLabel, rideLabel].flatMap((label) => (label === null ? [] : [label]))
+  return placeLabels(plans, plot, span, (ASCENT_EM + DESCENT_EM) * em).map(({ plan, y }) => ({
+    kind: plan.kind,
+    text: plan.text,
+    anchor: plan.anchor,
+    at: { x: plan.x, y },
+  }))
 }

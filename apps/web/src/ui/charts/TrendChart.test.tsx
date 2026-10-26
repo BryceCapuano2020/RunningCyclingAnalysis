@@ -156,6 +156,30 @@ describe('TrendChart', () => {
     expect(labelY).toBeLessThan(latestY)
   })
 
+  it('sets the latest label to the right of its point when the step line crosses both the spots below and above', () => {
+    // A week-8 rise and a week-9 fall: the step at week 9 runs through the places above and below the
+    // latest point, which is short of the plot's right edge, so there is room beside it.
+    const steps = Array.from({ length: 13 }, (_, week) => {
+      if (week > 10) return point(week, null, null)
+      const speed = week === 8 ? 4.15 : week === 9 ? 3.85 : 4
+      return point(week, runWkgAt(speed), null)
+    })
+    const { container } = render(
+      <TrendChart
+        sport="run"
+        points={steps}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    const label = container.querySelector('.chart-series__label')
+    const latest = screen.getByTestId('trend-latest')
+    expect(label?.getAttribute('text-anchor')).toBe('start')
+    expect(Number(label?.getAttribute('x'))).toBeGreaterThan(Number(latest.getAttribute('cx')))
+  })
+
   it('breaks the line at a gap instead of bridging it', () => {
     const { container } = render(
       <TrendChart

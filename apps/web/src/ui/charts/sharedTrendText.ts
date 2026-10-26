@@ -1,6 +1,7 @@
 import { levelOf } from '@rca/core/grade'
 import { ENERGY_RATE_UNIT, formatEnergyRate, formatEnergyRateValue } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
+import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import type { SharedWeek } from './gradeTrend'
 import { STEPPED_LINE_TEXT, weekDay } from './trendText'
 
@@ -18,7 +19,10 @@ export function levelNote(measure: SharedMeasure, value: number): string | undef
  * The empty message of a trend that holds cycling for want of a weight, when only a ride has a value. It
  * says why the chart is empty, and the note under it says the rest.
  */
-export const HELD_EMPTY = 'Your rides are held until you add a weight on Profile.'
+export const HELD_EMPTY = `Your rides are held until you add a weight on ${WEIGHT_PROMPT_PARTS.page}.`
+
+/** The sentence that says cycling is held, which a trend's note ends with, or which stands alone when nothing is drawn. */
+export const HELD_NOTE = 'Cycling is held until a weight is added.'
 
 /** A point is the best of its window, not an average, so a low point can only be a window of easy efforts. */
 const LOW_POINT = 'A low point is a window of easy efforts, not an average.'

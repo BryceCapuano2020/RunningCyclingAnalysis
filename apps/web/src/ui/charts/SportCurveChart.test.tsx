@@ -668,6 +668,8 @@ describe('the curve’s key row, table and labels', () => {
 
   it('moves the last label above its point where a label below would sit on the x tick labels', () => {
     // The last point sits 28 px above the plot's bottom, so a label 18 px below it would run past the floor.
+    // The chart is wide enough that the padded label still clears the 20 minute label beside it.
+    chartWidth(900)
     const { container } = render(
       <SportCurveChart
         sport="run"

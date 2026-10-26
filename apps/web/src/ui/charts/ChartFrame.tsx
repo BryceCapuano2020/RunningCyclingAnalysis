@@ -53,8 +53,8 @@ function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
 const DEFAULT_HEIGHT = 320
 /** Shown on a chart that can be read by keyboard, over the plot's top corner. The CSS reveals it while the plot has focus. */
 const READING_HINT = 'Left and right arrows read values'
-/** How far the hint sits inside the plot's top corner, in px. */
-const HINT_INSET = 6
+/** How far the hint sits below the top of the chart, in px: in the margin above the plot, which holds no data. */
+const HINT_INSET = 2
 
 export function ChartFrame({
   title,
@@ -122,7 +122,7 @@ export function ChartFrame({
                 <p
                   id={hintId}
                   className="chart-frame__hint"
-                  style={{ left: size.plot.left + HINT_INSET, top: size.plot.top + HINT_INSET }}
+                  style={{ top: HINT_INSET, right: size.width - size.plot.right }}
                 >
                   {READING_HINT}
                 </p>

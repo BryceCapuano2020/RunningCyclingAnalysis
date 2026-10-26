@@ -13,13 +13,19 @@ export interface Box {
   bottom: number
 }
 
-/** The box a label takes when its text ends at the point's x, with its baseline at the point's y. */
-export function textBox(text: string, at: Point, rootPx: number): Box {
+/** The box a label takes, with its baseline at the point's y: its text ends at the point's x, or starts there. */
+export function textBox(
+  text: string,
+  at: Point,
+  rootPx: number,
+  anchor: 'start' | 'end' = 'end',
+): Box {
   const em = labelSizePx(rootPx)
   const width = labelWidthPx(text, rootPx)
+  const left = anchor === 'end' ? at.x - width : at.x
   return {
-    left: at.x - width,
-    right: at.x,
+    left,
+    right: left + width,
     top: at.y - ASCENT_EM * em,
     bottom: at.y + DESCENT_EM * em,
   }

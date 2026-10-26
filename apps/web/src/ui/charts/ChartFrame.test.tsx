@@ -87,10 +87,17 @@ describe('ChartFrame', () => {
     expect(plain.container.querySelector('.chart-frame__hint')).toBeNull()
   })
 
-  it('shows the arrow-key hint inside the overlay on the plot, not as a row below it, so focus moves nothing', () => {
-    const { container } = renderFrame({ surface: () => null })
+  it('shows the arrow-key hint in the overlay, in the plot’s top margin, right-aligned to the plot', () => {
+    const children = vi.fn<(size: ChartSize) => null>(() => null)
+    const { container } = renderFrame({ children, surface: () => null })
+    const size = children.mock.calls[0]?.[0]
+    const hint = container.querySelector<HTMLElement>('.chart-frame__overlay > .chart-frame__hint')
     expect(container.querySelector('.chart-frame > .chart-frame__hint')).toBeNull()
-    expect(container.querySelector('.chart-frame__overlay > .chart-frame__hint')).not.toBeNull()
+    expect(hint).not.toBeNull()
+    // The plot starts 28 px down, so a hint 2 px from the top sits in the margin, above the data.
+    expect(hint?.style.top).toBe('2px')
+    expect(hint?.style.right).toBe(`${(size?.width ?? 0) - (size?.plot.right ?? 0)}px`)
+    expect(hint?.style.left).toBe('')
   })
 
   it('hides the arrow-key hint while a point is active, so the tooltip has the overlay', () => {
@@ -100,6 +107,8 @@ describe('ChartFrame', () => {
     expect(frameCss).toMatch(
       /\.chart-frame:has\(\.chart-tooltip__title\) \.chart-frame__hint \{\s*display: none;/,
     )
+    // One line of text and its border fit in the 28 px margin above the plot.
+    expect(ruleBody(frameCss, '.chart-frame__hint')).toMatch(/padding:\s*0 var\(--space-2\)/)
     expect(ruleBody(frameCss, '.chart-frame__hint')).toMatch(/position:\s*absolute/)
   })
 

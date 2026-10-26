@@ -121,6 +121,47 @@ describe('ChartTable', () => {
     expect(screen.getByRole('cell', { name: 'Hill ride' })).not.toHaveClass('num')
   })
 
+  it('lets a phone table’s headers wrap, so the columns it keeps fit the page', () => {
+    expect(tableCss).toMatch(/\.table-scroll th \{\s*white-space: normal;/)
+  })
+
+  it('re-measures a table when its rows change, so one that starts to overflow becomes a scroll region', () => {
+    let scrollWidth = 300
+    class MeasuringObserver {
+      private readonly callback: () => void
+
+      constructor(callback: () => void) {
+        this.callback = callback
+      }
+
+      observe() {
+        this.callback()
+      }
+
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', MeasuringObserver)
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(() => scrollWidth)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    const { container, rerender } = render(
+      <ChartTable columns={['Week', 'Grade']} rows={[['Week 1', '60%']]} />,
+    )
+    expect(container.querySelector('.table-scroll')).not.toHaveAttribute('tabindex')
+    scrollWidth = 520
+    rerender(
+      <ChartTable
+        columns={['Week', 'Grade']}
+        rows={[
+          ['Week 1', '60%'],
+          ['Week 2', '61%'],
+        ]}
+      />,
+    )
+    expect(container.querySelector('.table-scroll')).toHaveAttribute('tabindex', '0')
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
   it('marks the columns a phone hides, and hides them in a stylesheet at the phone width', () => {
     const { container } = render(
       <ChartTable
