@@ -59,7 +59,7 @@ function lengthOf(days: number): string {
 }
 
 /** Why the default shows all time, under the period's dates. */
-export const FALLBACK_NOTE = `The ${DEFAULT_PERIOD_WEEKS} weeks up to your newest activity do not hold both a run and a ride, so this shows all time.`
+export const FALLBACK_NOTE = `Your last ${DEFAULT_PERIOD_WEEKS} weeks don't hold both sports, so this shows all time.`
 
 /** The label of the period before the one selected, or null when there is none (all time). */
 export function previousPeriodLabel(days: number | null): string | null {

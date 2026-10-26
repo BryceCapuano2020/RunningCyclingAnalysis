@@ -81,9 +81,9 @@ A deep link to a page that needs a result, with none on this device, stays where
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
-**Period.** Balance and the sport pages show one period, picked with the control under the answer: 6 weeks, 12 weeks (the default), 12 months or All time, in that order and on one row at 390 px. The control's dates sit beneath it, with the count of activities in the period when some are left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
+**Period.** Balance and the sport pages show one period, picked with the control under the answer: 6 weeks, 12 weeks (the default), 12 months or All time, in that order, on one row at 390 px and in a 2 by 2 grid below 360 px. The control's dates sit beneath it, with the count of activities in the period when some are left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
 counted back from the newest activity, not from today, so when that activity is more than six weeks old
-the note under the dates reads "Latest activity 3 Jun 2025, 17 months ago". The note says why the default is all time too, when it is, and an empty note takes no line. A stored pick the control no longer offers, such as the 3 months of an earlier version, reads as the default.
+the note under the dates reads "Latest activity 17 months ago", and the dates above end on that day. The note says why the default is all time too, when it is and the library holds both sports, and an empty note takes no line. A stored pick the control no longer offers, such as the 3 months of an earlier version, reads as the default.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
@@ -115,8 +115,8 @@ is compared with the result the worker last reported when it was sent, except a 
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
 is also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
-On the Activities page, a quiet line says what is kept: "Kept on this device: 3 activities." signed out,
-or "Saved to your account: 3 activities." signed in.
+On the Activities page, a quiet line says what is kept: "Kept in this browser." signed out,
+or "Saved to your account." signed in. The subtitle gives the count.
 
 A user's Stop is neutral news, never an alert. It cancels the import in progress and keeps the result on
 screen: "Stopped. Add your files again when you're ready." The stop may replace the summary of the
@@ -279,7 +279,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
   metabolic W/kg.
-- **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest activity's day, when they hold a run and a ride. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same day give the same window, and an older window never hides recent activities. It is clipped to the first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12 weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and the control says why: "The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time." The period is computed in `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the newest activity's day.
+- **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest activity's day, when they hold a run and a ride. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same day give the same window, and an older window never hides recent activities. It is clipped to the first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12 weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and the control says why: "Your last 12 weeks don't hold both sports, so this shows all time." It says so only when the library holds both sports. The period is computed in `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the newest activity's day.
 - A period's comparison is the same length before it, drawn as a thin dashed mid-grey line and named
   "Previous 6 weeks", "Previous 12 weeks" or "Previous 12 months". All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
@@ -378,8 +378,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   session is never split across two pages, and the summary counts its activities. The pages are
   numbered beside Previous and Next: the first and last, and the pages either side of the one shown. A
   single page between two numbers is numbered too; a gap stands for two or more, and a screen reader hears
-  "pages skipped" for it. Moving a page keeps focus on the control pressed while it can still be pressed
-  (a page number, or Next while a page follows); otherwise focus goes to the first row. The page status
+  "pages skipped" for it. Moving a page by a click moves the list to its top, and keeps focus on the control pressed while it can
+  still be pressed and is on screen (a page number, or Next while a page follows); otherwise focus goes to the first row. The page status
   reads the new range. Legs of one session are listed in the order they were ridden, even in a newest-first list.
   A removal made on an activity's page goes to the list, which announces it once, and the list's address
   drops the marker that brought the visitor. A notice or error from a removal clears when the visitor moves
@@ -530,7 +530,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   decimal, as in "6.2 mi" or "10.0 km"; under a tenth of a unit it reads "<0.1 km". A range of months
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
-- **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov 2025", so a span reads without the current date. The period control, the Balance caption and the card's period line show the same dates.
+- **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov 2025", so a span reads without the current date. A single day is written once, as "14 Jun 2025". The period control, the Balance caption and the card's period line show the same dates.
 - **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, shows no period control, and offers the file chooser as a secondary button. A sport the files have, with none in the period, offers **Show all time** as its one button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots. The one-sport answer says "Your run results are below."
   (or "Your ride results are below."), and the empty sport card beside it offers **Add rides** (or **Add runs**)
   as the secondary file chooser. The answer itself offers none, so there is one.

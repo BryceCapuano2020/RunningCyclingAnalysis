@@ -7,9 +7,11 @@ import { DAY_MS } from '@rca/core/constants'
 import { makeActivity } from '../components/fixtures'
 import { ActivitiesPage } from './ActivitiesPage'
 
-// The view is kept in the address, so each test starts from the bare list.
+// The view is kept in the address, so each test starts from the bare list. jsdom has no layout, so a
+// page turn's scroll to the top of the list is a stub.
 beforeEach(() => {
   window.history.replaceState(null, '', '#/activities')
+  Element.prototype.scrollIntoView = vi.fn()
 })
 
 afterEach(() => {
@@ -98,13 +100,32 @@ describe('ActivitiesPage period and sport', () => {
     expect(screen.getByText('2 of 3 activities')).toBeInTheDocument()
   })
 
-  it('filters to one sport and counts it against the library', async () => {
+  it('filters to one sport, and shows no count while every ride is in the list', async () => {
     const user = userEvent.setup()
     render(<ActivitiesPage activities={library} units="metric" records={new Map()} />)
     await user.click(screen.getByRole('radio', { name: 'Rides' }))
     expect(screen.getByRole('link', { name: 'Recent ride' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Recent run' })).not.toBeInTheDocument()
-    expect(screen.getByText('1 of 3 activities')).toBeInTheDocument()
+    expect(screen.queryByText(/of 3 activities/)).not.toBeInTheDocument()
+  })
+
+  it("counts a period's rides against all the rides, in the noun for a ride", async () => {
+    const user = userEvent.setup()
+    const rides = [
+      makeActivity({ id: 'ride-new', name: 'Recent ride', sport: 'ride', startMs: NEWEST }),
+      makeActivity({
+        id: 'ride-old',
+        name: 'Old ride',
+        sport: 'ride',
+        startMs: NEWEST - 100 * DAY_MS,
+      }),
+      makeActivity({ id: 'run-new', name: 'Recent run', sport: 'run', startMs: NEWEST }),
+    ]
+    render(<ActivitiesPage activities={rides} units="metric" records={new Map()} />)
+    await user.click(screen.getByRole('radio', { name: '6 weeks' }))
+    await user.click(screen.getByRole('radio', { name: 'Rides' }))
+    expect(screen.getByText('1 of 2 rides')).toBeInTheDocument()
+    expect(screen.queryByText(/of 3 activities/)).not.toBeInTheDocument()
   })
 
   it('offers to show every activity again when the filters leave none', async () => {

@@ -4,6 +4,7 @@ import { plural } from './plural'
 import { RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
 import type { RangeOption } from './rangeOptions'
 import { SegmentedControl } from './SegmentedControl'
+import { usePickInPlace } from './usePickInPlace'
 import './RangePicker.css'
 
 /** What is counted in the period: the activities, or one sport's, which take their own words. */
@@ -41,9 +42,8 @@ export interface RangePickerProps {
 
 /**
  * The period control: a row of segments, and beneath it the dates and the count of what is in the
- * period, then a note when there is one. The dates keep their line, so nothing moves when the count
- * fills in. The control shows the pick the athlete made last, so a worker answer to an earlier pick
- * cannot move it back.
+ * period, then a note when there is one. The dates line is left out when it has neither. The control
+ * shows the pick the athlete made last, so a worker answer to an earlier pick cannot move it back.
  */
 export function RangePicker({
   choice,
@@ -84,8 +84,10 @@ export function RangePicker({
   const announcement = [counted, choiceLabel, dates]
     .filter((part) => part !== undefined && part !== '')
     .join(', ')
+  const rootRef = useRef<HTMLDivElement>(null)
+  const markPick = usePickInPlace(rootRef, waiting)
   return (
-    <div className="range-picker">
+    <div className="range-picker" ref={rootRef}>
       <SegmentedControl
         legend="Period"
         options={options.map(({ value, label }) => ({ value, label }))}
@@ -93,6 +95,7 @@ export function RangePicker({
         onSelect={(value) => {
           const next = choiceOfValue(value)
           if (next === undefined) return
+          markPick()
           const id = made.current + 1
           made.current = id
           setPicks((current) => ({ count: id, answered: current.answered, latest: next }))
@@ -101,11 +104,13 @@ export function RangePicker({
           )
         }}
       />
-      <p className="range-picker__caption muted">
-        {dates !== '' && <span className="range-picker__dates">{dates}</span>}
-        {dates !== '' && count !== '' && ' · '}
-        {count !== '' && <span className="range-picker__count">{count}</span>}
-      </p>
+      {(dates !== '' || count !== '') && (
+        <p className="range-picker__caption muted">
+          {dates !== '' && <span className="range-picker__dates">{dates}</span>}
+          {dates !== '' && count !== '' && ' · '}
+          {count !== '' && <span className="range-picker__count">{count}</span>}
+        </p>
+      )}
       <p role="status" className="sr-only">
         {announcement}
       </p>

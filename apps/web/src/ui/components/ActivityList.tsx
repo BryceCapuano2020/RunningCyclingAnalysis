@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
 import { formatTotalTime } from '@rca/core/units'
@@ -79,6 +79,21 @@ export function ActivityList({
   const previousCollectionIdRef = useRef(collectionId)
   const paginationHadFocusRef = useRef(false)
   const removedRef = useRef(false)
+  const listRef = useRef<HTMLDivElement>(null)
+  // The page a click asked for, so only a page turned by a click scrolls the list.
+  const turnedRef = useRef<number | null>(null)
+
+  // A page turned by a click starts at the top of the list, so its first row is on screen. The focus
+  // effect in usePagination runs after this one, and keeps focus on the control only while it is there.
+  useLayoutEffect(() => {
+    if (turnedRef.current !== page) return
+    turnedRef.current = null
+    listRef.current?.scrollIntoView({ block: 'start' })
+  }, [page])
+  const turnPage = (next: number, control: HTMLElement) => {
+    turnedRef.current = next
+    changePage(next, control)
+  }
 
   useEffect(() => {
     if (previousCollectionIdRef.current === collectionId) return
@@ -109,6 +124,7 @@ export function ActivityList({
         units={units}
         isFirst={isFirst}
         rowRef={isFirst ? firstItemRef : undefined}
+        dateOrder={dateOrder}
         records={records.get(activity.id) ?? []}
         keptId={keptIds.get(activity.id) ?? null}
         weightKnown={weightKnown}
@@ -141,7 +157,7 @@ export function ActivityList({
   const onPage = visible.reduce((sum, entry) => sum + activitiesIn(entry), 0)
 
   return (
-    <div className="activity-list">
+    <div className="activity-list" ref={listRef}>
       {dateOrder ? (
         groupByMonth(visible).map((group) => (
           <section key={group.key} className="activity-list__month">
@@ -161,7 +177,7 @@ export function ActivityList({
         noun="activities"
         label="Activity pages"
         announce
-        onPageChange={changePage}
+        onPageChange={turnPage}
         onFocusWithinChange={(focused) => {
           paginationHadFocusRef.current = focused
         }}

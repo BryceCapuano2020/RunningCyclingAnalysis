@@ -3,7 +3,6 @@ import type { MovedItem } from '../analysis/whatMoved'
 import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { ImportNotice } from './ImportNotice'
 import { LibraryNotices } from './LibraryNotices'
-import { plural } from './plural'
 import { SyncStatus } from './SyncStatus'
 import './AppNotices.css'
 
@@ -49,9 +48,8 @@ export function AppNotices({
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
   const kept = analysis.savedActivities.length
-  const keptText = signedIn
-    ? `Saved to your account: ${plural(kept, 'activity', 'activities')}.`
-    : `Kept on this device: ${plural(kept, 'activity', 'activities')}.`
+  // The Activities subtitle gives the count, so this line says only where the library is kept.
+  const keptText = signedIn ? 'Saved to your account.' : 'Kept in this browser.'
   return (
     <div className="app__notices">
       <ImportNotice

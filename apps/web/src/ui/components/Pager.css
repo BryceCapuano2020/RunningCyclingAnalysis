@@ -48,6 +48,27 @@
   color: var(--text-muted);
 }
 
+/* Below 560 px the page numbers take a centred row, and Previous and Next share the row beneath. */
+@media (max-width: 560px) {
+  .pager__controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pager__pages {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .pager__controls > :first-child {
+    justify-self: start;
+  }
+
+  .pager__controls > :last-child {
+    justify-self: end;
+  }
+}
+
 /* Forced colours drop the fill, so the current page takes the system highlight, as a selected segment does. */
 @media (forced-colors: active) {
   .pager .pager__page[aria-current='page'] {

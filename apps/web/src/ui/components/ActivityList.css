@@ -33,6 +33,11 @@
   background: var(--surface-2);
 }
 
+/* The hover fill is faint, so a row also takes an inset rule on its left edge while it is hovered. */
+.activity-list__item:hover {
+  box-shadow: inset 3px 0 0 var(--text-secondary);
+}
+
 .activity-list__main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -102,6 +107,22 @@
 
 .activity-list__stat dd {
   margin: 0;
+  white-space: nowrap;
+}
+
+/* In a row, Delete is a quiet text button: no border or fill at rest, and the same 40 px target. */
+.activity-list__item .activity-delete__open {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.activity-list__item .activity-delete__open:hover:not(:active) {
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .activity-list__hero {
@@ -117,6 +138,44 @@
   width: 1rem;
   height: 1rem;
   color: var(--text-muted);
+}
+
+/*
+ * Below 560 px the hero moves into the meta line, beside the sport and the date, and the chevron goes:
+ * the whole row is the link, so the chevron only decorates it. The body's blocks become the row's own
+ * grid items, so the hero can sit in the meta line's row.
+ */
+@media (max-width: 560px) {
+  .activity-list__main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--space-1);
+  }
+
+  .activity-list__body {
+    display: contents;
+  }
+
+  .activity-list__body > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .activity-list__body > .activity-list__meta {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .activity-list__hero {
+    grid-auto-flow: column;
+    grid-column: 2;
+    grid-row: 2;
+    align-items: baseline;
+    white-space: nowrap;
+  }
+
+  .activity-list__chevron {
+    display: none;
+  }
 }
 
 .activity-list__records {

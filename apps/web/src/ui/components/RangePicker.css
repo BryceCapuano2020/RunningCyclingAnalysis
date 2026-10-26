@@ -1,7 +1,21 @@
+/* The control sizes to its content, as the sport pages' control does, rather than stretching across a wide page. */
 .range-picker {
   display: grid;
   gap: var(--space-2);
   min-width: 0;
+  justify-items: start;
+}
+
+/* Below 480 px the control fills the content width, so it meets the gutter on a phone. */
+@media (max-width: 479px) {
+  .range-picker {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .range-picker .segmented-control__options {
+    display: flex;
+  }
 }
 
 /*
@@ -21,9 +35,19 @@
   border-radius: var(--radius-sm);
 }
 
-/* The dates and count keep their line, so nothing moves when the count fills in. The note has none reserved. */
+/*
+ * Under 360 px "All time" wraps alone, so the four periods take a 2 by 2 grid. Activities offers three,
+ * which fit one row, so the rule names the fourth.
+ */
+@media (max-width: 359px) {
+  .range-picker .segmented-control__options:has(> :nth-child(4)) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* The dates and count share one line, and that line is left out when both are empty, so none is blank. */
 .range-picker__caption {
-  min-height: 1.5em;
   margin: 0;
   font-size: var(--text-sm);
 }

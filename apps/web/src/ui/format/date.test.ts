@@ -110,6 +110,12 @@ describe('formatSpan', () => {
       '3 Aug 2024 – 2 Nov 2025',
     )
   })
+
+  it('gives one day once, with its year, when the span starts and ends on the same day', () => {
+    expect(
+      formatSpan(new Date(2025, 5, 14, 7).getTime(), new Date(2025, 5, 14, 19).getTime()),
+    ).toBe('14 Jun 2025')
+  })
 })
 
 describe('formatRowDay', () => {
