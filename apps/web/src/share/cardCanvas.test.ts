@@ -12,7 +12,7 @@ import {
   type CardContext,
   type Face,
 } from './cardCanvas'
-import { FakeContext, LONG_HEADLINE, cardModel, draw, missingRideModel } from './fixtures'
+import { FakeContext, LONG_HEADLINE, cardModel, draw } from './fixtures'
 
 const mainTsx = await readStylesheet(import.meta.url, '../main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, '../styles/tokens.css')
@@ -167,7 +167,7 @@ describe('loadCardFonts', () => {
     const cards = [
       draw(cardModel(), 'square'),
       draw(cardModel({ badge: 'Sample data' }), 'story'),
-      draw(missingRideModel(), 'story'),
+      draw(cardModel({ magnitude: null, meter: null }), 'story'),
       draw(cardModel({ headline: LONG_HEADLINE, caveat: null }), 'square'),
     ]
     const drawn = new Set(cards.flatMap((card) => card.texts.map((text) => faceOf(text.font))))

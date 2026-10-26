@@ -1,12 +1,23 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import type { AthleteSettings, EffortCheck } from '@rca/core/types'
+import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import type { CanvasDelivery } from '../../share/download'
+import { cardFileName, type CardFormat } from '../../share/cardLayout'
+import {
+  canShareImage,
+  canvasFile,
+  previewUrl,
+  releasePreview,
+  saveFile,
+  shareFile,
+  type CanvasDelivery,
+} from '../../share/download'
 import { hasShareableContent } from '../../share/hasShareableContent'
-import { CARD_FILE_NAMES, type CardFormat } from '../../share/cardLayout'
 import type { BalanceGap } from '../balanceGap'
+import type { GradeOutcome } from '../grades'
+import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
+import { useModalDialog } from './useModalDialog'
 import './ShareImageButton.css'
 
 export interface ShareImageButtonProps {
@@ -18,116 +29,273 @@ export interface ShareImageButtonProps {
   isSample: boolean
   /** Heart-rate check for the headline duration, shown on the card as a caveat when it applies. */
   effort: EffortCheck | null
-  /** False while no body weight is entered: the card then leaves out the ride estimate and balance. */
+  /** False while no body weight is entered: the balance waits for it, so no card is offered. */
   weightKnown: boolean
   /** The age-grade gap on the page, so the card states the same balance as the page. */
   gap: BalanceGap | null
+  /** Each sport's grade as the page shows it, so the card's levels match the cards. A ride's waits for the weight. */
+  grades: Record<Sport, GradeOutcome | null>
   /** Analysis is running, so the comparison on screen may change. */
   disabled: boolean
 }
 
-const PRIVACY_NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
-const WAITING_NOTE = 'Available when the analysis finishes.'
-const FAILED = 'The image could not be created. Try again.'
-/** What the page says once the image has reached the visitor. A cancelled share says nothing. */
-const DELIVERED: Record<CanvasDelivery, string> = {
-  shared: 'Image shared',
-  saved: 'Image saved',
-  cancelled: '',
+/** What the card is drawn from: the page's inputs, without the analysis state. */
+type CardInputs = Omit<ShareImageButtonProps, 'disabled'>
+
+interface Preview {
+  format: CardFormat
+  /** The PNG file of the card, or null when it could not be drawn. The action shares or saves this file. */
+  file: File | null
+  /** The card as a picture, or null when it could not be drawn. */
+  url: string | null
 }
 
-/** The two shapes, in button order. Both are outlined, so the screen's one primary action stays Add files. */
-const SHAPES: { format: CardFormat; label: string }[] = [
-  { format: 'square', label: 'Download square image' },
-  { format: 'story', label: 'Download story image' },
-]
+const TRIGGER = 'Share image'
+const SHEET_TITLE = 'Share the balance'
+const PRIVACY_NOTE = 'Made on this device. Nothing is uploaded.'
+const WAITING_NOTE = 'Available when the analysis finishes.'
+const SAVE = 'Save image'
+const SHARE = 'Share file'
+const PREPARING = 'Preparing…'
+/** A second press this soon after an action is the same double click, so it is ignored. */
+const REPEAT_PRESS_MS = 600
+const FAILED = 'The image could not be created. Try again.'
+const PREVIEW_WAITING = 'Creating preview…'
+const PREVIEW_FAILED = 'The preview could not be made.'
+/** The file the device is asked whether it can share, before any card is drawn. */
+const SHARE_CHECK = new File([], 'share-check.png', { type: 'image/png' })
+
+/** Each shape's name and use: the sheet's choice reads "Square (feed)" and "Tall (story)". */
+const SHAPE: Record<CardFormat, { name: string; use: string }> = {
+  square: { name: 'Square', use: 'feed' },
+  story: { name: 'Tall', use: 'story' },
+}
+const SHAPES: SegmentedControlOption<CardFormat>[] = (['square', 'story'] as const).map(
+  (format) => ({ value: format, label: `${SHAPE[format].name} (${SHAPE[format].use})` }),
+)
+
+/** What the status says once the image has reached the visitor. A cancelled share says nothing. */
+function deliveredText(format: CardFormat, delivery: CanvasDelivery): string {
+  if (delivery === 'cancelled') return ''
+  const name = SHAPE[format].name
+  return delivery === 'shared' ? `${name} image shared` : `${name} image saved to Downloads`
+}
 
 /**
- * Saves the balance on screen as a PNG on this device, as a square post or a story. Renders nothing
- * when there is neither a comparison nor a sport's estimate to draw. The card code loads on the
- * first click, so it is not in the app's first download.
+ * Draws the card in a shape and encodes it as a PNG file, or gives null when there is no card to
+ * draw. The card code loads on the first use, so it is not in the app's first download.
  */
-export function ShareImageButton({
-  result,
-  settings,
-  units,
-  period,
-  isSample,
-  effort,
-  weightKnown,
-  gap,
-  disabled,
-}: ShareImageButtonProps) {
+async function makeFile(inputs: CardInputs, format: CardFormat, when: Date): Promise<File | null> {
+  const [{ buildShareCard }, { loadCardFonts, renderShareCard }] = await Promise.all([
+    import('../../share/cardModel'),
+    import('../../share/renderCard'),
+  ])
+  // The canvas only draws a web font that has loaded, so wait for the card's faces first.
+  await loadCardFonts()
+  const card = buildShareCard(
+    inputs.result,
+    inputs.settings,
+    inputs.units,
+    inputs.period,
+    inputs.isSample,
+    inputs.effort,
+    inputs.weightKnown,
+    inputs.gap,
+    inputs.grades,
+  )
+  if (card === null) return null
+  const canvas = document.createElement('canvas')
+  if (!renderShareCard(card, canvas, format)) return null
+  return canvasFile(canvas, cardFileName(format, inputs.period, when))
+}
+
+/**
+ * Shares the balance on screen as a PNG, through a sheet with a preview of the card, a choice of
+ * shape, and one action: the device's share sheet where it can take this image, or a download. The
+ * card is drawn and encoded once for the preview, so the action can start the share straight away.
+ * Renders nothing while there is no balance to share: both sports have a threshold, and a weight is
+ * entered.
+ */
+export function ShareImageButton(props: ShareImageButtonProps) {
+  const { result, settings, units, period, isSample, effort, weightKnown, gap, grades, disabled } =
+    props
+  const [open, setOpen] = useState(false)
+  const [format, setFormat] = useState<CardFormat>('square')
   const [status, setStatus] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [preview, setPreview] = useState<Preview | null>(null)
+  const [basis, setBasis] = useState({ result, period, units })
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null)
+  const actionRef = useRef<HTMLButtonElement>(null)
   // A ref, not state, so that a second click in the same tick is refused before React re-renders.
   const inFlight = useRef(false)
+  // When the last action was accepted, so a double click is one press.
+  const lastPress = useRef(0)
   const noteId = useId()
-  if (!hasShareableContent(result)) return null
+  const titleId = useId()
+  const dialogRef = useModalDialog(open, trigger, actionRef)
 
-  const saveImage = async (format: CardFormat) => {
-    if (inFlight.current) return
-    inFlight.current = true
-    setGenerating(true)
-    setStatus('Creating image…')
-    try {
-      const [{ buildShareCard }, { loadCardFonts, renderShareCard }, { saveCanvasPng }] =
-        await Promise.all([
-          import('../../share/cardModel'),
-          import('../../share/renderCard'),
-          import('../../share/download'),
-        ])
-      // The canvas only draws a web font that has loaded, so wait for the card's faces first.
-      await loadCardFonts()
-      const card = buildShareCard(
-        result,
-        settings,
-        units,
-        period,
-        isSample,
-        effort,
-        weightKnown,
-        gap,
-      )
-      const canvas = document.createElement('canvas')
-      const delivery =
-        card !== null && renderShareCard(card, canvas, format)
-          ? await saveCanvasPng(canvas, CARD_FILE_NAMES[format])
-          : null
-      setStatus(delivery === null ? FAILED : DELIVERED[delivery])
-    } catch {
-      setStatus(FAILED)
-    } finally {
-      inFlight.current = false
-      setGenerating(false)
+  // A new analysis, period or unit system makes the status describe an older card, so it is cleared.
+  if (basis.result !== result || basis.period !== period || basis.units !== units) {
+    setBasis({ result, period, units })
+    setStatus('')
+  }
+
+  // The picture in view was drawn from these. When any changes, or the sheet opens or closes, it is for an
+  // older card, so it is dropped now, and the action is held until the new one is drawn.
+  const drawnFrom: readonly unknown[] = [
+    open,
+    result,
+    settings,
+    units,
+    period,
+    isSample,
+    effort,
+    weightKnown,
+    gap,
+    grades,
+  ]
+  const [seenFrom, setSeenFrom] = useState<readonly unknown[]>(drawnFrom)
+  if (drawnFrom.some((value, index) => value !== seenFrom[index])) {
+    setSeenFrom(drawnFrom)
+    setPreview(null)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    let current = true
+    let url: string | null = null
+    const source: CardInputs = {
+      result,
+      settings,
+      units,
+      period,
+      isSample,
+      effort,
+      weightKnown,
+      gap,
+      grades,
     }
+    makeFile(source, format, new Date()).then(
+      (file) => {
+        if (!current) return
+        url = file === null ? null : previewUrl(file)
+        setPreview({ format, file, url })
+      },
+      () => {
+        if (current) setPreview({ format, file: null, url: null })
+      },
+    )
+    return () => {
+      current = false
+      if (url !== null) releasePreview(url)
+    }
+  }, [open, format, result, settings, units, period, isSample, effort, weightKnown, gap, grades])
+
+  if (!hasShareableContent(result, gap, weightKnown)) return null
+
+  const shown = preview?.format === format ? preview : null
+  // The action has a file to share or save only once this shape is drawn; until then it is held.
+  const readyFile = shown?.file ?? null
+  const actionLabel = shown === null ? PREPARING : canShareImage(SHARE_CHECK) ? SHARE : SAVE
+
+  /** Hands the image to the share sheet, or downloads it where the sheet cannot take it. */
+  const deliver = (file: File) => {
+    if (canShareImage(file)) {
+      // The share starts here, within the click: nothing above awaits.
+      inFlight.current = true
+      setGenerating(true)
+      shareFile(file)
+        .then(
+          (delivery) => setStatus(deliveredText(format, delivery)),
+          () => setStatus(FAILED),
+        )
+        .finally(() => {
+          inFlight.current = false
+          setGenerating(false)
+        })
+      return
+    }
+    setStatus(deliveredText(format, saveFile(file)))
+  }
+
+  const onAction = () => {
+    // Refused before anything else, so no await sits before the share: a save in flight, or one just made.
+    const now = Date.now()
+    if (inFlight.current || now - lastPress.current < REPEAT_PRESS_MS) return
+    // Not drawn yet: there is nothing to share or save, so the tap does nothing.
+    if (readyFile === null) return
+    lastPress.current = now
+    deliver(readyFile)
   }
 
   return (
     <div className="share-image">
-      <div className="share-image__actions">
-        {SHAPES.map(({ format, label }) => (
-          <button
-            key={format}
-            type="button"
-            className="btn"
-            onClick={() => void saveImage(format)}
-            disabled={disabled}
-            // aria-disabled, not disabled: a disabled button drops the focus it is holding. The
-            // in-flight ref already refuses a second click.
-            aria-disabled={generating}
-            aria-describedby={noteId}
-          >
-            {label}
-          </button>
-        ))}
+      <button
+        ref={setTrigger}
+        type="button"
+        className="btn"
+        aria-haspopup="dialog"
+        disabled={disabled}
+        aria-describedby={disabled ? noteId : undefined}
+        onClick={() => setOpen(true)}
+      >
+        {TRIGGER}
+      </button>
+      {disabled && (
         <p id={noteId} className="share-image__note muted">
-          {disabled ? WAITING_NOTE : PRIVACY_NOTE}
+          {WAITING_NOTE}
         </p>
-      </div>
-      <p role="status" className="share-image__status">
-        {status}
-      </p>
+      )}
+      <dialog
+        ref={dialogRef}
+        className="share-sheet"
+        aria-labelledby={titleId}
+        onCancel={(event) => {
+          // Escape goes through the state, so the open flag stays the one source.
+          event.preventDefault()
+          setOpen(false)
+        }}
+      >
+        <div className="share-sheet__body">
+          <h2 id={titleId}>{SHEET_TITLE}</h2>
+          <p className="muted">{PRIVACY_NOTE}</p>
+          <SegmentedControl
+            legend="Format"
+            options={SHAPES}
+            selected={format}
+            onSelect={setFormat}
+          />
+          <div className="share-sheet__preview">
+            {shown?.url ? (
+              <img
+                src={shown.url}
+                alt={`Preview of the ${SHAPE[format].name.toLowerCase()} card`}
+              />
+            ) : (
+              <p className="muted">{shown === null ? PREVIEW_WAITING : PREVIEW_FAILED}</p>
+            )}
+          </div>
+          <div className="share-sheet__actions">
+            <button
+              ref={actionRef}
+              type="button"
+              className="btn"
+              // aria-disabled, not disabled: a disabled button drops the focus it is holding.
+              aria-disabled={generating || readyFile === null}
+              onClick={onAction}
+            >
+              {actionLabel}
+            </button>
+            <button type="button" className="btn" onClick={() => setOpen(false)}>
+              Close
+            </button>
+          </div>
+          <p role="status" className="share-sheet__status">
+            {status}
+          </p>
+        </div>
+      </dialog>
     </div>
   )
 }

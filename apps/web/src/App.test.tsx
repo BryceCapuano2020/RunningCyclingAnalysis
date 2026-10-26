@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TrendPoint } from '@rca/core/digest'
 import { App } from './App'
+import { canvasFile } from './share/download'
 import {
   app,
   resetAppMocks,
@@ -22,6 +23,22 @@ vi.mock('./ui/useAnalysis', async () => ({
 }))
 vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
+}))
+// The share card is drawn in the browser; the tests count how often its preview is drawn.
+vi.mock('./share/download', () => ({
+  canShareImage: vi.fn(() => false),
+  canvasFile: vi.fn(
+    async (_canvas: HTMLCanvasElement, name: string) =>
+      new File(['png'], name, { type: 'image/png' }),
+  ),
+  previewUrl: vi.fn(() => 'blob:preview'),
+  releasePreview: vi.fn(),
+  saveFile: vi.fn(() => 'saved' as const),
+  shareFile: vi.fn(async () => 'shared' as const),
+}))
+vi.mock('./share/renderCard', () => ({
+  loadCardFonts: vi.fn(async () => undefined),
+  renderShareCard: vi.fn(() => true),
 }))
 vi.mock('./ui/charts', async () => {
   const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
@@ -84,6 +101,24 @@ describe('header', () => {
     showResult()
     render(<App />)
     expect(screen.getByRole('button', { name: 'Add files' })).toHaveClass('btn-primary')
+  })
+
+  it.each([
+    ['the Balance page', '#/'],
+    ['the Run page', '#/run'],
+    ['the Ride page', '#/ride'],
+    ['the activities page', '#/activities'],
+    ['the method page', '#/method'],
+    ['the profile page', '#/profile'],
+  ])('shows at most one primary button on %s, signed in or out', (_name, hash) => {
+    for (const account of ['signed-out', 'signed-in'] as const) {
+      setAccount(account)
+      showResult()
+      window.location.hash = hash
+      const { container, unmount } = render(<App />)
+      expect(container.querySelectorAll('.btn-primary').length).toBeLessThanOrEqual(1)
+      unmount()
+    }
   })
 
   it('opens the profile page without a result, from its own link', async () => {
@@ -369,6 +404,32 @@ describe('deleting the account', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument()
   })
 })
+
+describe('share preview', () => {
+  it('draws the preview once when the app renders again with an equal settings object', async () => {
+    app.preferences = {
+      ...app.preferences,
+      settings: { massKg: 75, bikeMassKg: 9 },
+      setupDone: true,
+    }
+    showResult()
+    const { rerender } = render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
+    await screen.findByRole('img', { name: 'Preview of the square card' })
+    await settle()
+    const drawn = vi.mocked(canvasFile).mock.calls.length
+    // An equal settings object, built anew, as the preferences hand it out on each change.
+    app.preferences = { ...app.preferences, settings: { ...app.preferences.settings } }
+    rerender(<App />)
+    await settle()
+    expect(vi.mocked(canvasFile).mock.calls.length).toBe(drawn)
+  })
+})
+
+/** Lets the share preview's drawing finish, so a redraw that would follow has happened. */
+function settle() {
+  return act(() => new Promise<void>((resolve) => setTimeout(resolve, 50)))
+}
 
 describe('footer', () => {
   it('links to the privacy page', () => {

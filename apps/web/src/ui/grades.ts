@@ -217,6 +217,16 @@ export function gradeRangeText(range: { low: Grade; high: Grade }): string {
 }
 
 /**
+ * A grade on the share card's hero: its centre level and whole percent, and the effort it grades,
+ * such as "Local · 64% on best 20 min". A ride is estimated and names its centre level only, so the
+ * line fits two lines of the card; the page's grade line gives the range.
+ */
+export function heroGradeLine(sport: Sport, grade: SportGrade): string {
+  const estimate = sport === 'ride' ? 'Estimated · ' : ''
+  return `${estimate}${grade.centre.level} · ${formatGrade(grade.centre.grade)} on best ${HEADLINE_LABEL}`
+}
+
+/**
  * Where a grade sentence is written. A card says a ride is estimated; a record says it is graded
  * through its running equivalent, so a row on its own still says how the grade was reached.
  */

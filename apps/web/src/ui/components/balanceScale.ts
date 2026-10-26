@@ -13,6 +13,8 @@ export interface BalanceReading {
   lead: Lead
 }
 
+/** The label at the middle of the meter, where a balance in range sits. The page and the card both print it. */
+export const EVEN_LABEL = 'Even'
 /** A lead of this size, in points or in percent of energy, reaches the end of the meter. */
 export const SCALE_SPAN = 30
 /** The values printed on each side of the meter's centre. */

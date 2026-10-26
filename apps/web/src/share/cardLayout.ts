@@ -1,3 +1,5 @@
+import type { Period } from '@rca/core/period'
+
 /** The shapes the card is drawn in: a square post and a story. */
 export type CardFormat = 'square' | 'story'
 
@@ -7,6 +9,8 @@ export interface CardLayout {
   height: number
   marginX: number
   marginY: number
+  /** The brand mark's size, which a story, with the more room, makes larger. */
+  mark: number
   /** Hero columns stack one above the other rather than sitting side by side. */
   stacked: boolean
   /**
@@ -25,6 +29,7 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     height: 1080,
     marginX: 80,
     marginY: 80,
+    mark: 48,
     stacked: false,
     headline: [120, 104, 88, 72],
     figure: [160, 140, 128, 112, 96],
@@ -34,16 +39,31 @@ export const CARD_FORMATS: Record<CardFormat, CardLayout> = {
     height: 1920,
     marginX: 80,
     marginY: 240,
+    mark: 72,
     stacked: true,
-    groupGap: 56,
+    groupGap: 48,
     headline: [168, 152, 136, 120, 104, 88],
-    figure: [260, 230, 200, 180, 160, 140],
+    figure: [240, 220, 200, 180, 160, 140],
   },
 }
 
-export const CARD_FILE_NAMES: Record<CardFormat, string> = {
-  square: 'rca-summary-square.png',
-  story: 'rca-summary-story.png',
+/** A local calendar day as YYYY-MM-DD, so a file name reads the same wherever it is saved. */
+function dayOf(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+/**
+ * The file a card is saved as: the period's first and last day when it has dates, otherwise all
+ * time with the day it was made, then the shape. Such as balance-2025-05-12_2025-08-03-square.png.
+ */
+export function cardFileName(format: CardFormat, period: Period, today: Date): string {
+  const span =
+    period.startMs !== null && period.endMs !== null
+      ? `${dayOf(new Date(period.startMs))}_${dayOf(new Date(period.endMs))}`
+      : `all-time-${dayOf(today)}`
+  return `balance-${span}-${format}.png`
 }
 
 /** The least space between two blocks. */

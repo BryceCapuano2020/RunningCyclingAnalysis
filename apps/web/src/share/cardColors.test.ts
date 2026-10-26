@@ -5,10 +5,10 @@ import { contrast } from '../styles/contrastMath'
 
 const tokensCss = await readStylesheet(import.meta.url, '../styles/tokens.css')
 
-/** The custom properties of the dark theme in tokens.css, by name, in lower case. */
-function darkTokens(): Map<string, string> {
-  const start = tokensCss.indexOf(":root:not([data-theme='light']) {")
-  if (start < 0) throw new Error('no dark theme block in tokens.css')
+/** The custom properties declared in the block that opens with the given selector, by name. */
+function blockTokens(selector: string): Map<string, string> {
+  const start = tokensCss.indexOf(selector)
+  if (start < 0) throw new Error(`no ${selector} block in tokens.css`)
   const body = tokensCss.slice(tokensCss.indexOf('{', start) + 1, tokensCss.indexOf('}', start))
   const tokens = new Map<string, string>()
   for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
@@ -16,6 +16,24 @@ function darkTokens(): Map<string, string> {
     if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
   }
   return tokens
+}
+
+/**
+ * The custom properties in effect in the dark theme, by name, in lower case. The dark block
+ * overrides the light root, and a value that names another token, such as var(--brand), takes that
+ * token's value, as the browser does.
+ */
+function darkTokens(): Map<string, string> {
+  const merged = new Map([
+    ...blockTokens(':root {'),
+    ...blockTokens(":root:not([data-theme='light']) {"),
+  ])
+  for (const [name, value] of merged) {
+    const reference = /^var\(--([a-z0-9-]+)\)$/.exec(value)
+    const resolved = reference?.[1] === undefined ? undefined : merged.get(reference[1])
+    if (resolved !== undefined) merged.set(name, resolved)
+  }
+  return merged
 }
 
 describe('share card colours', () => {
@@ -41,7 +59,7 @@ const TEXT_MIN = 4.5
 const MARK_MIN = 3
 
 describe('share card contrast', () => {
-  it.each(['text', 'secondary', 'muted', 'warning'] as const)(
+  it.each(['text', 'secondary', 'muted', 'brand'] as const)(
     'draws %s text at 4.5:1 or better on the canvas',
     (name) => {
       expect(contrast(CARD_COLORS[name], CANVAS)).toBeGreaterThanOrEqual(TEXT_MIN)

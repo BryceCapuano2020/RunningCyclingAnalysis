@@ -1,8 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { CARD_FORMATS, MIN_GAP, placeBlocks, type Block } from './cardLayout'
+import type { Period } from '@rca/core/period'
+import { cardFileName, CARD_FORMATS, MIN_GAP, placeBlocks, type Block } from './cardLayout'
 
 const SQUARE = CARD_FORMATS.square
 const STORY = CARD_FORMATS.story
+
+function periodOf(overrides: Partial<Period>): Period {
+  return { choice: 42, startMs: null, endMs: null, days: 42, fellBack: false, ...overrides }
+}
+
+describe('cardFileName', () => {
+  it('names a dated card by its period dates and its shape', () => {
+    const period = periodOf({
+      startMs: new Date(2025, 4, 12, 12).getTime(),
+      endMs: new Date(2025, 7, 3, 12).getTime(),
+      days: 83,
+    })
+    expect(cardFileName('square', period, new Date(2026, 9, 25))).toBe(
+      'balance-2025-05-12_2025-08-03-square.png',
+    )
+    expect(cardFileName('story', period, new Date(2026, 9, 25))).toBe(
+      'balance-2025-05-12_2025-08-03-story.png',
+    )
+  })
+
+  it('names an all-time card by today, since it has no dates of its own', () => {
+    const period = periodOf({ choice: 'all', days: null })
+    expect(cardFileName('story', period, new Date(2026, 9, 25))).toBe(
+      'balance-all-time-2026-10-25-story.png',
+    )
+  })
+})
 
 function block(height: number, anchor?: Block['anchor']): Block {
   return { anchor, height, draw: () => undefined }

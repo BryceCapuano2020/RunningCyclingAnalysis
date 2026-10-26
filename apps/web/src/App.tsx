@@ -27,7 +27,8 @@ import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
-import { analysisSettings, weightKnown } from './ui/athlete'
+import { weightKnown } from './ui/athlete'
+import { useAnalysisSettings } from './ui/useAnalysisSettings'
 
 /** A string that changes whenever a different page is on screen. */
 function pageKey(route: Route, hasResult: boolean, restoring: boolean): string {
@@ -68,7 +69,8 @@ export function App() {
       }
   const { settings, units } = athleteValues
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
-  const analysisAthlete = analysisSettings(settings)
+  // Memoised on its two values: an equal settings object built anew must not redraw the share preview.
+  const analysisAthlete = useAnalysisSettings(settings)
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
