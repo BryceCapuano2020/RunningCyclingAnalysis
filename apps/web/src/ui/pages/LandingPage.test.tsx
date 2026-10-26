@@ -199,7 +199,8 @@ describe('LandingPage', () => {
     render(
       <LandingPage analysis={analysisStub()} signedIn={false} units="imperial" onFiles={vi.fn()} />,
     )
-    expect(within(exampleFigure()).getByText('Pace 7:13 /mi')).toBeInTheDocument()
+    // The sample's own Balance reads the same pace.
+    expect(within(exampleFigure()).getByText('Pace 7:12 /mi')).toBeInTheDocument()
   })
 
   it('explains the result in three plain sentences, with a link to the full method', () => {

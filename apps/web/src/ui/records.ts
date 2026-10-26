@@ -48,11 +48,6 @@ function distanceName(distanceM: RunRecordDistanceM): string {
     : `${distanceM / METRES_PER_KM} km`
 }
 
-/** A record's duration as its label in minutes, such as "20 min" or "60 min" for an hour. */
-export function recordDurationLabel(durationS: number): string {
-  return durationS % 60 === 0 ? `${durationS / 60} min` : formatDuration(durationS)
-}
-
 export interface SportNumber {
   /** The number in the sport's own unit, with the unit: a pace for running, watts for cycling. */
   value: string
@@ -77,7 +72,7 @@ export interface SportRecord extends SportNumber {
 
 /** The distance covered in a time, in the unit preference, such as "5.0 km in 20 min". */
 export function coveredText(metres: number, durationS: number, units: UnitSystem): string {
-  return `${formatDistance(metres, units)} in ${formatDuration(durationS)}`
+  return `${formatDistance(metres, units)} in ${effortLabel(durationS)}`
 }
 
 type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
@@ -139,9 +134,12 @@ export const EFFORT_OPTIONS = EFFORT_LENGTHS_S.map((durationS) => ({
   label: effortLabel(durationS),
 }))
 
-/** An effort length as the segment and the trend's title name it, in minutes: "20 min", even for an hour. */
+/**
+ * An effort length in copy, the one way every record, trend and headline names it: whole minutes, such
+ * as "20 min" or "60 min" for an hour, and any other duration as formatDuration writes it, such as "45 s".
+ */
 export function effortLabel(durationS: number): string {
-  return `${durationS / 60} min`
+  return durationS % 60 === 0 ? `${durationS / 60} min` : formatDuration(durationS)
 }
 
 /** The effort length a segment value names, or undefined for a value that names none. */
@@ -349,7 +347,7 @@ export function chipLabels(records: readonly EarnedRecord[]): string[] {
     if (record.kind === 'distance') {
       labels.push(`Best ${distanceName(record.distanceM)}`)
     } else if (CHIP_DURATIONS_S.includes(record.durationS)) {
-      labels.push(`Best ${recordDurationLabel(record.durationS)}`)
+      labels.push(`Best ${effortLabel(record.durationS)}`)
     }
   }
   return labels

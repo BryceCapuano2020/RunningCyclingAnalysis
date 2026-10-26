@@ -11,7 +11,7 @@ import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../
 import type { AgeProfile } from '../grades'
 import { FLAT_MARK, recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { ownDistanceRecords, paceIsTime, recordDurationLabel, sportRecords } from '../records'
+import { effortLabel, ownDistanceRecords, paceIsTime, sportRecords } from '../records'
 
 export interface ActivityBestsProps {
   activity: ActivitySummary
@@ -121,7 +121,7 @@ export function ActivityBests({
   const rows: RecordRow[] = [
     ...durationItems.map(({ record, outcome }) => {
       const row = recordRow(sport, record, {
-        label: `Best ${recordDurationLabel(record.durationS)}`,
+        label: `Best ${effortLabel(record.durationS)}`,
         grade: recordGradeCell(sport, outcome, record.covered, 'row'),
       })
       row.activity = null

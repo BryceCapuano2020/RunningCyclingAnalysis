@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import type { EffortCheck } from '@rca/core/types'
-import { formatDuration } from '@rca/core/units'
 import { effortCaveat, hardEffortsOnFile } from '../effortCaveat'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from '../components/icons'
 import { HEADLINE_LABEL } from '../grades'
+import { effortLabel } from '../records'
 import { hrefFor } from '../route'
 
 export interface EvidenceCardProps {
@@ -50,7 +50,7 @@ function evidenceFor(effort: EffortCheck | null, noHeartRate: boolean): Evidence
     return {
       chip: { className: 'chip chip--good', icon: <CheckIcon />, label: 'Hard efforts on file' },
       title: null,
-      text: `Heart rate shows your best ${formatDuration(effort.durationS)} in both sports were hard, not easy. Still, that does not prove either was your hardest.`,
+      text: `Heart rate shows your best ${effortLabel(effort.durationS)} in both sports were hard, not easy. Still, that does not prove either was your hardest.`,
       howTo: null,
     }
   }

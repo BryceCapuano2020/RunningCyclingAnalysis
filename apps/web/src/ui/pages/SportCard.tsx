@@ -21,8 +21,8 @@ import {
 } from '../sports'
 import {
   CHIP_DURATIONS_S,
+  effortLabel,
   headlineEffort,
-  recordDurationLabel,
   refusalOf,
   sportRecords,
   threshold,
@@ -116,7 +116,7 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
             <SportRecords
               rows={records.map((record) =>
                 recordRow(sport, record, {
-                  label: recordDurationLabel(record.durationS),
+                  label: effortLabel(record.durationS),
                   grade: null,
                 }),
               )}

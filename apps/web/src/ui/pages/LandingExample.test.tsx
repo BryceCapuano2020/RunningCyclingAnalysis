@@ -33,6 +33,17 @@ describe('LandingExample', () => {
     )
   })
 
+  it('shows the sample’s threshold pace as its Balance does, in both units', () => {
+    const result = sampleResult()
+    for (const units of ['metric', 'imperial'] as const) {
+      expect(threshold(result, 'run', SAMPLE_SETTINGS.massKg, units)?.value).toBe(
+        formatPace(LANDING_EXAMPLE.runSpeedMs, units),
+      )
+    }
+    render(<LandingExample units="imperial" />)
+    expect(screen.getByText('Pace 7:12 /mi')).toBeInTheDocument()
+  })
+
   it('carries each grade exactly as the sample athlete’s analysis gives it, with its range', () => {
     const headline = headlineGrades(sampleResult(), SAMPLE_PROFILE)
     for (const sport of ['run', 'ride'] as const) {

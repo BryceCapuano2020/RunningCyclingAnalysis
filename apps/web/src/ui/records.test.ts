@@ -16,7 +16,6 @@ import {
   effortLabel,
   EFFORT_OPTIONS,
   featuredEquivalence,
-  recordDurationLabel,
   isEstimatedRecord,
   nativeCurve,
   nativeValue,
@@ -106,6 +105,12 @@ describe('sportRecords', () => {
     const covered = formatDistance(metabolicToFlatSpeed(15) * 1200, 'imperial')
     expect(first?.covered).toBe(`${covered} in 20 min`)
     expect(first?.covered).toMatch(/^\d+\.\d mi in 20 min$/)
+  })
+
+  it('names an hour effort in minutes in its distance covered, as the records list does', () => {
+    const runs = makeResult({ runCurve: [curvePoint(3600, 15, 'run-1')] })
+    const [hour] = sportRecords(runs, 'run', 70, 'metric')
+    expect(hour?.covered).toMatch(/^\d+\.\d km in 60 min$/)
   })
 
   it('gives a ride no distance covered, since its grade goes through the running equivalent', () => {
@@ -374,12 +379,16 @@ describe('isEstimatedRecord', () => {
   })
 })
 
-describe('recordDurationLabel', () => {
+describe('effortLabel', () => {
   it('names every record length in minutes, the hour too, as DESIGN names them', () => {
-    expect(recordDurationLabel(3600)).toBe('60 min')
-    expect(recordDurationLabel(1200)).toBe('20 min')
-    expect(recordDurationLabel(300)).toBe('5 min')
-    expect(recordDurationLabel(60)).toBe('1 min')
+    expect(effortLabel(3600)).toBe('60 min')
+    expect(effortLabel(1200)).toBe('20 min')
+    expect(effortLabel(300)).toBe('5 min')
+    expect(effortLabel(60)).toBe('1 min')
+  })
+
+  it('names a length under a minute in seconds, not as a fraction of a minute', () => {
+    expect(effortLabel(45)).toBe('45 s')
   })
 })
 

@@ -44,8 +44,8 @@ import {
   headlineEffort,
   isEstimatedRecord,
   nativeCurve,
+  effortLabel,
   paceIsTime,
-  recordDurationLabel,
   refusalOf,
   sportRecords,
   threshold,
@@ -169,7 +169,7 @@ export function SportPage({
   // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
   const rows: RecordRow[] = graded.map(({ record, outcome }) =>
     recordRow(sport, record, {
-      label: recordDurationLabel(record.durationS),
+      label: effortLabel(record.durationS),
       grade: recordGradeCell(sport, outcome, record.covered, 'row'),
       change: changeOf(record.durationS),
       setDays: setDaysOf(record.activity, openedAt),

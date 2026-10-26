@@ -8,7 +8,7 @@ import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { formatDayMonth } from '../format/date'
 import { hrefFor } from '../route'
-import { countSport, featuredEquivalence, isEstimatedRecord } from '../records'
+import { countSport, effortLabel, featuredEquivalence, isEstimatedRecord } from '../records'
 import { betweenClause } from '../periodCopy'
 import './CrossSportCard.css'
 
@@ -91,7 +91,7 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
         <span className="unit">{PACE_UNIT[units]}</span>
       </h2>
       <p className="secondary">
-        {`Your best ${formatDuration(featured.durationS)} on the bike, ${watts}, takes the same effort as running on the flat.`}
+        {`Your best ${effortLabel(featured.durationS)} on the bike, ${watts}, takes the same effort as running on the flat.`}
       </p>
       {source && (
         <p>

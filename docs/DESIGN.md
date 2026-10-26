@@ -26,7 +26,7 @@ results, it shows a restoring state in its place, with an **Add files** button, 
 has replied, or, while the account is still loading, three seconds have passed, whichever is first.
 A returning visitor is not asked to add their files again and is never left without a control. The
 header holds the wordmark, the four tabs (once there is a result, and while results restore), one
-**Add files** button (not while they restore), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
+**Add files** button (not while they restore, or on the landing page, whose drop zone has its own), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
 account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window and
@@ -225,7 +225,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   A tab's ring is an inset outline, since the tab bar's current mark is a flat bar, not an inset shadow.
   The current Activities page number keeps its selected look while pressed, and in forced colours it takes
   the system highlight. In forced colours a press is an outline, since the fill and the shadow are dropped,
-  the primary button takes the system highlight, and a chip is outlined.
+  the primary button takes the system highlight with its label, the browser's own colour adjustment
+  being off for it, and a chip is outlined.
   A button's hover also darkens its edge to `--text-secondary`, so the hover shows against the page.
   The one destructive button, a removal's confirm, keeps its red fill and white label on hover and
   press, and shows the state by brightness, so the generic hover never blanks it.
@@ -294,7 +295,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   record's source is dated without its weekday, such as "5 Jan".
 - **A duration's grade says the distance it is taken at.** A run's grade at 1, 5, 20 or 60 min is taken at
   the distance it covers at its flat pace, so its grade line reads "Local · 64% · 5.0 km in 20 min", written
-  as any distance is. A ride's grade is not given a distance, because it goes through its running equivalent.
+  as any distance is. An effort's length reads the same in every record, trend and headline line, in whole minutes, so an hour is "60 min", never "1 h"; a length under a minute reads in seconds. A ride's grade is not given a distance, because it goes through its running equivalent.
 - Sport pages use the athlete's units. Running is pace per km or mile, faster up; cycling is
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in

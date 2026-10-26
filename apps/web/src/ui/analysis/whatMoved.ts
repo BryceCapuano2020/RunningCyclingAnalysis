@@ -10,7 +10,7 @@ import { pickHeadline } from '../components/pickHeadline'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
 import { headlineGrades } from '../grades'
-import { curveOf, distanceRecords, recordDurationLabel, sportRecords, threshold } from '../records'
+import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
 import { SPORT_NOUN, SPORT_ORDER } from '../sports'
 import { addedSentence } from './copy'
@@ -179,7 +179,7 @@ function bestItems(
         continue
       }
       items.push({
-        text: `New best ${recordDurationLabel(record.durationS)} ${sport}: ${record.value}`,
+        text: `New best ${effortLabel(record.durationS)} ${sport}: ${record.value}`,
         spoken: `New best ${spokenDuration(record.durationS)} ${sport}: ${spokenFigure(record, sport, units)}`,
       })
     }

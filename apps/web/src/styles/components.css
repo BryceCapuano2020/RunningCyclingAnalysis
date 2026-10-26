@@ -178,6 +178,8 @@
     background: Highlight;
     border-color: Highlight;
     color: HighlightText;
+    /* Without this the browser paints a backplate over the label, which hides it. The system colours stay. */
+    forced-color-adjust: none;
   }
 
   /* A chip's fill is dropped in forced colours, so its edge is drawn as an outline. A chip that is a
