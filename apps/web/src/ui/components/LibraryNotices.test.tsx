@@ -137,7 +137,7 @@ describe('LibraryNotices: counts', () => {
     )
     expect(
       screen.getByText(
-        '1 activity is missing its original file. Re-import it to restore the original.',
+        '1 activity is missing its original file. Add its file again to restore the original.',
       ),
     ).toBeInTheDocument()
   })

@@ -5,6 +5,7 @@ import { parseActivityFile } from './import'
 import { entryKey, readActivityNames } from './import/activitiesCsv'
 import { sha256Hex } from './sha256'
 import type { Activity } from './types'
+import type { Rejection } from './import/result'
 
 /** The files an import has read so far, across all of its sources, and the progress callback. */
 export interface ImportProgress {
@@ -18,7 +19,7 @@ export interface SourceImport {
   progress: ImportProgress
   outcome: { activities: number; rejected: number }
   /** Rejections by file name, shared by the import. */
-  rejected: Map<string, string>
+  rejected: Map<string, Rejection>
   /** Activity files the sources hold in formats the app does not read, by source name. */
   unsupported: Map<string, number>
   /** Whether each file's bytes are hashed, which the sink needs. */
@@ -28,6 +29,11 @@ export interface SourceImport {
     activity: Activity,
     file: { fileName: string; fileHash: string; bytes: Uint8Array },
   ) => Promise<void>
+}
+
+/** The part of a refused parse result that the import keeps. */
+function rejectionOf({ reason, code, detail }: { reason: string } & Rejection): Rejection {
+  return { reason, code, detail }
 }
 
 /** Counts one more file as read, and reports the count. */
@@ -69,14 +75,14 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
         ctx.rejected.delete(`${file.fileName}.gz`)
       } else {
         outcome.rejected++
-        ctx.rejected.set(parsed.fileName, parsed.reason)
+        ctx.rejected.set(parsed.fileName, rejectionOf(parsed))
       }
       countRead(progress)
     },
-    (fileName, reason) => {
+    (fileName, rejection) => {
       undecodable++
       outcome.rejected++
-      ctx.rejected.set(fileName, reason)
+      ctx.rejected.set(fileName, rejection)
       // An activity file that could not be read was still read, so progress reaches its total.
       if (ACTIVITY.test(fileName)) countRead(progress)
     },
@@ -92,6 +98,9 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   // A corrupt file is already reported under its own name, so do not also call it empty.
   if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
     outcome.rejected++
-    ctx.rejected.set(source.name, 'No supported activity files found (FIT, GPX or TCX)')
+    ctx.rejected.set(source.name, {
+      reason: 'No supported activity files found (FIT, GPX or TCX)',
+      code: 'not-activity',
+    })
   }
 }

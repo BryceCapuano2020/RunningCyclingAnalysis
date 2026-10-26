@@ -9,7 +9,7 @@ import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { RouteShape } from './route/routeShape'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
+import { dedupeKey, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
@@ -17,6 +17,7 @@ import { HEADLINE_DURATION_S } from './constants'
 import { haltsImport, SyncFailure } from './saveFailure'
 import type { SyncIssue, SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
+import type { Rejection } from './import/result'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
 
@@ -24,6 +25,7 @@ export { haltsImport, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
+export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
 export { copyOfDigest, dedupeKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
@@ -69,7 +71,7 @@ export class AnalysisSession {
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
-  private rejected = new Map<string, string>()
+  private rejected = new Map<string, Rejection>()
   private unsupported = new Map<string, number>()
   private isSample = false
   // The period the athlete picked. The default is the most recent window that holds both sports.
@@ -110,6 +112,9 @@ export class AnalysisSession {
     }) => void,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
+    // The rejected files are those of this import, so an earlier import's are not listed again.
+    this.rejected.clear()
+    this.unsupported.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0 }
@@ -209,9 +214,10 @@ export class AnalysisSession {
     syncExisting: boolean,
     batch: SaveBatch,
   ): Promise<void> {
-    const reason = heldCopyReason(this.digests.values(), activity, file.fileName)
-    if (reason !== null) {
-      batch.duplicates.push({ fileName: file.fileName, reason })
+    const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
+    if (copyOf !== null) {
+      const reason = `Same workout as ${copyOf}`
+      batch.duplicates.push({ fileName: file.fileName, reason, code: 'duplicate', detail: copyOf })
       return
     }
     await this.keep(activity, file, sink, syncExisting, batch)
@@ -356,7 +362,9 @@ export class AnalysisSession {
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
           : null,
-      rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
+      rejected: [...this.rejected].map(([fileName, rejection]) =>
+        Object.assign({ fileName }, rejection),
+      ),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
       totalActivities: visible.length,

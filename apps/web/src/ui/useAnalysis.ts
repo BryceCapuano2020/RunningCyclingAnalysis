@@ -8,7 +8,7 @@ import type {
   WorkerResponse,
 } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
-import { STOPPED_KEPT_RESULTS, STOPPED_WHILE_LOADING, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
 import { isQuietRequest } from './analysis/quietRequests'
 import type { ImportChange } from './analysis/importState'
@@ -16,7 +16,7 @@ import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
 import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
-import { drainBatches, EMPTY_SESSION, isDeletion } from './analysis/model'
+import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
 import { replyOf } from './routeReply'
@@ -39,6 +39,8 @@ export interface AnalysisController {
   error: string | null
   /** The worker's reason for `error`, when the page words that error specially. */
   errorIssue: SyncIssueCode | null
+  /** `error` is news the visitor asked for, such as a stop, rather than a fault. */
+  errorNeutral: boolean
   workerStopped: boolean
   stop: () => void
   retryWorker: () => void
@@ -109,9 +111,12 @@ export function useAnalysis(
   const pendingRepliesRef = useRef<Pending[]>([])
   const [errorNotice, setErrorNotice] = useState<ErrorNotice | null>(null)
 
-  const setError = useCallback((message: string | null, issue: SyncIssueCode | null = null) => {
-    setErrorNotice(message === null ? null : { message, issue })
-  }, [])
+  const setError = useCallback(
+    (message: string | null, issue: SyncIssueCode | null = null, neutral = false) => {
+      setErrorNotice(message === null ? null : { message, issue, neutral })
+    },
+    [],
+  )
   const error = errorNotice?.message ?? null
   const errorIssue = errorNotice?.issue ?? null
 
@@ -135,7 +140,6 @@ export function useAnalysis(
     setWaitingReason,
     pendingAsyncImportsRef,
     provisionalImportsRef,
-    setState,
     setProgress,
     setUploading,
     setRebuildNotice,
@@ -179,11 +183,14 @@ export function useAnalysis(
       if (request.type === 'loadServer' || request.type === 'rebuildStale') {
         setLibraryUnreadable(0)
       }
-      // The summary describes the last import only, so it goes once another import, a clear or the sample is sent.
+      // The summary describes the last import only: another import, a clear, the sample or a delete
+      // replaces it, since a delete changes the count the summary gave.
       if (
         request.type === 'addFiles' ||
         request.type === 'clear' ||
-        request.type === 'loadSample'
+        request.type === 'loadSample' ||
+        request.type === 'deleteActivity' ||
+        request.type === 'deleteDeviceActivity'
       ) {
         setImportOutcome(null)
       }
@@ -278,26 +285,19 @@ export function useAnalysis(
     [sendToWorker],
   )
 
+  // A stop cancels the work in progress and keeps the result on screen. The worker is replaced, and
+  // its account pass reloads the kept library, which replaces the result with what was saved.
   const stop = useCallback(() => {
     clearQueues()
     setProgress(null)
     setUploading(null)
-    setState(EMPTY_SESSION)
     setImportOutcome(null)
     setRebuildNotice(null)
     setWorkerStopped(false)
     automaticRestartCountRef.current = 0
-    const { status } = accountRef.current
-    setError(
-      status === 'signed-in'
-        ? 'Analysis stopped. Saved activities are reloading; re-import any local files that were not saved.'
-        : status === 'loading'
-          ? STOPPED_WHILE_LOADING
-          : STOPPED_KEPT_RESULTS,
-    )
+    setError(STOPPED_BY_USER, null, true)
     restartWorker()
   }, [
-    accountRef,
     automaticRestartCountRef,
     clearQueues,
     restartWorker,
@@ -305,7 +305,6 @@ export function useAnalysis(
     setImportOutcome,
     setProgress,
     setRebuildNotice,
-    setState,
     setUploading,
     setWorkerStopped,
   ])
@@ -360,6 +359,7 @@ export function useAnalysis(
     uploading: imports.uploading,
     error,
     errorIssue,
+    errorNeutral: errorNotice?.neutral ?? false,
     workerStopped: transport.workerStopped,
     stop,
     retryWorker: transport.retryWorker,

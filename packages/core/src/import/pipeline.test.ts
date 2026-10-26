@@ -147,6 +147,7 @@ describe('activitiesFromRecords', () => {
       ok: false,
       fileName: 'short.gpx',
       reason: 'Activity is shorter than one minute',
+      code: 'too-short',
     })
   })
 
@@ -166,6 +167,7 @@ describe('activitiesFromRecords', () => {
       ok: false,
       fileName: 'hourly.gpx',
       reason: 'Activity is recorded too sparsely: its points are more than 10 seconds apart',
+      code: 'too-sparse',
     })
   })
 
@@ -190,6 +192,7 @@ describe('activitiesFromRecords', () => {
       ok: false,
       fileName: 'pause.gpx',
       reason: 'Activity is shorter than one minute',
+      code: 'too-short',
     })
   })
 
@@ -204,6 +207,7 @@ describe('activitiesFromRecords', () => {
       ok: false,
       fileName: 'future.gpx',
       reason: 'Activity date is not plausible',
+      code: 'implausible-date',
     })
   })
 
@@ -234,6 +238,8 @@ describe('activitiesFromRecords', () => {
       ok: false,
       fileName: 'pool.tcx',
       reason: 'Unsupported sport: swimming',
+      code: 'unsupported-sport',
+      detail: 'swimming',
     })
   })
 })
@@ -494,6 +500,7 @@ describe('sample budget', () => {
       ok: false,
       fileName: 'long.fit',
       reason: 'File contains too much data',
+      code: 'too-much-data',
     })
 
     const fits = succeeded(

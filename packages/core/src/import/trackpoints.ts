@@ -1,15 +1,18 @@
 import { trackFromFixes } from './gps'
 import type { GpsFix, GpsTrack } from './gps'
+import type { RejectCode } from './result'
 
 /** Rules shared by the GPX and TCX readers: refusals, XML numbers and positions, GPS tracks. */
 
 /** Stops a scan with a reason for the user, unlike a malformed document. */
 export class Refusal extends Error {
   readonly reason: string
+  readonly code: RejectCode
 
-  constructor(reason: string) {
+  constructor(reason: string, code: RejectCode) {
     super(reason)
     this.reason = reason
+    this.code = code
   }
 }
 

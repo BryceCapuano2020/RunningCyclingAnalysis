@@ -91,7 +91,7 @@ export function parseGpx(
   try {
     return parseUnchecked(bytes, fileName, limits, opts)
   } catch {
-    return failure(fileName, DECODE_FAILED)
+    return failure(fileName, DECODE_FAILED, 'corrupt')
   }
 }
 
@@ -102,18 +102,19 @@ function parseUnchecked(
   opts: ParseOptions,
 ): ParseResult {
   if (bytes.length > limits.maxFileBytes) {
-    return failure(fileName, `GPX file exceeds the ${limits.maxFileBytes}-byte limit`)
+    const reason = `GPX file exceeds the ${limits.maxFileBytes}-byte limit`
+    return failure(fileName, reason, 'too-large', String(limits.maxFileBytes))
   }
   const reader = new GpxReader(limits.maxRecordMessages)
   try {
     scanXmlBytes(bytes, reader)
   } catch (error) {
-    if (error instanceof Refusal) return failure(fileName, error.reason)
-    if (error instanceof XmlError) return failure(fileName, NOT_GPX)
+    if (error instanceof Refusal) return failure(fileName, error.reason, error.code)
+    if (error instanceof XmlError) return failure(fileName, NOT_GPX, 'corrupt')
     throw error
   }
   if (reader.units.every((unit) => unit.records.length === 0)) {
-    return failure(fileName, NO_RECORDS)
+    return failure(fileName, NO_RECORDS, 'empty')
   }
   const result = activitiesFromUnits({ fileName, units: reader.units }, limits, opts)
   if (!result.ok) return result
@@ -196,7 +197,7 @@ class GpxReader implements XmlHandler {
     parent: Role | undefined,
   ): Role {
     if (depth === 1) {
-      if (local !== 'gpx') throw new Refusal(NOT_GPX)
+      if (local !== 'gpx') throw new Refusal(NOT_GPX, 'corrupt')
       this.creator = attrs.creator
       return 'root'
     }
@@ -250,7 +251,7 @@ class GpxReader implements XmlHandler {
   private startPoint(attrs: Record<string, string>): void {
     this.pointCount++
     if (this.pointCount > this.maxPoints) {
-      throw new Refusal(`GPX file exceeds the ${this.maxPoints}-record limit`)
+      throw new Refusal(`GPX file exceeds the ${this.maxPoints}-record limit`, 'too-much-data')
     }
     this.point = {
       position: readPosition(attrs.lat, attrs.lon),

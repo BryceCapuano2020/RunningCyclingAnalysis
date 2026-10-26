@@ -1,14 +1,35 @@
+/* The skipped files of an import, inside its summary. Plain text, so it reads as information. */
 .rejected-files {
+  margin-top: var(--space-2);
   font-size: 0.875rem;
 }
 
-.rejected-files__unsupported {
-  margin-bottom: var(--space-2);
+.rejected-files__first {
+  margin: 0;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.rejected-files details {
+  margin-top: var(--space-2);
+}
+
+.rejected-files summary {
+  cursor: pointer;
+  color: var(--text-primary);
 }
 
 .rejected-files__group {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.rejected-files__title,
+.rejected-files__action {
+  margin: 0;
+}
+
+.rejected-files__action {
+  color: var(--text-secondary);
 }
 
 .rejected-files__list {

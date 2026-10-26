@@ -204,7 +204,7 @@ function runGpx(prefix: string): string {
 
 describe('GPX corpus: robustness', () => {
   it.each(AS_SHIPPED)('refuses %s as shipped, with the documented reason', (name, reason) => {
-    expect(parseActivityFile(corpusBytes(name), name)).toEqual({
+    expect(parseActivityFile(corpusBytes(name), name)).toMatchObject({
       ok: false,
       fileName: name,
       reason,
@@ -246,7 +246,12 @@ describe('GPX corpus: robustness', () => {
       '',
     )
     const result = parseActivityFile(new TextEncoder().encode(untimed), 'untimed.gpx')
-    expect(result).toEqual({ ok: false, fileName: 'untimed.gpx', reason: NO_RECORDS })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'untimed.gpx',
+      reason: NO_RECORDS,
+      code: 'empty',
+    })
   })
 
   it('refuses a typed copy of cerknicko-without-times, which has only 5 widely spaced timed fixes, as too sparse', () => {
@@ -254,7 +259,12 @@ describe('GPX corpus: robustness', () => {
       new TextEncoder().encode(withType(corpusText('cerknicko-without-times.gpx'), 'cycling')),
       'cerknicko-without-times.gpx',
     )
-    expect(result).toEqual({ ok: false, fileName: 'cerknicko-without-times.gpx', reason: SPARSE })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'cerknicko-without-times.gpx',
+      reason: SPARSE,
+      code: 'too-sparse',
+    })
   })
 
   it('refuses a typed Mojstrovka, whose trackpoints all share one 1901 time, as too short', () => {
@@ -263,7 +273,12 @@ describe('GPX corpus: robustness', () => {
       new TextEncoder().encode(withType(corpusText('Mojstrovka.gpx'), 'running')),
       'Mojstrovka.gpx',
     )
-    expect(result).toEqual({ ok: false, fileName: 'Mojstrovka.gpx', reason: SHORT })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'Mojstrovka.gpx',
+      reason: SHORT,
+      code: 'too-short',
+    })
   })
 })
 

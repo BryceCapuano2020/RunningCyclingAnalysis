@@ -12,18 +12,16 @@ afterEach(() => {
 })
 
 describe('resetSentence', () => {
-  it('gives the UTC reset time and the same instant in the viewer local time', () => {
+  it('gives the reset time in the viewer local time, with no UTC in the words', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
-    expect(resetSentence(resetsAt)).toBe(
-      `It resets at 00:00 UTC (${localTime(resetsAt)} your time).`,
-    )
+    expect(resetSentence(resetsAt)).toBe(`It resets at ${localTime(resetsAt)}, your time.`)
   })
 
-  it('uses the next UTC midnight when no reset time is given', () => {
+  it('uses the next UTC midnight, told in local time, when no reset time is given', () => {
     vi.useFakeTimers()
     vi.setSystemTime(Date.UTC(2026, 9, 23, 15, 30))
     const nextMidnight = Date.UTC(2026, 9, 24)
-    expect(resetSentence()).toBe(`It resets at 00:00 UTC (${localTime(nextMidnight)} your time).`)
+    expect(resetSentence()).toBe(`It resets at ${localTime(nextMidnight)}, your time.`)
   })
 })
 

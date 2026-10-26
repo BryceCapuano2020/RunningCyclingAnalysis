@@ -21,6 +21,7 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     uploading: null,
     error: null,
     errorIssue: null,
+    errorNeutral: false,
     workerStopped: false,
     stop: vi.fn(),
     retryWorker: vi.fn(),

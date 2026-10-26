@@ -92,7 +92,7 @@ describe('SyncStatus', () => {
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('network', 3)] })} />)
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent(
-      '3 activities were not fully saved because the connection dropped. Re-import them to retry.',
+      '3 activities were not fully saved because the connection dropped. Add them again to retry.',
     )
     expect(status).toHaveClass('sync-status__message--failed')
   })
@@ -100,7 +100,7 @@ describe('SyncStatus', () => {
   it('keeps reporting issues while idle, so they are not lost after the upload ends', () => {
     render(<SyncStatus {...props({ issues: [issue('server', 1)] })} />)
     expect(screen.getByRole('status')).toHaveTextContent(
-      '1 activity was not fully saved because of a server error. Re-import it to retry.',
+      '1 activity was not fully saved because of a server error. Add it again to retry.',
     )
   })
 
@@ -117,7 +117,7 @@ describe('SyncStatus', () => {
       <SyncStatus {...props({ issues: [issue('storage-budget', 2), issue('rate-limited', 4)] })} />,
     )
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Original-file storage is paused for now, so 2 originals were not kept. The summaries were saved. Too many requests at once, so 4 activities were not fully saved. Wait a minute, then re-import them.',
+      'Original-file storage is paused for now, so 2 originals were not kept. The summaries were saved. Too many requests at once, so 4 activities were not fully saved. Wait a minute, then add them again.',
     )
   })
 
@@ -125,12 +125,12 @@ describe('SyncStatus', () => {
     [
       'signed-out',
       2,
-      '2 activities were not saved because you were signed out. Sign in and re-import them.',
+      '2 activities were not saved because you were signed out. Sign in and add them again.',
     ],
     [
       'signed-out',
       1,
-      '1 activity was not saved because you were signed out. Sign in and re-import it.',
+      '1 activity was not saved because you were signed out. Sign in and add it again.',
     ],
     [
       'account-changed',
@@ -181,32 +181,32 @@ describe('SyncStatus', () => {
     [
       'rate-limited',
       2,
-      'Too many requests at once, so 2 activities were not fully saved. Wait a minute, then re-import them.',
+      'Too many requests at once, so 2 activities were not fully saved. Wait a minute, then add them again.',
     ],
     [
       'rate-limited',
       1,
-      'Too many requests at once, so 1 activity was not fully saved. Wait a minute, then re-import it.',
+      'Too many requests at once, so 1 activity was not fully saved. Wait a minute, then add it again.',
     ],
     [
       'network',
       2,
-      '2 activities were not fully saved because the connection dropped. Re-import them to retry.',
+      '2 activities were not fully saved because the connection dropped. Add them again to retry.',
     ],
     [
       'network',
       1,
-      '1 activity was not fully saved because the connection dropped. Re-import it to retry.',
+      '1 activity was not fully saved because the connection dropped. Add it again to retry.',
     ],
     [
       'server',
       2,
-      '2 activities were not fully saved because of a server error. Re-import them to retry.',
+      '2 activities were not fully saved because of a server error. Add them again to retry.',
     ],
     [
       'server',
       1,
-      '1 activity was not fully saved because of a server error. Re-import it to retry.',
+      '1 activity was not fully saved because of a server error. Add it again to retry.',
     ],
     [
       'digest-quota',
@@ -233,16 +233,16 @@ describe('SyncStatus', () => {
     expect(screen.getByRole('status')).toHaveTextContent(text)
   })
 
-  it('says the daily save limit resets at 00:00 UTC, with the local time of that reset', () => {
+  it('says the daily save limit resets at a local time, with no UTC in the words', () => {
     render(<SyncStatus {...props({ issues: [issue('daily-limit', 2)] })} />)
     expect(screen.getByRole('status')).toHaveTextContent(
-      /^You have reached today's limit on saves, so 2 activities were not fully saved\. It resets at 00:00 UTC \(.+ your time\)\. Re-import them after that\.$/,
+      /^You have reached today's limit on saves, so 2 activities were not fully saved\. It resets at .+, your time\. Add them again after that\.$/,
     )
   })
 
   it('shows issues to a signed-out visitor, who is the one who needs to sign in', () => {
     render(<SyncStatus {...props({ signedIn: false, issues: [issue('signed-out', 1)] })} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Sign in and re-import it.')
+    expect(screen.getByRole('status')).toHaveTextContent('Sign in and add it again.')
   })
 
   it('shows no running count while signed out', () => {

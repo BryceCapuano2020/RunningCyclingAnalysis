@@ -206,7 +206,7 @@ test('uploading a GPX ride and a TCX run shows the results', async ({ page }) =>
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
   await expect(await activitiesRows(page)).toHaveCount(2)
-  await expect(page.getByText(/could not be used/)).toHaveCount(0)
+  await expect(page.getByText(/^\d+ files? skipped\.$/)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toHaveCount(0)
 })
 
@@ -230,10 +230,10 @@ test('uploading a file that is not FIT lists it as unusable and keeps the landin
   await page.goto('/')
   await uploadFixtures(page, ['not-a-fit.fit'])
 
-  await expect(page.getByText('1 file could not be used', { exact: true })).toBeVisible()
-  await page.getByText('1 file could not be used', { exact: true }).click()
-  await page.getByText('Not a FIT file: 1 file').click()
-  await expect(page.getByText('not-a-fit.fit')).toBeVisible()
+  await expect(page.getByText('1 file skipped.', { exact: true })).toBeVisible()
+  await page.getByText('1 file skipped.', { exact: true }).click()
+  await expect(page.getByText('Damaged or empty: 1 file')).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: 'not-a-fit.fit' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
 })
 

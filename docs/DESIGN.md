@@ -29,8 +29,9 @@ header holds the wordmark, the four tabs (once there is a result), one **Add fil
 **Profile** link (a person glyph with its word at every width, outlined as an account) and the
 account control. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
-button's width, so the header does not move. The import strip keeps its height while idle, so a drop
-does not push the page down. Nothing is held for the account: a file is analysed at once and saved
+button's width, so the header does not move. The busy strip is fixed to the bottom of the window
+and appears only once a run has lasted about 400 ms, so a quick change never moves the page; on a
+phone it sits above the tab bar. Nothing is held for the account: a file is analysed at once and saved
 once the account is known.
 
 The header stays at
@@ -86,13 +87,27 @@ menus can change." for Strava, which was read on its own help page. For the othe
 not from the services' own pages.
 `HowToGetFilesButton` opens the same guides in a dialog. It sits beside **Add rides** (or **Add runs**)
 on an empty Run or Ride card, as a secondary action; Profile can wire it in the same way. The dialog has no sample button, since a sample would replace the visitor's data.
-After an import, a dismissible notice under the header says what it added, or "Nothing new" when every
-activity was already in the library, and links to Balance, except on Balance itself. An import made on
-Profile or Method moves to Balance, where its result is. Under that sentence it lists what the import
-moved in the athlete's numbers: at most four items, thresholds first, then the balance, then new bests
-at 1, 5, 20 and 60 minutes, counted only for workouts that were not on file before. A first import, or one
-that replaced the sample, lists nothing, and nor does an import that added no run or ride. Each import is compared with the result the worker last reported when it was sent, except a file released from a wait for the library, which keeps the result that wait ended with. After a Start over, the next import is compared with nothing. Each change is
-also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
+The notice region sits under the header and holds one summary per import, the sample banner while the
+sample is loaded, then the sync, library and sample notices and any error. After an import, a dismissible summary says what it added, or "Nothing new"
+when every activity was already in the library, and links to Balance, except on Balance itself. An
+import made on Profile or Method moves to Balance, where its result is. Under that sentence it lists
+what the import moved in the athlete's numbers: at most four items, thresholds first, then the balance,
+then new bests at 1, 5, 20 and 60 minutes, counted only for workouts that were not on file before. A
+first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
+or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
+group names its files with a plain reason and gives one suggested action. The summary's first skipped
+file is shown beside the line, and the summary is announced with the same count it shows. Each import
+is compared with the result the worker last reported when it was sent, except a file released from a
+wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
+compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
+is also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
+On the Activities page, a quiet line says what is kept: "Kept on this device: 3 activities." signed out,
+or "Saved to your account: 3 activities." signed in.
+
+A user's Stop is neutral news, never an alert. It cancels the import in progress and keeps the result on
+screen: "Stopped. Add your files again when you're ready." The stop may replace the summary of the
+previous import with that neutral line, since the import it summarised was the one stopped. The worker
+is replaced and the kept library reloads behind it.
 
 ## Colour
 
@@ -287,6 +302,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   for a run whose digest predates splits, "This run is too short to split." for one too short for a
   whole unit, and "Splits are kept for runs up to 500 km." for one past the limit. When the worker
   cannot answer, the page says "The splits could not be loaded. Open this activity again to retry."
+- **Plain words for what went wrong.** A refused file's reason comes from its code in
+  `apps/web/src/ui/analysis/rejectCopy.ts`, never the core's English: "Damaged, so it could not be
+  read. Export it again.", "Too large to read (over 64 MB). Export a shorter range.", "Same workout as
+  run.fit, so it was not counted twice." Sport names are words: "A walk is not a run or a ride, so it
+  was left out on purpose." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
+  said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
+  The words for a data issue are `flagSentence` in `apps/web/src/ui/analysis/flagCopy.ts`, ready for the
+  activity page to use; until that page is wired, it still shows the core's English.
+- **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your
+  time.", never UTC.
 - **Every number names its source**: the activity that set it, with a link to that activity.
 - **Evidence gaps say what to do, on the card itself**: one plain sentence under the gap, saying how to
   record a hard, steady 20-minute effort with heart rate on, or how to add heart rate to a file. Its

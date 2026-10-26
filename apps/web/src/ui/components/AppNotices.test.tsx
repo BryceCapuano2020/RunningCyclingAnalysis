@@ -23,6 +23,9 @@ function noticesProps(
     accountsUnavailable: false,
     accountError: null,
     runThenFocus: vi.fn((action: () => void) => action()),
+    moved: [],
+    atBalance: false,
+    activitiesPage: false,
     ...overrides,
   }
 }
@@ -64,6 +67,86 @@ describe('AppNotices live regions', () => {
     expect(banner.className).toBe('sample-banner')
     expect(screen.getAllByText(/The sample is not kept/)).toHaveLength(1)
   })
+
+  it('announces a neutral stop in a region that was already on the page, not as a fault', () => {
+    const props = noticesProps()
+    const view = render(<AppNotices {...props} />)
+    const regions = statusRegions()
+
+    props.analysis.error = "Stopped. Add your files again when you're ready."
+    props.analysis.errorNeutral = true
+    view.rerender(<AppNotices {...props} />)
+
+    const notice = screen.getByText("Stopped. Add your files again when you're ready.")
+    expect(regions).toContain(notice.closest('[role="status"]'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Something went wrong/)).not.toBeInTheDocument()
+  })
+})
+
+describe('AppNotices: one notice region', () => {
+  it('holds the import summary and the other notices in one region under the header', () => {
+    const { container } = render(
+      <AppNotices
+        {...noticesProps({
+          importOutcome: { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 },
+        })}
+      />,
+    )
+
+    const regions = container.querySelectorAll('.app__notices')
+    expect(regions).toHaveLength(1)
+    expect(regions[0]).toContainElement(screen.getByText(/Nothing new: 2 activities/))
+  })
+
+  it('does not offer Stop here, where the busy strip offers it while work runs', () => {
+    render(<AppNotices {...noticesProps({ busy: true })} />)
+    expect(screen.queryByRole('button', { name: 'Stop current analysis' })).not.toBeInTheDocument()
+  })
+
+  it('counts the files an import could not use, and lists them in the summary', () => {
+    render(
+      <AppNotices
+        {...noticesProps({
+          state: { rejected: [makeRejectedFile()] },
+          importOutcome: { activities: 1, rejected: 1, duplicates: [], runs: 1, rides: 0 },
+        })}
+      />,
+    )
+
+    expect(screen.getByText('1 file skipped.')).toBeInTheDocument()
+  })
+})
+
+describe('AppNotices: the library on the Activities page', () => {
+  it('says what is kept on this device, with the count of the library', () => {
+    render(
+      <AppNotices
+        {...noticesProps(
+          { savedActivities: [makeSaved(), makeSaved(), makeSaved()] },
+          { activitiesPage: true },
+        )}
+      />,
+    )
+    expect(screen.getByText('Kept on this device: 3 activities.')).toBeInTheDocument()
+  })
+
+  it('says the account holds the library when signed in', () => {
+    render(
+      <AppNotices
+        {...noticesProps(
+          { savedActivities: [makeSaved()] },
+          { activitiesPage: true, signedIn: true },
+        )}
+      />,
+    )
+    expect(screen.getByText('Saved to your account: 1 activity.')).toBeInTheDocument()
+  })
+
+  it('says nothing about the library off the Activities page', () => {
+    render(<AppNotices {...noticesProps({ savedActivities: [makeSaved()] })} />)
+    expect(screen.queryByText(/Kept on this device/)).not.toBeInTheDocument()
+  })
 })
 
 describe('AppNotices alerts and actions', () => {
@@ -92,7 +175,7 @@ describe('AppNotices alerts and actions', () => {
 
   it('offers a restart once the worker has stopped, and runs it through the focus helper', () => {
     const props = noticesProps({
-      error: 'Analysis stopped. Re-import your files to continue.',
+      error: 'Analysis stopped unexpectedly. Add the files again.',
       workerStopped: true,
     })
     render(<AppNotices {...props} />)
@@ -101,16 +184,6 @@ describe('AppNotices alerts and actions', () => {
 
     expect(props.runThenFocus).toHaveBeenCalledOnce()
     expect(props.analysis.retryWorker).toHaveBeenCalledOnce()
-  })
-
-  it('offers to stop a busy analysis through the focus helper', () => {
-    const props = noticesProps({ busy: true })
-    render(<AppNotices {...props} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Stop current analysis' }))
-
-    expect(props.runThenFocus).toHaveBeenCalledOnce()
-    expect(props.analysis.stop).toHaveBeenCalledOnce()
   })
 
   it('shows an account error only when accounts are available', () => {
@@ -137,10 +210,15 @@ describe('AppNotices alerts and actions', () => {
     expect(screen.queryByText(/Sign-in is unavailable/)).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
-
-  it('lists the files that could not be used', () => {
-    render(<AppNotices {...noticesProps({ state: { rejected: [makeRejectedFile()] } })} />)
-
-    expect(screen.getByText('1 file could not be used')).toBeInTheDocument()
-  })
 })
+
+/** A saved activity, for the library count. */
+function makeSaved() {
+  return {
+    id: 'a',
+    name: 'Run',
+    startMs: 0,
+    sport: 'run' as const,
+    copy: { id: 'a', rank: 3, hasPower: false, hasHeartRate: false, durationS: 60 },
+  }
+}

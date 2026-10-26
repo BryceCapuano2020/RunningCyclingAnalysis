@@ -131,34 +131,55 @@ describe('focus when a page changes by itself', () => {
   })
 })
 
+/** The busy strip, with its Stop button, shows once a run has lasted about 400 ms. */
+function afterStripDelay() {
+  act(() => {
+    vi.advanceTimersByTime(400)
+  })
+}
+
 describe('focus after an action completes', () => {
   it('moves focus to the landing heading when a stopped import ends, not to the page body', () => {
-    app.analysis.busy = true
-    app.analysis.stop = vi.fn(() => {
-      app.analysis.busy = false
-    })
-    render(<App />)
-    const stop = screen.getByRole('button', { name: 'Stop current analysis' })
-    stop.focus()
-    fireEvent.click(stop)
+    vi.useFakeTimers()
+    try {
+      app.analysis.busy = true
+      app.analysis.stop = vi.fn(() => {
+        app.analysis.busy = false
+      })
+      render(<App />)
+      afterStripDelay()
+      const stop = screen.getByRole('button', { name: 'Stop current analysis' })
+      stop.focus()
+      fireEvent.click(stop)
 
-    expect(screen.queryByRole('button', { name: 'Stop current analysis' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+      expect(
+        screen.queryByRole('button', { name: 'Stop current analysis' }),
+      ).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('waits for the Stop button to go when the click did not focus it, as in Safari', () => {
-    app.analysis.busy = true
-    // Stopping takes a moment: the button stays until the worker has restarted.
-    app.analysis.stop = vi.fn()
-    const view = render(<App />)
-    const heading = () => screen.getByRole('heading', { level: 1, name: LANDING_HEADING })
-    fireEvent.click(screen.getByRole('button', { name: 'Stop current analysis' }))
-    expect(document.body).toHaveFocus()
-    expect(heading()).not.toHaveFocus()
+    vi.useFakeTimers()
+    try {
+      app.analysis.busy = true
+      // Stopping takes a moment: the button stays until the worker has restarted.
+      app.analysis.stop = vi.fn()
+      const view = render(<App />)
+      afterStripDelay()
+      const heading = () => screen.getByRole('heading', { level: 1, name: LANDING_HEADING })
+      fireEvent.click(screen.getByRole('button', { name: 'Stop current analysis' }))
+      expect(document.body).toHaveFocus()
+      expect(heading()).not.toHaveFocus()
 
-    app.analysis.busy = false
-    view.rerender(<App />)
-    expect(heading()).toHaveFocus()
+      app.analysis.busy = false
+      view.rerender(<App />)
+      expect(heading()).toHaveFocus()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('moves focus to the page heading when a restart clears its error', () => {

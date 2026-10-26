@@ -4,7 +4,7 @@ import { routeFromFixes } from '../route/routeShape'
 import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
 import type { GpsFix } from './gps'
-import type { ParseLimits, ParseOptions, ParseResult } from './result'
+import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
 import { failure, MAX_FILE_SAMPLES } from './result'
 import { nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
@@ -39,7 +39,7 @@ export interface PipelineUnit {
   /** The source's own sport name, used in the refusal `Unsupported sport: <sportLabel>`. */
   sportLabel: string
   /** Replaces the default refusal when sport is null, e.g. FIT e-bike sessions. */
-  refusal?: { reason: string; skipped: string }
+  refusal?: { skipped: string } & Rejection
   /**
    * The device's running distance when this unit began, in metres. Subtracted from the unit's
    * distance, so a session that follows another counts from where that one ended. Undefined
@@ -98,7 +98,9 @@ export function activitiesFromUnits(
   for (const [index, unit] of units.entries()) {
     for (const outcome of evaluateUnit(unit, index, context)) {
       outcomes.push(outcome)
-      if (!outcome.ok && outcome.fatal) return failure(fileName, outcome.reason)
+      if (!outcome.ok && outcome.fatal) {
+        return failure(fileName, outcome.reason, outcome.code, outcome.detail)
+      }
     }
   }
 
@@ -113,13 +115,16 @@ export function activitiesFromUnits(
       skipped.push(outcome.skipped)
     }
   }
-  if (activities.length === 0) return failure(fileName, pickReason(outcomes))
+  if (activities.length === 0) {
+    const { reason, code, detail } = pickReason(outcomes)
+    return failure(fileName, reason, code, detail)
+  }
   return { ok: true, activities: withStartTimesWhereShared(activities), skipped, droppedValues }
 }
 
 type Outcome =
   | { ok: true; activity: Activity; dropped: number }
-  | { ok: false; reason: string; skipped: string; fatal: boolean }
+  | ({ ok: false; skipped: string; fatal: boolean } & Rejection)
 
 interface Context {
   fileName: string
@@ -141,9 +146,11 @@ function evaluateUnit(unit: PipelineUnit, index: number, context: Context): Outc
   if (sport === null) {
     const refusal = unit.refusal ?? {
       reason: `Unsupported sport: ${unit.sportLabel}`,
+      code: 'unsupported-sport' as const,
+      detail: unit.sportLabel,
       skipped: `${unit.sportLabel} session skipped`,
     }
-    return [{ ok: false, reason: refusal.reason, skipped: refusal.skipped, fatal: false }]
+    return [{ ...refusal, ok: false, fatal: false }]
   }
   const maxSpeed = MAX_SPEED_MPS[sport]
   const drops = new Map<RawRecord, number>()
@@ -178,25 +185,18 @@ interface SegmentInfo {
   context: Context
 }
 
-/** A segment too short to count, and one recorded too sparsely to count. */
-const SHORT_OUTCOME: Outcome = {
-  ok: false,
-  reason: SHORT_REASON,
-  skipped: 'session shorter than one minute',
-  fatal: false,
+/** A refusal of one part of a file, or of the whole file when it is fatal. */
+function refusalOf(
+  reason: string,
+  code: RejectCode,
+  skipped: string,
+  fatal = false,
+): Extract<Outcome, { ok: false }> {
+  return { ok: false, reason, code, skipped, fatal }
 }
-const SPARSE_OUTCOME: Outcome = {
-  ok: false,
-  reason: SPARSE_REASON,
-  skipped: 'session recorded too sparsely',
-  fatal: false,
-}
-const DATE_OUTCOME: Outcome = {
-  ok: false,
-  reason: DATE_REASON,
-  skipped: 'activity date is not plausible',
-  fatal: false,
-}
+const SHORT_OUTCOME = refusalOf(SHORT_REASON, 'too-short', 'session shorter than one minute')
+const SPARSE_OUTCOME = refusalOf(SPARSE_REASON, 'too-sparse', 'session recorded too sparsely')
+const DATE_OUTCOME = refusalOf(DATE_REASON, 'implausible-date', 'activity date is not plausible')
 
 /** The refusal for a segment too short to count, or null when it is long enough to resample. */
 function tooShort(segment: RawRecord[]): Outcome | null {
@@ -218,10 +218,10 @@ function reserveSamples(segment: RawRecord[], context: Context): Outcome | null 
   const last = segment[segment.length - 1]!.tMs
   const samples = Math.round((last - first) / 1000) + 1
   if (samples > MAX_FILE_SAMPLES) {
-    return { ok: false, reason: TOO_LONG, skipped: 'activity longer than 48 hours', fatal: true }
+    return refusalOf(TOO_LONG, 'too-long', 'activity longer than 48 hours', true)
   }
   if (context.usedSamples + samples > MAX_FILE_SAMPLES) {
-    return { ok: false, reason: TOO_MUCH, skipped: 'file contains too much data', fatal: true }
+    return refusalOf(TOO_MUCH, 'too-much-data', 'file contains too much data', true)
   }
   context.usedSamples += samples
   return null
@@ -244,6 +244,7 @@ function resampleSegment(
       refused: {
         ok: false,
         reason: error.message,
+        code: 'too-long',
         skipped: 'activity exceeds the supported time range',
         fatal: false,
       },
@@ -376,7 +377,10 @@ function clampSpeed(speed: Float64Array, max: number): number {
 }
 
 /** Prefers a specific reason over the generic short-activity one. */
-function pickReason(outcomes: Outcome[]): string {
-  const reasons = outcomes.flatMap((o) => (o.ok ? [] : [o.reason]))
-  return reasons.find((reason) => reason !== SHORT_REASON) ?? reasons[0] ?? SHORT_REASON
+function pickReason(outcomes: Outcome[]): Rejection {
+  const refusals = outcomes.filter((o) => !o.ok)
+  const specific = refusals.find((o) => o.reason !== SHORT_REASON) ?? refusals[0]
+  return specific === undefined
+    ? { reason: SHORT_REASON, code: 'too-short' }
+    : { reason: specific.reason, code: specific.code, detail: specific.detail }
 }

@@ -5,17 +5,19 @@ import type { EffortLengthS } from './digest/trendPoints'
 import type { SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
 import type { EarnedRecord } from './records'
+import type { Rejection } from './import/result'
 
-export interface RejectedFile {
+/** An activity file this import could not use, with why. */
+export interface RejectedFile extends Rejection {
   fileName: string
-  reason: string
 }
 
 export interface SessionState {
   /** Null until at least one activity has been loaded. */
   result: AnalysisResult | null
+  /** The files the last import could not use. */
   rejected: RejectedFile[]
-  /** Activity files in formats this app does not read (e.g. KML) that were skipped. */
+  /** Activity files in formats this app does not read (e.g. KML) that the last import skipped. */
   unsupportedFiles: number
   isSample: boolean
   /** Activities analysed or eligible, not counting hidden duplicates, before the period filter. */

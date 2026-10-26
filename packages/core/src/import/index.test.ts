@@ -37,6 +37,7 @@ describe('parseActivityFile', () => {
       ok: false,
       fileName: 'notes.txt',
       reason: 'Not a FIT, GPX or TCX file',
+      code: 'not-activity',
     })
   })
 
@@ -47,6 +48,11 @@ describe('parseActivityFile', () => {
 
   it('reports a GPX parse failure under the GPX parser', () => {
     const result = parseActivityFile(new TextEncoder().encode('<html/>'), 'bad.gpx')
-    expect(result).toEqual({ ok: false, fileName: 'bad.gpx', reason: 'Not a GPX file' })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'bad.gpx',
+      reason: 'Not a GPX file',
+      code: 'corrupt',
+    })
   })
 })

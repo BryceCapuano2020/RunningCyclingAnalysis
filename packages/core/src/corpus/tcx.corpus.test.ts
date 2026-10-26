@@ -88,6 +88,8 @@ describe('TCX corpus: robustness', () => {
       ok: false,
       fileName: 'sup_activity_1.tcx',
       reason: 'Unsupported sport: Other',
+      code: 'unsupported-sport',
+      detail: 'Other',
     })
   })
 
@@ -106,13 +108,23 @@ describe('TCX corpus: robustness', () => {
   it('refuses a copy with every Time removed with the no-records message', () => {
     const untimed = corpusText('test.tcx').replace(/<Time>[^<]*<\/Time>/g, '')
     const result = parseActivityFile(new TextEncoder().encode(untimed), 'untimed.tcx')
-    expect(result).toEqual({ ok: false, fileName: 'untimed.tcx', reason: NO_RECORDS })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'untimed.tcx',
+      reason: NO_RECORDS,
+      code: 'empty',
+    })
   })
 
   it('refuses a copy whose times have no zone with the zone message', () => {
     const zoneless = corpusText('test.tcx').replace(/<Time>([^<]*)Z<\/Time>/g, '<Time>$1</Time>')
     const result = parseActivityFile(new TextEncoder().encode(zoneless), 'zoneless.tcx')
-    expect(result).toEqual({ ok: false, fileName: 'zoneless.tcx', reason: NO_ZONE })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'zoneless.tcx',
+      reason: NO_ZONE,
+      code: 'no-date',
+    })
   })
 
   it('reads a BOM, CRLF line endings and prefixed element names as the same activity', () => {

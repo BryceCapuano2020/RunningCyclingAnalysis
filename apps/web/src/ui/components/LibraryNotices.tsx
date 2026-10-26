@@ -58,8 +58,8 @@ export function LibraryNotices({
   const missingCount = plural(originalsMissing, 'activity', 'activities')
   const missingText =
     originalsMissing === 1
-      ? `${missingCount} is missing its original file. Re-import it to restore the original.`
-      : `${missingCount} are missing their original file. Re-import them to restore the originals.`
+      ? `${missingCount} is missing its original file. Add its file again to restore the original.`
+      : `${missingCount} are missing their original file. Add their files again to restore the originals.`
   const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
   const outdatedCount = analysis.state.outdatedActivities
   const outdatedShown = outdatedCount > 0

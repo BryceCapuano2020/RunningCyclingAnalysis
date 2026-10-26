@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { MAX_ACTIVITIES_PER_USER, MAX_FILE_BYTES } from '@rca/contract'
 import type { SyncIssue } from '@rca/core/session'
 import { MOVED_NOTE } from '../analysis/copy'
+import { megabytes } from '../format/units'
 import { resetSentence } from '../limitCopy'
 import { plural } from './plural'
 import './SyncStatus.css'
@@ -16,7 +17,7 @@ export interface SyncStatusProps {
   moved?: boolean
 }
 
-const MAX_FILE_MB = Math.round(MAX_FILE_BYTES / (1024 * 1024))
+const MAX_FILE_MB = megabytes(MAX_FILE_BYTES)
 const NOTHING_SAVED = 'No new activities were saved to your library.'
 
 /**
@@ -31,7 +32,7 @@ function issueSentence({ code, count }: SyncIssue): string {
   const summaries = count === 1 ? 'The summary was saved.' : 'The summaries were saved.'
   switch (code) {
     case 'signed-out':
-      return `${activities} ${wereOrWas} not saved because you were signed out. Sign in and re-import ${them}.`
+      return `${activities} ${wereOrWas} not saved because you were signed out. Sign in and add ${them} again.`
     case 'account-changed':
       return `Your account changed in another tab, so ${activities} ${wereOrWas} not saved. Reload this page.`
     case 'activity-quota':
@@ -43,11 +44,11 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'file-too-large':
       return `${originals} ${wereOrWas} too large to keep (over ${MAX_FILE_MB} MB). ${summaries}`
     case 'rate-limited':
-      return `Too many requests at once, so ${activities} ${wereOrWas} not fully saved. Wait a minute, then re-import ${them}.`
+      return `Too many requests at once, so ${activities} ${wereOrWas} not fully saved. Wait a minute, then add ${them} again.`
     case 'daily-limit':
-      return `You have reached today's limit on saves, so ${activities} ${wereOrWas} not fully saved. ${resetSentence()} Re-import ${them} after that.`
+      return `You have reached today's limit on saves, so ${activities} ${wereOrWas} not fully saved. ${resetSentence()} Add ${them} again after that.`
     case 'upload-in-progress':
-      return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then re-import ${them}.`
+      return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then add ${them} again.`
     case 'account-deleting':
       return `This account is being deleted, so ${activities} ${wereOrWas} not saved. Account deletion must finish before you can sign in again.`
     case 'digest-quota':
@@ -59,9 +60,9 @@ function issueSentence({ code, count }: SyncIssue): string {
         ? 'This workout is already saved from a different file. Delete the saved copy first to replace it.'
         : `${count} workouts are already saved from different files. Delete the saved copies first to replace them.`
     case 'network':
-      return `${activities} ${wereOrWas} not fully saved because the connection dropped. Re-import ${them} to retry.`
+      return `${activities} ${wereOrWas} not fully saved because the connection dropped. Add ${them} again to retry.`
     case 'server':
-      return `${activities} ${wereOrWas} not fully saved because of a server error. Re-import ${them} to retry.`
+      return `${activities} ${wereOrWas} not fully saved because of a server error. Add ${them} again to retry.`
   }
 }
 
