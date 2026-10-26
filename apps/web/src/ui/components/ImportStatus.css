@@ -1,6 +1,8 @@
 /*
  * The busy strip: a fixed bar along the bottom of the window, shown only once a run has lasted about
- * 400 ms. Fixed, not in flow, so it never moves the page, and it covers content only while busy.
+ * 400 ms. Fixed, not in flow, so it never shifts the content above it. While it shows, the page pads
+ * its foot by the strip's height, so the footer can scroll clear of it; at the bottom of the page that
+ * padding makes the page a little longer.
  */
 .import-status {
   position: fixed;
@@ -10,7 +12,7 @@
   z-index: 90;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-4);
   border-top: 1px solid var(--border);
@@ -23,6 +25,21 @@
   .page:has(> .header > .header__tabs) .import-status {
     bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
   }
+
+  /* The strip sits above the tab bar, so the page's foot clears both. */
+  .page:has(> .header > .header__tabs):has(> .import-status) {
+    padding-bottom: calc(
+      var(--space-7) + var(--tab-bar-height) + env(safe-area-inset-bottom) +
+        var(--import-status-height)
+    );
+  }
+}
+
+/* The strip covers the foot of the page, so the page keeps its footer clear of it while it shows. The
+   strip is one Stop button tall, with its padding and its top border. */
+.page:has(> .import-status) {
+  --import-status-height: calc(var(--control-height) + var(--space-2) * 2 + 1px);
+  padding-bottom: calc(var(--space-7) + var(--import-status-height));
 }
 
 /* A thin progress line along the top edge. Indeterminate: the total is unknown while files stream in. */
@@ -55,11 +72,17 @@
   }
 }
 
+/* Under reduced motion the fill stays still at its 35 percent width, at full opacity. */
 @media (prefers-reduced-motion: reduce) {
   .import-status__fill {
     animation: none;
-    width: 100%;
-    opacity: 0.35;
+  }
+}
+
+/* Forced colours drop the fill's background, so the segment is drawn in the system highlight. */
+@media (forced-colors: active) {
+  .import-status__fill {
+    background: Highlight;
   }
 }
 
@@ -71,7 +94,7 @@
 }
 
 .import-status__text {
-  flex: 1 1 12rem;
+  flex: 1 1 0;
   min-width: 0;
   margin: 0;
   color: var(--text-secondary);

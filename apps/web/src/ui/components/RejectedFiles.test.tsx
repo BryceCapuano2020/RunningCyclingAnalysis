@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RejectedFile } from '@rca/core/session'
 import { RejectedFiles } from './RejectedFiles'
@@ -50,6 +50,7 @@ describe('RejectedFiles: what was skipped, and why', () => {
       <Skipped
         rejected={[
           skipped('bad.fit', 'corrupt'),
+          skipped('bad2.fit', 'corrupt'),
           skipped('walk.fit', 'unsupported-sport', 'walking'),
         ]}
         unsupportedFiles={0}
@@ -60,6 +61,40 @@ describe('RejectedFiles: what was skipped, and why', () => {
     expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
     expect(
       screen.getByText('Only runs and rides are analysed, so these were left out on purpose.'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not repeat the group action for a lone damaged file, since its line already says to export it again', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('bad.fit', 'corrupt'),
+          skipped('walk.fit', 'unsupported-sport', 'walking'),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.queryByText('Export the file again from your device or app.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the group action for a lone first file whose line gives no action', () => {
+    render(
+      <Skipped
+        rejected={[skipped('notes.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.getByText('Export your activities as FIT, GPX or TCX files, then add them again.'),
     ).toBeInTheDocument()
   })
 
@@ -104,10 +139,40 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    const guides = screen.getByRole('button', { name: 'Where do I get my files?' })
+    const guides = screen.getByRole('button', { name: 'How to get your files' })
     const list = container.querySelector('details')
     expect(list).not.toBeNull()
     expect(list!.compareDocumentPosition(guides) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('lists only the files after the first in the disclosure, since the first is shown above it', () => {
+    const { container } = render(
+      <Skipped
+        rejected={[skipped('a.txt', 'not-activity'), skipped('b.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    const details = container.querySelector('details')!
+    const reason = 'Not a FIT, GPX or TCX file, so it cannot be read.'
+    expect(within(details).queryByText(`a.txt: ${reason}`)).not.toBeInTheDocument()
+    expect(within(details).getByText(`b.txt: ${reason}`)).toBeInTheDocument()
+    expect(screen.getByText('Not an activity file: 2 files')).toBeInTheDocument()
+  })
+
+  it('gives the count line first and the first file under it, after the disclosure', () => {
+    const { container } = render(
+      <Skipped rejected={[skipped('empty.fit', 'empty')]} unsupportedFiles={0} duplicates={[]} />,
+    )
+
+    const root = container.querySelector('.rejected-files')!
+    const first = root.querySelector('.rejected-files__first')!
+    expect(root.firstElementChild?.tagName).toBe('DETAILS')
+    expect(
+      root.querySelector('details')!.compareDocumentPosition(first) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('renders nothing when no file was skipped', () => {

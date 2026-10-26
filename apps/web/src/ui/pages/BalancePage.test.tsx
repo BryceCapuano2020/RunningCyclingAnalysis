@@ -551,7 +551,7 @@ describe('BalancePage with no weight entered', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
     await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
     const card = vi.mocked(renderShareCard).mock.calls.at(-1)?.[0]
-    expect(card?.heroes[1]?.grade).toMatch(/^Estimated · .* on best 20 min$/)
+    expect(card?.heroes[1]?.grade).toMatch(/^[A-Za-z]+ · \d+% on best 20 min$/)
     cleanup()
 
     renderPage(withRide, {}, MAN_BORN_1986, false)

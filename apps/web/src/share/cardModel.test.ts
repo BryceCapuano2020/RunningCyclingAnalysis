@@ -66,7 +66,7 @@ const ESTIMATE_FOOTNOTE = 'Estimated from your files. Not a ranking.'
 describe('buildShareCard', () => {
   it('uses the app name as the title', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
-    expect(card?.title).toBe('RunningCyclingAnalysis')
+    expect(card?.title).toBe('Running Cycling Analysis')
   })
 
   it('states the headline exactly as the results page does, and the balance it leans to', () => {
@@ -192,7 +192,7 @@ describe('buildShareCard', () => {
     })
     expect(card?.heroes.map((hero) => hero.grade)).toEqual([
       'Local · 64% on best 20 min',
-      'Estimated · Recreational · 61% on best 20 min',
+      'Recreational · 61% on best 20 min',
     ])
   })
 
@@ -254,7 +254,7 @@ describe('buildShareCard', () => {
   })
 
   it('carries a sample badge only for sample data', () => {
-    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, true)?.badge).toBe('Sample data')
+    expect(cardFor(makeResult(), SETTINGS, 'metric', 42, true)?.badge).toBe('Sample athlete')
     expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.badge).toBeNull()
   })
 

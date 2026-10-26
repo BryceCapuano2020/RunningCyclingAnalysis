@@ -1,6 +1,5 @@
 /** How much history to bring. Shown in the dropzone and in step 1 of the landing page. */
-export const HISTORY_ADVICE =
-  'Best with 6+ weeks of runs and rides. A Strava export is the quickest way to bring a lot.'
+export const HISTORY_ADVICE = 'A Strava export brings in the most history at once.'
 
 /** The day the guides' steps were read against their sources, as the page says it. */
 export const GUIDES_CHECKED_ON = '24 October 2026'

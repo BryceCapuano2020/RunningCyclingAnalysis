@@ -3,7 +3,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { APP_NAME } from '../appName'
+import { APP_WORDS } from '../appName'
 import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
 import { effortCaveat } from '../ui/effortCaveat'
@@ -146,7 +146,7 @@ function heroFor(
     label: `${CARD_THRESHOLD_LABEL[sport]} from your best ${THRESHOLD_EFFORT_TEXT}`,
     figure: splitFigure(estimate.value),
     sub: estimate.sub,
-    grade: outcome?.kind === 'graded' ? heroGradeLine(sport, outcome.grade) : null,
+    grade: outcome?.kind === 'graded' ? heroGradeLine(outcome.grade) : null,
   }
 }
 
@@ -198,7 +198,7 @@ export function buildShareCard(
   }
 
   return {
-    title: APP_NAME,
+    title: APP_WORDS,
     headline: balanceTitle(reading),
     magnitude: leadSentence(reading),
     meter: reading,
@@ -207,6 +207,6 @@ export function buildShareCard(
     caveat: effortCaveat(effort)?.short ?? null,
     footnote: heroes.some((hero) => hero.grade !== null) ? GRADED_FOOTNOTE : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
-    badge: isSample ? 'Sample data' : null,
+    badge: isSample ? 'Sample athlete' : null,
   }
 }

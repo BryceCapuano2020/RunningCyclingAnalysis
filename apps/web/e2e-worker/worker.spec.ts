@@ -23,11 +23,26 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   expect(headers['x-content-type-options']).toBe('nosniff')
   expect(headers['referrer-policy']).toBe('no-referrer')
   expect(headers['x-frame-options']).toBe('DENY')
+  // The share preview is a blob: image, so img-src must allow blob: or the preview is a broken picture.
+  const imgSrc = headers['content-security-policy']
+    .split(';')
+    .map((directive) => directive.trim())
+    .find((directive) => directive.startsWith('img-src '))
+  expect(imgSrc?.split(' ')).toContain('blob:')
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
   await expect(
     page.getByRole('heading', { level: 2, name: /^On foot, your ride is worth/ }),
   ).toBeVisible()
+  await page.getByRole('button', { name: 'Share image' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Share image' })
+  await expect(sheet).toBeVisible()
+  const preview = sheet.getByRole('img', { name: /^Preview of the/ })
+  await expect(preview).toBeVisible()
+  // A picture the CSP refuses is still a visible broken image, so check that it decoded.
+  await expect
+    .poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBeGreaterThan(0)
   expect(violations).toEqual([])
 
   const session = await page.request.get('/api/me')

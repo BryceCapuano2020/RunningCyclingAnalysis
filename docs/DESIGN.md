@@ -108,8 +108,7 @@ then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
 or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
 group names its files with a plain reason and gives one suggested action. The list ends with **How to get your files**, which opens the guides.
-The summary's first skipped
-file is shown beside the line, and the summary is announced with the same count it shows. Each import
+The summary's first skipped file is shown below the count line, with its suggested action, and the summary is announced with the same count it shows. Each import
 is compared with the result the worker last reported when it was sent, except a file released from a
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
@@ -151,8 +150,8 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                              |
 | `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
 | `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
-| `--accent-hover`       | `#474f5c`   | `#d9f55a`   | Primary button fill on hover, a visible change in both schemes             |
-| `--accent-pressed`     | `#000000`   | `#b4da2f`   | Primary button fill while it is pressed, with a 1 px drop                  |
+| `--accent-hover`       | `#474f5c`   | `#a9d62c`   | Primary button fill on hover, a visible change in both schemes             |
+| `--accent-pressed`     | `#000000`   | `#8fb81c`   | Primary button fill while it is pressed, with a 1 px drop                  |
 | `--mark-tile`          | `#0e1116`   | `#0e1116`   | The brand mark's ink tile                                                  |
 | `--mark-ring`          | `#0e1116`   | `#6b7380`   | The ring round the brand mark's tile, so the tile shows on the dark page   |
 | `--selected`           | `#0e1116`   | `#eef0f3`   | Selected tab or segment                                                    |
@@ -413,10 +412,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   shape, the note that it is made on this device, and one action. The action reads "Share file" only
   when the device's share sheet can take this image; otherwise it reads "Save image" and downloads the
   PNG. The PNG is encoded once, for the preview, so the share starts within the tap. Until the chosen
-  shape is drawn, the action reads "Preparing…" and is held: a tap does nothing. The sheet's
-  action is outlined like the other buttons, so the page's one primary action stays Add files. The
-  file is named by the period's dates, such as `balance-2025-05-12_2025-08-03-square.png`.
-- The card holds the brand mark, in the two sport colours, and the app name in volt. Under the
+  shape is drawn, the action reads "Preparing…" and is held: a tap does nothing, and the last picture
+  stays, dimmed. A click on the backdrop closes the sheet. The sheet's action is outlined like the other
+  buttons, so the page's one primary action stays Add files. The file is named by the period's dates,
+  such as `balance-2025-05-12_2025-08-03-square.png`.
+- The card holds the brand mark, in the two sport colours, and the app name in words, in volt. Under the
   headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
   the meter reads. Then the balance meter, each sport's threshold, "Threshold flat pace, estimated from your
   best 3 to 20 min" for a run, with its W/kg and its level, such as "Local · 64% on best 20 min", under

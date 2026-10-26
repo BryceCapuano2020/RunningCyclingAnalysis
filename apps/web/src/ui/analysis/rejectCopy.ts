@@ -65,6 +65,14 @@ function tooLargeCopy(detail: string | undefined): string {
   return `Too large to read (over ${sizeText(bytes)}). Export a shorter range.`
 }
 
+/**
+ * Whether a refused file's own line already says what to do, so its group's suggested action would
+ * repeat it when the file is the only one in the group.
+ */
+export function lineNamesAction(file: RejectedFile): boolean {
+  return file.code === 'corrupt'
+}
+
 /** The plain sentence for one refused file. */
 export function rejectionCopy(file: RejectedFile): string {
   if (file.code === 'too-large') return tooLargeCopy(file.detail)
