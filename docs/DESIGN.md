@@ -359,8 +359,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   best 20 min, 6:37 /mi". A ride's line starts "Estimated", and its watts carry "estimated" when
   they did not come from a power meter. A run card that shows a Flat mark says what it means under
   its records, on every run card that has records, with or without a grade: "Flat pace: your pace
-  allowing for hills, as if on level ground." On an activity page the note sits under its splits, and its best efforts carry
-  only the mark.
+  allowing for hills, as if on level ground." On an activity page the note sits under its splits when they show a flat pace column.
+  Otherwise, when the splits are not kept, too short, or show no flat pace, it sits under the best efforts,
+  if one carries a Flat mark, and it waits for the splits to settle.
 - **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
   each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
   20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
@@ -441,7 +442,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   are in the page, and a media query shows exactly one at each width, so the accessibility tree
   holds one representation. Never set `display: block` on a table element, which drops its table
   semantics. A split's columns earn their place: Elevation gain shows only when some split climbs, and Flat
-  pace only when it differs from Pace in some split. Below 480 px a split is two lines, its split and pace
+  pace only when it differs from Pace in some split. A partial last split, shorter than one unit, reads to
+  two decimals, such as "0.97 mi", rounded down so it never reads as a whole unit. Below 480 px a split is two lines, its split and pace
   first, then its other figures, which wrap as the width needs. The splits table on the activity page is the first use, and the efforts table on a Balance card
   is the second, whose list shows below 480 px with its labels once above the rows; record any new one here.
 - **Bars start from zero.** A bar's length is the value relative to the best known one, so the best

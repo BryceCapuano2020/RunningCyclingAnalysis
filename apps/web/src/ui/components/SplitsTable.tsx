@@ -1,16 +1,11 @@
-import type { DigestSplit, DigestSplits } from '@rca/core/types'
+import type { DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import {
-  METRES_PER_KM,
-  METRES_PER_MILE,
-  formatDistance,
-  formatElevation,
-  formatPace,
-} from '@rca/core/units'
+import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '@rca/core/constants'
 import { SPLITS_NOT_LOADED } from '../analysis/copy'
 import './SplitsTable.css'
 import { FLAT_PACE_NOTE } from '../grades'
+import { cellsOf, columnsOf, rowsOf, type Columns, type SplitCells } from './splitRows'
 
 /** What the page knows about one run's splits: still loading, not loaded, or loaded. */
 export type SplitsLoad =
@@ -26,24 +21,6 @@ export interface SplitsTableProps {
   distanceM: number
 }
 
-/** One row, as both representations show it. A null field is a value the digest could not give. */
-interface SplitCells {
-  label: string
-  fastest: boolean
-  pace: string | null
-  /** Width of the pace bar, from zero to the fastest known pace, as a percentage. */
-  barPercent: number | null
-  gradeAdjustedPace: string | null
-  elevation: string | null
-  heartRate: string | null
-}
-
-/** The optional figures that earn a column: each is left out when it would say nothing new. */
-interface Columns {
-  flat: boolean
-  elevation: boolean
-}
-
 const UNIT_NAME: Record<UnitSystem, string> = { imperial: 'mile', metric: 'kilometre' }
 
 /** A value the digest could not give: a dash for sight, and words for a screen reader. */
@@ -54,37 +31,6 @@ function Missing({ words }: { words: string }) {
       <span className="sr-only">{words}</span>
     </>
   )
-}
-
-/**
- * The rows in display form. A split whose time is unknown has no pace, so it is not marked fastest
- * and does not set the bar scale. Elevation is shown whenever the activity has altitude, even when
- * its flat pace is unknown.
- */
-function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
-  const unitMetres = units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM
-  const speeds = rows.map((split) =>
-    split.seconds === null ? null : split.distanceM / split.seconds,
-  )
-  const known = speeds.filter((speed): speed is number => speed !== null)
-  const fastest = known.length > 0 ? Math.max(...known) : null
-  // Only the first split at the fastest pace is marked, so a tie does not mark two rows.
-  const fastestIndex = fastest === null ? -1 : speeds.indexOf(fastest)
-  return rows.map((split, index) => {
-    const speed = speeds[index]!
-    const gradeAdjusted = split.gradeAdjustedSeconds
-    return {
-      label: split.distanceM < unitMetres ? formatDistance(split.distanceM, units) : `${index + 1}`,
-      fastest: index === fastestIndex,
-      pace: speed === null ? null : formatPace(speed, units),
-      barPercent: speed === null || fastest === null ? null : (speed / fastest) * 100,
-      gradeAdjustedPace:
-        gradeAdjusted === null ? null : formatPace(split.distanceM / gradeAdjusted, units),
-      elevation:
-        split.elevationGainM === null ? null : formatElevation(split.elevationGainM, units),
-      heartRate: split.avgHeartRate === null ? null : `${Math.round(split.avgHeartRate)} bpm`,
-    }
-  })
 }
 
 /** The pace value, with the Fastest chip beside it when this split is the fastest. */
@@ -229,17 +175,6 @@ function SplitList({
   )
 }
 
-/**
- * Elevation gain has a column when some split climbs, and flat pace when it differs from the pace in
- * some split, so a column never repeats the one beside it.
- */
-function columnsOf(rows: DigestSplit[], cells: SplitCells[]): Columns {
-  return {
-    elevation: rows.some((split) => (split.elevationGainM ?? 0) > 0),
-    flat: cells.some((cell) => cell.gradeAdjustedPace !== cell.pace),
-  }
-}
-
 /** Why a unit has no splits: the run is past the limit for that unit, or too short to split. */
 function noSplitsCopy(distanceM: number, units: UnitSystem): string {
   if (units === 'imperial') {
@@ -261,7 +196,7 @@ function SplitsRows({
   units: UnitSystem
   distanceM: number
 }) {
-  const rows = units === 'imperial' ? splits.mile : splits.km
+  const rows = rowsOf(splits, units)
   if (rows.length === 0) return <p className="secondary">{noSplitsCopy(distanceM, units)}</p>
   const cells = cellsOf(rows, units)
   const columns = columnsOf(rows, cells)
@@ -270,7 +205,7 @@ function SplitsRows({
     <>
       <SplitTable cells={cells} caption={caption} columns={columns} />
       <SplitList cells={cells} caption={caption} columns={columns} />
-      <p className="muted">{FLAT_PACE_NOTE}</p>
+      {columns.flat && <p className="muted">{FLAT_PACE_NOTE}</p>}
     </>
   )
 }

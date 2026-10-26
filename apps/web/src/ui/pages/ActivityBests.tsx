@@ -6,7 +6,9 @@ import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
 import { periodDates } from '../components/rangeOptions'
-import { distanceGrade, sportGrade } from '../grades'
+import type { SplitsLoad } from '../components/SplitsTable'
+import { splitsShowFlatNote } from '../components/splitRows'
+import { FLAT_PACE_NOTE, distanceGrade, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import type { RecordRow } from '../recordRow'
 import { recordRow } from '../recordRow'
@@ -24,12 +26,29 @@ export interface ActivityBestsProps {
   /** Whether the activity is in the period the result covers. Outside it, its bests are not counted. */
   inPeriod: boolean
   period?: Period
+  /** The run's splits as the page holds them, which say where the flat pace note goes. */
+  splitsLoad: SplitsLoad
 }
 
 /** Why a ride without measured power has no power curve, as the page says it. */
 const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
   virtual: 'No power curve: an estimate is made only on climbs.',
   none: 'No power curve: this ride has no power data.',
+}
+
+/**
+ * Whether the best efforts carry the flat pace note. The splits carry it when they show a flat pace
+ * column, so it sits there and not here. Otherwise, when a best carries a Flat mark it explains, it sits
+ * here. It waits for the splits to settle, so it is never placed in two places at once.
+ */
+function flatNoteHere(
+  sport: ActivitySummary['sport'],
+  splitsLoad: SplitsLoad,
+  units: UnitSystem,
+  rows: readonly RecordRow[],
+): boolean {
+  if (sport !== 'run' || splitsLoad.status === 'loading') return false
+  return !splitsShowFlatNote(splitsLoad, units) && rows.some((row) => row.tags.includes('Flat'))
 }
 
 function outsideText(period: Period | undefined): string {
@@ -52,6 +71,7 @@ export function ActivityBests({
   profile,
   inPeriod,
   period,
+  splitsLoad,
 }: ActivityBestsProps) {
   const sport = activity.sport
   if (!inPeriod) {
@@ -123,6 +143,7 @@ export function ActivityBests({
     <section className="section" aria-labelledby="activity-bests">
       <h2 id="activity-bests">Best efforts set here</h2>
       <SportRecords rows={rows} />
+      {flatNoteHere(sport, splitsLoad, units, rows) && <p className="muted">{FLAT_PACE_NOTE}</p>}
       {anyGraded && <GradingLink />}
     </section>
   )

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { DigestSplit, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SplitsTable, type SplitsLoad } from './SplitsTable'
+import { splitsShowFlatNote } from './splitRows'
 
 afterEach(() => {
   cleanup()
@@ -129,7 +130,7 @@ describe('SplitsTable', () => {
     expect(within(bodyRows('Pace for each mile')[0]!).getByText('39 ft')).toBeInTheDocument()
   })
 
-  it('labels the partial split with its own distance and paces it over that distance', () => {
+  it('labels the partial split with its own distance to two decimals, and paces it over that distance', () => {
     renderSplits(
       loaded({
         km: [split(), split(), split({ distanceM: 420, seconds: 135, gradeAdjustedSeconds: 130 })],
@@ -137,8 +138,30 @@ describe('SplitsTable', () => {
       }),
     )
     const rows = bodyRows()
-    expect(within(rows[2]!).getByRole('rowheader', { name: '0.4 km' })).toBeInTheDocument()
+    expect(within(rows[2]!).getByRole('rowheader', { name: '0.42 km' })).toBeInTheDocument()
     expect(within(rows[2]!).getByText('5:21 /km')).toBeInTheDocument()
+  })
+
+  it('labels a partial last mile as 0.97 mi, so it never reads as a whole mile', () => {
+    renderSplits(
+      loaded({
+        km: [],
+        mile: [
+          split({ distanceM: 1609.344, seconds: 480, gradeAdjustedSeconds: 470 }),
+          // 1562 m is 0.9706 mi, which reads 0.97 rounded down.
+          split({ distanceM: 1562, seconds: 470, gradeAdjustedSeconds: 460 }),
+        ],
+      }),
+      'imperial',
+    )
+    const rows = bodyRows('Pace for each mile')
+    expect(within(rows[0]!).getByRole('rowheader', { name: '1' })).toBeInTheDocument()
+    expect(within(rows[1]!).getByRole('rowheader', { name: '0.97 mi' })).toBeInTheDocument()
+  })
+
+  it('rounds a partial split down, so 999 m reads 0.99 km and not a whole kilometre', () => {
+    renderSplits(loaded({ km: [split({ distanceM: 999 })], mile: [] }))
+    expect(within(bodyRows()[0]!).getByRole('rowheader', { name: '0.99 km' })).toBeInTheDocument()
   })
 
   it('shows an unknown time as a dash that says the pace is not measured, and leaves it out of the fastest', () => {
@@ -304,5 +327,27 @@ describe('SplitsTable', () => {
     expect(
       screen.getByText('The splits could not be loaded. Open this activity again to retry.'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('splitsShowFlatNote', () => {
+  it('is true when the splits show a flat pace column, which is where the flat pace note goes', () => {
+    expect(splitsShowFlatNote(loaded({ km: [split()], mile: [] }), 'metric')).toBe(true)
+  })
+
+  it('is false when every split has its flat pace equal to its pace, so no flat pace column shows', () => {
+    expect(
+      splitsShowFlatNote(
+        loaded({ km: [split({ gradeAdjustedSeconds: 300 })], mile: [] }),
+        'metric',
+      ),
+    ).toBe(false)
+  })
+
+  it('is false when the splits have no rows in these units, or are not kept, or are still loading', () => {
+    expect(splitsShowFlatNote(loaded({ km: [], mile: [] }), 'metric')).toBe(false)
+    expect(splitsShowFlatNote(loaded(null), 'metric')).toBe(false)
+    expect(splitsShowFlatNote({ status: 'loading' }, 'metric')).toBe(false)
+    expect(splitsShowFlatNote({ status: 'failed' }, 'metric')).toBe(false)
   })
 })
