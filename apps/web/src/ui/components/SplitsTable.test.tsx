@@ -39,6 +39,13 @@ function bodyRows(name?: string): HTMLElement[] {
   return within(table(name)).getAllByRole('row').slice(1)
 }
 
+/** The column headers of the table, in order. */
+function columnHeaders(): (string | null)[] {
+  return within(table())
+    .getAllByRole('columnheader')
+    .map((cell) => cell.textContent)
+}
+
 /** The list items of the narrow representation. */
 function listItems(name = 'Pace for each kilometre'): HTMLElement[] {
   return within(screen.getByRole('list', { name })).getAllByRole('listitem')
@@ -69,6 +76,44 @@ describe('SplitsTable', () => {
     expect(within(first!).getByText('150 bpm')).toBeInTheDocument()
     expect(within(second!).getByRole('rowheader', { name: '2' })).toBeInTheDocument()
     expect(within(second!).getByText('4:45 /km')).toBeInTheDocument()
+  })
+
+  it('leaves out the elevation gain column when no split climbs, in the table and the list', () => {
+    renderSplits(
+      loaded({
+        km: [split({ elevationGainM: 0 }), split({ elevationGainM: null, seconds: 285 })],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Flat pace', 'Heart rate'])
+    expect(screen.queryByText('Elevation gain', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('leaves out the flat pace column when it equals the pace in every split, in the table and the list', () => {
+    renderSplits(
+      loaded({
+        km: [
+          split({ gradeAdjustedSeconds: 300 }),
+          split({ seconds: 285, gradeAdjustedSeconds: 285 }),
+        ],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toEqual(['Split', 'Pace', 'Elevation gain', 'Heart rate'])
+    expect(screen.queryByText('Flat pace', { selector: 'dt' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the flat pace column while one split differs from its pace', () => {
+    renderSplits(
+      loaded({
+        km: [
+          split({ gradeAdjustedSeconds: 300 }),
+          split({ seconds: 285, gradeAdjustedSeconds: 280 }),
+        ],
+        mile: [],
+      }),
+    )
+    expect(columnHeaders()).toContain('Flat pace')
   })
 
   it('uses mile splits in imperial, names the table after them, and shows feet', () => {

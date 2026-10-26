@@ -257,7 +257,8 @@ describe('ActivityPage', () => {
     expect(within(bestRow('Best 20 min')).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 60 min')).getByText('5:37 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 1 min')).getByText('Flat')).toBeInTheDocument()
-    expect(screen.getAllByText(FLAT_PACE_NOTE)).toHaveLength(1)
+    // The flat pace note sits under the splits, not under the bests, so it is not said twice.
+    expect(screen.queryByText(FLAT_PACE_NOTE)).not.toBeInTheDocument()
     expect(screen.queryByText(/GAP/)).not.toBeInTheDocument()
   })
 
@@ -283,9 +284,7 @@ describe('ActivityPage', () => {
       makeActivity({ id: 'ride-x', name: 'Flat ride', sport: 'ride', powerSource: 'virtual' }),
     )
     expect(
-      screen.getByText(
-        'No power curve: power on this ride is estimated, and an estimate is made only on climbs.',
-      ),
+      screen.getByText('No power curve: an estimate is made only on climbs.'),
     ).toBeInTheDocument()
   })
 
@@ -415,7 +414,8 @@ describe('ActivityPage', () => {
       }),
     )
     expect(screen.getByRole('heading', { level: 2, name: 'Skipped readings' })).toBeInTheDocument()
-    expect(screen.getByText('Readings skipped 3 times')).toBeInTheDocument()
+    // Each kind's line carries its count, so the page does not also say the total.
+    expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
         'Heart rate was missing or too low while moving 2 times. We left those out of your figures.',
@@ -467,7 +467,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 7 },
       }),
     )
-    expect(screen.getByText('Readings skipped 7 times')).toBeInTheDocument()
+    expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
         'Heart rate was missing or too low while moving 7 times. We left those out of your figures.',
@@ -521,7 +521,7 @@ describe('ActivityPage', () => {
         flagCounts: { 'hr-dropout': 60 },
       }),
     )
-    expect(screen.getByText('Readings skipped 60 times')).toBeInTheDocument()
+    expect(screen.queryByText(/Readings skipped/)).not.toBeInTheDocument()
     expect(screen.getByText('Showing the first 1 of 60.')).toBeInTheDocument()
   })
 
@@ -549,10 +549,8 @@ describe('ActivityPage', () => {
       '#/activities/older',
     )
     expect(screen.getByRole('link', { name: 'Your run records' })).toHaveAttribute('href', '#/run')
-    expect(screen.getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
-      'href',
-      '#/method',
-    )
+    // The footer links to How sure is this? on every page, so the activity's own links do not.
+    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
   })
 
   it('offers Delete for a saved activity, and asks before it removes the saved copy', async () => {
@@ -649,6 +647,7 @@ describe('ActivityPage', () => {
     expect(within(first!).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(first!).getByText('4:50 /km')).toBeInTheDocument()
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
+    expect(screen.getAllByText(FLAT_PACE_NOTE)).toHaveLength(1)
   })
 
   it('says a run whose splits were not kept has none, and shows no table', async () => {

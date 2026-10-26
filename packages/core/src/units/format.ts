@@ -42,7 +42,7 @@ export function formatDuration(seconds: number): string {
 
 /**
  * A total time for a list row or a hero figure: under an hour, as formatDuration writes it; from an
- * hour on, hours and minutes, such as "6 h 33 m", with the seconds left out.
+ * hour on, hours and minutes, such as "6 h 33 min", with the seconds left out.
  */
 export function formatTotalTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < SECONDS_PER_HOUR) {
@@ -50,7 +50,7 @@ export function formatTotalTime(seconds: number): string {
   }
   const hours = Math.floor(seconds / SECONDS_PER_HOUR)
   const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / 60)
-  return minutes > 0 ? `${hours} h ${minutes} m` : `${hours} h`
+  return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
 }
 
 /** A time as m:ss, or h:mm:ss from an hour on, for record times. */

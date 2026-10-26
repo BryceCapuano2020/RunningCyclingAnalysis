@@ -20,6 +20,18 @@ const WIDE: Shape = {
   aspect: 2,
 }
 
+/** A track five times as long as it is wide, so its box would be the narrowest the page allows. */
+const TALL: Shape = {
+  points: [
+    [0, 0],
+    [0.2, 0],
+    [0.2, 1],
+    [0, 1],
+    [0, 0],
+  ],
+  aspect: 0.2,
+}
+
 describe('RouteShape', () => {
   it('draws the outline as a named image, for a ride', () => {
     render(<RouteShape shape={WIDE} sport="ride" />)
@@ -51,6 +63,12 @@ describe('RouteShape', () => {
     const line = image.querySelector('polyline')
     expect(line?.getAttribute('vector-effect')).toBe('non-scaling-stroke')
     expect(line?.getAttribute('class')).toContain('route-shape__line--run')
+  })
+
+  it('keeps a tall outline in a box no narrower than 4 to 5, so a narrow track is not 320 by 640', () => {
+    const { container } = render(<RouteShape shape={TALL} sport="run" />)
+
+    expect(container.querySelector('figure')?.getAttribute('style')).toContain('aspect-ratio: 0.8')
   })
 
   it('shows nothing when there is no shape', () => {

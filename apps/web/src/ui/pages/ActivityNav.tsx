@@ -4,7 +4,7 @@ import { hrefFor } from '../route'
 
 /**
  * The activities either side of this one in the library, which is newest first, so Earlier is the
- * next one down the list. Then the links from the activity to what explains its numbers.
+ * next one down the list. Then the link to the sport's records.
  */
 export function ActivityNav({
   activity,
@@ -25,7 +25,6 @@ export function ActivityNav({
       <a href={hrefFor({ page: activity.sport })}>
         {`Your ${SPORT_LABEL[activity.sport].toLowerCase()} records`}
       </a>
-      <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
     </nav>
   )
 }

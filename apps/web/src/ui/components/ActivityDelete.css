@@ -17,3 +17,8 @@
 .activity-delete__question p {
   margin: 0;
 }
+
+/* The actions start under the question, where the Delete button that opened it starts too. */
+.activity-delete__question .confirm-actions {
+  justify-content: flex-start;
+}

@@ -363,7 +363,7 @@ describe('formatTotalTime', () => {
   })
 
   it('writes hours and minutes from an hour on, without seconds', () => {
-    expect(formatTotalTime(6 * 3600 + 33 * 60 + 12)).toBe('6 h 33 m')
+    expect(formatTotalTime(6 * 3600 + 33 * 60 + 12)).toBe('6 h 33 min')
   })
 
   it('writes whole hours without minutes', () => {

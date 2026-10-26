@@ -6,7 +6,7 @@ import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
 import { periodDates } from '../components/rangeOptions'
-import { FLAT_PACE_NOTE, distanceGrade, sportGrade } from '../grades'
+import { distanceGrade, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import type { RecordRow } from '../recordRow'
 import { recordRow } from '../recordRow'
@@ -28,8 +28,7 @@ export interface ActivityBestsProps {
 
 /** Why a ride without measured power has no power curve, as the page says it. */
 const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
-  virtual:
-    'No power curve: power on this ride is estimated, and an estimate is made only on climbs.',
+  virtual: 'No power curve: an estimate is made only on climbs.',
   none: 'No power curve: this ride has no power data.',
 }
 
@@ -124,7 +123,6 @@ export function ActivityBests({
     <section className="section" aria-labelledby="activity-bests">
       <h2 id="activity-bests">Best efforts set here</h2>
       <SportRecords rows={rows} />
-      {sport === 'run' && <p className="muted">{FLAT_PACE_NOTE}</p>}
       {anyGraded && <GradingLink />}
     </section>
   )
