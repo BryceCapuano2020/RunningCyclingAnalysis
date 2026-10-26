@@ -1,7 +1,7 @@
 import { formatCount } from '../format/count'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
 import { formatWkg } from '@rca/core/units'
-import { SPORT_NOUN, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_NOUN } from '../sports'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import { fitTicks } from './ticks'
@@ -229,7 +229,7 @@ export function tooltipFor(dot: Dot): TooltipContent {
   return {
     x: dot.x,
     y: dot.y,
-    title: SPORT_TITLE[dot.sport],
+    title: SPORT_LABEL[dot.sport],
     rows: [
       { kind: dot.sport, value: formatWkg(dot.metabolicWkg), label: 'Energy rate' },
       { kind: dot.sport, value: `${Math.round(dot.bpm)} bpm`, label: 'Heart rate' },

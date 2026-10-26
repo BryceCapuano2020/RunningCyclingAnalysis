@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readStylesheet, ruleBody } from '../components/stylesheet'
 import { ChartFrame } from './ChartFrame'
+import { PlotSurface } from './PlotSurface'
 import type { ChartFrameProps } from './ChartFrame'
 import type { ChartSize } from './chartTypes'
 
@@ -174,5 +175,43 @@ describe('ChartFrame', () => {
     expect(screen.getByTestId('drawing')).toBeInTheDocument()
     expect(screen.getByTestId('surface').closest('svg')).not.toBeNull()
     expect(container.querySelector('.chart-frame__overlay [data-testid="overlay"]')).not.toBeNull()
+  })
+})
+
+describe('ChartFrame legend row', () => {
+  it('reserves the legend row when the chart has a legend, even while its key is not shown', () => {
+    const { container } = renderFrame({ legend: [{ label: 'Run', kind: 'run' }] })
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
+  })
+
+  it('reserves no legend row for a chart that has no legend', () => {
+    const { container } = renderFrame()
+    expect(container.querySelector('.chart-frame__legend')).toBeNull()
+  })
+
+  it('gives the reserved row a height, so a key appearing does not move the plot', () => {
+    expect(ruleBody(frameCss, '.chart-frame__legend')).toMatch(/min-height/)
+  })
+
+  describe('ChartFrame naming', () => {
+    it('names the plot surface by the chart’s visible title, and describes it by the arrow-key hint', () => {
+      renderFrame({
+        surface: (size) => (
+          <PlotSurface
+            size={size}
+            onPoint={() => undefined}
+            onKey={() => undefined}
+            onBlur={() => undefined}
+          />
+        ),
+      })
+      const surface = screen.getByTestId('plot-surface')
+      const named = document.getElementById(surface.getAttribute('aria-labelledby') ?? '')
+      expect(named).toHaveTextContent('Test chart')
+      const hint = document.querySelector('.chart-frame__hint')
+      expect(hint?.id).toBeTruthy()
+      expect(surface.getAttribute('aria-describedby')?.split(' ')).toContain(hint?.id)
+    })
   })
 })

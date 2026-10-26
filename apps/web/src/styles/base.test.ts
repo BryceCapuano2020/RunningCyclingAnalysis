@@ -15,10 +15,15 @@ describe('chart frames on a phone', () => {
 })
 
 describe('focus on a page heading', () => {
-  it('draws no outline when the app moves focus to the heading, and an underline instead', () => {
-    const body = ruleBody(baseCss, "h1[tabindex='-1']:focus")
-    expect(body).toMatch(/outline:\s*none/)
-    expect(body).toMatch(/text-decoration:\s*underline/)
+  it('draws no outline when the app moves focus to the heading', () => {
+    expect(ruleBody(baseCss, "h1[tabindex='-1']:focus")).toMatch(/outline:\s*none/)
+  })
+
+  it('underlines the heading only for keyboard focus, so a click that moves focus does not look like a link', () => {
+    expect(ruleBody(baseCss, "h1[tabindex='-1']:focus-visible")).toMatch(
+      /text-decoration:\s*underline/,
+    )
+    expect(ruleBody(baseCss, "h1[tabindex='-1']:focus")).not.toMatch(/text-decoration/)
   })
 })
 

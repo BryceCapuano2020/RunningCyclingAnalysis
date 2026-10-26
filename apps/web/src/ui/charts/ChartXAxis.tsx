@@ -1,5 +1,5 @@
 import type { AxisTick, PlotBox } from './chartTypes'
-import { labelWidth } from './ticks'
+import { axisFontRem, labelWidth, rootScale } from './ticks'
 import './ChartXAxis.css'
 
 export interface ChartXAxisProps {
@@ -12,12 +12,14 @@ export interface ChartXAxisProps {
 
 /** Vertical hairline gridlines, tick labels under the plot, and the axis title. */
 export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProps) {
+  // The root is read once per render, for every label's width.
+  const scale = rootScale()
   return (
     <g className="chart-x-axis">
       {ticks.map((tick) => {
         // A label centred on a tick near either end of the plot would run past it, so it is anchored
         // to the plot edge instead: the first label starts at its tick and the last ends at it.
-        const half = labelWidth(tick.label, fontSize) / 2
+        const half = labelWidth(tick.label, fontSize, scale) / 2
         const textAnchor =
           tick.position - half < plot.left
             ? 'start'
@@ -35,7 +37,7 @@ export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProp
             />
             <text
               className="chart-x-axis__tick"
-              style={{ fontSize }}
+              style={{ fontSize: axisFontRem(fontSize) }}
               x={tick.position}
               y={plot.bottom + 18}
               textAnchor={textAnchor}

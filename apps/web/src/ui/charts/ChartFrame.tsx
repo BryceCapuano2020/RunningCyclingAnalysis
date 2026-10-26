@@ -62,6 +62,7 @@ export function ChartFrame({
   const [stageRef, width] = useSize()
   const id = useId()
   const titleId = `${id}-title`
+  const hintId = `${id}-hint`
   const rightMargin = plotRightMargin ? plotRightMargin(width) : MARGIN.right
   const size: ChartSize = {
     width,
@@ -73,7 +74,8 @@ export function ChartFrame({
       bottom: height - MARGIN.bottom,
     },
     tooltipId: `${id}-tooltip`,
-    title,
+    titleId,
+    hintId,
   }
 
   return (
@@ -81,7 +83,12 @@ export function ChartFrame({
       <figcaption id={titleId} className="chart-frame__title">
         {title}
       </figcaption>
-      {showLegend(legend) ? <ChartLegend entries={legend ?? []} /> : null}
+      {/* The row is kept whenever the chart may have a key, so a key appearing does not move the plot. */}
+      {legend === undefined ? null : (
+        <div className="chart-frame__legend">
+          {showLegend(legend) ? <ChartLegend entries={legend} /> : null}
+        </div>
+      )}
       <div ref={stageRef} className="chart-frame__stage">
         {empty ? (
           <p className="chart-frame__empty">{empty}</p>
@@ -102,7 +109,11 @@ export function ChartFrame({
           </>
         )}
       </div>
-      {!empty && surface ? <p className="chart-frame__hint">{READING_HINT}</p> : null}
+      {!empty && surface ? (
+        <p id={hintId} className="chart-frame__hint">
+          {READING_HINT}
+        </p>
+      ) : null}
       {!empty && note ? <p className="chart-frame__note">{note}</p> : null}
       {!empty ? (
         <details className="chart-frame__details">

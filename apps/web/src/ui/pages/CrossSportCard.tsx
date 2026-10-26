@@ -1,4 +1,5 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
 import { EQUIVALENCE_MIN_S } from '@rca/core/constants'
 import { PACE_UNIT, formatDuration, formatPaceValue, formatPower } from '@rca/core/units'
@@ -9,6 +10,7 @@ import { formatDayMonth } from '../format/date'
 import { PER } from '../format/units'
 import { hrefFor } from '../route'
 import { countSport, featuredEquivalence, isEstimatedRecord } from '../records'
+import { betweenClause } from '../periodCopy'
 import './CrossSportCard.css'
 
 export interface CrossSportCardProps {
@@ -16,6 +18,8 @@ export interface CrossSportCardProps {
   units: UnitSystem
   /** False while no body weight is entered: the ride's figures then wait for it. */
   weighted: boolean
+  /** The period on screen, whose dates the needs-a-ride line names. */
+  period: Period
 }
 
 /** The activity that set the best ride effort at durationS, or null when it is not in the result. */
@@ -24,13 +28,19 @@ function rideAt(result: AnalysisResult, durationS: number): ActivitySummary | nu
   return result.activities.find((activity) => activity.id === id) ?? null
 }
 
+/** The line for a ride too short to compare: the duration, and the dates it is missing between. */
+function needsRideText(period: Period): string {
+  const when = betweenClause(period)
+  return `Needs a ride of ${formatDuration(EQUIVALENCE_MIN_S)} or more${when === '' ? '' : ` ${when}`}.`
+}
+
 /**
  * What your ride fitness is worth on foot: the app's most relatable idea, as a headline, with a
  * glyph pair that shows ride becoming run. It names the ride that set the effort, tags its watts
  * estimated when no power meter measured them, and opens to every duration. A file with no ride has
  * no such idea, so the slot is left out; without a weight the ride's figures wait for it.
  */
-export function CrossSportCard({ result, units, weighted }: CrossSportCardProps) {
+export function CrossSportCard({ result, units, weighted, period }: CrossSportCardProps) {
   if (countSport(result.activities, 'ride') === 0) return null
   if (!weighted) {
     return (
@@ -46,7 +56,7 @@ export function CrossSportCard({ result, units, weighted }: CrossSportCardProps)
     return (
       <section className="cross-sport" aria-labelledby="cross-sport-card">
         <h2 id="cross-sport-card">Your ride on foot</h2>
-        <p className="secondary">{`Needs a ride of ${formatDuration(EQUIVALENCE_MIN_S)} or more.`}</p>
+        <p className="secondary">{needsRideText(period)}</p>
       </section>
     )
   }

@@ -230,6 +230,7 @@ describe('SportCurveChart', () => {
     expect(previousD.match(/M/g)?.length).toBe(2)
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
+    expect(within(legend).getByText('Run')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Dashed line: Previous 6 weeks\./ })).toBeInTheDocument()
   })
 

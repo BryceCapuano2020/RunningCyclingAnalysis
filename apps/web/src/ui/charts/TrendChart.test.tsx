@@ -198,8 +198,10 @@ describe('TrendChart', () => {
     )
     const plot = screen.getByTestId('plot-surface')
     expect(plot).toHaveAttribute('tabindex', '0')
-    const describedBy = plot.getAttribute('aria-describedby')
-    expect(document.getElementById(describedBy ?? '')).toHaveAttribute('role', 'status')
+    const described = (plot.getAttribute('aria-describedby') ?? '').split(' ')
+    expect(described.map((id) => document.getElementById(id)?.getAttribute('role'))).toContain(
+      'status',
+    )
   })
 
   it('shows the week and the sport’s value when the arrow keys move the active point', () => {

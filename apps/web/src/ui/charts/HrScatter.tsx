@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { HrCrossCheck } from '@rca/core/types'
 import { keyByContent } from '../contentKeys'
-import { SPORT_TITLE } from '../sports'
+import { SPORT_LABEL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { diamondPath } from './chartInteraction'
@@ -101,7 +101,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
       title="Heart rate against energy rate"
       description={descriptionFor(drawn)}
       legend={sports.map((data): ChartLegendEntry => ({
-        label: SPORT_TITLE[data.sport],
+        label: SPORT_LABEL[data.sport],
         kind: data.sport,
         swatch: data.sport === 'ride' ? 'diamond' : 'dot',
       }))}
@@ -109,7 +109,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
         caption: 'Summary by sport',
         columns: ['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'],
         rows: sports.map((data) => [
-          SPORT_TITLE[data.sport],
+          SPORT_LABEL[data.sport],
           String(data.points.length),
           data.fit.slope.toFixed(1),
           data.fit.r2.toFixed(2),
@@ -119,7 +119,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
         caption: 'Plotted blocks',
         columns: ['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'],
         rows: blocks.blocks.map(({ sport, point }) => [
-          SPORT_TITLE[sport],
+          SPORT_LABEL[sport],
           point.metabolicPower.toFixed(1),
           String(Math.round(point.heartRate)),
         ]),

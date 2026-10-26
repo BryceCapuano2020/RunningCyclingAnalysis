@@ -39,3 +39,18 @@ export async function readStylesheetsUnder(
     .filter((path) => path.endsWith('.css'))
     .map((path) => ({ path, css: fs.readFileSync(new URL(path, root), 'utf8') }))
 }
+
+/** Every file under a directory whose name ends with `suffix`, as its path and its source. */
+export async function readFilesUnder(
+  testUrl: string,
+  relativeDir: string,
+  suffix: string,
+): Promise<{ path: string; text: string }[]> {
+  const specifier = 'node:fs'
+  const fs = (await import(/* @vite-ignore */ specifier)) as FileSystem
+  const root = new URL(relativeDir, testUrl)
+  return fs
+    .readdirSync(root, { recursive: true })
+    .filter((path) => path.endsWith(suffix))
+    .map((path) => ({ path, text: fs.readFileSync(new URL(path, root), 'utf8') }))
+}

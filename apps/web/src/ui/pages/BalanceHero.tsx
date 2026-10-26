@@ -7,6 +7,7 @@ import type { HeadlinePick } from '../components'
 import { BalanceMeter } from '../components/BalanceMeter'
 import { balanceOfPick } from '../components/balanceScale'
 import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../components/headlineText'
+import { periodDates } from '../components/rangeOptions'
 import { WeightPrompt } from '../components/WeightPrompt'
 import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
@@ -67,7 +68,7 @@ function missingText(
       title: levels.run
         ? `Your running is at ${levels.run} level. Add a ride to see your balance.`
         : 'Add a ride to see your balance',
-      detail: 'Your running is below.',
+      detail: 'Your run results are below.',
       canShowAll: false,
     }
   }
@@ -83,7 +84,7 @@ function missingText(
       title: levels.ride
         ? `Your cycling is at ${levels.ride} level. Add a run to see your balance.`
         : 'Add a run to see your balance',
-      detail: 'Your cycling is below.',
+      detail: 'Your ride results are below.',
       canShowAll: false,
     }
   }
@@ -103,8 +104,7 @@ function missingText(
   }
   return {
     title: HARDER_EFFORTS_TITLE,
-    detail:
-      'Both sports are in your files, but no efforts of the same length could be compared yet.',
+    detail: `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. A hard 20 min run or ride would let them be compared.`,
     canShowAll: false,
   }
 }
@@ -169,11 +169,13 @@ export function BalanceHero({
     )
   }
   const summary = balanceSummary(reading, pick?.point.durationS ?? HEADLINE_DURATION_S)
+  // A dated period names its dates ahead of the answer, so the lede says what it covers.
+  const dates = period.days === null ? '' : periodDates(period)
   return (
     <>
       <section className="balance-hero">
         {head(balanceTitle(reading), 'balance-hero__title')}
-        <p className="lede secondary">{summary}</p>
+        <p className="lede secondary">{dates === '' ? summary : `${dates}. ${summary}`}</p>
       </section>
       <BalanceMeter reading={reading} />
     </>

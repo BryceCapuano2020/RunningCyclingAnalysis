@@ -18,10 +18,12 @@ const size: ChartSize = {
   height: 200,
   plot: { left: 40, right: 380, top: 20, bottom: 150 },
   tooltipId: 'tip',
-  title: 'Test chart',
+  titleId: 'chart-title',
+  hintId: 'chart-hint',
 }
 
 function renderSurface() {
+  render(<span id="chart-title">Test chart</span>)
   const onPoint = vi.fn<PlotSurfaceProps['onPoint']>()
   const onKey = vi.fn<PlotSurfaceProps['onKey']>()
   const onBlur = vi.fn<PlotSurfaceProps['onBlur']>()
@@ -38,7 +40,7 @@ describe('PlotSurface', () => {
     const { surface } = renderSurface()
     expect(surface).toHaveAttribute('tabindex', '0')
     expect(surface).toHaveAttribute('role', 'group')
-    expect(surface).toHaveAttribute('aria-describedby', 'tip')
+    expect(surface).toHaveAttribute('aria-describedby', 'tip chart-hint')
     expect(surface).toHaveAttribute('aria-roledescription', 'chart')
   })
 
@@ -88,12 +90,11 @@ describe('PlotSurface', () => {
     expect(onBlur).toHaveBeenCalledTimes(1)
   })
 
-  it('names the chart and how to read its values', () => {
+  it('names the chart by its visible title, and reads its values with the arrow keys', () => {
     const { surface } = renderSurface()
-    expect(surface).toHaveAttribute(
-      'aria-label',
-      'Test chart. Use the left and right arrow keys to read values',
-    )
+    expect(surface).toHaveAttribute('aria-labelledby', 'chart-title')
+    expect(document.getElementById('chart-title')).toHaveTextContent('Test chart')
+    expect(surface).not.toHaveAttribute('aria-label')
   })
 
   it('opens the tooltip on a tap, at the tapped point', () => {

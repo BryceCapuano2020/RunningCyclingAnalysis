@@ -1,4 +1,8 @@
 /* Where running is ahead the plot is tinted coral above the line, and where cycling is ahead, blue below it. */
+.ratio-chart__higher {
+  stroke: none;
+}
+
 .ratio-chart__higher--run {
   fill: var(--series-run-soft);
 }
@@ -56,4 +60,28 @@
   stroke: var(--surface-0);
   stroke-width: 3px;
   stroke-linejoin: round;
+}
+
+/*
+ * In forced colours the tints go, so each band keeps its outline, the median its line and the marker
+ * its dot, in the system's text colour.
+ */
+@media (forced-colors: active) {
+  .ratio-chart__higher {
+    fill: none;
+  }
+
+  .ratio-chart__band {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
+  .ratio-chart__median {
+    stroke: CanvasText;
+  }
+
+  .ratio-chart__marker {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
 }

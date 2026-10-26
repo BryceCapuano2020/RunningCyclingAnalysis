@@ -36,6 +36,7 @@
   --ladder-ride-band: #2f56e826;
   --neutral-mark: #474f5c;
   --neutral-band: #474f5c24;
+  --previous-mark: #838a97;
   --grid: #e9ecf1;
 
   --status-good: #17753a;
@@ -108,6 +109,7 @@
     --ladder-ride-band: #4d6ef526;
     --neutral-mark: #b6bcc6;
     --neutral-band: #b6bcc629;
+    --previous-mark: #737b89;
     --grid: #232830;
     --status-good: #4ac26b;
     --status-good-bg: #10301b;

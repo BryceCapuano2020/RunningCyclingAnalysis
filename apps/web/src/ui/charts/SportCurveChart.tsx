@@ -4,7 +4,7 @@ import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { RECORD_DURATIONS_S } from '../records'
-import { SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { activityCell, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -245,7 +245,7 @@ export function SportCurveChart({
   const legend: ChartLegendEntry[] | undefined =
     shown && hasData
       ? [
-          { label: SPORT_TITLE[sport], kind: sport, swatch: 'line' },
+          { label: SPORT_LABEL[sport], kind: sport, swatch: 'line' },
           { label: shown.label, kind: 'neutral', swatch: 'dashed' },
         ]
       : undefined

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { CurveChart } from './CurveChart'
 import { curveOf, rideCurveFixture, rideMetabolicCurveFixture, runCurveFixture } from './fixtures'
 
-const TITLE = 'Running and cycling energy rate in W/kg by duration'
+const TITLE = 'Running and cycling energy rate (metabolic W/kg) by duration'
 
 /** The static chart image is named by its title, then its description. */
 
@@ -32,11 +32,11 @@ describe('CurveChart', () => {
     )
     expect(screen.getByRole('figure', { name: TITLE })).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
-    expect(within(legend).getByText('Running')).toBeInTheDocument()
-    expect(within(legend).getByText('Cycling')).toBeInTheDocument()
+    expect(within(legend).getByText('Run')).toBeInTheDocument()
+    expect(within(legend).getByText('Ride')).toBeInTheDocument()
     // Once in the legend, once as the end label of the line.
-    expect(screen.getAllByText('Running')).toHaveLength(2)
-    expect(screen.getAllByText('Cycling')).toHaveLength(2)
+    expect(screen.getAllByText('Run')).toHaveLength(2)
+    expect(screen.getAllByText('Ride')).toHaveLength(2)
   })
 
   it('exposes one image per chart and a plot surface described by the tooltip', () => {
@@ -52,9 +52,11 @@ describe('CurveChart', () => {
     const plot = screen.getByTestId('plot-surface')
     expect(plot).toHaveAttribute('role', 'group')
     expect(plot).toHaveAttribute('tabindex', '0')
-    const describedBy = plot.getAttribute('aria-describedby')
-    expect(describedBy).toBeTruthy()
-    expect(document.getElementById(describedBy ?? '')).toHaveAttribute('role', 'status')
+    // The plot is described by its tooltip and its arrow-key hint, in that order.
+    const described = (plot.getAttribute('aria-describedby') ?? '').split(' ')
+    expect(described.map((id) => document.getElementById(id)?.getAttribute('role'))).toContain(
+      'status',
+    )
   })
 
   it('marks only the duration the reader is on, one marker per sport, so the lines stay unbroken', () => {
@@ -84,12 +86,12 @@ describe('CurveChart', () => {
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual([
       'Duration',
-      'Running (W/kg)',
+      'Run energy rate (W/kg)',
       'Flat pace',
-      'Cycling (W/kg)',
-      'Cycling power',
-      'Running from',
-      'Cycling from',
+      'Ride energy rate (W/kg)',
+      'Ride power',
+      'Run activity',
+      'Ride activity',
     ])
     expect(rows).toEqual([
       // Without activity names the cells stay blank rather than showing a raw id.
@@ -136,6 +138,8 @@ describe('CurveChart', () => {
     expect(tooltip).toHaveTextContent('17.0 W/kg')
     expect(tooltip).toHaveTextContent('4:07 /km')
     expect(tooltip).toHaveTextContent('18.5 W/kg')
+    expect(within(tooltip).getByText('Run')).toBeInTheDocument()
+    expect(within(tooltip).getByText('Ride')).toBeInTheDocument()
     expect(tooltip).toHaveTextContent('1,400 W')
 
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
@@ -206,6 +210,8 @@ describe('CurveChart', () => {
         units="metric"
       />,
     )
-    expect(container.querySelector('caption')?.textContent).toMatch(/^Best energy rate in W\/kg/)
+    expect(container.querySelector('caption')?.textContent).toMatch(
+      /^Best energy rate \(metabolic W\/kg\)/,
+    )
   })
 })

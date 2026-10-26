@@ -129,7 +129,7 @@ describe('BalanceMeter with the energy ratio', () => {
   it('is named by the energy sentence', () => {
     render(<BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} />)
     expect(screen.getByRole('img')).toHaveAccessibleName(
-      'Running 12% higher on the energy scale (range 5% to 20%)',
+      'Running 12% higher, as energy per kilogram (range 5% to 20%)',
     )
   })
 

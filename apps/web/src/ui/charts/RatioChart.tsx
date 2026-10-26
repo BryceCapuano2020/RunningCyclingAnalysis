@@ -2,7 +2,8 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Comparison, ComparisonPoint, Interval } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
-import { SPORT_NOUN, SPORT_TITLE } from '../sports'
+import { EVEN_LABEL } from '../components/balanceScale'
+import { SPORT_LABEL, SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartTooltip } from './ChartTooltip'
@@ -22,18 +23,20 @@ export interface RatioChartProps {
 }
 
 const MIN_DURATION_S = 60
+/** Tick values within this of zero are zero, since the axis steps are not exact in binary. */
+const ZERO_TOLERANCE = 1e-9
 const ACTIVE_MARKER_R = 5
 /** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them.'
-const PERCENT_AXIS_TITLE = `${SPORT_TITLE.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
+const PERCENT_AXIS_TITLE = `${SPORT_LABEL.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
 const CAPTION =
   'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher.'
 const NOTE = 'Shading shows the 90% model range. The line is the middle estimate.'
 
 const LEGEND_CALIBRATED: ChartLegendEntry[] = [
-  { label: 'Before heart-rate check', kind: 'neutral', swatch: 'band' },
-  { label: 'After heart-rate check', kind: 'neutral', swatch: 'band-strong' },
+  { label: 'Before heart-rate check: 90% range', kind: 'neutral', swatch: 'band' },
+  { label: 'After heart-rate check: 90% range', kind: 'neutral', swatch: 'band-strong' },
 ]
 
 interface RatioRow {
@@ -52,7 +55,7 @@ const rangeOf = (interval: Interval): string => `${delta(interval.p05)} to ${del
 function readingOf(interval: Interval | null): string {
   if (interval === null) return '—'
   const offset = interval.p50 - 1
-  if (formatPercent(offset) === '0%') return 'Equal'
+  if (formatPercent(offset) === '0%') return EVEN_LABEL
   return offset > 0
     ? `Running ${formatPercent(offset)} higher than cycling`
     : `Cycling ${formatPercent(-offset)} higher than running`
@@ -140,8 +143,12 @@ function layout(rows: RatioRow[], hasCalibrated: boolean, size: ChartSize): Layo
     xs: rows.map((row) => x(row.durationS)),
     xTicks: fitTicks(durationTicks(first.durationS, last.durationS, x), { axis: 'x', width }),
     yTicks: fitTicks(
-      ticks.map((value) => ({ position: y(value), label: percentTick(value, decimals) })),
-      { axis: 'y', width },
+      ticks.map((value) => ({
+        position: y(value),
+        // Zero is the even line, named on the axis so the label sits outside the plot.
+        label: Math.abs(value) < ZERO_TOLERANCE ? EVEN_LABEL : percentTick(value, decimals),
+      })),
+      { axis: 'y', width, keep: (tick) => tick.label === EVEN_LABEL },
     ),
     zeroY: y(0),
     prior: seriesOf(rows, (row) => row.prior.ratio, x, y),
@@ -323,9 +330,6 @@ export function RatioChart({ comparison }: RatioChartProps) {
               y1={m.zeroY}
               y2={m.zeroY}
             />
-            <text className="ratio-chart__label" x={plot.left + 8} y={m.zeroY - 6}>
-              Equal
-            </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.top + 14}>
               {`Higher ${SPORT_NOUN.run} energy rate`}
             </text>

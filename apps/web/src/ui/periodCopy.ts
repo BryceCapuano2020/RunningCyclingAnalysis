@@ -1,8 +1,10 @@
 import type { Sport } from '@rca/core/types'
+import { DAY_MS } from '@rca/core/constants'
 import { plural } from './components/plural'
 import type { Period } from '@rca/core/period'
 import { periodDates } from './components/rangeOptions'
 import type { Span } from './components/rangeOptions'
+import { formatDay } from './format/date'
 import { SPORT_PLURAL } from './sports'
 
 /**
@@ -34,4 +36,26 @@ export function sportEmptyText(sport: Sport, period: Period, inLibrary: number):
   if (inLibrary === 0) return `Your files have no ${noun} yet. Add ${noun} to see your records.`
   const when = period.days === null ? '' : ` ${betweenClause(period)}`
   return `No ${noun}${when}. You have ${plural(inLibrary, sport)} in All time.`
+}
+
+/** A newest activity older than this, in days, is dated on the page, since "last 6 weeks" would read as current. */
+const STALE_DAYS = 42
+/** Gaps under this many days are counted in weeks; longer ones in months. */
+const WEEKS_LIMIT_DAYS = 61
+const DAYS_PER_MONTH = 30.4375
+
+/**
+ * The line that dates the library's newest activity once it is more than six weeks old, so a period
+ * named "last 6 weeks" is not read as current. Null while the newest activity is recent, or when
+ * there is none. The clock is a parameter, so the line is tested at a fixed day.
+ */
+export function latestActivityText(newestMs: number | null, nowMs = Date.now()): string | null {
+  if (newestMs === null) return null
+  const days = Math.floor((nowMs - newestMs) / DAY_MS)
+  if (days <= STALE_DAYS) return null
+  const ago =
+    days < WEEKS_LIMIT_DAYS
+      ? plural(Math.floor(days / 7), 'week')
+      : plural(Math.floor(days / DAYS_PER_MONTH), 'month')
+  return `Latest activity ${formatDay(newestMs, nowMs)}, ${ago} ago`
 }

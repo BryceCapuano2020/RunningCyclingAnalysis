@@ -17,7 +17,7 @@ const FORMATS: CardFormat[] = ['square', 'story']
 const ORIGIN_URL = 'example.test'
 /** Three lines of caveat in the card's measure: the caveat wraps rather than being cut. */
 const THREE_LINE_CAVEAT =
-  'Best cycling efforts over the full sixty minutes of the period may not have been all-out, so the figure may be low, and a recent race would sharpen it.'
+  'Best cycling efforts over the full sixty minutes of the period may not have been your hardest, so the figure may be low, and a recent race would sharpen it.'
 /** Far more caveat than any card has room for. */
 const TOO_LONG_CAVEAT = Array.from({ length: 12 }, () => LONG_CAVEAT).join(' ')
 

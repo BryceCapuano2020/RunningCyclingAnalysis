@@ -34,34 +34,56 @@ export function EquivalenceTable({
     )
   }
   return (
-    <div className="table-scroll">
-      <table className="equivalence-table">
-        <thead>
-          <tr>
-            <th scope="col">Ride effort</th>
-            <th scope="col" className="num">
-              Flat running pace
-            </th>
-            <th scope="col" className="num">
-              90% model range
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {equivalents.map((equivalent) => (
-            <tr key={equivalent.durationS}>
-              <td>
+    <>
+      <div className="table-scroll equivalence-table__wide">
+        <table className="equivalence-table">
+          <thead>
+            <tr>
+              <th scope="col">Ride effort</th>
+              <th scope="col" className="num">
+                Flat pace
+              </th>
+              <th scope="col" className="num">
+                90% model range
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {equivalents.map((equivalent) => (
+              <tr key={equivalent.durationS}>
+                <td>
+                  {`${formatDuration(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`}
+                  {estimated(equivalent.durationS) && <span className="chip">Estimated</span>}
+                </td>
+                <td className="num">{formatPace(equivalent.runSpeed.p50, units)}</td>
+                <td className="num">
+                  {`${formatPaceValue(equivalent.runSpeed.p95, units)} to ${formatPaceValue(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Below 480 px the table is hidden and each effort reads as a list, with the same values. */}
+      <ol className="equivalence-list">
+        {equivalents.map((equivalent) => (
+          <li key={equivalent.durationS}>
+            <dl>
+              <dt>Ride effort</dt>
+              <dd>
                 {`${formatDuration(equivalent.durationS)} at ${formatPower(equivalent.ridePowerW)}`}
                 {estimated(equivalent.durationS) && <span className="chip">Estimated</span>}
-              </td>
-              <td className="num">{formatPace(equivalent.runSpeed.p50, units)}</td>
-              <td className="num">
+              </dd>
+              <dt>Flat pace</dt>
+              <dd>{formatPace(equivalent.runSpeed.p50, units)}</dd>
+              <dt>90% model range</dt>
+              <dd>
                 {`${formatPaceValue(equivalent.runSpeed.p95, units)} to ${formatPaceValue(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              </dd>
+            </dl>
+          </li>
+        ))}
+      </ol>
+    </>
   )
 }

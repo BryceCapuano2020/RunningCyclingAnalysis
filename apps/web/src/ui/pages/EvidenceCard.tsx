@@ -48,7 +48,7 @@ function evidenceFor(effort: EffortCheck | null): Evidence {
     return {
       chip: { className: 'chip chip--good', icon: <CheckIcon />, label: 'Hard efforts on file' },
       title: 'Built on real efforts',
-      text: 'Heart rate shows your best efforts in both sports were hard ones, not easy days. That makes them hard, but does not prove either was all-out.',
+      text: 'Heart rate shows your best efforts in both sports were hard ones, not easy days. That makes them hard, but does not prove either was your hardest.',
       howTo: null,
       boxed: false,
     }

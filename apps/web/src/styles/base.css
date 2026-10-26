@@ -82,6 +82,10 @@ a {
    underline rather than the focus ring. */
 h1[tabindex='-1']:focus {
   outline: none;
+}
+
+/* Only keyboard focus draws the underline, so a click that moves focus leaves the title plain. */
+h1[tabindex='-1']:focus-visible {
   text-decoration: underline;
   text-decoration-thickness: 3px;
   text-underline-offset: 0.12em;

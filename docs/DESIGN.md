@@ -63,7 +63,8 @@ overflow, the bar scrolls from the left and fades at its edge until it is scroll
 
 Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
 and an activity by its own name. The first control on a page is **Skip to content**, which moves
-focus to the page heading past the header. The app's routes are hashes, so it is a button, not a
+focus to the page heading past the header. The heading is underlined only when keyboard focus reaches it, so a click that moves focus leaves the
+title plain. The app's routes are hashes, so it is a button, not a
 fragment link.
 
 Back and Forward return to the page the visitor left, where they left it. A page opened by a link
@@ -76,7 +77,9 @@ A deep link to a page that needs a result, with none on this device, stays where
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
-**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, 1 year or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out.
+**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, 1 year or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
+counted back from the newest activity, not from today, so when that activity is more than six weeks old
+the line "Latest activity Tue 3 Jun 2025, 16 months ago" sits under the period control.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
@@ -141,6 +144,7 @@ colours always come with an icon and a label, so a warning never relies on red b
 | `--text-muted`         | `#5f6774`   | `#8d95a2`   | Captions, axis labels (4.5:1 or better)                                    |
 | `--neutral-mark`       | `#474f5c`   | `#b6bcc6`   | Neutral data and reference marks                                           |
 | `--neutral-band`       | `#474f5c24` | `#b6bcc629` | Neutral band fill                                                          |
+| `--previous-mark`      | `#838a97`   | `#737b89`   | The previous period's line: a thin dashed mid grey, under the current line |
 | `--brand`              | `#c8f03c`   | `#c8f03c`   | Volt: marks the one primary action per screen                              |
 | `--accent`             | `#0e1116`   | `#c8f03c`   | Primary button background (dark: volt, from `--brand`)                     |
 | `--accent-contrast`    | `#c8f03c`   | `#0e1116`   | Primary button label (light: volt, from `--brand`)                         |
@@ -205,13 +209,21 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   source for the icon and for the glyph on the share card.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
-  its value, such as "250 W", and the latest trend value with its window, such as "64%, last 2 weeks".
-  A best-effort curve marks the 1, 5, 20 and 60 minute efforts, the same ones its records list names,
-  and labels its last point with its value where there is room beside the 20 minute label. Watts charts also fill the area under
-  the line. Pace charts draw the line alone: pace has no zero to fill down to. Every chart has a
-  visible title, and a value's label sits clear of its own line.
+  its value, such as "250 W", and the latest trend value with its effort and window, such as
+  "64%, best 20 min, last 2 weeks". A best-effort curve marks the 1, 5, 20 and 60 minute efforts, the
+  same ones its records list names, and labels its last point with its value where there is room beside
+  the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
+  the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
+  visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
+  reader points at it, as well as the latest one. A tooltip names its week and its window, as "Week
+  ending Sun 12 Jan 2025, best 20 min over 2 weeks". A chart's key keeps one line of height in every
+  period, so the plot does not move when a key appears. Axis text is set in rem, so it follows the
+  reader's text size. A data table with more than 12 rows keeps to a height of 24 rem and scrolls inside
+  itself, and a keyboard reader can reach it.
 - The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
-  blue below it, so the side that is higher reads before the numbers do.
+  blue below it, so the side that is higher reads before the numbers do. Its zero line is labelled
+  "Even" on the axis, and its key names the bands "Before heart-rate check: 90% range" and "After
+  heart-rate check: 90% range".
 - **Evidence sits behind a disclosure.** On How sure is this? each chart is under a Show the evidence
   disclosure, and the claim it supports is in words above it. The chart mounts when the disclosure is
   first opened, so a closed section draws nothing.
@@ -235,7 +247,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
   metabolic W/kg.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest activity's day, when they hold a run and a ride. A day is counted in the device's local zone and runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same day give the same window, and an older window never hides recent activities. It is clipped to the first activity's day, so a library shorter than 12 weeks is dated from its start. When those 12 weeks do not hold both sports, as with a 2015 run and a 2019 ride, the default is All time, and the control says why: "The 12 weeks up to your newest activity do not hold both a run and a ride, so this shows all time." The period is computed in `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the newest activity's day.
-- A period's comparison is the same length before it, drawn as a dashed neutral line and named
+- A period's comparison is the same length before it, drawn as a thin dashed mid-grey line and named
   "Previous 6 weeks", "Previous 3 months" or "Previous year". All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
@@ -246,12 +258,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   can differ from a card's best, which covers the whole period.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
-  each week, its model range is a band, and the key says "estimated". Each grade is taken at the age
+  each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the
+  key says "estimated". Each grade is taken at the age
   on the day of its best effort. Without a weight, the Balance trend holds cycling: there is no ride
   line, ring, band, key or table column, and the chart says so. On an energy trend and on the sport
   pages, cycling is drawn as measured: a solid line with dots.
-- A previous period is a thin dashed grey line (1.5 px). It appears only when it has values, and
-  otherwise the chart says there were none.
+- A previous period is a thin dashed mid-grey line (1.5 px, `--previous-mark`). It appears only when it
+  has values, and otherwise the chart says there were none. A trend with one week of values keeps its title
+  and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
+  needs two weeks with values."
 - The balance meter spans the card row, so its centre is the gap between the two cards. Running is
   on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
   the cards, the meter, the landing example and the share card all follow it. The meter plots the
@@ -262,7 +277,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
   its glyph. The key under it gives the range in words: "Band: the ride's 90% range".
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
-  the drawing. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
+  the drawing and fills its column, with no fixed width. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
   a ring over an outlined band for its model range. The bands the grade falls in are filled in its
   sport's soft colour and named in bold: the band of its centre, or every band from the low end of a
   ride's range to its high end. Band edges are ticks. A marker past either end of the scale stays
@@ -344,7 +359,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   short with an ellipsis, and its full name is the link's title and accessible name.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
   ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
-  Its ride figures and its table wait for the weight, as the cards' do. The evidence card is a card
+  Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
+  the dates the period is missing a ride between. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.
 - **Only the drop area is dashed, and it fills on hover.** On the landing page the example beside it is a solid frame, with
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
@@ -356,7 +372,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
   are in the page, and a media query shows exactly one at each width, so the accessibility tree
   holds one representation. Never set `display: block` on a table element, which drops its table
-  semantics. The splits table on the activity page is the first use; record any new one here.
+  semantics. The splits table on the activity page is the first use, and the efforts table on a Balance card
+  is the second, whose list shows below 480 px; record any new one here.
 - **Bars start from zero.** A bar's length is the value relative to the best known one, so the best
   fills its track. A row with no known value has no bar and cannot be the best.
 - **The best row says so in words.** A small `.chip` reads "Fastest" beside its value, and the value
@@ -398,14 +415,24 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   estimate is level: "On the age-grade best estimate, running and cycling grade the same, and the range
   (−2 to +2 points) includes zero, so the two are in balance." Never "ahead of". Without an age and
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
-  cycling once both are put on the same energy scale." The prompt says that adding them shows the
-  balance in points and levels.
+  cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
+  levels. Without a weight, the headline names the period's dates ahead of the answer when the period is
+  not All time: "12 May – 3 Aug 2025. Your running grades 6 points higher than your cycling, on your best
+  20 min in each."
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
+- **Titles keep Running and Cycling; labels say Run and Ride.** A chart title uses the prose nouns, as in
+  "Running compared with cycling by duration". Legends, tooltips, table headings, axis names and the strip
+  say Run and Ride, as "Run, as recorded" and "Ride, estimated"; prose may say running and cycling. The
+  Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
+  table caption, with "Energy rate (W/kg)" on its axis.
+- **Effort checks say "your hardest".** A best effort below 90% of your reference heart rate is "probably not
+  your hardest", never "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
+  in one sentence, where it explains the heart-rate check.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
-  "on the same energy scale" may explain the balance.
+  "as energy per kilogram" may explain the balance.
 - **How sure is this? opens with three lines**: what is recorded ("Your best efforts are recorded."),
   what is estimated ("Thresholds, levels and the balance are estimates from N runs and M rides.") and
   how far to trust it ("These checks show how far to trust them.").
@@ -456,7 +483,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   gives the year on both ends when the years differ, or when either is not this year: "from Mar to
   Oct", "from Mar 2023 to Oct 2026".
 - **A period's dates always carry the year**, as in "12 May – 3 Aug 2025" or "3 Aug 2024 – 2 Nov 2025", so a span reads without the current date. The period control, the Balance caption and the card's period line show the same dates.
-- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, shows no period control, and offers the file chooser as a secondary button. A sport the files have, with none in the period, offers **Show all time** as its one button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots.
+- **Empty states name the period.** When a sport has nothing in the period on screen, the page says which dates it is missing it between and how many the library holds in All time, with one tap to show All time: "No rides between 12 May and 3 Aug 2025. You have 14 rides in All time." The same sentence heads the empty sport on Balance and the sport page, so the wording is one. A sport the files do not have says so, shows no period control, and offers the file chooser as a secondary button. A sport the files have, with none in the period, offers **Show all time** as its one button. The empty sport is a short prompt rather than a card, so it takes little room beside the sport that has activities. An activity list with nothing to show says the same way, with its dates. Empty sections and links to empty pages are left out, so a one-sport file shows no comparison slots. The one-sport answer says "Your run results are below."
+  (or "Your ride results are below."), and the empty sport card beside it offers **Add rides** (or **Add runs**)
+  as the secondary file chooser. The answer itself offers none, so there is one.
+- **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
+  compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
+  ride would let them be compared." beneath it.
 - One "How sure is this?" link per card at most.
 - **A level says how it is graded.** A level's grade line may link to its age grades with How is this
   graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
@@ -526,4 +558,5 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 
 Unchanged by the redesign: every chart has a table view, colour is never the only cue, controls are
 at least 40 px tall (44 px on a phone or for a finger), focus is always visible, live regions stay mounted, and motion respects
-`prefers-reduced-motion`.
+`prefers-reduced-motion`. In forced colours the chart marks keep their edges in the system's colours: the
+ratio bands and median, the trend and curve markers, and the heart-rate dots.

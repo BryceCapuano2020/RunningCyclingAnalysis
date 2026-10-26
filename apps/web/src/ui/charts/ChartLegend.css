@@ -96,7 +96,7 @@
 /* A comparison line drawn dashed, as the previous period is, or an estimate in its sport's colour. */
 .chart-legend__key--dashed {
   height: 0;
-  border-top: 2.5px dashed var(--neutral-mark);
+  border-top: 1.5px dashed var(--previous-mark);
   background: none;
 }
 

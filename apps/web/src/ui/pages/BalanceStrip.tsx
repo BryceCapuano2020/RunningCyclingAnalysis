@@ -1,7 +1,7 @@
 import type { Sport } from '@rca/core/types'
 import type { GradeOutcome } from '../grades'
 import { formatGrade } from '../gradeFormat'
-import { SPORT_ORDER, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import './BalanceStrip.css'
 
 export interface BalanceStripProps {
@@ -19,7 +19,7 @@ export function BalanceStrip({ grades }: BalanceStripProps) {
     const outcome = grades[sport]
     return outcome?.kind === 'graded'
       ? [
-          `${SPORT_TITLE[sport]} ${formatGrade(outcome.grade.centre.grade)} ${outcome.grade.centre.level}`,
+          `${SPORT_LABEL[sport]} ${formatGrade(outcome.grade.centre.grade)} ${outcome.grade.centre.level}`,
         ]
       : []
   })

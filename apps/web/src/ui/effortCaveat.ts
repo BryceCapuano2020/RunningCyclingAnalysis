@@ -3,7 +3,7 @@ import type { EffortCheck } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 
 /*
- * Why a best effort may not have been all-out, from its heart rate. A domain rule rather than copy,
+ * Why a best effort may not have been the hardest, from its heart rate. A domain rule rather than copy,
  * so the share card and the Method page read the same check.
  */
 
@@ -16,7 +16,7 @@ export interface EffortCaveat {
   short: string
 }
 
-/** Why the best efforts may not have been all-out, or null when heart rate does not say so. */
+/** Why the best efforts may not have been the hardest, or null when heart rate does not say so. */
 export function effortCaveat(effort: EffortCheck | null | undefined): EffortCaveat | null {
   if (!effort) return null
   const { durationS, runHrFraction: run, rideHrFraction: ride } = effort
@@ -25,28 +25,28 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
     return {
       title: 'Both numbers may be low',
       text:
-        `Your best ${duration} reached ${Math.round(run * 100)}% of your running heart-rate reference ` +
-        `and ${Math.round(ride * 100)}% of your cycling one, so neither was probably all-out. ` +
+        `Your best ${duration} reached ${Math.round(run * 100)}% of your running reference heart rate ` +
+        `and ${Math.round(ride * 100)}% of your cycling one, so neither was probably your hardest. ` +
         'A recent race or a hard effort of this length in each sport would sharpen both.',
-      short: `Best efforts over ${duration} may not have been all-out.`,
+      short: `Best efforts over ${duration} may not have been your hardest.`,
     }
   }
   if (ride !== null && ride < ALL_OUT) {
     return {
       title: 'Your ride number may be low',
       text:
-        `Your best ${duration} on the bike reached ${Math.round(ride * 100)}% of your cycling ` +
-        'heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
-      short: `Best cycling effort over ${duration} may not have been all-out.`,
+        `Your best ${duration} on the bike reached ${Math.round(ride * 100)}% of your cycling reference heart rate, ` +
+        'so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
+      short: `Best cycling effort over ${duration} may not have been your hardest.`,
     }
   }
   if (run !== null && run < ALL_OUT) {
     return {
       title: 'Your run number may be low',
       text:
-        `Your best ${duration} running reached ${Math.round(run * 100)}% of your running ` +
-        'heart-rate reference, so it was probably not all-out. A recent race or a test of this length would sharpen it.',
-      short: `Best running effort over ${duration} may not have been all-out.`,
+        `Your best ${duration} running reached ${Math.round(run * 100)}% of your running reference heart rate, ` +
+        'so it was probably not your hardest. A recent race or a test of this length would sharpen it.',
+      short: `Best running effort over ${duration} may not have been your hardest.`,
     }
   }
   return null

@@ -87,18 +87,18 @@ test('period labels remain clickable at a narrow viewport with enlarged text', a
   await expect(await activitiesRows(page)).toHaveCount(14)
 })
 
-test('How sure is this? keeps the disclaimer that hard best efforts do not prove all-out effort', async ({
+test('How sure is this? keeps the disclaimer that hard best efforts do not prove either was the hardest', async ({
   page,
 }) => {
   await openSample(page)
-  // The sample's best 20 minute efforts both reach 90% of their heart-rate reference, so the
+  // The sample's best 20 minute efforts both reach 90% of their reference heart rate, so the
   // Evidence card reports real efforts and the method page says what that does not prove.
   await expect(page.getByRole('region', { name: 'Built on real efforts' })).toBeVisible()
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
   await expect(
-    page.getByText('That makes them hard, but does not prove either was all-out.'),
+    page.getByText('That makes them hard, but does not prove either was your hardest.'),
   ).toBeVisible()
 })
 

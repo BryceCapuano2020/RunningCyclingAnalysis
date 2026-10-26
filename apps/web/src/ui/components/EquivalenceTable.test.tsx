@@ -2,8 +2,18 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { UnitSystem } from '@rca/core/units'
+import { readStylesheet, ruleBody } from './stylesheet'
 import { interval, makeEquivalence } from './fixtures'
 import { EquivalenceTable } from './EquivalenceTable'
+
+const equivalenceCss = await readStylesheet(import.meta.url, './EquivalenceTable.css')
+
+/** The rules inside one @media block of a stylesheet, from its opening line to its closing brace. */
+function mediaBody(css: string, query: string): string {
+  const start = css.indexOf(`@media ${query} {`)
+  if (start === -1) return ''
+  return css.slice(start, css.indexOf('\n}', start))
+}
 
 afterEach(() => {
   cleanup()
@@ -29,7 +39,7 @@ describe('EquivalenceTable', () => {
   it('lists the ride effort, the flat running pace it matches and its 90% model range', () => {
     renderTable()
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Ride effort', 'Flat running pace', '90% model range'])
+    expect(headers).toEqual(['Ride effort', 'Flat pace', '90% model range'])
 
     const row = within(screen.getByRole('row', { name: /20 min at 250 W/ }))
     expect(row.getByText('20 min at 250 W')).toBeInTheDocument()
@@ -40,9 +50,10 @@ describe('EquivalenceTable', () => {
 
   it('shows paces per mile for imperial', () => {
     renderTable([makeEquivalence()], 'imperial')
-    expect(screen.getByText('6:42 /mi')).toBeInTheDocument()
+    const table = screen.getByRole('table')
+    expect(within(table).getByText('6:42 /mi')).toBeInTheDocument()
     // The unit appears once, at the end of the range.
-    expect(screen.getByText('6:23 to 7:04 /mi')).toBeInTheDocument()
+    expect(within(table).getByText('6:23 to 7:04 /mi')).toBeInTheDocument()
   })
 
   it('shows one row per equivalent in order', () => {
@@ -86,6 +97,47 @@ describe('EquivalenceTable', () => {
 
   it('renders a range that is a single pace when the interval collapses', () => {
     renderTable([makeEquivalence({ runSpeed: interval(4.0, 4.0, 4.0) })])
-    expect(screen.getByText('4:10 to 4:10 /km')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('4:10 to 4:10 /km')).toBeInTheDocument()
+  })
+
+  it('repeats each effort as a list for a phone, with the same values under their terms', () => {
+    const { container } = renderTable([makeEquivalence({ durationS: 1200, ridePowerW: 250 })])
+    const items = container.querySelectorAll('.equivalence-list > li')
+    expect(items).toHaveLength(1)
+    const item = items[0] as HTMLElement
+    expect(Array.from(item.querySelectorAll('dt')).map((term) => term.textContent)).toEqual([
+      'Ride effort',
+      'Flat pace',
+      '90% model range',
+    ])
+    expect(within(item).getByText('4:10 /km')).toBeInTheDocument()
+    expect(within(item).getByText('3:58 to 4:23 /km')).toBeInTheDocument()
+  })
+
+  it('keeps the phone list a list for Safari, which drops a list’s role when its bullets are removed', () => {
+    // list-style: none is what strips the role, so the bullets are hidden at the marker instead.
+    const body = ruleBody(equivalenceCss, '.equivalence-list')
+    expect(body).not.toMatch(/list-style:\s*none/)
+    expect(ruleBody(equivalenceCss, '.equivalence-list li::marker')).toMatch(/content:\s*''/)
+  })
+
+  it('names the estimate on each effort in the phone list, when its watts were not measured', () => {
+    const { container } = renderTable(
+      [makeEquivalence({ durationS: 1200, ridePowerW: 250 })],
+      'metric',
+      true,
+      () => true,
+    )
+    const list = container.querySelector('.equivalence-list') as HTMLElement
+    expect(within(list).getByText('Estimated')).toBeInTheDocument()
+  })
+
+  it('shows the table from 480 px and the list below it, and hides the other at each width', () => {
+    expect(mediaBody(equivalenceCss, '(min-width: 480px)')).toMatch(
+      /\.equivalence-list \{\s*display: none;/,
+    )
+    expect(mediaBody(equivalenceCss, '(max-width: 479px)')).toMatch(
+      /\.equivalence-table__wide \{\s*display: none;/,
+    )
   })
 })

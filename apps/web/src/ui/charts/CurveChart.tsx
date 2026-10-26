@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPower, formatWkg } from '@rca/core/units'
-import { SPORT_NOUN, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { activityCell, sourceNote } from './activityText'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -44,21 +44,21 @@ const LABEL_MIN_GAP = 14
 
 /** Each sport's key has the shape of its points: a dot for running, a diamond for riding. */
 const LEGEND: ChartLegendEntry[] = [
-  { label: SPORT_TITLE.run, kind: 'run', swatch: 'dot' },
-  { label: SPORT_TITLE.ride, kind: 'ride', swatch: 'diamond' },
+  { label: SPORT_LABEL.run, kind: 'run', swatch: 'dot' },
+  { label: SPORT_LABEL.ride, kind: 'ride', swatch: 'diamond' },
 ]
 
 const TABLE_CAPTION =
-  'Best energy rate in W/kg for each duration, with the flat pace and power it equals and the activity behind each.'
+  'Best energy rate (metabolic W/kg) for each duration, with the flat pace and power it equals and the activity behind each.'
 
 const TABLE_COLUMNS = [
   'Duration',
-  `${SPORT_TITLE.run} (W/kg)`,
+  `${SPORT_LABEL.run} energy rate (W/kg)`,
   'Flat pace',
-  `${SPORT_TITLE.ride} (W/kg)`,
-  `${SPORT_TITLE.ride} power`,
-  `${SPORT_TITLE.run} from`,
-  `${SPORT_TITLE.ride} from`,
+  `${SPORT_LABEL.ride} energy rate (W/kg)`,
+  `${SPORT_LABEL.ride} power`,
+  `${SPORT_LABEL.run} activity`,
+  `${SPORT_LABEL.ride} activity`,
 ]
 
 interface CurveRow {
@@ -150,7 +150,7 @@ function endLabels(m: Layout): EndLabel[] {
   const run = lastPoint(m.runPoints)
   if (run) {
     ends.push({
-      text: SPORT_TITLE.run,
+      text: SPORT_LABEL.run,
       x: run.x + LABEL_OFFSET_X,
       y: run.y + LABEL_BASELINE_OFFSET,
     })
@@ -158,7 +158,7 @@ function endLabels(m: Layout): EndLabel[] {
   const ride = lastPoint(m.ridePoints)
   if (ride) {
     ends.push({
-      text: SPORT_TITLE.ride,
+      text: SPORT_LABEL.ride,
       x: ride.x + LABEL_OFFSET_X,
       y: ride.y + LABEL_BASELINE_OFFSET,
     })
@@ -201,14 +201,14 @@ function tooltipFor(
       {
         kind: 'run',
         value: formatWkg(row.runWkg),
-        label: SPORT_TITLE.run,
+        label: SPORT_LABEL.run,
         note: sourceNote(row.runActivityId, names),
       },
       { value: runPace(row.runWkg, units), label: 'Flat pace' },
       {
         kind: 'ride',
         value: formatWkg(row.rideWkg),
-        label: SPORT_TITLE.ride,
+        label: SPORT_LABEL.ride,
         note: sourceNote(row.rideActivityId, names),
       },
       { value: formatPower(row.ridePowerW), label: 'Mechanical power' },
@@ -230,7 +230,7 @@ export function CurveChart({
 
   return (
     <ChartFrame
-      title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate in W/kg by duration`}
+      title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate (metabolic W/kg) by duration`}
       description={`Best energy rate in watts per kilogram for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, on one axis. Duration is on a log scale.`}
       legend={hasData ? LEGEND : undefined}
       table={{
