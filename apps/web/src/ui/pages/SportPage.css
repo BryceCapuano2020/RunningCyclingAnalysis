@@ -31,9 +31,8 @@
   font-weight: 700;
 }
 
-/* The threshold's label is a heading, but it sets as the eyebrow above a value: the body's face and line. */
+/* The threshold's label is a heading that sets as the eyebrow above a value, on the eyebrow's line. */
 .sport-page__threshold {
-  font-family: inherit;
   line-height: 1.5;
 }
 

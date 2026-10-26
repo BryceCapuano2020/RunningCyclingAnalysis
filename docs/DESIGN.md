@@ -270,7 +270,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   runs in calendar days from today, read once when the page opens, so
   a later render does not move it. It reads in whole days to 13, then in weeks to 59 days, months to
   23 months, then years, each rounded to the nearest unit. When every record was set in one
-  activity, the count moves to the source line: "All set on Morning run, 5 Jan, 5 months ago". A
+  activity, the count moves to the source line: "All set on Morning run, 5 Jan · 5 months ago". A
   record's source is dated without its weekday, such as "5 Jan".
 - **A duration's grade says the distance it is taken at.** A run's grade at 1, 5, 20 or 60 min is taken at
   the distance it covers at its flat pace, so its grade line reads "Local · 64% · 5.0 km in 20 min", written
@@ -390,7 +390,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
   this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
   record was set in one activity, that activity is named once under the list ("All set on Morning run,
-  5 Jan, 5 months ago"), the link and its count on one line in the second column, the name wrapping
+  5 Jan · 5 months ago"), the link and its count on one line in the second column, the name wrapping
   so the date stays whole. Otherwise each record links to its own activity, with its own count on the
   link's line. A long activity name is cut short with an ellipsis, and its full name is the link's
   title and accessible name.
@@ -546,8 +546,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   "flat pace" in charts, axes, tables, records and copy. Its record mark is "Flat", and its note reads
   "Flat pace: your pace allowing for hills, as if on level ground." A run's threshold keeps its name,
   "Threshold pace, estimated" on the app's cards and pages, where the page's Flat note says that pace is a flat pace. The share card has no Flat note, so its run threshold reads "Threshold flat pace, estimated". "Grade" means an age grade and nothing else.
-- **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. A 1 km
-  or 1 mi record shows its time alone, since its pace is that time. A run added before the half marathon was recorded gets it only when it is added again: the library
+- **Run distance records.** A run keeps its time at 1 km, 1 mi, 5 km, 10 km and a half marathon. In each
+  unit, the record at that unit's own distance shows its time alone, since its pace is that time: 1 mi in
+  imperial, 1 km in metric. A run added before the half marathon was recorded gets it only when it is added again: the library
   is not re-digested, and the model revision does not change.
 - **Levels, not ranks.** A grade names its band: Recreational, Local, Regional, National or World,
   written the same way in sentences, labels and this document. Never call a level weak, a limiter

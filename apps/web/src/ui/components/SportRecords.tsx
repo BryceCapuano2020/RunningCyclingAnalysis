@@ -80,7 +80,10 @@ export function SportRecords({ rows }: SportRecordsProps) {
               {sourceText(shared)}
             </a>
             {sharedDays !== null && (
-              <span className="records__set">{`, ${agoText(sharedDays)}`}</span>
+              <>
+                {' '}
+                <span className="records__set">{`· ${agoText(sharedDays)}`}</span>
+              </>
             )}
           </span>
         </p>

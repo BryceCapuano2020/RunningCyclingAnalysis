@@ -82,7 +82,8 @@
   grid-column: 2;
 }
 
-.records__row > .records__source > .records__set {
+/* The count follows its activity after a dot, on the row's line and on the shared line alike. */
+.records__source > .records__set {
   margin-left: var(--space-1);
 }
 

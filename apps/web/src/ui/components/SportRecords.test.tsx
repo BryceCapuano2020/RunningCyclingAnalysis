@@ -129,7 +129,7 @@ describe('SportRecords', () => {
       />,
     )
     expect(screen.getByText(/All set on/).closest('p')).toHaveTextContent(
-      'All set on Morning run, 5 Jan, 5 months ago',
+      'All set on Morning run, 5 Jan · 5 months ago',
     )
     expect(screen.queryByText(/^Set /)).not.toBeInTheDocument()
   })
@@ -153,7 +153,7 @@ describe('SportRecords', () => {
       .getByRole('link', { name: 'Morning run, 5 Jan' })
       .closest('.records__source')
     expect(source).toBe(line.children[1])
-    expect(source).toHaveTextContent('Morning run, 5 Jan, 5 months ago')
+    expect(source).toHaveTextContent('Morning run, 5 Jan · 5 months ago')
   })
 
   it('writes the shared count as quiet text, not a chip', () => {
@@ -165,7 +165,7 @@ describe('SportRecords', () => {
         ]}
       />,
     )
-    const count = screen.getByText(', 5 months ago')
+    const count = screen.getByText('· 5 months ago')
     expect(count).toHaveClass('records__set')
     expect(count).not.toHaveClass('chip')
   })

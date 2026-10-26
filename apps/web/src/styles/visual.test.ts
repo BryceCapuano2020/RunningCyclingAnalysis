@@ -610,7 +610,7 @@ describe('footer', () => {
 describe('sport records, on the card and the page', () => {
   it('sets a row’s activity and its count on one line in the second column, the count after a dot', () => {
     expect(rulesWith(sportRecords, '.records__row > .records__source')).toMatch(/grid-column:\s*2/)
-    expect(rulesWith(sportRecords, '.records__row > .records__source > .records__set')).toMatch(
+    expect(rulesWith(sportRecords, '.records__source > .records__set')).toMatch(
       /margin-left:\s*var\(--space-1\)/,
     )
   })
@@ -657,9 +657,9 @@ describe('sport records, on the card and the page', () => {
     )
   })
 
-  it('sets the threshold heading in the eyebrow’s face and line, so it reads as the label above a value', () => {
+  it('sets the threshold heading on the eyebrow’s line, and keeps the heading’s own display face', () => {
     const threshold = rulesWith(sportPage, '.sport-page__threshold')
-    expect(threshold).toMatch(/font-family:\s*inherit/)
+    expect(threshold).not.toMatch(/font-family/)
     expect(threshold).toMatch(/line-height:\s*1\.5/)
   })
 

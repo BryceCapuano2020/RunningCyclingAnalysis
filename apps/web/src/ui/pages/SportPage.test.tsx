@@ -329,7 +329,7 @@ describe('SportPage', () => {
       within(records)
         .getByText(/All set on/)
         .closest('p'),
-    ).toHaveTextContent('All set on Morning run, 5 Jan, 5 months ago')
+    ).toHaveTextContent('All set on Morning run, 5 Jan · 5 months ago')
     expect(within(records).queryByText(/^Set /)).not.toBeInTheDocument()
   })
 
