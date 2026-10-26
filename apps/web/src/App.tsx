@@ -107,8 +107,9 @@ export function App() {
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
   const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
   // The restoring page holds until the kept library replies, so the landing page never shows over
-  // results that are still loading. It has Add files, so it is never a dead end.
-  const restoringPage = analysis.restoring
+  // results that are still loading. It has Add files, so it is never a dead end. How sure is this?
+  // is not the landing page: it shows its own content, with its loading line, while results restore.
+  const restoringPage = analysis.restoring && route.page !== 'method'
   const key = pageKey(route, hasResult, restoringPage)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()

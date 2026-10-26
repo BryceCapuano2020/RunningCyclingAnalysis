@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { app, resetAppMocks, setAccount, showResult } from './test/appMocks'
@@ -61,24 +61,16 @@ describe('How sure is this? with no result loaded', () => {
     )
   })
 
-  it('keeps the restoring page on How sure is this? past three seconds, while a kept library still loads', () => {
-    vi.useFakeTimers()
-    try {
-      setAccount('loading')
-      app.analysis.restoring = true
-      window.location.hash = '#/method'
-      render(<App />)
+  it('shows How sure is this? with its own content and loading line, not the restoring page, while a kept library still loads', () => {
+    setAccount('loading')
+    app.analysis.restoring = true
+    window.location.hash = '#/method'
+    render(<App />)
 
-      act(() => {
-        vi.advanceTimersByTime(3_000)
-      })
-
-      expect(
-        screen.getByRole('heading', { level: 1, name: 'Restoring your results' }),
-      ).toBeInTheDocument()
-      expect(screen.queryAllByText('Your saved results are loading.')).toHaveLength(0)
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(screen.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeInTheDocument()
+    expect(screen.getAllByText('Your saved results are loading.')).toHaveLength(1)
+    expect(
+      screen.queryByRole('heading', { level: 1, name: 'Restoring your results' }),
+    ).not.toBeInTheDocument()
   })
 })
