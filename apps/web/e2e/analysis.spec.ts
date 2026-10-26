@@ -258,7 +258,9 @@ test('uploading a file that is not FIT lists it as unusable and keeps the landin
   await expect(page.getByText('1 file skipped.', { exact: true })).toBeVisible()
   await page.getByText('1 file skipped.', { exact: true }).click()
   await expect(page.getByText('Damaged or empty: 1 file')).toBeVisible()
-  await expect(page.getByRole('listitem').filter({ hasText: 'not-a-fit.fit' })).toBeVisible()
+  // The first skipped file is named above the list, so a lone file is named once and not listed again.
+  await expect(page.getByText(/not-a-fit\.fit/)).toHaveCount(1)
+  await expect(page.getByText(/not-a-fit\.fit/)).toBeVisible()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
 })
 
