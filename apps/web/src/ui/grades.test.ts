@@ -27,7 +27,7 @@ import {
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
 import { formatGrade } from './gradeFormat'
-import { ageProfileOf } from './grades'
+import { ageProfileOf, heroGradeLine } from './grades'
 
 /** A date in 2026, the year the fixtures use, and an old one for an effort set long ago. */
 const IN_2026 = new Date(2026, 2, 1).getTime()
@@ -410,5 +410,27 @@ describe('distanceGrade', () => {
       age: 34,
       grade: { centre: { grade: 0.6224, level: 'Local' }, range: null },
     })
+  })
+})
+
+describe('heroGradeLine', () => {
+  const grade = (level: string, centre: number): SportGrade => ({
+    centre: { grade: centre, level },
+    range: null,
+  })
+
+  it('names the level, the whole percent and the effort it grades, as the share card reads it', () => {
+    expect(heroGradeLine('run', grade('Local', 0.64))).toBe('Local · 64% on best 20 min')
+  })
+
+  it('names a ride as estimated, with its centre level only, so the line fits two lines of the card', () => {
+    const ride: SportGrade = {
+      centre: { grade: 0.61, level: 'Recreational' },
+      range: {
+        low: { grade: 0.55, level: 'Recreational' },
+        high: { grade: 0.67, level: 'Local' },
+      },
+    }
+    expect(heroGradeLine('ride', ride)).toBe('Estimated · Recreational · 61% on best 20 min')
   })
 })

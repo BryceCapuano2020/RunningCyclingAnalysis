@@ -29,6 +29,8 @@ export interface RecordedPath {
   op: 'fill' | 'stroke'
   color: string
   width: number
+  /** The global alpha the path was drawn at. */
+  alpha: number
   segments: string[]
 }
 
@@ -49,6 +51,7 @@ export class FakeContext {
   lineWidth = 0
   lineCap = ''
   lineJoin = ''
+  globalAlpha = 1
   textBaseline = ''
   textAlign = ''
   texts: RecordedText[] = []
@@ -113,7 +116,13 @@ export class FakeContext {
   }
 
   fill() {
-    this.paths.push({ op: 'fill', color: this.fillStyle, width: 0, segments: [...this.segments] })
+    this.paths.push({
+      op: 'fill',
+      color: this.fillStyle,
+      width: 0,
+      alpha: this.globalAlpha,
+      segments: [...this.segments],
+    })
   }
 
   stroke() {
@@ -121,6 +130,7 @@ export class FakeContext {
       op: 'stroke',
       color: this.strokeStyle,
       width: this.lineWidth,
+      alpha: this.globalAlpha,
       segments: [...this.segments],
     })
   }
@@ -146,59 +156,47 @@ export function draw(model: ShareCardModel, format: CardFormat = 'square'): Fake
   return render(model, format).ctx
 }
 
-/** A card with a meter, both estimates, a period, a caveat, a footnote and an origin. */
+/** The magnitude line the card states under its headline: the grade gap in points, with its range. */
+export const MAGNITUDE = 'Running grades 6 points higher than cycling'
+/** A run's level line, and a ride's, as the grade line writes them. */
+export const RUN_GRADE = 'Local · 64% on best 20 min'
+export const RIDE_GRADE = 'Estimated · Recreational · 61% on best 20 min'
+/** A magnitude and a grade line long enough to take two lines, as a long range or name would. */
+export const LONG_MAGNITUDE =
+  'Running grades 16 points higher than cycling, with a range from 4 to 28 points that depends on the heart-rate check and the population model'
+export const LONG_GRADE =
+  'Estimated · Recreational to Local · 61% on best 20 min, with the model range set by the standards'
+
+/** A card with a meter, both estimates and their levels, a magnitude, a period, a caveat, a footnote and an origin. */
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
   return {
     title: 'RunningCyclingAnalysis',
     headline: 'Your balance leans toward running',
+    magnitude: MAGNITUDE,
     meter: energyReading(interval(1.05, 1.12, 1.2)),
     heroes: [
       {
         sport: 'run',
-        label: 'Running threshold pace, estimated',
+        label: 'Threshold pace, estimated from your best 3 to 20 min',
         figure: { number: '21:35', unit: '/km' },
         sub: null,
-        prompt: null,
+        grade: RUN_GRADE,
       },
       {
         sport: 'ride',
-        label: 'Cycling threshold power, estimated',
+        label: 'Threshold power, estimated from your best 3 to 20 min',
         figure: { number: '48', unit: 'W' },
         sub: '0.6 W/kg',
-        prompt: null,
+        grade: RIDE_GRADE,
       },
     ],
     period: 'Last 6 weeks',
     caveat: 'Best efforts over 20 min may not have been all-out.',
-    footnote: 'Estimated from my own files. Compares my two sports; not a ranking.',
-    origin: 'https://example.test',
+    footnote: 'Graded on the USATF road standards. A level, not a ranking.',
+    origin: 'example.test',
     badge: null,
     ...overrides,
   }
-}
-
-/** The card while only running has an estimate: cycling is a prompt, and there is no meter. */
-export function missingRideModel(): ShareCardModel {
-  return cardModel({
-    headline: 'Your running so far',
-    meter: null,
-    heroes: [
-      {
-        sport: 'run',
-        label: 'Running threshold pace, estimated',
-        figure: { number: '21:35', unit: '/km' },
-        sub: null,
-        prompt: null,
-      },
-      {
-        sport: 'ride',
-        label: 'Cycling threshold power, estimated',
-        figure: null,
-        sub: null,
-        prompt: 'Add rides to see the balance',
-      },
-    ],
-  })
 }
 
 /** A headline long enough that it cannot fit two lines at any size on the card. */

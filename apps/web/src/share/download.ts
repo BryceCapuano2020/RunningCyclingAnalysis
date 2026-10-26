@@ -11,44 +11,25 @@ function isTouchDevice(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
 }
 
-/** Whether this device's share sheet can take the file. */
-function canShareFile(file: File): boolean {
+/** Whether this device offers a share sheet that can take files: a touch device whose browser can share one. */
+function offersShareSheet(): boolean {
   return (
     isTouchDevice() &&
     typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare({ files: [file] })
+    typeof navigator.canShare === 'function'
   )
 }
 
-/**
- * Offers the image to the device's share sheet, which can save it or send it on. Where the device
- * cannot share a file, or the share is refused, the image is downloaded instead.
- */
-async function deliver(blob: Blob, fileName: string): Promise<CanvasDelivery> {
-  const file = new File([blob], fileName, { type: 'image/png' })
-  if (canShareFile(file)) {
-    try {
-      await navigator.share({ files: [file], title: fileName })
-      return 'shared'
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled'
-      // Refused here, for example once the visitor's tap has lapsed: the download takes over.
-    }
-  }
-  saveBlob(blob, fileName)
-  return 'saved'
+/** Whether the device's share sheet can take this image, so the action can say it shares it. */
+export function canShareImage(file: File): boolean {
+  return offersShareSheet() && navigator.canShare({ files: [file] })
 }
 
 /**
- * Hands the canvas over as a PNG under the given file name: to the share sheet on a touch device,
- * otherwise as a download. Nothing is uploaded. Resolves null when the browser cannot encode the
- * canvas or hand the image over, so the caller can say so.
+ * Encodes the canvas once, as a PNG file under the given name. Resolves null when the browser cannot
+ * encode the canvas, so the caller can say so.
  */
-export function saveCanvasPng(
-  canvas: HTMLCanvasElement,
-  fileName: string,
-): Promise<CanvasDelivery | null> {
+export function canvasFile(canvas: HTMLCanvasElement, fileName: string): Promise<File | null> {
   return new Promise((resolve) => {
     if (typeof canvas.toBlob !== 'function') {
       resolve(null)
@@ -58,11 +39,7 @@ export function saveCanvasPng(
       canvas.toBlob((blob) => {
         // The browser calls this later, outside the promise, so a throw here must settle it.
         try {
-          if (blob === null) {
-            resolve(null)
-            return
-          }
-          deliver(blob, fileName).then(resolve, () => resolve(null))
+          resolve(blob === null ? null : new File([blob], fileName, { type: 'image/png' }))
         } catch {
           resolve(null)
         }
@@ -71,4 +48,42 @@ export function saveCanvasPng(
       resolve(null)
     }
   })
+}
+
+/** Downloads the image under its own name. */
+export function saveFile(file: File): CanvasDelivery {
+  saveBlob(file, file.name)
+  return 'saved'
+}
+
+/**
+ * Offers the image to the device's share sheet. The share starts at once, synchronously, so a click
+ * can open the sheet: nothing may await before it. A share the visitor cancels says nothing; one the
+ * browser refuses, as after the tap has lapsed, downloads the image instead.
+ */
+export function shareFile(file: File): Promise<CanvasDelivery> {
+  let sharing: Promise<void>
+  try {
+    sharing = navigator.share({ files: [file], title: file.name })
+  } catch (error) {
+    return Promise.resolve(refusedShare(error, file))
+  }
+  return sharing.then(
+    (): CanvasDelivery => 'shared',
+    (error: unknown) => refusedShare(error, file),
+  )
+}
+
+function refusedShare(error: unknown, file: File): CanvasDelivery {
+  if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled'
+  return saveFile(file)
+}
+
+/** A preview address for an image the browser holds. Release it with releasePreview. */
+export function previewUrl(file: File): string {
+  return URL.createObjectURL(file)
+}
+
+export function releasePreview(url: string): void {
+  URL.revokeObjectURL(url)
 }

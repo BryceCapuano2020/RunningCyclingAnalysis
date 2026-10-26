@@ -202,21 +202,40 @@ export function referenceText(result: AnalysisResult): string | null {
 }
 
 /**
+ * The lead of a balance that leans, in one line: the leading sport and by how much, in points of
+ * grade or percent of energy. The page's sentence and the share card both state the lead with this.
+ */
+function leadingSentence({
+  unit,
+  lean,
+  lead,
+}: BalanceReading & { lean: Exclude<Lean, 'even'> }): string {
+  if (unit === 'points') {
+    const { other } = leaderOf(lean)
+    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(Math.round(lead.centre)))} higher than ${other}`
+  }
+  const percent = formatPercent(Math.abs(lead.centre) / 100)
+  return `${SPORT_TITLE[lean]} ${percent} higher on the energy scale`
+}
+
+/** The lead in one line, or null for an even balance, which the headline already says. */
+export function leadSentence(reading: BalanceReading): string | null {
+  const { lean } = reading
+  if (lean === 'even') return null
+  return leadingSentence({ ...reading, lean })
+}
+
+/**
  * How the balance reads, in words, for assistive technology and the meter's caption: the leading
  * sport, its lead and its range. An even grade gap names the best estimate and its range.
  */
 export function balanceSentence(reading: BalanceReading): string {
   const { unit, lean, lead } = reading
-  if (unit === 'points') {
-    if (lean === 'even') {
+  if (lean === 'even') {
+    if (unit === 'points') {
       return `In balance: best estimate running ${signedCount(lead.centre)} points against cycling, range ${rangeText(reading)}`
     }
-    const { other } = leaderOf(lean)
-    return `${SPORT_TITLE[lean]} grades ${points(Math.abs(Math.round(lead.centre)))} higher than ${other} (range ${rangeText(reading)})`
-  }
-  if (lean === 'even') {
     return `Even within the model's range (running against cycling ${rangeText(reading)})`
   }
-  const percent = formatPercent(Math.abs(lead.centre) / 100)
-  return `${SPORT_TITLE[lean]} ${percent} higher on the energy scale (range ${rangeText(reading)})`
+  return `${leadingSentence({ ...reading, lean })} (range ${rangeText(reading)})`
 }

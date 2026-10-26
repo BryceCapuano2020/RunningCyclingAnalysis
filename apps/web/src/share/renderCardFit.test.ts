@@ -8,34 +8,34 @@ import {
   LONG_FOOTNOTE,
   LONG_HEADLINE,
   cardModel,
-  missingRideModel,
   render,
   type RecordedText,
 } from './fixtures'
-import { CAVEAT, CHIP_HEIGHT, MARK, NAME, ORIGIN, PERIOD } from './renderCard'
+import { CAVEAT, NAME, ORIGIN, PERIOD } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']
-const ORIGIN_URL = 'https://example.test'
+const ORIGIN_URL = 'example.test'
 /** Three lines of caveat in the card's measure: the caveat wraps rather than being cut. */
 const THREE_LINE_CAVEAT =
   'Best cycling efforts over the full sixty minutes of the period may not have been all-out, so the figure may be low, and a recent race would sharpen it.'
 /** Far more caveat than any card has room for. */
 const TOO_LONG_CAVEAT = Array.from({ length: 12 }, () => LONG_CAVEAT).join(' ')
 
-/** The worst case the card must hold: a long title, a long caveat, the sample badge and long notes. */
+/**
+ * The worst case the card must hold: a long headline, a long caveat and the sample badge. The
+ * footnote is fixed copy of one line, so a longer one is tested on its own below.
+ */
 function worstCase(base: ShareCardModel): ShareCardModel {
   return {
     ...base,
     headline: LONG_HEADLINE,
     caveat: LONG_CAVEAT,
     badge: 'Sample data',
-    footnote: LONG_FOOTNOTE,
   }
 }
 
 const WORST = [
   ['a full balance', worstCase(cardModel())],
-  ['a missing sport', worstCase(missingRideModel())],
   ['a three-line caveat', { ...worstCase(cardModel()), caveat: THREE_LINE_CAVEAT }],
 ] as const
 
@@ -71,7 +71,7 @@ function find(texts: RecordedText[], text: string): RecordedText {
   return found
 }
 
-/** The caveat's lines: the 24 px medium text that is neither the origin nor the sample badge. */
+/** The caveat's lines: the medium text in the caveat's size that is not the origin. */
 function caveatLines(texts: RecordedText[]): RecordedText[] {
   return texts.filter(
     (text) => text.size === CAVEAT.size && text.font.startsWith('500 ') && text.text !== ORIGIN_URL,
@@ -156,29 +156,38 @@ describe('a caveat or footnote longer than two lines', () => {
 })
 
 describe('a card that is too tall for its sizes', () => {
-  it('sheds the origin first, then steps the headline down, and keeps the caveat', () => {
-    // At 1000 px the square keeps its origin. At 900 px the origin has gone and the headline is
-    // still largest. At 860 px the headline has stepped down too. The caveat is there throughout.
-    withHeight('square', 1000, () => {
+  const isMagnitude = (text: RecordedText) => text.text.startsWith('Running grades')
+
+  it('sheds the origin first, then the magnitude line, then steps the headline down, and keeps the caveat', () => {
+    // The square's blocks need about 1059 px with every line, 1007 without the origin and 955
+    // without the magnitude line too. Below that the headline steps down to 72 px.
+    withHeight('square', 1080, () => {
       const { ok, ctx } = render(cardModel(), 'square')
       expect(ok).toBe(true)
-      expect(ctx.texts.length).toBeGreaterThan(0)
       expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(true)
+      expect(ctx.texts.some(isMagnitude)).toBe(true)
       expect(find(ctx.texts, 'YOUR BALANCE LEANS').size).toBe(88)
     })
-    withHeight('square', 900, () => {
+    withHeight('square', 1040, () => {
       const { ok, ctx } = render(cardModel(), 'square')
       expect(ok).toBe(true)
       expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(false)
+      expect(ctx.texts.some(isMagnitude)).toBe(true)
       expect(find(ctx.texts, 'YOUR BALANCE LEANS').size).toBe(88)
     })
-    withHeight('square', 860, () => {
+    withHeight('square', 990, () => {
+      const { ok, ctx } = render(cardModel(), 'square')
+      expect(ok).toBe(true)
+      expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(false)
+      expect(ctx.texts.some(isMagnitude)).toBe(false)
+      expect(find(ctx.texts, 'YOUR BALANCE LEANS').size).toBe(88)
+    })
+    withHeight('square', 940, () => {
       const { ok, ctx } = render(cardModel(), 'square')
       expect(ok).toBe(true)
       expect(ctx.texts.length).toBeGreaterThan(0)
-      expect(ctx.texts.some((text) => text.text === ORIGIN_URL)).toBe(false)
       expect(find(ctx.texts, 'YOUR BALANCE LEANS TOWARD').size).toBe(72)
-      expect(ctx.texts.some((text) => text.text.startsWith('Best efforts'))).toBe(true)
+      expect(ctx.texts.some((text) => text.text.startsWith('* Best efforts'))).toBe(true)
     })
   })
 
@@ -194,28 +203,27 @@ describe('a card that is too tall for its sizes', () => {
 
 describe('the story layout', () => {
   it('pins the brand row to the top margin and the footer to the bottom margin', () => {
-    const { marginY, height } = CARD_FORMATS.story
+    const { marginY, height, mark } = CARD_FORMATS.story
     const { ok, ctx } = render(cardModel(), 'story')
     expect(ok).toBe(true)
     expect(ctx.texts.length).toBeGreaterThan(0)
     expect(find(ctx.texts, 'RunningCyclingAnalysis').y).toBeCloseTo(
-      marginY + (MARK - NAME.lineHeight) / 2,
+      marginY + (mark - NAME.lineHeight) / 2,
       6,
     )
     expect(find(ctx.texts, ORIGIN_URL).y + ORIGIN.lineHeight).toBeCloseTo(height - marginY, 6)
   })
 
   it('centres the main block, so the same space sits above it as below it', () => {
-    const { marginY } = CARD_FORMATS.story
+    const { marginY, mark } = CARD_FORMATS.story
     const { ok, ctx } = render(cardModel(), 'story')
     expect(ok).toBe(true)
     const headline = find(ctx.texts, 'YOUR BALANCE LEANS')
     const period = find(ctx.texts, 'Last 6 weeks')
     const caveat = caveatLines(ctx.texts)[0]
     expect(caveat).toBeDefined()
-    const above = headline.y - (marginY + MARK)
-    const pillTop = (caveat?.y ?? 0) - (CHIP_HEIGHT - CAVEAT.lineHeight) / 2
-    const below = pillTop - (period.y + PERIOD.lineHeight)
+    const above = headline.y - (marginY + mark)
+    const below = (caveat?.y ?? 0) - (period.y + PERIOD.lineHeight)
     expect(Math.abs(above - below)).toBeLessThan(1)
   })
 })

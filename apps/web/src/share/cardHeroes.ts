@@ -57,9 +57,8 @@ function figureSize(
   sizes: readonly number[],
   width: number,
 ): number {
-  const figures = heroes.flatMap((hero) => (hero.figure === null ? [] : [hero.figure]))
   return (
-    sizes.find((size) => figures.every((figure) => figureFits(ctx, figure, size, width))) ??
+    sizes.find((size) => heroes.every((hero) => figureFits(ctx, hero.figure, size, width))) ??
     Math.min(...sizes)
   )
 }
@@ -67,18 +66,29 @@ function figureSize(
 interface Column {
   hero: ShareHero
   label: string[]
-  /** The second reading under the figure, or the prompt when the figure is missing. */
+  /** The lines under the figure: the second reading, then the level. */
   lines: string[]
   height: number
 }
 
+/** The lines of one piece of text in the body style, wrapped to the width; none when it is null. */
+function bodyLines(
+  ctx: CardContext,
+  text: string | null,
+  width: number,
+  maxLines: number,
+): string[] {
+  return text === null ? [] : wrapIn(ctx, text, BODY, width, maxLines)
+}
+
 function measureColumn(ctx: CardContext, hero: ShareHero, width: number, size: number): Column {
   const label = wrapIn(ctx, hero.label.toUpperCase(), LABEL, width, 2)
-  const text = hero.figure === null ? hero.prompt : hero.sub
-  const lines = text === null ? [] : wrapIn(ctx, text, BODY, width, hero.figure === null ? 2 : 1)
-  const figureHeight = hero.figure === null ? 0 : figureStyle(size).lineHeight
+  const lines = [...bodyLines(ctx, hero.sub, width, 1), ...bodyLines(ctx, hero.grade, width, 2)]
   const height =
-    label.length * LABEL.lineHeight + SPACE + figureHeight + lines.length * BODY.lineHeight
+    label.length * LABEL.lineHeight +
+    SPACE +
+    figureStyle(size).lineHeight +
+    lines.length * BODY.lineHeight
   return { hero, label, lines, height }
 }
 
@@ -112,20 +122,19 @@ function drawColumn(
 ): void {
   const { hero } = column
   const textX = x + EDGE_WIDTH + TEXT_INSET
-  ctx.fillStyle = hero.figure === null ? CARD_COLORS.rule : sportColour(hero.sport)
+  ctx.fillStyle = sportColour(hero.sport)
   ctx.fillRect(x, y, EDGE_WIDTH, edgeHeight)
   drawLines(ctx, column.label, textX, y, LABEL, CARD_COLORS.muted)
   let lineY = y + column.label.length * LABEL.lineHeight + SPACE
-  if (hero.figure !== null) {
-    drawFigure(ctx, hero.figure, size, textX, lineY, sportColour(hero.sport))
-    lineY += figureStyle(size).lineHeight
-  }
+  // The figure is text, so it takes the text colour; only the edge above carries the sport.
+  drawFigure(ctx, hero.figure, size, textX, lineY, CARD_COLORS.text)
+  lineY += figureStyle(size).lineHeight
   drawLines(ctx, column.lines, textX, lineY, BODY, CARD_COLORS.secondary)
 }
 
 /**
  * The hero columns, one per sport in the order given: side by side on a square, stacked on a
- * story. A sport without an estimate shows its prompt in place of the figure.
+ * story.
  */
 export function heroBlock(
   ctx: CardContext,

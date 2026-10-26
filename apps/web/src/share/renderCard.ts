@@ -1,11 +1,4 @@
-import {
-  BRAND_RIDING,
-  BRAND_RUNNING,
-  WARNING_DOT,
-  WARNING_STEM,
-  WARNING_TRIANGLE,
-  type PathStep,
-} from '../ui/components/iconPaths'
+import { BRAND_RIDING, BRAND_RUNNING, type PathStep } from '../ui/components/iconPaths'
 import { CARD_COLORS } from './cardColors'
 import {
   CONDENSED_800,
@@ -37,22 +30,18 @@ import type { ShareCardModel } from './cardModel'
 
 export { loadCardFonts } from './cardCanvas'
 
-/** The brand row's mark, and the type and pill sizes the card's text sits in. */
-export const MARK = 48
+/** The type and pill sizes the card's text sits in. The brand mark's size is set per shape. */
 export const NAME: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
 const BADGE: TextStyle = { ...SANS_600, size: 24, lineHeight: 30 }
 const BADGE_HEIGHT = 40
 const BADGE_PADDING = 14
 export const PERIOD: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
-export const CAVEAT: TextStyle = { ...SANS_500, size: 24, lineHeight: 30 }
-const FOOTNOTE: TextStyle = { ...SANS_400, size: 26, lineHeight: 34 }
-export const ORIGIN: TextStyle = { ...SANS_500, size: 24, lineHeight: 30 }
-/** The caveat is a pill with the warning icon at its start, one line high or taller for more. */
-export const CHIP_HEIGHT = 44
-const CHIP_PADDING = 16
-/** One line of caveat text sits this far below the top of its 44 px pill. */
-const CHIP_VERTICAL_PADDING = 7
-const ICON = 26
+/** The balance in words under the headline. */
+export const MAGNITUDE_LINE: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
+/** The heart-rate caveat: a quiet starred line, not a warning, so the card reads as a result. */
+export const CAVEAT: TextStyle = { ...SANS_500, size: 30, lineHeight: 36 }
+const FOOTNOTE: TextStyle = { ...SANS_400, size: 30, lineHeight: 36 }
+export const ORIGIN: TextStyle = { ...SANS_500, size: 30, lineHeight: 36 }
 const HEADLINE_LINE_RATIO = 0.95
 
 /** Traces path steps on the canvas, placing each point with `at`. */
@@ -87,25 +76,6 @@ function drawBrandMark(ctx: CardContext, x: number, y: number, size: number): vo
   strokeWith(ctx, CARD_COLORS.ride, 3 * scale, () => traceSteps(ctx, BRAND_RIDING, at))
 }
 
-/** The warning icon, from the same path data as icons.tsx, drawn in a square of the given size. */
-function drawWarningIcon(
-  ctx: CardContext,
-  x: number,
-  y: number,
-  size: number,
-  color: string,
-): void {
-  const scale = size / 24
-  const at = placer(x, y, scale)
-  strokeWith(ctx, color, 2 * scale, () => traceSteps(ctx, WARNING_TRIANGLE, at))
-  strokeWith(ctx, color, 2 * scale, () => traceSteps(ctx, WARNING_STEM, at))
-  const [dotX, dotY] = at(WARNING_DOT.x, WARNING_DOT.y)
-  ctx.beginPath()
-  ctx.arc(dotX, dotY, WARNING_DOT.r * scale, 0, Math.PI * 2)
-  ctx.fillStyle = color
-  ctx.fill()
-}
-
 /** A block of text lines, or nothing when there is no text to show. */
 function textBlock(
   ctx: CardContext,
@@ -125,21 +95,22 @@ function textBlock(
   ]
 }
 
-/** The top row: the brand mark and app name, with the sample badge at the right. */
+/** The top row: the brand mark and app name in volt, with the sample badge at the right. */
 function brandBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout): Block {
   const x = layout.marginX
   const right = layout.width - layout.marginX
+  const mark = layout.mark
   return {
     anchor: 'top',
-    height: MARK,
+    height: mark,
     draw: (y) => {
-      drawBrandMark(ctx, x, y, MARK)
-      const nameY = y + (MARK - NAME.lineHeight) / 2
-      drawLines(ctx, [model.title], x + MARK + 16, nameY, NAME, CARD_COLORS.text)
+      drawBrandMark(ctx, x, y, mark)
+      const nameY = y + (mark - NAME.lineHeight) / 2
+      drawLines(ctx, [model.title], x + mark + 16, nameY, NAME, CARD_COLORS.brand)
       if (model.badge === null) return
       setFont(ctx, BADGE)
       const width = ctx.measureText(model.badge).width + 2 * BADGE_PADDING
-      const top = y + (MARK - BADGE_HEIGHT) / 2
+      const top = y + (mark - BADGE_HEIGHT) / 2
       drawPill(ctx, right - width, top, width, BADGE_HEIGHT, CARD_COLORS.surface)
       const textY = top + (BADGE_HEIGHT - BADGE.lineHeight) / 2
       drawLines(
@@ -155,8 +126,9 @@ function brandBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout)
 }
 
 /**
- * The heart-rate caveat as a warning pill, anchored to the bottom. However many lines it takes, it
- * is drawn whole: a card that cannot hold it falls back to a smaller shed step, or fails.
+ * The heart-rate caveat as a quiet starred line, anchored to the bottom with the footnote. However
+ * many lines it takes, it is drawn whole: a card that cannot hold it falls back to a smaller shed
+ * step, or fails.
  */
 function caveatBlocks(
   ctx: CardContext,
@@ -165,30 +137,20 @@ function caveatBlocks(
   contentWidth: number,
 ): Block[] {
   if (caveat === null) return []
-  const lines = wrapIn(ctx, caveat, CAVEAT, contentWidth - ICON - 3 * CHIP_PADDING)
-  if (lines.length === 0) return []
-  setFont(ctx, CAVEAT)
-  const textWidth = Math.max(...lines.map((line) => ctx.measureText(line).width))
-  const width = ICON + 3 * CHIP_PADDING + textWidth
-  const textHeight = lines.length * CAVEAT.lineHeight + 2 * CHIP_VERTICAL_PADDING
-  const height = Math.max(CHIP_HEIGHT, textHeight)
-  return [
-    {
-      anchor: 'bottom',
-      height,
-      draw: (y) => {
-        drawPill(ctx, x, y, width, height, CARD_COLORS.warningBg)
-        drawWarningIcon(ctx, x + CHIP_PADDING, y + (height - ICON) / 2, ICON, CARD_COLORS.warning)
-        const textY = y + (height - lines.length * CAVEAT.lineHeight) / 2
-        drawLines(ctx, lines, x + 2 * CHIP_PADDING + ICON, textY, CAVEAT, CARD_COLORS.warning)
-      },
-    },
-  ]
+  return textBlock(
+    ctx,
+    wrapIn(ctx, `* ${caveat}`, CAVEAT, contentWidth),
+    x,
+    CAVEAT,
+    CARD_COLORS.secondary,
+    'bottom',
+  )
 }
 
-/** What one attempt at fitting the card keeps: the origin line, and how far down the size lists to start. */
+/** What one attempt at fitting the card keeps: the origin and magnitude lines, and how far down the size lists to start. */
 interface Shed {
   origin: boolean
+  magnitude: boolean
   step: number
 }
 
@@ -214,6 +176,15 @@ function cardBlocks(
   return [
     brandBlock(ctx, model, layout),
     ...textBlock(ctx, headline.lines, x, headline.style, CARD_COLORS.text),
+    ...textBlock(
+      ctx,
+      shed.magnitude && model.magnitude !== null
+        ? wrapIn(ctx, model.magnitude, MAGNITUDE_LINE, contentWidth, 2)
+        : [],
+      x,
+      MAGNITUDE_LINE,
+      CARD_COLORS.secondary,
+    ),
     ...(model.meter === null ? [] : [meterBlock(ctx, model.meter, x, contentWidth)]),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
     ...textBlock(
@@ -245,12 +216,17 @@ function cardBlocks(
 
 /**
  * The ways to fit the card, in the order they are tried: the origin line goes first, then the
- * headline and figures step down one size at a time.
+ * magnitude line, which restates the headline, and then the headline and figures step down one size
+ * at a time.
  */
 function sheds(layout: CardLayout): Shed[] {
   const steps = Math.min(layout.headline.length, layout.figure.length)
-  const list: Shed[] = [{ origin: true, step: 0 }]
-  for (let step = 0; step < steps; step++) list.push({ origin: false, step })
+  const list: Shed[] = [
+    { origin: true, magnitude: true, step: 0 },
+    { origin: false, magnitude: true, step: 0 },
+    { origin: false, magnitude: false, step: 0 },
+  ]
+  for (let step = 1; step < steps; step++) list.push({ origin: false, magnitude: false, step })
   return list
 }
 

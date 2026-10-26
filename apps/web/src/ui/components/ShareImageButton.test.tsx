@@ -1,13 +1,26 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { EffortCheck } from '@rca/core/types'
-import { saveCanvasPng } from '../../share/download'
+import type { EffortCheck, Sport } from '@rca/core/types'
+import type { Period } from '@rca/core/period'
+import { canShareImage, canvasFile, saveFile, shareFile } from '../../share/download'
 import { loadCardFonts, renderShareCard } from '../../share/renderCard'
+import type { BalanceGap } from '../balanceGap'
+import type { GradeOutcome } from '../grades'
 import { makeActivity, makeResult } from './fixtures'
-import { ShareImageButton } from './ShareImageButton'
+import { ShareImageButton, type ShareImageButtonProps } from './ShareImageButton'
 
-vi.mock('../../share/download', () => ({ saveCanvasPng: vi.fn(async () => 'saved' as const) }))
+vi.mock('../../share/download', () => ({
+  canShareImage: vi.fn(() => false),
+  canvasFile: vi.fn(
+    async (_canvas: HTMLCanvasElement, name: string) =>
+      new File(['png'], name, { type: 'image/png' }),
+  ),
+  previewUrl: vi.fn(() => 'blob:preview'),
+  releasePreview: vi.fn(),
+  saveFile: vi.fn(() => 'saved' as const),
+  shareFile: vi.fn(async () => 'shared' as const),
+}))
 vi.mock('../../share/renderCard', () => ({
   loadCardFonts: vi.fn(async () => undefined),
   renderShareCard: vi.fn(() => true),
@@ -16,99 +29,115 @@ vi.mock('../../share/renderCard', () => ({
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  vi.mocked(canShareImage).mockReturnValue(false)
 })
 
-const NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
+const NOTE = 'Made on this device. Nothing is uploaded.'
 const WAITING = 'Available when the analysis finishes.'
-/** Exact, so the status says what happened and what to do, without blaming the browser. */
-const FAILED = /^The image could not be created\. Try again\.$/
+const PREVIEW_FAILED = 'The preview could not be made.'
 const LOW_EFFORT: EffortCheck = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: 0.8 }
-const SQUARE = 'Download square image'
-const STORY = 'Download story image'
+const TRIGGER = 'Share image'
+const SAVE = 'Save image'
+const SHARE_FILE = 'Share file'
+const PREPARING = 'Preparing…'
+const SHEET = 'Share the balance'
+const NO_GRADES: Record<Sport, GradeOutcome | null> = { run: null, ride: null }
+/** A run graded Local at 64%, on the headline duration, as the page grades it. */
+const RUN_GRADE: GradeOutcome = {
+  kind: 'graded',
+  age: 37,
+  grade: { centre: { grade: 0.64, level: 'Local' }, range: null },
+}
+const PERIOD: Period = { choice: 42, startMs: null, endMs: null, days: 42, fellBack: false }
 
-function renderButton(overrides: Partial<Parameters<typeof ShareImageButton>[0]> = {}) {
-  return render(
-    <ShareImageButton
-      result={makeResult()}
-      settings={{ massKg: 75, bikeMassKg: 9 }}
-      units="metric"
-      period={{ choice: 42, startMs: null, endMs: null, days: 42, fellBack: false }}
-      isSample={false}
-      effort={null}
-      weightKnown
-      gap={null}
-      disabled={false}
-      {...overrides}
-    />,
-  )
+function buttonProps(overrides: Partial<ShareImageButtonProps> = {}): ShareImageButtonProps {
+  return {
+    result: makeResult(),
+    settings: { massKg: 75, bikeMassKg: 9 },
+    units: 'metric',
+    period: PERIOD,
+    isSample: false,
+    effort: null,
+    weightKnown: true,
+    gap: null,
+    grades: NO_GRADES,
+    disabled: false,
+    ...overrides,
+  }
 }
 
-function download(name: string) {
-  fireEvent.click(screen.getByRole('button', { name }))
+function renderButton(overrides: Partial<ShareImageButtonProps> = {}) {
+  return render(<ShareImageButton {...buttonProps(overrides)} />)
+}
+
+/** Opens the sheet, then waits until its preview of the square card is shown. */
+async function openSheet(): Promise<HTMLElement> {
+  fireEvent.click(screen.getByRole('button', { name: TRIGGER }))
+  const dialog = screen.getByRole('dialog', { name: SHEET })
+  await screen.findByRole('img', { name: 'Preview of the square card' })
+  return dialog
+}
+
+/** Opens the sheet when its preview cannot be drawn, and waits until the sheet says so. */
+async function openFailedSheet(): Promise<HTMLElement> {
+  fireEvent.click(screen.getByRole('button', { name: TRIGGER }))
+  const dialog = screen.getByRole('dialog', { name: SHEET })
+  await screen.findByText(PREVIEW_FAILED)
+  return dialog
+}
+
+/** A file the test resolves by hand, so the card stays in drawing until then. */
+function heldFile() {
+  let resolve: (file: File) => void = () => undefined
+  const promise = new Promise<File>((done) => (resolve = done))
+  return { promise, resolve }
+}
+
+/** Lets pending work finish, so a draw or a share that a tap would start has started. */
+function settle() {
+  return act(() => new Promise<void>((resolve) => setTimeout(resolve, 50)))
+}
+
+/** Presses one of the sheet's actions. */
+function press(dialog: HTMLElement, name: string) {
+  fireEvent.click(within(dialog).getByRole('button', { name }))
 }
 
 describe('ShareImageButton', () => {
-  it('offers a square image and a story image, each with an explicit name', () => {
+  it('offers one plain share button, not a primary one, and no download button', () => {
     renderButton()
-    expect(screen.getByRole('button', { name: SQUARE })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: STORY })).toBeInTheDocument()
+    const trigger = screen.getByRole('button', { name: TRIGGER })
+    expect(trigger).toHaveClass('btn')
+    expect(trigger).not.toHaveClass('btn-primary')
+    expect(screen.queryByRole('button', { name: /download/i })).not.toBeInTheDocument()
   })
 
-  it('describes both buttons with the note that nothing is uploaded', () => {
+  it('opens a sheet that says the image is made on this device and nothing is uploaded', async () => {
     renderButton()
-    const note = screen.getByText(NOTE)
-    for (const name of [SQUARE, STORY]) {
-      const button = screen.getByRole('button', { name })
-      expect(button).toHaveAttribute('aria-describedby', note.id)
-      expect(button).toHaveAccessibleDescription(NOTE)
-    }
+    const dialog = await openSheet()
+    expect(within(dialog).getByText(NOTE)).toBeInTheDocument()
   })
 
-  it('explains the disabled state in the note while the analysis is running', () => {
-    renderButton({ disabled: true })
-    for (const name of [SQUARE, STORY]) {
-      const button = screen.getByRole('button', { name })
-      expect(button).toBeDisabled()
-      expect(button).toHaveAccessibleDescription(WAITING)
-    }
-    expect(screen.getByText(WAITING)).toBeInTheDocument()
-    expect(screen.queryByText(NOTE)).not.toBeInTheDocument()
-  })
-
-  it('renders nothing when there is neither a comparison nor a sport estimate to share', () => {
-    const { container } = renderButton({
-      result: makeResult({
-        comparison: { prior: [], calibrated: null },
-        runCp: null,
-        rideCp: null,
-      }),
-    })
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('offers the image when only one sport has an estimate, so the card can ask for the other', () => {
-    renderButton({
-      result: makeResult({
-        activities: [makeActivity({ id: 'run-1', sport: 'run' })],
-        comparison: { prior: [], calibrated: null },
-        rideCp: null,
-      }),
-    })
-    expect(screen.getByRole('button', { name: SQUARE })).toBeEnabled()
-  })
-
-  it('creates the square card and saves it under its own name, then says the image was saved', async () => {
+  it('shows a preview of the square card, with the square shape checked', async () => {
     renderButton()
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
-    expect(renderShareCard).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'RunningCyclingAnalysis' }),
-      expect.any(HTMLCanvasElement),
-      'square',
+    const dialog = await openSheet()
+    expect(screen.getByRole('img', { name: 'Preview of the square card' })).toHaveAttribute(
+      'src',
+      'blob:preview',
     )
-    expect(saveCanvasPng).toHaveBeenCalledWith(
-      expect.any(HTMLCanvasElement),
-      'rca-summary-square.png',
+    expect(within(dialog).getByRole('radio', { name: 'Square (feed)' })).toBeChecked()
+    expect(within(dialog).getByRole('radio', { name: 'Tall (story)' })).not.toBeChecked()
+  })
+
+  it('saves the square card under a dated name and says it was saved to Downloads', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    press(dialog, SAVE)
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Square image saved to Downloads'),
+    )
+    expect(saveFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.stringMatching(/^balance-.*-square\.png$/) }),
     )
     // The card's fonts load before it is drawn.
     expect(vi.mocked(loadCardFonts).mock.invocationCallOrder[0]).toBeLessThan(
@@ -116,28 +145,275 @@ describe('ShareImageButton', () => {
     )
   })
 
-  it('creates the story card and saves it under its own name', async () => {
+  it('saves the tall card, named for the story, when the tall shape is chosen', async () => {
     renderButton()
-    download(STORY)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
+    const dialog = await openSheet()
+    fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
+    await screen.findByRole('img', { name: 'Preview of the tall card' })
+    press(dialog, SAVE)
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Tall image saved to Downloads'),
+    )
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'RunningCyclingAnalysis' }),
       expect.any(HTMLCanvasElement),
       'story',
     )
-    expect(saveCanvasPng).toHaveBeenCalledWith(
-      expect.any(HTMLCanvasElement),
-      'rca-summary-story.png',
+    expect(saveFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.stringMatching(/^balance-.*-story\.png$/) }),
     )
   })
 
-  it('passes the heart-rate effort to the card so the caveat is included', async () => {
-    renderButton({ effort: LOW_EFFORT })
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
+  it('names the action Save image unless the device can share this image', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    expect(within(dialog).getByRole('button', { name: SAVE })).toBeInTheDocument()
+    expect(canShareImage).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.stringMatching(/\.png$/) }),
+    )
+  })
+
+  it('names the action Share file where the device can share this image, and shares it', async () => {
+    vi.mocked(canShareImage).mockReturnValue(true)
+    renderButton()
+    const dialog = await openSheet()
+    expect(within(dialog).queryByRole('button', { name: SAVE })).not.toBeInTheDocument()
+    press(dialog, SHARE_FILE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Square image shared'))
+    expect(shareFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.stringMatching(/-square\.png$/) }),
+    )
+  })
+
+  it('starts the share within the click, before anything awaits, so the sheet opens from the tap', async () => {
+    vi.mocked(canShareImage).mockReturnValue(true)
+    renderButton()
+    const dialog = await openSheet()
+    press(dialog, SHARE_FILE)
+    // No waitFor: the share must already be started when the click returns.
+    expect(shareFile).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('shared'))
+  })
+
+  it('says nothing when the visitor closes the share sheet, and can try again', async () => {
+    vi.mocked(canShareImage).mockReturnValue(true)
+    vi.mocked(shareFile).mockResolvedValueOnce('cancelled')
+    renderButton()
+    const dialog = await openSheet()
+    press(dialog, SHARE_FILE)
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: SHARE_FILE })).toBeEnabled(),
+    )
+    expect(screen.getByRole('status').textContent).toBe('')
+  })
+
+  it('holds the action, and says so, when the card cannot be drawn', async () => {
+    vi.mocked(renderShareCard).mockReturnValueOnce(false)
+    renderButton()
+    const dialog = await openFailedSheet()
+    const action = within(dialog).getByRole('button', { name: SAVE })
+    expect(action).toHaveAttribute('aria-disabled', 'true')
+    press(dialog, SAVE)
+    await settle()
+    expect(saveFile).not.toHaveBeenCalled()
+    expect(screen.getByRole('status').textContent).toBe('')
+  })
+
+  it('holds the action when the image cannot be encoded as a file', async () => {
+    vi.mocked(canvasFile).mockResolvedValueOnce(null)
+    renderButton()
+    const dialog = await openFailedSheet()
+    expect(within(dialog).getByRole('button', { name: SAVE })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    press(dialog, SAVE)
+    await settle()
+    expect(saveFile).not.toHaveBeenCalled()
+  })
+
+  it('holds the action when making the image throws, and offers it again once another shape is drawn', async () => {
+    vi.mocked(renderShareCard).mockImplementationOnce(() => {
+      throw new Error('canvas broke')
+    })
+    renderButton()
+    const dialog = await openFailedSheet()
+    expect(within(dialog).getByRole('button', { name: SAVE })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
+    await screen.findByRole('img', { name: 'Preview of the tall card' })
+    expect(within(dialog).getByRole('button', { name: SAVE })).toHaveAttribute(
+      'aria-disabled',
+      'false',
+    )
+    press(dialog, SAVE)
+    expect(saveFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.stringMatching(/-story\.png$/) }),
+    )
+  })
+
+  it('marks the action aria-disabled while the image is being shared, and keeps its focus', async () => {
+    let finish: (value: 'shared') => void = () => undefined
+    vi.mocked(canShareImage).mockReturnValue(true)
+    vi.mocked(shareFile).mockImplementationOnce(
+      () => new Promise<'shared'>((resolve) => (finish = resolve)),
+    )
+    renderButton()
+    const dialog = await openSheet()
+    const action = within(dialog).getByRole('button', { name: SHARE_FILE })
+    action.focus()
+    press(dialog, SHARE_FILE)
+    await waitFor(() => expect(action).toHaveAttribute('aria-disabled', 'true'))
+    // Disabling the focused button would drop focus to the page body.
+    expect(action).toBeEnabled()
+    expect(action).toHaveFocus()
+    await act(async () => finish('shared'))
+    await waitFor(() => expect(action).toHaveAttribute('aria-disabled', 'false'))
+    expect(action).toHaveFocus()
+  })
+
+  it('saves once for a double click, so a quick second press does not save the file again', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    press(dialog, SAVE)
+    press(dialog, SAVE)
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Square image saved to Downloads'),
+    )
+    expect(saveFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('shares once for a double click on Share file', async () => {
+    vi.mocked(canShareImage).mockReturnValue(true)
+    renderButton()
+    const dialog = await openSheet()
+    press(dialog, SHARE_FILE)
+    press(dialog, SHARE_FILE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Square image shared'))
+    expect(shareFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves again for a press after the double-click window has passed', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    let clock = 10_000
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => clock)
+    try {
+      press(dialog, SAVE)
+      clock += 2_000
+      press(dialog, SAVE)
+      expect(saveFile).toHaveBeenCalledTimes(2)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('does nothing when tapped before its image is ready, and shares at once once it is', async () => {
+    vi.mocked(canShareImage).mockReturnValue(true)
+    const held = heldFile()
+    vi.mocked(canvasFile).mockReturnValueOnce(held.promise)
+    renderButton()
+    fireEvent.click(screen.getByRole('button', { name: TRIGGER }))
+    const dialog = screen.getByRole('dialog', { name: SHEET })
+    press(dialog, PREPARING)
+    await settle()
+    // A tap before the image is ready neither draws again nor starts a share.
+    expect(canvasFile).toHaveBeenCalledTimes(1)
+    expect(shareFile).not.toHaveBeenCalled()
+    expect(saveFile).not.toHaveBeenCalled()
+    held.resolve(new File(['png'], 'balance-square.png', { type: 'image/png' }))
+    await screen.findByRole('img', { name: 'Preview of the square card' })
+    press(dialog, SHARE_FILE)
+    // Once ready, the share starts within the tap, before anything awaits.
+    expect(shareFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('is not ready right after a shape switch, until the new shape is drawn', async () => {
+    const held = heldFile()
+    renderButton()
+    const dialog = await openSheet()
+    vi.mocked(canvasFile).mockReturnValueOnce(held.promise)
+    fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
+    const action = await within(dialog).findByRole('button', { name: PREPARING })
+    expect(action).toHaveAttribute('aria-disabled', 'true')
+    press(dialog, PREPARING)
+    await settle()
+    expect(saveFile).not.toHaveBeenCalled()
+    held.resolve(new File(['png'], 'balance-story.png', { type: 'image/png' }))
+    await screen.findByRole('img', { name: 'Preview of the tall card' })
+    expect(within(dialog).getByRole('button', { name: SAVE })).toBeEnabled()
+  })
+
+  it('clears the status when the period changes, so it never describes an older card', async () => {
+    const result = makeResult()
+    const { rerender } = renderButton({ result })
+    const dialog = await openSheet()
+    press(dialog, SAVE)
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Square image saved to Downloads'),
+    )
+    rerender(<ShareImageButton {...buttonProps({ result, period: { ...PERIOD, days: 84 } })} />)
+    expect(screen.getByRole('status').textContent).toBe('')
+  })
+
+  it('draws the preview once, not again on every render, while its inputs stay the same', async () => {
+    const props = buttonProps()
+    const { rerender } = render(<ShareImageButton {...props} />)
+    await openSheet()
+    const drawn = vi.mocked(canvasFile).mock.calls.length
+    rerender(<ShareImageButton {...props} />)
+    rerender(<ShareImageButton {...props} />)
+    expect(vi.mocked(canvasFile).mock.calls.length).toBe(drawn)
+  })
+
+  it('holds the share button while the analysis runs, and says when it is available', () => {
+    renderButton({ disabled: true })
+    const trigger = screen.getByRole('button', { name: TRIGGER })
+    expect(trigger).toBeDisabled()
+    expect(trigger).toHaveAccessibleDescription(WAITING)
+  })
+
+  it('renders nothing when there is neither a comparison nor a grade gap to share', () => {
+    const { container } = renderButton({
+      result: makeResult({ comparison: { prior: [], calibrated: null } }),
+    })
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders nothing while only one sport is on file, so no one-sport card is shared', () => {
+    const { container } = renderButton({
+      result: makeResult({
+        activities: [makeActivity({ id: 'run-1', sport: 'run' })],
+        comparison: { prior: [], calibrated: null },
+        rideCp: null,
+      }),
+    })
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders nothing while the ride has no threshold, even with a comparison, so no image asks for more', () => {
+    const { container } = renderButton({ result: makeResult({ rideCp: null }) })
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('renders nothing while no weight is entered, since the balance waits for it', () => {
+    const { container } = renderButton({ weightKnown: false })
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it("gives the card each sport's level on its hero, with the effort it grades", async () => {
+    renderButton({ grades: { run: RUN_GRADE, ride: null } })
+    const dialog = await openSheet()
+    press(dialog, SAVE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('saved'))
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
-        caveat: 'Best efforts over 20 min may not have been all-out.',
+        heroes: [
+          expect.objectContaining({ sport: 'run', grade: 'Local · 64% on best 20 min' }),
+          expect.objectContaining({ sport: 'ride', grade: null }),
+        ],
       }),
       expect.any(HTMLCanvasElement),
       'square',
@@ -145,9 +421,11 @@ describe('ShareImageButton', () => {
   })
 
   it('gives the card the grade gap on the page, so its headline and meter agree with it', async () => {
-    renderButton({ gap: { centre: -6, low: -10, high: -2, lean: 'ride' } })
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
+    const gap: BalanceGap = { centre: -6, low: -10, high: -2, lean: 'ride' }
+    renderButton({ gap })
+    const dialog = await openSheet()
+    press(dialog, SAVE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('saved'))
     expect(renderShareCard).toHaveBeenCalledWith(
       expect.objectContaining({
         headline: 'Your balance leans toward cycling',
@@ -158,86 +436,17 @@ describe('ShareImageButton', () => {
     )
   })
 
-  it('reports failure and saves nothing when the card cannot be drawn', async () => {
-    vi.mocked(renderShareCard).mockReturnValueOnce(false)
-    renderButton()
-    download(STORY)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(FAILED))
-    expect(saveCanvasPng).not.toHaveBeenCalled()
-  })
-
-  it('reports failure when the browser cannot save the image', async () => {
-    vi.mocked(saveCanvasPng).mockResolvedValueOnce(null)
-    renderButton()
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(FAILED))
-  })
-
-  it('says the image was shared when it went to the share sheet', async () => {
-    vi.mocked(saveCanvasPng).mockResolvedValueOnce('shared')
-    renderButton()
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image shared'))
-  })
-
-  it('says nothing saved when the visitor closed the share sheet', async () => {
-    vi.mocked(saveCanvasPng).mockResolvedValueOnce('cancelled')
-    renderButton()
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('button', { name: SQUARE })).toBeEnabled())
-    expect(screen.getByRole('status').textContent).toBe('')
-  })
-
-  it('reports failure, and is clickable again, when making the image throws', async () => {
-    vi.mocked(renderShareCard).mockImplementationOnce(() => {
-      throw new Error('canvas broke')
-    })
-    renderButton()
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(FAILED))
-    expect(screen.getByRole('button', { name: SQUARE })).toBeEnabled()
-  })
-
-  it('makes one image for a double click, so the file is not downloaded twice', async () => {
-    renderButton()
-    download(SQUARE)
-    download(SQUARE)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
-    expect(renderShareCard).toHaveBeenCalledTimes(1)
-    expect(saveCanvasPng).toHaveBeenCalledTimes(1)
-  })
-
-  it('marks the buttons aria-disabled while the image is being made, and keeps its focus', async () => {
-    let finish: (value: 'saved') => void = () => undefined
-    vi.mocked(saveCanvasPng).mockImplementationOnce(
-      () => new Promise<'saved'>((resolve) => (finish = resolve)),
+  it('passes the heart-rate effort to the card so the caveat is included', async () => {
+    renderButton({ effort: LOW_EFFORT })
+    const dialog = await openSheet()
+    press(dialog, SAVE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('saved'))
+    expect(renderShareCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        caveat: 'Best efforts over 20 min may not have been all-out.',
+      }),
+      expect.any(HTMLCanvasElement),
+      'square',
     )
-    renderButton()
-    const button = screen.getByRole('button', { name: SQUARE })
-    button.focus()
-    download(SQUARE)
-    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'))
-    // Disabling the focused button would drop focus to the page body.
-    expect(button).toBeEnabled()
-    expect(button).toHaveFocus()
-    await act(async () => finish('saved'))
-    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'false'))
-    expect(button).toHaveFocus()
-  })
-
-  it('does not start a story while the square is being made', async () => {
-    let finish: (value: 'saved') => void = () => undefined
-    vi.mocked(saveCanvasPng).mockImplementationOnce(
-      () => new Promise<'saved'>((resolve) => (finish = resolve)),
-    )
-    renderButton()
-    download(SQUARE)
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: STORY })).toHaveAttribute('aria-disabled', 'true'),
-    )
-    download(STORY)
-    await act(async () => finish('saved'))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
-    expect(renderShareCard).toHaveBeenCalledTimes(1)
   })
 })

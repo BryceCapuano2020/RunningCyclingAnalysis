@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings } from '@rca/core/types'
@@ -22,12 +22,23 @@ import {
 import type { AgeProfile } from '../grades'
 import { BalancePage } from './BalancePage'
 
-vi.mock('../../share/download', () => ({ saveCanvasPng: vi.fn(async () => true) }))
+vi.mock('../../share/download', () => ({
+  canShareImage: vi.fn(() => false),
+  canvasFile: vi.fn(
+    async (_canvas: HTMLCanvasElement, name: string) =>
+      new File(['png'], name, { type: 'image/png' }),
+  ),
+  previewUrl: vi.fn(() => 'blob:preview'),
+  releasePreview: vi.fn(),
+  saveFile: vi.fn(() => 'saved' as const),
+  shareFile: vi.fn(async () => 'shared' as const),
+}))
 vi.mock('../../share/renderCard', () => ({
   loadCardFonts: vi.fn(async () => undefined),
   renderShareCard: vi.fn(() => true),
 }))
 import { renderShareCard } from '../../share/renderCard'
+import { canvasFile } from '../../share/download'
 
 afterEach(() => {
   cleanup()
@@ -65,6 +76,11 @@ function renderPage(
       onShowAll={vi.fn()}
     />,
   )
+}
+
+/** Lets the share preview's drawing finish, so a redraw that would follow has happened. */
+function settle() {
+  return act(() => new Promise<void>((resolve) => setTimeout(resolve, 50)))
 }
 
 /** A run with a best 20-minute effort at 5 km, so the run has a grade to show. */
@@ -307,17 +323,15 @@ describe('BalancePage', () => {
     expect(links).toHaveLength(1)
   })
 
-  it('offers the square and story image downloads while the analysis is idle', () => {
+  it('offers the share image while the analysis is idle', () => {
     renderPage()
-    expect(screen.getByRole('button', { name: 'Download square image' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Download story image' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Share image' })).toBeEnabled()
   })
 
-  it('holds the image downloads until the analysis finishes', () => {
+  it('holds the share image until the analysis finishes', () => {
     renderPage(makeResult(), { busy: true })
 
-    expect(screen.getByRole('button', { name: 'Download square image' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Download story image' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Share image' })).toBeDisabled()
     expect(screen.getByText('Available when the analysis finishes.')).toBeInTheDocument()
   })
 
@@ -325,7 +339,7 @@ describe('BalancePage', () => {
     renderPage(
       makeResult({ comparison: { prior: [], calibrated: null }, runCp: null, rideCp: null }),
     )
-    expect(screen.queryByRole('button', { name: 'Download square image' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Share image' })).not.toBeInTheDocument()
   })
 })
 
@@ -443,15 +457,53 @@ describe('BalancePage with no weight entered', () => {
     expect(screen.queryByText(/waits for your weight/)).not.toBeInTheDocument()
   })
 
-  it('leaves the ride estimate and the balance meter off the share card', async () => {
-    renderPage(makeResult(), {}, null, false)
-    fireEvent.click(screen.getByRole('button', { name: 'Download square image' }))
-    await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
-    const card = vi.mocked(renderShareCard).mock.calls[0]?.[0]
-    expect(card?.meter).toBeNull()
-    expect(card?.heroes.find((hero) => hero.sport === 'ride')).toMatchObject({
-      figure: null,
-      sub: null,
+  it('carries the ride grade on the share card once a weight is entered, and holds it while none is', async () => {
+    const withRide = makeResult({
+      equivalents: [makeEquivalence()],
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
     })
+    renderPage(withRide, {}, MAN_BORN_1986, true)
+    fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
+    await waitFor(() => expect(renderShareCard).toHaveBeenCalled())
+    const card = vi.mocked(renderShareCard).mock.calls.at(-1)?.[0]
+    expect(card?.heroes[1]?.grade).toMatch(/^Estimated · .* on best 20 min$/)
+    cleanup()
+
+    renderPage(withRide, {}, MAN_BORN_1986, false)
+    expect(screen.queryByRole('button', { name: 'Share image' })).not.toBeInTheDocument()
+  })
+
+  it('draws the share preview once while the page renders again with the same analysis', async () => {
+    const analysis = analysisStub({})
+    const result = makeResult({
+      equivalents: [makeEquivalence()],
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, 400, 'ride-1')],
+    })
+    const page = () => (
+      <BalancePage
+        analysis={analysis}
+        result={result}
+        settings={SETTINGS}
+        units="metric"
+        profile={MAN_BORN_1986}
+        controls={<span>Period picker</span>}
+        weightKnown
+        onShowAll={vi.fn()}
+      />
+    )
+    const { rerender } = render(page())
+    fireEvent.click(screen.getByRole('button', { name: 'Share image' }))
+    await screen.findByRole('img', { name: 'Preview of the square card' })
+    await settle()
+    const drawn = vi.mocked(canvasFile).mock.calls.length
+    rerender(page())
+    await settle()
+    expect(vi.mocked(canvasFile).mock.calls.length).toBe(drawn)
+  })
+
+  it('offers no share image while no weight is entered, so no ride figure or balance is shared', () => {
+    renderPage(makeResult(), {}, null, false)
+    expect(screen.queryByRole('button', { name: 'Share image' })).not.toBeInTheDocument()
+    expect(renderShareCard).not.toHaveBeenCalled()
   })
 })

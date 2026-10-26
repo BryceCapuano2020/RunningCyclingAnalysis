@@ -1,6 +1,7 @@
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import { balanceSentence, rangeText } from './headlineText'
 import {
+  EVEN_LABEL,
   SCALE_SPAN,
   SCALE_TICKS,
   cappedEnds,
@@ -87,7 +88,7 @@ export function BalanceMeter({ reading }: BalanceMeterProps) {
           <SportIcon sport={LEFT} className="balance-meter__glyph" />
           {SPORT_LABEL[LEFT]}
         </span>
-        <span className="balance-meter__even-label">Even</span>
+        <span className="balance-meter__even-label">{EVEN_LABEL}</span>
         <span className="balance-meter__end balance-meter__end--right" data-sport={RIGHT}>
           <SportIcon sport={RIGHT} className="balance-meter__glyph" />
           {SPORT_LABEL[RIGHT]}

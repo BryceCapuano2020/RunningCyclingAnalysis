@@ -14,7 +14,7 @@ Hash routes, so the static host needs no fallback rules.
 
 | Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share image                                                                                                                                                                                                             |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                             |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, a line of recent form, records in native units with the age grade of each and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed |
 | `#/activities`     | Activities        | Every activity in the library, newest first, with its own period and sport filters and a count of the activities they show; a row opens its activity page                                                                                                                                                                                                      |
 | `#/activities/:id` | Activity          | Summary, route shape, splits (runs), all-time records across the library, efforts set here, data issues                                                                                                                                                                                                                                                        |
@@ -249,7 +249,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
   published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
-  ride's floor is the same at every body mass. The share card asks for the same efforts in its own words. The line "About ... estimated from your best 3 to 20 min efforts" sits under
+  ride's floor is the same at every body mass. The share card labels its threshold "Threshold pace, estimated from your best 3 to 20 min", printed in capitals. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
@@ -286,11 +286,28 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Missing values** show a dash, with words for a screen reader that say why: "Not measured" for a
   time the device did not record, or an implied speed over 12.5 m/s that no run reaches; "Not
   available" for a grade; "No altitude"; or "No heart rate".
-- The share image is a dark canvas card on ink, as a square (1080 by 1080) or a story (1080 by 1920).
-  It holds the brand mark and app name, the sample badge for sample data, the headline, the balance
-  meter, the running and cycling threshold estimates with W/kg, the period, the heart-rate caveat
-  when there is one, the footnote and the site origin when it is public. Its colours are the dark
-  tokens copied in `apps/web/src/share/cardColors.ts`.
+- The share image is a dark canvas card on ink, as a square (1080 by 1080, "Square (feed)") or a tall
+  story (1080 by 1920, "Tall (story)"). Share opens a sheet beside the answer: a preview, the choice of
+  shape, the note that it is made on this device, and one action. The action reads "Share file" only
+  when the device's share sheet can take this image; otherwise it reads "Save image" and downloads the
+  PNG. The PNG is encoded once, for the preview, so the share starts within the tap. Until the chosen
+  shape is drawn, the action reads "Preparing…" and is held: a tap does nothing. The sheet's
+  action is outlined like the other buttons, so the page's one primary action stays Add files. The
+  file is named by the period's dates, such as `balance-2025-05-12_2025-08-03-square.png`.
+- The card holds the brand mark, in the two sport colours, and the app name in volt. Under the
+  headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
+  the meter reads. Then the balance meter, each sport's threshold, "Threshold pace, estimated from your
+  best 3 to 20 min", with its W/kg and its level, such as "Local · 64% on best 20 min", under the
+  figure; the period; the heart-rate caveat as a starred line when there is one; the footnote; and the
+  site's host when it is public.
+- Figures are drawn in text colour. Sport colour appears only on the brand mark, the edge of each
+  column, and the meter's band, dot and outline. It never colours text.
+- The card is offered only once both sports have a threshold, a balance can be stated and a weight is
+  entered. A card never asks the reader for anything, so there is no prompt on it: while a sport has no
+  threshold, or no weight is entered, the share button is not shown.
+- The site's host is named only when it is https and public. A local, private or carrier-grade address,
+  a `.local`, `.lan`, `.home.arpa`, `.internal` or `.ts.net` name, and an http origin name no site.
+  The port is dropped. Its tokens are copied in `apps/web/src/share/cardColors.ts`.
 
 ## Copy
 
@@ -321,6 +338,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   Seconds are numerals with s: "10 s". Periods are numerals with the unit in full: "6 weeks", and a
   trend window is "14 days". Inside a sentence a period is lower case: "last 6 weeks".
 - **Spelling is British**: analyse, centred, summarises, colour, licence.
+- **The share card speaks in one voice,** the reader's: "Your balance leans toward running", never
+  "my". Its footnote names the standard and says what a level is, "Graded on the USATF road
+  standards. A level, not a ranking.", or, with no grade on the card, "Estimated from your files. Not
+  a ranking."
 - **Caveats become chips and shapes.** Draw a range instead of writing it; a caveat is a chip with
   an icon that links to the detail.
 - **Splits say what happened when they are missing**: "Splits were not kept when this run was added."
@@ -396,7 +417,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   shows it as not entered. Without it, a ride's figures wait: the ride's threshold, its W/kg and
   watts, its grade, its records and its trend are held, and the card, the cross-sport idea and the
   Ride page say "Add your weight on Profile to see ride figures." with a link to Profile. A run's
-  figures still show, and the balance and the share card leave out the ride while no weight is
+  figures still show, and the balance waits, so the share sheet is not offered, while no weight is
   entered. The Balance cards, the Ride page, the cross-sport idea and How sure is this? show no ride
   figure worked out from the placeholder weight. How sure is this? holds its energy view and its
   virtual power check, and draws only the running blocks of its heart-rate chart, with the prompt

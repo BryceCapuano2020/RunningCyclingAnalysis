@@ -1,24 +1,28 @@
 import { readFileSync, statSync } from 'node:fs'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { horizontalOverflow, openSample } from './helpers.js'
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-const NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
+const NOTE = 'Made on this device. Nothing is uploaded.'
+const SHEET = 'Share the balance'
+const FILE_NAME = /^balance-.*-square\.png$/
 
-/** The button, the file it saves, and the pixel size the PNG must have. */
-const SQUARE = {
-  button: 'Download square image',
-  file: 'rca-summary-square.png',
-  width: 1080,
-  height: 1080,
-}
+/** The shape the sheet offers, the file it saves, and the pixel size the PNG must have. */
 const SHAPES = [
-  SQUARE,
-  { button: 'Download story image', file: 'rca-summary-story.png', width: 1080, height: 1920 },
+  { choice: 'Square (feed)', file: FILE_NAME, width: 1080, height: 1080 },
+  { choice: 'Tall (story)', file: /^balance-.*-story\.png$/, width: 1080, height: 1920 },
 ]
 
-for (const { button: name, file, width, height } of SHAPES) {
-  test(`sample data saves a ${width} by ${height} PNG of the balance as ${file}`, async ({
+/** Opens the share sheet from the Balance page, where the share button sits beside the answer. */
+async function openSheet(page: Page) {
+  await page.getByRole('button', { name: 'Share image' }).click()
+  const sheet = page.getByRole('dialog', { name: SHEET })
+  await expect(sheet).toBeVisible()
+  return sheet
+}
+
+for (const { choice, file, width, height } of SHAPES) {
+  test(`sample data saves a ${width} by ${height} PNG of the balance from the sheet as ${choice}`, async ({
     page,
   }, testInfo) => {
     // A touch device offers the share sheet instead; without one, the image is downloaded.
@@ -26,17 +30,19 @@ for (const { button: name, file, width, height } of SHAPES) {
       Object.defineProperty(navigator, 'share', { configurable: true, value: undefined })
     })
     await openSample(page)
-    const button = page.getByRole('button', { name })
-    await expect(button).toHaveAccessibleDescription(NOTE)
+    const sheet = await openSheet(page)
+    await expect(sheet.getByText(NOTE)).toBeVisible()
+    await sheet.getByText(choice, { exact: true }).click()
+    await expect(sheet.getByRole('img', { name: /^Preview of the/ })).toBeVisible()
 
     const downloaded = page.waitForEvent('download')
-    await button.click()
+    await sheet.getByRole('button', { name: 'Save image' }).click()
     const download = await downloaded
-    expect(download.suggestedFilename()).toBe(file)
+    expect(download.suggestedFilename()).toMatch(file)
 
     const path = await download.path()
     // Kept with the test output so the picture can be looked at after the run.
-    await download.saveAs(testInfo.outputPath(file))
+    await download.saveAs(testInfo.outputPath(download.suggestedFilename()))
     expect(statSync(path).size).toBeGreaterThan(10 * 1024)
     const png = readFileSync(path)
     expect(png.subarray(0, PNG_SIGNATURE.length)).toEqual(PNG_SIGNATURE)
@@ -44,7 +50,7 @@ for (const { button: name, file, width, height } of SHAPES) {
     expect(png.toString('ascii', 12, 16)).toBe('IHDR')
     expect(png.readUInt32BE(16)).toBe(width)
     expect(png.readUInt32BE(20)).toBe(height)
-    await expect(page.getByRole('status').filter({ hasText: 'Image saved' })).toBeVisible()
+    await expect(sheet.getByRole('status').filter({ hasText: 'saved to Downloads' })).toBeVisible()
   })
 }
 
@@ -64,22 +70,21 @@ test('on a touch device the image goes to the share sheet as a PNG file', async 
     })
   })
   await openSample(page)
-  await page.getByRole('button', { name: SQUARE.button }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Image shared' })).toBeVisible()
+  const sheet = await openSheet(page)
+  await sheet.getByRole('button', { name: 'Share file' }).click()
+  await expect(sheet.getByRole('status').filter({ hasText: 'shared' })).toBeVisible()
   const shared = await page.evaluate(
     () => (window as unknown as { sharedFiles: unknown }).sharedFiles,
   )
-  expect(shared).toEqual([{ name: SQUARE.file, type: 'image/png' }])
+  expect(shared).toEqual([{ name: expect.stringMatching(FILE_NAME), type: 'image/png' }])
 })
 
-test('the download controls and their note fit a 320 px screen without horizontal scroll', async ({
+test('the share button and its sheet fit a 320 px screen without horizontal scroll', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 800 })
   await openSample(page)
-  for (const { button } of SHAPES) {
-    await expect(page.getByRole('button', { name: button })).toBeVisible()
-  }
+  await openSheet(page)
   const results = await horizontalOverflow(page)
   expect(results.scrollWidth).toBeLessThanOrEqual(results.innerWidth)
 })

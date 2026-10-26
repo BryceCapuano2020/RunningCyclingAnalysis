@@ -4,21 +4,27 @@ import { interval } from '../ui/components/fixtures'
 import { SPORT_LABEL, SPORT_ORDER } from '../ui/sports'
 import { CARD_COLORS } from './cardColors'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
-import { DOT_RADIUS } from './cardMeter'
+import { BAND_OPACITY, DOT_RADIUS } from './cardMeter'
 import {
   FakeContext,
   LONG_CAVEAT,
   LONG_FOOTNOTE,
+  LONG_GRADE,
   LONG_HEADLINE,
+  LONG_MAGNITUDE,
+  MAGNITUDE,
+  RIDE_GRADE,
+  RUN_GRADE,
   cardModel,
   draw,
   fakeCanvas,
-  missingRideModel,
+  render,
   type RecordedText,
 } from './fixtures'
 import { renderShareCard } from './renderCard'
 
 const FORMATS: CardFormat[] = ['square', 'story']
+const GRADED_FOOTNOTE = 'Graded on the USATF road standards. A level, not a ranking.'
 
 /** The drawn text, in order, as one string. */
 function words(texts: RecordedText[]): string {
@@ -58,17 +64,20 @@ describe('renderShareCard', () => {
       SPORT_LABEL[SPORT_ORDER[0]],
       'Even',
       SPORT_LABEL[SPORT_ORDER[1]],
-      'RUNNING THRESHOLD PACE',
+      'THRESHOLD PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
       '21:35',
       '/km',
-      'CYCLING THRESHOLD POWER',
+      'THRESHOLD POWER, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
       '48',
       'W',
       '0.6 W/kg',
       'Last 6 weeks',
       'Best efforts over 20 min may not have been all-out.',
-      'Estimated from my own files. Compares my two sports; not a ranking.',
-      'https://example.test',
+      GRADED_FOOTNOTE,
+      'example.test',
+      MAGNITUDE,
+      RUN_GRADE,
+      RIDE_GRADE,
     ]) {
       expect(drawn).toContain(expected)
     }
@@ -88,7 +97,10 @@ describe('renderShareCard', () => {
       expect(curves(CARD_COLORS.run)).toBe(true)
       expect(curves(CARD_COLORS.ride)).toBe(true)
       expect(
-        ctx.paths.some((path) => path.op === 'fill' && path.color === CARD_COLORS.runSoft),
+        ctx.paths.some(
+          (path) =>
+            path.op === 'fill' && path.color === CARD_COLORS.run && path.alpha === BAND_OPACITY,
+        ),
       ).toBe(true)
       expect(
         ctx.paths.some(
@@ -112,21 +124,6 @@ describe('renderShareCard', () => {
     expect(drawn).not.toContain('https://example.test')
     expect(drawn).toContain('Last 6 weeks')
   })
-
-  it.each(FORMATS)(
-    'shows the available sport and a prompt for the other on the %s card',
-    (format) => {
-      const ctx = draw(missingRideModel(), format)
-      const drawn = words(ctx.texts)
-      expect(drawn).toContain('YOUR RUNNING SO FAR')
-      expect(drawn).toContain('21:35')
-      expect(drawn).toContain('CYCLING THRESHOLD POWER')
-      expect(drawn).toContain('Add rides to see the balance')
-      expect(drawn).not.toContain('48')
-      expect(drawn).not.toContain('Even')
-      expect(ctx.rects).toContainEqual(expect.objectContaining({ w: 8, color: CARD_COLORS.rule }))
-    },
-  )
 
   it('sets the hero columns side by side on a square and one above the other on a story', () => {
     const square = draw(cardModel(), 'square').texts
@@ -226,4 +223,106 @@ describe('the balance meter on the card', () => {
     expect(left?.x).toBeLessThan(even?.x ?? Number.NaN)
     expect(even?.x).toBeLessThan(right?.x ?? Number.NaN)
   })
+
+  it.each(FORMATS)('draws the band at half opacity, the dot in full, on the %s card', (format) => {
+    const fills = draw(cardModel(), format).paths.filter(
+      (path) => path.op === 'fill' && path.color === CARD_COLORS.run,
+    )
+    expect(fills.map((path) => path.alpha)).toEqual(expect.arrayContaining([BAND_OPACITY, 1]))
+    expect(BAND_OPACITY).toBeGreaterThanOrEqual(0.5)
+  })
+
+  it.each(FORMATS)('sets the meter labels at 34 px or more on the %s card', (format) => {
+    const texts = draw(cardModel(), format).texts
+    for (const label of [SPORT_LABEL[SPORT_ORDER[0]], 'Even', SPORT_LABEL[SPORT_ORDER[1]]]) {
+      expect(texts.find((text) => text.text === label)?.size).toBeGreaterThanOrEqual(34)
+    }
+  })
+})
+
+describe('the card figures, levels and copy', () => {
+  it.each(FORMATS)(
+    'sets both figures in text colour, never a sport colour, on the %s card',
+    (format) => {
+      const texts = draw(cardModel(), format).texts
+      for (const figure of ['21:35', '48']) {
+        expect(texts.find((text) => text.text === figure)?.color).toBe(CARD_COLORS.text)
+      }
+    },
+  )
+
+  it.each(FORMATS)('draws each level under its figure on the %s card', (format) => {
+    const texts = draw(cardModel(), format).texts
+    const figure = texts.find((text) => text.text === '21:35')
+    const level = texts.find((text) => text.text === RUN_GRADE)
+    expect(level).toBeDefined()
+    expect(level?.y ?? 0).toBeGreaterThan(figure?.y ?? Number.POSITIVE_INFINITY)
+  })
+
+  it.each(FORMATS)('draws the magnitude line under the headline on the %s card', (format) => {
+    const texts = draw(cardModel(), format).texts
+    const headlineLines = texts.filter(isHeadline)
+    const magnitude = texts.find((text) => text.text.startsWith('Running grades'))
+    expect(magnitude?.y ?? 0).toBeGreaterThan(Math.max(...headlineLines.map((line) => line.y)))
+  })
+
+  it.each(FORMATS)(
+    'draws the caveat as a quiet starred line in secondary text on the %s card',
+    (format) => {
+      const caveat = draw(cardModel(), format).texts.find((text) => text.text.startsWith('* Best'))
+      expect(caveat?.color).toBe(CARD_COLORS.secondary)
+    },
+  )
+
+  it.each(FORMATS)('sets the footnote and origin at 30 px or more on the %s card', (format) => {
+    const texts = draw(cardModel(), format).texts
+    expect(texts.find((text) => text.text.startsWith('Graded on'))?.size).toBeGreaterThanOrEqual(30)
+    expect(texts.find((text) => text.text === 'example.test')?.size).toBeGreaterThanOrEqual(30)
+  })
+
+  it.each([
+    ['square', 48],
+    ['story', 72],
+  ] as const)('draws the brand mark at %s size, %i px', (format, mark) => {
+    expect(CARD_FORMATS[format].mark).toBe(mark)
+    const strokes = draw(cardModel(), format).paths.filter(
+      (path) =>
+        path.op === 'stroke' &&
+        path.color === CARD_COLORS.run &&
+        path.segments.includes('bezierCurveTo'),
+    )
+    expect(strokes.length).toBeGreaterThan(0)
+    for (const stroke of strokes) expect(stroke.width).toBeCloseTo((3 * mark) / 32, 6)
+  })
+
+  it.each(FORMATS)('sets the app name in the volt brand colour on the %s card', (format) => {
+    const name = draw(cardModel(), format).texts.find(
+      (text) => text.text === 'RunningCyclingAnalysis',
+    )
+    expect(name?.color).toBe(CARD_COLORS.brand)
+  })
+
+  it.each(FORMATS)(
+    'fits the card with its magnitude, grades and caveat on the %s card',
+    (format) => {
+      expect(render(cardModel(), format).ok).toBe(true)
+    },
+  )
+
+  it.each(FORMATS)(
+    'still fits, with every line at its longest, and keeps the caveat on the %s card',
+    (format) => {
+      const base = cardModel()
+      const model = cardModel({
+        headline: LONG_HEADLINE,
+        magnitude: LONG_MAGNITUDE,
+        caveat: LONG_CAVEAT,
+        footnote: LONG_FOOTNOTE,
+        heroes: base.heroes.map((hero) => Object.assign(hero, { grade: LONG_GRADE })),
+      })
+      const { ok, ctx } = render(model, format)
+      expect(ok).toBe(true)
+      expect(words(ctx.texts)).toContain(LONG_CAVEAT.slice(0, 20))
+    },
+  )
 })

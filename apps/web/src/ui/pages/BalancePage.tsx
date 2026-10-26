@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { trendWindowDays, weeksWithValue } from '@rca/core/digest/trendPoints'
@@ -79,13 +79,27 @@ export function BalancePage({
   const pick = pickHeadline(result.comparison)
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
-  const headline = profile === null ? null : headlineGrades(result, profile)
+  // They are memoised on the analysis and the two profile values, not the profile object, which the
+  // caller builds afresh on each render. The share preview is drawn from them, so a new object each
+  // render would redraw it while the sheet is open.
+  const birthYear = profile?.birthYear ?? null
+  const sex = profile?.sex ?? null
+  const headline = useMemo(
+    () => (birthYear === null || sex === null ? null : headlineGrades(result, { birthYear, sex })),
+    [result, birthYear, sex],
+  )
   // The ride's grade, and so the gap, wait for the weight; the run's grade does not.
-  const gap = weightKnown && headline !== null ? gapOfHeadline(headline) : null
-  const grades: Record<Sport, GradeOutcome | null> = {
-    run: headline?.run ?? null,
-    ride: weightKnown ? (headline?.ride ?? null) : null,
-  }
+  const gap = useMemo(
+    () => (weightKnown && headline !== null ? gapOfHeadline(headline) : null),
+    [weightKnown, headline],
+  )
+  const grades = useMemo<Record<Sport, GradeOutcome | null>>(
+    () => ({
+      run: headline?.run ?? null,
+      ride: weightKnown ? (headline?.ride ?? null) : null,
+    }),
+    [headline, weightKnown],
+  )
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
@@ -125,6 +139,7 @@ export function BalancePage({
               effort={effort}
               weightKnown={weightKnown}
               gap={gap}
+              grades={grades}
               disabled={analysis.busy}
             />
           </>

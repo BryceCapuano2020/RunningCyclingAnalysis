@@ -11,6 +11,7 @@ import {
   hardEffortsOnFile,
   headlineBasis,
   headlineText,
+  leadSentence,
   rangeText,
   referenceText,
 } from './headlineText'
@@ -25,6 +26,28 @@ function gap(overrides: Partial<BalanceGap> = {}): BalanceGap {
 
 /** The words the balance copy must never use: a sport is never a limiter or ahead of another. */
 const FORBIDDEN = /ahead of|limiter|weak|strength|holding you back/i
+
+describe('leadSentence', () => {
+  it('names the leading sport and its lead in points of grade, as the card and the page both state it', () => {
+    expect(leadSentence(gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' })))).toBe(
+      'Running grades 6 points higher than cycling',
+    )
+    expect(leadSentence(gapReading(gap({ centre: -6, low: -8, high: -4, lean: 'ride' })))).toBe(
+      'Cycling grades 6 points higher than running',
+    )
+  })
+
+  it('names the lead in percent of energy when there is no grade gap', () => {
+    expect(leadSentence(energyReading(interval(1.05, 1.12, 1.2)))).toBe(
+      'Running 12% higher on the energy scale',
+    )
+  })
+
+  it('is the balance sentence without its range, so the card and the page agree', () => {
+    const reading = gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' }))
+    expect(balanceSentence(reading)).toBe(`${leadSentence(reading)} (range ${rangeText(reading)})`)
+  })
+})
 
 describe('headlineText', () => {
   it('states the energy range the Method page quotes, as signed percentages of running over cycling', () => {
