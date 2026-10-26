@@ -23,6 +23,17 @@ describe('usable', () => {
   })
 })
 
+describe('sportYAxis', () => {
+  it('spans at least two minutes for a narrow pace range, so ticks do not crowd', () => {
+    const plot = { left: 0, right: 100, top: 0, bottom: 200 }
+    // 4:00 and 4:10 are 10 s apart. The axis is two minutes wide, so its ticks are half a minute apart.
+    const { ticks } = sportYAxis('run', [240, 250], plot)
+    const labels = ticks.map((tick) => tick.label)
+    expect(labels).toEqual(expect.arrayContaining(['3:30', '4:00', '4:30']))
+    expect(labels).not.toContain('4:10')
+  })
+})
+
 describe('plottedValue, nativeLabel and axisTitle', () => {
   it('plots running as seconds per unit and cycling as watts', () => {
     expect(plottedValue('run', 4, 'metric')).toBe(250)
@@ -32,7 +43,7 @@ describe('plottedValue, nativeLabel and axisTitle', () => {
   it('names each sport’s number and its axis, with the unit', () => {
     expect(nativeLabel('run')).toBe('Grade-adjusted pace')
     expect(nativeLabel('ride')).toBe('Power')
-    expect(axisTitle('run', 'imperial')).toBe('Grade-adjusted pace (/mi)')
+    expect(axisTitle('run', 'imperial')).toBe('Grade-adjusted pace (/mi), faster up')
     expect(axisTitle('ride', 'metric')).toBe('Power (W)')
   })
 

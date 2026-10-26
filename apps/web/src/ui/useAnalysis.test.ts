@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { Copy } from '@rca/core/session'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { createElement, StrictMode } from 'react'
@@ -6,6 +7,8 @@ import type { ReactNode } from 'react'
 import { DAILY_LIMITS } from '@rca/contract'
 import type { Me } from '@rca/contract'
 import type { SessionState } from '@rca/core/session'
+import type { RouteShape } from '@rca/core/route/routeShape'
+import type { RouteReply } from './routeReply'
 import type { AthleteSettings } from '@rca/core/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
@@ -13,6 +16,15 @@ import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 import { formatDay } from './format/date'
 import { makeResult } from './components/fixtures'
+import { EMPTY_PERIOD } from './analysis/model'
+
+const SAVED_COPY: Copy = {
+  id: 'saved-copy',
+  rank: 3,
+  hasPower: false,
+  hasHeartRate: true,
+  durationS: 3600,
+}
 
 /** The local time shown for a reset instant, as the limit copy formats it. */
 function localTime(ms: number): string {
@@ -20,7 +32,7 @@ function localTime(ms: number): string {
 }
 
 /** The reset sentence, with the local time left to the viewer's zone. */
-const RESET_AT_UTC_MIDNIGHT = /It resets at 00:00 UTC \(.+ your time\)\.$/
+const RESET_AT_UTC_MIDNIGHT = /It resets at .+, your time\.$/
 
 /** A Worker that records what the hook posts and lets the test send replies. */
 class FakeWorker {
@@ -91,7 +103,7 @@ const UNAVAILABLE: Account = { status: 'unavailable', me: null }
 function setup(initial: Account = LOADING, settings: AthleteSettings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: AthleteSettings }) =>
-      useAnalysis(current, account),
+      useAnalysis(current, account, false),
     { initialProps: { account: initial, current: settings } },
   )
 }
@@ -124,7 +136,8 @@ const STATE = {
   unsupportedFiles: 0,
   isSample: false,
   totalActivities: 0,
-  rangeDays: null,
+  period: EMPTY_PERIOD,
+  library: [],
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
@@ -132,6 +145,7 @@ const STATE = {
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
+  records: new Map(),
 }
 
 beforeEach(() => {
@@ -168,7 +182,7 @@ describe('useAnalysis account handling', () => {
   it('loads the stored activities into the active worker under StrictMode', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account),
+        useAnalysis(current, account, false),
       {
         initialProps: { account: SIGNED_IN_KEEP, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -321,6 +335,30 @@ describe('useAnalysis account handling', () => {
     })
   })
 
+  it('imports a signed-in profile with no body mass on the analysis placeholder, not on null', async () => {
+    let finish!: (me: Me | null) => void
+    const account: Account = {
+      ...SIGNED_IN_NO_KEEP,
+      flushProfileWrites: () => new Promise((resolve) => (finish = resolve)),
+    }
+    const { result } = setup(account)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => result.current.addFiles([FILE]))
+    await act(async () => {
+      const saved = meWith(true)
+      finish({ ...saved, profile: { ...saved.profile, massKg: null, bikeMassKg: 12 } })
+      await Promise.resolve()
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'addFiles',
+      files: [FILE],
+      settings: { massKg: 75, bikeMassKg: 12 },
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+  })
+
   it('reports a profile-write failure and does not silently import with retention off', async () => {
     const failure = new Error('profile save failed')
     const account: Account = {
@@ -333,7 +371,7 @@ describe('useAnalysis account handling', () => {
     act(() => result.current.addFiles([FILE]))
     await waitFor(() =>
       expect(result.current.error).toMatch(
-        /Retry saving your settings, then re-import these files/,
+        /Retry saving your settings, then add these files again/,
       ),
     )
 
@@ -387,7 +425,7 @@ describe('useAnalysis account handling', () => {
       { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
     ])
     expect(restartedWorker.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
-    expect(result.current.error).toMatch(/Analysis stopped/)
+    expect(result.current.error).toMatch(/Stopped\. Add your files again/)
   })
 
   it('keeps syncing digests without uploading files when file retention is unavailable', () => {
@@ -419,43 +457,357 @@ describe('useAnalysis account handling', () => {
     ['signed out', SIGNED_OUT],
     ['unavailable', UNAVAILABLE],
   ])(
-    'sends nothing while the account loads, then the device load before the imports that waited, once %s',
+    'analyses the drop while the account loads, then loads the kept library and saves it once %s',
     (_, settled) => {
       const { result, rerender } = setup(LOADING)
       act(() => result.current.addFiles([FILE]))
-      expect(worker().posted).toEqual([])
+      expect(worker().posted).toEqual([
+        { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null, provisional: true },
+      ])
+      act(() => worker().reply({ type: 'state', state: STATE }))
 
       rerender({ account: settled, current: SETTINGS })
-      expect(worker().posted).toEqual([
-        DEVICE_LOAD,
-        { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null, saveToDevice: true },
-      ])
+      expect(worker().posted.slice(1)).toEqual([DEVICE_LOAD])
+
+      // The kept library answers, and only then is the analysis saved, each compared with it.
+      act(() => worker().reply({ type: 'state', state: STATE }))
+      expect(worker().posted.at(-1)).toEqual({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        saveToDevice: true,
+      })
 
       // A later render with the same account does not send the device load again.
       rerender({ account: { ...settled }, current: SETTINGS })
-      expect(worker().posted).toHaveLength(2)
+      expect(worker().posted).toHaveLength(3)
     },
   )
 
-  it('hydrates before syncing imports dropped while the account is loading', () => {
-    const { result, rerender } = setup(LOADING)
-    act(() => result.current.addFiles([FILE]))
-    expect(worker().posted).toEqual([])
+  describe('imports while the account loads', () => {
+    /** Answers the first pending request, as the worker does in order. */
+    function settle(state: SessionState = STATE) {
+      act(() => worker().reply({ type: 'state', state }))
+    }
 
-    rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
-    expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+    it('analyses a drop at once, in this session only, and writes nothing until the account is known', () => {
+      const { result } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      expect(worker().posted).toEqual([
+        { type: 'addFiles', files: [FILE], settings: SETTINGS, sync: null, provisional: true },
+      ])
+    })
 
-    // The import waits for the library: a failed load must not be followed by an import.
-    finishLibraryLoad()
-    expect(worker().posted).toEqual([
-      { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
-      {
+    it('sends the analysed files to the account once a sign-in is known and the library has loaded', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      expect(worker().posted.at(-1)).toEqual({
+        type: 'loadServer',
+        settings: SETTINGS,
+        userId: USER_ID,
+      })
+      settle()
+      // Until the library has loaded, the files wait; a failed load must not be followed by an import.
+      expect(worker().posted.some((request) => request.type === 'addFiles' && request.sync)).toBe(
+        false,
+      )
+
+      finishLibraryLoad()
+      expect(worker().posted.at(-1)).toEqual({
         type: 'addFiles',
         files: [FILE],
         settings: SETTINGS,
         sync: { keepFiles: true, userId: USER_ID },
-      },
-    ])
+      })
+    })
+
+    it('does not sync the analysed files when the library cannot be loaded', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      settle()
+
+      act(() => worker().reply({ type: 'error', message: 'Library down' }))
+
+      expect(worker().posted.some((request) => request.type === 'addFiles' && request.sync)).toBe(
+        false,
+      )
+      expect(result.current.error).toMatch(/not loaded, so these files were not imported/)
+    })
+
+    it('clears the analysed session before the library loads, so a failed load leaves nothing unsaved on screen', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      act(() =>
+        worker().reply({
+          type: 'state',
+          state: { ...STATE, totalActivities: 1 },
+          outcome: { activities: 1, rejected: 0, duplicates: [] },
+        }),
+      )
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      expect(worker().posted.slice(1)).toEqual([
+        { type: 'clear', forgetDevice: false },
+        { type: 'loadServer', settings: SETTINGS, userId: USER_ID },
+      ])
+      act(() => worker().reply({ type: 'state', state: STATE }))
+      act(() => worker().reply({ type: 'error', message: 'Library down' }))
+
+      expect(result.current.state.totalActivities).toBe(0)
+      expect(result.current.importOutcome).toBeNull()
+      expect(result.current.error).toMatch(/not loaded, so these files were not imported/)
+    })
+
+    it('keeps the chosen period through the clear, so the clear is the only request sent', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      act(() => result.current.setRange(42))
+      settle({ ...STATE, totalActivities: 1 })
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+      const posted = worker().posted
+      const clearAt = posted.findIndex((request) => request.type === 'clear')
+      expect(posted[clearAt]).toEqual({ type: 'clear', forgetDevice: false })
+      expect(posted.slice(clearAt + 1)).not.toContainEqual(
+        expect.objectContaining({ type: 'setRange' }),
+      )
+    })
+
+    it('summarises nothing for the analysis made while the account loads, only for the final import', () => {
+      const outcome = { activities: 1, rejected: 0, duplicates: [] }
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+      expect(result.current.importOutcome).toBeNull()
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      act(() => worker().reply({ type: 'state', state: STATE }))
+      act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+
+      expect(result.current.importOutcome).toEqual(outcome)
+    })
+
+    it('holds no files the worker refused, so the page is not left waiting on them', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => worker().onerror?.(new ErrorEvent('error', { message: 'boom' })))
+      act(() => worker().onerror?.(new ErrorEvent('error', { message: 'boom' })))
+
+      act(() => result.current.addFiles([FILE]))
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+      // A later retry loads the library; the refused files must not be synced by it.
+      act(() => result.current.retryWorker())
+      settle()
+      expect(worker().posted.some((request) => request.type === 'addFiles' && request.sync)).toBe(
+        false,
+      )
+    })
+
+    it('syncs two drops made while the account loads, in the order they were made', () => {
+      const other = new File(['y'], 'ride.gpx')
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      act(() => result.current.addFiles([other]))
+      settle()
+      settle()
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      settle()
+      finishLibraryLoad()
+
+      const synced = worker().posted.filter(
+        (request) => request.type === 'addFiles' && request.sync !== null,
+      )
+      expect(synced).toEqual([
+        {
+          type: 'addFiles',
+          files: [FILE],
+          settings: SETTINGS,
+          sync: { keepFiles: true, userId: USER_ID },
+        },
+        {
+          type: 'addFiles',
+          files: [other],
+          settings: SETTINGS,
+          sync: { keepFiles: true, userId: USER_ID },
+        },
+      ])
+    })
+
+    it('loads the kept library for a visitor who turns out signed out, then saves the files to it', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      expect(worker().posted.slice(1)).toEqual([DEVICE_LOAD])
+
+      settle()
+      expect(worker().posted.at(-1)).toEqual({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        saveToDevice: true,
+      })
+    })
+
+    it('saves the files for a visitor whose account is unavailable, as for a signed-out one', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+
+      rerender({ account: UNAVAILABLE, current: SETTINGS })
+      expect(worker().posted.slice(1)).toEqual([DEVICE_LOAD])
+
+      settle()
+      expect(worker().posted.at(-1)).toEqual({
+        type: 'addFiles',
+        files: [FILE],
+        settings: SETTINGS,
+        sync: null,
+        saveToDevice: true,
+      })
+    })
+
+    it('says the stop without claiming results are kept, while the account is still loading', () => {
+      const { result } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+
+      act(() => result.current.stop())
+
+      expect(result.current.error).toMatch(/Stopped\. Add your files again/)
+      expect(result.current.error).not.toMatch(/kept/)
+    })
+
+    it('forgets the analysed files when the visitor stops, so a later sign-in does not sync them', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      act(() => result.current.stop())
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+      expect(worker().posted.some((request) => request.type === 'addFiles')).toBe(false)
+    })
+
+    it('forgets the analysed files when the visitor starts over, so a later sign-in does not sync them', () => {
+      const { result, rerender } = setup(LOADING)
+      act(() => result.current.addFiles([FILE]))
+      settle()
+      act(() => result.current.clear())
+      settle()
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      finishLibraryLoad()
+
+      expect(worker().posted.some((request) => request.type === 'addFiles' && request.sync)).toBe(
+        false,
+      )
+    })
+  })
+
+  describe('restoring the library kept in this browser', () => {
+    const KEPT_KEY = 'rca.kept.v1'
+    const WITH_RESULTS: SessionState = { ...STATE, totalActivities: 2 }
+
+    beforeEach(() => localStorage.clear())
+
+    it('shows a restoring state while the account loads, after a visit that kept results', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(LOADING)
+      expect(result.current.restoring).toBe(true)
+    })
+
+    it('shows no restoring state on a first visit', () => {
+      const { result } = setup(LOADING)
+      expect(result.current.restoring).toBe(false)
+    })
+
+    it('ends the restoring state once the kept library has loaded, and keeps the hint', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_OUT)
+
+      finishDeviceLoad(WITH_RESULTS)
+
+      expect(result.current.restoring).toBe(false)
+      expect(localStorage.getItem(KEPT_KEY)).toBe('1')
+    })
+
+    it('forgets the hint when the kept library loads empty', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      setup(SIGNED_OUT)
+
+      finishDeviceLoad(STATE)
+
+      expect(localStorage.getItem(KEPT_KEY)).toBeNull()
+    })
+
+    it('ends the restoring state when the signed-in library loads', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_IN_KEEP)
+
+      finishLibraryLoad(WITH_RESULTS)
+
+      expect(result.current.restoring).toBe(false)
+    })
+
+    it('ends the restoring state when the worker stops for good', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_OUT)
+
+      act(() => worker().onerror?.(new ErrorEvent('error', { message: 'boom' })))
+      act(() => worker().onerror?.(new ErrorEvent('error', { message: 'boom' })))
+
+      expect(result.current.restoring).toBe(false)
+    })
+
+    it('keeps the hint once an import saved to this browser has results', () => {
+      const { result } = setup(SIGNED_OUT)
+      finishDeviceLoad(STATE)
+
+      act(() => result.current.addFiles([FILE]))
+      act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+      expect(localStorage.getItem(KEPT_KEY)).toBe('1')
+    })
+
+    it('forgets the hint when the library is cleared', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_OUT)
+      finishDeviceLoad(WITH_RESULTS)
+
+      act(() => result.current.clear())
+      act(() => worker().reply({ type: 'state', state: STATE }))
+
+      expect(localStorage.getItem(KEPT_KEY)).toBeNull()
+    })
+
+    it('forgets the hint when an import leaves the library empty', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_OUT)
+      finishDeviceLoad(WITH_RESULTS)
+
+      act(() => result.current.addFiles([FILE]))
+      act(() => worker().reply({ type: 'state', state: STATE }))
+
+      expect(localStorage.getItem(KEPT_KEY)).toBeNull()
+    })
+
+    it('ends the restoring state when the library fails to load', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_OUT)
+
+      act(() => worker().reply({ type: 'error', message: 'Storage refused' }))
+
+      expect(result.current.restoring).toBe(false)
+    })
   })
 
   it('sends no sync option when the account is unavailable', () => {
@@ -491,7 +843,7 @@ describe('useAnalysis device library', () => {
   it('sends one device load to the surviving worker under StrictMode when signed out', () => {
     renderHook(
       ({ account, current }: { account: Account; current: AthleteSettings }) =>
-        useAnalysis(current, account),
+        useAnalysis(current, account, false),
       {
         initialProps: { account: SIGNED_OUT, current: SETTINGS },
         wrapper: StrictWrapper,
@@ -524,7 +876,8 @@ describe('useAnalysis device library', () => {
     })
 
     const sent = FakeWorker.instances.flatMap((instance) => instance.posted.map((r) => r.type))
-    expect(sent).toEqual(['loadServer', 'loadServer'])
+    // The expired session also tells the worker to forget its route shapes; no device load is sent.
+    expect(sent).toEqual(['loadServer', 'loadServer', 'forgetRoutes'])
   })
 
   it('sends the device load again to a signed-out worker that is restarted', () => {
@@ -563,7 +916,7 @@ describe('useAnalysis device library', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'run-1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     finishDeviceLoad()
@@ -600,9 +953,26 @@ describe('useAnalysis requests', () => {
     expect(worker().posted).toEqual([
       DEVICE_LOAD,
       { type: 'loadSample', settings: SETTINGS },
-      { type: 'setRange', rangeDays: 42, settings: SETTINGS },
+      { type: 'setRange', choice: 42, settings: SETTINGS },
       { type: 'clear', forgetDevice: true },
     ])
+  })
+
+  it('asks the worker to grade the trend once the athlete has an age and sex, and only then', () => {
+    const { rerender } = renderHook(
+      ({ grade }: { grade: boolean }) => useAnalysis(SETTINGS, SIGNED_OUT, grade),
+      { initialProps: { grade: false } },
+    )
+    expect(worker().posted).toEqual([DEVICE_LOAD])
+    rerender({ grade: true })
+    expect(worker().posted).toEqual([
+      DEVICE_LOAD,
+      { type: 'setGradeTrend', on: true, settings: SETTINGS },
+    ])
+    rerender({ grade: true })
+    expect(worker().posted).toHaveLength(2)
+    rerender({ grade: false })
+    expect(worker().posted.at(-1)).toEqual({ type: 'setGradeTrend', on: false, settings: SETTINGS })
   })
 
   it('posts new settings only when the body or bike mass changes', () => {
@@ -655,7 +1025,7 @@ describe('useAnalysis state', () => {
   it('drops imports held while the library loads when that load fails, and asks for them to be added again', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.addFiles([FILE]))
-    expect(result.current.waitingReason).toBe('Waiting for your library to load')
+    expect(result.current.waitingReason).toBe('Checking your saved results…')
     act(() => worker().reply({ type: 'error', message: 'Network down' }))
 
     expect(result.current.libraryStatus).toBe('failed')
@@ -684,7 +1054,7 @@ describe('useAnalysis state', () => {
     const { result } = setup(SIGNED_IN_KEEP)
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(true)
-    expect(result.current.waitingReason).toBe('Waiting for your library to load')
+    expect(result.current.waitingReason).toBe('Checking your saved results…')
 
     finishLibraryLoad()
     expect(result.current.waitingReason).toBeNull()
@@ -828,6 +1198,54 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'state', state: STATE }))
     expect(result.current.progress).toBeNull()
     expect(result.current.uploading).toBeNull()
+  })
+
+  it('keeps the result on screen when the visitor stops, and says so as news rather than a fault', () => {
+    const result = { ...STATE, totalActivities: 1 }
+    const { result: hook } = setup(SIGNED_OUT)
+    finishDeviceLoad(result)
+    act(() => hook.current.addFiles([FILE]))
+    act(() => hook.current.stop())
+
+    expect(hook.current.error).toBe("Stopped. Add your files again when you're ready.")
+    expect(hook.current.errorNeutral).toBe(true)
+    expect(hook.current.state.totalActivities).toBe(1)
+  })
+
+  it('reports a fault that comes after a stop as a fault, not as the neutral stop', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad(STATE)
+    act(() => result.current.stop())
+    expect(result.current.errorNeutral).toBe(true)
+
+    act(() => worker().reply({ type: 'error', message: 'The file could not be read.' }))
+    expect(result.current.error).toBe('The file could not be read.')
+    expect(result.current.errorNeutral).toBe(false)
+  })
+
+  it('clears the summary when an activity is deleted from the account, as it is from this browser', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.deleteActivity('1-run'))
+    expect(worker().posted.at(-1)).toMatchObject({ type: 'deleteActivity' })
+    expect(result.current.importOutcome).toBeNull()
+  })
+
+  it('clears the summary of the last import when an activity is deleted, since its count has changed', () => {
+    const outcome = { activities: 2, rejected: 0, duplicates: [], runs: 2, rides: 0 }
+    const { result: hook } = setup(SIGNED_OUT)
+    finishDeviceLoad(STATE)
+    act(() => hook.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(hook.current.importOutcome).toEqual(outcome)
+
+    act(() => hook.current.deleteActivity('1-run'))
+    expect(hook.current.importOutcome).toBeNull()
   })
 
   it('drops the summary of the last import when the library is cleared or replaced by the sample', () => {
@@ -999,7 +1417,7 @@ describe('useAnalysis state', () => {
     const stoppedWorker = worker()
     act(() => result.current.clear())
     act(() => stoppedWorker.onerror?.({ message: 'Script failed' } as ErrorEvent))
-    expect(result.current.error).toMatch(/worker stopped.*add again/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*add again/i)
     expect(stoppedWorker.terminated).toBe(true)
     expect(worker()).not.toBe(stoppedWorker)
     // The new worker reloads the library kept in this browser. That load does not hold the page
@@ -1010,9 +1428,33 @@ describe('useAnalysis state', () => {
     const retryingWorker = worker()
     act(() => result.current.clear())
     act(() => worker().onerror?.({ message: '' } as ErrorEvent))
-    expect(result.current.error).toMatch(/worker stopped.*add again/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*add again/i)
     expect(result.current.workerStopped).toBe(true)
     expect(worker()).toBe(retryingWorker)
+  })
+
+  it('clears the summary of the last import when a rebuild replaces the session, so no count outlives its skipped files', () => {
+    const outcome = { activities: 2, rejected: 1, duplicates: [], runs: 2, rides: 0 }
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE, outcome }))
+    expect(result.current.importOutcome).toEqual(outcome)
+
+    act(() => result.current.rebuildSavedActivities())
+    act(() =>
+      worker().reply({
+        type: 'rebuildComplete',
+        state: STATE,
+        rebuilt: 0,
+        missing: 0,
+        failed: 0,
+        limited: 0,
+        limitKind: null,
+        limitResetsAtMs: null,
+      }),
+    )
+    expect(result.current.importOutcome).toBeNull()
   })
 
   it('requests a saved-activity rebuild and exposes its partial recovery notice', () => {
@@ -1036,7 +1478,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.state.outdatedActivities).toBe(2)
-    expect(result.current.rebuildNotice).toMatch(/re-import those original files/)
+    expect(result.current.rebuildNotice).toMatch(/add (that|those) original file/)
   })
 
   it('keeps the missing-file and retry guidance when both rebuild outcomes occur', () => {
@@ -1054,8 +1496,8 @@ describe('useAnalysis state', () => {
         limitResetsAtMs: null,
       }),
     )
-    expect(result.current.rebuildNotice).toMatch(/re-import those original files/)
-    expect(result.current.rebuildNotice).toMatch(/2 could not be rebuilt; try again/)
+    expect(result.current.rebuildNotice).toMatch(/add (that|those) original file/)
+    expect(result.current.rebuildNotice).toMatch(/2 could not be updated; try again/)
   })
 
   it('says which activities the daily limit left unrebuilt, and when the limit resets', () => {
@@ -1075,7 +1517,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      `Rebuilt 2 saved activities. 3 activities were not rebuilt because today's limit on downloads (50 per day) was reached. It resets at 00:00 UTC (${localTime(resetsAt)} your time).`,
+      `Updated 2 saved activities. 3 activities were not updated because today's limit on downloads (50 per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
@@ -1095,7 +1537,7 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toBe(
-      'Rebuilt 0 saved activities. 1 activity was not rebuilt. The server asked us to slow down; try again in a minute.',
+      'Updated 0 saved activities. 1 activity was not updated. The server asked us to slow down; try again in a minute.',
     )
   })
 
@@ -1115,13 +1557,14 @@ describe('useAnalysis state', () => {
       }),
     )
     expect(result.current.rebuildNotice).toMatch(
-      /^Rebuilt 0 saved activities\. 1 activity was not rebuilt because today's limit on downloads \(50 per day\) was reached\. It resets at 00:00 UTC \(.+ your time\)\.$/,
+      /^Updated 0 saved activities\. 1 activity was not updated because today's limit on downloads \(50 per day\) was reached\. It resets at .+, your time\.$/,
     )
     expect(result.current.rebuildNotice).not.toMatch(/server is available/)
   })
 
   it('states the daily limit and its reset for an import, with no generic error prefix', () => {
     const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
     act(() => result.current.addFiles([FILE]))
     act(() => worker().reply({ type: 'error', message: 'Tomorrow', issue: 'daily-limit' }))
 
@@ -1141,7 +1584,7 @@ describe('useAnalysis state', () => {
     act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
 
     expect(result.current.workerStopped).toBe(true)
-    expect(result.current.error).toMatch(/worker stopped.*Restart analysis/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*Restart analysis/i)
   })
 
   it('says an import was interrupted when the worker restarts while its profile is saving', async () => {
@@ -1171,7 +1614,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1190,6 +1633,27 @@ describe('useAnalysis state', () => {
     expect(result.current.libraryError).toBeNull()
   })
 
+  it('says the library is still loading when a delete is asked for before it has loaded', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+
+    act(() => result.current.deleteActivity('a1'))
+
+    expect(result.current.libraryError).toBe(
+      'Your library is still loading, so nothing was deleted. Try again in a moment.',
+    )
+    expect(worker().posted.some((request) => request.type === 'deleteActivity')).toBe(false)
+  })
+
+  it('says the account is still loading when a delete is asked for before the account is known', () => {
+    const { result } = setup(LOADING)
+
+    act(() => result.current.deleteActivity('a1'))
+
+    expect(result.current.libraryError).toBe(
+      'Your library is still loading, so nothing was deleted. Try again in a moment.',
+    )
+  })
+
   it('clears a library message when the session expires', () => {
     const startMs = Date.UTC(2026, 9, 20, 12)
     const markExpired = vi.fn()
@@ -1198,7 +1662,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1221,7 +1685,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => worker().reply({ type: 'libraryUnreadable', count: 2 }))
@@ -1255,7 +1719,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
 
@@ -1277,7 +1741,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1300,7 +1764,7 @@ describe('useAnalysis state', () => {
     act(() =>
       worker().reply({
         type: 'libraryActivities',
-        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run' }],
+        activities: [{ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }],
       }),
     )
     act(() => result.current.deleteActivity('a1'))
@@ -1316,7 +1780,7 @@ describe('useAnalysis state', () => {
     act(() => result.current.rebuildSavedActivities())
 
     expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
-    expect(result.current.rebuildNotice).toMatch(/cannot be accessed on this deployment/i)
+    expect(result.current.rebuildNotice).toMatch(/cannot be read right now/i)
   })
 
   it('rehydrates the signed-in library after a fatal worker error', () => {
@@ -1341,7 +1805,7 @@ describe('useAnalysis state', () => {
 
     expect(result.current.workerStopped).toBe(true)
     expect(worker()).toBe(replacement)
-    expect(result.current.error).toMatch(/worker stopped.*add again/i)
+    expect(result.current.error).toMatch(/Analysis stopped unexpectedly.*add again/i)
     expect(replacement.terminated).toBe(true)
     act(() => result.current.addFiles([FILE]))
     expect(result.current.busy).toBe(false)
@@ -1361,7 +1825,7 @@ describe('useAnalysis state', () => {
     expect(stopped.terminated).toBe(true)
     expect(result.current.busy).toBe(true) // The replacement is hydrating the saved library.
     expect(result.current.state).toEqual(STATE)
-    expect(result.current.error).toMatch(/analysis stopped.*re-import/i)
+    expect(result.current.error).toMatch(/Stopped\. Add your files again/)
     expect(worker()).not.toBe(stopped)
     expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
   })
@@ -1521,6 +1985,648 @@ describe('useAnalysis account export', () => {
 
     await expect(exported).rejects.toThrow(
       'The download was interrupted. Download your data again.',
+    )
+  })
+})
+
+describe('useAnalysis route shapes', () => {
+  const SHAPE: RouteShape = {
+    points: [
+      [0, 0],
+      [1, 1],
+    ],
+    aspect: 1,
+  }
+
+  it('asks the worker for a route under the signed-in user, and resolves with the shape', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('saved-1', false)
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'routeShape',
+      id: 'saved-1',
+      userId: USER_ID,
+      fromOriginal: false,
+    })
+    act(() => worker().reply({ type: 'routeShape', route: SHAPE, original: false }))
+    await expect(loaded).resolves.toEqual({ kind: 'shape', route: SHAPE })
+  })
+
+  it('asks for a signed-out route without a user, since it is read from this browser', async () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+
+    act(() => {
+      void result.current.loadRoute('run-1', false)
+    })
+
+    expect(worker().posted.at(-1)).toEqual({
+      type: 'routeShape',
+      id: 'run-1',
+      fromOriginal: false,
+    })
+  })
+
+  it('asks the worker to read the original only when asked to', async () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    act(() => {
+      void result.current.loadRoute('saved-1', true)
+    })
+
+    expect(worker().posted.at(-1)).toMatchObject({ type: 'routeShape', fromOriginal: true })
+  })
+
+  it.each([
+    ['in the kept original', { route: null, original: true }, { kind: 'original' }],
+    ['in neither place', { route: null, original: false }, { kind: 'none' }],
+  ])('reports a route %s', async (_, reply, expected) => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('saved-1', false)
+    })
+    act(() => worker().reply({ type: 'routeShape', ...reply }))
+
+    await expect(loaded).resolves.toEqual(expected)
+  })
+
+  it('reports a failed read as failed, and shows no error', async () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('run-1', true)
+    })
+    act(() => worker().reply({ type: 'error', message: 'Too many downloads' }))
+
+    await expect(loaded).resolves.toEqual({ kind: 'failed' })
+    expect(result.current.error).toBeNull()
+  })
+
+  it('answers a route read made after the worker stopped for good as failed, with no error', async () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => worker().onerror?.({ message: 'module failed' } as ErrorEvent))
+    act(() => worker().onerror?.({ message: 'module failed again' } as ErrorEvent))
+    const before = result.current.error
+
+    let loaded: Promise<RouteReply> | undefined
+    act(() => {
+      loaded = result.current.loadRoute('run-1', false)
+    })
+
+    await expect(loaded).resolves.toEqual({ kind: 'failed' })
+    expect(result.current.error).toBe(before)
+  })
+
+  it('drops a route reply that answers no route request, and keeps the import it would have answered', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.busy).toBe(true)
+
+    act(() => worker().reply({ type: 'routeShape', route: SHAPE, original: false }))
+
+    expect(result.current.busy).toBe(true)
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.busy).toBe(false)
+    expect(result.current.state).toEqual(STATE)
+  })
+
+  it('tells the worker to forget the route shapes when the session expires', () => {
+    const markExpired = vi.fn()
+    const { result, rerender } = setup({ ...SIGNED_IN_KEEP, markExpired })
+    finishLibraryLoad()
+    expect(result.current.error).toBeNull()
+
+    rerender({
+      account: { status: 'signed-out', me: null, markExpired, sessionExpired: true },
+      current: SETTINGS,
+    })
+
+    expect(worker().posted).toContainEqual({ type: 'forgetRoutes' })
+  })
+
+  it('keeps an error already on screen, and is not busy while a route loads', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    act(() => worker().reply({ type: 'error', message: 'The import failed' }))
+
+    act(() => {
+      void result.current.loadRoute('run-1', false)
+    })
+
+    expect(result.current.error).toBe('The import failed')
+    expect(result.current.busy).toBe(false)
+  })
+})
+
+describe('a period pick is answered once the worker answers it', () => {
+  it('calls the answer to a pick once with null when Stop drops the pick before the worker answers', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    const answered = vi.fn()
+
+    act(() => result.current.setRange(42, answered))
+    act(() => result.current.stop())
+
+    expect(answered).toHaveBeenCalledTimes(1)
+    expect(answered).toHaveBeenCalledWith(null)
+  })
+
+  it('calls the answer to a pick when the worker answers that pick, and not before', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+    const answered = vi.fn()
+
+    act(() => result.current.setRange(42, answered))
+    expect(answered).not.toHaveBeenCalled()
+
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, period: { ...STATE.period, choice: 42 } },
+      }),
+    )
+    expect(answered).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a period pick is quiet', () => {
+  it('does not make the page busy, so Stop and Share keep their state while the worker answers', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad()
+
+    act(() => result.current.setRange(42))
+
+    expect(result.current.busy).toBe(false)
+  })
+})
+
+describe('a period, a clear, and the restore hint, in round 3', () => {
+  it('does not resend a period chosen while the account loads, since the session keeps it', () => {
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.setRange(42))
+
+    rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+    const posted = worker().posted
+    const clearAt = posted.findIndex((request) => request.type === 'clear')
+    expect(clearAt).toBeGreaterThan(-1)
+    expect(posted.slice(clearAt + 1)).not.toContainEqual(
+      expect.objectContaining({ type: 'setRange' }),
+    )
+  })
+
+  it('keeps the restore hint when a signed-in visitor clears the session, since the library is kept', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+    act(() => result.current.clear())
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    expect(localStorage.getItem('rca.kept.v1')).toBe('1')
+  })
+
+  it('does not show a provisional answer that arrives after a clear, before the clear is answered', () => {
+    const { result } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.clear())
+
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 1 },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+
+    expect(result.current.state.totalActivities).toBe(0)
+  })
+})
+
+describe('a rejected file dropped while the account loads', () => {
+  const BAD = new File(['not a fit'], 'not-a-fit.fit')
+  const REJECTED = [
+    { fileName: 'not-a-fit.fit', reason: 'Not an activity file', code: 'not-activity' as const },
+  ]
+
+  it('still shows the rejected file once a kept library has loaded signed out', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([BAD]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, rejected: REJECTED } }))
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 2, rejected: REJECTED },
+      }),
+    )
+
+    expect(result.current.state.rejected).toEqual(REJECTED)
+  })
+
+  it('still shows the rejected file after a Start over that forgot the kept library', () => {
+    localStorage.removeItem('rca.kept.v1')
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([BAD]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, rejected: REJECTED } }))
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, rejected: REJECTED } }))
+
+    expect(result.current.state.rejected).toEqual(REJECTED)
+  })
+
+  it('still shows the rejected file with no kept library at all', () => {
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([BAD]))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, rejected: REJECTED } }))
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, rejected: REJECTED } }))
+
+    expect(result.current.state.rejected).toEqual(REJECTED)
+  })
+})
+
+describe('what an import is compared with, and the restore hint, in round 4', () => {
+  /** Answers the first pending request, as the worker does in order. */
+  function settle(state: SessionState = STATE) {
+    act(() => worker().reply({ type: 'state', state }))
+  }
+
+  const F_ONLY = { tag: 'F-only' } as unknown as SessionState['result']
+  const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
+  const KEPT_PLUS_F = { tag: 'kept + F' } as unknown as SessionState['result']
+  const ACCOUNT = { tag: 'account library' } as unknown as SessionState['result']
+
+  it('compares an import saved after the kept library loads with that library, not with the provisional analysis', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    settle({ ...STATE, totalActivities: 1, result: F_ONLY })
+
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() =>
+      worker().reply({ type: 'state', state: { ...STATE, totalActivities: 3, result: KEPT } }),
+    )
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 4, result: KEPT_PLUS_F },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+
+    expect(result.current.importChange?.before).toBe(KEPT)
+  })
+
+  it('compares an import saved after the account library loads with that library', () => {
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    settle({ ...STATE, totalActivities: 1, result: F_ONLY })
+
+    rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+    settle()
+    finishLibraryLoad({ ...STATE, totalActivities: 3, result: ACCOUNT })
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 3, result: KEPT_PLUS_F },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+
+    expect(result.current.importChange?.before).toBe(ACCOUNT)
+  })
+
+  it('forgets the restore hint when the last kept activity is deleted', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, totalActivities: 1 })
+
+    act(() => result.current.deleteActivity('some-id'))
+    act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 0 } }))
+
+    expect(localStorage.getItem('rca.kept.v1')).toBeNull()
+  })
+
+  it('keeps the restore hint while a sample is on screen, since the kept library is still there', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, isSample: true, totalActivities: 0 })
+
+    expect(localStorage.getItem('rca.kept.v1')).toBe('1')
+  })
+
+  it('does not send a period chosen before a start over once the account signs in', () => {
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.setRange(42))
+    act(() => result.current.clear())
+    act(() => result.current.addFiles([FILE]))
+
+    rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+    const posted = worker().posted
+    const afterClear = posted.slice(posted.findIndex((request) => request.type === 'clear') + 1)
+    expect(afterClear).not.toContainEqual(expect.objectContaining({ type: 'setRange', choice: 42 }))
+  })
+})
+
+describe('round 5: baselines, errors, and Start over during a load', () => {
+  function settle(state: SessionState = STATE) {
+    act(() => worker().reply({ type: 'state', state }))
+  }
+  const LIB_A = { tag: 'library A' } as unknown as SessionState['result']
+  const LIB_A2 = { tag: 'library A after stop' } as unknown as SessionState['result']
+  const LIB_B = { tag: 'library B' } as unknown as SessionState['result']
+  const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
+  const RESULT_NEW = { tag: 'after import' } as unknown as SessionState['result']
+
+  /** A signed-in account whose profile writes are still pending until `release` is called. */
+  function gatedAccount(me: Me) {
+    let release: (value: Me | null) => void = () => undefined
+    const gate = new Promise<Me | null>((resolve) => {
+      release = resolve
+    })
+    const account: Account = { status: 'signed-in', me, flushProfileWrites: () => gate }
+    return { account, release: (value: Me | null) => release(value) }
+  }
+
+  it('compares an import abandoned by an account switch with the next account, not the abandoned one', async () => {
+    const gated = gatedAccount(meWith(true))
+    const { result, rerender } = setup(gated.account)
+    act(() => result.current.addFiles([FILE]))
+    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
+    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
+    await act(async () => gated.release(meWith(true)))
+    finishLibraryLoad({ ...STATE, totalActivities: 2, result: LIB_B })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 3, result: RESULT_NEW },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(LIB_B)
+  })
+
+  it('compares an import made after Stop with the library as it is then, not the one a pending write held', async () => {
+    const gated = gatedAccount(meWith(true))
+    const { result } = setup(gated.account)
+    act(() => result.current.addFiles([FILE]))
+    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
+    act(() => result.current.stop())
+    await act(async () => gated.release(meWith(true)))
+    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A2 })
+    await act(async () => {
+      result.current.addFiles([FILE])
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 4, result: RESULT_NEW },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(LIB_A2)
+  })
+
+  it('compares each drop waiting for the device library with that library', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.addFiles([FILE]))
+    settle()
+    settle()
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() =>
+      worker().reply({ type: 'state', state: { ...STATE, totalActivities: 3, result: KEPT } }),
+    )
+    expect(worker().posted.filter((request) => request.type === 'addFiles')).toHaveLength(4)
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 4, result: RESULT_NEW },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(KEPT)
+  })
+
+  it('drops the imports waiting for a device library that fails to load, and stops waiting', () => {
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    settle()
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    expect(result.current.waitingReason).toBe('Checking your saved results…')
+
+    act(() => worker().reply({ type: 'error', message: 'Device library down' }))
+
+    expect(result.current.busy).toBe(false)
+    expect(result.current.waitingReason).toBeNull()
+    expect(result.current.error).toMatch(/kept results could not be loaded in this browser/)
+    const posted = worker().posted
+    const afterLoad = posted.slice(posted.findIndex((request) => request.type === 'loadDevice') + 1)
+    expect(afterLoad.some((request) => request.type === 'addFiles')).toBe(false)
+  })
+
+  it('does not save the imports that waited for the device library when Start over runs during the load', () => {
+    const { result, rerender } = setup(LOADING)
+    act(() => result.current.addFiles([FILE]))
+    settle()
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    act(() => result.current.clear())
+    settle()
+    settle()
+    const posted = worker().posted
+    const afterClear = posted.slice(posted.findIndex((request) => request.type === 'clear') + 1)
+    expect(afterClear.some((request) => request.type === 'addFiles')).toBe(false)
+    expect(result.current.busy).toBe(false)
+  })
+
+  it('does not save the imports that waited for the signed-in library when Start over runs during the load', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.clear())
+    settle()
+    settle()
+    expect(worker().posted.some((request) => request.type === 'addFiles')).toBe(false)
+    expect(result.current.busy).toBe(false)
+  })
+
+  it('does not send an import whose profile writes land after a Start over', async () => {
+    const gated = gatedAccount(meWith(true))
+    const { result } = setup(gated.account)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => result.current.clear())
+
+    await act(async () => gated.release(meWith(true)))
+
+    const posted = worker().posted
+    const afterClear = posted.slice(posted.findIndex((request) => request.type === 'clear') + 1)
+    expect(afterClear.some((request) => request.type === 'addFiles' && request.sync !== null)).toBe(
+      false,
+    )
+  })
+
+  it('compares an import dropped right after a Start over with nothing, not the results it cleared', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, totalActivities: 3, result: LIB_A })
+    act(() => result.current.clear())
+    act(() => result.current.addFiles([FILE]))
+    settle({ ...STATE, totalActivities: 0, result: null })
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 1, result: RESULT_NEW },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before ?? null).toBeNull()
+  })
+
+  it('compares each import with the analysis on screen when it was sent', () => {
+    const { result } = setup(SIGNED_OUT)
+    finishDeviceLoad({ ...STATE, totalActivities: 3, result: LIB_A })
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 4, result: LIB_B },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(LIB_A)
+
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 5, result: RESULT_NEW },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(LIB_B)
+  })
+
+  it('sends a signed-in import with no body mass on the placeholder, never on null', async () => {
+    const me = meWith(true)
+    const noWeight: Me = { ...me, profile: { ...me.profile, massKg: null } }
+    const { result } = setup({ status: 'signed-in', me: noWeight })
+    finishLibraryLoad({ ...STATE, totalActivities: 1, result: LIB_A })
+    await act(async () => {
+      result.current.addFiles([FILE])
+      await Promise.resolve()
+    })
+    const posted = worker().posted
+    const addFiles = posted.find((request) => request.type === 'addFiles')
+    expect(addFiles && 'settings' in addFiles ? addFiles.settings.massKg : null).toBe(75)
+  })
+})
+
+describe('round 7: the baseline when an import is sent, and a library read a Start over overtakes', () => {
+  const LIB_A = { tag: 'library A' } as unknown as SessionState['result']
+  const LIB_B = { tag: 'library B' } as unknown as SessionState['result']
+  const KEPT = { tag: 'kept library' } as unknown as SessionState['result']
+  const RESULT_NEW = { tag: 'after import' } as unknown as SessionState['result']
+
+  it('compares an import waiting on a profile write with the result reported when it is sent', async () => {
+    let waiting = false
+    let releaseWrite: (value: Me | null) => void = () => undefined
+    const account: Account = {
+      status: 'signed-in',
+      me: meWith(true),
+      flushProfileWrites: () => {
+        if (!waiting) return Promise.resolve(meWith(true))
+        return new Promise<Me | null>((resolve) => {
+          releaseWrite = resolve
+        })
+      },
+    }
+    const { result } = setup(account)
+    finishLibraryLoad({ ...STATE, totalActivities: 3, result: LIB_A })
+    await act(async () => {
+      result.current.addFiles([FILE])
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    waiting = true
+    act(() => result.current.addFiles([FILE]))
+    await act(async () => {
+      // File A's reply moves the result, and the profile write B waits on lands in the same turn.
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 4, result: LIB_B },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      })
+      releaseWrite(meWith(true))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 5, result: RESULT_NEW },
+        outcome: { activities: 1, rejected: 0, duplicates: [] },
+      }),
+    )
+    expect(result.current.importChange?.before).toBe(LIB_B)
+  })
+
+  it('does not show the kept results a device load answers after a Start over, and ends the restoring state at once', () => {
+    localStorage.setItem('rca.kept.v1', '1')
+    const { result } = setup(SIGNED_OUT)
+    act(() => result.current.clear())
+    expect(result.current.restoring).toBe(false)
+    act(() =>
+      worker().reply({ type: 'state', state: { ...STATE, totalActivities: 3, result: KEPT } }),
+    )
+    expect(result.current.state.result).toBeNull()
+  })
+
+  it('ignores a library read a Start over overtook, and still saves an import made after the clear to that library', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    act(() => result.current.clear())
+    act(() => result.current.addFiles([FILE]))
+    act(() =>
+      worker().reply({ type: 'state', state: { ...STATE, totalActivities: 3, result: LIB_A } }),
+    )
+    expect(result.current.state.result).toBeNull()
+    expect(
+      worker().posted.some((request) => request.type === 'addFiles' && request.sync !== null),
+    ).toBe(true)
+  })
+  it('says an import was cancelled when the account changes while it waits', () => {
+    const account: Account = {
+      status: 'signed-in',
+      me: meWith(true),
+      flushProfileWrites: () => new Promise<Me | null>(() => undefined),
+    }
+    const { result, rerender } = setup(account)
+    act(() => result.current.addFiles([FILE]))
+    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
+    expect(result.current.error).toBe(
+      'An import was cancelled because the account changed. Select the files again.',
     )
   })
 })

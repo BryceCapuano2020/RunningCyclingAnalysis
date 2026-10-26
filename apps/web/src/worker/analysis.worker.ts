@@ -2,24 +2,16 @@
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
 import { countActivityFiles } from '@rca/core/fit'
-import { parseActivityFile } from '@rca/core/import'
-import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState, SyncItem } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
-import {
-  ApiRequestError,
-  createActivity,
-  deleteActivity,
-  downloadActivityFile,
-  listActivities,
-  uploadFile,
-} from '../api/client'
-import { exportActivitiesJson, exportFooterJson, exportHeaderJson } from '../export/accountExport'
+import { ApiRequestError, createActivity, deleteActivity, uploadFile } from '../api/client'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
+import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
+import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
+import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { summarizeAdded } from './importSummary'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
@@ -41,16 +33,17 @@ function reportLibrary() {
   })
 }
 
-/** The edge rate limiter's window. */
-const RATE_LIMIT_WINDOW_MS = 60_000
-
-/** The first instant of the next UTC day, when the per-user daily limit resets. */
-function nextUtcMidnightMs(nowMs: number): number {
-  const now = new Date(nowMs)
-  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-}
-
 const device = deviceActions(session, openDeviceLibrary(), post)
+const libraryContext: LibraryContext = {
+  session,
+  device,
+  savedRecords,
+  missingOriginals,
+  post,
+  reportLibrary,
+  reportUnreadable,
+}
+const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // The sample is shown in place of the library kept in this browser, never added to it.
 let showingSample = false
 
@@ -91,6 +84,7 @@ async function addFiles(
         sync?.userId,
       )
       savedRecords.set(record.id, record)
+      routes.remember(record.id, item.route ?? null)
       if (record.hasFile) missingOriginals.delete(key)
       else missingOriginals.add(key)
       if (sync?.keepFiles && !record.hasFile) {
@@ -154,7 +148,7 @@ async function addFiles(
   return { state, outcome }
 }
 
-async function handle(request: WorkerRequest): Promise<SessionState> {
+async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {
   switch (request.type) {
     case 'addFiles':
       return (await addFiles(request)).state
@@ -164,13 +158,15 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return session.loadSample(request.settings)
     case 'loadServer':
       showingSample = false
-      return loadServer(request.settings, request.userId)
+      return loadServer(libraryContext, request.settings, request.userId)
     case 'rebuildStale':
-      return (await rebuildStale(request.settings, request.userId)).state
+      return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':
       return session.setSettings(request.settings)
+    case 'setGradeTrend':
+      return session.setGradeTrend(request.on, request.settings)
     case 'setRange':
-      return session.setRange(request.rangeDays, request.settings)
+      return session.setRange(request.choice, request.settings)
     case 'loadDevice':
       // A sample on screen, or a library already read, stays as it is: loading it again would
       // drop what was imported since.
@@ -181,6 +177,7 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
       return device.load(request.settings)
     case 'clear':
       showingSample = false
+      routes.clear()
       if (request.forgetDevice) await device.forget()
       else device.replaced()
       return session.clear()
@@ -189,6 +186,9 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
     case 'exportData':
       // Answered by exportAccount with the export file, not with a session state.
       throw new Error('An export is not a session request')
+    case 'activitySplits':
+      // Answered with a splits reply, not with a session state.
+      throw new Error('A splits request is not a session request')
     case 'deleteActivity': {
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
@@ -199,6 +199,7 @@ async function handle(request: WorkerRequest): Promise<SessionState> {
         if (!(error instanceof ApiRequestError && error.status === 404)) throw error
       }
       savedRecords.delete(record.id)
+      routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
       reportLibrary()
       post({ type: 'missingOriginals', count: missingOriginals.size })
@@ -212,163 +213,6 @@ function reportUnreadable(count: number) {
   if (count > 0) post({ type: 'libraryUnreadable', count })
 }
 
-/** Fetches the account's digests here, so a large library never crosses the main thread. */
-async function loadServer(settings: AthleteSettings, userId: string): Promise<SessionState> {
-  let unreadable = 0
-  const records = await listActivities(undefined, userId, (count) => {
-    unreadable += count
-  })
-  savedRecords.clear()
-  for (const record of records) savedRecords.set(record.id, record)
-  reportLibrary()
-  reportUnreadable(unreadable)
-  missingOriginals.clear()
-  for (const record of records) {
-    if (!record.hasFile) missingOriginals.add(activityKey(record.digest))
-  }
-  post({ type: 'missingOriginals', count: missingOriginals.size })
-  device.replaced()
-  return session.loadDigests(
-    records.map((record) => record.digest),
-    settings,
-  )
-}
-
-/**
- * Lists the account's library and writes its export as it goes. Each page is written to the file
- * as soon as it arrives, so the library is never held as one text. The file is a Blob, so only its
- * parts, not one large string, cross back to the page. The listing costs one read.
- */
-async function exportAccount(
-  request: Extract<WorkerRequest, { type: 'exportData' }>,
-): Promise<Blob> {
-  const parts: BlobPart[] = [
-    exportHeaderJson({ now: new Date(), account: request.account, profile: request.profile }),
-  ]
-  let unreadable = 0
-  let firstPage = true
-  await listActivities(
-    undefined,
-    request.userId,
-    (count) => {
-      unreadable += count
-    },
-    (items) => {
-      const text = exportActivitiesJson(items)
-      if (text === '') return
-      if (!firstPage) parts.push(',')
-      firstPage = false
-      parts.push(new Blob([text]))
-    },
-  )
-  parts.push(exportFooterJson(unreadable))
-  return new Blob(parts, { type: 'application/json' })
-}
-
-async function hashHex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-/** Rebuild stale digests only from their exact stored original file, retaining partial successes. */
-async function rebuildStale(settings: AthleteSettings, userId: string) {
-  let unreadable = 0
-  const records = await listActivities(undefined, userId, (count) => {
-    unreadable += count
-  })
-  const stale = records.filter((record) => record.digest.modelRevision < MODEL_REVISION)
-  let rebuilt = 0
-  let missing = 0
-  let failed = 0
-  let limited = 0
-  let limitKind: 'daily' | 'rate' | null = null
-  let limitReached = false
-  for (const record of stale) {
-    if (!record.hasFile) {
-      missing++
-      continue
-    }
-    // Once a download limit is reached, further downloads would be refused the same way.
-    if (limitReached) {
-      limited++
-      continue
-    }
-    try {
-      const bytes = await downloadActivityFile(record.id, userId)
-      const parsed = parseActivityFile(bytes, record.fileName)
-      if (!parsed.ok) {
-        missing++
-        continue
-      }
-      const activity = parsed.activities.find(
-        (candidate) =>
-          candidate.sport === record.digest.sport &&
-          Math.round(candidate.startMs / 1000) === Math.round(record.digest.startMs / 1000),
-      )
-      if (!activity) {
-        missing++
-        continue
-      }
-      const fileHash = await hashHex(bytes)
-      // Replaces this exact activity, so a copy deleted in another tab is not written back.
-      const { record: upgraded } = await createActivity(
-        digestActivity(activity),
-        record.fileName,
-        fileHash,
-        userId,
-        record.id,
-      )
-      const recordIndex = records.findIndex((candidate) => candidate.id === record.id)
-      if (recordIndex >= 0) records[recordIndex] = upgraded
-      rebuilt++
-    } catch (error) {
-      const issue = syncIssueFor(error)
-      // A sign-out or account change would fail every remaining activity the same way.
-      if (haltsImport(issue)) throw error
-      if (error instanceof Error && 'status' in error && error.status === 404) missing++
-      // The stored original no longer matches a different saved copy, so it cannot be matched.
-      else if (issue === 'activity-conflict') missing++
-      else if (issue === 'daily-limit' || issue === 'rate-limited') {
-        limitReached = true
-        limited++
-        // A daily limit outranks a rate limit if both are seen.
-        if (issue === 'daily-limit') limitKind = 'daily'
-        else if (limitKind === null) limitKind = 'rate'
-      } else failed++
-    }
-  }
-  let refreshed
-  try {
-    // The refreshed listing is the library now shown, so its unreadable count replaces the first.
-    let refreshedUnreadable = 0
-    refreshed = await listActivities(undefined, userId, (count) => {
-      refreshedUnreadable += count
-    })
-    unreadable = refreshedUnreadable
-  } catch {
-    // Rebuild successes remain usable even if the final refresh is interrupted.
-    failed++
-    refreshed = records
-  }
-  device.replaced()
-  const state = session.loadDigests(
-    refreshed.map((record) => record.digest),
-    settings,
-  )
-  savedRecords.clear()
-  for (const record of refreshed) savedRecords.set(record.id, record)
-  reportLibrary()
-  reportUnreadable(unreadable)
-  // The error has no Retry-After, so a rate limit is assumed to clear with its 60 s window.
-  const limitResetsAtMs =
-    limitKind === 'daily'
-      ? nextUtcMidnightMs(Date.now())
-      : limitKind === 'rate'
-        ? Date.now() + RATE_LIMIT_WINDOW_MS
-        : null
-  return { state, rebuilt, missing, failed, limited, limitKind, limitResetsAtMs }
-}
-
 // Requests are handled strictly in order so a settings change cannot overtake a file import.
 let queue: Promise<void> = Promise.resolve()
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
@@ -379,10 +223,14 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       } else if (event.data.type === 'rebuildStale') {
         post({
           type: 'rebuildComplete',
-          ...(await rebuildStale(event.data.settings, event.data.userId)),
+          ...(await rebuildStale(libraryContext, event.data.settings, event.data.userId)),
         })
       } else if (event.data.type === 'exportData') {
         post({ type: 'exportReady', file: await exportAccount(event.data) })
+      } else if (event.data.type === 'activitySplits') {
+        post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
+      } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {
+        post(await routes.reply(event.data))
       } else {
         post({ type: 'state', state: await handle(event.data) })
       }

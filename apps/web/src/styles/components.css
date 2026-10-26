@@ -48,6 +48,7 @@
 }
 
 .hero-number {
+  display: block;
   font-size: clamp(3rem, 9vw, 4.5rem);
   font-weight: 800;
   line-height: 0.9;
@@ -90,11 +91,22 @@
   background: var(--status-good-bg);
 }
 
+/* A record chip takes its sport's colour as a soft fill, and keeps ink text for contrast. */
+.chip--run {
+  background: var(--series-run-soft);
+  color: var(--text-primary);
+}
+
+.chip--ride {
+  background: var(--series-ride-soft);
+  color: var(--text-primary);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--control-border);

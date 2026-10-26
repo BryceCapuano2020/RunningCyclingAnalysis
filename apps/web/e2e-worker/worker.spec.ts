@@ -26,12 +26,13 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
   await expect(
-    page.getByRole('heading', { level: 2, name: /^On foot, your bike is worth/ }),
+    page.getByRole('heading', { level: 2, name: /^On foot, your ride is worth/ }),
   ).toBeVisible()
   expect(violations).toEqual([])
 
   const session = await page.request.get('/api/me')
-  expect(session.status()).toBe(401)
+  expect(session.status()).toBe(200)
+  expect(await session.json()).toBeNull()
   expect(session.headers()['cache-control']).toBe('no-store')
   expect(session.headers()['x-request-id']).toMatch(/^[0-9a-f-]{36}$/)
   const missing = await page.request.get('/api/unknown')

@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 function gradeAt(percent: number, level: string): Grade {
-  return { grade: percent / 100, percent, level }
+  return { grade: percent / 100, level }
 }
 
 const RUN: SportGrade = { centre: gradeAt(67.6, 'Local'), range: null }
@@ -19,20 +19,20 @@ const RIDE: SportGrade = {
 }
 
 describe('LevelLadder', () => {
-  it('names a run as one activity’s estimate, with its level and the standard', () => {
+  it('names a run as one recorded effort at the headline duration, with its level and the standard', () => {
     render(<LevelLadder sport="run" grade={RUN} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67.6%, Local, from one activity, on the USATF road standards.',
+        name: 'Age grade 67%, Local, from your best 20 min, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
 
-  it('names a ride with its range, not with a single activity', () => {
+  it('names a ride as an estimate with its range, and names both levels when the range crosses one', () => {
     render(<LevelLadder sport="ride" grade={RIDE} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 67.6%, Local, range 63% to 71.5%, on the USATF road standards.',
+        name: 'Estimated age grade 67%, Local to Regional, from your best 20 min, range 63% to 71%, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
   })
@@ -41,9 +41,33 @@ describe('LevelLadder', () => {
     render(<LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />)
     expect(
       screen.getByRole('img', {
-        name: 'Estimated age grade 25%, Recreational, from one activity, below the 30% to 100% scale, on the USATF road standards.',
+        name: 'Age grade 25%, Recreational, from your best 20 min, below the 30% to 100% scale, on the USATF road standards.',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('fills and names both bands when a ride range crosses a band edge', () => {
+    const { container } = render(<LevelLadder sport="ride" grade={RIDE} />)
+    expect(container.querySelectorAll('.level-ladder__band--current')).toHaveLength(2)
+    const names = Array.from(
+      container.querySelectorAll('.level-ladder__name--current'),
+      (el) => el.textContent,
+    )
+    expect(names).toEqual(['Local', 'Regional'])
+  })
+
+  it('explains the solid dot for a run and the ring for a ride, in words beside the drawing', () => {
+    const run = render(<LevelLadder sport="run" grade={RUN} />)
+    expect(run.getByText('Solid dot: the grade of one recorded effort.')).toBeInTheDocument()
+    run.unmount()
+
+    render(<LevelLadder sport="ride" grade={RIDE} />)
+    expect(screen.getByText('Ring: estimated, with its range.')).toBeInTheDocument()
+  })
+
+  it('says in its key when a grade sits below the scale', () => {
+    render(<LevelLadder sport="run" grade={{ centre: gradeAt(25, 'Recreational'), range: null }} />)
+    expect(screen.getByText(/Below the 30% to 100% scale\./)).toBeInTheDocument()
   })
 
   it('says a grade above the scale is above it', () => {
@@ -111,17 +135,30 @@ describe('LevelLadder shapes', () => {
     expect(left + width).toBeCloseTo(SCALE_FRACTION(0.715), 2)
   })
 
-  it('holds a marker below the scale at its left end, and above it at its right end', () => {
+  it('keeps a marker below the scale inside the track, at its left end, and one above it at its right end', () => {
     const below = render(
       <LevelLadder sport="run" grade={{ centre: gradeAt(10, 'Recreational'), range: null }} />,
     )
-    expect(fraction(below.container, '.level-ladder__dot', 'cx')).toBe(0)
+    // The dot's radius plus half its stroke, so its outline stays inside the track at each end.
+    const clearOfEdge = (8 + 1) / 320
+    expect(fraction(below.container, '.level-ladder__dot', 'cx')).toBeCloseTo(clearOfEdge, 4)
     below.unmount()
 
     const above = render(
       <LevelLadder sport="run" grade={{ centre: gradeAt(310, 'World'), range: null }} />,
     )
-    expect(fraction(above.container, '.level-ladder__dot', 'cx')).toBe(1)
+    expect(fraction(above.container, '.level-ladder__dot', 'cx')).toBeCloseTo(1 - clearOfEdge, 4)
+  })
+
+  it('fills the band that holds the grade, and names that band in bold', () => {
+    const { container } = render(<LevelLadder sport="run" grade={RUN} />)
+    const current = container.querySelectorAll('.level-ladder__band--current')
+    expect(current).toHaveLength(1)
+    expect(fraction(container, '.level-ladder__band--current', 'x')).toBeCloseTo(
+      SCALE_FRACTION(0.6),
+      2,
+    )
+    expect(container.querySelector('.level-ladder__name--current')).toHaveTextContent('Local')
   })
 
   it('takes the sport’s colour from its class, so a run and a ride are drawn in their own', () => {

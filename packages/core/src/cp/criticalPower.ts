@@ -1,3 +1,4 @@
+import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '../constants'
 import { linearRegression, mean } from '../math'
 import type { Curve, CriticalPowerFit } from '../types'
 
@@ -6,14 +7,14 @@ const MIN_POINTS = 4
 
 /**
  * Fits value = cp + wPrime / durationS by ordinary least squares of value on x = 1 / durationS.
- * Uses points with minS <= durationS <= maxS (defaults 180 and 1200) and a finite value.
- * Returns null with fewer than 4 points, zero spread in x, equal values, wPrime < 0, or cp <= 0.
+ * Uses points with minS <= durationS <= maxS (defaults CP_FIT_MIN_S and CP_FIT_MAX_S) and a finite
+ * value. Returns null with fewer than 4 points, zero spread in x, equal values, wPrime < 0, or cp <= 0.
  */
 export function fitCriticalPower(
   curve: Curve,
   opts?: { minS?: number; maxS?: number },
 ): CriticalPowerFit | null {
-  const { minS = 180, maxS = 1200 } = opts ?? {}
+  const { minS = CP_FIT_MIN_S, maxS = CP_FIT_MAX_S } = opts ?? {}
   const points = curve.filter(
     (p) =>
       p.durationS > 0 && p.durationS >= minS && p.durationS <= maxS && Number.isFinite(p.value),

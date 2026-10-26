@@ -1,172 +1,102 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RejectedFile } from '@rca/core/session'
-import { makeRejectedFile } from './fixtures'
 import { RejectedFiles } from './RejectedFiles'
+import type { RejectedFilesProps } from './RejectedFiles'
 
 afterEach(() => {
   cleanup()
 })
 
-/** Count files that all share one reason, named file-1.zip, file-2.zip and so on. */
-function manyRejected(count: number, reason = 'No FIT files found'): RejectedFile[] {
-  return Array.from({ length: count }, (_, i) =>
-    makeRejectedFile({ fileName: `file-${i + 1}.zip`, reason }),
-  )
+/** Renders the skipped files with the count the summary gives: every file listed, and those counted. */
+function Skipped(props: Omit<RejectedFilesProps, 'count'>) {
+  const count = props.rejected.length + (props.duplicates?.length ?? 0) + props.unsupportedFiles
+  return <RejectedFiles count={count} {...props} />
 }
 
-/** The expandable group whose summary text is the given text. */
-function groupFor(summary: string): HTMLElement {
-  const group = screen.getByText(summary).closest('details')
-  if (!group) throw new Error(`no group for ${summary}`)
-  return group
+function skipped(fileName: string, code: RejectedFile['code'], detail?: string): RejectedFile {
+  return { fileName, reason: 'core reason', code, detail }
 }
 
-describe('RejectedFiles', () => {
-  it('renders nothing when no files were rejected and none were skipped', () => {
-    const { container } = render(<RejectedFiles rejected={[]} unsupportedFiles={0} />)
+describe('RejectedFiles: what was skipped, and why', () => {
+  it('says how many files were skipped, with the groups in a disclosure', () => {
+    render(
+      <Skipped
+        rejected={[skipped('notes.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[skipped('copy.gpx', 'duplicate', 'run.fit')]}
+      />,
+    )
+
+    expect(screen.getByText('2 files skipped.').closest('summary')).not.toBeNull()
+    expect(screen.getByText('Not an activity file: 1 file')).toBeInTheDocument()
+    expect(screen.getByText('Already added: 1 file')).toBeInTheDocument()
+  })
+
+  it('names each file beside its own plain reason, not the core reason', () => {
+    render(
+      <Skipped rejected={[skipped('bad.fit', 'corrupt')]} unsupportedFiles={0} duplicates={[]} />,
+    )
+
+    expect(
+      screen.getAllByText('bad.fit: Damaged, so it could not be read. Export it again.').length,
+    ).toBeGreaterThan(0)
+    expect(screen.queryByText('core reason', { exact: false })).not.toBeInTheDocument()
+  })
+
+  it('gives each group one suggested action', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('bad.fit', 'corrupt'),
+          skipped('walk.fit', 'unsupported-sport', 'walking'),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Only runs and rides are analysed, so these were left out on purpose.'),
+    ).toBeInTheDocument()
+  })
+
+  it('counts files in a format the app does not read, without naming them', () => {
+    render(<Skipped rejected={[]} unsupportedFiles={2} duplicates={[]} />)
+
+    expect(screen.getByText('2 files skipped.')).toBeInTheDocument()
+    expect(screen.getByText('Not an activity file: 2 files')).toBeInTheDocument()
+  })
+
+  it('names a sport in words and says it was left out on purpose', () => {
+    render(
+      <Skipped
+        rejected={[skipped('swim.fit', 'unsupported-sport', 'swimming')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.getAllByText('swim.fit: A swim is not a run or a ride, so it was left out on purpose.')
+        .length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('shows the first skipped file and its reason outside the disclosure', () => {
+    render(
+      <Skipped rejected={[skipped('empty.fit', 'empty')]} unsupportedFiles={0} duplicates={[]} />,
+    )
+
+    const first = document.querySelector('.rejected-files__first')
+    expect(first).toHaveTextContent('empty.fit: It has no activity records in it.')
+    expect(first?.closest('details')).toBeNull()
+  })
+
+  it('renders nothing when no file was skipped', () => {
+    const { container } = render(<Skipped rejected={[]} unsupportedFiles={0} duplicates={[]} />)
     expect(container).toBeEmptyDOMElement()
-  })
-
-  it('says how many unsupported files were skipped, singular', () => {
-    render(<RejectedFiles rejected={[]} unsupportedFiles={1} />)
-    expect(
-      screen.getByText('1 file was skipped. Only FIT, GPX or TCX files can be read.'),
-    ).toBeInTheDocument()
-  })
-
-  it('says how many unsupported files were skipped, plural', () => {
-    render(<RejectedFiles rejected={[]} unsupportedFiles={3} />)
-    expect(
-      screen.getByText('3 files were skipped. Only FIT, GPX or TCX files can be read.'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/could not be used/)).not.toBeInTheDocument()
-  })
-
-  it('shows the skipped-files sentence alongside rejected files', () => {
-    render(<RejectedFiles rejected={manyRejected(1)} unsupportedFiles={2} />)
-    expect(
-      screen.getByText('2 files were skipped. Only FIT, GPX or TCX files can be read.'),
-    ).toBeInTheDocument()
-    expect(screen.getByText('1 file could not be used')).toBeInTheDocument()
-  })
-
-  it('gives the total number of rejected files in the summary', () => {
-    render(
-      <RejectedFiles
-        rejected={[
-          makeRejectedFile({ fileName: 'a.fit', reason: 'No FIT files found' }),
-          makeRejectedFile({ fileName: 'b.fit', reason: 'Could not read the file header' }),
-        ]}
-        unsupportedFiles={0}
-      />,
-    )
-    expect(screen.getByText('2 files could not be used')).toBeInTheDocument()
-  })
-
-  it('groups rejected files by reason with a count for each reason', () => {
-    render(
-      <RejectedFiles
-        rejected={[
-          makeRejectedFile({ fileName: 'notes.txt', reason: 'No FIT files found' }),
-          makeRejectedFile({ fileName: 'readme.zip', reason: 'No FIT files found' }),
-          makeRejectedFile({ fileName: 'broken.fit', reason: 'Could not read the file header' }),
-        ]}
-        unsupportedFiles={0}
-      />,
-    )
-    expect(screen.getByText('No FIT files found: 2 files')).toBeInTheDocument()
-    expect(screen.getByText('Could not read the file header: 1 file')).toBeInTheDocument()
-  })
-
-  it('lists the file names inside their reason group', () => {
-    render(
-      <RejectedFiles
-        rejected={[
-          makeRejectedFile({ fileName: 'notes.txt', reason: 'No FIT files found' }),
-          makeRejectedFile({ fileName: 'broken.fit', reason: 'Could not read the file header' }),
-        ]}
-        unsupportedFiles={0}
-      />,
-    )
-    expect(
-      within(groupFor('No FIT files found: 1 file')).getByText('notes.txt'),
-    ).toBeInTheDocument()
-    expect(
-      within(groupFor('Could not read the file header: 1 file')).getByText('broken.fit'),
-    ).toBeInTheDocument()
-  })
-
-  it('orders groups by the first time each reason appears', () => {
-    const { container } = render(
-      <RejectedFiles
-        rejected={[
-          makeRejectedFile({ fileName: 'a.fit', reason: 'Second reason' }),
-          makeRejectedFile({ fileName: 'b.fit', reason: 'First reason' }),
-          makeRejectedFile({ fileName: 'c.fit', reason: 'Second reason' }),
-        ]}
-        unsupportedFiles={0}
-      />,
-    )
-    const summaries = Array.from(
-      container.querySelectorAll('.rejected-files__group > summary'),
-      (node) => node.textContent,
-    )
-    expect(summaries).toEqual(['Second reason: 2 files', 'First reason: 1 file'])
-  })
-
-  it('lists every name when a group has 50 or fewer files', () => {
-    render(<RejectedFiles rejected={manyRejected(50)} unsupportedFiles={0} />)
-    const group = groupFor('No FIT files found: 50 files')
-    expect(within(group).getAllByRole('listitem')).toHaveLength(50)
-    expect(within(group).getByText('file-50.zip')).toBeInTheDocument()
-    expect(screen.queryByText(/and \d+ more/)).not.toBeInTheDocument()
-  })
-
-  it('lists at most 50 names per group, then says how many more there are', () => {
-    render(<RejectedFiles rejected={manyRejected(73)} unsupportedFiles={0} />)
-    const group = groupFor('No FIT files found: 73 files')
-    // 50 names plus the summary line for the rest.
-    expect(within(group).getAllByRole('listitem')).toHaveLength(51)
-    expect(within(group).getByText('file-50.zip')).toBeInTheDocument()
-    expect(within(group).queryByText('file-51.zip')).not.toBeInTheDocument()
-    expect(within(group).getByText('and 23 more')).toBeInTheDocument()
-  })
-
-  it('caps each group separately', () => {
-    render(
-      <RejectedFiles
-        rejected={[
-          ...manyRejected(51, 'Reason A'),
-          ...manyRejected(2, 'Reason B').map((file) =>
-            Object.assign({}, file, { fileName: `b-${file.fileName}` }),
-          ),
-        ]}
-        unsupportedFiles={0}
-      />,
-    )
-    expect(within(groupFor('Reason A: 51 files')).getByText('and 1 more')).toBeInTheDocument()
-    expect(within(groupFor('Reason B: 2 files')).queryByText(/more/)).not.toBeInTheDocument()
-  })
-
-  it('uses the singular for one file', () => {
-    render(<RejectedFiles rejected={[makeRejectedFile()]} unsupportedFiles={0} />)
-    expect(screen.getByText('1 file could not be used')).toBeInTheDocument()
-  })
-
-  it('lists skipped duplicates under their reason, apart from the rejected files', () => {
-    render(
-      <RejectedFiles
-        rejected={[]}
-        unsupportedFiles={0}
-        duplicates={[
-          makeRejectedFile({ fileName: 'ride.gpx', reason: 'Same workout as ride.fit' }),
-        ]}
-      />,
-    )
-    expect(screen.getByText('1 file skipped as a copy of a better file')).toBeInTheDocument()
-    expect(screen.queryByText(/could not be used/)).not.toBeInTheDocument()
-    expect(groupFor('Same workout as ride.fit: 1 file')).toBeInTheDocument()
   })
 })

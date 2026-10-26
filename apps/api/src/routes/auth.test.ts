@@ -80,9 +80,9 @@ describe('GET /api/auth/google/callback', () => {
         pictureUrl: 'https://lh3.example.test/photo.jpg',
       },
       profile: {
-        massKg: 75,
+        massKg: null,
         bikeMassKg: 9,
-        units: 'imperial',
+        units: 'metric',
         keepFiles: false,
         birthYear: null,
         sex: null,
@@ -364,6 +364,68 @@ describe('GET /api/auth/google/callback', () => {
   })
 })
 
+describe('new account units from the sign-in language', () => {
+  it('starts a new dev-login account in the units of the request language', async () => {
+    const h = createHarness()
+    const british = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'uk@example.com', name: 'Uk' },
+      headers: { 'accept-language': 'en-GB,en;q=0.9' },
+    })
+    expect(await british.json()).toMatchObject({ profile: { units: 'metric' } })
+    const american = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'us@example.com', name: 'Us' },
+      headers: { 'accept-language': 'en-US,en;q=0.9' },
+    })
+    expect(await american.json()).toMatchObject({ profile: { units: 'imperial' } })
+  })
+
+  it('starts a new dev-login account in metric when the request has no language', async () => {
+    const h = createHarness()
+    const res = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'none@example.com', name: 'None' },
+    })
+    expect(await res.json()).toMatchObject({ profile: { units: 'metric' } })
+  })
+
+  it('starts a new Google account in the units of the sign-in callback language', async () => {
+    const google = fakeGoogle({ idToken: fakeIdToken(googleClaims()) })
+    const h = createHarness({ google: () => google })
+    const { state, verifier } = await startSignIn(h)
+    const res = await h.send({
+      path: callbackParams(state),
+      cookies: { rca_oauth_state: state, rca_oauth_verifier: verifier },
+      headers: { 'accept-language': 'en-US,en;q=0.9' },
+    })
+    const token = sessionCookie(res) ?? ''
+    const me = await h.send({ path: '/api/me', cookies: { rca_session: token } })
+    expect(await me.json()).toMatchObject({ profile: { units: 'imperial' } })
+  })
+
+  it('does not change the units of an account that already has a profile', async () => {
+    const h = createHarness()
+    const first = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'kept@example.com', name: 'Kept' },
+      headers: { 'accept-language': 'en-US,en;q=0.9' },
+    })
+    expect(await first.json()).toMatchObject({ profile: { units: 'imperial' } })
+    const again = await h.send({
+      method: 'POST',
+      path: '/api/auth/dev-login',
+      json: { email: 'kept@example.com', name: 'Kept' },
+      headers: { 'accept-language': 'en-GB,en;q=0.9' },
+    })
+    expect(await again.json()).toMatchObject({ profile: { units: 'imperial' } })
+  })
+})
+
 describe('POST /api/auth/dev-login', () => {
   it('signs in a local user, lower-casing the email, and returns Me', async () => {
     const h = createHarness()
@@ -375,7 +437,7 @@ describe('POST /api/auth/dev-login', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({
       user: { email: 'dev@example.com', name: 'Dev', pictureUrl: null },
-      profile: { massKg: 75, bikeMassKg: 9, units: 'imperial', keepFiles: false },
+      profile: { massKg: null, bikeMassKg: 9, units: 'metric', keepFiles: false },
       fileRetentionAvailable: true,
     })
     expect(sessionCookie(res)).toBeTruthy()

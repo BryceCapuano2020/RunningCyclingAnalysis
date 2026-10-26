@@ -1,3 +1,4 @@
+import { EARTH_RADIUS_M } from '../import/gps'
 import type { Activity } from '../types'
 
 /** Test-only: writes TCX as Garmin Connect does. The parser never imports it. */
@@ -154,9 +155,9 @@ function routeOf(activity: Activity, noise: number): (LatLon | undefined)[] {
   return route
 }
 
-/** The point `metres` away from `from` on `bearing`, on a sphere of radius 6,371,008.8 m. */
+/** The point `metres` away from `from` on `bearing`, on the sphere the parser projects with. */
 function destination(from: LatLon, bearing: number, metres: number): LatLon {
-  const delta = metres / 6_371_008.8
+  const delta = metres / EARTH_RADIUS_M
   const phi1 = from.lat * RAD
   const lambda1 = from.lon * RAD
   const phi2 = Math.asin(

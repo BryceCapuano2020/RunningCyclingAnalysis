@@ -7,7 +7,7 @@ import { loadCardFonts, renderShareCard } from '../../share/renderCard'
 import { makeActivity, makeResult } from './fixtures'
 import { ShareImageButton } from './ShareImageButton'
 
-vi.mock('../../share/download', () => ({ saveCanvasPng: vi.fn(async () => true) }))
+vi.mock('../../share/download', () => ({ saveCanvasPng: vi.fn(async () => 'saved' as const) }))
 vi.mock('../../share/renderCard', () => ({
   loadCardFonts: vi.fn(async () => undefined),
   renderShareCard: vi.fn(() => true),
@@ -32,9 +32,11 @@ function renderButton(overrides: Partial<Parameters<typeof ShareImageButton>[0]>
       result={makeResult()}
       settings={{ massKg: 75, bikeMassKg: 9 }}
       units="metric"
-      rangeDays={42}
+      period={{ choice: 42, startMs: null, endMs: null, days: 42, fellBack: false }}
       isSample={false}
       effort={null}
+      weightKnown
+      gap={null}
       disabled={false}
       {...overrides}
     />,
@@ -142,6 +144,20 @@ describe('ShareImageButton', () => {
     )
   })
 
+  it('gives the card the grade gap on the page, so its headline and meter agree with it', async () => {
+    renderButton({ gap: { centre: -6, low: -10, high: -2, lean: 'ride' } })
+    download(SQUARE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
+    expect(renderShareCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headline: 'Your balance leans toward cycling',
+        meter: expect.objectContaining({ unit: 'points', lean: 'ride' }),
+      }),
+      expect.any(HTMLCanvasElement),
+      'square',
+    )
+  })
+
   it('reports failure and saves nothing when the card cannot be drawn', async () => {
     vi.mocked(renderShareCard).mockReturnValueOnce(false)
     renderButton()
@@ -151,10 +167,25 @@ describe('ShareImageButton', () => {
   })
 
   it('reports failure when the browser cannot save the image', async () => {
-    vi.mocked(saveCanvasPng).mockResolvedValueOnce(false)
+    vi.mocked(saveCanvasPng).mockResolvedValueOnce(null)
     renderButton()
     download(SQUARE)
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(FAILED))
+  })
+
+  it('says the image was shared when it went to the share sheet', async () => {
+    vi.mocked(saveCanvasPng).mockResolvedValueOnce('shared')
+    renderButton()
+    download(SQUARE)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image shared'))
+  })
+
+  it('says nothing saved when the visitor closed the share sheet', async () => {
+    vi.mocked(saveCanvasPng).mockResolvedValueOnce('cancelled')
+    renderButton()
+    download(SQUARE)
+    await waitFor(() => expect(screen.getByRole('button', { name: SQUARE })).toBeEnabled())
+    expect(screen.getByRole('status').textContent).toBe('')
   })
 
   it('reports failure, and is clickable again, when making the image throws', async () => {
@@ -177,9 +208,9 @@ describe('ShareImageButton', () => {
   })
 
   it('marks the buttons aria-disabled while the image is being made, and keeps its focus', async () => {
-    let finish: (value: boolean) => void = () => undefined
+    let finish: (value: 'saved') => void = () => undefined
     vi.mocked(saveCanvasPng).mockImplementationOnce(
-      () => new Promise<boolean>((resolve) => (finish = resolve)),
+      () => new Promise<'saved'>((resolve) => (finish = resolve)),
     )
     renderButton()
     const button = screen.getByRole('button', { name: SQUARE })
@@ -189,15 +220,15 @@ describe('ShareImageButton', () => {
     // Disabling the focused button would drop focus to the page body.
     expect(button).toBeEnabled()
     expect(button).toHaveFocus()
-    await act(async () => finish(true))
+    await act(async () => finish('saved'))
     await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'false'))
     expect(button).toHaveFocus()
   })
 
   it('does not start a story while the square is being made', async () => {
-    let finish: (value: boolean) => void = () => undefined
+    let finish: (value: 'saved') => void = () => undefined
     vi.mocked(saveCanvasPng).mockImplementationOnce(
-      () => new Promise<boolean>((resolve) => (finish = resolve)),
+      () => new Promise<'saved'>((resolve) => (finish = resolve)),
     )
     renderButton()
     download(SQUARE)
@@ -205,7 +236,7 @@ describe('ShareImageButton', () => {
       expect(screen.getByRole('button', { name: STORY })).toHaveAttribute('aria-disabled', 'true'),
     )
     download(STORY)
-    await act(async () => finish(true))
+    await act(async () => finish('saved'))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Image saved'))
     expect(renderShareCard).toHaveBeenCalledTimes(1)
   })

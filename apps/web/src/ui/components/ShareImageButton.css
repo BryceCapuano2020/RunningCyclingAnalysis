@@ -1,8 +1,7 @@
-/* The download sits under the headline, beside a line saying where the file is made. */
+/* The downloads sit beside the headline, with a line saying where the file is made. */
 .share-image {
   display: grid;
   gap: var(--space-2);
-  margin-top: var(--space-4);
 }
 
 .share-image__actions {

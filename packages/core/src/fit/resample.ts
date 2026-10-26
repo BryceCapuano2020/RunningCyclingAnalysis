@@ -36,6 +36,11 @@ export interface Resampled {
   power: Float64Array
   /** 1 while an explicit timer pause is active, or inside a long record gap when events are absent. */
   paused: Uint8Array
+  /**
+   * 1 inside a record gap of over 10 s that no timer pause covers: the seconds were not recorded, so
+   * their time and distance are unknown. Set on every activity, timer events or not.
+   */
+  unrecorded: Uint8Array
   hasPower: boolean
   hasHeartRate: boolean
   hasAltitude: boolean
@@ -102,6 +107,9 @@ export function resample(
   const paused = hasRecognizedTimerEvents
     ? markTimerPauses(recorded, startMs, timerEvents)
     : markPauses(recorded)
+  // A gap that a timer pause covers is a real pause, so only the other gaps are unrecorded.
+  const gaps = markPauses(recorded)
+  const unrecorded = hasRecognizedTimerEvents ? andNot(gaps, paused) : gaps
 
   const hasSpeed = speedKnown.some(isFiniteValue)
   const hasDistance = distanceKnown.some(isFiniteValue)
@@ -145,6 +153,7 @@ export function resample(
     heartRate,
     power,
     paused,
+    unrecorded,
     hasPower,
     hasHeartRate,
     hasAltitude,
@@ -161,6 +170,7 @@ function emptyResample(): Resampled {
     heartRate: new Float64Array(0),
     power: new Float64Array(0),
     paused: new Uint8Array(0),
+    unrecorded: new Uint8Array(0),
     hasPower: false,
     hasHeartRate: false,
     hasAltitude: false,
@@ -175,6 +185,11 @@ function sortByTime(records: RawRecord[]): RawRecord[] {
 /** Stores a value at grid index i. Later records overwrite earlier ones; missing values do not. */
 function put(dst: Float64Array, i: number, value: number | undefined): void {
   if (value !== undefined && Number.isFinite(value)) dst[i] = value
+}
+
+/** 1 where `a` is 1 and `b` is 0. */
+function andNot(a: Uint8Array, b: Uint8Array): Uint8Array {
+  return Uint8Array.from(a, (value, i) => (value === 1 && b[i] !== 1 ? 1 : 0))
 }
 
 /** Marks every index strictly inside a gap of more than 10 s between records. */

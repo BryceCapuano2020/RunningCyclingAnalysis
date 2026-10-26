@@ -1,11 +1,48 @@
+import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
+
+/** Binary sizes, for byte limits and for telling people how large a file may be. */
+export const MIB = 1024 ** 2
+export const GIB = 1024 ** 3
+
 /** Durations, in seconds, at which every duration curve is evaluated. */
 export const DURATIONS_S = [
   5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200,
   10800,
 ] as const
 
+/** Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km and 10 km. */
+export const RUN_RECORD_DISTANCES_M = [
+  METRES_PER_KM,
+  METRES_PER_MILE,
+  5 * METRES_PER_KM,
+  10 * METRES_PER_KM,
+] as const
+export type RunRecordDistanceM = (typeof RUN_RECORD_DISTANCES_M)[number]
+/**
+ * Most splits one run may have in each unit, counting a partial split. A run over the limit has
+ * none in that unit. 500 is a 500 km run, and 320 miles is about 515 km.
+ */
+export const MAX_KM_SPLITS = 500
+export const MAX_MILE_SPLITS = 320
+
 /** The duration, s, that the headline and the fitness trend describe: 20 minutes. */
 export const HEADLINE_DURATION_S = 1200
+
+/** The shortest and longest efforts, s, the critical-power fit uses: 3 to 20 minutes. */
+export const CP_FIT_MIN_S = 180
+export const CP_FIT_MAX_S = 1200
+
+/** The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. */
+export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
+  180,
+  300,
+  600,
+  HEADLINE_DURATION_S,
+  1800,
+  3600,
+]
+/** The shortest ride, s, that an equivalence is worked out for. */
+export const EQUIVALENCE_MIN_S = EQUIVALENCE_DURATIONS_S[0]!
 
 export const DAY_MS = 86_400_000
 
@@ -60,3 +97,10 @@ export const MIN_CLIMB_GRADE = 0.03
  * metabolic power identically in both sports.
  */
 export const HR_MODEL_DISCREPANCY = 0.05
+
+/**
+ * The heart-rate blocks: each is this many seconds of steady effort, averaged for the check, and
+ * the first HR_SKIP_S seconds of an activity are left out, as warm-up and settling.
+ */
+export const HR_BLOCK_S = 300
+export const HR_SKIP_S = 600

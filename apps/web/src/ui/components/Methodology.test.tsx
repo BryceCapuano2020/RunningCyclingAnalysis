@@ -1,130 +1,198 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import {
-  DEFAULT_WINDOW_DAYS,
-  EFFORT_LENGTHS_S,
-  MIN_WINDOW_DAYS,
-} from '@rca/core/digest/trendPoints'
-import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
+import { DEFAULT_WINDOW_DAYS, MIN_WINDOW_DAYS } from '@rca/core/digest/trendPoints'
 import { Methodology } from './Methodology'
 
 afterEach(() => {
   cleanup()
 })
 
-/** The effort lengths in minutes, as the copy names them: "5, 20 or 60 minutes". */
-const EFFORT_MINUTES = EFFORT_LENGTHS_S.map((durationS) => durationS / 60)
-const EFFORT_PHRASE = `${EFFORT_MINUTES.slice(0, -1).join(', ')} or ${EFFORT_MINUTES.at(-1)} minutes`
+/** The text of the plain-words paragraph under a topic's heading. */
+function plainOf(title: string): HTMLElement {
+  const heading = screen.getByRole('heading', { level: 3, name: title })
+  const section = heading.closest('section')
+  if (!section) throw new Error(`No section under ${title}`)
+  return section
+}
 
 describe('Methodology', () => {
-  it('is a collapsed details card with the methodology title', () => {
+  it('has the title as a heading outside a disclosure, so the summary holds no heading', () => {
     const { container } = render(<Methodology />)
-    const details = container.querySelector('details')
-    expect(details).not.toBeNull()
-    expect(details).not.toHaveAttribute('open')
+
     expect(
       screen.getByRole('heading', { level: 2, name: 'How this works and what it assumes' }),
     ).toBeInTheDocument()
-  })
-
-  it('puts the title in an h2 inside the summary, with no custom summary class', () => {
-    const { container } = render(<Methodology />)
     const summary = container.querySelector('details > summary')
     expect(summary).not.toBeNull()
-    expect(summary?.className).toBe('')
-    expect(summary?.querySelector('h2')).toHaveTextContent('How this works and what it assumes')
+    expect(summary?.querySelector('h2, h3')).toBeNull()
   })
 
-  it('has a plain-language section for each assumption', () => {
+  it('is collapsed by default, and opens when asked', () => {
+    const { container, unmount } = render(<Methodology />)
+    expect(container.querySelector('details')).not.toHaveAttribute('open')
+    unmount()
+
+    const opened = render(<Methodology open />)
+    expect(opened.container.querySelector('details')).toHaveAttribute('open')
+  })
+
+  it('lists every topic when no list is given, in order', () => {
     render(<Methodology />)
-    for (const title of [
+
+    const headings = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((heading) => heading.textContent)
+    expect(headings).toEqual([
       'One unit for both sports',
       'Why there is a range',
+      'Fitness over time',
       'Heart-rate check',
       'Virtual power meter',
       'Data checks',
+      'Where speed comes from',
       'Limits',
-    ]) {
-      expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
-    }
+    ])
+  })
+
+  it('lists only the topics it is given', () => {
+    render(<Methodology topics={['trend', 'limits']} />)
+
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2)
+    expect(screen.getByRole('heading', { level: 3, name: 'Fitness over time' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Heart-rate check' })).not.toBeInTheDocument()
+  })
+
+  it('puts each technical detail behind a named More detail disclosure', () => {
+    const { container } = render(<Methodology topics={['speed']} />)
+
+    const detail = container.querySelector('details.methodology__detail')
+    expect(detail).not.toBeNull()
+    expect(detail?.querySelector('summary')).toHaveTextContent(
+      'More detail: Where speed comes from',
+    )
   })
 
   it('says which speed a GPX, TCX or GPS-only file uses, and where GPS is less reliable', () => {
-    render(<Methodology />)
-    const heading = screen.getByRole('heading', { level: 3, name: 'Where speed comes from' })
-    const body = heading.nextElementSibling
-    expect(body).toHaveTextContent('A TCX file with device speed uses that speed.')
-    expect(body).toHaveTextContent('centred difference over 10 seconds either side of each point')
-    expect(body).toHaveTextContent('GPX files never carry device speed')
-    expect(body).toHaveTextContent('a centred window of 20 seconds')
-    expect(body).toHaveTextContent('more than twice the sport’s maximum speed rejected')
-    expect(body).toHaveTextContent('a gap longer than 30 seconds crediting no distance')
-    expect(body).toHaveTextContent('Speeds below 0.5 m/s count as still.')
-    expect(body).toHaveTextContent('Short best efforts under about 30 seconds from GPS-only files')
-  })
+    render(<Methodology topics={['speed']} />)
 
-  it('explains the fitness trend: prior means, the headline median, gaps and the period', () => {
-    render(<Methodology />)
-    const heading = screen.getByRole('heading', { level: 3, name: 'Fitness over time' })
-    const body = heading.nextElementSibling
-    expect(body).toHaveTextContent('prior-mean efficiency and running economy')
-    expect(body).toHaveTextContent('median of the model draws')
-    expect(body).toHaveTextContent('no run or ride with an effort of that length')
-    expect(body).toHaveTextContent(`(${EFFORT_PHRASE}; Balance uses ${HEADLINE_DURATION_S / 60})`)
-    expect(body).toHaveTextContent(`${DEFAULT_WINDOW_DAYS} days over all time`)
-    expect(body).toHaveTextContent(
-      `at least ${MIN_WINDOW_DAYS} days and at most ${DEFAULT_WINDOW_DAYS} days`,
+    const section = plainOf('Where speed comes from')
+    expect(section).toHaveTextContent('A file that records speed uses that speed.')
+    expect(section).toHaveTextContent(
+      'the change in distance over the 10 s either side of each point (a centred difference)',
     )
-    expect(body).toHaveTextContent('Each window lies inside the selected period')
-    expect(body).toHaveTextContent('priced with the selected period’s one bike model')
-    expect(body).toHaveTextContent('bike model is fitted on the activities in the selected period')
+    expect(section).toHaveTextContent('GPX files never carry device speed')
+    expect(section).toHaveTextContent('a 20 s window centred on each point')
+    expect(section).toHaveTextContent('more than twice the sport’s maximum speed')
+    expect(section).toHaveTextContent('credits no distance across a gap longer than 30 s')
+    expect(section).toHaveTextContent('Speeds below 0.5 m/s count as still.')
+    expect(section).toHaveTextContent('Short best efforts under about 30 s')
   })
 
-  it('states the average gross efficiency and the 90% range', () => {
-    render(<Methodology />)
-    expect(screen.getByText(/about 21\.5%/)).toBeInTheDocument()
-    expect(screen.getByText(/90% range/)).toBeInTheDocument()
+  it('explains the fitness trend in three plain facts, in durations written one way', () => {
+    render(<Methodology topics={['trend']} />)
+
+    const section = plainOf('Fitness over time')
+    expect(section).toHaveTextContent('one week, ending on a Sunday in UTC')
+    expect(section).toHaveTextContent('5 min, 20 min or 60 min')
+    expect(section).toHaveTextContent(`Balance uses ${HEADLINE_DURATION_S / 60} min.`)
+    expect(section).toHaveTextContent(`All time uses ${DEFAULT_WINDOW_DAYS} days.`)
+    expect(section).toHaveTextContent(
+      `a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days`,
+    )
+    // The example periods are the picker's own options, with the window the trend really uses.
+    expect(section).toHaveTextContent(
+      '6 weeks uses 14 days, 3 months uses 30 days and 1 year uses 42 days.',
+    )
+    expect(section).toHaveTextContent('Each window lies inside the period you chose.')
+    expect(section).toHaveTextContent(
+      'A gap means no run or ride of that length fell inside the window.',
+    )
+    expect(section.querySelectorAll(':scope > p')).toHaveLength(3)
+  })
+
+  it('keeps the technical trend detail, with the median and the bike model, behind the disclosure', () => {
+    render(<Methodology topics={['trend']} />)
+
+    const detail = plainOf('Fitness over time').querySelector('details')
+    expect(detail).toHaveTextContent('the median, the middle of the model’s simulated answers')
+    expect(detail).toHaveTextContent('period’s one bike model')
+    expect(plainOf('Fitness over time')).toHaveTextContent(
+      'Running is shown as grade-adjusted pace, which is pace corrected for the hill, and cycling as power in watts.',
+    )
+  })
+
+  it('does not say "priced" or use the unexplained terms of the old copy', () => {
+    const { container } = render(<Methodology />)
+    const text = container.textContent ?? ''
+
+    expect(text).not.toMatch(/priced|prior-mean|draws|centred difference over 10 seconds\)/)
+    expect(text).not.toMatch(/\bminutes\b/)
+  })
+
+  it('explains the heart-rate reference and the cycling offset, in beats per minute', () => {
+    render(<Methodology topics={['heart']} />)
+
+    const section = plainOf('Heart-rate check')
+    expect(section).toHaveTextContent(
+      'Heart rate is used to check the model, not to measure fitness.',
+    )
+    const detail = section.querySelector('details')
+    expect(detail).toHaveTextContent('beats per minute (bpm)')
+    expect(detail).toHaveTextContent(
+      'Running uses the higher of its own maximum and the cycling maximum.',
+    )
+    expect(detail).toHaveTextContent(
+      'Cycling uses the higher of its own maximum and 6 bpm below the running maximum',
+    )
+    expect(detail).toHaveTextContent('5 to 7 bpm lower')
   })
 
   it('says air density follows the altitude in the file, with sea level as the fallback', () => {
-    render(<Methodology />)
-    const heading = screen.getByRole('heading', { level: 3, name: 'Virtual power meter' })
-    expect(heading.nextElementSibling).toHaveTextContent(
-      'Air density follows altitude from the file (ISA, 15 °C), with sea level when altitude is missing or the ride is indoors.',
+    render(<Methodology topics={['virtual']} />)
+
+    expect(plainOf('Virtual power meter').querySelector('details')).toHaveTextContent(
+      'Air density follows the altitude in the file, using the International Standard Atmosphere (ISA, 15 °C at sea level).',
     )
   })
 
-  it('says heart-rate checks build each reference from the sports’ highest sustained heart rates, with the cycling offset', () => {
-    render(<Methodology />)
-    const heading = screen.getByRole('heading', { level: 3, name: 'Heart-rate check' })
-    expect(heading.nextElementSibling).toHaveTextContent(
-      'Heart-rate checks judge each sport’s best efforts against a reference maximum built from each sport’s highest sustained heart rate.',
-    )
-    expect(heading.nextElementSibling).toHaveTextContent(
-      `Running uses the higher of its own maximum and the cycling maximum. Cycling uses the higher of its own maximum and ${RIDE_MAX_OFFSET_BPM} bpm below the running maximum`,
-    )
-    expect(heading.nextElementSibling).toHaveTextContent(
-      `it is never more than ${RIDE_MAX_OFFSET_BPM} bpm below running`,
+  it('says the virtual power estimate is fitted to power-meter rides and checked leave-one-out', () => {
+    render(<Methodology topics={['virtual']} />)
+
+    expect(plainOf('Virtual power meter')).toHaveTextContent(
+      'The model is fitted to your rides that have a power meter, and its accuracy is checked on each ride with that ride left out of the fit.',
     )
   })
 
-  it('defines the energy rate once, as gross metabolic power in W/kg, and uses it elsewhere', () => {
+  it('states the efficiency and running-economy spread, and that a range is not a percentile', () => {
+    render(<Methodology topics={['range', 'unit']} />)
+
+    expect(plainOf('Why there is a range')).toHaveTextContent(
+      'the range is not a fitness percentile',
+    )
+    const detail = plainOf('Why there is a range').querySelector('details')
+    expect(detail).toHaveTextContent('by about 7%, and running economy by about 8%')
+    // The range and its limits are defined once, on How sure is this?, so this topic refers back.
+    expect(detail?.textContent).not.toMatch(/every source of|sensor error|90% range summarises/)
+    expect(detail).toHaveTextContent('The energy view above says what the range is')
+    expect(plainOf('One unit for both sports').querySelector('details')).toHaveTextContent(
+      'Gross efficiency averages about 21.5%.',
+    )
+  })
+})
+
+describe('Methodology topic copy', () => {
+  it('uses British spelling in every topic', () => {
     const { container } = render(<Methodology />)
     const text = container.textContent ?? ''
-    expect(text.match(/gross metabolic/g)).toHaveLength(1)
-    expect(text).toContain('energy rate (gross metabolic power, W/kg)')
-    expect(text).not.toMatch(/gross metabolic W\/kg/)
+
+    expect(text).toMatch(/centred/)
+    expect(text).not.toMatch(/\b(centered|summarizes|analyze|color|kilometer)\w*/i)
   })
 
-  it('says the model is fitted to all power-meter rides and its accuracy is scored leave-one-out', () => {
-    render(<Methodology />)
-    const heading = screen.getByRole('heading', { level: 3, name: 'Virtual power meter' })
-    const body = heading.nextElementSibling
-    expect(body).toHaveTextContent(
-      'Power is estimated on climbs from speed, gradient and weight using a model fitted to your power-meter rides; its accuracy is scored on each ride with that ride left out of the fit.',
-    )
-    expect(body?.textContent).not.toMatch(/tuned on your other/)
+  it('never calls a level or a balance weak, a limiter or ahead', () => {
+    const { container } = render(<Methodology />)
+    expect(within(container).queryByText(/\b(ahead of|limiter|weak|strength)\b/i)).toBeNull()
   })
 })

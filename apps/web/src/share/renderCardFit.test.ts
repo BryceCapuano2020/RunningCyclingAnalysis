@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { energyReading } from '../ui/components/balanceScale'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
 import { BAND_HEIGHT, DOT_RADIUS } from './cardMeter'
 import type { ShareCardModel } from './cardModel'
@@ -223,7 +224,7 @@ describe('the balance band', () => {
   it('stays centred on the dot when a single value widens it to the minimum', () => {
     const { ok, ctx } = render(
       cardModel({
-        meter: { lean: 'run', ratio: { p05: 1.1, p50: 1.1, p95: 1.1 } },
+        meter: energyReading({ p05: 1.1, p50: 1.1, p95: 1.1 }),
       }),
       'square',
     )

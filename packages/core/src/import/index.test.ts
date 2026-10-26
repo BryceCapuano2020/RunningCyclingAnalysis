@@ -5,6 +5,7 @@ import { encodeTcx } from '../tcx/encode'
 import { sampleDataset } from '../synthetic'
 import type { Activity } from '../types'
 import { parseActivityFile } from './index'
+import { generatedName } from './names'
 
 const run = sampleDataset().activities.find((a) => a.sport === 'run') as Activity
 
@@ -27,7 +28,7 @@ describe('parseActivityFile', () => {
   it('ignores a trailing .gz when choosing the parser', () => {
     const result = parseActivityFile(encodeGpx(run), 'run.gpx.gz')
     expect(result.ok && result.activities).toHaveLength(1)
-    expect(result.ok && result.activities[0]?.name).toBe('run')
+    expect(result.ok && result.activities[0]?.name).toBe(generatedName(run.startMs, 'run'))
   })
 
   it('refuses any other extension with a clear reason and keeps the file name', () => {
@@ -36,6 +37,7 @@ describe('parseActivityFile', () => {
       ok: false,
       fileName: 'notes.txt',
       reason: 'Not a FIT, GPX or TCX file',
+      code: 'not-activity',
     })
   })
 
@@ -46,6 +48,11 @@ describe('parseActivityFile', () => {
 
   it('reports a GPX parse failure under the GPX parser', () => {
     const result = parseActivityFile(new TextEncoder().encode('<html/>'), 'bad.gpx')
-    expect(result).toEqual({ ok: false, fileName: 'bad.gpx', reason: 'Not a GPX file' })
+    expect(result).toEqual({
+      ok: false,
+      fileName: 'bad.gpx',
+      reason: 'Not a GPX file',
+      code: 'corrupt',
+    })
   })
 })

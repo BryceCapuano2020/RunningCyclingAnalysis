@@ -8,6 +8,8 @@ import type { Scale } from './scale'
 /** Pace steps in seconds: quarter, half and whole minutes, then two and five. */
 const PACE_STEPS_S = [15, 30, 60, 120, 300]
 const INTERVALS = 4
+/** Absorbs floating-point noise in a span that should be exactly INTERVALS steps wide. */
+const SPAN_TOLERANCE = 1e-9
 
 /** A value that can be drawn as a pace or a power: a speed in m/s or watts, above zero. */
 export function usable(value: number): number {
@@ -32,8 +34,9 @@ export function nativeLabel(sport: Sport): string {
   return sport === 'run' ? 'Grade-adjusted pace' : 'Power'
 }
 
+/** The vertical axis's title. Pace says which way is faster, since its axis runs the other way. */
 export function axisTitle(sport: Sport, units: UnitSystem): string {
-  return sport === 'run' ? `Grade-adjusted pace (${PACE_UNIT[units]})` : 'Power (W)'
+  return sport === 'run' ? `Grade-adjusted pace (${PACE_UNIT[units]}), faster up` : 'Power (W)'
 }
 
 /** The pace unit spelt out, for a chart's name: "per kilometre" or "per mile". */
@@ -50,12 +53,21 @@ export function fillsArea(sport: Sport): boolean {
   return sport === 'ride'
 }
 
+/** A pace axis spans at least this many seconds, so a narrow range is not cut into a wall of ticks. */
+const MIN_PACE_SPAN_S = 120
+
 /** Round tick values, in seconds, that cover the values, with the step chosen from PACE_STEPS_S. */
 function paceDomain(seconds: number[]): { domain: [number, number]; ticks: number[] } {
-  const lo = Math.min(...seconds)
-  const hi = Math.max(...seconds)
-  const span = hi - lo || 1
-  const step = PACE_STEPS_S.find((candidate) => span / candidate <= INTERVALS) ?? 300
+  let lo = Math.min(...seconds)
+  let hi = Math.max(...seconds)
+  if (hi - lo < MIN_PACE_SPAN_S) {
+    const mid = (lo + hi) / 2
+    lo = mid - MIN_PACE_SPAN_S / 2
+    hi = mid + MIN_PACE_SPAN_S / 2
+  }
+  const span = hi - lo
+  const step =
+    PACE_STEPS_S.find((candidate) => span / candidate <= INTERVALS + SPAN_TOLERANCE) ?? 300
   const first = Math.floor(lo / step)
   const last = Math.ceil(hi / step)
   const ticks: number[] = []

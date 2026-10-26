@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react'
 import { ChartTooltip } from './ChartTooltip'
-import type { ChartSize, TooltipContent } from './chartTypes'
+import type { ChartSize, Point, TooltipContent } from './chartTypes'
 import { nearestByX, stepActive } from './hover'
+import type { PositionPick } from './hover'
 import { PlotSurface } from './PlotSurface'
 import { NARROW_WIDTH } from './ticks'
 
 const MARKER_R = 4
 const ACTIVE_MARKER_R = 6
-/** Below NARROW_WIDTH, markers are 5 px across. */
-const NARROW_MARKER_R = 2.5
-const NARROW_ACTIVE_MARKER_R = 4
+/** Below NARROW_WIDTH, markers stay 8 px across, so that they still read as points. */
+const NARROW_MARKER_R = 4
+const NARROW_ACTIVE_MARKER_R = 5
 
 export interface MarkerRadii {
   marker: number
@@ -26,18 +27,20 @@ export function markerRadii(width: number): MarkerRadii {
 /**
  * The focusable plot layer shared by the line charts. xs holds the pixel x of each navigable
  * point, in the order the arrow keys step through them. Null xs means the chart has no layout.
+ * The pointer picks a point with pick: the nearest, or for a stepped line the last at or before it.
  */
 export function plotSurface(
   size: ChartSize,
   xs: number[] | null,
   active: number | null,
   setActive: (index: number | null) => void,
+  pick: PositionPick = nearestByX,
 ): ReactNode {
   if (xs === null) return null
   return (
     <PlotSurface
       size={size}
-      onPoint={(point) => setActive(point === null ? null : nearestByX(xs, point.x))}
+      onPoint={(point) => setActive(point === null ? null : pick(xs, point.x))}
       onKey={(key) => {
         const next = stepActive(active, xs.length, key)
         if (next) setActive(next.index)
@@ -58,25 +61,52 @@ export function tooltipOverlay(size: ChartSize, content: TooltipContent | null):
   )
 }
 
-/**
- * Where a label sits relative to its point: down and to the left. A curve falls to the right, so
- * that space is clear of the line, and the label stays inside the plot at the right-hand edge.
- */
-export const ENDPOINT_LABEL_OFFSET = { x: -8, y: 18 }
+const LABEL_GAP_X = 8
+const LABEL_DROP = 18
+const LABEL_RISE = 10
 
 /**
- * The tooltip of the active point, anchored at its pixel x and the middle of the plot. Null when
- * there is no active point, or when the chart has no positions to anchor it to.
+ * Moves values down, in order, so that each sits at least gap below the one above it. Returns the
+ * values in their input order; a value already far enough from the one above does not move.
+ */
+export function spreadApart(ys: readonly number[], gap: number): number[] {
+  const order = ys.map((y, index) => ({ y, index })).sort((a, b) => a.y - b.y)
+  const placed = new Array<number>(ys.length).fill(0)
+  let last = -Infinity
+  for (const { y, index } of order) {
+    const at = Math.max(y, last + gap)
+    placed[index] = at
+    last = at
+  }
+  return placed
+}
+
+/**
+ * Where the label of an end point sits: left of the point, and below it, unless the line arrives
+ * from below. Then it sits above, so the line that reaches the point runs clear of it.
+ */
+export function endLabelAt(point: Point, from: Point | null): Point {
+  const fromBelow = from !== null && from.y > point.y
+  return { x: point.x - LABEL_GAP_X, y: point.y + (fromBelow ? -LABEL_RISE : LABEL_DROP) }
+}
+
+/**
+ * The tooltip of the active point, anchored beside it: at its pixel x, and at its pixel y when
+ * ys gives one, else the middle of the plot. Null when there is no active point, or when the chart
+ * has no positions to anchor it to.
  */
 export function tooltipAt(
   size: ChartSize,
   xs: readonly number[] | null,
   active: number | null,
   contentFor: (index: number, x: number, y: number) => TooltipContent | null,
+  ys?: readonly (number | null)[],
 ): TooltipContent | null {
   if (xs === null || active === null) return null
   const x = xs[active]
-  return x === undefined ? null : contentFor(active, x, (size.plot.top + size.plot.bottom) / 2)
+  if (x === undefined) return null
+  const y = ys?.[active] ?? (size.plot.top + size.plot.bottom) / 2
+  return contentFor(active, x, y)
 }
 
 /**
@@ -89,4 +119,14 @@ export function sizedOnce<T>(compute: (size: ChartSize) => T): (size: ChartSize)
     if (last === null || last.size !== size) last = { size, value: compute(size) }
     return last.value
   }
+}
+
+/** The point before index that has a value, or null: the sample a stepped line is at, before a gap. */
+export function pointBefore(points: readonly (Point | null)[], index: number): Point | null {
+  return points.slice(0, Math.max(index, 0)).findLast((point) => point !== null) ?? null
+}
+
+/** A diamond of half-width r centred on (x, y), as a closed path: the shape of a ride's point. */
+export function diamondPath(x: number, y: number, r: number): string {
+  return `M${x} ${y - r}L${x + r} ${y}L${x} ${y + r}L${x - r} ${y}Z`
 }

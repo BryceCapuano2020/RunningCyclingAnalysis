@@ -20,12 +20,13 @@ function nextUtcMidnight(nowMs: number): number {
 }
 
 /**
- * The one sentence that says when daily limits reset. The UTC time is the rule; the local time
- * tells the viewer when that is. Pass the server's reset time when there is one.
+ * The one sentence that says when daily limits reset, in the viewer's local time. The limit is set
+ * on UTC days; the reset time is that day's start, shown in the viewer's own clock. Pass the
+ * server's reset time when there is one.
  */
 export function resetSentence(resetsAtMs: number | null = null, nowMs = Date.now()): string {
   const resetsAt = resetsAtMs ?? nextUtcMidnight(nowMs)
-  return `It resets at 00:00 UTC (${LOCAL_TIME.format(resetsAt)} your time).`
+  return `It resets at ${LOCAL_TIME.format(resetsAt)}, your time.`
 }
 
 /** The sentence for a daily limit that has been reached, naming the limit by its one noun. */

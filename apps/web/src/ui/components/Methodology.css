@@ -1,3 +1,12 @@
+.methodology {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.methodology__disclosure > summary {
+  width: fit-content;
+}
+
 .methodology__sections {
   display: grid;
   gap: var(--space-4);
@@ -8,4 +17,13 @@
 .methodology__section {
   display: grid;
   gap: var(--space-1);
+}
+
+/* The technical detail of a topic, one level below its plain words. */
+.methodology__detail {
+  margin-top: var(--space-1);
+}
+
+.methodology__detail > p {
+  margin-top: var(--space-1);
 }

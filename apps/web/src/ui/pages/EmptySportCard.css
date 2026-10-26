@@ -1,0 +1,29 @@
+/* A sport with nothing in the period: a short prompt, with no card around it. */
+.empty-sport {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  justify-items: start;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.empty-sport__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.empty-sport p {
+  margin: 0;
+}
+
+/* The add action and the guides sit side by side, and wrap on a narrow phone. */
+.empty-sport__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

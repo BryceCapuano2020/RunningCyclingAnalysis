@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
+import { WEIGHT_LIMITS_KG } from './athlete.ts'
 
 export const SexSchema = z.enum(['female', 'male'])
 export type Sex = z.infer<typeof SexSchema>
@@ -8,13 +9,17 @@ export type Sex = z.infer<typeof SexSchema>
 /** Year of birth: only the year is asked, for age grading. */
 export const BirthYearSchema = z.number().int().min(1900).max(2100)
 
+/** Body mass in kg. Null until the rider enters one: nothing assumes a weight. */
+const MassKgSchema = z.number().min(WEIGHT_LIMITS_KG.body.min).max(WEIGHT_LIMITS_KG.body.max)
+
 /**
- * A profile write. Year of birth and sex are optional and only used for age grading: left out, the
- * saved value is kept, so a client that predates them cannot clear them; null clears them.
+ * A profile write. Body mass, year of birth and sex are optional: left out, the saved value is kept,
+ * so a write that does not mention them leaves them alone; null clears them. Only null clears a body
+ * mass, which is how a weight the rider has not entered is stored.
  */
 export const ProfileInputSchema = z.object({
-  massKg: z.number().min(30).max(200),
-  bikeMassKg: z.number().min(3).max(30),
+  massKg: MassKgSchema.nullable().optional(),
+  bikeMassKg: z.number().min(WEIGHT_LIMITS_KG.bike.min).max(WEIGHT_LIMITS_KG.bike.max),
   units: z.enum(['imperial', 'metric']),
   keepFiles: z.boolean(),
   birthYear: BirthYearSchema.nullable().optional(),
@@ -24,6 +29,7 @@ export type ProfileInput = z.infer<typeof ProfileInputSchema>
 
 /** Timestamps are epoch milliseconds. A profile saved before age and sex existed reads them as null. */
 export const ProfileSchema = ProfileInputSchema.extend({
+  massKg: MassKgSchema.nullable(),
   birthYear: BirthYearSchema.nullable().default(null),
   sex: SexSchema.nullable().default(null),
   updatedAt: z.number().int(),
@@ -45,6 +51,8 @@ export const MeSchema = z.object({
   fileRetentionAvailable: z.boolean().optional(),
 })
 export type Me = z.infer<typeof MeSchema>
+/** GET /api/me answers a signed-out visitor with a null body, rather than an error. */
+export const MeResponseSchema = MeSchema.nullable()
 
 export const ActivityCreateSchema = z
   .object({

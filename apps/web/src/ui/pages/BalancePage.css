@@ -4,10 +4,36 @@
   max-width: 62ch;
 }
 
+/* The one prompt for a missing year of birth or sex: a short line and the button that acts on it. */
+.balance__profile {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+/* The headline with the sample chip and the share buttons beside it; they wrap on a phone. */
+.balance-hero__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.balance-hero__head h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The cards top-align, so an empty sport's card stays its own height rather than stretching to the
+ * height of the card beside it.
+ */
 .balance__sports,
 .balance__cards {
   display: grid;
   gap: var(--space-4);
+  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
 }
 
@@ -24,14 +50,6 @@
 .balance__trends {
   display: grid;
   gap: var(--space-5);
-}
-
-.balance__footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
 }
 
 .balance__source {

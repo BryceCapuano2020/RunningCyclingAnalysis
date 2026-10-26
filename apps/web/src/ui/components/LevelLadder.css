@@ -48,6 +48,12 @@
   font-weight: 600;
 }
 
+/* The band the grade falls in is named in bold, so the level reads without its colour. */
+.level-ladder__name--current {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
 /* Alternate names sit on two rows, so neighbouring names never touch on a narrow screen. */
 .level-ladder__name--top {
   top: 0;
@@ -64,8 +70,29 @@
   overflow: visible;
 }
 
+/* The track has a 3:1 edge, so its end is visible on a white card. */
 .level-ladder__track {
   fill: var(--surface-2);
+  stroke: var(--control-border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The band the grade falls in takes its sport's soft colour and a solid edge in the sport's colour. */
+.level-ladder__band {
+  fill: none;
+}
+
+.level-ladder__band--current {
+  fill: var(--ladder-band);
+  stroke: var(--ladder-colour);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.level-ladder__key {
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 /* Band boundaries, so each level's edge is visible without relying on the track's fill. */

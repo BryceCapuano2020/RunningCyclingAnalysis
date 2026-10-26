@@ -64,3 +64,16 @@
 .activity-list__stats {
   font-variant-numeric: tabular-nums;
 }
+
+.activity-list__records {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.activity-list__more {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}

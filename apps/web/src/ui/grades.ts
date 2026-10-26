@@ -5,7 +5,6 @@ import {
   LAST_GRADED_AGE,
   ageAt,
   ageGradeForEffort,
-  gradePercent,
   levelOf,
 } from '@rca/core/grade'
 import type { Sex } from '@rca/core/grade'
@@ -13,6 +12,7 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
+import { formatGrade, wholeGrade } from './gradeFormat'
 import { curveOf } from './records'
 
 /** The year of birth and sex that every grade needs. Null on the page when either is missing. */
@@ -21,16 +21,25 @@ export interface AgeProfile {
   sex: Sex
 }
 
+/** The profile the grades need, or null while the year of birth or the sex is missing. */
+export function ageProfileOf(birthYear: number | null, sex: Sex | null): AgeProfile | null {
+  return birthYear !== null && sex !== null ? { birthYear, sex } : null
+}
+
+/** The athlete's age today, from the year of birth alone; null outside the ages the app can read. */
+export function ageToday(birthYear: number): number | null {
+  return ageAt(birthYear, Date.now())
+}
+
 /** The athlete's age on the date of an effort, with their sex. */
 export interface Athlete {
   age: number
   sex: Sex
 }
 
-/** An age grade: the fraction, its percentage to one decimal place (rounded down) and its level. */
+/** An age grade: the fraction and its level. Its whole percent is `wholeGrade`, and its text `formatGrade`. */
 export interface Grade {
   grade: number
-  percent: number
   level: string
 }
 
@@ -86,9 +95,8 @@ export function athleteOf(profile: AgeProfile, atMs: number): Athlete | null {
 
 function gradeOf(grade: number | null): Grade | null {
   if (grade === null) return null
-  const percent = gradePercent(grade)
   const level = levelOf(grade)
-  return percent === null || level === null ? null : { grade, percent, level }
+  return level === null ? null : { grade, level }
 }
 
 function gap(reason: string): GradeOutcome {
@@ -102,11 +110,20 @@ function startOf(result: AnalysisResult, activityId: string | null): number | nu
 }
 
 /**
+ * The grade of holding a flat running speed for durationS, for an athlete of a given age and sex.
+ * Every grade the app shows, the cards and the trend alike, comes through here. Null when the
+ * distance has no standard.
+ */
+export function gradeAtSpeed(speedMs: number, durationS: number, athlete: Athlete): Grade | null {
+  return gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+}
+
+/**
  * A run's grade from its flat speed. It is one activity's estimate, drawn as a dot. Null when the
  * distance covered has no standard (under 1 mile or over 200 km).
  */
 function runGradeAt(speedMs: number, durationS: number, athlete: Athlete): SportGrade | null {
-  const centre = gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+  const centre = gradeAtSpeed(speedMs, durationS, athlete)
   return centre === null ? null : { centre, range: null }
 }
 
@@ -121,8 +138,7 @@ function rideGradeAt(
 ): SportGrade | null {
   const equivalent = result.equivalents.find((candidate) => candidate.durationS === durationS)
   if (!equivalent) return null
-  const at = (speedMs: number) =>
-    gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, athlete)
   const low = at(equivalent.runSpeed.p05)
   const centre = at(equivalent.runSpeed.p50)
   const high = at(equivalent.runSpeed.p95)
@@ -165,27 +181,74 @@ export function headlineGrades(result: AnalysisResult, profile: AgeProfile): Hea
 /**
  * The sex the grades are for, when either sport shows a grade at the headline duration; null when
  * neither does, or the profile is missing. A page cites its standard only with this sex in hand.
+ * A ride counts only when rideShown: a ride's grade waits for the weight, so a page without one
+ * passes false and does not cite a standard for a grade it is not showing.
  */
 export function gradedSexOf(
   headline: HeadlineGrades | null,
   profile: AgeProfile | null,
+  rideShown = true,
 ): Sex | null {
   if (headline === null || profile === null) return null
-  const shown = headline.run.kind === 'graded' || headline.ride.kind === 'graded'
+  const shown = headline.run.kind === 'graded' || (rideShown && headline.ride.kind === 'graded')
   return shown ? profile.sex : null
 }
 
 /**
- * The grade as the cards write it: "Estimated age grade 63% · Local", and a ride's range in
- * brackets: "Estimated age grade 47% · Recreational (44–50%)".
+ * The note a run's pace carries. GAP, the mark on each run row, is spelled out here, so it has its
+ * meaning in words too: the flat pace with the same effort.
  */
-export function gradeSentence(grade: SportGrade): string {
-  const sentence = `Estimated age grade ${grade.centre.percent}% · ${grade.centre.level}`
-  const range = grade.range
-  return range ? `${sentence} (${range.low.percent}–${range.high.percent}%)` : sentence
+export const GRADE_ADJUSTED_NOTE =
+  'Pace is grade-adjusted (GAP): the flat pace with the same effort.'
+
+/**
+ * The level a grade names: its band, or "Recreational to Local" when a ride's range crosses a band
+ * boundary, so the range's two ends are both named.
+ */
+export function gradeLevelText(grade: SportGrade): string {
+  const { centre, range } = grade
+  return range && range.low.level !== range.high.level
+    ? `${range.low.level} to ${range.high.level}`
+    : centre.level
+}
+
+/** A ride's range as whole percents, such as "63–71%". */
+export function gradeRangeText(range: { low: Grade; high: Grade }): string {
+  return `${wholeGrade(range.low.grade)}–${formatGrade(range.high.grade)}`
+}
+
+/** A ride's range in brackets, with its leading space, such as " (63–71%)"; empty for a run. */
+export function gradeRangeBracket(grade: SportGrade): string {
+  return grade.range ? ` (${gradeRangeText(grade.range)})` : ''
+}
+
+/**
+ * Where a grade sentence is written. A card says a ride is estimated; a record says it is graded
+ * through its running equivalent, so a row on its own still says how the grade was reached.
+ */
+export type GradeContext = 'card' | 'record'
+
+/**
+ * A grade as the cards and records write it. A run is read as recorded: "Local · 67%". A ride is
+ * estimated through its running equivalent: "Estimated · Local · 67% (63–71%)", or on a record
+ * "Estimated through its running equivalent · Local · 67% (63–71%)".
+ */
+export function gradeSentence(
+  sport: Sport,
+  grade: SportGrade,
+  where: GradeContext = 'card',
+): string {
+  const reading = `${gradeLevelText(grade)} · ${formatGrade(grade.centre.grade)}${gradeRangeBracket(grade)}`
+  if (sport !== 'ride') return reading
+  const lead = where === 'record' ? 'Estimated through its running equivalent' : 'Estimated'
+  return `${lead} · ${reading}`
 }
 
 /** A record's grade sentence, or null when the outcome is a gap. */
-export function outcomeSentence(outcome: GradeOutcome): string | null {
-  return outcome.kind === 'graded' ? gradeSentence(outcome.grade) : null
+export function outcomeSentence(
+  sport: Sport,
+  outcome: GradeOutcome,
+  where: GradeContext = 'card',
+): string | null {
+  return outcome.kind === 'graded' ? gradeSentence(sport, outcome.grade, where) : null
 }

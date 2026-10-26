@@ -12,7 +12,10 @@ export interface ChartFrameProps {
   description: string
   /** Height of the whole SVG, axis labels included. */
   height?: number
-  /** Shown above the plot only when it has two or more entries. */
+  /**
+   * Shown above the plot when it has two or more entries, or one dashed entry, since a dashed key
+   * names an estimate or a comparison that a reader must be able to find.
+   */
   legend?: ChartLegendEntry[]
   table: ChartTableData
   /** A short table shown above `table` in the text view, for totals that are not per point. */
@@ -31,8 +34,16 @@ export interface ChartFrameProps {
   overlay?: (size: ChartSize) => ReactNode
 }
 
+/** Whether a legend is shown: two entries, or one that is dashed. */
+function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
+  if (legend === undefined) return false
+  return legend.length >= 2 || legend.some((entry) => entry.swatch === 'dashed')
+}
+
 const DEFAULT_HEIGHT = 320
 const MARGIN = { top: 28, right: 16, bottom: 52, left: 56 }
+/** Shown under a chart that can be read by keyboard. The CSS reveals it while the plot has focus. */
+const READING_HINT = 'Left and right arrows read values'
 
 export function ChartFrame({
   title,
@@ -62,30 +73,27 @@ export function ChartFrame({
       bottom: height - MARGIN.bottom,
     },
     tooltipId: `${id}-tooltip`,
+    title,
   }
 
   return (
-    <figure className="chart-frame" aria-label={title}>
-      {legend && legend.length >= 2 ? <ChartLegend entries={legend} /> : null}
-      <div
-        ref={stageRef}
-        className="chart-frame__stage"
-        style={empty ? { minHeight: height } : undefined}
-      >
+    <figure className="chart-frame" aria-labelledby={titleId}>
+      <figcaption id={titleId} className="chart-frame__title">
+        {title}
+      </figcaption>
+      {showLegend(legend) ? <ChartLegend entries={legend ?? []} /> : null}
+      <div ref={stageRef} className="chart-frame__stage">
         {empty ? (
           <p className="chart-frame__empty">{empty}</p>
         ) : (
           <>
             <svg
               className="chart-frame__svg"
-              aria-labelledby={titleId}
               width={width}
               height={height}
               viewBox={`0 0 ${width} ${height}`}
             >
-              <title id={titleId}>{title}</title>
-              <desc>{description}</desc>
-              <g role="img" aria-label={`${title}. ${description}`}>
+              <g role="img" aria-label={description}>
                 {children(size)}
               </g>
               {surface?.(size)}
@@ -94,6 +102,7 @@ export function ChartFrame({
           </>
         )}
       </div>
+      {!empty && surface ? <p className="chart-frame__hint">{READING_HINT}</p> : null}
       {!empty && note ? <p className="chart-frame__note">{note}</p> : null}
       {!empty ? (
         <details className="chart-frame__details">

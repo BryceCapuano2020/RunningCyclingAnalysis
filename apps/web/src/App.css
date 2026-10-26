@@ -2,6 +2,19 @@
   min-width: 0;
 }
 
+/* The status line above the page: empty, it takes no space but stays mounted to announce. Shown, it
+   says why a link shows the landing page, or that an account was deleted. */
+.app__notice:empty {
+  margin: 0;
+}
+
+.app__notice:not(:empty) {
+  padding: var(--space-2) var(--space-4);
+  border-left: 4px solid var(--text-muted);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
 /* A page: sections separated by space and a heading, not by borders. */
 .page-stack {
   display: grid;
@@ -40,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   font-family: var(--font-display);
   font-size: 1.0625rem;
   font-weight: 700;
@@ -116,14 +129,15 @@
   align-items: start;
 }
 
-/* A framed preview, not a card: there is nothing in it to open or act on. */
+/* A solid frame: the dashed outline is for the drop area beside it, so the two are not confused. */
 .landing-example {
   display: grid;
   gap: var(--space-3);
   margin: 0;
   padding: var(--space-5);
-  border: 1px dashed var(--control-border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
+  background: var(--surface-1);
 }
 
 .landing-example__title {
@@ -136,7 +150,7 @@
 
 .landing-example__stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   gap: var(--space-4);
   margin: 0;
 }
@@ -153,6 +167,26 @@
   margin: 0;
 }
 
+/* The example's numbers are its first picture, so they are set at the hero size (48 px). */
+.landing-example__stats .stat-number {
+  font-size: 3rem;
+}
+
+/* The method's three sentences, with the link to the full page below them. */
+.landing__method {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 62ch;
+}
+
+.landing__method h2 {
+  margin: 0;
+}
+
+.landing__method p {
+  margin: 0;
+}
+
 .landing-example__run {
   color: var(--series-run);
 }
@@ -165,7 +199,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   color: var(--text-secondary);
 }
 

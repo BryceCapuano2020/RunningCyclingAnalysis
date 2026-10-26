@@ -24,6 +24,15 @@ export function parseRoute(hash: string): Route {
   return simple && !second ? { page: simple } : { page: 'balance' }
 }
 
+/**
+ * The hash to show for a URL: an unknown hash becomes Balance's, so the address names the page
+ * the visitor sees. The empty and Balance hashes are already canonical.
+ */
+export function canonicalHash(hash: string): string {
+  if (hash === '' || hash === '#' || hash === '#/') return hash
+  return parseRoute(hash).page === 'balance' ? '#/' : hash
+}
+
 export function hrefFor(route: Route): string {
   if (route.page === 'balance') return '#/'
   if (route.page === 'activity') return `#/activities/${encodeURIComponent(route.id)}`

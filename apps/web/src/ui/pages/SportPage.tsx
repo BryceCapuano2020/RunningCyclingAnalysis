@@ -8,20 +8,25 @@ import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration } from '@rca/core/units'
 import { SportCurveChart, TrendChart } from '../charts'
+import { AddSportFiles } from '../components/AddSportFiles'
 import { SegmentedControl } from '../components/SegmentedControl'
+import { SportRecords } from '../components/SportRecords'
+import { recordRow } from '../recordRow'
+import type { RecordRow } from '../recordRow'
 import { StandardsCredit } from '../components/StandardsCredit'
+import { WeightNote } from '../components/WeightNote'
 import { SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
-import { formatDay } from '../format/date'
-import { SEX_NOUN, outcomeSentence, sportGrade } from '../grades'
+import { GRADE_ADJUSTED_NOTE, SEX_NOUN, outcomeSentence, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import { hrefFor } from '../route'
-import { SPORT_LABEL, SPORT_PLURAL, THRESHOLD_LABEL } from '../sports'
+import { SPORT_LABEL, SPORT_PLURAL, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
 import {
   EFFORT_OPTIONS,
   activityNames,
   countSport,
+  distanceRecords,
   effortOf,
   nativeCurve,
   sportRecords,
@@ -42,10 +47,18 @@ export interface SportPageProps {
   windowDays: number
   units: UnitSystem
   massKg: number
+  /** False while no body weight is entered; a ride's figures then wait for it. */
+  weighted: boolean
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
   /** The period control, shown beside the heading. */
   controls: ReactNode
+  /** The line that says what the page is based on, at its foot. */
+  footnote?: ReactNode
+  /** What to say when the sport has nothing in the period, naming the period. */
+  emptyText: string
+  /** Adds files, from the action an empty sport page offers. */
+  onAddFiles: (files: File[]) => void
 }
 
 /** One sport's records in its own units, the best-effort curve and the evidence behind them. */
@@ -58,10 +71,16 @@ export function SportPage({
   windowDays,
   units,
   massKg,
+  weighted,
   profile,
   controls,
+  footnote = null,
+  emptyText,
+  onAddFiles,
 }: SportPageProps) {
   const count = countSport(result.activities, sport)
+  // A ride's figures use the body mass, so the page holds them until the weight is entered.
+  const held = sport === 'ride' && !weighted
   const hero = threshold(result, sport, massKg, units)
   const rows = sportRecords(result, sport, massKg, units).map((record) => ({
     record,
@@ -69,12 +88,28 @@ export function SportPage({
     grade:
       profile === null
         ? null
-        : outcomeSentence(sportGrade(result, sport, record.durationS, profile)),
+        : outcomeSentence(sport, sportGrade(result, sport, record.durationS, profile), 'record'),
   }))
   const anyGrade = rows.some((row) => row.grade !== null)
+  const distance = sport === 'run' ? distanceRecords(result.activities, units) : null
   // The sex the grades are for, named on the source line when any record shows a grade.
   const gradedSex = anyGrade && profile !== null ? profile.sex : null
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
+  const recordRows: RecordRow[] = [
+    ...rows.map(({ record, grade }) =>
+      recordRow(sport, record, { label: `Best ${formatDuration(record.durationS)}`, grade }),
+    ),
+    // A distance best is the run's own pace, not grade-adjusted, so it carries no GAP mark.
+    ...(distance?.records ?? []).map((record) => ({
+      key: `distance-${record.distanceM}`,
+      label: `Best ${record.label}`,
+      value: record.time,
+      sub: record.pace,
+      grade: null,
+      tags: [],
+      activity: record.activity,
+    })),
+  ]
 
   return (
     <div className="page-stack">
@@ -85,11 +120,17 @@ export function SportPage({
         </h1>
         {controls}
       </div>
+      <a className="link-arrow" href={hrefFor({ page: 'method' })}>
+        How sure is this?
+      </a>
 
       {count === 0 ? (
-        <p className="secondary">
-          {`No ${SPORT_PLURAL[sport]} in this period. Add ${SPORT_PLURAL[sport]} to see your records.`}
-        </p>
+        <>
+          <p className="secondary">{emptyText}</p>
+          <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+        </>
+      ) : held ? (
+        <WeightNote />
       ) : (
         <>
           <section className="section" aria-labelledby={`${sport}-threshold`}>
@@ -103,7 +144,7 @@ export function SportPage({
               </p>
             ) : (
               <p className="secondary">
-                Needs harder efforts of 2 to 20 minutes to estimate a threshold.
+                {`Needs harder efforts of ${THRESHOLD_EFFORT_TEXT} to estimate a threshold.`}
               </p>
             )}
             <p className="muted">
@@ -113,31 +154,22 @@ export function SportPage({
 
           <section className="section" aria-labelledby={`${sport}-records`}>
             <h2 id={`${sport}-records`}>Best efforts</h2>
-            {sport === 'run' && (
-              <p className="muted">Paces are grade-adjusted: the flat pace with the same effort.</p>
-            )}
+            {sport === 'run' && <p className="muted">{GRADE_ADJUSTED_NOTE}</p>}
             {gradedSex !== null && (
               <p className="muted">
-                Age grades for a {SEX_NOUN[gradedSex]} are estimates against the <StandardsCredit />
-                . Age is counted from your birth year on the date of each effort
-                {sport === 'ride' ? ', and a ride’s range is its model range.' : '.'}
+                {sport === 'ride'
+                  ? `Ride age grades for a ${SEX_NOUN[gradedSex]} are estimates through the running equivalent, against the `
+                  : `Age grades for a ${SEX_NOUN[gradedSex]} use the `}
+                <StandardsCredit />
+                {`. Age is counted from your birth year on the date of each effort${sport === 'ride' ? ', and a ride’s range is its model range.' : '.'}`}
               </p>
             )}
-            <ul className="sport-page__records">
-              {rows.map(({ record, grade }) => (
-                <li key={record.durationS} className="sport-page__record">
-                  <span className="eyebrow">{`Best ${formatDuration(record.durationS)}`}</span>
-                  <span className="stat-number">{record.value}</span>
-                  {record.sub && <span className="secondary">{record.sub}</span>}
-                  {grade && <span className="secondary">{grade}</span>}
-                  {record.activity && (
-                    <a href={hrefFor({ page: 'activity', id: record.activity.id })}>
-                      {`${record.activity.name}, ${formatDay(record.activity.startMs)}`}
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <SportRecords rows={recordRows} />
+            {distance?.partial && (
+              <p className="muted">
+                Distance records cover runs added since distance records were introduced.
+              </p>
+            )}
           </section>
 
           <section className="section" aria-labelledby={`${sport}-trend`}>
@@ -163,21 +195,25 @@ export function SportPage({
         </>
       )}
 
-      <section className="section" aria-labelledby={`${sport}-curve`}>
-        <h2 id={`${sport}-curve`}>Every duration</h2>
-        <SportCurveChart
-          sport={sport}
-          curve={nativeCurve(sport, result)}
-          previous={
-            previous && previousLabel
-              ? { curve: nativeCurve(sport, previous), label: previousLabel }
-              : null
-          }
-          massKg={massKg}
-          units={units}
-          activityNames={activityNames(result.activities)}
-        />
-      </section>
+      {!held && (
+        <section className="section" aria-labelledby={`${sport}-curve`}>
+          <h2 id={`${sport}-curve`}>Every duration</h2>
+          <SportCurveChart
+            sport={sport}
+            curve={nativeCurve(sport, result)}
+            previous={
+              previous && previousLabel
+                ? { curve: nativeCurve(sport, previous), label: previousLabel }
+                : null
+            }
+            massKg={massKg}
+            units={units}
+            activityNames={activityNames(result.activities)}
+          />
+        </section>
+      )}
+
+      {footnote}
     </div>
   )
 }

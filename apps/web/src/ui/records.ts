@@ -1,4 +1,6 @@
-import { HEADLINE_DURATION_S, PRIORS } from '@rca/core/constants'
+import { HEADLINE_DURATION_S, PRIORS, RUN_RECORD_DISTANCES_M } from '@rca/core/constants'
+import type { RunRecordDistanceM } from '@rca/core/constants'
+import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
@@ -13,10 +15,28 @@ import {
   formatWatts,
   formatWkg,
   PACE_UNIT,
+  METRES_PER_KM,
+  METRES_PER_MILE,
+  formatRecordTime,
 } from '@rca/core/units'
 
 /** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
 export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
+
+/**
+ * The durations that earn a chip, and that a Balance card lists: 5, 20 and 60 minutes. The
+ * one-minute best is page-only.
+ */
+export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.filter(
+  (durationS) => durationS >= 5 * 60,
+)
+
+/** A run record distance's name, derived from the distance: the mile, else whole kilometres. */
+function distanceName(distanceM: RunRecordDistanceM): string {
+  return distanceM === METRES_PER_MILE
+    ? `${distanceM / METRES_PER_MILE} mi`
+    : `${distanceM / METRES_PER_KM} km`
+}
 
 export interface SportNumber {
   /** The number in the sport's own unit, with the unit: a pace for running, watts for cycling. */
@@ -152,10 +172,87 @@ export function countSport(activities: ActivitySummary[], sport: Sport): number 
   return activities.filter((activity) => activity.sport === sport).length
 }
 
+/**
+ * Whether a record's figure is estimated: a ride's watts that did not come from a power meter, or
+ * from an activity that is not in the result, so its power source is unknown. A run is never tagged.
+ */
+export function isEstimatedRecord(sport: Sport, activity: ActivitySummary | null): boolean {
+  return sport === 'ride' && activity?.powerSource !== 'measured'
+}
+
 /** The equivalence to feature: 20 minutes when there is one, else the longest effort below it. */
 export function featuredEquivalence(equivalents: Equivalence[]): Equivalence | null {
   const exact = equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
   if (exact) return exact
   const shorter = equivalents.filter((e) => e.durationS < HEADLINE_DURATION_S)
   return shorter.at(-1) ?? equivalents[0] ?? null
+}
+
+export interface DistanceRecord {
+  distanceM: RunRecordDistanceM
+  label: string
+  seconds: number
+  /** The time as m:ss, or h:mm:ss from an hour. */
+  time: string
+  /** The pace in the unit preference. */
+  pace: string
+  activity: ActivitySummary
+}
+
+export interface DistanceRecords {
+  records: DistanceRecord[]
+  /** True when some runs in scope were digested before distance bests, so the list may be short. */
+  partial: boolean
+}
+
+/** Whether a starts before b: the earlier start first, then the smaller id, as in the analysis. */
+function startsBefore(a: ActivitySummary, b: ActivitySummary): boolean {
+  if (a.startMs !== b.startMs) return a.startMs < b.startMs
+  return a.id < b.id
+}
+
+/**
+ * The fastest run at each record distance among the activities in scope. A tie goes to the earlier
+ * activity. Runs with no distance bests are not counted as having none, so `partial` tells the page
+ * the list may be incomplete.
+ */
+export function distanceRecords(activities: ActivitySummary[], units: UnitSystem): DistanceRecords {
+  const runs = activities.filter((activity) => activity.sport === 'run')
+  const covered = runs.filter((activity) => activity.distanceBests !== undefined)
+  const records: DistanceRecord[] = []
+  for (const distanceM of RUN_RECORD_DISTANCES_M) {
+    let best: { seconds: number; activity: ActivitySummary } | null = null
+    for (const activity of covered) {
+      const seconds = activity.distanceBests?.find((b) => b.distanceM === distanceM)?.seconds
+      if (seconds === undefined) continue
+      if (best === null || seconds < best.seconds) best = { seconds, activity }
+      else if (seconds === best.seconds && startsBefore(activity, best.activity)) {
+        best = { seconds, activity }
+      }
+    }
+    if (best !== null) {
+      records.push({
+        distanceM,
+        label: distanceName(distanceM),
+        seconds: best.seconds,
+        time: formatRecordTime(best.seconds),
+        pace: formatPace(distanceM / best.seconds, units),
+        activity: best.activity,
+      })
+    }
+  }
+  return { records, partial: covered.length > 0 && covered.length < runs.length }
+}
+
+/** The chip text for each record that earns one, in the order the records come. */
+export function chipLabels(records: readonly EarnedRecord[]): string[] {
+  const labels: string[] = []
+  for (const record of records) {
+    if (record.kind === 'distance') {
+      labels.push(`Best ${distanceName(record.distanceM)}`)
+    } else if (CHIP_DURATIONS_S.includes(record.durationS)) {
+      labels.push(`Best ${Math.round(record.durationS / 60)} min`)
+    }
+  }
+  return labels
 }

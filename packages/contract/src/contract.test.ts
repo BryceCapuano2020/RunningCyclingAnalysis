@@ -326,6 +326,17 @@ describe('ProfileInputSchema', () => {
     expect(ProfileInputSchema.safeParse({ ...valid, units: 'stone' }).success).toBe(false)
   })
 
+  it('treats null as clearing the body mass, and leaves it out when it is omitted', () => {
+    expect(ProfileInputSchema.parse({ ...valid, massKg: null })).toMatchObject({ massKg: null })
+    expect(
+      ProfileInputSchema.parse({ bikeMassKg: 9, units: 'metric', keepFiles: false }),
+    ).not.toHaveProperty('massKg')
+  })
+
+  it('rejects a body mass that is text, even though null is accepted', () => {
+    expect(ProfileInputSchema.safeParse({ ...valid, massKg: '75' }).success).toBe(false)
+  })
+
   it('leaves year of birth and sex out of the parsed value when they are omitted', () => {
     const parsed = ProfileInputSchema.parse(valid)
     expect(parsed).not.toHaveProperty('birthYear')
@@ -371,6 +382,10 @@ describe('ProfileSchema', () => {
     expect(ProfileSchema.parse(stored)).toMatchObject({ birthYear: null, sex: null })
   })
 
+  it('reads a profile with no body mass entered as a null body mass', () => {
+    expect(ProfileSchema.parse({ ...stored, massKg: null })).toMatchObject({ massKg: null })
+  })
+
   it('keeps a saved year of birth and sex', () => {
     expect(ProfileSchema.parse({ ...stored, birthYear: 1972, sex: 'male' })).toMatchObject({
       birthYear: 1972,
@@ -385,6 +400,87 @@ describe('DevLoginSchema', () => {
       email: 'bryce@example.com',
       name: 'Bryce',
     })
+  })
+})
+
+describe('digest splits', () => {
+  const split = {
+    distanceM: 1000,
+    seconds: 300,
+    gradeAdjustedSeconds: 290,
+    elevationGainM: 12,
+    avgHeartRate: 150,
+  }
+  const splitsOf = (km: number, mile: number) => ({
+    km: Array.from({ length: km }, () => ({ ...split })),
+    mile: Array.from({ length: mile }, () => ({ ...split, distanceM: 1609.344 })),
+  })
+  const withSplits = (splits: unknown) => ({ ...digestWire, splits })
+  const withKm = (override: Record<string, unknown>) =>
+    withSplits({ km: [{ ...split, ...override }], mile: [] })
+
+  it('reads splits back, from both the create and the stored schemas', () => {
+    const wire = withSplits(splitsOf(2, 1))
+    expect(ActivityDigestSchema.parse(wire).splits).toEqual(splitsOf(2, 1))
+    expect(StoredActivityDigestSchema.parse(wire).splits).toEqual(splitsOf(2, 1))
+  })
+
+  it('reads a digest without splits as having none', () => {
+    expect(ActivityDigestSchema.parse(digestWire)).not.toHaveProperty('splits')
+    expect(StoredActivityDigestSchema.parse(digestWire)).not.toHaveProperty('splits')
+  })
+
+  it('accepts null for a split whose time, grade, climb or heart rate is unknown', () => {
+    const parsed = ActivityDigestSchema.parse(
+      withKm({
+        seconds: null,
+        gradeAdjustedSeconds: null,
+        elevationGainM: null,
+        avgHeartRate: null,
+      }),
+    )
+    expect(parsed.splits?.km[0]).toMatchObject({
+      seconds: null,
+      gradeAdjustedSeconds: null,
+      elevationGainM: null,
+      avgHeartRate: null,
+    })
+  })
+
+  it('accepts exactly 500 kilometre splits and 320 mile splits', () => {
+    expect(ActivityDigestSchema.safeParse(withSplits(splitsOf(500, 320))).success).toBe(true)
+  })
+
+  it('rejects more than 500 kilometre splits or 320 mile splits in a create', () => {
+    expect(ActivityDigestSchema.safeParse(withSplits(splitsOf(501, 0))).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse(withSplits(splitsOf(0, 321))).success).toBe(false)
+  })
+
+  it('reads stored rows at four times the create limit, as apps/api/LIMITS.md describes', () => {
+    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(2000, 1280))).success).toBe(
+      true,
+    )
+    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(2001, 0))).success).toBe(false)
+    expect(StoredActivityDigestSchema.safeParse(withSplits(splitsOf(0, 1281))).success).toBe(false)
+  })
+
+  it('rejects a split value that is missing, negative, infinite or NaN', () => {
+    for (const override of [
+      { seconds: undefined },
+      { seconds: -1 },
+      { distanceM: Number.POSITIVE_INFINITY },
+      { elevationGainM: Number.NaN },
+      { gradeAdjustedSeconds: Number.NaN },
+      { avgHeartRate: -5 },
+    ]) {
+      expect(ActivityDigestSchema.safeParse(withKm(override)).success).toBe(false)
+      expect(StoredActivityDigestSchema.safeParse(withKm(override)).success).toBe(false)
+    }
+  })
+
+  it('rejects splits with the wrong shape', () => {
+    expect(ActivityDigestSchema.safeParse(withSplits({ km: [] })).success).toBe(false)
+    expect(ActivityDigestSchema.safeParse(withSplits(null)).success).toBe(false)
   })
 })
 
@@ -407,5 +503,78 @@ describe('shared limits', () => {
     expect(MAX_CONCURRENT_UPLOADS_PER_USER).toBe(2)
     expect(MAX_GLOBAL_R2_WRITE_BYTES).toBe(4 * 1024 * 1024 * 1024)
     expect(MAX_MONTHLY_R2_PUT_BYTES).toBe(2 * 1024 * 1024 * 1024)
+  })
+})
+
+describe('distance bests', () => {
+  const bests = [
+    { distanceM: 1000, seconds: 250 },
+    { distanceM: 5000, seconds: 1250 },
+  ]
+  /** A ten-kilometre run; a ride is the same wire with its sport changed. */
+  const run = (overrides: Record<string, unknown> = {}) =>
+    atRevision(MODEL_REVISION, {
+      sport: 'run',
+      distanceM: 10000,
+      durationS: 2500,
+      distanceBests: bests,
+      ...overrides,
+    })
+  /** The create and the stored schema apply the same distance-best rules. */
+  const SCHEMAS = [
+    ['create', ActivityDigestSchema],
+    ['stored', StoredActivityDigestSchema],
+  ] as const
+
+  it.each(SCHEMAS)(
+    '%s schema accepts a run with ascending record distances it covers',
+    (_l, schema) => {
+      expect(schema.safeParse(run()).success).toBe(true)
+      expect(schema.safeParse(run({ distanceM: 900, distanceBests: [] })).success).toBe(true)
+    },
+  )
+
+  it('accepts a digest without the field, as digests from before it are', () => {
+    expect(ActivityDigestSchema.safeParse(atRevision(MODEL_REVISION)).success).toBe(true)
+    expect(StoredActivityDigestSchema.safeParse(atRevision(MODEL_REVISION)).success).toBe(true)
+  })
+
+  it('reads a stored run back with its distance bests equal to the wire', () => {
+    expect(StoredActivityDigestSchema.parse(run()).distanceBests).toEqual(bests)
+  })
+
+  it.each(SCHEMAS)('%s schema rejects distance bests on a ride', (_l, schema) => {
+    expect(schema.safeParse(run({ sport: 'ride' })).success).toBe(false)
+  })
+
+  // Each case breaks one rule: a distance that is not a record distance, a zero time, a time past
+  // the duration, a run that does not cover the distance, a repeated distance, descending order,
+  // and more entries than record distances.
+  const rejected: [string, Record<string, unknown>][] = [
+    ['not a record distance', { distanceBests: [{ distanceM: 2000, seconds: 500 }] }],
+    ['a zero time', { distanceBests: [{ distanceM: 1000, seconds: 0 }] }],
+    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2501 }] }],
+    [
+      'a distance the run does not cover',
+      { distanceM: 900, distanceBests: [{ distanceM: 5000, seconds: 1250 }] },
+    ],
+    ['a repeated distance', { distanceBests: [bests[0], bests[0]] }],
+    ['descending order', { distanceBests: [...bests].reverse() }],
+    [
+      'more entries than record distances',
+      {
+        distanceBests: [
+          ...Array.from({ length: 4 }, (_, i) => ({ distanceM: 1000 * (i + 1), seconds: 1 })),
+          { distanceM: 20000, seconds: 1 },
+        ],
+      },
+    ],
+  ]
+  it.each(
+    SCHEMAS.flatMap(([label, schema]) =>
+      rejected.map(([name, overrides]) => [`${label}: ${name}`, schema, overrides] as const),
+    ),
+  )('%s', (_label, schema, overrides) => {
+    expect(schema.safeParse(run(overrides)).success).toBe(false)
   })
 })

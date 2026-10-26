@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { meterFraction } from '../ui/components/balanceScale'
+import { energyReading, gapReading, meterFraction } from '../ui/components/balanceScale'
+import { interval } from '../ui/components/fixtures'
+import { SPORT_LABEL, SPORT_ORDER } from '../ui/sports'
 import { CARD_COLORS } from './cardColors'
 import { CARD_FORMATS, type CardFormat } from './cardLayout'
 import { DOT_RADIUS } from './cardMeter'
@@ -53,9 +55,9 @@ describe('renderShareCard', () => {
       'RunningCyclingAnalysis',
       'Sample data',
       'YOUR BALANCE LEANS TOWARD RUNNING',
-      '← Leans cycling',
+      SPORT_LABEL[SPORT_ORDER[0]],
       'Even',
-      'Leans running →',
+      SPORT_LABEL[SPORT_ORDER[1]],
       'RUNNING THRESHOLD PACE',
       '21:35',
       '/km',
@@ -121,8 +123,7 @@ describe('renderShareCard', () => {
       expect(drawn).toContain('CYCLING THRESHOLD POWER')
       expect(drawn).toContain('Add rides to see the balance')
       expect(drawn).not.toContain('48')
-      expect(drawn).not.toContain('Leans running')
-      expect(drawn).not.toContain('Leans cycling')
+      expect(drawn).not.toContain('Even')
       expect(ctx.rects).toContainEqual(expect.objectContaining({ w: 8, color: CARD_COLORS.rule }))
     },
   )
@@ -179,9 +180,50 @@ describe('renderShareCard', () => {
     expect(lowest).toBeGreaterThanOrEqual(height - marginY - 40)
   })
 
-  it('places the balance dot where the shared balance scale places the ratio', () => {
-    const ratio = cardModel().meter?.ratio.p50 ?? 1
+  it('places the balance dot where the shared balance scale places its lead', () => {
+    const centre = cardModel().meter?.lead.centre ?? 0
     const dot = draw(cardModel()).arcs.find((arc) => arc.r === DOT_RADIUS)
-    expect(dot?.x).toBeCloseTo(80 + meterFraction(ratio) * 920, 6)
+    expect(dot?.x).toBeCloseTo(80 + meterFraction(centre) * 920, 6)
+  })
+})
+
+describe('the balance meter on the card', () => {
+  it('outlines the track in muted ink, and the band in its leading sport colour', () => {
+    const ctx = draw(cardModel())
+    expect(ctx.paths).toContainEqual(
+      expect.objectContaining({ op: 'stroke', color: CARD_COLORS.muted }),
+    )
+    expect(ctx.paths).toContainEqual(
+      expect.objectContaining({ op: 'stroke', color: CARD_COLORS.run }),
+    )
+  })
+
+  it('marks a running lead past the scale with "30+" just after the running label', () => {
+    const meter = gapReading({ centre: 40, low: 34, high: 46, lean: 'run' })
+    const texts = draw(cardModel({ meter })).texts
+    const label = texts.find((text) => text.text === SPORT_LABEL.run)
+    const mark = texts.find((text) => text.text === '30+')
+    expect(mark?.x).toBeGreaterThan(label?.x ?? Number.NaN)
+  })
+
+  it('marks a cycling lead past the scale with "30%+" just before the cycling label, in percent', () => {
+    const meter = energyReading(interval(0.5, 0.6, 0.7))
+    const texts = draw(cardModel({ meter })).texts
+    const label = texts.find((text) => text.text === SPORT_LABEL.ride)
+    const mark = texts.find((text) => text.text === '30%+')
+    expect(mark?.x).toBeLessThan(label?.x ?? Number.NaN)
+  })
+
+  it('does not mark a lead inside the scale', () => {
+    expect(words(draw(cardModel()).texts)).not.toMatch(/30/)
+  })
+
+  it('places the first sport on the left, then Even, then the other sport', () => {
+    const texts = draw(cardModel()).texts
+    const left = texts.find((text) => text.text === SPORT_LABEL[SPORT_ORDER[0]])
+    const even = texts.find((text) => text.text === 'Even')
+    const right = texts.find((text) => text.text === SPORT_LABEL[SPORT_ORDER[1]])
+    expect(left?.x).toBeLessThan(even?.x ?? Number.NaN)
+    expect(even?.x).toBeLessThan(right?.x ?? Number.NaN)
   })
 })

@@ -1,19 +1,38 @@
-/* A slim strip under the header, shown only while files are being read. */
+/*
+ * The busy strip: a fixed bar along the bottom of the window, shown only once a run has lasted about
+ * 400 ms. Fixed, not in flow, so it never moves the page, and it covers content only while busy.
+ */
 .import-status {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 90;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-2) 0;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
 }
 
-/* Indeterminate: the total is unknown while files are streamed in. */
+/* Phones (ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX): the tab bar is fixed to the foot of the
+   screen, and it is shown only once there is a result. So the strip sits above it only then. */
+@media (max-width: 760px) {
+  .page:has(> .header > .header__tabs) .import-status {
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  }
+}
+
+/* A thin progress line along the top edge. Indeterminate: the total is unknown while files stream in. */
 .import-status__bar {
-  position: relative;
-  flex: 1 1 120px;
-  height: 4px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
   overflow: hidden;
-  border-radius: 2px;
   background: var(--surface-2);
 }
 
@@ -23,7 +42,6 @@
   bottom: 0;
   left: 0;
   width: 35%;
-  border-radius: 2px;
   background: var(--accent);
   animation: import-status-slide 1.2s ease-in-out infinite;
 }
@@ -53,10 +71,16 @@
 }
 
 .import-status__text {
+  flex: 1 1 12rem;
   min-width: 0;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
+}
+
+.import-status__stop {
+  flex: 0 0 auto;
 }
 
 /* Shown over the whole page while files are dragged across it. */
@@ -72,35 +96,4 @@
   color: var(--text-primary);
   font-size: 1.5rem;
   font-weight: 600;
-}
-
-/* What an import added, until it is dismissed. Neutral: sport colours never mark chrome. */
-.import-status__notice {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-1);
-  color: var(--text-primary);
-}
-
-.import-status__notice p {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.import-status__body {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* What the import moved, under the summary sentence. */
-.import-status__moved {
-  margin: var(--space-2) 0 0;
-  padding-left: var(--space-5);
 }

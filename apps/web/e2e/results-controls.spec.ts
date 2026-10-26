@@ -1,21 +1,26 @@
 import { expect, test } from '@playwright/test'
 import { BALANCE_TITLE, LANDING_TITLE, activitiesRows, goTo, openSample } from './helpers.js'
 
-test('choosing 6 weeks narrows the activities and All time restores them all', async ({ page }) => {
+test('the Activities period narrows its own rows and All time restores them all, and a Balance pick hides none', async ({
+  page,
+}) => {
   await openSample(page)
-  const period = page.getByRole('group', { name: 'Period' })
-  await expect(page.getByText(/of 14 activities/)).toHaveCount(0)
+  // Activities has its own period control, so a pick on Balance leaves every activity listed.
+  await page.getByRole('group', { name: 'Period' }).getByText('6 weeks', { exact: true }).click()
+  await expect(await activitiesRows(page)).toHaveCount(14)
+  await expect(page.locator('.range-picker__count')).toHaveCount(0)
 
+  const period = page.getByRole('group', { name: 'Period' })
   await period.getByText('6 weeks', { exact: true }).click()
-  await expect(page.getByText(/^\d+ of 14 activities$/)).toBeVisible()
-  const shown = await (await activitiesRows(page)).count()
+  await expect(page.locator('.range-picker__count')).toHaveText(/^\d+ of 14 activities$/)
+  const rows = page.locator('.activity-list__items > li')
+  const shown = await rows.count()
   expect(shown).toBeGreaterThan(0)
   expect(shown).toBeLessThan(14)
 
-  await goTo(page, 'Balance')
   await period.getByText('All time', { exact: true }).click()
-  await expect(page.getByText(/of 14 activities/)).toHaveCount(0)
-  await expect(await activitiesRows(page)).toHaveCount(14)
+  await expect(page.locator('.range-picker__count')).toHaveCount(0)
+  await expect(rows).toHaveCount(14)
 })
 
 test('the period picker is also on the Run and Ride pages', async ({ page }) => {
@@ -48,12 +53,12 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   })
   await expect(card).toBeVisible()
   await expect(
-    card.getByRole('img', {
-      name: /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\. /,
+    card.getByRole('figure', {
+      name: /^(Age grade|Energy rate) of your best 20 minutes, trailing/,
     }),
   ).toBeAttached()
 
-  // Each chart has its own table view; the running one is checked here.
+  // The trend has its own table view, which is checked here.
   const details = card.locator('details').first()
   await expect(details).not.toHaveAttribute('open')
   await details.locator('summary').click()
@@ -84,16 +89,16 @@ test('How sure is this? keeps the disclaimer that hard best efforts do not prove
   await openSample(page)
   // The sample's best 20 minute efforts both reach 90% of their heart-rate reference, so the
   // Evidence card reports real efforts and the method page says what that does not prove.
-  await expect(page.getByRole('heading', { level: 2, name: 'Built on real efforts' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Built on real efforts' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'How sure is this?' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()
   await expect(
     page.getByText('That makes them hard, but does not prove either was all-out.'),
   ).toBeVisible()
 })
 
-test('focus moves to the Balance heading after sample data, and to the landing heading after start over', async ({
+test('focus moves to the Balance heading after sample data, and to the landing heading after removing all activities', async ({
   page,
 }) => {
   await page.goto('/')
@@ -102,6 +107,7 @@ test('focus moves to the Balance heading after sample data, and to the landing h
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
 
   await goTo(page, 'Profile')
-  await page.getByRole('button', { name: 'Start over' }).click()
+  await page.getByRole('button', { name: 'Remove all my activities' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Clear', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeFocused()
 })

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteValues } from '../profilePatch'
+import { WEIGHT_PROMPT_TEXT } from '../weightCopy'
 import { SetupDialog } from './SetupDialog'
 import type { SetupDialogProps } from './SetupDialog'
 
@@ -12,12 +13,15 @@ afterEach(() => {
 })
 
 const TITLE = 'Before your first analysis'
+const NUMBER_ERROR = 'Enter a number, such as 75 or 165.5'
+const SKIP_NOTE = WEIGHT_PROMPT_TEXT
 const INITIAL: AthleteValues = {
   settings: { massKg: 75, bikeMassKg: 9 },
   units: 'metric',
   birthYear: null,
   sex: null,
 }
+const UNSET: AthleteValues = { ...INITIAL, settings: { massKg: null, bikeMassKg: 9 } }
 
 function renderDialog(
   initial: AthleteValues = INITIAL,
@@ -43,7 +47,7 @@ describe('SetupDialog', () => {
     expect(screen.getByRole('heading', { level: 2, name: TITLE })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Weight puts watts and pace on the same scale. Age and sex are optional and only used to grade your results against age standards. They stay on this device unless you sign in.',
+        'Your weight puts rides and runs on one scale. Age and sex are optional: they set your level in each sport. They stay on this device unless you sign in.',
       ),
     ).toBeInTheDocument()
   })
@@ -55,16 +59,22 @@ describe('SetupDialog', () => {
     expect(screen.queryByRole('heading', { name: TITLE })).not.toBeInTheDocument()
   })
 
-  it('asks for body weight, units, year of birth and sex', () => {
+  it('asks for units, body weight, year of birth and sex', () => {
     renderDialog()
     expect(weight()).toHaveValue('75')
     expect(screen.getByText('kg', { selector: '.number-field__unit' })).toBeInTheDocument()
     const units = screen.getByRole('group', { name: 'Units' })
     expect(within(units).getByRole('radio', { name: 'Metric' })).toBeChecked()
     expect(year()).toHaveAttribute('inputmode', 'numeric')
+    expect(year()).toHaveAttribute('autocomplete', 'bday-year')
     const sex = screen.getByRole('group', { name: 'Sex' })
-    expect(within(sex).getByRole('radio', { name: 'Female' })).not.toBeChecked()
-    expect(within(sex).getByRole('radio', { name: 'Prefer not to say' })).toBeChecked()
+    expect(within(sex).queryAllByRole('radio', { checked: true })).toHaveLength(0)
+  })
+
+  it('puts the units before the body weight', () => {
+    renderDialog()
+    const units = screen.getByRole('group', { name: 'Units' })
+    expect(units.compareDocumentPosition(weight()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('shows the weight in the units it was saved in', () => {
@@ -73,11 +83,39 @@ describe('SetupDialog', () => {
     expect(screen.getByRole('group', { name: 'Units' })).toBeInTheDocument()
   })
 
+  it('leaves the weight blank when none has been entered, and confirms without one', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog(UNSET)
+    expect(weight()).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({})
+  })
+
+  it('shows the note about a missing weight only while none is entered', () => {
+    renderDialog(UNSET)
+    expect(screen.getByText(SKIP_NOTE)).toBeInTheDocument()
+  })
+
+  it('does not say a weight waits when one is entered', () => {
+    renderDialog()
+    expect(screen.queryByText(SKIP_NOTE)).not.toBeInTheDocument()
+  })
+
+  it('shows the kilograms the imperial weight is stored as', () => {
+    renderDialog({ ...INITIAL, units: 'imperial' })
+    expect(screen.getByText('Stored as 75 kg')).toBeInTheDocument()
+  })
+
   it('offers Analyse my files as the primary button and Skip for now as the other', () => {
     renderDialog()
     expect(screen.getByRole('button', { name: 'Analyse my files' })).toHaveClass('btn-primary')
     expect(screen.getByRole('button', { name: 'Skip for now' })).toHaveClass('btn')
     expect(screen.getByRole('button', { name: 'Skip for now' })).not.toHaveClass('btn-primary')
+  })
+
+  it('opens with the heading focused, so a phone does not raise the keyboard first', () => {
+    renderDialog()
+    expect(screen.getByRole('heading', { level: 2, name: TITLE })).toHaveFocus()
   })
 
   it('confirms with an empty patch when nothing was changed', async () => {
@@ -88,13 +126,40 @@ describe('SetupDialog', () => {
     expect(onSkip).not.toHaveBeenCalled()
   })
 
-  it('sends only the body weight changed, keeping the bike weight', async () => {
+  it('sends only the body weight that changed', async () => {
     const user = userEvent.setup()
     const { onConfirm } = renderDialog()
     await user.clear(weight())
     await user.type(weight(), '82.5')
     await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
-    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 82.5, bikeMassKg: 9 } })
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 82.5 } })
+  })
+
+  it('sends the weight entered when none was saved before', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog(UNSET)
+    await user.type(weight(), '70')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 70 } })
+  })
+
+  it('accepts a decimal comma in the weight', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '75,5')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 75.5 } })
+  })
+
+  it('takes a pound unit typed after the weight, even in metric', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '150 lb')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    const [patch] = onConfirm.mock.calls[0] as [{ settings: { massKg: number } }]
+    expect(patch.settings.massKg).toBeCloseTo(150 * 0.45359237, 6)
   })
 
   it('converts a typed weight from pounds when the units are imperial', async () => {
@@ -131,9 +196,18 @@ describe('SetupDialog', () => {
     await user.clear(weight())
     await user.type(weight(), 'heavy')
     await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Enter a number')
+    expect(screen.getByRole('alert')).toHaveTextContent(NUMBER_ERROR)
     expect(weight()).toHaveAttribute('aria-invalid', 'true')
     expect(weight()).toHaveFocus()
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('does not accept a blank weight once one is saved, and says why', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(NUMBER_ERROR)
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
@@ -215,12 +289,29 @@ describe('SetupDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith({ birthYear: null })
   })
 
-  it('sends the sex chosen, and Prefer not to say sends null', async () => {
+  it('leaves sex unchosen until the athlete picks it', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({})
+    expect(screen.getByRole('radio', { name: 'Prefer not to say' })).not.toBeChecked()
+  })
+
+  it('sends the sex chosen, and Prefer not to say clears a saved sex', async () => {
     const user = userEvent.setup()
     const { onConfirm } = renderDialog({ ...INITIAL, sex: 'female' })
     await user.click(screen.getByRole('radio', { name: 'Male' }))
     await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
     expect(onConfirm).toHaveBeenLastCalledWith({ sex: 'male' })
+  })
+
+  it('shows Prefer not to say as chosen, and sends it as no sex', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog({ ...INITIAL, sex: 'female' })
+    await user.click(screen.getByRole('radio', { name: 'Prefer not to say' }))
+    expect(screen.getByRole('radio', { name: 'Prefer not to say' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenLastCalledWith({ sex: null })
   })
 
   it('shows a save error as an alert, and keeps the values typed', async () => {
@@ -312,6 +403,32 @@ function Dropped({ open }: { open: boolean }) {
     </>
   )
 }
+
+describe('SetupDialog: the account answers after the visitor has changed units', () => {
+  const UNSET: AthleteValues = {
+    settings: { massKg: null, bikeMassKg: 9 },
+    units: 'metric',
+    birthYear: null,
+    sex: null,
+  }
+  const SAVED: AthleteValues = {
+    settings: { massKg: 75, bikeMassKg: 9 },
+    units: 'metric',
+    birthYear: null,
+    sex: null,
+  }
+
+  it('shows the saved weight in the units the visitor picked, and keeps those units', async () => {
+    const user = userEvent.setup()
+    const view = render(<SetupDialog initial={UNSET} onConfirm={vi.fn()} onSkip={vi.fn()} />)
+    await user.click(screen.getByRole('radio', { name: 'Imperial' }))
+
+    view.rerender(<SetupDialog initial={SAVED} onConfirm={vi.fn()} onSkip={vi.fn()} />)
+
+    expect(screen.getByLabelText('Body weight')).toHaveValue('165.3')
+    expect(screen.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+  })
+})
 
 describe('SetupDialog focus', () => {
   it('returns focus to the control that opened it when it closes', async () => {

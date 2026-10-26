@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { readStylesheet, ruleBody } from '../components/stylesheet'
 import { ChartXAxis } from './ChartXAxis'
 import { labelWidth } from './ticks'
 import type { PlotBox } from './chartTypes'
+
+const axisCss = await readStylesheet(import.meta.url, './ChartXAxis.css')
 
 const PLOT: PlotBox = { left: 56, right: 304, top: 28, bottom: 268 }
 
@@ -19,6 +22,10 @@ function anchors(container: HTMLElement): (string | null)[] {
 }
 
 describe('ChartXAxis', () => {
+  it('takes its tick size from the chart width alone, so no stylesheet size competes with it', () => {
+    expect(ruleBody(axisCss, '.chart-x-axis__tick')).not.toMatch(/font-size/)
+  })
+
   it('centres a label that has room on both sides of its tick', () => {
     const { container } = render(
       <svg>

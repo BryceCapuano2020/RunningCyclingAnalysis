@@ -2,11 +2,11 @@ import { Hono } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
 import { zValidator } from '@hono/zod-validator'
-import { ACCOUNT_SCOPE_HEADER, DevLoginSchema } from '@rca/contract'
+import { ACCOUNT_SCOPE_HEADER, DevLoginSchema, unitsForAcceptLanguage } from '@rca/contract'
 import type { AppEnv } from '../env.ts'
 import { HttpError } from '../errors.ts'
 import { parseGoogleIdToken } from '../auth/google.ts'
-import { buildMe, signInDev, signInWithGoogle } from '../auth/accounts.ts'
+import { buildMe, ensureProfile, signInDev, signInWithGoogle } from '../auth/accounts.ts'
 import { createSession, endSession, isSecure, loadSession } from '../auth/session.ts'
 import { invalidRequest, limitBody } from '../http.ts'
 import { toBase64Url, toHex } from '../util.ts'
@@ -71,6 +71,9 @@ authRoutes.get('/google/callback', async (c) => {
 
   const profile = parseGoogleIdToken(idToken, c.env.GOOGLE_CLIENT_ID, deps.now())
   const user = await signInWithGoogle(db, deps, profile)
+  // A new account's profile starts in the units of this sign-in's language; an existing one keeps its own.
+  const units = unitsForAcceptLanguage(c.req.header('accept-language'))
+  await ensureProfile(db, user.id, deps.now(), units)
   await createSession(c, user.id)
   return c.redirect(c.env.APP_URL, 302)
 })
@@ -96,6 +99,7 @@ authRoutes.post(
         pictureUrl: row.pictureUrl,
       },
       Boolean(c.env.FILES),
+      unitsForAcceptLanguage(c.req.header('accept-language')),
     )
     return c.json(me, 200)
   },

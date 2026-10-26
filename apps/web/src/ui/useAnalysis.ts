@@ -1,21 +1,28 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { AnalysisResult } from '@rca/core/pipeline'
-import type { SessionState, SyncIssueCode } from '@rca/core/session'
-import type { AthleteSettings } from '@rca/core/types'
-import type { ImportOutcome, SavedActivity, WorkerRequest } from '../worker/protocol'
+import type { PeriodChoice, SessionState, SyncIssueCode } from '@rca/core/session'
+import type { AthleteSettings, DigestSplits } from '@rca/core/types'
+import type {
+  ImportOutcome,
+  SavedActivity,
+  WorkerRequest,
+  WorkerResponse,
+} from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
-import { STOPPED_KEPT_RESULTS, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
+import { isQuietRequest } from './analysis/quietRequests'
 import type { ImportChange } from './analysis/importState'
 import { baselineOf, useImportState } from './analysis/importState'
 import { useLibraryActions } from './analysis/libraryActions'
 import { useLibraryState } from './analysis/libraryState'
 import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } from './analysis/model'
-import { EMPTY_SESSION, isDeletion } from './analysis/model'
-import { useLatest } from './analysis/useLatest'
+import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
+import { replyOf } from './routeReply'
+import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
+import { useGradeTrendRequest } from './analysis/useGradeTrendRequest'
 
 export type { LibraryStatus }
 
@@ -32,10 +39,14 @@ export interface AnalysisController {
   error: string | null
   /** The worker's reason for `error`, when the page words that error specially. */
   errorIssue: SyncIssueCode | null
+  /** `error` is news the visitor asked for, such as a stop, rather than a fault. */
+  errorNeutral: boolean
   workerStopped: boolean
   stop: () => void
   retryWorker: () => void
   libraryStatus: LibraryStatus
+  /** A reload of a visit that kept results, before the library they kept has been read. */
+  restoring: boolean
   /** Reads the signed-in library again. Imports are not held for a failed load; they must be added again. */
   retryLibrary: () => void
   /** Saved activities whose original file is not in the library. */
@@ -60,12 +71,19 @@ export interface AnalysisController {
    * the reason when it cannot be made. An export does not make the page busy.
    */
   exportData: () => Promise<Blob>
+  /** The run splits of one held activity; null when it has none. Does not make the page busy. */
+  activitySplits: (id: string) => Promise<DigestSplits | null>
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
   addFiles: (files: File[]) => void
   loadSample: () => void
-  setRange: (rangeDays: number | null) => void
+  setRange: (choice: PeriodChoice, answered?: (reply: WorkerResponse | null) => void) => void
   clear: () => void
+  /**
+   * The route of a saved activity, by its library id. `fromOriginal` reads the kept original file,
+   * which is done only when the visitor asks. A read never shows an error or makes the page busy.
+   */
+  loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
 }
 
 /**
@@ -78,7 +96,11 @@ export interface AnalysisController {
  * Hook order is the effect order: the worker effect runs before the settings effect, and both run
  * before the account effect, so a new worker exists before the account pass sends its first request.
  */
-export function useAnalysis(settings: AthleteSettings, account: Account): AnalysisController {
+export function useAnalysis(
+  settings: AthleteSettings,
+  account: Account,
+  gradeTrend: boolean,
+): AnalysisController {
   const settingsRef = useRef(settings)
   const accountRef = useRef<Account>(account)
   const accountEpochRef = useRef(0)
@@ -88,12 +110,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   // Created here, not in the transport, because refreshBusy reads it and the transport needs refreshBusy.
   const pendingRepliesRef = useRef<Pending[]>([])
   const [errorNotice, setErrorNotice] = useState<ErrorNotice | null>(null)
-  // The analysis on screen when the last import was sent: what its summary compares with.
-  const baselineRef = useRef<AnalysisResult | null>(null)
 
-  const setError = useCallback((message: string | null, issue: SyncIssueCode | null = null) => {
-    setErrorNotice(message === null ? null : { message, issue })
-  }, [])
+  const setError = useCallback(
+    (message: string | null, issue: SyncIssueCode | null = null, neutral = false) => {
+      setErrorNotice(message === null ? null : { message, issue, neutral })
+    },
+    [],
+  )
   const error = errorNotice?.message ?? null
   const errorIssue = errorNotice?.issue ?? null
 
@@ -105,7 +128,6 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
 
   const library = useLibraryState()
   const imports = useImportState()
-  const latestState = useLatest(imports.state)
   const {
     setLibraryAction,
     setLibraryNotice,
@@ -117,42 +139,26 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setBusy,
     setWaitingReason,
     pendingAsyncImportsRef,
-    deferredImportsRef,
-    setState,
+    provisionalImportsRef,
     setProgress,
     setUploading,
     setRebuildNotice,
     setImportOutcome,
     setImportChange,
+    reportedRef,
   } = imports
 
   /** Recomputes what the page shows as busy, waiting, and in a library change. */
   const refreshBusy = useCallback(() => {
     const replies = pendingRepliesRef.current
     setLibraryAction(replies.some((pending) => isDeletion(pending.kind)) ? 'deleting' : null)
-    // Reading the library kept in this browser is quick and queued before anything else, so it
-    // does not hold the page busy: the sample and imports stay available while it loads.
-    const quiet = (kind: Pending['kind']) =>
-      isDeletion(kind) || kind === 'exportData' || kind === 'loadDevice'
     setBusy(
-      replies.some((pending) => !quiet(pending.kind)) ||
+      replies.some((pending) => !isQuietRequest(pending.kind)) ||
         pendingAsyncImportsRef.current > 0 ||
-        deferredImportsRef.current.length > 0 ||
         libraryWaitRef.current.length > 0,
     )
-    setWaitingReason(
-      libraryWaitRef.current.length > 0 || deferredImportsRef.current.length > 0
-        ? WAITING_FOR_LIBRARY
-        : null,
-    )
-  }, [
-    deferredImportsRef,
-    libraryWaitRef,
-    pendingAsyncImportsRef,
-    setBusy,
-    setLibraryAction,
-    setWaitingReason,
-  ])
+    setWaitingReason(libraryWaitRef.current.length > 0 ? WAITING_FOR_LIBRARY : null)
+  }, [libraryWaitRef, pendingAsyncImportsRef, setBusy, setLibraryAction, setWaitingReason])
 
   /** The notices a request replaces are cleared as it is sent. */
   const onSend = useCallback(
@@ -163,11 +169,11 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       const keepsError =
         request.type === 'loadServer' ||
         request.type === 'loadDevice' ||
-        request.type === 'exportData'
+        request.type === 'exportData' ||
+        request.type === 'activitySplits' ||
+        request.type === 'routeShape' ||
+        request.type === 'forgetRoutes'
       if (!keepsError) setError(null)
-      // Taken as the import is sent. An import sent before the one before it replies compares with
-      // the same result, since that reply has not yet changed what is on screen.
-      if (request.type === 'addFiles') baselineRef.current = baselineOf(latestState())
       // A new import or rebuild replaces the outcome of the last library change.
       if (request.type === 'addFiles' || request.type === 'rebuildStale') {
         setLibraryNotice(null)
@@ -177,17 +183,19 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
       if (request.type === 'loadServer' || request.type === 'rebuildStale') {
         setLibraryUnreadable(0)
       }
-      // The summary describes the last import only, so it goes once another import, a clear or the sample is sent.
+      // The summary describes the last import only: another import, a clear, the sample or a delete
+      // replaces it, since a delete changes the count the summary gave.
       if (
         request.type === 'addFiles' ||
         request.type === 'clear' ||
-        request.type === 'loadSample'
+        request.type === 'loadSample' ||
+        request.type === 'deleteActivity' ||
+        request.type === 'deleteDeviceActivity'
       ) {
         setImportOutcome(null)
       }
     },
     [
-      latestState,
       refreshBusy,
       setError,
       setImportOutcome,
@@ -198,7 +206,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   )
 
   const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
-  const { dropPendingReplies, unsentRef, restartWorker, setWorkerStopped } = transport
+  const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
 
   // Signed out, each worker starts from the library kept in this browser, once. While the account
@@ -210,6 +218,21 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     deviceLoadedRef.current = true
     sendToWorker({ type: 'loadDevice', settings: settingsRef.current })
   }, [sendToWorker])
+
+  /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */
+  const loadRoute = useCallback(
+    (id: string, fromOriginal: boolean) =>
+      new Promise<RouteReply>((resolve) => {
+        const { status, me } = accountRef.current
+        const userId = status === 'signed-in' ? me?.user.id : undefined
+        sendToWorker(
+          { type: 'routeShape', id, fromOriginal, ...(userId === undefined ? {} : { userId }) },
+          undefined,
+          (message) => resolve(replyOf(message)),
+        )
+      }),
+    [sendToWorker],
+  )
 
   const libraryActions = useLibraryActions({
     library,
@@ -230,6 +253,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     settingsRef,
     setError,
     setErrorNotice,
+    latestBaseline: () => baselineOf(reportedRef.current),
   })
   const handleAccountIssue = useAccountIssue({
     accountRef,
@@ -237,16 +261,17 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
   })
 
   /**
-   * Empties every queue: the requests waiting for a worker, the requests the worker still owes, and
-   * the imports waiting for the account or the library. Both the stop and an account change use it.
+   * Empties every queue: the requests waiting for a worker, the requests the worker still owes, the
+   * files analysed while the account loads, and the imports waiting for the library. Both the stop
+   * and an account change use it.
    */
   const clearQueues = useCallback(() => {
     dropPendingReplies()
-    unsentRef.current = []
-    deferredImportsRef.current = []
-    libraryWaitRef.current = []
+    dropUnsent()
+    drainBatches(provisionalImportsRef)
+    drainBatches(libraryWaitRef)
     refreshBusy()
-  }, [deferredImportsRef, dropPendingReplies, libraryWaitRef, refreshBusy, unsentRef])
+  }, [dropPendingReplies, dropUnsent, libraryWaitRef, provisionalImportsRef, refreshBusy])
 
   /**
    * The summary was dismissed, so what moved goes with it. The baseline stays: an import still
@@ -254,23 +279,25 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
    */
   const dismissSummary = useCallback(() => setImportChange(null), [setImportChange])
 
+  // A clear keeps the chosen period: the session holds it, so nothing else is sent.
+  const clearSession = useCallback(
+    () => sendToWorker({ type: 'clear', forgetDevice: false }),
+    [sendToWorker],
+  )
+
+  // A stop cancels the work in progress and keeps the result on screen. The worker is replaced, and
+  // its account pass reloads the kept library, which replaces the result with what was saved.
   const stop = useCallback(() => {
     clearQueues()
     setProgress(null)
     setUploading(null)
-    setState(EMPTY_SESSION)
     setImportOutcome(null)
     setRebuildNotice(null)
     setWorkerStopped(false)
     automaticRestartCountRef.current = 0
-    setError(
-      accountRef.current.status === 'signed-in'
-        ? 'Analysis stopped. Saved activities are reloading; re-import any local files that were not saved.'
-        : STOPPED_KEPT_RESULTS,
-    )
+    setError(STOPPED_BY_USER, null, true)
     restartWorker()
   }, [
-    accountRef,
     automaticRestartCountRef,
     clearQueues,
     restartWorker,
@@ -278,7 +305,6 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     setImportOutcome,
     setProgress,
     setRebuildNotice,
-    setState,
     setUploading,
     setWorkerStopped,
   ])
@@ -297,7 +323,6 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     previousUserIdRef,
     deviceLoadedRef,
     loadDeviceOnce,
-    baselineRef,
   })
 
   const { massKg, bikeMassKg } = settings
@@ -309,6 +334,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     if (changed) send({ type: 'setSettings', settings: settingsRef.current })
   }, [massKg, bikeMassKg, send])
 
+  useGradeTrendRequest(gradeTrend, settingsRef, send)
   useAccountTransitions({
     account,
     accountEpochRef,
@@ -322,6 +348,7 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     loadLibrary: libraryActions.loadLibrary,
     loadDeviceOnce,
     clearQueues,
+    clearSession,
   })
 
   return {
@@ -332,10 +359,12 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     uploading: imports.uploading,
     error,
     errorIssue,
+    errorNeutral: errorNotice?.neutral ?? false,
     workerStopped: transport.workerStopped,
     stop,
     retryWorker: transport.retryWorker,
     libraryStatus: library.libraryStatus,
+    restoring: library.restoring,
     retryLibrary: libraryActions.retryLibrary,
     missingOriginals: library.missingOriginals,
     libraryUnreadable: library.libraryUnreadable,
@@ -350,11 +379,13 @@ export function useAnalysis(settings: AthleteSettings, account: Account): Analys
     libraryError: library.libraryError,
     deleteActivity: libraryActions.deleteActivity,
     exportData: libraryActions.exportData,
+    activitySplits: libraryActions.activitySplits,
     rebuildNotice: imports.rebuildNotice,
     rebuildSavedActivities: importActions.rebuildSavedActivities,
     addFiles: importActions.addFiles,
     loadSample: importActions.loadSample,
     setRange: importActions.setRange,
     clear: importActions.clear,
+    loadRoute,
   }
 }

@@ -11,7 +11,6 @@ const hrCss = await readStylesheet(import.meta.url, './HrScatter.css')
 const TITLE = 'Heart rate against energy rate'
 
 /** The static chart image is named by its title, then its description. */
-const named = (title: string) => (name: string) => name.startsWith(title)
 const EMPTY =
   'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks per sport across a range of efforts'
 
@@ -52,7 +51,7 @@ describe('HrScatter', () => {
 
   it('draws a dot per block, a fitted line per sport, and the legend', () => {
     render(<HrScatter hr={hrFixture} />)
-    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: TITLE })).toBeInTheDocument()
     expect(screen.getAllByTestId('hr-dot')).toHaveLength(5)
     expect(screen.getAllByTestId('hr-fit')).toHaveLength(2)
     expect(screen.queryByText(/Not enough steady/)).toBeNull()
@@ -62,6 +61,19 @@ describe('HrScatter', () => {
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(legend).toHaveTextContent('Running')
     expect(legend).toHaveTextContent('Cycling')
+  })
+
+  it('draws cycling dots as diamonds, so the two sports differ in shape as well as colour', () => {
+    const { container } = render(<HrScatter hr={hrFixture} />)
+    const dots = screen.getAllByTestId('hr-dot')
+    expect(dots.some((dot) => dot.getAttribute('data-sport') === 'ride')).toBe(true)
+    dots.forEach((dot) => {
+      const shape = dot.getAttribute('data-sport') === 'ride' ? 'diamond' : 'circle'
+      expect(dot).toHaveAttribute('data-shape', shape)
+    })
+    expect(container.querySelector('.chart-legend__key--diamond')).not.toBeNull()
+    // Running's key is a dot, as its points are.
+    expect(container.querySelector('.chart-legend__key--dot')).not.toBeNull()
   })
 
   it('formats the summary table with block counts, slopes and R squared', () => {
@@ -90,7 +102,8 @@ describe('HrScatter', () => {
   it('draws each dot fully opaque with a 2 px ring in the surface colour', () => {
     const rule = cssRule('.hr-scatter__dot')
     expect(rule).not.toMatch(/fill-opacity/)
-    expect(rule).toMatch(/stroke:\s*var\(--surface-1\)/)
+    // The ring is the surface the chart sits on, which is the page surface.
+    expect(rule).toMatch(/stroke:\s*var\(--surface-0\)/)
     expect(rule).toMatch(/stroke-width:\s*2(px)?;/)
   })
 
@@ -215,6 +228,72 @@ describe('HrScatter', () => {
   it('shows an empty state when neither sport has enough data', () => {
     render(<HrScatter hr={{ run: null, ride: null, kappa: null, lnKappaSe: null }} />)
     expect(screen.getByText(EMPTY)).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+})
+
+describe('HrScatter with rides held', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('draws only the run blocks, and the run fit, while the rides are held', () => {
+    render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    const dots = screen.getAllByTestId('hr-dot')
+    expect(dots).toHaveLength(3)
+    expect(dots.every((dot) => dot.getAttribute('data-sport') === 'run')).toBe(true)
+    expect(screen.getAllByTestId('hr-fit')).toHaveLength(1)
+  })
+
+  it('has no legend entry, slope note or missing-data note for the held sport', () => {
+    const { container } = render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(screen.queryByText(/Slopes:/)).toBeNull()
+    expect(screen.queryByText(/Not enough steady heart-rate data for cycling/)).toBeNull()
+    expect(tableAt(container, 0).rows).toEqual([['Running', '3', '10.0', '0.95']])
+  })
+
+  it('lists only running blocks in the table view, so the table matches what is drawn', () => {
+    const { container } = render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    const plotted = tableAt(container, 1).rows
+    expect(plotted).toHaveLength(3)
+    expect(plotted.every((row) => row[0] === 'Running')).toBe(true)
+  })
+
+  it('describes the chart as running alone while the rides are held', () => {
+    render(<HrScatter hr={hrFixture} includeRides={false} />)
+
+    expect(
+      screen.getByRole('img', {
+        name: 'Average heart rate against energy rate for each block of steady running effort, with a fitted line.',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('says running, not each sport, in its empty state while the rides are held', () => {
+    const ridesOnly: HrCrossCheck = {
+      run: null,
+      ride: hrFixture.ride,
+      kappa: null,
+      lnKappaSe: null,
+    }
+    render(<HrScatter hr={ridesOnly} includeRides={false} />)
+
+    expect(
+      screen.getByText(
+        'Not enough steady heart-rate data yet. It takes roughly 8 five-minute blocks of running across a range of efforts',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/per sport/)).toBeNull()
+  })
+
+  it('still draws both sports, with the slope note, when the rides are not held', () => {
+    render(<HrScatter hr={hrFixture} includeRides />)
+
+    expect(screen.getAllByTestId('hr-dot')).toHaveLength(5)
+    expect(screen.getByText(/Slopes: running 10\.0 and cycling 12\.0/)).toBeInTheDocument()
   })
 })

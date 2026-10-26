@@ -9,8 +9,3 @@
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }
-
-.accuracy-scatter__reference-label {
-  fill: var(--text-muted);
-  font-size: 12px;
-}

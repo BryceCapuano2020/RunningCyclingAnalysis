@@ -5,9 +5,12 @@ import { makeActivity, makeEquivalence, makeResult } from './components/fixtures
 import {
   RECORD_DURATIONS_S,
   activityNames,
+  chipLabels,
   countSport,
   curveOf,
+  distanceRecords,
   featuredEquivalence,
+  isEstimatedRecord,
   nativeCurve,
   nativeValue,
   sportRecords,
@@ -170,5 +173,107 @@ describe('curveOf', () => {
     })
     expect(curveOf(result, 'run')).toBe(result.runCurve)
     expect(curveOf(result, 'ride')).toBe(result.rideCurve)
+  })
+})
+
+describe('distanceRecords', () => {
+  const runBests = (id: string, startMs: number, seconds: { 1000?: number; 5000?: number }) =>
+    makeActivity({
+      id,
+      startMs,
+      distanceBests: Object.entries(seconds).map(([distanceM, secs]) => ({
+        distanceM: Number(distanceM),
+        seconds: secs,
+      })),
+    })
+
+  it('takes the fastest time at each record distance, with the activity that set it', () => {
+    const slow = runBests('slow', 1, { 1000: 250, 5000: 1250 })
+    const fast = runBests('fast', 2, { 1000: 240 })
+    const { records, partial } = distanceRecords([fast, slow], 'metric')
+    expect(partial).toBe(false)
+    expect(records).toHaveLength(2)
+    expect(records[0]).toMatchObject({ label: '1 km', seconds: 240, time: '4:00', activity: fast })
+    expect(records[0]?.pace).toBe('4:00 /km')
+    expect(records[1]).toMatchObject({
+      label: '5 km',
+      seconds: 1250,
+      time: '20:50',
+      activity: slow,
+    })
+  })
+
+  it('gives a tie to the earlier activity, whatever order they come in', () => {
+    const early = runBests('early', 1, { 1000: 240 })
+    const late = runBests('late', 2, { 1000: 240 })
+    expect(distanceRecords([late, early], 'metric').records[0]?.activity.id).toBe('early')
+    expect(distanceRecords([early, late], 'metric').records[0]?.activity.id).toBe('early')
+  })
+
+  it('shows its paces in the unit preference', () => {
+    const run = runBests('run', 1, { 1000: 240 })
+    expect(distanceRecords([run], 'imperial').records[0]?.pace).toBe('6:26 /mi')
+  })
+
+  it('is partial when some runs in scope predate distance bests', () => {
+    const current = runBests('current', 2, { 1000: 240 })
+    const older = makeActivity({ id: 'older', startMs: 1 })
+    expect(distanceRecords([current, older], 'metric').partial).toBe(true)
+  })
+
+  it('shows nothing when no run in scope has distance bests, and ignores rides', () => {
+    const older = makeActivity({ id: 'older', startMs: 1 })
+    const ride = makeActivity({ id: 'ride', sport: 'ride', startMs: 2 })
+    expect(distanceRecords([older, ride], 'metric')).toEqual({ records: [], partial: false })
+  })
+})
+
+describe('chipLabels', () => {
+  it('names duration bests of 5, 20 and 60 minutes and every run distance', () => {
+    expect(
+      chipLabels([
+        { kind: 'duration', durationS: 300 },
+        { kind: 'duration', durationS: 1200 },
+        { kind: 'duration', durationS: 3600 },
+        { kind: 'distance', distanceM: 1609.344 },
+        { kind: 'distance', distanceM: 10000 },
+      ]),
+    ).toEqual(['Best 5 min', 'Best 20 min', 'Best 60 min', 'Best 1 mi', 'Best 10 km'])
+  })
+
+  it('leaves out the one-minute best, which is on the page only', () => {
+    expect(chipLabels([{ kind: 'duration', durationS: 60 }])).toEqual([])
+  })
+
+  it('is empty for an activity that holds nothing', () => {
+    expect(chipLabels([])).toEqual([])
+  })
+})
+
+describe('isEstimatedRecord', () => {
+  const ride = (powerSource: 'measured' | 'virtual' | 'none') =>
+    makeActivity({ id: 'ride', sport: 'ride', powerSource })
+
+  it('counts a ride whose watts came from virtual power as estimated', () => {
+    expect(isEstimatedRecord('ride', ride('virtual'))).toBe(true)
+  })
+
+  it('counts a ride with no power source as estimated, as it counts one with no power meter', () => {
+    expect(isEstimatedRecord('ride', ride('none'))).toBe(true)
+  })
+
+  it('does not count a ride whose watts were measured by a power meter', () => {
+    expect(isEstimatedRecord('ride', ride('measured'))).toBe(false)
+  })
+
+  it('counts a ride estimated when the activity that set it is not in the result', () => {
+    expect(isEstimatedRecord('ride', null)).toBe(true)
+  })
+
+  it('never tags a run, whatever its activity or power source', () => {
+    expect(isEstimatedRecord('run', makeActivity({ sport: 'run', powerSource: 'virtual' }))).toBe(
+      false,
+    )
+    expect(isEstimatedRecord('run', null)).toBe(false)
   })
 })

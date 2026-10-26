@@ -11,9 +11,10 @@ import { ChartXAxis } from './ChartXAxis'
 import { Crosshair } from './Crosshair'
 import { ChartYAxis } from './ChartYAxis'
 import {
-  ENDPOINT_LABEL_OFFSET,
+  endLabelAt,
   markerRadii,
   plotSurface,
+  pointBefore,
   sizedOnce,
   tooltipAt,
   tooltipOverlay,
@@ -86,6 +87,8 @@ function emphasisIndex(rows: CurveRow[]): number {
 interface Layout {
   xs: number[]
   points: (Point | null)[]
+  /** The y of each duration's point, for anchoring its tooltip beside it. */
+  ys: (number | null)[]
   earlier: (Point | null)[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
@@ -104,9 +107,11 @@ function layout(rows: CurveRow[], view: View, size: ChartSize): Layout | null {
     rows.map((row) =>
       Number.isFinite(pick(row)) ? { x: x(row.durationS), y: y(plotted(pick(row))) } : null,
     )
+  const points = pointsOf((row) => row.value)
   return {
     xs: rows.map((row) => x(row.durationS)),
-    points: pointsOf((row) => row.value),
+    points,
+    ys: points.map((point) => point?.y ?? null),
     earlier: pointsOf((row) => row.previous),
     xTicks: fitTicks(durationTicks(first.durationS, last.durationS, x), { axis: 'x', width }),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
@@ -196,25 +201,33 @@ export function SportCurveChart({
   units,
   activityNames,
 }: SportCurveChartProps) {
-  const view: View = { sport, units, massKg, previous, names: activityNames }
   const rows = buildRows(curve, previous?.curve ?? [])
+  // The previous period is drawn, listed and tabled only when it has a value to show.
+  const shown =
+    previous !== null && rows.some((row) => Number.isFinite(row.previous)) ? previous : null
+  const view: View = { sport, units, massKg, previous: shown, names: activityNames }
   const hasData = rows.filter((row) => Number.isFinite(row.value)).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const emphasis = emphasisIndex(rows)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
   const legend: ChartLegendEntry[] | undefined =
-    previous && hasData
+    shown && hasData
       ? [
-          { label: SPORT_TITLE[sport], kind: sport },
-          { label: previous.label, kind: 'neutral', swatch: 'dashed' },
+          { label: SPORT_TITLE[sport], kind: sport, swatch: 'line' },
+          { label: shown.label, kind: 'neutral', swatch: 'dashed' },
         ]
+      : undefined
+  const noPrevious =
+    previous && !shown && hasData
+      ? `No ${SPORT_PLURAL[sport]} in the ${previous.label.toLowerCase()}`
       : undefined
 
   return (
     <ChartFrame
       title={titleOf(sport, units)}
-      description={`Best ${sport === 'run' ? 'grade-adjusted pace' : 'power'} for each duration. Duration is on a log scale.${previous ? ` Dashed line: ${previous.label}.` : ''}`}
+      description={`Best ${sport === 'run' ? 'grade-adjusted pace' : 'power'} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
       legend={legend}
+      note={noPrevious}
       table={{
         caption: captionOf(view),
         columns: columnsOf(view),
@@ -227,10 +240,16 @@ export function SportCurveChart({
       overlay={(size) =>
         tooltipOverlay(
           size,
-          tooltipAt(size, layoutOf(size)?.xs ?? null, active, (index, x, y) => {
-            const row = rows[index]
-            return row ? tooltipFor(row, x, y, view) : null
-          }),
+          tooltipAt(
+            size,
+            layoutOf(size)?.xs ?? null,
+            active,
+            (index, x, y) => {
+              const row = rows[index]
+              return row ? tooltipFor(row, x, y, view) : null
+            },
+            layoutOf(size)?.ys,
+          ),
         )
       }
     >
@@ -241,6 +260,7 @@ export function SportCurveChart({
         const activeX = active === null ? undefined : m.xs[active]
         const emphasised = m.points[emphasis] ?? null
         const emphasisRow = rows[emphasis]
+        const beforeEmphasis = pointBefore(m.points, emphasis)
         const activePoint = active === null ? null : (m.points[active] ?? null)
         const activeEarlier = active === null ? null : (m.earlier[active] ?? null)
         return (
@@ -264,7 +284,7 @@ export function SportCurveChart({
                 d={areaPath(m.points, size.plot.bottom)}
               />
             ) : null}
-            {previous ? (
+            {shown ? (
               <path
                 data-testid="sport-curve-previous"
                 className="chart-series__line chart-series__line--previous"
@@ -288,10 +308,9 @@ export function SportCurveChart({
                 <text
                   className="chart-series__label"
                   textAnchor="end"
-                  x={emphasised.x + ENDPOINT_LABEL_OFFSET.x}
-                  y={emphasised.y + ENDPOINT_LABEL_OFFSET.y}
+                  {...endLabelAt(emphasised, beforeEmphasis ?? null)}
                 >
-                  {formatDuration(emphasisRow.durationS)}
+                  {formatNative(sport, emphasisRow.value, units)}
                 </text>
               </>
             ) : null}

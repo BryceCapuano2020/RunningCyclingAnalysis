@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   PACE_UNIT,
+  formatClock,
+  formatTimeOfDay,
   formatDistance,
   formatDuration,
   formatElevation,
   formatMass,
   formatPace,
-  formatClock,
+  formatRecordTime,
   formatPaceValue,
   paceSeconds,
   formatPercent,
@@ -205,6 +207,11 @@ describe('formatPower', () => {
     expect(formatPower(-0.2)).toBe('0 W')
   })
 
+  it('groups thousands as the other large numbers do', () => {
+    expect(formatPower(1200)).toBe('1,200 W')
+    expect(formatPower(1446.4)).toBe('1,446 W')
+  })
+
   it('returns a dash for NaN', () => {
     expect(formatPower(NaN)).toBe(DASH)
   })
@@ -261,5 +268,40 @@ describe('formatWatts', () => {
 
   it('is the number that formatPower shows before its unit', () => {
     expect(formatPower(284.6)).toBe(`${formatWatts(284.6)} W`)
+  })
+})
+
+describe('formatRecordTime', () => {
+  it('reads minutes and seconds, with no leading zero on the minutes', () => {
+    expect(formatRecordTime(250)).toBe('4:10')
+    expect(formatRecordTime(402.336)).toBe('6:42')
+    expect(formatRecordTime(59.6)).toBe('1:00')
+  })
+
+  it('adds hours from an hour, with minutes and seconds always two digits', () => {
+    expect(formatRecordTime(3725)).toBe('1:02:05')
+    expect(formatRecordTime(3600)).toBe('1:00:00')
+  })
+
+  it('shows a dash for a time that is not a number', () => {
+    expect(formatRecordTime(NaN)).toBe('—')
+  })
+})
+
+describe('formatTimeOfDay', () => {
+  // Local constructors, so the clock reads the same in every zone the suite runs in.
+  const at = (hour: number, minute: number) => new Date(2026, 5, 3, hour, minute).getTime()
+
+  it.each([
+    [0, 5, '12:05 am'],
+    [6, 11, '6:11 am'],
+    [6, 42, '6:42 am'],
+    [11, 59, '11:59 am'],
+    [12, 0, '12:00 pm'],
+    [12, 30, '12:30 pm'],
+    [18, 5, '6:05 pm'],
+    [23, 59, '11:59 pm'],
+  ])('shows %i:%i as %s', (hour, minute, text) => {
+    expect(formatTimeOfDay(at(hour, minute))).toBe(text)
   })
 })

@@ -72,6 +72,16 @@ a {
   outline-offset: 2px;
 }
 
+/* The app focuses a page's heading after a change of page. That is not a control, so it gets an
+   underline rather than the focus ring. */
+h1[tabindex='-1']:focus {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.12em;
+  text-decoration-color: var(--focus);
+}
+
 button,
 input,
 select {
@@ -125,7 +135,9 @@ th.num {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
   }
@@ -133,7 +145,7 @@ th.num {
 
 summary {
   cursor: pointer;
-  min-height: 40px;
+  min-height: var(--control-height);
   display: flex;
   align-items: center;
   gap: var(--space-2);

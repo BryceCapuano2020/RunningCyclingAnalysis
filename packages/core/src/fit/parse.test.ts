@@ -3,6 +3,7 @@ import type { Activity, Sport } from '../types'
 import { encodeFit } from './encode'
 import { DEFAULT_PARSE_LIMITS } from '../import/result'
 import type { ParseResult } from '../import/result'
+import { generatedName } from '../import/names'
 import { parseFit } from './parse'
 import { buildFit, secondly } from './fitTestFiles'
 import type { TestRecord } from './fitTestFiles'
@@ -108,7 +109,7 @@ describe('parseFit round trip', () => {
 
     const a = result.activities[0]!
     expect(a.sport).toBe('ride')
-    expect(a.name).toBe('Morning Ride')
+    expect(a.name).toBe(generatedName(START_MS, 'ride'))
     expect(a.id).toBe(`${START_MS}-Morning Ride.fit`)
     expect(a.startMs).toBe(START_MS)
     expect(a.n).toBe(120)
@@ -128,7 +129,7 @@ describe('parseFit round trip', () => {
     const result = parseFit(encodeFit(original), 'tempo.fit')
     const a = firstActivity(result)
     expect(a.sport).toBe('run')
-    expect(a.name).toBe('tempo')
+    expect(a.name).toBe(generatedName(START_MS, 'run'))
     expect(a.n).toBe(90)
     expect(a.hasPower).toBe(false)
     expect(a.power.every((v) => Number.isNaN(v))).toBe(true)
@@ -264,6 +265,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'junk.fit',
       reason: 'Not a FIT file',
+      code: 'corrupt',
     })
   })
 
@@ -273,6 +275,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'broken.fit',
       reason: 'Could not decode FIT file',
+      code: 'corrupt',
     })
   })
 
@@ -281,11 +284,13 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'empty.fit',
       reason: 'Not a FIT file',
+      code: 'corrupt',
     })
     expect(parseFit(new Uint8Array([14, 16, 0, 0, 0]), 'short.fit')).toEqual({
       ok: false,
       fileName: 'short.fit',
       reason: 'Not a FIT file',
+      code: 'corrupt',
     })
   })
 
@@ -296,6 +301,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'cut.fit',
       reason: 'File is incomplete or corrupt',
+      code: 'corrupt',
     })
   })
 
@@ -306,6 +312,8 @@ describe('parseFit validation', () => {
     ).toEqual({
       ok: false,
       fileName: 'large.fit',
+      code: 'too-large',
+      detail: String(bytes.length - 1),
       reason: `FIT file exceeds the ${bytes.length - 1}-byte limit`,
     })
     expect(
@@ -317,6 +325,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'many-records.fit',
       reason: 'FIT file exceeds the 10-record limit',
+      code: 'too-much-data',
     })
     expect(
       parseFit(bytes, 'long.fit', { ...DEFAULT_PARSE_LIMITS, maxActivitySeconds: 30 }),
@@ -324,6 +333,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'long.fit',
       reason: 'Activity exceeds the 30-second time-grid limit',
+      code: 'too-long',
     })
   })
 
@@ -343,6 +353,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'partial.fit',
       reason: 'File is incomplete or corrupt',
+      code: 'corrupt',
     })
   })
 
@@ -356,6 +367,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'partial.fit',
       reason: 'File is incomplete or corrupt',
+      code: 'corrupt',
     })
   })
 
@@ -365,6 +377,7 @@ describe('parseFit validation', () => {
       ok: false,
       fileName: 'short.fit',
       reason: 'Activity is shorter than one minute',
+      code: 'too-short',
     })
   })
 
@@ -445,6 +458,8 @@ describe('parseFit sport mapping', () => {
       ok: false,
       fileName: 'pool.fit',
       reason: 'Unsupported sport: swimming',
+      code: 'unsupported-sport',
+      detail: 'swimming',
     })
   })
 
@@ -454,6 +469,8 @@ describe('parseFit sport mapping', () => {
       ok: false,
       fileName: 'nosport.fit',
       reason: 'Unsupported sport: unknown',
+      code: 'unsupported-sport',
+      detail: 'unknown',
     })
   })
 
@@ -581,7 +598,7 @@ describe('parseFit sport mapping', () => {
 })
 
 describe('parseFit multi-session files', () => {
-  it('splits a duathlon into a run and a ride, with suffixed ids and names', () => {
+  it('splits a duathlon into a run and a ride, with suffixed ids and names from each start', () => {
     const bytes = buildFit({
       sessions: [
         {
@@ -605,11 +622,11 @@ describe('parseFit multi-session files', () => {
     expect(result.activities.map((a) => a.sport)).toEqual(['run', 'ride'])
     const [run, ride] = result.activities
     expect(run?.id).toBe(`${START_MS}-duathlon.fit#0`)
-    expect(run?.name).toBe('duathlon (run)')
+    expect(run?.name).toBe(generatedName(START_MS, 'run'))
     expect(run?.startMs).toBe(START_MS)
     expect(run?.n).toBe(600)
     expect(ride?.id).toBe(`${START_MS + 700_000}-duathlon.fit#1`)
-    expect(ride?.name).toBe('duathlon (ride)')
+    expect(ride?.name).toBe(generatedName(START_MS + 700_000, 'ride'))
     expect(ride?.startMs).toBe(START_MS + 700_000)
     expect(ride?.n).toBe(900)
     expect(ride?.speed[899]).toBeCloseTo(8, 10)
@@ -792,6 +809,8 @@ describe('parseFit multi-session files', () => {
       ok: false,
       fileName: 'pool.fit',
       reason: 'Unsupported sport: swimming',
+      code: 'unsupported-sport',
+      detail: 'swimming',
     })
   })
 
@@ -840,7 +859,7 @@ describe('parseFit multi-session files', () => {
 })
 
 describe('parseFit file names', () => {
-  it('strips directories and the .fit and .fit.gz extensions', () => {
+  it('names an activity from its start, whatever its file is called', () => {
     const bytes = encodeFit(makeActivity('ride', 60))
     const names = ['rides/Sunday Loop.fit', 'C:\\rides\\Sunday Loop.FIT', 'Sunday Loop.fit.gz'].map(
       (fileName) => {
@@ -848,7 +867,27 @@ describe('parseFit file names', () => {
         return result.ok ? result.activities[0]?.name : null
       },
     )
-    expect(names).toEqual(['Sunday Loop', 'Sunday Loop', 'Sunday Loop'])
+    expect(names).toEqual([
+      generatedName(START_MS, 'ride'),
+      generatedName(START_MS, 'ride'),
+      generatedName(START_MS, 'ride'),
+    ])
+  })
+
+  it('names a run from the local clock of its start, as a literal name', () => {
+    // Built from local clock time, so the name is the same in every time zone.
+    const start = new Date(2025, 4, 15, 6, 11).getTime()
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: start,
+          durationS: 600,
+          records: secondly(start, 600, { speed: 3 }),
+        },
+      ],
+    })
+    expect(firstActivity(parseFit(bytes, 'device.fit')).name).toBe('Morning Run')
   })
 })
 
@@ -879,6 +918,7 @@ describe('parseFit hardening', () => {
       ok: false,
       fileName: 'empty.fit',
       reason: 'File contains no activity records',
+      code: 'empty',
     })
   })
 
@@ -962,7 +1002,10 @@ describe('parseFit hardening', () => {
     if (!result.ok) throw new Error(result.reason)
     expect(result.activities.map((a) => a.n)).toEqual([3600, 3600])
     expect(result.activities.map((a) => a.startMs)).toEqual([START_MS, second])
-    expect(result.activities.map((a) => a.name)).toEqual(['gap (part 1)', 'gap (part 2)'])
+    expect(result.activities.map((a) => a.name)).toEqual([
+      generatedName(START_MS, 'run'),
+      generatedName(second, 'run'),
+    ])
     expect(result.activities[0]?.id).not.toBe(result.activities[1]?.id)
   })
 
@@ -1062,5 +1105,67 @@ describe('parseFit hardening', () => {
     const [first, later] = result.activities
     expect(first?.n).toBe(300)
     expect(later?.n).toBe(600)
+  })
+})
+
+describe('parseFit route shape', () => {
+  /** A 10-minute run, one record a second, that walks round a circle of 200 m. */
+  function loopRecords(): TestRecord[] {
+    return secondly(START_MS, 600, { speed: 3 }).map((record, i) => {
+      const angle = (2 * Math.PI * i) / 600
+      const position = {
+        lat: 51.5 + (200 * Math.sin(angle)) / 111_320,
+        lon: -0.12 + (200 * Math.cos(angle)) / (111_320 * Math.cos((51.5 * Math.PI) / 180)),
+      }
+      return Object.assign(record, { position })
+    })
+  }
+
+  it('gives a session with positions a route shape, from the FIT semicircles', () => {
+    const bytes = buildFit({
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 600, records: loopRecords() }],
+    })
+
+    const result = parseFit(bytes, 'loop.fit')
+
+    expect(result.ok && result.activities[0]?.route?.points.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('gives a record whose position is out of range no fix, so the rest of the track keeps its route', () => {
+    const markers = (_: TestRecord, i: number) => i % 10 === 5
+    const mixed = loopRecords().map((record, i) =>
+      markers(record, i) ? Object.assign(record, { position: { lat: 180, lon: 180 } }) : record,
+    )
+    const withoutMarkers = loopRecords().filter((record, i) => !markers(record, i))
+    const route = (records: TestRecord[]) =>
+      parseFit(
+        buildFit({ sessions: [{ sport: 'running', startMs: START_MS, durationS: 600, records }] }),
+        'track.fit',
+      )
+
+    const withMarkers = route(mixed)
+    const plain = route(withoutMarkers)
+
+    expect(withMarkers.ok && withMarkers.activities[0]?.route).toBeDefined()
+    expect(withMarkers.ok && withMarkers.activities[0]?.route).toEqual(
+      plain.ok && plain.activities[0]?.route,
+    )
+  })
+
+  it('gives a session whose records carry only a latitude no route shape', () => {
+    const bytes = buildFit({
+      sessions: [
+        {
+          sport: 'running',
+          startMs: START_MS,
+          durationS: 600,
+          records: secondly(START_MS, 600, { speed: 3, gps: true }),
+        },
+      ],
+    })
+
+    const result = parseFit(bytes, 'half.fit')
+
+    expect(result.ok && result.activities[0]?.route).toBeUndefined()
   })
 })

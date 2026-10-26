@@ -162,7 +162,7 @@ npm exec -w @rca/api -- wrangler deploy --config "$WORK/wrangler.restore.toml"
 curl -si https://rca-api-restore.<subdomain>.workers.dev/api/health
 ```
 
-Expect `200` and `{"status":"ok"}`. `/api/me` must return `401`.
+Expect `200` and `{"status":"ok"}`. `/api/me` must return `200` with a `null` body.
 
 ## 8. Cutover (owner decision only)
 

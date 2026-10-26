@@ -1,14 +1,17 @@
 import { useCallback } from 'react'
-import type { AthleteSettings } from '@rca/core/types'
+import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import {
   deleteNoticeText,
   EXPORT_INTERRUPTED,
   exportFailureText,
   LIBRARY_NOT_LOADED,
+  LIBRARY_NOT_READY,
   SIGN_IN_TO_EXPORT,
+  SPLITS_NOT_LOADED,
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
+import { drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
 
@@ -67,8 +70,7 @@ export function useLibraryActions({
    */
   const failLibrary = useCallback(() => {
     setLibrary('failed')
-    const dropped = libraryWaitRef.current.length > 0
-    libraryWaitRef.current = []
+    const dropped = drainBatches(libraryWaitRef).length > 0
     refreshBusy()
     return dropped
   }, [libraryWaitRef, refreshBusy, setLibrary])
@@ -85,9 +87,15 @@ export function useLibraryActions({
     (id: string) => {
       const current = accountRef.current
       const signedIn = current.status === 'signed-in'
-      // Signed out, the library is the one kept in this browser; signed in, it must have loaded.
-      if (current.status === 'loading') return
-      if (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded')) return
+      // Signed out, the library is the one kept in this browser; signed in, it must have loaded. Until
+      // then the delete says why nothing happened, rather than closing without a word.
+      if (
+        current.status === 'loading' ||
+        (signedIn && (current.me === null || libraryStatusRef.current !== 'loaded'))
+      ) {
+        setLibraryError(LIBRARY_NOT_READY)
+        return
+      }
       if (workerRef.current === null) {
         setLibraryError(STOPPED)
         return
@@ -150,7 +158,34 @@ export function useLibraryActions({
     [accountRef, send, workerRef],
   )
 
-  return { loadLibrary, holdForLibrary, failLibrary, retryLibrary, deleteActivity, exportData }
+  /**
+   * The run splits of one held activity. Resolves with null when the activity has none. Rejects
+   * when the worker cannot answer, so the page can say the splits did not load.
+   */
+  const activitySplits = useCallback(
+    (id: string) =>
+      new Promise<DigestSplits | null>((resolve, reject) => {
+        if (workerRef.current === null) {
+          reject(new Error(SPLITS_NOT_LOADED))
+          return
+        }
+        send({ type: 'activitySplits', id }, undefined, (message) => {
+          if (message?.type === 'splits') resolve(message.splits)
+          else reject(new Error(SPLITS_NOT_LOADED))
+        })
+      }),
+    [send, workerRef],
+  )
+
+  return {
+    loadLibrary,
+    holdForLibrary,
+    failLibrary,
+    retryLibrary,
+    deleteActivity,
+    exportData,
+    activitySplits,
+  }
 }
 
 export type LibraryActions = ReturnType<typeof useLibraryActions>

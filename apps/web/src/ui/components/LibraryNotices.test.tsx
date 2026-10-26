@@ -47,7 +47,6 @@ function Library({ rebuildStarts = true }: { rebuildStarts?: boolean }) {
         signedIn
         keepFiles
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />
     </>
@@ -108,7 +107,6 @@ describe('LibraryNotices: focus after a rebuild', () => {
         signedIn
         keepFiles
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />,
     )
@@ -134,13 +132,12 @@ describe('LibraryNotices: counts', () => {
         signedIn
         keepFiles
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />,
     )
     expect(
       screen.getByText(
-        '1 activity is missing its original file. Re-import it to restore the original.',
+        '1 activity is missing its original file. Add its file again to restore the original.',
       ),
     ).toBeInTheDocument()
   })
@@ -154,7 +151,6 @@ describe('LibraryNotices: outdated saved activities', () => {
         signedIn={signedIn}
         keepFiles={signedIn}
         fileRetentionAvailable
-        libraryUnavailable={false}
         onRetry={vi.fn()}
       />
     )

@@ -1,4 +1,5 @@
 import type { Sport } from '../types'
+import type { Rejection } from '../import/result'
 
 /** Maps a GPX track's type to a sport. A track it cannot place is refused, not guessed. */
 
@@ -31,7 +32,7 @@ export interface SportChoice {
   sport: Sport | null
   indoor: boolean
   sportLabel: string
-  refusal?: { reason: string; skipped: string }
+  refusal?: { skipped: string } & Rejection
 }
 
 export function sportOf(type: string | undefined, creator: string | undefined): SportChoice {
@@ -40,7 +41,11 @@ export function sportOf(type: string | undefined, creator: string | undefined): 
       sport: null,
       indoor: false,
       sportLabel: 'unknown',
-      refusal: { reason: noSportReason(creator), skipped: 'track with no sport skipped' },
+      refusal: {
+        reason: noSportReason(creator),
+        code: 'no-sport',
+        skipped: 'track with no sport skipped',
+      },
     }
   }
   const key = type.toLowerCase()
@@ -48,7 +53,11 @@ export function sportOf(type: string | undefined, creator: string | undefined): 
   if (RIDE_TYPES.has(key)) return { sport: 'ride', indoor: false, sportLabel: type }
   if (INDOOR_RIDE_TYPES.has(key)) return { sport: 'ride', indoor: true, sportLabel: type }
   if (E_BIKE_KEYS.has(key.replace(/[^a-z0-9]/g, ''))) {
-    const refusal = { reason: E_BIKE_REASON, skipped: 'e-bike session skipped' }
+    const refusal = {
+      reason: E_BIKE_REASON,
+      code: 'e-bike' as const,
+      skipped: 'e-bike session skipped',
+    }
     return { sport: null, indoor: false, sportLabel: type, refusal }
   }
   return { sport: null, indoor: false, sportLabel: type }

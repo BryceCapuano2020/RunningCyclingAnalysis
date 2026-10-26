@@ -1,11 +1,14 @@
-import { DURATIONS_S } from '../constants'
+import { DURATIONS_S, MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
 import type {
   ActivityDigest,
   CalibrationSums,
   DerivedStreams,
   DigestClimbSection,
   DigestCurvePoint,
+  DigestDistanceBest,
   DigestHrBlock,
+  DigestSplit,
+  DigestSplits,
   PowerTerms,
   QualityFlag,
   QualityKind,
@@ -203,6 +206,55 @@ function asClimbSection(value: unknown, path: string, durationS: number): Digest
   }
 }
 
+/** Distance bests are optional, so a digest from before the field is read without one. */
+function asDistanceBests(value: unknown, durationS: number): DigestDistanceBest[] {
+  const bests = asArray(value, 'distanceBests').map((b, i) => {
+    const path = `distanceBests[${i}]`
+    const o = asObject(b, path)
+    const seconds = asPositive(o.seconds, `${path}.seconds`)
+    if (seconds > durationS) fail(`${path}.seconds`, 'must not exceed durationS')
+    return { distanceM: asPositive(o.distanceM, `${path}.distanceM`), seconds }
+  })
+  if (bests.some((b, i) => i > 0 && b.distanceM <= bests[i - 1]!.distanceM)) {
+    fail('distanceBests', 'must be in ascending distance')
+  }
+  return bests
+}
+
+/** A finite number that is not negative, or null where a split value is unknown. */
+function asSplitValue(value: unknown, path: string): number | null {
+  const n = asFiniteOrNull(value, path)
+  if (n !== null && n < 0) fail(path, 'must not be negative')
+  return n
+}
+
+function asSplit(value: unknown, path: string): DigestSplit {
+  const o = asObject(value, path)
+  const distanceM = asFinite(o.distanceM, `${path}.distanceM`)
+  if (distanceM < 0) fail(`${path}.distanceM`, 'must not be negative')
+  return {
+    distanceM,
+    seconds: asSplitValue(o.seconds, `${path}.seconds`),
+    gradeAdjustedSeconds: asSplitValue(o.gradeAdjustedSeconds, `${path}.gradeAdjustedSeconds`),
+    elevationGainM: asSplitValue(o.elevationGainM, `${path}.elevationGainM`),
+    avgHeartRate: asSplitValue(o.avgHeartRate, `${path}.avgHeartRate`),
+  }
+}
+
+function asSplitList(value: unknown, path: string, limit: number): DigestSplit[] {
+  const list = asArray(value, path)
+  if (list.length > limit) fail(path, `must have at most ${limit} entries`)
+  return list.map((s, i) => asSplit(s, `${path}[${i}]`))
+}
+
+function asSplits(value: unknown, path: string): DigestSplits {
+  const o = asObject(value, path)
+  return {
+    km: asSplitList(o.km, `${path}.km`, MAX_KM_SPLITS),
+    mile: asSplitList(o.mile, `${path}.mile`, MAX_MILE_SPLITS),
+  }
+}
+
 const SPORTS: readonly Sport[] = ['run', 'ride']
 const POWER_SOURCES: readonly DerivedStreams['powerSource'][] = ['measured', 'virtual', 'none']
 
@@ -234,6 +286,8 @@ export function parseDigest(json: string): ActivityDigest {
   const durationS = asNonNegativeInteger(o.durationS, 'durationS')
   const distanceM = asNumberOrNaN(o.distanceM, 'distanceM')
   if (distanceM < 0) fail('distanceM', 'must not be negative')
+  const distanceBests =
+    o.distanceBests === undefined ? undefined : asDistanceBests(o.distanceBests, durationS)
   return {
     version: DIGEST_VERSION,
     modelRevision,
@@ -256,5 +310,7 @@ export function parseDigest(json: string): ActivityDigest {
     climbSections: asArray(o.climbSections, 'climbSections').map((s, i) =>
       asClimbSection(s, `climbSections[${i}]`, durationS),
     ),
+    ...(distanceBests === undefined ? {} : { distanceBests }),
+    ...(o.splits === undefined ? {} : { splits: asSplits(o.splits, 'splits') }),
   }
 }

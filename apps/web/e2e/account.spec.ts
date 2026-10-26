@@ -53,7 +53,7 @@ function savedActivityUpdates(page: Page) {
   return page.getByRole('region', { name: 'Saved activity updates' }).getByRole('status')
 }
 
-async function profileMassKg(page: Page): Promise<number> {
+async function profileMassKg(page: Page): Promise<number | null> {
   const response = await page.request.get('/api/me')
   expect(response.status()).toBe(200)
   const me = (await response.json()) as Me
@@ -99,9 +99,13 @@ test('signed out, sign-in is offered only from the header, on the landing page a
 
   await goTo(page, 'Profile')
   await expect(page.getByRole('region', { name: 'Account' })).toContainText(
-    'Sign in with Google, at the top of the page',
+    'Sign in to keep your library on any device',
   )
-  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toHaveCount(1)
+  await expect(
+    page
+      .getByRole('region', { name: 'Account' })
+      .getByRole('button', { name: 'Sign in with Google' }),
+  ).toHaveCount(1)
 })
 
 test('a saved library survives reloads and sign-out, and deleting the account removes it', async ({
@@ -126,12 +130,17 @@ test('a saved library survives reloads and sign-out, and deleting the account re
 
   await test.step('a body weight change is saved to the profile', async () => {
     await goTo(page, 'Profile')
+    // The session's sign-in sends no language, so the account starts in metric. Set the units here,
+    // then check the field says lb before entering pounds.
+    await page.getByText('Imperial', { exact: true }).click()
+    await expect(page.getByRole('radio', { name: 'Imperial' })).toBeChecked()
+    await expect(page.locator('.settings-bar .number-field__unit').first()).toHaveText('lb')
     const body = page.getByLabel('Body weight')
     await body.fill('185')
     await body.blur()
     await expect(body).toHaveValue(/^185(\.0)?$/)
 
-    // The form is in imperial by default, so 185 lb is about 83.9 kg in the profile.
+    // 185 lb is about 83.9 kg, which is what the profile keeps.
     await expect.poll(() => profileMassKg(page)).toBeCloseTo(83.91, 1)
 
     await page.reload()
@@ -142,8 +151,9 @@ test('a saved library survives reloads and sign-out, and deleting the account re
   await test.step('turning off keep original files deletes the stored files', async () => {
     const keep = page.getByRole('checkbox', { name: KEEP_FILES })
     await expect(keep).toBeChecked()
-    // The checkbox follows the saved profile, so it changes once the PUT has returned.
+    // Turning it off asks first; the checkbox follows the saved profile once the PUT has returned.
     await keep.click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Turn off and delete' }).click()
     await expect(keep).not.toBeChecked()
 
     await expect.poll(() => storedFileCount(page)).toBe(0)
@@ -157,7 +167,7 @@ test('a saved library survives reloads and sign-out, and deleting the account re
 
     await expect(headline(page)).toHaveText(LANDING_TITLE)
     await expect(headerSignIn(page)).toBeVisible()
-    expect((await page.request.get('/api/me')).status()).toBe(401)
+    expect(await (await page.request.get('/api/me')).json()).toBeNull()
   })
 
   await test.step('signing back in with the same email brings the library back', async () => {
@@ -174,13 +184,13 @@ test('a saved library survives reloads and sign-out, and deleting the account re
     await goTo(page, 'Profile')
     await page.getByRole('button', { name: 'Delete account…' }).click()
 
-    const dialog = page.getByRole('dialog', { name: 'Delete your account?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Delete your account?' })
     await dialog.getByLabel('Email address').fill(email)
     await dialog.getByRole('button', { name: 'Delete account', exact: true }).click()
 
     await expect(headline(page)).toHaveText(LANDING_TITLE)
     await expect(headerSignIn(page)).toBeVisible()
-    expect((await page.request.get('/api/me')).status()).toBe(401)
+    expect(await (await page.request.get('/api/me')).json()).toBeNull()
   })
 })
 test('a second user cannot see, fetch or delete the first user activities', async ({
@@ -342,7 +352,7 @@ test('saved activity deletion requires confirmation and persists after reload', 
   await library.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await apiActivities(page.request)).toHaveLength(1)
   await deleteButton(library, record.digest.name).click()
-  await library.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+  await library.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(0)
   await expect(library.getByRole('status')).toContainText(`Deleted ${record.digest.name}`)
   await page.reload()

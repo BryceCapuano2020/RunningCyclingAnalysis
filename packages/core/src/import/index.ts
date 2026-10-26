@@ -4,6 +4,7 @@ import { parseTcx } from '../tcx/parse'
 import type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 export { DEFAULT_PARSE_LIMITS } from './result'
+export { MAX_ACTIVITY_LIST_BYTES } from './activitiesCsv'
 export type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 const UNSUPPORTED = 'Not a FIT, GPX or TCX file'
@@ -27,6 +28,6 @@ export function parseActivityFile(
     case 'tcx':
       return parseTcx(bytes, fileName, limits, opts)
     default:
-      return { ok: false, fileName, reason: UNSUPPORTED }
+      return { ok: false, fileName, reason: UNSUPPORTED, code: 'not-activity' }
   }
 }

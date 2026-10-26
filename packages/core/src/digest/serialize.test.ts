@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DURATIONS_S } from '../constants'
+import { DURATIONS_S, MAX_KM_SPLITS } from '../constants'
 import { sampleDataset } from '../synthetic'
 import type { Activity, ActivityDigest, AthleteSettings } from '../types'
 import { combine } from './combine'
@@ -105,6 +105,67 @@ describe('serializeDigest and parseDigest', () => {
     expect(() =>
       parseDigest(edited(digests[0]!, (o) => (o.modelRevision = Number.MAX_SAFE_INTEGER + 1))),
     ).toThrow(/modelRevision must be a positive safe integer/)
+  })
+
+  it('keeps splits through a round trip, and reads a digest without them as having none', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run?.splits) throw new Error('expected a run with splits')
+    expect(parseDigest(serializeDigest(run)).splits).toEqual(run.splits)
+    const older = edited(run, (o) => delete o.splits)
+    expect(parseDigest(older)).not.toHaveProperty('splits')
+  })
+
+  it('rejects a negative split value, as the contract does', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    const negative = { distanceM: 1000, seconds: -1, gradeAdjustedSeconds: null }
+    const split = { ...negative, elevationGainM: 0, avgHeartRate: null }
+    expect(() => parseDigest(edited(run, (o) => (o.splits = { km: [split], mile: [] })))).toThrow(
+      /splits\.km\[0\]\.seconds must not be negative/,
+    )
+  })
+
+  it('rejects splits whose shape is wrong, and names the field', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    expect(() => parseDigest(edited(run, (o) => (o.splits = { km: [] })))).toThrow(
+      /splits\.mile must be an array/,
+    )
+    const split = { distanceM: 1000, seconds: 'soon', gradeAdjustedSeconds: null }
+    const badSeconds = { km: [{ ...split, elevationGainM: 0, avgHeartRate: null }], mile: [] }
+    expect(() => parseDigest(edited(run, (o) => (o.splits = badSeconds)))).toThrow(
+      /splits\.km\[0\]\.seconds must be a finite number/,
+    )
+  })
+
+  it('reads a split whose time or climb is unknown, as null', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    const unknown = {
+      distanceM: 1000,
+      seconds: null,
+      gradeAdjustedSeconds: null,
+      elevationGainM: null,
+      avgHeartRate: null,
+    }
+    const parsed = parseDigest(edited(run, (o) => (o.splits = { km: [unknown], mile: [] })))
+    expect(parsed.splits?.km[0]).toEqual(unknown)
+  })
+
+  it('rejects more splits in a unit than the limit, so a stored row cannot grow without bound', () => {
+    const run = digests.find((digest) => digest.sport === 'run')
+    if (!run) throw new Error('expected a run')
+    const split = {
+      distanceM: 1000,
+      seconds: 1,
+      gradeAdjustedSeconds: 1,
+      elevationGainM: 0,
+      avgHeartRate: null,
+    }
+    const tooMany = Array.from({ length: MAX_KM_SPLITS + 1 }, () => split)
+    expect(() => parseDigest(edited(run, (o) => (o.splits = { km: tooMany, mile: [] })))).toThrow(
+      /splits\.km must have at most 500 entries/,
+    )
   })
 
   it('rejects a curve of the wrong length or with the wrong durations', () => {
@@ -294,5 +355,81 @@ describe('serializeDigest and parseDigest', () => {
     expect(() => parseDigest(edited(digests[0]!, (o) => delete o.flagCounts))).toThrow(
       /flagCounts must be an object/,
     )
+  })
+})
+
+describe('distance bests on the wire', () => {
+  /** A flat 4 m/s run of 2501 s: 10 km, so every record distance is covered. */
+  const n = 2501
+  const distance = Float64Array.from({ length: n }, (_, i) => 4 * i)
+  const run: Activity = {
+    id: 'ten-k',
+    name: 'Ten k',
+    sport: 'run',
+    startMs: 9,
+    n,
+    speed: new Float64Array(n).fill(4),
+    distance,
+    altitude: new Float64Array(n).fill(100),
+    heartRate: new Float64Array(n).fill(NaN),
+    power: new Float64Array(n).fill(NaN),
+    paused: new Uint8Array(n),
+    hasPower: false,
+    hasHeartRate: false,
+    hasAltitude: true,
+    indoor: false,
+  }
+  const runDigest = digestActivity(run)
+
+  /** The run's digest with one field edited, read back by parseDigest. */
+  const editedRun = (edit: (o: Record<string, unknown>) => void) => edited(runDigest, edit)
+  const bestsOf = (o: Record<string, unknown>) => o.distanceBests as Record<string, unknown>[]
+
+  it('round-trips a run with its distance bests', () => {
+    expect(runDigest.distanceBests).toHaveLength(4)
+    expect(parseDigest(serializeDigest(runDigest))).toEqual(runDigest)
+  })
+
+  it('keeps a digest without the field without adding one', () => {
+    const ride = digests.find((d) => d.sport === 'ride')!
+    expect(ride).not.toHaveProperty('distanceBests')
+    expect(parseDigest(serializeDigest(ride))).not.toHaveProperty('distanceBests')
+  })
+
+  it('rejects malformed distance bests', () => {
+    expect(() => parseDigest(editedRun((o) => (o.distanceBests = {})))).toThrow(
+      /distanceBests must be an array/,
+    )
+    expect(() => parseDigest(editedRun((o) => (o.distanceBests = [5])))).toThrow(
+      /distanceBests\[0\] must be an object/,
+    )
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          bestsOf(o)[0]!.seconds = 0
+        }),
+      ),
+    ).toThrow(/distanceBests\[0\]\.seconds must be positive/)
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          bestsOf(o)[0]!.seconds = run.n + 1
+        }),
+      ),
+    ).toThrow(/distanceBests\[0\]\.seconds must not exceed durationS/)
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          bestsOf(o)[0]!.distanceM = -1
+        }),
+      ),
+    ).toThrow(/distanceBests\[0\]\.distanceM must be positive/)
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          o.distanceBests = [...bestsOf(o)].reverse()
+        }),
+      ),
+    ).toThrow(/distanceBests must be in ascending distance/)
   })
 })

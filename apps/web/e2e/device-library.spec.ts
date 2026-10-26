@@ -19,7 +19,7 @@ const TWO_WORKOUTS = ['one-ride.gpx', 'one-run.tcx']
  */
 async function settleAfterReload(page: Page): Promise<void> {
   await uploadFixtures(page, ['not-a-fit.fit'])
-  await expect(page.getByText('1 file could not be used', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 file skipped.', { exact: true })).toBeVisible()
 }
 
 /** The activities kept in this browser, as the Profile page lists them. */
@@ -41,7 +41,7 @@ test('results from files survive a reload for a signed-out visitor', async ({ pa
   expect(errors).toEqual([])
 })
 
-test('start over on the Profile page forgets the results kept for a signed-out visitor', async ({
+test('removing all activities on the Profile page forgets the results kept for a signed-out visitor', async ({
   page,
 }) => {
   const errors = trackErrors(page)
@@ -50,7 +50,11 @@ test('start over on the Profile page forgets the results kept for a signed-out v
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
 
   await goTo(page, 'Profile')
-  await page.getByRole('button', { name: 'Start over' }).click()
+  await page.getByRole('button', { name: 'Remove all my activities' }).click()
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Remove all', exact: true })
+    .click()
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
 
   await page.reload()
@@ -111,7 +115,7 @@ test('deleting one kept activity on the Profile page removes it after a reload',
   const label = await deleteButtons.first().getAttribute('aria-label')
   if (label === null) throw new Error('a kept activity has no delete label')
   await deleteButtons.first().click()
-  await kept.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+  await kept.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(kept.getByRole('status')).toContainText('Deleted')
   await expect(deleteButtons).toHaveCount(1)
 
@@ -135,7 +139,7 @@ test('deleting the last kept activity on the Profile page says so and empties th
   await goTo(page, 'Profile')
   const kept = keptList(page)
   await kept.getByRole('button', { name: /^Delete / }).click()
-  await kept.getByRole('button', { name: 'Delete permanently', exact: true }).click()
+  await kept.getByRole('button', { name: 'Delete', exact: true }).click()
 
   await expect(kept.getByRole('status')).toContainText('Deleted')
   await expect(kept.getByText('No saved activities')).toBeVisible()

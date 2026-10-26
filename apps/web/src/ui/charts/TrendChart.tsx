@@ -4,23 +4,25 @@ import type { TrendPoint } from '@rca/core/digest'
 import type { UnitSystem } from '@rca/core/units'
 import { formatWkg } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { formatDay } from '../format/date'
 import { nativeValue } from '../records'
 import { SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { Crosshair } from './Crosshair'
 import { ChartYAxis } from './ChartYAxis'
+import { GapMarks } from './GapMarks'
 import {
-  ENDPOINT_LABEL_OFFSET,
+  endLabelAt,
   markerRadii,
   plotSurface,
+  pointBefore,
   sizedOnce,
   tooltipAt,
   tooltipOverlay,
 } from './chartInteraction'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
-import { areaPath, linePath } from './paths'
+import { lastAtOrBefore } from './hover'
+import { stepAreaPath, stepPath } from './paths'
 import { linearScale } from './scale'
 import {
   axisTitle,
@@ -32,6 +34,8 @@ import {
   sportYAxis,
   usable,
 } from './sportAxis'
+import { trendDateTicks } from './trendTicks'
+import { weekDay, windowPhrase } from './trendText'
 import { axisFontSize, fitTicks } from './ticks'
 import './ChartSeries.css'
 
@@ -63,35 +67,6 @@ interface View {
   massKg: number
 }
 
-const MONTH = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-/**
- * formatDay names the viewer's calendar day, but each week ends on a UTC Sunday. Local noon on that
- * UTC date names the same day in every zone.
- */
-function weekDay(ms: number): string {
-  const date = new Date(ms)
-  return formatDay(
-    new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12).getTime(),
-  )
-}
-
-/** First instants of the calendar months, in UTC, that fall after fromMs and up to toMs. */
-function monthStartsBetween(fromMs: number, toMs: number): number[] {
-  const from = new Date(fromMs)
-  const starts: number[] = []
-  for (let month = from.getUTCMonth() + 1; ; month++) {
-    const start = Date.UTC(from.getUTCFullYear(), month, 1)
-    if (start > toMs) return starts
-    starts.push(start)
-  }
-}
-
-/** "2 weeks", or "30 days" for a window that is not a whole number of weeks. */
-function windowPhrase(days: number): string {
-  return days % 7 === 0 ? plural(days / 7, 'week') : plural(days, 'day')
-}
-
 function weekRows(points: readonly TrendPoint[], sport: Sport, massKg: number): WeekRow[] {
   return points.map((point) => {
     const wkg = sport === 'run' ? point.runWkg : point.rideWkg
@@ -110,6 +85,7 @@ function hasValue(row: WeekRow): boolean {
 interface Layout {
   xs: number[]
   points: (Point | null)[]
+  ys: (number | null)[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
 }
@@ -126,16 +102,18 @@ function layout(rows: WeekRow[], view: View, size: ChartSize): Layout | null {
     rows.filter(hasValue).map((row) => plottedValue(sport, row.value, units)),
     plot,
   )
+  const points = rows.map((row) =>
+    hasValue(row) ? { x: x(row.endMs), y: y(plottedValue(sport, row.value, units)) } : null,
+  )
   return {
     xs: rows.map((row) => x(row.endMs)),
-    points: rows.map((row) =>
-      hasValue(row) ? { x: x(row.endMs), y: y(plottedValue(sport, row.value, units)) } : null,
-    ),
+    points,
+    ys: points.map((point) => point?.y ?? null),
     xTicks: fitTicks(
-      monthStartsBetween(first.endMs, last.endMs).map((ms) => ({
-        position: x(ms),
-        label: MONTH.format(ms),
-      })),
+      trendDateTicks(
+        rows.map((row) => row.endMs),
+        x,
+      ),
       { axis: 'x', width },
     ),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
@@ -167,16 +145,17 @@ function tooltipFor(row: WeekRow, x: number, y: number, view: View): TooltipCont
   }
 }
 
-/** The name of the chart, with the unit and the effort length spelt out. */
-function titleOf(sport: Sport, units: UnitSystem, effort: string): string {
+/** The name of the chart: the unit, the effort and the window it is the best of. */
+function titleOf(sport: Sport, units: UnitSystem, effort: string, windowText: string): string {
   return sport === 'run'
-    ? `${SPORT_TITLE.run} grade-adjusted pace ${paceUnitName(units)}, best ${effort} by week`
-    : `${SPORT_TITLE.ride} power in watts, best ${effort} by week`
+    ? `${SPORT_TITLE.run} grade-adjusted pace ${paceUnitName(units)}, best ${effort}, trailing ${windowText}`
+    : `${SPORT_TITLE.ride} power in watts, best ${effort}, trailing ${windowText}`
 }
 
 /**
- * One sport's best 20-minute value in each week, in its own unit. Each value is the best in a
- * trailing window that ends that week, so a value holds until a faster effort or the window passes.
+ * One sport's best effort of a length in each week, in its own unit. Each value is the best in a
+ * trailing window that ends that Sunday. The line holds each value until the next Sunday, and each
+ * week's value is marked.
  */
 export function TrendChart({ sport, points, massKg, units, windowDays, effortS }: TrendChartProps) {
   const rows = weekRows(points, sport, massKg)
@@ -191,9 +170,9 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
 
   return (
     <ChartFrame
-      title={titleOf(sport, units, effort)}
-      description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'grade-adjusted pace'}.`}
-      note="A value holds until a faster effort, or until the window that set it passes."
+      title={titleOf(sport, units, effort, windowText)}
+      description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'grade-adjusted pace, faster up'}.`}
+      note={`Each point is the best ${effort} in the ${windowText} to that Sunday. Each line steps from one Sunday to the next, and breaks where a week has no value.`}
       table={{
         columns: [
           'Week ending',
@@ -207,61 +186,70 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
           ...(ride ? [formatWkg(row.value / massKg)] : []),
           String(row.count),
         ]),
-        caption: `Each week ends on a Sunday, in UTC. Each value is the best ${effort} in the ${windowText} that end that week; ${SPORT_PLURAL[sport]} count the activities in that window.`,
+        caption: `Each week ends on a Sunday. Each value is the best ${effort} in the ${windowText} that end that week; ${SPORT_PLURAL[sport]} count the activities in that window.`,
       }}
       empty={
         hasData ? undefined : `Add ${SPORT_PLURAL[sport]} in more than one week to see a trend`
       }
-      surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
+      surface={(size) =>
+        plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive, lastAtOrBefore)
+      }
       overlay={(size) =>
         tooltipOverlay(
           size,
-          tooltipAt(size, layoutOf(size)?.xs ?? null, active, (index, x, y) => {
-            const row = rows[index]
-            return row ? tooltipFor(row, x, y, view) : null
-          }),
+          tooltipAt(
+            size,
+            layoutOf(size)?.xs ?? null,
+            active,
+            (index, x, y) => {
+              const row = rows[index]
+              return row ? tooltipFor(row, x, y, view) : null
+            },
+            layoutOf(size)?.ys,
+          ),
         )
       }
     >
       {(size) => {
         const m = layoutOf(size)
         if (m === null) return null
+        const { plot } = size
         const { marker: markerR, active: activeR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
         const latestPoint = m.points[latest] ?? null
         const latestRow = rows[latest]
+        const before = pointBefore(m.points, latest)
         return (
           <>
             <ChartXAxis
               ticks={m.xTicks}
-              plot={size.plot}
-              title="Week ending"
+              plot={plot}
+              title="Date"
               fontSize={axisFontSize(size.width)}
             />
             <ChartYAxis
               ticks={m.yTicks}
-              plot={size.plot}
+              plot={plot}
               title={axisTitle(sport, units)}
               fontSize={axisFontSize(size.width)}
             />
-            {activeX !== undefined ? <Crosshair x={activeX} plot={size.plot} /> : null}
+            <GapMarks xs={m.xs} gaps={rows.map((row) => !hasValue(row))} plot={plot} />
+            {activeX !== undefined ? <Crosshair x={activeX} plot={plot} /> : null}
             {fillsArea(sport) ? (
               <path
                 className={`chart-series__area chart-series__area--${sport}`}
-                d={areaPath(m.points, size.plot.bottom)}
+                d={stepAreaPath(m.points, plot.bottom)}
               />
             ) : null}
             <path
               data-testid="trend-line"
               className={`chart-series__line chart-series__line--${sport}`}
-              d={linePath(m.points)}
+              d={stepPath(m.points)}
             />
             {m.points.map((point, i) => {
               const row = rows[i]
               if (!point || !row || i === latest) return null
-              // A value with no neighbour has no line through it, so it gets a dot of its own.
-              const alone = m.points[i - 1] == null && m.points[i + 1] == null
-              return alone ? (
+              return (
                 <circle
                   key={row.endMs}
                   data-testid="trend-marker"
@@ -270,7 +258,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
                   cy={point.y}
                   r={markerR}
                 />
-              ) : null
+              )
             })}
             {latestPoint && latestRow ? (
               <>
@@ -284,10 +272,9 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
                 <text
                   className="chart-series__label"
                   textAnchor="end"
-                  x={latestPoint.x + ENDPOINT_LABEL_OFFSET.x}
-                  y={latestPoint.y + ENDPOINT_LABEL_OFFSET.y}
+                  {...endLabelAt(latestPoint, before)}
                 >
-                  {formatNative(sport, latestRow.value, units)}
+                  {`${formatNative(sport, latestRow.value, units)}, last ${windowText}`}
                 </text>
               </>
             ) : null}

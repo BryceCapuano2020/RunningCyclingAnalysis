@@ -50,7 +50,7 @@ describe('saveCanvasPng', () => {
       canvasReturning(new Blob(['png'], { type: 'image/png' })),
       'rca-summary-story.png',
     )
-    expect(saved).toBe(true)
+    expect(saved).toBe('saved')
     expect(createObjectURL).toHaveBeenCalledTimes(1)
     expect(clicks).toEqual([{ href: 'blob:rca-test', download: 'rca-summary-story.png' }])
   })
@@ -64,13 +64,13 @@ describe('saveCanvasPng', () => {
   })
 
   it('reports failure and downloads nothing when the browser produces no image', async () => {
-    expect(await saveCanvasPng(canvasReturning(null), 'a.png')).toBe(false)
+    expect(await saveCanvasPng(canvasReturning(null), 'a.png')).toBeNull()
     expect(clicks).toEqual([])
   })
 
   it('reports failure when the canvas cannot encode a blob at all', async () => {
     const canvas = {} as unknown as HTMLCanvasElement
-    expect(await saveCanvasPng(canvas, 'a.png')).toBe(false)
+    expect(await saveCanvasPng(canvas, 'a.png')).toBeNull()
     expect(clicks).toEqual([])
   })
 
@@ -80,7 +80,7 @@ describe('saveCanvasPng', () => {
     })
     await expect(
       saveCanvasPng(canvasDeliveringLater(new Blob(['png'], { type: 'image/png' })), 'a.png'),
-    ).resolves.toBe(false)
+    ).resolves.toBeNull()
     expect(clicks).toEqual([])
   })
 
@@ -90,7 +90,80 @@ describe('saveCanvasPng', () => {
         throw new Error('the canvas is tainted')
       },
     } as unknown as HTMLCanvasElement
-    await expect(saveCanvasPng(canvas, 'a.png')).resolves.toBe(false)
+    await expect(saveCanvasPng(canvas, 'a.png')).resolves.toBeNull()
     expect(clicks).toEqual([])
+  })
+})
+
+describe('saveCanvasPng where the device can share files', () => {
+  const png = () => new Blob(['png'], { type: 'image/png' })
+
+  /** A touch device whose share sheet takes files, with the given behaviour for share. */
+  function touchShareSheet(share: (data: ShareData) => Promise<void>, canShare = true) {
+    const shareMock = vi.fn(share)
+    Object.defineProperty(navigator, 'share', { configurable: true, value: shareMock })
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: vi.fn(() => canShare),
+    })
+    setPointer('coarse')
+    return shareMock
+  }
+
+  /** Says whether the page's primary pointer is a finger, as matchMedia would report it. */
+  function setPointer(kind: 'coarse' | 'fine') {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === '(pointer: coarse)' && kind === 'coarse',
+        media: query,
+      }),
+    })
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share')
+    Reflect.deleteProperty(navigator, 'canShare')
+    Reflect.deleteProperty(window, 'matchMedia')
+  })
+
+  it('offers the image to the share sheet of a touch device as a PNG file, and reports it shared', async () => {
+    const share = touchShareSheet(async () => undefined)
+    expect(await saveCanvasPng(canvasReturning(png()), 'rca-summary-story.png')).toBe('shared')
+    expect(share).toHaveBeenCalledTimes(1)
+    const [data] = share.mock.calls[0] ?? []
+    expect(data?.files?.[0]).toMatchObject({ name: 'rca-summary-story.png', type: 'image/png' })
+    expect(clicks).toEqual([])
+  })
+
+  it('keeps the download on a pointer device, even where the browser could share a file', async () => {
+    const share = touchShareSheet(async () => undefined)
+    setPointer('fine')
+    expect(await saveCanvasPng(canvasReturning(png()), 'a.png')).toBe('saved')
+    expect(share).not.toHaveBeenCalled()
+    expect(clicks).toEqual([{ href: 'blob:rca-test', download: 'a.png' }])
+  })
+
+  it('downloads the image when the share sheet cannot take files', async () => {
+    const share = touchShareSheet(async () => undefined, false)
+    expect(await saveCanvasPng(canvasReturning(png()), 'a.png')).toBe('saved')
+    expect(share).not.toHaveBeenCalled()
+    expect(clicks).toEqual([{ href: 'blob:rca-test', download: 'a.png' }])
+  })
+
+  it('reports a share the visitor cancelled as cancelled, with no download and no saved status', async () => {
+    touchShareSheet(async () => {
+      throw new DOMException('Share canceled', 'AbortError')
+    })
+    expect(await saveCanvasPng(canvasReturning(png()), 'a.png')).toBe('cancelled')
+    expect(clicks).toEqual([])
+  })
+
+  it('downloads the image when the share is refused, as after the tap has lapsed', async () => {
+    touchShareSheet(async () => {
+      throw new DOMException('Not allowed', 'NotAllowedError')
+    })
+    expect(await saveCanvasPng(canvasReturning(png()), 'a.png')).toBe('saved')
+    expect(clicks).toEqual([{ href: 'blob:rca-test', download: 'a.png' }])
   })
 })

@@ -46,49 +46,25 @@
   font-weight: 700;
 }
 
+/* The unit sits at about 40% of the numeral's size, on the same baseline. */
+.sport-card .hero-number__unit {
+  font-size: 0.4em;
+}
+
 .sport-card__grade {
   display: grid;
   gap: var(--space-2);
 }
 
+/* The level, sized as a line directly under the threshold it sits beneath. */
 .sport-card__grade-line {
   font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.sport-card__records {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sport-card__records li {
-  display: grid;
-  grid-template-columns: 4.5rem 1fr;
-  align-items: baseline;
-  gap: var(--space-3);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border);
-}
-
-.sport-card__duration {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-
-.sport-card__value {
-  font-family: var(--font-display);
   font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1.05;
+  font-weight: 700;
+  line-height: 1.15;
 }
 
-/* The activity that set the record, on its own line under the value. */
-.sport-card__source {
-  grid-column: 2;
-  font-size: 0.875rem;
-  overflow-wrap: break-word;
+/* A ride's range is one unit to the reader, so it never breaks across lines. */
+.sport-card__range {
+  white-space: nowrap;
 }

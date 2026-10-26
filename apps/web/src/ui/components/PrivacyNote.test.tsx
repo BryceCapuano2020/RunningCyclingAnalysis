@@ -12,7 +12,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn={false} keepFiles={false} />)
     expect(
       screen.getByText(
-        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.',
+        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Remove all my activities removes them.',
       ),
     ).toBeInTheDocument()
   })
@@ -21,7 +21,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn={false} keepFiles />)
     expect(
       screen.getByText(
-        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Start over removes them.',
+        'Nothing is uploaded. Files are analysed in your browser, and their summaries are kept in this browser where it allows, so anyone using this browser can see them. Remove all my activities removes them.',
       ),
     ).toBeInTheDocument()
   })

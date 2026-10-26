@@ -3,14 +3,18 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
-import type { APIRequestContext, ConsoleMessage, Locator, Page } from '@playwright/test'
+import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
 export const LANDING_TITLE = 'How balanced are you as an athlete?'
 
-/** The Balance page's h1: the answer, or what is missing before the two sports can be compared. */
-export const BALANCE_TITLE = /leans toward|in balance|see your balance|balance needs harder efforts/
+/**
+ * The Balance page's h1: the answer, what is missing before the two sports can be compared, or the
+ * balance held until a weight is entered.
+ */
+export const BALANCE_TITLE =
+  /leans toward|in balance|see your balance|balance needs harder efforts|waits for your weight/
 
 export const WCAG_TAGS = ['wcag2a', 'wcag2aa']
 
@@ -48,19 +52,11 @@ export function fixturePath(name: string): string {
   return join(FIXTURE_DIR, name)
 }
 
-/**
- * The app asks /api/me who is signed in on every load, and the API answers 401 when nobody is.
- * The browser logs that as a console error, so this one expected response is not counted.
- */
-function isSignedOutProbe(message: ConsoleMessage): boolean {
-  return message.location().url.endsWith('/api/me') && message.text().includes('status of 401')
-}
-
 /** Collects console errors and uncaught page errors. Attach before navigating. */
 export function trackErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('console', (message) => {
-    if (message.type() === 'error' && !isSignedOutProbe(message)) errors.push(message.text())
+    if (message.type() === 'error') errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(error.message))
   return errors
@@ -80,42 +76,49 @@ export const SETUP_DIALOG_NAME = /^(Before your first analysis|A few details)$/
 
 /**
  * How long an upload waits for the setup dialog. Most uploads do not open it, so the wait is kept
- * short; a caller that expects the dialog only after a slow account lookup passes a longer one.
+ * short. The dialog opens at once on the first import, even while the account is still loading.
  */
 const SETUP_DIALOG_WAIT_MS = 2_000
-/** Longer than a failed account lookup takes to settle (its retries run for about 14 s). */
-const ACCOUNT_LOOKUP_MS = 20_000
+
+/**
+ * The body weight the e2e suite answers the setup dialog with: 185 lb, the units the suite runs in,
+ * which is about 83.9 kg. A weight is entered as a real user would, since the balance waits for one.
+ */
+export const DEFAULT_WEIGHT_TEXT = '185'
 
 /**
  * The first import on a device opens the setup dialog once, and holds the files until it is
- * answered. When the dialog appears, this answers it with the values it shows, so the import goes
+ * answered. When the dialog appears, this enters the body weight and answers it, so the import goes
  * on. When it does not appear within the wait, the setup was answered already and there is nothing
  * to do.
  */
 export async function completeSetup(
   page: Page,
   waitMs: number = SETUP_DIALOG_WAIT_MS,
+  weight: string = DEFAULT_WEIGHT_TEXT,
 ): Promise<void> {
-  // The dialog waits for the account to be known. The header's placeholder shows until the lookup
-  // settles, then gives way to the sign-in button, the account menu, or nothing when accounts are
-  // unavailable. A failed lookup takes about 14 s to settle, so the wait allows for that.
-  await expect(page.locator('.account-menu__placeholder')).toHaveCount(0, {
-    timeout: ACCOUNT_LOOKUP_MS,
-  })
   const dialog = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
   try {
     await dialog.waitFor({ state: 'visible', timeout: waitMs })
   } catch {
     return
   }
+  await dialog.getByLabel('Body weight').fill(weight)
   await dialog.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(dialog).toBeHidden()
 }
 
-/** Sends files to the hidden file input, then answers the setup dialog if the first import asks. */
-export async function uploadFixtures(page: Page, names: string[]): Promise<void> {
+/**
+ * Sends files to the hidden file input, then answers the setup dialog if the first import asks,
+ * with the body weight given (185 lb by default).
+ */
+export async function uploadFixtures(
+  page: Page,
+  names: string[],
+  weight: string = DEFAULT_WEIGHT_TEXT,
+): Promise<void> {
   await page.locator('input[type="file"]').first().setInputFiles(names.map(fixturePath))
-  await completeSetup(page)
+  await completeSetup(page, SETUP_DIALOG_WAIT_MS, weight)
 }
 
 export async function horizontalOverflow(

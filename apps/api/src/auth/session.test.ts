@@ -12,6 +12,11 @@ import { SESSION_REFRESH_WITHIN_MS, SESSION_TTL_MS } from './session.ts'
 
 const DAY = 24 * 60 * 60 * 1000
 
+/** GET /api/me answers a session it does not accept with 200 and a null body: the visitor is signed out. */
+async function isSignedOut(res: Response): Promise<boolean> {
+  return res.status === 200 && (await res.json()) === null
+}
+
 describe('sessions', () => {
   it('stores only the SHA-256 of the token and expires 30 days out', async () => {
     const h = createHarness()
@@ -76,7 +81,7 @@ describe('sessions', () => {
     const token = await h.signIn()
     h.clock.now += SESSION_TTL_MS
     const res = await h.send({ path: '/api/me', cookies: { rca_session: token } })
-    expect(res.status).toBe(401)
+    expect(await isSignedOut(res.clone())).toBe(true)
     expect(res.headers.get('set-cookie')).toMatch(/^rca_session=;/)
     const remaining = await h.env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first<{
       n: number
@@ -84,19 +89,24 @@ describe('sessions', () => {
     expect(remaining?.n).toBe(0)
   })
 
-  it('rejects an unknown token and clears the cookie', async () => {
+  it('treats an unknown token as signed out, and clears the cookie', async () => {
     const h = createHarness()
     const res = await h.send({ path: '/api/me', cookies: { rca_session: 'not-a-real-token' } })
-    expect(res.status).toBe(401)
-    expect(await res.json()).toEqual({
-      error: { code: 'unauthenticated', message: 'Sign in required' },
-    })
+    expect(await isSignedOut(res.clone())).toBe(true)
     expect(res.headers.get('set-cookie')).toMatch(/^rca_session=;/)
   })
 
   it('treats a request with no cookie as signed out', async () => {
     const h = createHarness()
-    expect((await h.send({ path: '/api/me' })).status).toBe(401)
+    const res = await h.send({ path: '/api/me' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toBeNull()
+  })
+
+  it('keeps the other account routes refusing a signed-out request with 401', async () => {
+    const h = createHarness()
+    expect((await h.send({ path: '/api/activities' })).status).toBe(401)
+    expect((await h.send({ path: '/api/profile', method: 'PUT', json: {} })).status).toBe(401)
   })
 
   it('logs out by deleting the session row and clearing the cookie', async () => {
@@ -109,7 +119,9 @@ describe('sessions', () => {
     })
     expect(res.status).toBe(204)
     expect(res.headers.get('set-cookie')).toMatch(/^rca_session=;/)
-    expect((await h.send({ path: '/api/me', cookies: { rca_session: token } })).status).toBe(401)
+    expect(
+      await (await h.send({ path: '/api/me', cookies: { rca_session: token } })).json(),
+    ).toBeNull()
   })
 
   it('does not let a stale account-scoped logout clear a different session', async () => {
@@ -166,7 +178,7 @@ describe('sessions', () => {
     const counted = countingDb(testEnv().DB)
     const h = createHarness({}, { DB: counted.db })
     const me = await h.send({ path: '/api/me', cookies: { rca_session: value } })
-    expect(me.status).toBe(401)
+    expect(await isSignedOut(me)).toBe(true)
     const logout = await h.send({
       method: 'POST',
       path: '/api/auth/logout',
@@ -190,14 +202,14 @@ describe('sessions', () => {
     const token = await h.signIn()
     const useAt = async (day: number) => {
       h.clock.now = START + day * DAY
-      return (await h.send({ path: '/api/me', cookies: { rca_session: token } })).status
+      return h.send({ path: '/api/me', cookies: { rca_session: token } })
     }
     // Each use falls inside the 15-day refresh window, so the 30-day window keeps moving forward.
-    expect(await useAt(20)).toBe(200)
-    expect(await useAt(40)).toBe(200)
-    expect(await useAt(60)).toBe(200)
-    expect(await useAt(85)).toBe(200)
-    expect(await useAt(90)).toBe(401)
+    expect((await useAt(20)).status).toBe(200)
+    expect((await useAt(40)).status).toBe(200)
+    expect((await useAt(60)).status).toBe(200)
+    expect((await useAt(85)).status).toBe(200)
+    expect(await isSignedOut(await useAt(90))).toBe(true)
     expect(
       await h.env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first<{ n: number }>(),
     ).toEqual({ n: 0 })
@@ -236,7 +248,7 @@ describe('signed session cookies', () => {
     const h = createHarness({}, { DB: counted.db })
     for (const cookie of [token, tampered]) {
       const res = await h.send({ path: '/api/me', cookies: { rca_session: cookie } })
-      expect(res.status).toBe(401)
+      expect(await isSignedOut(res)).toBe(true)
     }
     expect(counted.count()).toBe(0)
   })
@@ -245,7 +257,9 @@ describe('signed session cookies', () => {
     const h = createHarness()
     const valid = await h.signIn()
     const flipped = valid.slice(0, -1) + (valid.endsWith('0') ? '1' : '0')
-    expect((await h.send({ path: '/api/me', cookies: { rca_session: flipped } })).status).toBe(401)
+    expect(
+      await isSignedOut(await h.send({ path: '/api/me', cookies: { rca_session: flipped } })),
+    ).toBe(true)
     expect((await h.send({ path: '/api/me', cookies: { rca_session: valid } })).status).toBe(200)
   })
 
@@ -253,7 +267,9 @@ describe('signed session cookies', () => {
     const other = createHarness({}, { SESSION_SIGNING_KEY: 'a-different-deployment-key-32-bytes!' })
     const foreign = await other.signIn()
     const h = createHarness()
-    expect((await h.send({ path: '/api/me', cookies: { rca_session: foreign } })).status).toBe(401)
+    expect(
+      await isSignedOut(await h.send({ path: '/api/me', cookies: { rca_session: foreign } })),
+    ).toBe(true)
   })
 
   it('refuses to create a session when no signing key is configured, and writes no session row', async () => {

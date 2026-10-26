@@ -1,4 +1,5 @@
 import { DAILY_LIMITS } from '@rca/contract'
+import type { Copy } from '@rca/core/session'
 import { describe, expect, it } from 'vitest'
 import {
   addedSentence,
@@ -6,11 +7,24 @@ import {
   deleteNoticeText,
   exportFailureText,
   limitedSentence,
+  notAddedSentence,
   rebuildNoticeText,
+  importSentence,
+  skippedCount,
+  skippedSentence,
+  STOPPED_BY_USER,
   workerFailureText,
 } from './copy'
 import type { RebuildOutcome } from './copy'
 import { formatDay } from '../format/date'
+
+const SAVED_COPY: Copy = {
+  id: 'saved-copy',
+  rank: 3,
+  hasPower: false,
+  hasHeartRate: true,
+  durationS: 3600,
+}
 
 const NOW = new Date(2026, 9, 23).getTime()
 const MARCH_2023 = new Date(2023, 2, 4, 9).getTime()
@@ -92,13 +106,13 @@ const NOTHING_LIMITED: RebuildOutcome = {
 }
 
 describe('rebuildNoticeText', () => {
-  it('says what was rebuilt, in the singular for one activity', () => {
-    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1 })).toBe('Rebuilt 1 saved activity.')
+  it('says what was updated, in the singular for one activity', () => {
+    expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1 })).toBe('Updated 1 saved activity.')
   })
 
   it('names the missing originals and the failures, each in its own sentence', () => {
     expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 3, missing: 2, failed: 1 })).toBe(
-      'Rebuilt 3 saved activities. 2 original files are missing or could not be matched; re-import those original files. 1 could not be rebuilt; try again when the server is available.',
+      'Updated 3 saved activities. 2 original files are missing or could not be matched; add those original files again. 1 could not be updated; try again when the server is available.',
     )
   })
 
@@ -119,7 +133,7 @@ describe('rebuildNoticeText', () => {
         limitResetsAtMs: resetsAt,
       }),
     ).toBe(
-      'Rebuilt 1 saved activity. 1 activity was not rebuilt. The server asked us to slow down; try again in a minute.',
+      'Updated 1 saved activity. 1 activity was not updated. The server asked us to slow down; try again in a minute.',
     )
   })
 })
@@ -127,28 +141,28 @@ describe('rebuildNoticeText', () => {
 describe('limitedSentence', () => {
   it('asks for a slower pace on a rate limit, whatever the count', () => {
     expect(limitedSentence(2, 'rate', null)).toBe(
-      '2 activities were not rebuilt. The server asked us to slow down; try again in a minute.',
+      '2 activities were not updated. The server asked us to slow down; try again in a minute.',
     )
   })
 
   it('names the daily download limit and its reset on a daily limit', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitedSentence(1, 'daily', resetsAt)).toBe(
-      `1 activity was not rebuilt because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at 00:00 UTC (${localTime(resetsAt)} your time).`,
+      `1 activity was not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 
   it('tells the user to try later when no limit was the cause', () => {
-    expect(limitedSentence(3, null, null)).toBe('3 activities were not rebuilt. Try again later.')
+    expect(limitedSentence(3, null, null)).toBe('3 activities were not updated. Try again later.')
   })
 })
 
 describe('deleteNoticeText', () => {
   it('names the deleted activity and its date', () => {
     const startMs = Date.UTC(2026, 8, 1, 12)
-    expect(deleteNoticeText({ id: 'a1', name: 'Morning run', startMs, sport: 'run' })).toBe(
-      `Deleted Morning run (${formatDay(startMs)}).`,
-    )
+    expect(
+      deleteNoticeText({ id: 'a1', name: 'Morning run', startMs, sport: 'run', copy: SAVED_COPY }),
+    ).toBe(`Deleted Morning run (${formatDay(startMs)}).`)
   })
 
   it('falls back to a plain confirmation when the activity is no longer listed', () => {
@@ -159,7 +173,7 @@ describe('deleteNoticeText', () => {
 describe('deleteFailureText', () => {
   it('reports a daily delete limit with its reset, and no generic prefix', () => {
     expect(deleteFailureText({ type: 'error', message: 'x', issue: 'daily-limit' })).toMatch(
-      /^You have reached today's limit on deletions \(\d+ per day\)\. It resets at 00:00 UTC/,
+      /^You have reached today's limit on deletions \(\d+ per day\)\. It resets at .*, your time\.$/,
     )
   })
 
@@ -173,7 +187,7 @@ describe('deleteFailureText', () => {
 describe('exportFailureText', () => {
   it('reports a daily read limit with its reset', () => {
     expect(exportFailureText({ type: 'error', message: 'x', issue: 'daily-limit' })).toMatch(
-      /^You have reached today's limit on library loads \(\d+ per day\)\. It resets at 00:00 UTC/,
+      /^You have reached today's limit on library loads \(\d+ per day\)\. It resets at .*, your time\.$/,
     )
   })
 
@@ -187,25 +201,25 @@ describe('exportFailureText', () => {
 describe('workerFailureText', () => {
   it('says a signed-in library is reloading when the worker will restart', () => {
     expect(workerFailureText('signed-in', true, 'x')).toBe(
-      'The analysis worker stopped. Your saved library is reloading; re-import any local files that were not saved.',
+      'Analysis stopped unexpectedly. Your saved library is reloading; add again any files that were not saved.',
     )
   })
 
   it('asks for a manual restart when a signed-in worker will not restart again', () => {
     expect(workerFailureText('signed-in', false, 'x')).toBe(
-      'The analysis worker stopped. Restart analysis to reload your saved library; re-import any local files that were not saved.',
+      'Analysis stopped unexpectedly. Restart analysis to reload your saved library; add again any files that were not saved.',
     )
   })
 
   it('says a signed-out worker reloads the results kept in this browser, and files must be added again', () => {
     expect(workerFailureText('signed-out', true, 'boom')).toBe(
-      'The analysis worker stopped. Your results kept in this browser are reloading; add again any files that were being added.',
+      'Analysis stopped unexpectedly. Your results kept in this browser are reloading; add again any files that were being added.',
     )
   })
 
   it('asks for a restart when a signed-out worker will not restart again', () => {
     expect(workerFailureText('signed-out', false, 'boom')).toBe(
-      'The analysis worker stopped. Restart analysis to reload your results kept in this browser; add again any files that were being added.',
+      'Analysis stopped unexpectedly. Restart analysis to reload your results kept in this browser; add again any files that were being added.',
     )
   })
 
@@ -217,7 +231,55 @@ describe('workerFailureText', () => {
 
   it('falls back to a generic failure when there is no event message', () => {
     expect(workerFailureText('unavailable', false, '')).toBe(
-      'The analysis worker failed. Add again any files that were being added.',
+      'Analysis failed. Add again any files that were being added.',
     )
+  })
+})
+
+describe('notAddedSentence', () => {
+  it('says what was read was already in the library, counting the activities', () => {
+    expect(notAddedSentence(1)).toBe('Nothing new: 1 activity already in your library.')
+    expect(notAddedSentence(1204)).toBe('Nothing new: 1,204 activities already in your library.')
+  })
+
+  it('says no activities were analysed when the import read none', () => {
+    expect(notAddedSentence(0)).toBe('No activities were analysed.')
+  })
+})
+
+describe('importSentence', () => {
+  it('says what an import added, the same sentence the summary shows and announces', () => {
+    const added = {
+      activities: 2,
+      rejected: 0,
+      runs: 2,
+      rides: 0,
+      firstStartMs: NOW,
+      lastStartMs: NOW,
+    }
+    expect(importSentence(added, NOW)).toBe(addedSentence(added, NOW))
+  })
+
+  it('says nothing was new when the import added no run or ride', () => {
+    expect(importSentence({ activities: 3, rejected: 0, duplicates: [] })).toBe(
+      'Nothing new: 3 activities already in your library.',
+    )
+  })
+})
+
+describe('skippedCount and skippedSentence', () => {
+  it('counts the files an import could not use and the copies it left out', () => {
+    expect(skippedCount({ rejected: 2, duplicates: [{ fileName: 'a', reason: 'r' }] })).toBe(3)
+  })
+
+  it('says how many files were skipped, in the singular for one', () => {
+    expect(skippedSentence(1)).toBe('1 file skipped.')
+    expect(skippedSentence(3)).toBe('3 files skipped.')
+  })
+})
+
+describe('STOPPED_BY_USER', () => {
+  it('is neutral and says what to do next, with no fault prefix', () => {
+    expect(STOPPED_BY_USER).toBe("Stopped. Add your files again when you're ready.")
   })
 })

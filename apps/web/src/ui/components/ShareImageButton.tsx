@@ -1,19 +1,27 @@
 import { useId, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { AthleteSettings, EffortCheck } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import type { CanvasDelivery } from '../../share/download'
 import { hasShareableContent } from '../../share/hasShareableContent'
 import { CARD_FILE_NAMES, type CardFormat } from '../../share/cardLayout'
+import type { BalanceGap } from '../balanceGap'
 import './ShareImageButton.css'
 
 export interface ShareImageButtonProps {
   result: AnalysisResult
   settings: AthleteSettings
   units: UnitSystem
-  rangeDays: number | null
+  /** The period on screen, which the card names with its dates. */
+  period: Period
   isSample: boolean
   /** Heart-rate check for the headline duration, shown on the card as a caveat when it applies. */
   effort: EffortCheck | null
+  /** False while no body weight is entered: the card then leaves out the ride estimate and balance. */
+  weightKnown: boolean
+  /** The age-grade gap on the page, so the card states the same balance as the page. */
+  gap: BalanceGap | null
   /** Analysis is running, so the comparison on screen may change. */
   disabled: boolean
 }
@@ -21,11 +29,17 @@ export interface ShareImageButtonProps {
 const PRIVACY_NOTE = 'Creates a PNG on this device. Nothing is uploaded.'
 const WAITING_NOTE = 'Available when the analysis finishes.'
 const FAILED = 'The image could not be created. Try again.'
+/** What the page says once the image has reached the visitor. A cancelled share says nothing. */
+const DELIVERED: Record<CanvasDelivery, string> = {
+  shared: 'Image shared',
+  saved: 'Image saved',
+  cancelled: '',
+}
 
-/** The two shapes, in button order. The square is the primary action. */
-const SHAPES: { format: CardFormat; label: string; primary: boolean }[] = [
-  { format: 'square', label: 'Download square image', primary: true },
-  { format: 'story', label: 'Download story image', primary: false },
+/** The two shapes, in button order. Both are outlined, so the screen's one primary action stays Add files. */
+const SHAPES: { format: CardFormat; label: string }[] = [
+  { format: 'square', label: 'Download square image' },
+  { format: 'story', label: 'Download story image' },
 ]
 
 /**
@@ -37,9 +51,11 @@ export function ShareImageButton({
   result,
   settings,
   units,
-  rangeDays,
+  period,
   isSample,
   effort,
+  weightKnown,
+  gap,
   disabled,
 }: ShareImageButtonProps) {
   const [status, setStatus] = useState('')
@@ -63,13 +79,22 @@ export function ShareImageButton({
         ])
       // The canvas only draws a web font that has loaded, so wait for the card's faces first.
       await loadCardFonts()
-      const card = buildShareCard(result, settings, units, rangeDays, isSample, effort)
+      const card = buildShareCard(
+        result,
+        settings,
+        units,
+        period,
+        isSample,
+        effort,
+        weightKnown,
+        gap,
+      )
       const canvas = document.createElement('canvas')
-      const saved =
-        card !== null &&
-        renderShareCard(card, canvas, format) &&
-        (await saveCanvasPng(canvas, CARD_FILE_NAMES[format]))
-      setStatus(saved ? 'Image saved' : FAILED)
+      const delivery =
+        card !== null && renderShareCard(card, canvas, format)
+          ? await saveCanvasPng(canvas, CARD_FILE_NAMES[format])
+          : null
+      setStatus(delivery === null ? FAILED : DELIVERED[delivery])
     } catch {
       setStatus(FAILED)
     } finally {
@@ -81,11 +106,11 @@ export function ShareImageButton({
   return (
     <div className="share-image">
       <div className="share-image__actions">
-        {SHAPES.map(({ format, label, primary }) => (
+        {SHAPES.map(({ format, label }) => (
           <button
             key={format}
             type="button"
-            className={primary ? 'btn btn-primary' : 'btn'}
+            className="btn"
             onClick={() => void saveImage(format)}
             disabled={disabled}
             // aria-disabled, not disabled: a disabled button drops the focus it is holding. The

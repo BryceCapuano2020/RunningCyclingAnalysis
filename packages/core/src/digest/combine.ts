@@ -1,9 +1,9 @@
-import { compareSports, weightedQuantile } from '../compare'
+import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import {
   DURATIONS_S,
+  EQUIVALENCE_DURATIONS_S,
   FLAT_RUN_COST,
-  HEADLINE_DURATION_S,
   PRIORS,
   RESTING_W_PER_KG,
 } from '../constants'
@@ -22,37 +22,22 @@ import type {
   Comparison,
   CriticalPowerFit,
   Curve,
-  DerivedStreams,
   DigestCurvePoint,
   DigestHrBlock,
   EffortCheck,
   HrCrossCheck,
   HrPoint,
   Interval,
-  QualityFlag,
-  Sport,
   VirtualPowerAccuracy,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
+import { summaryOf, type ActivitySummary } from './summary'
 import { fitBikeModel } from '../virtualPower'
 import type { BikeModelSource } from '../virtualPower'
 import { addCalibrationSums, calibrationStatsAt, emptyCalibrationSums } from './calibration'
 import { leaveOneOutAccuracy } from './accuracy'
 import type { Calibrated } from './accuracy'
 import { powerAt } from './terms'
-
-export interface ActivitySummary {
-  id: string
-  name: string
-  sport: Sport
-  startMs: number
-  durationS: number
-  distanceM: number
-  elevationGainM: number
-  hasHeartRate: boolean
-  powerSource: DerivedStreams['powerSource']
-  flags: QualityFlag[]
-}
 
 export interface Equivalence {
   durationS: number
@@ -107,6 +92,31 @@ const DRAWS = 4000
 const SEED = 1
 
 /**
+ * The flat running speed that costs the same gross metabolic power as riding at a given power,
+ * for one heart-rate model. The efficiency draws and their heart-rate weights depend only on the
+ * model, so they are built once here, and each power costs one pass over them.
+ */
+export function equivalenceFor(
+  hr: HrCrossCheck | null,
+  opts: { draws?: number; seed?: number } = {},
+): (ridePowerW: number, massKg: number) => Interval {
+  const draws = opts.draws ?? DRAWS
+  const { ge, s } = drawPriors(draws, opts.seed ?? SEED)
+  const calibration = calibrationWeights(ge, s, hr)
+  const weights = calibration?.accepted ? calibration.weights : new Float64Array(draws).fill(1)
+  return (ridePowerW, massKg) => {
+    const speeds = new Float64Array(draws)
+    for (let i = 0; i < draws; i++) {
+      const metabolic = ridePowerW / (ge[i]! * massKg)
+      speeds[i] = Math.max(0, (metabolic - RESTING_W_PER_KG) / (s[i]! * FLAT_RUN_COST))
+    }
+    // One sort gives all three percentiles, exactly as three separate calls would.
+    const [p05, p50, p95] = weightedQuantiles(speeds, weights, [0.05, 0.5, 0.95])
+    return { p05: p05!, p50: p50!, p95: p95! }
+  }
+}
+
+/**
  * Flat running speed that costs the same gross metabolic power as riding at
  * `ridePowerW`, with uncertainty from the efficiency priors and, when
  * available, the heart-rate cross-check.
@@ -117,20 +127,7 @@ export function equivalentRunSpeed(
   hr: HrCrossCheck | null,
   opts: { draws?: number; seed?: number } = {},
 ): Interval {
-  const draws = opts.draws ?? DRAWS
-  const { ge, s } = drawPriors(draws, opts.seed ?? SEED)
-  const calibration = calibrationWeights(ge, s, hr)
-  const speeds = new Float64Array(draws)
-  const weights = calibration?.accepted ? calibration.weights : new Float64Array(draws).fill(1)
-  for (let i = 0; i < draws; i++) {
-    const metabolic = ridePowerW / (ge[i]! * massKg)
-    speeds[i] = Math.max(0, (metabolic - RESTING_W_PER_KG) / (s[i]! * FLAT_RUN_COST))
-  }
-  return {
-    p05: weightedQuantile(speeds, weights, 0.05),
-    p50: weightedQuantile(speeds, weights, 0.5),
-    p95: weightedQuantile(speeds, weights, 0.95),
-  }
+  return equivalenceFor(hr, opts)(ridePowerW, massKg)
 }
 
 /**
@@ -231,21 +228,6 @@ function plainCurve(points: EffortPoint[]): Curve {
   }))
 }
 
-function summaryOf(digest: ActivityDigest): ActivitySummary {
-  return {
-    id: digest.id,
-    name: digest.name,
-    sport: digest.sport,
-    startMs: digest.startMs,
-    durationS: digest.durationS,
-    distanceM: digest.distanceM,
-    elevationGainM: digest.elevationGainM,
-    hasHeartRate: digest.hasHeartRate,
-    powerSource: digest.powerSource,
-    flags: digest.flags,
-  }
-}
-
 function maxHeartRateOf(digests: ActivityDigest[]): number | null {
   let best: number | null = null
   for (const digest of digests) {
@@ -285,6 +267,13 @@ export function sportCurves(
   const totalMassKg = settings.massKg + settings.bikeMassKg
   const { runBest, rideBest } = bestCurves(orderedCurrent(digests), totalMassKg, bikeModel)
   return { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
+}
+
+/** The activities of a library as summaries, newest first, as the analysis lists them. */
+export function activitySummaries(digests: ActivityDigest[]): ActivitySummary[] {
+  return orderedCurrent(digests)
+    .map(summaryOf)
+    .sort((a, b) => b.startMs - a.startMs)
 }
 
 /**
@@ -349,7 +338,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   })
 
   const equivalents: Equivalence[] = []
-  for (const durationS of [180, 300, 600, HEADLINE_DURATION_S, 1800, 3600]) {
+  for (const durationS of EQUIVALENCE_DURATIONS_S) {
     const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
       equivalents.push({
@@ -371,9 +360,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     comparison.prior.map((p) => p.durationS),
   )
 
-  const activities = ordered.map(summaryOf).sort((a, b) => b.startMs - a.startMs)
   return {
-    activities,
+    activities: activitySummaries(digests),
     runCurve,
     rideCurve,
     rideMetabolicCurve,

@@ -14,6 +14,23 @@ export function nearestByX(positions: readonly number[], x: number): number | nu
   return best
 }
 
+/**
+ * Index of the last position at or before x, for positions in ascending order, or null before the
+ * first. A stepped line holds each value until the next sample, so the pointer reads the value it is
+ * drawn at.
+ */
+export function lastAtOrBefore(positions: readonly number[], x: number): number | null {
+  let found: number | null = null
+  for (let i = 0; i < positions.length; i++) {
+    if ((positions[i] ?? Infinity) > x) break
+    found = i
+  }
+  return found
+}
+
+/** How a pointer's x picks a point from ascending positions: nearest, or the last at or before. */
+export type PositionPick = (positions: readonly number[], x: number) => number | null
+
 /** Index of the nearest point within maxDistance (in pixels), or null. */
 export function nearestByPoint(
   points: readonly Point[],
@@ -40,7 +57,8 @@ export interface ActiveTarget {
 
 /**
  * Where the active point moves for a key. Arrows step through points in x order and start
- * from the ends; Escape clears it. Returns null for keys this chart does not handle.
+ * from the ends; Home and End jump to the first and last point; Escape clears it. Returns null
+ * for keys this chart does not handle.
  */
 export function stepActive(
   current: number | null,
@@ -53,6 +71,10 @@ export function stepActive(
       return { index: current === null ? 0 : Math.min(current + 1, count - 1) }
     case 'ArrowLeft':
       return { index: current === null ? count - 1 : Math.max(current - 1, 0) }
+    case 'Home':
+      return { index: 0 }
+    case 'End':
+      return { index: count - 1 }
     case 'Escape':
       return { index: null }
     default:

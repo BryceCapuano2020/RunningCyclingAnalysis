@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
@@ -25,7 +25,14 @@ export function baselineOf(state: SessionState): AnalysisResult | null {
  * and the notice after a rebuild. A library change is tracked by the library, not here.
  */
 export function useImportState() {
-  const [state, setState] = useState<SessionState>(EMPTY_SESSION)
+  const [state, setStateNow] = useState<SessionState>(EMPTY_SESSION)
+  // The session the worker last reported. The page renders it a little later, so an import reads
+  // this, not the rendered state, when it is sent.
+  const reportedRef = useRef<SessionState>(EMPTY_SESSION)
+  const setState = useCallback((next: SessionState) => {
+    reportedRef.current = next
+    setStateNow(next)
+  }, [])
   const [busy, setBusy] = useState(false)
   const [waitingReason, setWaitingReason] = useState<string | null>(null)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
@@ -35,13 +42,14 @@ export function useImportState() {
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
   // Signed-in imports still waiting for their profile to save. They count as busy.
   const pendingAsyncImportsRef = useRef(0)
-  // A file dropped before the account is known must not be analysed and then overwritten by the
-  // initial server hydration. Keep it until the account state is known.
-  const deferredImportsRef = useRef<File[][]>([])
+  // Files analysed while the account loads, in this session only. Once the account is known they are
+  // sent again, to the account when signed in, or through the signed-out import otherwise.
+  const provisionalImportsRef = useRef<File[][]>([])
 
   return {
     state,
     setState,
+    reportedRef,
     busy,
     setBusy,
     waitingReason,
@@ -57,7 +65,7 @@ export function useImportState() {
     rebuildNotice,
     setRebuildNotice,
     pendingAsyncImportsRef,
-    deferredImportsRef,
+    provisionalImportsRef,
   }
 }
 

@@ -1,8 +1,17 @@
 import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
 import { requirePositiveFinite } from '../math'
-import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
+import type {
+  ActivityDigest,
+  AthleteSettings,
+  BikeModel,
+  DigestCurvePoint,
+  HrCrossCheck,
+  Interval,
+  Sport,
+} from '../types'
 import {
   centralWkgFromWatts,
+  equivalenceFor,
   fitBikeModelFor,
   orderedCurrent,
   rideWattsAt,
@@ -25,6 +34,17 @@ export interface TrendPoint {
   runCount: number
   /** Rides in the window that have a value at the trend duration. */
   rideCount: number
+  /** Start of the run that set runWkg; null without a run. */
+  runAtMs: number | null
+  /** Start of the ride that set rideWkg; null without a ride. */
+  rideAtMs: number | null
+  /**
+   * The running equivalent of the best ride in the window: the flat running speed, in m/s, that
+   * costs the same metabolic power, with the range of the heart-rate model. At the headline duration
+   * it is the speed combine gives the same ride. Null without a ride, or unless the trend was asked
+   * for it through `equivalence`.
+   */
+  rideRunSpeed: Interval | null
 }
 
 export interface TrendOptions {
@@ -37,6 +57,11 @@ export interface TrendOptions {
   fromMs?: number
   /** The bike model to price rides with. Fitted to the digests when not given. */
   bikeModel?: BikeModel
+  /**
+   * When given, each point's best ride is also converted to its running equivalent, with the
+   * heart-rate model of the analysis of the same digests, as the cards convert it.
+   */
+  equivalence?: { hr: HrCrossCheck | null }
 }
 
 /** The Sunday 23:59:59.999 UTC that ends the calendar week (Monday to Sunday, UTC) of ms. */
@@ -47,17 +72,37 @@ export function weekEndMs(ms: number): number {
   return dayStart + (daysToSunday + 1) * DAY_MS - 1
 }
 
-/** One activity's central metabolic W/kg at the trend duration, with its sport and start. */
+/** One activity's best effort at the trend duration: its central metabolic W/kg, and its watts. */
+interface Best {
+  wkg: number
+  /** Mechanical watts for a ride; NaN for a run. */
+  watts: number
+}
+
+/** One activity's best effort at or above the trend duration, with its sport and start. */
 interface Reading {
   startMs: number
   sport: Sport
-  wkg: number
+  best: Best
+}
+
+function measureOf(
+  sport: Sport,
+  point: DigestCurvePoint,
+  massKg: number,
+  totalMassKg: number,
+  bikeModel: BikeModel,
+): Best {
+  if (sport === 'run') return { wkg: runCentralWkg(point), watts: Number.NaN }
+  const watts = rideWattsAt(point, totalMassKg, bikeModel)
+  return { wkg: centralWkgFromWatts(watts, massKg), watts }
 }
 
 /**
- * The best central metabolic W/kg of one activity at durationS or longer. Like combine's envelope,
- * a shorter duration takes the best of the longer ones, so a 30-minute value above the 20-minute
- * one counts. NaN when the activity has no value there.
+ * The best effort of one activity at durationS or longer. Like combine's envelope, a shorter
+ * duration takes the best of the longer ones, so a 30-minute value above the 20-minute one counts.
+ * Null when the activity has no value there. Central W/kg rises with watts, so the best by W/kg
+ * is the best by watts.
  */
 function bestAtOrAbove(
   digest: ActivityDigest,
@@ -65,26 +110,16 @@ function bestAtOrAbove(
   massKg: number,
   totalMassKg: number,
   bikeModel: BikeModel,
-): number {
-  let best = Number.NaN
+): Best | null {
+  let best: Best | null = null
   for (const point of digest.curve) {
     if (point.durationS < durationS) continue
-    const wkg = centralWkg(digest.sport, point, massKg, totalMassKg, bikeModel)
-    if (Number.isFinite(wkg) && (Number.isNaN(best) || wkg > best)) best = wkg
+    const candidate = measureOf(digest.sport, point, massKg, totalMassKg, bikeModel)
+    if (Number.isFinite(candidate.wkg) && (best === null || candidate.wkg > best.wkg)) {
+      best = candidate
+    }
   }
   return best
-}
-
-function centralWkg(
-  sport: Sport,
-  point: DigestCurvePoint,
-  massKg: number,
-  totalMassKg: number,
-  bikeModel: BikeModel,
-): number {
-  return sport === 'run'
-    ? runCentralWkg(point)
-    : centralWkgFromWatts(rideWattsAt(point, totalMassKg, bikeModel), massKg)
 }
 
 /**
@@ -92,7 +127,8 @@ function centralWkg(
  * windowDays window that ends at the point. Values use the same prior-mean conversion as combine,
  * with the bike model fitted to the same set. Digests of other model revisions are ignored. The
  * caller passes the set the analysis sees, after near-duplicates are hidden. Only the most recent
- * 260 weeks are returned.
+ * 260 weeks are returned. Each point also names the start of the activity that set each value,
+ * and, when asked, converts the best ride to its running equivalent once per distinct power.
  */
 export function fitnessTrend(
   digests: ActivityDigest[],
@@ -113,8 +149,20 @@ export function fitnessTrend(
   const bikeModel = opts.bikeModel ?? fitBikeModelFor(totalCalibration(ordered), totalMassKg).model
   const readings: Reading[] = []
   for (const digest of ordered) {
-    const wkg = bestAtOrAbove(digest, durationS, massKg, totalMassKg, bikeModel)
-    if (Number.isFinite(wkg)) readings.push({ startMs: digest.startMs, sport: digest.sport, wkg })
+    const best = bestAtOrAbove(digest, durationS, massKg, totalMassKg, bikeModel)
+    if (best !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best })
+  }
+
+  const equivalenceAt = opts.equivalence ? equivalenceFor(opts.equivalence.hr) : null
+  const speedByWatts = new Map<number, Interval>()
+  const speedOf = (watts: number): Interval | null => {
+    if (equivalenceAt === null) return null
+    let speed = speedByWatts.get(watts)
+    if (speed === undefined) {
+      speed = equivalenceAt(watts, massKg)
+      speedByWatts.set(watts, speed)
+    }
+    return speed
   }
 
   const lastEnd = weekEndMs(last.startMs)
@@ -124,20 +172,24 @@ export function fitnessTrend(
   const points: TrendPoint[] = []
   for (let endMs = firstEnd; endMs <= lastEnd; endMs += WEEK_MS) {
     const windowStart = endMs - windowMs
-    const best: Record<Sport, number | null> = { run: null, ride: null }
+    const top: Record<Sport, Reading | null> = { run: null, ride: null }
     const count: Record<Sport, number> = { run: 0, ride: 0 }
     for (const reading of readings) {
       if (reading.startMs <= windowStart || reading.startMs > endMs) continue
       count[reading.sport]++
-      const current = best[reading.sport]
-      if (current === null || reading.wkg > current) best[reading.sport] = reading.wkg
+      const current = top[reading.sport]
+      if (current === null || reading.best.wkg > current.best.wkg) top[reading.sport] = reading
     }
+    const ride = top.ride
     points.push({
       endMs,
-      runWkg: best.run,
-      rideWkg: best.ride,
+      runWkg: top.run?.best.wkg ?? null,
+      rideWkg: ride?.best.wkg ?? null,
       runCount: count.run,
       rideCount: count.ride,
+      runAtMs: top.run?.startMs ?? null,
+      rideAtMs: ride?.startMs ?? null,
+      rideRunSpeed: ride ? speedOf(ride.best.watts) : null,
     })
   }
   return points

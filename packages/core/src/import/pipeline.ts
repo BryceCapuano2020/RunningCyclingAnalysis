@@ -1,9 +1,13 @@
 import { DAY_MS } from '../constants'
 import type { Activity, Sport } from '../types'
+import { routeFromFixes } from '../route/routeShape'
 import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
-import type { ParseLimits, ParseOptions, ParseResult } from './result'
+import type { GpsFix } from './gps'
+import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
 import { failure, MAX_FILE_SAMPLES } from './result'
+import { nameOfLeg, withStartTimesWhereShared } from './names'
+import { isIndoorWithoutPositions } from './indoor'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
@@ -14,12 +18,6 @@ export const MAX_SPEED_MPS: Record<Sport, number> = { ride: 30, run: 12.5 }
 const MAX_POWER_W = 3000
 const MIN_HEART_RATE = 25
 const MAX_HEART_RATE = 250
-/** Below this speed, in m/s, a sample counts as stopped. */
-const STOPPED_SPEED_MS = 0.5
-/** Share of recorded (not paused) samples that must be stopped for a powered ride to be indoor. */
-const STOPPED_SHARE = 0.95
-/** A powered ride without positions is indoor only if its altitude spans less than this, in metres. */
-const TRAINER_ALTITUDE_RANGE_M = 10
 
 const SHORT_REASON = 'Activity is shorter than one minute'
 const SPARSE_REASON = 'Activity is recorded too sparsely: its points are more than 10 seconds apart'
@@ -41,7 +39,7 @@ export interface PipelineUnit {
   /** The source's own sport name, used in the refusal `Unsupported sport: <sportLabel>`. */
   sportLabel: string
   /** Replaces the default refusal when sport is null, e.g. FIT e-bike sessions. */
-  refusal?: { reason: string; skipped: string }
+  refusal?: { skipped: string } & Rejection
   /**
    * The device's running distance when this unit began, in metres. Subtracted from the unit's
    * distance, so a session that follows another counts from where that one ended. Undefined
@@ -52,11 +50,15 @@ export interface PipelineUnit {
   indoor: boolean
   /** Whether any record has a position. Without one, indoor is inferred from altitude and speed. */
   hasPosition: boolean
+  /** The unit's positions in time order, for its route shape. Absent or empty without GPS. */
+  fixes?: GpsFix[]
+  /** The activity's own title in its file, such as a GPX track name. Device defaults are dropped. */
+  title?: string
 }
 
 /** A pipeline input for one file that holds a single unit. */
 export interface PipelineFile extends PipelineUnit {
-  /** The file name, used for the activity id and name. */
+  /** The file name, used for the activity id. */
   fileName: string
 }
 
@@ -74,7 +76,8 @@ export function activitiesFromRecords(
 
 /**
  * Turns the units of one file into Activities. With several units each activity id gets a `#index`
- * suffix and each name gets its sport, and the sample budget is shared by all units. Never throws.
+ * suffix, and a name that two activities of the file share gets the start time. The sample budget is
+ * shared by all units. Never throws.
  */
 export function activitiesFromUnits(
   input: { fileName: string; units: PipelineUnit[] },
@@ -88,13 +91,16 @@ export function activitiesFromUnits(
     limits,
     nowMs: opts.nowMs ?? Date.now(),
     usedSamples: 0,
+    activityName: opts.activityName,
   }
 
   const outcomes: Outcome[] = []
   for (const [index, unit] of units.entries()) {
     for (const outcome of evaluateUnit(unit, index, context)) {
       outcomes.push(outcome)
-      if (!outcome.ok && outcome.fatal) return failure(fileName, outcome.reason)
+      if (!outcome.ok && outcome.fatal) {
+        return failure(fileName, outcome.reason, outcome.code, outcome.detail)
+      }
     }
   }
 
@@ -109,22 +115,16 @@ export function activitiesFromUnits(
       skipped.push(outcome.skipped)
     }
   }
-  if (activities.length === 0) return failure(fileName, pickReason(outcomes))
-  return { ok: true, activities, skipped, droppedValues }
-}
-
-/**
- * The file name without its directory and without its activity extension: .fit, .gpx or .tcx,
- * each optionally followed by .gz.
- */
-export function baseName(fileName: string): string {
-  const base = fileName.split(/[\\/]/).pop() ?? fileName
-  return base.replace(/\.(fit|gpx|tcx)(\.gz)?$/i, '')
+  if (activities.length === 0) {
+    const { reason, code, detail } = pickReason(outcomes)
+    return failure(fileName, reason, code, detail)
+  }
+  return { ok: true, activities: withStartTimesWhereShared(activities), skipped, droppedValues }
 }
 
 type Outcome =
   | { ok: true; activity: Activity; dropped: number }
-  | { ok: false; reason: string; skipped: string; fatal: boolean }
+  | ({ ok: false; skipped: string; fatal: boolean } & Rejection)
 
 interface Context {
   fileName: string
@@ -133,6 +133,8 @@ interface Context {
   nowMs: number
   /** Grid samples already allocated for this file. */
   usedSamples: number
+  /** The name the file's export gives, which wins over a title in the file. */
+  activityName?: string
 }
 
 /**
@@ -144,9 +146,11 @@ function evaluateUnit(unit: PipelineUnit, index: number, context: Context): Outc
   if (sport === null) {
     const refusal = unit.refusal ?? {
       reason: `Unsupported sport: ${unit.sportLabel}`,
+      code: 'unsupported-sport' as const,
+      detail: unit.sportLabel,
       skipped: `${unit.sportLabel} session skipped`,
     }
-    return [{ ok: false, reason: refusal.reason, skipped: refusal.skipped, fatal: false }]
+    return [{ ...refusal, ok: false, fatal: false }]
   }
   const maxSpeed = MAX_SPEED_MPS[sport]
   const drops = new Map<RawRecord, number>()
@@ -181,65 +185,88 @@ interface SegmentInfo {
   context: Context
 }
 
-/** Resamples one continuous part of a unit into an Activity, or says why it is not one. */
-function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
-  const { unit, index, part, parts, sport, drops, maxSpeed, context } = info
-  const { fileName, multi, limits, nowMs } = context
-  const short: Outcome = {
-    ok: false,
-    reason: SHORT_REASON,
-    skipped: 'session shorter than one minute',
-    fatal: false,
-  }
+/** A refusal of one part of a file, or of the whole file when it is fatal. */
+function refusalOf(
+  reason: string,
+  code: RejectCode,
+  skipped: string,
+  fatal = false,
+): Extract<Outcome, { ok: false }> {
+  return { ok: false, reason, code, skipped, fatal }
+}
+const SHORT_OUTCOME = refusalOf(SHORT_REASON, 'too-short', 'session shorter than one minute')
+const SPARSE_OUTCOME = refusalOf(SPARSE_REASON, 'too-sparse', 'session recorded too sparsely')
+const DATE_OUTCOME = refusalOf(DATE_REASON, 'implausible-date', 'activity date is not plausible')
+
+/** The refusal for a segment too short to count, or null when it is long enough to resample. */
+function tooShort(segment: RawRecord[]): Outcome | null {
   // Devices record sparsely ("smart recording"), in every format, so a segment is measured by the
   // seconds its records cover rather than by how many records it has.
-  if (vouchedSeconds(segment) < MIN_SAMPLES) {
-    // When most points are far apart the recording is sparse, not short; say which, so people
-    // know why. One long pause after a short effort is still a short activity.
-    if (!mostlySparse(segment)) return short
-    return {
-      ok: false,
-      reason: SPARSE_REASON,
-      skipped: 'session recorded too sparsely',
-      fatal: false,
-    }
-  }
+  if (vouchedSeconds(segment) >= MIN_SAMPLES) return null
+  // When most points are far apart the recording is sparse, not short; say which, so people know
+  // why. One long pause after a short effort is still a short activity.
+  return mostlySparse(segment) ? SPARSE_OUTCOME : SHORT_OUTCOME
+}
 
+/**
+ * Reserves the grid samples a segment needs. Null when it may be resampled; otherwise the fatal
+ * refusal for a segment longer than 48 hours, or for a file with no room left for it.
+ */
+function reserveSamples(segment: RawRecord[], context: Context): Outcome | null {
   // The grid length is known before anything is allocated, so a long file is refused up front.
   const first = segment[0]!.tMs
   const last = segment[segment.length - 1]!.tMs
   const samples = Math.round((last - first) / 1000) + 1
   if (samples > MAX_FILE_SAMPLES) {
-    return { ok: false, reason: TOO_LONG, skipped: 'activity longer than 48 hours', fatal: true }
+    return refusalOf(TOO_LONG, 'too-long', 'activity longer than 48 hours', true)
   }
   if (context.usedSamples + samples > MAX_FILE_SAMPLES) {
-    return { ok: false, reason: TOO_MUCH, skipped: 'file contains too much data', fatal: true }
+    return refusalOf(TOO_MUCH, 'too-much-data', 'file contains too much data', true)
   }
   context.usedSamples += samples
+  return null
+}
 
+/** Resamples a segment onto its 1 Hz grid, or says why the grid cannot be made. */
+function resampleSegment(
+  segment: RawRecord[],
+  unit: PipelineUnit,
+  limits: ParseLimits,
+): { resampled: Resampled } | { refused: Outcome } {
+  const first = segment[0]!.tMs
+  const last = segment[segment.length - 1]!.tMs
   const events = unit.timerEvents.filter((e) => e.tMs >= first && e.tMs <= last)
-  let resampled: ReturnType<typeof resample>
   try {
-    resampled = resample(segment, events, limits.maxActivitySeconds)
+    return { resampled: resample(segment, events, limits.maxActivitySeconds) }
   } catch (error) {
-    if (error instanceof RangeError) {
-      return {
+    if (!(error instanceof RangeError)) throw error
+    return {
+      refused: {
         ok: false,
         reason: error.message,
+        code: 'too-long',
         skipped: 'activity exceeds the supported time range',
         fatal: false,
-      }
+      },
     }
-    throw error
   }
-  if (activeSeconds(resampled) < MIN_SAMPLES) return short
+}
+
+/** Resamples one continuous part of a unit into an Activity, or says why it is not one. */
+function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
+  const { unit, index, part, parts, sport, drops, maxSpeed, context } = info
+  const { fileName, multi, nowMs } = context
+  const short = tooShort(segment)
+  if (short !== null) return short
+  const full = reserveSamples(segment, context)
+  if (full !== null) return full
+
+  const grid = resampleSegment(segment, unit, context.limits)
+  if ('refused' in grid) return grid.refused
+  const { resampled } = grid
+  if (activeSeconds(resampled) < MIN_SAMPLES) return SHORT_OUTCOME
   if (resampled.startMs < EARLIEST_ACTIVITY_MS || resampled.startMs > nowMs + MAX_FUTURE_MS) {
-    return {
-      ok: false,
-      reason: DATE_REASON,
-      skipped: 'activity date is not plausible',
-      fatal: false,
-    }
+    return DATE_OUTCOME
   }
   // A part after a gap of over four hours counts from its own first sample, and a unit that follows
   // another in the same file counts from where the device's running total stood.
@@ -250,16 +277,26 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   const derivedDropped = clampSpeed(resampled.speed, maxSpeed)
   const dropped = segment.reduce((sum, r) => sum + (drops.get(r) ?? 0), 0) + derivedDropped
 
-  const base = baseName(fileName)
   const idBase = `${resampled.startMs}-${fileName}`
   const id = multi ? `${idBase}#${index}` : idBase
-  const name = multi ? `${base} (${sport})` : base
+  const name = nameOfLeg({
+    exportName: context.activityName,
+    title: unit.title,
+    sport,
+    startMs: resampled.startMs,
+    multi,
+    part: parts > 1 ? part + 1 : undefined,
+  })
+  const first = segment[0]!.tMs
+  const last = segment[segment.length - 1]!.tMs
+  const route = indoor ? null : routeFromFixes(unit.fixes ?? [], first, last, maxSpeed)
   const activity: Activity = {
     id: parts > 1 ? `${id}.${part + 1}` : id,
-    name: parts > 1 ? `${name} (part ${part + 1})` : name,
+    name,
     sport,
     indoor,
     ...resampled,
+    ...(route ? { route } : {}),
   }
   return { ok: true, activity, dropped }
 }
@@ -327,46 +364,6 @@ function subtractDistance(distance: Float64Array, origin: number): void {
   for (let i = 0; i < distance.length; i++) distance[i] = distance[i]! - origin
 }
 
-/**
- * Whether a unit with no positions is indoor. No altitude means indoor. A cycling unit with power is
- * also indoor when it is stopped for nearly all of its recorded time and its altitude hardly
- * changes: a trainer's barometer reads a few metres of noise, and a missing speed sensor reads as
- * stopped. Paused time is not counted.
- */
-function isIndoorWithoutPositions(s: Resampled, sport: Sport): boolean {
-  if (!s.hasAltitude) return true
-  return (
-    sport === 'ride' &&
-    s.hasPower &&
-    altitudeRange(s) < TRAINER_ALTITUDE_RANGE_M &&
-    isStoppedMostly(s)
-  )
-}
-
-function altitudeRange(s: Resampled): number {
-  let low = Infinity
-  let high = -Infinity
-  for (const h of s.altitude) {
-    if (Number.isFinite(h)) {
-      low = Math.min(low, h)
-      high = Math.max(high, h)
-    }
-  }
-  return high - low
-}
-
-function isStoppedMostly(s: Resampled): boolean {
-  let recorded = 0
-  let stopped = 0
-  for (let i = 0; i < s.n; i++) {
-    if (s.paused[i] === 1) continue
-    recorded++
-    // A missing speed (NaN) counts as stopped.
-    if (!(s.speed[i]! >= STOPPED_SPEED_MS)) stopped++
-  }
-  return recorded > 0 && stopped >= STOPPED_SHARE * recorded
-}
-
 /** Marks speeds above the limit as missing. Returns how many were marked. */
 function clampSpeed(speed: Float64Array, max: number): number {
   let marked = 0
@@ -380,7 +377,10 @@ function clampSpeed(speed: Float64Array, max: number): number {
 }
 
 /** Prefers a specific reason over the generic short-activity one. */
-function pickReason(outcomes: Outcome[]): string {
-  const reasons = outcomes.flatMap((o) => (o.ok ? [] : [o.reason]))
-  return reasons.find((reason) => reason !== SHORT_REASON) ?? reasons[0] ?? SHORT_REASON
+function pickReason(outcomes: Outcome[]): Rejection {
+  const refusals = outcomes.filter((o) => !o.ok)
+  const specific = refusals.find((o) => o.reason !== SHORT_REASON) ?? refusals[0]
+  return specific === undefined
+    ? { reason: SHORT_REASON, code: 'too-short' }
+    : { reason: specific.reason, code: specific.code, detail: specific.detail }
 }

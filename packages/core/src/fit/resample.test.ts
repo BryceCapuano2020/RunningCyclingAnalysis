@@ -494,3 +494,38 @@ describe('resample', () => {
     })
   })
 })
+
+describe('unrecorded gaps', () => {
+  /** Records at every second except the 12 seconds from index 5 to 16. */
+  const withGap = [
+    ...Array.from({ length: 5 }, (_, t) => ({ tMs: t * 1000, speed: 5 })),
+    ...Array.from({ length: 14 }, (_, k) => ({ tMs: (17 + k) * 1000, speed: 5 })),
+  ]
+  const span = (mask: Uint8Array) => Array.from(mask.slice(5, 17))
+
+  it('marks a gap over 10 s with no timer events as unrecorded and paused', () => {
+    const r = resample(withGap)
+    expect(span(r.unrecorded)).toEqual(Array.from({ length: 12 }, () => 1))
+    expect(span(r.paused)).toEqual(Array.from({ length: 12 }, () => 1))
+    expect(r.unrecorded[4]).toBe(0)
+  })
+
+  it('does not mark a gap that timer events pause as unrecorded', () => {
+    const r = resample(withGap, [
+      { tMs: 5000, eventType: 'stop' },
+      { tMs: 17000, eventType: 'start' },
+    ])
+    expect(span(r.paused)).toEqual(Array.from({ length: 12 }, () => 1))
+    expect(Array.from(r.unrecorded).every((u) => u === 0)).toBe(true)
+  })
+
+  it('marks a gap that timer events do not cover as unrecorded, but not paused', () => {
+    // Timer events exist, so the file is trusted for its pauses. This gap has none, so it is a dropout.
+    const r = resample(withGap, [
+      { tMs: 1000, eventType: 'stop' },
+      { tMs: 2000, eventType: 'start' },
+    ])
+    expect(span(r.unrecorded)).toEqual(Array.from({ length: 12 }, () => 1))
+    expect(span(r.paused)).toEqual(Array.from({ length: 12 }, () => 0))
+  })
+})

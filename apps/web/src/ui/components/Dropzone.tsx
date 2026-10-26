@@ -1,13 +1,18 @@
-import { useState } from 'react'
-import type { DragEvent as ReactDragEvent, KeyboardEvent } from 'react'
+import { useId, useState } from 'react'
+import type { DragEvent as ReactDragEvent } from 'react'
+import { HISTORY_ADVICE } from '../exportGuides'
+import { UploadIcon } from './icons'
+import { SampleButton } from './SampleButton'
 import { isFileDrag, useFilePicker } from './useFilePicker'
 import './Dropzone.css'
 
 export interface DropzoneProps {
   onFiles: (files: File[]) => void
   onSample: () => void
+  /** Shows the export guides on the page, for a visitor who has no files yet. */
+  onShowGuides: () => void
   busy: boolean
-  /** Signed-in imports are saved to the library, so the copy and the sample button change. */
+  /** A signed-in visitor already has a library, so the sample is not offered to them. */
   signedIn: boolean
 }
 
@@ -16,26 +21,15 @@ export interface DropzoneProps {
  * requests in order, so a file chosen during a load is queued rather than lost. Only the sample
  * stays off while busy. The window drop listeners and the progress live in ImportStatus.
  */
-export function Dropzone({ onFiles, onSample, busy, signedIn }: DropzoneProps) {
+export function Dropzone({ onFiles, onSample, onShowGuides, busy, signedIn }: DropzoneProps) {
   const picker = useFilePicker(onFiles)
   const [dragging, setDragging] = useState(false)
-
-  function handleTargetKey(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      picker.open()
-    }
-  }
+  const busyHintId = useId()
 
   function handleDragOver(event: ReactDragEvent<HTMLDivElement>) {
     // Always prevent the default, or the browser navigates to the dropped file.
     event.preventDefault()
     if (isFileDrag(event)) setDragging(true)
-  }
-
-  function handleSample() {
-    // aria-disabled, not disabled: a disabled button drops the focus it holds, so guard the click.
-    if (!busy) onSample()
   }
 
   function handleDragLeave(event: ReactDragEvent<HTMLDivElement>) {
@@ -53,33 +47,33 @@ export function Dropzone({ onFiles, onSample, busy, signedIn }: DropzoneProps) {
       // A drop leaves no dragleave behind, so the highlight is cleared here.
       onDrop={() => setDragging(false)}
     >
-      <div
-        className="dropzone__target"
-        role="button"
-        tabIndex={0}
-        onClick={picker.open}
-        onKeyDown={handleTargetKey}
-      >
-        <p className="dropzone__title">Drop FIT, GPX or TCX files, or a Strava export zip here</p>
-        <p className="dropzone__hint">or choose files</p>
+      <div className="dropzone__target">
+        <p className="dropzone__title">Add FIT, GPX or TCX files, or a Strava export zip</p>
+        <p className="dropzone__hint">{HISTORY_ADVICE}</p>
+        <p className="dropzone__drag">Drag them onto this box, or</p>
+        <button type="button" className="btn btn-primary" onClick={picker.open}>
+          <UploadIcon />
+          Choose files
+        </button>
       </div>
+      <p className="dropzone__guides">
+        <span className="dropzone__touch">Exports usually come from a computer. </span>
+        <button type="button" className="dropzone__link" onClick={onShowGuides}>
+          No files yet? How to get them
+        </button>
+      </p>
       {signedIn ? null : (
         <div className="dropzone__actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleSample}
-            aria-disabled={busy}
-          >
+          <SampleButton busy={busy} onSample={onSample} describedBy={busyHintId}>
             See a sample athlete
-          </button>
+          </SampleButton>
+          {busy && (
+            <p id={busyHintId} className="dropzone__busy muted">
+              Available when the current import finishes.
+            </p>
+          )}
         </div>
       )}
-      <p className="dropzone__privacy muted">
-        {signedIn
-          ? 'Analysis runs in your browser. Activity summaries are saved to your library; original files only if you keep them.'
-          : 'Your files never leave this device. All analysis runs in your browser.'}
-      </p>
       {picker.input}
     </div>
   )

@@ -1,61 +1,152 @@
+/* The meter spans the width of the card row, so its centre is the gutter between the two cards. */
 .balance-meter {
+  display: grid;
+  gap: var(--space-2);
   margin: 0;
-  max-width: 420px;
 }
 
-.balance-meter__svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
+/* The plot keeps a line above the track for the value flag over the dot. */
+.balance-meter__plot {
+  position: relative;
+  padding-top: 1.25rem;
+}
+
+.balance-meter__flag {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .balance-meter__track {
-  fill: var(--surface-2);
+  position: relative;
+  box-sizing: border-box;
+  height: 1.5rem;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--surface-2);
 }
 
+/* The band is the range: a tint with a solid edge in the leading sport's colour, so it reads at 3:1. */
 .balance-meter__band {
-  fill: var(--neutral-band);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  min-width: 1.5rem;
+  transform: translateX(-50%);
+  border: 2px solid var(--neutral-mark);
+  border-radius: 999px;
+  background: var(--neutral-band);
 }
 
 .balance-meter--run .balance-meter__band {
-  fill: var(--series-run-soft);
+  border-color: var(--series-run);
+  background: var(--series-run-soft);
 }
 
 .balance-meter--ride .balance-meter__band {
-  fill: var(--series-ride-soft);
+  border-color: var(--series-ride);
+  background: var(--series-ride-soft);
 }
 
 .balance-meter__even {
-  stroke: var(--text-muted);
-  stroke-width: 1.5;
+  position: absolute;
+  top: -0.375rem;
+  bottom: -0.375rem;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--text-muted);
 }
 
 .balance-meter__dot {
-  fill: var(--neutral-mark);
-  stroke: var(--surface-0);
-  stroke-width: 3;
+  position: absolute;
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--neutral-mark);
+  box-shadow: 0 0 0 3px var(--surface-0);
 }
 
 .balance-meter--run .balance-meter__dot {
-  fill: var(--series-run);
+  background: var(--series-run);
 }
 
 .balance-meter--ride .balance-meter__dot {
-  fill: var(--series-ride);
+  background: var(--series-ride);
 }
 
-.balance-meter__label {
-  fill: var(--text-muted);
-  font-size: 11px;
+.balance-meter__ticks {
+  position: relative;
+  height: 1.25rem;
 }
 
-.balance-meter__label--run {
-  fill: var(--text-secondary);
+.balance-meter__tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.balance-meter__tick--cap {
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
-.balance-meter__label--ride {
-  fill: var(--text-secondary);
+.balance-meter__ends {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
   font-weight: 600;
+}
+
+.balance-meter__end {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.balance-meter__end--left {
+  justify-self: start;
+}
+
+.balance-meter__end--right {
+  justify-self: end;
+}
+
+/* The sport colour marks the glyph only; the label stays in ink. */
+.balance-meter__end[data-sport='run'] .balance-meter__glyph {
+  color: var(--series-run);
+}
+
+.balance-meter__end[data-sport='ride'] .balance-meter__glyph {
+  color: var(--series-ride);
+}
+
+.balance-meter__glyph {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.balance-meter__even-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.balance-meter__key {
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }

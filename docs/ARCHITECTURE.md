@@ -159,8 +159,35 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    the longer duration. This preference applies to files analyzed together. A saved activity is tied
    to the hash of its original file, so replacing it with a different file requires deleting that
    activity and importing the preferred file again.
+7. **Activity names** (`readActivityNames` in `packages/core/src/import/activitiesCsv.ts`, and
+   `packages/core/src/import/names.ts`). Before any file in a Strava export zip is parsed, the zip's
+   `activities.csv` is read by range, from the top-level zip's central directory only, so it may sit
+   anywhere in the zip. A zip nested inside the export is never searched for a list. Its
+   `Activity Name` column names the file at the path in its `Filename` column, without `.gz`. The
+   header matches in any case, and paths are compared lowercase, with forward slashes and no leading
+   `./` or `/`. The list has at most 10,000 rows in all, and is limited to 32 MiB inflated. The cap
+   is a memory budget: at the cap, reading the list uses about 100–150 MB at peak, holding its
+   compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
+   zip's decompressed-bytes budget, even when the list is malformed.
+   The first row wins for a file that appears twice. A list that ends inside a quoted field is
+   ignored, so it gives no names.
+   A leg's name is the first of these that applies: the list's name, unless it is a device default
+   such as `ACTIVE LOG`, a bare number or a date; the file's own title, which is a GPX track name; or
+   a name made from the start time on the importing device's clock and the sport, such as
+   `Morning Run`. The parts of the day are Night (0:00 to 4:59), Morning (5:00 to 10:59), Lunch
+   (11:00 to 13:59), Afternoon (14:00 to 16:59), Evening (17:00 to 20:59) and Night (21:00 to 23:59).
+   TCX has no title element, and its Notes are free text, so they are not used. When two activities
+   of one file would share a name, each gets its start time: `Brick (Run, 6:11 am)`, or
+   `Morning Run, 6:11 am`. Legs that still share a name, starting in the same minute, are numbered in
+   file order, as in `Morning Run, 6:11 am (2)`. The name is saved with the activity when it is imported, so it does not
+   change afterwards. Names apply only to newly imported activities. Existing library entries keep
+   their names until they are deleted and imported again.
 
 ## Why the digest exists
+
+A route shape (`packages/core/src/route/routeShape.ts`) is not part of the digest. It is an outline of
+the GPS track with its position removed, and it stays on the device: beside the digest in the
+device library, or in the worker's memory for an account. No request to the server or export carries it.
 
 The comparison depends on settings (mass, efficiency and economy priors, period) and on the model
 itself. Recomputing it from raw files on every view would mean parsing originals on every request,
@@ -172,6 +199,22 @@ the server stores only that. A digest holds:
   happens at combine time, because the critical power depends on the merged curve.
 - **Mass-free power terms and calibration sums**: the per-sample terms of the virtual-power model
   with mass and bike constants left out.
+- **Run distance bests**: for runs only, the fastest wall-clock time over each distance in
+  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km and 10 km). A window may not include a second the
+  device did not record (a gap of over 10 s that no timer pause covers, where distance is held and
+  time is unknown), an invalid motion sample, or a distance step above the top run speed. A timer
+  pause is real time and counts. Grade does not matter here. It is absent for rides and for digests
+  from before the field, and an empty list for a run under 1 km.
+- **Splits** (runs only): each whole kilometre and mile, with its wall-clock seconds, grade-adjusted
+  seconds (the flat time at the same metabolic cost, as the best efforts pace is), elevation gain and
+  mean heart rate. A split with a boundary inside a gap the device did not record, where the distance is
+  held and then stepped, has null seconds. The gaps are the resampler's `unrecorded` mask: a record gap
+  over 10 s that no timer pause covers, in GPX, TCX and timer-less FIT alike. A split that only contains
+  such a gap keeps its time, and takes the gap at the split's recorded effort, so its grade-adjusted time
+  stays known.
+  Digests made before splits were kept have none, and rides never do. Splits are stored in each digest
+  and load with the library. They are kept out of activity summaries and SessionState, and the activity
+  page reads them from the session on demand.
 
 The virtual-power model is `P = (m (g_a + c_rr r) + CdA a) / η`, where `g_a = v (g sin θ + dv/dt)`,
 `r = g v cos θ` and `a = ½ ρ v³`. The digest stores these per sample, so mass, rolling resistance,

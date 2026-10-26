@@ -1,19 +1,23 @@
-import type { AnalysisResult } from './digest'
+import type { ActivitySummary, AnalysisResult } from './digest'
+import type { Period } from './period'
 import type { TrendPoint } from './digest/trend'
 import type { EffortLengthS } from './digest/trendPoints'
 import type { SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
+import type { EarnedRecord } from './records'
+import type { Rejection } from './import/result'
 
-export interface RejectedFile {
+/** An activity file this import could not use, with why. */
+export interface RejectedFile extends Rejection {
   fileName: string
-  reason: string
 }
 
 export interface SessionState {
   /** Null until at least one activity has been loaded. */
   result: AnalysisResult | null
+  /** The files the last import could not use. */
   rejected: RejectedFile[]
-  /** Activity files in formats this app does not read (e.g. KML) that were skipped. */
+  /** Activity files in formats this app does not read (e.g. KML) that the last import skipped. */
   unsupportedFiles: number
   isSample: boolean
   /** Activities analysed or eligible, not counting hidden duplicates, before the period filter. */
@@ -27,8 +31,10 @@ export interface SessionState {
    * (FIT over TCX over GPX) is saved too. They stay in the library.
    */
   hiddenDuplicates: number
-  /** Only activities from the last rangeDays days before the newest one are analysed; null = all. */
-  rangeDays: number | null
+  /** The period analysed: its choice and its dates. The library lists every activity regardless. */
+  period: Period
+  /** Every visible activity, newest first, whatever the period: the activity list and its pages. */
+  library: ActivitySummary[]
   /** Activities the sink could not save, by cause, until they are saved or the library is cleared. */
   syncIssues: SyncIssue[]
   /**
@@ -43,4 +49,6 @@ export interface SessionState {
    * all time, or when that period has no activities.
    */
   previous: SportCurves | null
+  /** The best efforts each activity holds across the whole library, not the period. */
+  records: Map<string, EarnedRecord[]>
 }

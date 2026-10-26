@@ -1,12 +1,16 @@
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
-import { LEVEL_BANDS } from '../grades'
+import { HEADLINE_LABEL, LEVEL_BANDS, gradeLevelText } from '../grades'
 import type { Grade, SportGrade } from '../grades'
+import { formatGrade } from '../gradeFormat'
 import './LevelLadder.css'
 
 export interface LevelLadderProps {
   sport: Sport
-  /** A dot for one activity's estimate; a ring over a band when the grade has a model range. */
+  /**
+   * A solid dot for one recorded effort; a ring over a band when a ride's grade has a model range.
+   * The grade is always the headline effort's, so the drawing names that effort's duration.
+   */
   grade: SportGrade
 }
 
@@ -21,6 +25,17 @@ const BAR_Y = 7
 const BAR_H = 16
 const MID_Y = BAR_Y + BAR_H / 2
 const MARK_R = 8
+/**
+ * The marker's outline is 2 px, centred on its edge, so half of it lies outside the circle. The
+ * drawing is 320 units wide and about 320 px on a phone, so one unit of half-stroke is close enough.
+ */
+const MARK_STROKE_HALF = 1
+
+/** What each sport's shape means, in words beside the drawing: the key a colour-blind reader needs. */
+const KEY: Record<Sport, string> = {
+  run: 'Solid dot: the grade of one recorded effort.',
+  ride: 'Ring: estimated, with its range.',
+}
 
 interface Band {
   name: string
@@ -54,6 +69,15 @@ function x(grade: number): number {
   return (place(grade) / 100) * WIDTH
 }
 
+/**
+ * The marker's centre: the grade's place, kept so the whole marker, outline included, stays inside
+ * the track, so an off-scale dot sits at the end of the bar and not over its edge.
+ */
+function markerX(grade: number): number {
+  const reach = MARK_R + MARK_STROKE_HALF
+  return Math.min(Math.max(x(grade), reach), WIDTH - reach)
+}
+
 function percentText(value: number): string {
   return `${Math.round(value * 100)}%`
 }
@@ -74,15 +98,40 @@ function beyondScale(grade: SportGrade): 'below' | 'above' | null {
 }
 
 /** What a screen reader hears: the grade, its level, its range or single activity, and the scale. */
-function ladderLabel(grade: SportGrade): string {
+function ladderLabel(sport: Sport, grade: SportGrade): string {
   const { centre, range } = grade
+  const effort = `from your best ${HEADLINE_LABEL}`
   const basis = range
-    ? `range ${range.low.percent}% to ${range.high.percent}%`
-    : 'from one activity'
+    ? `${effort}, range ${formatGrade(range.low.grade)} to ${formatGrade(range.high.grade)}`
+    : effort
   const side = beyondScale(grade)
   const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
   const beyond = side === null ? '' : `, ${side} the ${scale}`
-  return `Estimated age grade ${centre.percent}%, ${centre.level}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+  const name = sport === 'ride' ? 'Estimated age grade' : 'Age grade'
+  return `${name} ${formatGrade(centre.grade)}, ${gradeLevelText(grade)}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
+}
+
+/** The key under the drawing: what its shape means, and whether the grade lies off the scale. */
+function keyText(sport: Sport, grade: SportGrade): string {
+  const side = beyondScale(grade)
+  const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
+  const beyond = side === null ? '' : ` ${side === 'below' ? 'Below' : 'Above'} the ${scale}.`
+  return `${KEY[sport]}${beyond}`
+}
+
+/**
+ * The bands the grade falls in: the band of its centre, or every band from the range's low end to
+ * its high end when a ride's range crosses an edge. Each is filled and named in bold.
+ */
+function currentBands(grade: SportGrade): Set<string> {
+  const names = BANDS.map((band) => band.name)
+  const levels = [grade.centre, grade.range?.low, grade.range?.high]
+  const indexes = levels
+    .flatMap((level) => (level ? [names.indexOf(level.level)] : []))
+    .filter((index) => index >= 0)
+  const first = Math.min(...indexes)
+  const last = Math.max(...indexes)
+  return new Set(names.filter((_, index) => index >= first && index <= last))
 }
 
 /** The range as a band over the bar, outlined so it stands out from the bar. */
@@ -100,12 +149,13 @@ function RangeBand({ range }: { range: { low: Grade; high: Grade } }) {
 }
 
 /**
- * An age grade on the level bands, on a 30% to 100% scale. One activity's estimate is a solid dot;
- * a ride's estimate is a ring over a band for its model range. The band names and percentages are
- * visible text beside the drawing, so the image's name carries the grade, its level and any range.
+ * An age grade on the level bands, on a 30% to 100% scale. A run is read as recorded: a solid dot.
+ * A ride is estimated: a ring over a band for its model range. The band the grade falls in is filled
+ * and its name is bold, and the names, percentages and key are visible text beside the drawing.
  */
 export function LevelLadder({ sport, grade }: LevelLadderProps) {
   const { centre, range } = grade
+  const current = currentBands(grade)
   return (
     <figure className={`level-ladder level-ladder--${sport}`}>
       <div className="level-ladder__scale" aria-hidden="true">
@@ -123,9 +173,23 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
         className="level-ladder__svg"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label={ladderLabel(grade)}
+        aria-label={ladderLabel(sport, grade)}
       >
         <rect className="level-ladder__track" x="0" y={BAR_Y} width={WIDTH} height={BAR_H} rx="8" />
+        {BANDS.map((band) => (
+          <rect
+            key={band.name}
+            className={
+              current.has(band.name)
+                ? 'level-ladder__band level-ladder__band--current'
+                : 'level-ladder__band'
+            }
+            x={x(band.low)}
+            y={BAR_Y}
+            width={x(band.high) - x(band.low)}
+            height={BAR_H}
+          />
+        ))}
         {range && <RangeBand range={range} />}
         {/* Drawn after the range, so the edges stay visible inside a ride's band. */}
         {EDGES.map((edge) => (
@@ -139,22 +203,23 @@ export function LevelLadder({ sport, grade }: LevelLadderProps) {
           />
         ))}
         {range ? (
-          <circle className="level-ladder__ring" cx={x(centre.grade)} cy={MID_Y} r={MARK_R} />
+          <circle className="level-ladder__ring" cx={markerX(centre.grade)} cy={MID_Y} r={MARK_R} />
         ) : (
-          <circle className="level-ladder__dot" cx={x(centre.grade)} cy={MID_Y} r={MARK_R} />
+          <circle className="level-ladder__dot" cx={markerX(centre.grade)} cy={MID_Y} r={MARK_R} />
         )}
       </svg>
       <div className="level-ladder__names" aria-hidden="true">
         {BANDS.map((band, index) => (
           <span
             key={band.name}
-            className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}`}
+            className={`level-ladder__name level-ladder__name--${index % 2 === 0 ? 'top' : 'bottom'}${current.has(band.name) ? ' level-ladder__name--current' : ''}`}
             style={{ left: `${(place(band.low) + place(band.high)) / 2}%` }}
           >
             {band.name}
           </span>
         ))}
       </div>
+      <figcaption className="level-ladder__key">{keyText(sport, grade)}</figcaption>
     </figure>
   )
 }

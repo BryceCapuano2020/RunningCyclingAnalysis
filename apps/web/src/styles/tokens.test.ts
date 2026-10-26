@@ -1,38 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { readStylesheet } from '../ui/components/stylesheet'
+import { contrast, over } from './contrastMath'
+import { colour, declarations, declared, resolved, type Tokens } from './tokenSheet'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
 const privacyCss = await readStylesheet(import.meta.url, '../../public/privacy.css')
 const ladderCss = await readStylesheet(import.meta.url, '../ui/components/LevelLadder.css')
-
-type Tokens = Map<string, string>
-
-/** The custom properties declared in the first block that opens with `selector`. */
-function declared(css: string, selector: string): Tokens {
-  const start = css.indexOf(`${selector} {`)
-  if (start < 0) throw new Error(`no ${selector} block in tokens.css`)
-  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
-  const tokens: Tokens = new Map()
-  for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
-    const [, name, value] = match
-    if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
-  }
-  return tokens
-}
-
-/** The same tokens with each var(--name) replaced by the value that name resolves to. */
-function resolved(tokens: Tokens): Tokens {
-  const expand = (value: string, seen: string[]): string =>
-    value.replace(/var\(--([a-z0-9-]+)\)/g, (_match: string, name: string) => {
-      const next = tokens.get(name)
-      if (next === undefined || seen.includes(name)) throw new Error(`--${name} does not resolve`)
-      return expand(next, [...seen, name])
-    })
-  return new Map(
-    [...tokens].map(([name, value]): [string, string] => [name, expand(value, [name])]),
-  )
-}
 
 /** The Colour section of docs/DESIGN.md, up to the Type section. */
 function colourSection(markdown: string): string {
@@ -58,32 +32,9 @@ function colourTable(section: string): Map<string, { light: string; dark: string
   return rows
 }
 
-/** WCAG relative luminance of an opaque #rrggbb colour. */
-function luminance(hex: string): number {
-  const linear = (start: number) => {
-    const channel = parseInt(hex.slice(start, start + 2), 16) / 255
-    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * linear(1) + 0.7152 * linear(3) + 0.0722 * linear(5)
-}
-
-/** WCAG contrast ratio between two opaque colours, from 1 to 21. */
-function contrast(a: string, b: string): number {
-  const x = luminance(a)
-  const y = luminance(b)
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
-}
-
-function colour(tokens: Tokens, name: string): string {
-  const value = tokens.get(name)
-  if (value === undefined || !/^#[0-9a-f]{6}$/.test(value)) {
-    throw new Error(`--${name} is not an opaque hex colour`)
-  }
-  return value
-}
-
 /** Spacing, radius, type and shadow tokens are not colours, so they need no table row. */
-const NOT_COLOUR = /^(space-\d|radius(-sm)?$|font-|shadow$)/
+const NOT_COLOUR =
+  /^(space-\d|radius(-sm)?$|control-height$|header-height$|tab-bar-height$|font-|shadow$)/
 
 const lightRaw = declared(tokensCss, ':root')
 const darkRaw = declared(tokensCss, ":root:not([data-theme='light'])")
@@ -239,19 +190,6 @@ describe('contrast', () => {
   })
 })
 
-/** A colour as #rrggbb or #rrggbbaa, laid over an opaque background, as the browser paints it. */
-function over(foreground: string, background: string): string {
-  const alpha = foreground.length === 9 ? parseInt(foreground.slice(7, 9), 16) / 255 : 1
-  const channels = [1, 3, 5].map((start) => {
-    const top = parseInt(foreground.slice(start, start + 2), 16)
-    const below = parseInt(background.slice(start, start + 2), 16)
-    return Math.round(top * alpha + below * (1 - alpha))
-      .toString(16)
-      .padStart(2, '0')
-  })
-  return `#${channels.join('')}`
-}
-
 /** A token that is an opaque colour, or a translucent one, as the ladder's bands are. */
 function paint(tokens: Tokens, name: string): string {
   const value = tokens.get(name)
@@ -291,21 +229,27 @@ describe('level ladder contrast', () => {
   })
 })
 
-/** The declarations of the rule whose selector is exactly this, as property to value. */
-function declarations(css: string, selector: string): Map<string, string> {
-  const start = css.indexOf(`${selector} {`)
-  if (start < 0) throw new Error(`no ${selector} rule in the stylesheet`)
-  if (css.indexOf(`${selector} {`, start + 1) >= 0) throw new Error(`${selector} is declared twice`)
-  const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
-  const found = new Map<string, string>()
-  for (const match of body.matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)) {
-    const [, property, value] = match
-    if (property !== undefined && value !== undefined) {
-      found.set(property, value.trim().toLowerCase())
-    }
-  }
-  return found
-}
+describe('record chip contrast', () => {
+  // A record chip is ink on its sport's soft fill, laid over the card or the page it sits on.
+  it.each([
+    ['light', light],
+    ['dark', dark],
+  ] as const)(
+    '%s: ink reaches 4.5:1 on each sport fill over the card and the page',
+    (_theme, tokens) => {
+      for (const sport of ['run', 'ride'] as const) {
+        const fill = paint(tokens, `series-${sport}-soft`)
+        for (const surface of ['surface-0', 'surface-1'] as const) {
+          const painted = over(fill, colour(tokens, surface))
+          expect(
+            contrast(colour(tokens, 'text-primary'), painted),
+            `${sport} on ${surface}`,
+          ).toBeGreaterThanOrEqual(TEXT)
+        }
+      }
+    },
+  )
+})
 
 describe('level ladder stylesheet', () => {
   it('paints each sport’s band with that sport’s ladder band token', () => {

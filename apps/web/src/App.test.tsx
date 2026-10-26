@@ -24,9 +24,8 @@ vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
 vi.mock('./ui/charts', async () => {
-  const { heavyChartStubs } = await import('./test/appMocks')
-  const { TrendChart } = await import('./ui/charts/TrendChart')
-  return { ...heavyChartStubs, TrendChart }
+  const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
+  return { ...heavyChartStubs, ...(await trendCharts()) }
 })
 
 const LANDING_HEADING = 'How balanced are you as an athlete?'
@@ -38,6 +37,9 @@ const week = (index: number, runWkg: number | null, rideWkg: number | null): Tre
   rideWkg,
   runCount: runWkg === null ? 0 : 1,
   rideCount: rideWkg === null ? 0 : 1,
+  runAtMs: runWkg === null ? null : Date.UTC(2025, 0, 12 + index * 7 - 3),
+  rideAtMs: rideWkg === null ? null : Date.UTC(2025, 0, 12 + index * 7 - 3),
+  rideRunSpeed: null,
 })
 
 beforeEach(() => {
@@ -112,14 +114,26 @@ describe('profile persistence', () => {
     expect(updateProfile).toHaveBeenCalledWith({ units: 'metric' })
   })
 
-  it('saves both weights when a weight is entered and Enter is pressed', async () => {
+  it('saves only the body weight that was entered when Enter is pressed', async () => {
     const user = userEvent.setup()
     setAccount('signed-in', { units: 'metric' })
     render(<App />)
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '80{Enter}')
-    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 9 })
+    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80 })
+  })
+
+  it('tells the athlete a weight was not saved when the account refuses it', async () => {
+    const user = userEvent.setup()
+    setAccount('signed-in', { units: 'metric' })
+    updateProfile.mockRejectedValueOnce(new Error('offline'))
+    render(<App />)
+    const body = screen.getByLabelText('Body weight')
+    await user.clear(body)
+    await user.type(body, '80{Enter}')
+    expect(await screen.findByText("Couldn't save. Try again.")).toBeInTheDocument()
+    expect(body).toHaveValue('80')
   })
 
   it('does not resend a failed weight edit with a later units change', async () => {
@@ -169,7 +183,7 @@ describe('profile persistence', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('radio', { name: 'Metric' }))
     expect(setPreferences).toHaveBeenCalledWith({
-      settings: { massKg: 75, bikeMassKg: 9 },
+      settings: { massKg: null, bikeMassKg: 9 },
       units: 'metric',
       birthYear: null,
       sex: null,
@@ -210,7 +224,7 @@ describe('original file retention', () => {
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '80{Enter}')
-    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80, bikeMassKg: 9 })
+    expect(updateProfile).toHaveBeenCalledWith({ massKg: 80 })
   })
 })
 
@@ -218,17 +232,8 @@ describe('signed-in and unavailable library', () => {
   it('offers no sample on the landing page once signed in, and says where imports are saved', () => {
     render(<App />)
     expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
-    expect(screen.getByText(/Activity summaries are saved to your library/)).toBeInTheDocument()
-  })
-
-  it('says sign-in is unavailable and that results are kept in this browser', () => {
-    setAccount('unavailable')
-    render(<App />)
-    expect(
-      screen.getByText(
-        'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.',
-      ),
-    ).toBeInTheDocument()
+    // The footer carries the one privacy statement; the drop zone no longer repeats it.
+    expect(screen.getByText(/stored in your private library/)).toBeInTheDocument()
   })
 
   it('shows the saved library section on the profile page once loaded, even with no activities', () => {
@@ -258,21 +263,22 @@ describe('fitness over time', () => {
     render(<App />)
     expect(screen.getByRole('heading', { level: 2, name: 'Fitness over time' })).toBeInTheDocument()
     expect(
-      screen.getByRole('img', {
-        name: /^Running grade-adjusted pace per (kilometre|mile), best 20 minutes by week\./,
+      screen.getByRole('figure', {
+        name: /^Energy rate of your best 20 minutes, trailing/,
       }),
     ).toBeInTheDocument()
   })
 })
 
-describe('start over', () => {
+describe('removing all activities', () => {
   it('keeps the profile until the analysis has cleared, then returns to the landing page', async () => {
     window.location.hash = '#/profile'
     setAccount('signed-out')
     showResult()
     const view = render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start over' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
     expect(app.analysis.clear).toHaveBeenCalledOnce()
     expect(window.location.hash).toBe('#/profile')
 
@@ -286,12 +292,38 @@ describe('start over', () => {
   })
 })
 
+describe('removing kept activities with no result on screen', () => {
+  it('goes to the landing page at once, and moves focus to its heading', async () => {
+    window.location.hash = '#/profile'
+    setAccount('signed-out')
+    app.analysis.savedActivities = [
+      {
+        id: 'run-1',
+        name: 'Morning run',
+        startMs: Date.UTC(2026, 9, 20, 12),
+        sport: 'run',
+        copy: { id: 'run-1', rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
+      },
+    ]
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all' }))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/'))
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus(),
+    )
+    expect(app.analysis.clear).toHaveBeenCalledOnce()
+  })
+})
+
 describe('deleting the account', () => {
   /** Opens the delete dialog from Profile, types the account's email and confirms. */
   async function confirmDeletion() {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Delete account…' }))
-    const dialog = screen.getByRole('dialog', { name: 'Delete your account?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete your account?' })
     await user.type(within(dialog).getByLabelText('Email address'), 'ada@example.com')
     await user.click(within(dialog).getByRole('button', { name: 'Delete account' }))
   }
@@ -305,6 +337,16 @@ describe('deleting the account', () => {
 
     await waitFor(() => expect(window.location.hash).toBe('#/'))
     expect(await screen.findByRole('heading', { level: 1, name: LANDING_HEADING })).toHaveFocus()
+  })
+
+  it('says on the landing page that the account and its data were deleted', async () => {
+    window.location.hash = '#/profile'
+    app.account.deleteAccount = vi.fn(async () => setAccount('signed-out'))
+    render(<App />)
+
+    await confirmDeletion()
+
+    expect(await screen.findByText('Your account and data were deleted.')).toBeInTheDocument()
   })
 
   it('stays on the profile page when the account could not be deleted', async () => {
@@ -328,5 +370,11 @@ describe('footer', () => {
   it('links to the privacy page', () => {
     render(<App />)
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
+  })
+
+  it('carries the one privacy note on Profile, so the page does not repeat it', () => {
+    window.location.hash = '#/profile'
+    render(<App />)
+    expect(document.querySelectorAll('.privacy-note')).toHaveLength(1)
   })
 })

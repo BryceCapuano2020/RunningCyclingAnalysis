@@ -46,6 +46,24 @@ function signedIn(options: { allowDeleting: boolean }) {
 /** Requires a live session. An account being deleted reads as signed out. */
 export const requireUser = signedIn({ allowDeleting: false })
 
+/**
+ * Sets the signed-in user when there is one, and lets a signed-out request through with none. Only
+ * GET /api/me uses it: every other account route still requires a session.
+ */
+export const optionalUser = createMiddleware<AppEnv>(async (c, next) => {
+  // Only a read (GET, or HEAD for the same answer) reaches a visitor who may be signed out. Any other
+  // method must have a session to act.
+  if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+    throw new HttpError(405, 'method_not_allowed', 'This route only reads the session')
+  }
+  const user = await loadSession(c, { allowDeleting: false })
+  if (user) {
+    assertAccountScope(c, user)
+    c.set('user', user)
+  }
+  await next()
+})
+
 /** Only DELETE /api/me uses this: it lets an interrupted account deletion be retried. */
 export const requireUserEvenIfDeleting = signedIn({ allowDeleting: true })
 

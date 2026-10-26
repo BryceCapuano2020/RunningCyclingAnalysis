@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { Me } from '@rca/contract'
+import { focusPageHeading } from '../pages/pageHeading'
 import { GoogleSignInButton } from './GoogleSignInButton'
 import './AccountMenu.css'
 
@@ -34,8 +35,8 @@ function initialsOf(me: Me): string {
 /**
  * The header's account control. Signed out it offers Google sign-in. Signed in it is a disclosure
  * button whose menu shows the email and sign out; the header's Profile link holds the rest,
- * including the data download and account deletion. A placeholder of the same height holds the space while the session
- * loads, and nothing renders when accounts are unavailable.
+ * including the data download and account deletion. While the session loads, or when accounts
+ * cannot be reached, a status takes the sign-in button's place, so the header does not move.
  */
 export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProps) {
   const panelId = `${useId()}-panel`
@@ -48,11 +49,14 @@ export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProp
   const menuOpen = open && status === 'signed-in' && me !== null
 
   // Signing out removes the trigger, which would drop focus to the body. Put it on the sign-in
-  // button that replaces it.
+  // button that replaces it, or on the page heading when that button is not shown.
   useEffect(() => {
     const was = previousStatus.current
     previousStatus.current = status
-    if (was === 'signed-in' && status === 'signed-out') signInRef.current?.focus()
+    if (was !== 'signed-in' || status !== 'signed-out') return
+    const button = signInRef.current
+    if (button !== null && button.getClientRects().length > 0) button.focus()
+    else focusPageHeading()
   }, [status])
 
   // While the menu is open, the document handles the ways it closes: a press outside, focus moving
@@ -91,10 +95,27 @@ export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProp
     }
   }, [menuOpen])
 
-  if (status === 'unavailable') return null
-  if (status === 'loading') return <span className="account-menu__placeholder" aria-hidden="true" />
+  // One status region stays mounted in the sign-in slot, whatever the state, so a change in what it
+  // says is announced. It shows only while the session loads or accounts are unavailable.
+  const pendingText =
+    status === 'loading'
+      ? 'Checking sign-in…'
+      : status === 'unavailable'
+        ? 'Sign-in is unavailable right now'
+        : ''
+  const region = (
+    <span role="status" className={pendingText === '' ? 'sr-only' : 'account-menu__pending'}>
+      {pendingText}
+    </span>
+  )
+  if (status === 'loading' || status === 'unavailable') return region
   if (status === 'signed-out' || me === null) {
-    return <GoogleSignInButton onClick={onSignIn} buttonRef={signInRef} />
+    return (
+      <>
+        {region}
+        <GoogleSignInButton onClick={onSignIn} buttonRef={signInRef} />
+      </>
+    )
   }
 
   const { email } = me.user
@@ -106,31 +127,34 @@ export function AccountMenu({ status, me, onSignIn, onSignOut }: AccountMenuProp
   }
 
   return (
-    <div ref={wrapperRef} className="account-menu">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="account-menu__trigger"
-        aria-expanded={menuOpen}
-        aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="account-menu__avatar" aria-hidden="true">
-          {pictureUrl ? (
-            <img src={pictureUrl} alt="" referrerPolicy="no-referrer" />
-          ) : (
-            initialsOf(me)
-          )}
-        </span>
-        <span className="account-menu__name">{firstNameOf(me)}</span>
-        <span className="account-menu__chevron" aria-hidden="true" />
-      </button>
-      <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
-        <p className="account-menu__email">{email}</p>
-        <button type="button" className="account-menu__item" onClick={handleSignOut}>
-          Sign out
+    <>
+      {region}
+      <div ref={wrapperRef} className="account-menu">
+        <button
+          ref={triggerRef}
+          type="button"
+          className="account-menu__trigger"
+          aria-expanded={menuOpen}
+          aria-controls={panelId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="account-menu__avatar" aria-hidden="true">
+            {pictureUrl ? (
+              <img src={pictureUrl} alt="" referrerPolicy="no-referrer" />
+            ) : (
+              initialsOf(me)
+            )}
+          </span>
+          <span className="account-menu__name">{firstNameOf(me)}</span>
+          <span className="account-menu__chevron" aria-hidden="true" />
         </button>
+        <div id={panelId} className="account-menu__panel" hidden={!menuOpen}>
+          <p className="account-menu__email">{email}</p>
+          <button type="button" className="account-menu__item" onClick={handleSignOut}>
+            Sign out
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

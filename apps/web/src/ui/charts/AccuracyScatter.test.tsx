@@ -7,7 +7,6 @@ import { accuracyFixture, emptyAccuracyFixture } from './fixtures'
 const TITLE = 'Estimated against measured power on climbs'
 
 /** The static chart image is named by its title, then its description. */
-const named = (title: string) => (name: string) => name.startsWith(title)
 
 function tableOf(container: HTMLElement) {
   const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
@@ -24,10 +23,12 @@ describe('AccuracyScatter', () => {
 
   it('draws one dot per climb and the labelled perfect-estimate line', () => {
     render(<AccuracyScatter accuracy={accuracyFixture} />)
-    expect(screen.getByRole('img', { name: named(TITLE) })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: TITLE })).toBeInTheDocument()
     expect(screen.getAllByTestId('accuracy-dot')).toHaveLength(2)
     expect(screen.getByTestId('accuracy-reference')).toBeInTheDocument()
-    expect(screen.getByText('Perfect estimate')).toBeInTheDocument()
+    // The line is named in the key, not on the plot, where it would sit on the dots.
+    expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Perfect estimate')
+    expect(document.querySelector('.accuracy-scatter__reference-label')).toBeNull()
     expect(screen.getByText('2 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
   })
 
@@ -75,6 +76,6 @@ describe('AccuracyScatter', () => {
     expect(
       screen.getByText('No climbs of two minutes or more with power-meter data yet'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: named(TITLE) })).toBeNull()
+    expect(screen.queryByRole('img')).toBeNull()
   })
 })

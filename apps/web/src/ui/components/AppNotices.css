@@ -1,0 +1,10 @@
+/* The sample athlete's banner: neutral, since the sample is data to look at, not a problem. */
+.sample-banner {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-left: 4px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}

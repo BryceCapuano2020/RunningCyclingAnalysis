@@ -4,6 +4,8 @@
  * in Node tests unchanged.
  */
 
+import type { RouteShape } from './route/routeShape'
+
 export type Sport = 'run' | 'ride'
 
 /**
@@ -37,6 +39,16 @@ export interface Activity {
   hasAltitude: boolean
   /** Treadmill, trainer or virtual activity: gradient and GPS speed are not real. */
   indoor: boolean
+  /**
+   * 1 inside a record gap the device did not time (see resample), where distance and time are not
+   * known. Distance bests cannot span these seconds. Absent for an activity built without resampling.
+   */
+  unrecorded?: Uint8Array
+  /**
+   * The outline of an outdoor GPS track, with its position removed. Kept on the device only, never
+   * in a digest or sent to the server. See route/routeShape.ts.
+   */
+  route?: RouteShape
 }
 
 export interface AthleteSettings {
@@ -260,11 +272,40 @@ export interface DigestHrBlock {
   terms: PowerTerms | null
 }
 
+/** A run's fastest elapsed time over one record distance. Wall clock, so pauses inside it count. */
+export interface DigestDistanceBest {
+  distanceM: number
+  seconds: number
+}
+
 export interface DigestClimbSection {
   start: number
   end: number
   measuredW: number
   terms: PowerTerms
+}
+
+/** One run split: a whole kilometre or mile, or the partial remainder after the last one. */
+export interface DigestSplit {
+  /** The unit's length, or the length of the partial remainder, m. */
+  distanceM: number
+  /**
+   * Elapsed seconds over the split, including any time stopped in it, rounded to 0.01 s. Null when a
+   * boundary of the split falls inside a gap the device did not record, or when it implies a speed no
+   * run reaches.
+   */
+  seconds: number | null
+  /** Seconds on flat ground at the same metabolic cost, or null when the time or grade is unknown. */
+  gradeAdjustedSeconds: number | null
+  /** Climb the split owns, rounded to 0.1 m. Null only when the activity has no altitude. */
+  elevationGainM: number | null
+  /** Time-weighted mean heart rate over the valid samples, rounded to 0.1 bpm, or null. */
+  avgHeartRate: number | null
+}
+
+export interface DigestSplits {
+  km: DigestSplit[]
+  mile: DigestSplit[]
 }
 
 /**
@@ -300,6 +341,13 @@ export interface ActivityDigest {
   calibration: CalibrationSums | null
   /** Power-meter rides outdoors only: climb sections for scoring the virtual power meter. */
   climbSections: DigestClimbSection[]
+  /**
+   * Runs only, absent for rides and for digests from before this field. One entry per record
+   * distance the run covers and has a valid window for, in ascending distance.
+   */
+  distanceBests?: DigestDistanceBest[]
+  /** Runs only. Absent on rides and on digests made before splits were kept. */
+  splits?: DigestSplits
 }
 
 /** The best run and ride curves of one set of digests. See sportCurves. */

@@ -5,6 +5,7 @@ import { encodeFit } from '../fit/encode'
 import { parseFit } from '../fit/parse'
 import { DEFAULT_PARSE_LIMITS } from '../import/result'
 import type { ParseResult } from '../import/result'
+import { generatedName } from '../import/names'
 import { encodeGpx } from './encode'
 import { parseGpx } from './parse'
 import { parseIsoTime } from '../import/time'
@@ -102,10 +103,11 @@ function garmin(hr: number, power?: number): string {
   )
 }
 
-function track(type: string | undefined, segments: string[][]): string {
+function track(type: string | undefined, segments: string[][], name?: string): string {
+  const nameXml = name === undefined ? '' : `<name>${name}</name>`
   const typeXml = type === undefined ? '' : `<type>${type}</type>`
   const body = segments.map((pts) => `<trkseg>${pts.join('')}</trkseg>`).join('')
-  return `<trk>${typeXml}${body}</trk>`
+  return `<trk>${nameXml}${typeXml}${body}</trk>`
 }
 
 function gpxFile(...tracks: string[]): Uint8Array {
@@ -124,7 +126,7 @@ describe('parseGpx round trip', () => {
     const a = result.activities[0]!
     expect(a.sport).toBe('ride')
     expect(a.indoor).toBe(false)
-    expect(a.name).toBe('Morning Ride')
+    expect(a.name).toBe(generatedName(START_MS, 'ride'))
     expect(a.startMs).toBe(START_MS)
     expect(a.n).toBe(original.n)
     expect(a.hasPower).toBe(true)
@@ -142,7 +144,7 @@ describe('parseGpx round trip', () => {
     const original = makeActivity('run', 90, { withPower: false })
     const a = firstActivity(parseGpx(encodeGpx(original), 'tempo.gpx'))
     expect(a.sport).toBe('run')
-    expect(a.name).toBe('tempo')
+    expect(a.name).toBe(generatedName(START_MS, 'run'))
     expect(a.n).toBe(90)
     expect(a.hasPower).toBe(false)
     expect(a.power.every((v) => Number.isNaN(v))).toBe(true)
@@ -285,7 +287,10 @@ describe('parseGpx mapping', () => {
     expect(result.activities.map((a) => a.sport)).toEqual(['run', 'ride'])
     expect(result.activities[0]!.id).toMatch(/#0$/)
     expect(result.activities[1]!.id).toMatch(/#1$/)
-    expect(result.activities[0]!.name).toBe('multi (run)')
+    expect(result.activities.map((a) => a.name)).toEqual([
+      generatedName(START_MS, 'run'),
+      generatedName(START_MS + HOUR, 'ride'),
+    ])
   })
 
   it('joins the segments of one track, and a long gap between them is paused', () => {
@@ -377,6 +382,37 @@ describe('parseGpx mapping', () => {
       nowMs: Date.UTC(2020, 0, 1),
     })
     expect(reasonOf(result)).toBe('Activity date is not plausible')
+  })
+})
+
+describe('parseGpx names', () => {
+  it('names an activity from its track name', () => {
+    const file = gpxFile(track('cycling', [points(120)], 'Sunday Long Ride'))
+    expect(firstActivity(parseGpx(file, 'ride.gpx')).name).toBe('Sunday Long Ride')
+  })
+
+  it('names each track of a file by its own name', () => {
+    const later = { startMs: START_MS + 3 * HOUR }
+    const file = gpxFile(
+      track('cycling', [points(120)], 'Out'),
+      track('cycling', [points(120, later)], 'Back'),
+    )
+    const result = parseGpx(file, 'two.gpx')
+
+    if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
+    expect(result.activities.map((a) => a.name)).toEqual(['Out', 'Back'])
+  })
+
+  it('generates the name when the track carries a name a device writes by default', () => {
+    const file = gpxFile(track('cycling', [points(120)], 'ACTIVE LOG'))
+    expect(firstActivity(parseGpx(file, 'log.gpx')).name).toBe(generatedName(START_MS, 'ride'))
+  })
+
+  it('names a run from the local clock of its start, as a literal name', () => {
+    // Built from local clock time, so the name is the same in every time zone.
+    const start = new Date(2025, 4, 15, 6, 11).getTime()
+    const file = gpxFile(track('running', [points(120, { startMs: start })]))
+    expect(firstActivity(parseGpx(file, 'run.gpx')).name).toBe('Morning Run')
   })
 })
 
@@ -590,5 +626,28 @@ describe('parseGpx times', () => {
     })
     const a = okOf(parseGpx(gpxFile(track('running', [offset])), 'offset.gpx')).activities[0]!
     expect(a.startMs).toBe(START_MS)
+  })
+})
+
+describe('parseGpx route shape', () => {
+  it('gives the activity a route shape from its positions', () => {
+    const result = parseGpx(encodeGpx(makeActivity('run', 600), { type: 'running' }), 'run.gpx')
+
+    expect(result.ok && result.activities[0]?.route?.points.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('gives an activity without positions no route shape', () => {
+    const points = Array.from(
+      { length: 120 },
+      (_, i) => `<trkpt><time>${new Date(START_MS + i * 1000).toISOString()}</time></trkpt>`,
+    ).join('')
+    const bytes = new TextEncoder().encode(
+      `${HEADER}<trk><type>running</type><trkseg>${points}</trkseg></trk></gpx>`,
+    )
+
+    const result = parseGpx(bytes, 'nopos.gpx')
+
+    expect(result.ok && result.activities.length).toBe(1)
+    expect(result.ok && result.activities[0]?.route).toBeUndefined()
   })
 })

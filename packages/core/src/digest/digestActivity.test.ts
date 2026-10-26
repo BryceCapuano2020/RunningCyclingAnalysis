@@ -8,57 +8,9 @@ import { digestActivity } from './digestActivity'
 import { MODEL_REVISION } from './modelRevision'
 import { serializeDigest } from './serialize'
 import { powerAt } from './terms'
+import { syntheticActivity as activity, type Spec } from './test/syntheticActivity'
 
 const TRUE_MODEL = { crr: 0.006, cda: 0.35 }
-
-interface Spec {
-  id?: string
-  sport?: Sport
-  n: number
-  startMs?: number
-  /** Default 4 m/s. Distance is the running sum of speed. */
-  speed?: Float64Array
-  /** Altitude follows this gradient unless `altitude` is given. Default flat. */
-  grade?: number
-  altitude?: Float64Array
-  /** Default 150 bpm. */
-  heartRate?: Float64Array
-  /** Given for a power meter. */
-  power?: Float64Array
-  indoor?: boolean
-  noHeartRate?: boolean
-  noAltitude?: boolean
-  /** Auto-pause flags. Default none. */
-  paused?: Uint8Array
-}
-
-/** A 1 Hz activity built from a spec. */
-function activity(spec: Spec): Activity {
-  const n = spec.n
-  const speed = spec.speed ?? new Float64Array(n).fill(4)
-  const distance = new Float64Array(n)
-  for (let i = 1; i < n; i++) distance[i] = distance[i - 1]! + speed[i]!
-  const grade = spec.grade ?? 0
-  let altitude = spec.altitude ?? Float64Array.from(distance, (d) => 100 + grade * d)
-  if (spec.noAltitude) altitude = new Float64Array(n).fill(NaN)
-  return {
-    id: spec.id ?? 'a',
-    name: spec.id ?? 'a',
-    sport: spec.sport ?? 'run',
-    startMs: spec.startMs ?? 0,
-    n,
-    speed,
-    distance,
-    altitude,
-    heartRate: spec.heartRate ?? new Float64Array(n).fill(150),
-    power: spec.power ?? new Float64Array(n).fill(NaN),
-    paused: spec.paused ?? new Uint8Array(n),
-    hasPower: spec.power !== undefined,
-    hasHeartRate: !spec.noHeartRate,
-    hasAltitude: !spec.noAltitude,
-    indoor: spec.indoor ?? false,
-  }
-}
 
 /** Metabolic W/kg of running at speed v on the flat, with the prior-mean economy. */
 const flatMetabolic = (v: number) => RESTING_W_PER_KG + PRIORS.runEconomyScale.mean * 3.9 * v
@@ -600,5 +552,127 @@ describe('digestActivity: climb sections', () => {
     const n = 1800
     const d = digestActivity(climb(n, { power: constant(n, 49) }))
     expect(d.climbSections).toEqual([])
+  })
+})
+
+describe('digestActivity: distance bests', () => {
+  it('gives a run its best times at the record distances it covers', () => {
+    // 4 m/s for 2500 s is 10 km, so all four record distances are covered.
+    const d = digestActivity(activity({ n: 2501 }))
+    expect(d.distanceBests?.map((b) => b.distanceM)).toEqual([1000, 1609.344, 5000, 10000])
+    expect(d.distanceBests?.[0]?.seconds).toBeCloseTo(250, 9)
+    expect(d.distanceBests?.[3]?.seconds).toBeCloseTo(2500, 9)
+  })
+
+  it('gives a run under 1 km an empty list', () => {
+    expect(digestActivity(activity({ n: 100 })).distanceBests).toEqual([])
+  })
+
+  it('gives a ride no distance bests field at all', () => {
+    const d = digestActivity(activity({ n: 2501, sport: 'ride' }))
+    expect(d).not.toHaveProperty('distanceBests')
+  })
+
+  it('gives distance bests to a run with no altitude, since altitude affects grade, not distance', () => {
+    // The run curve needs grade, so it is empty here. Distance and time do not, so the bests stand.
+    const d = digestActivity(activity({ n: 2501, noAltitude: true }))
+    expect(d.curve.every((p) => Number.isNaN(p.value))).toBe(true)
+    expect(d.distanceBests?.map((b) => b.distanceM)).toEqual([1000, 1609.344, 5000, 10000])
+  })
+})
+
+describe('digestActivity: distance bests across a recording gap', () => {
+  /** A steady 3 m/s run with a 600 s gap of `gapSpeed` (NaN or 0) written as recorded. */
+  function gappedRun(gapSpeed: number, paused: boolean) {
+    const n = 1500
+    const speed = Float64Array.from({ length: n }, (_, i) => (i >= 301 && i < 900 ? gapSpeed : 3))
+    const a = activity({ n, speed })
+    // Distance is held through the gap and then steps by the distance the gap covered. Altitude is
+    // flat, so the helper's altitude from the original distance does not carry its NaN gap over.
+    a.distance = Float64Array.from({ length: n }, (_, i) =>
+      i <= 300 ? 3 * i : i < 900 ? 900 : 2700 + 3 * (i - 900),
+    )
+    a.altitude = new Float64Array(n).fill(100)
+    if (paused) a.paused = Uint8Array.from({ length: n }, (_, i) => (i >= 301 && i < 900 ? 1 : 0))
+    return a
+  }
+
+  it('does not let a best cross a 600 s unflagged gap that the distance steps over', () => {
+    // The gap keeps a finite 3 m/s, so no quality flag marks it. The best kilometre is 333 s.
+    const d = digestActivity(gappedRun(3, false))
+    expect(d.distanceBests?.find((b) => b.distanceM === 1000)?.seconds).toBeCloseTo(1000 / 3, 6)
+  })
+
+  it('does not let a best cross a gap whose speed is not finite', () => {
+    const d = digestActivity(gappedRun(NaN, false))
+    expect(d.distanceBests?.find((b) => b.distanceM === 1000)?.seconds).toBeCloseTo(1000 / 3, 6)
+  })
+
+  it('counts a timer-paused gap in elapsed time, as a race clock does', () => {
+    // 4 m/s for 125 s, a 600 s pause at zero speed, then 125 s more: the whole 1000 m takes 850 s.
+    const n = 851
+    const speed = Float64Array.from({ length: n }, (_, i) => (i >= 126 && i <= 725 ? 0 : 4))
+    const a = activity({ n, speed })
+    a.paused = Uint8Array.from({ length: n }, (_, i) => (i >= 126 && i <= 725 ? 1 : 0))
+    const d = digestActivity(a)
+    expect(d.distanceBests?.find((b) => b.distanceM === 1000)?.seconds).toBeCloseTo(850, 6)
+  })
+})
+
+describe('digestActivity: distance bests across unrecorded gaps', () => {
+  /** A 4 m/s activity with `missing` seconds from index 500 that no record covers. */
+  function withUnrecorded(n: number, speed: Float64Array, missing: [number, number]) {
+    const a = activity({ n, speed })
+    a.altitude = new Float64Array(n).fill(100)
+    a.unrecorded = Uint8Array.from({ length: n }, (_, i) =>
+      i >= missing[0] && i < missing[1] ? 1 : 0,
+    )
+    a.paused = a.unrecorded.slice()
+    return a
+  }
+  const best = (d: ReturnType<typeof digestActivity>, distanceM: number) =>
+    d.distanceBests?.find((b) => b.distanceM === distanceM)?.seconds
+
+  it('gives no 10 km best across a 12 s unrecorded gap', () => {
+    // 10 km at 4 m/s, with 12 s the device did not record at 1250 s, standing. Distance is held.
+    const n = 2513
+    const speed = new Float64Array(n).fill(4)
+    speed[0] = 0
+    for (let i = 1250; i < 1262; i++) speed[i] = 0
+    const d = digestActivity(withUnrecorded(n, speed, [1250, 1262]))
+    expect(best(d, 10000)).toBeUndefined()
+  })
+
+  it('gives no 1 km best across a 60 s unrecorded gap in a 1 km run', () => {
+    // 500 m, 60 s unrecorded and standing, then 504 m: the only kilometre spans the gap.
+    const n = 312
+    const speed = new Float64Array(n).fill(4)
+    speed[0] = 0
+    for (let i = 126; i <= 185; i++) speed[i] = 0
+    const d = digestActivity(withUnrecorded(n, speed, [126, 186]))
+    expect(best(d, 1000)).toBeUndefined()
+  })
+
+  it('keeps the bests on either side of an unrecorded gap', () => {
+    // About 12 km at 4 m/s, with 12 s unrecorded and standing near 5000 m. No 10 km window avoids
+    // the gap, but a kilometre and a 5 km window on either side do.
+    const n = 3012
+    const speed = new Float64Array(n).fill(4)
+    speed[0] = 0
+    for (let i = 1251; i <= 1262; i++) speed[i] = 0
+    const d = digestActivity(withUnrecorded(n, speed, [1251, 1263]))
+    expect(best(d, 10000)).toBeUndefined()
+    expect(best(d, 1000)).toBeCloseTo(250, 6)
+    expect(best(d, 5000)).toBeCloseTo(1250, 6)
+  })
+
+  it('still counts a timer-paused gap in elapsed time', () => {
+    // Same shape as the untimed 1 km case, but the pause is timed, so it is not unrecorded.
+    const n = 851
+    const speed = Float64Array.from({ length: n }, (_, i) => (i >= 126 && i <= 725 ? 0 : 4))
+    const a = activity({ n, speed })
+    a.paused = Uint8Array.from({ length: n }, (_, i) => (i >= 126 && i <= 725 ? 1 : 0))
+    a.unrecorded = new Uint8Array(n)
+    expect(best(digestActivity(a), 1000)).toBeCloseTo(850, 6)
   })
 })

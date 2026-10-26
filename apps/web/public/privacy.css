@@ -1,6 +1,7 @@
 /*
  * Colours copied from apps/web/src/styles/tokens.css (surface-0, text-primary, text-muted, link and
- * border). This page is static and sits outside React, so keep these in step with that file by hand.
+ * border). tokens.test.ts keeps them in step. The font stacks and the brand mark's colours are
+ * copied too, and privacyPage.test.ts checks them. This page is static, outside React.
  */
 :root {
   --page: #f5f6f8;
@@ -24,31 +25,129 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font:
-    16px/1.6 system-ui,
+  font-size: 1rem;
+  line-height: 1.6;
+  font-family:
+    'Barlow',
+    system-ui,
     -apple-system,
     'Segoe UI',
+    Roboto,
     sans-serif;
 }
 
-.policy {
+/* A 44rem column with a 16 px gutter on a phone. */
+.wrap {
   box-sizing: border-box;
   max-width: 44rem;
   margin: 0 auto;
-  padding: 2rem 16px 4rem;
+  padding: 0 16px;
+}
+
+.header {
+  border-bottom: 1px solid var(--rule);
+}
+
+.header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.header a {
+  text-decoration: none;
+}
+
+.header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 40px;
+  color: var(--ink);
+}
+
+.brand-mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.header__name {
+  overflow-wrap: anywhere;
+  font-family: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+/* At 320 px the wordmark must still fit beside the Profile link. */
+@media (max-width: 359px) {
+  .header__name {
+    font-size: 1.125rem;
+  }
+}
+
+.header__profile {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.header__profile:hover {
+  color: var(--ink);
+}
+
+.policy {
+  padding-top: 2rem;
+  padding-bottom: 2.5rem;
+}
+
+.updated,
+h1,
+h2 {
+  font-family: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.updated {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
 h1 {
-  font-size: 1.9rem;
-  line-height: 1.2;
-  margin: 0.5rem 0 0.25rem;
+  margin: 0.25rem 0 1rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
 }
 
 h2 {
-  font-size: 1.15rem;
   margin: 2rem 0 0.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--rule);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+}
+
+.lede {
+  font-size: 1.125rem;
 }
 
 p,
@@ -56,7 +155,12 @@ li {
   overflow-wrap: anywhere;
 }
 
+p {
+  margin: 0 0 1rem;
+}
+
 ul {
+  margin: 0 0 1rem;
   padding-left: 1.25rem;
 }
 
@@ -66,15 +170,36 @@ li {
 
 a {
   color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 code {
   font-size: 0.9em;
 }
 
-.back,
-.updated {
+.footer {
+  border-top: 1px solid var(--rule);
   color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.footer .wrap {
+  padding-top: 16px;
+  padding-bottom: 24px;
+}
+
+.footer p {
   margin: 0;
-  font-size: 0.95rem;
+}
+
+@media (min-width: 600px) {
+  h1 {
+    font-size: 2.75rem;
+  }
 }

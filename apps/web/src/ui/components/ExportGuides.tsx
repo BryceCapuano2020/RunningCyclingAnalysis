@@ -1,38 +1,96 @@
-import { EXPORT_GUIDES, EXPORT_GUIDES_HEADING_ID } from '../exportGuides'
-import { WarningIcon } from './icons'
+import { useId, useRef, useState } from 'react'
+import type { RefObject } from 'react'
+import { EXPORT_GUIDES, GUIDES_CHECKED_ON } from '../exportGuides'
+import type { ExportGuide } from '../exportGuides'
+import { SampleButton } from './SampleButton'
 import './ExportGuides.css'
 
-/** How to get the activity files out of each service. Each service is a closed details. */
-export function ExportGuides() {
+/**
+ * Where a guide's steps came from, and when they were checked. Only a guide checked on its own help
+ * page names that page; the rest say published guides, so the line never claims more than it read.
+ */
+function sourceLine(guide: ExportGuide): string {
+  const from = guide.verified ? `${guide.helpName}’s help` : 'published guides'
+  return `Steps from ${from}, checked ${GUIDES_CHECKED_ON}; menus can change.`
+}
+
+export interface ExportGuidesProps {
+  /**
+   * Offers the sample at the wait step of a guide. Left out where the sample would replace the
+   * visitor's own data, such as from a result.
+   */
+  sample?: { busy: boolean; onSample: () => void }
+  /** Lets the page focus this section's heading, such as from a link in the drop zone. */
+  headingRef?: RefObject<HTMLHeadingElement | null>
+}
+
+/**
+ * How to get the activity files out of each service. One service shows at a time: its tile is
+ * expanded and its steps fill the panel under the tiles. Opening a tile moves focus to the panel's
+ * heading, so the steps are read from the top. The first service is open on arrival.
+ */
+export function ExportGuides({ sample, headingRef }: ExportGuidesProps) {
+  const [index, setIndex] = useState(0)
+  const headingId = useId()
+  const panelId = useId()
+  const panelHeadingId = useId()
+  const panelHeadingRef = useRef<HTMLHeadingElement>(null)
+  const guide = EXPORT_GUIDES[index]!
+
+  function openService(position: number) {
+    setIndex(position)
+    panelHeadingRef.current?.focus()
+  }
+
   return (
-    <section className="export-guides" aria-labelledby={EXPORT_GUIDES_HEADING_ID}>
-      <h2 id={EXPORT_GUIDES_HEADING_ID} tabIndex={-1}>
+    <section className="export-guides" aria-labelledby={headingId}>
+      <h2 id={headingId} ref={headingRef} tabIndex={-1}>
         How to get your files
       </h2>
-      {EXPORT_GUIDES.map((guide) => (
-        <details key={guide.service} className="export-guide">
-          <summary>
-            <span className="export-guide__name">{guide.service}</span>
-          </summary>
-          <div className="export-guide__body">
-            <ol>
-              {guide.steps.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-            {guide.verified ? null : (
-              <p className="export-guide__note">
-                <WarningIcon />
-                These steps are general: menu names and delivery can differ by app version.
-              </p>
-            )}
-            <p className="secondary">{guide.contains}</p>
-            <a href={guide.helpUrl} rel="noopener noreferrer">
-              {guide.helpLabel}
-            </a>
-          </div>
-        </details>
-      ))}
+      <div className="export-guides__tiles" role="group" aria-label="Services">
+        {EXPORT_GUIDES.map((item, position) => (
+          <button
+            key={item.service}
+            type="button"
+            className="export-guides__tile"
+            aria-expanded={position === index}
+            aria-controls={panelId}
+            onClick={() => openService(position)}
+          >
+            {item.service}
+          </button>
+        ))}
+      </div>
+      <div id={panelId} className="export-guide" role="region" aria-labelledby={panelHeadingId}>
+        <h3 id={panelHeadingId} ref={panelHeadingRef} tabIndex={-1}>
+          Steps for {guide.service}
+        </h3>
+        <ol className="export-guide__steps">
+          {guide.steps.map((step, position) => (
+            <li key={step}>
+              {step}
+              {sample && position === guide.waitStep ? (
+                <SampleButton busy={sample.busy} onSample={sample.onSample}>
+                  Try the sample while you wait
+                </SampleButton>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+        <p className="secondary">{guide.contains}</p>
+        {guide.alsoAvailable ? <p className="secondary">{guide.alsoAvailable}</p> : null}
+        <p className="export-guide__checked secondary">{sourceLine(guide)}</p>
+        <a href={guide.helpUrl} rel="noopener noreferrer">
+          Open {guide.helpName}’s help
+        </a>
+      </div>
+      <div className="export-guides__none">
+        <h3>No files yet, or only a phone?</h3>
+        <p className="secondary">
+          Wahoo’s steps use its phone app. The other services’ steps are written for a computer:
+          save the files there, then choose them here.
+        </p>
+      </div>
     </section>
   )
 }

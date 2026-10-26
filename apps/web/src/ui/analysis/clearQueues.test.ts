@@ -5,6 +5,7 @@ import type { Me } from '@rca/contract'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import { useAnalysis } from '../useAnalysis'
+import { EMPTY_PERIOD } from './model'
 
 type Account = Parameters<typeof useAnalysis>[1]
 type Settings = Parameters<typeof useAnalysis>[0]
@@ -48,7 +49,8 @@ const STATE = {
   unsupportedFiles: 0,
   isSample: false,
   totalActivities: 0,
-  rangeDays: null,
+  period: EMPTY_PERIOD,
+  library: [],
   syncIssues: [],
   outdatedActivities: 0,
   incompatibleActivities: 0,
@@ -56,6 +58,7 @@ const STATE = {
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
+  records: new Map(),
 }
 
 function me(id: string): Me {
@@ -81,7 +84,7 @@ const SIGNED_IN_B: Account = { status: 'signed-in', me: me('u2') }
 function setup(initial: Account, settings: Settings = SETTINGS) {
   return renderHook(
     ({ account, current }: { account: Account; current: Settings }) =>
-      useAnalysis(current, account),
+      useAnalysis(current, account, false),
     { initialProps: { account: initial, current: settings } },
   )
 }
@@ -108,7 +111,7 @@ afterEach(() => {
 })
 
 describe('stop empties every queue', () => {
-  it('drops the imports deferred while the account loads', () => {
+  it('drops the files analysed while the account loads, so a visitor who then signs out does not get them again', () => {
     const { result, rerender } = setup(LOADING)
     act(() => result.current.addFiles([FILE]))
     act(() => result.current.stop())
@@ -160,7 +163,7 @@ describe('stop empties every queue', () => {
 })
 
 describe('an account change empties every queue', () => {
-  it('drops the imports deferred before the profile arrived', () => {
+  it('drops the files analysed while the account loads when the account changes', () => {
     const { result, rerender } = setup(LOADING)
     act(() => result.current.addFiles([FILE]))
     rerender({ account: { status: 'signed-in', me: null }, current: SETTINGS })

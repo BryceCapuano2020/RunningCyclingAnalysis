@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { HISTORY_ADVICE } from '../exportGuides'
 import { Dropzone } from './Dropzone'
 import type { DropzoneProps } from './Dropzone'
 
@@ -10,7 +11,13 @@ afterEach(() => {
 })
 
 function baseProps(): DropzoneProps {
-  return { onFiles: vi.fn(), onSample: vi.fn(), busy: false, signedIn: false }
+  return {
+    onFiles: vi.fn(),
+    onSample: vi.fn(),
+    onShowGuides: vi.fn(),
+    busy: false,
+    signedIn: false,
+  }
 }
 
 function renderDropzone(overrides: Partial<DropzoneProps> = {}) {
@@ -19,8 +26,8 @@ function renderDropzone(overrides: Partial<DropzoneProps> = {}) {
   const input = view.container.querySelector<HTMLInputElement>('input[type="file"]')
   const zone = view.container.querySelector<HTMLElement>('.dropzone')
   if (!input || !zone) throw new Error('drop zone missing')
-  const target = screen.getByRole('button', { name: /drop fit, gpx or tcx files/i })
-  return { ...props, input, target, zone }
+  const choose = screen.getByRole('button', { name: 'Choose files' })
+  return { ...props, input, choose, zone }
 }
 
 function fitFile(name: string): File {
@@ -28,42 +35,76 @@ function fitFile(name: string): File {
 }
 
 describe('Dropzone', () => {
-  it('shows the drop instructions, the choose text and the privacy line', () => {
+  it('asks for FIT, GPX or TCX files or a Strava zip, without saying drop them here', () => {
     renderDropzone()
     expect(
-      screen.getByText('Drop FIT, GPX or TCX files, or a Strava export zip here'),
+      screen.getByText('Add FIT, GPX or TCX files, or a Strava export zip'),
     ).toBeInTheDocument()
-    expect(screen.getByText('or choose files')).toBeInTheDocument()
-    expect(screen.getByText(/Your files never leave this device/)).toBeInTheDocument()
+    expect(screen.queryByText(/Drop .* here/)).not.toBeInTheDocument()
   })
 
-  it('describes the signed-in library instead of promising local-only files', () => {
-    renderDropzone({ signedIn: true })
-    expect(
-      screen.getByText(
-        'Analysis runs in your browser. Activity summaries are saved to your library; original files only if you keep them.',
-      ),
-    ).toBeInTheDocument()
+  it('says how much history to bring, under the title', () => {
+    renderDropzone()
+    expect(screen.getByText(HISTORY_ADVICE)).toBeInTheDocument()
+  })
+
+  it('makes Choose files a real button, and the one primary action', () => {
+    renderDropzone({ signedIn: false })
+    expect(screen.getByRole('button', { name: 'Choose files' })).toHaveClass('btn', 'btn-primary')
+    expect(screen.getByRole('button', { name: 'See a sample athlete' })).not.toHaveClass(
+      'btn-primary',
+    )
+  })
+
+  it('draws an upload glyph on Choose files, decoration only, not the Add files plus', () => {
+    renderDropzone()
+    const glyph = screen.getByRole('button', { name: 'Choose files' }).querySelector('svg')
+    expect(glyph).toHaveClass('icon')
+    expect(glyph).toHaveAttribute('aria-hidden', 'true')
+    expect(glyph?.innerHTML).not.toContain('M12 5v14')
+  })
+
+  it('does not make the whole drop area a button', () => {
+    renderDropzone()
+    expect(screen.getAllByRole('button')).toHaveLength(3)
+  })
+
+  it('leaves the privacy line to the footer, so it is not said twice', () => {
+    renderDropzone({ signedIn: false })
     expect(screen.queryByText(/Your files never leave this device/)).not.toBeInTheDocument()
   })
 
-  it('keeps the local-only promise when signed out', () => {
-    renderDropzone({ signedIn: false })
-    expect(
-      screen.getByText('Your files never leave this device. All analysis runs in your browser.'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/saved to your library/)).not.toBeInTheDocument()
+  it('says that exports usually come from a computer, and includes the drag text for pointers', () => {
+    renderDropzone()
+    expect(screen.getByText('Exports usually come from a computer.')).toBeInTheDocument()
+    expect(screen.getByText('Drag them onto this box, or')).toBeInTheDocument()
   })
 
-  it('offers the sample athlete as the primary action only when signed out', () => {
-    renderDropzone({ signedIn: false })
-    expect(screen.getByRole('button', { name: 'See a sample athlete' })).toHaveClass(
-      'btn',
-      'btn-primary',
-    )
-    cleanup()
-    renderDropzone({ signedIn: true })
-    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
+  it('opens the file picker from Choose files by click, Enter and Space', async () => {
+    const user = userEvent.setup()
+    const { input, choose } = renderDropzone()
+    const pick = vi.spyOn(input, 'click')
+
+    await user.click(choose)
+    choose.focus()
+    await user.keyboard('{Enter}')
+    await user.keyboard(' ')
+    expect(pick).toHaveBeenCalledTimes(3)
+  })
+
+  it('still opens the file picker from Choose files while busy', () => {
+    const { input, choose } = renderDropzone({ busy: true })
+    const pick = vi.spyOn(input, 'click')
+    fireEvent.click(choose)
+    expect(pick).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers a way to get the files, which asks the page to show the guides', async () => {
+    const user = userEvent.setup()
+    const onShowGuides = vi.fn()
+    renderDropzone({ onShowGuides })
+    await user.click(screen.getByRole('button', { name: 'No files yet? How to get them' }))
+    expect(onShowGuides).toHaveBeenCalledOnce()
   })
 
   it('calls onSample from the sample button', async () => {
@@ -73,13 +114,18 @@ describe('Dropzone', () => {
     expect(onSample).toHaveBeenCalledTimes(1)
   })
 
+  it('leaves the sample out for a signed-in user, and keeps Choose files', () => {
+    renderDropzone({ signedIn: true })
+    expect(screen.queryByRole('button', { name: 'See a sample athlete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Choose files' })).toBeInTheDocument()
+  })
+
   it('marks only the sample button aria-disabled while busy, and ignores its clicks', async () => {
     const user = userEvent.setup()
-    const { target, onSample } = renderDropzone({ busy: true })
+    const { choose, onSample } = renderDropzone({ busy: true })
     const sample = screen.getByRole('button', { name: 'See a sample athlete' })
     expect(sample).toHaveAttribute('aria-disabled', 'true')
-    expect(target).not.toHaveAttribute('aria-disabled')
-    expect(target).toHaveAttribute('tabindex', '0')
+    expect(choose).not.toHaveAttribute('aria-disabled')
     await user.click(sample)
     expect(onSample).not.toHaveBeenCalled()
   })
@@ -98,35 +144,24 @@ describe('Dropzone', () => {
     expect(sample).toHaveFocus()
   })
 
+  it('says why the sample is off while busy, and names that reason on the button', () => {
+    renderDropzone({ busy: true })
+    expect(
+      screen.getByRole('button', { name: 'See a sample athlete' }),
+    ).toHaveAccessibleDescription('Available when the current import finishes.')
+  })
+
+  it('gives no reason for an off sample while nothing is busy', () => {
+    renderDropzone()
+    expect(
+      screen.queryByText('Available when the current import finishes.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('has no live region or progress of its own, since ImportStatus owns them', () => {
     renderDropzone({ busy: true })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.queryByText('Analysing')).not.toBeInTheDocument()
-  })
-
-  it('opens the file picker from the drop target by click, Enter and Space', () => {
-    const { input, target } = renderDropzone()
-    const pick = vi.spyOn(input, 'click')
-
-    fireEvent.click(target)
-    fireEvent.keyDown(target, { key: 'Enter' })
-    fireEvent.keyDown(target, { key: ' ' })
-    expect(pick).toHaveBeenCalledTimes(3)
-  })
-
-  it('ignores other keys on the drop target', () => {
-    const { input, target } = renderDropzone()
-    const pick = vi.spyOn(input, 'click')
-    fireEvent.keyDown(target, { key: 'a' })
-    expect(pick).not.toHaveBeenCalled()
-  })
-
-  it('still opens the file picker from the drop target while busy', () => {
-    const { input, target } = renderDropzone({ busy: true })
-    const pick = vi.spyOn(input, 'click')
-    fireEvent.click(target)
-    fireEvent.keyDown(target, { key: 'Enter' })
-    expect(pick).toHaveBeenCalledTimes(2)
   })
 
   it('passes the files chosen in the file input to onFiles', () => {
@@ -152,42 +187,42 @@ describe('Dropzone', () => {
   })
 
   it('shows a different look while a file is dragged over it', () => {
-    const { target, zone } = renderDropzone()
+    const { choose, zone } = renderDropzone()
     const files = { types: ['Files'], files: [] }
 
     expect(zone).not.toHaveClass('dropzone--over')
-    fireEvent.dragEnter(target, { dataTransfer: files })
+    fireEvent.dragEnter(choose, { dataTransfer: files })
     expect(zone).toHaveClass('dropzone--over')
-    fireEvent.dragLeave(target)
+    fireEvent.dragLeave(choose)
     expect(zone).not.toHaveClass('dropzone--over')
   })
 
   it('highlights the drop box while busy when a file is dragged over it', () => {
-    const { target, zone } = renderDropzone({ busy: true })
-    fireEvent.dragEnter(target, { dataTransfer: { types: ['Files'], files: [] } })
+    const { choose, zone } = renderDropzone({ busy: true })
+    fireEvent.dragEnter(choose, { dataTransfer: { types: ['Files'], files: [] } })
     expect(zone).toHaveClass('dropzone--over')
   })
 
   it('clears the drop highlight when a file is dropped on the box', () => {
-    const { target, zone } = renderDropzone()
-    fireEvent.dragEnter(target, { dataTransfer: { types: ['Files'], files: [] } })
+    const { choose, zone } = renderDropzone()
+    fireEvent.dragEnter(choose, { dataTransfer: { types: ['Files'], files: [] } })
     expect(zone).toHaveClass('dropzone--over')
-    fireEvent.drop(target, { dataTransfer: { files: [fitFile('ride.fit')], types: ['Files'] } })
+    fireEvent.drop(choose, { dataTransfer: { files: [fitFile('ride.fit')], types: ['Files'] } })
     expect(zone).not.toHaveClass('dropzone--over')
   })
 
   it('does not highlight for text or a link dragged across the drop box', () => {
-    const { target, zone } = renderDropzone()
+    const { choose, zone } = renderDropzone()
 
-    fireEvent.dragEnter(target, { dataTransfer: { types: ['text/plain'], files: [] } })
+    fireEvent.dragEnter(choose, { dataTransfer: { types: ['text/plain'], files: [] } })
     expect(zone).not.toHaveClass('dropzone--over')
-    fireEvent.dragEnter(target, { dataTransfer: { types: ['text/uri-list'], files: [] } })
+    fireEvent.dragEnter(choose, { dataTransfer: { types: ['text/uri-list'], files: [] } })
     expect(zone).not.toHaveClass('dropzone--over')
   })
 
   it('still prevents the default for a text or link drag over the box, so the browser stays put', () => {
-    const { target } = renderDropzone()
+    const { choose } = renderDropzone()
     const dataTransfer = { types: ['text/uri-list'], files: [] }
-    expect(fireEvent.dragOver(target, { dataTransfer })).toBe(false)
+    expect(fireEvent.dragOver(choose, { dataTransfer })).toBe(false)
   })
 })

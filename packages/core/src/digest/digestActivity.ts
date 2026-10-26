@@ -5,6 +5,7 @@ import { maxHeartRate, windowHeartRate } from '../effort'
 import { averageBlocks } from '../hr'
 import { mean } from '../math'
 import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade } from '../metabolic'
+import { runSplits } from '../splits/splits'
 import { airDensityStream } from '../physics/air'
 import { assessQuality } from '../quality'
 import type {
@@ -13,6 +14,7 @@ import type {
   CurvePoint,
   DigestClimbSection,
   DigestCurvePoint,
+  DigestDistanceBest,
   DigestHrBlock,
   QualityFlag,
   QualityKind,
@@ -21,6 +23,8 @@ import type {
 import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
 import { calibrationSums } from './calibration'
+import { distanceBests } from '../records/distanceBests'
+import { elevationGain } from './elevationGain'
 import type { SampleTerms } from './terms'
 import { SELECTION_MASS_KG, sampleTerms, termsOver } from './terms'
 
@@ -38,31 +42,17 @@ interface Parts {
   hrBlocks: DigestHrBlock[]
   calibration: ActivityDigest['calibration']
   climbSections: DigestClimbSection[]
+  /** Runs only. */
+  distanceBests?: DigestDistanceBest[]
 }
 
 /** A curve point together with the length of the window its value came from. */
 type WindowedPoint = CurvePoint & { windowS: number }
 
-function elevationGain(altitude: Float64Array, validGrade: Uint8Array): number {
-  let gain = 0
-  let anchor = NaN
-  for (let i = 0; i < altitude.length; i++) {
-    if (validGrade[i] !== 1) {
-      anchor = NaN
-      continue
-    }
-    const a = altitude[i]!
-    if (Number.isNaN(a)) continue
-    if (Number.isNaN(anchor)) anchor = a
-    // 2 m hysteresis so barometer noise does not accumulate as climbing
-    if (a - anchor >= 2) {
-      gain += a - anchor
-      anchor = a
-    } else if (anchor - a >= 2) {
-      anchor = a
-    }
-  }
-  return gain
+/** 1 for every second the device recorded. Activities without an unrecorded mask are all recorded. */
+function recordedSeconds(activity: Activity): Uint8Array {
+  if (activity.unrecorded === undefined) return new Uint8Array(activity.n).fill(1)
+  return Uint8Array.from(activity.unrecorded, (u) => (u === 1 ? 0 : 1))
 }
 
 function countFlags(flags: QualityFlag[]): Partial<Record<QualityKind, number>> {
@@ -139,10 +129,9 @@ function valueBlocks(
 function runParts(
   activity: Activity,
   quality: QualityReport,
-  grade: Float64Array,
+  metabolic: Float64Array,
   source: HeartRateSource,
 ): Parts {
-  const metabolic = runMetabolicPower(activity.speed, grade, PRIORS.runEconomyScale.mean)
   const valid = and(quality.validMotion, quality.validGrade)
   return {
     powerSource: 'none',
@@ -150,6 +139,11 @@ function runParts(
     hrBlocks: valueBlocks(metabolic, valid, source),
     calibration: null,
     climbSections: [],
+    // Only motion and recording decide a distance best: altitude affects grade, not distance or time.
+    distanceBests: distanceBests(
+      activity.distance,
+      and(quality.validMotion, recordedSeconds(activity)),
+    ),
   }
 }
 
@@ -276,9 +270,14 @@ export function digestActivity(activity: Activity): ActivityDigest {
   const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))
   const source: HeartRateSource = { activity, validHeartRate: quality.validHeartRate }
 
+  // The run's metabolic stream feeds its curve, its heart-rate blocks and its splits, so it is built once.
+  const metabolic =
+    activity.sport === 'run'
+      ? runMetabolicPower(activity.speed, grade, PRIORS.runEconomyScale.mean)
+      : null
   let parts: Parts
-  if (activity.sport === 'run') {
-    parts = runParts(activity, quality, grade, source)
+  if (metabolic !== null) {
+    parts = runParts(activity, quality, metabolic, source)
   } else if (activity.hasPower) {
     parts = measuredParts(activity, quality, grade, source)
   } else {
@@ -305,5 +304,9 @@ export function digestActivity(activity: Activity): ActivityDigest {
     hrBlocks: parts.hrBlocks,
     calibration: parts.calibration,
     climbSections: parts.climbSections,
+    ...(parts.distanceBests === undefined ? {} : { distanceBests: parts.distanceBests }),
+    ...(metabolic === null
+      ? {}
+      : { splits: runSplits(activity, quality, metabolic, PRIORS.runEconomyScale.mean) }),
   }
 }

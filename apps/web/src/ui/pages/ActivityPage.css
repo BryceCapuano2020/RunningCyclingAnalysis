@@ -1,7 +1,7 @@
 .activity-page__back {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: var(--control-height);
   align-self: start;
 }
 
@@ -49,4 +49,15 @@
 
 .activity-page__flags li + li {
   margin-top: var(--space-1);
+}
+
+.activity-page__records {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.activity-page__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }

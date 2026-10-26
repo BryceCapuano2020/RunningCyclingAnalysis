@@ -1,23 +1,31 @@
-import { combine, digestActivity } from './digest'
+import { activitySummaries, combine, digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
-import { countActivityFiles, extractFitFiles } from './fit'
-import { parseActivityFile } from './import'
-import { sampleDataset } from './synthetic'
+import { DEFAULT_EXTRACT_LIMITS } from './fit'
+import type { ExtractLimits } from './fit'
+import type { ImportProgress } from './sessionSource'
+import { importSource } from './sessionSource'
+import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
-import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
-import { dedupeKey, heldCopyReason, hiddenDigests, outranksHeld } from './duplicates'
-import { ACTIVITY } from './fit/zipDirectory'
-import { PeriodCache, splitPeriods } from './period'
+import type { RouteShape } from './route/routeShape'
+import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
+import { dedupeKey, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
+import { PeriodCache, sameDigests, splitPeriods } from './period'
+import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
 import { haltsImport, SyncFailure } from './saveFailure'
 import type { SyncIssue, SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
+import type { Rejection } from './import/result'
+import { recordHolders } from './records'
+import type { EarnedRecord } from './records'
 
 export { haltsImport, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
+export type { Period, PeriodChoice } from './period'
+export type { RejectCode, Rejection } from './import/result'
 // The device library keeps one copy per workout by the same rule the analysis uses.
 export { copyOfDigest, dedupeKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
@@ -31,12 +39,14 @@ export interface SyncItem {
   fileHash: string
   /** The activity file's bytes. The session drops its reference once the sink returns. */
   bytes: Uint8Array
+  /** The route shape of the activity, when it has a GPS track. Kept on the device, never uploaded. */
+  route?: RouteShape
 }
 
 export type SyncSink = (item: SyncItem) => Promise<void>
 
 /** An activity file as the sink receives it. */
-type ImportedFile = Omit<SyncItem, 'digest'>
+type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
 
 /**
  * State shared by the activities of one import: the first halting failure, and the copies skipped
@@ -47,12 +57,6 @@ interface SaveBatch {
   duplicates: RejectedFile[]
   /** The digests this import added to the library, by key. A replacement updates its entry. */
   added: Map<string, ActivityDigest>
-}
-
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  // Every file byte array here is backed by a plain ArrayBuffer, never a SharedArrayBuffer.
-  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 /**
@@ -67,11 +71,32 @@ export class AnalysisSession {
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
-  private rejected = new Map<string, string>()
+  private rejected = new Map<string, Rejection>()
   private unsupported = new Map<string, number>()
   private isSample = false
-  private rangeDays: number | null = null
+  // The period the athlete picked. The default is the most recent window that holds both sports.
+  private choice: PeriodChoice = 'default'
+  // Whether the headline trend carries each week's running equivalent, which only an age-graded
+  // Balance trend uses. Off until the page asks for it.
+  private gradeTrend = false
   private periods = new PeriodCache()
+  // The extraction limits of every import. The constants unless a test or caller sets others.
+  private readonly limits: ExtractLimits
+  // The last record holders, with the digests and masses they were computed from.
+  private recordsCache: {
+    digests: ActivityDigest[]
+    massKg: number
+    bikeMassKg: number
+    records: Map<string, EarnedRecord[]>
+  } | null = null
+
+  /**
+   * Production passes no limits, so the constants apply. The argument is a seam for tests, which need
+   * a small budget to reach the limits without a large file.
+   */
+  constructor(limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS) {
+    this.limits = limits
+  }
 
   async addFiles(
     sources: RangedSource[],
@@ -87,52 +112,22 @@ export class AnalysisSession {
     }) => void,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
+    // The rejected files are those of this import, so an earlier import's are not listed again.
+    this.rejected.clear()
+    this.unsupported.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
-    let filesRead = 0
+    const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0 }
     for (const source of sources) {
-      let undecodable = 0
-      const readBefore = filesRead
-      const summary = await extractFitFiles(
-        source,
-        async (file) => {
-          const parsed = parseActivityFile(file.bytes, file.fileName)
-          if (parsed.ok) {
-            outcome.activities += parsed.activities.length
-            const fileHash = sink === undefined ? '' : await sha256Hex(file.bytes)
-            const imported: ImportedFile = { fileName: file.fileName, fileHash, bytes: file.bytes }
-            for (const activity of parsed.activities) {
-              await this.consider(activity, imported, sink, syncExisting, batch)
-            }
-            // A file that now reads cleanly replaces an earlier rejection under the same name.
-            this.rejected.delete(file.fileName)
-            this.rejected.delete(`${file.fileName}.gz`)
-          } else {
-            outcome.rejected++
-            this.rejected.set(parsed.fileName, parsed.reason)
-          }
-          onProgress?.(++filesRead)
-        },
-        (fileName, reason) => {
-          undecodable++
-          outcome.rejected++
-          this.rejected.set(fileName, reason)
-          // An activity file that could not be read was still read, so progress reaches its total.
-          if (ACTIVITY.test(fileName)) onProgress?.(++filesRead)
-        },
-      )
-      // An archive that stops early, or loses an entry, reports nothing for the files it did not
-      // reach. They count as read here, up to the total its directory lists.
-      const expected = (await countActivityFiles([source])) ?? 0
-      for (let left = expected - (filesRead - readBefore); left > 0; left--)
-        onProgress?.(++filesRead)
-      this.unsupported.set(source.name, summary.otherActivityFiles)
-      outcome.rejected += summary.otherActivityFiles
-      // A corrupt file is already reported under its own name, so do not also call it empty.
-      if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
-        outcome.rejected++
-        this.rejected.set(source.name, 'No supported activity files found (FIT, GPX or TCX)')
-      }
+      await importSource(source, {
+        limits: this.limits,
+        progress,
+        outcome,
+        rejected: this.rejected,
+        unsupported: this.unsupported,
+        hashFiles: sink !== undefined,
+        consider: (activity, file) => this.consider(activity, file, sink, syncExisting, batch),
+      })
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
     const hidden = hiddenDigests([...this.digests.values()])
@@ -191,14 +186,19 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
-  setRange(rangeDays: number | null, settings: AthleteSettings): SessionState {
-    this.rangeDays = rangeDays
+  /** Asks for the headline trend's running equivalents, which an age-graded Balance trend needs. */
+  setGradeTrend(on: boolean, settings: AthleteSettings): SessionState {
+    this.gradeTrend = on
+    return this.state(settings)
+  }
+
+  setRange(choice: PeriodChoice, settings: AthleteSettings): SessionState {
+    this.choice = choice
     return this.state(settings)
   }
 
   clear(): SessionState {
     this.reset()
-    this.rangeDays = null
     return this.state(null)
   }
 
@@ -214,9 +214,10 @@ export class AnalysisSession {
     syncExisting: boolean,
     batch: SaveBatch,
   ): Promise<void> {
-    const reason = heldCopyReason(this.digests.values(), activity, file.fileName)
-    if (reason !== null) {
-      batch.duplicates.push({ fileName: file.fileName, reason })
+    const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
+    if (copyOf !== null) {
+      const reason = `Same workout as ${copyOf}`
+      batch.duplicates.push({ fileName: file.fileName, reason, code: 'duplicate', detail: copyOf })
       return
     }
     await this.keep(activity, file, sink, syncExisting, batch)
@@ -256,13 +257,21 @@ export class AnalysisSession {
       return
     }
     try {
-      await sink({ digest, ...file })
+      await sink({ digest, route: activity.route, ...file })
       this.unsynced.delete(key)
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.unsynced.set(key, code)
       if (haltsImport(code)) batch.halt = code
     }
+  }
+
+  /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
+  splitsOf(id: string): DigestSplits | null {
+    for (const digest of this.digests.values()) {
+      if (digest.id === id) return digest.splits ?? null
+    }
+    return null
   }
 
   private reset(): void {
@@ -285,36 +294,88 @@ export class AnalysisSession {
     return [...counts].map(([code, count]) => ({ code, count }))
   }
 
+  /**
+   * The best efforts each activity holds across the visible library, not the period. They are reused
+   * while the digests and both masses are the same.
+   */
+  private recordsFor(
+    visible: ActivityDigest[],
+    settings: AthleteSettings,
+  ): Map<string, EarnedRecord[]> {
+    const cached = this.recordsCache
+    if (
+      cached !== null &&
+      cached.massKg === settings.massKg &&
+      cached.bikeMassKg === settings.bikeMassKg &&
+      sameDigests(cached.digests, visible)
+    ) {
+      return cached.records
+    }
+    const records = recordHolders(visible, settings)
+    this.recordsCache = {
+      digests: visible,
+      massKg: settings.massKg,
+      bikeMassKg: settings.bikeMassKg,
+      records,
+    }
+    return records
+  }
+
+  /**
+   * The settings the analysis uses. The sample athlete has its own body and bike masses, so it
+   * ignores the visitor's while it is on screen.
+   */
+  private athleteFor(settings: AthleteSettings): AthleteSettings {
+    if (!this.isSample) return settings
+    return { ...settings, massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
+  }
+
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
     const all = [...this.digests.values()]
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
-    const { selected, previous, startMs } = splitPeriods(visible, this.rangeDays)
-    const analysis = settings !== null && selected.length > 0 ? combine(selected, settings) : null
+    const { period, selected, previous } = splitPeriods(visible, this.choice)
+    const athlete = settings === null ? null : this.athleteFor(settings)
+    // A period with no activities still has a result, so the page can say what is missing from it.
+    const analysis = athlete !== null && visible.length > 0 ? combine(selected, athlete) : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     const efforts =
-      settings === null
+      athlete === null
         ? NO_TRENDS
-        : this.periods.trends(selected, settings, this.rangeDays, startMs, bikeModel)
+        : this.periods.trends(
+            selected,
+            athlete,
+            period.days,
+            // All time is not clipped at a start, so its trend begins at the first activity.
+            period.days === null ? null : period.startMs,
+            bikeModel,
+            // The sample is graded as its own athlete, so its rides carry their equivalents too.
+            this.gradeTrend || this.isSample ? analysis?.hr : undefined,
+          )
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],
       effortTrends: efforts,
       previous:
-        settings !== null && bikeModel !== undefined && previous.length > 0
-          ? this.periods.previousCurves(selected, previous, settings, bikeModel)
+        athlete !== null && bikeModel !== undefined && previous.length > 0
+          ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
           : null,
-      rejected: [...this.rejected].map(([fileName, reason]) => ({ fileName, reason })),
+      rejected: [...this.rejected].map(([fileName, rejection]) =>
+        Object.assign({ fileName }, rejection),
+      ),
       unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
       isSample: this.isSample,
       totalActivities: visible.length,
       outdatedActivities: this.outdatedKeys.size,
       incompatibleActivities: this.incompatibleKeys.size,
       hiddenDuplicates: hidden.size,
-      rangeDays: this.rangeDays,
+      period,
+      library: settings === null ? [] : activitySummaries(visible),
       syncIssues: this.syncIssues(),
+      records:
+        athlete === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, athlete),
     }
   }
 }

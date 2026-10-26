@@ -65,7 +65,8 @@ export const profiles = sqliteTable(
     userId: text('user_id')
       .primaryKey()
       .references(() => users.id, { onDelete: 'cascade' }),
-    massKg: real('mass_kg').notNull(),
+    /** Null until the rider enters a body weight. Nothing assumes one. */
+    massKg: real('mass_kg'),
     bikeMassKg: real('bike_mass_kg').notNull(),
     units: text('units', { enum: ['imperial', 'metric'] }).notNull(),
     keepFiles: integer('keep_files', { mode: 'boolean' }).notNull(),

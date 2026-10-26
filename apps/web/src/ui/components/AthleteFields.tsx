@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import type { Ref } from 'react'
 import type { Sex } from '@rca/contract'
 import { NumberField } from './NumberField'
@@ -12,6 +12,7 @@ export interface AthleteFieldsProps {
   /** Why the typed year cannot be used. */
   birthYearError?: string | null
   birthYearRef?: Ref<HTMLInputElement>
+  /** Null until a sex is chosen. */
   sex: Sex | null
   onBirthYearChange: (text: string) => void
   /** Called when the year is left, or Enter is pressed. */
@@ -27,7 +28,10 @@ const SEX_OPTIONS: SegmentedControlOption<SexChoice>[] = [
   { value: 'unspecified', label: 'Prefer not to say' },
 ]
 
-/** The optional year of birth and sex, used only to grade results by age. Callers own the values. */
+/**
+ * The optional year of birth and sex, used only to grade results by age. Callers own the values.
+ * Prefer not to say is stored as no sex, so it is shown as chosen only while this view stays open.
+ */
 export function AthleteFields({
   birthYear,
   birthYearError = null,
@@ -39,14 +43,18 @@ export function AthleteFields({
 }: AthleteFieldsProps) {
   const baseId = useId()
   const hintId = `${baseId}-hint`
+  const [declined, setDeclined] = useState(false)
+  const selected: SexChoice | null = sex ?? (declined ? 'unspecified' : null)
   return (
-    <div className="athlete-fields">
+    <fieldset className="athlete-fields">
+      <legend className="athlete-fields__legend">Your level (optional)</legend>
       <NumberField
         ref={birthYearRef}
         id={`${baseId}-year`}
         label="Year of birth"
         inputMode="numeric"
-        autoComplete="off"
+        autoComplete="bday-year"
+        enterKeyHint="done"
         value={birthYear}
         error={birthYearError}
         aria-describedby={hintId}
@@ -56,15 +64,19 @@ export function AthleteFields({
           if (event.key === 'Enter') onBirthYearCommit?.()
         }}
       />
-      <p id={hintId} className="athlete-fields__hint muted">
-        Optional. Used only to grade your results by age.
-      </p>
       <SegmentedControl
         legend="Sex"
         options={SEX_OPTIONS}
-        selected={sex ?? 'unspecified'}
-        onSelect={(choice) => onSexChange(choice === 'unspecified' ? null : choice)}
+        selected={selected}
+        onSelect={(choice) => {
+          setDeclined(choice === 'unspecified')
+          onSexChange(choice === 'unspecified' ? null : choice)
+        }}
       />
-    </div>
+      <p id={hintId} className="athlete-fields__hint muted">
+        Used only to grade your results by age. Standards differ for women and men, so without sex
+        no level is shown.
+      </p>
+    </fieldset>
   )
 }

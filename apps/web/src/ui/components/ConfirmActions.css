@@ -1,0 +1,27 @@
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* The one destructive button: every removal's confirm reads the same, in both themes. */
+.btn.confirm-actions__confirm {
+  border-color: var(--status-critical);
+  background: var(--status-critical);
+  color: var(--surface-1);
+}
+
+.btn.confirm-actions__confirm:hover {
+  filter: brightness(1.1);
+}
+
+.btn.confirm-actions__confirm[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.confirm-actions__confirm[aria-disabled='true']:hover {
+  filter: none;
+}

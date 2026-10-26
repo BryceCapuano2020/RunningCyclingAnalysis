@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { HEADLINE_DURATION_S } from '../constants'
+import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings, Sport } from '../types'
-import { centralWkgFromWatts, combine } from './combine'
+import { centralWkgFromWatts, combine, equivalentRunSpeed } from './combine'
 import { digestActivity } from './digestActivity'
 import { MODEL_REVISION } from './modelRevision'
 import { fitnessTrend } from './trend'
 import { trendWindowDays, weeksWithValue } from './trendPoints'
 
-const DAY = 86_400_000
-const WEEK = 7 * DAY
+const WEEK = 7 * DAY_MS
 const settings: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 /** Monday 6 January 2025, midday UTC. */
 const MONDAY = Date.UTC(2025, 0, 6, 12)
@@ -74,6 +73,9 @@ describe('fitnessTrend', () => {
       rideWkg,
       runCount: 0,
       rideCount: 0,
+      runAtMs: null,
+      rideAtMs: null,
+      rideRunSpeed: null,
     })
     expect(weeksWithValue([week(null, null), week(15, null), week(null, 14)])).toBe(2)
     expect(weeksWithValue([week(null, null)])).toBe(0)
@@ -86,8 +88,60 @@ describe('fitnessTrend', () => {
   it('gives one point with no ride value for one run', () => {
     const points = fitnessTrend([run(MONDAY, 17)], settings)
     expect(points).toEqual([
-      { endMs: FIRST_SUNDAY_END, runWkg: 17, rideWkg: null, runCount: 1, rideCount: 0 },
+      {
+        endMs: FIRST_SUNDAY_END,
+        runWkg: 17,
+        rideWkg: null,
+        runCount: 1,
+        rideCount: 0,
+        runAtMs: MONDAY,
+        rideAtMs: null,
+        rideRunSpeed: null,
+      },
     ])
+  })
+
+  it('names the start of the run and of the ride that set each week’s value', () => {
+    const [point] = fitnessTrend([run(MONDAY, 17), ride(MONDAY + DAY_MS, 250)], settings)
+    expect(point?.runAtMs).toBe(MONDAY)
+    expect(point?.rideAtMs).toBe(MONDAY + DAY_MS)
+  })
+
+  it('gives the equivalent running speed of the best ride only when asked, from the same model', () => {
+    const digests = [ride(MONDAY, 250)]
+    expect(fitnessTrend(digests, settings)[0]?.rideRunSpeed).toBeNull()
+    const [point] = fitnessTrend(digests, settings, { equivalence: { hr: null } })
+    expect(point?.rideRunSpeed).toEqual(equivalentRunSpeed(250, settings.massKg, null))
+  })
+
+  it('gives the sample’s best ride the running equivalent that the analysis gives, to the bit', () => {
+    const analysis = combine(samples, settings)
+    const headline = analysis.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
+    const watts = analysis.rideCurve.find((p) => p.durationS === HEADLINE_DURATION_S)?.value
+    expect(headline).toBeDefined()
+    expect(watts).toBeDefined()
+    // A window longer than the sample holds every activity, so the last point is the period's best.
+    const last = fitnessTrend(samples, settings, {
+      windowDays: 400,
+      bikeModel: analysis.bikeModel,
+      equivalence: { hr: analysis.hr },
+    }).at(-1)
+    expect(last?.rideRunSpeed).toEqual(headline?.runSpeed)
+    expect(last?.rideRunSpeed).toEqual(
+      equivalentRunSpeed(watts ?? NaN, settings.massKg, analysis.hr),
+    )
+  })
+
+  it('gives a one-activity period the equivalence the analysis gives at the headline duration', () => {
+    const digest = ride(MONDAY, 250)
+    const analysis = combine([digest], settings)
+    const [point] = fitnessTrend([digest], settings, {
+      bikeModel: analysis.bikeModel,
+      equivalence: { hr: analysis.hr },
+    })
+    const headline = analysis.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
+    expect(headline).toBeDefined()
+    expect(point?.rideRunSpeed).toEqual(headline?.runSpeed)
   })
 
   it('gives a monotone run value for a run that improves week by week', () => {
@@ -110,7 +164,7 @@ describe('fitnessTrend', () => {
   })
 
   it('drops an activity once it leaves the 42-day window', () => {
-    const digests = [run(MONDAY, 20), run(MONDAY + 56 * DAY, 10)]
+    const digests = [run(MONDAY, 20), run(MONDAY + 56 * DAY_MS, 10)]
     const points = fitnessTrend(digests, settings)
     const at = (endMs: number) => points.find((point) => point.endMs === endMs)
     // Still inside the window: 16 February ends 41 days after the first run.

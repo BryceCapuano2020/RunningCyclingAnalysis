@@ -1,9 +1,15 @@
 import type { AnalysisController } from '../useAnalysis'
+import type { MovedItem } from '../analysis/whatMoved'
+import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
+import { ImportNotice } from './ImportNotice'
 import { LibraryNotices } from './LibraryNotices'
-import { RejectedFiles } from './RejectedFiles'
+import { plural } from './plural'
 import { SyncStatus } from './SyncStatus'
+import './AppNotices.css'
 
-const SAMPLE_NOTICE = 'Showing a sample athlete. Add your own files to replace it.'
+/** Shown on every page while the sample is loaded. It says once that the sample is not kept. */
+const SAMPLE_BANNER = `Showing a sample athlete, ${SAMPLE_DESCRIPTION}. The sample is not kept: add your own files and they replace it.`
+const NO_MOVED: MovedItem[] = []
 
 export interface AppNoticesProps {
   analysis: AnalysisController
@@ -15,13 +21,18 @@ export interface AppNoticesProps {
   accountError: string | null
   /** Runs an action whose button goes away when it finishes, then puts focus back on the page. */
   runThenFocus: (action: () => void, control?: Element) => void
-  /** The last import's summary lists what moved in the athlete's numbers. */
-  moved?: boolean
+  /** What the last import moved in the athlete's numbers. */
+  moved?: MovedItem[]
+  /** On the Balance page the summary's link would point at the page it is already on. */
+  atBalance?: boolean
+  /** On the Activities page, the library is named quietly with its count. */
+  activitiesPage?: boolean
 }
 
 /**
- * The messages under the header, on every page: sync, library, sample, errors and rejected files.
- * It stays mounted, so each live region in it is announced when its message appears.
+ * The one notice region under the header, on every page: the summary of the last import, sync,
+ * library, sample, errors and the library's count. It stays mounted, so each live region in it is
+ * announced when its message appears.
  */
 export function AppNotices({
   analysis,
@@ -31,34 +42,54 @@ export function AppNotices({
   accountsUnavailable,
   accountError,
   runThenFocus,
-  moved = false,
+  moved = NO_MOVED,
+  atBalance = false,
+  activitiesPage = false,
 }: AppNoticesProps) {
-  const { result, isSample, rejected, unsupportedFiles } = analysis.state
+  const { result, isSample } = analysis.state
+  const neutralStop = analysis.error !== null && analysis.errorNeutral
+  const kept = analysis.savedActivities.length
+  const keptText = signedIn
+    ? `Saved to your account: ${plural(kept, 'activity', 'activities')}.`
+    : `Kept on this device: ${plural(kept, 'activity', 'activities')}.`
   return (
     <div className="app__notices">
+      <ImportNotice
+        outcome={analysis.importOutcome}
+        busy={analysis.busy}
+        rejected={analysis.state.rejected}
+        unsupportedFiles={analysis.state.unsupportedFiles}
+        moved={moved}
+        atBalance={atBalance}
+        onDismiss={analysis.dismissSummary}
+      />
       <SyncStatus
         uploading={analysis.uploading}
         issues={analysis.state.syncIssues}
         signedIn={signedIn}
-        moved={moved}
+        moved={moved.length > 0}
       />
       <LibraryNotices
         analysis={analysis}
         signedIn={signedIn}
         keepFiles={keepFiles}
         fileRetentionAvailable={fileRetentionAvailable}
-        libraryUnavailable={accountsUnavailable}
         onRetry={() => runThenFocus(analysis.retryLibrary)}
       />
-      <p role="status" className="sr-only">
-        {result !== null && isSample ? SAMPLE_NOTICE : ''}
+      {activitiesPage && kept > 0 && <p className="secondary">{keptText}</p>}
+      <p role="status" className={result !== null && isSample ? 'sample-banner' : 'sr-only'}>
+        {result !== null && isSample ? SAMPLE_BANNER : ''}
+      </p>
+      {/* A stop the visitor asked for is news, not a fault, so it is never an alert. */}
+      <p role="status" className={neutralStop ? 'notice' : 'sr-only'}>
+        {neutralStop ? analysis.error : ''}
       </p>
       {accountError && !accountsUnavailable && (
         <p className="notice notice--critical" role="alert">
           {accountError}
         </p>
       )}
-      {analysis.error && (
+      {analysis.error && !neutralStop && (
         <div className="notice notice--critical" role="alert">
           <p>
             {analysis.errorIssue === 'daily-limit'
@@ -76,22 +107,6 @@ export function AppNotices({
           )}
         </div>
       )}
-      {analysis.busy && (
-        <div>
-          <button
-            type="button"
-            className="btn"
-            onClick={(event) => runThenFocus(analysis.stop, event.currentTarget)}
-          >
-            Stop current analysis
-          </button>
-        </div>
-      )}
-      <RejectedFiles
-        rejected={rejected}
-        unsupportedFiles={unsupportedFiles}
-        duplicates={analysis.importOutcome?.duplicates ?? []}
-      />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import type { AccountMenuProps } from './AccountMenu'
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
 })
 
 const EMAIL = 'bryce@example.com'
@@ -60,15 +61,32 @@ function panel(container: HTMLElement): HTMLElement {
 }
 
 describe('AccountMenu states', () => {
-  it('renders nothing while accounts are unavailable', () => {
-    const { container } = renderMenu({ status: 'unavailable', me: null })
-    expect(container).toBeEmptyDOMElement()
+  it('says sign-in is unavailable right now, in the sign-in slot, with no button', () => {
+    renderMenu({ status: 'unavailable', me: null })
+    expect(screen.getByRole('status')).toHaveTextContent('Sign-in is unavailable right now')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('renders a neutral placeholder while loading, with no button', () => {
-    const { container } = renderMenu({ status: 'loading', me: null })
-    const placeholder = container.querySelector('.account-menu__placeholder')
-    expect(placeholder).toHaveAttribute('aria-hidden', 'true')
+  it('keeps one status region, so a change from checking to unavailable is announced', () => {
+    const view = renderMenu({ status: 'loading', me: null })
+    const region = screen.getByRole('status')
+    expect(region).toHaveTextContent('Checking sign-in…')
+
+    view.rerender(<AccountMenu {...props({ status: 'unavailable', me: null })} />)
+
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('Sign-in is unavailable right now')
+  })
+
+  it('keeps an empty status region once signed out, beside the sign-in button', () => {
+    renderMenu({ status: 'signed-out', me: null })
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+  })
+
+  it('says it is checking sign-in while loading, with no button', () => {
+    renderMenu({ status: 'loading', me: null })
+    expect(screen.getByRole('status')).toHaveTextContent('Checking sign-in…')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
@@ -263,6 +281,10 @@ describe('AccountMenu actions', () => {
   })
 
   it('moves focus to the sign-in button when signing out removes the trigger', async () => {
+    // jsdom has no layout, so a button is shown here by giving it a box, as a browser would.
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([
+      {} as DOMRect,
+    ] as unknown as DOMRectList)
     const user = userEvent.setup()
     const onSignOut = vi.fn()
     const { rerender } = renderMenu({ onSignOut })
@@ -272,6 +294,21 @@ describe('AccountMenu actions', () => {
 
     rerender(<AccountMenu {...props({ status: 'signed-out', me: null, onSignOut })} />)
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).toHaveFocus()
+  })
+
+  it('moves focus to the page heading when the sign-in button is hidden, so focus is not lost to the body', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderMenu({})
+    render(
+      <h1 id="page-heading" tabIndex={-1}>
+        Balance
+      </h1>,
+    )
+    await user.click(trigger())
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    rerender(<AccountMenu {...props({ status: 'signed-out', me: null })} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Balance' })).toHaveFocus()
   })
 
   it('does not move focus when the session is still loading', () => {

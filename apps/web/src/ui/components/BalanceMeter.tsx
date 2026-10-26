@@ -1,81 +1,103 @@
-import type { Interval } from '@rca/core/types'
-import { balanceSentence, leanOf } from './headlineText'
-import { METER_TRACK, bandSpan, meterFraction } from './balanceScale'
+import { SPORT_LABEL, SPORT_ORDER } from '../sports'
+import { balanceSentence, rangeText } from './headlineText'
+import {
+  SCALE_SPAN,
+  SCALE_TICKS,
+  cappedEnds,
+  capText,
+  meterFraction,
+  type BalanceReading,
+} from './balanceScale'
+import { SportIcon } from './icons'
 import './BalanceMeter.css'
 
 export interface BalanceMeterProps {
-  /** Running over cycling, as a ratio of the two sports' energy at the same duration. */
-  ratio: Interval
+  /** The balance to draw: the age-grade gap in points, or the energy ratio in percent. */
+  reading: BalanceReading
 }
 
-const WIDTH = METER_TRACK
-const MID = WIDTH / 2
-const TRACK_Y = 22
-/** The band is this tall, and never narrower, so a single-value range stays a round band. */
-const BAND_HEIGHT = 16
+/** Where a lead sits on the track, as a CSS percentage from its left end. */
+function percentAt(lead: number): number {
+  return meterFraction(lead) * 100
+}
 
-/** The x position of a ratio on the track. */
-function offset(ratio: number): number {
-  return meterFraction(ratio) * WIDTH
+/** The sport at each end of the track: the first in SPORT_ORDER is on the left. */
+const [LEFT, RIGHT] = SPORT_ORDER
+
+/** What the scale counts, and the band, for the caption under the meter. */
+const KEY = {
+  points: "Dot: best estimate. Band: the ride's 90% range",
+  percent: 'Dot: best estimate. Band: 90% model range',
 }
 
 /**
- * The balance between the two sports as a meter: the band is the model's 90% range and the dot
- * its centre. Leaning toward cycling reads left, toward running right.
+ * The balance between the two sports: the band is the range and the dot the best estimate. The
+ * sport on the left is the first in SPORT_ORDER, and a lead toward a sport moves the dot toward it.
  */
-export function BalanceMeter({ ratio }: BalanceMeterProps) {
-  const lo = offset(ratio.p05)
-  const hi = offset(ratio.p95)
-  const centre = offset(ratio.p50)
-  const band = bandSpan(lo, hi, BAND_HEIGHT)
-  const leader = leanOf(ratio)
+export function BalanceMeter({ reading }: BalanceMeterProps) {
+  const { lead, lean, unit } = reading
+  const bandEdges = [percentAt(lead.low), percentAt(lead.high)]
+  const bandLeft = Math.min(...bandEdges)
+  const bandRight = Math.max(...bandEdges)
+  const capped = cappedEnds(lead)
+  const suffix = unit === 'percent' ? '%' : ''
+  const flag = `${Math.round(Math.abs(lead.centre))}${unit === 'points' ? ' pts' : '%'}`
+  const ticks = SCALE_TICKS.flatMap((value) =>
+    [value, -value].map((position) => {
+      const atEnd = value === SCALE_SPAN && (position > 0 ? capped.running : capped.cycling)
+      return {
+        key: position,
+        left: percentAt(position),
+        text: atEnd ? capText(unit) : `${value}${suffix}`,
+        capped: atEnd,
+      }
+    }),
+  )
+
   return (
-    <figure className="balance-meter">
-      <svg
-        className={`balance-meter__svg balance-meter--${leader}`}
-        viewBox={`0 0 ${WIDTH} 56`}
-        role="img"
-        aria-label={balanceSentence(ratio)}
-      >
-        <rect
-          className="balance-meter__track"
-          x="0"
-          y={TRACK_Y - 6}
-          width={WIDTH}
-          height="12"
-          rx="6"
-        />
-        <rect
-          className="balance-meter__band"
-          x={band.start}
-          y={TRACK_Y - BAND_HEIGHT / 2}
-          width={band.width}
-          height={BAND_HEIGHT}
-          rx={BAND_HEIGHT / 2}
-        />
-        <line
-          className="balance-meter__even"
-          x1={MID}
-          x2={MID}
-          y1={TRACK_Y - 14}
-          y2={TRACK_Y + 14}
-        />
-        <circle className="balance-meter__dot" cx={centre} cy={TRACK_Y} r="8" />
-        <text className="balance-meter__label balance-meter__label--ride" x="0" y="52">
-          ← Leans cycling
-        </text>
-        <text className="balance-meter__label" x={MID} y="52" textAnchor="middle">
-          Even
-        </text>
-        <text
-          className="balance-meter__label balance-meter__label--run"
-          x={WIDTH}
-          y="52"
-          textAnchor="end"
-        >
-          Leans running →
-        </text>
-      </svg>
+    <figure className={`balance-meter balance-meter--${lean}`}>
+      <div className="balance-meter__plot" role="img" aria-label={balanceSentence(reading)}>
+        <span className="balance-meter__flag" style={{ left: `${percentAt(lead.centre)}%` }}>
+          {flag}
+        </span>
+        <div className="balance-meter__track">
+          <span
+            className="balance-meter__band"
+            style={{ left: `${(bandLeft + bandRight) / 2}%`, width: `${bandRight - bandLeft}%` }}
+          />
+          <span className="balance-meter__even" />
+          <span className="balance-meter__dot" style={{ left: `${percentAt(lead.centre)}%` }} />
+        </div>
+        <div className="balance-meter__ticks">
+          {ticks.map((tick) => (
+            <span
+              key={tick.key}
+              className={
+                tick.capped ? 'balance-meter__tick balance-meter__tick--cap' : 'balance-meter__tick'
+              }
+              style={{ left: `${tick.left}%` }}
+            >
+              {tick.text}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="balance-meter__ends">
+        <span className="balance-meter__end balance-meter__end--left" data-sport={LEFT}>
+          <SportIcon sport={LEFT} className="balance-meter__glyph" />
+          {SPORT_LABEL[LEFT]}
+        </span>
+        <span className="balance-meter__even-label">Even</span>
+        <span className="balance-meter__end balance-meter__end--right" data-sport={RIGHT}>
+          <SportIcon sport={RIGHT} className="balance-meter__glyph" />
+          {SPORT_LABEL[RIGHT]}
+        </span>
+      </div>
+      <figcaption className="balance-meter__key">
+        {unit === 'points'
+          ? `${KEY.points}, ${rangeText(reading)}. Scale: age-grade points.`
+          : `${KEY.percent}, ${rangeText(reading)}. Scale: percent of energy.`}
+      </figcaption>
     </figure>
   )
 }

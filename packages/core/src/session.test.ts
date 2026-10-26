@@ -5,7 +5,9 @@ import { encodeGpx } from './gpx/encode'
 import { encodeTcx } from './tcx/encode'
 import { digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
+import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import { parseActivityFile } from './import'
+import { generatedName } from './import/names'
 import { AnalysisSession, SyncFailure } from './session'
 import { NO_TRENDS } from './digest/trendPoints'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
@@ -135,7 +137,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([
-      { fileName: 'empty.gpx', reason: 'File contains no activity records' },
+      { fileName: 'empty.gpx', reason: 'File contains no activity records', code: 'empty' },
     ])
   })
 
@@ -216,7 +218,9 @@ describe('AnalysisSession', () => {
     )
 
     expect(state.result?.activities).toHaveLength(1)
-    expect(state.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+    expect(state.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
   })
 
   it('reports a source with no FIT content as No FIT files found', async () => {
@@ -226,8 +230,12 @@ describe('AnalysisSession', () => {
 
     expect(state.result).toBeNull()
     expect(state.rejected).toEqual([
-      { fileName: 'empty.zip', reason: 'No supported activity files found (FIT, GPX or TCX)' },
-      { fileName: 'notes.txt', reason: 'Unsupported file format' },
+      {
+        fileName: 'empty.zip',
+        reason: 'No supported activity files found (FIT, GPX or TCX)',
+        code: 'not-activity',
+      },
+      { fileName: 'notes.txt', reason: 'Unsupported file format', code: 'not-activity' },
     ])
   })
 
@@ -238,7 +246,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([
-      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file' },
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
     ])
   })
 
@@ -252,7 +260,11 @@ describe('AnalysisSession', () => {
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([
-      { fileName: 'activities/2.fit.gz', reason: 'Could not decompress this file' },
+      {
+        fileName: 'activities/2.fit.gz',
+        reason: 'Could not decompress this file',
+        code: 'corrupt',
+      },
     ])
   })
 
@@ -263,7 +275,7 @@ describe('AnalysisSession', () => {
 
     expect(state.result).toBeNull()
     expect(state.rejected).toEqual([
-      { fileName: 'cut.fit.gz', reason: 'Could not decompress this file' },
+      { fileName: 'cut.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
     ])
   })
 
@@ -274,7 +286,7 @@ describe('AnalysisSession', () => {
       SETTINGS,
     )
     expect(broken.rejected).toEqual([
-      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file' },
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
     ])
 
     const fixed = await session.addFiles(
@@ -288,7 +300,9 @@ describe('AnalysisSession', () => {
   it('clears a Not a FIT rejection when the same name is later read as a FIT file', async () => {
     const session = new AnalysisSession()
     const junk = await session.addFiles([textFile('ride.fit', 'plainly not a FIT file')], SETTINGS)
-    expect(junk.rejected).toEqual([{ fileName: 'ride.fit', reason: 'Not a FIT file' }])
+    expect(junk.rejected).toEqual([
+      { fileName: 'ride.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
 
     const fixed = await session.addFiles([fitFile('ride.fit', ride)], SETTINGS)
     expect(fixed.rejected).toEqual([])
@@ -366,11 +380,13 @@ describe('AnalysisSession', () => {
       outdatedActivities: 0,
       incompatibleActivities: 0,
       hiddenDuplicates: 0,
-      rangeDays: null,
+      period: { choice: 'default', startMs: null, endMs: null, days: null, fellBack: false },
+      library: [],
       syncIssues: [],
       trend: [],
       effortTrends: NO_TRENDS,
       previous: null,
+      records: new Map(),
     })
   })
 
@@ -387,18 +403,53 @@ describe('AnalysisSession', () => {
     expect(state.result?.activities).toHaveLength(inside.length)
     expect(state.result?.activities.every((activity) => activity.startMs >= cutoff)).toBe(true)
     expect(state.totalActivities).toBe(sample.length)
-    expect(state.rangeDays).toBe(42)
+    expect(state.period).toMatchObject({ choice: 42, days: 42, fellBack: false })
   })
 
-  it('setRange(null) restores every activity', () => {
+  it("setRange('all') restores every activity", () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
     session.setRange(42, SETTINGS)
-    const state = session.setRange(null, SETTINGS)
+    const state = session.setRange('all', SETTINGS)
 
     expect(state.result?.activities).toHaveLength(sample.length)
     expect(state.totalActivities).toBe(sample.length)
-    expect(state.rangeDays).toBeNull()
+    expect(state.period).toMatchObject({ choice: 'all', days: null })
+  })
+
+  it('lists every activity in the library, whatever the period analyses', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    const state = session.setRange(42, SETTINGS)
+
+    expect(state.result?.activities.length).toBeLessThan(sample.length)
+    expect(state.library).toHaveLength(sample.length)
+    expect(state.library[0]?.startMs).toBe(Math.max(...sample.map((a) => a.startMs)))
+  })
+
+  it('analyses only the newest activity for a one-day period, and keeps the library whole', () => {
+    const session = new AnalysisSession()
+    session.loadSample(SETTINGS)
+    const state = session.setRange(1, SETTINGS)
+
+    expect(state.result?.activities).toHaveLength(1)
+    expect(state.library).toHaveLength(sample.length)
+  })
+
+  it('analyses the default period, which covers the sample when it is under 12 weeks long', () => {
+    const session = new AnalysisSession()
+    const state = session.loadSample(SETTINGS)
+
+    expect(state.period).toMatchObject({ choice: 'default', fellBack: false })
+    expect(state.result?.activities).toHaveLength(sample.length)
+  })
+
+  it('analyses the sample with its own body and bike masses, whatever the visitor entered', () => {
+    const own = new AnalysisSession().loadSample({ massKg: 60, bikeMassKg: 5 })
+    const persona = new AnalysisSession().loadSample(SETTINGS)
+
+    expect(own.result?.runCurve).toEqual(persona.result?.runCurve)
+    expect(own.result?.rideCurve).toEqual(persona.result?.rideCurve)
   })
 
   it('setRange with nothing loaded gives no result and no activities', () => {
@@ -412,11 +463,13 @@ describe('AnalysisSession', () => {
       outdatedActivities: 0,
       incompatibleActivities: 0,
       hiddenDuplicates: 0,
-      rangeDays: 42,
+      period: { choice: 42, startMs: null, endMs: null, days: null, fellBack: false },
+      library: [],
       syncIssues: [],
       trend: [],
       effortTrends: NO_TRENDS,
       previous: null,
+      records: new Map(),
     })
   })
 
@@ -478,7 +531,9 @@ describe('AnalysisSession', () => {
     const session = new AnalysisSession()
     const junk = (): File => textFile('junk.fit', 'this is plainly not a FIT file')
     const sameCall = await session.addFiles([junk(), junk()], SETTINGS)
-    expect(sameCall.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+    expect(sameCall.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
 
     const laterCall = await session.addFiles([junk()], SETTINGS)
     expect(laterCall.rejected).toHaveLength(1)
@@ -539,8 +594,104 @@ describe('AnalysisSession', () => {
     const session = new AnalysisSession()
     session.setRange(42, SETTINGS)
     const state = session.loadDigests(sampleDataset().activities.map(digestActivity), SETTINGS)
-    expect(state.rangeDays).toBe(42)
+    expect(state.period.choice).toBe(42)
     expect(state.result?.activities.length).toBeLessThan(sample.length)
+  })
+
+  it('names the activities of a Strava export from its activities.csv, whatever order the files sit in', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities/1002.fit': encodeFit(ride, { gps: true }),
+      'activities.csv': strToU8(
+        'Activity ID,Activity Name,Activity Type,Filename\n' +
+          '1001,"Morning run, 5 K",Run,activities/1001.fit.gz\n' +
+          '1002,Lunch Ride,Ride,activities/1002.fit\n',
+      ),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((a) => [a.sport, a.name]).sort()).toEqual([
+      ['ride', 'Lunch Ride'],
+      ['run', 'Morning run, 5 K'],
+    ])
+  })
+
+  it('matches a list entry to its file whatever the spelling of the path, and keeps the first row', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities.csv': strToU8(
+        'ACTIVITY ID,FILENAME,activity name\n' +
+          '1001,./Activities\\1001.FIT.GZ,Morning run\n' +
+          '1001,activities/1001.fit.gz,Second name\n',
+      ),
+    })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((a) => a.name)).toEqual(['Morning run'])
+  })
+
+  it('charges the bytes of the activity list against the decompressed-bytes budget of the export', async () => {
+    const fit = encodeFit(run, { gps: true })
+    // A list longer than the file, so the file alone would fit a budget that the list has used up.
+    const list = strToU8(`Activity Name,Filename\n${'x'.repeat(fit.length)},activities/1001.fit\n`)
+    const bytes = zipSync({ 'activities/1001.fit': fit, 'activities.csv': list })
+    const withRoom = list.length + fit.length
+    const tight = new AnalysisSession({
+      ...DEFAULT_EXTRACT_LIMITS,
+      maxTotalDecompressedBytes: list.length + Math.floor(fit.length / 2),
+    })
+    const roomy = new AnalysisSession({
+      ...DEFAULT_EXTRACT_LIMITS,
+      maxTotalDecompressedBytes: withRoom,
+    })
+
+    const refused = await tight.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+    const accepted = await roomy.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(refused.result?.activities ?? []).toHaveLength(0)
+    expect(accepted.result?.activities).toHaveLength(1)
+  })
+
+  it('stores the export name in the digest the sink receives', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities.csv': strToU8(
+        'Activity ID,Activity Name,Filename\n1001,Hill repeats,activities/1001.fit.gz\n',
+      ),
+    })
+    await session.addFiles([new File([bytes], 'export.zip')], SETTINGS, undefined, async (item) => {
+      items.push(item)
+    })
+
+    expect(items.map((item) => item.digest.name)).toEqual(['Hill repeats'])
+  })
+
+  it('names an activity from its start time and sport when the export has no list', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({ 'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })) })
+    const state = await session.addFiles([new File([bytes], 'export.zip')], SETTINGS)
+
+    expect(state.result?.activities.map((a) => a.name)).toEqual([generatedName(run.startMs, 'run')])
+  })
+
+  it('still counts a copy of a Strava activity as a duplicate, whatever the copy is named', async () => {
+    const session = new AnalysisSession()
+    const bytes = zipSync({
+      'activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'activities.csv': strToU8(
+        'Activity ID,Activity Name,Filename\n1001,Named by Strava,activities/1001.fit.gz\n',
+      ),
+    })
+    const state = await session.addFiles(
+      [new File([bytes], 'export.zip'), fitFile('run copy.fit', run)],
+      SETTINGS,
+    )
+
+    expect(state.result?.activities).toHaveLength(1)
   })
 
   it('calls the sink once per new activity with its digest, file name, hash and bytes', async () => {
@@ -663,16 +814,16 @@ describe('AnalysisSession', () => {
     expect(session.clear().syncIssues).toEqual([])
   })
 
-  it('clear resets the selected range before the next library is loaded', () => {
+  it('clear keeps the chosen period, which the athlete picked and the next library uses', () => {
     const session = new AnalysisSession()
     session.loadSample(SETTINGS)
     session.setRange(42, SETTINGS)
     const cleared = session.clear()
-    expect(cleared.rangeDays).toBeNull()
+    expect(cleared.period.choice).toBe(42)
 
     const next = session.loadSample(SETTINGS)
-    expect(next.rangeDays).toBeNull()
-    expect(next.result?.activities).toHaveLength(sample.length)
+    expect(next.period.choice).toBe(42)
+    expect(next.result?.activities.length).toBeLessThan(sample.length)
   })
 
   it('stops calling the sink after a sign-out but still analyses the rest of the import', async () => {
@@ -806,7 +957,9 @@ describe('AnalysisSession', () => {
       },
     )
     expect(calls).toBe(0)
-    expect(state.rejected).toEqual([{ fileName: 'junk.fit', reason: 'Not a FIT file' }])
+    expect(state.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+    ])
   })
 })
 
@@ -908,7 +1061,12 @@ describe('the same workout in more than one format', () => {
     expect(state.hiddenDuplicates).toBe(0)
     expect(synced).toEqual(['activities/1.fit'])
     expect(duplicates).toEqual([
-      { fileName: 'activities/1.gpx', reason: 'Same workout as activities/1.fit' },
+      {
+        fileName: 'activities/1.gpx',
+        reason: 'Same workout as activities/1.fit',
+        code: 'duplicate',
+        detail: 'activities/1.fit',
+      },
     ])
   })
 
@@ -1140,3 +1298,138 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+describe('route shapes handed to the sink', () => {
+  it('gives each new activity its route beside its digest, and keeps the route out of the digest', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    await session.addFiles(
+      [new File([new Uint8Array(encodeGpx(run))], 'run.gpx')],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        items.push(item)
+      },
+    )
+
+    const [item] = items
+    expect(item?.route?.points.length).toBeGreaterThanOrEqual(2)
+    expect(item?.digest).not.toHaveProperty('route')
+    expect(JSON.stringify(item?.digest)).not.toContain('route')
+    expect(JSON.stringify(item?.digest)).not.toContain(JSON.stringify(item?.route?.points))
+  })
+
+  it('gives a FIT file with only placeholder positions no route', async () => {
+    const session = new AnalysisSession()
+    const items: SyncItem[] = []
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, async (item) => {
+      items.push(item)
+    })
+
+    expect(items.map((item) => item.route)).toEqual([undefined])
+  })
+
+  it('keeps no input coordinate in the digest or the route it hands over', async () => {
+    const gpx = encodeGpx(run)
+    const coordinates = new Set(
+      [...new TextDecoder().decode(gpx).matchAll(/(?:lat|lon)="(-?[\d.]+)"/g)].map((m) =>
+        Number(m[1]),
+      ),
+    )
+    const items: SyncItem[] = []
+    await new AnalysisSession().addFiles(
+      [new File([new Uint8Array(gpx)], 'run.gpx')],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        items.push(item)
+      },
+    )
+
+    const [item] = items
+    const stored = JSON.stringify([item?.digest, item?.route])
+    const numbers = [...stored.matchAll(/-?\d+(?:\.\d+)?(?:e[-+]\d+)?/g)].map((m) => Number(m[0]))
+    expect(coordinates.size).toBeGreaterThan(0)
+    expect(numbers.length).toBeGreaterThan(0)
+    expect(numbers.filter((n) => coordinates.has(n))).toEqual([])
+  })
+})
+
+describe('AnalysisSession rejected files, per import', () => {
+  function kmlZip(zipName: string, name: string): File {
+    const bytes = zipSync({ [name]: strToU8('<kml/>'), 'ride.fit': encodeFit(ride, { gps: true }) })
+    return new File([bytes], zipName)
+  }
+
+  it('lists only the files the last import could not use, not those of earlier imports', async () => {
+    const session = new AnalysisSession()
+    const first = await session.addFiles([textFile('one.txt', 'hello')], SETTINGS)
+    expect(first.rejected).toEqual([
+      { fileName: 'one.txt', reason: 'Unsupported file format', code: 'not-activity' },
+    ])
+
+    const second = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(second.rejected).toEqual([])
+  })
+
+  it('counts only the unsupported files of the last import', async () => {
+    const session = new AnalysisSession()
+    const first = await session.addFiles([kmlZip('a.zip', 'a/1.kml')], SETTINGS)
+    expect(first.unsupportedFiles).toBe(1)
+
+    const second = await session.addFiles([kmlZip('b.zip', 'b/2.kml')], SETTINGS)
+    expect(second.unsupportedFiles).toBe(1)
+  })
+
+  it('gives each rejection a code, so the app can say why in its own words', async () => {
+    const session = new AnalysisSession()
+    const state = await session.addFiles(
+      [
+        textFile('junk.fit', 'this is plainly not a FIT file'),
+        textFile('notes.txt', 'hello'),
+        new File([new Uint8Array([1, 2, 3, 4, 5])], 'bad.fit.gz'),
+      ],
+      SETTINGS,
+    )
+
+    expect(state.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
+      { fileName: 'notes.txt', reason: 'Unsupported file format', code: 'not-activity' },
+      { fileName: 'bad.fit.gz', reason: 'Could not decompress this file', code: 'corrupt' },
+    ])
+  })
+
+  it('gives a duplicate the code and the name of the copy it duplicates', async () => {
+    const session = new AnalysisSession()
+    let duplicates: RejectedFile[] = []
+    await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      (outcome) => {
+        duplicates = outcome.duplicates
+      },
+    )
+    await session.addFiles(
+      [new File([new Uint8Array(encodeGpx(run))], 'copy.gpx')],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      (outcome) => {
+        duplicates = outcome.duplicates
+      },
+    )
+
+    expect(duplicates).toEqual([
+      {
+        fileName: 'copy.gpx',
+        reason: 'Same workout as run.fit',
+        code: 'duplicate',
+        detail: 'run.fit',
+      },
+    ])
+  })
+})

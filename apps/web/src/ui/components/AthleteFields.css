@@ -2,6 +2,15 @@
   display: grid;
   gap: var(--space-3);
   min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.athlete-fields__legend {
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
 .athlete-fields__hint {

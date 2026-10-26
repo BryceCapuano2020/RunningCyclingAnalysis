@@ -1,12 +1,32 @@
+/*
+ * The header stays at the top of the screen while the page scrolls, so the tabs and Add files are
+ * always in reach. On a phone the tabs move to a bar fixed to the foot of the screen instead.
+ *
+ * The breakpoints are named in ui/layoutBreakpoints.ts; the sizes are custom properties in
+ * tokens.css, so the scroll padding and the page's foot padding follow the header and the tab bar.
+ */
+
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas:
     'brand actions'
     'tabs tabs';
   align-items: center;
   gap: var(--space-2) var(--space-5);
+  /* Runs to the top and the sides of the page, so the background covers the page's gutters. */
+  margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
+  padding: var(--space-5) var(--space-4) 0;
+  background: var(--surface-0);
   border-bottom: 1px solid var(--border);
+}
+
+/* Keeps a control that the browser scrolls to clear of the header, and of the tab bar on a phone. */
+html {
+  scroll-padding-top: var(--header-height);
 }
 
 .header__brand {
@@ -14,7 +34,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   color: var(--text-primary);
   text-decoration: none;
 }
@@ -38,7 +58,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: var(--control-height);
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
@@ -49,6 +69,11 @@
   text-decoration: none;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* Profile is an account, so it is outlined like a button; the tabs are not. */
+.header__profile {
+  border: 1px solid var(--control-border);
 }
 
 .header__tab:hover,
@@ -73,18 +98,87 @@
   gap: var(--space-2);
 }
 
-/* The tabs have a row of their own: the page is too narrow for brand, tabs and actions in one. */
+/* The account control's own box is not laid out, so its children sit in the actions row. */
+.header__account {
+  display: contents;
+}
+
+/* Phones (ui/layoutBreakpoints.ts: PHONE_MAX_WIDTH_PX): the brand and the actions share the top
+   row, and the tabs become a bar fixed to the foot of the screen. */
 @media (max-width: 760px) {
+  html {
+    scroll-padding-bottom: calc(var(--tab-bar-height) + 1px);
+  }
+
+  .header {
+    gap: var(--space-2);
+    grid-template-areas: 'brand actions';
+  }
+
+  .header__tabs {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    overflow-x: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border);
+    background: var(--surface-0);
+  }
+
+  /* Four equal tabs share the bar, and their labels may shrink to fit it. */
   .header__tab {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: center;
-    padding: 0 var(--space-2);
+    min-height: var(--tab-bar-height);
+    padding: 0 var(--space-1);
+    font-size: 0.9375rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* The current tab is marked on the bar's top edge, where it stands out from the page. */
+  .header__tab[aria-current='page'] {
+    box-shadow: inset 0 3px 0 var(--text-primary);
+  }
+
+  /* Tabs that do not all fit fade at the edge while there is more to scroll to. */
+  .header__tabs--faded {
+    mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+  }
+
+  /* When the tabs overflow, a label starts at the left, so none is cut off where the bar scrolls. */
+  .header__tabs--overflowing .header__tab {
+    justify-content: flex-start;
+  }
+
+  /* Sign-in stays one tap away as the Google mark alone; its name is kept for screen readers. */
+  .header__account .google-sign-in {
+    width: var(--control-height);
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header__account .google-sign-in__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .page:has(> .header > .header__tabs) {
+    padding-bottom: calc(var(--space-7) + var(--tab-bar-height) + env(safe-area-inset-bottom));
   }
 }
 
+/* ui/layoutBreakpoints.ts: COMPACT_PHONE_MAX_WIDTH_PX. */
 @media (max-width: 560px) {
   .header__name,
-  .header__profile-label {
+  .header__account .account-menu__name {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -95,5 +189,31 @@
 
   .header__tab .icon {
     display: none;
+  }
+}
+
+/* ui/layoutBreakpoints.ts: SMALL_PHONE_MAX_WIDTH_PX. The labels shrink, so ACTIVITIES keeps its line. */
+@media (max-width: 360px) {
+  .header__tab {
+    font-size: 0.875rem;
+  }
+}
+
+/*
+ * ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX. A narrow phone has no room for the words Add
+ * files beside Profile. The button keeps its name for screen readers and shows only the plus.
+ */
+@media (max-width: 420px) {
+  .header__actions .add-files__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .header__profile {
+    padding: 0 var(--space-2);
   }
 }

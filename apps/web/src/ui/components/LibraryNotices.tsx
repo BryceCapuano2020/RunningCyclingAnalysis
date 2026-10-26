@@ -19,9 +19,6 @@ function hiddenCopiesText(count: number): string {
   )
 }
 
-const LIBRARY_UNAVAILABLE =
-  'Sign-in is unavailable right now. Your results are kept in this browser in the meantime.'
-
 /**
  * Saved activities made by an older analysis model. Signed in, they are rebuilt from their files; a
  * visitor who is not signed in has them kept in this browser, and adds the files again.
@@ -46,7 +43,6 @@ export interface LibraryNoticesProps {
   signedIn: boolean
   keepFiles: boolean
   fileRetentionAvailable: boolean
-  libraryUnavailable: boolean
   onRetry: () => void
 }
 
@@ -56,15 +52,14 @@ export function LibraryNotices({
   signedIn,
   keepFiles,
   fileRetentionAvailable,
-  libraryUnavailable,
   onRetry,
 }: LibraryNoticesProps) {
   const originalsMissing = analysis.missingOriginals
   const missingCount = plural(originalsMissing, 'activity', 'activities')
   const missingText =
     originalsMissing === 1
-      ? `${missingCount} is missing its original file. Re-import it to restore the original.`
-      : `${missingCount} are missing their original file. Re-import them to restore the originals.`
+      ? `${missingCount} is missing its original file. Add its file again to restore the original.`
+      : `${missingCount} are missing their original file. Add their files again to restore the originals.`
   const missingShown = signedIn && keepFiles && fileRetentionAvailable && originalsMissing > 0
   const outdatedCount = analysis.state.outdatedActivities
   const outdatedShown = outdatedCount > 0
@@ -95,10 +90,6 @@ export function LibraryNotices({
 
   return (
     <>
-      {/* Always mounted, so a message put in it is announced. It takes no room while empty. */}
-      <p role="status" className={libraryUnavailable ? 'notice' : 'sr-only'}>
-        {libraryUnavailable ? LIBRARY_UNAVAILABLE : ''}
-      </p>
       {signedIn && analysis.libraryStatus === 'failed' && (
         <section className="notice notice--critical" aria-label="Library">
           <p role="alert">Your library could not be loaded.</p>

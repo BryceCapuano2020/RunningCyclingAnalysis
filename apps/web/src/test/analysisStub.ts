@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 import type { SessionState } from '@rca/core/session'
 import { EMPTY_SESSION } from '../ui/analysis/model'
+import type { RouteReply } from '../ui/routeReply'
 import type { AnalysisController } from '../ui/useAnalysis'
 
 export interface AnalysisStubOverrides extends Partial<Omit<AnalysisController, 'state'>> {
@@ -20,10 +21,12 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     uploading: null,
     error: null,
     errorIssue: null,
+    errorNeutral: false,
     workerStopped: false,
     stop: vi.fn(),
     retryWorker: vi.fn(),
     libraryStatus: 'idle',
+    restoring: false,
     retryLibrary: vi.fn(),
     missingOriginals: 0,
     libraryUnreadable: 0,
@@ -36,12 +39,14 @@ export function analysisStub({ state, ...rest }: AnalysisStubOverrides = {}): An
     libraryError: null,
     deleteActivity: vi.fn(),
     exportData: vi.fn(async () => new Blob()),
+    activitySplits: vi.fn(async () => null),
     rebuildNotice: null,
     rebuildSavedActivities: vi.fn(),
     addFiles: vi.fn(),
     loadSample: vi.fn(),
     setRange: vi.fn(),
     clear: vi.fn(),
+    loadRoute: vi.fn(async (): Promise<RouteReply> => ({ kind: 'none' })),
     ...rest,
   }
 }
