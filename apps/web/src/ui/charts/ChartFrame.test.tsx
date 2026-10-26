@@ -73,9 +73,9 @@ describe('ChartFrame', () => {
     expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Cycling, estimated')
   })
 
-  it('shows no legend for one solid entry, which needs no key', () => {
-    renderFrame({ legend: [{ label: 'Running', kind: 'run' }] })
-    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  it('shows the one solid entry of a single-series chart, so its line is named', () => {
+    renderFrame({ legend: [{ label: 'Run, as recorded', kind: 'run', swatch: 'line' }] })
+    expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Run, as recorded')
   })
 
   it('names how to read the values in visible text beside a chart that can be read', () => {
@@ -85,6 +85,35 @@ describe('ChartFrame', () => {
     )
     const plain = renderFrame()
     expect(plain.container.querySelector('.chart-frame__hint')).toBeNull()
+  })
+
+  it('shows the arrow-key hint in the overlay, in the plot’s top margin, right-aligned to the plot', () => {
+    const children = vi.fn<(size: ChartSize) => null>(() => null)
+    const { container } = renderFrame({ children, surface: () => null })
+    const size = children.mock.calls[0]?.[0]
+    const hint = container.querySelector<HTMLElement>('.chart-frame__overlay > .chart-frame__hint')
+    expect(container.querySelector('.chart-frame > .chart-frame__hint')).toBeNull()
+    expect(hint).not.toBeNull()
+    // The plot starts 28 px down, so a hint 2 px from the top sits in the margin, above the data.
+    expect(hint?.style.top).toBe('2px')
+    expect(hint?.style.right).toBe(`${(size?.width ?? 0) - (size?.plot.right ?? 0)}px`)
+    expect(hint?.style.left).toBe('')
+  })
+
+  it('hides the arrow-key hint while a point is active, so the tooltip has the overlay', () => {
+    expect(frameCss).toMatch(
+      /\.chart-frame:has\(\.plot-surface:focus-visible\) \.chart-frame__hint \{\s*display: block;/,
+    )
+    expect(frameCss).toMatch(
+      /\.chart-frame:has\(\.chart-tooltip__title\) \.chart-frame__hint \{\s*display: none;/,
+    )
+    // One line of text and its border fit in the 28 px margin above the plot.
+    expect(ruleBody(frameCss, '.chart-frame__hint')).toMatch(/padding:\s*0 var\(--space-2\)/)
+    expect(ruleBody(frameCss, '.chart-frame__hint')).toMatch(/position:\s*absolute/)
+  })
+
+  it('balances the lines of a chart title, so a long one does not end on one word', () => {
+    expect(ruleBody(frameCss, '.chart-frame__title')).toMatch(/text-wrap:\s*balance/)
   })
 
   it('lays the plot inside fixed margins, so axes have room', () => {
@@ -112,12 +141,15 @@ describe('ChartFrame', () => {
     expect(size?.plot.right).toBe((size?.width ?? 0) - 40)
   })
 
-  it('shows the legend only with two or more entries', () => {
+  it('shows the legend for two entries, or for one line or dashed entry, and not for one dot', () => {
     const { unmount } = renderFrame({
-      legend: [{ label: 'Running', kind: 'run' }],
+      legend: [{ label: 'Running', kind: 'run', swatch: 'line' }],
     })
-    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(screen.getByRole('list', { name: 'Legend' })).toHaveTextContent('Running')
     unmount()
+    const dot = renderFrame({ legend: [{ label: 'Run', kind: 'run', swatch: 'dot' }] })
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    dot.unmount()
     renderFrame({
       legend: [
         { label: 'Running', kind: 'run' },
@@ -132,18 +164,27 @@ describe('ChartFrame', () => {
     expect(screen.getByText('Shading is the model range')).toBeInTheDocument()
   })
 
-  it('replaces the plot, note and table with the empty message when there is nothing to draw', () => {
+  it('replaces the plot and table with the empty message, and keeps a note under it that the caller gives', () => {
     const children = vi.fn<(size: ChartSize) => null>(() => null)
     const { container } = renderFrame({
       children,
       empty: 'Nothing to show yet',
-      note: 'Hidden note',
+      note: 'Cycling is held until a weight is added.',
     })
     expect(screen.getByText('Nothing to show yet')).toBeInTheDocument()
     expect(container.querySelector('svg')).toBeNull()
-    expect(screen.queryByText('Hidden note')).toBeNull()
+    expect(screen.getByText('Cycling is held until a weight is added.')).toBeInTheDocument()
     expect(screen.queryByText('View as table')).toBeNull()
     expect(children).not.toHaveBeenCalled()
+  })
+
+  it('writes a key note in the legend row where a key would be, when there is no key to show', () => {
+    const { container } = renderFrame({ legend: [], keyNote: 'No rides in the previous 6 weeks' })
+    expect(container.querySelector('.chart-frame__legend')).toHaveTextContent(
+      'No rides in the previous 6 weeks',
+    )
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+    expect(container.querySelector('.chart-frame > .chart-frame__note')).toBeNull()
   })
 
   it('keeps the table behind a View as table disclosure', () => {
@@ -179,8 +220,8 @@ describe('ChartFrame', () => {
 })
 
 describe('ChartFrame legend row', () => {
-  it('reserves the legend row when the chart has a legend, even while its key is not shown', () => {
-    const { container } = renderFrame({ legend: [{ label: 'Run', kind: 'run' }] })
+  it('reserves the legend row when the chart has a legend, even while it has no key to show', () => {
+    const { container } = renderFrame({ legend: [] })
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
     expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
   })

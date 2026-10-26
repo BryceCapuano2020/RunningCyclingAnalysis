@@ -5,7 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { RECORD_DURATIONS_S } from '../records'
 import { SPORT_PLURAL, SPORT_TITLE } from '../sports'
-import { activityCell, sourceNote } from './activityText'
+import { sharedSourceOf, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
@@ -22,6 +22,8 @@ import {
 } from './chartInteraction'
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
 import { durationRows } from './curveRows'
+import { captionOf, columnsOf, tableRow } from './curveTable'
+import type { CurveRow, View } from './curveTable'
 import { areaPath, linePath } from './paths'
 import { labelWidthPx, rootFontPx } from './rootFont'
 import { logScale } from './scale'
@@ -58,15 +60,6 @@ export interface SportCurveChartProps {
   activityNames?: Record<string, string>
 }
 
-interface CurveRow {
-  durationS: number
-  /** NaN where the sport has no effort of this duration. */
-  value: number
-  /** NaN where the period before has none. */
-  previous: number
-  activityId: string | null
-}
-
 /** One row per duration of at least a minute with a value in either period. */
 function buildRows(curve: Curve, before: Curve): CurveRow[] {
   return durationRows([curve, before])
@@ -96,7 +89,7 @@ function lastLabelOf(
   const emphasised = m.points[emphasis] ?? null
   if (last === null || row === undefined || lastIndex === emphasis) return null
   const text = formatNative(sport, row.value, units)
-  const at = endLabelAt(last, pointBefore(m.points, lastIndex))
+  const at = endLabelAt(last, pointBefore(m.points, lastIndex), m.floor)
   const clear = emphasised === null || at.x - labelWidthPx(text, rootPx) > emphasised.x
   return clear ? { at, text } : null
 }
@@ -115,6 +108,8 @@ function emphasisIndex(rows: CurveRow[]): number {
 }
 
 interface Layout {
+  /** The plot's bottom edge, which an end label keeps clear of. */
+  floor: number
   xs: number[]
   points: (Point | null)[]
   /** The y of each duration's point, for anchoring its tooltip beside it. */
@@ -139,22 +134,19 @@ function layout(rows: CurveRow[], view: View, size: ChartSize): Layout | null {
     )
   const points = pointsOf((row) => row.value)
   return {
+    floor: plot.bottom,
     xs: rows.map((row) => x(row.durationS)),
     points,
     ys: points.map((point) => point?.y ?? null),
     earlier: pointsOf((row) => row.previous),
-    xTicks: fitTicks(durationTicks(first.durationS, last.durationS, x), { axis: 'x', width }),
+    xTicks: fitTicks(durationTicks(first.durationS, last.durationS, x), {
+      axis: 'x',
+      width,
+      // The 20 minute tick is the one the emphasised point names, so thinning keeps it.
+      keep: (tick) => tick.label === formatDuration(HEADLINE_DURATION_S),
+    }),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
   }
-}
-
-/** What the tooltips and the table need, bundled so that they are passed together. */
-interface View {
-  sport: Sport
-  units: UnitSystem
-  massKg: number
-  previous: PreviousCurve | null
-  names: Record<string, string> | undefined
 }
 
 /** Cycling tooltips and tables give the mechanical W/kg; running names only its activity. */
@@ -180,6 +172,7 @@ function tooltipFor(row: CurveRow, x: number, y: number, view: View): TooltipCon
       kind: 'neutral',
       label: view.previous.label,
       value: formatNative(view.sport, row.previous, view.units),
+      swatch: 'dashed',
     })
   }
   return { x, y, title: formatDuration(row.durationS), rows }
@@ -190,33 +183,6 @@ function titleOf(sport: Sport, units: UnitSystem): string {
   return sport === 'run'
     ? `${SPORT_TITLE.run} flat pace ${paceUnitName(units)} by duration`
     : `${SPORT_TITLE.ride} power in watts by duration`
-}
-
-/** The table's caption, saying what its values are. */
-function captionOf(view: View): string {
-  return view.sport === 'run'
-    ? `Best flat pace at each duration, ${paceUnitName(view.units)}.`
-    : 'Best power at each duration, in watts, with W/kg at your body mass.'
-}
-
-function columnsOf(view: View): string[] {
-  return [
-    'Duration',
-    nativeLabel(view.sport),
-    ...(view.sport === 'ride' ? ['W/kg'] : []),
-    ...(view.previous ? [view.previous.label] : []),
-    'From',
-  ]
-}
-
-function tableRow(row: CurveRow, view: View): string[] {
-  return [
-    formatDuration(row.durationS),
-    formatNative(view.sport, row.value, view.units),
-    ...(view.sport === 'ride' ? [formatWkg(row.value / view.massKg)] : []),
-    ...(view.previous ? [formatNative(view.sport, row.previous, view.units)] : []),
-    activityCell(row.activityId, view.names),
-  ]
 }
 
 /**
@@ -235,7 +201,14 @@ export function SportCurveChart({
   // The previous period is drawn, listed and tabled only when it has a value to show.
   const shown =
     previous !== null && rows.some((row) => Number.isFinite(row.previous)) ? previous : null
-  const view: View = { sport, units, massKg, previous: shown, names: activityNames }
+  const view: View = {
+    sport,
+    units,
+    massKg,
+    previous: shown,
+    names: activityNames,
+    shared: sharedSourceOf(rows.map((row) => row.activityId)),
+  }
   const hasData = rows.filter((row) => Number.isFinite(row.value)).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const emphasis = emphasisIndex(rows)
@@ -254,11 +227,13 @@ export function SportCurveChart({
       title={titleOf(sport, units)}
       description={`Best ${sport === 'run' ? 'flat pace' : 'power'} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
       legend={legend}
-      note={noPrevious}
+      keyNote={noPrevious}
       table={{
         caption: captionOf(view),
         columns: columnsOf(view),
         rows: rows.map((row) => tableRow(row, view)),
+        // The From column holds words, so it is set on the left.
+        textColumns: view.shared === null ? [columnsOf(view).length - 1] : [],
       }}
       empty={
         hasData ? undefined : `Add ${SPORT_PLURAL[sport]} of a minute or more to see this curve`

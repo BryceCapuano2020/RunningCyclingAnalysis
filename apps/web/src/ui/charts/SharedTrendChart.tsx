@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { formatDuration } from '@rca/core/units'
 import { SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -16,14 +15,16 @@ import { lastAtOrBefore } from './hover'
 import { stepBandPath, stepPath } from './paths'
 import { sharedTrendLayout } from './sharedTrendLayout'
 import {
+  HELD_EMPTY,
+  HELD_NOTE,
   copyOf,
   formatValue,
   levelNote,
-  rideNote,
   singleValueText,
   tableValue,
   withRideHeld,
 } from './sharedTrendText'
+import { effortLabel } from '../records'
 import { axisFontSize } from './ticks'
 import { weekDay, windowPhrase } from './trendText'
 import './ChartSeries.css'
@@ -42,15 +43,19 @@ export interface SharedTrendChartProps {
   emptyText?: string
 }
 
-/** A week's tooltip: each sport's value, or a dash and a note where a sport has none that week. */
+/**
+ * A week's tooltip: each sport's value, or a dash and a note where a sport has none that week. A grade's
+ * cycling is an estimate, so its key is dashed and its name says so.
+ */
 function tooltipFor(
   week: SharedWeek,
   x: number,
   y: number,
   measure: SharedMeasure,
   rideKnown: boolean,
-  bestOf: string,
 ): TooltipContent {
+  const estimate = measure === 'grade'
+  const rideLabel = estimate ? 'Ride, estimated' : 'Ride'
   const rows: TooltipRow[] = [
     week.run === null
       ? { kind: 'run', label: 'Run', value: '—', note: `No ${SPORT_PLURAL.run} in the window` }
@@ -66,19 +71,20 @@ function tooltipFor(
       week.ride === null
         ? {
             kind: 'ride',
-            label: 'Ride',
+            label: rideLabel,
             value: '—',
             note: `No ${SPORT_PLURAL.ride} in the window`,
           }
         : {
             kind: 'ride',
-            label: 'Ride',
+            label: rideLabel,
             value: formatValue(measure, week.ride),
-            note: rideNote(measure, week.ride),
+            swatch: estimate ? 'dashed' : 'solid',
+            note: levelNote(measure, week.ride),
           },
     )
   }
-  return { x, y, title: `Week ending ${weekDay(week.endMs)}, ${bestOf}`, rows }
+  return { x, y, title: `Week ending ${weekDay(week.endMs)}`, rows }
 }
 
 /**
@@ -96,20 +102,17 @@ export function SharedTrendChart({
   emptyText,
 }: SharedTrendChartProps) {
   const weeks = rideKnown ? given : given.map(withRideHeld)
-  const effort = formatDuration(effortS)
+  // The effort is named as its segment's label is, so the title reads "best 20 min", as the sport trend's does.
+  const effort = effortLabel(effortS)
   const windowText = windowPhrase(windowDays)
   const copy = copyOf(measure, effort, windowText)
-  // The effort's own length, as the trend's end labels and tooltips name it: "best 20 min".
-  const effortMin = `${effortS / 60} min`
-  const latestNote = `best ${effortMin}, last ${windowText}`
-  const bestOf = `best ${effortMin} over ${windowText}`
   // Only an age-graded trend grades cycling through its running equivalent, so only it estimates it.
   const estimate = measure === 'grade'
   const hasData = weeks.filter((week) => week.run !== null || week.ride !== null).length >= 2
+  // A held ride is one the trend has, which a missing weight keeps off the chart.
+  const heldRide = !rideKnown && given.some((week) => week.ride !== null)
   const [active, setActive] = useState<number | null>(null)
-  const layoutOf = sizedOnce((size: ChartSize) =>
-    sharedTrendLayout(weeks, measure, latestNote, size),
-  )
+  const layoutOf = sizedOnce((size: ChartSize) => sharedTrendLayout(weeks, measure, size))
   const hasRun = weeks.some((week) => week.run !== null)
   const hasRide = weeks.some((week) => week.ride !== null)
   const legend: ChartLegendEntry[] = [
@@ -124,7 +127,16 @@ export function SharedTrendChart({
         ]
       : []),
   ]
-  const note = rideKnown ? copy.note : `${copy.note} Cycling is held until a weight is added.`
+  const note = rideKnown ? copy.note : `${copy.note} ${HELD_NOTE}`
+  const columns = [
+    'Week ending',
+    copy.runHeading,
+    ...(rideKnown ? [copy.rideHeading] : []),
+    'Runs',
+    ...(rideKnown ? ['Rides'] : []),
+  ]
+  // The count columns are the last ones, and a phone shows the grades alone.
+  const counts = rideKnown ? [columns.length - 2, columns.length - 1] : [columns.length - 1]
   // One week with a value is named in a line under the chart's own title, since one point shows no trend.
   const valued = weeks.filter((week) => week.run !== null || week.ride !== null)
   const single = valued.length === 1 ? valued[0] : undefined
@@ -134,16 +146,10 @@ export function SharedTrendChart({
       title={copy.title}
       description={copy.description}
       legend={single === undefined ? legend : undefined}
-      note={hasData ? note : undefined}
+      note={hasData ? note : heldRide ? HELD_NOTE : undefined}
       table={{
         caption: copy.caption,
-        columns: [
-          'Week ending',
-          copy.runHeading,
-          ...(rideKnown ? [copy.rideHeading] : []),
-          'Runs',
-          ...(rideKnown ? ['Rides'] : []),
-        ],
+        columns,
         rows: weeks.map((week) => [
           weekDay(week.endMs),
           week.run === null ? '—' : tableValue(measure, week.run),
@@ -151,13 +157,16 @@ export function SharedTrendChart({
           String(week.runCount),
           ...(rideKnown ? [String(week.rideCount)] : []),
         ]),
+        phoneHidden: counts,
       }}
       empty={
         single !== undefined
           ? singleValueText(single, measure, rideKnown)
           : hasData
             ? undefined
-            : (emptyText ?? copy.empty)
+            : heldRide
+              ? HELD_EMPTY
+              : (emptyText ?? copy.empty)
       }
       surface={(size) =>
         plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive, lastAtOrBefore)
@@ -172,7 +181,7 @@ export function SharedTrendChart({
             active,
             (index, x, y) => {
               const week = weeks[index]
-              return week ? tooltipFor(week, x, y, measure, rideKnown, bestOf) : null
+              return week ? tooltipFor(week, x, y, measure, rideKnown) : null
             },
             m?.ys,
           ),
@@ -190,12 +199,7 @@ export function SharedTrendChart({
         const hasBand = m.rideLow.some((point) => point !== null)
         return (
           <>
-            <ChartXAxis
-              ticks={m.xTicks}
-              plot={plot}
-              title="Date"
-              fontSize={axisFontSize(size.width)}
-            />
+            <ChartXAxis ticks={m.xTicks} plot={plot} fontSize={axisFontSize(size.width)} />
             <ChartYAxis
               ticks={m.yTicks}
               plot={plot}

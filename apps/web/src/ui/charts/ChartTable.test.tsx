@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readStylesheet } from '../components/stylesheet'
 import { ChartTable } from './ChartTable'
+
+const tableCss = await readStylesheet(import.meta.url, './ChartTable.css')
 
 afterEach(() => {
   cleanup()
@@ -66,8 +69,113 @@ describe('ChartTable', () => {
     expect(region).toHaveAttribute('tabindex', '0')
   })
 
-  it('leaves a short table out of the focus order, since it does not scroll', () => {
+  it('leaves a short table out of the focus order, since it does not overflow', () => {
     const { container } = render(<ChartTable columns={['Week']} rows={[['Week 1']]} />)
     expect(container.querySelector('.table-scroll')).not.toHaveAttribute('tabindex')
+  })
+
+  it('makes a table that overflows its region a keyboard scroll region, named by its caption', () => {
+    // A ResizeObserver that reports at once, as a browser does on the first measurement.
+    class MeasuringObserver {
+      private readonly callback: () => void
+
+      constructor(callback: () => void) {
+        this.callback = callback
+      }
+
+      observe() {
+        this.callback()
+      }
+
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', MeasuringObserver)
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(520)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    const { container } = render(
+      <ChartTable
+        caption="Weeks"
+        columns={['Week', 'Grade', 'Runs']}
+        rows={[['Week 1', '60%', '2']]}
+      />,
+    )
+    const region = container.querySelector('.table-scroll')
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region).toHaveAttribute('role', 'region')
+    expect(region).toHaveAttribute('aria-label', 'Weeks')
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('sets a text column on the left, where a numeric one is set on the right', () => {
+    render(
+      <ChartTable
+        columns={['Duration', 'Power', 'From']}
+        rows={[['20 min', '250 W', 'Hill ride']]}
+        textColumns={[2]}
+      />,
+    )
+    const [, powerHead, fromHead] = screen.getAllByRole('columnheader')
+    expect(powerHead).toHaveClass('num')
+    expect(fromHead).not.toHaveClass('num')
+    expect(screen.getByRole('cell', { name: 'Hill ride' })).not.toHaveClass('num')
+  })
+
+  it('lets a phone table’s headers wrap, so the columns it keeps fit the page', () => {
+    expect(tableCss).toMatch(/\.table-scroll th \{\s*white-space: normal;/)
+  })
+
+  it('re-measures a table when its rows change, so one that starts to overflow becomes a scroll region', () => {
+    let scrollWidth = 300
+    class MeasuringObserver {
+      private readonly callback: () => void
+
+      constructor(callback: () => void) {
+        this.callback = callback
+      }
+
+      observe() {
+        this.callback()
+      }
+
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', MeasuringObserver)
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(() => scrollWidth)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    const { container, rerender } = render(
+      <ChartTable columns={['Week', 'Grade']} rows={[['Week 1', '60%']]} />,
+    )
+    expect(container.querySelector('.table-scroll')).not.toHaveAttribute('tabindex')
+    scrollWidth = 520
+    rerender(
+      <ChartTable
+        columns={['Week', 'Grade']}
+        rows={[
+          ['Week 1', '60%'],
+          ['Week 2', '61%'],
+        ]}
+      />,
+    )
+    expect(container.querySelector('.table-scroll')).toHaveAttribute('tabindex', '0')
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('marks the columns a phone hides, and hides them in a stylesheet at the phone width', () => {
+    const { container } = render(
+      <ChartTable
+        columns={['Week', 'Grade', 'Runs']}
+        rows={[['Sun 12 Jan', '60%', '2']]}
+        phoneHidden={[2]}
+      />,
+    )
+    expect(container.querySelectorAll('.chart-table__phone-hidden')).toHaveLength(2)
+    expect(screen.getByRole('columnheader', { name: 'Runs' })).toHaveClass(
+      'chart-table__phone-hidden',
+    )
+    expect(tableCss).toMatch(
+      /@media \(max-width: 560px\) \{\s*\.chart-table__phone-hidden \{\s*display: none;/,
+    )
   })
 })

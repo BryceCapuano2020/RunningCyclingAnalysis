@@ -3,3 +3,18 @@
   max-height: 24rem;
   overflow-y: auto;
 }
+
+/*
+ * A phone shows the columns the table can spare, and its headers wrap so the rest fit the page. Below
+ * 320 px a table can still be wider than the page, and then it scrolls. The width is
+ * COMPACT_PHONE_MAX_WIDTH_PX in layoutBreakpoints.ts.
+ */
+@media (max-width: 560px) {
+  .chart-table__phone-hidden {
+    display: none;
+  }
+
+  .table-scroll th {
+    white-space: normal;
+  }
+}

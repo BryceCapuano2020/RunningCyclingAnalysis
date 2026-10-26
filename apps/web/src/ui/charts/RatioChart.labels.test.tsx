@@ -22,6 +22,16 @@ afterEach(() => {
 })
 
 describe('RatioChart axis labels', () => {
+  it('writes a negative tick with a true minus sign, not a hyphen', () => {
+    const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
+    const labels = Array.from(container.querySelectorAll('.chart-y-axis__tick')).map(
+      (tick) => tick.textContent ?? '',
+    )
+    expect(labels).toContain('−30%')
+    expect(labels.filter((label) => label.startsWith('-'))).toEqual([])
+    expect(labels.some((label) => label.startsWith('+'))).toBe(true)
+  })
+
   it('keeps the Even label on the axis when the labels around it are thinned away', () => {
     const { container } = render(<RatioChart comparison={comparisonFixture(false)} />)
     const labels = Array.from(container.querySelectorAll('.chart-y-axis__tick')).map(

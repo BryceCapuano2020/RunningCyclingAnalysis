@@ -136,8 +136,13 @@ export function valueAt(curve: Curve, durationS: number): number {
 /** The effort lengths the sport page's trend offers, as segment values and their labels. */
 export const EFFORT_OPTIONS = EFFORT_LENGTHS_S.map((durationS) => ({
   value: String(durationS),
-  label: `${durationS / 60} min`,
+  label: effortLabel(durationS),
 }))
+
+/** An effort length as the segment and the trend's title name it, in minutes: "20 min", even for an hour. */
+export function effortLabel(durationS: number): string {
+  return `${durationS / 60} min`
+}
 
 /** The effort length a segment value names, or undefined for a value that names none. */
 export function effortOf(value: string): EffortLengthS | undefined {

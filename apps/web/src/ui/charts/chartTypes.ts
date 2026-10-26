@@ -34,6 +34,8 @@ export interface TooltipRow {
   label: string
   value: string
   kind?: SeriesKind
+  /** A dashed key, for an estimate or the previous period. Solid when omitted. */
+  swatch?: 'solid' | 'dashed'
   /** Muted line shown under the row. */
   note?: string
 }
@@ -51,4 +53,8 @@ export interface ChartTableData {
   rows: string[][]
   /** Names the table for screen readers and sighted readers alike. */
   caption?: string
+  /** Columns of words, set on the left rather than the right as numbers are. */
+  textColumns?: number[]
+  /** Columns a phone does not show, so its table fits the page. */
+  phoneHidden?: number[]
 }

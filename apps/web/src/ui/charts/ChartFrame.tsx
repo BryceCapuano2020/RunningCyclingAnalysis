@@ -14,17 +14,19 @@ export interface ChartFrameProps {
   /** Height of the whole SVG, axis labels included. */
   height?: number
   /**
-   * Shown above the plot when it has two or more entries, or one dashed entry, since a dashed key
-   * names an estimate or a comparison that a reader must be able to find. A chart that keeps its key's
-   * row while the key is empty passes an empty array rather than undefined, so the plot does not move.
+   * Shown above the plot, in a row that is kept whenever the chart has a legend, so a key appearing
+   * does not move the plot. An empty legend keeps the row, and then keyNote can take it. A chart that
+   * keeps its key's row while the key is empty passes an empty array rather than undefined.
    */
   legend?: ChartLegendEntry[]
+  /** Muted text in the key row, where a key would be, such as why a previous period has no line. */
+  keyNote?: string
   table: ChartTableData
   /** A short table shown above `table` in the text view, for totals that are not per point. */
   summary?: ChartTableData
   /** Replaces the plot with a short message when set. */
   empty?: string
-  /** Muted text under the plot. */
+  /** Muted text under the plot, which shows even while the chart is empty, to say why it is. */
   note?: string
   /** Right margin of the plot, as a function of width. Default 16 px. */
   plotRightMargin?: (width: number) => number
@@ -36,15 +38,23 @@ export interface ChartFrameProps {
   overlay?: (size: ChartSize) => ReactNode
 }
 
-/** Whether a legend is shown: two entries, or one that is dashed. */
+/**
+ * Whether a key is shown: two entries, or one line or dashed entry, which names a single series that the
+ * plot would otherwise leave unnamed. A single dot or diamond is left out, as a point's shape needs no key.
+ */
 function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
   if (legend === undefined) return false
-  return legend.length >= 2 || legend.some((entry) => entry.swatch === 'dashed')
+  return (
+    legend.length >= 2 ||
+    legend.some((entry) => entry.swatch === 'dashed' || entry.swatch === 'line')
+  )
 }
 
 const DEFAULT_HEIGHT = 320
-/** Shown under a chart that can be read by keyboard. The CSS reveals it while the plot has focus. */
+/** Shown on a chart that can be read by keyboard, over the plot's top corner. The CSS reveals it while the plot has focus. */
 const READING_HINT = 'Left and right arrows read values'
+/** How far the hint sits below the top of the chart, in px: in the margin above the plot, which holds no data. */
+const HINT_INSET = 2
 
 export function ChartFrame({
   title,
@@ -54,6 +64,7 @@ export function ChartFrame({
   table,
   summary,
   empty,
+  keyNote,
   note,
   plotRightMargin,
   children,
@@ -82,7 +93,11 @@ export function ChartFrame({
       {/* The row is kept whenever the chart may have a key, so a key appearing does not move the plot. */}
       {legend === undefined ? null : (
         <div className="chart-frame__legend">
-          {showLegend(legend) ? <ChartLegend entries={legend} /> : null}
+          {showLegend(legend) ? (
+            <ChartLegend entries={legend} />
+          ) : keyNote ? (
+            <p className="chart-frame__note">{keyNote}</p>
+          ) : null}
         </div>
       )}
       <div ref={stageRef} className="chart-frame__stage">
@@ -101,16 +116,22 @@ export function ChartFrame({
               </g>
               {surface?.(size)}
             </svg>
-            <div className="chart-frame__overlay">{overlay?.(size)}</div>
+            <div className="chart-frame__overlay">
+              {overlay?.(size)}
+              {surface ? (
+                <p
+                  id={hintId}
+                  className="chart-frame__hint"
+                  style={{ top: HINT_INSET, right: size.width - size.plot.right }}
+                >
+                  {READING_HINT}
+                </p>
+              ) : null}
+            </div>
           </>
         )}
       </div>
-      {!empty && surface ? (
-        <p id={hintId} className="chart-frame__hint">
-          {READING_HINT}
-        </p>
-      ) : null}
-      {!empty && note ? <p className="chart-frame__note">{note}</p> : null}
+      {note ? <p className="chart-frame__note">{note}</p> : null}
       {!empty ? (
         <details className="chart-frame__details">
           <summary>View as table</summary>

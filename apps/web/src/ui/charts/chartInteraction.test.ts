@@ -60,6 +60,12 @@ describe('endLabelAt', () => {
   it('sits up and to the left when the line comes in from below, so the line runs under it', () => {
     expect(endLabelAt(point, { x: 80, y: 140 })).toEqual({ x: 92, y: 90 })
   })
+
+  it('sits above the point when the label below it would run onto the plot’s bottom, 12 px clear of the edge', () => {
+    // 100 + 18 = 118 is clear of 130 - 12 = 118, so a point one pixel lower moves the label up.
+    expect(endLabelAt(point, null, 130)).toEqual({ x: 92, y: 118 })
+    expect(endLabelAt({ x: 100, y: 101 }, null, 130)).toEqual({ x: 92, y: 91 })
+  })
 })
 
 describe('spreadApart', () => {

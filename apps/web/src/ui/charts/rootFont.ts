@@ -21,7 +21,13 @@ export function labelSizePx(rootPx: number): number {
   return LABEL_REM * rootPx
 }
 
-/** A label's estimated width in px, from its length, at the given root font size. */
+/**
+ * The extra width a label's estimate keeps, in em. Glyphs such as "%" and capitals run wider than the
+ * average, so the estimate takes this much more, and the clearances the layouts keep hold on real text.
+ */
+export const LABEL_PAD_EM = 0.3
+
+/** A label's estimated width in px, from its length, at the given root font size, with its padding. */
 export function labelWidthPx(text: string, rootPx: number): number {
-  return text.length * GLYPH_EM * labelSizePx(rootPx)
+  return (text.length * GLYPH_EM + LABEL_PAD_EM) * labelSizePx(rootPx)
 }

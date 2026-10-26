@@ -150,7 +150,7 @@ colours always come with an icon and a label, so a warning never relies on red b
 | Token                  | Light       | Dark        | Use                                                                        |
 | ---------------------- | ----------- | ----------- | -------------------------------------------------------------------------- |
 | `--surface-0`          | `#f5f6f8`   | `#0f1115`   | Page (paper)                                                               |
-| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs, chart plot                                                  |
+| `--surface-1`          | `#ffffff`   | `#171a20`   | Cards, inputs                                                              |
 | `--surface-2`          | `#eceff3`   | `#1e232c`   | Hover, tiles, tracks                                                       |
 | `--surface-pressed`    | `#dde2ea`   | `#101318`   | A button's fill while it is pressed                                        |
 | `--border`             | `#e1e4ea`   | `#2a2f38`   | Card and table rules                                                       |
@@ -233,9 +233,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   source for the icon and for the glyph on the share card.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
-  its value, such as "250 W", and the latest trend value with its effort and window, such as
-  "64%, best 20 min, last 2 weeks". On a chart under 480 px wide, a trend's end labels show their value
-  alone, since the title names the effort and window. At every width, a trend's run label keeps clear of the ride band, which is drawn only where both of
+  its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
+  width, such as "Run 64%", since the title names the effort and window. On a sport trend the latest label
+  is its value alone, such as "5:12 /km", beside its point: below it, above it where the line would run
+  under it, or to its right where both of those would cross the line. At every width, a trend's run label keeps clear of the ride band, and 4 px where it can of the run's own
+  line and markers, after the band. The band is drawn only where both of
   its weeks have a range, with a step at each week's x. The label's box stays inside the plot both
   ways and 2 px from the band. Its box sits on the left of its point unless that would cross the
   plot's left edge, when it sits on the right. Its spots are the baseline beside its point that the
@@ -254,13 +256,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   where there is room beside the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
   the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
   visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
-  reader points at it, as well as the latest one. A tooltip names its week and its window, as "Week
-  ending Sun 12 Jan 2025, best 20 min over 2 weeks". A sport curve keeps its key's row in any
-  period that has a period before it, even when that period has nothing to draw, so the plot does not
-  move as the dashed line appears or goes; All time has no period before it and no row. A
-  chart with no plot shows only its message. Axis text is set in rem, so it follows the
+  reader points at it, as well as the latest one. A tooltip names its week, as "Week ending Sun 12 Jan
+  2025", since the card title names the effort and window. A dashed key is an estimate or a previous
+  period. A chart's key keeps its row wherever the chart can have a key, so the plot does not move when
+  a key appears. A sport curve keeps its key's row in any period that has a period before it, even when
+  that period has nothing to draw, so the plot does not move as the dashed line appears or goes; All
+  time has no period before it and no row. A chart with no plot shows only its message. Axis text is set in rem, so it follows the
   reader's text size. A data table with more than 12 rows keeps to a height of 24 rem and scrolls inside
-  itself, and a keyboard reader can reach it.
+  itself, and a keyboard reader can reach it. A table that overflows its region is a keyboard scroll region too, and a phone
+  shows a trend's table without its run and ride counts. While the plot has focus, the arrow-key hint
+  sits in its top corner, and a tooltip takes its place once a point is active.
 - The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
   blue below it, so the side that is higher reads before the numbers do. Its zero line is labelled
   "Even" on the axis, and its key names the bands "Before heart-rate check: 90% range" and "After
@@ -308,18 +313,19 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
   six-week period uses two-week windows. Every point's window lies inside the period. The title
-  names the effort and the window. Each line steps from one Sunday to the next and breaks at a week
-  with no value, and each Sunday has a marker. The latest value is labelled with its window, so it
-  can differ from a card's best, which covers the whole period.
+  names the effort as its segment labels it, such as "best 60 min", and the window. Each line steps from one Sunday to the next and breaks at a week
+  with no value, and each Sunday has a marker. The latest value is labelled with its value alone, and the
+  title names its effort and window, so it can differ from a card's best, which covers the whole period.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
   each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the
   key says "estimated". Each grade is taken at the age
   on the day of its best effort. Without a weight, the Balance trend holds cycling: there is no ride
-  line, ring, band, key or table column, and the chart says so. On an energy trend and on the sport
+  line, ring, band, key or table column, and the chart says so. When only a ride has a value, the chart's
+  empty message says that rides are held until a weight is added. On an energy trend and on the sport
   pages, cycling is drawn as measured: a solid line with dots.
 - A previous period is a thin dashed mid-grey line (1.5 px, `--previous-mark`). It appears only when it
-  has values, and otherwise the chart says there were none. A trend with one week of values keeps its title
+  has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
   and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
   needs two weeks with values."
 - The balance meter spans the card row, so its centre is the gap between the two cards. Running is

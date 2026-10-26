@@ -97,6 +97,11 @@
     stroke: CanvasText;
   }
 
+  /* The previous period keeps its dash, and takes a system colour that its tint does not give in forced colours. */
+  .chart-series__line--previous {
+    stroke: CanvasText;
+  }
+
   .chart-series__line--ride {
     stroke: Highlight;
   }

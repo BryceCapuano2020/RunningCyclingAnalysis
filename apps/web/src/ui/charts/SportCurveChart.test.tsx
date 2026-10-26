@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { curvePoint } from './fixtures'
 import { SportCurveChart } from './SportCurveChart'
 import type { PreviousCurve } from './SportCurveChart'
@@ -49,8 +49,30 @@ function yTickLabels(container: HTMLElement): string[] {
   )
 }
 
+/** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
+function chartWidth(width: number) {
+  class SizedObserver {
+    private readonly callback: ResizeObserverCallback
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback
+    }
+
+    observe() {
+      const entry = { contentRect: { width } } as unknown as ResizeObserverEntry
+      this.callback([entry], this as unknown as ResizeObserver)
+    }
+
+    unobserve() {}
+
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', SizedObserver)
+}
+
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
 })
 
 describe('SportCurveChart', () => {
@@ -480,27 +502,6 @@ describe('SportCurveChart record marks', () => {
 })
 
 describe('the last point’s label beside the 20 minute label', () => {
-  /** A ResizeObserver that reports the chart at a width, as a browser does on the first measurement. */
-  function chartWidth(width: number) {
-    class SizedObserver {
-      private readonly callback: ResizeObserverCallback
-
-      constructor(callback: ResizeObserverCallback) {
-        this.callback = callback
-      }
-
-      observe() {
-        const entry = { contentRect: { width } } as unknown as ResizeObserverEntry
-        this.callback([entry], this as unknown as ResizeObserver)
-      }
-
-      unobserve() {}
-
-      disconnect() {}
-    }
-    vi.stubGlobal('ResizeObserver', SizedObserver)
-  }
-
   const CURVE = [
     curvePoint(60, 400, 'ride-1'),
     curvePoint(300, 320, 'ride-1'),
@@ -565,5 +566,141 @@ describe('the last point’s label beside the 20 minute label', () => {
       (label) => label.textContent,
     )
     expect(labels).toEqual(['250 W', '230 W'])
+  })
+})
+
+describe('the curve’s key row, table and labels', () => {
+  const ONE_ACTIVITY = [
+    curvePoint(60, 5.0, 'run-1'),
+    curvePoint(300, 4.5, 'run-1'),
+    curvePoint(1200, 4.0, 'run-1'),
+  ]
+
+  it('drops the From column, and names the one activity in the caption, when every value is from it', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={ONE_ACTIVITY}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+        activityNames={NAMES}
+      />,
+    )
+    const { headers, rows } = tableOf(container)
+    expect(headers).toEqual(['Duration', 'Flat pace'])
+    expect(rows[2]).toEqual(['20 min', '4:10 /km'])
+    expect(container.querySelector('caption')).toHaveTextContent('Every value is from Morning run.')
+  })
+
+  it('sets the From column on the left, since it holds words, where the numbers sit on the right', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={RIDE_WATTS}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+        activityNames={NAMES}
+      />,
+    )
+    const headers = Array.from(container.querySelectorAll('thead th'))
+    expect(headers[1]).toHaveClass('num')
+    expect(headers[3]).toHaveTextContent('From')
+    expect(headers[3]).not.toHaveClass('num')
+  })
+
+  it('keeps the 20 minute tick on a narrow chart, where the thinned ticks would drop it', () => {
+    chartWidth(320)
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={[
+          curvePoint(60, 5.0, 'run-1'),
+          curvePoint(300, 4.5, 'run-1'),
+          curvePoint(600, 4.3, 'run-1'),
+          curvePoint(1200, 4.0, 'run-1'),
+          curvePoint(1800, 3.9, 'run-1'),
+          curvePoint(3600, 3.5, 'run-1'),
+        ]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    const ticks = Array.from(container.querySelectorAll('.chart-x-axis__tick')).map(
+      (tick) => tick.textContent,
+    )
+    expect(ticks).toContain('20 min')
+  })
+
+  it('draws the previous period’s key in the tooltip dashed, in its own mark', () => {
+    render(
+      <SportCurveChart
+        sport="run"
+        curve={RUN_SPEEDS}
+        previous={PREVIOUS_RUN}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
+    const status = screen.getByRole('status')
+    expect(status.querySelector('.chart-tooltip__key--dashed')).not.toBeNull()
+    expect(status.querySelector('.chart-tooltip__key--neutral')).toBeNull()
+  })
+
+  it('writes a missing previous period in the key row, not under the plot', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={RIDE_WATTS}
+        previous={{ curve: [], label: 'Previous 6 weeks' }}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-frame__legend')).toHaveTextContent(
+      'No rides in the previous 6 weeks',
+    )
+    expect(container.querySelector('.chart-frame > .chart-frame__note')).toBeNull()
+  })
+
+  it('moves the last label above its point where a label below would sit on the x tick labels', () => {
+    // The last point sits 28 px above the plot's bottom, so a label 18 px below it would run past the floor.
+    // The chart is wide enough that the padded label still clears the 20 minute label beside it.
+    chartWidth(900)
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={[
+          curvePoint(60, 5.0, 'run-1'),
+          curvePoint(300, 4.5, 'run-1'),
+          curvePoint(1200, 4.0, 'run-1'),
+          curvePoint(1800, 3.2, 'run-1'),
+        ]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    const last = [...container.querySelectorAll('.chart-series__label')].find(
+      (label) => label.textContent === '5:13 /km',
+    )
+    // The plot ends 52 px above the SVG's bottom, and a label keeps 12 px clear of that edge.
+    expect(Number(last?.getAttribute('y'))).toBeLessThanOrEqual(320 - 52 - 12)
+  })
+
+  it('reserves no key row for a curve without a previous period', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="ride"
+        curve={RIDE_WATTS}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-frame__legend')).toBeNull()
   })
 })

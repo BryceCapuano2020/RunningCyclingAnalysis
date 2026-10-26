@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from '@rca/core/constants'
-import { endLabelAt, pointBefore } from './chartInteraction'
 import type { ChartSize, PlotBox } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { plotBoxOf } from './plotBox'
@@ -10,8 +9,6 @@ import type { EndLabel, SharedLayout } from './sharedTrendLayout'
 
 /** Sunday 12 January 2025, 23:59:59.999 UTC: the end of the first week. */
 const FIRST_END = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
-const NOTE = 'best 20 min, last 2 weeks'
-const LONG_NOTE = 'best 20 min, last 6 months'
 
 /** A rectangle on the chart, in px: a label's box, or one piece of the band. */
 interface Rect {
@@ -80,7 +77,7 @@ const FALLING_RUN: SharedWeek[] = [week(0, 0.6, null), week(1, 0.41, null)]
  */
 const SPREAD_WEEKS: SharedWeek[] = [week(0, 0.6, 0.55), week(1, 0.6, 0.5), week(2, null, 0.58)]
 
-/** The run's latest point sits mid-window, so the wide note runs past the plot's right edge at a 20 px root. */
+/** The run's latest point sits mid-window, so its label runs left from the middle of the plot at a 20 px root. */
 const MID_RUN_WEEKS: SharedWeek[] = [
   week(0, 0.6, 0.52),
   week(1, 0.6, 0.53),
@@ -149,6 +146,14 @@ const LATE_STEP_WEEKS: SharedWeek[] = [
 ]
 
 const RUN_ONLY_WEEKS: SharedWeek[] = [week(0, 0.6, null), week(1, 0.62, null), week(2, 0.64, null)]
+
+/**
+ * Running at 60 per cent, but for a dip in its tenth week. The step back up at the eleventh week runs under
+ * a label set below the latest point, which is the place the label prefers.
+ */
+const DIP_RUN_WEEKS: SharedWeek[] = Array.from({ length: 13 }, (_, i) =>
+  week(i, i === 10 ? 0.599 : 0.6, null),
+)
 const RIDE_ONLY_WEEKS: SharedWeek[] = [
   week(0, null, 0.52),
   week(1, null, 0.54),
@@ -177,8 +182,8 @@ function sizeAt(width: number, height = 320): ChartSize {
   }
 }
 
-function layoutOf(weeks: SharedWeek[], width: number, height = 320, note = NOTE): SharedLayout {
-  const layout = sharedTrendLayout(weeks, 'grade', note, sizeAt(width, height))
+function layoutOf(weeks: SharedWeek[], width: number, height = 320): SharedLayout {
+  const layout = sharedTrendLayout(weeks, 'grade', sizeAt(width, height))
   if (layout === null) throw new Error('The weeks give no layout')
   return layout
 }
@@ -223,6 +228,18 @@ function rideBand(layout: SharedLayout): Rect[] {
   })
 }
 
+/** The run's own stepped line as rectangles: each level from its week to the next, and each step's connector. */
+function runLine(layout: SharedLayout): Rect[] {
+  return layout.run.flatMap((point, i) => {
+    const before = i === 0 ? null : (layout.run[i - 1] ?? null)
+    if (point === null || before === null) return []
+    return [
+      { left: before.x, right: point.x, top: before.y, bottom: before.y },
+      vertical(point.x, before.y, point.y),
+    ]
+  })
+}
+
 /** Whether a box meets any of the rectangles, each grown by pad px. Touching an edge does not count. */
 function overlaps(box: Rect, band: readonly Rect[], pad = 0): boolean {
   return band.some(
@@ -244,13 +261,13 @@ function insidePlot(box: Rect, plot: PlotBox): boolean {
 }
 
 describe('sharedTrendLayout end labels', () => {
-  it('shows the value alone under 480 px, and the value with its effort and window from 480 px', () => {
-    expect(layoutOf(GRADE_WEEKS, 340).labels.map((label) => label.text)).toEqual(['66%', '58%'])
-    expect(layoutOf(GRADE_WEEKS, 479).labels.map((label) => label.text)).toEqual(['66%', '58%'])
-    expect(layoutOf(GRADE_WEEKS, 480).labels.map((label) => label.text)).toEqual([
-      '66%, best 20 min, last 2 weeks',
-      '58%, best 20 min, last 2 weeks',
-    ])
+  it('names each end label by its sport and value, at every width, since the title names the effort and window', () => {
+    for (const width of [340, 479, 480]) {
+      expect(layoutOf(GRADE_WEEKS, width).labels.map((label) => label.text)).toEqual([
+        'Run 66%',
+        'Ride 58%',
+      ])
+    }
   })
 
   it('keeps the run label clear of the ride band at 340 px', () => {
@@ -275,7 +292,7 @@ describe('sharedTrendLayout end labels', () => {
 
   it('keeps the run label clear of the ride band at 600 px, since band avoidance applies at every width', () => {
     const layout = layoutOf(EQUAL_WEEKS, 600)
-    expect(labelOf(layout, 'run').text).toBe('60%, best 20 min, last 2 weeks')
+    expect(labelOf(layout, 'run').text).toBe('Run 60%')
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
@@ -318,10 +335,10 @@ describe('sharedTrendLayout end labels', () => {
     expect(overlaps(boxOf(run), [boxOf(ride)])).toBe(false)
   })
 
-  it('keeps every end label inside the plot horizontally at a 20 px root, when the run’s latest point is mid-window and its note is wide', () => {
+  it('keeps every end label inside the plot horizontally at a 20 px root, when the run’s latest point is mid-window', () => {
     stubRootFont(20)
     const layout = layoutOf(MID_RUN_WEEKS, 480)
-    expect(labelOf(layout, 'run').text).toBe('60%, best 20 min, last 2 weeks')
+    expect(labelOf(layout, 'run').text).toBe('Run 60%')
     for (const label of layout.labels) {
       expect(insidePlot(boxOf(label, 20), sizeAt(480).plot)).toBe(true)
     }
@@ -337,45 +354,49 @@ describe('sharedTrendLayout end labels', () => {
   })
 
   it('keeps the run label 2 px clear of the drawn band at 640 px, where the band steps up beside it', () => {
-    const layout = layoutOf(STEP_UP_WEEKS, 640, 140, LONG_NOTE)
+    const layout = layoutOf(STEP_UP_WEEKS, 640, 140)
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout), BAND_CLEAR_PX)).toBe(false)
   })
 
   it('keeps the run label off the drawn band where it can only touch the band, not clear it', () => {
-    const layout = layoutOf(TOUCH_ONLY_WEEKS, 640, 140, LONG_NOTE)
+    const layout = layoutOf(TOUCH_ONLY_WEEKS, 640, 140)
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
   it('keeps the run label clear of the drawn band at 585 px, where the band steps up beneath its last week', () => {
-    const layout = layoutOf(LATE_STEP_WEEKS, 585, 140, LONG_NOTE)
+    const layout = layoutOf(LATE_STEP_WEEKS, 585, 140)
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
   it('keeps the run label clear of the drawn band where the band is drawn only between the middle weeks', () => {
-    const layout = layoutOf(BAND_SPAN_WEEKS, 585, 140, LONG_NOTE)
+    const layout = layoutOf(BAND_SPAN_WEEKS, 585, 140)
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
   it('keeps the run label clear of the drawn band at 480 px, where the band steps beside it', () => {
-    const layout = layoutOf(STEPPED_BAND_WEEKS, 480, 180, LONG_NOTE)
+    const layout = layoutOf(STEPPED_BAND_WEEKS, 480, 180)
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
   it('keeps the run label clear of the drawn band at 585 px, and 2 px from it', () => {
-    const layout = layoutOf(BAND_WEEKS, 585, 140, LONG_NOTE)
+    const layout = layoutOf(BAND_WEEKS, 585, 140)
     const run = labelOf(layout, 'run')
     expect(overlaps(boxOf(run), rideBand(layout))).toBe(false)
     expect(overlaps(boxOf(run), rideBand(layout), BAND_CLEAR_PX)).toBe(false)
   })
 
-  it('keeps the run label on its preferred spot where the stretch it would meet is not drawn', () => {
+  it('keeps the run label clear of the drawn band where the stretch it would meet is not drawn', () => {
+    // The label's estimated width is padded, so it sits clear of the drawn stretch and of its own marker,
+    // and the stretch that is not drawn does not count against it.
     const layout = layoutOf(UNDRAWN_STRETCH_WEEKS, 340, 320)
     const run = labelOf(layout, 'run')
-    const latest = layout.run.findLastIndex((point) => point !== null)
-    const point = layout.run[latest]
-    if (point === null || point === undefined) throw new Error('No run point')
-    expect(run.at.y).toBe(endLabelAt(point, pointBefore(layout.run, latest)).y)
     expect(overlaps(boxOf(run), rideBand(layout))).toBe(false)
+    expect(overlaps(boxOf(run), rideBand(layout), BAND_CLEAR_PX)).toBe(false)
+  })
+
+  it('keeps the run label off the run’s own stepped line, where an earlier step would run under it', () => {
+    const layout = layoutOf(DIP_RUN_WEEKS, 640)
+    expect(overlaps(boxOf(labelOf(layout, 'run')), runLine(layout))).toBe(false)
   })
 
   it('labels a run alone, with no band, inside the plot', () => {

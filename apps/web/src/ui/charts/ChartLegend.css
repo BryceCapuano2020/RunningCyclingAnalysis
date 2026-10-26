@@ -107,3 +107,12 @@
 .chart-legend__key--dashed-ride {
   border-top-color: var(--series-ride);
 }
+
+/* In forced colours a line key's tint is dropped, so the key is drawn as a system-coloured rule. */
+@media (forced-colors: active) {
+  .chart-legend__key--line {
+    height: 0;
+    background: none;
+    border-top: 2px solid CanvasText;
+  }
+}

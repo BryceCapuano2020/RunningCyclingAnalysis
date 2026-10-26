@@ -61,10 +61,11 @@ function readingOf(interval: Interval | null): string {
     : `Cycling ${formatPercent(-offset)} higher than running`
 }
 
-/** Axis label for an offset from equal, with as many decimals as the tick step needs. */
+/** Axis label for an offset from equal, with as many decimals as the tick step needs. A negative one takes a true minus. */
 function percentTick(offset: number, decimals: number): string {
-  const digits = (offset * 100).toFixed(decimals)
-  return offset > 0 ? `+${digits}%` : `${digits}%`
+  const digits = (Math.abs(offset) * 100).toFixed(decimals)
+  if (offset > 0) return `+${digits}%`
+  return offset < 0 ? `−${digits}%` : `${digits}%`
 }
 
 function buildRows(comparison: Comparison): RatioRow[] {
@@ -246,7 +247,7 @@ function overlayOf(
   const content = row && anchor ? tooltipFor(row, anchor.x, anchor.y) : null
   return (
     <ChartTooltip
-      bounds={{ width: size.width, height: size.height }}
+      bounds={{ width: size.width, height: size.height, plotTop: size.plot.top }}
       content={content}
       id={size.tooltipId}
     />

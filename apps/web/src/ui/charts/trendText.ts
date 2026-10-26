@@ -14,3 +14,7 @@ export function windowPhrase(days: number): string {
 export function weekDay(ms: number): string {
   return formatDay(utcDayLocal(ms))
 }
+
+/** How a trend's line is drawn, which the note or the caption under it says once. */
+export const STEPPED_LINE_TEXT =
+  'Each line steps from one Sunday to the next, and breaks where a week has no value.'

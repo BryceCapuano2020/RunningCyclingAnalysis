@@ -54,7 +54,7 @@ export function plotSurface(
 export function tooltipOverlay(size: ChartSize, content: TooltipContent | null): ReactNode {
   return (
     <ChartTooltip
-      bounds={{ width: size.width, height: size.height }}
+      bounds={{ width: size.width, height: size.height, plotTop: size.plot.top }}
       content={content}
       id={size.tooltipId}
     />
@@ -82,13 +82,21 @@ export function spreadApart(ys: readonly number[], gap: number): number[] {
   return placed
 }
 
+/** How far a label's baseline keeps above the plot's bottom edge, so it clears the x tick labels. */
+const FLOOR_GAP = 12
+
 /**
  * Where the label of an end point sits: left of the point, and below it, unless the line arrives
- * from below. Then it sits above, so the line that reaches the point runs clear of it.
+ * from below. Then it sits above, so the line that reaches the point runs clear of it. A label below
+ * that would run onto the plot's bottom edge, given as floor, also sits above.
  */
-export function endLabelAt(point: Point, from: Point | null): Point {
+export function endLabelAt(point: Point, from: Point | null, floor?: number): Point {
   const fromBelow = from !== null && from.y > point.y
-  return { x: point.x - LABEL_GAP_X, y: point.y + (fromBelow ? -LABEL_RISE : LABEL_DROP) }
+  const onTicks = floor !== undefined && point.y + LABEL_DROP > floor - FLOOR_GAP
+  return {
+    x: point.x - LABEL_GAP_X,
+    y: point.y + (fromBelow || onTicks ? -LABEL_RISE : LABEL_DROP),
+  }
 }
 
 /**

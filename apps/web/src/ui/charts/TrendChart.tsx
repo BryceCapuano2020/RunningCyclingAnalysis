@@ -4,7 +4,7 @@ import type { TrendPoint } from '@rca/core/digest'
 import type { UnitSystem } from '@rca/core/units'
 import { formatWkg } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { nativeValue } from '../records'
+import { effortLabel, nativeValue } from '../records'
 import { SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
@@ -12,6 +12,7 @@ import { Crosshair } from './Crosshair'
 import { ChartYAxis } from './ChartYAxis'
 import { GapMarks } from './GapMarks'
 import {
+  LABEL_GAP_X,
   endLabelAt,
   markerRadii,
   plotSurface,
@@ -20,9 +21,11 @@ import {
   tooltipAt,
   tooltipOverlay,
 } from './chartInteraction'
+import { ASCENT_EM, DESCENT_EM, meetsBoxes, stepBoxes, textBox } from './chartBoxes'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { lastAtOrBefore } from './hover'
 import { stepAreaPath, stepPath } from './paths'
+import { labelSizePx, rootFontPx } from './rootFont'
 import { linearScale } from './scale'
 import {
   axisTitle,
@@ -35,7 +38,7 @@ import {
   usable,
 } from './sportAxis'
 import { trendDateTicks } from './trendTicks'
-import { weekDay, windowPhrase } from './trendText'
+import { STEPPED_LINE_TEXT, weekDay, windowPhrase } from './trendText'
 import { axisFontSize, fitTicks } from './ticks'
 import './ChartSeries.css'
 
@@ -88,6 +91,59 @@ interface Layout {
   ys: (number | null)[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
+  /** The latest value, named by its value alone, and where its text sits. */
+  label: LatestLabel | null
+}
+
+/** A spot a label's text can take: where its anchor sits, and which way the text runs from it. */
+interface LabelSpot {
+  at: Point
+  anchor: 'start' | 'end'
+}
+
+/** The latest value's label: its text, and the spot it takes. */
+interface LatestLabel extends LabelSpot {
+  text: string
+}
+
+/**
+ * The latest value's label. It sits left of its point, below it, or above it where the stepped line would
+ * run under it. When both the spots below and above are crossed by the line, it sits to the right of the
+ * point if there is room there, and otherwise above. Its box is kept clear of the line's own steps.
+ */
+function latestLabelOf(
+  text: string,
+  points: readonly (Point | null)[],
+  latest: number,
+  size: ChartSize,
+): LatestLabel | null {
+  const point = points[latest] ?? null
+  if (point === null) return null
+  const rootPx = rootFontPx()
+  const line = stepBoxes(points, markerRadii(size.width).active)
+  const crosses = (spot: LabelSpot) =>
+    meetsBoxes(textBox(text, spot.at, rootPx, spot.anchor), line, 0)
+  // A point with a line from below sits its label above, so the above spot is the one that line leaves.
+  const preferred = endLabelAt(point, pointBefore(points, latest), size.plot.bottom)
+  const above = endLabelAt(point, { x: point.x, y: point.y + 1 })
+  // Beside the point, its text's middle level with the point, which needs room to the plot's right edge.
+  const beside: LabelSpot = {
+    at: {
+      x: point.x + LABEL_GAP_X,
+      y: point.y + ((ASCENT_EM - DESCENT_EM) / 2) * labelSizePx(rootPx),
+    },
+    anchor: 'start',
+  }
+  const room = textBox(text, beside.at, rootPx, 'start').right <= size.plot.right
+  const vertical: LabelSpot[] = [
+    { at: preferred, anchor: 'end' },
+    { at: above, anchor: 'end' },
+  ]
+  for (const spot of vertical) {
+    if (!crosses(spot)) return { text, ...spot }
+  }
+  if (room && !crosses(beside)) return { text, ...beside }
+  return { text, at: above, anchor: 'end' }
 }
 
 function layout(rows: WeekRow[], view: View, size: ChartSize): Layout | null {
@@ -105,6 +161,8 @@ function layout(rows: WeekRow[], view: View, size: ChartSize): Layout | null {
   const points = rows.map((row) =>
     hasValue(row) ? { x: x(row.endMs), y: y(plottedValue(sport, row.value, units)) } : null,
   )
+  const latest = rows.findLastIndex(hasValue)
+  const latestRow = rows[latest]
   return {
     xs: rows.map((row) => x(row.endMs)),
     points,
@@ -117,6 +175,10 @@ function layout(rows: WeekRow[], view: View, size: ChartSize): Layout | null {
       { axis: 'x', width },
     ),
     yTicks: fitTicks(ticks, { axis: 'y', width }),
+    label:
+      latestRow === undefined
+        ? null
+        : latestLabelOf(formatNative(sport, latestRow.value, units), points, latest, size),
   }
 }
 
@@ -162,7 +224,8 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
   const hasData = rows.filter(hasValue).length >= 2
   const [active, setActive] = useState<number | null>(null)
   const windowText = windowPhrase(windowDays)
-  const effort = `${effortS / 60} min`
+  // The effort is named as its segment's label is, so the title and the control read the same.
+  const effort = effortLabel(effortS)
   const view: View = { sport, units, massKg }
   const latest = rows.findLastIndex(hasValue)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
@@ -172,7 +235,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
     <ChartFrame
       title={titleOf(sport, units, effort, windowText)}
       description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'flat pace, faster up'}.`}
-      note={`Each point is the best ${effort} in the ${windowText} to that Sunday. Each line steps from one Sunday to the next, and breaks where a week has no value.`}
+      note={hasData ? STEPPED_LINE_TEXT : undefined}
       table={{
         columns: [
           'Week ending',
@@ -186,7 +249,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
           ...(ride ? [formatWkg(row.value / massKg)] : []),
           String(row.count),
         ]),
-        caption: `Each week ends on a Sunday. Each value is the best ${effort} in the ${windowText} that end that week; ${SPORT_PLURAL[sport]} count the activities in that window.`,
+        caption: `Each value is the best ${effort} in the ${windowText} that end that week; ${SPORT_PLURAL[sport]} count the activities in that window.`,
       }}
       empty={
         hasData ? undefined : `Add ${SPORT_PLURAL[sport]} in more than one week to see a trend`
@@ -217,8 +280,6 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
         const { marker: markerR, active: activeR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
         const latestPoint = m.points[latest] ?? null
-        const latestRow = rows[latest]
-        const before = pointBefore(m.points, latest)
         return (
           <>
             <ChartXAxis
@@ -260,7 +321,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
                 />
               )
             })}
-            {latestPoint && latestRow ? (
+            {latestPoint && m.label ? (
               <>
                 <circle
                   data-testid="trend-latest"
@@ -269,12 +330,8 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
                   cy={latestPoint.y}
                   r={activeR}
                 />
-                <text
-                  className="chart-series__label"
-                  textAnchor="end"
-                  {...endLabelAt(latestPoint, before)}
-                >
-                  {`${formatNative(sport, latestRow.value, units)}, last ${windowText}`}
+                <text className="chart-series__label" textAnchor={m.label.anchor} {...m.label.at}>
+                  {m.label.text}
                 </text>
               </>
             ) : null}

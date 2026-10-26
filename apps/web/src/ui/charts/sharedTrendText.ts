@@ -1,8 +1,9 @@
 import { levelOf } from '@rca/core/grade'
 import { ENERGY_RATE_UNIT, formatEnergyRate, formatEnergyRateValue } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
+import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import type { SharedWeek } from './gradeTrend'
-import { weekDay } from './trendText'
+import { STEPPED_LINE_TEXT, weekDay } from './trendText'
 
 /** Which measure a shared trend shows: each sport's age grade, or its energy rate in metabolic W/kg. */
 export type SharedMeasure = 'grade' | 'energy'
@@ -15,30 +16,28 @@ export function levelNote(measure: SharedMeasure, value: number): string | undef
 }
 
 /**
- * A cycling grade is an estimate through its running equivalent, and names its level. An energy
- * rate is drawn as measured, so it has no note.
+ * The empty message of a trend that holds cycling for want of a weight, when only a ride has a value. It
+ * says why the chart is empty, and the note under it says the rest.
  */
-export function rideNote(measure: SharedMeasure, value: number): string | undefined {
-  if (measure === 'energy') return undefined
-  const level = levelOf(value)
-  return level === null
-    ? 'Estimated from its running equivalent'
-    : `${level}, estimated from its running equivalent`
-}
+export const HELD_EMPTY = `Your rides are held until you add a weight on ${WEIGHT_PROMPT_PARTS.page}.`
+
+/** The sentence that says cycling is held, which a trend's note ends with, or which stands alone when nothing is drawn. */
+export const HELD_NOTE = 'Cycling is held until a weight is added.'
+
+/** A point is the best of its window, not an average, so a low point can only be a window of easy efforts. */
+const LOW_POINT = 'A low point is a window of easy efforts, not an average.'
+/** The line's steps, which the caption says, so that the note under the chart is one line of meaning. */
+const STEPS = STEPPED_LINE_TEXT
 
 /** The words of each measure: the chart's name, its axis, its key, its table and its empty state. */
 export function copyOf(measure: SharedMeasure, effort: string, windowText: string) {
-  const steps = `Each line steps from one Sunday to the next, and breaks where a week has no value.`
-  // A point is the best of its window, not an average, so a low point can only be a window of easy efforts.
-  const lowPoint =
-    'A low point can be a window of easy efforts: each is the best in its window, not an average.'
   if (measure === 'grade') {
     return {
       title: `Age grade of your best ${effort}, trailing ${windowText}`,
       description: `Run and ride age grades for the best ${effort} in each trailing ${windowText}, on one scale. Run is as recorded. Ride is estimated through its running equivalent, drawn dashed with rings and a band for its range.`,
-      note: `Each point grades your best ${effort} in the ${windowText} to that Sunday, at the age on the day of that effort. ${lowPoint} ${steps}`,
-      caption: `Each week ends on a Sunday. Each grade is the best ${effort} in the ${windowText} that end that week, at the age on the day of that effort. Ride grades are estimates, with their range.`,
-      axisTitle: 'Age grade (%)',
+      note: `Each point is the best ${effort} in the ${windowText} to that Sunday. ${LOW_POINT}`,
+      caption: `Each grade is the best ${effort} in the ${windowText} that end that week, at the age on the day of that effort. Ride grades are estimates, with their range. ${STEPS}`,
+      axisTitle: 'Age grade',
       empty: 'Add runs or rides in more than one week to see your age grades',
       runHeading: 'Run grade',
       rideHeading: 'Ride grade, estimated',
@@ -49,8 +48,8 @@ export function copyOf(measure: SharedMeasure, effort: string, windowText: strin
   return {
     title: `Energy rate of your best ${effort}, trailing ${windowText}`,
     description: `Run and ride energy rate in ${ENERGY_RATE_UNIT} for the best ${effort} in each trailing ${windowText}, on one scale.`,
-    note: `Each point is your best ${effort} in the ${windowText} to that Sunday, in ${ENERGY_RATE_UNIT}. ${lowPoint} ${steps}`,
-    caption: `Each week ends on a Sunday. Each value is the best ${effort} in the ${windowText} that end that week, in ${ENERGY_RATE_UNIT}.`,
+    note: `Each point is the best ${effort} in the ${windowText} to that Sunday, in ${ENERGY_RATE_UNIT}. ${LOW_POINT}`,
+    caption: `Each value is the best ${effort} in the ${windowText} that end that week, in ${ENERGY_RATE_UNIT}. ${STEPS}`,
     axisTitle: `Energy rate (${ENERGY_RATE_UNIT})`,
     empty: 'Add runs or rides in more than one week to see your energy rate',
     runHeading: `Run (${ENERGY_RATE_UNIT})`,
