@@ -19,6 +19,7 @@ import {
   makeResult,
 } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
+import { THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sports'
 import { SportPage } from './SportPage'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
@@ -1174,6 +1175,83 @@ describe('SportPage depth', () => {
       screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
     ).toBeInTheDocument()
   })
+
+  it('puts a ride’s heart-rate line in its threshold section, apart from its watts', () => {
+    const ride = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      name: 'Hill ride',
+      powerSource: 'virtual',
+    })
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCurve: [curvePoint(60, 400, 'ride-1')],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: null, rideHrFraction: 0.8 }],
+      }),
+    )
+
+    const threshold = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
+    expect(
+      within(threshold).getByText(
+        'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest.',
+      ),
+    ).toHaveClass('muted')
+    expect(
+      screen.getByText('Power meters measured 0 of 1 ride. Watts for the rest are estimated.'),
+    ).toBeInTheDocument()
+  })
+
+  it('puts a run’s heart-rate line under its threshold meaning', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: 0.7, rideHrFraction: null }],
+      }),
+    )
+
+    const line = screen.getByText(
+      'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest.',
+    )
+    expect(line).toHaveClass('muted')
+    expect(line.previousElementSibling).toHaveTextContent(THRESHOLD_MEANING.run)
+  })
+
+  it('shows no heart-rate line when heart rate is not on file for the sport', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        effort: [{ durationS: HEADLINE_DURATION_S, runHrFraction: null, rideHrFraction: 0.8 }],
+      }),
+    )
+
+    expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+  })
+
+  it.each(['run', 'ride'] as const)(
+    'shows no heart-rate line on the %s page when the library has no 20 min best in both sports',
+    (sport) => {
+      const ride = makeActivity({
+        id: 'ride-1',
+        sport: 'ride',
+        name: 'Hill ride',
+        powerSource: 'measured',
+      })
+      renderPage(
+        sport,
+        makeResult({
+          activities: [morningRun, ride],
+          rideCurve: [curvePoint(60, 400, 'ride-1')],
+          effort: [],
+        }),
+      )
+
+      expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+    },
+  )
 
   it('links the power note to How sure is this?', () => {
     const ride = makeActivity({

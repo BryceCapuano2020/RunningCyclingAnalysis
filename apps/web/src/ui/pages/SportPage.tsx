@@ -17,6 +17,7 @@ import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
+import { effortShareLine } from '../effortCaveat'
 import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
@@ -197,6 +198,11 @@ export function SportPage({
     (activity) => activity.sport === 'ride' && activity.powerSource === 'measured',
   ).length
   const someEstimated = records.some((record) => isEstimatedRecord(sport, record.activity))
+  // The best 20 minutes by heart rate, as one line under the threshold meaning on either sport.
+  const heartRateLine = effortShareLine(
+    sport,
+    result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
+  )
 
   return (
     <div className="page-stack">
@@ -241,6 +247,7 @@ export function SportPage({
               <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
             )}
             {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+            {heartRateLine && <p className="muted">{heartRateLine}</p>}
             {headline && (
               <AgeGradeBlock
                 sport={sport}

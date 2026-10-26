@@ -15,6 +15,7 @@ import type { WeightSettings } from '../athlete'
 import { SAVE_STATE_TEXT, WAITING_FOR_ACCOUNT } from '../analysis/copy'
 import type { AnalysisController } from '../useAnalysis'
 import type { ProfilePatch } from '../profilePatch'
+import { hrefFor } from '../route'
 import { useSaveStatus } from '../useSaveStatus'
 import type { SaveState } from '../useSaveStatus'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -132,6 +133,8 @@ export function ProfilePage({
   const [sexDraft, setSexDraft] = useState<{ value: Sex | null } | null>(null)
   const [unitsDraft, setUnitsDraft] = useState<{ value: UnitSystem } | null>(null)
   const { states: saves, save: saveField, clear: clearSave } = useSaveStatus<SavedField>()
+  // The weights' save is in flight, which the settings bar does not report to this page.
+  const [weightSaving, setWeightSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
   // The retention and account questions are held here, so any open dialog can close a row confirmation.
   const [retentionAsking, setRetentionAsking] = useState(false)
@@ -171,6 +174,16 @@ export function ProfilePage({
     setUnitsDraft(null)
   }
 
+  // A refused weight still rejects, so the settings bar shows it; the flag only tracks the save in flight.
+  async function saveWeights(next: Partial<WeightSettings>) {
+    setWeightSaving(true)
+    try {
+      await onSaveProfile({ settings: next })
+    } finally {
+      setWeightSaving(false)
+    }
+  }
+
   async function commitYear() {
     // Enter and leaving the field both commit; the second waits for the first to finish.
     if (yearDraft === null || yearSaving.current) return
@@ -194,6 +207,18 @@ export function ProfilePage({
 
   const removal = removalCopy(analysis.savedActivities.length, hasResult)
   const status = accountLoading ? WAITING_FOR_ACCOUNT : statusText(lastSaved, saves)
+  // Once year of birth and sex are both known and a result is on screen, a save offers the way to Balance.
+  const levelsLink =
+    birthYear !== null && sex !== null && hasResult ? (
+      <a href={hrefFor({ page: 'balance' })}>See your levels</a>
+    ) : null
+  // A save under way, of a profile field or of the weights: no link is offered while one is.
+  const busy = weightSaving || (lastSaved !== null && saves[lastSaved] === 'saving')
+  // A refused field keeps the status line on its refusal, so a later save offers no link beside it.
+  const refused = SAVED_FIELDS.some((field) => saves[field] === 'failed')
+  // The status line offers the link after its own save; the settings bar offers it otherwise, so one shows.
+  const profileSaved =
+    !accountLoading && !busy && !refused && lastSaved !== null && saves[lastSaved] === 'saved'
 
   return (
     <div className="page-stack profile-page">
@@ -237,13 +262,15 @@ export function ProfilePage({
               <SettingsBar
                 settings={settings}
                 units={shownUnits}
-                onChange={(next) => onSaveProfile({ settings: next })}
+                onChange={saveWeights}
+                seeLevels={profileSaved || busy ? null : levelsLink}
               />
             </div>
           </section>
         </div>
         <p role="status" className="profile-save secondary">
           {status}
+          {profileSaved && levelsLink !== null && <> {levelsLink}</>}
         </p>
       </div>
 

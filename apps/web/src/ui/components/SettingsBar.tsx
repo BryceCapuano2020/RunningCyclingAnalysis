@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { FocusEvent, KeyboardEvent } from 'react'
+import type { FocusEvent, KeyboardEvent, ReactNode } from 'react'
 import type { UnitSystem } from '@rca/core/units'
 import { displayWeight, readWeight, weightKg, weightUnit } from '../athlete'
 import type { WeightField, WeightSettings } from '../athlete'
@@ -16,6 +16,8 @@ export interface SettingsBarProps {
    * A promise lets the bar say it is saving, saved, or could not save; a plain return is saved at once.
    */
   onChange: (change: Partial<WeightSettings>) => void | Promise<void>
+  /** A link the status line shows after a change is stored, such as "See your levels". */
+  seeLevels?: ReactNode
 }
 
 const LABELS: Record<WeightField, string> = {
@@ -34,7 +36,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   failed: "Couldn't save. Try again.",
 }
 
-export function SettingsBar({ settings, units, onChange }: SettingsBarProps) {
+export function SettingsBar({ settings, units, onChange, seeLevels = null }: SettingsBarProps) {
   const baseId = useId()
   const hintId = `${baseId}-hint`
   const barRef = useRef<HTMLDivElement>(null)
@@ -177,6 +179,7 @@ export function SettingsBar({ settings, units, onChange }: SettingsBarProps) {
       </p>
       <p role="status" className="settings-bar__status">
         {STATUS_TEXT[status]}
+        {status === 'saved' && seeLevels !== null && <> {seeLevels}</>}
       </p>
     </div>
   )
