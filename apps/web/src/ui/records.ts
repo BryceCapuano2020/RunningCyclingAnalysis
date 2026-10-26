@@ -267,18 +267,43 @@ export function distanceRecords(activities: ActivitySummary[], units: UnitSystem
         best = { seconds, activity }
       }
     }
-    if (best !== null) {
-      records.push({
-        distanceM,
-        label: distanceName(distanceM),
-        seconds: best.seconds,
-        time: formatRecordTime(best.seconds),
-        pace: formatPace(distanceM / best.seconds, units),
-        activity: best.activity,
-      })
-    }
+    if (best !== null) records.push(distanceRecordOf(distanceM, best.seconds, best.activity, units))
   }
   return { records, partial: covered.length > 0 && covered.length < runs.length }
+}
+
+/** A run's time over one record distance, with the activity that ran it. */
+function distanceRecordOf(
+  distanceM: RunRecordDistanceM,
+  seconds: number,
+  activity: ActivitySummary,
+  units: UnitSystem,
+): DistanceRecord {
+  return {
+    distanceM,
+    label: distanceName(distanceM),
+    seconds,
+    time: formatRecordTime(seconds),
+    pace: formatPace(distanceM / seconds, units),
+    activity,
+  }
+}
+
+/** Whether a distance is one that a run record is kept for. */
+function isRunRecordDistance(distanceM: number): distanceM is RunRecordDistanceM {
+  return RUN_RECORD_DISTANCES_M.some((record) => record === distanceM)
+}
+
+/**
+ * The run distances one activity has its own time at, in ascending distance. These are its own
+ * times, not all of them records; a ride has none.
+ */
+export function ownDistanceRecords(activity: ActivitySummary, units: UnitSystem): DistanceRecord[] {
+  return (activity.distanceBests ?? []).flatMap((best) =>
+    isRunRecordDistance(best.distanceM)
+      ? [distanceRecordOf(best.distanceM, best.seconds, activity, units)]
+      : [],
+  )
 }
 
 /** The chip text for each record that earns one, in the order the records come. */

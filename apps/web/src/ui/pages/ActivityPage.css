@@ -21,25 +21,58 @@
   color: var(--series-ride);
 }
 
+/* A long name wraps inside the page at any character, as a single token would otherwise widen it. */
 .activity-page__title {
   margin: 0;
-  overflow-wrap: break-word;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-page__summary {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.activity-page__hero {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.activity-page__hero p {
+  margin: 0;
 }
 
 .activity-page__stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   gap: var(--space-4);
+  min-width: 0;
   margin: 0;
 }
 
 .activity-page__stat {
   min-width: 0;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .activity-page__stat dd {
   margin: 0;
+}
+
+.activity-page__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  min-width: 0;
+}
+
+.activity-page__nav a {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  overflow-wrap: anywhere;
 }
 
 .activity-page__flags {
@@ -60,4 +93,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
+}
+
+.activity-page__remove {
+  justify-self: start;
+}
+
+.activity-page__outcome {
+  margin: var(--space-2) 0 0;
 }

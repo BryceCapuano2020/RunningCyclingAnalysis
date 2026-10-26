@@ -1,0 +1,19 @@
+.activity-delete__open {
+  min-height: var(--control-height);
+  position: relative;
+  z-index: 1;
+  justify-self: start;
+}
+
+/* The question sits in the row, above the row's link, so its buttons take the click. */
+.activity-delete__question {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.activity-delete__question p {
+  margin: 0;
+}

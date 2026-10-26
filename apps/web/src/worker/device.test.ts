@@ -211,3 +211,21 @@ describe('device library routes', () => {
     await expect(actions.route('run-1')).resolves.toBeNull()
   })
 })
+
+describe('dropping a kept copy after a signed-in delete', () => {
+  it('removes the copy kept here without reporting the device list, which a signed-in visitor does not see', async () => {
+    const { actions, library, posted } = setup()
+    await library.put(workoutKeyOf(FIRST), FIRST)
+    posted.length = 0
+    await actions.dropKept(workoutKeyOf(FIRST))
+    expect(await library.get(workoutKeyOf(FIRST))).toBeNull()
+    expect(posted).toEqual([])
+  })
+
+  it('does nothing when no copy is kept here', async () => {
+    const { actions, library, posted } = setup()
+    await actions.dropKept(workoutKeyOf(FIRST))
+    expect(await library.get(workoutKeyOf(FIRST))).toBeNull()
+    expect(posted).toEqual([])
+  })
+})

@@ -676,3 +676,42 @@ describe('digestActivity: distance bests across unrecorded gaps', () => {
     expect(best(digestActivity(a), 1000)).toBeCloseTo(850, 6)
   })
 })
+
+describe('digestActivity: moving time and averages', () => {
+  it('counts the moving seconds, leaving out the paused ones', () => {
+    const paused = new Uint8Array(60)
+    paused.fill(1, 20, 30)
+    const d = digestActivity(activity({ n: 60, paused }))
+    expect(d.durationS).toBe(60)
+    expect(d.movingS).toBe(50)
+  })
+
+  it('averages heart rate over the moving seconds only', () => {
+    const paused = new Uint8Array(60).fill(1, 0, 10)
+    const heartRate = Float64Array.from({ length: 60 }, (_, i) => (i < 10 ? 60 : 150))
+    expect(digestActivity(activity({ n: 60, paused, heartRate })).avgHeartRate).toBe(150)
+  })
+
+  it('has no average heart rate without a heart-rate stream', () => {
+    expect(digestActivity(activity({ n: 60, noHeartRate: true })).avgHeartRate).toBeNull()
+  })
+
+  it('averages measured power over the moving seconds, and has none without a power meter', () => {
+    const paused = new Uint8Array(60).fill(1, 0, 10)
+    const power = Float64Array.from({ length: 60 }, (_, i) => (i < 10 ? 0 : 200))
+    expect(digestActivity(climb(60, { power, paused })).avgPowerW).toBe(200)
+    expect(digestActivity(climb(60)).avgPowerW).toBeNull()
+  })
+})
+
+describe('digestActivity: a recording gap is not moving time', () => {
+  it('leaves an unrecorded gap out of moving time and out of the averages over it', () => {
+    const unrecorded = new Uint8Array(60).fill(0)
+    unrecorded.fill(1, 10, 20)
+    const heartRate = Float64Array.from({ length: 60 }, (_, i) => (i >= 10 && i < 20 ? 60 : 150))
+    const d = digestActivity({ ...activity({ n: 60, heartRate }), unrecorded })
+    expect(d.durationS).toBe(60)
+    expect(d.movingS).toBe(50)
+    expect(d.avgHeartRate).toBe(150)
+  })
+})

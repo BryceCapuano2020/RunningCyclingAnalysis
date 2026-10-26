@@ -52,6 +52,12 @@ export interface ParseOptions {
    * before any title in the file.
    */
   activityName?: string
+  /**
+   * An id for this upload, such as the hash of its bytes. The legs of one upload share it as their
+   * session key. Never the file name: two uploads of the same name are different sessions. Absent
+   * when the caller gives none, and then the legs share no session.
+   */
+  sessionKey?: string
 }
 
 /** 48 hours at 1 Hz: the most grid samples one file may produce, summed over its units. */

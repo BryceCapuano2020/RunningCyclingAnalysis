@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import { DAY_MS } from '@rca/core/constants'
 import { makeActivity } from '../components/fixtures'
 import { ActivitiesPage } from './ActivitiesPage'
+
+// The view is kept in the address, so each test starts from the bare list.
+beforeEach(() => {
+  window.history.replaceState(null, '', '#/activities')
+})
 
 afterEach(() => {
   cleanup()
@@ -148,5 +153,305 @@ describe('ActivitiesPage period and sport', () => {
     expect(screen.getByText('No runs between 21 Apr and 1 Jun 2026.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Show all activities' }))
     expect(screen.getByRole('link', { name: 'Old run' })).toBeInTheDocument()
+  })
+})
+
+describe('ActivitiesPage sort, months and address', () => {
+  const NEWEST = new Date(2026, 5, 1, 7).getTime()
+  const trips = [
+    makeActivity({ id: 'long', name: 'Long run', startMs: NEWEST - 40 * DAY_MS, distanceM: 30000 }),
+    makeActivity({ id: 'new', name: 'New run', startMs: NEWEST, distanceM: 5000 }),
+    makeActivity({
+      id: 'ride',
+      name: 'Hill ride',
+      sport: 'ride',
+      startMs: NEWEST - 2 * DAY_MS,
+      distanceM: 60000,
+      elevationGainM: 900,
+    }),
+  ]
+
+  it('sorts from the sort menu, and the list it shows is the sort the menu names', async () => {
+    const user = userEvent.setup()
+    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
+    const names = screen.getAllByRole('link').map((link) => link.textContent)
+    expect(names.slice(0, 3)).toEqual(['Hill ride', 'Long run', 'New run'])
+  })
+
+  it('heads months only when the list is in date order', async () => {
+    const user = userEvent.setup()
+    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      'Jun 2026',
+      'May 2026',
+      'Apr 2026',
+    ])
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'climb')
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+  })
+
+  it('keeps the sport, sort and page in the address, so the list opened again is the same one', async () => {
+    const user = userEvent.setup()
+    const many = Array.from({ length: 25 }, (_, i) =>
+      makeActivity({ id: `r-${i}`, name: `Run ${i}`, startMs: NEWEST - i * DAY_MS }),
+    )
+    const view = render(<ActivitiesPage activities={many} units="metric" records={new Map()} />)
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(window.location.hash).toBe('#/activities?page=2')
+    view.unmount()
+
+    render(<ActivitiesPage activities={many} units="metric" records={new Map()} />)
+    expect(screen.getByText('Showing 21–25 of 25 activities. Page 2 of 2.')).toBeVisible()
+  })
+
+  it('keeps a sport and sort in the address, and restores them on the next visit', async () => {
+    const user = userEvent.setup()
+    const view = render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    await user.click(screen.getByRole('radio', { name: 'Rides' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'time')
+    expect(window.location.hash).toBe('#/activities?sport=ride&sort=time')
+    view.unmount()
+
+    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    expect(screen.getByRole('radio', { name: 'Rides' })).toBeChecked()
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('time')
+    expect(screen.queryByRole('link', { name: 'New run' })).not.toBeInTheDocument()
+  })
+
+  it('writes the address without a history entry, so Back still leaves the page', async () => {
+    const user = userEvent.setup()
+    render(<ActivitiesPage activities={trips} units="metric" records={new Map()} />)
+    const before = window.history.length
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
+    expect(window.history.length).toBe(before)
+  })
+
+  it('offers Delete on a kept activity, and removes it by its saved copy', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    render(
+      <ActivitiesPage
+        activities={trips}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={onDelete}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onDelete).toHaveBeenCalledWith('saved-new')
+  })
+})
+
+describe('ActivitiesPage delete outcome and the address', () => {
+  const trip = makeActivity({
+    id: 'new',
+    name: 'New run',
+    startMs: new Date(2026, 5, 1, 7).getTime(),
+  })
+
+  it('says where a delete worked, beside the list', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    const view = render(
+      <ActivitiesPage
+        activities={[trip]}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={onDelete}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    view.rerender(
+      <ActivitiesPage
+        activities={[]}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map()}
+        onDelete={onDelete}
+        libraryNotice="Deleted New run."
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted New run.')
+  })
+
+  it('says where a delete failed, beside the list, and keeps the activity listed', async () => {
+    const user = userEvent.setup()
+    const view = render(
+      <ActivitiesPage
+        activities={[trip]}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    view.rerender(
+      <ActivitiesPage
+        activities={[trip]}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={vi.fn()}
+        libraryError="Could not delete this activity. Try again."
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not delete this activity. Try again.',
+    )
+    expect(screen.getByRole('link', { name: 'New run' })).toBeInTheDocument()
+  })
+
+  it('follows the address when it changes, so a plain Activities link resets the sort and page', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '#/activities')
+    render(<ActivitiesPage activities={trip ? [trip] : []} units="metric" records={new Map()} />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
+    expect(window.location.hash).toBe('#/activities?sort=distance')
+    window.location.hash = '#/activities'
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('newest'),
+    )
+  })
+})
+
+describe('ActivitiesPage announces a removal from the activity page', () => {
+  const trip = makeActivity({
+    id: 'new',
+    name: 'New run',
+    startMs: new Date(2026, 5, 1, 7).getTime(),
+  })
+
+  it('announces the removal the activity page made, and takes the marker out of the address', () => {
+    window.history.replaceState(null, '', '#/activities?removed=1')
+    render(
+      <ActivitiesPage
+        activities={[]}
+        units="metric"
+        records={new Map()}
+        libraryNotice="Deleted New run."
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted New run.')
+    expect(window.location.hash).toBe('#/activities')
+  })
+
+  it('does not announce a notice that was left from before, when the list is opened without the marker', () => {
+    window.history.replaceState(null, '', '#/activities')
+    render(
+      <ActivitiesPage
+        activities={[trip]}
+        units="metric"
+        records={new Map()}
+        libraryNotice="Deleted New run."
+      />,
+    )
+    expect(screen.queryByText('Deleted New run.')).not.toBeInTheDocument()
+  })
+})
+
+describe('ActivitiesPage clears a delete outcome when the list changes', () => {
+  const many = Array.from({ length: 25 }, (_, i) =>
+    makeActivity({
+      id: `r-${i}`,
+      name: `Run ${i}`,
+      startMs: new Date(2026, 5, 1, 7).getTime() - i * DAY_MS,
+    }),
+  )
+
+  it('clears the outcome when the sort changes, so an old "Deleted" does not linger', async () => {
+    const user = userEvent.setup()
+    const view = render(
+      <ActivitiesPage
+        activities={many}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['r-0', 'saved-0']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Run 0' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    view.rerender(
+      <ActivitiesPage
+        activities={many.slice(1)}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map()}
+        onDelete={vi.fn()}
+        libraryNotice="Deleted Run 0."
+      />,
+    )
+    expect(screen.getByText('Deleted Run 0.')).toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'distance')
+    expect(screen.queryByText('Deleted Run 0.')).not.toBeInTheDocument()
+  })
+
+  it('clears the outcome when the page changes', async () => {
+    const user = userEvent.setup()
+    const view = render(
+      <ActivitiesPage
+        activities={many}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['r-0', 'saved-0']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Run 0' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    view.rerender(
+      <ActivitiesPage
+        activities={many.slice(1)}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map()}
+        onDelete={vi.fn()}
+        libraryError="Could not delete."
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not delete.')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it("announces a removal the activity page made in the list's own status line, and the text sits in it", async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '#/activities/new')
+    const trip = makeActivity({
+      id: 'new',
+      name: 'New run',
+      startMs: new Date(2026, 5, 1, 7).getTime(),
+    })
+    const list = render(
+      <ActivitiesPage
+        activities={[trip]}
+        units="metric"
+        records={new Map()}
+        keptIds={new Map([['new', 'saved-new']])}
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete New run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    list.unmount()
+    window.history.replaceState(null, '', '#/activities?removed=1')
+    render(
+      <ActivitiesPage
+        activities={[]}
+        units="metric"
+        records={new Map()}
+        libraryNotice="Deleted New run."
+      />,
+    )
+    const text = screen.getByText('Deleted New run.')
+    expect(text.closest('[role="status"]')).not.toBeNull()
+    expect(window.location.hash).toBe('#/activities')
   })
 })

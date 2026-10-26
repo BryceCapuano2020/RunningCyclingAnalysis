@@ -16,8 +16,8 @@ Hash routes, so the static host needs no fallback rules.
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                             |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, a line of recent form, records in native units with the age grade of each and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed |
-| `#/activities`     | Activities        | Every activity in the library, newest first, with its own period and sport filters and a count of the activities they show; a row opens its activity page                                                                                                                                                                                                      |
-| `#/activities/:id` | Activity          | Summary, route shape, splits (runs), all-time records across the library, efforts set here, data issues                                                                                                                                                                                                                                                        |
+| `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                       |
+| `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                        |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                          |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (weights, units), account (email, download, delete), original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), Remove activities                                                                                                                            |
 
@@ -69,7 +69,7 @@ A deep link to a page that needs a result, with none on this device, stays where
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
 home page. An unknown hash becomes Balance's hash, so the address names the page shown.
 
-**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, 1 year or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period and sport filters, which start with the whole library. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out.
+**Period.** Balance and the sport pages show one period, picked with the control under the answer: **Default**, 6 weeks, 3 months, 1 year or All time. The control's dates sit beneath it, with the count of activities in the period when some are left out. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
@@ -258,9 +258,37 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
   estimated." The line links to How sure is this?.
-- **Best efforts share one list,** `SportRecords`, on the Balance card and the sport page: one row
-  per record with one source size, built by `recordRow`. A run's pace is marked Flat, which the
-  note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
+- **An activity page reads top to bottom:** the name, the sport, the day and start time (with an
+  **Indoor** chip for a trainer ride), the route when it was kept, then the moving time as the hero, with
+  the elapsed time under it when the file kept both. Distance, average pace or speed over the moving time,
+  climb, average heart rate with the highest, and average power follow. An indoor ride reports no speed
+  anywhere, since a trainer's speed is virtual rather than measured on a road. A ride without a power meter says so in a line beneath
+  the figures: "Power here is estimated from speed and climbs. No power meter recorded it." Earlier and
+  Later name the activities either side in the library, then links to the sport's records and to How
+  sure is this?. Then the all-time records as chips, the splits, the best efforts set here, the skipped
+  readings, and Delete. A ride with no power curve says why in a line: estimated power is made only on
+  climbs, and a ride with no power data has none. A ride's bests and chips wait for the weight. An
+  activity from before moving time was kept shows its elapsed time, and says so.
+- **A list row reads the same figures.** The name, sport, day and start time, with the **Indoor** and
+  skipped-readings chips, then the moving time, distance and climb, labelled, and the record chips. A
+  ride's record chips wait for the weight, as its page's do. At the right sit the pace for a run, the
+  speed for a ride, or the average power of an indoor ride with a power meter. The legs of one upload
+  are a session: its bytes are hashed, so two uploads of one name are two sessions. Where the origin is not secure and
+  there is no crypto.subtle, nothing is hashed, so the legs are not grouped and the import still reads. A session sits under
+  one row that gives its total time, with the legs indented in the order they were ridden. This grouping
+  applies only in a date sort, where a session's legs are next to each other. In a distance or time sort
+  each leg is a row of its own. The time sort orders by the time each row shows, which is its moving time.
+  Month headings group the rows when the list is in date order; another sort drops them, and at a page
+  break a month heading repeats, so each page names its months. The page is counted over rows, so a
+  session is never split across two pages, and the summary counts its activities.
+  A removal made on an activity's page goes to the list, which announces it once, and the list's address
+  drops the marker that brought the visitor. A notice or error from a removal clears when the visitor moves
+  to another page, so Profile shows no old "Deleted ...". The list's own outcome also clears when its sort,
+  filter or page changes.
+- **Best efforts share one list,** `SportRecords`, on the Balance card, the sport page and the activity
+  page: one row per record with one source size, built by `recordRow`. A run's own distance times, such
+  as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
+  this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
   record was set in one activity, that activity is named once under the list ("All set on Morning
   run, Mon 5 Jan"). Otherwise each record links to its own activity. A long activity name is cut
   short with an ellipsis, and its full name is the link's title and accessible name.
@@ -354,8 +382,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   run.fit, so it was not counted twice." Sport names are words: "A walk is not a run or a ride, so it
   was left out on purpose." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
-  The words for a data issue are `flagSentence` in `apps/web/src/ui/analysis/flagCopy.ts`, ready for the
-  activity page to use; until that page is wired, it still shows the core's English.
+  The words for a skipped reading are `flagSentence` and its count `skippedReadingsText`, both in
+  `apps/web/src/ui/analysis/flagCopy.ts`. The activity page and the list use them, so the core's English is never shown.
 - **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your
   time.", never UTC.
 - **Every number names its source**: the activity that set it, with a link to that activity.
@@ -422,8 +450,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   figure worked out from the placeholder weight. How sure is this? holds its energy view and its
   virtual power check, and draws only the running blocks of its heart-rate chart, with the prompt
   beneath. The request for a weight is written once, in weightCopy: the linked prompt Balance and
-  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page still shows a ride best's watts from it, for a ride
-  whose power is estimated, until that page holds its ride figures too.
+  Method show, the plain note a dialog shows, and the purpose a Profile field hint shows. The activity page holds a ride's bests and record chips the same way, and says "Add your weight on Profile to see ride figures." in their place.
 - **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
   to Profile. It is on the Balance, Run and Ride pages only, and the sample has its own persona and

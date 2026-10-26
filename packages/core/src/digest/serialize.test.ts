@@ -433,3 +433,26 @@ describe('distance bests on the wire', () => {
     ).toThrow(/distanceBests must be in ascending distance/)
   })
 })
+
+describe('moving time and averages on the wire', () => {
+  it('keeps them through a round trip', () => {
+    const digest = digestActivity(sampleDataset().activities[0]!)
+    expect(digest.movingS).toBeGreaterThan(0)
+    const round = parseDigest(serializeDigest(digest))
+    expect(round.movingS).toBe(digest.movingS)
+    expect(round.avgHeartRate).toBe(digest.avgHeartRate)
+    expect(round.avgPowerW).toBe(digest.avgPowerW)
+  })
+
+  it('reads a digest written before them as having none', () => {
+    const digest = digestActivity(sampleDataset().activities[0]!)
+    const legacy: Record<string, unknown> = JSON.parse(serializeDigest(digest))
+    delete legacy.movingS
+    delete legacy.avgHeartRate
+    delete legacy.avgPowerW
+    const old = parseDigest(JSON.stringify(legacy))
+    expect(old).not.toHaveProperty('movingS')
+    expect(old).not.toHaveProperty('avgHeartRate')
+    expect(old).not.toHaveProperty('avgPowerW')
+  })
+})

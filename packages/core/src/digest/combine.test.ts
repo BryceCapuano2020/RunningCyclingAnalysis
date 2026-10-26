@@ -166,8 +166,14 @@ describe('combine', () => {
       distanceM: newest.distanceM,
       elevationGainM: newest.elevationGainM,
       hasHeartRate: newest.hasHeartRate,
+      indoor: newest.indoor,
       powerSource: newest.powerSource,
       flags: newest.flags,
+      flagCounts: newest.flagCounts,
+      maxHeartRate: newest.maxHeartRate,
+      movingS: newest.movingS,
+      avgHeartRate: newest.avgHeartRate,
+      avgPowerW: newest.avgPowerW,
     })
   })
 

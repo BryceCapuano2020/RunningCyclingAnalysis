@@ -80,3 +80,21 @@ describe('usePagination', () => {
     first.remove()
   })
 })
+
+describe('usePagination options', () => {
+  it('starts on the page it is given, and reports each page change', () => {
+    const moves: number[] = []
+    const { result } = renderHook(() =>
+      usePagination(numbers(60), 20, 'key', { initialPage: 2, onPageChange: (p) => moves.push(p) }),
+    )
+    expect(result.current.page).toBe(2)
+    act(() => result.current.changePage(0))
+    expect(result.current.page).toBe(0)
+    expect(moves).toEqual([0])
+  })
+
+  it('clamps a given page that is past the last page', () => {
+    const { result } = renderHook(() => usePagination(numbers(25), 20, 'key', { initialPage: 9 }))
+    expect(result.current.page).toBe(1)
+  })
+})

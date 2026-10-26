@@ -21,6 +21,11 @@ export interface DeviceActions {
   /** Posts the activities kept in this browser, newest first. Best effort. */
   report(): Promise<void>
   remove(id: string, settings: AthleteSettings): Promise<SessionState>
+  /**
+   * Drops the copy kept in this browser of a workout, if there is one, without touching the session.
+   * A signed-in delete uses it, so the copy cannot come back when the visitor signs out.
+   */
+  dropKept(workoutKey: string): Promise<void>
   /** Empties the library. Best effort, so starting over always clears the page. */
   forget(): Promise<void>
 }
@@ -99,6 +104,10 @@ export function deviceActions(
       await device.remove(id)
       await report()
       return session.removeActivity(kept.sport, kept.startMs, settings)
+    },
+    async dropKept(workoutKey) {
+      if ((await device.get(workoutKey)) === null) return
+      await device.remove(workoutKey)
     },
     async forget() {
       let cleared = false

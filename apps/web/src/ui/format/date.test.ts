@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatTimeOfDay as coreFormatTimeOfDay } from '@rca/core/units'
-import { formatDay, formatMonth, formatSpan, formatTimeOfDay } from './date'
+import { formatDay, formatMonth, formatRowDay, formatSpan, formatTimeOfDay } from './date'
 
 // Local constructors keep these cases independent of the zone the suite runs in. The only test
 // that changes the zone says so.
@@ -81,5 +81,11 @@ describe('formatSpan', () => {
     expect(formatSpan(new Date(2024, 7, 3).getTime(), new Date(2025, 10, 2).getTime())).toBe(
       '3 Aug 2024 – 2 Nov 2025',
     )
+  })
+})
+
+describe('formatRowDay', () => {
+  it('gives the weekday and the day, with no month or year, for a row under its heading', () => {
+    expect(formatRowDay(new Date(2025, 5, 14, 7, 5).getTime())).toBe('Sat 14')
   })
 })

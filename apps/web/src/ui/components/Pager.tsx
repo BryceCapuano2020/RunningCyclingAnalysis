@@ -18,6 +18,11 @@ export interface PagerProps {
   onPageChange: (page: number) => void
   /** Reports focus entering or leaving the summary and the buttons. */
   onFocusWithinChange?: (focused: boolean) => void
+  /**
+   * The first and last item shown, counted from one, when a page holds items of more than one kind
+   * of count, such as the activities a session's legs make up. Defaults to the page's own range.
+   */
+  shown?: { from: number; to: number }
 }
 
 /** The summary of the page shown, and Previous and Next buttons when there is more than one page. */
@@ -32,11 +37,14 @@ export function Pager({
   announce = false,
   onPageChange,
   onFocusWithinChange,
+  shown,
 }: PagerProps) {
   const firstIndex = page * pageSize
+  const from = shown?.from ?? firstIndex + 1
+  const to = shown?.to ?? Math.min(firstIndex + pageSize, total)
   const summary =
     pageCount > 1
-      ? `Showing ${firstIndex + 1}–${Math.min(firstIndex + pageSize, total)} of ${total} ${noun}. Page ${page + 1} of ${pageCount}.`
+      ? `Showing ${from}–${to} of ${total} ${noun}. Page ${page + 1} of ${pageCount}.`
       : ''
   return (
     <div

@@ -24,17 +24,23 @@ import { MethodPage } from './MethodPage'
 import { SportPage } from './SportPage'
 
 /**
- * The library id of the saved copy the analysis keeps for this activity: among the saved copies that
- * start with it, the one that outranks the others by the analysis's own rule. Null when none is saved.
+ * The library id of the saved copy the analysis keeps for each activity, by activity id. Among the saved
+ * copies that start with an activity, the one that outranks the others by the analysis's own rule. An
+ * activity with no saved copy, as with the sample, is absent.
  */
-function savedIdOf(activity: ActivitySummary | null, saved: SavedActivity[]): string | null {
-  if (activity === null) return null
-  let kept: SavedActivity | undefined
+function keptIdsOf(library: ActivitySummary[], saved: SavedActivity[]): Map<string, string> {
+  const kept = new Map<string, SavedActivity>()
   for (const s of saved) {
-    if (s.sport !== activity.sport || s.startMs !== activity.startMs) continue
-    if (kept === undefined || outranks(s.copy, kept.copy)) kept = s
+    const key = `${s.sport}|${s.startMs}`
+    const current = kept.get(key)
+    if (current === undefined || outranks(s.copy, current.copy)) kept.set(key, s)
   }
-  return kept?.id ?? null
+  const ids = new Map<string, string>()
+  for (const activity of library) {
+    const copy = kept.get(`${activity.sport}|${activity.startMs}`)
+    if (copy !== undefined) ids.set(activity.id, copy.id)
+  }
+  return ids
 }
 
 export interface ResultPageProps {
@@ -66,6 +72,9 @@ export function ResultPage({
   // The sample athlete has its own age, sex and masses, whatever the visitor has entered.
   const profile = isSample ? SAMPLE_PROFILE : ageProfileOf(birthYear, sex)
   const athlete = isSample ? SAMPLE_SETTINGS : settings
+  // The saved copy each activity is kept as, which is what Delete removes; a removal is busy until done.
+  const keptIds = keptIdsOf(library, analysis.savedActivities)
+  const removing = analysis.busy || analysis.libraryAction !== null
   // What the results are based on, at each page's foot. The sample has its own persona, so none.
   // The weight is named only once it is entered; settings then carries the athlete's own weight.
   const footnote = isSample ? null : (
@@ -127,21 +136,40 @@ export function ResultPage({
         />
       )
     case 'activities':
-      return <ActivitiesPage activities={library} units={units} records={analysis.state.records} />
+      return (
+        <ActivitiesPage
+          activities={library}
+          units={units}
+          records={analysis.state.records}
+          keptIds={keptIds}
+          weightKnown={weightKnown}
+          busy={removing}
+          onDelete={analysis.deleteActivity}
+          libraryNotice={analysis.libraryNotice}
+          libraryError={analysis.libraryError}
+        />
+      )
     case 'activity': {
       // Every activity in the library opens, whatever the period: the period only narrows the analysis.
       const activity = library.find((candidate) => candidate.id === route.id) ?? null
       return (
         <ActivityPage
           activity={activity}
+          library={library}
           result={result}
           units={units}
           massKg={athlete.massKg}
+          weightKnown={weightKnown}
+          profile={profile}
           records={analysis.state.records}
           loadSplits={analysis.activitySplits}
-          routeId={savedIdOf(activity, analysis.savedActivities)}
+          routeId={activity === null ? null : (keptIds.get(activity.id) ?? null)}
           loadRoute={analysis.loadRoute}
           period={period}
+          busy={removing}
+          onDelete={analysis.deleteActivity}
+          libraryNotice={analysis.libraryNotice}
+          libraryError={analysis.libraryError}
         />
       )
     }

@@ -453,7 +453,7 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
     expect(screen.queryByRole('group', { name: 'Period' })).not.toBeInTheDocument()
   })
 
-  it('names the dated period in which the activity set none of the bests', () => {
+  it('shows the activity in its dated period without a "none of your bests" line when it set none', () => {
     const analysis = analysisStub({
       state: { result: makeResult({ activities: [ACTIVITY] }), library: [ACTIVITY], period: DATED },
     })
@@ -469,11 +469,8 @@ describe('ResultPage round 2: dated periods, the pick note and the sample trend'
         weightKnown
       />,
     )
-    expect(
-      screen.getByText(
-        'None of your best efforts between 12 May and 3 Aug 2025 came from this activity.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: ACTIVITY.name })).toBeInTheDocument()
+    expect(screen.queryByText(/None of your best efforts/)).not.toBeInTheDocument()
   })
 
   it('says a pick waits behind an import, since the page is busy', () => {

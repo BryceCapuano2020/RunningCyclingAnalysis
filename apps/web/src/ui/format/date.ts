@@ -25,6 +25,15 @@ export function formatDay(ms: number, nowMs = Date.now()): string {
   return sameYear ? day : `${day} ${date.getFullYear()}`
 }
 
+/**
+ * A day for a row under its month heading, such as "Sat 14": the weekday and the day, with neither
+ * the month nor the year, which the heading gives.
+ */
+export function formatRowDay(ms: number): string {
+  const date = new Date(ms)
+  return `${WEEKDAYS[date.getDay()]!} ${date.getDate()}`
+}
+
 /** A month in the viewer's local zone, such as "Mar", or "Mar 2023" when withYear is set. */
 export function formatMonth(ms: number, withYear: boolean): string {
   const date = new Date(ms)

@@ -312,5 +312,11 @@ export function parseDigest(json: string): ActivityDigest {
     ),
     ...(distanceBests === undefined ? {} : { distanceBests }),
     ...(o.splits === undefined ? {} : { splits: asSplits(o.splits, 'splits') }),
+    ...(o.movingS === undefined ? {} : { movingS: asNonNegativeInteger(o.movingS, 'movingS') }),
+    ...(o.avgHeartRate === undefined
+      ? {}
+      : { avgHeartRate: asFiniteOrNull(o.avgHeartRate, 'avgHeartRate') }),
+    ...(o.avgPowerW === undefined ? {} : { avgPowerW: asFiniteOrNull(o.avgPowerW, 'avgPowerW') }),
+    ...(o.sessionKey === undefined ? {} : { sessionKey: asString(o.sessionKey, 'sessionKey') }),
   }
 }

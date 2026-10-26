@@ -55,7 +55,8 @@ function recordedSeconds(activity: Activity): Uint8Array {
   return Uint8Array.from(activity.unrecorded, (u) => (u === 1 ? 0 : 1))
 }
 
-function countFlags(flags: QualityFlag[]): Partial<Record<QualityKind, number>> {
+/** How many flags of each kind an activity has: the true counts, not only the flags a digest keeps. */
+export function countFlags(flags: QualityFlag[]): Partial<Record<QualityKind, number>> {
   const counts: Partial<Record<QualityKind, number>> = {}
   for (const flag of flags) counts[flag.kind] = (counts[flag.kind] ?? 0) + 1
   return counts
@@ -65,6 +66,29 @@ function and(a: Uint8Array, b: Uint8Array): Uint8Array {
   const out = new Uint8Array(a.length)
   for (let i = 0; i < a.length; i++) out[i] = a[i]! & b[i]!
   return out
+}
+
+/**
+ * 1 for every second the device was recording: neither paused nor in a record gap it did not time.
+ * Moving time and the averages over it are counted over these seconds only.
+ */
+function movingMask(activity: Activity): Uint8Array {
+  const recorded = recordedSeconds(activity)
+  return Uint8Array.from(activity.paused, (p, i) => (p === 1 ? 0 : recorded[i]!))
+}
+
+/** The mean of the finite values that the mask keeps, or null when it keeps none. */
+function meanWhere(values: Float64Array, keep: Uint8Array): number | null {
+  let sum = 0
+  let count = 0
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i]!
+    if (keep[i] === 1 && Number.isFinite(value)) {
+      sum += value
+      count++
+    }
+  }
+  return count === 0 ? null : sum / count
 }
 
 /**
@@ -284,6 +308,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
     parts = virtualParts(activity, quality, grade, source)
   }
 
+  const moving = movingMask(activity)
   return {
     version: DIGEST_VERSION,
     modelRevision: MODEL_REVISION,
@@ -292,11 +317,19 @@ export function digestActivity(activity: Activity): ActivityDigest {
     sport: activity.sport,
     startMs: activity.startMs,
     durationS: activity.n,
+    movingS: moving.reduce((sum, m) => sum + m, 0),
     distanceM: activity.n > 0 ? activity.distance[activity.n - 1]! : 0,
     elevationGainM: elevationGain(activity.altitude, quality.validGrade),
     hasHeartRate: activity.hasHeartRate,
+    avgHeartRate: activity.hasHeartRate
+      ? meanWhere(activity.heartRate, and(quality.validHeartRate, moving))
+      : null,
     indoor: activity.indoor,
     powerSource: parts.powerSource,
+    avgPowerW:
+      parts.powerSource === 'measured'
+        ? meanWhere(activity.power, and(quality.validPower, moving))
+        : null,
     flags: quality.flags.slice(0, MAX_FLAGS),
     flagCounts: countFlags(quality.flags),
     maxHeartRate: maxHeartRate([source]),
@@ -308,5 +341,6 @@ export function digestActivity(activity: Activity): ActivityDigest {
     ...(metabolic === null
       ? {}
       : { splits: runSplits(activity, quality, metabolic, PRIORS.runEconomyScale.mean) }),
+    ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
   }
 }

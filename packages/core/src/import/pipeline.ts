@@ -92,6 +92,7 @@ export function activitiesFromUnits(
     nowMs: opts.nowMs ?? Date.now(),
     usedSamples: 0,
     activityName: opts.activityName,
+    sessionKey: opts.sessionKey,
   }
 
   const outcomes: Outcome[] = []
@@ -135,6 +136,8 @@ interface Context {
   usedSamples: number
   /** The name the file's export gives, which wins over a title in the file. */
   activityName?: string
+  /** The upload's id, which the legs of one upload share as their session key. */
+  sessionKey?: string
 }
 
 /**
@@ -290,6 +293,9 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
   const first = segment[0]!.tMs
   const last = segment[segment.length - 1]!.tMs
   const route = indoor ? null : routeFromFixes(unit.fixes ?? [], first, last, maxSpeed)
+  // The legs of one upload, and the parts of a unit split by a gap, share the upload as their session.
+  // Without an upload id there is no session, rather than one keyed by the name alone.
+  const sessioned = (multi || parts > 1) && context.sessionKey !== undefined
   const activity: Activity = {
     id: parts > 1 ? `${id}.${part + 1}` : id,
     name,
@@ -297,6 +303,7 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     indoor,
     ...resampled,
     ...(route ? { route } : {}),
+    ...(sessioned ? { sessionKey: context.sessionKey } : {}),
   }
   return { ok: true, activity, dropped }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fitCriticalPower } from '@rca/core/cp'
-import { FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
+import { FLAT_RUN_COST, HALF_MARATHON_M, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import {
@@ -15,6 +15,7 @@ import {
   isEstimatedRecord,
   nativeCurve,
   nativeValue,
+  ownDistanceRecords,
   sportRecords,
   threshold,
 } from './records'
@@ -325,5 +326,35 @@ describe('recordDurationLabel', () => {
     expect(recordDurationLabel(7200)).toBe('2 hours')
     expect(recordDurationLabel(1200)).toBe('20 min')
     expect(recordDurationLabel(60)).toBe('1 min')
+  })
+})
+
+describe('the half marathon as a run record', () => {
+  it('names it in chips and in the list of an activity', () => {
+    expect(chipLabels([{ kind: 'distance', distanceM: HALF_MARATHON_M }])).toEqual([
+      'Best half marathon',
+    ])
+    const run = makeActivity({
+      id: 'half',
+      distanceBests: [{ distanceM: HALF_MARATHON_M, seconds: 5400 }],
+    })
+    expect(ownDistanceRecords(run, 'metric').map((record) => record.label)).toEqual([
+      'half marathon',
+    ])
+  })
+
+  it('lists an activity its own distance bests, and none for a ride', () => {
+    const run = makeActivity({
+      id: 'run',
+      distanceBests: [
+        { distanceM: 1000, seconds: 250 },
+        { distanceM: 5000, seconds: 1300 },
+      ],
+    })
+    expect(ownDistanceRecords(run, 'metric').map((record) => record.time)).toEqual([
+      '4:10',
+      '21:40',
+    ])
+    expect(ownDistanceRecords(makeActivity({ sport: 'ride' }), 'metric')).toEqual([])
   })
 })

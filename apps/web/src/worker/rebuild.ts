@@ -2,7 +2,6 @@ import type { ActivityRecord } from '@rca/contract'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { haltsImport } from '@rca/core/session'
 import type { AnalysisSession, SessionState } from '@rca/core/session'
-import { sha256Hex } from '@rca/core/sha256'
 import type { AthleteSettings } from '@rca/core/types'
 import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
@@ -83,12 +82,11 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
       continue
     }
     try {
-      const { bytes, activity } = await originalActivity(record, userId)
+      const { fileHash, activity } = await originalActivity(record, userId)
       if (!activity) {
         missing++
         continue
       }
-      const fileHash = await sha256Hex(bytes)
       // Replaces this exact activity, so a copy deleted in another tab is not written back.
       const { record: upgraded } = await createActivity(
         digestActivity(activity),
