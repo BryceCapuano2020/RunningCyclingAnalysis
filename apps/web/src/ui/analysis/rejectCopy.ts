@@ -32,8 +32,8 @@ const EXPORT_AGAIN = 'Export it again.'
 const EXPORT_SHORTER_RANGE = 'Export a shorter range.'
 
 /**
- * The advice a reason's line gives, for the reasons whose line gives any. Its group's suggested action
- * gives the same advice once for all its files, so a line leaves it out when its group gives the action.
+ * The advice a reason's line gives, for the reasons whose line gives any. A line says it only when it is
+ * alone in its group or is the summary's first file; otherwise its group's suggested action says it once.
  */
 const LINE_ADVICE: Partial<Record<RejectCode, string>> = {
   corrupt: EXPORT_AGAIN,

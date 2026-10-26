@@ -185,8 +185,9 @@ describe('EquivalenceTable', () => {
     )
     expect(narrow).toMatch(new RegExp(`${shared}gap:\\s*var\\(--space-1\\);`))
     expect(narrow).toMatch(new RegExp(`${shared}font-size:\\s*var\\(--text-sm\\)`))
-    // A value stays whole, and an estimated effort's chip wraps under its effort, not into the pace.
-    expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*white-space:\s*nowrap/)
+    // Enlarged text wraps in its column rather than running into the next one, and an estimated
+    // effort's chip wraps under its effort, not into the pace.
+    expect(narrow).not.toMatch(/\.equivalence-list dd \{[^}]*white-space:\s*nowrap/)
     expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*display:\s*flex/)
     expect(narrow).toMatch(/\.equivalence-list dd \{[^}]*flex-wrap:\s*wrap/)
   })

@@ -378,8 +378,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
   figure has not moved. It is absent for All time. A record with no grade leaves its grade out, so
   every row keeps the same columns. A sport page's and an activity page's list says a ride's "Estimated
-  through its running equivalent" and a run's "No age standard under 1 mile" once, under the list, and
-  each row then reads only its level.
+  through its running equivalent" and its no-standard note, such as a run's "No age standard under 1
+  mile" or a ride's "No age standard for this duration", once, under the list, and each row then reads
+  only its level.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a

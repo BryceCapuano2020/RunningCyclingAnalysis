@@ -28,7 +28,7 @@ const NO_DUPLICATES: RejectedFile[] = []
 /**
  * The files an import skipped: one neutral line, the count, that opens the groups, with the first
  * file's reason under it in both states. Each group says what its files are and gives one suggested
- * action, unless one of its lines already carries the advice.
+ * action, unless one of its lines already carries the advice that every file in it shares.
  */
 export function RejectedFiles({
   count,

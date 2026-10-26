@@ -1,4 +1,5 @@
 import type { AxisTick, PlotBox } from './chartTypes'
+import { X_TICK_BASELINE_PX } from './plotBox'
 import { axisFontRem, labelWidth, rootScale } from './ticks'
 import './ChartXAxis.css'
 
@@ -40,7 +41,7 @@ export function ChartXAxis({ ticks, plot, title, fontSize = 12 }: ChartXAxisProp
               className="chart-x-axis__tick"
               style={{ fontSize: axisFontRem(fontSize) }}
               x={tick.position}
-              y={plot.bottom + 18}
+              y={plot.bottom + X_TICK_BASELINE_PX}
               textAnchor={textAnchor}
             >
               {tick.label}
