@@ -127,8 +127,8 @@ export function DeleteAccountDialog({
         <p id={bodyId} className="delete-dialog__body">
           This permanently deletes your profile, every activity and every stored file. It cannot be
           undone. Activities kept in this browser from before you signed in are not part of your
-          account, so deleting it does not remove them; sign out and choose Remove all my activities
-          to remove them.
+          account, so deleting it does not remove them. If you kept any, sign out and choose Remove
+          all my activities to remove them.
         </p>
         <p className="delete-dialog__body">
           Your account is <strong>{email}</strong>.

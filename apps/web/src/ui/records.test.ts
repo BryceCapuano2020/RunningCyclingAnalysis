@@ -108,6 +108,12 @@ describe('sportRecords', () => {
     expect(first?.covered).toMatch(/^\d+\.\d mi in 20 min$/)
   })
 
+  it('names an hour effort in minutes in its distance covered, as the records list does', () => {
+    const runs = makeResult({ runCurve: [curvePoint(3600, 15, 'run-1')] })
+    const [hour] = sportRecords(runs, 'run', 70, 'metric')
+    expect(hour?.covered).toMatch(/^\d+\.\d km in 60 min$/)
+  })
+
   it('gives a ride no distance covered, since its grade goes through the running equivalent', () => {
     const [first] = sportRecords(result, 'ride', 70, 'metric')
     expect(first?.covered).toBeNull()

@@ -77,7 +77,7 @@ export interface SportRecord extends SportNumber {
 
 /** The distance covered in a time, in the unit preference, such as "5.0 km in 20 min". */
 export function coveredText(metres: number, durationS: number, units: UnitSystem): string {
-  return `${formatDistance(metres, units)} in ${formatDuration(durationS)}`
+  return `${formatDistance(metres, units)} in ${effortLabel(durationS)}`
 }
 
 type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>

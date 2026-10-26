@@ -212,6 +212,8 @@ export function App() {
   })
 
   const accountsAvailable = account.status !== 'unavailable'
+  // The landing page's drop zone has its own Add files, so the header leaves its button out there.
+  const onLanding = key === 'landing'
 
   return (
     <div className="page">
@@ -221,7 +223,7 @@ export function App() {
         route={route}
         showTabs={hasResult || analysis.restoring}
         addFiles={
-          restoringPage ? null : (
+          restoringPage || onLanding ? null : (
             <AddFilesButton onFiles={setup.requestImport} primary={hasResult || signedIn} />
           )
         }

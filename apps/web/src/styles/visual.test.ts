@@ -331,6 +331,22 @@ describe('pressed states', () => {
       /color:\s*HighlightText/,
     )
   })
+
+  it('stops forced colours from painting a backplate over the primary button label, in its rest, hover and press states', () => {
+    // The system Highlight fill and HighlightText label stay; only the browser's own colour
+    // adjustment is switched off, since it draws a backplate that hides the label.
+    const forced = mediaOf(components, FORCED)
+    for (const selector of [
+      '.btn-primary',
+      '.btn-primary:hover',
+      ".btn-primary:active:not([aria-disabled='true'])",
+    ]) {
+      const body = rulesWith(forced, selector)
+      expect(body).toMatch(/forced-color-adjust:\s*none/)
+      expect(body).toMatch(/background:\s*Highlight/)
+      expect(body).toMatch(/color:\s*HighlightText/)
+    }
+  })
 })
 
 describe('control height', () => {

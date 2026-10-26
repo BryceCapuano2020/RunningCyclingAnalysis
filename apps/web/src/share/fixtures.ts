@@ -1,5 +1,8 @@
 import { energyReading } from '../ui/components/balanceScale'
 import { interval } from '../ui/components/fixtures'
+import { HEADLINE_LABEL } from '../ui/grades'
+import { effortLabel } from '../ui/records'
+import { THRESHOLD_EFFORT_TEXT } from '../ui/sports'
 import type { CardFormat } from './cardLayout'
 import type { ShareCardModel } from './cardModel'
 import { renderShareCard } from './renderCard'
@@ -159,13 +162,12 @@ export function draw(model: ShareCardModel, format: CardFormat = 'square'): Fake
 /** The magnitude line the card states under its headline: the grade gap in points, with its range. */
 export const MAGNITUDE = 'Running grades 6 points higher than cycling'
 /** A run's level line, and a ride's, as the grade line writes them. */
-export const RUN_GRADE = 'Local · 64% on best 20 min'
-export const RIDE_GRADE = 'Estimated · Recreational · 61% on best 20 min'
+export const RUN_GRADE = `Local · 64% on best ${HEADLINE_LABEL}`
+export const RIDE_GRADE = `Estimated · Recreational · 61% on best ${HEADLINE_LABEL}`
 /** A magnitude and a grade line long enough to take two lines, as a long range or name would. */
 export const LONG_MAGNITUDE =
   'Running grades 16 points higher than cycling, with a range from 4 to 28 points that depends on the heart-rate check and the population model'
-export const LONG_GRADE =
-  'Estimated · Recreational to Local · 61% on best 20 min, with the model range set by the standards'
+export const LONG_GRADE = `Estimated · Recreational to Local · 61% on best ${HEADLINE_LABEL}, with the model range set by the standards`
 
 /** A card with a meter, both estimates and their levels, a magnitude, a period, a caveat, a footnote and an origin. */
 export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardModel {
@@ -177,21 +179,21 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
     heroes: [
       {
         sport: 'run',
-        label: 'Threshold flat pace, estimated from your best 3 to 20 min',
+        label: `Threshold flat pace, estimated from your best ${THRESHOLD_EFFORT_TEXT}`,
         figure: { number: '21:35', unit: '/km' },
         sub: null,
         grade: RUN_GRADE,
       },
       {
         sport: 'ride',
-        label: 'Threshold power, estimated from your best 3 to 20 min',
+        label: `Threshold power, estimated from your best ${THRESHOLD_EFFORT_TEXT}`,
         figure: { number: '48', unit: 'W' },
         sub: '0.6 W/kg',
         grade: RIDE_GRADE,
       },
     ],
     period: 'Last 6 weeks',
-    caveat: 'Best efforts over 20 min may not have been your hardest.',
+    caveat: `Best efforts over ${HEADLINE_LABEL} may not have been your hardest.`,
     footnote: 'Graded on the USATF road standards. A level, not a ranking.',
     origin: 'example.test',
     badge: null,
@@ -208,8 +210,7 @@ export const LONG_HEADLINE =
  * effortCaveat short line at every duration the app names (fixtures.test.ts), and it takes two lines on the
  * card.
  */
-export const LONG_CAVEAT =
-  'Best cycling efforts over the full 60 min may not have been your hardest, so the figure may be low.'
+export const LONG_CAVEAT = `Best cycling efforts over the full ${effortLabel(3600)} may not have been your hardest, so the figure may be low.`
 
 /** A footnote long enough to wrap onto several lines of the card. */
 export const LONG_FOOTNOTE =

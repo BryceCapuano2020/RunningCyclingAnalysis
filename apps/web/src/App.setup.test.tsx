@@ -34,9 +34,10 @@ function file(name: string): File {
   return new File(['data'], name, { type: 'application/octet-stream' })
 }
 
+// The landing page has no header Add files, so its drop zone's chooser is the one on the page.
 function chooseFiles(names: string[]) {
-  const input = document.querySelector<HTMLInputElement>('header input[type="file"]')
-  if (input === null) throw new Error('the header has no file input')
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')
+  if (input === null) throw new Error('the page has no file input')
   fireEvent.change(input, { target: { files: names.map(file) } })
 }
 

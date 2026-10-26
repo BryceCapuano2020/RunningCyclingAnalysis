@@ -93,7 +93,21 @@ describe('header', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('makes Add files the primary button only with a result or when signed in', () => {
+  it('leaves Add files out of the header on the landing page, whose drop zone has its own', () => {
+    for (const account of ['signed-out', 'signed-in'] as const) {
+      setAccount(account)
+      const { unmount } = render(<App />)
+      expect(screen.getByRole('heading', { level: 1, name: LANDING_HEADING })).toBeInTheDocument()
+      expect(
+        within(screen.getByRole('banner')).queryByRole('button', { name: 'Add files' }),
+      ).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add files' })).toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('makes the header Add files the primary button only with a result or when signed in', () => {
+    window.location.hash = '#/method'
     setAccount('signed-out')
     const { unmount } = render(<App />)
     expect(
