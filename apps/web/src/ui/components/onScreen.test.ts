@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { pickSpot, scrollToKeep, startsOnScreen } from './onScreen'
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { headerClearance, pickSpot, scrollToKeep, startsOnScreen } from './onScreen'
 
 describe('startsOnScreen', () => {
   it('counts an element whose top edge is in the viewport as on screen', () => {
@@ -10,6 +11,22 @@ describe('startsOnScreen', () => {
   it('counts an element that starts below the viewport, or above it, as off screen', () => {
     expect(startsOnScreen(768, 768)).toBe(false)
     expect(startsOnScreen(-1, 768)).toBe(false)
+  })
+
+  it('counts an element under the sticky header as off screen, since the header covers it', () => {
+    expect(startsOnScreen(40, 768, 69)).toBe(false)
+    expect(startsOnScreen(69, 768, 69)).toBe(true)
+  })
+
+  it('reads the header height from the scroll padding the page keeps for it', () => {
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      scrollPaddingTop: '69px',
+    } as CSSStyleDeclaration)
+    expect(headerClearance()).toBe(69)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 })
 

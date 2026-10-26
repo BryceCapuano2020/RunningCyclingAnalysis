@@ -1,9 +1,21 @@
 /**
- * Whether an element whose top edge is `top` pixels from the viewport's top starts on screen. The top
- * edge decides it, so a control that is cut off at the foot of the screen still counts as there.
+ * The height the sticky header covers at the top of the viewport. The page keeps its scroll padding at
+ * that height, so a control the browser scrolls to clears it; a control under it is not on screen.
  */
-export function startsOnScreen(top: number, viewportHeight = window.innerHeight): boolean {
-  return top >= 0 && top < viewportHeight
+export function headerClearance(): number {
+  return parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0
+}
+
+/**
+ * Whether an element whose top edge is `top` pixels from the viewport's top starts on screen, below the
+ * header. The top edge decides it, so a control cut off at the foot of the screen still counts as there.
+ */
+export function startsOnScreen(
+  top: number,
+  viewportHeight = window.innerHeight,
+  clearance = headerClearance(),
+): boolean {
+  return top >= clearance && top < viewportHeight
 }
 
 /** Where a control was on screen when a pick was made: its top edge, and how far the page was scrolled. */

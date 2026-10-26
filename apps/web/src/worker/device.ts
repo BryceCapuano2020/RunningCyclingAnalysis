@@ -100,7 +100,7 @@ export function deviceActions(
     report,
     async remove(id, settings) {
       const kept = await device.get(id)
-      if (!kept) throw new Error('This activity is no longer kept on this device.')
+      if (!kept) throw new Error('This activity is no longer kept in this browser.')
       await device.remove(id)
       await report()
       return session.removeActivity(kept.sport, kept.startMs, settings)

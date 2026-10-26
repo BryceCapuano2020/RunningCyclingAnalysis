@@ -141,13 +141,16 @@
 }
 
 /*
- * Below 560 px the hero moves into the meta line, beside the sport and the date, and the chevron goes:
- * the whole row is the link, so the chevron only decorates it. The body's blocks become the row's own
- * grid items, so the hero can sit in the meta line's row.
+ * Below 560 px, which is COMPACT_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the row is one line of
+ * blocks that wrap. The name takes a line, and the meta line takes about half the row, with the hero
+ * beside it. A hero too wide to sit beside about half the meta line wraps onto a line of its own, at
+ * the right, so the meta keeps about half the row. The chevron goes: the whole row is the link, so it only decorates.
  */
 @media (max-width: 560px) {
   .activity-list__main {
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-3);
     row-gap: var(--space-1);
   }
 
@@ -156,20 +159,32 @@
   }
 
   .activity-list__body > * {
-    grid-column: 1 / -1;
+    order: 2;
+    flex: 1 1 100%;
     min-width: 0;
   }
 
+  .activity-list__body > .activity-list__name {
+    order: 0;
+  }
+
   .activity-list__body > .activity-list__meta {
-    grid-column: 1;
-    grid-row: 2;
+    order: 1;
+    flex: 1 1 45%;
+  }
+
+  .activity-list__body > .activity-delete__open {
+    flex: 0 0 auto;
   }
 
   .activity-list__hero {
-    grid-auto-flow: column;
-    grid-column: 2;
-    grid-row: 2;
+    display: flex;
     align-items: baseline;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    order: 1;
+    flex: 0 1 auto;
+    margin-left: auto;
     white-space: nowrap;
   }
 

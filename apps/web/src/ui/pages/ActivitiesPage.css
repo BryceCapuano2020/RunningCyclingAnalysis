@@ -8,7 +8,10 @@
   margin: 0;
 }
 
-/* Sport and Sort share a row from 761 px, the first width past the phone layout, and stack below it. */
+/*
+ * Sport and Sort share a row from 761 px, which is SPLIT_FILTERS_MIN_WIDTH_PX in ui/layoutBreakpoints.ts,
+ * the first width past the phone layout. They stack below it.
+ */
 .activities__filters {
   display: grid;
   gap: var(--space-4);

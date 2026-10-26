@@ -37,13 +37,14 @@ export function usePagination<T, E extends HTMLElement>(
     if (move === null || move.page !== page) return
     moveRef.current = null
     const control = move.control
-    // The list has been scrolled to its top, so a control now below the screen is not focused, since
-    // focus would scroll the page back down to it. Focus goes to the first row, which is on screen.
+    // A control now below the screen is not focused, since focus would scroll the page back down to it.
+    // Focus then goes to the first row. A list that turned its page has scrolled that row into view, and
+    // a page that did not turn its list relies on focus to bring the row into view.
     const onScreen = control !== null && startsOnScreen(control.getBoundingClientRect().top)
     if (control?.isConnected && !control.hasAttribute('disabled') && onScreen) {
-      control.focus({ preventScroll: true })
+      control.focus()
     } else {
-      firstItemRef.current?.focus({ preventScroll: true })
+      firstItemRef.current?.focus()
     }
   }, [page])
 

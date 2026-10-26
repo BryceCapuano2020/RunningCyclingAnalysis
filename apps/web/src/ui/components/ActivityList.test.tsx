@@ -377,17 +377,17 @@ describe('ActivityList paging', () => {
   })
 
   it('does not move the list when the page is given by the address', () => {
-    const { container } = renderList(
+    // The spy is installed before the first render, so a scroll on mount is seen.
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    renderList(
       Array.from({ length: 45 }, (_, i) => makeActivity({ id: `a-${i}`, name: `Run number ${i}` })),
       'metric',
       new Map(),
       { initialPage: 1 },
     )
-    const list = container.querySelector<HTMLElement>('.activity-list')
-    if (list === null) throw new Error('No list is shown')
-    list.scrollIntoView = vi.fn()
     expect(screen.getByText('Showing 21–40 of 45 activities. Page 2 of 3.')).toBeVisible()
-    expect(list.scrollIntoView).not.toHaveBeenCalled()
+    expect(scroll).not.toHaveBeenCalled()
   })
 
   it('moves focus to the first row when the pressed control is below the screen once the page turns', async () => {

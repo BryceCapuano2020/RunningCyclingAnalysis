@@ -24,3 +24,12 @@ export const SMALL_PHONE_MAX_WIDTH_PX = 360
 
 /** From this width About you and Body and bike sit side by side on Profile, and stack below it. */
 export const PROFILE_PAIR_MIN_WIDTH_PX = 900
+
+/** At or below this width the period control fills the content width, so it meets the gutter on a phone. */
+export const PERIOD_FULL_WIDTH_MAX_WIDTH_PX = 479
+
+/** At or below this width the four periods take a 2 by 2 grid; from 360 px they fit one row. */
+export const PERIOD_GRID_MAX_WIDTH_PX = 359
+
+/** From this width Sport and Sort share a row on Activities, the first width past the phone layout. */
+export const SPLIT_FILTERS_MIN_WIDTH_PX = PHONE_MAX_WIDTH_PX + 1

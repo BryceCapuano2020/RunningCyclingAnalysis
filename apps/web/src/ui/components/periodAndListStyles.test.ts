@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import {
+  COMPACT_PHONE_MAX_WIDTH_PX,
+  PERIOD_FULL_WIDTH_MAX_WIDTH_PX,
+  PERIOD_GRID_MAX_WIDTH_PX,
+  PHONE_MAX_WIDTH_PX,
+  SPLIT_FILTERS_MIN_WIDTH_PX,
+} from '../layoutBreakpoints'
 import { readStylesheet } from './stylesheet'
 
 const rangePicker = await readStylesheet(import.meta.url, './RangePicker.css')
@@ -70,13 +77,17 @@ describe('the period control', () => {
 })
 
 describe('the activity list', () => {
-  it('moves the hero into the meta line below 560 px, and hides the chevron there', () => {
+  it('sets the hero beside the meta line below 560 px, and hides the chevron there', () => {
     const phone = mediaOf(activityList, NARROW_PHONE)
     expect(rulesWith(phone, '.activity-list__chevron')).toMatch(/display:\s*none/)
     expect(rulesWith(phone, '.activity-list__body')).toMatch(/display:\s*contents/)
-    expect(rulesWith(phone, '.activity-list__body > .activity-list__meta')).toMatch(/grid-row:\s*2/)
-    expect(rulesWith(phone, '.activity-list__hero')).toMatch(/grid-row:\s*2/)
-    expect(rulesWith(phone, '.activity-list__hero')).toMatch(/grid-column:\s*2/)
+    expect(rulesWith(phone, '.activity-list__main')).toMatch(/display:\s*flex/)
+    expect(rulesWith(phone, '.activity-list__main')).toMatch(/flex-wrap:\s*wrap/)
+    expect(rulesWith(phone, '.activity-list__body > .activity-list__meta')).toMatch(
+      /flex:\s*1 1 45%/,
+    )
+    expect(rulesWith(phone, '.activity-list__hero')).toMatch(/margin-left:\s*auto/)
+    expect(rulesWith(phone, '.activity-list__hero')).toMatch(/order:\s*1/)
   })
 
   it('keeps each figure value on one line', () => {
@@ -113,5 +124,27 @@ describe('the activity list', () => {
     expect(rulesWith(phone, '.pager__controls')).toMatch(/grid-template-columns:\s*1fr 1fr/)
     expect(rulesWith(phone, '.pager__pages')).toMatch(/grid-column:\s*1 \/ -1/)
     expect(rulesWith(phone, '.pager__pages')).toMatch(/order:\s*-1/)
+  })
+})
+
+describe('breakpoints named in layoutBreakpoints.ts', () => {
+  // Each stylesheet repeats its width in a media query and names the file in a comment, so a change is
+  // made in the file and the query together. This fails when they disagree.
+  it('gives each width its media query in the stylesheet that uses it', () => {
+    expect(activityList).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
+    expect(pager).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
+    expect(activitiesPage).toContain(`@media (min-width: ${SPLIT_FILTERS_MIN_WIDTH_PX}px)`)
+    expect(rangePicker).toContain(`@media (max-width: ${PERIOD_FULL_WIDTH_MAX_WIDTH_PX}px)`)
+    expect(rangePicker).toContain(`@media (max-width: ${PERIOD_GRID_MAX_WIDTH_PX}px)`)
+  })
+
+  it('names layoutBreakpoints.ts in a comment beside each of them', () => {
+    for (const css of [activityList, pager, activitiesPage, rangePicker]) {
+      expect(css).toContain('layoutBreakpoints.ts')
+    }
+  })
+
+  it('takes the Activities split from one past the phone layout, so the two never overlap', () => {
+    expect(SPLIT_FILTERS_MIN_WIDTH_PX).toBe(PHONE_MAX_WIDTH_PX + 1)
   })
 })

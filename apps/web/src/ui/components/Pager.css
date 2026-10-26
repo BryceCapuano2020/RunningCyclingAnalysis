@@ -48,7 +48,10 @@
   color: var(--text-muted);
 }
 
-/* Below 560 px the page numbers take a centred row, and Previous and Next share the row beneath. */
+/*
+ * Below 560 px, which is COMPACT_PHONE_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the page numbers take a
+ * centred row, and Previous and Next share the row beneath.
+ */
 @media (max-width: 560px) {
   .pager__controls {
     display: grid;

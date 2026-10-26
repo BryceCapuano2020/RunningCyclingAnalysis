@@ -133,7 +133,7 @@ describe('device library actions', () => {
     const { actions } = setup()
 
     await expect(actions.remove(workoutKeyOf(FIRST), SETTINGS)).rejects.toThrow(
-      'This activity is no longer kept on this device.',
+      'This activity is no longer kept in this browser.',
     )
   })
 

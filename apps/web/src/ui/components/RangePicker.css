@@ -6,7 +6,10 @@
   justify-items: start;
 }
 
-/* Below 480 px the control fills the content width, so it meets the gutter on a phone. */
+/*
+ * At or below 479 px, which is PERIOD_FULL_WIDTH_MAX_WIDTH_PX in ui/layoutBreakpoints.ts, the control
+ * fills the content width, so it meets the gutter on a phone.
+ */
 @media (max-width: 479px) {
   .range-picker {
     width: 100%;
@@ -39,6 +42,7 @@
  * Under 360 px "All time" wraps alone, so the four periods take a 2 by 2 grid. Activities offers three,
  * which fit one row, so the rule names the fourth.
  */
+/* At or below 359 px, which is PERIOD_GRID_MAX_WIDTH_PX in ui/layoutBreakpoints.ts. */
 @media (max-width: 359px) {
   .range-picker .segmented-control__options:has(> :nth-child(4)) {
     display: grid;
