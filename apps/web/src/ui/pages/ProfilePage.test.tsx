@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AthleteSettings } from '@rca/core/types'
@@ -909,5 +909,93 @@ describe('ProfilePage see your levels', () => {
     fireEvent.blur(year)
     expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
     expect(screen.getAllByRole('link', LEVELS)).toHaveLength(1)
+  })
+})
+
+describe('ProfilePage see your levels, save by save', () => {
+  const LEVELS = { name: 'See your levels' }
+  const SAVING_YEAR = (patch: ProfilePatch) =>
+    'birthYear' in patch ? new Promise<void>(() => undefined) : Promise.resolve()
+
+  it('offers it after a units save', async () => {
+    renderProfile({}, { state: { result: makeResult() } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Imperial' }))
+
+    expect(await screen.findByText('Units: Saved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+  })
+
+  it('offers it after a bike weight save, on the settings bar', async () => {
+    renderProfile({}, { state: { result: makeResult() } })
+    const bike = screen.getByLabelText('Bike and gear weight')
+    fireEvent.change(bike, { target: { value: '8.5' } })
+    fireEvent.blur(bike)
+
+    expect(
+      await screen.findByText('Saved. Balance and ride results now use this.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+  })
+
+  it('offers it after a year save for a signed-in visitor', async () => {
+    renderProfile({ signedIn: true, email: EMAIL }, { state: { result: makeResult() } })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(await screen.findByText('Year of birth: Saved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+  })
+
+  it('offers no link after a refused year, even when a later sex saves', async () => {
+    const onSaveProfile = vi.fn(async (patch: ProfilePatch) => {
+      if ('birthYear' in patch) throw new Error('Offline')
+    })
+    renderProfile({ sex: 'male', onSaveProfile }, { state: { result: makeResult() } })
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+    expect(await screen.findByText("Year of birth: Couldn't save. Try again.")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Woman' }))
+    await waitFor(() => expect(screen.queryByText('Sex: Saving…')).not.toBeInTheDocument())
+
+    expect(screen.getByText("Year of birth: Couldn't save. Try again.")).toBeInTheDocument()
+    expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+
+  it('hides the settings bar link while a year save is pending, after a weight save', async () => {
+    renderProfile({ onSaveProfile: vi.fn(SAVING_YEAR) }, { state: { result: makeResult() } })
+    const body = screen.getByLabelText('Body weight')
+    fireEvent.change(body, { target: { value: '76' } })
+    fireEvent.blur(body)
+    expect(
+      await screen.findByText('Saved. Balance and ride results now use this.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+
+    const year = screen.getByLabelText('Year of birth')
+    fireEvent.change(year, { target: { value: '1985' } })
+    fireEvent.blur(year)
+
+    expect(screen.getByText('Year of birth: Saving…')).toBeInTheDocument()
+    expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+
+  it('hides the status line link while a weight save is pending, after a sex save', async () => {
+    const onSaveProfile = vi.fn((patch: ProfilePatch) =>
+      'settings' in patch ? new Promise<void>(() => undefined) : Promise.resolve(),
+    )
+    renderProfile({ sex: 'male', onSaveProfile }, { state: { result: makeResult() } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Woman' }))
+    expect(await screen.findByText('Sex: Saved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', LEVELS)).toBeInTheDocument()
+
+    const body = screen.getByLabelText('Body weight')
+    fireEvent.change(body, { target: { value: '76' } })
+    fireEvent.blur(body)
+
+    expect(screen.getByText('Sex: Saved.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
   })
 })

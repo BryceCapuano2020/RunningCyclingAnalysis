@@ -1231,6 +1231,28 @@ describe('SportPage depth', () => {
     expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
   })
 
+  it.each(['run', 'ride'] as const)(
+    'shows no heart-rate line on the %s page when the library has no 20 min best in both sports',
+    (sport) => {
+      const ride = makeActivity({
+        id: 'ride-1',
+        sport: 'ride',
+        name: 'Hill ride',
+        powerSource: 'measured',
+      })
+      renderPage(
+        sport,
+        makeResult({
+          activities: [morningRun, ride],
+          rideCurve: [curvePoint(60, 400, 'ride-1')],
+          effort: [],
+        }),
+      )
+
+      expect(screen.queryByText(/reference heart rate/)).not.toBeInTheDocument()
+    },
+  )
+
   it('links the power note to How sure is this?', () => {
     const ride = makeActivity({
       id: 'ride-1',
