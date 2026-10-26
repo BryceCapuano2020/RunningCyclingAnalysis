@@ -206,6 +206,29 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps a mixed group action when its first file gives advice and another file gives none', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
+          skipped('short.fit', 'too-short'),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.getByText('big.fit: Too large to read (over 64 MB). Export a shorter range.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Check the recording on your device, or export a shorter range.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('short.fit: Too short: it records less than a minute.'),
+    ).toBeInTheDocument()
+  })
+
   it('keeps the group action for a lone first file whose line gives no action', () => {
     render(
       <Skipped

@@ -160,7 +160,8 @@ export function groupRejected(files: RejectedFile[]): SkippedFiles[] {
 /**
  * The refused files whose line carries its advice. A reason with advice carries it when its file is
  * alone in its group, or when it is the summary's first file, which sits under the count and shows
- * whether or not the group is open. Every other line leaves the advice out, so it is said once.
+ * whether or not the group is open. Every other line leaves the advice out, so it is said once, by the
+ * line or by its group's action.
  */
 export function adviceCarriers(
   groups: SkippedFiles[],
@@ -175,10 +176,17 @@ export function adviceCarriers(
   return carriers
 }
 
-/** Whether a group shows its suggested action: it does not when one of its lines carries the advice. */
+/**
+ * Whether a group shows its suggested action. A group that is covered by one of its lines' advice does
+ * not: every file in it gives that same advice, so the line says it for all of them. A mixed group keeps
+ * its action, so a file whose reason gives no advice is not left without one.
+ */
 export function groupShowsAction(
   files: RejectedFile[],
   carriers: ReadonlySet<RejectedFile>,
 ): boolean {
-  return !files.some((file) => carriers.has(file))
+  const carrier = files.find((file) => carriers.has(file))
+  if (carrier === undefined) return true
+  const advice = LINE_ADVICE[carrier.code]
+  return !files.every((file) => LINE_ADVICE[file.code] === advice)
 }

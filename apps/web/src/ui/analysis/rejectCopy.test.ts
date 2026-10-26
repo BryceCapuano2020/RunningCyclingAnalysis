@@ -171,6 +171,22 @@ describe('adviceCarriers: the advice is said once, in the first file line or the
     expect(groupShowsAction(notUsable.files, carriers)).toBe(true)
   })
 
+  it('keeps a mixed group action when its first file gives advice and another file gives none', () => {
+    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
+    const short = file('short.fit', { code: 'too-short' })
+    const groups = groupRejected([big, short])
+    const carriers = adviceCarriers(groups, big)
+    expect([...carriers]).toEqual([big])
+    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(true)
+  })
+
+  it('keeps a mixed damaged group action when its first file gives advice and another file gives none', () => {
+    const bad = file('bad.fit', { code: 'corrupt' })
+    const groups = groupRejected([bad, file('empty.fit', { code: 'empty' })])
+    const carriers = adviceCarriers(groups, bad)
+    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(true)
+  })
+
   it('gives no carrier to a reason without advice, even when it is alone and first', () => {
     const empty = file('empty.fit', { code: 'empty' })
     const carriers = adviceCarriers(groupRejected([empty]), empty)
