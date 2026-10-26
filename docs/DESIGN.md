@@ -45,7 +45,7 @@ one tap away on a phone as the Google mark alone, 44 px square, named **Sign in 
 screen readers. Below 420 px **Add files** shows its plus only; its name is kept for screen readers and
 is its title, so a pointer shows it on hover. The account menu holds the email and Sign out; downloading data and deleting the account
 are on the Profile page. A file dropped anywhere on the page is imported. A drop with no file the import can read, such as a
-.txt, asks nothing: its files go straight to the skipped list. In a mixed drop the unreadable files go there at once, and only the readable ones wait for the setup questions. On a short page the footer
+.txt, asks nothing: its files go straight to the skipped list. On a short page the footer
 sits at the foot of the window, sized to the small viewport so the phone's toolbar does not move it, and the brand mark's two sport strokes are 4 px, so the crossing reads at 32 px.
 
 The header's sizes are custom properties in `tokens.css`, and the header measures its own height into
@@ -276,8 +276,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
-- A sport page reads top to bottom: the threshold, with a run's heart-rate line for the best 20 minutes
-  under its meaning, its grade and level ladder for the best 20 minutes
+- A sport page reads top to bottom: the threshold, with a line on the best 20 minutes by heart rate
+  under its meaning, on either sport, then its grade and level ladder for the best 20 minutes
   (the same grade line as the card), a line of recent form ("Last run 14 Jan · 9 runs · 42.10
   km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
   opens Activities filtered to that sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
@@ -383,9 +383,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   mile" or a ride's "No age standard for this duration", once, under the list, and each row then reads
   only its level.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
-  a power meter, the best efforts say "Power meters measured 2 of 5 rides, so watts for the rest are
-  estimated." The line links to How sure is this?. A ride's heart-rate line for the best 20 minutes
-  goes in the same paragraph. The pipeline writes an average power only from a
+  a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
+  estimated." The line links to How sure is this?. The pipeline writes an average power only from a
   power meter, so the **Estimated** mark on the activity page and in its list row guards a summary that
   carries estimated watts.
 - **An activity page reads top to bottom:** the name, the sport, the day and start time (with an

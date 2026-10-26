@@ -112,24 +112,11 @@ describe('useSetup, signed out', () => {
     expect(names(addFiles)).toEqual(['notes.txt', 'photo.png'])
   })
 
-  it('asks when a readable file is in the drop, and sends the unreadable ones at once', () => {
+  it('asks when a readable file is in the drop, and holds the whole drop for the answer', () => {
     const { result, addFiles } = renderSetup()
     act(() => result.current.requestImport([file('notes.txt'), file('run.fit')]))
     expect(result.current.open).toBe(true)
-    expect(result.current.held).toBe(1)
-    expect(names(addFiles)).toEqual(['notes.txt'])
-  })
-
-  it('holds only the readable files of a mixed drop, and sends them once the answers are stored', async () => {
-    const { result, addFiles, rerender } = renderSetup()
-    act(() => result.current.requestImport([file('notes.txt'), file('run.fit')]))
-    await act(() => result.current.finish({}))
-    expect(addFiles).toHaveBeenCalledTimes(1)
-
-    rerender({ ...SIGNED_OUT, preferencesDone: true })
-
-    expect(addFiles).toHaveBeenCalledTimes(2)
-    expect(addFiles.mock.calls[1]?.[0].map((held) => held.name)).toEqual(['run.fit'])
+    expect(addFiles).not.toHaveBeenCalled()
   })
 
   it('does not write the signed-in device flag while signed out', async () => {
