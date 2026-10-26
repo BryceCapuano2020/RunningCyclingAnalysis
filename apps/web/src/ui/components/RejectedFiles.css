@@ -4,19 +4,28 @@
   font-size: var(--text-sm);
 }
 
-.rejected-files__first {
-  margin: 0;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-
 .rejected-files details {
   margin-top: var(--space-2);
 }
 
+/*
+ * The triangle and the count share the first row. The grid replaces the base flex row, so the first
+ * file's reason takes the row under the count.
+ */
 .rejected-files summary {
   cursor: pointer;
   color: var(--text-primary);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 var(--space-2);
+}
+
+/* The first file's reason sits under the count line, inside the summary, so it shows in both states. */
+.rejected-files__first {
+  grid-column: 2;
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .rejected-files__group {

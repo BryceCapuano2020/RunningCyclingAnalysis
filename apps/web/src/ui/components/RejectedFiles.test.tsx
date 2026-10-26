@@ -84,6 +84,37 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeInTheDocument()
   })
 
+  it('says the export advice once: in the group action, not in the lines, when a group has two or more damaged files', () => {
+    render(
+      <Skipped
+        rejected={[skipped('bad.fit', 'corrupt'), skipped('bad2.fit', 'corrupt')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(screen.getByText('Export the file again from your device or app.')).toBeInTheDocument()
+    expect(screen.queryAllByText(/Export it again/)).toHaveLength(0)
+    expect(screen.getByText('bad2.fit: Damaged, so it could not be read.')).toBeInTheDocument()
+  })
+
+  it('keeps the advice in the line of a lone damaged file that is not first, and drops its group action', () => {
+    render(
+      <Skipped
+        rejected={[skipped('notes.txt', 'not-activity'), skipped('bad.fit', 'corrupt')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.queryByText('Export the file again from your device or app.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
+    ).toBeInTheDocument()
+  })
+
   it('keeps the group action for a lone first file whose line gives no action', () => {
     render(
       <Skipped
@@ -120,14 +151,16 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('shows the first skipped file and its reason outside the disclosure', () => {
-    render(
+  it('shows the first skipped file and its reason under the count line, in both states', () => {
+    const { container } = render(
       <Skipped rejected={[skipped('empty.fit', 'empty')]} unsupportedFiles={0} duplicates={[]} />,
     )
 
-    const first = document.querySelector('.rejected-files__first')
-    expect(first).toHaveTextContent('empty.fit: It has no activity records in it.')
-    expect(first?.closest('details')).toBeNull()
+    const summary = container.querySelector('summary')!
+    expect(summary.querySelector('.rejected-files__first')).toHaveTextContent(
+      'empty.fit: It has no activity records in it.',
+    )
+    expect(within(summary).getByText('1 file skipped.')).toBeInTheDocument()
   })
 
   it('offers the guides beneath the list of skipped files, so a skipped file has a next step', () => {
@@ -145,7 +178,7 @@ describe('RejectedFiles: what was skipped, and why', () => {
     expect(list!.compareDocumentPosition(guides) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('lists only the files after the first in the disclosure, since the first is shown above it', () => {
+  it('lists only the files after the first in the groups, since the first is shown under the count line', () => {
     const { container } = render(
       <Skipped
         rejected={[skipped('a.txt', 'not-activity'), skipped('b.txt', 'not-activity')]}
@@ -154,25 +187,28 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    const details = container.querySelector('details')!
+    const list = container.querySelector<HTMLElement>('.rejected-files__list')!
     const reason = 'Not a FIT, GPX or TCX file, so it cannot be read.'
-    expect(within(details).queryByText(`a.txt: ${reason}`)).not.toBeInTheDocument()
-    expect(within(details).getByText(`b.txt: ${reason}`)).toBeInTheDocument()
+    expect(within(list).queryByText(`a.txt: ${reason}`)).not.toBeInTheDocument()
+    expect(within(list).getByText(`b.txt: ${reason}`)).toBeInTheDocument()
     expect(screen.getByText('Not an activity file: 2 files')).toBeInTheDocument()
   })
 
-  it('gives the count line first and the first file under it, after the disclosure', () => {
+  it('gives the count line, then the first file, above the groups in both states', () => {
     const { container } = render(
-      <Skipped rejected={[skipped('empty.fit', 'empty')]} unsupportedFiles={0} duplicates={[]} />,
+      <Skipped
+        rejected={[skipped('a.txt', 'not-activity'), skipped('b.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
     )
 
-    const root = container.querySelector('.rejected-files')!
-    const first = root.querySelector('.rejected-files__first')!
-    expect(root.firstElementChild?.tagName).toBe('DETAILS')
-    expect(
-      root.querySelector('details')!.compareDocumentPosition(first) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    const summary = container.querySelector('summary')!
+    const count = within(summary).getByText('2 files skipped.')
+    const first = summary.querySelector('.rejected-files__first')!
+    const group = container.querySelector('.rejected-files__group')!
+    expect(count.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(first.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('renders nothing when no file was skipped', () => {

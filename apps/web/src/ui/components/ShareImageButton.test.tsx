@@ -353,6 +353,16 @@ describe('ShareImageButton', () => {
     expect(tall).not.toHaveClass('share-sheet__picture--stale')
   })
 
+  it('gives the preview slot the chosen shape, so it reserves the height that shape takes', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    const slot = dialog.querySelector('.share-sheet__preview')!
+    expect(slot).toHaveClass('share-sheet__preview--square')
+    fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
+    expect(slot).toHaveClass('share-sheet__preview--story')
+    expect(slot).not.toHaveClass('share-sheet__preview--square')
+  })
+
   it('is not ready right after a shape switch, until the new shape is drawn', async () => {
     const held = heldFile()
     renderButton()

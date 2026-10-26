@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RejectCode, RejectedFile } from '@rca/core/session'
-import { groupRejected, rejectionCopy, SKIPPED_GROUP_COPY } from './rejectCopy'
+import { groupRejected, lineNamesAction, rejectionCopy, SKIPPED_GROUP_COPY } from './rejectCopy'
 import type { SkippedGroup } from './rejectCopy'
 
 function file(
@@ -87,6 +87,31 @@ describe('rejectCopy: details the core gives', () => {
     expect(
       rejectionCopy(file('big.zip', { code: 'too-large', detail: String(2 * 1024 ** 3) })),
     ).toBe('Too large to read (over 2 GB). Export a shorter range.')
+  })
+})
+
+describe('rejectionCopy: the export advice is said once, by the line or by its group', () => {
+  it('keeps the advice in a damaged file line when its group gives no action', () => {
+    expect(rejectionCopy(file('bad.fit', { code: 'corrupt' }), false)).toBe(
+      'Damaged, so it could not be read. Export it again.',
+    )
+  })
+
+  it('leaves the advice out of a damaged file line when its group gives the action', () => {
+    expect(rejectionCopy(file('bad.fit', { code: 'corrupt' }), true)).toBe(
+      'Damaged, so it could not be read.',
+    )
+  })
+
+  it('leaves the advice out of an archive line when its group gives the action', () => {
+    expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }), true)).toBe(
+      '2 entries could not be read because the archive is damaged.',
+    )
+  })
+
+  it('names only the damaged files as lines that can carry the advice', () => {
+    expect(lineNamesAction(file('bad.fit', { code: 'corrupt' }))).toBe(true)
+    expect(lineNamesAction(file('empty.fit', { code: 'empty' }))).toBe(false)
   })
 })
 

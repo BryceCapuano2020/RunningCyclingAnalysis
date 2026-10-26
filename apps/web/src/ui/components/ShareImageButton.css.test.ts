@@ -16,24 +16,28 @@ function bodyOf(source: string, selector: string): string {
 }
 
 describe('the share sheet: its preview and its actions', () => {
-  it('reserves the final height of the preview, so the sheet does not jump when it draws', () => {
-    expect(bodyOf(css, '.share-sheet__preview')).toContain(
-      'min-height: min(var(--share-picture-vh), 28rem);',
-    )
+  it('reserves the height the picture takes in its shape, so the sheet does not jump when it draws', () => {
+    expect(bodyOf(css, '.share-sheet__preview--square')).toContain('aspect-ratio: 1 / 1;')
+    expect(bodyOf(css, '.share-sheet__preview--story')).toContain('aspect-ratio: 9 / 16;')
+    expect(bodyOf(css, '.share-sheet__preview')).toContain('max-height: var(--share-picture-max);')
   })
 
-  it('names the picture height once, so the preview and its cap cannot drift apart', () => {
+  it('names the picture height and its cap once, so the reservation and the picture cannot drift apart', () => {
     expect(bodyOf(css, '.share-sheet')).toContain('--share-picture-vh: 55vh;')
+    expect(bodyOf(css, '.share-sheet')).toContain(
+      '--share-picture-max: min(var(--share-picture-vh), calc(100vh - 24rem));',
+    )
     expect(css.match(/55vh/g)).toHaveLength(1)
+    expect(css.match(/100vh - 24rem/g)).toHaveLength(1)
   })
 
   it('starts the preview at the left edge, under the shape choice', () => {
     expect(bodyOf(css, '.share-sheet__preview')).toContain('justify-items: start;')
   })
 
-  it('caps the picture so the actions stay on a short screen', () => {
+  it('caps the picture, with the same cap the preview reserves, so the actions stay on a short screen', () => {
     expect(bodyOf(css, '.share-sheet__preview img')).toContain(
-      'max-height: min(var(--share-picture-vh), calc(100vh - 24rem));',
+      'max-height: var(--share-picture-max);',
     )
   })
 

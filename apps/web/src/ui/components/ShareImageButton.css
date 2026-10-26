@@ -16,8 +16,9 @@
   box-shadow: var(--shadow);
   overflow: auto;
   overflow-wrap: anywhere;
-  /* The picture's height cap, named once for the preview's reserved height and its cap. */
+  /* The picture's height cap, named once: the preview reserves it and the picture is held to it. */
   --share-picture-vh: 55vh;
+  --share-picture-max: min(var(--share-picture-vh), calc(100vh - 24rem));
 }
 
 .share-sheet::backdrop {
@@ -39,14 +40,24 @@
   display: grid;
   place-items: center;
   justify-items: start;
-  /* The final height, so the sheet does not jump when the picture draws. */
-  min-height: min(var(--share-picture-vh), 28rem);
+  /* The slot is the picture's height, so the sheet does not jump when it draws: its shape's
+     ratio, under the same cap as the picture. */
+  max-height: var(--share-picture-max);
+}
+
+/* A square card is 1:1 and a tall card 9:16 (cardLayout.ts), so each slot reserves its shape. */
+.share-sheet__preview--square {
+  aspect-ratio: 1 / 1;
+}
+
+.share-sheet__preview--story {
+  aspect-ratio: 9 / 16;
 }
 
 .share-sheet__preview img {
   display: block;
   max-width: 100%;
-  max-height: min(var(--share-picture-vh), calc(100vh - 24rem));
+  max-height: var(--share-picture-max);
   height: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);

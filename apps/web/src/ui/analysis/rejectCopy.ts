@@ -28,10 +28,16 @@ function sportSubject(label: string | undefined): string {
   )
 }
 
-/** The sentence for each reason code. The duplicate and the sport take the detail the core gives. */
-const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = {
+/**
+ * The sentence for each reason code. The duplicate and the sport take the detail the core gives. A
+ * damaged file's advice is left out when its group gives it.
+ */
+const REASON_COPY: Record<
+  RejectCode,
+  (detail: string | undefined, groupGivesAction?: boolean) => string
+> = {
   'not-activity': () => 'Not a FIT, GPX or TCX file, so it cannot be read.',
-  corrupt: (detail) => corruptCopy(detail),
+  corrupt: (detail, groupGivesAction) => corruptCopy(detail, groupGivesAction),
   empty: () => 'It has no activity records in it.',
   'too-short': () => 'Too short: it records less than a minute.',
   'too-sparse': () => 'Recorded too sparsely: its points are more than 10 seconds apart.',
@@ -49,13 +55,17 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = 
   'too-large': () => 'Too large to read. Export a shorter range.',
 }
 
-/** A damaged file, or an archive that lost entries: the count the core gives is the detail. */
-function corruptCopy(detail: string | undefined): string {
+/**
+ * A damaged file, or an archive that lost entries: the count the core gives is the detail. The
+ * advice goes unless the group already gives it.
+ */
+function corruptCopy(detail: string | undefined, groupGivesAction = false): string {
+  const advice = groupGivesAction ? '' : ' Export it again.'
   const count = Number(detail)
   if (detail === undefined || !Number.isInteger(count) || count < 1) {
-    return 'Damaged, so it could not be read. Export it again.'
+    return `Damaged, so it could not be read.${advice}`
   }
-  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged. Export it again.`
+  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged.${advice}`
 }
 
 /** The size limit, as the core gives it in bytes, in whole megabytes. */
@@ -66,17 +76,21 @@ function tooLargeCopy(detail: string | undefined): string {
 }
 
 /**
- * Whether a refused file's own line already says what to do, so its group's suggested action would
- * repeat it when the file is the only one in the group.
+ * Whether a refused file's own line gives what to do. A lone file keeps that advice in its line, and
+ * its group shows no action. With two or more, the group gives the advice once, and the lines leave
+ * it out.
  */
 export function lineNamesAction(file: RejectedFile): boolean {
   return file.code === 'corrupt'
 }
 
-/** The plain sentence for one refused file. */
-export function rejectionCopy(file: RejectedFile): string {
+/**
+ * The plain sentence for one refused file. Pass true when the file's group gives its suggested action,
+ * so a line that repeats that advice leaves it out.
+ */
+export function rejectionCopy(file: RejectedFile, groupGivesAction = false): string {
   if (file.code === 'too-large') return tooLargeCopy(file.detail)
-  return REASON_COPY[file.code](file.detail)
+  return REASON_COPY[file.code](file.detail, groupGivesAction)
 }
 
 export type SkippedGroup =
