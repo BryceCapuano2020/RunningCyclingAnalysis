@@ -8,7 +8,7 @@ import {
   RESTING_W_PER_KG,
 } from '../constants'
 import { mergeCurves, monotoneEnvelope } from '../curves'
-import { fitCriticalPower } from '../cp'
+import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts, referenceMaxHeartRates } from '../effort'
 import { crossCheck } from '../hr'
@@ -21,6 +21,7 @@ import type {
   CalibrationSums,
   Comparison,
   CriticalPowerFit,
+  CriticalPowerRefusal,
   Curve,
   DigestCurvePoint,
   DigestHrBlock,
@@ -66,6 +67,9 @@ export interface AnalysisResult {
   rideMetabolicCurve: Curve
   runCp: CriticalPowerFit | null
   rideCp: CriticalPowerFit | null
+  /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
+  runCpRefusal: CriticalPowerRefusal | null
+  rideCpRefusal: CriticalPowerRefusal | null
   hr: HrCrossCheck
   comparison: Comparison
   equivalents: Equivalence[]
@@ -325,12 +329,17 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
 
   // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
   // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because
-  // truncating the dependent variable would bias the slopes.
-  const runCp = fitCriticalPower(runCurve)
-  const rideCp = fitCriticalPower(rideMetabolicCurve)
+  // truncating the dependent variable would bias the slopes. The cut uses the fit before refusal, so
+  // a threshold refused for display leaves the heart-rate check as it was.
+  const runOutcome = criticalPowerOutcome(runCurve, { minWPrime: wPrimeFloor('run', massKg) })
+  const rideOutcome = criticalPowerOutcome(rideMetabolicCurve, {
+    minWPrime: wPrimeFloor('ride', massKg),
+  })
+  const runCp = runOutcome.fit
+  const rideCp = rideOutcome.fit
   const hr = crossCheck(
-    atOrBelowCriticalPower(runPoints, runCp),
-    atOrBelowCriticalPower(ridePoints, rideCp),
+    atOrBelowCriticalPower(runPoints, fitCriticalPowerUnchecked(runCurve)),
+    atOrBelowCriticalPower(ridePoints, fitCriticalPowerUnchecked(rideMetabolicCurve)),
   )
   const comparison = compareSports(runCurve, rideCurve, massKg, hr, {
     draws: DRAWS,
@@ -367,6 +376,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     rideMetabolicCurve,
     runCp,
     rideCp,
+    runCpRefusal: runOutcome.refusal,
+    rideCpRefusal: rideOutcome.refusal,
     hr,
     comparison,
     equivalents,

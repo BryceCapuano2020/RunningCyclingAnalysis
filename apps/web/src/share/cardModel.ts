@@ -1,6 +1,6 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
-import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
+import type { AthleteSettings, CriticalPowerRefusal, EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { APP_NAME } from '../appName'
 import type { BalanceGap } from '../ui/balanceGap'
@@ -9,8 +9,15 @@ import { HARDER_EFFORTS_TITLE, balanceTitle, effortCaveat } from '../ui/componen
 import { pickHeadline } from '../ui/components/pickHeadline'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
-import { countSport, threshold } from '../ui/records'
-import { SPORT_NOUN, SPORT_ORDER, SPORT_PLURAL, SPORT_TITLE, THRESHOLD_NOUN } from '../ui/sports'
+import { countSport, refusalOf, threshold } from '../ui/records'
+import {
+  SPORT_NOUN,
+  SPORT_ORDER,
+  SPORT_PLURAL,
+  SPORT_TITLE,
+  THRESHOLD_EFFORT_TEXT,
+  THRESHOLD_NOUN,
+} from '../ui/sports'
 import { hasShareableContent } from './hasShareableContent'
 
 /** An estimate's number and unit, so that the unit can be set smaller than the number. */
@@ -111,10 +118,15 @@ function splitFigure(value: string): ShareFigure {
 /** What to add to see a sport's estimate: its first activities, or harder ones when it has some. */
 const RIDE_NEEDS_WEIGHT = 'Add your weight to see the ride estimate'
 
-function promptFor(sport: Sport, count: number): string {
-  return count === 0
-    ? `Add ${SPORT_PLURAL[sport]} to see the balance`
-    : `Add harder ${SPORT_PLURAL[sport]} to see the balance`
+/**
+ * What to add to see a sport's threshold: its first activities; with some, the efforts the fit needs,
+ * or a harder one when the efforts are there but show no threshold.
+ */
+function promptFor(sport: Sport, count: number, refusal: CriticalPowerRefusal | null): string {
+  if (count === 0) return `Add ${SPORT_PLURAL[sport]} to see the balance`
+  return refusal === 'shape'
+    ? `Add a harder effort of ${THRESHOLD_EFFORT_TEXT} to see the balance`
+    : `Add ${SPORT_PLURAL[sport]} with efforts of ${THRESHOLD_EFFORT_TEXT} to see the balance`
 }
 
 function heroFor(
@@ -133,7 +145,13 @@ function heroFor(
   }
   const estimate = threshold(result, sport, settings.massKg, units)
   if (estimate === null) {
-    return { sport, label, figure: null, sub: null, prompt: promptFor(sport, count) }
+    return {
+      sport,
+      label,
+      figure: null,
+      sub: null,
+      prompt: promptFor(sport, count, refusalOf(result, sport)),
+    }
   }
   return {
     sport,

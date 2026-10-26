@@ -1,5 +1,5 @@
 import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
-import type { Sport } from '@rca/core/types'
+import type { CriticalPowerRefusal, Sport } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
 
 /**
@@ -31,11 +31,32 @@ export const THRESHOLD_LABEL: Record<Sport, string> = {
   ride: 'Threshold power, estimated',
 }
 
+/** The shortest and longest efforts as copy: "3" and "20 min", the fit's own window. */
+const EFFORT_MIN_TEXT = `${CP_FIT_MIN_S / 60}`
+const EFFORT_MAX_TEXT = formatDuration(CP_FIT_MAX_S)
 /** The efforts a threshold is estimated from, as copy: "3 to 20 min", the fit's own window. */
-export const THRESHOLD_EFFORT_TEXT = `${CP_FIT_MIN_S / 60} to ${formatDuration(CP_FIT_MAX_S)}`
+export const THRESHOLD_EFFORT_TEXT = `${EFFORT_MIN_TEXT} to ${EFFORT_MAX_TEXT}`
+const EFFORT_BETWEEN = `between ${EFFORT_MIN_TEXT} and ${EFFORT_MAX_TEXT}`
 
-/** A threshold in plain words, for the card that shows it: what the number is. */
+/**
+ * What a threshold's place says when there is none: the efforts are missing, or they are there but
+ * show no threshold, so a harder one is asked for.
+ */
+export const THRESHOLD_NEEDS_TEXT: Record<CriticalPowerRefusal, string> = {
+  missing: `Needs efforts ${EFFORT_BETWEEN}`,
+  shape: `Needs a harder effort ${EFFORT_BETWEEN}`,
+}
+
+/** The line for a missing threshold, by why its fit is refused. No reason means missing efforts. */
+export function thresholdNeedsText(refusal: CriticalPowerRefusal | null): string {
+  return THRESHOLD_NEEDS_TEXT[refusal ?? 'missing']
+}
+
+/**
+ * A threshold in plain words, shown under its number: what the number is, as an estimate ("About")
+ * with the efforts it rests on.
+ */
 export const THRESHOLD_MEANING: Record<Sport, string> = {
-  run: `The pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
-  ride: `The power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
+  run: `About the pace you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
+  ride: `About the power you could hold for a long, steady effort, estimated from your best ${THRESHOLD_EFFORT_TEXT} efforts.`,
 }

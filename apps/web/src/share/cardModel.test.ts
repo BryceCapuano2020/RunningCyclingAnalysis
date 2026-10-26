@@ -179,11 +179,12 @@ describe('buildShareCard', () => {
     })
   })
 
-  it('asks for harder efforts, not first efforts, when a sport has activities but no threshold', () => {
+  it('asks for efforts of 3 to 20 min when a sport has activities but no fit reaches them', () => {
     const card = cardFor(
       makeResult({
         comparison: { prior: [], calibrated: null },
         rideCp: null,
+        rideCpRefusal: 'missing',
       }),
       SETTINGS,
       'metric',
@@ -192,7 +193,24 @@ describe('buildShareCard', () => {
       null,
       true,
     )
-    expect(card?.heroes[1]?.prompt).toBe('Add harder rides to see the balance')
+    expect(card?.heroes[1]?.prompt).toBe('Add rides with efforts of 3 to 20 min to see the balance')
+  })
+
+  it('asks for a harder effort of 3 to 20 min when the efforts are there but show no threshold', () => {
+    const card = cardFor(
+      makeResult({
+        comparison: { prior: [], calibrated: null },
+        rideCp: null,
+        rideCpRefusal: 'shape',
+      }),
+      SETTINGS,
+      'metric',
+      42,
+      false,
+      null,
+      true,
+    )
+    expect(card?.heroes[1]?.prompt).toBe('Add a harder effort of 3 to 20 min to see the balance')
   })
 
   it('returns nothing when there is no comparison and no threshold, so the button is hidden', () => {

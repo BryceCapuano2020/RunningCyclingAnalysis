@@ -90,7 +90,8 @@ const SAMPLE_ENTRIES: readonly SampleEntry[] = [
     daysBefore: 34,
   },
   {
-    name: '5K and 10K Time Trials',
+    // A threshold test: the 3, 6, 12 and 20 minute efforts in target.ts, after a 15 minute warm-up.
+    name: 'Threshold test: 3, 6, 12 and 20 minute efforts',
     sport: 'run',
     effort: 'test',
     terrain: 'flat',

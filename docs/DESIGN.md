@@ -227,12 +227,23 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   recorded effort." for a run, and "Ring: estimated, with its range." for a ride. The shape is never
   the only cue.
 - **A Balance card reads top to bottom:** the sport's name, the threshold as the hero number (its
-  unit set at about 40% of the numeral), the threshold in plain words ("The pace you could hold for a
-  long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the ladder
-  with its key, the note that run pace is grade-adjusted (runs only), the caption, then the best
-  efforts. The grade line names the effort it grades: "Local · 64% · on your best 20 min, 6:37 /mi".
-  A ride's line starts "Estimated", and its watts carry "estimated" when they did not come from a
-  power meter.
+  unit set at about 40% of the numeral), the threshold in plain words ("About the pace you could hold
+  for a long, steady effort, estimated from your best 3 to 20 min efforts."), the grade line, the
+  ladder with its key, the note that run pace is grade-adjusted (runs only), the caption, then the
+  best efforts. The grade line names the effort it grades: "Local · 64% · on your best 20 min,
+  6:37 /mi". A ride's line starts "Estimated", and its watts carry "estimated" when they did not come
+  from a power meter.
+- **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
+  each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
+  20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
+  3 and 20 min". No threshold: the efforts are flat, the work capacity is below the least a rider or a
+  runner has (3 kJ of cycling W′, or 15 m of running D′, which is 58.5 J per kg), or the threshold is
+  not below the lowest of the efforts it was fitted to, since a threshold cannot be faster than an effort
+  held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
+  published work capacities, so they refuse only fits close to flat. A fit just above a floor is kept,
+  and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The ride's floor is the same at every body mass. The share card asks for the same
+  efforts in its own words. The line "About ... estimated from your best 3 to 20 min efforts" sits under
+  a number only, and is left out with none.
 - **Best efforts share one list,** `SportRecords`, on the Balance card and the sport page: one row
   per record with one source size, built by `recordRow`. A run's pace is marked GAP, which the
   note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
@@ -337,10 +348,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   one recorded best effort, so its line reads "Local · 64%" with no estimate word, and its pace is
   marked GAP and noted as grade-adjusted: "Pace is grade-adjusted (GAP): the flat pace with the same
   effort." A ride's grade is estimated through its running equivalent, so its line starts
-  "Estimated", it shows its model range in brackets, and a range that crosses a band names both levels
-  ("Local to Regional"). A ride record says the grade is "Estimated through its running equivalent"
-  in full, because a row stands on its own. Thresholds are always estimated. The Method page is the
-  one place that explains the estimates.
+  "Estimated", it shows its 90% range in brackets, and a range that crosses a band names both levels
+  ("Local to Regional"). The card's caption says the bracketed range is the 90% range. A ride record
+  says the grade is "Estimated through its running equivalent" in full, because a row stands on its
+  own. Thresholds are always estimated. The Method page is the one place that explains the estimates.
 - **Every grade names its standard.** Cards and the ladder's label say "on the USATF road
   standards". The full credit, with the authors, licence and a link, is on the sport pages' source
   lines, the record list's source line and How sure is this?.
@@ -374,6 +385,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
   to Profile. It is on the Balance, Run and Ride pages only, and the sample has its own persona and
   no such line.
+- **A figure's scope is named by the period.** A window is named "in this period", as in "Based on 6
+  runs in this period." Under All time there is no period, so the same line reads "in all your files".
+  Method's lede names its dated period in brackets instead, as "(12 May – 3 Aug 2025)".
 - **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
   A new account takes the language of its sign-in request the same way. The Units choice comes
   first in setup, and a unit typed after a weight ("150 lb") is read as typed.

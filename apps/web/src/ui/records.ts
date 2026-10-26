@@ -4,7 +4,7 @@ import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
 import type { ActivitySummary, AnalysisResult, Equivalence } from '@rca/core/pipeline'
-import type { Curve, Sport } from '@rca/core/types'
+import type { CriticalPowerRefusal, Curve, Sport } from '@rca/core/types'
 import { EFFORT_LENGTHS_S } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { UnitSystem } from '@rca/core/units'
@@ -125,7 +125,16 @@ export function activityNames(activities: ActivitySummary[]): Record<string, str
   return Object.fromEntries(activities.map((activity) => [activity.id, activity.name]))
 }
 
-/** Estimated threshold in the sport's own unit, from the critical-power fit; null without one. */
+/**
+ * Estimated threshold in the sport's own unit, from the critical-power fit; null without one. The fit
+ * refuses any that does not show a threshold, so the figure is shown as it was fitted.
+ *
+ * A ride's threshold is shown in watts, and the fit works in metabolic W/kg at the prior-mean
+ * efficiency. Converting back with that same efficiency returns the fitted watts exactly, since the
+ * fit is linear. Running equivalents of a ride are not worked out here: every one comes from the
+ * analysis's equivalents, with their heart-rate weights and 90% range, so a ride has one running
+ * equivalent on screen.
+ */
 export function threshold(
   result: AnalysisResult,
   sport: Sport,
@@ -138,6 +147,11 @@ export function threshold(
   if (!result.rideCp) return null
   const watts = metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean)
   return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
+}
+
+/** Why a sport has no threshold, once its efforts are there to fit: null when it has one. */
+export function refusalOf(result: AnalysisResult, sport: Sport): CriticalPowerRefusal | null {
+  return sport === 'run' ? result.runCpRefusal : result.rideCpRefusal
 }
 
 /** The best effort at each record duration, with the activity that set it. */

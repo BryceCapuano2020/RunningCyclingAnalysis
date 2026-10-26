@@ -28,7 +28,6 @@ describe('sampleDataset', () => {
   it('uses realistic activity titles that do not describe the simulation', () => {
     expect(activities.map((a) => a.name).sort()).toEqual(
       [
-        '5K and 10K Time Trials',
         'Canyon Climb',
         'Evening Ride',
         'Hill Repeats',
@@ -40,6 +39,7 @@ describe('sampleDataset', () => {
         'Sunday Long Run',
         'Tempo Ride',
         'Tempo Run',
+        'Threshold test: 3, 6, 12 and 20 minute efforts',
         'Track Intervals',
         'VO2 Intervals',
       ].sort(),
@@ -56,7 +56,7 @@ describe('sampleDataset', () => {
       'Sunday Long Run': 'run',
       'Tempo Run': 'run',
       'Track Intervals': 'run',
-      '5K and 10K Time Trials': 'run',
+      'Threshold test: 3, 6, 12 and 20 minute efforts': 'run',
       'Saturday Long Ride': 'ride',
       'Tempo Ride': 'ride',
       'VO2 Intervals': 'ride',

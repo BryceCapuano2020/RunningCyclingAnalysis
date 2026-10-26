@@ -17,10 +17,17 @@ import { StandardsCredit } from '../components/StandardsCredit'
 import { WeightNote } from '../components/WeightNote'
 import { SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
+import { scopeText } from '../components/rangeOptions'
 import { GRADE_ADJUSTED_NOTE, SEX_NOUN, outcomeSentence, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import { hrefFor } from '../route'
-import { SPORT_LABEL, SPORT_PLURAL, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../sports'
+import {
+  SPORT_LABEL,
+  SPORT_PLURAL,
+  THRESHOLD_LABEL,
+  THRESHOLD_MEANING,
+  thresholdNeedsText,
+} from '../sports'
 import { PAGE_HEADING_ID } from './pageHeading'
 import {
   EFFORT_OPTIONS,
@@ -29,6 +36,7 @@ import {
   distanceRecords,
   effortOf,
   nativeCurve,
+  refusalOf,
   sportRecords,
   threshold,
 } from '../records'
@@ -51,6 +59,8 @@ export interface SportPageProps {
   weighted: boolean
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
+  /** The window in days, or null for all time: the figures' scope is named by it. */
+  rangeDays: number | null
   /** The period control, shown beside the heading. */
   controls: ReactNode
   /** The line that says what the page is based on, at its foot. */
@@ -73,6 +83,7 @@ export function SportPage({
   massKg,
   weighted,
   profile,
+  rangeDays,
   controls,
   footnote = null,
   emptyText,
@@ -143,12 +154,11 @@ export function SportPage({
                 {hero.sub && <span className="sport-page__hero-sub secondary">{hero.sub}</span>}
               </p>
             ) : (
-              <p className="secondary">
-                {`Needs harder efforts of ${THRESHOLD_EFFORT_TEXT} to estimate a threshold.`}
-              </p>
+              <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
             )}
+            {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
             <p className="muted">
-              {`Based on ${plural(count, SPORT_LABEL[sport].toLowerCase(), SPORT_PLURAL[sport])} in this period.`}
+              {`Based on ${plural(count, SPORT_LABEL[sport].toLowerCase(), SPORT_PLURAL[sport])} ${scopeText(rangeDays)}.`}
             </p>
           </section>
 

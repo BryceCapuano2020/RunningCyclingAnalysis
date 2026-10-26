@@ -53,6 +53,7 @@ function renderPage(
   trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>> = NO_TRENDS,
   weighted = true,
   footnote: ReactNode = null,
+  rangeDays: number | null = 42,
   emptyText = 'Nothing in this period.',
 ) {
   return render(
@@ -67,6 +68,7 @@ function renderPage(
       massKg={75}
       weighted={weighted}
       profile={profile}
+      rangeDays={rangeDays}
       controls={<span>Period picker</span>}
       footnote={footnote}
       emptyText={emptyText}
@@ -107,6 +109,7 @@ describe('SportPage', () => {
         profile={null}
         controls={<span>Period picker</span>}
         weighted
+        rangeDays={42}
         emptyText="No runs between 12 May and 3 Aug 2025. You have 1 run in All time."
         onAddFiles={onAddFiles}
       />,
@@ -132,6 +135,7 @@ describe('SportPage', () => {
       NO_TRENDS,
       true,
       null,
+      42,
       'No runs between 12 May and 3 Aug 2025. You have 1 run in All time.',
     )
 
@@ -152,6 +156,7 @@ describe('SportPage', () => {
       NO_TRENDS,
       true,
       null,
+      42,
       'Your files have no rides yet. Add rides to see your records.',
     )
 
@@ -166,6 +171,36 @@ describe('SportPage', () => {
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
     expect(within(section).getByText('23:23 /km')).toBeInTheDocument()
     expect(within(section).getByText('Based on 1 run in this period.')).toBeInTheDocument()
+  })
+
+  it('says what the threshold means, about the pace, and names its 3 to 20 min basis', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+
+    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(
+      within(section).getByText(
+        'About the pace you could hold for a long, steady effort, estimated from your best 3 to 20 min efforts.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says the figures are in all your files under All time, not in a period', () => {
+    renderPage(
+      'run',
+      makeResult({ activities: [morningRun] }),
+      'metric',
+      null,
+      null,
+      null,
+      NO_TRENDS,
+      true,
+      null,
+      null,
+    )
+
+    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(within(section).getByText('Based on 1 run in all your files.')).toBeInTheDocument()
+    expect(within(section).queryByText(/in this period/)).not.toBeInTheDocument()
   })
 
   it('pluralises what the threshold rests on for several rides', () => {
@@ -186,12 +221,18 @@ describe('SportPage', () => {
     expect(screen.getByText('0.6 W/kg')).toBeInTheDocument()
   })
 
-  it('asks for harder efforts when no threshold can be estimated', () => {
+  it('asks for a harder effort between 3 and 20 min when the efforts show no threshold', () => {
+    renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCpRefusal: 'shape' }))
+
+    expect(screen.getByText('Needs a harder effort between 3 and 20 min')).toBeInTheDocument()
+    expect(screen.queryByText(/About the pace/)).not.toBeInTheDocument()
+  })
+
+  it('asks for efforts between 3 and 20 min instead of a number when no threshold can be estimated', () => {
     renderPage('run', makeResult({ activities: [morningRun], runCp: null }))
 
-    expect(
-      screen.getByText('Needs harder efforts of 3 to 20 min to estimate a threshold.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Needs efforts between 3 and 20 min')).toBeInTheDocument()
+    expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
   it('explains that run paces are grade-adjusted', () => {

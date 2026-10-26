@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { fitCriticalPower } from '@rca/core/cp'
 import { FLAT_RUN_COST, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
@@ -30,6 +31,25 @@ describe('threshold', () => {
     const result = makeResult({ runCp: null, rideCp: null })
     expect(threshold(result, 'run', 70, 'metric')).toBeNull()
     expect(threshold(result, 'ride', 70, 'metric')).toBeNull()
+  })
+
+  it('reads a cycling threshold back in the watts its fit was made in', () => {
+    // The fit works in metabolic W/kg at the prior-mean efficiency and the threshold converts back
+    // with that same efficiency. The fit is linear, so the watts come back exactly, and the
+    // threshold agrees with the cycling efforts it was fitted from.
+    const massKg = 70
+    const watts = (durationS: number) => 225 + 20000 / durationS
+    const durations = [180, 300, 600, 1200]
+    const metabolic = durations.map((durationS) =>
+      curvePoint(durationS, watts(durationS) / (PRIORS.grossEfficiency.mean * massKg), 'ride-1'),
+    )
+    const rideCp = fitCriticalPower(metabolic)
+    const result = makeResult({
+      rideCp,
+      rideCurve: durations.map((durationS) => curvePoint(durationS, watts(durationS), 'ride-1')),
+    })
+    expect(rideCp).not.toBeNull()
+    expect(threshold(result, 'ride', massKg, 'metric')?.value).toBe('225 W')
   })
 })
 

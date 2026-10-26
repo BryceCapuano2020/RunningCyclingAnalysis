@@ -16,11 +16,11 @@ import { hrefFor } from '../route'
 import {
   SPORT_LABEL,
   SPORT_PLURAL,
-  THRESHOLD_EFFORT_TEXT,
   THRESHOLD_LABEL,
   THRESHOLD_MEANING,
+  thresholdNeedsText,
 } from '../sports'
-import { CHIP_DURATIONS_S, isEstimatedRecord, sportRecords, threshold } from '../records'
+import { CHIP_DURATIONS_S, isEstimatedRecord, refusalOf, sportRecords, threshold } from '../records'
 import './SportCard.css'
 
 export interface SportCardProps {
@@ -75,7 +75,7 @@ function AgeGrade({
   const { age, grade } = outcome
   const ride = sport === 'ride'
   const caption = ride
-    ? `Graded through its running equivalent, at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}. The range is the 90% model range.`
+    ? `Graded through its running equivalent, at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}. The range in brackets is the 90% range.`
     : `Graded at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
   return (
     <div className="sport-card__grade">
@@ -130,9 +130,9 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
               {hero.sub && <span className="sport-card__sub">{hero.sub}</span>}
             </p>
           ) : (
-            <p className="secondary">{`Needs a hard effort of ${THRESHOLD_EFFORT_TEXT}.`}</p>
+            <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
           )}
-          {!held && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+          {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
         </div>
         {!held && grade && <AgeGrade sport={sport} outcome={grade} effort={effort} />}
         {records.length > 0 && (
