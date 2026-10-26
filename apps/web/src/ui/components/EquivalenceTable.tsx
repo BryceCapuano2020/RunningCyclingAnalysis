@@ -23,7 +23,7 @@ export interface EquivalenceTableProps {
 /** The three columns, named once for the table's heads, and again for the phone list's labels. */
 const EFFORT_LABEL = 'Ride effort'
 const PACE_LABEL = 'Flat pace'
-const RANGE_LABEL = '90% model range'
+const RANGE_LABEL = '90% range'
 
 /** An effort in words: its duration and its watts. */
 function effortOf(equivalent: Equivalence): string {

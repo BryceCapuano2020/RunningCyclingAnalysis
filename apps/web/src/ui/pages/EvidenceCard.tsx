@@ -10,8 +10,8 @@ export interface EvidenceCardProps {
   /** Heart-rate check for the headline duration, or null when there is no comparison to check. */
   effort: EffortCheck | null
   /**
-   * True when the files have no heart rate. With no comparison, the card then asks for heart rate;
-   * without one, and with heart rate on file, it says nothing.
+   * True when the files have no heart rate, and only then the card asks for it. With heart rate on
+   * file, the card reports a check it can make, and says nothing otherwise.
    */
   noHeartRate: boolean
 }
@@ -35,7 +35,7 @@ interface Evidence {
   howTo: string | null
 }
 
-/** What the card says, or null when there is nothing to say: no comparison, and heart rate on file. */
+/** What the card says, or null when there is nothing to say: heart rate on file and no check to report. */
 function evidenceFor(effort: EffortCheck | null, noHeartRate: boolean): Evidence | null {
   const caveat = effortCaveat(effort)
   if (caveat) {
@@ -54,7 +54,8 @@ function evidenceFor(effort: EffortCheck | null, noHeartRate: boolean): Evidence
       howTo: null,
     }
   }
-  if (effort === null && !noHeartRate) return null
+  // Without heart rate on file, the card asks for it. With heart rate on file, a missing fraction says nothing.
+  if (!noHeartRate) return null
   return {
     chip: { className: 'chip', icon: null, label: 'No heart-rate check' },
     title: 'Add heart rate to sharpen this',

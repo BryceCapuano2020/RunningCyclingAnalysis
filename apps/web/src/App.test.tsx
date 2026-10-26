@@ -300,7 +300,7 @@ describe('fitness over time', () => {
     setSession({ trend: [week(0, null, null)] })
     const { unmount: unmountEmpty } = render(<App />)
     expect(
-      screen.queryByRole('heading', { level: 2, name: 'Best 20 min, week by week' }),
+      screen.queryByRole('heading', { level: 2, name: /of your best 20 minutes, trailing/ }),
     ).toBeNull()
     unmountEmpty()
 
@@ -312,7 +312,10 @@ describe('fitness over time', () => {
     setSession({ trend: [week(0, null, null), week(1, 15, null), week(2, 15.2, 14)] })
     render(<App />)
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Best 20 min, week by week' }),
+      screen.getByRole('heading', {
+        level: 2,
+        name: /^Energy rate of your best 20 minutes, trailing/,
+      }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('figure', {

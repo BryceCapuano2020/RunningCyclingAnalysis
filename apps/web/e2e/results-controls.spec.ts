@@ -51,8 +51,7 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   const card = page.locator('section').filter({
     has: page.getByRole('heading', {
       level: 2,
-      name: 'Best 20 min, week by week',
-      exact: true,
+      name: /^(Age grade|Energy rate) of your best 20 minutes, trailing/,
     }),
   })
   await expect(card).toBeVisible()
@@ -124,7 +123,7 @@ test('How sure is this? keeps the disclaimer that hard best efforts do not prove
   await openSample(page)
   // The sample's best 20 minute efforts both reach 90% of their reference heart rate, so the
   // Evidence card reports real efforts and the method page says what that does not prove.
-  await expect(page.getByRole('region', { name: 'Built on real efforts' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Hard efforts on file' })).toBeVisible()
 
   await page.getByRole('main').getByRole('link', { name: 'How sure is this?' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'How sure is this?' })).toBeVisible()

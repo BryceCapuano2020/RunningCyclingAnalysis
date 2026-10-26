@@ -276,15 +276,25 @@ describe('BalancePage', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('names the trend section by the chart’s own title, so the section and the chart cannot drift apart', () => {
+    renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
+    const figure = screen.getByRole('figure', { name: /of your best 20 minutes, trailing/ })
+    const title = figure.querySelector('.chart-frame__title')?.textContent ?? ''
+    expect(title).not.toBe('')
+    expect(screen.getByRole('region', { name: title })).toBeInTheDocument()
+  })
+
   it('shows the fitness trend once a week has a value, and says so in a line when there is only one', () => {
     const { unmount } = renderPage(makeResult(), { state: { trend: trendWithWeeks(0) } })
     expect(
-      screen.queryByRole('region', { name: 'Best 20 min, week by week' }),
+      screen.queryByRole('region', { name: /of your best 20 minutes, trailing/ }),
     ).not.toBeInTheDocument()
     unmount()
 
     renderPage(makeResult(), { state: { trend: trendWithWeeks(1) } })
-    expect(screen.getByRole('region', { name: 'Best 20 min, week by week' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: /of your best 20 minutes, trailing/ }),
+    ).toBeInTheDocument()
     expect(screen.getByText(/^Only one week has a value: Run /)).toBeInTheDocument()
     expect(
       screen.getByRole('figure', { name: /^Energy rate of your best 20 minutes, trailing/ }),
@@ -293,14 +303,14 @@ describe('BalancePage', () => {
 
   it('keeps the trend heading for screen readers only, so the chart title is the one visible name', () => {
     renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
-    const heading = screen.getByRole('heading', { name: 'Best 20 min, week by week' })
+    const heading = screen.getByRole('heading', { name: /of your best 20 minutes, trailing/ })
     expect(heading).toHaveClass('sr-only')
   })
 
   it('puts the grading source directly under the cards, ahead of the trend', () => {
     renderPage(GRADED_RUN, { state: { trend: trendWithWeeks(2) } }, MAN_BORN_1986)
     const source = screen.getByText(/^Graded for a/)
-    const trend = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const trend = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(source.compareDocumentPosition(trend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
@@ -321,7 +331,7 @@ describe('BalancePage', () => {
 
   it('shows one energy trend for both sports while the age or sex is unknown', () => {
     renderPage(makeResult(), { state: { trend: trendWithWeeks(2) } })
-    const section = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const section = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(
       within(section).getByRole('figure', {
         name: 'Energy rate of your best 20 minutes, trailing 6 weeks',
@@ -337,7 +347,7 @@ describe('BalancePage', () => {
     expect(held.container.querySelector('[data-testid="trend-line"][data-sport="ride"]')).toBeNull()
     expect(held.container.querySelector('[data-testid="trend-ring"]')).toBeNull()
     expect(held.container.querySelector('[data-testid="trend-band"]')).toBeNull()
-    const heldSection = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const heldSection = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(within(heldSection).queryByText('Ride, estimated')).toBeNull()
     expect(within(heldSection).queryByText('Cycling grade, estimated')).toBeNull()
     expect(
@@ -350,7 +360,7 @@ describe('BalancePage', () => {
       known.container.querySelector('[data-testid="trend-line"][data-sport="ride"]'),
     ).not.toBeNull()
     expect(known.container.querySelector('[data-testid="trend-band"]')).not.toBeNull()
-    const section = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const section = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(within(section).getByText('Ride, estimated')).toBeInTheDocument()
   })
 
@@ -369,7 +379,7 @@ describe('BalancePage', () => {
       rideRunSpeed: null,
     }))
     renderPage(makeResult(), { state: { trend } }, { birthYear: 2021, sex: 'male' })
-    const section = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const section = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(within(section).getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
     expect(within(section).queryByText(/Add runs or rides/)).toBeNull()
   })
@@ -380,7 +390,7 @@ describe('BalancePage', () => {
       Object.assign(week, { runWkg: flatSpeedToMetabolic(4) }),
     )
     renderPage(makeResult(), { state: { trend: running } }, { birthYear: 1900, sex: 'male' })
-    const section = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const section = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(within(section).getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
     expect(within(section).queryByText(/Add runs or rides in more than one week/)).toBeNull()
   })
@@ -391,7 +401,7 @@ describe('BalancePage', () => {
       Object.assign(week, { runWkg: flatSpeedToMetabolic(4) }),
     )
     renderPage(makeResult(), { state: { trend: running } }, MAN_BORN_1986)
-    const section = screen.getByRole('region', { name: 'Best 20 min, week by week' })
+    const section = screen.getByRole('region', { name: /of your best 20 minutes, trailing/ })
     expect(
       within(section).getByRole('figure', {
         name: 'Age grade of your best 20 minutes, trailing 6 weeks',

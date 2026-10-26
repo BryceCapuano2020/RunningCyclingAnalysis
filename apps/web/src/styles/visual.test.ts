@@ -437,10 +437,14 @@ describe('balance hero, meter and evidence', () => {
     expect(rulesWith(balancePage, '.balance__cards .card > h2 + p')).toMatch(/margin-top:\s*0/)
   })
 
-  it('insets the cross-sport idea beside a boxed evidence card, by the card’s padding', () => {
-    expect(rulesWith(balancePage, '.balance__cards > .card + .cross-sport')).toMatch(
-      /padding-inline:\s*var\(--space-5\)/,
-    )
+  it('insets the cross-sport idea past a boxed card’s border, only where the cards sit side by side', () => {
+    expect(
+      rulesWith(
+        mediaOf(balancePage, '(min-width: 45.5rem)'),
+        '.balance__cards > .card + .cross-sport',
+      ),
+    ).toMatch(/padding-inline:\s*calc\(var\(--space-5\) \+ 1px\)/)
+    expect(rulesWith(outsideMedia(balancePage), '.balance__cards > .card + .cross-sport')).toBe('')
   })
 
   it('gives the meter’s value flag room above the track, clear of the even line', () => {
@@ -453,13 +457,12 @@ describe('balance hero, meter and evidence', () => {
     )
   })
 
-  it('clamps the flag and the dot inside the plot, from the position the meter sets', () => {
-    expect(rulesWith(balanceMeter, '.balance-meter__flag')).toMatch(
-      /left:\s*clamp\(var\(--flag-edge\),\s*var\(--at\),\s*calc\(100% - var\(--flag-edge\)\)\)/,
-    )
-    expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(
-      /left:\s*clamp\(var\(--dot-edge\),\s*var\(--at\),\s*calc\(100% - var\(--dot-edge\)\)\)/,
-    )
+  it('clamps the flag and the dot to one edge inside the plot, so they stay centred together', () => {
+    expect(rulesWith(balanceMeter, '.balance-meter__plot')).toMatch(/--meter-edge:\s*2rem/)
+    const clamp =
+      /left:\s*clamp\(var\(--meter-edge\),\s*var\(--at\),\s*calc\(100% - var\(--meter-edge\)\)\)/
+    expect(rulesWith(balanceMeter, '.balance-meter__flag')).toMatch(clamp)
+    expect(rulesWith(balanceMeter, '.balance-meter__dot')).toMatch(clamp)
   })
 
   it('draws the dot in the system text colour in forced colours, past the sport colour rule', () => {

@@ -36,7 +36,9 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await openSample(page)
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
-  await expect(page.getByText('Sample athlete', { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Showing a sample athlete' }),
+  ).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
   await expect(page.getByRole('figure', { name: BALANCE_TREND })).toBeVisible()
   await expect(

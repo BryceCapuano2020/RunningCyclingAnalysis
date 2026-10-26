@@ -41,6 +41,8 @@ function pointsUnit(count: number): string {
  */
 function percentEdge(percent: number, signed: boolean): string {
   if (percent === 0 || Math.round(percent) !== 0) return formatPercent(percent / 100, signed)
+  // Below a twentieth of a percent, one decimal would print 0.0, so the edge says it is under a tenth.
+  if (Math.abs(percent) < 0.05) return 'under 0.1%'
   const plus = signed && percent > 0 ? '+' : ''
   return `${plus}${percent.toFixed(1)}%`
 }

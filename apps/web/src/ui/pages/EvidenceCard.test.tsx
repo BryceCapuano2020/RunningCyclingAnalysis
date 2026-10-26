@@ -176,12 +176,23 @@ describe('EvidenceCard without a heart-rate check', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('asks for heart rate when neither sport has a fraction', () => {
-    renderCard({ durationS: 1200, runHrFraction: null, rideHrFraction: null })
+  it('asks for heart rate when neither sport has a fraction and the files have none', () => {
+    renderCard({ durationS: 1200, runHrFraction: null, rideHrFraction: null }, true)
     expect(
       screen.getByRole('region', { name: 'Add heart rate to sharpen this' }),
     ).toBeInTheDocument()
   })
+
+  it.each([
+    ['run', { durationS: 1200, runHrFraction: 0.95, rideHrFraction: null }],
+    ['ride', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.95 }],
+  ])(
+    'renders nothing when only the %s has a fraction and the files have heart rate',
+    (_, effort) => {
+      const { container } = renderCard(effort, false)
+      expect(container).toBeEmptyDOMElement()
+    },
+  )
 })
 
 describe('EvidenceCard links', () => {

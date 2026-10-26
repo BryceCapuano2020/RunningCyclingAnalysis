@@ -64,9 +64,14 @@
   justify-items: start;
 }
 
-/* Beside a boxed evidence card, the cross-sport idea is inset by the card's padding, so their text lines up. */
-.balance__cards > .card + .cross-sport {
-  padding-inline: var(--space-5);
+/*
+ * Where the evidence card and the cross-sport idea sit side by side, the idea is inset past the card's
+ * border and padding, so their text lines up. Stacked on a phone, the idea keeps the full width.
+ */
+@media (min-width: 45.5rem) {
+  .balance__cards > .card + .cross-sport {
+    padding-inline: calc(var(--space-5) + 1px);
+  }
 }
 
 .balance__cards .chip {

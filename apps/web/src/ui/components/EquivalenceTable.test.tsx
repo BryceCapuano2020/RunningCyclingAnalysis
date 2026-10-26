@@ -123,7 +123,7 @@ describe('EquivalenceTable', () => {
     expect(labels).toHaveAttribute('aria-hidden', 'true')
     expect(
       Array.from(labels?.querySelectorAll('span') ?? []).map((span) => span.textContent),
-    ).toEqual(['Ride effort', 'Flat pace', '90% model range'])
+    ).toEqual(['Ride effort', 'Flat pace', '90% range'])
     const terms = [...container.querySelectorAll<HTMLElement>('.equivalence-list dt')]
     expect(terms).toHaveLength(6)
     for (const term of terms) expect(term).toHaveClass('sr-only')

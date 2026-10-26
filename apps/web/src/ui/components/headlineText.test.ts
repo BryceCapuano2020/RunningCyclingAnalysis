@@ -295,6 +295,14 @@ describe('rangeText', () => {
   it('shows a percent edge that rounds to 0 with one decimal, so it reads as a value', () => {
     expect(rangeText(energyReading(interval(1.003, 1.12, 1.2)))).toBe('0.3% to 20%')
   })
+
+  it('says a percent edge under a twentieth is under a tenth, rather than printing 0.0%', () => {
+    expect(rangeText(energyReading(interval(1.0004, 1.12, 1.2)))).toBe('under 0.1% to 20%')
+  })
+
+  it('keeps a negative edge of a tenth signed, as in an even range', () => {
+    expect(rangeText(energyReading(interval(0.999, 1, 1.02)))).toBe('-0.1% to +2%')
+  })
 })
 
 describe('balanceSentence wording', () => {

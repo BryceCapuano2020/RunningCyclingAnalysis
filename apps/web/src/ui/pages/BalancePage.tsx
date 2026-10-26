@@ -3,9 +3,12 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { trendWindowDays, weeksWithValue } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SharedTrendChart, energyWeeks, gradeWeeks } from '../charts'
+import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
+import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
 import { gapOfHeadline } from '../balanceGap'
 import { countSport } from '../records'
@@ -63,6 +66,21 @@ function gradesCoverAge(trend: readonly TrendPoint[], profile: AgeProfile | null
       (atMs) => atMs !== null && athleteOf(profile, atMs) !== null,
     ),
   )
+}
+
+/** The trend's measure: each sport's age grade when the age and sex are known, else its energy rate. */
+function trendMeasureOf(profile: AgeProfile | null): SharedMeasure {
+  return profile === null ? 'energy' : 'grade'
+}
+
+/**
+ * The fitness trend's name: the chart's own title, from the same measure, effort and window it draws
+ * with, so the section and the chart name it in the same words.
+ */
+function trendTitleOf(profile: AgeProfile | null, period: Period): string {
+  const effort = `${HEADLINE_DURATION_S / 60} minutes`
+  const windowText = windowPhrase(trendWindowDays(period.days))
+  return copyOf(trendMeasureOf(profile), effort, windowText).title
 }
 
 /** The level a sport's grade names, or null when the grade is not shown. */
@@ -213,15 +231,15 @@ export function BalancePage({
 
       {weeksWithValue(trend) >= 1 && (
         <section className="section" aria-labelledby="balance-trend">
-          {/* Visible once, as the chart's title; the heading is for navigation and the name only. */}
+          {/* The chart's own title, shown once by the chart; the heading names the section the same way. */}
           <h2 id="balance-trend" className="sr-only">
-            {`Best ${HEADLINE_LABEL}, week by week`}
+            {trendTitleOf(profile, period)}
           </h2>
           <div className="balance__trends">
             {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
             <SharedTrendChart
               weeks={profile === null ? energyWeeks(trend) : gradeWeeks(trend, profile)}
-              measure={profile === null ? 'energy' : 'grade'}
+              measure={trendMeasureOf(profile)}
               windowDays={trendWindowDays(period.days)}
               effortS={HEADLINE_DURATION_S}
               emptyText={gradesCoverAge(trend, profile) ? undefined : AGE_RANGE_TEXT}
