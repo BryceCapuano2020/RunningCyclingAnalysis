@@ -248,6 +248,55 @@ describe('SportCurveChart', () => {
     expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
   })
 
+  it('reserves the key row when the period before has nothing to draw, so the plot does not move', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={RUN_SPEEDS}
+        previous={{ ...PREVIOUS_RUN, curve: [] }}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
+    expect(screen.queryByRole('list', { name: 'Legend' })).toBeNull()
+  })
+
+  it('keeps no key row under All time, which has no period before it', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={RUN_SPEEDS}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-frame__legend')).toBeNull()
+  })
+
+  it('reserves the key row with a previous period, so the plot does not move when it goes', () => {
+    const { container } = render(
+      <SportCurveChart
+        sport="run"
+        curve={RUN_SPEEDS}
+        previous={PREVIOUS_RUN}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(container.querySelector('.chart-frame__legend')).not.toBeNull()
+    expect(screen.getByRole('list', { name: 'Legend' })).toBeInTheDocument()
+  })
+
+  it('reserves no key row for an empty chart, which shows only its message', () => {
+    const { container } = render(
+      <SportCurveChart sport="run" curve={[]} previous={null} massKg={MASS_KG} units="metric" />,
+    )
+    expect(screen.getByText(/Add runs of a minute or more/)).toBeInTheDocument()
+    expect(container.querySelector('.chart-frame__legend')).toBeNull()
+  })
+
   it('leaves the previous period out of the drawing, legend and table, and says so, when it has no rides', () => {
     const { container } = render(
       <SportCurveChart

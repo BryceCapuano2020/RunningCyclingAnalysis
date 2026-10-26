@@ -103,7 +103,9 @@ describe('header', () => {
   })
 
   it('keeps the phone wordmark small enough that the brand and actions share one row at 600 and 760 px', () => {
-    expect(rulesWith(mediaOf(header, PHONE), '.header__name')).toMatch(/font-size:\s*1\.125rem/)
+    expect(rulesWith(mediaOf(header, PHONE), '.header__name')).toMatch(
+      /font-size:\s*var\(--text-lead\)/,
+    )
     expect(rulesWith(mediaOf(header, PHONE), '.header__name')).toMatch(/letter-spacing:\s*0\.04em/)
   })
 
@@ -352,6 +354,15 @@ describe('control height', () => {
   })
 })
 
+describe('footer', () => {
+  it('sets the footer links as flex boxes at the control height on a finger, so a tap lands on them', () => {
+    const finger = mediaOf(app, '(pointer: coarse)')
+    expect(rulesWith(finger, '.app__footer a')).toMatch(/display:\s*inline-flex/)
+    expect(rulesWith(finger, '.app__footer a')).toMatch(/align-items:\s*center/)
+    expect(rulesWith(finger, '.app__footer a')).toMatch(/min-height:\s*var\(--control-height\)/)
+  })
+})
+
 describe('type scale', () => {
   it('defines the small sizes, the tab label and the caps tracking as tokens', () => {
     expect(tokens).toMatch(/--text-sm:\s*0\.875rem/)
@@ -363,6 +374,10 @@ describe('type scale', () => {
 
   it('defines the 12 px size the charts and the level ladder use as a token', () => {
     expect(tokens).toMatch(/--text-xs:\s*0\.75rem/)
+  })
+
+  it('defines the 18 px lead size as a token, which replaces the 17 px and 18 px literals', () => {
+    expect(tokens).toMatch(/--text-lead:\s*1\.125rem/)
   })
 
   it.each([

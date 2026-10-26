@@ -69,11 +69,25 @@ function everyDuration(): HTMLElement {
 }
 
 describe('CrossSportCard', () => {
+  it.each([
+    ['metric', /worth \d+:\d{2}\u00a0\/km$/],
+    ['imperial', /worth \d+:\d{2}\u00a0\/mi$/],
+  ] as const)(
+    'joins the %s unit to its pace with a non-breaking space, so the unit never starts a line',
+    (units, pattern) => {
+      renderCard(
+        makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }),
+        units,
+      )
+      expect(screen.getByRole('heading', { level: 2 }).textContent).toMatch(pattern)
+    },
+  )
+
   it('states the bike fitness as a flat running pace, with the cycling effort it comes from', () => {
     renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }))
 
     expect(
-      screen.getByRole('heading', { level: 2, name: 'On foot, your ride is worth 4:10 /km' }),
+      screen.getByRole('heading', { level: 2, name: 'On foot, your ride is worth 4:10\u00a0/km' }),
     ).toBeInTheDocument()
     expect(screen.getByText('Across sports')).toBeInTheDocument()
     // The ride that set the effort is not in this result, so its watts count as estimated.
@@ -143,7 +157,7 @@ describe('CrossSportCard', () => {
     )
 
     expect(
-      screen.getByRole('heading', { level: 2, name: 'On foot, your ride is worth 6:42 /mi' }),
+      screen.getByRole('heading', { level: 2, name: 'On foot, your ride is worth 6:42\u00a0/mi' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/running 6:42 per mile on the flat\.$/)).toBeInTheDocument()
   })
@@ -247,7 +261,7 @@ describe('CrossSportCard pace unit', () => {
     renderCard(makeResult({ equivalents: [makeEquivalence({ durationS: 1200, ridePowerW: 250 })] }))
     const heading = screen.getByRole('heading', {
       level: 2,
-      name: 'On foot, your ride is worth 4:10 /km',
+      name: 'On foot, your ride is worth 4:10\u00a0/km',
     })
     expect(heading.querySelector('.unit')).toHaveTextContent('/km')
   })

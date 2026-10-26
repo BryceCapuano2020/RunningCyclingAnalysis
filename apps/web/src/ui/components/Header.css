@@ -80,8 +80,7 @@ html {
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.0625rem;
+  font-size: var(--text-lead);
   font-weight: 700;
   letter-spacing: var(--tracking-caps);
   text-decoration: none;
@@ -179,7 +178,7 @@ html {
      from 561 px up, where the wordmark is still shown. */
   .header__name {
     /* The phone wordmark: a step below the wide size, so the brand and actions share a row. */
-    font-size: 1.125rem;
+    font-size: var(--text-lead);
     letter-spacing: 0.04em;
   }
 

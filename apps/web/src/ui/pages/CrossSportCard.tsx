@@ -72,8 +72,10 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
         <SportIcon sport="run" />
       </p>
       <h2 id="cross-sport-card">
-        {`On foot, your ride is worth ${paceNumber}`}{' '}
-        {/* The unit is set apart, so the upper-case heading does not turn it into capitals. */}
+        {`On foot, your ride is worth ${paceNumber}`}
+        {/* A non-breaking space keeps the unit on its figure's line. The unit is set apart, so the
+            upper-case heading does not turn it into capitals. */}
+        {'\u00a0'}
         <span className="unit">{PACE_UNIT[units]}</span>
       </h2>
       <p className="secondary">

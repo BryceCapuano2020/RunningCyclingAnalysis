@@ -11,8 +11,7 @@
   background: var(--surface-1);
   color: var(--text-primary);
   font-family: var(--font-display);
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.0625rem;
+  font-size: var(--text-lead);
   font-weight: 700;
   transform: translateY(-200%);
   cursor: pointer;

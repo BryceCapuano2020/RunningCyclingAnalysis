@@ -15,7 +15,8 @@ export interface ChartFrameProps {
   height?: number
   /**
    * Shown above the plot when it has two or more entries, or one dashed entry, since a dashed key
-   * names an estimate or a comparison that a reader must be able to find.
+   * names an estimate or a comparison that a reader must be able to find. A chart that keeps its key's
+   * row while the key is empty passes an empty array rather than undefined, so the plot does not move.
    */
   legend?: ChartLegendEntry[]
   table: ChartTableData

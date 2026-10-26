@@ -48,8 +48,7 @@
 }
 
 .lede {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.125rem;
+  font-size: var(--text-lead);
   max-width: 62ch;
 }
 
@@ -71,8 +70,7 @@
 }
 
 .app__pitch p {
-  /* A display size with no type token; see DESIGN.md, Type. */
-  font-size: 1.0625rem;
+  font-size: var(--text-lead);
 }
 
 .app__steps {
@@ -123,6 +121,15 @@
   border-top: 1px solid var(--border);
   font-size: var(--text-sm);
   text-align: start;
+}
+
+/* A finger needs a control's height to tap a footer link. A mouse keeps the line's own height. */
+@media (pointer: coarse) {
+  .app__footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height);
+  }
 }
 
 .landing__start {

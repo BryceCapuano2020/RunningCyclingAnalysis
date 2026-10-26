@@ -58,8 +58,8 @@ for the narrow one, and 900 px for Profile's two columns.
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
 menu, the sign-in button, the link arrows, the disclosure summaries, the form fields, and the small
-links in a records list and the cross-sport idea, which are padded to that height. At 360 px and
-below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
+links in a records list, the cross-sport idea and the two footer links, which are padded to that
+height. At 360 px and below the tab labels shrink a step, so "ACTIVITIES" keeps its line in a four-tab bar. Where the tabs
 overflow, the bar scrolls from the left and fades at its edge until it is scrolled to the end.
 
 Each page sets the tab title to its name and the app name, such as "Run · RunningCyclingAnalysis",
@@ -191,12 +191,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
-- **The small sizes are tokens:** `--text-xs` (12 px), `--text-sm` (14 px), `--text-md` (16 px) and
-  `--text-label` (15 px, the phone's tab labels and the chart and notice labels). Eyebrows, chips, the
-  tabs and the capitals of the header share `--tracking-caps`, and the phone's tab labels take
-  `--tracking-tab`. Display sizes, the headings and the figures, have no token: each is set where it
-  is used, with a comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so
-  it stays in lower case, as in "/mi".
+- **The type scale is tokens:** `--text-xs` (12 px), `--text-sm` (14 px), `--text-md` (16 px),
+  `--text-label` (15 px, the phone's tab labels and the chart and notice labels) and `--text-lead`
+  (18 px, the one display size a step above the body, such as the lead paragraph, the small
+  headings, the tabs, the phone's wordmark and the skip link). Eyebrows, chips, the tabs and the capitals of the
+  header share `--tracking-caps`, and the phone's tab labels take `--tracking-tab`. Sizes above 18 px,
+  such as the page headings and the figures, have no token: each is set where it is used, with a
+  comment saying so. A unit inside a capitalised heading is set apart in `.unit`, so it stays in
+  lower case, as in "/mi", and the space before it is a non-breaking space, so the unit never starts
+  a line.
 - **Cards only for things you can open or act on.** Sections are separated by space and a heading,
   not a border. A card has a 12 px radius, a 1 px border and no shadow.
 - One primary action per screen, in `.btn-primary`: an ink button with a volt label in light, and
@@ -234,8 +237,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
   visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
   reader points at it, as well as the latest one. A tooltip names its week and its window, as "Week
-  ending Sun 12 Jan 2025, best 20 min over 2 weeks". A chart's key keeps one line of height in every
-  period, so the plot does not move when a key appears. Axis text is set in rem, so it follows the
+  ending Sun 12 Jan 2025, best 20 min over 2 weeks". A sport curve keeps its key's row in any
+  period that has a period before it, even when that period has nothing to draw, so the plot does not
+  move as the dashed line appears or goes; All time has no period before it and no row. A
+  chart with no plot shows only its message. Axis text is set in rem, so it follows the
   reader's text size. A data table with more than 12 rows keeps to a height of 24 rem and scrolls inside
   itself, and a keyboard reader can reach it.
 - The energy view's ratio chart on How sure is this? tints running coral above its line and cycling
@@ -380,7 +385,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   first. Otherwise each record links to its own activity, with its own count. A long activity name is
   cut short with an ellipsis, and its full name is the link's title and accessible name.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
-  ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
+  ride is worth 4:10 /km", with a no-break space), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
   the dates the period is missing a ride between. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.

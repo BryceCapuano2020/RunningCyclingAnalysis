@@ -4,7 +4,7 @@ import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { RECORD_DURATIONS_S } from '../records'
-import { SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { activityCell, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -25,6 +25,7 @@ import { durationRows } from './curveRows'
 import { areaPath, linePath } from './paths'
 import { labelWidthPx, rootFontPx } from './rootFont'
 import { logScale } from './scale'
+import { keyOf } from './sportCurveKey'
 import {
   axisTitle,
   fillsArea,
@@ -242,13 +243,7 @@ export function SportCurveChart({
   const lastIndex = rows.findLastIndex((row) => Number.isFinite(row.value))
   const [rootPx] = useState(rootFontPx)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
-  const legend: ChartLegendEntry[] | undefined =
-    shown && hasData
-      ? [
-          { label: SPORT_LABEL[sport], kind: sport, swatch: 'line' },
-          { label: shown.label, kind: 'neutral', swatch: 'dashed' },
-        ]
-      : undefined
+  const legend: ChartLegendEntry[] | undefined = hasData ? keyOf(sport, shown, previous) : undefined
   const noPrevious =
     previous && !shown && hasData
       ? `No ${SPORT_PLURAL[sport]} in the ${previous.label.toLowerCase()}`

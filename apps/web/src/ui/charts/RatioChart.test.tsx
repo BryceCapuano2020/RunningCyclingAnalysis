@@ -91,11 +91,12 @@ describe('RatioChart', () => {
   })
 
   it('shows an empty state when there are no comparison points', () => {
-    render(<RatioChart comparison={{ prior: [], calibrated: null }} />)
+    const { container } = render(<RatioChart comparison={{ prior: [], calibrated: null }} />)
     expect(
       screen.getByText('Add at least one run and one ride to compare them.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
+    expect(container.querySelector('.chart-frame__legend')).toBeNull()
   })
 
   it('names the zero line on the axis, outside the plot, so it does not sit on the bands', () => {
