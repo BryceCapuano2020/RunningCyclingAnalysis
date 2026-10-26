@@ -40,7 +40,7 @@ const TRIGGER = 'Share image'
 const SAVE = 'Save image'
 const SHARE_FILE = 'Share file'
 const PREPARING = 'Preparing…'
-const SHEET = 'Share the balance'
+const SHEET = 'Share image'
 const NO_GRADES: Record<Sport, GradeOutcome | null> = { run: null, ride: null }
 /** A run graded Local at 64%, on the headline duration, as the page grades it. */
 const RUN_GRADE: GradeOutcome = {
@@ -129,13 +129,11 @@ describe('ShareImageButton', () => {
     expect(within(dialog).getByRole('radio', { name: 'Tall (story)' })).not.toBeChecked()
   })
 
-  it('saves the square card under a dated name and says it was saved to Downloads', async () => {
+  it('saves the square card under a dated name and says it was saved', async () => {
     renderButton()
     const dialog = await openSheet()
     press(dialog, SAVE)
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Square image saved to Downloads'),
-    )
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Square image saved'))
     expect(saveFile).toHaveBeenCalledWith(
       expect.objectContaining({ name: expect.stringMatching(/^balance-.*-square\.png$/) }),
     )
@@ -151,11 +149,9 @@ describe('ShareImageButton', () => {
     fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
     await screen.findByRole('img', { name: 'Preview of the tall card' })
     press(dialog, SAVE)
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Tall image saved to Downloads'),
-    )
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Tall image saved'))
     expect(renderShareCard).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'RunningCyclingAnalysis' }),
+      expect.objectContaining({ title: 'Running Cycling Analysis' }),
       expect.any(HTMLCanvasElement),
       'story',
     )
@@ -279,9 +275,7 @@ describe('ShareImageButton', () => {
     const dialog = await openSheet()
     press(dialog, SAVE)
     press(dialog, SAVE)
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Square image saved to Downloads'),
-    )
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Square image saved'))
     expect(saveFile).toHaveBeenCalledTimes(1)
   })
 
@@ -330,6 +324,24 @@ describe('ShareImageButton', () => {
     expect(shareFile).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the square picture, dimmed, while the tall one is drawn, and holds the action', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    const held = heldFile()
+    vi.mocked(canvasFile).mockReturnValueOnce(held.promise)
+    fireEvent.click(within(dialog).getByText('Tall (story)', { exact: true }))
+    expect(within(dialog).getByRole('img', { name: 'Preview of the square card' })).toHaveClass(
+      'share-sheet__picture--stale',
+    )
+    expect(within(dialog).getByRole('button', { name: PREPARING })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    held.resolve(new File(['png'], 'balance-story.png', { type: 'image/png' }))
+    const tall = await within(dialog).findByRole('img', { name: 'Preview of the tall card' })
+    expect(tall).not.toHaveClass('share-sheet__picture--stale')
+  })
+
   it('is not ready right after a shape switch, until the new shape is drawn', async () => {
     const held = heldFile()
     renderButton()
@@ -346,14 +358,56 @@ describe('ShareImageButton', () => {
     expect(within(dialog).getByRole('button', { name: SAVE })).toBeEnabled()
   })
 
+  it('closes the sheet when its backdrop is clicked, but not when a click lands inside it', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    fireEvent.click(within(dialog).getByText(NOTE))
+    expect(dialog).toHaveAttribute('open')
+    fireEvent.click(dialog)
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
+  })
+
+  it('puts the status above the actions, so the sticky actions never cover it', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    const actions = dialog.querySelector('.share-sheet__actions')!
+    expect(
+      screen.getByRole('status').compareDocumentPosition(actions) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('starts loading the card and its fonts when the trigger is pointed at, before the sheet opens', async () => {
+    renderButton()
+    expect(loadCardFonts).not.toHaveBeenCalled()
+    fireEvent.pointerEnter(screen.getByRole('button', { name: TRIGGER }))
+    await waitFor(() => expect(loadCardFonts).toHaveBeenCalled())
+  })
+
+  it('opens the sheet without focusing its action, so the first control takes focus', async () => {
+    // A modal dialog focuses its first control itself; jsdom does not, so it only opens.
+    const showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    })
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value: showModal,
+    })
+    try {
+      renderButton()
+      const dialog = await openSheet()
+      expect(dialog.querySelector('.share-sheet__action')).not.toHaveFocus()
+    } finally {
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal')
+    }
+  })
+
   it('clears the status when the period changes, so it never describes an older card', async () => {
     const result = makeResult()
     const { rerender } = renderButton({ result })
     const dialog = await openSheet()
     press(dialog, SAVE)
-    await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent('Square image saved to Downloads'),
-    )
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Square image saved'))
     rerender(<ShareImageButton {...buttonProps({ result, period: { ...PERIOD, days: 84 } })} />)
     expect(screen.getByRole('status').textContent).toBe('')
   })

@@ -51,7 +51,7 @@ interface Preview {
 }
 
 const TRIGGER = 'Share image'
-const SHEET_TITLE = 'Share the balance'
+const SHEET_TITLE = 'Share image'
 const PRIVACY_NOTE = 'Made on this device. Nothing is uploaded.'
 const WAITING_NOTE = 'Available when the analysis finishes.'
 const SAVE = 'Save image'
@@ -78,20 +78,33 @@ const SHAPES: SegmentedControlOption<CardFormat>[] = (['square', 'story'] as con
 function deliveredText(format: CardFormat, delivery: CanvasDelivery): string {
   if (delivery === 'cancelled') return ''
   const name = SHAPE[format].name
-  return delivery === 'shared' ? `${name} image shared` : `${name} image saved to Downloads`
+  return delivery === 'shared' ? `${name} image shared` : `${name} image saved`
+}
+
+/**
+ * The card's code and its fonts. The card loads on the first use, so it is not in the app's first
+ * download. The canvas only draws a web font that has loaded, so the faces are waited for first.
+ */
+async function loadCard() {
+  const [cardModel, renderCard] = await Promise.all([
+    import('../../share/cardModel'),
+    import('../../share/renderCard'),
+  ])
+  await renderCard.loadCardFonts()
+  return { buildShareCard: cardModel.buildShareCard, renderShareCard: renderCard.renderShareCard }
+}
+
+/** Starts loading the card, so the first preview does not wait for it. A failed load is retried at the draw. */
+function preloadCard() {
+  loadCard().catch(() => undefined)
 }
 
 /**
  * Draws the card in a shape and encodes it as a PNG file, or gives null when there is no card to
- * draw. The card code loads on the first use, so it is not in the app's first download.
+ * draw.
  */
 async function makeFile(inputs: CardInputs, format: CardFormat, when: Date): Promise<File | null> {
-  const [{ buildShareCard }, { loadCardFonts, renderShareCard }] = await Promise.all([
-    import('../../share/cardModel'),
-    import('../../share/renderCard'),
-  ])
-  // The canvas only draws a web font that has loaded, so wait for the card's faces first.
-  await loadCardFonts()
+  const { buildShareCard, renderShareCard } = await loadCard()
   const card = buildShareCard(
     inputs.result,
     inputs.settings,
@@ -126,14 +139,13 @@ export function ShareImageButton(props: ShareImageButtonProps) {
   const [preview, setPreview] = useState<Preview | null>(null)
   const [basis, setBasis] = useState({ result, period, units })
   const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null)
-  const actionRef = useRef<HTMLButtonElement>(null)
   // A ref, not state, so that a second click in the same tick is refused before React re-renders.
   const inFlight = useRef(false)
   // When the last action was accepted, so a double click is one press.
   const lastPress = useRef(0)
   const noteId = useId()
   const titleId = useId()
-  const dialogRef = useModalDialog(open, trigger, actionRef)
+  const dialogRef = useModalDialog(open, trigger)
 
   // A new analysis, period or unit system makes the status describe an older card, so it is cleared.
   if (basis.result !== result || basis.period !== period || basis.units !== units) {
@@ -161,10 +173,29 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     setPreview(null)
   }
 
+  // A picture is released when the one drawn after it replaces it, or the sheet closes. Until then the
+  // last picture stays in view, so a shape switch does not blank the sheet.
+  useEffect(() => {
+    const url = preview?.url ?? null
+    return () => {
+      if (url !== null) releasePreview(url)
+    }
+  }, [preview])
+
+  // A click on the backdrop lands on the dialog itself, not on anything inside it, so it closes the sheet.
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog === null) return
+    const closeOnBackdrop = (event: MouseEvent) => {
+      if (event.target === dialog) setOpen(false)
+    }
+    dialog.addEventListener('click', closeOnBackdrop)
+    return () => dialog.removeEventListener('click', closeOnBackdrop)
+  })
+
   useEffect(() => {
     if (!open) return
     let current = true
-    let url: string | null = null
     const source: CardInputs = {
       result,
       settings,
@@ -178,9 +209,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     }
     makeFile(source, format, new Date()).then(
       (file) => {
-        if (!current) return
-        url = file === null ? null : previewUrl(file)
-        setPreview({ format, file, url })
+        if (current) setPreview({ format, file, url: file === null ? null : previewUrl(file) })
       },
       () => {
         if (current) setPreview({ format, file: null, url: null })
@@ -188,7 +217,6 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     )
     return () => {
       current = false
-      if (url !== null) releasePreview(url)
     }
   }, [open, format, result, settings, units, period, isSample, effort, weightKnown, gap, grades])
 
@@ -230,7 +258,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
   }
 
   return (
-    <div className="share-image">
+    <div className="share-image" onPointerEnter={preloadCard} onFocus={preloadCard}>
       <button
         ref={setTrigger}
         type="button"
@@ -267,20 +295,23 @@ export function ShareImageButton(props: ShareImageButtonProps) {
             onSelect={setFormat}
           />
           <div className="share-sheet__preview">
-            {shown?.url ? (
+            {preview?.url ? (
               <img
-                src={shown.url}
-                alt={`Preview of the ${SHAPE[format].name.toLowerCase()} card`}
+                className={preview.format === format ? undefined : 'share-sheet__picture--stale'}
+                src={preview.url}
+                alt={`Preview of the ${SHAPE[preview.format].name.toLowerCase()} card`}
               />
             ) : (
               <p className="muted">{shown === null ? PREVIEW_WAITING : PREVIEW_FAILED}</p>
             )}
           </div>
+          <p role="status" className="share-sheet__status">
+            {status}
+          </p>
           <div className="share-sheet__actions">
             <button
-              ref={actionRef}
               type="button"
-              className="btn"
+              className="btn share-sheet__action"
               // aria-disabled, not disabled: a disabled button drops the focus it is holding.
               aria-disabled={generating || readyFile === null}
               onClick={onAction}
@@ -291,9 +322,6 @@ export function ShareImageButton(props: ShareImageButtonProps) {
               Close
             </button>
           </div>
-          <p role="status" className="share-sheet__status">
-            {status}
-          </p>
         </div>
       </dialog>
     </div>

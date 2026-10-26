@@ -4,7 +4,7 @@ import { horizontalOverflow, openSample } from './helpers.js'
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 const NOTE = 'Made on this device. Nothing is uploaded.'
-const SHEET = 'Share the balance'
+const SHEET = 'Share image'
 const FILE_NAME = /^balance-.*-square\.png$/
 
 /** The shape the sheet offers, the file it saves, and the pixel size the PNG must have. */
@@ -33,7 +33,12 @@ for (const { choice, file, width, height } of SHAPES) {
     const sheet = await openSheet(page)
     await expect(sheet.getByText(NOTE)).toBeVisible()
     await sheet.getByText(choice, { exact: true }).click()
-    await expect(sheet.getByRole('img', { name: /^Preview of the/ })).toBeVisible()
+    const preview = sheet.getByRole('img', { name: /^Preview of the/ })
+    await expect(preview).toBeVisible()
+    // A picture the browser cannot load is still a visible broken image, so check that it decoded.
+    await expect
+      .poll(() => preview.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0)
 
     const downloaded = page.waitForEvent('download')
     await sheet.getByRole('button', { name: 'Save image' }).click()
@@ -50,7 +55,7 @@ for (const { choice, file, width, height } of SHAPES) {
     expect(png.toString('ascii', 12, 16)).toBe('IHDR')
     expect(png.readUInt32BE(16)).toBe(width)
     expect(png.readUInt32BE(20)).toBe(height)
-    await expect(sheet.getByRole('status').filter({ hasText: 'saved to Downloads' })).toBeVisible()
+    await expect(sheet.getByRole('status').filter({ hasText: 'image saved' })).toBeVisible()
   })
 }
 

@@ -178,7 +178,7 @@ describe('buttons and links', () => {
     expect(declared(tokens, ':root').get('surface-pressed')).toBe('#dde2ea')
     expect(declared(tokens, DARK).get('surface-pressed')).toBe('#101318')
     expect(declared(tokens, ':root').get('accent-pressed')).toBe('#000000')
-    expect(declared(tokens, DARK).get('accent-pressed')).toBe('#b4da2f')
+    expect(declared(tokens, DARK).get('accent-pressed')).toBe('#8fb81c')
   })
 
   it('changes the primary button visibly on hover, in light as in dark', () => {
@@ -199,7 +199,7 @@ describe('buttons and links', () => {
 describe('colour tokens the chrome uses', () => {
   it('sets the accent hover and the brand ring to the values in DESIGN.md, in both schemes', () => {
     expect(declared(tokens, ':root').get('accent-hover')).toBe('#474f5c')
-    expect(declared(tokens, DARK).get('accent-hover')).toBe('#d9f55a')
+    expect(declared(tokens, DARK).get('accent-hover')).toBe('#a9d62c')
     expect(declared(tokens, ':root').get('mark-ring')).toBe('#0e1116')
     expect(declared(tokens, DARK).get('mark-ring')).toBe('#6b7380')
   })

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RejectedFile } from '@rca/core/session'
 import { RejectedFiles } from './RejectedFiles'
@@ -40,7 +40,7 @@ describe('RejectedFiles: what was skipped, and why', () => {
     )
 
     expect(
-      screen.getAllByText('bad.fit: Damaged, so it could not be read. Export it again.').length,
+      screen.getAllByText('bad.fit: Damaged, so it could not be read.').length,
     ).toBeGreaterThan(0)
     expect(screen.queryByText('core reason', { exact: false })).not.toBeInTheDocument()
   })
@@ -104,10 +104,40 @@ describe('RejectedFiles: what was skipped, and why', () => {
       />,
     )
 
-    const guides = screen.getByRole('button', { name: 'Where do I get my files?' })
+    const guides = screen.getByRole('button', { name: 'How to get your files' })
     const list = container.querySelector('details')
     expect(list).not.toBeNull()
     expect(list!.compareDocumentPosition(guides) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('lists only the files after the first in the disclosure, since the first is shown above it', () => {
+    const { container } = render(
+      <Skipped
+        rejected={[skipped('a.txt', 'not-activity'), skipped('b.txt', 'not-activity')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    const details = container.querySelector('details')!
+    const reason = 'Not a FIT, GPX or TCX file, so it cannot be read.'
+    expect(within(details).queryByText(`a.txt: ${reason}`)).not.toBeInTheDocument()
+    expect(within(details).getByText(`b.txt: ${reason}`)).toBeInTheDocument()
+    expect(screen.getByText('Not an activity file: 2 files')).toBeInTheDocument()
+  })
+
+  it('gives the count line first and the first file under it, after the disclosure', () => {
+    const { container } = render(
+      <Skipped rejected={[skipped('empty.fit', 'empty')]} unsupportedFiles={0} duplicates={[]} />,
+    )
+
+    const root = container.querySelector('.rejected-files')!
+    const first = root.querySelector('.rejected-files__first')!
+    expect(root.firstElementChild?.tagName).toBe('DETAILS')
+    expect(
+      root.querySelector('details')!.compareDocumentPosition(first) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 
   it('renders nothing when no file was skipped', () => {

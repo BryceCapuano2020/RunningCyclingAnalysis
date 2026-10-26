@@ -102,9 +102,7 @@ describe('EXPORT_GUIDES', () => {
 })
 
 describe('HISTORY_ADVICE', () => {
-  it('says how much history to bring, and that a Strava export brings the most', () => {
-    expect(HISTORY_ADVICE).toBe(
-      'Best with 6+ weeks of runs and rides. A Strava export is the quickest way to bring a lot.',
-    )
+  it('says that a Strava export brings the most history at once', () => {
+    expect(HISTORY_ADVICE).toBe('A Strava export brings in the most history at once.')
   })
 })

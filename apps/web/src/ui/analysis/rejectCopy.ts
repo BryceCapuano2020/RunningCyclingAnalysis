@@ -53,9 +53,9 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = 
 function corruptCopy(detail: string | undefined): string {
   const count = Number(detail)
   if (detail === undefined || !Number.isInteger(count) || count < 1) {
-    return 'Damaged, so it could not be read. Export it again.'
+    return 'Damaged, so it could not be read.'
   }
-  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged. Export it again.`
+  return `${plural(count, 'entry', 'entries')} could not be read because the archive is damaged.`
 }
 
 /** The size limit, as the core gives it in bytes, in whole megabytes. */
