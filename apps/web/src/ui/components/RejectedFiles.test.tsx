@@ -115,6 +115,58 @@ describe('RejectedFiles: what was skipped, and why', () => {
     ).toBeInTheDocument()
   })
 
+  it('says the shorter-range advice once when a group has two or more too-large files', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
+          skipped('big2.fit', 'too-large', String(64 * 1024 ** 2)),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.getByText('Check the recording on your device, or export a shorter range.'),
+    ).toBeInTheDocument()
+    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(0)
+    expect(screen.getByText('big2.fit: Too large to read (over 64 MB).')).toBeInTheDocument()
+  })
+
+  it('says the shorter-range advice once when a group has two or more too-much-data files', () => {
+    render(
+      <Skipped
+        rejected={[skipped('a.fit', 'too-much-data'), skipped('b.fit', 'too-much-data')]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(0)
+    expect(screen.getByText('b.fit: Too much data for one file.')).toBeInTheDocument()
+  })
+
+  it('keeps the shorter-range advice in the line of a lone too-large file, and drops its group action', () => {
+    render(
+      <Skipped
+        rejected={[
+          skipped('notes.txt', 'not-activity'),
+          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
+        ]}
+        unsupportedFiles={0}
+        duplicates={[]}
+      />,
+    )
+
+    expect(
+      screen.queryByText('Check the recording on your device, or export a shorter range.'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText('big.fit: Too large to read (over 64 MB). Export a shorter range.'),
+    ).toBeInTheDocument()
+  })
+
   it('keeps the group action for a lone first file whose line gives no action', () => {
     render(
       <Skipped

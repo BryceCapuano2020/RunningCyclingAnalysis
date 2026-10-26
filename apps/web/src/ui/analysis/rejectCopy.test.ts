@@ -109,9 +109,24 @@ describe('rejectionCopy: the export advice is said once, by the line or by its g
     )
   })
 
-  it('names only the damaged files as lines that can carry the advice', () => {
-    expect(lineNamesAction(file('bad.fit', { code: 'corrupt' }))).toBe(true)
+  it('leaves the advice out of a too-large line when its group gives the action', () => {
+    expect(
+      rejectionCopy(file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) }), true),
+    ).toBe('Too large to read (over 64 MB).')
+  })
+
+  it('leaves the advice out of a too-much-data line when its group gives the action', () => {
+    expect(rejectionCopy(file('big.fit', { code: 'too-much-data' }), true)).toBe(
+      'Too much data for one file.',
+    )
+  })
+
+  it('names the reasons whose lines carry the advice, and no others', () => {
+    for (const code of ['corrupt', 'too-large', 'too-much-data'] as const) {
+      expect(lineNamesAction(file('x', { code }))).toBe(true)
+    }
     expect(lineNamesAction(file('empty.fit', { code: 'empty' }))).toBe(false)
+    expect(lineNamesAction(file('long.fit', { code: 'too-long' }))).toBe(false)
   })
 })
 

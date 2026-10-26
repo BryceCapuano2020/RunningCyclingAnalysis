@@ -123,7 +123,7 @@ what the import moved in the athlete's numbers: at most four items, thresholds f
 then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 5 km, 10 km and a half marathon), counted only for workouts that were not on file before. A
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
 or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
-group names its files with a plain reason and gives one suggested action, said once. A lone damaged file keeps "Export it again." in its own line; with two or more, the group's action says it and the lines leave it out. The list ends with **How to get your files**, which opens the guides.
+group names its files with a plain reason and gives one suggested action, said once. A lone file whose reason advises ("Export it again.", "Export a shorter range.") keeps that advice in its own line; with two or more, the group's action says it and the lines leave it out. The list ends with **How to get your files**, which opens the guides.
 The summary's first skipped file is shown under the count line, in both states, with its plain reason, and the summary is announced with the same count it shows. Each import
 is compared with the result the worker last reported when it was sent, except a file released from a
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
