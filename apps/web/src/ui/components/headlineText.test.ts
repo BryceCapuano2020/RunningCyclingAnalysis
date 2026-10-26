@@ -50,10 +50,10 @@ describe('leadSentence', () => {
 describe('headlineText', () => {
   it('states the energy range the Method page quotes, as signed percentages of running over cycling', () => {
     expect(headlineText(comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) })).range).toBe(
-      'Running against cycling, 90% model range: +5% to +20%.',
+      'Running against cycling, 90% range: +5% to +20%.',
     )
     expect(headlineText(comparisonPoint({ ratio: interval(0.75, 0.8, 0.9) })).range).toBe(
-      'Running against cycling, 90% model range: -25% to -10%.',
+      'Running against cycling, 90% range: -25% to -10%.',
     )
   })
 })

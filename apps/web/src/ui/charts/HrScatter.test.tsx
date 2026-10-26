@@ -56,7 +56,7 @@ describe('HrScatter', () => {
     expect(screen.getAllByTestId('hr-fit')).toHaveLength(2)
     expect(screen.queryByText(/Not enough steady/)).toBeNull()
     expect(
-      screen.getByText('Slopes: running 10.0 and cycling 12.0 bpm per W/kg'),
+      screen.getByText('Slopes: running 10.0 and cycling 12.0 bpm per metabolic W/kg'),
     ).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Run')).toBeInTheDocument()
@@ -76,10 +76,18 @@ describe('HrScatter', () => {
     expect(container.querySelector('.chart-legend__key--dot')).not.toBeNull()
   })
 
+  it('titles the energy rate axis in metabolic W/kg, drawn in the chart', () => {
+    render(<HrScatter hr={hrFixture} />)
+    const axis = screen
+      .getAllByText('Energy rate (metabolic W/kg)')
+      .filter((element) => element.closest('svg') !== null)
+    expect(axis).toHaveLength(1)
+  })
+
   it('formats the summary table with block counts, slopes and R squared', () => {
     const { container } = render(<HrScatter hr={hrFixture} />)
     const { headers, rows } = tableAt(container, 0)
-    expect(headers).toEqual(['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'])
+    expect(headers).toEqual(['Sport', 'Blocks', 'Slope (bpm per metabolic W/kg)', 'R squared'])
     expect(rows).toEqual([
       ['Run', '3', '10.0', '0.95'],
       ['Ride', '2', '12.0', '0.90'],
@@ -89,7 +97,7 @@ describe('HrScatter', () => {
   it('lists one row per plotted block with its sport, W/kg and bpm, after the summary', () => {
     const { container } = render(<HrScatter hr={hrFixture} />)
     const { headers, rows } = tableAt(container, 1)
-    expect(headers).toEqual(['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'])
+    expect(headers).toEqual(['Sport', 'Energy rate (metabolic W/kg)', 'Heart rate (bpm)'])
     expect(rows).toEqual([
       ['Run', '13.5', '150'],
       ['Run', '14.5', '160'],
@@ -183,7 +191,7 @@ describe('HrScatter', () => {
     fireEvent.keyDown(screen.getByTestId('plot-surface'), { key: 'ArrowRight' })
     const tooltip = screen.getByRole('status')
     expect(within(tooltip).getByText('Run')).toBeInTheDocument()
-    expect(tooltip).toHaveTextContent('13.5 W/kg')
+    expect(tooltip).toHaveTextContent('13.5 metabolic W/kg')
     expect(tooltip).toHaveTextContent('150 bpm')
   })
 

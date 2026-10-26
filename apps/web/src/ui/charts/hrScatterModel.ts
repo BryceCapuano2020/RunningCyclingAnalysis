@@ -1,6 +1,6 @@
 import { formatCount } from '../format/count'
 import type { HrCrossCheck, HrPoint, LinearFit, Sport } from '@rca/core/types'
-import { formatWkg } from '@rca/core/units'
+import { ENERGY_RATE_UNIT, formatEnergyRate } from '@rca/core/units'
 import { SPORT_LABEL, SPORT_NOUN } from '../sports'
 import type { AxisTick, ChartSize, Point, TooltipContent } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
@@ -70,7 +70,7 @@ export function sportsOf(hr: HrCrossCheck, includeRides: boolean): SportData[] {
  */
 export function noteFor(hr: HrCrossCheck, drawn: readonly Sport[]): string | undefined {
   if (drawn.length === 2 && hr.run && hr.ride) {
-    return `Slopes: ${SPORT_NOUN.run} ${hr.run.fit.slope.toFixed(1)} and ${SPORT_NOUN.ride} ${hr.ride.fit.slope.toFixed(1)} bpm per W/kg`
+    return `Slopes: ${SPORT_NOUN.run} ${hr.run.fit.slope.toFixed(1)} and ${SPORT_NOUN.ride} ${hr.ride.fit.slope.toFixed(1)} bpm per ${ENERGY_RATE_UNIT}`
   }
   const first = drawn[0]
   if (first === undefined) return undefined
@@ -231,7 +231,7 @@ export function tooltipFor(dot: Dot): TooltipContent {
     y: dot.y,
     title: SPORT_LABEL[dot.sport],
     rows: [
-      { kind: dot.sport, value: formatWkg(dot.metabolicWkg), label: 'Energy rate' },
+      { kind: dot.sport, value: formatEnergyRate(dot.metabolicWkg), label: 'Energy rate' },
       { kind: dot.sport, value: `${Math.round(dot.bpm)} bpm`, label: 'Heart rate' },
     ],
   }

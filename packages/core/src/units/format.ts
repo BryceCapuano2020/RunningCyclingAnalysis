@@ -67,6 +67,9 @@ export function formatRecordTime(seconds: number): string {
 
 export const PACE_UNIT: Record<UnitSystem, string> = { imperial: '/mi', metric: '/km' }
 
+/** The unit of a metabolic energy rate, which is not watts per kilogram of measured power: formatWkg writes that. */
+export const ENERGY_RATE_UNIT = 'metabolic W/kg'
+
 /** Seconds per mile or per kilometre at a speed in m/s. */
 export function paceSeconds(speedMs: number, system: UnitSystem): number {
   return (system === 'imperial' ? METRES_PER_MILE : METRES_PER_KM) / speedMs
@@ -146,6 +149,17 @@ export function formatWkg(wPerKg: number): string {
     return DASH
   }
   return `${wPerKg.toFixed(1)} W/kg`
+}
+
+/** A metabolic energy rate to one decimal, without the unit: for a column whose heading already names it. */
+export function formatEnergyRateValue(wPerKg: number): string {
+  return Number.isFinite(wPerKg) ? wPerKg.toFixed(1) : DASH
+}
+
+/** A metabolic energy rate to one decimal, with ENERGY_RATE_UNIT: for a tooltip, a note or an end label. */
+export function formatEnergyRate(wPerKg: number): string {
+  const value = formatEnergyRateValue(wPerKg)
+  return value === DASH ? DASH : `${value} ${ENERGY_RATE_UNIT}`
 }
 
 export function formatPercent(fraction: number, signed = false): string {

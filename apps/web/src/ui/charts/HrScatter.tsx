@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { HrCrossCheck } from '@rca/core/types'
+import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import { keyByContent } from '../contentKeys'
 import { SPORT_LABEL } from '../sports'
 import { ChartFrame } from './ChartFrame'
@@ -107,7 +108,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
       }))}
       summary={{
         caption: 'Summary by sport',
-        columns: ['Sport', 'Blocks', 'Slope (bpm per W/kg)', 'R squared'],
+        columns: ['Sport', 'Blocks', `Slope (bpm per ${ENERGY_RATE_UNIT})`, 'R squared'],
         rows: sports.map((data) => [
           SPORT_LABEL[data.sport],
           String(data.points.length),
@@ -117,7 +118,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
       }}
       table={{
         caption: 'Plotted blocks',
-        columns: ['Sport', 'Energy rate (W/kg)', 'Heart rate (bpm)'],
+        columns: ['Sport', `Energy rate (${ENERGY_RATE_UNIT})`, 'Heart rate (bpm)'],
         rows: blocks.blocks.map(({ sport, point }) => [
           SPORT_LABEL[sport],
           point.metabolicPower.toFixed(1),
@@ -139,7 +140,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
             <ChartXAxis
               ticks={m.xTicks}
               plot={plot}
-              title="Energy rate (W/kg)"
+              title={`Energy rate (${ENERGY_RATE_UNIT})`}
               fontSize={fontSize}
             />
             <ChartYAxis ticks={m.yTicks} plot={plot} title="Heart rate (bpm)" fontSize={fontSize} />

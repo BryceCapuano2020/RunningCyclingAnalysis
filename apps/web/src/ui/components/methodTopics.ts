@@ -1,16 +1,12 @@
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
-import {
-  FLAT_RUN_COST,
-  HEADLINE_DURATION_S,
-  PRIORS,
-  RUN_COST_CORRECTION,
-} from '@rca/core/constants'
+import { FLAT_RUN_COST, PRIORS, RUN_COST_CORRECTION } from '@rca/core/constants'
 import {
   DEFAULT_WINDOW_DAYS,
   EFFORT_LENGTHS_S,
   MIN_WINDOW_DAYS,
   trendWindowDays,
 } from '@rca/core/digest/trendPoints'
+import { HEADLINE_LABEL } from '../grades'
 import { RANGE_OPTIONS } from './rangeOptions'
 
 /** The ids of the sections on How sure is this?, which the contents list and the links name. */
@@ -78,9 +74,9 @@ const TOPIC_LIST = [
   },
   {
     id: 'trend',
-    title: 'Best 20 min, week by week',
+    title: `Best ${HEADLINE_LABEL}, week by week`,
     plain: [
-      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${minutesLabel(HEADLINE_DURATION_S)}. Running is shown as flat pace: your pace allowing for hills, as if on level ground, and cycling as power in watts.`,
+      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${HEADLINE_LABEL}. Running is shown as flat pace: your pace allowing for hills, as if on level ground, and cycling as power in watts.`,
       `Each point looks back over a window that ends that Sunday. Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days, so ${WINDOW_EXAMPLES}. All time uses ${DEFAULT_WINDOW_DAYS} days. Each window lies inside the period you chose.`,
       'A gap means no run or ride of that length fell inside the window.',
     ],

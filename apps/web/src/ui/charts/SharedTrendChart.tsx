@@ -20,6 +20,7 @@ import {
   levelNote,
   rideNote,
   singleValueText,
+  tableValue,
   withRideHeld,
 } from './sharedTrendText'
 import { axisFontSize } from './ticks'
@@ -144,8 +145,8 @@ export function SharedTrendChart({
         ],
         rows: weeks.map((week) => [
           weekDay(week.endMs),
-          week.run === null ? '—' : formatValue(measure, week.run),
-          ...(rideKnown ? [week.ride === null ? '—' : formatValue(measure, week.ride)] : []),
+          week.run === null ? '—' : tableValue(measure, week.run),
+          ...(rideKnown ? [week.ride === null ? '—' : tableValue(measure, week.ride)] : []),
           String(week.runCount),
           ...(rideKnown ? [String(week.rideCount)] : []),
         ]),

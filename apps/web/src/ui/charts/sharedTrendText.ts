@@ -1,10 +1,10 @@
 import { levelOf } from '@rca/core/grade'
-import { formatWkg } from '@rca/core/units'
+import { ENERGY_RATE_UNIT, formatEnergyRate, formatEnergyRateValue } from '@rca/core/units'
 import { formatGrade } from '../gradeFormat'
 import type { SharedWeek } from './gradeTrend'
 import { weekDay } from './trendText'
 
-/** Which measure a shared trend shows: each sport's age grade, or its energy rate in W/kg. */
+/** Which measure a shared trend shows: each sport's age grade, or its energy rate in metabolic W/kg. */
 export type SharedMeasure = 'grade' | 'energy'
 
 /** The level a grade falls in, which the tooltip names, or nothing for an energy value. */
@@ -48,25 +48,31 @@ export function copyOf(measure: SharedMeasure, effort: string, windowText: strin
   }
   return {
     title: `Energy rate of your best ${effort}, trailing ${windowText}`,
-    description: `Run and ride energy rate in W/kg for the best ${effort} in each trailing ${windowText}, on one scale.`,
-    note: `Each point is your best ${effort} in the ${windowText} to that Sunday, in metabolic W/kg. ${lowPoint} ${steps}`,
-    caption: `Each week ends on a Sunday. Each value is the best ${effort} in the ${windowText} that end that week, in metabolic W/kg.`,
-    axisTitle: 'Energy rate (W/kg)',
+    description: `Run and ride energy rate in ${ENERGY_RATE_UNIT} for the best ${effort} in each trailing ${windowText}, on one scale.`,
+    note: `Each point is your best ${effort} in the ${windowText} to that Sunday, in ${ENERGY_RATE_UNIT}. ${lowPoint} ${steps}`,
+    caption: `Each week ends on a Sunday. Each value is the best ${effort} in the ${windowText} that end that week, in ${ENERGY_RATE_UNIT}.`,
+    axisTitle: `Energy rate (${ENERGY_RATE_UNIT})`,
     empty: 'Add runs or rides in more than one week to see your energy rate',
-    runHeading: 'Run (W/kg)',
-    rideHeading: 'Ride (W/kg)',
+    runHeading: `Run (${ENERGY_RATE_UNIT})`,
+    rideHeading: `Ride (${ENERGY_RATE_UNIT})`,
     runLegend: 'Run',
     rideLegend: 'Ride',
   }
 }
 
-/** Grades are drawn in per cent, so the axis reads in whole steps. Energy stays in W/kg. */
+/** Grades are drawn in per cent, so the axis reads in whole steps. Energy stays in metabolic W/kg. */
 export function plotted(measure: SharedMeasure, value: number): number {
   return measure === 'grade' ? value * 100 : value
 }
 
+/** A value in words, for a tooltip, a note or an end label: an energy rate carries its unit. */
 export function formatValue(measure: SharedMeasure, value: number): string {
-  return measure === 'grade' ? formatGrade(value) : formatWkg(value)
+  return measure === 'grade' ? formatGrade(value) : formatEnergyRate(value)
+}
+
+/** A table cell's value. An energy rate is a bare number, since its column heading names the unit. */
+export function tableValue(measure: SharedMeasure, value: number): string {
+  return measure === 'grade' ? formatGrade(value) : formatEnergyRateValue(value)
 }
 
 /** A week with cycling held back: its run kept, and no ride value, range or count. */

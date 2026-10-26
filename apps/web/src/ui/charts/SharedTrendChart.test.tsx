@@ -83,14 +83,24 @@ describe('SharedTrendChart', () => {
     expect(screen.getByRole('img', { name: /Run and ride age grades/ })).toBeInTheDocument()
   })
 
-  it('titles an energy trend in W/kg, when there is no age to grade by', () => {
+  it('titles an energy trend in metabolic W/kg, when there is no age to grade by', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(
       screen.getByRole('figure', {
         name: 'Energy rate of your best 20 minutes, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Energy rate (W/kg)')).toBeInTheDocument()
+    expect(screen.getByText('Energy rate (metabolic W/kg)')).toBeInTheDocument()
+  })
+
+  it('heads the energy trend’s run and ride columns in metabolic W/kg', () => {
+    const { container } = renderChart({
+      measure: 'energy',
+      weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)],
+    })
+    const headers = Array.from(container.querySelectorAll('thead th')).map((th) => th.textContent)
+    expect(headers).toContain('Run (metabolic W/kg)')
+    expect(headers).toContain('Ride (metabolic W/kg)')
   })
 
   it('draws running as a solid line with a dot per week, and cycling as a dashed line with rings', () => {
@@ -249,6 +259,21 @@ describe('SharedTrendChart', () => {
     expect(run?.getAttribute('text-anchor')).toBe('start')
   })
 
+  it('names an energy end label in its full unit from 480 px, with its effort and window', () => {
+    chartWidth(480)
+    const { container } = renderChart({
+      measure: 'energy',
+      weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)],
+    })
+    const labels = Array.from(container.querySelectorAll('.chart-series__label')).map(
+      (label) => label.textContent,
+    )
+    expect(labels).toEqual([
+      '4.2 metabolic W/kg, best 20 min, last 2 weeks',
+      '3.1 metabolic W/kg, best 20 min, last 2 weeks',
+    ])
+  })
+
   it('labels the latest value with the window it covers, so it can differ from the card’s best', () => {
     renderChart()
     expect(screen.getByText('66%, best 20 min, last 2 weeks')).toBeInTheDocument()
@@ -339,10 +364,22 @@ describe('SharedTrendChart', () => {
     ).toBeInTheDocument()
   })
 
-  it('names the single value in the unit the chart draws it in: per cent for an age grade, W/kg for an energy trend', () => {
+  it('names the single value in the unit the chart draws it in: per cent for an age grade, metabolic W/kg for an energy trend', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, null, false)] })
     expect(
-      screen.getByText(/^Only one week has a value: Run \d+(\.\d+)? W\/kg, week ending/),
+      screen.getByText(/^Only one week has a value: Run \d+(\.\d+)? metabolic W\/kg, week ending/),
     ).toBeInTheDocument()
+  })
+
+  it('gives an energy table its values as bare numbers, under headings that name the unit', () => {
+    const { container } = renderChart({
+      measure: 'energy',
+      weeks: [week(0, 4, 3, false), week(1, 4.2, null, false)],
+    })
+    const rows = Array.from(container.querySelectorAll('tbody tr')).map((tr) =>
+      Array.from(tr.querySelectorAll('th, td')).map((cell) => cell.textContent),
+    )
+    expect(rows[0]?.slice(1, 3)).toEqual(['4.0', '3.0'])
+    expect(rows[1]?.slice(1, 2)).toEqual(['4.2'])
   })
 })

@@ -12,6 +12,7 @@ import { WeightPrompt } from '../components/WeightPrompt'
 import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
 import { countSport } from '../records'
+import { HEADLINE_LABEL } from '../grades'
 import { PAGE_HEADING_ID } from './pageHeading'
 
 export interface BalanceHeroProps {
@@ -106,7 +107,7 @@ function missingText(
   }
   return {
     title: HARDER_EFFORTS_TITLE,
-    detail: `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. A hard 20 min run or ride would let them be compared.`,
+    detail: `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. A hard ${HEADLINE_LABEL} run or ride would let them be compared.`,
     canShowAll: false,
   }
 }

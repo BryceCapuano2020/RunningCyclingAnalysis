@@ -121,16 +121,16 @@ describe('buildShareCard', () => {
     const metric = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     const imperial = cardFor(makeResult(), SETTINGS, 'imperial', 42, false)
     expect(metric?.heroes[0]).toMatchObject({
-      label: 'Threshold pace, estimated from your best 3 to 20 min',
+      label: 'Threshold flat pace, estimated from your best 3 to 20 min',
       figure: { number: '23:23', unit: '/km' },
     })
     expect(imperial?.heroes[0]?.figure).toEqual({ number: '37:38', unit: '/mi' })
   })
 
-  it('names each threshold as estimated from the best 3 to 20 min efforts, from the page label', () => {
+  it('names each threshold as estimated from the best 3 to 20 min efforts, a run as flat pace', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, false)
     expect(card?.heroes.map((hero) => hero.label)).toEqual([
-      'Threshold pace, estimated from your best 3 to 20 min',
+      'Threshold flat pace, estimated from your best 3 to 20 min',
       'Threshold power, estimated from your best 3 to 20 min',
     ])
   })

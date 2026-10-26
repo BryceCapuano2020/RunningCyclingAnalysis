@@ -89,6 +89,18 @@ describe('CurveChart', () => {
     expect(markers.map((m) => m.getAttribute('data-series')).sort()).toEqual(['ride', 'run'])
   })
 
+  it('names the energy rate on its axis in metabolic W/kg', () => {
+    render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+      />,
+    )
+    expect(screen.getByText('Energy rate (metabolic W/kg)')).toBeInTheDocument()
+  })
+
   it('formats each duration in the table view', () => {
     const { container } = render(
       <CurveChart
@@ -101,19 +113,19 @@ describe('CurveChart', () => {
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual([
       'Duration',
-      'Run energy rate (W/kg)',
+      'Run energy rate (metabolic W/kg)',
       'Flat pace',
-      'Ride energy rate (W/kg)',
+      'Ride energy rate (metabolic W/kg)',
       'Ride power',
       'Run activity',
       'Ride activity',
     ])
     expect(rows).toEqual([
       // Without activity names the cells stay blank rather than showing a raw id.
-      ['1 min', '17.0 W/kg', '4:07 /km', '18.5 W/kg', '1,400 W', '', ''],
-      ['5 min', '15.6 W/kg', '4:31 /km', '16.4 W/kg', '1,230 W', '', ''],
-      ['20 min', '14.2 W/kg', '5:00 /km', '14.0 W/kg', '1,050 W', '', ''],
-      ['1 h', '12.8 W/kg', '5:37 /km', '—', '—', '', '—'],
+      ['1 min', '17.0', '4:07 /km', '18.5', '1,400 W', '', ''],
+      ['5 min', '15.6', '4:31 /km', '16.4', '1,230 W', '', ''],
+      ['20 min', '14.2', '5:00 /km', '14.0', '1,050 W', '', ''],
+      ['1 h', '12.8', '5:37 /km', '—', '—', '', '—'],
     ])
   })
 
@@ -150,9 +162,9 @@ describe('CurveChart', () => {
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
     const tooltip = screen.getByRole('status')
     expect(tooltip).toHaveTextContent('1 min')
-    expect(tooltip).toHaveTextContent('17.0 W/kg')
+    expect(tooltip).toHaveTextContent('17.0 metabolic W/kg')
     expect(tooltip).toHaveTextContent('4:07 /km')
-    expect(tooltip).toHaveTextContent('18.5 W/kg')
+    expect(tooltip).toHaveTextContent('18.5 metabolic W/kg')
     expect(within(tooltip).getByText('Run')).toBeInTheDocument()
     expect(within(tooltip).getByText('Ride')).toBeInTheDocument()
     expect(tooltip).toHaveTextContent('1,400 W')

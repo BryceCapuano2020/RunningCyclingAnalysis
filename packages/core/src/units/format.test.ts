@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ENERGY_RATE_UNIT,
   PACE_UNIT,
   formatClock,
+  formatEnergyRate,
+  formatEnergyRateValue,
   formatTimeOfDay,
   formatDistance,
   formatDuration,
@@ -225,6 +228,42 @@ describe('formatPower', () => {
 
   it('returns a dash for NaN', () => {
     expect(formatPower(NaN)).toBe(DASH)
+  })
+})
+
+describe('ENERGY_RATE_UNIT', () => {
+  it('names a metabolic energy rate, while formatWkg still writes measured power per kilogram', () => {
+    expect(ENERGY_RATE_UNIT).toBe('metabolic W/kg')
+    expect(formatWkg(3.8)).toBe('3.8 W/kg')
+  })
+})
+
+describe('formatEnergyRate', () => {
+  it('writes a metabolic energy rate with its unit, to one decimal', () => {
+    expect(formatEnergyRate(3.8)).toBe('3.8 metabolic W/kg')
+    expect(formatEnergyRate(3.84)).toBe('3.8 metabolic W/kg')
+    expect(formatEnergyRate(0)).toBe('0.0 metabolic W/kg')
+  })
+
+  it('returns a dash for NaN or infinity', () => {
+    expect(formatEnergyRate(NaN)).toBe(DASH)
+    expect(formatEnergyRate(Infinity)).toBe(DASH)
+  })
+})
+
+describe('formatEnergyRateValue', () => {
+  it('gives the number alone, to one decimal, for a column whose heading names the unit', () => {
+    expect(formatEnergyRateValue(3.8)).toBe('3.8')
+    expect(formatEnergyRateValue(3.84)).toBe('3.8')
+  })
+
+  it('returns a dash for NaN or infinity', () => {
+    expect(formatEnergyRateValue(NaN)).toBe(DASH)
+    expect(formatEnergyRateValue(-Infinity)).toBe(DASH)
+  })
+
+  it('is the number formatEnergyRate shows, followed by ENERGY_RATE_UNIT', () => {
+    expect(formatEnergyRate(3.84)).toBe(`${formatEnergyRateValue(3.84)} ${ENERGY_RATE_UNIT}`)
   })
 })
 

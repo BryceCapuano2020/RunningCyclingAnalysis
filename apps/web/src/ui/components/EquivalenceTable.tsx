@@ -44,7 +44,7 @@ export function EquivalenceTable({
                 Flat pace
               </th>
               <th scope="col" className="num">
-                90% model range
+                90% range
               </th>
             </tr>
           </thead>
@@ -76,7 +76,7 @@ export function EquivalenceTable({
               </dd>
               <dt>Flat pace</dt>
               <dd>{formatPace(equivalent.runSpeed.p50, units)}</dd>
-              <dt>90% model range</dt>
+              <dt>90% range</dt>
               <dd>
                 {`${formatPaceValue(equivalent.runSpeed.p95, units)} to ${formatPaceValue(equivalent.runSpeed.p05, units)} ${PACE_UNIT[units]}`}
               </dd>

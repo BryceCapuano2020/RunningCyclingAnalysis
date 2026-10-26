@@ -98,11 +98,11 @@ export function balanceSummary(reading: BalanceReading, durationS: number): stri
   return leaningGradeSummary(reading.lean, reading.lead.centre)
 }
 
-/** The 90% model range of the energy ratio, running against cycling, as the Method page quotes it. */
+/** The 90% range of the energy ratio, running against cycling, as the Method page quotes it. */
 export function headlineText(point: ComparisonPoint): { range: string } {
   return {
     range:
-      `Running against cycling, 90% model range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
+      `Running against cycling, 90% range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
       `${formatPercent(point.ratio.p95 - 1, true)}.`,
   }
 }

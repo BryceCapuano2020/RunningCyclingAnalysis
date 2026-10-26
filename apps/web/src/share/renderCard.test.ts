@@ -64,7 +64,7 @@ describe('renderShareCard', () => {
       SPORT_LABEL[SPORT_ORDER[0]],
       'Even',
       SPORT_LABEL[SPORT_ORDER[1]],
-      'THRESHOLD PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
       '21:35',
       '/km',
       'THRESHOLD POWER, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
@@ -126,7 +126,7 @@ describe('renderShareCard', () => {
             arc.x >= label.x - 40 && arc.x < label.x && arc.y >= label.y && arc.y < label.y + 34,
         )
       }
-      expect(glyphBeside('THRESHOLD PACE,')).toBe(true)
+      expect(glyphBeside('THRESHOLD FLAT PACE,')).toBe(true)
       expect(glyphBeside('THRESHOLD POWER')).toBe(true)
       expect(
         ctx.paths.some((path) => path.color === CARD_COLORS.text && path.segments.includes('arc')),
@@ -152,6 +152,20 @@ describe('renderShareCard', () => {
     const at = (texts: RecordedText[], text: string) => texts.find((t) => t.text === text)?.y
     expect(at(square, '21:35')).toBe(at(square, '48'))
     expect(at(story, '48') ?? 0).toBeGreaterThan(at(story, '21:35') ?? Infinity)
+  })
+
+  it('lines the figures up side by side when one hero label wraps to two lines and the other to one', () => {
+    const heroes = cardModel().heroes
+    const run = heroes[0]
+    const ride = heroes[1]
+    if (run === undefined || ride === undefined) throw new Error('The card has two heroes')
+    const texts = draw(cardModel({ heroes: [run, { ...ride, label: 'Power' }] }), 'square').texts
+    // The run's label wraps to a second line; the ride's short label is one line, POWER.
+    expect(texts.some((text) => text.text === 'FROM YOUR BEST 3 TO 20 MIN')).toBe(true)
+    expect(texts.filter((text) => text.text === 'POWER')).toHaveLength(1)
+    const figureY = (figure: string) => texts.find((text) => text.text === figure)?.y
+    expect(figureY('21:35')).toBeDefined()
+    expect(figureY('21:35')).toBe(figureY('48'))
   })
 
   it('steps the headline down until it fits on two lines of a square', () => {
@@ -322,6 +336,17 @@ describe('the card figures, levels and copy', () => {
     )
     expect(name?.color).toBe(CARD_COLORS.brand)
   })
+
+  it.each(FORMATS)(
+    'draws the run’s threshold label whole, flat pace included, on the %s card',
+    (format) => {
+      const { ok, ctx } = render(cardModel(), format)
+      expect(ok).toBe(true)
+      expect(words(ctx.texts)).toContain(
+        'THRESHOLD FLAT PACE, ESTIMATED FROM YOUR BEST 3 TO 20 MIN',
+      )
+    },
+  )
 
   it.each(FORMATS)(
     'fits the card with its magnitude, grades and caveat on the %s card',

@@ -56,7 +56,7 @@ describe('RatioChart', () => {
     expect(within(legend).getByText('After heart-rate check: 90% range')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher. Shading shows the 90% model range. The line is the middle estimate.',
+        'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher. Shading shows the 90% range. The line is the middle estimate.',
       ),
     ).toBeInTheDocument()
     expect(screen.getAllByTestId('ratio-band')).toHaveLength(2)

@@ -12,6 +12,7 @@ import { countSport } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import {
   AGE_RANGE_TEXT,
+  HEADLINE_LABEL,
   LEVEL_NOT_RANKING,
   athleteOf,
   gradedSexOf,
@@ -217,7 +218,7 @@ export function BalancePage({
         <section className="section" aria-labelledby="balance-trend">
           {/* Visible once, as the chart's title; the heading is for navigation and the name only. */}
           <h2 id="balance-trend" className="sr-only">
-            Best 20 min, week by week
+            {`Best ${HEADLINE_LABEL}, week by week`}
           </h2>
           <div className="balance__trends">
             {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}

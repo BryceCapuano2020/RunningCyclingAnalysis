@@ -32,7 +32,7 @@ const EMPTY = 'Add at least one run and one ride to compare them.'
 const PERCENT_AXIS_TITLE = `${SPORT_LABEL.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
 const CAPTION =
   'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher.'
-const NOTE = 'Shading shows the 90% model range. The line is the middle estimate.'
+const NOTE = 'Shading shows the 90% range. The line is the middle estimate.'
 
 const LEGEND_CALIBRATED: ChartLegendEntry[] = [
   { label: 'Before heart-rate check: 90% range', kind: 'neutral', swatch: 'band' },

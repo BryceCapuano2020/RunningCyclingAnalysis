@@ -238,9 +238,9 @@ export function ProfilePage({
           <section className="section" aria-labelledby="profile-account">
             <h2 id="profile-account">Account</h2>
             <p className="secondary">
-              Sign in to keep your library on any device. Analysis still runs in your browser.
-              Activity summaries are saved to your private account, original files too if you
-              choose, and you can delete everything at any time.
+              Sign in to keep your library on any device. Activity summaries are saved to your
+              private account, original files too if you choose, and you can delete everything at
+              any time.
             </p>
             <div>
               <GoogleSignInButton onClick={onSignIn} />
