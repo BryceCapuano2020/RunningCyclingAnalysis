@@ -11,7 +11,7 @@ export interface RestoringPageProps {
  * Shown on a reload of a visit that kept results, while the account answers and the kept library
  * loads. It holds the landing page's place, so a returning visitor is not asked to add their files
  * again before their results arrive. It has an Add files control, so it is never a dead end, and it
- * ends on its own shortly (see useRestoringWindow).
+ * ends when the kept library replies, not before.
  */
 export function RestoringPage({ onFiles }: RestoringPageProps) {
   return (

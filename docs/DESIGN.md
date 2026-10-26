@@ -22,11 +22,10 @@ Hash routes, so the static host needs no fallback rules.
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line under the energy view, where the charts would be. On a reload of a visit that kept
-results, it shows a restoring state in its place, with an **Add files** button, until the library
-has replied, or, while the account is still loading, three seconds have passed, whichever is first.
-A returning visitor is not asked to add their files again and is never left without a control. The
+results, every page except Profile and How sure is this? shows a restoring state in its place, with an
+**Add files** button, until the library has replied. A returning visitor is not asked to add their files again and is never left without a control. The
 header holds the wordmark, the four tabs (once there is a result, and while results restore), one
-**Add files** button (not while they restore, or on the landing page, whose drop zone has its own), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
+**Add files** button (not on the landing page, whose drop zone has its own, nor while they restore, except on Profile and How sure is this?), a **Profile** link (a person glyph with its word at every width, outlined as an account) and the
 account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window and

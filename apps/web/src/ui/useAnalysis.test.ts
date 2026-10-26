@@ -740,12 +740,14 @@ describe('useAnalysis account handling', () => {
       expect(localStorage.getItem(KEPT_KEY)).toBe('1')
     })
 
-    it('forgets the hint when the kept library loads empty', () => {
+    it('forgets the hint and ends the restoring state when the kept library loads empty', () => {
       localStorage.setItem(KEPT_KEY, '1')
-      setup(SIGNED_OUT)
+      const { result } = setup(SIGNED_OUT)
+      expect(result.current.restoring).toBe(true)
 
       finishDeviceLoad(STATE)
 
+      expect(result.current.restoring).toBe(false)
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
     })
 

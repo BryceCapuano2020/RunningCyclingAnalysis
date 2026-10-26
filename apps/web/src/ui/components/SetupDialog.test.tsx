@@ -114,9 +114,25 @@ describe('SetupDialog', () => {
     expect(screen.queryByText(/Stored as/)).not.toBeInTheDocument()
   })
 
-  it('keeps the footer row for the weight note in place when no note shows, so the dialog holds still', () => {
+  it('puts the weight note in the scrolling form, above the sticky footer, so the footer holds only the buttons', () => {
+    const { dialog } = renderDialog(UNSET)
+    const footer = dialog.querySelector('.setup-dialog__footer') as HTMLElement
+    const note = screen.getByText(SKIP_NOTE)
+    expect(footer.contains(note)).toBe(false)
+    expect(footer.querySelector('.setup-dialog__notes')).toBeNull()
+    expect(note.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('keeps the row for the weight note in the form, with the note in it when no weight is entered', () => {
+    const { dialog } = renderDialog(UNSET)
+    const row = dialog.querySelector('form .setup-dialog__notes') as HTMLElement
+    expect(row).not.toBeNull()
+    expect(row.contains(screen.getByText(SKIP_NOTE))).toBe(true)
+  })
+
+  it('keeps the row for the weight note in the form, empty, when a weight is entered', () => {
     const { dialog } = renderDialog()
-    const row = dialog.querySelector('.setup-dialog__notes')
+    const row = dialog.querySelector('form .setup-dialog__notes')
     expect(row).not.toBeNull()
     expect(row?.children).toHaveLength(0)
   })

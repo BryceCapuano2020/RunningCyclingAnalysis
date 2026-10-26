@@ -37,13 +37,13 @@
   font-size: var(--text-sm);
 }
 
-/* The row holds the note's line, empty or not, so the footer keeps its height as the note comes and goes. */
+/* The row holds the note's line, empty or not, so the buttons keep their place as the note comes and goes. */
 .setup-dialog__notes {
   min-height: 1lh;
   font-size: var(--text-sm);
 }
 
-/* The answers and the buttons stay in view while a phone's keyboard covers the middle. */
+/* The buttons stay in view while a phone's keyboard covers the middle. */
 .setup-dialog__footer {
   position: sticky;
   bottom: calc(var(--space-5) * -1);
@@ -66,8 +66,7 @@
   font-size: var(--text-sm);
 }
 
-/* At a phone's width each button takes a full row, and the weight note wraps to two lines at 320 px
-   (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
+/* At a phone's width each button takes a full row, and the note wraps to two lines (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
 @media (max-width: 420px) {
   .setup-dialog__actions .btn {
     flex: 1 1 100%;

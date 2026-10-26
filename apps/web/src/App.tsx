@@ -22,7 +22,6 @@ import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
-import { useRestoringWindow } from './ui/useRestoringWindow'
 import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
@@ -107,9 +106,9 @@ export function App() {
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
   const moved = listedMoves(analysis.importChange, analysisAthlete, units, ageProfile, weighted)
-  // The restoring page is bounded: it gives way to the landing page if the account has not answered
-  // within a few seconds, so it never waits on the lookup with no controls.
-  const restoringPage = useRestoringWindow(analysis.restoring, account.status === 'loading')
+  // The restoring page holds until the kept library replies. Profile and How sure is this? keep their
+  // own pages while results restore, so it stands in for the landing page only.
+  const restoringPage = analysis.restoring && route.page !== 'profile' && route.page !== 'method'
   const key = pageKey(route, hasResult, restoringPage)
   useBalanceAfterImport(analysis.importOutcome, route.page, setup.submitted)
   useRouteHistory()
