@@ -39,7 +39,15 @@ function renderList(
   records: ReadonlyMap<string, readonly EarnedRecord[]> = new Map(),
   extra: Partial<ActivityListProps> = {},
 ) {
-  return render(<ActivityList activities={activities} units={units} records={records} {...extra} />)
+  return render(
+    <ActivityList
+      signedIn={false}
+      activities={activities}
+      units={units}
+      records={records}
+      {...extra}
+    />,
+  )
 }
 
 /** The list item that holds the activity's name link. */
@@ -301,6 +309,7 @@ describe('ActivityList paging', () => {
     expect(region).toBeEmptyDOMElement()
     rerender(
       <ActivityList
+        signedIn={false}
         activities={Array.from({ length: 25 }, (_, i) => activity(i))}
         units="metric"
         records={new Map()}
@@ -434,14 +443,24 @@ describe('ActivityList paging', () => {
     expect(screen.getByText('Showing 41–45 of 45 activities. Page 3 of 3.')).toBeVisible()
 
     view.rerender(
-      <ActivityList activities={activities.slice(0, 25)} units="metric" records={new Map()} />,
+      <ActivityList
+        signedIn={false}
+        activities={activities.slice(0, 25)}
+        units="metric"
+        records={new Map()}
+      />,
     )
     expect(screen.getByText('Showing 1–20 of 25 activities. Page 1 of 2.')).toBeVisible()
     expect(rowFor('Run number 0')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Run number 40' })).not.toBeInTheDocument()
 
     view.rerender(
-      <ActivityList activities={activities.slice(0, 15)} units="metric" records={new Map()} />,
+      <ActivityList
+        signedIn={false}
+        activities={activities.slice(0, 15)}
+        units="metric"
+        records={new Map()}
+      />,
     )
     expect(screen.queryByRole('navigation', { name: 'Activity pages' })).not.toBeInTheDocument()
     expect(rowsShown()).toHaveLength(15)
@@ -456,7 +475,12 @@ describe('ActivityList paging', () => {
     next.focus()
 
     view.rerender(
-      <ActivityList activities={activities.slice(0, 15)} units="metric" records={new Map()} />,
+      <ActivityList
+        signedIn={false}
+        activities={activities.slice(0, 15)}
+        units="metric"
+        records={new Map()}
+      />,
     )
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
     expect(document.activeElement).toBe(rowFor('Run number 0'))

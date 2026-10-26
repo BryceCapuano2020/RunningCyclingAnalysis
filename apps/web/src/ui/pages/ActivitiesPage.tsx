@@ -31,6 +31,8 @@ export interface ActivitiesPageProps {
   /** False while no body weight is entered, which holds a ride's record chips. */
   weightKnown?: boolean
   busy?: boolean
+  /** Whether the visitor is signed in, which says where a removal takes the activity from. */
+  signedIn: boolean
   onDelete?: (savedId: string) => void
   /** The library's notice and error, which say how a removal from this page ended. */
   libraryNotice?: string | null
@@ -60,6 +62,7 @@ export function ActivitiesPage({
   keptIds,
   weightKnown = true,
   busy = false,
+  signedIn,
   onDelete,
   libraryNotice = null,
   libraryError = null,
@@ -194,6 +197,7 @@ export function ActivitiesPage({
           keptIds={keptIds}
           weightKnown={weightKnown}
           busy={busy}
+          signedIn={signedIn}
           onDelete={removeHere}
         />
       ) : (

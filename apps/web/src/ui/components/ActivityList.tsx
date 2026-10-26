@@ -31,6 +31,8 @@ export interface ActivityListProps {
   /** False while no body weight is entered, which holds a ride's record chips. */
   weightKnown?: boolean
   busy?: boolean
+  /** Whether the visitor is signed in, which says where a removal takes the activity from. */
+  signedIn: boolean
   /** Removes a kept activity by its saved copy. Without it, no row offers Delete. */
   onDelete?: (savedId: string) => void
 }
@@ -68,6 +70,7 @@ export function ActivityList({
   keptIds = NO_KEPT,
   weightKnown = true,
   busy = false,
+  signedIn,
   onDelete,
 }: ActivityListProps) {
   const collectionId = activityCollectionId(activities)
@@ -129,6 +132,7 @@ export function ActivityList({
         keptId={keptIds.get(activity.id) ?? null}
         weightKnown={weightKnown}
         busy={busy}
+        signedIn={signedIn}
         onDelete={remove}
       />
     )

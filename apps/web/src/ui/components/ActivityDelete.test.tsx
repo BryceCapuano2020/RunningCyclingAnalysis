@@ -15,6 +15,7 @@ function renderDelete(overrides: Partial<Parameters<typeof ActivityDelete>[0]> =
       savedId="saved-1"
       name="Morning run"
       busy={false}
+      signedIn
       onDelete={onDelete}
       {...overrides}
     />,
@@ -26,6 +27,21 @@ describe('ActivityDelete', () => {
   it('names its activity on the button, since a list has many Delete buttons', () => {
     renderDelete()
     expect(screen.getByRole('button', { name: 'Delete Morning run' })).toBeTruthy()
+  })
+
+  it('says the removal is from the library when signed in, where the saved copy is kept', async () => {
+    const user = userEvent.setup()
+    renderDelete({ signedIn: true })
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    expect(screen.getByText('Delete “Morning run”? It is removed from your library.')).toBeTruthy()
+  })
+
+  it('says the removal is from this browser when signed out, where a summary is only kept', async () => {
+    const user = userEvent.setup()
+    renderDelete({ signedIn: false })
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    expect(screen.getByText('Delete “Morning run”? It is removed from this browser.')).toBeTruthy()
+    expect(screen.queryByText(/your library/)).toBeNull()
   })
 
   it('asks in place before it deletes, with Cancel focused', async () => {

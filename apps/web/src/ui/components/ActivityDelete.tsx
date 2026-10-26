@@ -9,6 +9,8 @@ export interface ActivityDeleteProps {
   name: string
   /** A removal is already running, so the question cannot be opened or confirmed. */
   busy: boolean
+  /** Signed out, a saved copy is kept in this browser only, so the question says that instead. */
+  signedIn: boolean
   onDelete: (savedId: string) => void
 }
 
@@ -16,7 +18,7 @@ export interface ActivityDeleteProps {
  * Removes one saved activity. The question opens under its own button, so it stays with the activity
  * it asks about. Cancel is focused, the safe choice, and Cancel hands focus back to the button.
  */
-export function ActivityDelete({ savedId, name, busy, onDelete }: ActivityDeleteProps) {
+export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: ActivityDeleteProps) {
   const [asking, setAsking] = useState(false)
   const openRef = useRef<HTMLButtonElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -32,6 +34,7 @@ export function ActivityDelete({ savedId, name, busy, onDelete }: ActivityDelete
     }
   }, [asking])
 
+  const removedFrom = signedIn ? 'your library' : 'this browser'
   if (!asking) {
     return (
       <button
@@ -51,7 +54,7 @@ export function ActivityDelete({ savedId, name, busy, onDelete }: ActivityDelete
 
   return (
     <div className="activity-delete__question" role="group" aria-labelledby={questionId}>
-      <p id={questionId}>{`Delete “${name}”? It is removed from your library.`}</p>
+      <p id={questionId}>{`Delete “${name}”? It is removed from ${removedFrom}.`}</p>
       <ConfirmActions
         confirmLabel="Delete"
         busy={busy}

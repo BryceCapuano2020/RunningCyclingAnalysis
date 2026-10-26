@@ -53,6 +53,8 @@ export interface ResultPageProps {
   units: UnitSystem
   birthYear: number | null
   sex: Sex | null
+  /** Whether the visitor is signed in, which says where a removal takes an activity from. */
+  signedIn: boolean
 }
 
 /** The page the route names, once there is a result to show. */
@@ -65,6 +67,7 @@ export function ResultPage({
   units,
   birthYear,
   sex,
+  signedIn,
 }: ResultPageProps) {
   const { period, library, totalActivities, isSample } = analysis.state
   const setRange = analysis.setRange
@@ -168,6 +171,7 @@ export function ResultPage({
           keptIds={keptIds}
           weightKnown={weightKnown}
           busy={removing}
+          signedIn={signedIn}
           onDelete={analysis.deleteActivity}
           libraryNotice={analysis.libraryNotice}
           libraryError={analysis.libraryError}
@@ -191,6 +195,7 @@ export function ResultPage({
           loadRoute={analysis.loadRoute}
           period={period}
           busy={removing}
+          signedIn={signedIn}
           onDelete={analysis.deleteActivity}
           libraryNotice={analysis.libraryNotice}
           libraryError={analysis.libraryError}

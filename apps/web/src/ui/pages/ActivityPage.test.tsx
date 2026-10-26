@@ -48,6 +48,7 @@ function pageElement(
   const activities = activity ? [activity, ...result.activities] : result.activities
   return (
     <ActivityPage
+      signedIn={false}
       activity={activity}
       library={activities}
       result={{ ...result, activities }}
@@ -397,6 +398,7 @@ describe('ActivityPage', () => {
   it('says an activity outside the period is not counted, with the dates of the period', () => {
     render(
       <ActivityPage
+        signedIn={false}
         activity={morningRun}
         library={[morningRun]}
         result={resultWith()}

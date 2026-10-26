@@ -294,6 +294,7 @@ export function App() {
             units={units}
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
+            signedIn={signedIn}
           />
         ) : restoringPage ? (
           <RestoringPage onFiles={setup.requestImport} />
