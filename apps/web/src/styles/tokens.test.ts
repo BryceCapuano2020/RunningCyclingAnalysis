@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readStylesheet, ruleBody } from '../ui/components/stylesheet'
 import { contrast, over } from './contrastMath'
 import { colour, declarations, declared, resolved, type Tokens } from './tokenSheet'
+import { LABEL_REM } from '../ui/charts/rootFont'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
@@ -287,5 +288,11 @@ describe('level ladder stylesheet', () => {
 
   it('fills the range with the sport’s band token', () => {
     expect(declarations(ladderCss, '.level-ladder__range').get('fill')).toBe('var(--ladder-band)')
+  })
+})
+
+describe('chart label size', () => {
+  it('is the --text-xs token, so a chart label and the type scale stay one size', () => {
+    expect(light.get('text-xs')).toBe(`${LABEL_REM}rem`)
   })
 })

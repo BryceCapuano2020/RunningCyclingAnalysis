@@ -73,6 +73,9 @@ export interface HeadlineGrades {
 /** The headline length as copy, built by the duration formatter: "20 min". */
 export const HEADLINE_LABEL = formatDuration(HEADLINE_DURATION_S)
 
+/** What a grade is, said once under a sport page's caption and at the end of the Balance footer. */
+export const LEVEL_NOT_RANKING = 'A level, not a ranking.'
+
 /** No best effort of the headline length exists yet, so there is nothing to grade. */
 export const NEEDS_EFFORT_TEXT = `Age grade needs a best ${HEADLINE_LABEL} effort.`
 /**

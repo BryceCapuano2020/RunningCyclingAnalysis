@@ -6,34 +6,23 @@ import { ChartXAxis } from './ChartXAxis'
 import { ChartYAxis } from './ChartYAxis'
 import { Crosshair } from './Crosshair'
 import { GapMarks } from './GapMarks'
-import {
-  endLabelAt,
-  markerRadii,
-  plotSurface,
-  pointBefore,
-  sizedOnce,
-  spreadApart,
-  tooltipAt,
-  tooltipOverlay,
-} from './chartInteraction'
-import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
+import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
+import type { ChartSize, TooltipContent, TooltipRow } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import type { SharedMeasure } from './sharedTrendText'
+export type { SharedMeasure } from './sharedTrendText'
+import { lastAtOrBefore } from './hover'
+import { stepBandPath, stepPath } from './paths'
+import { sharedTrendLayout } from './sharedTrendLayout'
 import {
   copyOf,
   formatValue,
   levelNote,
-  plotted,
   rideNote,
   singleValueText,
   withRideHeld,
 } from './sharedTrendText'
-export type { SharedMeasure } from './sharedTrendText'
-import { lastAtOrBefore } from './hover'
-import { stepBandPath, stepPath } from './paths'
-import { linearScale, niceDomain, tickDecimals } from './scale'
-import { axisFontSize, fitTicks } from './ticks'
-import { trendDateTicks } from './trendTicks'
+import { axisFontSize } from './ticks'
 import { weekDay, windowPhrase } from './trendText'
 import './ChartSeries.css'
 
@@ -49,106 +38,6 @@ export interface SharedTrendChartProps {
   rideKnown?: boolean
   /** Replaces the usual empty message, such as the ages the standards cover. */
   emptyText?: string
-}
-
-/** A value at the end of a line, labelled with its window, and where its label sits. */
-interface EndLabel {
-  kind: 'run' | 'ride'
-  text: string
-  at: Point
-}
-
-interface Layout {
-  xs: number[]
-  run: (Point | null)[]
-  ride: (Point | null)[]
-  rideLow: (Point | null)[]
-  rideHigh: (Point | null)[]
-  /** Where each week's tooltip is anchored: beside its first point. */
-  ys: (number | null)[]
-  labels: EndLabel[]
-  xTicks: AxisTick[]
-  yTicks: AxisTick[]
-}
-
-const LABEL_GAP_PX = 14
-
-function layout(
-  weeks: readonly SharedWeek[],
-  measure: SharedMeasure,
-  latestNote: string,
-  size: ChartSize,
-): Layout | null {
-  const first = weeks[0]
-  const last = weeks.at(-1)
-  if (weeks.length < 2 || first === undefined || last === undefined) return null
-  const { plot, width } = size
-  const x = linearScale([first.endMs, last.endMs], [plot.left, plot.right])
-  const values = weeks
-    .flatMap((week) => [week.run, week.ride, week.rideLow, week.rideHigh])
-    .filter((value): value is number => value !== null)
-    .map((value) => plotted(measure, value))
-  const { domain, ticks } = niceDomain(values, 4, 0.05)
-  const decimals = tickDecimals(ticks)
-  const y = linearScale(domain, [plot.bottom, plot.top])
-  const pointsOf = (pick: (week: SharedWeek) => number | null): (Point | null)[] =>
-    weeks.map((week) => {
-      const value = pick(week)
-      return value === null ? null : { x: x(week.endMs), y: y(plotted(measure, value)) }
-    })
-  const run = pointsOf((week) => week.run)
-  const ride = pointsOf((week) => week.ride)
-  const labels = [
-    endLabel('run', weeks, run, (week) => week.run, measure, latestNote),
-    endLabel('ride', weeks, ride, (week) => week.ride, measure, latestNote),
-  ].flatMap((label) => (label === null ? [] : [label]))
-  return {
-    xs: weeks.map((week) => x(week.endMs)),
-    run,
-    ride,
-    rideLow: pointsOf((week) => week.rideLow),
-    rideHigh: pointsOf((week) => week.rideHigh),
-    ys: weeks.map((_, i) => (run[i] ?? ride[i])?.y ?? null),
-    labels,
-    xTicks: fitTicks(
-      trendDateTicks(
-        weeks.map((week) => week.endMs),
-        x,
-      ),
-      { axis: 'x', width },
-    ),
-    yTicks: fitTicks(
-      ticks.map((tick) => ({
-        position: y(tick),
-        label: measure === 'grade' ? `${tick.toFixed(decimals)}%` : tick.toFixed(decimals),
-      })),
-      { axis: 'y', width },
-    ),
-  }
-}
-
-/**
- * The label at the latest value of one sport, with the window it covers, so that a reader can tell
- * why it differs from the card's best. Null when the sport has no value.
- */
-function endLabel(
-  kind: 'run' | 'ride',
-  weeks: readonly SharedWeek[],
-  points: readonly (Point | null)[],
-  pick: (week: SharedWeek) => number | null,
-  measure: SharedMeasure,
-  latestNote: string,
-): EndLabel | null {
-  const latest = points.findLastIndex((point) => point !== null)
-  const point = points[latest] ?? null
-  const week = weeks[latest]
-  const value = week === undefined ? null : pick(week)
-  if (point === null || value === null) return null
-  return {
-    kind,
-    text: `${formatValue(measure, value)}, ${latestNote}`,
-    at: endLabelAt(point, pointBefore(points, latest)),
-  }
 }
 
 /** A week's tooltip: each sport's value, or a dash and a note where a sport has none that week. */
@@ -216,7 +105,9 @@ export function SharedTrendChart({
   const estimate = measure === 'grade'
   const hasData = weeks.filter((week) => week.run !== null || week.ride !== null).length >= 2
   const [active, setActive] = useState<number | null>(null)
-  const layoutOf = sizedOnce((size: ChartSize) => layout(weeks, measure, latestNote, size))
+  const layoutOf = sizedOnce((size: ChartSize) =>
+    sharedTrendLayout(weeks, measure, latestNote, size),
+  )
   const hasRun = weeks.some((week) => week.run !== null)
   const hasRide = weeks.some((week) => week.ride !== null)
   const legend: ChartLegendEntry[] = [
@@ -294,10 +185,6 @@ export function SharedTrendChart({
         const activeX = active === null ? undefined : m.xs[active]
         const runLatest = m.run.findLastIndex((point) => point !== null)
         const rideLatest = m.ride.findLastIndex((point) => point !== null)
-        const spread = spreadApart(
-          m.labels.map((label) => label.at.y),
-          LABEL_GAP_PX,
-        )
         const hasBand = m.rideLow.some((point) => point !== null)
         return (
           <>
@@ -380,13 +267,13 @@ export function SharedTrendChart({
                 />
               )
             })}
-            {m.labels.map((label, i) => (
+            {m.labels.map((label) => (
               <text
                 key={label.kind}
                 className="chart-series__label"
-                textAnchor="end"
+                textAnchor={label.anchor}
                 x={label.at.x}
-                y={spread[i]}
+                y={label.at.y}
               >
                 {label.text}
               </text>

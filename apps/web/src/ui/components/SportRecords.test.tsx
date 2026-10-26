@@ -39,6 +39,7 @@ function row(overrides: Partial<RecordRow>): RecordRow {
     sub: null,
     grade: null,
     tags: [],
+    setDays: null,
     activity: morningRun,
     ...overrides,
   }
@@ -117,6 +118,74 @@ describe('SportRecords', () => {
     )
   })
 
+  it('says when every record was set in the one activity, on the source line, and not on each row', () => {
+    // Set 156 days before the page opened: five months, rounded to the nearest whole month.
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min', value: '3:50 /km', setDays: 156 }),
+          row({ key: 'b', label: '20 min', value: '4:00 /km', setDays: 156 }),
+        ]}
+      />,
+    )
+    expect(screen.getByText(/All set on/).closest('p')).toHaveTextContent(
+      'All set on Morning run, 5 Jan, 5 months ago',
+    )
+    expect(screen.queryByText(/^Set /)).not.toBeInTheDocument()
+  })
+
+  it('keeps the shared count in the link’s own container, so the line has two columns and no loose text', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min', value: '3:50 /km', setDays: 156 }),
+          row({ key: 'b', label: '20 min', value: '4:00 /km', setDays: 156 }),
+        ]}
+      />,
+    )
+    const line = screen.getByText(/All set on/).closest('p')!
+    expect(line.children).toHaveLength(2)
+    const loose = [...line.childNodes].filter(
+      (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() !== '',
+    )
+    expect(loose).toHaveLength(0)
+    const source = screen
+      .getByRole('link', { name: 'Morning run, 5 Jan' })
+      .closest('.records__source')
+    expect(source).toBe(line.children[1])
+    expect(source).toHaveTextContent('Morning run, 5 Jan, 5 months ago')
+  })
+
+  it('writes the shared count as quiet text, not a chip', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min', setDays: 156 }),
+          row({ key: 'b', label: '20 min', setDays: 156 }),
+        ]}
+      />,
+    )
+    const count = screen.getByText(', 5 months ago')
+    expect(count).toHaveClass('records__set')
+    expect(count).not.toHaveClass('chip')
+  })
+
+  it('shows each row’s count as quiet text, not a chip, when the records come from different activities', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min', setDays: 9 }),
+          row({ key: 'b', label: '20 min', activity: lateRun, setDays: 4 }),
+        ]}
+      />,
+    )
+    expect(screen.queryByText(/All set on/)).not.toBeInTheDocument()
+    const count = screen.getByText('Set 9 days ago')
+    expect(count).toHaveClass('records__set')
+    expect(count).not.toHaveClass('chip')
+    expect(screen.getByText('Set 4 days ago')).toBeInTheDocument()
+  })
+
   it('keeps each link when the records come from different activities', () => {
     render(
       <SportRecords
@@ -188,6 +257,12 @@ describe('recordRow', () => {
       activity: { ...morningRun, powerSource: 'measured' as const },
     }
     expect(recordRow('ride', measured, { label: '20 min', grade: null }).tags).toEqual([])
+  })
+
+  it('carries the days since each record was set, so the list can say how long ago', () => {
+    const row = recordRow('run', record, { label: '20 min', grade: null, setDays: 9 })
+    expect(row.setDays).toBe(9)
+    expect(recordRow('run', record, { label: '20 min', grade: null }).setDays).toBeNull()
   })
 
   it('carries the label, figure, second reading, grade and activity of the record', () => {

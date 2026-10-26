@@ -445,7 +445,7 @@ describe('ResultPage period', () => {
       const { container } = renderOldLibrary(false)
       const caption = container.querySelector('.range-picker__caption')
       const note = container.querySelector('.range-picker__note')
-      expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 16 months ago')
+      expect(note).toHaveTextContent('Latest activity 3 Jun 2025, 17 months ago')
       expect(caption?.compareDocumentPosition(note as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     } finally {
       vi.useRealTimers()
@@ -458,7 +458,7 @@ describe('ResultPage period', () => {
     try {
       const { container } = renderOldLibrary(true)
       expect(container.querySelector('.range-picker__note')).toHaveTextContent(
-        'so this shows all time. Latest activity 3 Jun 2025, 16 months ago',
+        'so this shows all time. Latest activity 3 Jun 2025, 17 months ago',
       )
     } finally {
       vi.useRealTimers()

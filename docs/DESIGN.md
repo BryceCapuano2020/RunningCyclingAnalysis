@@ -71,8 +71,9 @@ fragment link.
 Back and Forward return to the page the visitor left, where they left it. A page opened by a link
 starts at the top. **Back to activities** on an activity goes Back when the list was the page before; an activity opened
 from Run or Ride reads **Back to Run** (or **Back to Ride**), keeps that tab lit and goes back there.
-Run and Ride link to **How sure is this?**, which links back to **Back to Balance**; the footer links
-to it too. The Balance tab stays lit on How sure is this?, since its answer is Balance's.
+Run and Ride link to **How sure is this?** from a grade's **How is this graded?** link and, for a ride
+with estimated watts, from its power note; the footer links to it too. How sure is this? links back to
+**Back to Balance**, and the Balance tab stays lit there, since its answer is Balance's.
 
 A deep link to a page that needs a result, with none on this device, stays where it is and says
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
@@ -80,7 +81,7 @@ home page. An unknown hash becomes Balance's hash, so the address names the page
 
 **Period.** Balance and the sport pages show one period, picked with the control under the answer: 6 weeks, 12 weeks (the default), 12 months or All time, in that order and on one row at 390 px. The control's dates sit beneath it, with the count of activities in the period when some are left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A period only narrows what is analysed: an activity outside it still opens from the list or a link. The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and the control follows only the answer to the latest pick; while an import runs, it says the pick applies when the import finishes. How sure is this? names the dated period on one line, with no control. The period is a view preference: it is kept on this device, across Start over and sign-out. A period is
 counted back from the newest activity, not from today, so when that activity is more than six weeks old
-the note under the dates reads "Latest activity 3 Jun 2025, 16 months ago". The note says why the default is all time too, when it is, and an empty note takes no line. A stored pick the control no longer offers, such as the 3 months of an earlier version, reads as the default.
+the note under the dates reads "Latest activity 3 Jun 2025, 17 months ago". The note says why the default is all time too, when it is, and an empty note takes no line. A stored pick the control no longer offers, such as the 3 months of an earlier version, reads as the default.
 
 **The sample athlete** is a 37-year-old man at 75 kg. It is analysed with that body and bike mass and that age and sex, whatever the visitor has entered, and it is never kept. While it is loaded, a banner above every page says so once. Its rides carry their running equivalents, so the age-grade trend shows them for a visitor with no age or sex. The landing example is drawn from the same sample, labelled illustrative: the balance meter, then each sport's level and grade with its band. A test pins its numbers to the sample's own analysis.
 
@@ -212,9 +213,24 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W", and the latest trend value with its effort and window, such as
-  "64%, best 20 min, last 2 weeks". A best-effort curve marks the 1, 5, 20 and 60 minute efforts, the
-  same ones its records list names, and labels its last point with its value where there is room beside
-  the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
+  "64%, best 20 min, last 2 weeks". On a chart under 480 px wide, a trend's end labels show their value
+  alone, since the title names the effort and window. At every width, a trend's run label keeps clear of the ride band, which is drawn only where both of
+  its weeks have a range, with a step at each week's x. The label's box stays inside the plot both
+  ways and 2 px from the band. Its box sits on the left of its point unless that would cross the
+  plot's left edge, when it sits on the right. Its spots are the baseline beside its point that the
+  line's arrival prefers, the other baseline beside it, and the baselines just above or just below
+  each edge of the band beneath it, each kept inside the plot. The two end labels are placed
+  together. Of the combinations that keep both boxes inside the plot and off the band, the one with
+  the fewest labels within 2 px of the band wins, then the one nearest their preferred places. A box
+  that would cross the plot's edge moves along it to sit inside, which can bring it over its point.
+  Where no combination keeps the run label off the band, the labels keep their preferred places,
+  spread apart and inside the plot, so the run label sits over the band, where its halo keeps it
+  readable. Where the plot is too short to hold both labels a gap apart, they stay inside it and may
+  overlap one another. Where there is room, the two end labels never overlap one another, and
+  neither reaches the y tick labels.
+  A best-effort curve marks the 1, 5, 20 and
+  60 minute efforts, the same ones its records list names, and labels its last point with its value
+  where there is room beside the 20 minute label. Watts charts also fill the area under the line. Pace charts draw
   the line alone: pace has no zero to fill down to. Every chart has a visible title, which is its one
   visible name, and a value's label sits clear of its own line. A week's marker is enlarged when the
   reader points at it, as well as the latest one. A tooltip names its week and its window, as "Week
@@ -238,9 +254,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   for running and "Power curve" for cycling. The threshold carries no count: the period control beside
   the heading names the dates the efforts come from. A sport the library has no activities for has no
   period control and no curve, and asks for files.
-- **A record says how long ago it was set**, as a tag such as "Set 12 days ago" or "Set today". The count
-  runs in calendar days from today, read once when the page opens, so a later render does not move it.
-  A record's source is dated without its weekday, such as "5 Jan".
+- **A record says how long ago it was set**, as quiet text beside its figure, such as "Set 12 days
+  ago" or "Set today". The count runs in calendar days from today, read once when the page opens, so
+  a later render does not move it. It reads in whole days to 13, then in weeks to 59 days, months to
+  23 months, then years, each rounded to the nearest unit. When every record was set in one
+  activity, the count moves to the source line: "All set on Morning run, 5 Jan, 5 months ago". A
+  record's source is dated without its weekday, such as "5 Jan".
 - **A duration's grade says the distance it is taken at.** A run's grade at 1, 5, 20 or 60 min is taken at
   the distance it covers at its flat pace, so its grade line reads "Local · 64% · 5.0 km in 20 min", written
   as any distance is. A ride's grade is not given a distance, because it goes through its running equivalent.
@@ -356,9 +375,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   page: one row per record with one source size, built by `recordRow`. A run's own distance times, such
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
   this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
-  record was set in one activity, that activity is named once under the list ("All set on Morning
-  run, 5 Jan"). Otherwise each record links to its own activity. A long activity name is cut
-  short with an ellipsis, and its full name is the link's title and accessible name.
+  record was set in one activity, that activity is named once under the list ("All set on Morning run,
+  5 Jan, 5 months ago"), the link and its count on one line in the second column, the link cut short
+  first. Otherwise each record links to its own activity, with its own count. A long activity name is
+  cut short with an ellipsis, and its full name is the link's title and accessible name.
 - **The cross-sport idea is a quiet section, not a card:** a glyph pair, its headline ("On foot, your
   ride is worth 4:10 /km"), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
@@ -367,7 +387,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Only the drop area is dashed, and it fills on hover.** On the landing page the example beside it is a solid frame, with
   its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
-- **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this? and the source lines of the sport pages and the record list, not on Balance.
+- **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
 - **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, in one line, "Run 64% Local / Ride 58% Recreational". The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
@@ -441,10 +461,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a power meter, are recorded."), the balance in Balance's words with whether even is inside the range
   ("Your balance leans toward running. Even is outside its range."), and how far to trust it ("These
   checks show how far to trust them."). The estimates sentence follows the balance: "Thresholds, ride
-  levels, the balance and ride power without a meter are estimates from N runs and M rides." Each
-  chip is a button named with its word and its destination, and moves focus there. Recorded and Estimated
-  both go to Age grades and levels, where a run's grade is read as recorded and a ride's grade is an
-  estimate. Checks below goes to the heart-rate check.
+  levels, the balance and ride power without a meter are estimates from N runs and M rides." It does
+  not repeat the period, which "Counted over" names above it. Each chip is a button named with its
+  word and its destination, and moves focus there. Recorded and Estimated both go to Age grades and
+  levels, where a run's grade is read as recorded and a ride's grade is an estimate. Checks below
+  goes to the heart-rate check.
 - **Define a term once, in plain words, where it first appears** on How sure is this?: the energy
   rate, the 90% range and the median each get one plain sentence. Technical detail (efficiency
   constants, citations, the bike model, the ISA atmosphere) sits behind More detail.
@@ -522,13 +543,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   running equivalent" in full, because a row stands on its own. Thresholds are always estimated. The
   Method page is the one place that explains the estimates.
 - **Every grade names its standard.** Sport pages' captions and the ladder's label say "on the USATF road
-  standards". A Balance card leaves that to the source line under the cards. The full credit, with the authors, licence and a link, is on the sport pages' source
-  lines, the record list's source line and How sure is this?.
+  standards", and that name links to the age grades on How sure is this?. A sport page's caption then
+  ends "A level, not a ranking.", so the page says what a grade is. A Balance card leaves the standard
+  to the source line under the cards, and its footer carries the ranking line. The full credit, with
+  the authors, licence and a link, is on How sure is this? alone.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the
-  age they used ("Graded at age 40"), and the Balance source line says the age its cards use, naming both ("aged 38 on runs and 39 on rides") when they differ. The pages that carry the full credit say "Age is counted from
-  your birth year on the date of each effort." On the Ride page the source line also says that a
-  ride's range is its model range.
+  age they used ("Graded at age 40"), and the Balance source line says the age its cards use, naming
+  both ("aged 38 on runs and 39 on rides") when they differ. How sure is this? says "Age is counted
+  from your birth year on the date of each effort." A ride's caption says the bracketed range is the
+  90% range, as its last sentence.
 - **Removing data asks first.** Removing every kept activity and turning off kept original files
   each open an alert dialog that names what goes and what stays, with Cancel focused. Removing one
   saved activity opens its confirmation under its row, with a **Delete** button; a summary

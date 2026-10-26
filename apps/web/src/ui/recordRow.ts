@@ -19,6 +19,8 @@ export interface RecordRow {
   tags: string[]
   /** How the record moved on the period before, in words, or null without one. */
   change?: string | null
+  /** Days from the day the page opened to the day the record was set, or null when that is not known. */
+  setDays: number | null
   /** The activity that set the record, or null when it is not in the result. */
   activity: ActivitySummary | null
 }
@@ -30,7 +32,13 @@ export interface RecordRow {
 export function recordRow(
   sport: Sport,
   record: SportRecord,
-  options: { label: string; grade: ReactNode; change?: string | null; tags?: string[] },
+  options: {
+    label: string
+    grade: ReactNode
+    change?: string | null
+    tags?: string[]
+    setDays?: number | null
+  },
 ): RecordRow {
   const marks =
     sport === 'run' ? ['Flat'] : isEstimatedRecord(sport, record.activity) ? ['Estimated'] : []
@@ -42,6 +50,7 @@ export function recordRow(
     grade: options.grade,
     tags: [...marks, ...(options.tags ?? [])],
     change: options.change ?? null,
+    setDays: options.setDays ?? null,
     activity: record.activity,
   }
 }

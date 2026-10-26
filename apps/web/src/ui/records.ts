@@ -29,6 +29,7 @@ import {
   formatDuration,
 } from '@rca/core/units'
 import { plural } from './components/plural'
+import { agoText } from './format/ago'
 
 /** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
 export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
@@ -238,11 +239,11 @@ export function calendarDaysBetween(earlierMs: number, laterMs: number): number 
 }
 
 /**
- * When a record was set, in days from the day the page opened: "Set today", "Set 1 day ago". A record
+ * When a record was set, in days from the day the page opened: "Set today", "Set 2 weeks ago". A record
  * dated after that day reads as today, since a count below zero says nothing.
  */
 export function setAgoText(days: number): string {
-  return days <= 0 ? 'Set today' : `Set ${plural(days, 'day', 'days')} ago`
+  return days <= 0 ? 'Set today' : `Set ${agoText(days)}`
 }
 
 /**

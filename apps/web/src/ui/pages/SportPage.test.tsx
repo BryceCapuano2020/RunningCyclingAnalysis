@@ -7,7 +7,6 @@ import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import { FLAT_RUN_COST, HEADLINE_DURATION_S, RESTING_W_PER_KG } from '@rca/core/constants'
-import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import { formatPace } from '@rca/core/units'
 import { curvePoint } from '../charts/fixtures'
 import {
@@ -237,6 +236,73 @@ describe('SportPage', () => {
     expect(
       within(recordNamed(records, 'Best 20 min')).getByText('Set 9 days ago'),
     ).toBeInTheDocument()
+  })
+
+  it('counts a record set a fortnight ago in weeks, as quiet text rather than a chip', () => {
+    const fortnight = makeActivity({
+      id: 'run-fortnight',
+      name: 'Fortnight run',
+      sport: 'run',
+      startMs: new Date(2026, 4, 27, 7).getTime(),
+    })
+    renderPage(
+      'run',
+      makeResult({ activities: [fortnight], runCurve: [curvePoint(1200, 3.6, 'run-fortnight')] }),
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    const tag = within(recordNamed(records, 'Best 20 min')).getByText('Set 2 weeks ago')
+    expect(tag).not.toHaveClass('chip')
+  })
+
+  it('counts a record set months before in months, and one set two years back in years', () => {
+    // 1 January 2025 is 525 days before 10 June 2026, which is 17 months; 1 January 2024 is 891 days.
+    const january = makeActivity({
+      id: 'run-jan',
+      name: 'Early run',
+      sport: 'run',
+      startMs: new Date(2025, 0, 1, 7).getTime(),
+    })
+    const older = makeActivity({
+      id: 'run-older',
+      name: 'Older run',
+      sport: 'run',
+      startMs: new Date(2024, 0, 1, 7).getTime(),
+    })
+    renderPage(
+      'run',
+      makeResult({
+        activities: [january, older],
+        runCurve: [curvePoint(1200, 3.6, 'run-jan'), curvePoint(300, 4.1, 'run-older')],
+      }),
+    )
+
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(recordNamed(records, 'Best 20 min')).getByText('Set 17 months ago'),
+    ).toBeInTheDocument()
+    expect(
+      within(recordNamed(records, 'Best 5 min')).getByText('Set 2 years ago'),
+    ).toBeInTheDocument()
+  })
+
+  it('says when every record was set in one activity on the shared line, with its count', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(60, 5.5, 'run-1'), curvePoint(1200, 3.6, 'run-1')],
+      }),
+    )
+
+    // 5 January is 156 days before 10 June 2026: five months.
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(records)
+        .getByText(/All set on/)
+        .closest('p'),
+    ).toHaveTextContent('All set on Morning run, 5 Jan, 5 months ago')
+    expect(within(records).queryByText(/^Set /)).not.toBeInTheDocument()
   })
 
   it('says a record dated after the page opened was set today, not a negative number of days ago', () => {
@@ -492,7 +558,45 @@ describe('SportPage age grades', () => {
     )
   })
 
-  it('names the standards under Best efforts when a record shows a grade', () => {
+  it('names the standard in the grade’s caption, linked to the age grades on How sure is this?', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    const caption = screen.getByText(/^Graded at age 40, on the/)
+    expect(caption).toHaveTextContent(
+      'Graded at age 40, on the USATF road standards. A level, not a ranking.',
+    )
+    expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
+      'href',
+      '#/method',
+    )
+  })
+
+  it('says the grades are a level, not a ranking, at the end of the caption', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+
+    expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
+    expect(screen.getByText(/^Graded at age 40, on the/)).toHaveTextContent(
+      /on the USATF road standards\. A level, not a ranking\.$/,
+    )
+  })
+
+  it('leaves the full standards credit to How sure is this?, with no source paragraph under Best efforts', () => {
     renderPage(
       'run',
       makeResult({
@@ -504,44 +608,13 @@ describe('SportPage age grades', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    const source = within(records).getByText(/Age grades for a man use the/)
-    expect(source).toHaveTextContent(
-      'Age is counted from your birth year on the date of each effort.',
-    )
+    expect(within(records).queryByText(/Age grades for a/)).not.toBeInTheDocument()
     expect(
-      within(source).getByRole('link', { name: 'USATF road age standards (2025)' }),
-    ).toHaveAttribute('href', ROAD_STANDARDS_SOURCE.url)
+      screen.queryByRole('link', { name: 'USATF road age standards (2025)' }),
+    ).not.toBeInTheDocument()
   })
 
-  it('names the sex the record grades are for on the source line', () => {
-    renderPage(
-      'run',
-      makeResult({
-        activities: [morningRun],
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      }),
-      'metric',
-      { birthYear: 1986, sex: 'female' },
-    )
-
-    const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(records).getByText(/Age grades for a woman use the/)).toBeInTheDocument()
-  })
-
-  it('says a ride’s range is its model range on the ride page only', () => {
-    const runPage = renderPage(
-      'run',
-      makeResult({
-        activities: [morningRun],
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      }),
-      'metric',
-      MAN_BORN_1986,
-    )
-    expect(screen.getByText(/Age grades for a man use the/)).toBeInTheDocument()
-    expect(screen.queryByText(/model range/)).not.toBeInTheDocument()
-    runPage.unmount()
-
+  it('says a ride’s grade is estimated, and that its bracketed range is the 90% range, under the ladder', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
     renderPage(
       'ride',
@@ -558,8 +631,15 @@ describe('SportPage age grades', () => {
       'metric',
       MAN_BORN_1986,
     )
-    const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(records).getByText(/a ride’s range is its model range/)).toBeInTheDocument()
+    const caption = screen.getByText(/^Graded through its running equivalent, at age 40, on the/)
+    expect(caption).toHaveTextContent(
+      'Graded through its running equivalent, at age 40, on the USATF road standards. A level, not a ranking. The range in brackets is the 90% range.',
+    )
+    expect(within(caption).getByRole('link', { name: 'USATF road standards' })).toHaveAttribute(
+      'href',
+      '#/method',
+    )
+    expect(screen.queryByText(/model range/)).not.toBeInTheDocument()
   })
 
   it('shows no grades, and no standards line, without the year of birth and sex', () => {
@@ -726,7 +806,6 @@ describe('SportPage distance records', () => {
     expect(recordNamed(records, 'Best 1 km').querySelector('.records__grade')?.textContent).toBe(
       'No age standard under 1 mile',
     )
-    expect(records).toHaveTextContent(/Age grades for a man use the/)
   })
 
   it('says the distance records may not be the fastest when some runs predate distance bests', () => {
@@ -746,9 +825,18 @@ describe('SportPage distance records', () => {
 })
 
 describe('SportPage method link', () => {
-  it('links to How sure is this? from the head of the page, so the evidence is one tap away', () => {
-    renderPage('run', makeResult())
-    expect(screen.getByRole('link', { name: 'How sure is this?' })).toHaveAttribute(
+  it('has no lone How sure is this? link under the head, since the grade links to How is this graded?', () => {
+    renderPage(
+      'run',
+      makeResult({
+        activities: [morningRun],
+        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+      }),
+      'metric',
+      MAN_BORN_1986,
+    )
+    expect(screen.queryByRole('link', { name: 'How sure is this?' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'How is this graded?' })).toHaveAttribute(
       'href',
       '#/method',
     )
@@ -902,9 +990,10 @@ describe('SportPage depth', () => {
       MAN_BORN_1986,
     )
 
-    expect(
-      screen.getByText(/^Graded at age \d+, on the USATF road standards\.$/),
-    ).toBeInTheDocument()
+    const caption = screen.getByText(/^Graded at age \d+, on the/)
+    expect(caption).toHaveTextContent(
+      /^Graded at age \d+, on the USATF road standards\. A level, not a ranking\.$/,
+    )
   })
 
   it('asks once for the year of birth and sex, under the best efforts, when they are missing', () => {
@@ -954,20 +1043,6 @@ describe('SportPage depth', () => {
         note,
       ),
     ).toBeInTheDocument()
-  })
-
-  it('says the grades are a level, not a ranking', () => {
-    renderPage(
-      'run',
-      makeResult({
-        activities: [morningRun],
-        runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
-      }),
-      'metric',
-      MAN_BORN_1986,
-    )
-
-    expect(screen.getByText(/A level, not a ranking\./)).toBeInTheDocument()
   })
 
   it('lists the half marathon among the distance records, with its time', () => {

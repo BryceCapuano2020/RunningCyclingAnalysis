@@ -11,7 +11,7 @@ import { balanceTitle, leadSentence } from '../ui/components/headlineText'
 import { pickHeadline } from '../ui/components/pickHeadline'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
-import { heroGradeLine, type GradeOutcome } from '../ui/grades'
+import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
 import { SPORT_ORDER, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
 import { hasShareableContent } from './hasShareableContent'
@@ -62,7 +62,7 @@ export interface ShareCardModel {
 }
 
 /** A graded card names the standard its levels come from, and says what a level is. */
-const GRADED_FOOTNOTE = `Graded on the ${ROAD_STANDARDS_SOURCE.shortName}. A level, not a ranking.`
+const GRADED_FOOTNOTE = `Graded on the ${ROAD_STANDARDS_SOURCE.shortName}. ${LEVEL_NOT_RANKING}`
 /** Without a grade, the card says the figures are estimates and not a ranking. */
 const ESTIMATE_FOOTNOTE = 'Estimated from your files. Not a ranking.'
 

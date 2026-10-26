@@ -1,9 +1,9 @@
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import type { Sport } from '@rca/core/types'
-import { HEADLINE_LABEL } from '../grades'
+import { HEADLINE_LABEL, LEVEL_NOT_RANKING } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { GradeSentence } from './GradeSentence'
-import { GradingLink } from './GradingLink'
+import { GradesLink, GradingLink } from './GradingLink'
 import { LevelLadder } from './LevelLadder'
 import './AgeGradeBlock.css'
 
@@ -35,12 +35,6 @@ export function AgeGradeBlock({
   if (outcome.kind === 'gap') return <p className="secondary">{outcome.reason}</p>
   const { age, grade } = outcome
   const ride = sport === 'ride'
-  const standard = ride
-    ? `Graded through its running equivalent, at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
-    : `Graded at age ${age}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
-  const caption = [namesStandard ? standard : null, ride ? RANGE_NOTE : null]
-    .filter(Boolean)
-    .join(' ')
   return (
     <div className="age-grade">
       <p className="age-grade__line">
@@ -49,7 +43,19 @@ export function AgeGradeBlock({
       </p>
       <GradingLink />
       <LevelLadder sport={sport} grade={grade} />
-      {caption !== '' && <p className="muted">{caption}</p>}
+      {(namesStandard || ride) && (
+        <p className="muted">
+          {namesStandard && (
+            <>
+              {ride
+                ? `Graded through its running equivalent, at age ${age}, on the `
+                : `Graded at age ${age}, on the `}
+              <GradesLink>{ROAD_STANDARDS_SOURCE.shortName}</GradesLink>.{` ${LEVEL_NOT_RANKING}`}
+            </>
+          )}
+          {ride && `${namesStandard ? ' ' : ''}${RANGE_NOTE}`}
+        </p>
+      )}
     </div>
   )
 }

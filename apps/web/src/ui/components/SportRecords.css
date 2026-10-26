@@ -47,6 +47,11 @@
   font-weight: 700;
 }
 
+.records__set {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .records__grade {
   grid-column: 2;
   color: var(--text-secondary);
@@ -81,6 +86,23 @@
   gap: var(--space-1);
   margin: 0;
   font-size: var(--text-sm);
+}
+
+/* The link and its count share the second column's line, so the count never wraps onto a row of its own. */
+.records__source {
+  display: flex;
+  min-width: 0;
+}
+
+.records__source .records__link {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+/* The link gives way to the width, with its ellipsis; the count keeps its whole text. */
+.records__source > .records__set {
+  flex: none;
+  white-space: nowrap;
 }
 
 /* A finger needs a control's height to tap a record's link. A mouse keeps the line's own height. */

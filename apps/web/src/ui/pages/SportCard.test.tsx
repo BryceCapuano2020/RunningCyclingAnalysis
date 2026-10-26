@@ -444,6 +444,8 @@ describe('SportCard ride grade', () => {
         'Flat pace: your pace allowing for hills, as if on level ground.',
       ),
     ).not.toBeInTheDocument()
+    // The Balance footer says "A level, not a ranking." once for the cards, so a card does not repeat it.
+    expect(within(cardNamed('Ride')).queryByText(/A level, not a ranking/)).not.toBeInTheDocument()
   })
 
   it('says the ride has no running equivalent to grade when its best effort has none', () => {
