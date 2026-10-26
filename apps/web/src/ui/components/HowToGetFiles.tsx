@@ -6,13 +6,18 @@ import './HowToGetFiles.css'
 export interface HowToGetFilesButtonProps {
   /** The button's class, so the page draws it as its one primary action or as a secondary one. */
   className?: string
+  /** The button's words. The dialog it opens keeps its own name. */
+  label?: string
 }
 
 /**
  * Opens the export guides in a dialog, for a page with no room for them, such as an empty Run or
  * Ride card or Profile. The dialog has no sample button: a sample would replace the visitor's data.
  */
-export function HowToGetFilesButton({ className = 'btn' }: HowToGetFilesButtonProps) {
+export function HowToGetFilesButton({
+  className = 'btn',
+  label = 'How to get your files',
+}: HowToGetFilesButtonProps) {
   const [open, setOpen] = useState(false)
   // The button that opened the guides, which takes focus back when they close.
   const [opener, setOpener] = useState<HTMLElement | null>(null)
@@ -29,7 +34,7 @@ export function HowToGetFilesButton({ className = 'btn' }: HowToGetFilesButtonPr
           setOpen(true)
         }}
       >
-        How to get your files
+        {label}
       </button>
       <dialog
         ref={dialogRef}

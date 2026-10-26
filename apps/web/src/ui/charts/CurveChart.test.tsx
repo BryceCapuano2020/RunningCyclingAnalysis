@@ -39,6 +39,21 @@ describe('CurveChart', () => {
     expect(screen.getAllByText('Ride')).toHaveLength(2)
   })
 
+  it('describes the chart in metabolic watts per kilogram, the unit its title names', () => {
+    const { container } = render(
+      <CurveChart
+        runCurve={runCurveFixture}
+        rideMetabolicCurve={rideMetabolicCurveFixture}
+        rideCurve={rideCurveFixture}
+        units="metric"
+      />,
+    )
+    const image = container.querySelector('figure [role="img"]')
+    expect(image?.getAttribute('aria-label')).toMatch(
+      /^Best energy rate in metabolic watts per kilogram for /,
+    )
+  })
+
   it('exposes one image per chart and a plot surface described by the tooltip', () => {
     const { container } = render(
       <CurveChart

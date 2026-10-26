@@ -36,10 +36,11 @@ describe('DeleteAccountDialog', () => {
     expect(dialogElement()).not.toHaveAttribute('open')
   })
 
-  it('is an alert dialog named by its heading, so a screen reader announces the question', () => {
+  it('is an alert dialog named by its heading, opened on that heading so no keyboard rises first', () => {
     render(<DeleteAccountDialog open email={EMAIL} onConfirm={vi.fn()} onClose={vi.fn()} />)
 
     expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Delete your account?' })).toHaveFocus()
   })
 
   it('returns focus to the control it was opened from, once it closes', () => {

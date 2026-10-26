@@ -72,12 +72,28 @@ describe('ProfilePage settings', () => {
 
     const about = screen.getByRole('region', { name: 'About you' })
     expect(within(about).getByLabelText('Year of birth')).toBeInTheDocument()
-    expect(within(about).getByRole('radio', { name: 'Female' })).toBeChecked()
+    expect(within(about).getByRole('radio', { name: 'Woman' })).toBeChecked()
 
     const body = screen.getByRole('region', { name: 'Body and bike' })
     expect(within(body).getByLabelText('Body weight')).toHaveValue('75')
     expect(within(body).getByLabelText('Bike and gear weight')).toHaveValue('9')
     expect(within(body).getByRole('group', { name: 'Units' })).toBeInTheDocument()
+  })
+
+  it('puts the units before the weights in body and bike, since they say what the weights are in', () => {
+    renderProfile()
+    const body = screen.getByRole('region', { name: 'Body and bike' })
+    const units = within(body).getByRole('group', { name: 'Units' })
+    const weight = within(body).getByLabelText('Body weight')
+    expect(units.compareDocumentPosition(weight) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('sets About you and Body and bike side by side in one pair, which a narrow screen stacks', () => {
+    renderProfile()
+    const about = screen.getByRole('region', { name: 'About you' })
+    const body = screen.getByRole('region', { name: 'Body and bike' })
+    expect(about.parentElement).toBe(body.parentElement)
+    expect(about.parentElement).toHaveClass('profile-pair')
   })
 
   it('saves only the body weight that changed', () => {
@@ -106,7 +122,7 @@ describe('ProfilePage settings', () => {
     const { onSaveProfile } = renderProfile()
     const year = screen.getByLabelText('Year of birth')
     expect(year).toHaveValue('1990')
-    expect(screen.getByRole('radio', { name: 'Female' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Woman' })).toBeChecked()
 
     fireEvent.change(year, { target: { value: '1985' } })
     expect(onSaveProfile).not.toHaveBeenCalled()
@@ -186,12 +202,12 @@ describe('ProfilePage settings', () => {
 
   it('saves the sex chosen, and clears it with Prefer not to say', () => {
     const { onSaveProfile } = renderProfile({ sex: 'male' })
-    expect(screen.getByRole('radio', { name: 'Male' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Man' })).toBeChecked()
 
     fireEvent.click(screen.getByRole('radio', { name: 'Prefer not to say' }))
     expect(onSaveProfile).toHaveBeenLastCalledWith({ sex: null })
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Female' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Woman' }))
     expect(onSaveProfile).toHaveBeenLastCalledWith({ sex: 'female' })
   })
 
@@ -205,8 +221,8 @@ describe('ProfilePage settings', () => {
     )
     renderProfile({ sex: 'female', onSaveProfile })
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
-    expect(screen.getByRole('radio', { name: 'Male' })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
+    expect(screen.getByRole('radio', { name: 'Man' })).toBeChecked()
     expect(screen.getByText('Sex: Saving…')).toBeInTheDocument()
 
     finish()
@@ -219,10 +235,10 @@ describe('ProfilePage settings', () => {
     })
     renderProfile({ sex: 'female', onSaveProfile })
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Male' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Man' }))
 
     expect(await screen.findByText("Sex: Couldn't save. Try again.")).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Female' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Woman' })).toBeChecked()
   })
 
   it('shows Saving, then Saved, for a unit system chosen', async () => {
@@ -463,6 +479,13 @@ describe('ProfilePage kept in this browser', () => {
 })
 
 describe('ProfilePage remove activities', () => {
+  it('styles the trigger as the destructive control it is, so it is not mistaken for a plain button', () => {
+    renderProfile({}, { savedActivities: [KEPT_RUN] })
+    expect(screen.getByRole('button', { name: 'Remove all my activities' })).toHaveClass(
+      'profile-remove',
+    )
+  })
+
   it('says that removing them clears this browser, and never claims the account is touched', () => {
     renderProfile({}, { state: { result: makeResult() }, savedActivities: [KEPT_RUN] })
 

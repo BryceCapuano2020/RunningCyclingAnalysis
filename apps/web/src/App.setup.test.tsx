@@ -106,6 +106,22 @@ describe('setup before the first import, signed out', () => {
     expect(sent.map((held) => held.name)).toEqual(['ride.gpx'])
   })
 
+  it('keeps a weight typed before Skip, and still sends the held files', async () => {
+    const user = userEvent.setup()
+    renderSignedOut()
+
+    chooseFiles(['run.fit'])
+    const panel = within(dialog() as HTMLElement)
+    const weight = panel.getByLabelText('Body weight')
+    await user.clear(weight)
+    await user.type(weight, '180')
+    await user.click(panel.getByRole('button', { name: 'Skip for now' }))
+
+    expect(dialog()).not.toBeInTheDocument()
+    expect(app.preferences.settings.massKg).toBeCloseTo(180 * 0.45359237, 6)
+    expect(app.analysis.addFiles).toHaveBeenCalledTimes(1)
+  })
+
   it('does not ask for the sample', async () => {
     const user = userEvent.setup()
     setAccount('signed-out')
@@ -162,7 +178,7 @@ describe('setup before the first import, signed in', () => {
 
   it('keeps the files and the dialog open, and says why, when the answers cannot be saved', async () => {
     const user = userEvent.setup()
-    setAccount('signed-in')
+    setAccount('signed-in', { units: 'metric' })
     updateProfile.mockRejectedValueOnce(new Error('Could not save your profile.'))
     render(<App />)
 
@@ -180,6 +196,24 @@ describe('setup before the first import, signed in', () => {
     expect(app.analysis.addFiles).not.toHaveBeenCalled()
     expect(localStorage.getItem(SETUP_KEY)).toBeNull()
     expect(within(dialog() as HTMLElement).getByLabelText('Body weight')).toHaveValue('80')
+  })
+
+  it('closes on Skip even when the kept answers cannot be saved, and sends the files without marking setup done', async () => {
+    const user = userEvent.setup()
+    setAccount('signed-in', { units: 'metric' })
+    updateProfile.mockRejectedValueOnce(new Error('Could not save your profile.'))
+    render(<App />)
+
+    chooseFiles(['run.fit'])
+    const panel = within(dialog() as HTMLElement)
+    const weight = panel.getByLabelText('Body weight')
+    await user.clear(weight)
+    await user.type(weight, '80')
+    await user.click(panel.getByRole('button', { name: 'Skip for now' }))
+
+    await waitFor(() => expect(dialog()).not.toBeInTheDocument())
+    expect(app.analysis.addFiles).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem(SETUP_KEY)).toBeNull()
   })
 
   it('keeps what the visitor typed when the account answers while the questions are open', () => {

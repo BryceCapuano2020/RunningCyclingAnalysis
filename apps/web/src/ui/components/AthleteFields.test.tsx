@@ -65,16 +65,26 @@ describe('AthleteFields', () => {
 
   it('checks the sex saved', () => {
     render(<Harness initialSex="female" />)
-    expect(screen.getByRole('radio', { name: 'Female' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Woman' })).toBeChecked()
+  })
+
+  it('names the sexes in the words the grades use, so the form and the grades agree', () => {
+    render(<Harness />)
+    const sex = screen.getByRole('group', { name: 'Sex' })
+    expect(
+      within(sex)
+        .getAllByRole('radio')
+        .map((radio) => radio.nextSibling?.textContent),
+    ).toEqual(['Woman', 'Man', 'Prefer not to say'])
   })
 
   it('reports the sex chosen', async () => {
     const user = userEvent.setup()
     const onSexChange = vi.fn()
     render(<Harness onSexChange={onSexChange} />)
-    await user.click(screen.getByRole('radio', { name: 'Male' }))
+    await user.click(screen.getByRole('radio', { name: 'Man' }))
     expect(onSexChange).toHaveBeenLastCalledWith('male')
-    expect(screen.getByRole('radio', { name: 'Male' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Man' })).toBeChecked()
   })
 
   it('shows Prefer not to say as chosen, and reports it as no sex', async () => {
@@ -84,6 +94,6 @@ describe('AthleteFields', () => {
     await user.click(screen.getByRole('radio', { name: 'Prefer not to say' }))
     expect(onSexChange).toHaveBeenLastCalledWith(null)
     expect(screen.getByRole('radio', { name: 'Prefer not to say' })).toBeChecked()
-    expect(screen.getByRole('radio', { name: 'Female' })).not.toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Woman' })).not.toBeChecked()
   })
 })

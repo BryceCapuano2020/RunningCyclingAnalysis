@@ -103,6 +103,15 @@ describe('AgeGradingSection', () => {
     expect(screen.queryByText(/Your grades are for a/)).not.toBeInTheDocument()
   })
 
+  it('links to Profile to change the age and sex the grades use', () => {
+    render(<AgeGradingSection gradedSex="male" />)
+
+    expect(within(section()).getByRole('link', { name: 'Change age and sex' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
+  })
+
   it('uses one term set, "level", and no vague words', () => {
     const { container } = render(<AgeGradingSection gradedSex="male" />)
     const text = container.textContent ?? ''

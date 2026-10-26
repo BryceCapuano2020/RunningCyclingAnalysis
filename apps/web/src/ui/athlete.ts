@@ -1,4 +1,4 @@
-import { FIRST_GRADED_AGE, LAST_GRADED_AGE } from '@rca/core/grade'
+import { FIRST_GRADED_AGE } from '@rca/core/grade'
 import type { AthleteSettings } from '@rca/core/types'
 import { kgToLb, lbToKg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
@@ -100,11 +100,18 @@ export function readWeight(text: string, field: WeightField, units: UnitSystem):
 }
 
 /**
- * Birth years for the ages the grading covers, counted this year. The year is only asked for age
- * grading, so a year outside this range is either a typing slip or not a person it applies to.
+ * The earliest year of birth the year field accepts. A year before 1920 is refused as a typing slip.
+ * A year from 1920 that puts the athlete past the graded ages is kept, and their efforts are not
+ * graded: they read AGE_RANGE_TEXT in grades.ts.
+ */
+const EARLIEST_BIRTH_YEAR = 1920
+
+/**
+ * Birth years the year field accepts: from EARLIEST_BIRTH_YEAR to the year the youngest graded age was
+ * born, counted this year. The year is only asked for age grading.
  */
 export function birthYearLimits(thisYear = new Date().getFullYear()): { min: number; max: number } {
-  return { min: thisYear - LAST_GRADED_AGE, max: thisYear - FIRST_GRADED_AGE }
+  return { min: EARLIEST_BIRTH_YEAR, max: thisYear - FIRST_GRADED_AGE }
 }
 
 /** The earliest year of birth a stored preference may hold. */

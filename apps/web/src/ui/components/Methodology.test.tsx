@@ -105,7 +105,7 @@ describe('Methodology', () => {
     )
     // The example periods are the picker's own options, with the window the trend really uses.
     expect(section).toHaveTextContent(
-      '6 weeks uses 14 days, 3 months uses 30 days and 1 year uses 42 days.',
+      '6 weeks uses 14 days, 3 months uses 30 days and last 12 months uses 42 days.',
     )
     expect(section).toHaveTextContent('Each window lies inside the period you chose.')
     expect(section).toHaveTextContent(

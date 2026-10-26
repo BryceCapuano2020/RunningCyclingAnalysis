@@ -330,7 +330,7 @@ export function App() {
           saving={setup.saving}
           error={setup.saveError}
           onConfirm={(patch) => void setup.finish(patch)}
-          onSkip={() => void setup.finish({})}
+          onSkip={(patch) => void setup.skip(patch)}
         />
       )}
     </div>

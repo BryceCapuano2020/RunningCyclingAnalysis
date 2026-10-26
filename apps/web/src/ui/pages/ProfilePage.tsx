@@ -178,48 +178,51 @@ export function ProfilePage({
         </h1>
       </div>
 
-      <section className="section" aria-labelledby="profile-about">
-        <div>
-          <h2 id="profile-about">About you</h2>
-          {/* Outside the held fields, so the wait is announced while they cannot be changed. */}
-          <p role="status" className="profile-save secondary">
-            {accountLoading ? WAITING_FOR_ACCOUNT : ''}
-          </p>
-        </div>
-        <div inert={accountLoading}>
-          <AthleteFields
-            birthYear={yearDraft ?? displayBirthYear(birthYear)}
-            birthYearError={yearError}
-            sex={shownSex}
-            onBirthYearChange={(text) => {
-              setYearError(null)
-              setYearDraft(text)
-            }}
-            onBirthYearCommit={() => void commitYear()}
-            onSexChange={(next) => void changeSex(next)}
-          />
-          <FieldStatus field="year" state={saves.year} />
-          <FieldStatus field="sex" state={saves.sex} />
-        </div>
-      </section>
+      <div className="profile-pair">
+        <section className="section" aria-labelledby="profile-about">
+          <div>
+            <h2 id="profile-about">About you</h2>
+            {/* Outside the held fields, so the wait is announced while they cannot be changed. */}
+            <p role="status" className="profile-save secondary">
+              {accountLoading ? WAITING_FOR_ACCOUNT : ''}
+            </p>
+          </div>
+          <div inert={accountLoading}>
+            <AthleteFields
+              birthYear={yearDraft ?? displayBirthYear(birthYear)}
+              birthYearError={yearError}
+              sex={shownSex}
+              onBirthYearChange={(text) => {
+                setYearError(null)
+                setYearDraft(text)
+              }}
+              onBirthYearCommit={() => void commitYear()}
+              onSexChange={(next) => void changeSex(next)}
+            />
+            <FieldStatus field="year" state={saves.year} />
+            <FieldStatus field="sex" state={saves.sex} />
+          </div>
+        </section>
 
-      <section className="section" aria-labelledby="profile-body">
-        <h2 id="profile-body">Body and bike</h2>
-        <div inert={accountLoading}>
-          <SettingsBar
-            settings={settings}
-            units={shownUnits}
-            onChange={(next) => onSaveProfile({ settings: next })}
-          />
-          <SegmentedControl
-            legend="Units"
-            options={UNIT_OPTIONS}
-            selected={shownUnits}
-            onSelect={(next) => void changeUnits(next)}
-          />
-          <FieldStatus field="units" state={saves.units} />
-        </div>
-      </section>
+        <section className="section" aria-labelledby="profile-body">
+          <h2 id="profile-body">Body and bike</h2>
+          <div inert={accountLoading}>
+            {/* The units come first: they say what the weights below are measured in. */}
+            <SegmentedControl
+              legend="Units"
+              options={UNIT_OPTIONS}
+              selected={shownUnits}
+              onSelect={(next) => void changeUnits(next)}
+            />
+            <FieldStatus field="units" state={saves.units} />
+            <SettingsBar
+              settings={settings}
+              units={shownUnits}
+              onChange={(next) => onSaveProfile({ settings: next })}
+            />
+          </div>
+        </section>
+      </div>
 
       {email !== null ? (
         <AccountSection
@@ -288,7 +291,7 @@ export function ProfilePage({
           <div>
             <button
               type="button"
-              className="btn"
+              className="btn profile-remove"
               disabled={analysis.busy}
               onClick={(event) => {
                 setRemoveOpener(event.currentTarget)

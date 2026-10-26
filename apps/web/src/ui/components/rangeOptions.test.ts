@@ -24,7 +24,7 @@ describe('RANGE_OPTIONS', () => {
       'Default',
       '6 weeks',
       '3 months',
-      '1 year',
+      'Last 12 months',
       'All time',
     ])
   })
@@ -33,7 +33,7 @@ describe('RANGE_OPTIONS', () => {
     expect(LIBRARY_RANGE_OPTIONS.map((option) => option.label)).toEqual([
       '6 weeks',
       '3 months',
-      '1 year',
+      'Last 12 months',
       'All time',
     ])
   })
@@ -62,7 +62,7 @@ describe('previousPeriodLabel', () => {
     expect(previousPeriodLabel(42)).toBe('Previous 6 weeks')
     expect(previousPeriodLabel(84)).toBe('Previous 12 weeks')
     expect(previousPeriodLabel(91)).toBe('Previous 3 months')
-    expect(previousPeriodLabel(365)).toBe('Previous year')
+    expect(previousPeriodLabel(365)).toBe('Previous 12 months')
   })
 
   it('has no previous period for all time', () => {

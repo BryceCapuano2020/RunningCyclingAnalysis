@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLatest } from './analysis/useLatest'
+import { isReadableFileName } from './readableFiles'
 import type { AccountStatus } from './useAccount'
 import type { ProfilePatch } from './profilePatch'
 
@@ -60,10 +61,16 @@ export interface SetupController {
   /** How many imports have been submitted, so a page can tell a new submission from an old one. */
   submitted: number
   /**
-   * Stores the values the athlete changed, then sends the held files. Skip passes an empty patch.
-   * A refusal is kept in saveError and nothing is sent.
+   * Stores the values the athlete changed, then sends the held files. A refusal is kept in saveError
+   * and nothing is sent.
    */
   finish: (patch: ProfilePatch) => Promise<void>
+  /**
+   * Skip: stores the values the athlete kept, then sends the held files. When they cannot be stored,
+   * the dialog closes and the files go on anyway, with setup not marked done, so the questions come
+   * back on the next import.
+   */
+  skip: (kept: ProfilePatch) => Promise<void>
 }
 
 /**
@@ -99,13 +106,21 @@ export function useSetup({
   const [ready, setReady] = useState<Ready | null>(null)
   // Answers stored while the account loaded, waiting for it to be known.
   const answeredWhileLoading = useRef<ProfilePatch | null>(null)
+  // A Skip in flight. A second Skip while it saves is ignored, so the answers are stored once.
+  const skipping = useRef(false)
+  // A Skip whose answers were refused: the files are released on the next render, with any file dropped meanwhile.
+  const [skipRefused, setSkipRefused] = useState(false)
   const latestSave = useLatest(save)
   const latestStatus = useLatest(status)
   const open = held.length > 0 && !done
 
   // Once the answer is in place, the held files move on. This is an update during render, not in an
   // effect, so it happens once per batch: the next render finds nothing held.
-  if (held.length > 0 && done) {
+  if (skipRefused) {
+    if (held.length > 0) setReady({ files: held, add: addFiles })
+    setHeld([])
+    setSkipRefused(false)
+  } else if (held.length > 0 && done) {
     setReady({ files: held, add: addFiles })
     setHeld([])
   }
@@ -143,7 +158,9 @@ export function useSetup({
     (files: File[]) => {
       if (files.length === 0) return
       setSubmitted((count) => count + 1)
-      if (workerStopped || done) {
+      // A drop with no file the import can read asks nothing: its files go to the skipped list now.
+      const readable = files.some((file) => isReadableFileName(file.name))
+      if (workerStopped || done || !readable) {
         addFiles(files)
         return
       }
@@ -152,19 +169,12 @@ export function useSetup({
     [addFiles, done, workerStopped],
   )
 
-  const finish = useCallback(
+  /** Stores the answers with setup marked done. Rejects, and marks nothing, when the save is refused. */
+  const store = useCallback(
     async (patch: ProfilePatch) => {
-      setSaving(true)
-      setSaveError(null)
       const answers = { ...patch, setupDone: true }
       const answeredLoading = status === 'loading'
-      try {
-        await save(answers)
-      } catch (failure) {
-        setSaveError(messageOf(failure))
-        setSaving(false)
-        return
-      }
+      await save(answers)
       if (answeredLoading) {
         // The account may have settled while the answers were stored: then they go to it now.
         const now = latestStatus()
@@ -175,10 +185,42 @@ export function useSetup({
         markDeviceSetupDone()
         setDeviceDone(true)
       }
-      setSaving(false)
     },
     [latestStatus, save, sendToAccount, signedIn, status],
   )
 
-  return { open, held: held.length, saving, saveError, requestImport, finish, submitted }
+  const finish = useCallback(
+    async (patch: ProfilePatch) => {
+      setSaving(true)
+      setSaveError(null)
+      try {
+        await store(patch)
+      } catch (failure) {
+        setSaveError(messageOf(failure))
+      }
+      setSaving(false)
+    },
+    [store],
+  )
+
+  const skip = useCallback(
+    async (kept: ProfilePatch) => {
+      if (skipping.current) return
+      skipping.current = true
+      setSaving(true)
+      setSaveError(null)
+      try {
+        await store(kept)
+      } catch {
+        // The kept answers are not stored and setup stays unanswered, so the questions come back.
+        // The files still go on, so the dialog never traps the athlete.
+        setSkipRefused(true)
+      }
+      skipping.current = false
+      setSaving(false)
+    },
+    [store],
+  )
+
+  return { open, held: held.length, saving, saveError, requestImport, finish, skip, submitted }
 }

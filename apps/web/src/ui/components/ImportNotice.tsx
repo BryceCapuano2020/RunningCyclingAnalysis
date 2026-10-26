@@ -83,7 +83,7 @@ export function ImportNotice({
       </div>
       {atBalance ? null : <a href={hrefFor({ page: 'balance' })}>See your balance</a>}
       <button type="button" className="btn" onClick={dismiss}>
-        Dismiss import summary
+        Dismiss summary
       </button>
     </div>
   )

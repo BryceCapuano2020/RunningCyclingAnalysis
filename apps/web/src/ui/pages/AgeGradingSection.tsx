@@ -2,6 +2,7 @@ import { ROAD_STANDARDS_SOURCE, type Sex } from '@rca/core/grade'
 import { StandardsCredit } from '../components/StandardsCredit'
 import { SECTION_ID } from '../components/methodTopics'
 import { LEVEL_BANDS, SEX_NOUN } from '../grades'
+import { hrefFor } from '../route'
 
 export interface AgeGradingSectionProps {
   /** The sex the grades are for, when a grade shows on this page; null when none does. */
@@ -58,9 +59,10 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         run takes the date of its best effort at that duration. A ride takes the date of its own
         best ride at that duration, because its running equivalent comes from that ride.
       </p>
-      {gradedSex !== null && (
-        <p className="secondary">{`Your grades are for a ${SEX_NOUN[gradedSex]}.`}</p>
-      )}
+      <p className="secondary">
+        {gradedSex !== null && `Your grades are for a ${SEX_NOUN[gradedSex]}. `}
+        <a href={hrefFor({ page: 'profile' })}>Change age and sex</a>
+      </p>
       <p className="muted">
         Source: <StandardsCredit />, a public domain dedication.
       </p>

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
 import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import type { ActivityPage, ActivityRecord, Me } from '@rca/contract'
+import { lbToKg } from '@rca/core/units'
 
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
 export const LANDING_TITLE = 'How balanced are you as an athlete?'
@@ -86,21 +87,26 @@ export const SETUP_DIALOG_NAME = /^A few details$/
 const SETUP_DIALOG_WAIT_MS = 2_000
 
 /**
- * The body weight the e2e suite answers the setup dialog with: 185 lb, the units the suite runs in,
- * which is about 83.9 kg. A weight is entered as a real user would, since the balance waits for one.
+ * The body weight the e2e suite answers the setup dialog with, in pounds: 185 lb, about 83.9 kg. The
+ * suite writes weights in pounds; the dialog may show kilograms, as a signed-in account does.
  */
 export const DEFAULT_WEIGHT_TEXT = '185'
 
+/** A weight in pounds, entered in the units the setup dialog shows: pounds as given, or kilograms. */
+function weightInShownUnits(pounds: string, metric: boolean): string {
+  return metric ? lbToKg(Number(pounds)).toFixed(1) : pounds
+}
+
 /**
  * The first import on a device opens the setup dialog once, and holds the files until it is
- * answered. When the dialog appears, this enters the body weight and answers it, so the import goes
- * on. When it does not appear within the wait, the setup was answered already and there is nothing
- * to do.
+ * answered. When the dialog appears, this enters the body weight, in pounds, and answers it, so the
+ * import goes on. When it does not appear within the wait, the setup was answered already and there
+ * is nothing to do.
  */
 export async function completeSetup(
   page: Page,
   waitMs: number = SETUP_DIALOG_WAIT_MS,
-  weight: string = DEFAULT_WEIGHT_TEXT,
+  pounds: string = DEFAULT_WEIGHT_TEXT,
 ): Promise<void> {
   const dialog = page.getByRole('dialog', { name: SETUP_DIALOG_NAME })
   try {
@@ -108,22 +114,23 @@ export async function completeSetup(
   } catch {
     return
   }
-  await dialog.getByLabel('Body weight').fill(weight)
+  const metric = await dialog.getByRole('radio', { name: 'Metric' }).isChecked()
+  await dialog.getByLabel('Body weight').fill(weightInShownUnits(pounds, metric))
   await dialog.getByRole('button', { name: 'Analyse my files' }).click()
   await expect(dialog).toBeHidden()
 }
 
 /**
  * Sends files to the hidden file input, then answers the setup dialog if the first import asks,
- * with the body weight given (185 lb by default).
+ * with the body weight given in pounds (185 lb by default).
  */
 export async function uploadFixtures(
   page: Page,
   names: string[],
-  weight: string = DEFAULT_WEIGHT_TEXT,
+  pounds: string = DEFAULT_WEIGHT_TEXT,
 ): Promise<void> {
   await page.locator('input[type="file"]').first().setInputFiles(names.map(fixturePath))
-  await completeSetup(page, SETUP_DIALOG_WAIT_MS, weight)
+  await completeSetup(page, SETUP_DIALOG_WAIT_MS, pounds)
 }
 
 export async function horizontalOverflow(

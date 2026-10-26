@@ -108,21 +108,21 @@ describe('ImportNotice: dismissal', () => {
   it('tells the page when the summary is dismissed, and removes it', () => {
     const onDismiss = vi.fn()
     render(<ImportNotice {...noticeProps({ onDismiss })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss summary' }))
     expect(onDismiss).toHaveBeenCalledOnce()
     expect(screen.queryByText(SENTENCE)).not.toBeInTheDocument()
   })
 
   it('shows the summary again for the outcome of a later import', () => {
     const { rerender } = render(<ImportNotice {...noticeProps()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss summary' }))
     rerender(<ImportNotice {...noticeProps({ outcome: { ...ADDED } })} />)
-    expect(screen.getByRole('button', { name: 'Dismiss import summary' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Dismiss summary' })).toBeInTheDocument()
   })
 
   it('removes the list of what moved with the summary', () => {
     render(<ImportNotice {...noticeProps({ moved: MOVED })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss import summary' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss summary' }))
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 
@@ -135,7 +135,7 @@ describe('ImportNotice: dismissal', () => {
         <ImportNotice {...noticeProps()} />
       </>,
     )
-    const dismiss = screen.getByRole('button', { name: 'Dismiss import summary' })
+    const dismiss = screen.getByRole('button', { name: 'Dismiss summary' })
     dismiss.focus()
     fireEvent.click(dismiss)
     expect(screen.getByRole('heading', { name: 'Balance' })).toHaveFocus()

@@ -12,6 +12,7 @@ import {
 } from '../athlete'
 import { focusPageHeading } from '../pages/pageHeading'
 import type { AthleteValues, ProfilePatch } from '../profilePatch'
+import { isTypicalBodyKg, unusualWeightSentence } from '../typicalWeight'
 import { AthleteFields } from './AthleteFields'
 import { NumberField } from './NumberField'
 import { SegmentedControl } from './SegmentedControl'
@@ -27,8 +28,8 @@ export interface SetupDialogProps {
   error?: string | null
   /** Receives only the fields the athlete changed, so a save leaves the others alone. */
   onConfirm: (patch: ProfilePatch) => void
-  /** Escape and Skip. Nothing the athlete typed is kept. */
-  onSkip: () => void
+  /** Escape and Skip. Receives the changed answers that are valid, so they are kept; the rest stay unanswered. */
+  onSkip: (kept: ProfilePatch) => void
 }
 
 interface FieldErrors {
@@ -37,6 +38,15 @@ interface FieldErrors {
 }
 
 type WeightEntry = { kg: number | null } | { error: string }
+
+/** The answers as the fields hold them, read the way both Analyse and Skip read them. */
+interface Reading {
+  /** The changed answers that are valid, so Skip can keep them. */
+  patch: ProfilePatch
+  errors: FieldErrors
+  /** A changed weight outside the typical range that has not been confirmed yet. */
+  unusualKg: number | null
+}
 
 /**
  * The body weight the text stands for. Text that still shows the last valid weight is that weight,
@@ -74,6 +84,8 @@ export function SetupDialog({
   const [yearText, setYearText] = useState(() => displayBirthYear(initial.birthYear))
   const [sex, setSex] = useState(initial.sex)
   const [errors, setErrors] = useState<FieldErrors>({})
+  // The unusual weight the athlete was asked to confirm. Analyse again keeps it.
+  const [confirmKg, setConfirmKg] = useState<number | null>(null)
   // A field the visitor has changed keeps their answer. An untouched one follows the saved value, which
   // can arrive while the questions are open, since the account may answer after they have opened.
   const touched = useRef({ units: false, weight: false, year: false, sex: false })
@@ -113,6 +125,7 @@ export function SetupDialog({
 
   function changeUnits(next: UnitSystem) {
     touched.current.units = true
+    setConfirmKg(null)
     // The weight is read in the units it was typed in, then shown in the new ones.
     const typed = readWeightEntry(weightText, validKg, units)
     if ('error' in typed) {
@@ -127,29 +140,48 @@ export function SetupDialog({
     setUnits(next)
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (saving) return
+  /**
+   * The answers as the fields hold them. `confirmed` is the unusual weight the athlete has already
+   * asked to keep, which only Analyse can pass: Skip and Escape never confirm a weight.
+   */
+  function readAnswers(confirmed: number | null): Reading {
     const patch: ProfilePatch = {}
-    const next: FieldErrors = {}
+    const found: FieldErrors = {}
+    let unusualKg: number | null = null
     const entry = readWeightEntry(weightText, validKg, units)
-    if ('error' in entry) next.weight = entry.error
+    if ('error' in entry) found.weight = entry.error
     else if (entry.kg !== null && entry.kg !== savedKg) {
-      patch.settings = { massKg: entry.kg }
+      if (isTypicalBodyKg(entry.kg) || entry.kg === confirmed) patch.settings = { massKg: entry.kg }
+      else unusualKg = entry.kg
     }
     if (yearText !== displayBirthYear(initial.birthYear)) {
       const read = readBirthYear(yearText)
-      if ('error' in read) next.year = read.error
+      if ('error' in read) found.year = read.error
       else patch.birthYear = read.year
-    }
-    if (next.weight !== undefined || next.year !== undefined) {
-      setErrors(next)
-      if (next.weight !== undefined) weightRef.current?.focus()
-      else yearRef.current?.focus()
-      return
     }
     if (sex !== initial.sex) patch.sex = sex
     if (units !== initial.units) patch.units = units
+    return { patch, errors: found, unusualKg }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (saving) return
+    const { patch, errors: found, unusualKg } = readAnswers(confirmKg)
+    if (found.weight !== undefined || found.year !== undefined) {
+      setErrors(found)
+      if (found.weight !== undefined) weightRef.current?.focus()
+      else yearRef.current?.focus()
+      return
+    }
+    if (unusualKg !== null) {
+      setConfirmKg(unusualKg)
+      setErrors({
+        weight: `${unusualWeightSentence(unusualKg, weightText, units)} Check the units, or press Analyse my files again to keep it.`,
+      })
+      weightRef.current?.focus()
+      return
+    }
     onConfirm(patch)
   }
 
@@ -166,7 +198,7 @@ export function SetupDialog({
       onCancel={(event) => {
         // Escape goes through onSkip so the parent owns the open state.
         event.preventDefault()
-        if (!saving) onSkip()
+        if (!saving) onSkip(readAnswers(null).patch)
       }}
     >
       <form className="setup-dialog__form" onSubmit={handleSubmit} noValidate>
@@ -174,8 +206,9 @@ export function SetupDialog({
           A few details
         </h2>
         <p id={helpId} className="setup-dialog__help">
-          Your weight puts rides and runs on one scale. Age and sex are optional: they set your
-          level in each sport. They stay on this device unless you sign in.
+          Enter your weight so a ride and a run sit on one scale. Add your age and sex to see your
+          level in each sport; standards differ for women and men. Your age and sex stay on this
+          device unless you sign in.
         </p>
         <SegmentedControl
           legend="Units"
@@ -193,8 +226,13 @@ export function SetupDialog({
           enterKeyHint="done"
           value={weightText}
           error={errors.weight ?? null}
+          onBlur={() => {
+            const left = readWeightEntry(weightText, validKg, units)
+            if ('error' in left) setErrors((current) => ({ ...current, weight: left.error }))
+          }}
           onChange={(event) => {
             touched.current.weight = true
+            setConfirmKg(null)
             setErrors((current) => ({ ...current, weight: undefined }))
             setWeightText(event.target.value)
           }}
@@ -209,6 +247,10 @@ export function SetupDialog({
           birthYearError={errors.year ?? null}
           birthYearRef={yearRef}
           sex={sex}
+          onBirthYearCommit={() => {
+            const left = readBirthYear(yearText)
+            if ('error' in left) setErrors((current) => ({ ...current, year: left.error }))
+          }}
           onBirthYearChange={(text) => {
             touched.current.year = true
             setErrors((current) => ({ ...current, year: undefined }))
@@ -232,7 +274,7 @@ export function SetupDialog({
               className="btn"
               aria-disabled={saving}
               onClick={() => {
-                if (!saving) onSkip()
+                if (!saving) onSkip(readAnswers(null).patch)
               }}
             >
               Skip for now

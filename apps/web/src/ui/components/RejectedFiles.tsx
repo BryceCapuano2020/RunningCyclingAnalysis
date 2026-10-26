@@ -3,6 +3,7 @@ import { groupRejected, rejectionCopy, SKIPPED_GROUP_COPY } from '../analysis/re
 import type { SkippedFiles } from '../analysis/rejectCopy'
 import { skippedSentence } from '../analysis/copy'
 import { keyByContent } from '../contentKeys'
+import { HowToGetFilesButton } from './HowToGetFiles'
 import './RejectedFiles.css'
 
 export interface RejectedFilesProps {
@@ -59,6 +60,7 @@ export function RejectedFiles({
           )
         })}
       </details>
+      <HowToGetFilesButton label="Where do I get my files?" />
     </div>
   )
 }

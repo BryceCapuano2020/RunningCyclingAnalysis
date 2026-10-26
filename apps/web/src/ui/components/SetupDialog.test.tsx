@@ -48,7 +48,7 @@ describe('SetupDialog', () => {
     expect(screen.getByRole('heading', { level: 2, name: TITLE })).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your weight puts rides and runs on one scale. Age and sex are optional: they set your level in each sport. They stay on this device unless you sign in.',
+        'Enter your weight so a ride and a run sit on one scale. Add your age and sex to see your level in each sport; standards differ for women and men. Your age and sex stay on this device unless you sign in.',
       ),
     ).toBeInTheDocument()
   })
@@ -300,7 +300,7 @@ describe('SetupDialog', () => {
   it('sends the sex chosen, and Prefer not to say clears a saved sex', async () => {
     const user = userEvent.setup()
     const { onConfirm } = renderDialog({ ...INITIAL, sex: 'female' })
-    await user.click(screen.getByRole('radio', { name: 'Male' }))
+    await user.click(screen.getByRole('radio', { name: 'Man' }))
     await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
     expect(onConfirm).toHaveBeenLastCalledWith({ sex: 'male' })
   })
@@ -353,22 +353,165 @@ describe('SetupDialog', () => {
     expect(cancel.defaultPrevented).toBe(true)
   })
 
-  it('skips without applying what was typed, and does not confirm', async () => {
+  it('skips with the valid weight typed kept, and does not confirm', async () => {
     const user = userEvent.setup()
     const { onConfirm, onSkip } = renderDialog()
     await user.clear(weight())
     await user.type(weight(), '90')
     await user.click(screen.getByRole('button', { name: 'Skip for now' }))
-    expect(onSkip).toHaveBeenCalledTimes(1)
+    expect(onSkip).toHaveBeenCalledWith({ settings: { massKg: 90 } })
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('treats Escape as Skip, and keeps the browser from closing the dialog itself', () => {
+  it('keeps a typed year and sex when skipped, and leaves the weight alone', async () => {
+    const user = userEvent.setup()
+    const { onSkip } = renderDialog()
+    await user.type(year(), '1990')
+    await user.click(screen.getByRole('radio', { name: 'Man' }))
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({ birthYear: 1990, sex: 'male' })
+  })
+
+  it('skips without keeping a weight that cannot be read', async () => {
+    const user = userEvent.setup()
+    const { onSkip } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), 'heavy')
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({})
+  })
+
+  it('skips without keeping a weight outside 45 to 160 kg that was not confirmed', async () => {
+    const user = userEvent.setup()
+    const { onSkip } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '34')
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({})
+  })
+
+  it('treats Escape as Skip with the valid values kept, and keeps the browser from closing the dialog itself', async () => {
+    const user = userEvent.setup()
     const { onSkip, onConfirm, dialog } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '90')
     const cancel = new Event('cancel', { cancelable: true })
     dialog.dispatchEvent(cancel)
     expect(cancel.defaultPrevented).toBe(true)
-    expect(onSkip).toHaveBeenCalledTimes(1)
+    expect(onSkip).toHaveBeenCalledWith({ settings: { massKg: 90 } })
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+})
+
+describe('SetupDialog: a body weight outside 45 to 160 kg', () => {
+  it('asks for a second Analyse before keeping it, and says why', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '34')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('That is 34.0 kg, outside 45 to 160 kg.')
+    expect(weight()).toHaveFocus()
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(onConfirm).toHaveBeenCalledWith({ settings: { massKg: 34 } })
+  })
+
+  it('keeps the question on screen when the field is left, so the next Analyse is a real answer', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '34')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    await user.tab()
+    expect(screen.getByRole('alert')).toHaveTextContent('That is 34.0 kg, outside 45 to 160 kg.')
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('asks again when the weight is changed after it was answered', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '34')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    await user.clear(weight())
+    await user.type(weight(), '35')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('That is 35.0 kg, outside 45 to 160 kg.')
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('catches a kilogram figure typed into the pound field, which would store 34 kg', async () => {
+    const user = userEvent.setup()
+    const { onConfirm } = renderDialog({ ...INITIAL, units: 'imperial' })
+    await user.clear(weight())
+    await user.type(weight(), '75')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('75 lb is 34.0 kg, outside 45 to 160 kg.')
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+})
+
+describe('SetupDialog: a field is checked when it is left', () => {
+  it('shows a weight that cannot be read as soon as the field is left', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), 'heavy')
+    await user.tab()
+    expect(screen.getByRole('alert')).toHaveTextContent(NUMBER_ERROR)
+    expect(weight()).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('shows a year outside the range as soon as it is left', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.type(year(), '1800')
+    await user.tab()
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Enter a year from \d{4} to \d{4}$/)
+    expect(year()).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('shows no error for a year in range as it is left', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.type(year(), '1990')
+    await user.tab()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('SetupDialog: Skip and Escape never keep a weight that was not confirmed', () => {
+  it('drops a metric weight asked about by Analyse, when Skip is pressed after it', async () => {
+    const user = userEvent.setup()
+    const { onSkip, onConfirm } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '34')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({})
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('drops a metric weight asked about by Analyse, when Escape is pressed after it', async () => {
+    const user = userEvent.setup()
+    const { onSkip, dialog } = renderDialog()
+    await user.clear(weight())
+    await user.type(weight(), '34')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }))
+    expect(onSkip).toHaveBeenCalledWith({})
+  })
+
+  it('drops a pound figure asked about by Analyse, when Skip is pressed after it', async () => {
+    const user = userEvent.setup()
+    const { onSkip, onConfirm } = renderDialog({ ...INITIAL, units: 'imperial' })
+    await user.clear(weight())
+    await user.type(weight(), '75')
+    await user.click(screen.getByRole('button', { name: 'Analyse my files' }))
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }))
+    expect(onSkip).toHaveBeenCalledWith({})
     expect(onConfirm).not.toHaveBeenCalled()
   })
 })

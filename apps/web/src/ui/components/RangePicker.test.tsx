@@ -18,7 +18,7 @@ describe('RangePicker', () => {
   it('offers the default and the fixed periods in a group named Period', () => {
     render(picker())
     expect(screen.getByRole('group', { name: 'Period' })).toBeInTheDocument()
-    for (const label of ['Default', '6 weeks', '3 months', '1 year', 'All time']) {
+    for (const label of ['Default', '6 weeks', '3 months', 'Last 12 months', 'All time']) {
       expect(screen.getByRole('radio', { name: label })).toBeInTheDocument()
     }
   })

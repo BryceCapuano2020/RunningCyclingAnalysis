@@ -9,7 +9,10 @@ import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
 import { pickHeadline } from '../components'
+import { balanceOfPick } from '../components/balanceScale'
+import type { BalanceReading } from '../components/balanceScale'
 import {
+  balanceTitle,
   headlineBasis,
   headlineText,
   referenceDefinition,
@@ -53,28 +56,50 @@ const NO_FILES_EVIDENCE = 'Add your files to see this evidence.'
 const RESTORING_EVIDENCE = 'Your saved results are loading.'
 /** The energy view before any results: what it will show, since there is no ratio to name yet. */
 const NO_FILES_ENERGY =
-  'Once your files are loaded, this view puts running and cycling on one scale: the energy each sport costs per kilogram of body weight, in watts per kilogram (W/kg), which the app calls the energy rate.'
+  'Once your files are loaded, this view puts running and cycling on one scale: the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.'
 /** The energy view, when Balance shows the age-grade gap, and when it shows the energy ratio instead. */
 const ENERGY_CROSS_CHECK =
-  'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy each sport costs per kilogram of body weight, in watts per kilogram (W/kg), which the app calls the energy rate.'
+  'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.'
 const ENERGY_FALLBACK =
-  'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, the energy each sport costs per kilogram of body weight, in watts per kilogram (W/kg), which the app calls the energy rate.'
+  'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, measured as the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
+/** Line two of the answer while a ride's grade waits for the weight. */
+const WAITS_FOR_WEIGHT = 'Your balance waits for your weight.'
+
+/**
+ * Line two of the answer: which way the balance leans, in Balance's words, and whether even is inside
+ * the range the model gives. Null while no balance is stated.
+ */
+function answerVerdict(balance: BalanceReading | null, waitsForWeight: boolean): string | null {
+  if (waitsForWeight) return WAITS_FOR_WEIGHT
+  if (balance === null) return null
+  const even = balance.lean === 'even' ? 'inside' : 'outside'
+  return `${balanceTitle(balance)}. Even is ${even} its range.`
+}
 
 interface ContentsEntry {
   id: string
   label: string
 }
 
+/** Each section's name, as the contents and the answer's chips name it. */
+const SECTION_NAME: Record<keyof typeof SECTION_ID, string> = {
+  energy: 'The energy view',
+  grades: 'Age grades and levels',
+  heart: 'Heart-rate check',
+  accuracy: 'Virtual power meter accuracy',
+  how: 'How this works and what it assumes',
+}
+
 /** The sections on the page, in order. The accuracy section shows only when there is one. */
 function contentsOf(hasAccuracy: boolean): ContentsEntry[] {
   return [
-    { id: SECTION_ID.energy, label: 'The energy view' },
-    { id: SECTION_ID.grades, label: 'Age grades and levels' },
-    { id: SECTION_ID.heart, label: 'Heart-rate check' },
-    ...(hasAccuracy ? [{ id: SECTION_ID.accuracy, label: 'Virtual power meter accuracy' }] : []),
-    { id: SECTION_ID.how, label: 'How this works and what it assumes' },
+    { id: SECTION_ID.energy, label: SECTION_NAME.energy },
+    { id: SECTION_ID.grades, label: SECTION_NAME.grades },
+    { id: SECTION_ID.heart, label: SECTION_NAME.heart },
+    ...(hasAccuracy ? [{ id: SECTION_ID.accuracy, label: SECTION_NAME.accuracy }] : []),
+    { id: SECTION_ID.how, label: SECTION_NAME.how },
   ]
 }
 
@@ -145,7 +170,11 @@ export function MethodPage({
   // may say whose grades these are.
   const gradedSex = gradedSexOf(weightKnown ? headline : runOnly(headline), profile)
   const periodPhrase = period ? periodDates(period) : 'this period'
-  const gradeGapShown = headline !== null && gapOfHeadline(headline) !== null
+  const gap = headline === null ? null : gapOfHeadline(headline)
+  const gradeGapShown = gap !== null
+  // The balance is the one Balance states, so the answer and the headline cannot disagree.
+  const balance = weightKnown ? balanceOfPick(gap, pick) : null
+  const verdict = answerVerdict(balance, hasResult && !weightKnown && rides > 0)
   const hardEfforts = hardEffortsOnFile(effort)
 
   // A link from another page asked for a section here; focus it once this page has mounted, after
@@ -181,27 +210,47 @@ export function MethodPage({
 
       <ul className="lede method__answer" aria-label="The short answer">
         <li>
-          <span className="chip chip--good">
+          <button
+            type="button"
+            className="chip chip--good method__chip"
+            aria-label={`Recorded: see ${SECTION_NAME.grades}`}
+            onClick={() => focusSection(SECTION_ID.grades)}
+          >
             <CheckIcon />
             Recorded
-          </span>
+          </button>
           <span>Running efforts, and ride power from a power meter, are recorded.</span>
         </li>
         <li>
-          <span className="chip">
+          <button
+            type="button"
+            className="chip method__chip"
+            aria-label={`Estimated: see ${SECTION_NAME.grades}`}
+            onClick={() => focusSection(SECTION_ID.grades)}
+          >
             <WarningIcon />
             Estimated
-          </span>
-          <span>
-            {!hasResult
-              ? 'Thresholds, levels and the balance are estimates.'
-              : weightKnown
-                ? `Thresholds, levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort (${periodPhrase}).`
-                : `Run thresholds and levels are estimates from ${plural(runs, 'run')} with a usable effort (${periodPhrase}).`}
+          </button>
+          <span className="method__answer-text">
+            {verdict !== null && <span>{verdict} </span>}
+            <span>
+              {!hasResult
+                ? 'Thresholds, ride levels and the balance are estimates.'
+                : weightKnown
+                  ? `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort (${periodPhrase}).`
+                  : `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort (${periodPhrase}).`}
+            </span>
           </span>
         </li>
         <li>
-          <span className="chip">Checks below</span>
+          <button
+            type="button"
+            className="chip method__chip"
+            aria-label={`Checks below: see ${SECTION_NAME.heart}`}
+            onClick={() => focusSection(SECTION_ID.heart)}
+          >
+            Checks below
+          </button>
           <span>These checks show how far to trust them.</span>
         </li>
       </ul>

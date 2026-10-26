@@ -12,7 +12,7 @@ import {
 } from './athlete'
 import type { WeightSettings } from './athlete'
 
-/** Fixed so the year limits do not move with the calendar: ages 5 to 100 in 2026 are 1926 to 2021. */
+/** Fixed so the year limits do not move with the calendar: in 2026 the years run from 1920 to 2021. */
 const THIS_YEAR = 2026
 
 const NUMBER_ERROR = { error: 'Enter a number, such as 75 or 165.5' }
@@ -145,14 +145,14 @@ describe('analysis settings', () => {
 })
 
 describe('birth year limits', () => {
-  it('allow ages 5 to 100 this year', () => {
-    expect(birthYearLimits(THIS_YEAR)).toEqual({ min: 1926, max: 2021 })
+  it('run from 1920 to five years before this year', () => {
+    expect(birthYearLimits(THIS_YEAR)).toEqual({ min: 1920, max: 2021 })
   })
 
   it('accept only whole years in range', () => {
-    expect(isBirthYear(1926, THIS_YEAR)).toBe(true)
+    expect(isBirthYear(1920, THIS_YEAR)).toBe(true)
     expect(isBirthYear(2021, THIS_YEAR)).toBe(true)
-    expect(isBirthYear(1925, THIS_YEAR)).toBe(false)
+    expect(isBirthYear(1919, THIS_YEAR)).toBe(false)
     expect(isBirthYear(2022, THIS_YEAR)).toBe(false)
     expect(isBirthYear(1990.5, THIS_YEAR)).toBe(false)
     expect(isBirthYear('1990', THIS_YEAR)).toBe(false)
@@ -170,7 +170,7 @@ describe('birth year reading', () => {
   })
 
   it('rejects anything else, and says the range', () => {
-    const message = { error: 'Enter a year from 1926 to 2021' }
+    const message = { error: 'Enter a year from 1920 to 2021' }
     expect(readBirthYear('1800', THIS_YEAR)).toEqual(message)
     expect(readBirthYear('2030', THIS_YEAR)).toEqual(message)
     expect(readBirthYear('90', THIS_YEAR)).toEqual(message)
