@@ -85,7 +85,7 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByRole('figure', {
-        name: 'Running flat pace per kilometre, best 20 minutes, trailing 2 weeks',
+        name: 'Running flat pace per kilometre, best 20 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="trend-line"]')).toHaveLength(1)
@@ -266,9 +266,7 @@ describe('TrendChart', () => {
     expect(rows).toHaveLength(4)
     expect(rows[1]).toEqual(['Sun 19 Jan 2025', '250 W', '3.3 W/kg', '1'])
     expect(rows[0]).toEqual(['Sun 12 Jan 2025', '—', '—', '0'])
-    expect(container.querySelector('caption')?.textContent).toMatch(
-      /best 20 minutes in the 2 weeks/,
-    )
+    expect(container.querySelector('caption')?.textContent).toMatch(/best 20 min in the 2 weeks/)
   })
 
   it('names the window in days when it is not a whole number of weeks', () => {
@@ -283,7 +281,7 @@ describe('TrendChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: /best 20 minutes, trailing 30 days$/ }),
+      screen.getByRole('figure', { name: /best 20 min, trailing 30 days$/ }),
     ).toBeInTheDocument()
   })
 
@@ -300,7 +298,7 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByText(
-        'Each point is the best 20 minutes in the 2 weeks to that Sunday. Each line steps from one Sunday to the next, and breaks where a week has no value.',
+        'Each point is the best 20 min in the 2 weeks to that Sunday. Each line steps from one Sunday to the next, and breaks where a week has no value.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/holds/)).toBeNull()
@@ -317,7 +315,7 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(screen.queryByRole('img', { name: /^Cycling, best 20 minutes/ })).toBeNull()
+    expect(screen.queryByRole('img', { name: /^Cycling, best 20 min/ })).toBeNull()
     expect(screen.getByText('Add rides in more than one week to see a trend')).toBeInTheDocument()
   })
 
@@ -370,10 +368,10 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByRole('figure', {
-        name: 'Running flat pace per kilometre, best 5 minutes, trailing 2 weeks',
+        name: 'Running flat pace per kilometre, best 5 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
-    expect(container.querySelector('caption')?.textContent).toMatch(/best 5 minutes in the 2 weeks/)
+    expect(container.querySelector('caption')?.textContent).toMatch(/best 5 min in the 2 weeks/)
   })
 
   it('reads the week before the pointer, since a stepped line holds that week’s value to the next', () => {

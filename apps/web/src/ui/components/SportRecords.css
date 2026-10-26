@@ -9,7 +9,7 @@
 
 .records__row {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  grid-template-columns: 6rem minmax(0, 1fr);
   align-items: baseline;
   gap: var(--space-1) var(--space-3);
   min-width: 0;
@@ -70,14 +70,20 @@
   display: block;
   min-width: 0;
   max-width: 100%;
+  min-height: 24px;
   overflow: hidden;
   font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.records__row .records__link {
+/* A row's activity and how long ago it was set share the second column's line; the count keeps its whole text. */
+.records__row > .records__source {
   grid-column: 2;
+}
+
+.records__row > .records__source > .records__set {
+  margin-left: var(--space-1);
 }
 
 .records__shared {
@@ -103,6 +109,12 @@
 .records__source > .records__set {
   flex: none;
   white-space: nowrap;
+}
+
+/* On the shared line the whole name shows, wrapped if it must, so the date is never cut short. */
+.records__shared .records__link {
+  white-space: normal;
+  overflow: visible;
 }
 
 /* A finger needs a control's height to tap a record's link. A mouse keeps the line's own height. */

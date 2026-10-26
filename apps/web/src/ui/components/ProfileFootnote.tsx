@@ -10,13 +10,21 @@ export interface ProfileFootnoteProps {
   units: UnitSystem
   birthYear: number | null
   sex: Sex | null
+  /** False where the page already links to Profile from a note of its own, so the unset line leaves its link out. */
+  unsetLink?: boolean
 }
 
 /**
  * The line at the foot of a results page that says what it is based on, with a link to Profile.
  * A part the athlete has not set is left out, so nothing is assumed.
  */
-export function ProfileFootnote({ massKg, units, birthYear, sex }: ProfileFootnoteProps) {
+export function ProfileFootnote({
+  massKg,
+  units,
+  birthYear,
+  sex,
+  unsetLink = true,
+}: ProfileFootnoteProps) {
   const age = birthYear === null ? null : ageToday(birthYear)
   const parts = [
     massKg === null ? null : `${displayWeight(massKg, units)} ${weightUnit(units)}`,
@@ -26,10 +34,15 @@ export function ProfileFootnote({ massKg, units, birthYear, sex }: ProfileFootno
   const unset = parts.length === 0
   return (
     <p className="muted">
-      {unset ? 'Your details are not set yet.' : `Based on ${parts.join(', ')}.`}{' '}
-      <a href={hrefFor({ page: 'profile' })}>
-        {unset ? 'Add them on Profile' : 'Change on Profile'}
-      </a>
+      {unset ? 'Your details are not set yet.' : `Based on ${parts.join(', ')}.`}
+      {(!unset || unsetLink) && (
+        <>
+          {' '}
+          <a href={hrefFor({ page: 'profile' })}>
+            {unset ? 'Add them on Profile' : 'Change on Profile'}
+          </a>
+        </>
+      )}
     </p>
   )
 }

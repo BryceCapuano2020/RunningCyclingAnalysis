@@ -32,6 +32,7 @@ const balanceMeterTsx = await read('../ui/components/BalanceMeter.tsx')
 const ladderTsx = await read('../ui/components/LevelLadder.tsx')
 const sportRecords = await read('../ui/components/SportRecords.css')
 const googleSignIn = await read('../ui/components/GoogleSignInButton.css')
+const emptySportCard = await read('../ui/pages/EmptySportCard.css')
 
 /** The declarations of every rule whose selector list names `selector` exactly, in source order. */
 function rulesWith(css: string, selector: string): string {
@@ -603,5 +604,72 @@ describe('footer', () => {
     expect(rulesWith(finger, '.app__footer a')).toMatch(/display:\s*inline-flex/)
     expect(rulesWith(finger, '.app__footer a')).toMatch(/align-items:\s*center/)
     expect(rulesWith(finger, '.app__footer a')).toMatch(/min-height:\s*var\(--control-height\)/)
+  })
+})
+
+describe('sport records, on the card and the page', () => {
+  it('sets a row’s activity and its count on one line in the second column, the count after a dot', () => {
+    expect(rulesWith(sportRecords, '.records__row > .records__source')).toMatch(/grid-column:\s*2/)
+    expect(rulesWith(sportRecords, '.records__row > .records__source > .records__set')).toMatch(
+      /margin-left:\s*var\(--space-1\)/,
+    )
+  })
+
+  it('gives the label column 6rem, so "Half marathon" fits beside its figure', () => {
+    expect(rulesWith(sportRecords, '.records__row')).toMatch(
+      /grid-template-columns:\s*6rem minmax\(0, 1fr\)/,
+    )
+  })
+
+  it('keeps every record link at least 24 px tall, for a pointer as for a finger', () => {
+    expect(rulesWith(sportRecords, '.records__link')).toMatch(/min-height:\s*24px/)
+  })
+
+  it('lets the shared line’s link wrap, so the date is never cut short', () => {
+    expect(rulesWith(sportRecords, '.records__shared .records__link')).toMatch(
+      /white-space:\s*normal/,
+    )
+    expect(rulesWith(sportRecords, '.records__shared .records__link')).toMatch(
+      /overflow:\s*visible/,
+    )
+  })
+
+  it('sets the sub-line on the numeral’s baseline, beside it, and not indented below', () => {
+    const hero = rulesWith(sportCard, '.sport-card__hero > p:has(.hero-number)')
+    expect(hero).toMatch(/display:\s*flex/)
+    expect(hero).toMatch(/align-items:\s*baseline/)
+    expect(hero).toMatch(/column-gap:\s*var\(--space-3\)/)
+    expect(rulesWith(sportCard, '.sport-card__sub')).toMatch(/margin-left:\s*0/)
+  })
+
+  it('sets the best efforts summary as a label, in the eyebrow’s display face and caps', () => {
+    const summary = rulesWith(sportCard, '.sport-card summary')
+    expect(summary).toMatch(/font-family:\s*var\(--font-display\)/)
+    expect(summary).toMatch(/font-weight:\s*700/)
+    expect(summary).toMatch(/font-size:\s*var\(--text-sm\)/)
+    expect(summary).toMatch(/text-transform:\s*uppercase/)
+    expect(summary).toMatch(/letter-spacing:\s*var\(--tracking-caps\)/)
+  })
+
+  it('sets a gap above the shared line on the Balance card, so it reads apart from the rows', () => {
+    expect(rulesWith(sportCard, '.sport-card__records > .records__shared')).toMatch(
+      /margin-top:\s*var\(--space-3\)/,
+    )
+  })
+
+  it('sets the threshold heading in the eyebrow’s face and line, so it reads as the label above a value', () => {
+    const threshold = rulesWith(sportPage, '.sport-page__threshold')
+    expect(threshold).toMatch(/font-family:\s*inherit/)
+    expect(threshold).toMatch(/line-height:\s*1\.5/)
+  })
+
+  it('sets the empty sport page’s two actions side by side, wrapping on a narrow phone', () => {
+    const actions = rulesWith(sportPage, '.sport-page__actions')
+    expect(actions).toMatch(/display:\s*flex/)
+    expect(actions).toMatch(/flex-wrap:\s*wrap/)
+  })
+
+  it('starts the one-sport empty prompt at the same height as a card heading, with the wider top space', () => {
+    expect(rulesWith(emptySportCard, '.empty-sport')).toMatch(/padding-top:\s*var\(--space-5\)/)
   })
 })

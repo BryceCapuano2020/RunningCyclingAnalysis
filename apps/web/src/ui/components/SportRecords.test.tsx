@@ -180,10 +180,31 @@ describe('SportRecords', () => {
       />,
     )
     expect(screen.queryByText(/All set on/)).not.toBeInTheDocument()
-    const count = screen.getByText('Set 9 days ago')
+    const count = screen.getByText('· 9 days ago')
     expect(count).toHaveClass('records__set')
     expect(count).not.toHaveClass('chip')
-    expect(screen.getByText('Set 4 days ago')).toBeInTheDocument()
+    expect(screen.getByText('· 4 days ago')).toBeInTheDocument()
+  })
+
+  it('puts each row’s count on its activity’s line, after the name, and not in the figure', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min', value: '3:50 /km', setDays: 156 }),
+          row({ key: 'b', label: '20 min', value: '250 W', activity: lateRun, setDays: 4 }),
+        ]}
+      />,
+    )
+    const [first, second] = screen.getAllByRole('listitem')
+    const source = screen
+      .getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
+      .closest('.records__source')
+    expect(source).toHaveTextContent('Morning run, 5 Jan · 5 months ago')
+    expect(source?.parentElement).toBe(first)
+    expect(within(first!).getByText('3:50 /km').closest('.records__figure')).not.toHaveTextContent(
+      'ago',
+    )
+    expect(second).toHaveTextContent('Late run, 9 Jan · 4 days ago')
   })
 
   it('keeps each link when the records come from different activities', () => {

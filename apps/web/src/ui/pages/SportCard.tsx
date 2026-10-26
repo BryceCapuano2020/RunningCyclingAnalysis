@@ -71,27 +71,31 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
       </h2>
       <>
         <div className="sport-card__hero">
-          <p className="eyebrow">{THRESHOLD_LABEL[sport]}</p>
           {held ? (
             <WeightNote />
-          ) : hero ? (
-            <p>
-              <span className="hero-number">
-                {hero.number}
-                <span className="hero-number__unit"> {hero.unit}</span>
-              </span>
-              {hero.sub && (
-                <>
-                  {/* Hidden space: the sub-line sits apart on screen, and reads apart in the text too. */}
-                  <span className="sr-only"> </span>
-                  <span className="sport-card__sub">{hero.sub}</span>
-                </>
-              )}
-            </p>
           ) : (
-            <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
+            <>
+              <p className="eyebrow">{THRESHOLD_LABEL[sport]}</p>
+              {hero ? (
+                <p>
+                  <span className="hero-number">
+                    {hero.number}
+                    <span className="hero-number__unit"> {hero.unit}</span>
+                  </span>
+                  {hero.sub && (
+                    <>
+                      {/* Hidden space: the sub-line sits apart on screen, and reads apart in the text too. */}
+                      <span className="sr-only"> </span>
+                      <span className="sport-card__sub">{hero.sub}</span>
+                    </>
+                  )}
+                </p>
+              ) : (
+                <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
+              )}
+              {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+            </>
           )}
-          {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
         </div>
         {!held && grade && (
           <AgeGradeBlock sport={sport} outcome={grade} effort={effort} namesStandard={false} />
@@ -99,8 +103,16 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
         {/* On a phone the records fold away, so the card's answer and its ladder read first. */}
         {records.length > 0 && (
           <details className="sport-card__records" open={recordsOpen}>
-            {/* The choice is taken on the click, which is synchronous, not on the toggle event after it. */}
-            <summary onClick={() => setChosen(!recordsOpen)}>Best efforts</summary>
+            {/* The choice is taken on the click, which is synchronous, not on the toggle event after it. The
+                press is cancelled so the browser's own toggle does not open or shut it a second time. */}
+            <summary
+              onClick={(event) => {
+                event.preventDefault()
+                setChosen(!recordsOpen)
+              }}
+            >
+              Best efforts
+            </summary>
             <SportRecords
               rows={records.map((record) =>
                 recordRow(sport, record, {

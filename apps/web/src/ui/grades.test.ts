@@ -23,6 +23,7 @@ import {
   gradeParts,
   gradedSexOf,
   headlineGrades,
+  listedGradeNotes,
   sportGrade,
 } from './grades'
 import type { AgeProfile, GradeOutcome, SportGrade } from './grades'
@@ -359,6 +360,25 @@ describe('grade parts', () => {
     const gap: GradeOutcome = { kind: 'gap', reason: NO_STANDARD_TEXT }
     expect(gapRecordText('run', gap)).toBe('No age standard under 1 mile')
     expect(gapRecordText('ride', gap)).toBe('No age standard for this duration')
+  })
+
+  it('says a list’s lead and no-standard gap once under it, so a row in that list drops both', () => {
+    const ride: SportGrade = { centre: { grade: 0.6, level: 'Local' }, range: null }
+    const graded: GradeOutcome = { kind: 'graded', age: 40, grade: ride }
+    const gap: GradeOutcome = { kind: 'gap', reason: NO_STANDARD_TEXT }
+    expect(gradeParts('ride', ride, 'row').lead).toBeNull()
+    expect(gradeParts('ride', ride, 'row').level).toBe('Local')
+    expect(listedGradeNotes('ride', [graded, null])).toEqual([
+      'Estimated through its running equivalent',
+    ])
+    expect(listedGradeNotes('run', [graded, gap])).toEqual(['No age standard under 1 mile'])
+    expect(listedGradeNotes('ride', [gap])).toEqual(['No age standard for this duration'])
+  })
+
+  it('names nothing under a list with no graded ride and no no-standard gap', () => {
+    expect(listedGradeNotes('run', [])).toEqual([])
+    expect(listedGradeNotes('ride', [{ kind: 'gap', reason: NO_DATE_TEXT }])).toEqual([])
+    expect(listedGradeNotes('run', [null])).toEqual([])
   })
 
   it('keeps the reason of any other gap, and gives no gap for a graded record', () => {

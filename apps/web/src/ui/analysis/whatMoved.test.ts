@@ -187,7 +187,7 @@ describe('whatMoved: bests', () => {
         spoken: 'New best 20 minutes ride: 262 watts',
       },
       {
-        text: 'New best 1 hour ride: 210 W',
+        text: 'New best 60 min ride: 210 W',
         spoken: 'New best 1 hour ride: 210 watts',
       },
     ])

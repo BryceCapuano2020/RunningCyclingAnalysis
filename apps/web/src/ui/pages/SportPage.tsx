@@ -5,11 +5,13 @@ import type { SportCurves, TrendPoint } from '@rca/core/digest'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
+import { METRES_PER_KM, METRES_PER_MILE } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { DEFAULT_VIEW, queryFromView } from '../activitiesView'
 import { SportCurveChart, TrendChart } from '../charts'
 import { AddSportFiles } from '../components/AddSportFiles'
 import { AgeGradeBlock } from '../components/AgeGradeBlock'
+import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { recordGradeCell } from '../components/recordGrade'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { SportRecords } from '../components/SportRecords'
@@ -19,7 +21,7 @@ import { plural } from '../components/plural'
 import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { FLAT_PACE_NOTE, distanceGrade, sportGrade } from '../grades'
+import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeGap, AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
@@ -103,6 +105,16 @@ function AgeNote({ missing }: { missing: AgeGap }) {
   )
 }
 
+/** A run distance's row label in sentence case, such as "Half marathon" from its record name. */
+function rowLabel(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
+/** Whether a distance's pace is its time: the mile in miles, or the kilometre in kilometres. */
+function paceIsTime(distanceM: number, units: UnitSystem): boolean {
+  return distanceM === (units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM)
+}
+
 /** One sport's records in its own units, the best-effort curve and the evidence behind them. */
 export function SportPage({
   sport,
@@ -158,10 +170,11 @@ export function SportPage({
           previousLabel,
         )
       : null
+  // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
   const rows: RecordRow[] = graded.map(({ record, outcome }) =>
     recordRow(sport, record, {
-      label: `Best ${recordDurationLabel(record.durationS)}`,
-      grade: recordGradeCell(sport, outcome, record.covered),
+      label: recordDurationLabel(record.durationS),
+      grade: recordGradeCell(sport, outcome, record.covered, 'row'),
       change: changeOf(record.durationS),
       setDays: setDaysOf(record.activity, openedAt),
     }),
@@ -169,15 +182,19 @@ export function SportPage({
   // A distance best is the run's own pace, not a flat pace, so it carries no Flat mark.
   const distanceRows: RecordRow[] = (distance?.records ?? []).map((record, index) => ({
     key: `distance-${record.distanceM}`,
-    label: `Best ${record.label}`,
+    label: rowLabel(record.label),
     value: record.time,
-    sub: record.pace,
-    grade: recordGradeCell(sport, distanceOutcomes[index] ?? null),
+    sub: paceIsTime(record.distanceM, units) ? null : record.pace,
+    grade: recordGradeCell(sport, distanceOutcomes[index] ?? null, null, 'row'),
     tags: [],
     change: null,
     setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,
   }))
+  const listNotes = listedGradeNotes(sport, [
+    ...graded.map(({ outcome }) => outcome),
+    ...distanceOutcomes,
+  ])
   const [effort, setEffort] = useState<EffortLengthS>(HEADLINE_DURATION_S)
   // The time the page was opened at, so a year shows only when the last run is from an earlier year.
   const form = formLine(result.activities, sport, units, openedAt)
@@ -196,10 +213,13 @@ export function SportPage({
         {inLibrary > 0 && controls}
       </div>
       {count === 0 ? (
-        <>
+        <section className="section">
           <p className="secondary">{emptyText}</p>
           {inLibrary === 0 ? (
-            <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+            <div className="sport-page__actions">
+              <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+              <HowToGetFilesButton />
+            </div>
           ) : (
             rangeDays !== null &&
             onShowAll && (
@@ -208,15 +228,15 @@ export function SportPage({
               </button>
             )
           )}
-        </>
+        </section>
       ) : held ? (
         <WeightNote />
       ) : (
         <>
           <section className="section" aria-labelledby={`${sport}-threshold`}>
-            <p id={`${sport}-threshold`} className="eyebrow">
+            <h2 id={`${sport}-threshold`} className="eyebrow sport-page__threshold">
               {THRESHOLD_LABEL[sport]}
-            </p>
+            </h2>
             {hero ? (
               <p className="sport-page__hero">
                 <span className="hero-number">{hero.value}</span>
@@ -238,7 +258,6 @@ export function SportPage({
           <section className="section" aria-labelledby={`${sport}-records`}>
             <h2 id={`${sport}-records`}>Best efforts</h2>
             {form && <p className="muted">{form}</p>}
-            {sport === 'run' && <p className="muted">{FLAT_PACE_NOTE}</p>}
             {missingAge !== null && <AgeNote missing={missingAge} />}
             {sport === 'ride' && someEstimated && (
               <p className="muted">
@@ -247,6 +266,12 @@ export function SportPage({
               </p>
             )}
             <SportRecords rows={[...rows, ...distanceRows]} />
+            {listNotes.map((note) => (
+              <p key={note} className="muted">
+                {note}
+              </p>
+            ))}
+            {sport === 'run' && <p className="muted">{FLAT_PACE_NOTE}</p>}
             {distance?.partial && (
               <p className="muted">
                 Runs added before distance bests were recorded don’t have them yet, so these may not

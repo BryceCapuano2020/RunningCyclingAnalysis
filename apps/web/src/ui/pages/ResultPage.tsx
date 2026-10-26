@@ -79,12 +79,16 @@ export function ResultPage({
   const removing = analysis.busy || analysis.libraryAction !== null
   // What the results are based on, at each page's foot. The sample has its own persona, so none.
   // The weight is named only once it is entered; settings then carries the athlete's own weight.
+  // A ride held for its weight has a note of its own that links to Profile, so the line above it does not.
+  const heldRide =
+    route.page === 'ride' && !weightKnown && countSport(result.activities, 'ride') > 0
   const footnote = isSample ? null : (
     <ProfileFootnote
       massKg={weightKnown ? settings.massKg : null}
       units={units}
       birthYear={birthYear}
       sex={sex}
+      unsetLink={!heldRide}
     />
   )
   const [storedChoice, storeChoice] = usePeriodChoice()
