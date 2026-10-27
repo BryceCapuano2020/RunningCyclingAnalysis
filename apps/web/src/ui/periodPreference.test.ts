@@ -5,6 +5,7 @@ import {
   PERIOD_KEY,
   parsePeriodChoice,
   storedPeriodChoice,
+  storedPeriodRequest,
   usePeriodChoice,
 } from './periodPreference'
 
@@ -65,5 +66,19 @@ describe('storedPeriodChoice', () => {
     } finally {
       read.mockRestore()
     }
+  })
+})
+
+describe('storedPeriodRequest', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('names the period stored on this device, and nothing for the default', () => {
+    expect(storedPeriodRequest()).toEqual({})
+    localStorage.setItem(PERIOD_KEY, JSON.stringify('default'))
+    expect(storedPeriodRequest()).toEqual({})
+    localStorage.setItem(PERIOD_KEY, JSON.stringify('all'))
+    expect(storedPeriodRequest()).toEqual({ choice: 'all' })
   })
 })

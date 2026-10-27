@@ -984,6 +984,20 @@ describe('useAnalysis requests', () => {
     ])
   })
 
+  it('names the period picked on this device in the library and sample loads', () => {
+    localStorage.setItem(PERIOD_KEY, JSON.stringify(365))
+    try {
+      const { result } = setup(SIGNED_OUT)
+      act(() => result.current.loadSample())
+      expect(worker().posted).toEqual([
+        { type: 'loadDevice', settings: SETTINGS, choice: 365 },
+        { type: 'loadSample', settings: SETTINGS, choice: 365 },
+      ])
+    } finally {
+      localStorage.removeItem(PERIOD_KEY)
+    }
+  })
+
   it('asks the worker to grade the trend once the athlete has an age and sex, and only then', () => {
     const { rerender } = renderHook(
       ({ grade }: { grade: boolean }) => useAnalysis(SETTINGS, SIGNED_OUT, grade),

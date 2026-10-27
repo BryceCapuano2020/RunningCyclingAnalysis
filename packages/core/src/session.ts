@@ -197,6 +197,14 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /**
+   * Chooses the period without analysing, so the next load is analysed once, on that period. Nothing
+   * to choose keeps the period the session has.
+   */
+  choosePeriod(choice: PeriodChoice | undefined): void {
+    if (choice !== undefined) this.choice = choice
+  }
+
   clear(): SessionState {
     this.reset()
     return this.state(null)

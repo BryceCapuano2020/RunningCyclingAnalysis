@@ -19,6 +19,7 @@ import type { Account, ErrorNotice, ImportProgress, LibraryStatus, Pending } fro
 import { drainBatches, isDeletion } from './analysis/model'
 import { useWorkerEvents } from './analysis/workerEvents'
 import { useWorkerTransport } from './analysis/workerTransport'
+import { storedPeriodRequest } from './periodPreference'
 import { replyOf } from './routeReply'
 import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
@@ -216,7 +217,7 @@ export function useAnalysis(
     const { status } = accountRef.current
     if (deviceLoadedRef.current || (status !== 'signed-out' && status !== 'unavailable')) return
     deviceLoadedRef.current = true
-    sendToWorker({ type: 'loadDevice', settings: settingsRef.current })
+    sendToWorker({ type: 'loadDevice', settings: settingsRef.current, ...storedPeriodRequest() })
   }, [sendToWorker])
 
   /** Asks the worker for a saved activity's route, under the signed-in account when there is one. */

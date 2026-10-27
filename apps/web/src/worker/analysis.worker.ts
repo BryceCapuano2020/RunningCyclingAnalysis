@@ -155,6 +155,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'loadSample':
       showingSample = true
       device.replaced()
+      session.choosePeriod(request.choice)
       return session.loadSample(request.settings)
     case 'loadServer':
       showingSample = false
@@ -174,6 +175,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      session.choosePeriod(request.choice)
       return device.load(request.settings)
     case 'clear':
       showingSample = false

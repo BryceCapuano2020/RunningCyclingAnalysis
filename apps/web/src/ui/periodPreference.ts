@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { PeriodChoice } from '@rca/core/period'
+import type { LoadPeriod } from '../worker/protocol'
 import { RANGE_OPTIONS } from './components/rangeOptions'
 /** Where the period picked on this device is kept. Exported so the tests read the same key. */
 export const PERIOD_KEY = 'rca.period.v1'
@@ -25,6 +26,15 @@ export function storedPeriodChoice(): PeriodChoice {
   } catch {
     return 'default'
   }
+}
+
+/**
+ * What a library or sample load says of the period: the one stored on this device, or nothing for
+ * the default, which a new session already has.
+ */
+export function storedPeriodRequest(): LoadPeriod {
+  const choice = storedPeriodChoice()
+  return choice === 'default' ? {} : { choice }
 }
 
 /** The period on screen, kept on this device once the athlete picks one. */

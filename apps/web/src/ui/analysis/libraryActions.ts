@@ -11,7 +11,7 @@ import {
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
-import { storedPeriodChoice } from '../periodPreference'
+import { storedPeriodRequest } from '../periodPreference'
 import { drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
@@ -47,13 +47,11 @@ export function useLibraryActions({
   const loadLibrary = useCallback(
     (userId: string) => {
       setLibrary('loading')
-      // The worker analyses the library as it loads, so it starts on the period the page will show.
-      const choice = storedPeriodChoice()
       send({
         type: 'loadServer',
         settings: settingsRef.current,
         userId,
-        ...(choice === 'default' ? {} : { choice }),
+        ...storedPeriodRequest(),
       })
     },
     [send, setLibrary, settingsRef],

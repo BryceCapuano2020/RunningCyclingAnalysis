@@ -53,9 +53,8 @@ export async function loadServer(
   }
   ctx.post({ type: 'missingOriginals', count: ctx.missingOriginals.size })
   ctx.device.replaced()
-  // The first analysis is of the period the page shows. A new session holds no library yet, so
-  // choosing the period first costs nothing, and the page need not ask for it afterwards.
-  if (choice !== undefined) ctx.session.setRange(choice, settings)
+  // The first analysis is of the period the page shows, so the page need not ask for it afterwards.
+  ctx.session.choosePeriod(choice)
   return ctx.session.loadDigests(
     records.map((record) => record.digest),
     settings,

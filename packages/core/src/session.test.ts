@@ -598,6 +598,17 @@ describe('AnalysisSession', () => {
     expect(state.result?.activities.length).toBeLessThan(sample.length)
   })
 
+  it('analyses the next load on the period it was told to choose, and keeps its own when told none', () => {
+    const session = new AnalysisSession()
+    const digests = sampleDataset().activities.map(digestActivity)
+    session.choosePeriod(42)
+    expect(session.loadDigests(digests, SETTINGS).period.choice).toBe(42)
+    session.choosePeriod(undefined)
+    expect(session.loadDigests(digests, SETTINGS).period.choice).toBe(42)
+    session.choosePeriod('all')
+    expect(session.loadSample(SETTINGS).period.choice).toBe('all')
+  })
+
   it('names the activities of a Strava export from its activities.csv, whatever order the files sit in', async () => {
     const session = new AnalysisSession()
     const bytes = zipSync({
