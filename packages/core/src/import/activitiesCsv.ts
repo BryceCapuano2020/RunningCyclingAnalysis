@@ -21,15 +21,19 @@ export const MAX_ACTIVITY_LIST_BYTES = 32 * 1024 * 1024
 
 const LIST_NAME = 'activities.csv'
 /** The list at the root of the zip, or in a folder at its root. The zip's own central directory is searched. */
-const LIST_PATH = /(^|\/)activities\.csv$/i
+const LIST_PATH = new RegExp(`(^|/)${LIST_NAME.replace(/\./g, '\\.')}$`, 'i')
 
-/** A names key: lowercase, with forward slashes, no leading "./" or "/", and no ".gz". */
+/**
+ * A names key: lowercase, with forward slashes, no ".gz", and the path resolved: no empty or "." segment,
+ * and a ".." segment removes the one before it. Nothing leads above the root.
+ */
 export function entryKey(path: string): string {
-  return path
-    .replace(/\\/g, '/')
-    .replace(/^(\.?\/)+/, '')
-    .replace(/\.gz$/i, '')
-    .toLowerCase()
+  const segments: string[] = []
+  for (const segment of path.replace(/\\/g, '/').replace(/\.gz$/i, '').toLowerCase().split('/')) {
+    if (segment === '..') segments.pop()
+    else if (segment !== '' && segment !== '.') segments.push(segment)
+  }
+  return segments.join('/')
 }
 
 /** What a Strava export's activity list says about one activity file. A blank column is left out. */
@@ -133,13 +137,15 @@ export async function readActivityList(
 }
 
 /**
- * The filter that leaves out of a zip's activities those that its list does not name and that sit in
- * a folder with none that it does, such as the saved routes of a Strava export. A file the list does
- * not name is still read when it shares its folder with one it does, as a partial or edited list
- * leaves it. Undefined, so that every activity file stays, when the list cannot be trusted to say
- * what is an activity: there is none, or it is malformed, names no file or was stopped at the row cap;
- * or the zip holds more than one activities.csv; or the list names none of the zip's activity files,
- * as when they sit in another folder than it expects or are spelled another way.
+ * The filter that leaves out of a zip's activity files those that its list does not name and that sit
+ * in no folder it names a file in, such as the saved routes of a Strava export. A folder counts when a
+ * file the list names sits in it or in a folder above it, so a file the list does not name is still
+ * read when it is beside a named one or below one, as a partial or edited list leaves it. A named file
+ * at the root of the zip covers every folder. Undefined, so that every activity file stays, when the
+ * list cannot be trusted to say what is an activity: there is none, or it is malformed, names no file
+ * or was stopped at the row cap; or the zip holds more than one activities.csv; or the list names none
+ * of the zip's activity files, as when they sit in another folder than it expects or are spelled
+ * another way.
  */
 export async function listedOnly(
   source: RangedSource,
@@ -148,25 +154,26 @@ export async function listedOnly(
 ): Promise<EntryFilter | undefined> {
   if (list === null || !list.complete || list.files.size === 0) return undefined
   const { files } = list
-  const folders = await listedFolders(source, limits, files)
-  if (folders === undefined) return undefined
-  return (entry) => {
-    const key = entryKey(entry)
-    return files.has(key) || folders.has(folderOf(key))
-  }
+  if (!(await namesTheZip(source, limits, files))) return undefined
+  // The folders come from every row, whether or not the zip holds the file the row names.
+  const folders = new Set([...files.keys()].map(folderOf))
+  return (entry) => isCovered(entryKey(entry), folders)
 }
 
-/** The folders of the zip's activity files that the list names; undefined when the list is not to be trusted. */
-async function listedFolders(
+/**
+ * Whether the list can be trusted for this zip: it holds one activities.csv, and the list names at
+ * least one of the activity files it holds. False when the directory cannot be read.
+ */
+async function namesTheZip(
   source: RangedSource,
   limits: ExtractLimits,
   files: ReadonlyMap<string, ListedActivity>,
-): Promise<Set<string> | undefined> {
+): Promise<boolean> {
   try {
     const directory = await directoryOf(source, limits)
-    if (directory === null) return undefined
-    const folders = new Set<string>()
+    if (directory === null) return false
     let lists = 0
+    let named = 0
     const complete = await walkDirectory(
       (start, end) => readRange(source, start, end),
       directory.offset,
@@ -175,19 +182,29 @@ async function listedFolders(
       (name) => {
         if (isIgnored(name)) return
         if (LIST_PATH.test(name)) lists++
-        else if (ACTIVITY.test(name) && files.has(entryKey(name)))
-          folders.add(folderOf(entryKey(name)))
+        else if (ACTIVITY.test(name) && files.has(entryKey(name))) named++
       },
     )
-    return complete && lists === 1 && folders.size > 0 ? folders : undefined
+    return complete && lists === 1 && named > 0
   } catch {
-    return undefined
+    return false
   }
 }
 
 /** The folder of a key, with its closing slash; empty at the root. */
 function folderOf(key: string): string {
   return key.slice(0, key.lastIndexOf('/') + 1)
+}
+
+/** Whether a key sits in one of the folders, or in a folder below one. The root, '', is above every folder. */
+function isCovered(key: string, folders: ReadonlySet<string>): boolean {
+  if (folders.has('')) return true
+  let folder = ''
+  for (const segment of key.split('/').slice(0, -1)) {
+    folder += `${segment}/`
+    if (folders.has(folder)) return true
+  }
+  return false
 }
 
 /**

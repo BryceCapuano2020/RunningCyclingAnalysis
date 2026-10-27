@@ -14,7 +14,7 @@ import {
   trackFromPoints,
 } from '../import/trackpoints'
 import type { LatLon } from '../import/trackpoints'
-import { sportOfType } from '../import/sportType'
+import { isEBikeType, sportOfType } from '../import/sportType'
 import type { SportChoice } from '../import/sportType'
 import type { Sport } from '../types'
 import { scanXmlBytes } from '../xml/parse'
@@ -191,15 +191,12 @@ class TcxScanner implements XmlHandler {
 
 /**
  * The sport is the Sport attribute's, unless that is Other or missing and the export's list says what
- * the activity was.
+ * the activity was. A list that says e-bike refuses the activity whatever its Sport.
  */
 function openActivity(sportName: string | undefined, listed: string | undefined): OpenActivity {
   const sport = sportOf(sportName)
-  if (
-    sport === null &&
-    listed !== undefined &&
-    (sportName === undefined || sportName === 'Other')
-  ) {
+  const unsaid = sport === null && (sportName === undefined || sportName === 'Other')
+  if (listed !== undefined && (unsaid || isEBikeType(listed))) {
     return { ...sportOfType(listed, undefined), points: [] }
   }
   return { sport, indoor: false, sportLabel: sportName ?? 'unknown', points: [] }

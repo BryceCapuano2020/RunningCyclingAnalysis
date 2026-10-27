@@ -1,7 +1,8 @@
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './archive'
-import type { EntryFilter, ExtractLimits } from './archive'
+import type { ExtractLimits } from './archive'
+import type { EntryFilter } from './zipDirectory'
 
 const FIT = new Uint8Array([14, 16, 0, 0, 1, 2, 3, 4, 46, 70, 73, 84, 9, 9])
 const NOT_GZIP = new Uint8Array([1, 2, 3, 4, 5])
@@ -96,16 +97,29 @@ describe('extractFitFiles with a filter on the zip entries', () => {
     expect(errors).toHaveLength(1)
   })
 
-  it('does not count formats the app does not read, or the folders and metadata of a zip', async () => {
+  it('counts a file in a format the app does not read as not an activity too, when the filter refuses it', async () => {
+    const zip = zipFile({
+      'routes/1.kml': strToU8('kml'),
+      'routes/2.pwx.gz': gzipSync(strToU8('pwx')),
+      'routes/3.hrm': strToU8('hrm'),
+      'activities/4.kml': strToU8('kml'),
+    })
+    const { summary, errors } = await collect(zip, inActivities)
+
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 1, notActivities: 3 })
+    expect(errors).toEqual([])
+  })
+
+  it('counts nothing for folders, macOS metadata or other files', async () => {
     const zip = zipFile({
       'routes/': new Uint8Array(0),
-      'routes/1.kml': strToU8('kml'),
       '__MACOSX/routes/._1.gpx': strToU8('metadata'),
+      'routes/photo.jpg': strToU8('jpeg'),
       'notes.txt': strToU8('text'),
     })
     const { summary } = await collect(zip, inActivities)
 
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 1, notActivities: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
   })
 
   it('applies to the zip it is given, not to the zips inside it', async () => {

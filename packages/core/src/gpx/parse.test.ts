@@ -683,6 +683,17 @@ describe('parseGpx with the type an export list gives', () => {
     },
   )
 
+  it.each(['E-Bike Ride', 'E-Mountain Bike Ride'])(
+    'refuses a ride the track names when the list says %s, which is the one case the list overrides',
+    (activityType) => {
+      for (const type of ['1', 'Ride', 'cycling']) {
+        const file = gpxFile(track(type, [points(120)]))
+        const result = parseGpx(file, 'ebike.gpx', DEFAULT_PARSE_LIMITS, { activityType })
+        expect(refusalOf(result).code).toBe('e-bike')
+      }
+    },
+  )
+
   it('keeps refusing a track with no type when the list gives none', () => {
     const file = gpxFile(track(undefined, [points(120)]))
     const result = parseGpx(file, 'untyped.gpx', DEFAULT_PARSE_LIMITS, {})

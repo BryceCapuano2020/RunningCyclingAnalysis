@@ -809,6 +809,14 @@ describe('parseTcx with the type an export list gives', () => {
     })
   })
 
+  it.each(['E-Bike Ride', 'E-Mountain Bike Ride'])(
+    'refuses a Biking activity when the list says %s, which is the one case the list overrides',
+    (activityType) => {
+      const biking = documentXml([activityXml('Biking', [lapXml(runPoints(0, 90, true))])])
+      expect(refusalOf(parseListed(biking, activityType)).code).toBe('e-bike')
+    },
+  )
+
   it('keeps refusing an e-bike ride named by the list', () => {
     expect(refusalOf(parseListed(other, 'E-Bike Ride')).code).toBe('e-bike')
   })

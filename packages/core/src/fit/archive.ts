@@ -39,8 +39,6 @@ import {
 } from './zipDirectory'
 import type { EntryFilter } from './zipDirectory'
 
-export type { EntryFilter } from './zipDirectory'
-
 export interface FitFile {
   fileName: string
   bytes: Uint8Array
@@ -291,13 +289,15 @@ async function streamZip(
       return drain(file)
     }
     if (isIgnored(entry)) return drain(file)
+    // A file of the zip that its list leaves out is not an activity, in a format the app reads or not.
+    const unlisted = depth === 0 && sink.listed?.(entry) === false
     if (OTHER_ACTIVITY.test(entry)) {
-      sink.summary.otherActivityFiles++
+      sink.summary[unlisted ? 'notActivities' : 'otherActivityFiles']++
       return drain(file)
     }
     const nested = ZIP.test(entry)
     if (!nested && !ACTIVITY.test(entry)) return drain(file)
-    if (!nested && depth === 0 && sink.listed?.(entry) === false) {
+    if (unlisted && !nested) {
       sink.summary.notActivities++
       return drain(file)
     }

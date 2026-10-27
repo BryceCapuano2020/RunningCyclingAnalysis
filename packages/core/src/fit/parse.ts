@@ -3,6 +3,7 @@ import { activitiesFromUnits } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
+import { isEBikeType } from '../import/sportType'
 import { decodeFit } from './protocol/decode'
 import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
@@ -98,8 +99,13 @@ function parseUnchecked(
   const units = assignUnits(messages.sessions, timed, messages.events, skipped)
   const sportMesg = messages.sports[0]
   const origins = distanceOrigins(units, timed)
+  // The file names its own sport and keeps it, except that a list which says e-bike refuses the file.
+  const listedEBike = opts.activityType !== undefined && isEBikeType(opts.activityType)
   const result = activitiesFromUnits(
-    { fileName, units: units.map((unit) => toPipelineUnit(unit, sportMesg, origins.get(unit))) },
+    {
+      fileName,
+      units: units.map((unit) => toPipelineUnit(unit, sportMesg, origins.get(unit), listedEBike)),
+    },
     limits,
     opts,
   )
@@ -112,9 +118,10 @@ function toPipelineUnit(
   unit: Unit,
   sportMesg: DecodedSportMessage | undefined,
   distanceOrigin: number | undefined,
+  listedEBike: boolean,
 ): PipelineUnit {
   const { sport, subSport } = resolveSport(unit.session, sportMesg)
-  const mapping = mapSport(sport, subSport)
+  const mapping = mapSport(sport, subSport, listedEBike)
   const shared = {
     records: unit.records.map((t) => toRaw(t)),
     timerEvents: unit.events,
@@ -138,8 +145,9 @@ function toPipelineUnit(
 function mapSport(
   sport: FitSportName | undefined,
   subSport: FitSubSportName | undefined,
+  listedEBike: boolean,
 ): SportMapping {
-  if (inSet(E_BIKE_SUB_SPORTS, subSport) || sport === 'eBiking') {
+  if (listedEBike || inSet(E_BIKE_SUB_SPORTS, subSport) || sport === 'eBiking') {
     return {
       ok: false,
       reason: E_BIKE_REASON,

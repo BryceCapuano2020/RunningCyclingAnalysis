@@ -41,6 +41,13 @@ describe('entryKey', () => {
     expect(entryKey('./Activities\\1001.FIT.GZ')).toBe('activities/1001.fit')
     expect(entryKey('/activities/1002.gpx')).toBe('activities/1002.gpx')
   })
+
+  it('resolves . and .. segments and repeated slashes, so a path written another way is the same key', () => {
+    expect(entryKey('export/./old//3.fit.gz')).toBe('export/old/3.fit')
+    expect(entryKey('export/old/../activities/1.fit')).toBe('export/activities/1.fit')
+    expect(entryKey('../../a/1.fit')).toBe('a/1.fit')
+    expect(entryKey('.\\old\\.\\3.FIT')).toBe('old/3.fit')
+  })
 })
 
 describe('parseActivityList', () => {
@@ -168,9 +175,40 @@ describe('listedOnly', () => {
     expect(keep?.('routes/1.gpx')).toBe(false)
   })
 
-  it('compares folders exactly, so a folder below a listed one is not kept with it', async () => {
-    const keep = await filterOf(stravaLayout)
-    expect(keep?.('activities/old/1.fit')).toBe(false)
+  it('keeps a file in a folder below a listed one, and leaves out a sibling folder', async () => {
+    const keep = await filterOf({
+      ...stravaLayout,
+      'activities/2019/1.fit': strToU8('fit'),
+      'activities/2019/old/2.fit': strToU8('fit'),
+    })
+    expect(keep?.('activities/2019/1.fit')).toBe(true)
+    expect(keep?.('activities/2019/old/2.fit')).toBe(true)
+    expect(keep?.('routes/1.gpx')).toBe(false)
+    expect(keep?.('routes/activities/1.gpx')).toBe(false)
+  })
+
+  it('keeps every folder when a listed file sits at the root of the zip', async () => {
+    const keep = await filterOf({
+      '1001.fit': strToU8('fit'),
+      'routes/1.gpx': strToU8('gpx'),
+      'activities.csv': strToU8('Activity Name,Filename\nRun,1001.fit\n'),
+    })
+    expect(keep?.('routes/1.gpx')).toBe(true)
+  })
+
+  it('keeps the folder of a listed file the zip does not hold, and reads . and .. in the rows', async () => {
+    const keep = await filterOf({
+      'export/activities/1001.fit': strToU8('fit'),
+      'export/old/4.fit': strToU8('fit'),
+      'export/routes/1.gpx': strToU8('gpx'),
+      'export/activities.csv': strToU8(
+        'Activity Name,Filename\nRun,activities/1001.fit\nRun,./old/3.fit.gz\nRun,activities/../new/5.fit\n',
+      ),
+    })
+    expect(keep?.('export/old/3.fit')).toBe(true)
+    expect(keep?.('export/old/4.fit')).toBe(true)
+    expect(keep?.('export/new/9.fit')).toBe(true)
+    expect(keep?.('export/routes/1.gpx')).toBe(false)
   })
 
   it('does not filter without a list, with a list that names no file, or with one cut at the cap', async () => {

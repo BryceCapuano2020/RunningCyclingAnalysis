@@ -48,14 +48,17 @@ export interface SportChoice {
 /**
  * The sport of a track's `type`. A track that names none takes the sport of `listed`, the type its
  * export's list gives, and is refused as unsaid only when the list names none either. So does a track
- * that names its sport only by a number the app does not know. A track that names its sport keeps it.
- * A refusal is labelled with the sport's name, which is the list's when the track gave none or a number.
+ * that names its sport only by a number the app does not know. A track that names its sport keeps it,
+ * except that a list which says e-bike refuses the file whatever it names: the one case the list
+ * overrides, and it can only refuse. A refusal is labelled with the sport's name, which is the list's
+ * when the track gave none or a number.
  */
 export function sportOfType(
   type: string | undefined,
   creator: string | undefined,
   listed?: string,
 ): SportChoice {
+  if (listed !== undefined && isEBikeType(listed)) return choiceOf(listed)
   if (type === undefined) return listed === undefined ? unsaid(creator) : choiceOf(listed)
   const choice = choiceOf(type)
   return choice.sport === null && listed !== undefined && CODE.test(type.trim())
@@ -63,16 +66,25 @@ export function sportOfType(
     : choice
 }
 
-function choiceOf(type: string): SportChoice {
-  const key = type
+/** Whether a type names an e-bike ride, which is refused: its motor hides the athlete's own power. */
+export function isEBikeType(type: string): boolean {
+  return E_BIKE_KEYS.has(keyOf(type).replace(/[^a-z0-9]/g, ''))
+}
+
+function keyOf(type: string): string {
+  return type
     .toLowerCase()
     .replace(/[\s_-]+/g, ' ')
     .trim()
+}
+
+function choiceOf(type: string): SportChoice {
+  const key = keyOf(type)
   if (RUN_TYPES.has(key)) return { sport: 'run', indoor: false, sportLabel: type }
   if (INDOOR_RUN_TYPES.has(key)) return { sport: 'run', indoor: true, sportLabel: type }
   if (RIDE_TYPES.has(key)) return { sport: 'ride', indoor: false, sportLabel: type }
   if (INDOOR_RIDE_TYPES.has(key)) return { sport: 'ride', indoor: true, sportLabel: type }
-  if (E_BIKE_KEYS.has(key.replace(/[^a-z0-9]/g, ''))) {
+  if (isEBikeType(type)) {
     const refusal = {
       reason: E_BIKE_REASON,
       code: 'e-bike' as const,

@@ -150,7 +150,7 @@ describe('AnalysisSession reading a Strava export', () => {
 
 /**
  * What a zip's activity files become when its activities.csv names some of them. A saved route is an
- * empty GPX, so one that is read shows in `rejected` as empty, and one that is left out does not.
+ * empty GPX, so one that is read shows in `read` as an empty file, and one that is left out does not.
  */
 describe('which files of an export its list leaves out', () => {
   const rideLater = { ...ride, startMs: ride.startMs + 86_400_000 }
@@ -162,7 +162,9 @@ describe('which files of an export its list leaves out', () => {
     return {
       read: state.rejected.map((file) => file.fileName).sort(),
       activities: state.result?.activities.length ?? 0,
+      rejected: outcome.rejected,
       notActivities: outcome.notActivities,
+      unsupported: state.unsupportedFiles,
       // The progress total agrees with the files the import read.
       agrees: total === (progress.at(-1) ?? 0),
     }
@@ -178,7 +180,14 @@ describe('which files of an export its list leaves out', () => {
         [`${root}activities.csv`]: list('1001,Morning Run,Run,activities/1001.fit.gz'),
       })
 
-      expect(result).toEqual({ read: [], activities: 1, notActivities: 2, agrees: true })
+      expect(result).toEqual({
+        read: [],
+        activities: 1,
+        rejected: 0,
+        notActivities: 2,
+        unsupported: 0,
+        agrees: true,
+      })
     }
   })
 
@@ -194,12 +203,111 @@ describe('which files of an export its list leaves out', () => {
     expect(result).toEqual({
       read: ['activities/1003.gpx'],
       activities: 2,
+      rejected: 1,
       notActivities: 1,
+      unsupported: 0,
       agrees: true,
     })
   })
 
-  it('leaves out any folder with no listed file in it, as it does routes/', async () => {
+  it('reads a file in a folder below a listed one, and leaves out the sibling folder', async () => {
+    const result = await read({
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'activities/2019/1002.gpx': ROUTE,
+      'activities/2019/old/1003.gpx': ROUTE,
+      'routes/1.gpx': ROUTE,
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+    })
+
+    expect(result).toEqual({
+      read: ['activities/2019/1002.gpx', 'activities/2019/old/1003.gpx'],
+      activities: 1,
+      rejected: 2,
+      notActivities: 1,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+
+  it('reads every folder when a listed file sits at the root of the zip', async () => {
+    const result = await read({
+      '1001.fit': encodeFit(run, { gps: true }),
+      'routes/1.gpx': ROUTE,
+      'other/2.gpx': ROUTE,
+      'activities.csv': list('1001,Morning Run,Run,1001.fit'),
+    })
+
+    expect(result).toEqual({
+      read: ['other/2.gpx', 'routes/1.gpx'],
+      activities: 1,
+      rejected: 2,
+      notActivities: 0,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+
+  it('reads a listed row written with . and a file beside a listed row whose file the zip lacks', async () => {
+    const result = await read({
+      'export/activities.csv': list(
+        '1001,Morning Run,Run,activities/1001.fit.gz',
+        '1003,Hike,Run,./old/3.gpx',
+        '1005,Hike,Run,new/5.gpx',
+      ),
+      'export/activities/1001.fit.gz': gzipSync(encodeFit(run, { gps: true })),
+      'export/old/3.gpx': ROUTE,
+      'export/old/4.gpx': ROUTE,
+      'export/new/6.gpx': ROUTE,
+      'export/routes/1.gpx': ROUTE,
+    })
+
+    expect(result).toEqual({
+      read: ['export/new/6.gpx', 'export/old/3.gpx', 'export/old/4.gpx'],
+      activities: 1,
+      rejected: 3,
+      notActivities: 1,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+
+  it('counts a KML, PWX or HRM file in a folder the list leaves out as not an activity, and not as rejected', async () => {
+    const result = await read({
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'routes/1.kml': strToU8('kml'),
+      'routes/2.pwx': strToU8('pwx'),
+      'routes/3.hrm.gz': gzipSync(strToU8('hrm')),
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+    })
+
+    expect(result).toEqual({
+      read: [],
+      activities: 1,
+      rejected: 0,
+      notActivities: 3,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+
+  it('still counts a KML file in a listed folder as a format the app does not read', async () => {
+    const result = await read({
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'activities/2.kml': strToU8('kml'),
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+    })
+
+    expect(result).toEqual({
+      read: [],
+      activities: 1,
+      rejected: 1,
+      notActivities: 0,
+      unsupported: 1,
+      agrees: true,
+    })
+  })
+
+  it('leaves out any folder with no listed file in it or above it, as it does routes/', async () => {
     const result = await read({
       'activities/1001.fit': encodeFit(run, { gps: true }),
       'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
@@ -207,7 +315,14 @@ describe('which files of an export its list leaves out', () => {
       'extra.gpx': ROUTE,
     })
 
-    expect(result).toEqual({ read: [], activities: 1, notActivities: 2, agrees: true })
+    expect(result).toEqual({
+      read: [],
+      activities: 1,
+      rejected: 0,
+      notActivities: 2,
+      unsupported: 0,
+      agrees: true,
+    })
   })
 
   it('reads everything when two exports sit side by side, each with its own list', async () => {
@@ -223,7 +338,9 @@ describe('which files of an export its list leaves out', () => {
     expect(result).toEqual({
       read: ['a/routes/1.gpx', 'b/routes/1.gpx'],
       activities: 2,
+      rejected: 2,
       notActivities: 0,
+      unsupported: 0,
       agrees: true,
     })
   })
@@ -238,7 +355,9 @@ describe('which files of an export its list leaves out', () => {
     expect(result).toEqual({
       read: ['Strava Export/routes/1.gpx'],
       activities: 1,
+      rejected: 1,
       notActivities: 0,
+      unsupported: 0,
       agrees: true,
     })
   })
@@ -253,7 +372,9 @@ describe('which files of an export its list leaves out', () => {
     expect(result).toEqual({
       read: ['routes/1.gpx'],
       activities: 1,
+      rejected: 1,
       notActivities: 0,
+      unsupported: 0,
       agrees: true,
     })
   })
@@ -266,6 +387,52 @@ describe('which files of an export its list leaves out', () => {
       'routes/1.gpx': ROUTE,
     })
 
-    expect(result).toEqual({ read: [], activities: 2, notActivities: 1, agrees: true })
+    expect(result).toEqual({
+      read: [],
+      activities: 2,
+      rejected: 0,
+      notActivities: 1,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+})
+
+describe('AnalysisSession reading the sport an export list gives', () => {
+  it('refuses a file the list calls an e-bike ride, whatever sport the file names', async () => {
+    const { state, outcome } = await importFiles([
+      zipFile({
+        'activities/1001.fit': encodeFit(ride, { gps: true }),
+        'activities/1002.gpx': strToU8(
+          new TextDecoder().decode(encodeGpx({ ...ride, startMs: ride.startMs + 86_400_000 })),
+        ),
+        'activities/1003.fit': encodeFit(run, { gps: true }),
+        'activities.csv': list(
+          '1001,Lunch Ride,E-Bike Ride,activities/1001.fit',
+          '1002,Lunch Ride,E-Mountain Bike Ride,activities/1002.gpx',
+          '1003,Morning Run,Run,activities/1003.fit',
+        ),
+      }),
+    ])
+
+    expect(state.rejected.map(({ fileName, code }) => ({ fileName, code }))).toEqual([
+      { fileName: 'activities/1001.fit', code: 'e-bike' },
+      { fileName: 'activities/1002.gpx', code: 'e-bike' },
+    ])
+    expect(outcome).toEqual({ activities: 1, rejected: 2, notActivities: 0 })
+  })
+
+  it('counts the files of an archive by the limits the import reads it with', async () => {
+    const entries: Record<string, Uint8Array> = {
+      'activities.csv': list('1,Walk,Walk,activities/1.gpx'),
+      'activities/1.gpx': ROUTE,
+    }
+    for (let i = 1; i <= 4; i++) entries[`routes/${i}.gpx`] = ROUTE
+    // The directory holds more entries than the limits accept, so extraction stops and the files it
+    // did not reach are not counted as read.
+    const limits = { ...DEFAULT_EXTRACT_LIMITS, maxArchiveEntries: 4 }
+    const { progress } = await importFiles([zipFile(entries)], limits)
+
+    expect(progress.at(-1)).toBe(4)
   })
 })

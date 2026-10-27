@@ -1,4 +1,4 @@
-import { countActivityFiles, DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './fit'
+import { countActivityFiles, extractFitFiles } from './fit'
 import type { ExtractLimits, FitFile, RangedSource } from './fit'
 import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
@@ -115,7 +115,7 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   )
   // An archive that stops early, or loses an entry, reports nothing for the files it did not
   // reach. They count as read here, up to the total its directory lists.
-  const expected = (await countActivityFiles([source], DEFAULT_EXTRACT_LIMITS, listed)) ?? 0
+  const expected = (await countActivityFiles([source], ctx.limits, listed)) ?? 0
   for (let left = expected - (progress.filesRead - readBefore); left > 0; left--)
     countRead(progress)
   ctx.unsupported.set(source.name, summary.otherActivityFiles)

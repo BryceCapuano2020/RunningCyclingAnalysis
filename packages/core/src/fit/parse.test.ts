@@ -1190,4 +1190,20 @@ describe('parseFit with the type an export list gives', () => {
       detail: 'swimming',
     })
   })
+
+  it.each(['E-Bike Ride', 'E-Mountain Bike Ride'])(
+    'refuses a cycling file when the list says %s, which is the one case the list overrides',
+    (activityType) => {
+      const ride = buildFit({
+        sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 70, records }],
+      })
+      expect(parseFit(ride, 'ebike.fit', undefined, { activityType })).toMatchObject({
+        ok: false,
+        code: 'e-bike',
+      })
+      expect(
+        firstActivity(parseFit(ride, 'ride.fit', undefined, { activityType: 'Ride' })).sport,
+      ).toBe('ride')
+    },
+  )
 })
