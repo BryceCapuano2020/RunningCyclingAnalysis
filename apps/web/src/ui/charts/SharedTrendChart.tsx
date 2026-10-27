@@ -22,6 +22,7 @@ import {
   levelNote,
   singleValueText,
   tableValue,
+  withEndedNotes,
   withRideHeld,
 } from './sharedTrendText'
 import { effortLabel } from '../records'
@@ -148,7 +149,7 @@ export function SharedTrendChart({
       title={copy.title}
       description={copy.description}
       legend={single === undefined ? legend : undefined}
-      note={hasData ? note : heldRide ? HELD_NOTE : undefined}
+      note={hasData ? withEndedNotes(note, weeks) : heldRide ? HELD_NOTE : undefined}
       table={{
         caption: copy.caption,
         columns,

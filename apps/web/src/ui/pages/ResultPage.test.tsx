@@ -232,6 +232,28 @@ describe('ResultPage footnote', () => {
     )
   })
 
+  it('drops the unset line from Balance while its one prompt for the year of birth and sex is on the page', () => {
+    render(
+      <ResultPage
+        signedIn={false}
+        route={{ page: 'balance' }}
+        analysis={analysisStub()}
+        result={makeResult()}
+        settings={{ massKg: 75, bikeMassKg: 9 }}
+        weightKnown={false}
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Add your year of birth and sex' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    )
+    expect(screen.queryByText('Your details are not set yet.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add them on Profile' })).not.toBeInTheDocument()
+  })
+
   it('leaves the line off the sample, which has its own persona', () => {
     renderFooter({ page: 'run' }, true)
     expect(screen.queryByRole('link', { name: 'Change on Profile' })).not.toBeInTheDocument()

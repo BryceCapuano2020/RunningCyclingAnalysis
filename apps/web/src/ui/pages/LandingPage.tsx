@@ -28,24 +28,26 @@ export function LandingPage({ analysis, signedIn, units, onFiles }: LandingPageP
 
   return (
     <div className="page-stack">
-      <section className="app__pitch">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
-          How balanced are you as an athlete?
-        </h1>
-        <p className="lede secondary">
-          Add your runs and rides. See how your running and cycling compare, as your level for your
-          age, and which way your balance leans.
-        </p>
-      </section>
-      <div className="landing__start">
-        <Dropzone
-          onFiles={onFiles}
-          onSample={analysis.loadSample}
-          onShowGuides={showExportGuides}
-          busy={analysis.busy}
-          signedIn={signedIn}
-        />
-        <LandingExample units={units} />
+      <div className="landing__hero">
+        <section className="app__pitch">
+          <h1 id={PAGE_HEADING_ID} tabIndex={-1}>
+            How balanced are you as an athlete?
+          </h1>
+          <p className="lede secondary">
+            Add your runs and rides. See how your running and cycling compare, as your level for
+            your age, and which way your balance leans.
+          </p>
+        </section>
+        <div className="landing__start">
+          <Dropzone
+            onFiles={onFiles}
+            onSample={analysis.loadSample}
+            onShowGuides={showExportGuides}
+            busy={analysis.busy}
+            signedIn={signedIn}
+          />
+          <LandingExample units={units} />
+        </div>
       </div>
       <ol className="app__steps">
         <li>

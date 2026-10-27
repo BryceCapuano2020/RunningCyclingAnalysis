@@ -1,13 +1,13 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Comparison, ComparisonPoint } from '@rca/core/types'
+import type { Comparison, ComparisonPoint, Sport } from '@rca/core/types'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import type { Lean } from '../balanceGap'
 import { plural } from './plural'
 import { effortLabel } from '../records'
 import { SPORT_NOUN, SPORT_TITLE } from '../sports'
-import type { BalanceReading } from './balanceScale'
+import { energyReading, type BalanceReading } from './balanceScale'
 
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
 export const HARDER_EFFORTS_TITLE = 'Not enough to compare yet'
@@ -121,12 +121,17 @@ export function balanceSummary(reading: BalanceReading, durationS: number): stri
   return leaningGradeSummary(reading.lean, reading.lead.centre)
 }
 
-/** The 90% range of the energy ratio, running against cycling, as the Method page quotes it. */
+/**
+ * The 90% range of the energy ratio, as the Method page quotes it. It names the sport that leads and
+ * gives the same figures as the Balance sentence and its meter: "Cycling against running, 90% range:
+ * 11% to 33%." Even balances keep running first, with signed figures.
+ */
 export function headlineText(point: ComparisonPoint): { range: string } {
+  const reading = energyReading(point.ratio)
+  const leading: Sport = reading.lean === 'ride' ? 'ride' : 'run'
+  const other: Sport = leading === 'run' ? 'ride' : 'run'
   return {
-    range:
-      `Running against cycling, 90% range: ${formatPercent(point.ratio.p05 - 1, true)} to ` +
-      `${formatPercent(point.ratio.p95 - 1, true)}.`,
+    range: `${SPORT_TITLE[leading]} against ${SPORT_NOUN[other]}, 90% range: ${rangeText(reading)}.`,
   }
 }
 

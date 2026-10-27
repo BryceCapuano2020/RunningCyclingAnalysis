@@ -94,6 +94,9 @@ export function ResultPage({
       unsetLink={!heldRide}
     />
   )
+  // Balance's prompt for a missing year of birth and sex says the same as the unset line, so the line goes
+  // while the prompt is there. A weight entered keeps the line, which then says what the page is based on.
+  const balanceFootnote = missingAge === 'year of birth and sex' && !weightKnown ? null : footnote
   const [storedChoice, storeChoice] = usePeriodChoice()
   // Library and sample loads are told the period picked on this device. Files analysed while the
   // account loads are not, so for them it is sent once there is a result to show it on.
@@ -225,7 +228,7 @@ export function ResultPage({
           missingAge={missingAge}
           controls={control(result.activities.length, totalActivities, undefined, latest)}
           onShowAll={() => pickPeriod('all')}
-          footnote={footnote}
+          footnote={balanceFootnote}
         />
       )
   }

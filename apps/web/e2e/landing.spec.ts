@@ -34,3 +34,13 @@ test('landing page and every results page have no horizontal scroll on a phone',
     expect(results.scrollWidth).toBeLessThanOrEqual(results.innerWidth)
   }
 })
+
+test('on a short landscape phone, Add files and the sample are on the first screen', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
+  const addFiles = await page.getByRole('button', { name: 'Add files' }).boundingBox()
+  expect((addFiles?.y ?? 0) + (addFiles?.height ?? 0)).toBeLessThanOrEqual(390)
+})

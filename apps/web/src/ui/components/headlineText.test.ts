@@ -48,12 +48,25 @@ describe('leadSentence', () => {
 })
 
 describe('headlineText', () => {
-  it('states the energy range the Method page quotes, as signed percentages of running over cycling', () => {
+  it('states the energy range the Method page quotes, named from the leading sport', () => {
     expect(headlineText(comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) })).range).toBe(
-      'Running against cycling, 90% range: +5% to +20%.',
+      'Running against cycling, 90% range: 5% to 20%.',
     )
-    expect(headlineText(comparisonPoint({ ratio: interval(0.75, 0.8, 0.9) })).range).toBe(
-      'Running against cycling, 90% range: -25% to -10%.',
+  })
+
+  it('names cycling first when cycling leads, in the same figures the Balance sentence and meter give', () => {
+    const point = comparisonPoint({ ratio: interval(0.75, 0.8, 0.9) })
+    const reading = energyReading(point.ratio)
+    expect(headlineText(point).range).toBe('Cycling against running, 90% range: 11% to 33%.')
+    expect(balanceSentence(reading)).toBe(
+      'Cycling 25% higher, as energy per kilogram (range 11% to 33%)',
+    )
+    expect(rangeText(reading)).toBe('11% to 33%')
+  })
+
+  it('keeps the signed running-against-cycling range when the two are even', () => {
+    expect(headlineText(comparisonPoint({ ratio: interval(0.98, 1.01, 1.04) })).range).toBe(
+      'Running against cycling, 90% range: -2% to +4%.',
     )
   })
 })

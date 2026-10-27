@@ -37,6 +37,17 @@ export interface BalanceHeroProps {
   strip?: ReactNode
 }
 
+/** Under this many activities in a sport, the answer rests on few of them, so the page counts each sport. */
+const FEW_EFFORTS = 3
+
+/** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
+function fewEffortsText(result: AnalysisResult): string | null {
+  const runs = countSport(result.activities, 'run')
+  const rides = countSport(result.activities, 'ride')
+  if (runs === 0 || rides === 0 || (runs >= FEW_EFFORTS && rides >= FEW_EFFORTS)) return null
+  return `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. Add more runs or rides for a steadier answer.`
+}
+
 interface Missing {
   title: string
   detail: string
@@ -177,17 +188,19 @@ export function BalanceHero({
     )
   }
   const summary = balanceSummary(reading, pick?.point.durationS ?? HEADLINE_DURATION_S)
+  const few = fewEffortsText(result)
   return (
-    <>
+    <div className="balance-hero__pair">
       <section className="balance-hero">
         {head(balanceTitle(reading), 'balance-hero__title')}
         <p className="lede secondary">{summary}</p>
+        {few !== null && <p className="secondary">{few}</p>}
         {action}
       </section>
       <div className="balance-hero__meter">
-        <BalanceMeter reading={reading} />
+        <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />
         {strip}
       </div>
-    </>
+    </div>
   )
 }

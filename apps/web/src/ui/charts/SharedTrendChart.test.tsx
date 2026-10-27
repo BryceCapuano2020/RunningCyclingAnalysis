@@ -420,6 +420,22 @@ describe('SharedTrendChart', () => {
     expect(screen.queryByText(/easy runs/)).toBeNull()
   })
 
+  it('dates the end of a line that stops before the window does, in the note under the chart', () => {
+    const runStops = [week(0, 0.6, 0.52), week(1, 0.62, 0.5), week(2, 0.64, 0.54)]
+    const rideLasts = [week(3, null, 0.56), week(4, null, 0.57), week(5, null, 0.58)]
+    const { container } = renderChart({ weeks: [...runStops, ...rideLasts] })
+    const note = container.querySelector('.chart-frame__note')
+    expect(note?.textContent).toMatch(
+      /A low point is a window of easy efforts, not an average\. No runs since 26 Jan/,
+    )
+    expect(screen.queryByText(/No rides since/)).toBeNull()
+  })
+
+  it('adds no dated note while both lines reach the last week', () => {
+    const { container } = renderChart()
+    expect(container.textContent).not.toMatch(/since \d/)
+  })
+
   it('explains a low energy point the same way, in the energy measure', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(

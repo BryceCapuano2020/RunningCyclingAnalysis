@@ -3,7 +3,9 @@ import { ENERGY_RATE_UNIT, formatEnergyRate, formatEnergyRateValue } from '@rca/
 import { formatGrade } from '../gradeFormat'
 import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import type { SharedWeek } from './gradeTrend'
-import { STEPPED_LINE_TEXT, weekDay } from './trendText'
+import { STEPPED_LINE_TEXT, weekDate, weekDay } from './trendText'
+import { SPORT_PLURAL } from '../sports'
+import type { Sport } from '@rca/core/types'
 
 /** Which measure a shared trend shows: each sport's age grade, or its energy rate in metabolic W/kg. */
 export type SharedMeasure = 'grade' | 'energy'
@@ -28,6 +30,22 @@ export const HELD_NOTE = 'Cycling is held until a weight is added.'
 const LOW_POINT = 'A low point is a window of easy efforts, not an average.'
 /** The line's steps, which the caption says, so that the note under the chart is one line of meaning. */
 const STEPS = STEPPED_LINE_TEXT
+
+/**
+ * The dated note for a sport whose line stops before the window does, such as "No runs since 26 Jan": the
+ * week its last value ends. Null while its line reaches the last week, or when it has no value at all.
+ */
+export function endedNote(weeks: readonly SharedWeek[], sport: Sport): string | null {
+  const last = weeks.findLastIndex((week) => week[sport] !== null)
+  if (last < 0 || last === weeks.length - 1) return null
+  return `No ${SPORT_PLURAL[sport]} since ${weekDate(weeks[last]?.endMs ?? 0)}.`
+}
+
+/** A trend's note, then a dated note for each line that stops before the window does. */
+export function withEndedNotes(note: string, weeks: readonly SharedWeek[]): string {
+  const ended = (['run', 'ride'] as const).map((sport) => endedNote(weeks, sport))
+  return [note, ...ended].filter((text): text is string => text !== null).join(' ')
+}
 
 /** The words of each measure: the chart's name, its axis, its key, its table and its empty state. */
 export function copyOf(measure: SharedMeasure, effort: string, windowText: string) {

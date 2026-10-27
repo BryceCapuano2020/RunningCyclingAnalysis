@@ -320,3 +320,19 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
   ).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
 })
+
+test('on a short landscape phone the meter is on the first screen, beside the answer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await openSample(page)
+  const meter = await page.locator('.balance-meter').boundingBox()
+  expect((meter?.y ?? 0) + (meter?.height ?? 0)).toBeLessThanOrEqual(390)
+})
+
+test('at 320 by 640 the key under the meter ends above the fold', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await openSample(page)
+  const key = await page.locator('.balance-meter__key').boundingBox()
+  expect((key?.y ?? 0) + (key?.height ?? 0)).toBeLessThanOrEqual(640)
+})

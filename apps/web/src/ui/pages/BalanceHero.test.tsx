@@ -365,6 +365,48 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
+  it('counts each sport under the lede when either has few efforts, so the answer shows what it rests on', () => {
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+      />,
+    )
+    expect(
+      screen.getByText('From 1 run and 1 ride. Add more runs or rides for a steadier answer.'),
+    ).toBeInTheDocument()
+  })
+
+  it('leaves that count off once each sport has three efforts', () => {
+    const runs = [1, 2, 3].map((n) => makeActivity({ id: `run-${n}`, sport: 'run' }))
+    const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult({ activities: [...runs, ...rides] })}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+      />,
+    )
+    expect(screen.queryByText(/steadier answer/)).not.toBeInTheDocument()
+  })
+
+  it('tells the meter the range was adjusted by heart rate, when the check used it', () => {
+    const { container } = render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={{ point: comparisonPoint({ ratio: interval(1.05, 1.12, 1.2) }), calibrated: true }}
+        gap={gradedGap()}
+      />,
+    )
+    expect(container.querySelector('.balance-meter__key')?.textContent).toMatch(
+      /Adjusted by heart rate\.$/,
+    )
+  })
+
   it('leaves the dates out of the lede when the period is not all time, since the caption names them', () => {
     render(
       <BalanceHero

@@ -394,7 +394,7 @@ describe('MethodPage energy view', () => {
     renderPage(makeResult(CONTRIBUTING))
 
     const facts = within(factsOf())
-    expect(facts.getByText('Running against cycling, 90% range: +5% to +20%.')).toBeInTheDocument()
+    expect(facts.getByText('Running against cycling, 90% range: 5% to 20%.')).toBeInTheDocument()
     expect(facts.getByText('Model range based on population assumptions.')).toBeInTheDocument()
     expect(facts.getByText('The range does not include every source of error.')).toBeInTheDocument()
   })
