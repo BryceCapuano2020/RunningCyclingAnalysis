@@ -16,6 +16,8 @@ export type PredictionMethod = 'performances' | 'heartRate'
 export interface MethodTime {
   method: PredictionMethod
   seconds: number
+  /** The distance, m, of the best (or, for heart rate, the race at its VO2max) it was carried from. */
+  fromM: number
 }
 
 /** A predicted race, by its distance. The shape holds for any sport with set distances. */
@@ -94,8 +96,8 @@ export function predictRunRaces(input: RunPredictionInput): RunPredictions {
   if (input.vo2max !== null) sources.push(['heartRate', heartRateAnchors(input.vo2max)])
   const races = RUN_RACE_DISTANCES_M.flatMap((distanceM) => {
     const methods = sources.flatMap(([method, anchors]) => {
-      const seconds = timeFrom(anchors, distanceM, input.weeklyM)
-      return seconds === null ? [] : [{ method, seconds }]
+      const time = timeFrom(anchors, distanceM, input.weeklyM)
+      return time === null ? [] : [{ method, ...time }]
     })
     return methods.length === 0 ? [] : [predictionOf(distanceM, methods)]
   })

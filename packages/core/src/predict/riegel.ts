@@ -16,12 +16,29 @@ export function carried(best: Performance, targetM: number): number {
   return best.seconds * (targetM / best.distanceM) ** RIEGEL_EXPONENT
 }
 
+/** A race time, s, and the distance, m, of the best it was carried from. */
+export interface CarriedTime {
+  seconds: number
+  fromM: number
+}
+
+/** The fastest of the carried times, the earlier on a tie; null when there are none. */
+export function fastest(times: readonly CarriedTime[]): CarriedTime | null {
+  return times.reduce<CarriedTime | null>(
+    (best, time) => (best === null || time.seconds < best.seconds ? time : best),
+    null,
+  )
+}
+
 /**
- * The time, s, for targetM: the fastest any near-enough best implies. A best is a lower bound on what the
- * runner can do, since it may not have been all-out, so the best that implies the most is taken. Null when
- * no best is within RIEGEL_MAX_RATIO of the target.
+ * The time for targetM: the fastest any near-enough best implies, with that best's distance. A best is a
+ * lower bound on what the runner can do, since it may not have been all-out, so the best that implies the
+ * most is taken. Null when no best is within RIEGEL_MAX_RATIO of the target.
  */
-export function riegelTime(bests: readonly Performance[], targetM: number): number | null {
-  const times = bests.filter((b) => nearEnough(b, targetM)).map((b) => carried(b, targetM))
-  return times.length === 0 ? null : Math.min(...times)
+export function riegelTime(bests: readonly Performance[], targetM: number): CarriedTime | null {
+  return fastest(
+    bests
+      .filter((b) => nearEnough(b, targetM))
+      .map((b) => ({ seconds: carried(b, targetM), fromM: b.distanceM })),
+  )
 }
