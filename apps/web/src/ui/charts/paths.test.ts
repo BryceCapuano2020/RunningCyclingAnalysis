@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { areaPath, bandPath, linePath, stepAreaPath, stepBandPath, stepPath } from './paths'
+import {
+  areaPath,
+  bandPath,
+  gappedBandPath,
+  linePath,
+  stepAreaPath,
+  stepBandPath,
+  stepPath,
+} from './paths'
 
 describe('linePath', () => {
   it('is empty for no points', () => {
@@ -148,5 +156,24 @@ describe('stepBandPath', () => {
         [{ x: 0, y: 30 }, null, { x: 20, y: 30 }, { x: 30, y: 40 }],
       ),
     ).toBe('M20 10L30 10L30 20L30 40L30 30L20 30Z')
+  })
+})
+
+describe('gappedBandPath', () => {
+  const at = (x: number, y: number) => ({ x, y })
+
+  it('closes a band between two edges, point by point', () => {
+    expect(gappedBandPath([at(0, 0), at(10, 0)], [at(0, 5), at(10, 5)])).toBe('M0 0L10 0L10 5L0 5Z')
+  })
+
+  it('breaks the band at a point where either edge has no value, rather than bridging it', () => {
+    const upper = [at(0, 0), at(10, 0), null, at(30, 0), at(40, 0)]
+    const lower = [at(0, 5), at(10, 5), null, at(30, 5), at(40, 5)]
+    expect(gappedBandPath(upper, lower)).toBe('M0 0L10 0L10 5L0 5ZM30 0L40 0L40 5L30 5Z')
+    expect(gappedBandPath([at(0, 0), null], [at(0, 5), at(10, 5)])).toBe('')
+  })
+
+  it('draws nothing for a lone point, which has no area', () => {
+    expect(gappedBandPath([at(0, 0), null, at(20, 0)], [at(0, 5), null, at(20, 5)])).toBe('')
   })
 })

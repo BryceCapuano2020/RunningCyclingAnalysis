@@ -14,7 +14,7 @@ Hash routes, so the static host needs no fallback rules.
 
 | Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, the grade by duration for both sports, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                                                                                                                                                                             |
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed                                               |
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                              |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                               |
@@ -421,6 +421,26 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   line, ring, band, key or table column, and the chart says so. When only a ride has a value, the chart's
   empty message says that rides are held until a weight is added. On an energy trend and on the sport
   pages, cycling is drawn as measured: a solid line with dots.
+- **Grade by duration** sits on Balance after the cards and the grading source line, and before the evidence
+  and the trend. It answers one question the 20 minute balance cannot: is one sport better at every duration,
+  or only at 20 minutes? Each sport's age grade is drawn at 3, 5, 10, 20, 30 and 60 minutes (the lengths a
+  ride's running equivalent is worked out at, `PROFILE_DURATIONS_S` in `gradeProfile.ts`) wherever its best
+  effort and the age standards grade it, on a log duration axis and an age-grade axis in per cent. No point
+  is invented: a run under a mile has no standard, so a run's 3 and 5 minute grades are missing unless the run
+  covered a mile in that time, and a duration without a best has no point. Drawing follows the age-grade
+  trend: a run is a solid line with a dot, a ride is estimated, so it is dashed with a ring and its 90% range
+  is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min)" and its ticks are the minutes alone, so they fit a 320 px phone, where thinning keeps the first, the last and the 20.
+  The finding is the chart's lede, a sentence under its title, and the chart supports it. It counts a lead
+  only where one sport's whole percent is outside the other's range, the rule the balance uses. It reads "Your
+  running grades higher than your cycling at every duration from 3 to 60 min." when one sport leads
+  throughout the durations both have; "Your cycling grades higher up to 5 min, your running from 10 min on."
+  when the lead changes hands; "Your running and cycling grade within range of each other at every duration."
+  when neither leads. When a lead holds for only some durations it says where, then that the rest are even:
+  "Your running grades higher than your cycling at 20 min. The two grade within range of each other at the
+  other durations." The section is left out without a year of birth and sex,
+  without a weight (a ride's grade waits for it), and with fewer than two durations graded in both sports,
+  since a chart that would only repeat the 20 minute balance says nothing more. The chart's table lists each
+  grade, with a ride's range in brackets, and its tooltip names the level.
 - A previous period is a thin dashed mid-grey line (1.5 px, `--previous-mark`). It appears only when it
   has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
   and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend

@@ -48,6 +48,32 @@ function contiguousRuns(points: ReadonlyArray<Point | null>): Point[][] {
   return runs
 }
 
+/**
+ * The band between two edges, point by point, broken wherever either edge has no value, so a band never
+ * bridges a gap that its line does not. A lone point draws nothing, as for an area.
+ */
+export function gappedBandPath(
+  upper: ReadonlyArray<Point | null>,
+  lower: ReadonlyArray<Point | null>,
+): string {
+  const runs: { upper: Point[]; lower: Point[] }[] = []
+  let current: { upper: Point[]; lower: Point[] } | null = null
+  upper.forEach((top, i) => {
+    const bottom = lower[i] ?? null
+    if (top === null || bottom === null) {
+      current = null
+      return
+    }
+    if (current === null) {
+      current = { upper: [], lower: [] }
+      runs.push(current)
+    }
+    current.upper.push(top)
+    current.lower.push(bottom)
+  })
+  return runs.map((run) => bandPath(run.upper, run.lower)).join('')
+}
+
 /** Area fills under each unbroken run of points, down to a baseline y. A lone point fills nothing. */
 export function areaPath(points: ReadonlyArray<Point | null>, baseline: number): string {
   return contiguousRuns(points)

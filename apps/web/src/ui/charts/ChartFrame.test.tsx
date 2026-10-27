@@ -51,6 +51,32 @@ describe('ChartFrame', () => {
     expect(container.querySelector('svg desc')).toBeNull()
   })
 
+  it('sets a lede under the title and above the key, when given one', () => {
+    const { container } = renderFrame({
+      lede: 'Your running grades higher.',
+      legend: [
+        { label: 'Run', kind: 'run', swatch: 'line' },
+        { label: 'Ride', kind: 'ride', swatch: 'dashed' },
+      ],
+    })
+    const lede = screen.getByText('Your running grades higher.')
+    expect(lede).toHaveClass('chart-frame__lede')
+    const order = Array.from(container.querySelector('figure')?.children ?? []).map(
+      (child) => child.className,
+    )
+    expect(order.slice(0, 3)).toEqual([
+      'chart-frame__title',
+      'chart-frame__lede',
+      'chart-frame__legend',
+    ])
+    expect(ruleBody(frameCss, '.chart-frame__lede')).toMatch(/max-width:\s*62ch/)
+  })
+
+  it('has no lede paragraph without one', () => {
+    const { container } = renderFrame()
+    expect(container.querySelector('.chart-frame__lede')).toBeNull()
+  })
+
   it('lets a finger scroll the page and pinch to zoom over the drawing, not only the plot', () => {
     expect(ruleBody(frameCss, '.chart-frame__svg')).toMatch(/touch-action:\s*pan-y pinch-zoom/)
   })

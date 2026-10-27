@@ -14,6 +14,14 @@
   text-wrap: balance;
 }
 
+/* The sentence the chart supports, on the page's reading measure, under the title. */
+.chart-frame__lede {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+}
+
 /* One line of key, reserved in every period, so the plot keeps its place when a key appears. */
 .chart-frame__legend {
   min-height: 1.5rem;

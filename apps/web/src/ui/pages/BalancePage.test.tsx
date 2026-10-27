@@ -314,6 +314,29 @@ describe('BalancePage', () => {
     expect(source.compareDocumentPosition(trend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('puts the grade by duration after the cards and the grading source, ahead of the evidence', () => {
+    const durations = [600, 1200, 3600]
+    const result = makeResult({
+      runCurve: durations.map((d) => curvePoint(d, FIVE_K_IN_20_MIN_WKG, 'run-1')),
+      rideCurve: durations.map((d) => curvePoint(d, 400, 'ride-1')),
+      equivalents: durations.map((d) => makeEquivalence({ durationS: d })),
+    })
+    renderPage(result, {}, MAN_BORN_1986)
+    const chart = screen.getByRole('region', { name: 'Grade by duration' })
+    const source = screen.getByText(/^Graded for a/)
+    expect(source.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const cards = screen.getByRole('heading', { name: SPORT_LABEL.run }).closest('.balance__sports')
+    expect(cards).not.toBeNull()
+    expect(
+      (cards?.compareDocumentPosition(chart) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('leaves the grade by duration out when only one duration is graded in both sports', () => {
+    renderPage(BOTH_SPORTS, {}, MAN_BORN_1986)
+    expect(screen.queryByRole('region', { name: 'Grade by duration' })).not.toBeInTheDocument()
+  })
+
   it('names only the missing field, in the prompt and on its button', () => {
     renderPage(makeResult(), {}, null, true, 'sex')
     expect(screen.getByText('The balance in points and levels needs your sex.')).toBeInTheDocument()

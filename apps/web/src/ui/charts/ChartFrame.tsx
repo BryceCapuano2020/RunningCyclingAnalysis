@@ -11,6 +11,8 @@ import './ChartFrame.css'
 export interface ChartFrameProps {
   title: string
   description: string
+  /** One sentence under the title that says what the chart shows, such as its finding. */
+  lede?: string
   /** Height of the whole SVG, axis labels included. */
   height?: number
   /**
@@ -61,6 +63,7 @@ const HINT_INSET = 2
 export function ChartFrame({
   title,
   description,
+  lede,
   height = DEFAULT_HEIGHT,
   legend,
   table,
@@ -92,6 +95,7 @@ export function ChartFrame({
       <figcaption id={titleId} className="chart-frame__title">
         {title}
       </figcaption>
+      {lede ? <p className="chart-frame__lede">{lede}</p> : null}
       {/* The row is kept whenever the chart may have a key, so a key appearing does not move the plot. */}
       {legend === undefined ? null : (
         <div className="chart-frame__legend">
