@@ -10,17 +10,27 @@ Peak RSS is the process maximum; heap and array-buffer values are sampled after 
 
 | Phase                             |     Wall time |                        Process CPU time |
 | --------------------------------- | ------------: | --------------------------------------: |
-| Generate and digest the library   |      2,171 ms |                                2,461 ms |
-| First combine                     |         48 ms |                                   84 ms |
-| Five combines per setting, median | 27–28 ms each | included in 522 ms total across 15 runs |
+| Generate and digest the library   |      1,906 ms |                                2,185 ms |
+| of which, generating activities   |        694 ms |                                         |
+| of which, `digestActivity`        |      1,212 ms |                                         |
+| First combine                     |         50 ms |                                   88 ms |
+| Five combines per setting, median | 27–28 ms each | included in 530 ms total across 15 runs |
 
-Peak RSS was 212.9 MiB. At the final sample, V8 heap used 47.4 MiB and array buffers used 1.1 MiB.
-Measured on 26 October 2026 at main fe2f14c; each figure is the median of three runs. Since the 23
-October baseline, a combine has fallen from 60 ms to 27 ms, because each comparison quantity is now
-sorted once. Digesting takes 2,171 ms against 1,293 ms then; it already took 2,171 ms at f7b210d,
-before that change. These values are a local reference point, not CI thresholds. This is a Node CPU
-benchmark of generated activities and digest combination; it does not measure browser
-startup/rendering, FIT decoding, archive extraction, or account/network latency.
+Peak RSS was 226.3 MiB. At the final sample, V8 heap used 45.1 MiB and array buffers used 1.3 MiB.
+Measured on 26 October 2026 for PR #99; each figure is the median of three runs, interleaved with
+three at main 8dd5f0b, which took 2,161 ms wall and 2,436 ms CPU for the first phase. The benchmark
+times the synthetic generator apart from `digestActivity`, so a rise in either shows on its own line.
+
+The 1,293 ms this page gave from 22 October was measured at 310264a (PR #9), and still is; 37a54b4
+already took about 1,760 ms. Per-sample air density (PR #14) added about 170 ms to the generator and
+200 ms to digesting. Run distance bests (PR #36), splits (PR #41) and moving time (PR #60) added about
+500 ms more to digesting. PR #99 removed most of the moving-time and air-density cost without
+changing any digest, so digesting alone fell from about 1,470 ms to 1,212 ms. Since 23 October a
+combine has fallen from 60 ms to 27 ms, because each comparison quantity is now sorted once.
+
+These values are a local reference point, not CI thresholds. This is a Node CPU benchmark of
+generated activities and digest combination; it does not measure browser startup/rendering, FIT
+decoding, archive extraction, or account/network latency.
 
 The current default import ceilings are:
 
