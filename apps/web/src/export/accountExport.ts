@@ -32,7 +32,7 @@ export interface AccountExport {
   account: ExportAccount
   profile: Profile
   activities: ExportActivity[]
-  /** Stored activities the server could not read, so they are not in `activities`. */
+  /** Stored activities that could not be read, so they are not in `activities`. */
   unreadable: number
   notes: string[]
 }

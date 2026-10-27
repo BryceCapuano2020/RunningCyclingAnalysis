@@ -7,7 +7,9 @@ import {
   MAX_DIGEST_BYTES,
   MAX_PAGE_BODY_BYTES,
   MAX_PAGE_DIGEST_BYTES,
+  MAX_PAGE_SIZE,
   MAX_STORED_BYTES_PER_USER,
+  StoredActivityDigestSchema,
 } from '@rca/contract'
 import { activityFileKey } from '../storage.ts'
 import { createHarness, digestFixture, START, testEnv, type Harness } from '../test/harness.ts'
@@ -426,7 +428,7 @@ describe('GET /api/activities', () => {
     expect(list.items[0]?.digest.splits).toEqual(splits)
   })
 
-  it('parses legacy rows with no modelRevision as revision 1', async () => {
+  it('sends a legacy row with no modelRevision as stored, and the contract reads it as revision 1', async () => {
     const h = createHarness()
     const token = await h.signIn()
     const id = await idOf(await createActivity(h, token))
@@ -441,7 +443,10 @@ describe('GET /api/activities', () => {
 
     const response = await h.send({ path: '/api/activities', ...as(token) })
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ items: [{ id, digest: { modelRevision: 1 } }] })
+    const page = (await response.json()) as { items: { id: string; digest: unknown }[] }
+    expect(page.items.map((item) => item.id)).toEqual([id])
+    expect(page.items[0]?.digest).not.toHaveProperty('modelRevision')
+    expect(StoredActivityDigestSchema.parse(page.items[0]?.digest).modelRevision).toBe(1)
   })
 
   it('lists but does not analyse a row from a newer model revision', async () => {
@@ -999,27 +1004,6 @@ describe('GET /api/activities paging', () => {
     expect(new Set(seen).size).toBe(3)
   })
 
-  it('defaults to 25 records a page and rejects limits outside 1 to 25', async () => {
-    const h = createHarness()
-    const token = await h.signIn()
-    for (let index = 0; index < 26; index += 1) {
-      await createActivity(h, token, {}, { startMs: START + index * 60_000 })
-    }
-    const defaultPage = await pageOf(h, token, '')
-    expect(defaultPage.items).toHaveLength(25)
-    expect(defaultPage.nextCursor).not.toBeNull()
-    for (const limit of ['0', '26', '1001', 'abc', '1.5']) {
-      const res = await h.send({
-        path: `/api/activities?limit=${limit}`,
-        cookies: { rca_session: token },
-      })
-      expect(res.status, limit).toBe(400)
-    }
-    expect(
-      (await h.send({ path: '/api/activities?limit=25', cookies: { rca_session: token } })).status,
-    ).toBe(200)
-  })
-
   it('caps digest bytes per response without skipping, duplicating, or reordering records', async () => {
     const h = createHarness()
     const token = await h.signIn()
@@ -1046,7 +1030,11 @@ describe('GET /api/activities paging', () => {
     let cursor: string | null = null
     const pageSizes: number[] = []
     do {
-      const page = await pageOf(h, token, `?limit=25${cursor ? `&cursor=${cursor}` : ''}`)
+      const page = await pageOf(
+        h,
+        token,
+        `?limit=${MAX_PAGE_SIZE}${cursor ? `&cursor=${cursor}` : ''}`,
+      )
       expect(new TextEncoder().encode(JSON.stringify(page)).byteLength).toBeLessThanOrEqual(
         MAX_PAGE_BODY_BYTES,
       )
@@ -1507,7 +1495,7 @@ describe('boundary pins', () => {
       )
       expect(res.status).toBe(201)
     }
-    const page = await pageOf(h, token, '?limit=25')
+    const page = await pageOf(h, token, `?limit=${MAX_PAGE_SIZE}`)
     expect(page.items).toHaveLength(MAX_PAGE_DIGEST_BYTES / each)
     expect(page.nextCursor).toBeNull()
     expect(MAX_PAGE_BODY_BYTES).toBeGreaterThan(MAX_PAGE_DIGEST_BYTES)

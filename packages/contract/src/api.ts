@@ -85,7 +85,8 @@ export type ActivityRecord = z.infer<typeof ActivityRecordSchema>
 
 /**
  * One page of GET /api/activities. nextCursor is null on the last page. unreadable counts stored
- * activities on this page that the server could not read, so they are left out of items.
+ * activities on this page that could not be read, so they are left out of items. The server leaves
+ * out a digest that is not JSON; the client leaves out one that fails the schema.
  */
 export const ActivityPageSchema = z.object({
   items: z.array(ActivityRecordSchema),
@@ -93,6 +94,15 @@ export const ActivityPageSchema = z.object({
   unreadable: z.number().int().nonnegative().optional(),
 })
 export type ActivityPage = z.infer<typeof ActivityPageSchema>
+
+/**
+ * A page as the server sends it: the server only checks that each digest is JSON, so the digest is
+ * left unchecked here and the reader validates it record by record (see listActivities).
+ */
+export const ActivityPageWireSchema = ActivityPageSchema.extend({
+  items: z.array(ActivityRecordSchema.extend({ digest: z.unknown() })),
+})
+export type ActivityPageWire = z.infer<typeof ActivityPageWireSchema>
 
 /** The message summarises validation issues, so it can run longer than a sentence. */
 export const ApiErrorSchema = z.object({

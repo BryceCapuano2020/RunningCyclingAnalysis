@@ -81,16 +81,27 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 ## Activity list
 
-- A page holds at most 25 activities and at most 1 MiB of digest JSON.
-- A stored row whose digest cannot be read is skipped, not returned. The response counts skipped rows in
-  `unreadable`, which is absent when the count is zero. Each skip is logged with the activity id and the
-  first failing path, never the content. A skipped row still moves the cursor on.
+- A page holds at most 90 activities (`MAX_PAGE_SIZE`) and at most 1 MiB of digest JSON. The page read binds
+  the user id plus one id per row, so 90 rows is 91 of the 100 bound parameters D1 allows a statement; a test
+  pins `MAX_PAGE_SIZE + 1 <= 100`. A library of 1,915 activities lists in 22 pages (it was 77 at 25 a page),
+  fewer when large digests reach the byte budget first.
+- The server does not validate a stored digest or serialise it again. It parses each row's `digest_json` with
+  `JSON.parse` only to see that it is JSON, then builds the response body with the row's envelope (id, file
+  name and so on) serialised on its own and the stored digest text spliced in unchanged. Only text that
+  parsed is spliced, so the body is always valid JSON, and a stored value cannot close its record or add keys.
+- A stored row whose digest is not JSON is skipped, not returned. The response counts skipped rows in
+  `unreadable`, which is absent when the count is zero. Each skip is logged with the activity id, never the
+  content. A skipped row still moves the cursor on.
+- The web client validates each item's digest with `StoredActivityDigestSchema`. An item that fails is left
+  out and added to the `unreadable` count the client reports, and the rest of the page loads. The envelope
+  is still checked as a whole: one malformed envelope fails the page.
 - One request scans at most 8 database pages, which keeps it inside D1 Free's 50 queries per invocation
   even when many stored rows are unreadable. A request that hits the cap returns the rows it found, possibly
   none, with a cursor after the last row it examined; clients follow that cursor like any other.
-- Stored rows are read with a lenient schema, `StoredActivityDigestSchema`. It keeps the field types but not
-  the create-time rules (for example a null duration or a curve off the grid, which older revisions may
-  carry), and it bounds array lengths at four times the create limits. Creates still use the strict schema.
+- Stored digests are read with a lenient schema, `StoredActivityDigestSchema`, by the client. It keeps the
+  field types but not the create-time rules (for example a null duration or a curve off the grid, which older
+  revisions may carry), and it bounds array lengths at four times the create limits. Creates still use the
+  strict schema.
 
 ## Creates, replace and the database guard
 
@@ -195,11 +206,12 @@ before launch, and plan for Workers Paid if usage grows.
 - **The guard assumes a delete lowers `meta.size_after`.** SQLite can keep freed pages in the file, so a
   delete may not lower the reported size. This is not verified on D1. If it does not fall, the guard stays
   tripped until an operator acts.
-- **Legacy rows reach the web client.** Stored rows that the lenient schema reads are listed as they are. The
-  client parses them with the same contract (`ActivityPageSchema`), so the analysis must cope with a null
-  duration or an off-grid curve.
-- **CPU on Free (10 ms per request).** Hashing a 50 MiB upload with SHA-256 and parsing a 1 MiB list
-  page are both likely to exceed 10 ms of CPU. This is an estimate and has not been measured. The
+- **Legacy rows reach the web client.** Stored rows that are JSON are listed as they are, whatever their shape.
+  The client reads each with the lenient schema (`StoredActivityDigestSchema`), so the analysis must cope with
+  a null duration or an off-grid curve. A tab running an older web build still validates the whole page, so it
+  fails to load while any stored row is JSON but not a digest.
+- **CPU on Free (10 ms per request).** Hashing a 50 MiB upload with SHA-256 and the `JSON.parse` check
+  of a 1 MiB list page are both likely to exceed 10 ms of CPU. This is an estimate and has not been measured. The
   app needs Workers Paid for production uploads, or a measured confirmation that the free plan can
   handle them.
 - **Streaming the SHA-256.** `crypto.DigestStream` exists, but the hash must be verified before the

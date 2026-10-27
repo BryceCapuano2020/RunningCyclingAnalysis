@@ -2,21 +2,15 @@ import { Hono, type Context } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { and, desc, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import {
-  DEFAULT_PAGE_SIZE,
-  MAX_PAGE_DIGEST_BYTES,
-  MAX_PAGE_SIZE,
-  StoredActivityDigestSchema,
-  type ActivityPage,
-  type ActivityRecord,
-} from '@rca/contract'
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_DIGEST_BYTES, MAX_PAGE_SIZE } from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
 import { invalidRequest } from '../../http.ts'
 import { decodeCursor, encodeCursor, type Cursor } from '../../cursor.ts'
 import { chargeDaily } from '../../budget.ts'
 import { currentUser, requireUser, sameOriginReadGuard } from '../../middleware.ts'
 import { activities } from '../../db/schema.ts'
-import { toRecord, type ActivityRow } from './shared.ts'
+import { pageBody, spliceRecord } from './body.ts'
+import { toEnvelope } from './shared.ts'
 
 /**
  * Database pages one listing request may scan. Unreadable rows fill no page, so without this cap a
@@ -41,7 +35,8 @@ interface Candidate {
 
 /** The page a scan is building, and where the listing stands when the scan stops. */
 interface PageScan {
-  items: ActivityRecord[]
+  /** The records in page order, each already serialised (see `spliceRecord`). */
+  items: string[]
   /** Digest JSON bytes held by `items`, kept within MAX_PAGE_DIGEST_BYTES. */
   digestBytes: number
   unreadable: number
@@ -72,26 +67,9 @@ async function spendCursorOrCharge(
   if (!continuing) await chargeDaily(c.env.DB, userId, 'read', c.var.deps.now())
 }
 
-function logUnreadable(activityId: string, path: string): void {
-  console.warn(JSON.stringify({ event: 'activity_digest_unreadable', activityId, path }))
-}
-
-/**
- * The row's digest if it still validates. A stored row that does not is logged by id and the first
- * failing path, never by content, and the caller skips it.
- */
-function readableDigest(row: ActivityRow): ActivityRecord['digest'] | undefined {
-  let json: unknown
-  try {
-    json = JSON.parse(row.digestJson)
-  } catch {
-    logUnreadable(row.id, '')
-    return undefined
-  }
-  const parsed = StoredActivityDigestSchema.safeParse(json)
-  if (parsed.success) return parsed.data
-  logUnreadable(row.id, parsed.error.issues[0]?.path.join('.') ?? '')
-  return undefined
+/** Logs a skipped row by id, never by content. */
+function logUnreadable(activityId: string): void {
+  console.warn(JSON.stringify({ event: 'activity_digest_unreadable', activityId }))
 }
 
 /** The next metadata-only page of rows strictly older than `after`, newest first. */
@@ -135,7 +113,11 @@ function fitPage(candidates: Candidate[], page: PageScan, limit: number): Candid
   return selected
 }
 
-/** Adds the selected rows to the page: deleted rows are skipped, unreadable digests counted. */
+/**
+ * Adds the selected rows to the page: deleted rows are skipped, digests that are not JSON counted.
+ * A digest that is JSON goes out as stored, because the client checks its shape (listActivities in
+ * the web client), so the server never validates or re-serialises one.
+ */
 async function readSelected(
   db: Db,
   userId: string,
@@ -159,12 +141,13 @@ async function readSelected(
   for (const candidate of selected) {
     const row = rowsById.get(candidate.id)
     if (row === undefined) continue
-    const digest = readableDigest(row)
-    if (digest === undefined) {
+    const record = spliceRecord(toEnvelope(row), row.digestJson)
+    if (record === undefined) {
+      logUnreadable(row.id)
       page.unreadable += 1
       continue
     }
-    page.items.push(toRecord(row, digest))
+    page.items.push(record)
     page.digestBytes += candidate.digestBytes
   }
 }
@@ -226,17 +209,16 @@ async function scanPage(
   return page
 }
 
-/** Saves the next page's cursor, if there is one, and returns the page body. */
-async function buildListing(db: D1Database, userId: string, page: PageScan): Promise<ActivityPage> {
+/** Saves the next page's cursor, if there is one, and returns the page body as JSON text. */
+async function buildListing(db: D1Database, userId: string, page: PageScan): Promise<string> {
   const nextCursor = page.hasMore && page.examinedTo ? encodeCursor(page.examinedTo) : null
   if (nextCursor !== null) {
     await db.prepare('UPDATE users SET list_cursor = ? WHERE id = ?').bind(nextCursor, userId).run()
   }
-  return {
-    items: page.items,
+  return pageBody(page.items, {
     nextCursor,
     ...(page.unreadable > 0 ? { unreadable: page.unreadable } : {}),
-  }
+  })
 }
 
 export const listRoutes = new Hono<AppEnv>()
@@ -258,6 +240,8 @@ listRoutes.get(
     const filters: (SQL | undefined)[] = [eq(activities.userId, userId)]
     if (query.since !== undefined) filters.push(gte(activities.createdAt, query.since))
     const page = await scanPage(db, userId, filters, resumeAfter, query.limit ?? DEFAULT_PAGE_SIZE)
-    return c.json(await buildListing(c.env.DB, userId, page), 200)
+    return c.body(await buildListing(c.env.DB, userId, page), 200, {
+      'content-type': 'application/json',
+    })
   },
 )

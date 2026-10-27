@@ -53,8 +53,14 @@ export const MAX_GLOBAL_R2_MONTHLY_OPERATIONS = 100_000
 /** Ordinary PUT/GET traffic stops here, preserving 10,000 operations for cleanup LIST calls. */
 export const MAX_GLOBAL_R2_STANDARD_OPERATIONS = 90_000
 
-export const DEFAULT_PAGE_SIZE = 25
-export const MAX_PAGE_SIZE = 25
+/**
+ * Most rows in one activity-list page. The web client follows pages one after another, so a
+ * bigger page means fewer round trips. D1 allows 100 bound parameters a statement and the page
+ * read binds the user id plus one id per row, so MAX_PAGE_SIZE + 1 must stay at or under 100.
+ * The byte budget below still caps a page of large digests.
+ */
+export const MAX_PAGE_SIZE = 90
+export const DEFAULT_PAGE_SIZE = MAX_PAGE_SIZE
 /** Maximum total digest JSON bytes returned by one activity-list request. */
 export const MAX_PAGE_DIGEST_BYTES = 1024 * 1024
 /** Maximum full JSON response, including record envelopes and original file names. */

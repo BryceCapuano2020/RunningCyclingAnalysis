@@ -54,7 +54,7 @@ export interface AnalysisController {
   retryLibrary: () => void
   /** Saved activities whose original file is not in the library. */
   missingOriginals: number
-  /** Stored activities the server could not read in the last library load, and so are hidden. */
+  /** Stored activities that could not be read in the last library load, and so are hidden. */
   libraryUnreadable: number
   importOutcome: ImportOutcome | null
   /** What the last import moved from, while its summary is shown; null otherwise. */

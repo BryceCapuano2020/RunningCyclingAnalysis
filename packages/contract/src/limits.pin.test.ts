@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import * as limits from './limits.ts'
 
+/** Bound parameters one D1 statement may carry (Cloudflare's limit for Workers). */
+const D1_BOUND_PARAMETERS = 100
+
 /**
  * Pins every shared limit to its reviewed value. Changing one is then a deliberate test change,
  * not a silent edit that the API, web client and tests would all follow.
@@ -43,9 +46,15 @@ describe('contract limits', () => {
     expect(limits.MAX_GLOBAL_R2_STANDARD_OPERATIONS).toBe(90_000)
   })
 
+  it('keeps a page within the 100 bound parameters D1 allows a statement', () => {
+    // The page read binds the user id and then one id per row.
+    expect(limits.MAX_PAGE_SIZE + 1).toBeLessThanOrEqual(D1_BOUND_PARAMETERS)
+    expect(limits.DEFAULT_PAGE_SIZE).toBeLessThanOrEqual(limits.MAX_PAGE_SIZE)
+  })
+
   it('pins the page sizes and page body limits', () => {
-    expect(limits.DEFAULT_PAGE_SIZE).toBe(25)
-    expect(limits.MAX_PAGE_SIZE).toBe(25)
+    expect(limits.DEFAULT_PAGE_SIZE).toBe(90)
+    expect(limits.MAX_PAGE_SIZE).toBe(90)
     expect(limits.MAX_PAGE_DIGEST_BYTES).toBe(1024 * 1024)
     expect(limits.MAX_PAGE_BODY_BYTES).toBe(1024 * 1024 + 64 * 1024)
   })
