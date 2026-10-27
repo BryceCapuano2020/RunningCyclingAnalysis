@@ -7,5 +7,5 @@ export type {
   ReadyProfile,
   StandsOut,
 } from './durationProfile'
-export { profileNeeds, profileSentence, profileShortNote } from './sentence'
+export { PROFILE_UNFIT_TEXT, profileNeeds, profileSentence, profileShortNote } from './sentence'
 export type { DurationName } from './sentence'

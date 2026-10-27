@@ -16,9 +16,11 @@ import {
   tooltipOverlay,
 } from './chartInteraction'
 import type { AxisTick, ChartSize } from './chartTypes'
-import { logScale, linearScale, niceDomain } from './scale'
-import { keyOf, signedPercent, tableOf, tooltipOf } from './standOutText'
+import { logScale, linearScale } from './scale'
+import { keyOf, scaleNote, scaleOf, signedPercent, tableOf, tooltipOf } from './standOutText'
 import { axisFontSize, fitTicks } from './ticks'
+import { labelWidthPx, rootFontPx } from './rootFont'
+import './ChartSeries.css'
 import './StandOutChart.css'
 
 export interface StandOutChartProps {
@@ -31,9 +33,6 @@ export interface StandOutChartProps {
 const TICK_DURATIONS_S = [5, 10, 30, 60, 300, 600, 1200, 1800, 3600]
 /** Space kept either side of the first and last point, so that a point on the edge is not cut. */
 const EDGE_PAD = 10
-const Y_INTERVALS = 4
-/** The fewest percent the vertical axis spans each side of zero, so a profile in line looks it. */
-const MIN_REACH = 0.1
 const CHART_HEIGHT = 280
 
 interface Layout {
@@ -56,12 +55,7 @@ function layout(rows: readonly ProfileRow[], size: ChartSize): Layout | null {
     [first.durationS, last.durationS],
     [plot.left + EDGE_PAD, plot.right - EDGE_PAD],
   )
-  // The axis is symmetric about zero, so a bump and a dip of the same size look the same size.
-  const reach = Math.max(
-    MIN_REACH,
-    ...rows.flatMap((row) => [Math.abs(row.low), Math.abs(row.high)]),
-  )
-  const { domain, ticks } = niceDomain([-reach * 100, reach * 100], Y_INTERVALS, 0)
+  const { domain, ticks } = scaleOf(rows)
   const y = linearScale(domain, [plot.bottom, plot.top])
   return {
     xs: rows.map((row) => x(row.durationS)),
@@ -83,6 +77,26 @@ function layout(rows: readonly ProfileRow[], size: ChartSize): Layout | null {
   }
 }
 
+/** Space between a point and the label beside it, in px. */
+const LABEL_GAP = 8
+
+/**
+ * Where the duration label of a point sits: beside it, to the right, or to the left when the text would
+ * run past the plot's edge. The bar runs straight up and down through the point, so the side is clear.
+ */
+function labelAt(
+  x: number,
+  y: number,
+  text: string,
+  right: number,
+  rootPx: number,
+): { x: number; y: number; anchor: 'start' | 'end' } {
+  const fitsRight = x + LABEL_GAP + labelWidthPx(text, rootPx) <= right
+  return fitsRight
+    ? { x: x + LABEL_GAP, y, anchor: 'start' }
+    : { x: x - LABEL_GAP, y, anchor: 'end' }
+}
+
 interface MarkProps {
   sport: Sport
   row: ProfileRow
@@ -101,6 +115,28 @@ function Mark({ sport, row, x, y, r }: MarkProps) {
   )
 }
 
+/** The duration a filled point is at, written beside it, since the key says a filled point stands out. */
+function StandOutLabel({
+  text,
+  at,
+}: {
+  text: string
+  at: { x: number; y: number; anchor: 'start' | 'end' }
+}) {
+  return (
+    <text
+      data-testid="stand-out-label"
+      className="chart-series__label"
+      x={at.x}
+      y={at.y}
+      textAnchor={at.anchor}
+      dominantBaseline="central"
+    >
+      {text}
+    </text>
+  )
+}
+
 const DESCRIPTION =
   'How far each best sits above or below what your other bests predict, one point per duration with its likely range. Duration is on a log scale. Zero is in line with your other bests.'
 
@@ -112,13 +148,15 @@ const DESCRIPTION =
 export function StandOutChart({ sport, rows }: StandOutChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, size))
+  const [rootPx] = useState(rootFontPx)
   return (
     <ChartFrame
       title="Each best against your other bests, by duration"
       description={DESCRIPTION}
       height={CHART_HEIGHT}
       legend={keyOf(sport)}
-      table={tableOf(rows)}
+      note={scaleNote(rows)}
+      table={tableOf(rows, scaleNote(rows))}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
       overlay={(size) =>
         tooltipOverlay(
@@ -178,6 +216,18 @@ export function StandOutChart({ sport, rows }: StandOutChartProps) {
                   y={m.ys[i]!}
                   r={i === active ? activeR : marker}
                 />
+                {row.standsOut === null ? null : (
+                  <StandOutLabel
+                    text={effortLabel(row.durationS)}
+                    at={labelAt(
+                      m.xs[i]!,
+                      m.ys[i]!,
+                      effortLabel(row.durationS),
+                      size.plot.right,
+                      rootPx,
+                    )}
+                  />
+                )}
               </g>
             ))}
           </>

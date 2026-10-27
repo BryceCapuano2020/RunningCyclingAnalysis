@@ -23,9 +23,18 @@ export const PROFILE_FLOOR_S = 120
  * and the curve is fitted once more: 10%.
  */
 export const PROFILE_DROP_FRACTION = 0.1
-/** Measurement error of a power meter, as a fraction (Maier 2017, via Leo 2022): 3%. */
+/** Measurement error of a power meter, as a fraction (Maier 2017, via Leo 2022): 3%. A fit's spread is never below it. */
 export const PROFILE_MEASUREMENT_ERROR = 0.03
-/** Standard normal quantile of a two-sided 90% interval. */
-export const PROFILE_Z_90 = 1.645
+/**
+ * The chance that a profile of pure noise says some duration stands out: 10%. Each of its n rows is
+ * judged at this over n, so the profile as a whole is judged at it.
+ */
+export const PROFILE_ALPHA = 0.05
 /** The most durations the sentence names, the ones that stand out most. */
 export const PROFILE_MAX_NAMED = 3
+/**
+ * A duration is named in the sentence only when the near end of its interval is at least this far from
+ * zero, as a fraction: 2%. A duration whose interval only just clears zero is on the chart, and the
+ * sentence leaves it out.
+ */
+export const PROFILE_NAMED_MARGIN = 0.02

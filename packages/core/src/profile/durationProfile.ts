@@ -3,14 +3,14 @@ import {
   PROFILE_FLOOR_S,
   PROFILE_LONG_S,
   PROFILE_MAX_S,
-  PROFILE_MEASUREMENT_ERROR,
   PROFILE_MIN_DURATIONS,
   PROFILE_MIN_S,
   PROFILE_MIN_SESSIONS,
   PROFILE_SHORT_S,
-  PROFILE_Z_90,
+  PROFILE_ALPHA,
 } from './constants'
 import { fitCurve } from './morton'
+import { studentTQuantile } from './studentT'
 
 /** One duration's best, in the sport's own unit, and the session it was set in. */
 export interface ProfilePoint {
@@ -44,7 +44,12 @@ export interface ReadyProfile {
   anchored: boolean
 }
 
-export type DurationProfile = ReadyProfile | { status: 'missing'; missing: ProfileGap[] }
+/**
+ * A profile, or what it lacks. 'unfit' is a curve with all it needs that no model could be fitted to well
+ * enough to compare each duration with, which is not the same as a duration missing.
+ */
+export type DurationProfile =
+  ReadyProfile | { status: 'missing'; missing: ProfileGap[] } | { status: 'unfit' }
 
 const inRange = (point: ProfilePoint): boolean =>
   Number.isFinite(point.value) &&
@@ -52,13 +57,17 @@ const inRange = (point: ProfilePoint): boolean =>
   point.durationS >= PROFILE_MIN_S &&
   point.durationS <= PROFILE_MAX_S
 
-/** What the curve lacks, in a fixed order; empty when it has all that a profile needs. */
-function gapsOf(points: readonly ProfilePoint[]): ProfileGap[] {
+/**
+ * What the curve lacks, in a fixed order; empty when it has all that a profile needs. The two ends are
+ * asked of every best the athlete has, but the durations and the sessions are counted over `shown`, the
+ * points the profile is made from.
+ */
+function gapsOf(points: readonly ProfilePoint[], shown: readonly ProfilePoint[]): ProfileGap[] {
   const sessions = new Set(
-    points.flatMap((point) => (point.sessionId === null ? [] : [point.sessionId])),
+    shown.flatMap((point) => (point.sessionId === null ? [] : [point.sessionId])),
   )
   const lacking: [ProfileGap, boolean][] = [
-    ['durations', new Set(points.map((p) => p.durationS)).size < PROFILE_MIN_DURATIONS],
+    ['durations', new Set(shown.map((p) => p.durationS)).size < PROFILE_MIN_DURATIONS],
     ['short', !points.some((point) => point.durationS <= PROFILE_SHORT_S)],
     ['long', !points.some((point) => point.durationS >= PROFILE_LONG_S)],
     ['sessions', sessions.size < PROFILE_MIN_SESSIONS],
@@ -66,34 +75,55 @@ function gapsOf(points: readonly ProfilePoint[]): ProfileGap[] {
   return lacking.filter(([, isLacking]) => isLacking).map(([gap]) => gap)
 }
 
+/** One duration's best against the curve fitted without it. */
+interface Held {
+  durationS: number
+  /** ln(best / predicted). */
+  logRatio: number
+  /** The spread of a new best about the curve, on the log scale, and the fit's degrees of freedom. */
+  sd: number
+  df: number
+}
+
 /**
- * Each duration's best over what the other durations predict, less one, or null where the others give
- * no valid curve. The curve is fitted without that duration and read at it.
+ * Each duration's best against what the other durations predict. The curve is fitted without that
+ * duration and read at it. A duration is left out when the others give no valid curve, and when they
+ * hold no best at 15 s or under for a curve with Pmax: it would be read far beyond the data, where the
+ * model can say anything.
  */
-function leaveOneOut(points: readonly ProfilePoint[], pmax: boolean): (number | null)[] {
-  return points.map((point, i) => {
+function leaveOneOut(points: readonly ProfilePoint[], pmax: boolean): Held[] {
+  return points.flatMap((point, i) => {
     const others = points.filter((_, j) => j !== i)
-    const predicted = fitCurve(others, pmax)?.(point.durationS)
-    return predicted !== undefined && predicted > 0 ? point.value / predicted - 1 : null
+    if (pmax && !others.some((other) => other.durationS <= PROFILE_ANCHOR_S)) return []
+    const fit = fitCurve(others, pmax)
+    const predicted = fit?.predict(point.durationS)
+    if (fit === null || predicted === undefined || !(predicted > 0)) return []
+    return [
+      {
+        durationS: point.durationS,
+        logRatio: Math.log(point.value / predicted),
+        sd: fit.sd.at(point.durationS),
+        df: fit.sd.df,
+      },
+    ]
   })
 }
 
-/** Root mean square of the residuals other than the one at `skip`. */
-function rmsWithout(residuals: readonly number[], skip: number): number {
-  const others = residuals.filter((_, j) => j !== skip)
-  return Math.sqrt(others.reduce((sum, r) => sum + r * r, 0) / others.length)
-}
-
-function rowOf(durationS: number, residuals: readonly number[], index: number): ProfileRow {
-  const residual = residuals[index]!
-  // The spread of the other durations' errors, with the meter's own error added in quadrature.
-  const spread = Math.hypot(rmsWithout(residuals, index), PROFILE_MEASUREMENT_ERROR)
-  const half = PROFILE_Z_90 * spread
-  const low = residual - half
-  const high = residual + half
+/**
+ * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times
+ * its own spread, so a duration the others pin down poorly has a wide one. The level is PROFILE_ALPHA over
+ * all the rows (Bonferroni), so that a profile of pure noise stands out somewhere that rarely. The bounds
+ * are put back from logs to fractions.
+ */
+function rowOf(held: Held, rows: number, quantiles: Map<number, number>): ProfileRow {
+  const t = quantiles.get(held.df) ?? studentTQuantile(1 - PROFILE_ALPHA / (2 * rows), held.df)
+  quantiles.set(held.df, t)
+  const half = t * held.sd
+  const low = Math.expm1(held.logRatio - half)
+  const high = Math.expm1(held.logRatio + half)
   return {
-    durationS,
-    residual,
+    durationS: held.durationS,
+    residual: Math.expm1(held.logRatio),
     low,
     high,
     standsOut: low > 0 ? 'above' : high < 0 ? 'below' : null,
@@ -111,19 +141,16 @@ function rowOf(durationS: number, residuals: readonly number[], index: number): 
  */
 export function durationProfile(curve: readonly ProfilePoint[]): DurationProfile {
   const points = curve.filter(inRange).sort((a, b) => a.durationS - b.durationS)
-  const missing = gapsOf(points)
-  if (missing.length > 0) return { status: 'missing', missing }
   const anchored = points.some((point) => point.durationS <= PROFILE_ANCHOR_S)
   const shown = anchored ? points : points.filter((point) => point.durationS >= PROFILE_FLOOR_S)
-  const found = leaveOneOut(shown, anchored)
-  const fitted = shown.flatMap((point, i) =>
-    found[i] === null ? [] : [{ durationS: point.durationS, residual: found[i]! }],
-  )
-  if (fitted.length < PROFILE_MIN_DURATIONS) return { status: 'missing', missing: ['durations'] }
-  const residuals = fitted.map(({ residual }) => residual)
+  const missing = gapsOf(points, shown)
+  if (missing.length > 0) return { status: 'missing', missing }
+  const held = leaveOneOut(shown, anchored)
+  if (held.length < PROFILE_MIN_DURATIONS) return { status: 'unfit' }
+  const quantiles = new Map<number, number>()
   return {
     status: 'ready',
-    rows: fitted.map(({ durationS }, i) => rowOf(durationS, residuals, i)),
+    rows: held.map((one) => rowOf(one, held.length, quantiles)),
     anchored,
   }
 }

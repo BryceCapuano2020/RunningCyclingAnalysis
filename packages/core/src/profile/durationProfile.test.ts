@@ -28,7 +28,7 @@ function scaled(durationS: number, factor: number): ProfilePoint[] {
 
 function ready(points: ProfilePoint[]) {
   const profile = durationProfile(points)
-  if (profile.status !== 'ready') throw new Error(`not ready: ${profile.missing.join(',')}`)
+  if (profile.status !== 'ready') throw new Error(`not ready: ${JSON.stringify(profile)}`)
   return profile
 }
 
@@ -203,6 +203,39 @@ describe('profileSentence', () => {
     for (const word of ['limiter', 'weak', 'strength', 'holding you back', 'ahead of', 'grade']) {
       expect(text).not.toContain(word)
     }
+  })
+
+  it('names a duration only when its interval clears zero by 2%, and leaves a nearer one to the chart', () => {
+    const row = (durationS: number, residual: number, low: number): ProfileRow => ({
+      durationS,
+      residual,
+      low,
+      high: residual + (residual - low),
+      standsOut: 'above',
+    })
+    const base = (rows: ProfileRow[]): ReadyProfile => ({ status: 'ready', anchored: true, rows })
+    const inLine = (durationS: number): ProfileRow => ({
+      durationS,
+      residual: 0,
+      low: -0.05,
+      high: 0.05,
+      standsOut: null,
+    })
+    const filler = [inLine(5), inLine(30), inLine(3600)]
+    expect(
+      profileSentence(
+        base([...filler.slice(0, 2), row(300, 0.1, 0.02), ...filler.slice(2)]),
+        formatDuration,
+      ),
+    ).toContain('Your 5 min best is 10% above')
+    expect(
+      profileSentence(
+        base([...filler.slice(0, 2), row(300, 0.05, 0.019), ...filler.slice(2)]),
+        formatDuration,
+      ),
+    ).toBe(
+      'Your bests are in line with each other from 5 s to 1 h, apart from small differences on the chart.',
+    )
   })
 
   it('names at most the three that stand out most, in duration order', () => {

@@ -133,4 +133,37 @@ describe('StandOutChart', () => {
     )
     expect(y).toContain('+60%')
   })
+
+  it('writes the duration beside each filled point, and beside no hollow one', () => {
+    render(<StandOutChart sport="run" rows={ROWS} />)
+    const labels = screen.getAllByTestId('stand-out-label')
+    expect(labels.map((label) => label.textContent)).toEqual(['1 min', '2 min'])
+  })
+
+  it('puts a label to the right of its point, and to the left where the right would leave the plot', () => {
+    const edge = [
+      row(5, 0, null),
+      row(60, 0.14, 'above'),
+      row(1200, 0, null),
+      row(3600, 0.2, 'above'),
+    ]
+    render(<StandOutChart sport="run" rows={edge} />)
+    const [early, late] = screen.getAllByTestId('stand-out-label')
+    expect(early).toHaveAttribute('text-anchor', 'start')
+    expect(late).toHaveAttribute('text-anchor', 'end')
+  })
+
+  it('says the scale, one symmetric range rounded up from the data, so two charts are not misread as alike', () => {
+    const { unmount } = render(<StandOutChart sport="run" rows={ROWS} />)
+    expect(screen.getByText('Scale: ±30%')).toBeInTheDocument()
+    unmount()
+    const wide = [row(5, 0.4, 'above'), row(60, -0.3, 'below'), row(1200, 0, null)]
+    render(<StandOutChart sport="ride" rows={wide} />)
+    expect(screen.getByText('Scale: ±60%')).toBeInTheDocument()
+  })
+
+  it('says the scale in the table’s caption too', () => {
+    const { container } = render(<StandOutChart sport="run" rows={ROWS} />)
+    expect(container.querySelector('caption')?.textContent).toContain('Scale: ±30%.')
+  })
 })

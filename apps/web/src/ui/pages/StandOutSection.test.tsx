@@ -38,7 +38,7 @@ describe('StandOutSection', () => {
     ).toBeInTheDocument()
   })
 
-  it('says the bests are in line when nothing stands out, naming the span in whole minutes', () => {
+  it('says the bests are in line when nothing stands out, naming the span in whole minutes, with no chart', () => {
     const result = makeResult({
       activities: profileActivities('run'),
       runCurve: profileCurve(),
@@ -47,6 +47,7 @@ describe('StandOutSection', () => {
     expect(
       screen.getByText('Your bests are in line with each other from 5 s to 60 min.'),
     ).toBeInTheDocument()
+    expect(screen.queryByRole('figure')).toBeNull()
   })
 
   it('says why the short end is missing without a best at 15 s or under', () => {
@@ -81,6 +82,22 @@ describe('StandOutSection', () => {
     })
     render(<StandOutSection sport="ride" result={result} />)
     expect(screen.getByText(/with a power meter$/)).toBeInTheDocument()
+    expect(screen.queryByRole('figure')).toBeNull()
+  })
+
+  it('says a curve could not be fitted, rather than naming something missing, when none fits', () => {
+    const rising = profileCurve(
+      (durationS) => 100 + durationS / 20,
+      [10, 15, 30, 45, 90, 120, 180, 240, 420, 600, 900, 1800, 2700],
+    )
+    const result = makeResult({
+      activities: profileActivities('run'),
+      runCurve: rising,
+    })
+    render(<StandOutSection sport="run" result={result} />)
+    expect(
+      screen.getByText('A curve could not be fitted to your bests, so none is compared'),
+    ).toHaveClass('muted')
     expect(screen.queryByRole('figure')).toBeNull()
   })
 

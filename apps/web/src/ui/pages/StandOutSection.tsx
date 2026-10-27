@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { profileSentence, profileShortNote } from '@rca/core/profile'
+import { PROFILE_UNFIT_TEXT, profileSentence, profileShortNote } from '@rca/core/profile'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { StandOutChart } from '../charts'
@@ -25,10 +25,16 @@ export function StandOutSection({ sport, result }: StandOutSectionProps) {
         <>
           <p>{profileSentence(profile, effortLabel)}</p>
           {shortNote && <p className="muted">{shortNote}</p>}
-          <StandOutChart sport={sport} rows={profile.rows} />
+          {profile.rows.some((row) => row.standsOut !== null) && (
+            <StandOutChart sport={sport} rows={profile.rows} />
+          )}
         </>
       ) : (
-        <p className="muted">{profileNeedsText(sport, profile.missing)}</p>
+        <p className="muted">
+          {profile.status === 'missing'
+            ? profileNeedsText(sport, profile.missing)
+            : PROFILE_UNFIT_TEXT}
+        </p>
       )}
     </section>
   )

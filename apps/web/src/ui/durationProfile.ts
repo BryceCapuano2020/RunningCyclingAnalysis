@@ -31,9 +31,19 @@ export function profilePoints(result: AnalysisResult, sport: Sport): ProfilePoin
   }))
 }
 
+/**
+ * The profiles worked out for each result, by sport. A result does not change, and a page asks again on
+ * every visit, so each is worked out once.
+ */
+const PROFILES = new WeakMap<AnalysisResult, Map<Sport, DurationProfile>>()
+
 /** Which durations of a sport's best curve stand out from the rest of it. */
 export function profileOf(result: AnalysisResult, sport: Sport): DurationProfile {
-  return durationProfile(profilePoints(result, sport))
+  const known = PROFILES.get(result) ?? new Map<Sport, DurationProfile>()
+  PROFILES.set(result, known)
+  const profile = known.get(sport) ?? durationProfile(profilePoints(result, sport))
+  known.set(sport, profile)
+  return profile
 }
 
 /** What a sport's profile is missing, in one muted line, such as "Needs a best at 12 min or more". */

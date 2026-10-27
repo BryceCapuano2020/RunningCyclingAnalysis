@@ -4,6 +4,7 @@ import {
   PROFILE_FLOOR_S,
   PROFILE_LONG_S,
   PROFILE_MAX_NAMED,
+  PROFILE_NAMED_MARGIN,
   PROFILE_MIN_DURATIONS,
   PROFILE_MIN_SESSIONS,
   PROFILE_SHORT_S,
@@ -15,25 +16,36 @@ export type DurationName = (durationS: number) => string
 
 const LOW_OR_UNTESTED = 'it may be relatively low, or untested'
 
-/** The rows that stand out most, at most PROFILE_MAX_NAMED, shortest duration first. */
+/** Whether a row's interval clears zero by PROFILE_NAMED_MARGIN: enough to name in the sentence. */
+function isClear(row: ProfileRow): boolean {
+  if (row.standsOut === 'above') return row.low >= PROFILE_NAMED_MARGIN
+  return row.standsOut === 'below' && row.high <= -PROFILE_NAMED_MARGIN
+}
+
+/** The rows that stand out most and clearly, at most PROFILE_MAX_NAMED, shortest duration first. */
 function namedRows(rows: readonly ProfileRow[]): ProfileRow[] {
   return rows
-    .filter((row) => row.standsOut !== null)
+    .filter(isClear)
     .sort((a, b) => Math.abs(b.residual) - Math.abs(a.residual))
     .slice(0, PROFILE_MAX_NAMED)
     .sort((a, b) => a.durationS - b.durationS)
 }
 
 /**
- * One sentence on what stands out, or that nothing does. It says a low best may be relatively low or
- * untested, since a best is a lower bound. Durations are named by `name`.
+ * One sentence on what stands out, or that nothing does. It names only the durations whose interval
+ * clears zero by a margin, and says a low best may be relatively low or untested, since a best is a lower
+ * bound. A duration that stands out by less is left to the chart, and the sentence says so. Durations are
+ * named by `name`.
  */
 export function profileSentence({ rows }: ReadyProfile, name: DurationName): string {
   const named = namedRows(rows)
   if (named.length === 0) {
     const first = rows[0]!.durationS
     const last = rows.at(-1)!.durationS
-    return `Your bests are in line with each other from ${name(first)} to ${name(last)}.`
+    const span = `from ${name(first)} to ${name(last)}`
+    return rows.some((row) => row.standsOut !== null)
+      ? `Your bests are in line with each other ${span}, apart from small differences on the chart.`
+      : `Your bests are in line with each other ${span}.`
   }
   const lows = named.filter((row) => row.standsOut === 'below').length
   const sentences = named.map((row, i) => {
@@ -78,3 +90,6 @@ export function profileShortNote({ anchored }: ReadyProfile, name: DurationName)
     ? null
     : `Shown from ${name(PROFILE_FLOOR_S)}: there is no best at ${name(PROFILE_ANCHOR_S)} or under to anchor the short end.`
 }
+
+/** What to say when the bests are all there but no curve could be fitted to them. */
+export const PROFILE_UNFIT_TEXT = 'A curve could not be fitted to your bests, so none is compared'

@@ -79,6 +79,21 @@ describe('profileOf', () => {
   })
 })
 
+describe('profileOf, asked again', () => {
+  it('gives the profile it worked out the first time, for the same result and sport', () => {
+    const result = makeResult({
+      activities: profileActivities('run'),
+      runCurve: profileCurve(),
+      rideMeasuredCurve: profileCurve(),
+    })
+    const first = profileOf(result, 'run')
+    expect(profileOf(result, 'run')).toBe(first)
+    // Another sport, and another result, are worked out for themselves.
+    expect(profileOf(result, 'ride')).not.toBe(first)
+    expect(profileOf({ ...result }, 'run')).not.toBe(first)
+  })
+})
+
 describe('profileNeedsText', () => {
   it('asks a ride for a power meter, and a run for nothing more', () => {
     expect(profileNeedsText('ride', ['short', 'long'])).toBe(

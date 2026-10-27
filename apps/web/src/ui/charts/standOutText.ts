@@ -5,6 +5,32 @@ import { SPORT_FORMAT } from '../sports'
 import { effortLabel } from '../records'
 import type { ChartLegendEntry } from './ChartLegend'
 import type { ChartTableData, TooltipContent } from './chartTypes'
+import { niceDomain } from './scale'
+
+const Y_INTERVALS = 4
+/** The fewest percent the vertical axis spans each side of zero, so a profile in line looks it. */
+const MIN_REACH = 0.1
+
+/**
+ * The vertical scale, one for the whole chart: symmetric about zero, so a bump and a dip of the same size
+ * look the same size, and rounded up from the widest range to round ticks, in per cent. Two charts can
+ * differ in scale, so the chart says which it has.
+ */
+export function scaleOf(rows: readonly ProfileRow[]): {
+  domain: [number, number]
+  ticks: number[]
+} {
+  const reach = Math.max(
+    MIN_REACH,
+    ...rows.flatMap((row) => [Math.abs(row.low), Math.abs(row.high)]),
+  )
+  return niceDomain([-reach * 100, reach * 100], Y_INTERVALS, 0)
+}
+
+/** The scale in words, such as "Scale: ±40%". */
+export function scaleNote(rows: readonly ProfileRow[]): string {
+  return `Scale: ±${scaleOf(rows).domain[1]}%`
+}
 
 /** A residual as a signed whole percent, such as "+14%". */
 export function signedPercent(fraction: number): string {
@@ -23,10 +49,9 @@ function differenceText(row: ProfileRow): string {
 }
 
 /** The table that holds every value the chart draws. */
-export function tableOf(rows: readonly ProfileRow[]): ChartTableData {
+export function tableOf(rows: readonly ProfileRow[], scale: string): ChartTableData {
   return {
-    caption:
-      'How far each best sits above or below what your other bests predict, with its likely range. Above or below marks a best that stands out.',
+    caption: `How far each best sits above or below what your other bests predict, with its likely range. Above or below marks a best that stands out. ${scale}.`,
     columns: ['Duration', 'Difference', 'Likely range'],
     rows: rows.map((row) => [effortLabel(row.durationS), differenceText(row), rangeText(row)]),
   }
