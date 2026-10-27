@@ -142,6 +142,13 @@ export async function horizontalOverflow(
   }))
 }
 
+/** The top and bottom edges of an element's box. Throws when it has no box, so a missing element fails. */
+export async function edgesOf(locator: Locator): Promise<{ top: number; bottom: number }> {
+  const box = await locator.boundingBox()
+  if (box === null) throw new Error(`no box for ${locator}`)
+  return { top: box.y, bottom: box.y + box.height }
+}
+
 /** The API rejects every non-GET request without this header (CSRF guard). */
 export const CLIENT_HEADERS = { 'X-RCA-Client': 'web' }
 

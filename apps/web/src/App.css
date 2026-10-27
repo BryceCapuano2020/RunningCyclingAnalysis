@@ -159,15 +159,17 @@
 /*
  * A short phone (SHORT_PHONE_MAX_HEIGHT_PX in layoutBreakpoints.ts) tightens the gap, so Add files is on the
  * first screen at 320 x 568. On a short landscape screen the pitch sits beside the drop zone instead, so it
- * is on the first screen at 844 x 390 and 667 x 375; the example and the steps follow below.
+ * is on the first screen at 844 x 390 and 667 x 375; the example and the steps follow below. A short desktop
+ * window keeps the tall layout: each query asks for a finger (pointer: coarse) or a phone-width window.
  */
-@media (max-height: 700px) {
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
   .landing__hero {
     gap: var(--space-4);
   }
 }
 
-@media (orientation: landscape) and (max-height: 700px) {
+@media (orientation: landscape) and (max-height: 700px) and (pointer: coarse),
+  (orientation: landscape) and (max-height: 700px) and (max-width: 760px) {
   .landing__hero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;

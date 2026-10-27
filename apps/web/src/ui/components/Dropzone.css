@@ -26,8 +26,9 @@
   text-align: center;
 }
 
-/* On a short phone the drop zone is a step tighter, so Add files is on the first screen at 320 x 568. */
-@media (max-height: 700px) {
+/* On a short phone the drop zone is a step tighter, so Add files is on the first screen at 320 x 568. A
+   short desktop window keeps the tall padding: the query asks for a finger or a phone-width window. */
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
   .dropzone {
     padding: var(--space-4);
   }

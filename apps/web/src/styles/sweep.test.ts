@@ -11,9 +11,12 @@ const publicFiles = [
   { path: 'favicon.svg', text: await readStylesheet(import.meta.url, '../../public/favicon.svg') },
 ]
 
-/** Each rule as its selector list and its declarations, with comments removed. */
+/**
+ * Each rule as its selector list and its declarations, with comments and @import statements removed,
+ * so an import above a rule is not read as part of its selector.
+ */
 function rulesOf(css: string): [selectors: string, body: string][] {
-  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@import[^;]*;/g, '')
   return [...bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, list = '', body = '']) => [list, body])
 }
 
@@ -90,6 +93,21 @@ describe('every stylesheet in the app', () => {
     )
     expect(offenders).toEqual([])
   })
+
+  it('gates each short-height query to a phone or a touch screen, so a short desktop window keeps its layout', () => {
+    // A query is gated when it asks for a finger (pointer: coarse) or a phone-width window (max-width).
+    const gated = (query: string): boolean => {
+      const widths = [...query.matchAll(/max-width:\s*(\d+)px/g)].map(([, px = '']) => Number(px))
+      return /pointer:\s*coarse/.test(query) || widths.some((px) => px <= 760)
+    }
+    const ungated = sheets.flatMap(({ path, css }) =>
+      [...css.matchAll(/@media\s+([^{]*max-height:\s*700px[^{]*)\{/g)]
+        .map(([, query = '']) => query.trim())
+        .filter((query) => !gated(query))
+        .map((query) => `${path}: @media ${query}`),
+    )
+    expect(ungated).toEqual([])
+  })
 })
 
 /*
@@ -144,11 +162,24 @@ const BOTH_SPORTS: Record<string, readonly string[]> = {
   ],
   // Method's ratio chart: the run and ride higher-share bands.
   'ui/charts/RatioChart.css': ['.ratio-chart__higher--run', '.ratio-chart__higher--ride'],
+  // The static privacy page keeps its own copy of the two sport colours, in its root blocks, and draws
+  // the brand mark's two strokes.
+  'styles/privacy.css': [
+    ':root',
+    ":root:not([data-theme='light'])",
+    '.brand-mark__run',
+    '.brand-mark__ride',
+  ],
 }
 /** The static privacy page's stylesheet copies the token values, and tokens.test.ts keeps them equal. */
 const PRIVACY_PAGE = 'styles/privacy.css'
 const HEX_COPIES = ['share/cardColors.ts', PRIVACY_PAGE, 'favicon.svg']
-const SERIES_TOKEN = /--series-(?:run|ride)(?:-soft)?\b/
+const SERIES_TOKEN = /--series-(?:run|ride|swim)(?:-soft)?\b/
+/**
+ * A series token in TypeScript: a literal name, a var() whose name is built at run time, or a token
+ * name built from a sport. A class such as `chart-series__area--${sport}` is not a token, so it passes.
+ */
+const SERIES_SOURCE = /--series-(?:run|ride|swim)(?:-soft)?\b|var\(--\$\{|--series-\$\{/
 const SPORT_HEX = /#(?:e5304f|f0435f|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
 
 /** Each selector, from a stylesheet's rules, whose declarations name a series colour token. */
@@ -161,7 +192,7 @@ function seriesSelectorsOf(css: string): string[] {
 describe('sport colour', () => {
   it('names a series colour token only in tokens.css and in the selectors that draw both sports', () => {
     const styleOffenders = sheets
-      .filter(({ path }) => path !== 'styles/tokens.css' && path !== PRIVACY_PAGE)
+      .filter(({ path }) => path !== 'styles/tokens.css')
       .flatMap(({ path, css }) => {
         const allowed = BOTH_SPORTS[path] ?? []
         return seriesSelectorsOf(css)
@@ -169,7 +200,7 @@ describe('sport colour', () => {
           .map((selector) => `${path}: ${selector}`)
       })
     const sourceOffenders = sources
-      .filter(({ text }) => SERIES_TOKEN.test(text))
+      .filter(({ text }) => SERIES_SOURCE.test(text))
       .map(({ path }) => path)
     expect([...styleOffenders, ...sourceOffenders]).toEqual([])
   })
@@ -209,5 +240,34 @@ describe('sport colour', () => {
       .filter(({ css }) => /--sport-colour(?:-soft)?\s*:/.test(css))
       .map(({ path }) => path)
     expect(declaring).toEqual(['styles/tokens.css'])
+  })
+
+  it('fills the ride area with its sport colour, read from data-sport, not a series token', () => {
+    const chartSeries = sheets.find(({ path }) => path === 'ui/charts/ChartSeries.css')?.css ?? ''
+    expect(declarations(chartSeries, '.chart-series__area--ride').get('fill')).toBe(
+      'var(--sport-colour-soft)',
+    )
+  })
+})
+
+/*
+ * The planted cases: each pattern must catch what the sweep is meant to stop, and leave alone the
+ * class names that only look like a token. Without them a loosened pattern would pass unnoticed.
+ */
+describe('the series token patterns', () => {
+  it('catches the swim token in a stylesheet, as it catches run and ride', () => {
+    expect(SERIES_TOKEN.test('color: var(--series-swim);')).toBe(true)
+    expect(SERIES_TOKEN.test('background: var(--series-swim-soft);')).toBe(true)
+  })
+
+  it('catches a variable name built in a template literal, in a style or a token name', () => {
+    expect(SERIES_SOURCE.test('style={{ color: `var(--${token})` }}')).toBe(true)
+    expect(SERIES_SOURCE.test('const name = `--series-${sport}`')).toBe(true)
+  })
+
+  it('leaves a class name with a sport suffix alone', () => {
+    expect(
+      SERIES_SOURCE.test('className={`chart-series__area chart-series__area--${sport}`}'),
+    ).toBe(false)
   })
 })
