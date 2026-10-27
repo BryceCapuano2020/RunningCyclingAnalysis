@@ -85,8 +85,9 @@ export interface UnevenFit {
 }
 
 /**
- * The fit with the uneven bests left out. It passes the same rules as the main fit, with a reach of
- * UNEVEN_MIN_S. Null without uneven bests, when that fit is refused, or when a main fit exists and this one
+ * The fit with the uneven bests left out. It passes the main fit's rules except the reach: its longest
+ * effort need only be UNEVEN_MIN_S, so it can rest on efforts of 10 min or less, which tend to set a
+ * threshold high. That is why it is only ever the top of a range. Null without uneven bests, when that fit is refused, or when a main fit exists and this one
  * is not above it. A refused main fit does not block this one, since the floor it sets is still a fact.
  */
 export function unevenFit(

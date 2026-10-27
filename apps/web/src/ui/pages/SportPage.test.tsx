@@ -274,6 +274,8 @@ describe('SportPage', () => {
     expect(within(section).getByText('Likely 52 to 58 W')).toBeInTheDocument()
     expect(within(section).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
     expect(within(section).getByText(/only set a floor/)).toBeInTheDocument()
+    // A floor is a held best, not an estimate, so the estimate's meaning is not said under it.
+    expect(within(section).queryByText(THRESHOLD_MEANING.ride)).not.toBeInTheDocument()
   })
 
   it('names the period by its control under the answer, not with a count under the threshold', () => {

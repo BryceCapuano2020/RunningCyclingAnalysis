@@ -170,6 +170,12 @@ describe('floorThreshold', () => {
     expect(floorThreshold(makeResult({ rideCpUneven: uneven }), 'ride', 75, 'metric')).toBeNull()
     expect(floorThreshold(makeResult({ rideCp: null }), 'ride', 75, 'metric')).toBeNull()
   })
+
+  it('is null when the floor is not below the fit, so a figure never stands without its range', () => {
+    const level = { ...uneven, floor: uneven.fit.cp }
+    const result = makeResult({ rideCp: null, rideCpRefusal: 'shape', rideCpUneven: level })
+    expect(floorThreshold(result, 'ride', 75, 'metric')).toBeNull()
+  })
 })
 
 describe('sportRecords', () => {

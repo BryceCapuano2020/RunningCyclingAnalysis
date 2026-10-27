@@ -29,5 +29,7 @@ export function floorThreshold(
 ): SportNumber | null {
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   if (!uneven || threshold(result, sport, massKg, units) !== null) return null
+  // A floor at or above the fit would leave no range above it, so it is not shown as the threshold.
+  if (!(uneven.fit.cp > uneven.floor)) return null
   return FIGURE_AT[sport](uneven.floor, massKg, units)
 }

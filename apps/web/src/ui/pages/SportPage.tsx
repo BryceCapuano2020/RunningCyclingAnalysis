@@ -156,8 +156,8 @@ export function SportPage({
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
   // With the threshold refused, an uneven fit's floor is shown in its place, so the refusal is not said.
-  const hero =
-    threshold(result, sport, massKg, units) ?? floorThreshold(result, sport, massKg, units)
+  const fitted = threshold(result, sport, massKg, units)
+  const hero = fitted ?? floorThreshold(result, sport, massKg, units)
   const range = thresholdRange(result, sport, massKg, units)
   const floorNote = unevenNote(result, sport)
   const records = sportRecords(result, sport, massKg, units)
@@ -273,7 +273,8 @@ export function SportPage({
         )}
         {hero && range && <p className="muted sport-page__range">{`Likely ${range}`}</p>}
         {hero && floorNote && <p className="muted">{floorNote}</p>}
-        {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+        {/* A floor is a held best, not an estimate, so the estimate's meaning is not said under it. */}
+        {fitted && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
         {heartRateLine && <p className="muted">{heartRateLine}</p>}
         {headline && (
           <AgeGradeBlock sport={sport} outcome={headline} effort={headlineEffort(sport, records)} />
