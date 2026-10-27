@@ -9,8 +9,9 @@ const TABLES: Record<Sex, number[][]> = {
   female: ROAD_STANDARDS_FEMALE,
   male: ROAD_STANDARDS_MALE,
 }
-const FIRST_DISTANCE_M = ROAD_DISTANCES_M[0]!
-const LAST_DISTANCE_M = ROAD_DISTANCES_M[ROAD_DISTANCES_M.length - 1]!
+/** The shortest and longest distances the road standards grade: a mile, and 200 km. */
+export const FIRST_GRADED_DISTANCE_M = ROAD_DISTANCES_M[0]!
+export const LAST_GRADED_DISTANCE_M = ROAD_DISTANCES_M[ROAD_DISTANCES_M.length - 1]!
 
 /**
  * Age-standard time in seconds for a road race of distanceM by an athlete of the given integer age
@@ -32,7 +33,11 @@ export function ageStandardSeconds(distanceM: number, age: number, sex: Sex): nu
   ) {
     return null
   }
-  if (!Number.isFinite(distanceM) || distanceM < FIRST_DISTANCE_M || distanceM > LAST_DISTANCE_M) {
+  if (
+    !Number.isFinite(distanceM) ||
+    distanceM < FIRST_GRADED_DISTANCE_M ||
+    distanceM > LAST_GRADED_DISTANCE_M
+  ) {
     return null
   }
   const row = table[age - FIRST_GRADED_AGE]!

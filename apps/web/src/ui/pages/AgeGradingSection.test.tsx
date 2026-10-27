@@ -139,3 +139,13 @@ describe('AgeGradingSection', () => {
     expect(text).not.toMatch(/\bminutes\b/)
   })
 })
+
+describe('AgeGradingSection level target', () => {
+  it('says in one sentence how the level target is worked out, from the ride equivalence range', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(section()).toHaveTextContent(
+      'The level target on Balance is the watts whose running equivalent grades to the other sport’s whole-percent grade, with the range from the equivalence’s 5th to 95th percentile.',
+    )
+  })
+})

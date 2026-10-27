@@ -1,7 +1,7 @@
-/// <reference types="vitest/config" />
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import type { Connect, Plugin } from 'vite'
 import { e2eApiPort } from './e2e/ports.ts'
 
@@ -48,6 +48,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.{ts,tsx}'],
+    // Timing budgets run in test:perf, alone and without the parallel unit run.
+    exclude: [...configDefaults.exclude, 'src/**/*.perf.test.ts'],
     setupFiles: ['src/test/setup.ts'],
   },
 })

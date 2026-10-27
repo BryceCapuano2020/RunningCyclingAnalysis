@@ -11,6 +11,7 @@ import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
 import { gapOfHeadline } from '../balanceGap'
+import { levelTargetText } from '../levelTarget'
 import { countSport, latestStartOf } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import {
@@ -128,6 +129,22 @@ export function BalancePage({
     }),
     [headline, weightKnown],
   )
+  // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
+  // search runs on each change of these inputs, not on each render, so it is memoised on them.
+  const levelLine = useMemo(
+    () =>
+      gap !== null && sex !== null
+        ? levelTargetText({
+            lean: gap.lean,
+            grades,
+            result,
+            sex,
+            massKg: settings.massKg,
+            units,
+          })
+        : null,
+    [gap, grades, result, sex, settings.massKg, units],
+  )
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
@@ -168,6 +185,7 @@ export function BalancePage({
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
         strip={<BalanceStrip grades={grades} />}
+        levelLine={levelLine}
         action={
           <ShareImageButton
             result={result}

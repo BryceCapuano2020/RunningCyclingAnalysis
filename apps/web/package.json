@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
     "e2e": "playwright test",
     "screenshots": "npm run build && tsx scripts/screenshots.ts",
     "fixtures": "tsx scripts/make-fixtures.ts",
