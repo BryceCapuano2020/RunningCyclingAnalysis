@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { RejectedFile } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
-import { addedSentence, importSentence, skippedCount } from '../analysis/copy'
+import { addedSentence, importSentence } from '../analysis/copy'
 import type { MovedItem } from '../analysis/whatMoved'
 import { PAGE_HEADING_ID } from '../pages/pageHeading'
 import { hrefFor } from '../route'
@@ -74,12 +74,7 @@ export function ImportNotice({
             ))}
           </ul>
         )}
-        <RejectedFiles
-          count={skippedCount(outcome)}
-          rejected={rejected}
-          unsupportedFiles={unsupportedFiles}
-          duplicates={outcome.duplicates}
-        />
+        <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
       </div>
       {atBalance ? null : <a href={hrefFor({ page: 'balance' })}>See your balance</a>}
       <button type="button" className="btn" onClick={dismiss}>

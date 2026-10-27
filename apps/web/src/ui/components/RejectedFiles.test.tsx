@@ -3,41 +3,193 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RejectedFile } from '@rca/core/session'
 import { RejectedFiles } from './RejectedFiles'
-import type { RejectedFilesProps } from './RejectedFiles'
 
 afterEach(() => {
   cleanup()
 })
 
-/** Renders the skipped files with the count the summary gives: every file listed, and those counted. */
-function Skipped(props: Omit<RejectedFilesProps, 'count'>) {
-  const count = props.rejected.length + (props.duplicates?.length ?? 0) + props.unsupportedFiles
-  return <RejectedFiles count={count} {...props} />
+interface SkippedProps {
+  rejected?: RejectedFile[]
+  unsupportedFiles?: number
+  duplicates?: RejectedFile[]
+  /** Activities saved, not counting the copies left out. */
+  saved?: number
+  unlisted?: number
+}
+
+const NONE: RejectedFile[] = []
+
+/** Renders the skipped files of an import whose counts agree with the files it lists. */
+function Skipped({
+  rejected = NONE,
+  unsupportedFiles = 0,
+  duplicates = NONE,
+  saved = 0,
+  unlisted,
+}: SkippedProps) {
+  const outcome = {
+    activities: saved + duplicates.length,
+    rejected: rejected.length + unsupportedFiles,
+    duplicates,
+    notActivities: unlisted,
+  }
+  return <RejectedFiles outcome={outcome} rejected={rejected} unsupportedFiles={unsupportedFiles} />
 }
 
 function skipped(fileName: string, code: RejectedFile['code'], detail?: string): RejectedFile {
   return { fileName, reason: 'core reason', code, detail }
 }
 
-describe('RejectedFiles: what was skipped, and why', () => {
-  it('says how many files were skipped, with the groups in a disclosure', () => {
+/** `count` files of one sport, named the way a FIT file names it. */
+function sportFiles(count: number, detail: string): RejectedFile[] {
+  return Array.from({ length: count }, (_, i) =>
+    skipped(`${detail}/${i}.fit`, 'unsupported-sport', detail),
+  )
+}
+
+describe('RejectedFiles: the headline adds up', () => {
+  it('says how many files were read and where each went, over the groups it opens', () => {
     render(
       <Skipped
-        rejected={[skipped('notes.txt', 'not-activity')]}
-        unsupportedFiles={0}
-        duplicates={[skipped('copy.gpx', 'duplicate', 'run.fit')]}
+        saved={9}
+        rejected={[skipped('empty.gpx', 'empty'), ...sportFiles(2, 'hiking')]}
+        unlisted={4}
       />,
     )
 
-    expect(screen.getByText('2 files skipped.').closest('summary')).not.toBeNull()
-    expect(screen.getByText('Not an activity file: 1 file')).toBeInTheDocument()
-    expect(screen.getByText('Already added: 1 file')).toBeInTheDocument()
+    const headline = screen.getByText(
+      'Read 16 files: 9 saved, 1 needs a look, 2 other sports left out on purpose, 4 not listed as activities, so not read.',
+    )
+    expect(headline.closest('summary')).not.toBeNull()
   })
 
-  it('names each file beside its own plain reason, not the core reason', () => {
+  it("adds up the owner's export, 3,018 files with 320 files its list does not name among them", () => {
     render(
-      <Skipped rejected={[skipped('bad.fit', 'corrupt')]} unsupportedFiles={0} duplicates={[]} />,
+      <Skipped
+        saved={1915}
+        rejected={[
+          ...sportFiles(748, 'training'),
+          skipped('activities/19682145057.gpx', 'empty'),
+          skipped('activities/486884001.gpx', 'too-short'),
+          skipped('activities/2187381745.tcx', 'too-short'),
+          ...Array.from({ length: 32 }, (_, i) => skipped(`activities/${i}.gpx`, 'no-sport')),
+        ]}
+        unlisted={320}
+      />,
     )
+
+    expect(
+      screen.getByText(
+        'Read 3,018 files: 1,915 saved, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities, so not read.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Need a look: 35 files')).toBeInTheDocument()
+    expect(screen.getByText('Other sports, left out on purpose: 748 files')).toBeInTheDocument()
+    expect(
+      screen.getByText('Not listed as activities, such as saved routes: 320 files'),
+    ).toBeInTheDocument()
+  })
+
+  it('renders nothing when every file was saved', () => {
+    const { container } = render(<Skipped saved={5} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+})
+
+describe('RejectedFiles: the first file under the headline', () => {
+  it('is the first file that needs a look, not the first file in the zip', () => {
+    const { container } = render(
+      <Skipped
+        saved={1}
+        rejected={[
+          skipped('walk.fit', 'unsupported-sport', 'walking'),
+          skipped('empty.gpx', 'empty'),
+          skipped('short.gpx', 'too-short'),
+        ]}
+      />,
+    )
+
+    const summary = container.querySelector('summary')!
+    expect(summary.querySelector('.rejected-files__first')).toHaveTextContent(
+      'empty.gpx: It holds no recorded points, so there is nothing to read.',
+    )
+    expect(within(summary).queryByText(/walk\.fit/)).not.toBeInTheDocument()
+  })
+
+  it('is left out when no file needs a look, so the headline stands alone', () => {
+    const { container } = render(<Skipped saved={1} rejected={sportFiles(2, 'hiking')} />)
+    expect(container.querySelector('.rejected-files__first')).toBeNull()
+  })
+
+  it('is not listed again below, since it is shown under the headline', () => {
+    const { container } = render(
+      <Skipped rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]} />,
+    )
+
+    const list = container.querySelector<HTMLElement>('.rejected-files__list')!
+    const reason = 'It holds no recorded points, so there is nothing to read.'
+    expect(within(list).queryByText(`a.gpx: ${reason}`)).not.toBeInTheDocument()
+    expect(within(list).getByText(`b.gpx: ${reason}`)).toBeInTheDocument()
+  })
+
+  it('gives the headline, then the first file, above the groups', () => {
+    const { container } = render(
+      <Skipped rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]} />,
+    )
+
+    const summary = container.querySelector('summary')!
+    const headline = within(summary).getByText(/^Read 2 files/)
+    const first = summary.querySelector('.rejected-files__first')!
+    const group = container.querySelector('.rejected-files__group')!
+    expect(headline.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(first.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+describe('RejectedFiles: the files that need a look', () => {
+  it('lists one line for each file, in the group itself rather than behind another disclosure', () => {
+    const { container } = render(
+      <Skipped
+        rejected={[
+          skipped('a.gpx', 'empty'),
+          skipped('b.gpx', 'too-short'),
+          skipped('c.gpx', 'no-sport'),
+        ]}
+      />,
+    )
+
+    const group = screen.getByText('Need a look: 3 files').closest('.rejected-files__group')!
+    const lines = within(group as HTMLElement).getAllByRole('listitem')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]!.closest('details')).toBe(container.querySelector('details'))
+  })
+
+  it('says an empty file holds no points, and does not tell its owner to export it again', () => {
+    render(<Skipped rejected={[skipped('empty.gpx', 'empty')]} />)
+
+    expect(
+      screen.getByText('empty.gpx: It holds no recorded points, so there is nothing to read.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/export/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/activity records/)).not.toBeInTheDocument()
+  })
+
+  it('gives a file that does not say its sport its own reason, and does not call it left out on purpose', () => {
+    render(
+      <Skipped rejected={[skipped('x.gpx', 'no-sport'), skipped('y.gpx', 'no-sport')]} saved={1} />,
+    )
+
+    expect(
+      screen.getAllByText(/It does not say whether it is a run or a ride, so it is not guessed\./)
+        .length,
+    ).toBeGreaterThan(0)
+    expect(screen.getByText('Need a look: 2 files')).toBeInTheDocument()
+    expect(screen.queryByText(/Other sports/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/on purpose/)).not.toBeInTheDocument()
+  })
+
+  it('names a damaged file beside its own plain reason, not the core reason', () => {
+    render(<Skipped rejected={[skipped('bad.fit', 'corrupt')]} />)
 
     expect(
       screen.getAllByText('bad.fit: Damaged, so it could not be read. Export it again.').length,
@@ -45,288 +197,175 @@ describe('RejectedFiles: what was skipped, and why', () => {
     expect(screen.queryByText('core reason', { exact: false })).not.toBeInTheDocument()
   })
 
-  it('gives a group its one suggested action unless one of its lines already gives the advice', () => {
+  it('says each piece of advice once, in the first line that gives it', () => {
     render(
       <Skipped
         rejected={[
           skipped('bad.fit', 'corrupt'),
           skipped('bad2.fit', 'corrupt'),
-          skipped('walk.fit', 'unsupported-sport', 'walking'),
-        ]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Export the file again from your device or app.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('Only runs and rides are analysed, so these were left out on purpose.'),
-    ).toBeInTheDocument()
-  })
-
-  it('does not repeat the group action for a lone damaged file, since its line already says to export it again', () => {
-    render(
-      <Skipped
-        rejected={[
-          skipped('bad.fit', 'corrupt'),
-          skipped('walk.fit', 'unsupported-sport', 'walking'),
-        ]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Export the file again from your device or app.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
-    ).toBeInTheDocument()
-  })
-
-  it('says the export advice once, in the first file line, when a group has two or more damaged files', () => {
-    render(
-      <Skipped
-        rejected={[skipped('bad.fit', 'corrupt'), skipped('bad2.fit', 'corrupt')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Export the file again from your device or app.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
-    ).toBeInTheDocument()
-    expect(screen.queryAllByText(/Export it again/)).toHaveLength(1)
-    expect(screen.getByText('bad2.fit: Damaged, so it could not be read.')).toBeInTheDocument()
-  })
-
-  it('keeps the advice in the line of a lone damaged file that is not first, and drops its group action', () => {
-    render(
-      <Skipped
-        rejected={[skipped('notes.txt', 'not-activity'), skipped('bad.fit', 'corrupt')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Export the file again from your device or app.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
-    ).toBeInTheDocument()
-  })
-
-  it("shows a too-large pair's group action, and leaves the advice out of their lines, when the first file is damaged", () => {
-    render(
-      <Skipped
-        rejected={[
-          skipped('bad.fit', 'corrupt'),
           skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
-          skipped('big2.fit', 'too-large', String(64 * 1024 ** 2)),
-        ]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.getByText('Check the recording on your device, or export a shorter range.'),
-    ).toBeInTheDocument()
-    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(0)
-    expect(screen.getByText('big2.fit: Too large to read (over 64 MB).')).toBeInTheDocument()
-    expect(
-      screen.getByText('bad.fit: Damaged, so it could not be read. Export it again.'),
-    ).toBeInTheDocument()
-  })
-
-  it('says the shorter-range advice once, in the first file line, when a group has two too-large files', () => {
-    render(
-      <Skipped
-        rejected={[
-          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
-          skipped('big2.fit', 'too-large', String(64 * 1024 ** 2)),
-        ]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Check the recording on your device, or export a shorter range.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('big.fit: Too large to read (over 64 MB). Export a shorter range.'),
-    ).toBeInTheDocument()
-    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(1)
-    expect(screen.getByText('big2.fit: Too large to read (over 64 MB).')).toBeInTheDocument()
-  })
-
-  it('says the shorter-range advice once, in the first file line, when a group has two too-much-data files', () => {
-    render(
-      <Skipped
-        rejected={[skipped('a.fit', 'too-much-data'), skipped('b.fit', 'too-much-data')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Check the recording on your device, or export a shorter range.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('a.fit: Too much data for one file. Export a shorter range.'),
-    ).toBeInTheDocument()
-    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(1)
-    expect(screen.getByText('b.fit: Too much data for one file.')).toBeInTheDocument()
-  })
-
-  it('keeps the shorter-range advice in the line of a lone too-large file, and drops its group action', () => {
-    render(
-      <Skipped
-        rejected={[
-          skipped('notes.txt', 'not-activity'),
-          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
-        ]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    expect(
-      screen.queryByText('Check the recording on your device, or export a shorter range.'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText('big.fit: Too large to read (over 64 MB). Export a shorter range.'),
-    ).toBeInTheDocument()
-  })
-
-  it('keeps a mixed group action when its first file gives advice and another file gives none', () => {
-    render(
-      <Skipped
-        rejected={[
-          skipped('big.fit', 'too-large', String(64 * 1024 ** 2)),
+          skipped('big2.fit', 'too-much-data'),
           skipped('short.fit', 'too-short'),
+          skipped('short2.fit', 'too-short'),
         ]}
-        unsupportedFiles={0}
-        duplicates={[]}
       />,
     )
 
+    expect(screen.queryAllByText(/Export it again\./)).toHaveLength(1)
+    expect(screen.queryAllByText(/Export a shorter range\./)).toHaveLength(1)
+    expect(screen.queryAllByText(/Check the recording on your device/)).toHaveLength(1)
+    expect(screen.getByText('bad2.fit: Damaged, so it could not be read.')).toBeInTheDocument()
+    expect(screen.getByText('big2.fit: Too much data for one file.')).toBeInTheDocument()
     expect(
-      screen.getByText('big.fit: Too large to read (over 64 MB). Export a shorter range.'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('Check the recording on your device, or export a shorter range.'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('short.fit: Too short: it records less than a minute.'),
+      screen.getByText('short2.fit: Too short: it records less than a minute.'),
     ).toBeInTheDocument()
   })
 
-  it('keeps the group action for a lone first file whose line gives no action', () => {
-    render(
-      <Skipped
-        rejected={[skipped('notes.txt', 'not-activity')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
+  it('shows no group action: the advice is in the lines', () => {
+    const { container } = render(
+      <Skipped rejected={[skipped('bad.fit', 'corrupt'), skipped('bad2.fit', 'corrupt')]} />,
     )
-
-    expect(
-      screen.getByText('Export your activities as FIT, GPX or TCX files, then add them again.'),
-    ).toBeInTheDocument()
+    expect(container.querySelector('.rejected-files__action')).toBeNull()
+    expect(screen.queryByText('Export the file again from your device or app.')).toBeNull()
   })
 
   it('counts files in a format the app does not read, without naming them', () => {
-    render(<Skipped rejected={[]} unsupportedFiles={2} duplicates={[]} />)
+    render(<Skipped unsupportedFiles={2} saved={1} />)
 
-    expect(screen.getByText('2 files skipped.')).toBeInTheDocument()
-    expect(screen.getByText('Not an activity file: 2 files')).toBeInTheDocument()
+    expect(screen.getByText(/^Read 3 files: 1 saved, 2 need a look\.$/)).toBeInTheDocument()
+    expect(screen.getByText('Need a look: 2 files')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        '2 files in a format this app does not read. Export your activities as FIT, GPX or TCX files, then add them again.',
+      ),
+    ).toBeInTheDocument()
   })
 
-  it('names a sport in words and says it was left out on purpose', () => {
+  it('says the export advice once when a named file and unnamed ones need it', () => {
+    render(<Skipped rejected={[skipped('notes.txt', 'not-activity')]} unsupportedFiles={2} />)
+
+    expect(screen.getAllByText(/Export your activities as FIT, GPX or TCX files/)).toHaveLength(1)
+    expect(screen.getByText('2 files in a format this app does not read.')).toBeInTheDocument()
+  })
+})
+
+describe('RejectedFiles: the other sports, left out on purpose', () => {
+  it('is one line for each sport with its count, whichever source named it', () => {
     render(
       <Skipped
-        rejected={[skipped('swim.fit', 'unsupported-sport', 'swimming')]}
-        unsupportedFiles={0}
-        duplicates={[]}
+        saved={1}
+        rejected={[
+          ...sportFiles(3, 'training'),
+          skipped('w.gpx', 'unsupported-sport', 'Workout'),
+          ...sportFiles(2, 'hiking'),
+          skipped('x.fit', 'e-bike'),
+        ]}
       />,
     )
+
+    const group = screen
+      .getByText('Other sports, left out on purpose: 7 files')
+      .closest('.rejected-files__group') as HTMLElement
+    const lines = within(group)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+    expect(lines.slice(0, 3)).toEqual(['Training session: 4', 'Hike: 2', 'E-bike ride: 1'])
+  })
+
+  it('puts the files behind a nested Show the files disclosure that starts closed', () => {
+    const { container } = render(<Skipped saved={1} rejected={sportFiles(2, 'hiking')} />)
+
+    const outer = container.querySelector('details')!
+    const nested = screen.getByText('Show the files').closest('details')!
+    expect(nested).not.toBe(outer)
+    expect(outer).toContainElement(nested)
+    expect(nested).not.toHaveAttribute('open')
+    expect(
+      within(nested).getByText('hiking/0.fit: A hike is not a run or a ride.'),
+    ).toBeInTheDocument()
+    expect(within(nested).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('names a Strava type in words, as a FIT sport is', () => {
+    render(
+      <Skipped saved={1} rejected={[skipped('s.gpx', 'unsupported-sport', 'Weight Training')]} />,
+    )
+    expect(
+      screen.getByText('s.gpx: A gym or fitness session is not a run or a ride.'),
+    ).toBeInTheDocument()
+  })
+
+  it('gives the group no action', () => {
+    const { container } = render(<Skipped saved={1} rejected={sportFiles(2, 'hiking')} />)
+    expect(container.querySelector('.rejected-files__action')).toBeNull()
+  })
+})
+
+describe('RejectedFiles: files the export does not list, and copies already added', () => {
+  it('says what the unlisted files are in one line with their count and no action', () => {
+    const { container } = render(
+      <Skipped saved={1} rejected={[skipped('empty.gpx', 'empty')]} unlisted={320} />,
+    )
+
+    const title = screen.getByText('Not listed as activities, such as saved routes: 320 files')
+    const group = title.closest('.rejected-files__group')!
+    expect(group.children).toHaveLength(1)
+    expect(container.querySelector('.rejected-files__action')).toBeNull()
+  })
+
+  it('lists the groups in order: need a look, other sports, already added, not listed as activities', () => {
+    render(
+      <Skipped
+        saved={1}
+        rejected={[...sportFiles(1, 'hiking'), skipped('empty.gpx', 'empty')]}
+        duplicates={[skipped('copy.gpx', 'duplicate', 'run.fit')]}
+        unlisted={2}
+      />,
+    )
+
+    const titles = screen
+      .getAllByText(/^(Need a look|Other sports|Already added|Not listed as activities)/, {
+        selector: 'strong',
+      })
+      .map((title) => title.textContent)
+    expect(titles).toEqual([
+      'Need a look: 1 file',
+      'Other sports, left out on purpose: 1 file',
+      'Already added: 1 file',
+      'Not listed as activities, such as saved routes: 2 files',
+    ])
+  })
+
+  it('names a copy of a workout already added, with the one note on why', () => {
+    render(<Skipped saved={3} duplicates={[skipped('copy.gpx', 'duplicate', 'run.fit')]} />)
+
+    expect(screen.getByText('Read 4 files: 3 saved, 1 already added.')).toBeInTheDocument()
+    expect(
+      screen.getByText('copy.gpx: Same workout as run.fit, so it was not counted twice.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('Only one copy of a workout is kept, so these were not counted twice.'),
+    ).toBeInTheDocument()
+  })
+
+  it('is plain text with nothing to open when files the export does not list are all that was left out', () => {
+    const { container } = render(<Skipped saved={1915} unlisted={320} />)
 
     expect(
-      screen.getAllByText('swim.fit: A swim is not a run or a ride, so it was left out on purpose.')
-        .length,
-    ).toBeGreaterThan(0)
+      screen.getByText('Read 2,235 files: 1,915 saved, 320 not listed as activities, so not read.'),
+    ).toBeVisible()
+    expect(container.querySelector('details')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'How to get your files' })).not.toBeInTheDocument()
   })
+})
 
-  it('shows the first skipped file and its reason under the count line, in both states', () => {
-    const { container } = render(
-      <Skipped rejected={[skipped('empty.fit', 'empty')]} unsupportedFiles={0} duplicates={[]} />,
-    )
-
-    const summary = container.querySelector('summary')!
-    expect(summary.querySelector('.rejected-files__first')).toHaveTextContent(
-      'empty.fit: It has no activity records in it.',
-    )
-    expect(within(summary).getByText('1 file skipped.')).toBeInTheDocument()
-  })
-
-  it('offers the guides beneath the list of skipped files, so a skipped file has a next step', () => {
-    const { container } = render(
-      <Skipped
-        rejected={[skipped('notes.txt', 'not-activity')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
+describe('RejectedFiles: the next step', () => {
+  it('offers the guides beneath the groups, so a skipped file has a next step', () => {
+    const { container } = render(<Skipped rejected={[skipped('notes.txt', 'not-activity')]} />)
 
     const guides = screen.getByRole('button', { name: 'How to get your files' })
     const list = container.querySelector('details')
     expect(list).not.toBeNull()
     expect(list!.compareDocumentPosition(guides) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('lists only the files after the first in the groups, since the first is shown under the count line', () => {
-    const { container } = render(
-      <Skipped
-        rejected={[skipped('a.txt', 'not-activity'), skipped('b.txt', 'not-activity')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    const list = container.querySelector<HTMLElement>('.rejected-files__list')!
-    const reason = 'Not a FIT, GPX or TCX file, so it cannot be read.'
-    expect(within(list).queryByText(`a.txt: ${reason}`)).not.toBeInTheDocument()
-    expect(within(list).getByText(`b.txt: ${reason}`)).toBeInTheDocument()
-    expect(screen.getByText('Not an activity file: 2 files')).toBeInTheDocument()
-  })
-
-  it('gives the count line, then the first file, above the groups in both states', () => {
-    const { container } = render(
-      <Skipped
-        rejected={[skipped('a.txt', 'not-activity'), skipped('b.txt', 'not-activity')]}
-        unsupportedFiles={0}
-        duplicates={[]}
-      />,
-    )
-
-    const summary = container.querySelector('summary')!
-    const count = within(summary).getByText('2 files skipped.')
-    const first = summary.querySelector('.rejected-files__first')!
-    const group = container.querySelector('.rejected-files__group')!
-    expect(count.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(first.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('renders nothing when no file was skipped', () => {
-    const { container } = render(<Skipped rejected={[]} unsupportedFiles={0} duplicates={[]} />)
-    expect(container).toBeEmptyDOMElement()
   })
 })

@@ -1,13 +1,9 @@
 import { formatCount } from '../format/count'
 import { useEffect, useRef, useState } from 'react'
+import type { RejectedFile } from '@rca/core/session'
 import type { ImportOutcome } from '../../worker/protocol'
-import {
-  addedSentence,
-  importSentence,
-  MOVED_NOTE,
-  skippedCount,
-  skippedSentence,
-} from '../analysis/copy'
+import { addedSentence, importSentence, MOVED_NOTE } from '../analysis/copy'
+import { skippedTotal, tallyOf, tallySentence } from '../analysis/skipTally'
 import type { ImportProgress } from '../analysis/model'
 import type { MovedItem } from '../analysis/whatMoved'
 import { useDelayedFlag } from '../useDelayedFlag'
@@ -17,7 +13,14 @@ import './ImportStatus.css'
 
 type Outcome = Pick<
   ImportOutcome,
-  'activities' | 'rejected' | 'duplicates' | 'runs' | 'rides' | 'firstStartMs' | 'lastStartMs'
+  | 'activities'
+  | 'rejected'
+  | 'duplicates'
+  | 'notActivities'
+  | 'runs'
+  | 'rides'
+  | 'firstStartMs'
+  | 'lastStartMs'
 >
 
 /** Work shorter than this shows neither the busy strip nor its Stop button, so a quick change does not flash them. */
@@ -36,6 +39,8 @@ export interface ImportStatusProps {
    * appears while not busy, unless signed in.
    */
   outcome?: Outcome | null
+  /** The files that run refused, which tell the announcement which of them are other sports. */
+  rejected?: RejectedFile[]
   /** Neutral reason shown while busy in place of analysis progress, e.g. while imports wait for the library. */
   waiting?: string | null
   /** What the import moved in the athlete's numbers, announced after the outcome. */
@@ -67,16 +72,21 @@ function percentRead(progress: ImportProgress | null): number | null {
   return total === null ? null : Math.round((progress.filesRead / total) * 100)
 }
 
-/** The line announced when a run ends: what it added, what it skipped, and whether the numbers moved. */
-function outcomeAnnouncement(outcome: Outcome, moved: MovedItem[]): string {
-  const skipped = skippedCount(outcome)
-  const skippedText = skipped > 0 ? ` ${skippedSentence(skipped)}` : ''
+/** The line announced when a run ends: what it added, where its files went, and whether the numbers moved. */
+function outcomeAnnouncement(
+  outcome: Outcome,
+  rejected: RejectedFile[],
+  moved: MovedItem[],
+): string {
+  const tally = tallyOf(outcome, rejected)
+  const skippedText = skippedTotal(tally) > 0 ? ` ${tallySentence(tally)}` : ''
   // The note goes with a summary sentence only, as the list does.
   const movedNote = moved.length > 0 && addedSentence(outcome) !== null ? ` ${MOVED_NOTE}` : ''
   return `${importSentence(outcome)}${skippedText}${movedNote}`
 }
 
 const NO_CHANGES: MovedItem[] = []
+const NO_REJECTED: RejectedFile[] = []
 
 /**
  * Import feedback for the whole page: the drop listeners, the drag overlay, the busy strip, and the
@@ -90,6 +100,7 @@ export function ImportStatus({
   progress,
   signedIn,
   outcome = null,
+  rejected = NO_REJECTED,
   waiting = null,
   moved = NO_CHANGES,
   onStop,
@@ -159,7 +170,9 @@ export function ImportStatus({
   if (outcome !== announcedOutcome) {
     setAnnouncedOutcome(outcome)
     // Signed in, the sync status announces how the import ended, so this stays silent.
-    if (outcome !== null && !busy && !signedIn) setAnnouncement(outcomeAnnouncement(outcome, moved))
+    if (outcome !== null && !busy && !signedIn) {
+      setAnnouncement(outcomeAnnouncement(outcome, rejected, moved))
+    }
   }
 
   const percent = percentRead(progress)

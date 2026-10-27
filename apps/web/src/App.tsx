@@ -243,6 +243,7 @@ export function App() {
         waiting={analysis.waitingReason}
         signedIn={signedIn}
         outcome={analysis.importOutcome}
+        rejected={analysis.state.rejected}
         moved={moved}
         onStop={(control) => runThenFocus(analysis.stop, control)}
       />

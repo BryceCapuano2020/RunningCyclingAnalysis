@@ -11,8 +11,6 @@ import {
   rebuildNoticeText,
   importSentence,
   RETENTION_UNAVAILABLE,
-  skippedCount,
-  skippedSentence,
   STOPPED_BY_USER,
   workerFailureText,
 } from './copy'
@@ -289,17 +287,6 @@ describe('importSentence', () => {
     expect(importSentence({ activities: 3, rejected: 0, duplicates: [] })).toBe(
       'Nothing new: 3 activities already in your library.',
     )
-  })
-})
-
-describe('skippedCount and skippedSentence', () => {
-  it('counts the files an import could not use and the copies it left out', () => {
-    expect(skippedCount({ rejected: 2, duplicates: [{ fileName: 'a', reason: 'r' }] })).toBe(3)
-  })
-
-  it('says how many files were skipped, in the singular for one', () => {
-    expect(skippedSentence(1)).toBe('1 file skipped.')
-    expect(skippedSentence(3)).toBe('3 files skipped.')
   })
 })
 

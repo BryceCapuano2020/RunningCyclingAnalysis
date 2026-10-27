@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { RejectCode, RejectedFile } from '@rca/core/session'
 import {
+  ADVICE,
   adviceCarriers,
+  bySport,
   groupRejected,
-  groupShowsAction,
-  lineNamesAction,
   rejectionCopy,
-  SKIPPED_GROUP_COPY,
+  sportLabel,
 } from './rejectCopy'
 import type { SkippedGroup } from './rejectCopy'
 
@@ -20,12 +20,12 @@ function file(
 describe('rejectionCopy: one plain sentence per reason code', () => {
   it.each([
     ['not-activity', 'Not a FIT, GPX or TCX file, so it cannot be read.'],
-    ['corrupt', 'Damaged, so it could not be read. Export it again.'],
-    ['empty', 'It has no activity records in it.'],
+    ['corrupt', 'Damaged, so it could not be read.'],
+    ['empty', 'It holds no recorded points, so there is nothing to read.'],
     ['too-short', 'Too short: it records less than a minute.'],
     ['too-sparse', 'Recorded too sparsely: its points are more than 10 seconds apart.'],
     ['too-long', 'Longer than 48 hours, so it is left out.'],
-    ['too-much-data', 'Too much data for one file. Export a shorter range.'],
+    ['too-much-data', 'Too much data for one file.'],
     ['no-date', 'Its times are device time only, so it cannot be placed in your history.'],
     ['implausible-date', 'Its date is not plausible, so it is left out.'],
     ['no-sport', 'It does not say whether it is a run or a ride, so it is not guessed.'],
@@ -34,21 +34,27 @@ describe('rejectionCopy: one plain sentence per reason code', () => {
     ['unreadable', 'This file could not be read.'],
   ] as const)('words the %s code', (code, copy) => {
     const detail = code === 'duplicate' ? 'run.fit' : undefined
-    expect(rejectionCopy(file('a.fit', { code, detail }))).toBe(copy)
+    expect(rejectionCopy(file('a.fit', { code, detail }), false)).toBe(copy)
+  })
+
+  it('never calls an empty file damaged, or tells its owner to export it again', () => {
+    const copy = rejectionCopy(file('empty.gpx', { code: 'empty' }))
+    expect(copy).toBe('It holds no recorded points, so there is nothing to read.')
+    expect(copy).not.toMatch(/records|export/i)
   })
 
   it('names a sport in words, not as the source labels it', () => {
     expect(rejectionCopy(file('walk.fit', { code: 'unsupported-sport', detail: 'walking' }))).toBe(
-      'A walk is not a run or a ride, so it was left out on purpose.',
+      'A walk is not a run or a ride.',
     )
     expect(
       rejectionCopy(file('gym.fit', { code: 'unsupported-sport', detail: 'fitnessEquipment' })),
-    ).toBe('A gym or fitness session is not a run or a ride, so it was left out on purpose.')
+    ).toBe('A gym or fitness session is not a run or a ride.')
   })
 
   it('falls back to one plain line for a sport it has no word for', () => {
     expect(rejectionCopy(file('x.fit', { code: 'unsupported-sport', detail: 'kitesurfing' }))).toBe(
-      'Another sport is not a run or a ride, so it was left out on purpose.',
+      'Another sport is not a run or a ride.',
     )
   })
 
@@ -71,16 +77,91 @@ describe('rejectionCopy: one plain sentence per reason code', () => {
   })
 })
 
-describe('rejectCopy: details the core gives', () => {
-  it('matches a sport label whatever its case', () => {
-    expect(rejectionCopy(file('w.fit', { code: 'unsupported-sport', detail: 'Walking' }))).toBe(
-      'A walk is not a run or a ride, so it was left out on purpose.',
+describe('rejectCopy: the sports of both sources', () => {
+  it.each([
+    ['walking', 'A walk'],
+    ['Walk', 'A walk'],
+    ['hiking', 'A hike'],
+    ['Hike', 'A hike'],
+    ['swimming', 'A swim'],
+    ['Swim', 'A swim'],
+    ['fitnessEquipment', 'A gym or fitness session'],
+    ['Weight Training', 'A gym or fitness session'],
+    ['training', 'A training session'],
+    ['Workout', 'A training session'],
+    ['rowing', 'A row'],
+    ['Row', 'A row'],
+    ['alpineSkiing', 'A ski session'],
+    ['crossCountrySkiing', 'A ski session'],
+    ['Alpine Ski', 'A ski session'],
+    ['Nordic Ski', 'A ski session'],
+    ['tennis', 'A tennis session'],
+    ['Tennis', 'A tennis session'],
+  ])('names %s as %s, whether FIT or Strava gives it', (detail, subject) => {
+    expect(rejectionCopy(file('x', { code: 'unsupported-sport', detail }))).toBe(
+      `${subject} is not a run or a ride.`,
     )
-    expect(
-      rejectionCopy(file('g.fit', { code: 'unsupported-sport', detail: 'FITNESSEQUIPMENT' })),
-    ).toBe('A gym or fitness session is not a run or a ride, so it was left out on purpose.')
   })
 
+  it('matches a sport label whatever its case, spacing or underscores', () => {
+    for (const detail of [
+      'Walking',
+      'WALKING',
+      'weight_training',
+      'WEIGHT-TRAINING',
+      'alpine ski',
+    ]) {
+      expect(rejectionCopy(file('x', { code: 'unsupported-sport', detail }))).not.toMatch(
+        /^Another/,
+      )
+    }
+  })
+
+  it('falls back to one plain line for a sport it has no word for, or for a code with no name', () => {
+    for (const detail of ['kitesurfing', '9', 'unknown', undefined]) {
+      expect(rejectionCopy(file('x', { code: 'unsupported-sport', detail }))).toBe(
+        'Another sport is not a run or a ride.',
+      )
+    }
+  })
+
+  it('labels a sport for a line of its own, without the article', () => {
+    expect(sportLabel(file('x', { code: 'unsupported-sport', detail: 'Workout' }))).toBe(
+      'Training session',
+    )
+    expect(sportLabel(file('x', { code: 'unsupported-sport', detail: 'hiking' }))).toBe('Hike')
+    expect(sportLabel(file('x', { code: 'unsupported-sport', detail: 'kitesurfing' }))).toBe(
+      'Another sport',
+    )
+    expect(sportLabel(file('x', { code: 'e-bike' }))).toBe('E-bike ride')
+  })
+
+  it('counts the files of each sport once, whichever source named it, the most files first', () => {
+    const files = [
+      file('a.fit', { code: 'unsupported-sport', detail: 'hiking' }),
+      file('b.gpx', { code: 'unsupported-sport', detail: 'Workout' }),
+      file('c.fit', { code: 'unsupported-sport', detail: 'training' }),
+      file('d.gpx', { code: 'unsupported-sport', detail: 'Hike' }),
+      file('e.fit', { code: 'unsupported-sport', detail: 'training' }),
+      file('f.fit', { code: 'e-bike' }),
+    ]
+    expect(bySport(files).map(({ label, files: members }) => [label, members.length])).toEqual([
+      ['Training session', 3],
+      ['Hike', 2],
+      ['E-bike ride', 1],
+    ])
+  })
+
+  it('keeps the files of a sport in the order they came', () => {
+    const files = [
+      file('a.fit', { code: 'unsupported-sport', detail: 'walking' }),
+      file('b.gpx', { code: 'unsupported-sport', detail: 'Walk' }),
+    ]
+    expect(bySport(files)[0]!.files).toEqual(files)
+  })
+})
+
+describe('rejectCopy: details the core gives', () => {
   it('says how many entries a damaged archive lost, from the count the core gives', () => {
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }))).toBe(
       '2 entries could not be read because the archive is damaged. Export it again.',
@@ -104,120 +185,90 @@ describe('rejectionCopy: a line keeps its advice unless it is told not to', () =
     )
   })
 
-  it('leaves the advice out of a damaged file line that does not carry it', () => {
+  it('leaves the advice out of a line that does not carry it', () => {
     expect(rejectionCopy(file('bad.fit', { code: 'corrupt' }), false)).toBe(
       'Damaged, so it could not be read.',
     )
-  })
-
-  it('leaves the advice out of an archive line that does not carry it', () => {
     expect(rejectionCopy(file('x.zip', { code: 'corrupt', detail: '2' }), false)).toBe(
       '2 entries could not be read because the archive is damaged.',
     )
-  })
-
-  it('leaves the advice out of a too-large line that does not carry it', () => {
     expect(
       rejectionCopy(file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) }), false),
     ).toBe('Too large to read (over 64 MB).')
   })
 
-  it('leaves the advice out of a too-much-data line that does not carry it', () => {
-    expect(rejectionCopy(file('big.fit', { code: 'too-much-data' }), false)).toBe(
-      'Too much data for one file.',
+  it('gives advice only to the reasons the athlete can act on, and never to an empty file', () => {
+    expect(Object.keys(ADVICE).sort()).toEqual(
+      [
+        'corrupt',
+        'implausible-date',
+        'no-date',
+        'not-activity',
+        'too-large',
+        'too-long',
+        'too-much-data',
+        'too-short',
+        'too-sparse',
+      ].sort(),
     )
+    expect(ADVICE.empty).toBeUndefined()
+    expect(ADVICE['no-sport']).toBeUndefined()
   })
 
-  it('names the reasons whose lines can carry the advice, and no others', () => {
-    for (const code of ['corrupt', 'too-large', 'too-much-data'] as const) {
-      expect(lineNamesAction(file('x', { code }))).toBe(true)
-    }
-    expect(lineNamesAction(file('empty.fit', { code: 'empty' }))).toBe(false)
-    expect(lineNamesAction(file('long.fit', { code: 'too-long' }))).toBe(false)
+  it('tells a too-short file to check the recording, as its group used to', () => {
+    expect(rejectionCopy(file('s.gpx', { code: 'too-short' }))).toBe(
+      'Too short: it records less than a minute. Check the recording on your device, or export a shorter range.',
+    )
   })
 })
 
-describe('adviceCarriers: the advice is said once, in the first file line or the group action', () => {
-  it('lets the first of two damaged files carry the advice, so their group shows no action', () => {
+describe('adviceCarriers: each piece of advice is said once, in the first line that gives it', () => {
+  it('lets the first of two damaged files carry the advice', () => {
     const bad = file('bad.fit', { code: 'corrupt' })
-    const groups = groupRejected([bad, file('bad2.fit', { code: 'corrupt' })])
-    const carriers = adviceCarriers(groups, bad)
-    expect([...carriers]).toEqual([bad])
-    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(false)
+    expect([...adviceCarriers([bad, file('bad2.fit', { code: 'corrupt' })])]).toEqual([bad])
   })
 
-  it('lets a lone damaged file carry its advice, as its group shows no action', () => {
+  it('lets one line carry each different piece of advice', () => {
     const bad = file('bad.fit', { code: 'corrupt' })
-    const carriers = adviceCarriers(groupRejected([bad]), undefined)
-    expect([...carriers]).toEqual([bad])
-  })
-
-  it('lets the first of two too-large files carry the advice, so their group shows no action', () => {
-    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
-    const groups = groupRejected([big, file('big2.fit', { code: 'too-large' })])
-    const carriers = adviceCarriers(groups, big)
-    expect([...carriers]).toEqual([big])
-    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(false)
-  })
-
-  it('leaves a pair of too-large files to their group action when the first file is in another group', () => {
-    const bad = file('bad.fit', { code: 'corrupt' })
-    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
-    const big2 = file('big2.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
-    const groups = groupRejected([bad, big, big2])
-    const carriers = adviceCarriers(groups, bad)
-    expect([...carriers]).toEqual([bad])
-    const notUsable = groups.find((group) => group.group === 'not-usable')!
-    expect(groupShowsAction(notUsable.files, carriers)).toBe(true)
-  })
-
-  it('keeps a mixed group action when its first file gives advice and another file gives none', () => {
-    const big = file('big.fit', { code: 'too-large', detail: String(64 * 1024 ** 2) })
+    const big = file('big.fit', { code: 'too-large' })
+    const bigAgain = file('big2.fit', { code: 'too-much-data' })
     const short = file('short.fit', { code: 'too-short' })
-    const groups = groupRejected([big, short])
-    const carriers = adviceCarriers(groups, big)
-    expect([...carriers]).toEqual([big])
-    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(true)
+    const sparse = file('sparse.fit', { code: 'too-sparse' })
+    expect([...adviceCarriers([bad, big, bigAgain, short, sparse])]).toEqual([bad, big, short])
   })
 
-  it('keeps a mixed damaged group action when its first file gives advice and another file gives none', () => {
-    const bad = file('bad.fit', { code: 'corrupt' })
-    const groups = groupRejected([bad, file('empty.fit', { code: 'empty' })])
-    const carriers = adviceCarriers(groups, bad)
-    expect(groupShowsAction(groups[0]!.files, carriers)).toBe(true)
-  })
-
-  it('gives no carrier to a reason without advice, even when it is alone and first', () => {
-    const empty = file('empty.fit', { code: 'empty' })
-    const carriers = adviceCarriers(groupRejected([empty]), empty)
-    expect(carriers.size).toBe(0)
-    expect(groupShowsAction([empty], carriers)).toBe(true)
+  it('gives no carrier to a reason without advice', () => {
+    const empty = file('empty.gpx', { code: 'empty' })
+    const noSport = file('x.gpx', { code: 'no-sport' })
+    expect(adviceCarriers([empty, noSport]).size).toBe(0)
   })
 })
 
 /** Every core code, with the group it belongs to. The type makes this list complete. */
 const GROUP_OF_CODE: Record<RejectCode, SkippedGroup> = {
-  'not-activity': 'not-activity',
-  corrupt: 'damaged',
-  empty: 'damaged',
-  unreadable: 'damaged',
-  'unsupported-sport': 'not-run-or-ride',
-  'no-sport': 'not-run-or-ride',
-  'e-bike': 'not-run-or-ride',
-  'too-short': 'not-usable',
-  'too-sparse': 'not-usable',
-  'too-long': 'not-usable',
-  'too-much-data': 'not-usable',
-  'too-large': 'not-usable',
-  'no-date': 'not-usable',
-  'implausible-date': 'not-usable',
-  duplicate: 'duplicate',
+  'not-activity': 'need-a-look',
+  corrupt: 'need-a-look',
+  empty: 'need-a-look',
+  unreadable: 'need-a-look',
+  'no-sport': 'need-a-look',
+  'too-short': 'need-a-look',
+  'too-sparse': 'need-a-look',
+  'too-long': 'need-a-look',
+  'too-much-data': 'need-a-look',
+  'too-large': 'need-a-look',
+  'no-date': 'need-a-look',
+  'implausible-date': 'need-a-look',
+  'unsupported-sport': 'other-sports',
+  'e-bike': 'other-sports',
+  duplicate: 'already-added',
 }
 
 describe('groupRejected: every core code has a group and a sentence', () => {
   it.each(Object.entries(GROUP_OF_CODE))('puts %s in the %s group', (code, group) => {
     const groups = groupRejected([file('x', { code: code as RejectCode, detail: 'd' })])
-    expect(groups.map((g) => g.group)).toEqual([group])
+    expect(groups[group as SkippedGroup]).toHaveLength(1)
+    const others = Object.values(groups).reduce((sum, files) => sum + files.length, 0)
+    expect(others).toBe(1)
   })
 
   it.each(Object.keys(GROUP_OF_CODE))('words %s in a sentence of its own', (code) => {
@@ -225,41 +276,22 @@ describe('groupRejected: every core code has a group and a sentence', () => {
     expect(copy.length).toBeGreaterThan(10)
     expect(copy).not.toContain('core reason')
   })
-})
 
-describe('groupRejected: plain groups, each with one suggested action', () => {
-  it('puts each file under the group its reason belongs to, in a fixed order', () => {
-    const groups = groupRejected([
-      file('dup.fit', { code: 'duplicate', detail: 'a.fit' }),
-      file('notes.txt', { code: 'not-activity' }),
-      file('walk.fit', { code: 'unsupported-sport', detail: 'walking' }),
-      file('bad.fit', { code: 'corrupt' }),
-      file('short.fit', { code: 'too-short' }),
-    ])
-
-    expect(groups.map((group) => group.group)).toEqual([
-      'not-activity',
-      'damaged',
-      'not-run-or-ride',
-      'not-usable',
-      'duplicate',
-    ])
-    expect(groups.find((group) => group.group === 'duplicate')?.files).toHaveLength(1)
+  it('keeps a file that does not say its sport with the files that need a look, not with the sports left out on purpose', () => {
+    const groups = groupRejected([file('x.gpx', { code: 'no-sport' })])
+    expect(groups['need-a-look']).toHaveLength(1)
+    expect(groups['other-sports']).toHaveLength(0)
   })
 
-  it('leaves out a group that has no files', () => {
-    expect(groupRejected([file('bad.fit', { code: 'corrupt' })])).toHaveLength(1)
+  it('keeps the files of a group in the order they came', () => {
+    const [first, second] = [file('a.fit', { code: 'empty' }), file('b.fit', { code: 'corrupt' })]
+    expect(groupRejected([first, second])['need-a-look']).toEqual([first, second])
   })
 
-  it('gives every group a title and a suggested action', () => {
-    for (const group of Object.values(SKIPPED_GROUP_COPY)) {
-      expect(group.title(2)).toMatch(/2/)
-      expect(group.action.length).toBeGreaterThan(20)
-    }
-  })
-
-  it('keeps every group copy free of the words the app avoids', () => {
-    const copy = JSON.stringify(SKIPPED_GROUP_COPY) + rejectionCopy(file('a', { code: 'corrupt' }))
+  it('keeps every reason free of the words the app avoids', () => {
+    const copy = Object.keys(GROUP_OF_CODE)
+      .map((code) => rejectionCopy(file('a', { code: code as RejectCode, detail: '1' })))
+      .join(' ')
     for (const word of ['limiter', 'weak', 'strength', 'holding you back', 'ahead of', 'worker']) {
       expect(copy).not.toContain(word)
     }

@@ -31,3 +31,16 @@ describe('the skipped files in forced colours', () => {
     )
   })
 })
+
+describe('the headline and the nested disclosure', () => {
+  it('sets the grid row on the headline summary alone, so Show the files keeps the base row', () => {
+    const rules = flat(css)
+    expect(rules).toContain('.rejected-files > details > summary {')
+    expect(rules).not.toMatch(/\.rejected-files summary/)
+    expect(rules).not.toMatch(/\.rejected-files details/)
+  })
+
+  it('makes the headline of an import that left out only files the export does not list a line of text', () => {
+    expect(flat(css)).toMatch(/\.rejected-files__tally \{[^}]*margin: 0;/)
+  })
+})

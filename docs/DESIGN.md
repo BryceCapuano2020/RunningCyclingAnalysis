@@ -122,9 +122,8 @@ import made on Profile or Method moves to Balance, where its result is. Under th
 what the import moved in the athlete's numbers: at most four items, thresholds first, then the balance,
 then new bests at 1, 5, 20 and 60 minutes and at each run distance (1 km, 1 mi, 5 km, 10 km and a half marathon), counted only for workouts that were not on file before. A
 first import, or one that replaced the sample, lists nothing, and nor does an import that added no run
-or ride. Files the import skipped are one neutral line, "2 files skipped.", that opens groups: each
-group names its files with a plain reason and gives one suggested action, said once. A reason that advises ("Export it again.", "Export a shorter range.") keeps that advice in its line when its file is alone in its group or is the summary's first file. A group whose files all give that advice shows no action once such a line carries it, and its other lines leave it out. A mixed group keeps its action, so the advice can appear twice rather than not at all. The list ends with **How to get your files**, which opens the guides.
-The summary's first skipped file is shown under the count line, in both states, with its plain reason and its advice, and the summary is announced with the same count it shows. Each import
+or ride. What happened to the import's files is one neutral headline that adds up to all of them, such as "Read 3,018 files: 1,947 saved, 2 need a look, 749 other sports left out on purpose, 320 not listed as activities, so not read." A part with no files is left out. The headline opens the groups, in this order. **Need a look** holds the real problems as one line per file, open as soon as the summary is: a file with no recorded points, one that does not say its sport, one too short or damaged, a format the app does not read. A piece of advice ("Export it again.", "Export a shorter range.", "Check the recording on your device, or export a shorter range.") is said once, in the first line that gives it. An empty file gets none, since "It holds no recorded points, so there is nothing to read." is all there is to say, and export advice belongs to a damaged file. **Other sports, left out on purpose** is one line per sport with its count ("Training session: 412"), where a FIT name and a Strava type for one sport are one line, and its files sit behind a nested **Show the files**. **Already added** lists the copies of workouts the library already holds, with its one note. **Not listed as activities, such as saved routes** is one line with its count and no action: they are the files in an export that its own list of activities does not name, and they are not read. When those are all that was left out, the headline stands alone as text, with nothing to open. The list ends with **How to get your files**, which opens the guides.
+The first file that needs a look is shown under the headline, in both states, with its plain reason and its advice, and the summary is announced with the same headline. Each import
 is compared with the result the worker last reported when it was sent, except a file released from a
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
@@ -560,8 +559,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Plain words for what went wrong.** A refused file's reason comes from its code in
   `apps/web/src/ui/analysis/rejectCopy.ts`, never the core's English: "Damaged, so it could not be
   read. Export it again.", "Too large to read (over 64 MB). Export a shorter range.", "Same workout as
-  run.fit, so it was not counted twice." Sport names are words: "A walk is not a run or a ride, so it
-  was left out on purpose." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
+  run.fit, so it was not counted twice." Sport names are words, from FIT's names and Strava's
+  types alike: "A walk is not a run or a ride." Nothing says "worker", "deployment" or "re-import". The one place "UTC" is
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
   The data notes are grouped by kind, one line for each kind with its true count and the times of the
   readings the digest kept. Only the kinds that remove readings are counted, on the row, as

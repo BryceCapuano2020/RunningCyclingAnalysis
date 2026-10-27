@@ -143,7 +143,7 @@ describe('ImportNotice: dismissal', () => {
 })
 
 describe('ImportNotice: skipped files', () => {
-  it('says how many files were skipped, counting the copies left out', () => {
+  it('says where every file went, counting the copies left out and the files the export does not list', () => {
     render(
       <ImportNotice
         {...noticeProps({
@@ -153,6 +153,7 @@ describe('ImportNotice: skipped files', () => {
             duplicates: [
               { fileName: 'copy.gpx', reason: 'x', code: 'duplicate', detail: 'run.fit' },
             ],
+            notActivities: 320,
             runs: 412,
             rides: 388,
             firstStartMs: MARCH_2023,
@@ -162,11 +163,15 @@ describe('ImportNotice: skipped files', () => {
         })}
       />,
     )
-    expect(screen.getByText('2 files skipped.')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Read 1,121 files: 799 saved, 1 needs a look, 1 already added, 320 not listed as activities, so not read.',
+      ),
+    ).toBeInTheDocument()
   })
 
-  it('shows no skipped line when every file was used', () => {
+  it('shows no line about files when every file was used', () => {
     render(<ImportNotice {...noticeProps()} />)
-    expect(screen.queryByText(/files? skipped/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Read [\d,]+ files?:/)).not.toBeInTheDocument()
   })
 })
