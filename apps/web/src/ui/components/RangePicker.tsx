@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { isCustomChoice } from '@rca/core/customRange'
 import type { CustomRange } from '@rca/core/customRange'
+import { sameChoice } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import { formatCount } from '../format/count'
 import { plural } from './plural'
@@ -81,7 +82,7 @@ export function RangePicker({
   // yet a fixed period. A fixed period on screen closes it, but a new custom range keeps it open.
   const [customOpen, setCustomOpen] = useState(() => isCustomChoice(choice))
   const [seenChoice, setSeenChoice] = useState(choice)
-  if (choice !== seenChoice) {
+  if (!sameChoice(choice, seenChoice)) {
     setSeenChoice(choice)
     setCustomOpen(isCustomChoice(choice))
   }

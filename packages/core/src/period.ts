@@ -9,6 +9,12 @@ import type { ActivityDigest, AthleteSettings, BikeModel, HrCrossCheck, SportCur
 import { dayOf, dayStartMs, isCustomChoice, orderedRange } from './customRange'
 import type { CustomRange } from './customRange'
 
+/**
+ * The longest number of days a period can count back over: a century. Past it a window would date
+ * outside the calendar the app can show, so such a choice is refused.
+ */
+export const MAX_PERIOD_DAYS = 36_500
+
 /** The default period is the latest window of this many weeks that holds a run and a ride. */
 export const DEFAULT_PERIOD_WEEKS = 12
 export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
@@ -73,7 +79,14 @@ export function endOfLocalDay(ms: number): number {
 /** The choice a value names: a period the control offers or a custom range, and undefined for anything else. */
 export function periodChoiceOf(value: unknown): PeriodChoice | undefined {
   if (value === 'default' || value === 'all') return value
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value
+  if (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= MAX_PERIOD_DAYS
+  ) {
+    return value
+  }
   return isCustomChoice(value) ? orderedRange(value) : undefined
 }
 
@@ -140,8 +153,9 @@ function defaultWindow(
 
 /** The period a choice names, dated from the visible digests. */
 export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoice): Period {
+  const ordered = typeof choice === 'object' ? orderedRange(choice) : choice
   if (visible.length === 0)
-    return { choice, startMs: null, endMs: null, days: null, fellBack: false }
+    return { choice: ordered, startMs: null, endMs: null, days: null, fellBack: false }
   const first = visible.reduce((low, d) => Math.min(low, d.startMs), Infinity)
   const newest = visible.reduce((high, d) => Math.max(high, d.startMs), -Infinity)
   const endMs = endOfLocalDay(newest)

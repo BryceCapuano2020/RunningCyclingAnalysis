@@ -344,6 +344,28 @@ describe('RangePicker custom range', () => {
     expect(screen.getByLabelText('From')).toHaveValue(RANGE.from)
   })
 
+  it('keeps the form closed when a state with the same custom range arrives after a fixed pick', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(withCustom({ choice: RANGE }))
+    await user.click(screen.getByRole('radio', { name: '12 weeks' }))
+    expect(screen.queryByLabelText('From')).toBeNull()
+    // The worker answers with the same range as a new object, as it does on every state.
+    rerender(withCustom({ choice: { ...RANGE } }))
+    expect(screen.queryByLabelText('From')).toBeNull()
+  })
+
+  it('does not apply a date the core refuses, such as a year before 0100', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(withCustom({ onChange, range: null }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '0099-01-01' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-06-03' } })
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
+    expect(screen.getByText('Pick dates from the year 100 on.')).toBeVisible()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('closes the form when a fixed period is picked', async () => {
     const user = userEvent.setup()
     render(withCustom())

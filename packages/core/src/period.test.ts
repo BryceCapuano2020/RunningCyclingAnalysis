@@ -5,6 +5,7 @@ import { isCustomChoice, orderedRange, dayStartMs, dayOf } from './customRange'
 import {
   DEFAULT_PERIOD_DAYS,
   DEFAULT_PERIOD_WEEKS,
+  MAX_PERIOD_DAYS,
   periodChoiceOf,
   periodDays,
   periodOf,
@@ -318,6 +319,16 @@ describe('a custom range', () => {
     expect(isCustomChoice({ from: FROM })).toBe(false)
     expect(isCustomChoice(42)).toBe(false)
     expect(isCustomChoice(null)).toBe(false)
+  })
+
+  it('refuses a number of days past the sane maximum, which would date an impossible period', () => {
+    expect(periodChoiceOf(MAX_PERIOD_DAYS)).toBe(MAX_PERIOD_DAYS)
+    expect(periodChoiceOf(MAX_PERIOD_DAYS + 1)).toBeUndefined()
+    expect(periodChoiceOf(1e9)).toBeUndefined()
+  })
+
+  it('orders a reversed range even when the library is empty', () => {
+    expect(periodOf([], { from: TO, to: FROM }).choice).toEqual({ from: FROM, to: TO })
   })
 
   it('gives the choice a stored or sent value names, and nothing for anything else', () => {

@@ -85,3 +85,9 @@
   min-width: 0;
   font: inherit;
 }
+
+.range-picker__hint {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+}
