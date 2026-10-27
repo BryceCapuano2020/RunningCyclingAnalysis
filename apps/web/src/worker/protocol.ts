@@ -33,6 +33,15 @@ export interface SyncOptions {
   keepFiles: boolean
 }
 
+/**
+ * The period a library or sample load starts on: the one the page will show. Without it the session
+ * keeps the one it has, which is the default for a new session, so a period stored on the device
+ * would cost a second analysis.
+ */
+export interface LoadPeriod {
+  choice?: PeriodChoice
+}
+
 export type WorkerRequest =
   /**
    * `sync` saves to the signed-in account. Without it, `saveToDevice` keeps the digests in this
@@ -51,9 +60,9 @@ export type WorkerRequest =
    * Loads the digests kept in this browser, unless the session already holds them or a sample is
    * showing.
    */
-  | { type: 'loadDevice'; settings: AthleteSettings }
-  | { type: 'loadSample'; settings: AthleteSettings }
-  | { type: 'loadServer'; settings: AthleteSettings; userId: string }
+  | ({ type: 'loadDevice'; settings: AthleteSettings } & LoadPeriod)
+  | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
+  | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */

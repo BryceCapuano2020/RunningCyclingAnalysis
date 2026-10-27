@@ -1,7 +1,7 @@
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { haltsImport } from '@rca/core/session'
-import type { AnalysisSession, SessionState } from '@rca/core/session'
+import type { AnalysisSession, PeriodChoice, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
 import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
@@ -37,6 +37,7 @@ export async function loadServer(
   ctx: LibraryContext,
   settings: AthleteSettings,
   userId: string,
+  choice?: PeriodChoice,
 ): Promise<SessionState> {
   let unreadable = 0
   const records = await listActivities(undefined, userId, (count) => {
@@ -52,6 +53,8 @@ export async function loadServer(
   }
   ctx.post({ type: 'missingOriginals', count: ctx.missingOriginals.size })
   ctx.device.replaced()
+  // The first analysis is of the period the page shows, so the page need not ask for it afterwards.
+  ctx.session.choosePeriod(choice)
   return ctx.session.loadDigests(
     records.map((record) => record.digest),
     settings,
