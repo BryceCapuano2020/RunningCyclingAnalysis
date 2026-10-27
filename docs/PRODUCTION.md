@@ -247,17 +247,18 @@ calls through this Worker only. Keep `rca-files` private and dedicated: direct b
 other clients and dashboard operations can bypass application limits, and Cloudflare may bill R2
 usage above its free allowance.
 
-Activity listing uses at most 90 records per page, a 1 MiB digest JSON budget and 64 KiB envelope
-headroom. The API scans small metadata before fetching the selected digests. Cursors are based on
-delivered rows so byte-limited pages do not skip activities. Browser readers bound JSON/download
-sizes and network time, reject malformed/repeated cursors, and retry a write only where repeating it
-is safe. A create is deduped by its key on the server, and the create a rebuild makes to replace a
-stored digest names that activity by its id and updates it in place. Either can be sent again without
-a second row, so each is sent once more after a lost connection or a 5xx with no Retry-After, unless
-the refusal is `database_full`. Every other write is sent once. An import that gets a 429 waits for
-its Retry-After and saves that activity once more. Metadata requests have a 15-second deadline;
-original-file transfers have two minutes, including body consumption. The activity table renders at
-most 20 activities at a time with accessible paging.
+Activity listing uses at most 90 records per page, a 1 MiB digest JSON budget and envelope headroom
+of 2,022 bytes a record at the worst case (`MAX_PAGE_BODY_BYTES`, 1,232,150 bytes in all). The API
+scans small metadata before fetching the selected digests. Cursors are based on delivered rows so
+byte-limited pages do not skip activities. Browser readers bound JSON/download sizes and network
+time, reject malformed/repeated cursors, and retry a write only where repeating it is safe. A create
+is deduped by its key on the server, and the create a rebuild makes to replace a stored digest names
+that activity by its id and updates it in place. Either can be sent again without a second row, so
+each is sent once more after a lost connection or a 5xx with no Retry-After, unless the refusal is
+`database_full`. Every other write is sent once. An import that gets a 429 waits for its Retry-After
+and saves that activity once more. Metadata requests have a 15-second deadline; original-file
+transfers have two minutes, including body consumption. The activity table renders at most 20
+activities at a time with accessible paging.
 
 ## Browser and data recovery
 

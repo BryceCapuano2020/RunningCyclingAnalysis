@@ -2,7 +2,12 @@ import { Hono, type Context } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { and, desc, eq, gte, inArray, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_DIGEST_BYTES, MAX_PAGE_SIZE } from '@rca/contract'
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_CURSOR_CHARS,
+  MAX_PAGE_DIGEST_BYTES,
+  MAX_PAGE_SIZE,
+} from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
 import { invalidRequest } from '../../http.ts'
 import { decodeCursor, encodeCursor, type Cursor } from '../../cursor.ts'
@@ -23,7 +28,7 @@ const listQuery = z.object({
   since: z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).optional(),
   /** Opaque, from a previous page's nextCursor. */
-  cursor: z.string().max(256).optional(),
+  cursor: z.string().max(MAX_CURSOR_CHARS).optional(),
 })
 
 /** A row's position and digest size: enough to choose a page before any digest JSON is read. */
@@ -114,9 +119,10 @@ function fitPage(candidates: Candidate[], page: PageScan, limit: number): Candid
 }
 
 /**
- * Adds the selected rows to the page: deleted rows are skipped, digests that are not JSON counted.
- * A digest that is JSON goes out as stored, because the client checks its shape (listActivities in
- * the web client), so the server never validates or re-serialises one.
+ * Adds the selected rows to the page: deleted rows are skipped, and rows that cannot be sent (a
+ * digest that is not JSON, an envelope past the contract's limits) are counted. A digest that is
+ * JSON goes out as stored, because the client checks its shape (listActivities in the web client),
+ * so the server never validates or re-serialises one.
  */
 async function readSelected(
   db: Db,

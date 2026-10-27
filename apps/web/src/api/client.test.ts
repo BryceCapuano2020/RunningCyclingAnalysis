@@ -1,5 +1,10 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { CLIENT_HEADER, CLIENT_HEADER_VALUE, MAX_PAGE_SIZE } from '@rca/contract'
+import {
+  CLIENT_HEADER,
+  CLIENT_HEADER_VALUE,
+  MAX_PAGE_DIGEST_BYTES,
+  MAX_PAGE_SIZE,
+} from '@rca/contract'
 import { DURATIONS_S } from '@rca/core/constants'
 import type { ActivityRecord, Me, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
@@ -449,6 +454,34 @@ describe('listActivities', () => {
     const records = await listActivities()
     expect(records).toHaveLength(1)
     expect(records[0]?.digest.curve[0]?.value).toBeNaN()
+  })
+
+  it('loads a full page of 90 worst-case records, which is past the old 64 KiB of envelope room', async () => {
+    // Control characters are six bytes each in JSON. The ids and file names take their full
+    // length; the digests, names included, fill the digest budget.
+    const digestBytes = Math.floor(MAX_PAGE_DIGEST_BYTES / MAX_PAGE_SIZE)
+    const baseBytes = JSON.stringify(WIRE_DIGEST).length
+    const digest = { ...WIRE_DIGEST, name: '\u0001'.repeat((digestBytes - baseBytes) / 6) }
+    const items = Array.from({ length: MAX_PAGE_SIZE }, (_, index) => ({
+      id: `${'\u0001'.repeat(60)}${String(index).padStart(4, '0')}`,
+      digest,
+      fileName: '\u0001'.repeat(255),
+      hasFile: false,
+      fileSize: Number.MAX_SAFE_INTEGER,
+      createdAt: -Number.MAX_SAFE_INTEGER,
+    }))
+    const first = JSON.stringify({
+      items,
+      nextCursor: '\u0001'.repeat(256),
+      unreadable: Number.MAX_SAFE_INTEGER,
+    })
+    expect(new TextEncoder().encode(first).byteLength).toBeGreaterThan(
+      MAX_PAGE_DIGEST_BYTES + 64 * 1024,
+    )
+    stubFetch(new Response(first, { status: 200 }), respond(200, { items: [], nextCursor: null }))
+
+    const records = await listActivities()
+    expect(records).toHaveLength(MAX_PAGE_SIZE)
   })
 
   it('hands each page to onPage as it arrives, and keeps no records when it is given', async () => {

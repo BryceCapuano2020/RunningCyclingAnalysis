@@ -83,13 +83,25 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 - A page holds at most 90 activities (`MAX_PAGE_SIZE`) and at most 1 MiB of digest JSON. The page read binds
   the user id plus one id per row, so 90 rows is 91 of the 100 bound parameters D1 allows a statement; a test
-  pins `MAX_PAGE_SIZE + 1 <= 100`. A library of 1,915 activities lists in 22 pages (it was 77 at 25 a page),
-  fewer when large digests reach the byte budget first.
+  pins `MAX_PAGE_SIZE + 1 <= 100`. A library of 1,915 activities lists in 22 pages (it was 77 at 25 a page).
+  That holds while digests average under about 11.6 KiB (the 1 MiB digest budget over 90 rows); a larger
+  average reaches the byte budget first and shortens pages. The owner's 1,915 digests average about 5.1 KiB
+  (9.85 MB listed in total).
+- **Response body cap.** `MAX_PAGE_BODY_BYTES` is the most the web client reads from a page. It is the digest
+  budget plus `MAX_PAGE_SIZE` times `MAX_RECORD_ENVELOPE_BYTES` (2,022 bytes) plus the page's own cursor and
+  count, 1,232,150 bytes in all. The record figure is the worst-case JSON of the record schema's limits: a
+  64-character id and a 255-character file name made of control characters, which JSON writes as `\u0001`
+  at six bytes each, the largest safe integer for the file size and for a negative created time, and the keys.
+  A page of 90 such records adds about 182 KB to the digests; the earlier flat 64 KiB of room would have
+  made the client refuse that page and fail the whole library load. The activity name sits in the digest, so
+  the digest budget counts it. The server cannot go over the cap: it stops a page at the digest budget and at
+  90 rows, and it leaves out, as unreadable, a row whose id, file name or numbers are past the schema's limits.
 - The server does not validate a stored digest or serialise it again. It parses each row's `digest_json` with
   `JSON.parse` only to see that it is JSON, then builds the response body with the row's envelope (id, file
   name and so on) serialised on its own and the stored digest text spliced in unchanged. Only text that
   parsed is spliced, so the body is always valid JSON, and a stored value cannot close its record or add keys.
-- A stored row whose digest is not JSON is skipped, not returned. The response counts skipped rows in
+- A stored row whose digest is not JSON, or whose id or file name is past the record schema's limits, is
+  skipped, not returned. The response counts skipped rows in
   `unreadable`, which is absent when the count is zero. Each skip is logged with the activity id, never the
   content. A skipped row still moves the cursor on.
 - The web client validates each item's digest with `StoredActivityDigestSchema`. An item that fails is left

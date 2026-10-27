@@ -11,6 +11,20 @@ import { createHarness, digestFixture, START, testEnv, type Harness } from '../t
 /** Characters that break a hand-built JSON string, or a script that embeds one. */
 const HOSTILE = 'He said "hi" \\ </script><!--     end'
 
+/** The ActivityRecord schema's limits on an id and a file name, in characters. */
+const RECORD_ID_CHARS = 64
+const FILE_NAME_CHARS = 255
+
+/**
+ * Characters of control-character name that make a digest of about the byte budget divided by the
+ * page size, so 90 of them fill the digest budget.
+ */
+const WORST_DIGEST_NAME_CHARS = Math.floor(
+  (Math.floor(MAX_PAGE_DIGEST_BYTES / MAX_PAGE_SIZE) -
+    JSON.stringify(digestFixture({ name: '' })).length) /
+    6,
+)
+
 /** Bound parameters one D1 statement may carry. */
 const D1_BOUND_PARAMETERS = 100
 
@@ -170,17 +184,32 @@ describe('GET /api/activities page size', () => {
     expect(new Set(ids).size).toBe(1915)
   })
 
-  it('keeps a full page of long names inside the page body limit', async () => {
+  it('fits the page body limit with 90 records whose ids and file names are worst-case', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    await seedRows(h, await userId(h, token), MAX_PAGE_SIZE, FIXTURE_TEXT, 'é'.repeat(255))
-    const text = await listText(h, token)
-    const digestBytes = new TextEncoder().encode(FIXTURE_TEXT).byteLength * MAX_PAGE_SIZE
+    const uid = await userId(h, token)
+    // Control characters are the worst case: each is six bytes in JSON, as \u0001. The names in the
+    // digests count against the digest budget, which the page fills; the ids and file names do not.
+    const digestJson = JSON.stringify(
+      digestFixture({ name: '\u0001'.repeat(WORST_DIGEST_NAME_CHARS) }),
+    )
+    for (let i = 0; i < MAX_PAGE_SIZE; i += 1) {
+      await insertRow(h, uid, {
+        id: `${'\u0001'.repeat(RECORD_ID_CHARS - 4)}${String(i).padStart(4, '0')}`,
+        digestJson,
+        createdAt: START + i,
+        fileName: '\u0001'.repeat(FILE_NAME_CHARS),
+      })
+    }
+
+    const res = await h.send({ path: '/api/activities', ...as(token) })
+    const text = await res.text()
+    const page = ActivityPageSchema.parse(JSON.parse(text))
     const bodyBytes = new TextEncoder().encode(text).byteLength
-    expect(JSON.parse(text)).toHaveProperty('items.length', MAX_PAGE_SIZE)
-    // Everything but the digests is envelope, which carries the longest file names. The body limit
-    // leaves this much room for it beside a full digest budget.
-    expect(bodyBytes - digestBytes).toBeLessThan(MAX_PAGE_BODY_BYTES - MAX_PAGE_DIGEST_BYTES)
+    expect(page.items).toHaveLength(MAX_PAGE_SIZE)
+    expect(bodyBytes).toBeLessThanOrEqual(MAX_PAGE_BODY_BYTES)
+    // Past 64 KiB of envelope beside a full digest budget, which the limit once allowed.
+    expect(bodyBytes).toBeGreaterThan(MAX_PAGE_DIGEST_BYTES + 64 * 1024)
   })
 })
 
@@ -285,5 +314,30 @@ describe('GET /api/activities unreadable digests', () => {
     expect(text).not.toContain('forged')
     expect(logged).toContain('"activityId":"bad-0"')
     expect(logged).not.toContain('injected')
+  })
+
+  it('skips a row whose id or file name is past the contract limits, so no page can outgrow its cap', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    await insertRow(h, uid, { id: 'good', digestJson: FIXTURE_TEXT, createdAt: START })
+    await insertRow(h, uid, {
+      id: 'x'.repeat(RECORD_ID_CHARS + 1),
+      digestJson: FIXTURE_TEXT,
+      createdAt: START + 1,
+    })
+    await insertRow(h, uid, {
+      id: 'long-name',
+      digestJson: FIXTURE_TEXT,
+      createdAt: START + 2,
+      fileName: 'n'.repeat(FILE_NAME_CHARS + 1),
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    const page = await listPage(h, token)
+    warn.mockRestore()
+    expect(page.items.map((item) => item.id)).toEqual(['good'])
+    expect(page.unreadable).toBe(2)
+    expect(ActivityPageSchema.safeParse(page).success).toBe(true)
   })
 })

@@ -63,8 +63,51 @@ export const MAX_PAGE_SIZE = 90
 export const DEFAULT_PAGE_SIZE = MAX_PAGE_SIZE
 /** Maximum total digest JSON bytes returned by one activity-list request. */
 export const MAX_PAGE_DIGEST_BYTES = 1024 * 1024
-/** Maximum full JSON response, including record envelopes and original file names. */
-export const MAX_PAGE_BODY_BYTES = MAX_PAGE_DIGEST_BYTES + 64 * 1024
+
+/** Longest record id, original file name and list cursor the API schemas accept, in characters. */
+export const MAX_RECORD_ID_CHARS = 64
+export const MAX_FILE_NAME_CHARS = 255
+export const MAX_CURSOR_CHARS = 256
+
+/**
+ * Most bytes one character of a string takes in a JSON body. A control character, or a lone
+ * surrogate, is escaped as \u00XX (six bytes); other characters take three bytes or fewer.
+ */
+const MAX_JSON_BYTES_PER_CHAR = 6
+/** Digits of the largest integer a record or page may carry, which is a safe integer. */
+const MAX_INTEGER_JSON_BYTES = String(Number.MAX_SAFE_INTEGER).length
+/**
+ * One record with its strings, numbers and digest text taken out, and the comma after it:
+ * everything fixed about it, including `false`, the longest of its true or false value.
+ */
+const RECORD_SHELL_BYTES =
+  '{"id":"","fileName":"","hasFile":false,"fileSize":,"createdAt":,"digest":},'.length
+/** A page with its records, cursor and count taken out. */
+const PAGE_SHELL_BYTES = '{"items":[],"nextCursor":"","unreadable":}'.length
+
+/**
+ * Most bytes a record adds to a page beside its digest text, at the worst-case encoding of the
+ * schema's limits: a full id and file name of control characters, the largest file size, and the
+ * smallest created time. Digest text, which holds the activity name, is counted by
+ * MAX_PAGE_DIGEST_BYTES instead.
+ */
+export const MAX_RECORD_ENVELOPE_BYTES =
+  RECORD_SHELL_BYTES +
+  (MAX_RECORD_ID_CHARS + MAX_FILE_NAME_CHARS) * MAX_JSON_BYTES_PER_CHAR +
+  MAX_INTEGER_JSON_BYTES + // fileSize
+  (1 + MAX_INTEGER_JSON_BYTES) // createdAt, with a minus sign
+
+/**
+ * Maximum full JSON response: a full digest budget, the envelope of a full page of records, and
+ * the page's own cursor and count. The server cannot send more, because it counts digest bytes,
+ * rows and each record's field lengths. The web client refuses a larger body.
+ */
+export const MAX_PAGE_BODY_BYTES =
+  MAX_PAGE_DIGEST_BYTES +
+  MAX_PAGE_SIZE * MAX_RECORD_ENVELOPE_BYTES +
+  PAGE_SHELL_BYTES +
+  MAX_CURSOR_CHARS * MAX_JSON_BYTES_PER_CHAR +
+  MAX_INTEGER_JSON_BYTES
 
 /** Most digest JSON bytes one user may store, summed over their activities. See apps/api/LIMITS.md. */
 export const MAX_DIGEST_BYTES_PER_USER = 64 * 1024 * 1024

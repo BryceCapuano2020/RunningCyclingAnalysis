@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
 import { WEIGHT_LIMITS_KG } from './athlete.ts'
+import { MAX_CURSOR_CHARS, MAX_FILE_NAME_CHARS, MAX_RECORD_ID_CHARS } from './limits.ts'
 
 export const SexSchema = z.enum(['female', 'male'])
 export type Sex = z.infer<typeof SexSchema>
@@ -57,7 +58,7 @@ export const MeResponseSchema = MeSchema.nullable()
 export const ActivityCreateSchema = z
   .object({
     digest: ActivityDigestSchema,
-    fileName: z.string().min(1).max(255),
+    fileName: z.string().min(1).max(MAX_FILE_NAME_CHARS),
     /** Lowercase hex SHA-256 of the original file. */
     fileHash: z.string().regex(/^[0-9a-f]{64}$/),
   })
@@ -73,10 +74,10 @@ export const ActivityCreateSchema = z
 export type ActivityCreate = z.input<typeof ActivityCreateSchema>
 
 export const ActivityRecordSchema = z.object({
-  id: z.string().max(64),
+  id: z.string().max(MAX_RECORD_ID_CHARS),
   /** Read leniently: a stored row may come from an older revision that create would refuse. */
   digest: StoredActivityDigestSchema,
-  fileName: z.string().max(255),
+  fileName: z.string().max(MAX_FILE_NAME_CHARS),
   hasFile: z.boolean(),
   fileSize: z.number().int().nonnegative().nullable(),
   createdAt: z.number().int(),
@@ -90,7 +91,7 @@ export type ActivityRecord = z.infer<typeof ActivityRecordSchema>
  */
 export const ActivityPageSchema = z.object({
   items: z.array(ActivityRecordSchema),
-  nextCursor: z.string().max(256).nullable(),
+  nextCursor: z.string().max(MAX_CURSOR_CHARS).nullable(),
   unreadable: z.number().int().nonnegative().optional(),
 })
 export type ActivityPage = z.infer<typeof ActivityPageSchema>

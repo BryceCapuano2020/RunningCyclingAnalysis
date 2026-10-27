@@ -56,6 +56,33 @@ describe('contract limits', () => {
     expect(limits.DEFAULT_PAGE_SIZE).toBe(90)
     expect(limits.MAX_PAGE_SIZE).toBe(90)
     expect(limits.MAX_PAGE_DIGEST_BYTES).toBe(1024 * 1024)
-    expect(limits.MAX_PAGE_BODY_BYTES).toBe(1024 * 1024 + 64 * 1024)
+    expect(limits.MAX_RECORD_ID_CHARS).toBe(64)
+    expect(limits.MAX_FILE_NAME_CHARS).toBe(255)
+    expect(limits.MAX_CURSOR_CHARS).toBe(256)
+    expect(limits.MAX_RECORD_ENVELOPE_BYTES).toBe(2022)
+    expect(limits.MAX_PAGE_BODY_BYTES).toBe(1_232_150)
+  })
+
+  it('sizes the page body for 90 worst-case records beside a full digest budget', () => {
+    // The worst case of a string is six bytes a character, a control character as \u0001. The
+    // numbers are the largest safe integers, one of them negative.
+    const worst = JSON.stringify({
+      id: '\u0001'.repeat(limits.MAX_RECORD_ID_CHARS),
+      fileName: '\u0001'.repeat(limits.MAX_FILE_NAME_CHARS),
+      hasFile: false,
+      fileSize: Number.MAX_SAFE_INTEGER,
+      createdAt: -Number.MAX_SAFE_INTEGER,
+    })
+    // The record gains a digest key, and a comma follows it. Its digest text is counted apart.
+    const record = worst.length + ',"digest":'.length + ','.length
+    expect(limits.MAX_RECORD_ENVELOPE_BYTES).toBe(record)
+    const rest = JSON.stringify({
+      items: [],
+      nextCursor: '\u0001'.repeat(limits.MAX_CURSOR_CHARS),
+      unreadable: Number.MAX_SAFE_INTEGER,
+    })
+    expect(limits.MAX_PAGE_BODY_BYTES).toBe(
+      limits.MAX_PAGE_DIGEST_BYTES + limits.MAX_PAGE_SIZE * record + rest.length,
+    )
   })
 })
