@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { HrCrossCheck } from '@rca/core/types'
 import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import { keyByContent } from '../contentKeys'
-import { SPORT_LABEL } from '../sports'
+import { SPORT_FORMAT, SPORT_LABEL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { diamondPath } from './chartInteraction'
@@ -104,7 +104,7 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
       legend={sports.map((data): ChartLegendEntry => ({
         label: SPORT_LABEL[data.sport],
         kind: data.sport,
-        swatch: data.sport === 'ride' ? 'diamond' : 'dot',
+        swatch: SPORT_FORMAT[data.sport].glyph,
       }))}
       summary={{
         caption: 'Summary by sport',
@@ -169,11 +169,11 @@ export function HrScatter({ hr, includeRides = true }: HrScatterProps) {
                   const r = i === active ? ACTIVE_DOT_R : DOT_R
                   const className = `hr-scatter__dot hr-scatter__dot--${dot.sport}`
                   // Rides are diamonds, so the two sports differ in shape as well as colour.
-                  return dot.sport === 'ride' ? (
+                  return SPORT_FORMAT[dot.sport].glyph === 'diamond' ? (
                     <path
                       key={key}
                       data-testid="hr-dot"
-                      data-sport="ride"
+                      data-sport={dot.sport}
                       data-shape="diamond"
                       className={className}
                       d={diamondPath(dot.x, dot.y, r)}

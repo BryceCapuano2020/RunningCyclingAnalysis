@@ -55,7 +55,7 @@ function labelStyle(size: number): TextStyle {
 }
 
 function sportColour(sport: Sport): string {
-  return sport === 'run' ? CARD_COLORS.run : CARD_COLORS.ride
+  return CARD_COLORS[sport]
 }
 
 /** Whether a figure's number and unit fit on one line of the width at this size. */

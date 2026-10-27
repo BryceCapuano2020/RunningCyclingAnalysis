@@ -5,7 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatWkg } from '@rca/core/units'
 import { plural } from '../components/plural'
 import { effortLabel, nativeValue } from '../records'
-import { SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { Crosshair } from './Crosshair'
@@ -32,7 +32,6 @@ import {
   fillsArea,
   formatNative,
   nativeLabel,
-  paceUnitName,
   plottedValue,
   sportYAxis,
   usable,
@@ -71,13 +70,23 @@ interface View {
   massKg: number
 }
 
+/** A sport's weekly W/kg and activity count, read from the trend's own fields for that sport. */
+const WEEK_OF: Record<Sport, (point: TrendPoint) => { wkg: number | null; count: number }> = {
+  run: (point) => ({ wkg: point.runWkg, count: point.runCount }),
+  ride: (point) => ({ wkg: point.rideWkg, count: point.rideCount }),
+}
+
+/** The sport's name as a column heading, and as the chart describes its values. */
+const COUNT_HEADING: Record<Sport, string> = { run: 'Runs', ride: 'Rides' }
+const TREND_NOUN: Record<Sport, string> = { run: 'flat pace, faster up', ride: 'power in watts' }
+
 function weekRows(points: readonly TrendPoint[], sport: Sport, massKg: number): WeekRow[] {
   return points.map((point) => {
-    const wkg = sport === 'run' ? point.runWkg : point.rideWkg
+    const { wkg, count } = WEEK_OF[sport](point)
     return {
       endMs: point.endMs,
       value: wkg === null ? NaN : usable(nativeValue(sport, wkg, massKg)),
-      count: sport === 'run' ? point.runCount : point.rideCount,
+      count,
     }
   })
 }
@@ -187,7 +196,7 @@ function layout(rows: WeekRow[], view: View, size: ChartSize): Layout | null {
 function noteOf(row: WeekRow, view: View): string {
   const count = plural(row.count, SPORT_LABEL[view.sport].toLowerCase(), SPORT_PLURAL[view.sport])
   if (!hasValue(row)) return `No ${SPORT_PLURAL[view.sport]} in the window`
-  return view.sport === 'ride'
+  return SPORT_FORMAT[view.sport].showsWkg
     ? `${formatWkg(row.value / view.massKg)}, ${count} in the window`
     : `${count} in the window`
 }
@@ -210,9 +219,7 @@ function tooltipFor(row: WeekRow, x: number, y: number, view: View): TooltipCont
 
 /** The name of the chart: the unit, the effort and the window it is the best of. */
 function titleOf(sport: Sport, units: UnitSystem, effort: string, windowText: string): string {
-  return sport === 'run'
-    ? `${SPORT_TITLE.run} flat pace ${paceUnitName(units)}, best ${effort}, trailing ${windowText}`
-    : `${SPORT_TITLE.ride} power in watts, best ${effort}, trailing ${windowText}`
+  return `${SPORT_TITLE[sport]} ${SPORT_FORMAT[sport].titleUnit(units)}, best ${effort}, trailing ${windowText}`
 }
 
 /**
@@ -230,25 +237,24 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
   const view: View = { sport, units, massKg }
   const latest = rows.findLastIndex(hasValue)
   const layoutOf = sizedOnce((size: ChartSize) => layout(rows, view, size))
-  const ride = sport === 'ride'
 
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={titleOf(sport, units, effort, windowText)}
-      description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${ride ? 'power in watts' : 'flat pace, faster up'}.`}
+      description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${TREND_NOUN[sport]}.`}
       note={hasData ? STEPPED_LINE_TEXT : undefined}
       table={{
         columns: [
           'Week ending',
           nativeLabel(sport),
-          ...(ride ? ['W/kg'] : []),
-          ride ? 'Rides' : 'Runs',
+          ...(SPORT_FORMAT[sport].showsWkg ? ['W/kg'] : []),
+          COUNT_HEADING[sport],
         ],
         rows: rows.map((row) => [
           weekDay(row.endMs),
           formatNative(sport, row.value, units),
-          ...(ride ? [formatWkg(row.value / massKg)] : []),
+          ...(SPORT_FORMAT[sport].showsWkg ? [formatWkg(row.value / massKg)] : []),
           String(row.count),
         ]),
         caption: `Each value is the best ${effort} in the ${windowText} that end that week; ${SPORT_PLURAL[sport]} count the activities in that window.`,

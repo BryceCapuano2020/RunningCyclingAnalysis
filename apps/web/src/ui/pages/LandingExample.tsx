@@ -12,13 +12,16 @@ import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { SPORT_ORDER, SPORT_TITLE } from '../sports'
 import './LandingExample.css'
 
+/** A sport's measure in the example: its pace in the units the reader uses, or its power in watts. */
+const MEASURE: Record<Sport, (units: UnitSystem) => string> = {
+  run: (units) => `Pace ${formatPace(LANDING_EXAMPLE.runSpeedMs, units)}`,
+  ride: () => `Power ${LANDING_EXAMPLE.rideWatts} W`,
+}
+
 /** One sport in the example: its level and grade, its level band, and its pace or power in plain words. */
 function SportLine({ sport, units }: { sport: Sport; units: UnitSystem }) {
   const grade = LANDING_EXAMPLE.grades[sport]
-  const measure =
-    sport === 'run'
-      ? `Pace ${formatPace(LANDING_EXAMPLE.runSpeedMs, units)}`
-      : `Power ${LANDING_EXAMPLE.rideWatts} W`
+  const measure = MEASURE[sport](units)
   return (
     <div className="landing-example__sport">
       <p className="landing-example__sport-name">

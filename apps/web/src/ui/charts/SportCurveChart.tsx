@@ -4,7 +4,7 @@ import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { RECORD_DURATIONS_S } from '../records'
-import { SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_FORMAT, SPORT_PLURAL, SPORT_TITLE } from '../sports'
 import { sharedSourceOf, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -33,7 +33,6 @@ import {
   fillsArea,
   formatNative,
   nativeLabel,
-  paceUnitName,
   plottedValue,
   sportYAxis,
   usable,
@@ -152,7 +151,7 @@ function layout(rows: CurveRow[], view: View, size: ChartSize): Layout | null {
 /** Cycling tooltips and tables give the mechanical W/kg; running names only its activity. */
 function noteOf(row: CurveRow, view: View): string | undefined {
   const source = sourceNote(row.activityId, view.names)
-  if (view.sport === 'run') return source
+  if (!SPORT_FORMAT[view.sport].showsWkg) return source
   const wkg = formatWkg(row.value / view.massKg)
   return source === undefined ? wkg : `${wkg}, ${source}`
 }
@@ -180,9 +179,7 @@ function tooltipFor(row: CurveRow, x: number, y: number, view: View): TooltipCon
 
 /** The name of the chart, with the unit spelt out: "per kilometre", "in watts". */
 function titleOf(sport: Sport, units: UnitSystem): string {
-  return sport === 'run'
-    ? `${SPORT_TITLE.run} flat pace ${paceUnitName(units)} by duration`
-    : `${SPORT_TITLE.ride} power in watts by duration`
+  return `${SPORT_TITLE[sport]} ${SPORT_FORMAT[sport].titleUnit(units)} by duration`
 }
 
 /**
@@ -225,7 +222,7 @@ export function SportCurveChart({
   return (
     <ChartFrame
       title={titleOf(sport, units)}
-      description={`Best ${sport === 'run' ? 'flat pace' : 'power'} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
+      description={`Best ${SPORT_FORMAT[sport].nativeLabel.toLowerCase()} for each duration. Duration is on a log scale.${shown ? ` Dashed line: ${shown.label}.` : ''}`}
       legend={legend}
       keyNote={noPrevious}
       table={{

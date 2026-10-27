@@ -84,7 +84,7 @@
 .balance__cards {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-balance)), 1fr));
 }
 
 .balance__sports {

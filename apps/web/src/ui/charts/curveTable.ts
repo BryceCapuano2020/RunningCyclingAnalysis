@@ -1,8 +1,15 @@
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
+import { SPORT_FORMAT } from '../sports'
 import { activityCell, sourceNote } from './activityText'
 import { nativeLabel, formatNative, paceUnitName } from './sportAxis'
+
+/** The table's caption for each sport: what its values are, in the sport's unit. */
+const CAPTION: Record<Sport, (units: UnitSystem) => string> = {
+  run: (units) => `Best flat pace at each duration, ${paceUnitName(units)}.`,
+  ride: () => 'Best power at each duration, in watts, with W/kg at your body mass.',
+}
 
 /** One duration's values, in each period, with the activity its current value is from. */
 export interface CurveRow {
@@ -27,10 +34,7 @@ export interface View {
 
 /** The table's caption, saying what its values are, and which activity they all come from, if one did. */
 export function captionOf(view: View): string {
-  const base =
-    view.sport === 'run'
-      ? `Best flat pace at each duration, ${paceUnitName(view.units)}.`
-      : 'Best power at each duration, in watts, with W/kg at your body mass.'
+  const base = CAPTION[view.sport](view.units)
   const from = view.shared === null ? undefined : sourceNote(view.shared, view.names)
   return from === undefined ? base : `${base} Every value is ${from}.`
 }
@@ -40,7 +44,7 @@ export function columnsOf(view: View): string[] {
   return [
     'Duration',
     nativeLabel(view.sport),
-    ...(view.sport === 'ride' ? ['W/kg'] : []),
+    ...(SPORT_FORMAT[view.sport].showsWkg ? ['W/kg'] : []),
     ...(view.previous ? [view.previous.label] : []),
     ...(view.shared === null ? ['From'] : []),
   ]
@@ -50,7 +54,7 @@ export function tableRow(row: CurveRow, view: View): string[] {
   return [
     formatDuration(row.durationS),
     formatNative(view.sport, row.value, view.units),
-    ...(view.sport === 'ride' ? [formatWkg(row.value / view.massKg)] : []),
+    ...(SPORT_FORMAT[view.sport].showsWkg ? [formatWkg(row.value / view.massKg)] : []),
     ...(view.previous ? [formatNative(view.sport, row.previous, view.units)] : []),
     ...(view.shared === null ? [activityCell(row.activityId, view.names)] : []),
   ]

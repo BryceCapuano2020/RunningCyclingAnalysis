@@ -17,7 +17,7 @@ import {
   AGE_RANGE_TEXT,
   HEADLINE_LABEL,
   LEVEL_NOT_RANKING,
-  athleteOf,
+  ageAndSexAt,
   gradedSexOf,
   headlineGrades,
   SEX_NOUN,
@@ -63,7 +63,7 @@ function gradesCoverAge(trend: readonly TrendPoint[], profile: AgeProfile | null
   // Each sport is graded at the age on its own best effort's day, so the test uses those days.
   return trend.some((point) =>
     [point.runAtMs, point.rideAtMs].some(
-      (atMs) => atMs !== null && athleteOf(profile, atMs) !== null,
+      (atMs) => atMs !== null && ageAndSexAt(profile, atMs) !== null,
     ),
   )
 }

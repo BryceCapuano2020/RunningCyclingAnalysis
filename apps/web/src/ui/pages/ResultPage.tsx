@@ -76,7 +76,7 @@ export function ResultPage({
   const profile = isSample ? SAMPLE_PROFILE : ageProfileOf(birthYear, sex)
   // The prompt for a missing field names only that field; the sample has all of them.
   const missingAge = isSample ? null : missingAgeOf(birthYear, sex)
-  const athlete = isSample ? SAMPLE_SETTINGS : settings
+  const athleteSettings = isSample ? SAMPLE_SETTINGS : settings
   // The saved copy each activity is kept as, which is what Delete removes; a removal is busy until done.
   const keptIds = keptIdsOf(library, analysis.savedActivities)
   const removing = analysis.busy || analysis.libraryAction !== null
@@ -151,7 +151,7 @@ export function ResultPage({
           trends={analysis.state.effortTrends}
           windowDays={trendWindowDays(period.days)}
           units={units}
-          massKg={athlete.massKg}
+          massKg={athleteSettings.massKg}
           weighted={weightKnown}
           profile={profile}
           missingAge={missingAge}
@@ -197,7 +197,7 @@ export function ResultPage({
           library={library}
           result={result}
           units={units}
-          massKg={athlete.massKg}
+          massKg={athleteSettings.massKg}
           weightKnown={weightKnown}
           profile={profile}
           records={analysis.state.records}
@@ -228,7 +228,7 @@ export function ResultPage({
         <BalancePage
           analysis={analysis}
           result={result}
-          settings={athlete}
+          settings={athleteSettings}
           weightKnown={weightKnown}
           units={units}
           profile={profile}

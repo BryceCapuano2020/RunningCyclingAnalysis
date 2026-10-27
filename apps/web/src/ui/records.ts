@@ -99,7 +99,7 @@ export function powerFigure(watts: number): Figure {
 
 /** The best-effort curve a sport's records come from: running W/kg, or cycling watts. */
 export function curveOf(result: AnalysisResult, sport: Sport): Curve {
-  return sport === 'run' ? result.runCurve : result.rideCurve
+  return { run: result.runCurve, ride: result.rideCurve }[sport]
 }
 
 /**
@@ -107,9 +107,13 @@ export function curveOf(result: AnalysisResult, sport: Sport): Curve {
  * running, and the mechanical watts for cycling at the prior-mean efficiency.
  */
 export function nativeValue(sport: Sport, metabolicWkg: number, massKg: number): number {
-  return sport === 'run'
-    ? metabolicToFlatSpeed(metabolicWkg)
-    : metabolicToRidePower(metabolicWkg, massKg, PRIORS.grossEfficiency.mean)
+  return NATIVE_VALUE[sport](metabolicWkg, massKg)
+}
+
+const NATIVE_VALUE: Record<Sport, (metabolicWkg: number, massKg: number) => number> = {
+  run: (metabolicWkg) => metabolicToFlatSpeed(metabolicWkg),
+  ride: (metabolicWkg, massKg) =>
+    metabolicToRidePower(metabolicWkg, massKg, PRIORS.grossEfficiency.mean),
 }
 
 /** A sport's best-effort curve in its own number: running in m/s, cycling in watts. */
@@ -168,17 +172,24 @@ export function threshold(
   massKg: number,
   units: UnitSystem,
 ): SportNumber | null {
-  if (sport === 'run') {
-    return result.runCp ? { ...paceFigure(result.runCp.cp, units), sub: null } : null
-  }
-  if (!result.rideCp) return null
-  const watts = metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean)
-  return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
+  return THRESHOLD_OF[sport](result, massKg, units)
+}
+
+/** A sport's threshold as its own figure, from its fit: null when the sport has no fit. */
+type Threshold = (result: AnalysisResult, massKg: number, units: UnitSystem) => SportNumber | null
+const THRESHOLD_OF: Record<Sport, Threshold> = {
+  run: (result, _massKg, units) =>
+    result.runCp ? { ...paceFigure(result.runCp.cp, units), sub: null } : null,
+  ride: (result, massKg) => {
+    if (!result.rideCp) return null
+    const watts = metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean)
+    return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
+  },
 }
 
 /** Why a sport has no threshold, once its efforts are there to fit: null when it has one. */
 export function refusalOf(result: AnalysisResult, sport: Sport): CriticalPowerRefusal | null {
-  return sport === 'run' ? result.runCpRefusal : result.rideCpRefusal
+  return { run: result.runCpRefusal, ride: result.rideCpRefusal }[sport]
 }
 
 /** The best effort at each record duration, with the activity that set it. */

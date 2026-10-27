@@ -30,7 +30,7 @@ const ORIGIN: LatLon = { lat: 51, lon: -0.1 }
  * element. Missing (NaN) values are omitted. Test-only: the parser never imports it.
  */
 export function encodeGpx(activity: Activity, opts: EncodeGpxOptions = {}): Uint8Array {
-  const type = opts.type ?? (activity.sport === 'run' ? 'running' : 'cycling')
+  const type = opts.type ?? { run: 'running', ride: 'cycling' }[activity.sport]
   const noise = opts.noise === undefined ? undefined : seededNoise(opts.noise)
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',

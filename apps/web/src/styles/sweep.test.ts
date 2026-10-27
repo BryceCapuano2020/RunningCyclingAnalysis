@@ -39,6 +39,31 @@ const NEAR_DUPLICATE_SIZE = /font-size:\s*(0\.8rem|0\.8125rem|0\.85rem|13px)\b/
 /** The 17 px size the 18 px lead size replaced. It is no token, so the token sweep cannot see it. */
 const RETIRED_SIZE_REM = 1.0625
 
+/**
+ * What a minmax() minimum may be: no width, a content keyword, or a column token, alone or capped at
+ * the container's width. Anything else, a length, min(100vw, …), calc() or clamp(), is a column
+ * width written in place.
+ */
+const COLUMN_MINIMUM =
+  /^(?:0|auto|min-content|max-content|var\(--column-[a-z-]+\)|min\(\s*100%\s*,\s*var\(--column-[a-z-]+\)\s*\))$/
+
+/** Each minmax() call's first argument, read up to its comma at the call's own depth. */
+function minmaxMinimaOf(css: string): string[] {
+  const minima: string[] = []
+  for (const match of css.matchAll(/minmax\(/g)) {
+    let depth = 0
+    let end = match.index + match[0].length
+    for (; end < css.length; end += 1) {
+      const char = css[end]
+      if (char === '(') depth += 1
+      else if (char === ')') depth -= 1
+      else if (char === ',' && depth === 0) break
+    }
+    minima.push(css.slice(match.index + match[0].length, end).trim())
+  }
+  return minima
+}
+
 /** Each literal font size in a stylesheet, as its declared value. */
 function literalSizesOf(css: string): string[] {
   return rulesOf(css).flatMap(([, body]) =>
@@ -92,6 +117,25 @@ describe('every stylesheet in the app', () => {
         .map((value) => `${path}: font-size: ${value}`),
     )
     expect(offenders).toEqual([])
+  })
+
+  it('writes no column minimum as a literal length, so each responsive grid names a column token', () => {
+    const offenders = sheets.flatMap(({ path, css }) =>
+      minmaxMinimaOf(css)
+        .filter((minimum) => !COLUMN_MINIMUM.test(minimum))
+        .map((minimum) => `${path}: minmax(${minimum}, …)`),
+    )
+    expect(offenders).toEqual([])
+  })
+
+  it('reads a column minimum written as min(), calc() or clamp() as a literal width', () => {
+    const css =
+      '.a { grid-template-columns: repeat(auto-fit, minmax(min(100vw, 240px), 1fr)); } .b { grid-template-columns: minmax(calc(10rem + 2px), 1fr) minmax(clamp(8rem, 20vw, 12rem), 1fr); } .c { grid-template-columns: minmax(min(100%, var(--column-steps)), 1fr) minmax(0, 1fr); }'
+    expect(minmaxMinimaOf(css).filter((minimum) => !COLUMN_MINIMUM.test(minimum))).toEqual([
+      'min(100vw, 240px)',
+      'calc(10rem + 2px)',
+      'clamp(8rem, 20vw, 12rem)',
+    ])
   })
 
   it('gates each short-height query to a phone or a touch screen, so a short desktop window keeps its layout', () => {

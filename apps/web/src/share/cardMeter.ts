@@ -1,4 +1,4 @@
-import type { Lean } from '../ui/balanceGap'
+import type { Lean } from '../domain/lean'
 import {
   EVEN_LABEL,
   bandSpan,

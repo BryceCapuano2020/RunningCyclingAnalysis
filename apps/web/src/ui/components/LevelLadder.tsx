@@ -4,6 +4,7 @@ import type { Sport } from '@rca/core/types'
 import { HEADLINE_LABEL, LEVEL_BANDS, gradeLevelText } from '../grades'
 import type { SportGrade } from '../grades'
 import { formatGrade } from '../gradeFormat'
+import { SPORT_FORMAT } from '../sports'
 import './LevelLadder.css'
 
 export interface LevelLadderProps {
@@ -96,7 +97,7 @@ function ladderLabel(sport: Sport, grade: SportGrade): string {
   const side = beyondScale(grade)
   const scale = `${percentText(SCALE_MIN)} to ${percentText(SCALE_MAX)} scale`
   const beyond = side === null ? '' : `, ${side} the ${scale}`
-  const name = sport === 'ride' ? 'Estimated age grade' : 'Age grade'
+  const name = SPORT_FORMAT[sport].gradeName
   return `${name} ${formatGrade(centre.grade)}, ${gradeLevelText(grade)}, ${basis}${beyond}, on the ${ROAD_STANDARDS_SOURCE.shortName}.`
 }
 

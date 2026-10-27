@@ -28,15 +28,20 @@ export function thresholdRange(
   massKg: number,
   units: UnitSystem,
 ): string | null {
-  const fit = sport === 'run' ? result.runCp : result.rideCp
+  const fit = { run: result.runCp, ride: result.rideCp }[sport]
   if (!fit || (sport === 'ride' && fitRestsOnEstimate(result))) return null
   if (!(fit.cp - fit.cpSe > RESTING_W_PER_KG)) return null
-  const at = (cp: number): Figure =>
-    sport === 'run'
-      ? paceFigure(cp, units)
-      : powerFigure(metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean))
-  const low = at(fit.cp - fit.cpSe)
-  const high = at(fit.cp + fit.cpSe)
+  const figureOf: Record<Sport, (cp: number) => Figure> = {
+    run: (cp) => paceFigure(cp, units),
+    ride: (cp) => powerFigure(metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean)),
+  }
+  const low = figureOf[sport](fit.cp - fit.cpSe)
+  const high = figureOf[sport](fit.cp + fit.cpSe)
   // A faster pace is the higher work rate, so a running range reads from its faster end.
-  return sport === 'run' ? `${high.number} to ${low.value}` : `${low.number} to ${high.value}`
+  const ends: Record<Sport, [from: string, to: string]> = {
+    run: [high.number, low.value],
+    ride: [low.number, high.value],
+  }
+  const [from, to] = ends[sport]
+  return `${from} to ${to}`
 }

@@ -64,9 +64,10 @@ function regress(points: CurvePoint[]): CriticalPowerFit | null {
  * fitted work, so a ride's decision does not depend on it.
  */
 export function wPrimeFloor(sport: Sport, massKg: number): number {
-  return sport === 'run'
-    ? D_PRIME_FLOOR_M * FLAT_RUN_COST
-    : W_PRIME_FLOOR_J / (PRIORS.grossEfficiency.mean * massKg)
+  return {
+    run: D_PRIME_FLOOR_M * FLAT_RUN_COST,
+    ride: W_PRIME_FLOOR_J / (PRIORS.grossEfficiency.mean * massKg),
+  }[sport]
 }
 
 /**

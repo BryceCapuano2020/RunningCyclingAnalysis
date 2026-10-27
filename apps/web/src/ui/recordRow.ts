@@ -7,6 +7,12 @@ import type { SportRecord } from './records'
 /** The mark a run's pace carries, as a flat pace: its word on a row, and the note that explains it. */
 export const FLAT_MARK = 'Flat'
 
+/** The marks a record's figure carries: a run's is flat, and a ride's is estimated when its watts are. */
+const MARKS: Record<Sport, (activity: ActivitySummary | null) => string[]> = {
+  run: () => [FLAT_MARK],
+  ride: (activity) => (isEstimatedRecord('ride', activity) ? ['Estimated'] : []),
+}
+
 /** The mark a run held indoors carries, in the same chip as Estimated: its pace is a treadmill's. */
 export const TREADMILL_MARK = 'Treadmill'
 
@@ -55,8 +61,7 @@ export function recordRow(
     setDays?: number | null
   },
 ): RecordRow {
-  const marks =
-    sport === 'run' ? [FLAT_MARK] : isEstimatedRecord(sport, record.activity) ? ['Estimated'] : []
+  const marks = MARKS[sport](record.activity)
   return {
     key: String(record.durationS),
     label: options.label,

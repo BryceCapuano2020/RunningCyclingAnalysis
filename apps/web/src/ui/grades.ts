@@ -40,8 +40,8 @@ export function ageToday(birthYear: number): number | null {
   return ageAt(birthYear, Date.now())
 }
 
-/** The athlete's age on the date of an effort, with their sex. */
-export interface Athlete {
+/** The age on the date of an effort, with the sex it is graded for. */
+export interface AgeAndSex {
   age: number
   sex: Sex
 }
@@ -99,7 +99,7 @@ export const SEX_NOUN: Record<Sex, string> = { female: 'woman', male: 'man' }
  * The athlete's age on atMs, from the year of birth. Null outside the ages the standards cover,
  * so an age the standards cannot grade is never used.
  */
-export function athleteOf(profile: AgeProfile, atMs: number): Athlete | null {
+export function ageAndSexAt(profile: AgeProfile, atMs: number): AgeAndSex | null {
   const age = ageAt(profile.birthYear, atMs)
   if (age === null || age < FIRST_GRADED_AGE || age > LAST_GRADED_AGE) return null
   return { age, sex: profile.sex }
@@ -126,16 +126,20 @@ function startOf(result: AnalysisResult, activityId: string | null): number | nu
  * Every grade the app shows, the cards and the trend alike, comes through here. Null when the
  * distance has no standard.
  */
-export function gradeAtSpeed(speedMs: number, durationS: number, athlete: Athlete): Grade | null {
-  return gradeOf(ageGradeForEffort(speedMs, durationS, athlete.age, athlete.sex))
+export function gradeAtSpeed(
+  speedMs: number,
+  durationS: number,
+  ageAndSex: AgeAndSex,
+): Grade | null {
+  return gradeOf(ageGradeForEffort(speedMs, durationS, ageAndSex.age, ageAndSex.sex))
 }
 
 /**
  * A run's grade from its flat speed. It is one activity's estimate, drawn as a dot. Null when the
  * distance covered has no standard (under 1 mile or over 200 km).
  */
-function runGradeAt(speedMs: number, durationS: number, athlete: Athlete): SportGrade | null {
-  const centre = gradeAtSpeed(speedMs, durationS, athlete)
+function runGradeAt(speedMs: number, durationS: number, ageAndSex: AgeAndSex): SportGrade | null {
+  const centre = gradeAtSpeed(speedMs, durationS, ageAndSex)
   return centre === null ? null : { centre, range: null }
 }
 
@@ -146,11 +150,11 @@ function runGradeAt(speedMs: number, durationS: number, athlete: Athlete): Sport
 function rideGradeAt(
   result: AnalysisResult,
   durationS: number,
-  athlete: Athlete,
+  ageAndSex: AgeAndSex,
 ): SportGrade | null {
   const equivalent = result.equivalents.find((candidate) => candidate.durationS === durationS)
   if (!equivalent) return null
-  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, athlete)
+  const at = (speedMs: number) => gradeAtSpeed(speedMs, durationS, ageAndSex)
   const low = at(equivalent.runSpeed.p05)
   const centre = at(equivalent.runSpeed.p50)
   const high = at(equivalent.runSpeed.p95)
@@ -173,13 +177,13 @@ export function sportGrade(
   if (point === undefined || !Number.isFinite(point.value)) return gap(NEEDS_EFFORT_TEXT)
   const startMs = startOf(result, point.activityId)
   if (startMs === null) return gap(NO_DATE_TEXT)
-  const athlete = athleteOf(profile, startMs)
-  if (athlete === null) return gap(AGE_RANGE_TEXT)
+  const ageAndSex = ageAndSexAt(profile, startMs)
+  if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
   const grade =
     sport === 'run'
-      ? runGradeAt(metabolicToFlatSpeed(point.value), durationS, athlete)
-      : rideGradeAt(result, durationS, athlete)
-  return grade === null ? gap(NO_STANDARD_TEXT) : { kind: 'graded', age: athlete.age, grade }
+      ? runGradeAt(metabolicToFlatSpeed(point.value), durationS, ageAndSex)
+      : rideGradeAt(result, durationS, ageAndSex)
+  return grade === null ? gap(NO_STANDARD_TEXT) : { kind: 'graded', age: ageAndSex.age, grade }
 }
 
 /** Both sports' grades at the headline duration, each at its own date. */
@@ -215,6 +219,9 @@ export const FLAT_PACE_NOTE = 'Flat pace: your pace allowing for hills, as if on
 /** The note a run's distance times carry: they are as run, and the pace curve allows for hills. */
 export const DISTANCE_TIMES_NOTE =
   'Distance times are as run. The pace curve allows for hills, so they can differ.'
+
+/** The note under a sport's grades: running's pace is flat, so it says so, and cycling has none. */
+export const SPORT_NOTE: Partial<Record<Sport, string>> = { run: FLAT_PACE_NOTE }
 
 /**
  * The level a grade names: its band, or "Recreational to Local" when a ride's range crosses a band
@@ -294,11 +301,11 @@ export function distanceGrade(
   startMs: number,
   profile: AgeProfile,
 ): GradeOutcome {
-  const athlete = athleteOf(profile, startMs)
-  if (athlete === null) return gap(AGE_RANGE_TEXT)
-  const centre = gradeAtSpeed(distanceM / seconds, seconds, athlete)
+  const ageAndSex = ageAndSexAt(profile, startMs)
+  if (ageAndSex === null) return gap(AGE_RANGE_TEXT)
+  const centre = gradeAtSpeed(distanceM / seconds, seconds, ageAndSex)
   if (centre === null) return gap(NO_STANDARD_TEXT)
-  return { kind: 'graded', age: athlete.age, grade: { centre, range: null } }
+  return { kind: 'graded', age: ageAndSex.age, grade: { centre, range: null } }
 }
 
 /** A run under a mile has no standard, so a record row names that rather than the full reason. */

@@ -2,7 +2,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { TrendPoint } from '@rca/core/digest'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import type { AgeProfile, Grade } from '../grades'
-import { athleteOf, gradeAtSpeed } from '../grades'
+import { ageAndSexAt, gradeAtSpeed } from '../grades'
 
 /**
  * One week of a shared trend: each sport's value that week, or null where it has none. In a grade
@@ -32,8 +32,8 @@ interface RideGrades {
  * Sunday. Null without an age the standards cover.
  */
 function gradeAt(speedMs: number, profile: AgeProfile, atMs: number): Grade | null {
-  const athlete = athleteOf(profile, atMs)
-  return athlete === null ? null : gradeAtSpeed(speedMs, HEADLINE_DURATION_S, athlete)
+  const ageAndSex = ageAndSexAt(profile, atMs)
+  return ageAndSex === null ? null : gradeAtSpeed(speedMs, HEADLINE_DURATION_S, ageAndSex)
 }
 
 function runGradeOf(point: TrendPoint, profile: AgeProfile): number | null {

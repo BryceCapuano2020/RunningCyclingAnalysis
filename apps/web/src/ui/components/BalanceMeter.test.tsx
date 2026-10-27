@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { Lean } from '../balanceGap'
+import type { Lean } from '../../domain/lean'
 import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import { energyReading, gapReading, meterFraction, SCALE_SPAN } from './balanceScale'
 import type { BalanceReading } from './balanceScale'

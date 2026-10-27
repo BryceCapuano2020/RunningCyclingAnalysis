@@ -25,6 +25,15 @@ export interface MovedItem {
 /** The most changes the summary lists: thresholds, then the balance, then bests. */
 const MAX_ITEMS = 4
 
+/** A sport's threshold as a label, and its figures read aloud: a pace in minutes and seconds, or watts. */
+const SPOKEN: Record<
+  Sport,
+  { label: string; number: (number: string) => string; unit: (units: UnitSystem) => string }
+> = {
+  run: { label: 'Threshold pace', number: spokenPace, unit: (units) => PER[units] },
+  ride: { label: 'Threshold power', number: (number) => number, unit: () => 'watts' },
+}
+
 /** Whether a figure is a number to compare and say, rather than the dash that stands for none. */
 function isFigure(figure: SportNumber): boolean {
   return /\d/.test(figure.number)
@@ -42,11 +51,10 @@ function thresholdItem(
   const to = threshold(after, sport, settings.massKg, units)
   if (from === null || to === null || from.value === to.value) return null
   if (!isFigure(from) || !isFigure(to)) return null
-  const label = sport === 'run' ? 'Threshold pace' : 'Threshold power'
-  const spokenUnit = sport === 'run' ? PER[units] : 'watts'
+  const { label, unit } = SPOKEN[sport]
   return {
     text: `${label}: ${from.number} → ${to.number} ${from.unit}`,
-    spoken: `${label} from ${from.number} to ${to.number} ${spokenUnit}`,
+    spoken: `${label} from ${from.number} to ${to.number} ${unit(units)}`,
   }
 }
 
@@ -141,7 +149,7 @@ function spokenPace(number: string): string {
 
 /** A record's figure read aloud: "6 minutes 40 seconds per mile", or "262 watts". */
 function spokenFigure(record: SportRecord, sport: Sport, units: UnitSystem): string {
-  return sport === 'run' ? `${spokenPace(record.number)} ${PER[units]}` : `${record.number} watts`
+  return `${SPOKEN[sport].number(record.number)} ${SPOKEN[sport].unit(units)}`
 }
 
 /**
