@@ -10,7 +10,7 @@ import {
   MAX_DIGEST_BYTES,
 } from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
-import { HttpError } from '../../errors.ts'
+import { accountDeleting, HttpError } from '../../errors.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { invalidRequest, limitBody, readBody } from '../../http.ts'
 import { chargeDaily } from '../../budget.ts'
@@ -24,14 +24,7 @@ import {
   toRecord,
   type ActivityRow,
 } from './shared.ts'
-import {
-  accountDeleting,
-  accountState,
-  activityQuota,
-  createRefusal,
-  databaseFull,
-  digestQuota,
-} from './quota.ts'
+import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
 const MAX_CREATE_BODY_BYTES = MAX_DIGEST_BYTES + 16 * 1024

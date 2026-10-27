@@ -184,6 +184,18 @@ describe('parseActivityList', () => {
     expect(filesOf(LIST, '', 1).size).toBe(1)
   })
 
+  it('makes the whole list malformed when a row past the row cap is also too wide', () => {
+    const wide = ['Run', ...Array(MAX_CSV_CELLS_PER_ROW).fill('1'), 'activities/2.fit'].join(',')
+    const narrow = 'Run,activities/2.fit'
+    expect(
+      parseActivityList(`Activity Name,Filename\nRun,activities/1.fit\n${narrow}\n`, '', 1)
+        ?.complete,
+    ).toBe(false)
+    expect(
+      parseActivityList(`Activity Name,Filename\nRun,activities/1.fit\n${wide}\n`, '', 1),
+    ).toBeNull()
+  })
+
   it('says whether it read the list to its end, which a list cut at the row cap did not', () => {
     expect(parseActivityList(LIST)?.complete).toBe(true)
     // A list of exactly the cap is read to its end.

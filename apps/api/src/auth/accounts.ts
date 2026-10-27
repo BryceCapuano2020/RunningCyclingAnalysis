@@ -6,7 +6,7 @@ import type { Db } from '../env.ts'
 import { must } from '../util.ts'
 import { oauthAccounts, profiles, users } from '../db/schema.ts'
 import type { GoogleProfile } from './google.ts'
-import { HttpError } from '../errors.ts'
+import { accountDeleting, HttpError } from '../errors.ts'
 
 export const GOOGLE_PROVIDER = 'google'
 
@@ -85,9 +85,7 @@ async function refreshUser(
     await db.update(users).set(values).where(eq(users.id, id)).returning().get(),
     'user',
   )
-  if (row.deletingAt !== null) {
-    throw new HttpError(409, 'account_deleting', 'This account is being deleted. Try again later.')
-  }
+  if (row.deletingAt !== null) throw accountDeleting()
   return row
 }
 
