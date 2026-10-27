@@ -12,6 +12,7 @@ import {
   makeEquivalence,
   makeResult,
 } from '../components/fixtures'
+import { gapOfHeadline } from '../balanceGap'
 import { formatGrade } from '../gradeFormat'
 import { headlineGrades } from '../grades'
 import type { ImportChange } from './importState'
@@ -99,8 +100,9 @@ describe('whatMoved: balance', () => {
     const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
-        text: 'Your balance now leans less toward running (12% → 8%)',
-        spoken: 'Your balance now leans less toward running, from 12% to 8%',
+        text: 'Your balance now leans less toward running (12% → 8%), and its range moved from 5%–20% to 2%–14%',
+        spoken:
+          'Your balance now leans less toward running, from 12% to 8%, and its range moved from 5%–20% to 2%–14%',
       },
     ])
   })
@@ -110,8 +112,9 @@ describe('whatMoved: balance', () => {
     const after = resultWith({ comparison: balance(interval(1.05, 1.12, 1.2)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
-        text: 'Your balance now leans more toward running (8% → 12%)',
-        spoken: 'Your balance now leans more toward running, from 8% to 12%',
+        text: 'Your balance now leans more toward running (8% → 12%), and its range moved from 2%–14% to 5%–20%',
+        spoken:
+          'Your balance now leans more toward running, from 8% to 12%, and its range moved from 2%–14% to 5%–20%',
       },
     ])
   })
@@ -121,8 +124,9 @@ describe('whatMoved: balance', () => {
     const after = resultWith({ comparison: balance(interval(0.9, 0.95, 0.99)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
-        text: 'Your balance now leans less toward cycling (11% → 5%)',
-        spoken: 'Your balance now leans less toward cycling, from 11% to 5%',
+        text: 'Your balance now leans less toward cycling (11% → 5%), and its range moved from 5%–25% to 1%–11%',
+        spoken:
+          'Your balance now leans less toward cycling, from 11% to 5%, and its range moved from 5%–25% to 1%–11%',
       },
     ])
   })
@@ -130,14 +134,16 @@ describe('whatMoved: balance', () => {
   it('says the balance now leans toward cycling when the lean changes sport', () => {
     const after = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     expect(whatMoved(resultWith(), after, SETTINGS, 'imperial', null)).toEqual([
-      { text: 'Your balance now leans toward cycling' },
+      { text: 'Your balance now leans toward cycling, and its range moved from 5%–20% to 5%–25%' },
     ])
   })
 
   it('says running and cycling are now in balance when the range includes even', () => {
     const after = resultWith({ comparison: balance(interval(0.97, 1.01, 1.05)) })
     expect(whatMoved(resultWith(), after, SETTINGS, 'imperial', null)).toEqual([
-      { text: 'Your running and cycling are now in balance' },
+      {
+        text: 'Your running and cycling are now in balance, and its range moved from 5%–20% to -3%–+5%',
+      },
     ])
   })
 
@@ -145,7 +151,7 @@ describe('whatMoved: balance', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({ comparison: balance(interval(1.02, 1.06, 1.1)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
-      { text: 'Your balance now leans toward running' },
+      { text: 'Your balance now leans toward running, and its range moved from -5%–+5% to 2%–10%' },
     ])
   })
 
@@ -155,10 +161,12 @@ describe('whatMoved: balance', () => {
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
   })
 
-  it('lists nothing for a balance that stays in balance', () => {
+  it('says the range narrowed for a balance that stays in balance, and not the centre', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({ comparison: balance(interval(0.97, 1.0, 1.03)) })
-    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([])
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
+      { text: 'Its range moved from -5%–+5% to -3%–+3%' },
+    ])
   })
 })
 
@@ -359,7 +367,7 @@ describe('whatMoved: order, cap, first import and sample', () => {
     expect(whatMoved(before, after, SETTINGS, 'imperial', null).map((item) => item.text)).toEqual([
       'Threshold pace: 7:12 → 7:05 /mi',
       'Threshold power: 225 → 231 W',
-      'Your balance now leans less toward running (12% → 8%)',
+      'Your balance now leans less toward running (12% → 8%), and its range moved from 5%–20% to 2%–14%',
       'New best 20 min run: 7:05 /mi',
     ])
   })
@@ -401,7 +409,7 @@ describe('whatMoved: every lean change', () => {
   it('says the balance now leans toward running after it leaned toward cycling', () => {
     const before = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     expect(whatMoved(before, resultWith(), SETTINGS, 'imperial', null)).toEqual([
-      { text: 'Your balance now leans toward running' },
+      { text: 'Your balance now leans toward running, and its range moved from 5%–25% to 5%–20%' },
     ])
   })
 
@@ -409,7 +417,9 @@ describe('whatMoved: every lean change', () => {
     const before = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     const after = resultWith({ comparison: balance(interval(0.97, 1.01, 1.05)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
-      { text: 'Your running and cycling are now in balance' },
+      {
+        text: 'Your running and cycling are now in balance, and its range moved from 5%–25% to -3%–+5%',
+      },
     ])
   })
 
@@ -417,7 +427,7 @@ describe('whatMoved: every lean change', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
-      { text: 'Your balance now leans toward cycling' },
+      { text: 'Your balance now leans toward cycling, and its range moved from -5%–+5% to 5%–25%' },
     ])
   })
 
@@ -426,8 +436,9 @@ describe('whatMoved: every lean change', () => {
     const after = resultWith({ comparison: balance(interval(0.8, 0.9, 0.95)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
       {
-        text: 'Your balance now leans more toward cycling (5% → 11%)',
-        spoken: 'Your balance now leans more toward cycling, from 5% to 11%',
+        text: 'Your balance now leans more toward cycling (5% → 11%), and its range moved from 1%–11% to 5%–25%',
+        spoken:
+          'Your balance now leans more toward cycling, from 5% to 11%, and its range moved from 1%–11% to 5%–25%',
       },
     ])
   })
@@ -517,9 +528,7 @@ describe('whatMoved: balance in grade points', () => {
       (item) => item.text,
     )
     expect(texts).toContainEqual(
-      expect.stringMatching(
-        /^Your balance now leans more toward running \(\d+ points? → \d+ points?\)$/,
-      ),
+      expect.stringMatching(/^Your balance now leans more toward running \(\d+ → \d+ points\)$/),
     )
   })
 
@@ -593,14 +602,14 @@ function rideGradeText(result: AnalysisResult): string {
 }
 
 describe('whatMoved: an import that added one activity', () => {
-  it('says the balance held, and names the new best, when the lean held and the run set a best', () => {
+  it('says the balance did not move, and names the new best, when every figure held and the run set a best', () => {
     const before = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
     const after = resultWith({
       activities: [RUN, RIDE, NEW_RUN],
       runCurve: [curvePoint(1200, 15.988, 'run-2')],
     })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
-      { text: 'Your balance held at 12%.' },
+      { text: 'Your balance did not move.', unmoved: true },
       {
         text: 'New best 20 min run: 7:05 /mi',
         spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
@@ -615,7 +624,7 @@ describe('whatMoved: an import that added one activity', () => {
       runCurve: [curvePoint(1200, 15.749, 'run-2')],
     })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
-      { text: 'Your balance did not move: this run set no new best at 20 min.' },
+      { text: 'Your balance did not move: this run set no new best at 20 min.', unmoved: true },
     ])
   })
 
@@ -626,7 +635,7 @@ describe('whatMoved: an import that added one activity', () => {
       rideCurve: [curvePoint(1200, 250, 'ride-2')],
     })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride')).toEqual([
-      { text: 'Your balance did not move: this ride set no new best at 20 min.' },
+      { text: 'Your balance did not move: this ride set no new best at 20 min.', unmoved: true },
     ])
   })
 
@@ -644,7 +653,7 @@ describe('whatMoved: an import that added one activity', () => {
     expect(
       whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride').map((i) => i.text),
     ).toEqual([
-      'Your balance now leans less toward running (12% → 8%)',
+      'Your balance now leans less toward running (12% → 8%), and its range moved from 5%–20% to 2%–14%',
       'Threshold power: 225 → 231 W',
       'New best 20 min ride: 262 W',
     ])
@@ -666,7 +675,7 @@ describe('whatMoved: an import that added one activity', () => {
     expect(
       whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride').map((i) => i.text),
     ).toEqual([
-      'Your balance now leans less toward running (12% → 8%)',
+      'Your balance now leans less toward running (12% → 8%), and its range moved from 5%–20% to 2%–14%',
       'Threshold pace: 7:12 → 7:05 /mi',
       'Threshold power: 225 → 231 W',
       'New best 20 min ride: 262 W',
@@ -695,19 +704,19 @@ describe('whatMoved: an import that added one activity', () => {
     // The new ride is on screen, but its best is the one on file, so the grade does not move.
     const after = gradedResult(3.8, { activities: [RUN, RIDE, NEW_RIDE] })
     expect(whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')).toEqual([
-      { text: 'Your balance did not move: this ride set no new best at 20 min.' },
+      { text: 'Your balance did not move: this ride set no new best at 20 min.', unmoved: true },
     ])
   })
 
-  it('says running and cycling are still in balance, rather than a balance of zero points', () => {
+  it('says the balance did not move for an even balance whose figures held, with its new best', () => {
     const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
     const after = resultWith({
       activities: [RUN, RIDE, NEW_RIDE],
-      comparison: balance(interval(0.97, 1.0, 1.03)),
+      comparison: balance(interval(0.95, 1.0, 1.05)),
       rideCurve: [curvePoint(1200, 262, 'ride-2')],
     })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride')).toEqual([
-      { text: 'Your running and cycling are still in balance.' },
+      { text: 'Your balance did not move.', unmoved: true },
       {
         text: 'New best 20 min ride: 262 W',
         spoken: 'New best 20 minutes ride: 262 watts',
@@ -767,23 +776,22 @@ describe('whatMoved: review fixes for one added activity', () => {
     const before = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
     const after = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
-      { text: 'This run is outside the period on screen, so the balance there is unchanged.' },
+      {
+        text: 'This run is outside the period on screen, so the balance there is unchanged.',
+        unmoved: true,
+      },
     ])
   })
 
-  it('reads a held energy lead that rounds to 0% by its edge, as the Balance page does', () => {
+  it('reads a small energy lead by its edge, as the Balance page does, never as 0%', () => {
     // A 0.4% lead is still a lean, so it reads as 0.4%, never as 0%.
     const before = resultWith({ comparison: balance(interval(1.001, 1.004, 1.007)) })
-    const after = resultWith({
-      activities: [RUN, RIDE, NEW_RUN],
-      comparison: balance(interval(1.001, 1.004, 1.007)),
-      runCurve: [curvePoint(1200, 15.988, 'run-2')],
-    })
+    const after = resultWith({ comparison: balance(interval(1.001, 1.02, 1.03)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
-      { text: 'Your balance held at 0.4%.' },
       {
-        text: 'New best 20 min run: 7:05 /mi',
-        spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
+        text: 'Your balance now leans more toward running (0.4% → 2%), and its range moved from 0.1%–1% to 0.1%–3%',
+        spoken:
+          'Your balance now leans more toward running, from 0.4% to 2%, and its range moved from 0.1%–1% to 0.1%–3%',
       },
     ])
   })
@@ -798,6 +806,72 @@ describe('whatMoved: review fixes for one added activity', () => {
       {
         text: 'New best 20 min run: 7:05 /mi',
         spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
+      },
+    ])
+  })
+})
+
+/** The grade gap of a graded result for MAN_BORN_1986; throws when it has none. */
+function gapOf(result: AnalysisResult) {
+  const gap = gapOfHeadline(headlineGrades(result, MAN_BORN_1986))
+  if (gap === null) throw new Error('the result has no grade gap')
+  return gap
+}
+
+describe('whatMoved: the balance line states the figures the Balance page shows', () => {
+  it('says the centre moved in whole points, from the gap the page states', () => {
+    const before = gradedResult(3.8)
+    const after = gradedResult(3.5, {
+      activities: [RUN, RIDE, NEW_RIDE],
+      rideCurve: [curvePoint(1200, 420, 'ride-2')],
+    })
+    const from = Math.abs(Math.round(gapOf(before).centre))
+    const to = Math.abs(Math.round(gapOf(after).centre))
+    expect(from).not.toBe(to)
+    const direction = to < from ? 'less' : 'more'
+    const [first] = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')
+    expect(first).toEqual({
+      text: `Your balance now leans ${direction} toward running (${from} → ${to} points)`,
+      spoken: `Your balance now leans ${direction} toward running, from ${from} to ${to} points`,
+    })
+  })
+
+  it('says the range moved, when the centre held, in the page own edges', () => {
+    const before = resultWith({ comparison: balance(interval(1.05, 1.12, 1.2)) })
+    const after = resultWith({ comparison: balance(interval(1.05, 1.12, 1.25)) })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
+      { text: 'Its range moved from 5%–20% to 5%–25%' },
+    ])
+  })
+
+  it('says the range moved in whole points when the centre held', () => {
+    const before = gradedResult(3.8, {
+      equivalents: [
+        makeEquivalence({ durationS: HEADLINE_DURATION_S, runSpeed: interval(3.7, 3.8, 3.9) }),
+      ],
+    })
+    const after = gradedResult(3.8, {
+      equivalents: [
+        makeEquivalence({ durationS: HEADLINE_DURATION_S, runSpeed: interval(3.6, 3.8, 4.0) }),
+      ],
+    })
+    const a = gapOf(before)
+    const b = gapOf(after)
+    expect(a.centre).toBe(b.centre)
+    expect([a.low, a.high]).not.toEqual([b.low, b.high])
+    expect(
+      whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986).map((item) => item.text),
+    ).toEqual([`Its range moved from ${a.low}–${a.high} to ${b.low}–${b.high} points`])
+  })
+
+  it('says both when the centre and the range moved', () => {
+    const before = resultWith({ comparison: balance(interval(1.05, 1.12, 1.2)) })
+    const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.25)) })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null)).toEqual([
+      {
+        text: 'Your balance now leans less toward running (12% → 8%), and its range moved from 5%–20% to 2%–25%',
+        spoken:
+          'Your balance now leans less toward running, from 12% to 8%, and its range moved from 5%–20% to 2%–25%',
       },
     ])
   })

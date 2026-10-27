@@ -49,7 +49,7 @@ export function percentEdge(percent: number, signed: boolean): string {
 }
 
 /** A signed count with a true minus sign, so an even range reads both ways: "−2", "+10". */
-function signedCount(count: number): string {
+export function signedCount(count: number): string {
   const rounded = Math.round(count)
   if (rounded < 0) return `−${-rounded}`
   return rounded > 0 ? `+${rounded}` : '0'

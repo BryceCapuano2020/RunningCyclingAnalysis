@@ -3,26 +3,35 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import { formatPercent } from '@rca/core/units'
 import { gapOfHeadline } from '../balanceGap'
-import { balanceOfPick, type BalanceReading } from '../components/balanceScale'
-import { percentEdge } from '../components/headlineText'
+import { balanceOfPick } from '../components/balanceScale'
 import { plural } from '../components/plural'
 import { pickHeadline } from '../components/pickHeadline'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
-import { HEADLINE_LABEL, headlineGrades } from '../grades'
+import { headlineGrades } from '../grades'
 import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
-import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER } from '../sports'
+import { SPORT_ORDER } from '../sports'
+import { balanceMoveItem } from './balanceMove'
 import { addedSentence } from './copy'
 import type { ImportChange } from './importState'
 import { addedSportOf, headlineGradeItem } from './singleImport'
 
-/** One change in the athlete's numbers. `spoken` replaces the arrow and the figures for screen readers. */
+/**
+ * One line of what an import did to the athlete's numbers. `spoken` replaces the arrow and the figures
+ * for screen readers. `unmoved` marks a line that says the numbers held, so it is listed without
+ * saying that anything moved.
+ */
 export interface MovedItem {
   text: string
   spoken?: string
+  unmoved?: true
+}
+
+/** Whether a list says any number moved: a line that says the numbers held does not count. */
+export function movedAnything(items: readonly MovedItem[]): boolean {
+  return items.some((item) => item.unmoved !== true)
 }
 
 /** The most changes the summary lists: thresholds, then the balance, then bests. */
@@ -61,55 +70,6 @@ function thresholdItem(
   }
 }
 
-/** A balance's size in its own unit, in words: "6 points", or "12%" of energy. */
-function amountText(unit: BalanceReading['unit'], value: number): string {
-  if (unit === 'percent') return formatPercent(value / 100)
-  return plural(Math.round(value), 'point')
-}
-
-/** The lean of the balance now, against the lean before, in words. Both sides share one unit. */
-function leanItem(before: BalanceReading, after: BalanceReading): MovedItem | null {
-  if (after.lean === 'even') {
-    return before.lean === 'even' ? null : { text: 'Your running and cycling are now in balance' }
-  }
-  if (before.lean !== after.lean) {
-    return { text: `Your balance now leans toward ${SPORT_NOUN[after.lean]}` }
-  }
-  const from = Math.abs(before.lead.centre)
-  const to = Math.abs(after.lead.centre)
-  const fromText = amountText(after.unit, from)
-  const toText = amountText(after.unit, to)
-  if (fromText === toText) return null
-  const direction = to < from ? 'less' : 'more'
-  const sport = SPORT_NOUN[after.lean]
-  return {
-    text: `Your balance now leans ${direction} toward ${sport} (${fromText} → ${toText})`,
-    spoken: `Your balance now leans ${direction} toward ${sport}, from ${fromText} to ${toText}`,
-  }
-}
-
-/**
- * The balance line for an import that added one activity and left the lean where it was. The
- * rounded value held when the activity set a new best at the headline duration; otherwise the
- * balance did not move, because the activity set no new best there.
- */
-function heldBalanceItem(reading: BalanceReading, sport: Sport, newBest: boolean): MovedItem {
-  if (newBest && reading.lean === 'even') {
-    return { text: 'Your running and cycling are still in balance.' }
-  }
-  if (newBest) {
-    // A percent edge reads as the Balance page reads it, with a decimal below 1%, so a lean never reads as 0%.
-    const value =
-      reading.unit === 'percent'
-        ? percentEdge(Math.abs(reading.lead.centre), false)
-        : amountText(reading.unit, Math.abs(reading.lead.centre))
-    return { text: `Your balance held at ${value}.` }
-  }
-  return {
-    text: `Your balance did not move: this ${SPORT_ACTIVITY[sport]} set no new best at ${HEADLINE_LABEL}.`,
-  }
-}
-
 /** Whether a workout of the sport the import added is listed on the period on screen, rather than outside it. */
 function addedOnScreen(before: AnalysisResult, after: AnalysisResult, sport: Sport): boolean {
   const onFile = workoutsOn(before)
@@ -143,7 +103,7 @@ function setHeadlineBest(before: AnalysisResult, after: AnalysisResult, sport: S
  * The balance, read as the Balance page reads it: in points when both results grade both sports,
  * otherwise in energy. Energy only compares at the same duration and with the same heart-rate
  * calibration, and points never compare with energy. For an import that added one activity, the
- * balance is listed even when its lean did not move, since the summary leads with it.
+ * balance is listed even when nothing about it moved, since the summary leads with it.
  */
 function balanceItem(
   before: AnalysisResult,
@@ -169,14 +129,12 @@ function balanceItem(
       pickBefore.calibrated === pickAfter.calibrated
     if (!sameHeadline) return null
   }
-  const moved = leanItem(readingBefore, readingAfter)
-  if (moved !== null || added === null) return moved
-  if (!addedOnScreen(before, after, added)) {
-    return {
-      text: `This ${SPORT_ACTIVITY[added]} is outside the period on screen, so the balance there is unchanged.`,
-    }
-  }
-  return heldBalanceItem(readingAfter, added, setHeadlineBest(before, after, added))
+  if (added === null) return balanceMoveItem(readingBefore, readingAfter, null)
+  return balanceMoveItem(readingBefore, readingAfter, {
+    sport: added,
+    newBest: setHeadlineBest(before, after, added),
+    onScreen: addedOnScreen(before, after, added),
+  })
 }
 
 /** The best at a duration, in its curve's own unit: W/kg for running, watts for riding; NaN if none. */

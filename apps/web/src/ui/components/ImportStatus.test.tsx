@@ -497,6 +497,22 @@ describe('ImportStatus: announcements', () => {
       'Nothing new: 1 activity already in your library.',
     )
   })
+
+  it('does not say the numbers moved when every line says they held', () => {
+    const HELD: MovedItem[] = [{ text: 'Your balance did not move.', unmoved: true }]
+    const ONE_RUN = {
+      activities: 1,
+      rejected: 0,
+      duplicates: [],
+      runs: 1,
+      rides: 0,
+      firstStartMs: new Date(2023, 2, 4, 9).getTime(),
+      lastStartMs: new Date(2023, 2, 4, 9).getTime(),
+    }
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(<ImportStatus {...baseProps()} outcome={ONE_RUN} moved={HELD} />)
+    expect(screen.getByRole('status').textContent).toBe('Added 1 run, on 4 Mar 2023.')
+  })
 })
 
 describe('ImportStatus: the drag overlay', () => {

@@ -63,16 +63,31 @@ describe('addedSentence', () => {
   it('names one month alone, with its year when it is not this year', () => {
     expect(
       addedSentence(
+        { runs: 2, rides: 0, firstStartMs: OCTOBER_2026, lastStartMs: OCTOBER_2026 },
+        NOW,
+      ),
+    ).toBe('Added 2 runs, in Oct.')
+    expect(
+      addedSentence(
+        { runs: 0, rides: 2, firstStartMs: OCTOBER_2023, lastStartMs: OCTOBER_2023 },
+        NOW,
+      ),
+    ).toBe('Added 2 rides, in Oct 2023.')
+  })
+
+  it('names the day of a single run or ride, since one activity has one date', () => {
+    expect(
+      addedSentence(
         { runs: 1, rides: 0, firstStartMs: OCTOBER_2026, lastStartMs: OCTOBER_2026 },
         NOW,
       ),
-    ).toBe('Added 1 run, in Oct.')
+    ).toBe('Added 1 run, on 20 Oct.')
     expect(
       addedSentence(
         { runs: 0, rides: 1, firstStartMs: OCTOBER_2023, lastStartMs: OCTOBER_2023 },
         NOW,
       ),
-    ).toBe('Added 1 ride, in Oct 2023.')
+    ).toBe('Added 1 ride, on 20 Oct 2023.')
   })
 
   it('separates thousands', () => {
