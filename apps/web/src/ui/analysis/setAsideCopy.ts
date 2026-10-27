@@ -12,8 +12,9 @@ import { SPORT_ORDER } from '../sports'
 
 /** Why heart rate is set aside, the same on both pages. */
 const RULE =
-  `it stayed under ${formatPercent(HR_SET_ASIDE_FLOOR)} of your reference heart rate through ` +
-  `${formatDuration(HR_SET_ASIDE_MIN_S)} or more at or above your threshold, which a working sensor would not show`
+  `through ${formatDuration(HR_SET_ASIDE_MIN_S)} or more at or above your threshold, its heart rate ` +
+  `stayed under ${formatPercent(HR_SET_ASIDE_FLOOR)} of your reference heart rate or read too low for ` +
+  'the power, which a working sensor would not show'
 
 /** The note on an activity whose heart rate is set aside. */
 export const SET_ASIDE_ACTIVITY_TEXT = `We left this activity's heart rate out of the heart-rate check and the effort checks: ${RULE}.`

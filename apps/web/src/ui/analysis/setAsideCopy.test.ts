@@ -16,15 +16,13 @@ describe('set-aside heart rate copy', () => {
     ]
     const text = setAsideText(makeResult({ activities, heartRateSetAside: ['n1', 'r1', 'r2'] }))
     expect(text).toBe(
-      'Heart rate from 1 run and 2 rides is left out: on each, it stayed under 70% of your ' +
-        'reference heart rate through 10 min or more at or above your threshold, which a working ' +
-        'sensor would not show.',
+      'Heart rate from 1 run and 2 rides is left out: on each, through 10 min or more at or above ' +
+        'your threshold, its heart rate stayed under 70% of your reference heart rate or read too ' +
+        'low for the power, which a working sensor would not show.',
     )
   })
 
   it('names the same rule on the activity', () => {
-    expect(SET_ASIDE_ACTIVITY_TEXT).toContain(
-      'under 70% of your reference heart rate through 10 min',
-    )
+    expect(SET_ASIDE_ACTIVITY_TEXT).toContain('through 10 min or more at or above your threshold')
   })
 })

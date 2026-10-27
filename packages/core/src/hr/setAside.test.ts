@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HR_SET_ASIDE_FLOOR, HR_SET_ASIDE_MIN_S } from '../constants'
 import type { ActivityDigest, DigestCurvePoint } from '../types'
-import { heartRateSetAside, type SetAsideInput } from './setAside'
+import { heartRateSetAside, worstSetAside, type SetAsideInput } from './setAside'
 
 function point(durationS: number, value: number, heartRate: number | null): DigestCurvePoint {
   return { durationS, value, startIndex: 0, windowS: durationS, heartRate, terms: null }
@@ -15,6 +15,7 @@ function digest(over: Partial<ActivityDigest> & { curve: DigestCurvePoint[] }): 
     indoor: false,
     powerSource: 'measured',
     flagCounts: {},
+    flags: [],
     ...over,
   } as ActivityDigest
 }
@@ -39,13 +40,29 @@ describe('heartRateSetAside', () => {
     expect(heartRateSetAside([atFloor, easy, short], input).size).toBe(0)
   })
 
-  it('sets aside a hard effort whose heart rate was flagged as too low for the power', () => {
-    const flagged = digest({
+  it('sets aside a hard effort whose heart rate was flagged as too low for the power in it', () => {
+    const lowFlag = (start: number, end: number) => ({
+      kind: 'hr-implausible-for-power' as const,
+      start,
+      end,
+      message: '',
+    })
+    const flagged = digest({ curve: [point(600, 320, null)], flags: [lowFlag(300, 400)] })
+    const elsewhere = digest({
+      id: 'elsewhere',
       curve: [point(600, 320, null)],
-      flagCounts: { 'hr-implausible-for-power': 1 },
+      flags: [lowFlag(600, 700)],
     })
     const dropped = digest({ id: 'dropout', curve: [point(600, 320, null)] })
-    expect(heartRateSetAside([flagged, dropped], input)).toEqual(new Set(['a']))
+    expect(heartRateSetAside([flagged, elsewhere, dropped], input)).toEqual(new Set(['a']))
+  })
+
+  it('names the activity furthest below the floor first, then by id', () => {
+    const low = digest({ id: 'b', curve: [point(600, 300, 100)] })
+    const lower = digest({ id: 'c', curve: [point(600, 300, 90)] })
+    const tied = digest({ id: 'a', curve: [point(600, 300, 90)] })
+    expect(worstSetAside([low, lower, tied], input)).toBe('a')
+    expect(worstSetAside([digest({ curve: [point(600, 300, 170)] })], input)).toBeNull()
   })
 
   it('never judges heart rate against estimated watts or a treadmill pace', () => {

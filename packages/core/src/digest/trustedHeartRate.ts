@@ -1,6 +1,6 @@
 import type { EffortPoint, MaxHeartRates } from '../effort'
 import { referenceMaxHeartRates } from '../effort'
-import { heartRateSetAside } from '../hr'
+import { worstSetAside } from '../hr'
 import type { ActivityDigest, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 
 /** The heart rate an analysis uses, once the activities whose heart rate cannot be right are set aside. */
@@ -31,15 +31,13 @@ function referencesOf(digests: ActivityDigest[]) {
   return { observedMax, reference: referenceMaxHeartRates(observedMax.run, observedMax.ride) }
 }
 
-/** The most rounds of setting aside and retaking the references before the judgement is kept. */
-const MAX_ROUNDS = 4
-
 /**
  * Sets aside the heart rate of activities whose best efforts show readings a working sensor would
- * not, judged against each sport's threshold (its unchecked fit) and its reference heart rate.
- * A set-aside activity's own readings could have raised a reference and so the floor others are
- * judged by, so the references are retaken from the trusted digests and the judgement repeated
- * until it settles. valueOf prices a curve point in the fit's unit.
+ * not, judged against each sport's threshold (its unchecked fit) and its reference heart rate. A
+ * set-aside activity's own readings could have raised a reference and so the floor others are judged
+ * by, so the worst is set aside first and the references are retaken from the rest before the next
+ * is judged. The set only grows, so it settles, and the references reported are those it was judged
+ * by last. valueOf prices a curve point in the fit's unit.
  */
 export function trustedHeartRate(
   ordered: ActivityDigest[],
@@ -47,18 +45,14 @@ export function trustedHeartRate(
   valueOf: (digest: ActivityDigest, point: DigestCurvePoint) => number,
 ): TrustedHeartRate {
   const threshold = { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null }
+  const setAside = new Set<string>()
   let trusted = ordered
-  let setAside = new Set<string>()
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const next = heartRateSetAside(ordered, {
-      threshold,
-      referenceHr: referencesOf(trusted).reference,
-      valueOf,
-    })
-    const settled = next.size === setAside.size && [...next].every((id) => setAside.has(id))
-    setAside = next
-    trusted = ordered.filter((digest) => !setAside.has(digest.id))
-    if (settled) break
+  for (;;) {
+    const referenceHr = referencesOf(trusted).reference
+    const worst = worstSetAside(trusted, { threshold, referenceHr, valueOf })
+    if (worst === null) break
+    setAside.add(worst)
+    trusted = trusted.filter((digest) => digest.id !== worst)
   }
   return { setAside, trusted, maxHr: maxHeartRateOf(trusted), ...referencesOf(trusted) }
 }

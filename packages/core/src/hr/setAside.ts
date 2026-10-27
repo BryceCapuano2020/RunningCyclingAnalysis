@@ -19,34 +19,68 @@ const MEASURED_EFFORT: Record<Sport, (digest: ActivityDigest) => boolean> = {
   ride: (digest) => digest.powerSource === 'measured',
 }
 
-/**
- * Whether one best effort shows heart rate that cannot be right: held for at least
- * HR_SET_ASIDE_MIN_S at or above threshold, with heart rate either under HR_SET_ASIDE_FLOOR of the
- * reference or unknown because the readings were flagged as too low for the power.
- */
-function impossibleAt(
-  digest: ActivityDigest,
-  point: DigestCurvePoint,
-  input: SetAsideInput,
-): boolean {
-  const threshold = input.threshold[digest.sport]
-  const reference = input.referenceHr[digest.sport]
-  if (threshold === null || reference === null) return false
-  if (point.durationS < HR_SET_ASIDE_MIN_S || point.startIndex < 0) return false
-  if (!(input.valueOf(digest, point) >= threshold)) return false
-  if (point.heartRate === null) return (digest.flagCounts['hr-implausible-for-power'] ?? 0) > 0
-  return point.heartRate < HR_SET_ASIDE_FLOOR * reference
+/** Whether a flag that heart rate looked too low for the power covers part of the window. */
+function flaggedLowIn(digest: ActivityDigest, point: DigestCurvePoint): boolean {
+  const end = point.startIndex + point.windowS
+  return digest.flags.some(
+    (flag) =>
+      flag.kind === 'hr-implausible-for-power' && flag.start < end && flag.end > point.startIndex,
+  )
 }
 
 /**
- * The ids of the activities whose heart rate is set aside, because one of their best efforts shows
- * heart rate that a working sensor would not.
+ * One best effort's heart rate as a share of the reference, when the effort was held for at least
+ * HR_SET_ASIDE_MIN_S at or above threshold; null otherwise, or when its heart rate is unknown for
+ * any other reason. Readings flagged as too low for the power through it count as a share of 0.
+ */
+function shareAt(digest: ActivityDigest, point: DigestCurvePoint, input: SetAsideInput) {
+  const threshold = input.threshold[digest.sport]
+  const reference = input.referenceHr[digest.sport]
+  if (threshold === null || reference === null) return null
+  if (point.durationS < HR_SET_ASIDE_MIN_S || point.startIndex < 0) return null
+  if (!(input.valueOf(digest, point) >= threshold)) return null
+  if (point.heartRate === null) return flaggedLowIn(digest, point) ? 0 : null
+  return point.heartRate / reference
+}
+
+/** The lowest share over an activity's hard best efforts, or null when none can be judged. */
+function lowestShare(digest: ActivityDigest, input: SetAsideInput): number | null {
+  if (!digest.hasHeartRate || !MEASURED_EFFORT[digest.sport](digest)) return null
+  let lowest: number | null = null
+  for (const point of digest.curve) {
+    const share = shareAt(digest, point, input)
+    if (share !== null && (lowest === null || share < lowest)) lowest = share
+  }
+  return lowest
+}
+
+/**
+ * The ids of the activities whose heart rate a working sensor would not show: a best effort held
+ * at or above threshold with heart rate under HR_SET_ASIDE_FLOOR of the reference, or flagged as too
+ * low for the power through it.
  */
 export function heartRateSetAside(digests: ActivityDigest[], input: SetAsideInput): Set<string> {
   const ids = new Set<string>()
   for (const digest of digests) {
-    if (!digest.hasHeartRate || !MEASURED_EFFORT[digest.sport](digest)) continue
-    if (digest.curve.some((point) => impossibleAt(digest, point, input))) ids.add(digest.id)
+    const share = lowestShare(digest, input)
+    if (share !== null && share < HR_SET_ASIDE_FLOOR) ids.add(digest.id)
   }
   return ids
+}
+
+/**
+ * The one activity whose heart rate is furthest below the floor, by its lowest share and then its
+ * id, or null when none is below it. Setting aside one at a time lets the references be retaken
+ * before the next is judged.
+ */
+export function worstSetAside(digests: ActivityDigest[], input: SetAsideInput): string | null {
+  let worst: { id: string; share: number } | null = null
+  for (const digest of digests) {
+    const share = lowestShare(digest, input)
+    if (share === null || share >= HR_SET_ASIDE_FLOOR) continue
+    if (worst === null || share < worst.share || (share === worst.share && digest.id < worst.id)) {
+      worst = { id: digest.id, share }
+    }
+  }
+  return worst?.id ?? null
 }

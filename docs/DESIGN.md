@@ -571,7 +571,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a best effort of 10 min or more at or above the sport's threshold and its heart rate stays under 70% of
   the reference heart rate, or was flagged as too low for the power through it, the sensor was wrong. That
   activity's heart rate is left out of the heart-rate check, the effort checks and the reference heart
-  rates (`packages/core/src/hr/setAside.ts`). Its watts and pace still count. How sure is this? says how
+  rates (`packages/core/src/hr/setAside.ts`). A too-low flag counts only where it covers that effort. The
+  worst is set aside first and the references are retaken before the next is judged, so one activity's
+  spike never sets aside a sound one. Its watts and pace still count. How sure is this? says how
   many runs and rides were set aside, and the activity's data notes say why. Estimated watts and treadmill
   pace are never the judge, since they can be what is wrong.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
