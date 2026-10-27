@@ -37,6 +37,10 @@ took up to 100 blocks needed about 510 ms of wall time for all time. Measured on
 eight activities a week, alternating sport, 15 steady blocks each. `npm run test:perf` holds 100 ms and 400 ms
 for the two cases.
 
+A combine prices ride equivalents at the six cross-sport durations only; the grade-by-duration chart
+prices its extra durations once per result, in the page. `combine.perf.test.ts` holds a combine of a
+1,000-activity library under 45 ms (fastest of seven), so that cost cannot move back into every combine.
+
 These values are a local reference point, not CI thresholds. This is a Node CPU benchmark of
 generated activities and digest combination; it does not measure browser startup/rendering, FIT
 decoding, archive extraction, or account/network latency.
