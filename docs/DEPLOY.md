@@ -22,7 +22,7 @@ Names used below (from `apps/api/wrangler.toml`):
 - D1 database: `rca`.
 - R2 bucket: `rca-files` (private and dedicated to this application).
 
-Original activity files stay on the user's device by default. Users can opt in to retaining
+Original activity files are not kept by default. Users can opt in to retaining
 originals in R2, subject to per-user limits and app-wide R2 operation and byte budgets. Those code
 limits apply only to requests made through this Worker; they do not constrain other clients,
 dashboard access, or direct bucket/API usage. R2 may be billed above its free allowance, so these
@@ -246,7 +246,7 @@ excludes older digests from current analysis and reports them as outdated. Re-im
 activity file (FIT, GPX or TCX) upgrades that row only when its SHA-256 matches; the API preserves its
 id, original-file metadata and quota reservation.
 When original files are retained in R2, the browser can download and reprocess them. Otherwise,
-original files stay on the device and must be re-imported to reprocess. Rows without a matching
+original files are not kept and must be re-imported to reprocess. Rows without a matching
 original file remain safely excluded until that file is supplied; no mass reset or broad library
 deletion is required. Test this recovery with a saved library containing both retained and missing
 originals before release.

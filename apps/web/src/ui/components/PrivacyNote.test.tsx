@@ -42,11 +42,11 @@ describe('PrivacyNote', () => {
     ).toBeInTheDocument()
   })
 
-  it('says original files stay on this device when signed in without keeping files', () => {
+  it('says original files are not kept when signed in without keeping files', () => {
     render(<PrivacyNote signedIn keepFiles={false} />)
     expect(
       screen.getByText(
-        'Your activity summaries are stored in your private library; original files stay on this device. Analysis runs in your browser.',
+        'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser.',
       ),
     ).toBeInTheDocument()
   })
@@ -55,7 +55,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn keepFiles fileRetentionAvailable={false} />)
     expect(
       screen.getByText(
-        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files stay on this device; existing saved originals are not deleted. Analysis runs in your browser.',
+        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser.',
       ),
     ).toBeInTheDocument()
   })

@@ -75,7 +75,7 @@ they state the uncertainty and the evidence still missing. The plan is in
 - **Data-quality checks.** Sensor dropouts, spikes and physiologically implausible readings (for
   example 103 bpm while holding 322 W) are detected, excluded and listed per activity.
 - **Accounts and sync.** Sign in with Google to keep your profile and activity library on
-  Cloudflare. Per-activity digests are stored in D1; original files stay on your device by default.
+  Cloudflare. Per-activity digests are stored in D1; original files are not kept by default.
   Users can opt in to R2 retention subject to per-user and application-wide limits. Direct bucket
   access outside the app is not covered by those limits and could incur charges. Each user sees
   only their own data. Account deletion immediately blocks access and starts cleanup; if file
