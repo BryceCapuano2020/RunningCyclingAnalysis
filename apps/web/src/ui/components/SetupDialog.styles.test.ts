@@ -4,6 +4,7 @@ import { readStylesheet, ruleBody } from './stylesheet'
 
 const dialogCss = await readStylesheet(import.meta.url, './SetupDialog.css')
 const fieldsCss = await readStylesheet(import.meta.url, './AthleteFields.css')
+const designMd = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN.md')
 
 /** The rules inside the phone-width media query (ui/layoutBreakpoints.ts: NARROW_PHONE_MAX_WIDTH_PX). */
 function narrowBody(css: string): string {
@@ -44,6 +45,11 @@ describe('setup dialog', () => {
 
   it('is one short-phone query, named in the breakpoints file', () => {
     expect(dialogCss).toContain(SHORT_PHONE_QUERY)
+  })
+
+  it('states the same short-phone height in DESIGN.md, in the breakpoint list and the setup rule', () => {
+    expect(designMd).toContain(`${SHORT_PHONE_MAX_HEIGHT_PX} px in height`)
+    expect(designMd).toContain(`${SHORT_PHONE_MAX_HEIGHT_PX} px tall`)
   })
 
   it('sets the two footer buttons on one row on a short phone, with 8 px side padding so both labels fit 320 px', () => {

@@ -83,7 +83,7 @@
  * sex options clear the sticky footer. The athlete fields' rules sit here, under the dialog, so Profile
  * keeps its own spacing.
  */
-@media (max-width: 420px) and (max-height: 600px) {
+@media (max-width: 420px) and (max-height: 700px) {
   .setup-dialog {
     margin-block: var(--space-2) auto;
     max-height: calc(100dvh - 2 * var(--space-2));
