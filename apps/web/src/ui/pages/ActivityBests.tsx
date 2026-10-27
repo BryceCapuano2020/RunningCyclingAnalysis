@@ -9,7 +9,7 @@ import { periodDates } from '../components/rangeOptions'
 import { splitsShowFlatNote, type SplitsLoad } from '../components/splitRows'
 import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
-import { FLAT_MARK, recordRow } from '../recordRow'
+import { FLAT_MARK, recordRow, treadmillMarks } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import { effortLabel, ownDistanceRecords, paceIsTime, sportRecords } from '../records'
 
@@ -134,7 +134,7 @@ export function ActivityBests({
       // In miles the mile, and in kilometres the kilometre, is its own time, so it has no pace to show.
       sub: paceIsTime(record.distanceM, units) ? null : record.pace,
       grade: recordGradeCell(sport, outcome, null, 'row'),
-      tags: [],
+      tags: treadmillMarks(sport, activity),
       change: null,
       setDays: null,
       activity: null,

@@ -1,4 +1,4 @@
-import { RUN_WORLD_RECORD_SPEEDS } from '../constants'
+import { PRIORS, RUN_WORLD_RECORD_SPEEDS } from '../constants'
 import { metabolicToFlatSpeed } from '../metabolic'
 
 /**
@@ -27,5 +27,6 @@ export function runCeilingSpeed(durationS: number): number {
  * from another activity takes its place.
  */
 export function possibleRunWkg(durationS: number, metabolicWkg: number): number {
-  return metabolicToFlatSpeed(metabolicWkg) > runCeilingSpeed(durationS) ? Number.NaN : metabolicWkg
+  const speed = metabolicToFlatSpeed(metabolicWkg, PRIORS.runEconomyScale.mean)
+  return speed > runCeilingSpeed(durationS) ? Number.NaN : metabolicWkg
 }

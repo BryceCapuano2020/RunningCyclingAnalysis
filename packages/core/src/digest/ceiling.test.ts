@@ -77,3 +77,14 @@ describe('the run ceiling in the analysis', () => {
     expect(points.at(-1)?.runWkg).toBeCloseTo(flatSpeedToMetabolic(5), 12)
   })
 })
+
+describe('the monotone envelope after the ceiling', () => {
+  it('refills a dropped point from the same run’s longer effort, which is demonstrated', () => {
+    // The 5 s point is faster than any runner holds, but the same run's 10 s effort is possible. The
+    // envelope gives the 5 s best the 10 s value, as it does for any shorter best.
+    const fiveFaster = runWithSpeeds('d', START, { 5: 13, 10: 12 })
+    const point = combine([fiveFaster], settings).runCurve.find((p) => p.durationS === 5)
+    expect(point?.activityId).toBe('d')
+    expect(point?.value).toBeCloseTo(flatSpeedToMetabolic(12), 12)
+  })
+})

@@ -117,7 +117,7 @@ export function nativeCurve(sport: Sport, curves: SportCurves): Curve {
   if (sport === 'ride') return curves.rideCurve
   return curves.runCurve.map((point) => ({
     durationS: point.durationS,
-    value: metabolicToFlatSpeed(point.value),
+    value: metabolicToFlatSpeed(point.value, PRIORS.runEconomyScale.mean),
     activityId: point.activityId,
     startIndex: point.startIndex,
   }))

@@ -1,13 +1,13 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import {
-  DURATIONS_S,
   EQUIVALENCE_DURATIONS_S,
   FLAT_RUN_COST,
+  HR_BLOCK_S,
   PRIORS,
   RESTING_W_PER_KG,
 } from '../constants'
-import { mergeCurves, monotoneEnvelope, possibleRunWkg } from '../curves'
+import { possibleRunWkg } from '../curves'
 import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts, referenceMaxHeartRates } from '../effort'
@@ -31,6 +31,7 @@ import type {
   Interval,
   VirtualPowerAccuracy,
 } from '../types'
+import { bestCurve, candidates, plainCurve } from './bestCurve'
 import { MODEL_REVISION } from './modelRevision'
 import { summaryOf, type ActivitySummary } from './summary'
 import { fitBikeModel } from '../virtualPower'
@@ -194,48 +195,6 @@ export function fitBikeModelFor(totalSums: CalibrationSums, totalMassKg: number)
   return fitBikeModel(calibrationStatsAt(totalSums, totalMassKg))
 }
 
-/** One activity's curve points, with values already in the units of the combined curve. */
-function candidates(
-  digest: ActivityDigest,
-  valueOf: (point: DigestCurvePoint) => number,
-): EffortPoint[] {
-  return digest.curve.map((p) => {
-    const value = valueOf(p)
-    const found = !Number.isNaN(value)
-    return {
-      durationS: p.durationS,
-      value,
-      activityId: found ? digest.id : null,
-      startIndex: found ? p.startIndex : -1,
-      heartRate: found ? p.heartRate : null,
-    }
-  })
-}
-
-function emptyCurve(): EffortPoint[] {
-  return DURATIONS_S.map((durationS) => ({
-    durationS,
-    value: NaN,
-    activityId: null,
-    startIndex: -1,
-    heartRate: null,
-  }))
-}
-
-/** Pointwise best across activities, then the monotone envelope. Empty when there are none. */
-function bestCurve(curves: EffortPoint[][]): EffortPoint[] {
-  return curves.length > 0 ? monotoneEnvelope(mergeCurves(curves)) : emptyCurve()
-}
-
-function plainCurve(points: EffortPoint[]): Curve {
-  return points.map(({ durationS, value, activityId, startIndex }) => ({
-    durationS,
-    value,
-    activityId,
-    startIndex,
-  }))
-}
-
 function maxHeartRateOf(digests: ActivityDigest[]): number | null {
   let best: number | null = null
   for (const digest of digests) {
@@ -285,6 +244,37 @@ export function activitySummaries(digests: ActivityDigest[]): ActivitySummary[] 
 }
 
 /**
+ * The heart-rate points of the runs and rides in ordered, each at its central metabolic power. A run
+ * block faster than the world-record ceiling for its five minutes is not a possible effort, so it is
+ * left out, as a curve point is. A block is kept only when its metabolic power is above twice resting.
+ * The filter is applied after conversion, so it means the same thing for runs and rides.
+ */
+export function heartRatePoints(
+  ordered: ActivityDigest[],
+  totalMassKg: number,
+  massKg: number,
+  bikeModel: BikeModel,
+): { runPoints: HrPoint[]; ridePoints: HrPoint[] } {
+  const blockMetabolic = (digest: ActivityDigest, block: DigestHrBlock): number => {
+    if (digest.sport === 'run') return possibleRunWkg(HR_BLOCK_S, block.value)
+    const watts = block.terms === null ? block.value : powerAt(block.terms, totalMassKg, bikeModel)
+    return centralWkgFromWatts(watts, massKg)
+  }
+  const runPoints: HrPoint[] = []
+  const ridePoints: HrPoint[] = []
+  for (const digest of ordered) {
+    for (const block of digest.hrBlocks) {
+      const metabolicPower = blockMetabolic(digest, block)
+      if (!(metabolicPower >= 2 * RESTING_W_PER_KG)) continue
+      const point: HrPoint = { metabolicPower, heartRate: block.heartRate, activityId: digest.id }
+      if (digest.sport === 'run') runPoints.push(point)
+      else ridePoints.push(point)
+    }
+  }
+  return { runPoints, ridePoints }
+}
+
+/**
  * Combines per-activity digests into the athlete's analysis. Only the bike model, the body and
  * bike masses and the efficiency priors enter here, so the work per settings change is small.
  */
@@ -312,24 +302,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     value: centralWkgFromWatts(p.value, massKg),
   }))
 
-  // Blocks are kept only when their metabolic power is above twice resting. This filter is applied
-  // after conversion, so it means the same thing for runs and rides.
-  const blockMetabolic = (digest: ActivityDigest, block: DigestHrBlock): number => {
-    if (digest.sport === 'run') return block.value
-    const watts = block.terms === null ? block.value : powerAt(block.terms, totalMassKg, bikeModel)
-    return centralWkgFromWatts(watts, massKg)
-  }
-  const runPoints: HrPoint[] = []
-  const ridePoints: HrPoint[] = []
-  for (const digest of ordered) {
-    for (const block of digest.hrBlocks) {
-      const metabolicPower = blockMetabolic(digest, block)
-      if (!(metabolicPower >= 2 * RESTING_W_PER_KG)) continue
-      const point: HrPoint = { metabolicPower, heartRate: block.heartRate, activityId: digest.id }
-      if (digest.sport === 'run') runPoints.push(point)
-      else ridePoints.push(point)
-    }
-  }
+  const { runPoints, ridePoints } = heartRatePoints(ordered, totalMassKg, massKg, bikeModel)
 
   // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
   // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because
