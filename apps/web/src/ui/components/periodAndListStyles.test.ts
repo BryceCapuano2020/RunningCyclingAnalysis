@@ -76,6 +76,31 @@ describe('the period control', () => {
   })
 })
 
+describe('the Custom form', () => {
+  it('sizes its date fields to the control height, with 16 px text so iOS does not zoom', () => {
+    const field = rulesWith(rangePicker, '.range-picker__field input')
+    expect(field).toMatch(/min-height:\s*var\(--control-height\)/)
+    expect(field).toMatch(/font-size:\s*var\(--text-md\)/)
+  })
+
+  it('lets a segment take its natural width, so a segment alone on a row is not a full-width bar', () => {
+    const segment = rulesWith(rangePicker, '.range-picker .segmented-control__option')
+    expect(segment).toMatch(/flex:\s*0 0 auto/)
+    expect(segment).not.toMatch(/flex:\s*1 1 auto/)
+  })
+
+  it('places the two fields side by side when they fit, and stacks them when they do not', () => {
+    expect(rulesWith(rangePicker, '.range-picker__custom')).toMatch(
+      /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*var\(--column-field\)\),\s*1fr\)\)/,
+    )
+  })
+
+  it('puts Apply, and the hint when a date is refused, on a row of their own below the fields', () => {
+    expect(rulesWith(rangePicker, '.range-picker__apply')).toMatch(/grid-column:\s*1 \/ -1/)
+    expect(rulesWith(rangePicker, '.range-picker__hint')).toMatch(/grid-column:\s*1 \/ -1/)
+  })
+})
+
 describe('the activity list', () => {
   it('sets the hero beside the meta line below 560 px, and hides the chevron there', () => {
     const phone = mediaOf(activityList, NARROW_PHONE)

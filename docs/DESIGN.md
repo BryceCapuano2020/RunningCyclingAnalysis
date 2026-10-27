@@ -87,12 +87,14 @@ visitor's own files are not held back by the restore. An unknown hash becomes Ba
 address names the page shown.
 
 **Period.** Balance and the sport pages show one period, picked with the control under the answer: 6
-weeks, 12 weeks (the default), 12 months, All time or Custom, in that order. The five segments wrap onto
-a second row at 390 px rather than overflow, and sit in two columns below 360 px. Custom shows From and To date fields, prefilled with the period on
-screen, and an Apply button; the range applies on Apply, not on each change, and its days are taken in
-order. The fields stack under the segments on a phone. The control's dates sit beneath it, with the
-count of activities in the period when some are left out, and a note under them when there is one. The Activities page has its
-own period, sport and sort, which start with the whole library. Its view is kept in the address (for
+weeks, 12 weeks (the default), 12 months, All time or Custom, in that order. Each segment takes its
+natural width, so the five wrap onto a second row at 390 px rather than overflow, and a segment alone on
+that row is not stretched. Custom shows From and To date fields, prefilled with the period on screen,
+and an Apply button on a row of its own. The fields are a control tall (`--control-height`, 44 px on a
+finger) with 16 px text, side by side when two fit and stacked below that. The range applies on Apply,
+not on each change. A reversed range is swapped, and the caption then says "Swapped so From comes
+first." The control's dates sit beneath it, with the count of activities in the period when some are
+left out, and a note under them when there is one. The Activities page has its own period, sport and sort, which start with the whole library. Its view is kept in the address (for
 example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A
 period only narrows what is analysed: an activity outside it still opens from the list or a link.
 The control shows the pick the athlete made last. Each pick is answered by the worker in turn, and

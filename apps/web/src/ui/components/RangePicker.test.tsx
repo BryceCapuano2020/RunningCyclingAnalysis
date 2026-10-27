@@ -366,6 +366,44 @@ describe('RangePicker custom range', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('says a reversed range was swapped, once applied', async () => {
+    const user = userEvent.setup()
+    render(withCustom({ onChange: vi.fn(), range: null }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2025-06-03' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-05-12' } })
+    expect(screen.queryByText('Swapped so From comes first.')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(screen.getByText('Swapped so From comes first.')).toBeVisible()
+  })
+
+  it('keeps the swapped note when the worker answers with the applied range', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(withCustom({ onChange: vi.fn(), range: null }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2025-06-03' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-05-12' } })
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    rerender(withCustom({ choice: RANGE, range: RANGE }))
+    expect(screen.getByText('Swapped so From comes first.')).toBeVisible()
+  })
+
+  it('does not say a forward range was swapped, and a fixed pick clears the note', async () => {
+    const user = userEvent.setup()
+    render(withCustom({ onChange: vi.fn(), range: null }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2025-05-12' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-06-03' } })
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(screen.queryByText('Swapped so From comes first.')).toBeNull()
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2025-06-03' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-05-12' } })
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(screen.getByText('Swapped so From comes first.')).toBeVisible()
+    await user.click(screen.getByRole('radio', { name: '12 weeks' }))
+    expect(screen.queryByText('Swapped so From comes first.')).toBeNull()
+  })
+
   it('closes the form when a fixed period is picked', async () => {
     const user = userEvent.setup()
     render(withCustom())

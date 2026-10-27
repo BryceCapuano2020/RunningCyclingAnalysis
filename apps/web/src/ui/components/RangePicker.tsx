@@ -19,6 +19,9 @@ const NOUNS: Record<'activity' | 'run' | 'ride', [string, string]> = {
   ride: ['ride', 'rides'],
 }
 
+/** Shown after a reversed range is applied: its days are taken in order, so the caption dates them right. */
+export const SWAPPED_NOTE = 'Swapped so From comes first.'
+
 /** Shown while a pick waits behind an import: the worker answers it only once the import finishes. */
 export const WAITS_FOR_IMPORT = 'Applies when the current import finishes'
 
@@ -82,9 +85,12 @@ export function RangePicker({
   // yet a fixed period. A fixed period on screen closes it, but a new custom range keeps it open.
   const [customOpen, setCustomOpen] = useState(() => isCustomChoice(choice))
   const [seenChoice, setSeenChoice] = useState(choice)
+  // Whether the range on screen was swapped on Apply. A fixed period is not a swap, so it clears the note.
+  const [swapped, setSwapped] = useState(false)
   if (!sameChoice(choice, seenChoice)) {
     setSeenChoice(choice)
     setCustomOpen(isCustomChoice(choice))
+    if (!isCustomChoice(choice)) setSwapped(false)
   }
   const offered = custom ? [...options, CUSTOM_OPTION] : options
   const [singular, pluralForm] = NOUNS[noun]
@@ -101,13 +107,14 @@ export function RangePicker({
   const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
   // While a pick waits for an import, the note says so instead of the page's note.
   const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
-  const announcement = [counted, choiceLabel, dates]
+  const announcement = [counted, choiceLabel, dates, swapped ? SWAPPED_NOTE : '']
     .filter((part) => part !== undefined && part !== '')
     .join(', ')
   const rootRef = useRef<HTMLDivElement>(null)
   const markPick = usePickInPlace(rootRef, waiting)
-  const pick = (next: PeriodChoice) => {
+  const pick = (next: PeriodChoice, reversed = false) => {
     markPick()
+    setSwapped(reversed)
     const id = made.current + 1
     made.current = id
     setPicks((current) => ({ count: id, answered: current.answered, latest: next }))
@@ -132,12 +139,20 @@ export function RangePicker({
           pick(next)
         }}
       />
-      {custom && customOpen && <CustomRangeForm range={range} onApply={pick} />}
-      {(dates !== '' || count !== '') && (
+      {custom && customOpen && (
+        <CustomRangeForm range={range} onApply={(next, reversed) => pick(next, reversed)} />
+      )}
+      {(dates !== '' || count !== '' || swapped) && (
         <p className="range-picker__caption muted">
           {dates !== '' && <span className="range-picker__dates">{dates}</span>}
           {dates !== '' && count !== '' && ' · '}
           {count !== '' && <span className="range-picker__count">{count}</span>}
+          {swapped && (
+            <>
+              {(dates !== '' || count !== '') && ' · '}
+              <span className="range-picker__swapped">{SWAPPED_NOTE}</span>
+            </>
+          )}
         </p>
       )}
       <p role="status" className="sr-only">
