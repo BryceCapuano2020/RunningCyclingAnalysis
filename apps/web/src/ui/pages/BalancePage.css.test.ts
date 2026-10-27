@@ -35,7 +35,7 @@ describe('Balance page stylesheet', () => {
 
   it('tightens the gap between the answer and its meter on a short phone held upright, so the key ends above the fold at 320 x 640', () => {
     const short = inMedia(page, `(max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px)`)
-    expect(short).toMatch(/\.balance-hero__pair \{[^}]*gap:\s*var\(--space-5\);/)
+    expect(short).toMatch(/\.balance-hero__pair \{[^}]*gap:\s*var\(--space-4\);/)
   })
 
   it('ends the step just below 360 px, so 360 px keeps the headline at its size', () => {

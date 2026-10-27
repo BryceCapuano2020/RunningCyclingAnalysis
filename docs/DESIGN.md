@@ -245,8 +245,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
 - A sport glyph (`SportIcon`) sits next to every sport name. Its path data and stroke width are in
   `iconPaths.ts`, the one source for the icon and for the glyph on the share card. The ride is drawn at
-  a 1.75 stroke and the runner at 2, since two wheels and a frame carry more ink than five strokes; the
-  runner is not moved.
+  a 1.5 stroke with wheels of radius 3, and the runner at 2, since two wheels and a frame carry more ink
+  than five strokes. Measured in the app at 16, 20, 24 and 30 px, the ride carries 1.2 to 1.3 times the
+  runner's ink (it was 1.6 to 1.8 at a 3.8 radius and a 1.75 stroke); the runner is not moved.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
@@ -350,9 +351,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
   and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
   needs two weeks with values."
-- On a short screen the answer sits closer to its meter (SHORT_PHONE_MAX_HEIGHT_PX). In landscape it sits
-  beside the meter, so the meter is on the first screen at 844 x 390 and 667 x 375, and the key under it
-  ends above the fold at 320 x 640.
+- On a short screen (SHORT_PHONE_MAX_HEIGHT_PX) the page's header, notices and sections sit closer, the answer
+  sits closer to its meter, and the meter's plot, ends and key sit closer still, so the meter is on the first
+  screen at 320 x 568 and its key ends above the fold at 320 x 640. In landscape the answer sits beside the
+  meter, so the meter is on the first screen at 844 x 390 and 667 x 375.
 - The balance meter spans the card row, so its centre is the gap between the two cards. Running is
   on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
   the cards, the meter, the landing example and the share card all follow it. The meter plots the

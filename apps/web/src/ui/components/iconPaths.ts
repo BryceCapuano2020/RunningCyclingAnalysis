@@ -109,12 +109,14 @@ export const SPORT_GLYPHS: Record<'run' | 'ride', SportGlyph> = {
     ],
   },
   // Two wheels and a frame have more ink than the runner's five strokes at the same width, so the
-  // ride is drawn a shade lighter. The runner stays put: moving it was tried and widened its gap.
+  // ride is drawn a shade lighter and its wheels smaller. At 3.8 and 1.75 it carried about 1.65 times
+  // the runner's ink at 16 to 30 px; at 3 and 1.5 it carries at most 1.3 times. The stroke is 1 px at
+  // 16 px, which is as thin as it goes. The runner stays put: moving it was tried and widened its gap.
   ride: {
-    strokeWidth: 1.75,
+    strokeWidth: 1.5,
     dots: [
-      { cx: 5.5, cy: 16.5, r: 3.8, filled: false },
-      { cx: 18.5, cy: 16.5, r: 3.8, filled: false },
+      { cx: 5.5, cy: 16.5, r: 3, filled: false },
+      { cx: 18.5, cy: 16.5, r: 3, filled: false },
     ],
     paths: [
       [

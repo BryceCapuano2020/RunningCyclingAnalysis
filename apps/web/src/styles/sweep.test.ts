@@ -93,37 +93,95 @@ describe('every stylesheet in the app', () => {
 })
 
 /*
- * Sport colour. A surface of one sport reads --sport-colour, which tokens.css sets once for each
- * data-sport. A surface that draws both sports at once names the per-sport tokens, and nothing else
- * names them. No sport hex is written outside tokens.css, except in the copies that cannot read it:
- * the share card (always dark, pinned by cardColors.test.ts), the static privacy page (pinned by
- * tokens.test.ts) and the favicon, an SVG file.
+ * Sport colour. A surface of one sport reads --sport-colour and --sport-colour-soft, which tokens.css
+ * sets once for each data-sport. A rule that draws both sports at once names the series tokens, and
+ * only the selectors listed here do: each is drawn on a surface that shows both sports. A new rule
+ * that names a series token for one sport fails, even in a file listed here, and so does a series
+ * token in TypeScript, where a style prop could paint text. No sport hex is written outside tokens.css,
+ * except in the copies that cannot read it: the share card (always dark, pinned by cardColors.test.ts),
+ * the static privacy page (pinned by tokens.test.ts) and the favicon, an SVG file.
  */
-const BOTH_SPORTS = [
-  'ui/components/BalanceMeter.css',
-  'ui/components/icons.css',
-  'ui/charts/ChartSeries.css',
-  'ui/charts/ChartTooltip.css',
-  'ui/charts/ChartLegend.css',
-  'ui/charts/HrScatter.css',
-  'ui/charts/RatioChart.css',
-]
+const BOTH_SPORTS: Record<string, readonly string[]> = {
+  // Both ends of one meter: its band and its dot take the colour of the sport the lean names.
+  'ui/components/BalanceMeter.css': [
+    '.balance-meter--run .balance-meter__band',
+    '.balance-meter--ride .balance-meter__band',
+    '.balance-meter--run .balance-meter__dot',
+    '.balance-meter--ride .balance-meter__dot',
+  ],
+  // The brand mark draws both sport strokes.
+  'ui/components/icons.css': ['.brand-mark__run', '.brand-mark__ride'],
+  // Balance's shared trend and Method's curves draw both sports on one plot.
+  'ui/charts/ChartSeries.css': [
+    '.chart-series__line--run',
+    '.chart-series__line--ride',
+    '.chart-series__band--ride',
+    '.chart-series__ring--ride',
+    '.chart-series__marker--run',
+    '.chart-series__marker--ride',
+  ],
+  // The shared legend and tooltip keys, which those charts and Method's heart-rate check draw for both.
+  'ui/charts/ChartTooltip.css': [
+    '.chart-tooltip__key--run',
+    '.chart-tooltip__key--ride',
+    '.chart-tooltip__key--dashed-run',
+    '.chart-tooltip__key--dashed-ride',
+  ],
+  'ui/charts/ChartLegend.css': [
+    '.swatch-run',
+    '.swatch-ride',
+    '.chart-legend__key--run',
+    '.chart-legend__key--ride',
+    '.chart-legend__key--dashed-run',
+    '.chart-legend__key--dashed-ride',
+  ],
+  // Method's heart-rate check: a run fit and dots always, a ride fit and dots when the weight is known.
+  'ui/charts/HrScatter.css': [
+    '.hr-scatter__fit--run',
+    '.hr-scatter__fit--ride',
+    '.hr-scatter__dot--run',
+    '.hr-scatter__dot--ride',
+  ],
+  // Method's ratio chart: the run and ride higher-share bands.
+  'ui/charts/RatioChart.css': ['.ratio-chart__higher--run', '.ratio-chart__higher--ride'],
+}
 /** The static privacy page's stylesheet copies the token values, and tokens.test.ts keeps them equal. */
 const PRIVACY_PAGE = 'styles/privacy.css'
 const HEX_COPIES = ['share/cardColors.ts', PRIVACY_PAGE, 'favicon.svg']
 const SERIES_TOKEN = /--series-(?:run|ride)(?:-soft)?\b/
 const SPORT_HEX = /#(?:e5304f|f0435f|2f56e8|4d6ef5|0f9fb0|14a0b0)(?:[0-9a-f]{2})?\b/i
 
+/** Each selector, from a stylesheet's rules, whose declarations name a series colour token. */
+function seriesSelectorsOf(css: string): string[] {
+  return rulesOf(css)
+    .filter(([, body]) => SERIES_TOKEN.test(body))
+    .flatMap(([selectors]) => selectors.split(',').map((selector) => selector.trim()))
+}
+
 describe('sport colour', () => {
-  it('names a series colour token only in tokens.css and the surfaces that draw both sports', () => {
-    const offenders = sheets
-      .filter(
-        ({ path, css }) =>
-          !['styles/tokens.css', PRIVACY_PAGE, ...BOTH_SPORTS].includes(path) &&
-          SERIES_TOKEN.test(css),
-      )
+  it('names a series colour token only in tokens.css and in the selectors that draw both sports', () => {
+    const styleOffenders = sheets
+      .filter(({ path }) => path !== 'styles/tokens.css' && path !== PRIVACY_PAGE)
+      .flatMap(({ path, css }) => {
+        const allowed = BOTH_SPORTS[path] ?? []
+        return seriesSelectorsOf(css)
+          .filter((selector) => !allowed.includes(selector))
+          .map((selector) => `${path}: ${selector}`)
+      })
+    const sourceOffenders = sources
+      .filter(({ text }) => SERIES_TOKEN.test(text))
       .map(({ path }) => path)
-    expect(offenders).toEqual([])
+    expect([...styleOffenders, ...sourceOffenders]).toEqual([])
+  })
+
+  it('lists only selectors that still name a series colour token, so the list cannot outlive its rule', () => {
+    const stale = Object.entries(BOTH_SPORTS).flatMap(([path, selectors]) => {
+      const named = seriesSelectorsOf(sheets.find((sheet) => sheet.path === path)?.css ?? '')
+      return selectors
+        .filter((selector) => !named.includes(selector))
+        .map((selector) => `${path}: ${selector}`)
+    })
+    expect(stale).toEqual([])
   })
 
   it('writes no sport hex outside tokens.css and the copies that cannot read it', () => {
@@ -141,15 +199,14 @@ describe('sport colour', () => {
     expect(offenders).toEqual([])
   })
 
-  it('sets --sport-colour once for each sport, in tokens.css, from that sport’s series token', () => {
-    expect(declarations(tokensCss, "[data-sport='run']").get('--sport-colour')).toBe(
-      'var(--series-run)',
-    )
-    expect(declarations(tokensCss, "[data-sport='ride']").get('--sport-colour')).toBe(
-      'var(--series-ride)',
-    )
+  it('sets --sport-colour and --sport-colour-soft once for each sport, in tokens.css, from its series token', () => {
+    for (const sport of ['run', 'ride'] as const) {
+      const tokens = declarations(tokensCss, `[data-sport='${sport}']`)
+      expect(tokens.get('--sport-colour')).toBe(`var(--series-${sport})`)
+      expect(tokens.get('--sport-colour-soft')).toBe(`var(--series-${sport}-soft)`)
+    }
     const declaring = sheets
-      .filter(({ css }) => /--sport-colour\s*:/.test(css))
+      .filter(({ css }) => /--sport-colour(?:-soft)?\s*:/.test(css))
       .map(({ path }) => path)
     expect(declaring).toEqual(['styles/tokens.css'])
   })

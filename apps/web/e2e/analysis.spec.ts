@@ -330,6 +330,20 @@ test('on a short landscape phone the meter is on the first screen, beside the an
   expect((meter?.y ?? 0) + (meter?.height ?? 0)).toBeLessThanOrEqual(390)
 })
 
+test('at 320 by 568 the meter is fully above the fold', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await openSample(page)
+  const meter = await page.locator('.balance-meter').boundingBox()
+  expect((meter?.y ?? 0) + (meter?.height ?? 0)).toBeLessThanOrEqual(568)
+})
+
+test('at 667 by 375 the meter is fully above the fold', async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 375 })
+  await openSample(page)
+  const meter = await page.locator('.balance-meter').boundingBox()
+  expect((meter?.y ?? 0) + (meter?.height ?? 0)).toBeLessThanOrEqual(375)
+})
+
 test('at 320 by 640 the key under the meter ends above the fold', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)

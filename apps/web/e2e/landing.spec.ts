@@ -44,3 +44,19 @@ test('on a short landscape phone, Add files and the sample are on the first scre
   const addFiles = await page.getByRole('button', { name: 'Add files' }).boundingBox()
   expect((addFiles?.y ?? 0) + (addFiles?.height ?? 0)).toBeLessThanOrEqual(390)
 })
+
+test('at 320 by 568 Add files is fully above the fold', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
+  const addFiles = await page.getByRole('button', { name: 'Add files' }).boundingBox()
+  expect((addFiles?.y ?? 0) + (addFiles?.height ?? 0)).toBeLessThanOrEqual(568)
+})
+
+test('at 667 by 375 Add files is fully above the fold', async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 375 })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
+  const addFiles = await page.getByRole('button', { name: 'Add files' }).boundingBox()
+  expect((addFiles?.y ?? 0) + (addFiles?.height ?? 0)).toBeLessThanOrEqual(375)
+})

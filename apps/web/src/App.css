@@ -163,7 +163,7 @@
  */
 @media (max-height: 700px) {
   .landing__hero {
-    gap: var(--space-5);
+    gap: var(--space-4);
   }
 }
 

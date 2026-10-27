@@ -34,7 +34,7 @@ describe('landing on a short landscape screen', () => {
   })
 
   it('tightens the gap in a short phone held upright, so Add files stays on the first screen at 320 x 568', () => {
-    expect(shortPhoneBody()).toMatch(/\.landing__hero \{\s*gap:\s*var\(--space-5\);/)
+    expect(shortPhoneBody()).toMatch(/\.landing__hero \{\s*gap:\s*var\(--space-4\);/)
   })
 
   it('keeps the pitch and the drop zone in one element, so the landscape layout can set them side by side', async () => {
