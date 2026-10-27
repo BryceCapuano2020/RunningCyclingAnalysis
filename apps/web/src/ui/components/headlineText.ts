@@ -81,11 +81,23 @@ export function rangeText({ unit, lean, lead }: BalanceReading): string {
   return `${percentEdge(low, false)} to ${percentEdge(high, false)}`
 }
 
-/** A leaning grade gap on the headline duration: "Your running grades 6 points higher than your cycling, ...". */
-function leaningGradeSummary(lean: Exclude<Lean, 'even'>, centre: number): string {
-  const { leader, other } = leaderOf(lean)
+/**
+ * A lead's likely range, in brackets after the lead, so a lead is never read as one exact number:
+ * " (likely 2 to 10 points)". Empty when the range is a single value.
+ */
+function likelyText(reading: BalanceReading): string {
+  const { low, high } = reading.lead
+  return Math.round(low) === Math.round(high) ? '' : ` (likely ${rangeText(reading)})`
+}
+
+/**
+ * A leaning grade gap on the headline duration, with its range: "Your running grades 6 points higher
+ * than your cycling (likely 2 to 10 points), on your best 20 min in each.".
+ */
+function leaningGradeSummary(reading: BalanceReading & { lean: Exclude<Lean, 'even'> }): string {
+  const { leader, other } = leaderOf(reading.lean)
   return (
-    `Your ${leader} grades ${points(Math.abs(Math.round(centre)))} higher than your ${other}, ` +
+    `Your ${leader} grades ${points(Math.abs(Math.round(reading.lead.centre)))} higher than your ${other}${likelyText(reading)}, ` +
     `on your best ${formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)} in each.`
   )
 }
@@ -105,20 +117,20 @@ function inBalanceSummary(reading: BalanceReading): string {
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
-function energySummary({ lean, lead }: BalanceReading, duration: string): string {
+function energySummary({ unit, lean, lead }: BalanceReading, duration: string): string {
   if (lean === 'even') {
     return `Over ${duration}, your running and your cycling are within the model's range of each other, as energy per kilogram.`
   }
   const { leader, other } = leaderOf(lean)
   const percent = formatPercent(Math.abs(lead.centre) / 100)
-  return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other}, as energy per kilogram.`
+  return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other}${likelyText({ unit, lean, lead })}, as energy per kilogram.`
 }
 
 /** The summary under the headline. A grade gap is on the headline duration; the energy ratio on the duration given. */
 export function balanceSummary(reading: BalanceReading, durationS: number): string {
   if (reading.unit === 'percent') return energySummary(reading, effortLabel(durationS))
   if (reading.lean === 'even') return inBalanceSummary(reading)
-  return leaningGradeSummary(reading.lean, reading.lead.centre)
+  return leaningGradeSummary({ ...reading, lean: reading.lean })
 }
 
 /**

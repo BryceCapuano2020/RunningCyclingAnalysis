@@ -182,7 +182,7 @@ describe('balanceTitle', () => {
 describe('balanceSummary', () => {
   it('names the leading sport and its grade gap in points, on the headline duration', () => {
     expect(balanceSummary(gapReading(gap({ centre: 6, lean: 'run' })), 1200)).toBe(
-      'Your running grades 6 points higher than your cycling, on your best 20\u00a0min in each.',
+      'Your running grades 6 points higher than your cycling (likely 2 to 10\u00a0points), on your best 20\u00a0min in each.',
     )
   })
 
@@ -190,7 +190,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -6, low: -10, high: -2, lean: 'ride' })), 1200),
     ).toBe(
-      'Your cycling grades 6 points higher than your running, on your best 20\u00a0min in each.',
+      'Your cycling grades 6 points higher than your running (likely 2 to 10\u00a0points), on your best 20\u00a0min in each.',
     )
   })
 
@@ -226,13 +226,13 @@ describe('balanceSummary', () => {
 
   it('states the energy ratio, with the duration, when the balance is only an energy reading', () => {
     expect(balanceSummary(energyReading(interval(1.05, 1.12, 1.2)), 300)).toBe(
-      'Over 5 min, your running is about 12% higher than your cycling, as energy per kilogram.',
+      'Over 5 min, your running is about 12% higher than your cycling (likely 5% to 20%), as energy per kilogram.',
     )
   })
 
   it('names an hour in the energy ratio in minutes, as the records list does', () => {
     expect(balanceSummary(energyReading(interval(1.05, 1.12, 1.2)), 3600)).toBe(
-      'Over 60 min, your running is about 12% higher than your cycling, as energy per kilogram.',
+      'Over 60 min, your running is about 12% higher than your cycling (likely 5% to 20%), as energy per kilogram.',
     )
   })
 
