@@ -250,7 +250,7 @@ describe('analysis worker', () => {
       }
     })
 
-    it('sends no progress after an import fails, whatever was waiting to go out', async () => {
+    it('sends the exact count before an import fails, and nothing after the failure', async () => {
       const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
       // With no total there is no last file to send at once, so a message is waiting at the end.
       vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
@@ -259,8 +259,10 @@ describe('analysis worker', () => {
       })
       try {
         const { send, posted } = await startWorker()
-        const messages = await send(importOf(null))
+        const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
+
         expect(messages.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
+        expect(messages.at(-2)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
 
         // The throttled message would have gone out one interval after the first.
         await new Promise((resolve) => setTimeout(resolve, 400))
@@ -268,6 +270,15 @@ describe('analysis worker', () => {
       } finally {
         clock.mockRestore()
       }
+    })
+
+    it('says how many it saved in the reply that ends a signed-in import, and not otherwise', async () => {
+      const { send } = await startWorker()
+      const signedIn = await send(importOf({ keepFiles: false, userId: USER_ID }))
+      expect(signedIn.at(-1)).toMatchObject({ type: 'state', saved: FILES })
+
+      const signedOut = await send(importOf(null))
+      expect(signedOut.at(-1)).not.toHaveProperty('saved')
     })
 
     it('sends the count of a signed-out import at the end too', async () => {

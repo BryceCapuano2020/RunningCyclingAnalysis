@@ -24,6 +24,11 @@ export class ImportReporter {
     this.countsSaves = countsSaves
   }
 
+  /** The activities saved so far. */
+  get savedCount(): number {
+    return this.saved
+  }
+
   /** Reported before any file is read, so an import that saves nothing still starts and ends. */
   begin(): void {
     if (this.countsSaves) this.report()
@@ -44,14 +49,12 @@ export class ImportReporter {
     this.report(true)
   }
 
-  /** The import is over: the page ends on the exact counts, however the messages were spaced. */
+  /**
+   * The import is over, or has failed: the page gets the exact counts first, however the messages
+   * before were spaced, and nothing is sent after.
+   */
   end(): void {
     this.progress.flush()
-  }
-
-  /** The import failed: nothing is sent after the failure that was waiting to go out. */
-  abandon(): void {
-    this.progress.cancel()
   }
 
   private report(paused = false): void {

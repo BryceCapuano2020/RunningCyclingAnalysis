@@ -118,7 +118,11 @@ export type WorkerResponse =
    * reached. Sent before its state.
    */
   | { type: 'accountIssue'; issue: SyncIssueCode }
-  | { type: 'state'; state: SessionState; outcome?: ImportOutcome }
+  /**
+   * `saved` is the activities an import saved to the account, counted by the worker, so the page
+   * ends on the right number however its progress messages were drawn. Absent when nothing is saved.
+   */
+  | { type: 'state'; state: SessionState; outcome?: ImportOutcome; saved?: number }
   | {
       type: 'rebuildComplete'
       state: SessionState

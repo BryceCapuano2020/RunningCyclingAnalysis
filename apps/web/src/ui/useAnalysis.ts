@@ -37,6 +37,8 @@ export interface AnalysisController {
   progress: ImportProgress | null
   /** Number of files uploaded so far during an import that keeps files, otherwise null. */
   uploading: number | null
+  /** The activities the last signed-in import saved, as its reply counted them. Null until one ends. */
+  savedCount: number | null
   error: string | null
   /** The worker's reason for `error`, when the page words that error specially. */
   errorIssue: SyncIssueCode | null
@@ -358,6 +360,7 @@ export function useAnalysis(
     waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
     progress: imports.progress,
     uploading: imports.uploading,
+    savedCount: imports.savedCount,
     error,
     errorIssue,
     errorNeutral: errorNotice?.neutral ?? false,

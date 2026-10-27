@@ -264,7 +264,10 @@ export class AnalysisSession {
     this.incompatibleKeys.delete(key)
     if (sink === undefined) return
     if (batch.halt !== null) {
-      this.leaveUnsynced(key, batch.halt)
+      // An activity already saved, offered again to keep its file, is not waiting for a save.
+      if (held === undefined || replaces || this.unsynced.has(key)) {
+        this.leaveUnsynced(key, batch.halt)
+      }
       return
     }
     try {

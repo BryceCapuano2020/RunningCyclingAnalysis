@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
+import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
 import { makeResult } from './components/fixtures'
 import { EMPTY_PERIOD } from './analysis/model'
@@ -1281,6 +1282,31 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'state', state: STATE }))
     expect(result.current.progress).toBeNull()
     expect(result.current.uploading).toBeNull()
+  })
+
+  it('says how many a signed-in import saved when its last progress and its reply arrive together', () => {
+    // The sync status as the app renders it, fed by the hook.
+    function Status() {
+      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP, false)
+      return createElement(SyncStatus, {
+        uploading: analysis.uploading,
+        savedCount: analysis.savedCount,
+        issues: analysis.state.syncIssues,
+        signedIn: true,
+      })
+    }
+    render(createElement(Status))
+    finishLibraryLoad()
+    act(() => worker().reply({ type: 'progress', filesRead: 0, filesTotal: 3, uploaded: 0 }))
+    act(() => worker().reply({ type: 'progress', filesRead: 1, filesTotal: 3, uploaded: 1 }))
+
+    // One render sees both, so the progress that says 3 is never drawn.
+    act(() => {
+      worker().reply({ type: 'progress', filesRead: 3, filesTotal: 3, uploaded: 3 })
+      worker().reply({ type: 'state', state: STATE, saved: 3 })
+    })
+
+    expect(screen.getByRole('status')).toHaveTextContent('Saved 3 activities to your library.')
   })
 
   it('says why a paused import waits, and stops saying it with the next progress', () => {

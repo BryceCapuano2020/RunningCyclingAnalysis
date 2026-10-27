@@ -62,6 +62,21 @@ describe('SyncStatus', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Saved 1 activity to your library')
   })
 
+  it('takes the saved count from the reply that ended the import, when the last progress lagged', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 1 })} />)
+    rerender(<SyncStatus {...props({ uploading: null, savedCount: 12 })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Saved 12 activities to your library')
+
+    // The same count says the same: it is the end of the import that makes the sentence.
+    rerender(<SyncStatus {...props({ uploading: 0, savedCount: null })} />)
+    rerender(<SyncStatus {...props({ uploading: 4, savedCount: null })} />)
+    rerender(<SyncStatus {...props({ uploading: null, savedCount: 0 })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No new activities were saved to your library.',
+    )
+  })
+
   it('never shows a saved count of zero, and says so when a signed-in import saved nothing', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     expect(screen.queryByText('0 saved')).not.toBeInTheDocument()

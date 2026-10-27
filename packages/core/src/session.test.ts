@@ -972,6 +972,33 @@ describe('AnalysisSession', () => {
     expect(again.syncIssues).toEqual([])
   })
 
+  it('leaves saved activities out of what waits when a stop comes while files are being kept', async () => {
+    const session = new AnalysisSession()
+    // Keeping files asks the sink about activities that are already saved as well.
+    const keepFiles = true
+    await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async () => undefined,
+      keepFiles,
+    )
+
+    const newRide = later(ride)
+    const second = await session.addFiles(
+      [fitFile('ride 2.fit', newRide), fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        if (item.digest.startMs === newRide.startMs) throw new SyncFailure('activity-quota', 'Full')
+      },
+      keepFiles,
+    )
+
+    // Only the new ride waits. The run and the ride the first import saved are not waiting.
+    expect(second.syncIssues).toEqual([{ code: 'activity-quota', count: 1 }])
+  })
+
   it('keeps saving the rest of the import after one activity conflicts with a saved copy', async () => {
     const session = new AnalysisSession()
     const attempted: Sport[] = []

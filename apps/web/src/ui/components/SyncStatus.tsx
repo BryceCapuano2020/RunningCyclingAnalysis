@@ -11,6 +11,11 @@ import './SyncStatus.css'
 export interface SyncStatusProps {
   /** Activities saved so far in the current import, or null when no upload is running. */
   uploading: number | null
+  /**
+   * What the import that just ended saved, as the worker counted it. It is exact; `uploading` is the
+   * last count drawn, which can lag, so the finished sentence prefers this one.
+   */
+  savedCount?: number | null
   /** Activities in this library session that were not saved, or not kept, and why. */
   issues: SyncIssue[]
   signedIn: boolean
@@ -87,7 +92,13 @@ function issueSentence(issue: SyncIssue, saved: number | null): string {
  * here, and the running count is visual only, shown once at least one activity is saved. Issues
  * stay visible until the parent clears them.
  */
-export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncStatusProps) {
+export function SyncStatus({
+  uploading,
+  savedCount = null,
+  issues,
+  signedIn,
+  moved = false,
+}: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)
   // The completion keeps whether its import moved the numbers, so the note outlives the list.
   const [finished, setFinished] = useState<{ saved: number; moved: boolean } | null>(null)
@@ -98,7 +109,7 @@ export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncS
     if (uploading !== null && previous === null) {
       setFinished(null)
     } else if (uploading === null && previous !== null) {
-      setFinished({ saved: previous, moved })
+      setFinished({ saved: savedCount ?? previous, moved })
     }
   }
 

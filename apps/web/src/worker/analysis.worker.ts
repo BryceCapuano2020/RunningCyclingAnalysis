@@ -52,7 +52,7 @@ let showingSample = false
 /** Runs one import: each new activity is saved, and its file uploaded when files are kept. */
 async function addFiles(
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
-): Promise<{ state: SessionState; outcome: ImportOutcome }> {
+): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
   const { sync } = request
   let stoppedBy: SyncIssueCode | null = null
   let outcome: ImportOutcome = { activities: 0, rejected: 0, duplicates: [] }
@@ -90,9 +90,9 @@ async function addFiles(
         outcome = { ...completed, ...summarizeAdded(added) }
       },
     )
-    reporter.end()
   } finally {
-    reporter.abandon()
+    // On a failure too: the page learns how many were saved before the error reply.
+    reporter.end()
   }
   if (sync !== null) {
     post({ type: 'missingOriginals', count: missingOriginals.size })
@@ -101,7 +101,7 @@ async function addFiles(
     await device.report()
   }
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
-  return { state, outcome }
+  return { state, outcome, ...(sync ? { saved: reporter.savedCount } : {}) }
 }
 
 async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Promise<SessionState> {

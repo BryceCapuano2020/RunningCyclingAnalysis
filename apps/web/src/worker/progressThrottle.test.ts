@@ -81,13 +81,4 @@ describe('throttled', () => {
     progress.report(3, true)
     expect(sent).toEqual([1, 3])
   })
-
-  it('drops what is waiting when cancelled', async () => {
-    const { sent, progress } = setup()
-    progress.report(1)
-    progress.report(2)
-    progress.cancel()
-    await vi.advanceTimersByTimeAsync(5_000)
-    expect(sent).toEqual([1])
-  })
 })

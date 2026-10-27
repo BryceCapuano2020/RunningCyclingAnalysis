@@ -49,8 +49,9 @@ const REQUEST_TIMEOUT_MS = 15_000
 const TRANSFER_TIMEOUT_MS = 120_000
 /**
  * How long a create waits before its one retry after a lost connection or a 5xx with no
- * Retry-After. Only a create asks for one: the server dedupes it by dedupe_key, so a second try
- * returns the activity the first stored. A read always repeats at once, and nothing else repeats.
+ * Retry-After. Only a create asks for one: the server dedupes it by dedupe_key (a replace names the
+ * activity by its id), so a second try returns the activity the first stored. A read always repeats
+ * at once, and nothing else repeats.
  */
 const CREATE_RETRY_BACKOFF_MS = 1_000
 /** Refusals that will not clear in a moment, so they are never retried. */

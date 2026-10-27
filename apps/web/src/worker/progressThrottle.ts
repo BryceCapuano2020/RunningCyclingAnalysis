@@ -9,8 +9,6 @@ export interface Throttled<T> {
   report(value: T, immediate?: boolean): void
   /** Sends the value that is waiting, if any, now. */
   flush(): void
-  /** Drops the value that is waiting, so nothing is sent after the request that made it has ended. */
-  cancel(): void
 }
 
 /** Limits how often `send` is called, always ending with the latest value reported. */
@@ -44,5 +42,5 @@ export function throttled<T>(
     waiting = { value }
     timer ??= setTimeout(flush, PROGRESS_INTERVAL_MS - sinceLast)
   }
-  return { report, flush, cancel }
+  return { report, flush }
 }
