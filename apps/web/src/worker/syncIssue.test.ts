@@ -1,7 +1,7 @@
 import { SyncFailure } from '@rca/core/session'
 import { describe, expect, it } from 'vitest'
 import { ApiRequestError } from '../api/client'
-import { syncIssueFor } from './syncIssue'
+import { syncFailureOf, syncIssueFor } from './syncIssue'
 
 describe('syncIssueFor', () => {
   it.each([
@@ -46,5 +46,22 @@ describe('syncIssueFor', () => {
     ['a sync failure', new SyncFailure('storage-quota', 'Too large'), 'storage-quota'],
   ])('maps %s', (_label, error, code) => {
     expect(syncIssueFor(error)).toBe(code)
+  })
+})
+
+describe('syncFailureOf', () => {
+  it('gives a failed request the cause it maps to, with its message', () => {
+    const failure = syncFailureOf(new ApiRequestError(429, 'daily_limit', 'Tomorrow'))
+    expect(failure).toBeInstanceOf(SyncFailure)
+    expect(failure).toMatchObject({ code: 'daily-limit', message: 'Tomorrow' })
+  })
+
+  it('keeps a failure that already has its cause', () => {
+    const failure = new SyncFailure('file-too-large', 'Too big')
+    expect(syncFailureOf(failure)).toBe(failure)
+  })
+
+  it('counts anything else as a server failure', () => {
+    expect(syncFailureOf('offline')).toMatchObject({ code: 'server', message: 'offline' })
   })
 })

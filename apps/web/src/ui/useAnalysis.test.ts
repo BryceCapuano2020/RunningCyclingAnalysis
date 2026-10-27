@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkerRequest, WorkerResponse } from '../worker/protocol'
 import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
+import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
 import { makeResult } from './components/fixtures'
 import { EMPTY_PERIOD } from './analysis/model'
@@ -266,6 +267,28 @@ describe('useAnalysis account handling', () => {
     expect(workerB.posted).not.toContainEqual(expect.objectContaining({ type: 'addFiles' }))
   })
 
+  it('says an import was cancelled when the account changes while the worker is saving it', () => {
+    const { result, rerender } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    expect(worker().posted.at(-1)).toMatchObject({ type: 'addFiles', sync: { userId: 'u1' } })
+
+    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
+    expect(result.current.error).toBe(
+      'An import was cancelled because the account changed. Select the files again.',
+    )
+  })
+
+  it('says nothing of a cancelled import when the account changes with none running', () => {
+    const { result, rerender } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    rerender({ account: { status: 'signed-in', me: meAs('u2') }, current: SETTINGS })
+    expect(result.current.error).toBeNull()
+  })
+
   it('hydrates account B after a direct signed-in A to B switch', () => {
     const { result, rerender } = setup(SIGNED_IN_KEEP)
     const workerA = worker()
@@ -289,7 +312,10 @@ describe('useAnalysis account handling', () => {
     act(() => oldWorker.onerror?.({ message: 'prior account upload failed' } as ErrorEvent))
 
     expect(result.current.state).toEqual(STATE)
-    expect(result.current.error).toBeNull()
+    // The import is said to be cancelled, and the old worker's failure is not heard.
+    expect(result.current.error).toBe(
+      'An import was cancelled because the account changed. Select the files again.',
+    )
   })
 
   it('does not clear the library when the first account lookup finds nobody signed in', () => {
@@ -1141,6 +1167,24 @@ describe('useAnalysis state', () => {
     expect(refresh).toHaveBeenCalledOnce()
   })
 
+  it.each(['daily-limit', 'activity-quota', 'rate-limited'] as const)(
+    'leaves the account alone when an import stops at %s',
+    (issue) => {
+      const markExpired = vi.fn()
+      const refresh = vi.fn(async () => meWith(true))
+      const { result } = setup({ ...SIGNED_IN_KEEP, markExpired, refresh })
+      finishLibraryLoad()
+      act(() => result.current.addFiles([FILE]))
+      const posted = worker().posted.length
+
+      act(() => worker().reply({ type: 'accountIssue', issue }))
+
+      expect(markExpired).not.toHaveBeenCalled()
+      expect(refresh).not.toHaveBeenCalled()
+      expect(worker().posted).toHaveLength(posted)
+    },
+  )
+
   it('clears the sync issues when the user signs in', () => {
     const { result, rerender } = setup(SIGNED_OUT)
     act(() => result.current.addFiles([FILE]))
@@ -1238,6 +1282,62 @@ describe('useAnalysis state', () => {
     act(() => worker().reply({ type: 'state', state: STATE }))
     expect(result.current.progress).toBeNull()
     expect(result.current.uploading).toBeNull()
+  })
+
+  it('says how many a signed-in import saved when its last progress and its reply arrive together', () => {
+    // The sync status as the app renders it, fed by the hook.
+    function Status() {
+      const analysis = useAnalysis(SETTINGS, SIGNED_IN_KEEP, false)
+      return createElement(SyncStatus, {
+        uploading: analysis.uploading,
+        savedCount: analysis.savedCount,
+        issues: analysis.state.syncIssues,
+        signedIn: true,
+      })
+    }
+    render(createElement(Status))
+    finishLibraryLoad()
+    act(() => worker().reply({ type: 'progress', filesRead: 0, filesTotal: 3, uploaded: 0 }))
+    act(() => worker().reply({ type: 'progress', filesRead: 1, filesTotal: 3, uploaded: 1 }))
+
+    // One render sees both, so the progress that says 3 is never drawn.
+    act(() => {
+      worker().reply({ type: 'progress', filesRead: 3, filesTotal: 3, uploaded: 3 })
+      worker().reply({ type: 'state', state: STATE, saved: 3 })
+    })
+
+    expect(screen.getByRole('status')).toHaveTextContent('Saved 3 activities to your library.')
+  })
+
+  it('says why a paused import waits, and stops saying it with the next progress', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    expect(result.current.waitingReason).toBeNull()
+
+    act(() =>
+      worker().reply({ type: 'progress', filesRead: 3, filesTotal: 9, uploaded: 2, paused: true }),
+    )
+    expect(result.current.waitingReason).toBe(
+      'Too many saves at once. Saving resumes in about a minute.',
+    )
+    expect(result.current.progress).toEqual({ filesRead: 3, filesTotal: 9, paused: true })
+    expect(result.current.uploading).toBe(2)
+
+    act(() => worker().reply({ type: 'progress', filesRead: 4, filesTotal: 9, uploaded: 3 }))
+    expect(result.current.waitingReason).toBeNull()
+    expect(result.current.progress).toEqual({ filesRead: 4, filesTotal: 9 })
+  })
+
+  it('stops saying a paused import waits when its state arrives', () => {
+    const { result } = setup(SIGNED_IN_KEEP)
+    finishLibraryLoad()
+    act(() => result.current.addFiles([FILE]))
+    act(() => worker().reply({ type: 'progress', filesRead: 1, uploaded: 0, paused: true }))
+    expect(result.current.waitingReason).not.toBeNull()
+
+    act(() => worker().reply({ type: 'state', state: STATE }))
+    expect(result.current.waitingReason).toBeNull()
   })
 
   it('keeps the result on screen when the visitor stops, and says so as news rather than a fault', () => {

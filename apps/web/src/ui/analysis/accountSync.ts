@@ -132,8 +132,13 @@ function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
  */
 function switchAccount(deps: AccountTransitionDeps): void {
   const { accountEpochRef, imports, library, transport } = deps
+  // An import is cancelled whether it waits for its profile or the library, or the worker has it.
   const cancelled =
-    imports.pendingAsyncImportsRef.current > 0 || library.libraryWaitRef.current.length > 0
+    imports.pendingAsyncImportsRef.current > 0 ||
+    library.libraryWaitRef.current.length > 0 ||
+    transport.pendingRepliesRef.current.some(
+      (pending) => pending.kind === 'addFiles' && !pending.ignored,
+    )
   accountEpochRef.current += 1
   // Stop A's queued sync operations before a later sign-in can give them B's cookie. The new
   // worker starts empty; a signed-in account will be hydrated by the next effect pass.

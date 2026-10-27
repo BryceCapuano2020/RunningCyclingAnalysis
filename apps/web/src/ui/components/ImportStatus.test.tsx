@@ -266,6 +266,20 @@ describe('ImportStatus: the busy strip', () => {
     expect(screen.getByText('Read 5 files so far')).toBeInTheDocument()
   })
 
+  it('shows a pause in the saves in the strip, with the count of files kept as the bar', () => {
+    renderStatus({
+      busy: true,
+      progress: { filesRead: 3, filesTotal: 9 },
+      waiting: 'Too many saves at once. Saving resumes in about a minute.',
+    })
+    afterDelay()
+    expect(
+      screen.getByText('Too many saves at once. Saving resumes in about a minute.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Reading 3 of 9 files')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Stop current analysis' })).toBeInTheDocument()
+  })
+
   it('shows why busy imports are waiting, instead of saying it is analysing', () => {
     renderStatus({ busy: true, progress: null, waiting: 'Checking your saved results…' })
     afterDelay()
@@ -313,6 +327,47 @@ describe('ImportStatus: announcements', () => {
       <ImportStatus {...baseProps()} busy progress={null} waiting="Checking your saved results…" />,
     )
     expect(screen.getByRole('status')).toHaveTextContent('Checking your saved results…')
+  })
+
+  it('announces a pause in the saves once, and again if there is a second', () => {
+    const pause = 'Too many saves at once. Saving resumes in about a minute.'
+    const { rerender } = render(<ImportStatus {...baseProps()} />)
+    rerender(<ImportStatus {...baseProps()} busy progress={null} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+
+    rerender(
+      <ImportStatus
+        {...baseProps()}
+        busy
+        progress={{ filesRead: 3, filesTotal: 9 }}
+        waiting={pause}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(pause)
+
+    // The counts move while it waits, and the region says nothing more.
+    rerender(
+      <ImportStatus
+        {...baseProps()}
+        busy
+        progress={{ filesRead: 4, filesTotal: 9 }}
+        waiting={pause}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(pause)
+
+    // The next progress ends the pause, and the region is emptied, so the next one is read out too.
+    rerender(<ImportStatus {...baseProps()} busy progress={{ filesRead: 5, filesTotal: 9 }} />)
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    rerender(
+      <ImportStatus
+        {...baseProps()}
+        busy
+        progress={{ filesRead: 6, filesTotal: 9 }}
+        waiting={pause}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(pause)
   })
 
   it('announces the outcome sentence once the run ends', () => {

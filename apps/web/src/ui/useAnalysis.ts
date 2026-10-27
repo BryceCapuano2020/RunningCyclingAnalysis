@@ -8,7 +8,7 @@ import type {
   WorkerResponse,
 } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
-import { STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
+import { SAVES_PAUSED, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
 import { useImportActions } from './analysis/importActions'
 import { isQuietRequest } from './analysis/quietRequests'
 import type { ImportChange } from './analysis/importState'
@@ -31,12 +31,14 @@ export interface AnalysisController {
   state: SessionState
   /** Import work is in progress or waiting. A library change such as a delete is not counted. */
   busy: boolean
-  /** Why held imports are waiting, or null when nothing is waiting. */
+  /** Why an import is held or paused, or null when nothing is waiting. */
   waitingReason: string | null
   /** Activity files read so far during an import, with the total when it is known. */
   progress: ImportProgress | null
   /** Number of files uploaded so far during an import that keeps files, otherwise null. */
   uploading: number | null
+  /** The activities the last signed-in import saved, as its reply counted them. Null until one ends. */
+  savedCount: number | null
   error: string | null
   /** The worker's reason for `error`, when the page words that error specially. */
   errorIssue: SyncIssueCode | null
@@ -355,9 +357,10 @@ export function useAnalysis(
   return {
     state: imports.state,
     busy: imports.busy,
-    waitingReason: imports.waitingReason,
+    waitingReason: imports.waitingReason ?? (imports.progress?.paused ? SAVES_PAUSED : null),
     progress: imports.progress,
     uploading: imports.uploading,
+    savedCount: imports.savedCount,
     error,
     errorIssue,
     errorNeutral: errorNotice?.neutral ?? false,

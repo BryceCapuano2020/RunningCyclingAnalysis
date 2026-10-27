@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { messageOf } from '../../api/messageOf'
 import { saveAccountExport } from '../../export/saveExport'
 import { formatTimeOfDay } from '../format/date'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
@@ -15,9 +16,7 @@ export interface AccountSectionProps {
   onDeleteOpenChange: (open: boolean) => void
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : 'Could not download your data.'
-}
+const DOWNLOAD_FAILED = 'Could not download your data.'
 
 /**
  * The signed-in account's data and deletion, on the Profile page. The download is saved as a file,
@@ -50,7 +49,7 @@ export function AccountSection({
       saveAccountExport(await onDownloadData(), new Date())
       setExportStatus(`Your data was downloaded at ${formatTimeOfDay(Date.now())}.`)
     } catch (failure) {
-      setExportStatus(messageOf(failure))
+      setExportStatus(messageOf(failure, DOWNLOAD_FAILED))
     } finally {
       exportingRef.current = false
       setExporting(false)

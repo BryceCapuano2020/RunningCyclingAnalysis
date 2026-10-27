@@ -62,6 +62,21 @@ describe('SyncStatus', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Saved 1 activity to your library')
   })
 
+  it('takes the saved count from the reply that ended the import, when the last progress lagged', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 1 })} />)
+    rerender(<SyncStatus {...props({ uploading: null, savedCount: 12 })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Saved 12 activities to your library')
+
+    // The same count says the same: it is the end of the import that makes the sentence.
+    rerender(<SyncStatus {...props({ uploading: 0, savedCount: null })} />)
+    rerender(<SyncStatus {...props({ uploading: 4, savedCount: null })} />)
+    rerender(<SyncStatus {...props({ uploading: null, savedCount: 0 })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No new activities were saved to your library.',
+    )
+  })
+
   it('never shows a saved count of zero, and says so when a signed-in import saved nothing', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     expect(screen.queryByText('0 saved')).not.toBeInTheDocument()
@@ -132,7 +147,7 @@ describe('SyncStatus', () => {
       <SyncStatus {...props({ issues: [issue('storage-budget', 2), issue('rate-limited', 4)] })} />,
     )
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Original-file storage is paused for now, so 2 originals were not kept. The summaries were saved. Too many requests at once, so 4 activities were not fully saved. Wait a minute, then add them again.',
+      'Original-file storage is paused for now, so 2 originals were not kept. The summaries were saved. Too many requests at once. 4 waiting. Wait a minute, then add the rest again.',
     )
   })
 
@@ -160,12 +175,12 @@ describe('SyncStatus', () => {
     [
       'activity-quota',
       2,
-      'Your library is full (5,000 activities), so 2 activities were not saved. Delete older activities to make room.',
+      'Your library is full (5,000 activities). 2 waiting. Delete older activities to make room, then add the rest again.',
     ],
     [
       'activity-quota',
       1,
-      'Your library is full (5,000 activities), so 1 activity was not saved. Delete older activities to make room.',
+      'Your library is full (5,000 activities). 1 waiting. Delete older activities to make room, then add the rest again.',
     ],
     [
       'storage-quota',
@@ -196,12 +211,12 @@ describe('SyncStatus', () => {
     [
       'rate-limited',
       2,
-      'Too many requests at once, so 2 activities were not fully saved. Wait a minute, then add them again.',
+      'Too many requests at once. 2 waiting. Wait a minute, then add the rest again.',
     ],
     [
       'rate-limited',
       1,
-      'Too many requests at once, so 1 activity was not fully saved. Wait a minute, then add it again.',
+      'Too many requests at once. 1 waiting. Wait a minute, then add the rest again.',
     ],
     [
       'network',
@@ -251,7 +266,69 @@ describe('SyncStatus', () => {
   it('says the daily save limit resets at a local time, with no UTC in the words', () => {
     render(<SyncStatus {...props({ issues: [issue('daily-limit', 2)] })} />)
     expect(screen.getByRole('status')).toHaveTextContent(
-      /^You have reached today's limit on saves, so 2 activities were not fully saved\. It resets at .+, your time\. Add them again after that\.$/,
+      /^You have reached today's limit on saves\. 2 waiting\. It resets at .+, your time\. Add the rest again after that\.$/,
+    )
+  })
+
+  it.each<[SyncIssue['code'], RegExp]>([
+    [
+      'daily-limit',
+      /^You have reached today's limit on saves\. 1,915 saved, 1,103 waiting\. It resets at .+, your time\. Add the rest again after that\.$/,
+    ],
+    [
+      'activity-quota',
+      /^Your library is full \(5,000 activities\)\. 1,915 saved, 1,103 waiting\. Delete older activities to make room, then add the rest again\.$/,
+    ],
+    [
+      'rate-limited',
+      /^Too many requests at once\. 1,915 saved, 1,103 waiting\. Wait a minute, then add the rest again\.$/,
+    ],
+  ])('says how many saved and how many are waiting when an import stops at %s', (code, text) => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 1915 })} />)
+    rerender(<SyncStatus {...props({ uploading: null, issues: [issue(code, 1103)] })} />)
+    const status = screen.getByRole('status')
+    expect(status.textContent).toMatch(text)
+    expect(status).toHaveClass('sync-status__message--failed')
+  })
+
+  it('counts only what the latest import left as waiting beside what it saved', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 90 })} />)
+    rerender(
+      <SyncStatus
+        {...props({
+          uploading: null,
+          issues: [{ code: 'daily-limit', count: 1_103, latest: 10 }],
+        })}
+      />,
+    )
+    expect(screen.getByRole('status').textContent).toMatch(
+      /^You have reached today's limit on saves\. 90 saved, 10 waiting\. /,
+    )
+  })
+
+  it('leaves the saved count out for a limit an earlier import reached', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 4 })} />)
+    rerender(
+      <SyncStatus
+        {...props({
+          uploading: null,
+          issues: [{ code: 'activity-quota', count: 1_103, latest: 0 }],
+        })}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Your library is full (5,000 activities). 1,103 waiting. Delete older activities to make room, then add the rest again.',
+    )
+  })
+
+  it('says none were saved when the limit came before the first save', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: null, issues: [issue('rate-limited', 40)] })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Too many requests at once. 0 saved, 40 waiting. Wait a minute, then add the rest again.',
     )
   })
 

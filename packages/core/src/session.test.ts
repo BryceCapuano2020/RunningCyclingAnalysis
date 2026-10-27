@@ -814,7 +814,8 @@ describe('AnalysisSession', () => {
       Promise.reject(new Error('offline')),
     )
     const state = await session.addFiles([fitFile('ride.fit', ride)], SETTINGS)
-    expect(state.syncIssues).toEqual([{ code: 'server', count: 1 }])
+    // The failed save is an earlier import's, not the one that just ran.
+    expect(state.syncIssues).toEqual([{ code: 'server', count: 1, latest: 0 }])
   })
 
   it('clear forgets failed saves', async () => {
@@ -875,7 +876,7 @@ describe('AnalysisSession', () => {
     expect(state.syncIssues).toEqual([{ code: 'account-changed', count: 2 }])
   })
 
-  it('keeps saving the rest of the import after a rate limit or a network failure', async () => {
+  it('keeps saving the rest of the import after a network or server failure', async () => {
     const session = new AnalysisSession()
     const attempted: Sport[] = []
     const state = await session.addFiles(
@@ -884,19 +885,25 @@ describe('AnalysisSession', () => {
       undefined,
       async (item) => {
         attempted.push(item.digest.sport)
-        if (item.digest.sport === 'run') throw new SyncFailure('rate-limited', 'Daily limit')
-        throw new SyncFailure('network', 'Offline')
+        if (item.digest.sport === 'run') throw new SyncFailure('network', 'Offline')
+        throw new SyncFailure('server', 'Oops')
       },
     )
 
     expect(attempted).toEqual(['run', 'ride'])
     expect(state.syncIssues).toEqual([
-      { code: 'rate-limited', count: 1 },
       { code: 'network', count: 1 },
+      { code: 'server', count: 1 },
     ])
   })
 
-  it.each<SyncIssueCode>(['digest-quota', 'database-full'])(
+  it.each<SyncIssueCode>([
+    'digest-quota',
+    'database-full',
+    'daily-limit',
+    'activity-quota',
+    'rate-limited',
+  ])(
     'stops calling the sink after a %s failure, since every further save would fail the same way',
     async (code) => {
       const session = new AnalysisSession()
@@ -913,8 +920,84 @@ describe('AnalysisSession', () => {
 
       expect(attempted).toEqual(['run'])
       expect(state.syncIssues).toEqual([{ code, count: 2 }])
+      // The analysis keeps every activity of the import, saved or waiting.
+      expect(state.totalActivities).toBe(2)
     },
   )
+
+  it('counts, apart from the session, the activities the latest import left unsaved', async () => {
+    const session = new AnalysisSession()
+    const stopAt = (sports: Sport[]) => async (item: SyncItem) => {
+      if (sports.includes(item.digest.sport)) throw new SyncFailure('daily-limit', 'Spent')
+    }
+
+    // The first import saves the run, then stops at the ride: all it left is its own.
+    const first = await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      stopAt(['ride']),
+    )
+    expect(first.syncIssues).toEqual([{ code: 'daily-limit', count: 1 }])
+
+    // The second stops at once: both of its activities wait, with the first import's ride.
+    const second = await session.addFiles(
+      [fitFile('run 2.fit', later(run)), fitFile('ride 2.fit', later(ride))],
+      SETTINGS,
+      undefined,
+      stopAt(['run', 'ride']),
+    )
+    expect(second.syncIssues).toEqual([{ code: 'daily-limit', count: 3, latest: 2 }])
+
+    // A third saves what it has: the three that wait are earlier imports'.
+    const third = await session.addFiles(
+      [fitFile('run 3.fit', later(later(run)))],
+      SETTINGS,
+      undefined,
+      stopAt([]),
+    )
+    expect(third.syncIssues).toEqual([{ code: 'daily-limit', count: 3, latest: 0 }])
+
+    // Importing the waiting files again saves them.
+    const again = await session.addFiles(
+      [
+        fitFile('ride.fit', ride),
+        fitFile('run 2.fit', later(run)),
+        fitFile('ride 2.fit', later(ride)),
+      ],
+      SETTINGS,
+      undefined,
+      stopAt([]),
+    )
+    expect(again.syncIssues).toEqual([])
+  })
+
+  it('leaves saved activities out of what waits when a stop comes while files are being kept', async () => {
+    const session = new AnalysisSession()
+    // Keeping files asks the sink about activities that are already saved as well.
+    const keepFiles = true
+    await session.addFiles(
+      [fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async () => undefined,
+      keepFiles,
+    )
+
+    const newRide = later(ride)
+    const second = await session.addFiles(
+      [fitFile('ride 2.fit', newRide), fitFile('run.fit', run), fitFile('ride.fit', ride)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        if (item.digest.startMs === newRide.startMs) throw new SyncFailure('activity-quota', 'Full')
+      },
+      keepFiles,
+    )
+
+    // Only the new ride waits. The run and the ride the first import saved are not waiting.
+    expect(second.syncIssues).toEqual([{ code: 'activity-quota', count: 1 }])
+  })
 
   it('keeps saving the rest of the import after one activity conflicts with a saved copy', async () => {
     const session = new AnalysisSession()

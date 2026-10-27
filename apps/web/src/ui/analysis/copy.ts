@@ -11,6 +11,8 @@ import { plural } from '../components/plural'
 /** Shown while held files wait for the kept library, for a signed-in or a signed-out visitor. */
 export const WAITING_FOR_LIBRARY = 'Checking your saved results…'
 export const WAITING_FOR_ACCOUNT = 'Waiting for your account…'
+/** Shown while a rate limit holds an import's saves back; they go on by themselves. */
+export const SAVES_PAUSED = 'Too many saves at once. Saving resumes in about a minute.'
 /** A delete asked for before the library it would change has loaded. Nothing is removed. */
 export const LIBRARY_NOT_READY =
   'Your library is still loading, so nothing was deleted. Try again in a moment.'

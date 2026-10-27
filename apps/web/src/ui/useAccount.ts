@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Me, Profile, ProfileInput } from '@rca/contract'
 import * as api from '../api/client'
 import { ApiRequestError, signInUrl } from '../api/client'
+import { messageOf } from '../api/messageOf'
 
 export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
 
@@ -33,10 +34,6 @@ export interface AccountController {
 
 /** Waits before each retry of the first account lookup: 1 s, 3 s, then 10 s. */
 const LOOKUP_RETRY_DELAYS_MS = [1_000, 3_000, 10_000]
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function isUnauthenticated(failure: unknown): boolean {
   return failure instanceof ApiRequestError && failure.status === 401

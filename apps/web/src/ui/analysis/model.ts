@@ -32,6 +32,8 @@ export interface ImportProgress {
   filesRead: number
   /** Null when the total is not known, such as for a zip that holds another zip. */
   filesTotal: number | null
+  /** Set while a rate limit holds the saves back. The next progress message ends it. */
+  paused?: true
 }
 
 export interface ErrorNotice {

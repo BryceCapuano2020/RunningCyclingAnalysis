@@ -1,7 +1,7 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
-import { encodeFit } from '@rca/core/fit'
+import { countActivityFiles, encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
 import { AnalysisSession } from '@rca/core/session'
@@ -13,6 +13,7 @@ import { ApiRequestError } from '../api/client'
 import { buildAccountExport } from '../export/accountExport'
 import { workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
+import * as importSummary from './importSummary'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 /** A reply waits on a full analysis, which takes most of a second on its own; vi.waitFor's 1 s is too short under load. */
@@ -28,6 +29,16 @@ vi.mock('@rca/contract', async (importOriginal) => {
       return limits.maxFileBytes
     },
   }
+})
+
+vi.mock('@rca/core/fit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@rca/core/fit')>()
+  return { ...actual, countActivityFiles: vi.fn(actual.countActivityFiles) }
+})
+
+vi.mock('./importSummary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./importSummary')>()
+  return { ...actual, summarizeAdded: vi.fn(actual.summarizeAdded) }
 })
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -109,7 +120,7 @@ async function startWorker() {
     }, WAIT_FOR_MS)
     return posted.slice(start)
   }
-  return { send }
+  return { send, posted }
 }
 
 function fitFile(activity?: Activity, name = 'run.fit'): File {
@@ -183,6 +194,108 @@ describe('analysis worker', () => {
     ])
   })
 
+  describe('progress messages', () => {
+    const FILES = 12
+
+    function importOf(sync: { keepFiles: boolean; userId: string } | null) {
+      const activities = sampleDataset().activities.slice(0, FILES)
+      return {
+        type: 'addFiles' as const,
+        files: activities.map((activity, index) => fitFile(activity, `a${index}.fit`)),
+        settings: SETTINGS,
+        sync,
+      }
+    }
+
+    it('sends far fewer than one per file, and ends with the exact counts', async () => {
+      // A clock that stands still keeps every file inside one interval, however slow the machine.
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
+      try {
+        const { send } = await startWorker()
+        const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
+        const progress = messages.filter((message) => message.type === 'progress')
+
+        // Unthrottled, this is one message at the start and two for each file.
+        expect(progress.length).toBeLessThan(FILES)
+        expect(progress.at(-1)).toEqual({
+          type: 'progress',
+          filesRead: FILES,
+          filesTotal: FILES,
+          uploaded: FILES,
+        })
+        expect(messages.at(-1)).toMatchObject({ type: 'state' })
+        expect(messages.indexOf(progress.at(-1) as WorkerResponse)).toBeLessThan(
+          messages.findIndex((message) => message.type === 'state'),
+        )
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
+    it('ends on the exact count when the total is not known, with nothing to send it at once', async () => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
+      vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
+      try {
+        const { send } = await startWorker()
+        const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
+        const progress = messages.filter((message) => message.type === 'progress')
+
+        expect(progress.length).toBeLessThan(FILES)
+        expect(progress.at(-1)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
+        expect(messages.indexOf(progress.at(-1) as WorkerResponse)).toBeLessThan(
+          messages.findIndex((message) => message.type === 'state'),
+        )
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
+    it('sends the exact count before an import fails, and nothing after the failure', async () => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
+      // With no total there is no last file to send at once, so a message is waiting at the end.
+      vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
+      vi.mocked(importSummary.summarizeAdded).mockImplementationOnce(() => {
+        throw new Error('The summary failed')
+      })
+      try {
+        const { send, posted } = await startWorker()
+        const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
+
+        expect(messages.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
+        expect(messages.at(-2)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
+
+        // The throttled message would have gone out one interval after the first.
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        expect(posted.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
+    it('says how many it saved in the reply that ends a signed-in import, and not otherwise', async () => {
+      const { send } = await startWorker()
+      const signedIn = await send(importOf({ keepFiles: false, userId: USER_ID }))
+      expect(signedIn.at(-1)).toMatchObject({ type: 'state', saved: FILES })
+
+      const signedOut = await send(importOf(null))
+      expect(signedOut.at(-1)).not.toHaveProperty('saved')
+    })
+
+    it('sends the count of a signed-out import at the end too', async () => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
+      try {
+        const { send } = await startWorker()
+        const messages = await send(importOf(null))
+        const progress = messages.filter((message) => message.type === 'progress')
+
+        expect(progress.length).toBeLessThan(FILES)
+        expect(progress.at(-1)).toEqual({ type: 'progress', filesRead: FILES, filesTotal: FILES })
+      } finally {
+        clock.mockRestore()
+      }
+    })
+  })
+
   it('reports the runs and rides an import added, with the span of their starts', async () => {
     const { send } = await startWorker()
     const messages = await send({
@@ -229,9 +342,12 @@ describe('analysis worker', () => {
       expect.any(Uint8Array),
       USER_ID,
     )
-    // The upload is reported as it happens, before the file itself counts as read.
-    expect(messages).toContainEqual({ type: 'progress', filesRead: 0, filesTotal: 1, uploaded: 1 })
-    expect(messages).toContainEqual({ type: 'progress', filesRead: 1, filesTotal: 1, uploaded: 1 })
+    expect(messages.filter((message) => message.type === 'progress').at(-1)).toEqual({
+      type: 'progress',
+      filesRead: 1,
+      filesTotal: 1,
+      uploaded: 1,
+    })
     expect(messages.at(-1)).toMatchObject({ type: 'state' })
   })
 
@@ -787,9 +903,9 @@ describe('analysis worker', () => {
     })
   })
 
-  it('keeps saving after a rate limit or a network failure, and names each cause', async () => {
+  it('keeps saving after a network or server failure, and names each cause', async () => {
     mocked.createActivity
-      .mockRejectedValueOnce(new ApiRequestError(429, 'rate_limited', 'Slow down'))
+      .mockRejectedValueOnce(new ApiRequestError(500, 'internal_error', 'Oops'))
       .mockRejectedValueOnce(new ApiRequestError(0, 'network_error', 'Could not reach the server'))
     const { send } = await startWorker()
     const messages = await send({
@@ -804,17 +920,14 @@ describe('analysis worker', () => {
       type: 'state',
       state: {
         syncIssues: [
-          { code: 'rate-limited', count: 1 },
+          { code: 'server', count: 1 },
           { code: 'network', count: 1 },
         ],
       },
     })
   })
 
-  it('names an activity quota and a storage quota as their own causes', async () => {
-    mocked.createActivity.mockRejectedValueOnce(
-      new ApiRequestError(403, 'activity_quota', 'Library full'),
-    )
+  it('names a storage quota as its own cause, and keeps saving the next activity', async () => {
     mocked.uploadFile.mockRejectedValueOnce(
       new ApiRequestError(403, 'storage_quota', 'Storage full'),
     )
@@ -826,20 +939,18 @@ describe('analysis worker', () => {
       sync: { keepFiles: true, userId: USER_ID },
     })
 
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      state: {
-        syncIssues: [
-          { code: 'activity-quota', count: 1 },
-          { code: 'storage-quota', count: 1 },
-        ],
-      },
+      state: { syncIssues: [{ code: 'storage-quota', count: 1 }] },
     })
   })
 
   it.each([
     ['a full saved-analysis quota', 403, 'digest_quota', 'digest-quota'],
     ['a full database', 503, 'database_full', 'database-full'],
+    ['a full library', 403, 'activity_quota', 'activity-quota'],
+    ['the daily limit on saves', 429, 'daily_limit', 'daily-limit'],
   ])('stops saving at %s and names it as the cause', async (_label, status, code, cause) => {
     mocked.createActivity.mockRejectedValue(new ApiRequestError(status, code, 'Full'))
     const { send } = await startWorker()
@@ -855,6 +966,76 @@ describe('analysis worker', () => {
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
       state: { syncIssues: [{ code: cause, count: 2 }] },
+    })
+  })
+
+  it('waits out a rate limit and saves the same activity again, then goes on', async () => {
+    mocked.createActivity.mockRejectedValueOnce(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 1),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    expect(mocked.createActivity).toHaveBeenCalledTimes(3)
+    expect(messages.some((message) => message.type === 'accountIssue')).toBe(false)
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { syncIssues: [] } })
+    expect(messages.findLast((message) => message.type === 'progress')).toMatchObject({
+      uploaded: 2,
+    })
+  })
+
+  it('tells the page the saves are paused before it waits, and the next progress ends that', async () => {
+    const { send, posted } = await startWorker()
+    let postedAtRetry: WorkerResponse[] = []
+    mocked.createActivity
+      .mockRejectedValueOnce(new ApiRequestError(429, 'rate_limited', 'Slow down', 1))
+      .mockImplementationOnce(async (digest) => {
+        postedAtRetry = [...posted]
+        return { record: recordFor(digest), created: true }
+      })
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    // The pause carries the counts so far, and was sent before the second try began.
+    expect(postedAtRetry.at(-1)).toEqual({
+      type: 'progress',
+      filesRead: 0,
+      filesTotal: 2,
+      uploaded: 0,
+      paused: true,
+    })
+    const progress = messages.filter((message) => message.type === 'progress')
+    expect(progress.filter((message) => 'paused' in message)).toHaveLength(1)
+    expect(progress.at(-1)).not.toHaveProperty('paused')
+  })
+
+  it('stops saving when the rate limit holds after the wait', async () => {
+    mocked.createActivity.mockRejectedValue(
+      new ApiRequestError(429, 'rate_limited', 'Slow down', 1),
+    )
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: true, userId: USER_ID },
+    })
+
+    // The first activity is sent twice, the second not at all.
+    expect(mocked.createActivity).toHaveBeenCalledTimes(2)
+    expect(messages).toContainEqual({ type: 'accountIssue', issue: 'rate-limited' })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { syncIssues: [{ code: 'rate-limited', count: 2 }], totalActivities: 2 },
     })
   })
 
