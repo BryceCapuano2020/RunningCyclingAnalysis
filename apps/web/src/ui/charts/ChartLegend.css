@@ -101,6 +101,29 @@
   background: var(--neutral-mark);
 }
 
+/* A hollow point's key: the page colour inside, and an outline in the sport's colour. */
+.chart-legend__key--ring,
+.chart-legend__key--ring-diamond {
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border: 2px solid var(--sport-colour, var(--neutral-mark));
+  background: var(--surface-1);
+}
+
+.chart-legend__key--ring {
+  border-radius: 50%;
+}
+
+.chart-legend__key--ring-diamond {
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
 /* A comparison line drawn dashed, as the previous period is, or an estimate in its sport's colour. */
 .chart-legend__key--dashed {
   height: 0;

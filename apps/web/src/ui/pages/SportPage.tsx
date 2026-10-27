@@ -45,6 +45,7 @@ import { thresholdRange } from '../thresholdRange'
 import { unevenNote } from '../unevenNote'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { RacePredictions } from './RacePredictions'
+import { StandOutSection } from './StandOutSection'
 import {
   EFFORT_OPTIONS,
   activityNames,
@@ -326,6 +327,8 @@ export function SportPage({
               <ArrowRightIcon />
             </a>
           </section>
+
+          <StandOutSection sport={sport} result={result} />
 
           <RacePredictions sport={sport} result={result} units={units} />
 

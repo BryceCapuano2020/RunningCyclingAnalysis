@@ -573,6 +573,34 @@ describe('virtual values are priced with the bike model of the same analysis', (
   })
 })
 
+describe('the measured ride curve', () => {
+  const measuredIds = new Set(
+    digests.filter((d) => d.sport === 'ride' && d.powerSource === 'measured').map((d) => d.id),
+  )
+
+  it('comes only from rides with a power meter, and never beats the ride curve', () => {
+    const measured = result.rideMeasuredCurve.filter((point) => Number.isFinite(point.value))
+    expect(measured.length).toBeGreaterThan(0)
+    for (const point of measured) {
+      expect(measuredIds.has(point.activityId ?? '')).toBe(true)
+      const all = result.rideCurve.find((p) => p.durationS === point.durationS)!
+      expect(point.value).toBeLessThanOrEqual(all.value + 1e-9)
+    }
+  })
+
+  it('is empty without a ride that has a power meter', () => {
+    const estimated = digests.filter((d) => d.sport !== 'ride' || d.powerSource !== 'measured')
+    const curve = combine(estimated, settings).rideMeasuredCurve
+    expect(curve.map((p) => p.durationS)).toEqual([...DURATIONS_S])
+    expect(curve.every((p) => Number.isNaN(p.value) && p.activityId === null)).toBe(true)
+  })
+
+  it('does not move when only the body mass changes', () => {
+    const heavier = combine(digests, { ...settings, massKg: settings.massKg + 10 })
+    expect(heavier.rideMeasuredCurve).toEqual(result.rideMeasuredCurve)
+  })
+})
+
 describe('sportCurves', () => {
   it('gives the same run and ride curves that combine reports, given combine’s bike model', () => {
     const digests = sampleDataset().activities.map(digestActivity)

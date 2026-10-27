@@ -3,10 +3,11 @@ import type { SeriesKind } from './chartTypes'
 import './ChartLegend.css'
 
 /**
- * Key shape: a square for a fill, a dot or a diamond for a point, a band for a shaded range, a line,
+ * Key shape: a square for a fill, a dot or a diamond for a point (a ring or a hollow diamond when the point is hollow), a band for a shaded range, a line,
  * or a dashed line for an estimate or a comparison.
  */
-export type LegendSwatch = 'solid' | 'dot' | 'diamond' | 'band' | 'band-strong' | 'line' | 'dashed'
+export type LegendSwatch =
+  'solid' | 'dot' | 'diamond' | 'ring' | 'ring-diamond' | 'band' | 'band-strong' | 'line' | 'dashed'
 
 export interface ChartLegendEntry {
   label: string
@@ -54,6 +55,17 @@ function keyFor(entry: ChartLegendEntry): ReactNode {
         <span
           aria-hidden="true"
           className={`chart-legend__key chart-legend__key--diamond ${LINE_KIND_CLASS[entry.kind]}`}
+        />
+      )
+    case 'ring':
+    case 'ring-diamond':
+      // A hollow point: the same shape as its filled key, set in the page colour with an outline in the
+      // sport's colour, which a sport's kind names on data-sport.
+      return (
+        <span
+          aria-hidden="true"
+          className={`chart-legend__key chart-legend__key--${entry.swatch}`}
+          data-sport={entry.kind === 'neutral' ? undefined : entry.kind}
         />
       )
     case 'dot':

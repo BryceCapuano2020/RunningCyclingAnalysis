@@ -1,0 +1,156 @@
+import {
+  PROFILE_ANCHOR_S,
+  PROFILE_FLOOR_S,
+  PROFILE_LONG_S,
+  PROFILE_MAX_S,
+  PROFILE_MIN_DURATIONS,
+  PROFILE_MIN_S,
+  PROFILE_MIN_SESSIONS,
+  PROFILE_SHORT_S,
+  PROFILE_ALPHA,
+} from './constants'
+import { fitCurve } from './morton'
+import { studentTQuantile } from './studentT'
+
+/** One duration's best, in the sport's own unit, and the session it was set in. */
+export interface ProfilePoint {
+  durationS: number
+  value: number
+  /** The activity, or the file holding several, the best came from; null when it is not known. */
+  sessionId: string | null
+}
+
+export type StandsOut = 'above' | 'below'
+
+/** How one duration's best sits against what the other durations predict. */
+export interface ProfileRow {
+  durationS: number
+  /** The best over what the other bests predict, less one: 0.14 is 14% above. */
+  residual: number
+  /** The 90% interval of the residual, which allows for the fit and for measurement error. */
+  low: number
+  high: number
+  /** Set only when the interval leaves zero. */
+  standsOut: StandsOut | null
+}
+
+/** What a profile still needs: five durations, a short best, a long best, or a second session. */
+export type ProfileGap = 'durations' | 'short' | 'long' | 'sessions'
+
+export interface ReadyProfile {
+  status: 'ready'
+  rows: ProfileRow[]
+  /** False without a best at 15 s or under: Pmax is not inferred, and only 2 min and over are shown. */
+  anchored: boolean
+}
+
+/**
+ * A profile, or what it lacks. 'unfit' is a curve with all it needs that no model could be fitted to well
+ * enough to compare each duration with, which is not the same as a duration missing.
+ */
+export type DurationProfile =
+  ReadyProfile | { status: 'missing'; missing: ProfileGap[] } | { status: 'unfit' }
+
+const inRange = (point: ProfilePoint): boolean =>
+  Number.isFinite(point.value) &&
+  point.value > 0 &&
+  point.durationS >= PROFILE_MIN_S &&
+  point.durationS <= PROFILE_MAX_S
+
+/**
+ * What the curve lacks, in a fixed order; empty when it has all that a profile needs. The two ends are
+ * asked of every best the athlete has, but the durations and the sessions are counted over `shown`, the
+ * points the profile is made from.
+ */
+function gapsOf(points: readonly ProfilePoint[], shown: readonly ProfilePoint[]): ProfileGap[] {
+  const sessions = new Set(
+    shown.flatMap((point) => (point.sessionId === null ? [] : [point.sessionId])),
+  )
+  const lacking: [ProfileGap, boolean][] = [
+    ['durations', new Set(shown.map((p) => p.durationS)).size < PROFILE_MIN_DURATIONS],
+    ['short', !points.some((point) => point.durationS <= PROFILE_SHORT_S)],
+    ['long', !points.some((point) => point.durationS >= PROFILE_LONG_S)],
+    ['sessions', sessions.size < PROFILE_MIN_SESSIONS],
+  ]
+  return lacking.filter(([, isLacking]) => isLacking).map(([gap]) => gap)
+}
+
+/** One duration's best against the curve fitted without it. */
+interface Held {
+  durationS: number
+  /** ln(best / predicted). */
+  logRatio: number
+  /** The spread of a new best about the curve, on the log scale, and the fit's degrees of freedom. */
+  sd: number
+  df: number
+}
+
+/**
+ * Each duration's best against what the other durations predict. The curve is fitted without that
+ * duration and read at it. A duration is left out when the others give no valid curve, and when they
+ * hold no best at 15 s or under for a curve with Pmax: it would be read far beyond the data, where the
+ * model can say anything.
+ */
+function leaveOneOut(points: readonly ProfilePoint[], pmax: boolean): Held[] {
+  return points.flatMap((point, i) => {
+    const others = points.filter((_, j) => j !== i)
+    if (pmax && !others.some((other) => other.durationS <= PROFILE_ANCHOR_S)) return []
+    const fit = fitCurve(others, pmax)
+    const predicted = fit?.predict(point.durationS)
+    if (fit === null || predicted === undefined || !(predicted > 0)) return []
+    return [
+      {
+        durationS: point.durationS,
+        logRatio: Math.log(point.value / predicted),
+        sd: fit.sd.at(point.durationS),
+        df: fit.sd.df,
+      },
+    ]
+  })
+}
+
+/**
+ * A row from a held duration. Its interval is the log ratio plus and minus a Student's t quantile times
+ * its own spread, so a duration the others pin down poorly has a wide one. The level is PROFILE_ALPHA over
+ * all the rows (Bonferroni), so that a profile of pure noise stands out somewhere that rarely. The bounds
+ * are put back from logs to fractions.
+ */
+function rowOf(held: Held, rows: number, quantiles: Map<number, number>): ProfileRow {
+  const t = quantiles.get(held.df) ?? studentTQuantile(1 - PROFILE_ALPHA / (2 * rows), held.df)
+  quantiles.set(held.df, t)
+  const half = t * held.sd
+  const low = Math.expm1(held.logRatio - half)
+  const high = Math.expm1(held.logRatio + half)
+  return {
+    durationS: held.durationS,
+    residual: Math.expm1(held.logRatio),
+    low,
+    high,
+    standsOut: low > 0 ? 'above' : high < 0 ? 'below' : null,
+  }
+}
+
+/**
+ * Which durations of one sport's best curve stand out from the rest of it, 5 s to 60 min.
+ *
+ * Each duration is predicted from the others with Morton's three-parameter critical-power model, fitted
+ * on log values (see docs/research/duration-profile.md), and its best is compared with that. A duration
+ * stands out when the interval round the difference excludes zero. The result is a fact about the
+ * curve, not about the athlete's capability: a best is a lower bound, so one far below the rest may be
+ * untried.
+ */
+export function durationProfile(curve: readonly ProfilePoint[]): DurationProfile {
+  const points = curve.filter(inRange).sort((a, b) => a.durationS - b.durationS)
+  const anchored = points.some((point) => point.durationS <= PROFILE_ANCHOR_S)
+  const shown = anchored ? points : points.filter((point) => point.durationS >= PROFILE_FLOOR_S)
+  const missing = gapsOf(points, shown)
+  if (missing.length > 0) return { status: 'missing', missing }
+  const held = leaveOneOut(shown, anchored)
+  if (held.length < PROFILE_MIN_DURATIONS) return { status: 'unfit' }
+  const quantiles = new Map<number, number>()
+  return {
+    status: 'ready',
+    rows: held.map((one) => rowOf(one, held.length, quantiles)),
+    anchored,
+  }
+}

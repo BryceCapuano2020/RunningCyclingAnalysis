@@ -313,11 +313,40 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
   (the same grade line as the card), then the period control, a line of recent form ("Last run 14 Jan · 9 runs · 42.10
   km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
-  opens Activities filtered to that sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
+  opens Activities filtered to that sport, "Where your bests stand out", the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
   for running and "Power curve" for cycling. The threshold carries no count: the period control under
   the answer names the dates the efforts come from. A sport the library has no activities for has no
   period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
   **How to get your files** side by side.
+- **"Where your bests stand out" compares an athlete with their own curve, never with anyone else's.** The
+  section follows Best efforts on each sport page and says, for each duration from 5 s to 60 min, how far
+  the best sits above or below what the athlete's other durations predict (Morton's three-parameter
+  critical-power model, fitted without that duration; the method is in
+  [research/duration-profile.md](research/duration-profile.md)). A sentence leads: "Your 1 min best is 14%
+  above what your other bests suggest. Your 2 min best is 9% below: it may be relatively low, or
+  untested." It names at most the three that stand out most, shortest first, and only a duration whose
+  range clears zero by 2% at its near end; one that stands out by less is on the chart only. A best below
+  the rest is always said to be possibly untested, since a best is a lower bound. With none standing out it
+  says "Your bests are in line with each other from 5 s to 60 min." and shows no chart, and with some
+  standing out by less than 2% it adds ", apart from small differences on the chart". Durations are named as every effort length is,
+  in whole minutes ("60 min", never "1 h"). The words "limiter", "weak", "strength", "holding you back"
+  and "ahead of" are never used, and "grade" means age grade only.
+  Under the sentence, when something stands out, is a lollipop strip: duration on a log x axis, 5 s to
+  60 min; a heavy zero line, the best in line with the others, with the vertical axis in per cent either side
+  of zero. The axis is one range for the chart, symmetric about zero and rounded up from the widest likely
+  range, and the chart says it under the plot ("Scale: ±40%") and in its table's caption, since a run's and a
+  ride's differ and two charts must not be read as alike. It has one point per duration at its residual, with a thin bar for its likely range (90%). A point whose range
+  leaves zero is filled in the sport's colour and shape, a dot for running and a diamond for riding, and
+  carries its duration as a label beside it, to the left where the right would leave the plot, so it reads
+  at 320 px; any other is hollow and unlabelled, so the shape and the fill carry the meaning, and in forced colours the fill still tells them
+  apart. The key reads "Stands out", "In line" and "Likely range". The chart has a tooltip and keyboard
+  reading like the curve, and **View as table** lists duration, difference (with "above" or "below" when it
+  stands out) and likely range. A ride reads measured power only, a run its metabolic W/kg, and each is read
+  through a table keyed by sport. With fewer than five durations, no best at 1 min or under, none at
+  12 min or more, or bests from fewer than two sessions, the section is one muted line naming what is
+  missing, such as "Needs a best at 1 min or under and one at 12 min or more, with a power meter", and
+  no chart. When nothing is missing but no curve can be fitted, it says "A curve could not be fitted to your
+  bests, so none is compared". Without a best at 15 s or under only 2 min and up are shown, and a muted line says so.
 - **A record says how long ago it was set**, as quiet text after the name of the activity that set it,
   on the same line, such as "Morning run, 5 Jan · 12 days ago" or "Morning run, 5 Jan · today". The count
   runs in calendar days from today, read once when the page opens, so
