@@ -170,6 +170,13 @@ describe('limitedSentence', () => {
     )
   })
 
+  it('groups a count of a thousand or more on a daily limit', () => {
+    const resetsAt = Date.UTC(2026, 9, 24)
+    expect(limitedSentence(1204, 'daily', resetsAt)).toBe(
+      `1,204 activities were not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+    )
+  })
+
   it('tells the user to try later when no limit was the cause', () => {
     expect(limitedSentence(3, null, null)).toBe('3 activities were not updated. Try again later.')
   })

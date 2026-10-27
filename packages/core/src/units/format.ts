@@ -6,16 +6,20 @@ const DASH = '—'
 const KMH_PER_MS = 3.6
 const SECONDS_PER_HOUR = 3600
 const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g
+const WHOLE_PART = /^-?\d+/
 
-/** Digits with a comma between each group of three from the right, such as 10,234. */
-export function groupThousands(digits: string): string {
-  return digits.replace(THOUSANDS, ',')
+/**
+ * A number's text with comma thousands in its whole part, such as "10,234.5" or "-1,204". This is the
+ * one grouping rule for every number the app writes, whatever the browser's locale. Decimals stay.
+ */
+export function groupThousands(text: string): string {
+  return text.replace(WHOLE_PART, (digits) => digits.replace(THOUSANDS, ','))
 }
 
-/** Whole number of the magnitude of x, with a minus sign only when a digit is shown. */
-function whole(x: number, grouped = false): string {
+/** Whole number of the magnitude of x, grouped, with a minus sign only when a digit is shown. */
+function whole(x: number): string {
   const magnitude = Math.round(Math.abs(x))
-  const digits = grouped ? groupThousands(String(magnitude)) : String(magnitude)
+  const digits = groupThousands(String(magnitude))
   return x < 0 && magnitude > 0 ? `-${digits}` : digits
 }
 
@@ -33,7 +37,7 @@ export function formatDuration(seconds: number): string {
   const secs = total % 60
   const parts: string[] = []
   if (hours > 0) {
-    parts.push(`${hours} h`)
+    parts.push(`${groupThousands(String(hours))} h`)
   }
   if (minutes > 0) {
     parts.push(`${minutes} min`)
@@ -53,7 +57,7 @@ export function formatTotalTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < SECONDS_PER_HOUR) {
     return formatDuration(seconds)
   }
-  const hours = Math.floor(seconds / SECONDS_PER_HOUR)
+  const hours = groupThousands(String(Math.floor(seconds / SECONDS_PER_HOUR)))
   const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / 60)
   return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
 }
@@ -105,8 +109,8 @@ export function formatSpeed(speedMs: number, system: UnitSystem): string {
     return DASH
   }
   return system === 'imperial'
-    ? `${((speedMs * SECONDS_PER_HOUR) / METRES_PER_MILE).toFixed(1)} mph`
-    : `${(speedMs * KMH_PER_MS).toFixed(1)} km/h`
+    ? `${groupThousands(((speedMs * SECONDS_PER_HOUR) / METRES_PER_MILE).toFixed(1))} mph`
+    : `${groupThousands((speedMs * KMH_PER_MS).toFixed(1))} km/h`
 }
 
 /** The unit words of a distance, and the metres in one of them, for each system. */
@@ -121,9 +125,8 @@ export function formatDistance(metres: number, system: UnitSystem): string {
   }
   const { unit, metres: metresPerUnit } = DISTANCE_UNIT[system]
   const amount = metres / metresPerUnit
-  // One decimal, so a tiny distance would read 0.0; it is under a tenth of a unit instead. The
-  // whole part is grouped as whole() groups it: "10,234.5 km".
-  const figure = amount.toFixed(1).replace(/\d+(?=\.)/, groupThousands)
+  // One decimal, so a tiny distance would read 0.0; it is under a tenth of a unit instead.
+  const figure = groupThousands(amount.toFixed(1))
   return amount > 0 && amount < 0.1 ? `<0.1 ${unit}` : `${figure} ${unit}`
 }
 
@@ -137,16 +140,15 @@ export function formatPartialDistance(metres: number, system: UnitSystem): strin
   }
   const { unit, metres: metresPerUnit } = DISTANCE_UNIT[system]
   const hundredths = Math.floor((metres * 100) / metresPerUnit)
-  return hundredths === 0 ? `<0.01 ${unit}` : `${(hundredths / 100).toFixed(2)} ${unit}`
+  const figure = groupThousands((hundredths / 100).toFixed(2))
+  return hundredths === 0 ? `<0.01 ${unit}` : `${figure} ${unit}`
 }
 
 export function formatElevation(metres: number, system: UnitSystem): string {
   if (!Number.isFinite(metres)) {
     return DASH
   }
-  return system === 'imperial'
-    ? `${whole(metres / METRES_PER_FOOT, true)} ft`
-    : `${whole(metres, true)} m`
+  return system === 'imperial' ? `${whole(metres / METRES_PER_FOOT)} ft` : `${whole(metres)} m`
 }
 
 export function formatMass(kg: number, system: UnitSystem): string {
@@ -161,7 +163,7 @@ export function formatWatts(watts: number): string {
   if (!Number.isFinite(watts)) {
     return DASH
   }
-  return whole(watts, true)
+  return whole(watts)
 }
 
 export function formatPower(watts: number): string {
@@ -173,12 +175,12 @@ export function formatWkg(wPerKg: number): string {
   if (!Number.isFinite(wPerKg)) {
     return DASH
   }
-  return `${wPerKg.toFixed(1)} W/kg`
+  return `${groupThousands(wPerKg.toFixed(1))} W/kg`
 }
 
 /** A metabolic energy rate to one decimal, without the unit: for a column whose heading already names it. */
 export function formatEnergyRateValue(wPerKg: number): string {
-  return Number.isFinite(wPerKg) ? wPerKg.toFixed(1) : DASH
+  return Number.isFinite(wPerKg) ? groupThousands(wPerKg.toFixed(1)) : DASH
 }
 
 /** A metabolic energy rate to one decimal, with ENERGY_RATE_UNIT: for a tooltip, a note or an end label. */

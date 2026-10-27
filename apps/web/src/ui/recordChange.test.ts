@@ -64,6 +64,12 @@ describe('recordChange', () => {
     )
   })
 
+  it('groups the watts from a thousand on', () => {
+    expect(recordChange('ride', 2234, 1000, 'metric', 'Previous 6 weeks')).toBe(
+      '1,234 W more than previous 6 weeks',
+    )
+  })
+
   it('says the same when the displayed figure has not moved', () => {
     expect(recordChange('ride', 250.2, 250, 'metric', 'Previous 6 weeks')).toBe(
       'Same as previous 6 weeks',

@@ -1,6 +1,7 @@
 import type { Ref } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { EarnedRecord } from '@rca/core/records'
+import { formatCount } from '../format/count'
 import type { UnitSystem } from '@rca/core/units'
 import {
   formatDistance,
@@ -147,7 +148,7 @@ export function ActivityRow({
                 </span>
               ))}
               {chips.length > CHIPS_PER_ROW && (
-                <span className="activity-list__more">{`+${chips.length - CHIPS_PER_ROW} more records`}</span>
+                <span className="activity-list__more">{`+${formatCount(chips.length - CHIPS_PER_ROW)} more records`}</span>
               )}
             </div>
           )}

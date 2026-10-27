@@ -74,7 +74,7 @@ export function limitedSentence(
     return `${formatCount(count)} ${noun} not updated. The server asked us to slow down; try again in a minute.`
   }
   if (kind === 'daily') {
-    return `${formatCount(count)} ${noun} not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetSentence(resetsAtMs)}`
+    return `${formatCount(count)} ${noun} not updated because today's limit on downloads (${formatCount(DAILY_LIMITS.fileDownload)} per day) was reached. ${resetSentence(resetsAtMs)}`
   }
   return `${formatCount(count)} ${noun} not updated. Try again later.`
 }

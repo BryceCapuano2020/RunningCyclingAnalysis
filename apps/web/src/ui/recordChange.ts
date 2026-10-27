@@ -1,5 +1,5 @@
 import type { Sport } from '@rca/core/types'
-import { PACE_UNIT, formatRecordTime, paceSeconds } from '@rca/core/units'
+import { PACE_UNIT, formatPower, formatRecordTime, paceSeconds } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 
 /**
@@ -30,5 +30,5 @@ export function recordChange(
   }
   const watts = Math.round(now) - Math.round(before)
   if (watts === 0) return `Same as ${earlier}`
-  return `${Math.abs(watts)} W ${watts > 0 ? 'more' : 'less'} than ${earlier}`
+  return `${formatPower(Math.abs(watts))} ${watts > 0 ? 'more' : 'less'} than ${earlier}`
 }

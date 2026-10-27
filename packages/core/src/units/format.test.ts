@@ -26,6 +26,10 @@ import {
 const DASH = '—'
 
 describe('formatDuration', () => {
+  it('groups the hours of a long duration in comma thousands', () => {
+    expect(formatDuration(1500 * 3600)).toBe('1,500 h')
+  })
+
   it('shows seconds under a minute', () => {
     expect(formatDuration(45)).toBe('45 s')
     expect(formatDuration(0)).toBe('0 s')
@@ -136,6 +140,7 @@ describe('formatSpeed', () => {
     expect(formatSpeed(29.6 / 3.6, 'metric')).toBe('29.6 km/h')
     expect(formatSpeed(10, 'metric')).toBe('36.0 km/h')
     expect(formatSpeed(0, 'metric')).toBe('0.0 km/h')
+    expect(formatSpeed(1000 / 3.6, 'metric')).toBe('1,000.0 km/h')
   })
 
   it('returns a dash for NaN or infinite speed', () => {
@@ -170,6 +175,11 @@ describe('formatDistance', () => {
     expect(formatDistance(NaN, 'imperial')).toBe(DASH)
   })
 
+  it('groups a distance that rounds up to a thousand, so 999.95 km reads 1,000.0 km', () => {
+    expect(formatDistance(999950, 'metric')).toBe('1,000.0 km')
+    expect(formatDistance(9999950, 'metric')).toBe('10,000.0 km')
+  })
+
   it('groups the whole part of a distance of a thousand or more', () => {
     expect(formatDistance(10234500, 'metric')).toBe('10,234.5 km')
     expect(formatDistance(999900, 'metric')).toBe('999.9 km')
@@ -190,6 +200,10 @@ describe('formatPartialDistance', () => {
   it('says a distance under a hundredth of a unit is under it', () => {
     expect(formatPartialDistance(4, 'metric')).toBe('<0.01 km')
     expect(formatPartialDistance(4, 'imperial')).toBe('<0.01 mi')
+  })
+
+  it('groups the kilometres of a partial distance from a thousand on', () => {
+    expect(formatPartialDistance(1234567, 'metric')).toBe('1,234.56 km')
   })
 
   it('returns a dash for NaN', () => {
@@ -229,6 +243,10 @@ describe('formatMass', () => {
   it('formats kilograms in metric', () => {
     expect(formatMass(75, 'metric')).toBe('75 kg')
     expect(formatMass(-0.2, 'metric')).toBe('0 kg')
+  })
+
+  it('groups kilograms in comma thousands', () => {
+    expect(formatMass(1500, 'metric')).toBe('1,500 kg')
   })
 
   it('formats pounds in imperial', () => {
@@ -281,6 +299,7 @@ describe('formatEnergyRate', () => {
 describe('formatEnergyRateValue', () => {
   it('gives the number alone, to one decimal, for a column whose heading names the unit', () => {
     expect(formatEnergyRateValue(3.8)).toBe('3.8')
+    expect(formatEnergyRateValue(1234.5)).toBe('1,234.5')
     expect(formatEnergyRateValue(3.84)).toBe('3.8')
   })
 
@@ -301,6 +320,10 @@ describe('formatWkg', () => {
     expect(formatWkg(0)).toBe('0.0 W/kg')
   })
 
+  it('groups a rate of a thousand or more in comma thousands', () => {
+    expect(formatWkg(1234.5)).toBe('1,234.5 W/kg')
+  })
+
   it('returns a dash for NaN', () => {
     expect(formatWkg(NaN)).toBe(DASH)
   })
@@ -310,6 +333,10 @@ describe('formatPercent', () => {
   it('formats a fraction as a whole percentage', () => {
     expect(formatPercent(0.083)).toBe('8%')
     expect(formatPercent(1.5)).toBe('150%')
+  })
+
+  it('groups a percentage of a thousand or more', () => {
+    expect(formatPercent(12.5)).toBe('1,250%')
   })
 
   it('adds a sign when signed', () => {
@@ -391,6 +418,10 @@ describe('formatTotalTime', () => {
 
   it('writes hours and minutes from an hour on, without seconds', () => {
     expect(formatTotalTime(6 * 3600 + 33 * 60 + 12)).toBe('6 h 33 min')
+  })
+
+  it('groups the hours of a long total in comma thousands', () => {
+    expect(formatTotalTime(1500 * 3600 + 5 * 60)).toBe('1,500 h 5 min')
   })
 
   it('writes whole hours without minutes', () => {

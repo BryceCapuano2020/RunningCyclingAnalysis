@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DAILY_LIMITS } from '@rca/contract'
 import { limitReached, resetSentence } from './limitCopy'
 
 /** The local time the viewer sees for an instant, formatted the way the copy formats it. */
@@ -26,16 +25,18 @@ describe('resetSentence', () => {
 })
 
 describe('limitReached', () => {
+  // The allowances are written out, not read from DAILY_LIMITS, so a copy that loses its grouping fails.
   it.each([
-    ['activityCreate', 'saves'],
-    ['fileUpload', 'uploads'],
-    ['fileDownload', 'downloads'],
-    ['read', 'library loads'],
-    ['activityDelete', 'deletions'],
-  ] as const)('names %s as "%s" with its daily allowance', (action, noun) => {
+    ['activityCreate', 'saves', '2,000'],
+    ['fileUpload', 'uploads', '2,000'],
+    ['fileDownload', 'downloads', '50'],
+    ['read', 'library loads', '100'],
+    ['activityDelete', 'deletions', '50'],
+    ['profileWrite', 'profile changes', '50'],
+  ] as const)('names %s as "%s", with its daily allowance of %s', (action, noun, allowance) => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitReached(action, resetsAt)).toBe(
-      `You have reached today's limit on ${noun} (${DAILY_LIMITS[action]} per day). ${resetSentence(resetsAt)}`,
+      `You have reached today's limit on ${noun} (${allowance} per day). ${resetSentence(resetsAt)}`,
     )
   })
 })

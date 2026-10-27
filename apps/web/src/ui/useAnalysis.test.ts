@@ -1572,9 +1572,7 @@ describe('useAnalysis state', () => {
 
     expect(result.current.errorIssue).toBe('daily-limit')
     expect(result.current.error).toMatch(
-      new RegExp(
-        `^You have reached today's limit on saves \\(${DAILY_LIMITS.activityCreate} per day\\)\\. `,
-      ),
+      new RegExp(`^You have reached today's limit on saves \\(2,000 per day\\)\\. `),
     )
     expect(result.current.error).toMatch(RESET_AT_UTC_MIDNIGHT)
   })

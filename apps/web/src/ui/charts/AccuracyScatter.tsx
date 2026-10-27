@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { VirtualPowerAccuracy } from '@rca/core/types'
-import { formatDuration, formatPercent, formatPower } from '@rca/core/units'
+import { formatDuration, formatPercent, formatPower, groupThousands } from '@rca/core/units'
 import { plural } from '../components/plural'
 import { keyByContent } from '../contentKeys'
 import { ChartFrame } from './ChartFrame'
@@ -74,11 +74,17 @@ function layout(accuracy: VirtualPowerAccuracy, size: ChartSize): Layout {
     square,
     reference: { x1: x(low), y1: y(low), x2: x(high), y2: y(high) },
     xTicks: fitTicks(
-      ticks.map((value) => ({ position: x(value), label: value.toFixed(decimals) })),
+      ticks.map((value) => ({
+        position: x(value),
+        label: groupThousands(value.toFixed(decimals)),
+      })),
       { axis: 'x', width: size.width, maxCount: MAX_TICKS },
     ),
     yTicks: fitTicks(
-      ticks.map((value) => ({ position: y(value), label: value.toFixed(decimals) })),
+      ticks.map((value) => ({
+        position: y(value),
+        label: groupThousands(value.toFixed(decimals)),
+      })),
       { axis: 'y', width: size.width, maxCount: MAX_TICKS },
     ),
   }

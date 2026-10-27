@@ -1,9 +1,9 @@
 import { groupThousands } from '@rca/core/units'
 
 /**
- * A whole count with its digits grouped in comma thousands, such as 1,234, as core's whole() groups
- * them. The app is English throughout, so the grouping does not follow the browser's locale. Every
- * count the app writes goes through here, so the grouping is set once.
+ * A whole count in comma thousands, such as 1,234, the rule every number the app writes follows (see
+ * docs/DESIGN.md). It is core's groupThousands, so it does not follow the browser's locale. Counts in
+ * the app's sentences are written through here or through plural(), so none is grouped differently.
  */
 export function formatCount(count: number): string {
   return groupThousands(String(Math.round(count)))

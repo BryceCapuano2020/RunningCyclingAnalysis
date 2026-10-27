@@ -108,6 +108,13 @@ describe('RangePicker', () => {
     ).toBeInTheDocument()
   })
 
+  it('announces a count of a thousand or more with its grouping', () => {
+    render(picker({ choice: 42, dates: '22 Jun – 3 Aug 2025', shown: 1001, total: 1234 }))
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing 1,001 of 1,234 activities, 6 weeks, 22 Jun – 3 Aug 2025',
+    )
+  })
+
   it('announces the period, the count and the dates as the period changes', () => {
     const { rerender } = render(
       picker({ choice: 42, dates: '22 Jun – 3 Aug 2025', shown: 3, total: 12 }),
