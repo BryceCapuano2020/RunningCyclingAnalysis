@@ -1,4 +1,4 @@
-import { CARD_NAME_MAX, capCardName } from '../../share/cardName'
+import { capCardName } from '../../share/cardName'
 import './CardNameField.css'
 
 export interface CardNameFieldProps {
@@ -7,7 +7,11 @@ export interface CardNameFieldProps {
   onChange: (name: string) => void
 }
 
-/** The name printed on a shared card. Empty by default, and kept on this device only. */
+/**
+ * The name printed on a shared card. Empty by default, and kept on this device only. The length is
+ * capped in code points by capCardName, not by the field, since a field counts UTF-16 units and would
+ * cut an emoji in half.
+ */
 export function CardNameField({ value, onChange }: CardNameFieldProps) {
   return (
     <label className="card-name-field">
@@ -16,7 +20,6 @@ export function CardNameField({ value, onChange }: CardNameFieldProps) {
         className="card-name-field__input"
         type="text"
         value={value}
-        maxLength={CARD_NAME_MAX}
         onChange={(event) => onChange(capCardName(event.target.value))}
       />
     </label>

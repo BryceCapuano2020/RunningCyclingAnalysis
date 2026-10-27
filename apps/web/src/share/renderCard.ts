@@ -5,6 +5,7 @@ import {
   SANS_400,
   SANS_500,
   SANS_600,
+  cutWithEllipsis,
   drawLines,
   drawPill,
   fitText,
@@ -108,12 +109,15 @@ function drawAthleteName(
   y: number,
   mark: number,
 ): void {
-  const [line] = wrapIn(ctx, name, ATHLETE, right - left, 1)
-  if (line === undefined) return
+  const room = right - left
+  const [wrapped = ''] = wrapIn(ctx, name, ATHLETE, room, 1)
   setFont(ctx, ATHLETE)
-  const width = ctx.measureText(line).width
+  const measure = (text: string) => ctx.measureText(text).width
+  // Wrapping leaves a name with no spaces whole, so one too wide for the row is cut here.
+  const line = measure(wrapped) <= room ? wrapped : cutWithEllipsis(wrapped, room, measure)
+  if (line === '' || measure(line) > room) return
   const top = y + (mark - ATHLETE.lineHeight) / 2
-  drawLines(ctx, [line], right - width, top, ATHLETE, CARD_COLORS.secondary)
+  drawLines(ctx, [line], right - measure(line), top, ATHLETE, CARD_COLORS.secondary)
 }
 
 /**

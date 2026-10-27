@@ -590,10 +590,19 @@ describe('the name on the card', () => {
     renderButton()
     const dialog = await openSheet()
     const field = within(dialog).getByRole('textbox', { name: FIELD })
-    expect(field).toHaveAttribute('maxLength', '40')
+    expect(field).not.toHaveAttribute('maxLength')
     fireEvent.change(field, { target: { value: 'c'.repeat(60) } })
     await waitFor(() => expect(lastCard()?.name).toBe('c'.repeat(40)))
     expect(localStorage.getItem(KEY)).toBe('c'.repeat(40))
+  })
+
+  it('counts the 40 characters by code point, so 45 emoji keep 40 whole ones', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    const field = within(dialog).getByRole('textbox', { name: FIELD })
+    fireEvent.change(field, { target: { value: '😀'.repeat(45) } })
+    await waitFor(() => expect(lastCard()?.name).toBe('😀'.repeat(40)))
+    expect(field).toHaveValue('😀'.repeat(40))
   })
 
   it('still draws the name for this visit when storage is refused', async () => {

@@ -190,3 +190,16 @@ describe('loadCardFonts', () => {
     await expect(loadCardFonts()).resolves.toBeUndefined()
   })
 })
+
+describe('wrapText with emoji', () => {
+  // A line cut to make room for the ellipsis must not stop between the two halves of an emoji.
+  it('cuts a line by code point when it adds the ellipsis, so no emoji is left half cut', () => {
+    // Widths in UTF-16 units, as the fake canvas measures them, so a cut can land between the halves.
+    const measure = (line: string) => line.length * 10
+    const [line] = wrapText(`${'😀'.repeat(30)} x`, 120, measure, 1)
+    expect(line).toBe(`${'😀'.repeat(5)}…`)
+    expect(line).not.toMatch(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/,
+    )
+  })
+})

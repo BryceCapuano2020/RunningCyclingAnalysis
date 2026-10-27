@@ -246,7 +246,8 @@ describe('Header', () => {
     rerender(<Header route={{ page: 'activity', id: 'a1' }} />)
     const activities = screen.getByRole('link', { name: 'Activities' })
     expect(activities).toHaveClass('header__tab--current')
-    expect(activities).not.toHaveAttribute('aria-current')
+    // An activity is a page of its section, so its section's tab is marked "true", not "page".
+    expect(activities).toHaveAttribute('aria-current', 'true')
   })
 
   it('marks a tab current, with aria-current, only on its own page', () => {
@@ -261,16 +262,21 @@ describe('Header', () => {
       window.history.replaceState({ rcaFrom: '#/run' }, '', '#/activities/a1')
       render(<Header route={{ page: 'activity', id: 'a1' }} />)
       expect(screen.getByRole('link', { name: 'Run' })).toHaveClass('header__tab--current')
-      expect(screen.getByRole('link', { name: 'Run' })).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('aria-current', 'true')
       expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveClass(
         'header__tab--current',
       )
+      expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveAttribute('aria-current')
     })
 
     it('keeps Activities lit when it was opened from the list', () => {
       window.history.replaceState({ rcaFrom: '#/activities' }, '', '#/activities/a1')
       render(<Header route={{ page: 'activity', id: 'a1' }} />)
       expect(screen.getByRole('link', { name: 'Activities' })).toHaveClass('header__tab--current')
+      expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute(
+        'aria-current',
+        'true',
+      )
     })
   })
 

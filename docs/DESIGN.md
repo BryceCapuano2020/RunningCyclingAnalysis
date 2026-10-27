@@ -40,7 +40,7 @@ fixed to the foot of the screen, 48 px tall, with four equal tabs of 15 px label
 all fit, the bar scrolls and fades at its edge. On a phone the brand and actions share one row. On a wide screen the tabs take a second row under
 the brand and the actions, since one row would need more width than the 1,080 px page holds. Every tab has a glyph from 561 px: a balance
 beam for Balance, the runner, the rider and a list for Activities. The current tab is marked by a flat
-bar along its foot (its top edge on a phone) and by its colour. The tab of a page's parent, such as Balance on the method page, is marked the same way, but only the page's own tab is `aria-current`, so a screen reader names no tab as the page it is on when that page is not a tab. Sign-in stays
+bar along its foot (its top edge on a phone) and by its colour. An activity's section tab (Run, Ride or Activities) is marked the same way and carries `aria-current="true"`, since the activity is a page of that section; only the page's own tab carries `aria-current="page"`. The method page marks Balance by its class alone, so a screen reader is not told that Balance is the page. Sign-in stays
 one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
 screen readers. Below 420 px **Add files** shows its plus only; its name is kept for screen readers and
 is its title, so a pointer shows it on hover. The account menu holds the email and Sign out; downloading data and deleting the account
@@ -559,7 +559,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   tab and table heading says Run or Ride, as "Run compared with Ride by duration", "Higher Ride energy rate",
   "Run against Ride, 90% range" and "Run, as recorded". Running and cycling stay in sentences, where they
   read naturally, such as "Running grades 6 points higher than cycling". A chart's accessible name is its
-  title, so the two match. The Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
+  title, so the two match. Chart descriptions and the reading cells of the ratio table are sentences, so they keep "running" and "cycling", as in "Running 8% higher than cycling"; so do the balance sentences. The Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
   table caption, with "Energy rate (metabolic W/kg)" on its axis. The shared energy trend and the heart-rate chart name their unit the same way, in their axes and column headings.
 - **Effort checks say "your hardest".** A best effort below 90% of your reference heart rate is "probably not
   your hardest", never "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate

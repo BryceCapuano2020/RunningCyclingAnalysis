@@ -408,3 +408,40 @@ describe('the name on the card', () => {
     )
   })
 })
+
+describe('a name too long for its slot', () => {
+  const TITLE = 'RunningCyclingAnalysis'
+  // Each character is 16 px wide, a realistic width for the name's 24 px face. The fake canvas would
+  // measure these 40 letters as narrower than the row, so the canvas is given this measure instead.
+  it.each([null, 'Sample athlete'])(
+    'ends an unbroken name in an ellipsis and keeps it right of the app name, with badge %s',
+    (badge) => {
+      const ctx = new FakeContext()
+      ctx.measureText = (text: string) => ({ width: text.length * 16 })
+      const ok = renderShareCard(
+        cardModel({ name: 'A'.repeat(40), badge }),
+        fakeCanvas(ctx) as unknown as HTMLCanvasElement,
+        'square',
+      )
+      expect(ok).toBe(true)
+      const title = ctx.texts.find((text) => text.text === TITLE)
+      const name = ctx.texts.find((text) => text.size === 24 && text.text.startsWith('AAA'))
+      expect(name?.text.endsWith('…')).toBe(true)
+      expect(name?.x ?? 0).toBeGreaterThanOrEqual((title?.x ?? 0) + (title?.width ?? 0))
+      if (badge !== null) {
+        const pill = ctx.texts.find((text) => text.text === badge)
+        expect((name?.x ?? 0) + (name?.width ?? 0)).toBeLessThanOrEqual(pill?.x ?? 0)
+      }
+    },
+  )
+
+  it('cuts an emoji name by code point, so no emoji is left half cut', () => {
+    const { ok, ctx } = render(cardModel({ name: '😀'.repeat(40) }))
+    expect(ok).toBe(true)
+    const name = ctx.texts.find((text) => text.size === 24 && text.text.includes('😀'))
+    expect(name?.text.endsWith('…')).toBe(true)
+    expect(name?.text).not.toMatch(
+      /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/,
+    )
+  })
+})
