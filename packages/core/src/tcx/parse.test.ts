@@ -755,3 +755,78 @@ describe('parseTcx route shape', () => {
     expect(result.ok && result.activities[0]?.route).toBeUndefined()
   })
 })
+
+/** The code and detail of a refusal. */
+function refusalOf(result: ParseResult): { code: string; detail: string | undefined } {
+  if (result.ok) throw new Error('expected a failure')
+  return { code: result.code, detail: result.detail }
+}
+
+describe('parseTcx with the type an export list gives', () => {
+  const parseListed = (xml: Uint8Array, activityType: string | undefined): ParseResult =>
+    parseTcx(xml, 'listed.tcx', undefined, { activityType })
+  const other = documentXml([activityXml('Other', [lapXml(runPoints(0, 90, true))])])
+
+  it.each([
+    ['Run', 'run'],
+    ['Trail Run', 'run'],
+    ['Ride', 'ride'],
+    ['Gravel Ride', 'ride'],
+  ] as const)('reads an Other activity as %s', (activityType, sport) => {
+    expect(firstActivity(parseListed(other, activityType)).sport).toBe(sport)
+  })
+
+  it('reads a virtual ride as an indoor ride', () => {
+    expect(firstActivity(parseListed(other, 'Virtual Ride')).indoor).toBe(true)
+  })
+
+  it('reads an activity with no Sport attribute from the list', () => {
+    const bare = documentXml([`<Activity>${lapXml(runPoints(0, 90, true))}</Activity>`])
+    expect(firstActivity(parseListed(bare, 'Run')).sport).toBe('run')
+  })
+
+  it('keeps the sport the activity names, whatever the list says', () => {
+    const run = documentXml([activityXml('Running', [lapXml(runPoints(0, 90, true))])])
+    expect(firstActivity(parseListed(run, 'Ride')).sport).toBe('run')
+  })
+
+  it('refuses an Other activity as the sport the list names, and as Other when it names none', () => {
+    expect(refusalOf(parseListed(other, 'Hike'))).toEqual({
+      code: 'unsupported-sport',
+      detail: 'Hike',
+    })
+    expect(refusalOf(parseListed(other, undefined))).toEqual({
+      code: 'unsupported-sport',
+      detail: 'Other',
+    })
+  })
+
+  it('keeps refusing a Sport the TCX schema does not allow, whatever the list says', () => {
+    const swim = documentXml([activityXml('Swimming', [lapXml(runPoints(0, 90, true))])])
+    expect(refusalOf(parseListed(swim, 'Run'))).toEqual({
+      code: 'unsupported-sport',
+      detail: 'Swimming',
+    })
+  })
+
+  it.each(['E-Bike Ride', 'E-Mountain Bike Ride'])(
+    'refuses a Biking activity when the list says %s, which is the one case the list overrides',
+    (activityType) => {
+      const biking = documentXml([activityXml('Biking', [lapXml(runPoints(0, 90, true))])])
+      expect(refusalOf(parseListed(biking, activityType)).code).toBe('e-bike')
+    },
+  )
+
+  it('keeps refusing an e-bike ride named by the list', () => {
+    expect(refusalOf(parseListed(other, 'E-Bike Ride')).code).toBe('e-bike')
+  })
+
+  it('keeps an empty Other activity as the sport the list names', () => {
+    const empty = documentXml([activityXml('Other', [])])
+    expect(refusalOf(parseListed(empty, 'Hike'))).toEqual({
+      code: 'unsupported-sport',
+      detail: 'Hike',
+    })
+    expect(refusalOf(parseListed(empty, 'Run')).code).toBe('empty')
+  })
+})

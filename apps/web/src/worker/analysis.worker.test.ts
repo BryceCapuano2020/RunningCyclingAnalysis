@@ -1,7 +1,8 @@
+import { strToU8, zipSync } from 'fflate'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
-import { countActivityFiles, encodeFit } from '@rca/core/fit'
+import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
 import { AnalysisSession } from '@rca/core/session'
@@ -29,11 +30,6 @@ vi.mock('@rca/contract', async (importOriginal) => {
       return limits.maxFileBytes
     },
   }
-})
-
-vi.mock('@rca/core/fit', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@rca/core/fit')>()
-  return { ...actual, countActivityFiles: vi.fn(actual.countActivityFiles) }
 })
 
 vi.mock('./importSummary', async (importOriginal) => {
@@ -194,7 +190,39 @@ describe('analysis worker', () => {
     ])
   })
 
+  it("leaves an export's saved routes out of the progress total, and reports them apart", async () => {
+    const zip = zipSync({
+      'activities/1.fit': new Uint8Array(encodeFit(sampleActivity, { gps: true })),
+      'routes/1.gpx': strToU8('<gpx/>'),
+      'routes/2.gpx': strToU8('<gpx/>'),
+      'activities.csv': strToU8(
+        'Activity Name,Activity Type,Filename\nMorning Run,Run,activities/1.fit\n',
+      ),
+    })
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'addFiles',
+      files: [new File([new Uint8Array(zip)], 'export.zip')],
+      settings: SETTINGS,
+      sync: null,
+    })
+
+    expect(messages.filter((message) => message.type === 'progress')).toEqual([
+      { type: 'progress', filesRead: 1, filesTotal: 1 },
+    ])
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      outcome: { activities: 1, rejected: 0, notActivities: 2 },
+    })
+  })
+
   describe('progress messages', () => {
+    /** The worker loads its own session module after the reset, so the count is stubbed there. */
+    async function unknownTotal() {
+      const { AnalysisSession: Session } = await import('@rca/core/session')
+      vi.spyOn(Session.prototype, 'countFiles').mockResolvedValueOnce(null)
+    }
+
     const FILES = 12
 
     function importOf(sync: { keepFiles: boolean; userId: string } | null) {
@@ -234,7 +262,7 @@ describe('analysis worker', () => {
 
     it('ends on the exact count when the total is not known, with nothing to send it at once', async () => {
       const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
-      vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
+      await unknownTotal()
       try {
         const { send } = await startWorker()
         const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
@@ -253,7 +281,7 @@ describe('analysis worker', () => {
     it('sends the exact count before an import fails, and nothing after the failure', async () => {
       const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
       // With no total there is no last file to send at once, so a message is waiting at the end.
-      vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
+      await unknownTotal()
       vi.mocked(importSummary.summarizeAdded).mockImplementationOnce(() => {
         throw new Error('The summary failed')
       })
@@ -633,6 +661,26 @@ describe('analysis worker', () => {
         state: expect.objectContaining({ totalActivities: 1, outdatedActivities: 0 }),
       },
     ])
+  })
+
+  it('rebuilds an original GPX file that names no sport as the sport it was saved as', async () => {
+    const gpx = new TextDecoder().decode(encodeGpx(sampleActivity))
+    mocked.downloadActivityFile.mockResolvedValue(
+      new TextEncoder().encode(gpx.replace(/<type>[^<]*<\/type>/, '')),
+    )
+    const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
+    mocked.listActivities
+      .mockResolvedValueOnce([{ ...recordFor(stale, true), fileName: 'activities/1.gpx' }])
+      .mockResolvedValueOnce([recordFor(SAMPLE_DIGEST, true)])
+    const { send } = await startWorker()
+    const messages = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+
+    expect(messages.at(-1)).toMatchObject({
+      type: 'rebuildComplete',
+      rebuilt: 1,
+      missing: 0,
+      failed: 0,
+    })
   })
 
   it('counts a rebuild whose activity was deleted in another tab as missing, and does not re-create it', async () => {

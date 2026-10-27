@@ -7,6 +7,12 @@ export const OTHER_ACTIVITY = /\.(kml|kmz|pwx|hrm)(\.gz)?$/i
 export const ZIP = /\.zip$/i
 
 /**
+ * Whether a zip entry may be an activity. Extraction and counting take one to leave out the activity
+ * files an export's own list does not name, such as the saved routes in a Strava export.
+ */
+export type EntryFilter = (entryName: string) => boolean
+
+/**
  * The end of an archive, where the End of Central Directory record, its ZIP64 locator and the ZIP64
  * record sit behind the largest comment a zip can carry (64 KiB less one byte).
  */
@@ -234,4 +240,10 @@ export async function directoryOf(
 /** Directory entries and macOS resource-fork metadata. */
 export function isIgnored(name: string): boolean {
   return name.endsWith('/') || /(^|\/)__MACOSX\//.test(name) || /(^|\/)\._/.test(name)
+}
+
+/** A zip with no entries starts with its end-of-central-directory record. */
+const EMPTY_ZIP_SIGNATURE = [0x50, 0x4b, 0x05, 0x06]
+export function isEmptyZip(prefix: Uint8Array): boolean {
+  return prefix.length === 4 && EMPTY_ZIP_SIGNATURE.every((byte, i) => prefix[i] === byte)
 }

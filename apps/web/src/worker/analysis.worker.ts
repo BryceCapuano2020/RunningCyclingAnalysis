@@ -1,6 +1,5 @@
 /// <reference lib="webworker" />
 import type { ActivityRecord } from '@rca/contract'
-import { countActivityFiles } from '@rca/core/fit'
 import { AnalysisSession } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
@@ -55,9 +54,10 @@ async function addFiles(
 ): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
   const { sync } = request
   let stoppedBy: SyncIssueCode | null = null
-  let outcome: ImportOutcome = { activities: 0, rejected: 0, duplicates: [] }
+  let outcome: ImportOutcome = { activities: 0, rejected: 0, notActivities: 0, duplicates: [] }
   // Read from the zips' directories before any entry is, so every progress message can show a total.
-  const reporter = new ImportReporter(post, await countActivityFiles(request.files), sync !== null)
+  // An export's saved routes are not activities, so they are not in it.
+  const reporter = new ImportReporter(post, await session.countFiles(request.files), sync !== null)
   reporter.begin()
   const save =
     sync === null

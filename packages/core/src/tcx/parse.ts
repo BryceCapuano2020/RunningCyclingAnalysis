@@ -14,6 +14,8 @@ import {
   trackFromPoints,
 } from '../import/trackpoints'
 import type { LatLon } from '../import/trackpoints'
+import { isEBikeType, sportOfType } from '../import/sportType'
+import type { SportChoice } from '../import/sportType'
 import type { Sport } from '../types'
 import { scanXmlBytes } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
@@ -52,9 +54,7 @@ interface Point {
 }
 
 /** One Activity while its Laps stream past. */
-interface OpenActivity {
-  sport: Sport | null
-  sportLabel: string
+interface OpenActivity extends SportChoice {
   points: Point[]
 }
 
@@ -91,7 +91,7 @@ function parseUnchecked(
     return failure(fileName, reason, 'too-large', String(limits.maxFileBytes))
   }
   const units: PipelineUnit[] = []
-  scanXmlBytes(bytes, new TcxScanner(units, limits.maxRecordMessages))
+  scanXmlBytes(bytes, new TcxScanner(units, limits.maxRecordMessages, opts.activityType))
   if (units.length === 0) return failure(fileName, NO_ACTIVITIES, 'empty')
   // An unsupported sport is refused by the pipeline with its own reason, so only supported ones count.
   const supported = units.filter((unit) => unit.sport !== null)
@@ -110,14 +110,17 @@ class TcxScanner implements XmlHandler {
   private readonly stack: string[] = []
   private readonly units: PipelineUnit[]
   private readonly maxTrackpoints: number
+  /** The type the export's list gives the activity, for an Activity whose Sport is Other. */
+  private readonly activityType: string | undefined
   private trackpoints = 0
   private activity: OpenActivity | undefined
   private trackpoint: RawTrackpoint | undefined
   private field: OpenField | undefined
 
-  constructor(units: PipelineUnit[], maxTrackpoints: number) {
+  constructor(units: PipelineUnit[], maxTrackpoints: number, activityType: string | undefined) {
     this.units = units
     this.maxTrackpoints = maxTrackpoints
+    this.activityType = activityType
   }
 
   open(local: string, _name: string, attrs: Record<string, string>, depth: number): void {
@@ -125,7 +128,7 @@ class TcxScanner implements XmlHandler {
     if (depth === 1) {
       if (local !== 'TrainingCenterDatabase') throw new Refusal(NOT_TCX, 'corrupt')
     } else if (depth === 3 && local === 'Activity' && this.stack[1] === 'Activities') {
-      this.activity = openActivity(attrs.Sport)
+      this.activity = openActivity(attrs.Sport, this.activityType)
     } else if (depth === 6 && local === 'Trackpoint' && this.inTrack()) {
       this.trackpoints++
       if (this.trackpoints > this.maxTrackpoints) {
@@ -186,8 +189,17 @@ class TcxScanner implements XmlHandler {
   }
 }
 
-function openActivity(sportName: string | undefined): OpenActivity {
-  return { sport: sportOf(sportName), sportLabel: sportName ?? 'unknown', points: [] }
+/**
+ * The sport is the Sport attribute's, unless that is Other or missing and the export's list says what
+ * the activity was. A list that says e-bike refuses the activity whatever its Sport.
+ */
+function openActivity(sportName: string | undefined, listed: string | undefined): OpenActivity {
+  const sport = sportOf(sportName)
+  const unsaid = sport === null && (sportName === undefined || sportName === 'Other')
+  if (listed !== undefined && (unsaid || isEBikeType(listed))) {
+    return { ...sportOfType(listed, undefined), points: [] }
+  }
+  return { sport, indoor: false, sportLabel: sportName ?? 'unknown', points: [] }
 }
 
 function sportOf(name: string | undefined): Sport | null {
@@ -214,9 +226,17 @@ function pointOf(raw: RawTrackpoint): Point | undefined {
 
 /** Maps one Activity to the shared pipeline's input. */
 function unitOf(activity: OpenActivity): PipelineUnit {
-  const { sport, sportLabel } = activity
+  const { sport, sportLabel, refusal } = activity
   if (sport === null) {
-    return { records: [], timerEvents: [], sport, sportLabel, indoor: false, hasPosition: false }
+    return {
+      records: [],
+      timerEvents: [],
+      sport,
+      sportLabel,
+      refusal,
+      indoor: false,
+      hasPosition: false,
+    }
   }
   const points = sortAndDedupe(activity.points)
   const hasPosition = points.some((p) => p.position !== undefined)
@@ -226,7 +246,7 @@ function unitOf(activity: OpenActivity): PipelineUnit {
     sport,
     sportLabel,
     // A trainer ride saved as plain cycling has no positions at all.
-    indoor: sport === 'ride' && !hasPosition,
+    indoor: activity.indoor || (sport === 'ride' && !hasPosition),
     hasPosition,
     fixes: fixesOf(points),
   }

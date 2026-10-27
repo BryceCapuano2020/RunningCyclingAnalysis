@@ -184,13 +184,13 @@ const EXPECTED_NAMES = [
 describe('extractFitFiles on single files', () => {
   it('delivers a .fit file unchanged, regardless of case', async () => {
     const { files, summary } = await collect(new File([FIT_A], 'RIDE.FIT'))
-    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0, notActivities: 0 })
     expect(files).toEqual([{ fileName: 'RIDE.FIT', bytes: FIT_A }])
   })
 
   it('gunzips a .fit.gz file and drops the .gz from its name', async () => {
     const { files, summary } = await collect(new File([gzipSync(FIT_A)], 'ride.fit.gz'))
-    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0, notActivities: 0 })
     expect(files).toEqual([{ fileName: 'ride.fit', bytes: FIT_A }])
   })
 
@@ -202,7 +202,7 @@ describe('extractFitFiles on single files', () => {
   it('skips a .fit.gz whose content is not gzip and reports it', async () => {
     const { files, summary, errors } = await collect(new File([NOT_GZIP], 'bad.fit.gz'))
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([{ fileName: 'bad.fit.gz', reason: DECOMPRESS }])
   })
 
@@ -221,23 +221,23 @@ describe('extractFitFiles on single files', () => {
   it('delivers a top-level GPX or TCX file like a FIT file, gunzipped and without its .gz', async () => {
     const gpx = await collect(new File([gzipSync(TEXT)], 'route.gpx.gz'))
     expect(gpx.files).toEqual([{ fileName: 'route.gpx', bytes: TEXT }])
-    expect(gpx.summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(gpx.summary).toEqual({ fitFiles: 1, otherActivityFiles: 0, notActivities: 0 })
     const tcx = await collect(new File([TEXT], 'Track.TCX'))
     expect(tcx.files).toEqual([{ fileName: 'Track.TCX', bytes: TEXT }])
-    expect(tcx.summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(tcx.summary).toEqual({ fitFiles: 1, otherActivityFiles: 0, notActivities: 0 })
   })
 
   it('counts a top-level file in a format this app does not read as skipped', async () => {
     const { files, summary, errors } = await collect(new File([TEXT], 'route.kml'))
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 1 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 1, notActivities: 0 })
     expect(errors).toEqual([])
   })
 
   it('ignores any other file type', async () => {
     const { files, summary } = await collect(new File([FIT_A], 'notes.txt'))
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
   })
 
   it('resolves with zero counts when the file cannot be read', async () => {
@@ -253,7 +253,7 @@ describe('extractFitFiles on single files', () => {
     }
     const { files, summary, errors } = await collect(source)
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([{ fileName: 'broken.fit', reason: 'Could not read this file' }])
   })
 
@@ -388,13 +388,13 @@ describe('extractFitFiles on zip archives', () => {
     expect(bytesOf(files, 'rides/2024/Morning.fit')).toEqual(FIT_A)
     expect(bytesOf(files, 'rides/B.FIT')).toEqual(FIT_B)
     expect(bytesOf(files, 'rides/c.fit')).toEqual(FIT_C)
-    expect(summary).toEqual({ fitFiles: 5, otherActivityFiles: 1 })
+    expect(summary).toEqual({ fitFiles: 5, otherActivityFiles: 1, notActivities: 0 })
   })
 
   it('handles uncompressed (stored) entries the same way', async () => {
     const { files, summary } = await collect(new File([exportZip(0)], 'stored.zip'))
     expect(namesOf(files)).toEqual(EXPECTED_NAMES)
-    expect(summary).toEqual({ fitFiles: 5, otherActivityFiles: 1 })
+    expect(summary).toEqual({ fitFiles: 5, otherActivityFiles: 1, notActivities: 0 })
   })
 
   it('gives the same result when the zip arrives in 7-byte chunks', async () => {
@@ -434,7 +434,7 @@ describe('extractFitFiles on zip archives', () => {
   it('resolves with zero counts for a corrupt zip', async () => {
     const { files, summary, errors } = await collect(new File([NOT_GZIP], 'broken.zip'))
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([{ fileName: 'broken.zip', reason: 'Could not read archive' }])
   })
 
@@ -442,7 +442,7 @@ describe('extractFitFiles on zip archives', () => {
     const zip = zipSync({ 'bad.fit.gz': NOT_GZIP, 'good.fit': FIT_A })
     const { files, summary, errors } = await collect(new File([zip], 'mixed.zip'))
     expect(files).toEqual([{ fileName: 'good.fit', bytes: FIT_A }])
-    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([{ fileName: 'bad.fit.gz', reason: DECOMPRESS }])
   })
 
@@ -471,7 +471,7 @@ describe('extractFitFiles on zip archives', () => {
     const zip = zipSync({ 'readme.txt': TEXT })
     const { files, summary } = await collect(new File([zip], 'empty.zip'))
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
   })
 
   it('resolves when the stream fails part way through', async () => {
@@ -494,7 +494,7 @@ describe('extractFitFiles on zip archives', () => {
     }
     const { files, summary, errors } = await collect(source)
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([{ fileName: 'failing.zip', reason: 'Could not read this file' }])
   })
 
@@ -508,7 +508,7 @@ describe('extractFitFiles on zip archives', () => {
     }
     const { files, summary } = await collect(source)
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
   })
 
   it('reports a source that is cut off by the source-size limit, with the entry it cut', async () => {
@@ -564,7 +564,7 @@ describe('extractFitFiles on zip archives', () => {
     ])
     expect(bytesOf(files, 'rides/inner.zip/a.fit')).toEqual(FIT_A)
     expect(bytesOf(files, 'rides/inner.zip/sub/B.FIT')).toEqual(FIT_B)
-    expect(summary).toEqual({ fitFiles: 4, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 4, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([])
   })
 
@@ -636,7 +636,7 @@ describe('extractFitFiles on zip archives', () => {
 
   it('uses no error handler unless one is given', async () => {
     const summary = await extractFitFiles(new File([TEXT], 'notes.bin'), () => undefined)
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
   })
 
   it('limits a single .fit file by the total and entry sizes', async () => {
@@ -767,7 +767,7 @@ describe('extractFitFiles on zip archives', () => {
   it('accepts an empty zip without reporting an error', async () => {
     const { files, summary, errors } = await collect(new File([zipSync({})], 'empty.zip'))
     expect(files).toEqual([])
-    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 0, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([])
   })
 
@@ -928,7 +928,7 @@ describe('extractFitFiles drains skipped zip entries', () => {
     })
     const { files, summary, errors } = await collect(new File([zip], 'export.zip'))
     expect(namesOf(files)).toEqual(['activities/a.fit'])
-    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0 })
+    expect(summary).toEqual({ fitFiles: 1, otherActivityFiles: 0, notActivities: 0 })
     expect(errors).toEqual([])
     expect(unzipSpy.started).toContain('media/x.jpg')
   })
