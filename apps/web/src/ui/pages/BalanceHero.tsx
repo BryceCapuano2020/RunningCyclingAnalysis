@@ -10,7 +10,7 @@ import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../component
 import { WeightPrompt } from '../components/WeightPrompt'
 import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
-import { countSport } from '../records'
+import { countEfforts, countSport } from '../records'
 import { HEADLINE_LABEL } from '../grades'
 import { PAGE_HEADING_ID } from './pageHeading'
 
@@ -35,6 +35,17 @@ export interface BalanceHeroProps {
   rideLevel?: string | null
   /** The grades under the meter on a phone, shown only beside a meter. They keep the meter's gap. */
   strip?: ReactNode
+}
+
+/** Under this many activities in a sport, the answer rests on few of them, so the page counts each sport. */
+const FEW_EFFORTS = 3
+
+/** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
+function fewEffortsText(result: AnalysisResult): string | null {
+  const runs = countEfforts(result.activities, 'run')
+  const rides = countEfforts(result.activities, 'ride')
+  if (runs === 0 || rides === 0 || (runs >= FEW_EFFORTS && rides >= FEW_EFFORTS)) return null
+  return `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. Add more runs or rides for a steadier answer.`
 }
 
 interface Missing {
@@ -177,17 +188,19 @@ export function BalanceHero({
     )
   }
   const summary = balanceSummary(reading, pick?.point.durationS ?? HEADLINE_DURATION_S)
+  const few = fewEffortsText(result)
   return (
-    <>
+    <div className="balance-hero__pair">
       <section className="balance-hero">
         {head(balanceTitle(reading), 'balance-hero__title')}
         <p className="lede secondary">{summary}</p>
+        {few !== null && <p className="secondary">{few}</p>}
         {action}
       </section>
       <div className="balance-hero__meter">
-        <BalanceMeter reading={reading} />
+        <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />
         {strip}
       </div>
-    </>
+    </div>
   )
 }

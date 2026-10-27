@@ -4,6 +4,10 @@ import { formatGrade } from '../gradeFormat'
 import { WEIGHT_PROMPT_PARTS } from '../weightCopy'
 import type { SharedWeek } from './gradeTrend'
 import { STEPPED_LINE_TEXT, weekDay } from './trendText'
+import { formatDayMonth } from '../format/date'
+import { SPORT_PLURAL } from '../sports'
+import type { Sport } from '@rca/core/types'
+import { DAY_MS } from '@rca/core/constants'
 
 /** Which measure a shared trend shows: each sport's age grade, or its energy rate in metabolic W/kg. */
 export type SharedMeasure = 'grade' | 'energy'
@@ -28,6 +32,36 @@ export const HELD_NOTE = 'Cycling is held until a weight is added.'
 const LOW_POINT = 'A low point is a window of easy efforts, not an average.'
 /** The line's steps, which the caption says, so that the note under the chart is one line of meaning. */
 const STEPS = STEPPED_LINE_TEXT
+
+/**
+ * The dated note for a sport whose line stops before the window does, such as "No runs since 20 Jan": the
+ * day of its latest activity of any length, when that is before the last week. Null while its line reaches
+ * the last week, when it has no value at all, or when its latest activity is in the last week.
+ */
+export function endedNote(
+  weeks: readonly SharedWeek[],
+  sport: Sport,
+  latestMs: number | null,
+): string | null {
+  const last = weeks.findLastIndex((week) => week[sport] !== null)
+  const end = weeks[weeks.length - 1]?.endMs
+  if (last < 0 || last === weeks.length - 1 || latestMs === null || end === undefined) return null
+  // An activity in the last week would show on the line unless it is short, so there is no gap to date.
+  if (latestMs >= end - 7 * DAY_MS) return null
+  return `No ${SPORT_PLURAL[sport]} since ${formatDayMonth(latestMs)}.`
+}
+
+/** A trend's note, then a dated note for each line that stops before the window does. */
+export function withEndedNotes(
+  note: string,
+  weeks: readonly SharedWeek[],
+  latestStartMs: Record<Sport, number | null>,
+): string {
+  const ended = (['run', 'ride'] as const).map((sport) =>
+    endedNote(weeks, sport, latestStartMs[sport]),
+  )
+  return [note, ...ended].filter((text): text is string => text !== null).join(' ')
+}
 
 /** The words of each measure: the chart's name, its axis, its key, its table and its empty state. */
 export function copyOf(measure: SharedMeasure, effort: string, windowText: string) {

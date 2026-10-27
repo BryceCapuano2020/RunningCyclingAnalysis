@@ -29,11 +29,39 @@
   text-wrap: balance;
 }
 
-/* At or below 359 px, which is HEADLINE_SMALL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts. */
+/*
+ * At or below 359 px, which is HEADLINE_SMALL_MAX_WIDTH_PX in ui/layoutBreakpoints.ts. The size is set so
+ * that at 130% text the headline still takes two lines, with no word alone on one.
+ */
 @media (max-width: 359px) {
   .balance-hero__head h1 {
     /* A display size with no type token; see DESIGN.md, Type. */
-    font-size: 2rem;
+    font-size: 1.7rem;
+  }
+}
+
+/* The answer and its meter stack with the gap a page's sections have. */
+.balance-hero__pair {
+  display: grid;
+  gap: var(--space-7);
+  min-width: 0;
+}
+
+/*
+ * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the answer and its meter sit
+ * closer, so the key under the meter ends above the fold at 320 x 640.
+ */
+@media (max-height: 700px) {
+  .balance-hero__pair {
+    gap: var(--space-5);
+  }
+}
+
+/* In landscape the answer sits beside its meter, so the meter is on the first screen at 844 x 390 and 667 x 375. */
+@media (orientation: landscape) and (max-height: 700px) {
+  .balance-hero__pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
 }
 

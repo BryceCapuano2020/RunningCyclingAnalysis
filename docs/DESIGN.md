@@ -103,7 +103,9 @@ as the 3 months of an earlier version, reads as the default.
 
 The landing page is the promise, the drop zone with **Add files** (its one primary action) and
 **See a sample athlete**, the example result, three steps, three sentences on how the result is worked
-out with a **Full method** link, and the export guides. The drop zone's **No files yet? How to get
+out with a **Full method** link, and the export guides. On a short phone (SHORT_PHONE_MAX_HEIGHT_PX, 700 px tall) the pitch and the drop zone sit closer, so
+**Add files** is on the first screen at 320 x 568; in landscape the pitch sits beside the drop zone, so
+**Add files** is on the first screen at 844 x 390 and 667 x 375. The drop zone's **No files yet? How to get
 them** link moves focus to the guides below the steps. The guides are one tile per service. Each tile
 is `aria-expanded` and controls the one panel, which opens on Strava. Opening a tile moves focus to
 the panel's heading, so its steps are read from the top. The Strava guide has **Try the sample while
@@ -207,7 +209,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - Headings are condensed and upper case. The page title is 800 weight; the page title and the section
   headings, paragraphs, figure captions and list items are set with `text-wrap: pretty`, so a single
   word is not left alone on the last line. The Balance headline is balanced instead, and sets at
-  2rem below 360 px, so no word is left alone at 320 px. Section headings are 700.
+  1.7rem below 360 px, so at 320 px it takes two lines, and at 130% text LEANS is not left alone on a
+  line. Section headings are 700.
 - **Numbers are the hero.** The main number on a card is at least 48 px, condensed 800, with
   tabular figures (`.hero-number`). Supporting stats are 28 px or more (`.stat-number`).
 - Small labels above a value use `.eyebrow`: condensed 700, upper case, wide tracking, muted.
@@ -328,6 +331,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   names the effort as its segment labels it, such as "best 60 min", and the window. Each line steps from one Sunday to the next and breaks at a week
   with no value, and each Sunday has a marker. The latest value is labelled with its value alone, and the
   title names its effort and window, so it can differ from a card's best, which covers the whole period.
+  When a sport's line stops before the window does, the note under the chart dates that sport's latest
+  activity of any length, as long as it is before the last week: "No runs since 20 Jan 2025." (or "No rides
+  since"), the activity's own local day. A short run counts, though it gives the trend no value. The note is
+  left off while the line reaches the last week, and when the latest activity is in the last week.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
   each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the
@@ -340,6 +347,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
   and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
   needs two weeks with values."
+- On a short screen the answer sits closer to its meter (SHORT_PHONE_MAX_HEIGHT_PX). In landscape it sits
+  beside the meter, so the meter is on the first screen at 844 x 390 and 667 x 375, and the key under it
+  ends above the fold at 320 x 640.
 - The balance meter spans the card row, so its centre is the gap between the two cards. Running is
   on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
   the cards, the meter, the landing example and the share card all follow it. The meter plots the
@@ -348,7 +358,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ("30%+" in percent). The best estimate is printed over the dot as "6 pts". Its scale is the gap in
   points when both sports are graded, and the energy ratio in percent when they are not. The track has
   a 3:1 outline, the band a solid edge in its sport's colour, and the end labels name each sport with
-  its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio.
+  its glyph. The key under it gives the range in words and reads the same on both scales: "Dot: best estimate. Band: 90% range, 2 to 10 points. Scale: age-grade points.", or "Scale: energy per kilogram." when the scale is the energy ratio. When the heart-rate check adjusted the range, the key says so in place of the points scale: "Dot: best estimate. Band: 90% range, 2 to 10 points. Adjusted by heart rate."; on the energy ratio the note follows the scale: "Scale: energy per kilogram. Adjusted by heart rate.".
 - The level ladder draws the age-grade bands on a 30% to 100% scale, with its labels as text beside
   the drawing and fills its column, with no fixed width. Its bar is the same height at every width,
   and its marker a fixed size, so the labels stay on the bar as the column narrows. A run's grade, read as recorded, is a solid dot. A ride's grade is estimated, so it is
@@ -508,7 +518,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   (−2 to +2 points) includes zero, so the two are in balance." Never "ahead of". Without an age and
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
   cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
-  levels. The lede names no dates: the period control's caption under the meter gives them when the period is
+  levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence
+  and the meter: "Cycling against running, 90% range: 11% to 33%." on How sure is this?, and "Running
+  against cycling, 90% range: -2% to +4%." only when the two are even. The lede names no dates: the period control's caption under the meter gives them when the period is
   not All time, so the lede reads "Your running grades 6 points higher than your cycling, on your best
   20 min in each." on its own.
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
@@ -599,6 +611,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it.
+- **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
+  period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
+  and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.
 - One "How sure is this?" link per card at most.
 - **A level says how it is graded.** A level's grade line may link to its age grades with How is this
   graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
@@ -683,7 +698,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
   to Profile. A ride held for its weight, whose own note already links there, leaves out the link on
   "Your details are not set yet.". It is on the Balance, Run and Ride pages only, and the sample has its
-  own persona and no such line.
+  own persona and no such line. While the one prompt for the year of birth and sex is on the page, the unset
+  line is left out of Balance, and of a run's page once that run has activities, where its age note asks the
+  same. A held ride keeps its line, since its records give way to the weight note.
 - **A figure's scope is named by the period control beside its heading,** which shows the dates of a
   window. The threshold carries no count under it, since a count of runs is not what it is fitted from.
   Under All time the control shows the span of the whole library.

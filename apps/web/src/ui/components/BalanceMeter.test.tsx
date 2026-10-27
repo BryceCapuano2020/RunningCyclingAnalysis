@@ -163,6 +163,15 @@ describe('BalanceMeter with the energy ratio', () => {
     )
   })
 
+  it('keeps the energy scale in its key, and adds the heart-rate note, when heart-rate data was used', () => {
+    const { container } = render(
+      <BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} adjusted />,
+    )
+    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
+      'Dot: best estimate. Band: 90% range, 5% to 20%. Scale: energy per kilogram. Adjusted by heart rate.',
+    )
+  })
+
   it('prints its ticks in percent', () => {
     render(<BalanceMeter reading={energyReading(interval(1.05, 1.12, 1.2))} />)
     expect(screen.getAllByText('10%').length).toBeGreaterThan(0)
@@ -216,6 +225,13 @@ describe('BalanceMeter scale details', () => {
     const { container } = render(<BalanceMeter reading={leaning('run')} />)
     expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
       'Dot: best estimate. Band: 90% range, 2 to 10\u00a0points. Scale: age\u2011grade points.',
+    )
+  })
+
+  it('says the estimate is adjusted by heart rate in place of the points scale, when heart-rate data was used', () => {
+    const { container } = render(<BalanceMeter reading={leaning('run')} adjusted />)
+    expect(container.querySelector('.balance-meter__key')?.textContent).toBe(
+      'Dot: best estimate. Band: 90% range, 2 to 10\u00a0points. Adjusted by heart rate.',
     )
   })
 })

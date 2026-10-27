@@ -5,6 +5,7 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
+import { countEfforts, latestStartOf } from './records'
 import {
   RECORD_DURATIONS_S,
   activityNames,
@@ -429,5 +430,37 @@ describe('effortLabel', () => {
     expect(EFFORT_OPTIONS.map((option) => option.label)).toEqual(
       EFFORT_OPTIONS.map((option) => effortLabel(Number(option.value))),
     )
+  })
+})
+
+describe('latestStartOf and countEfforts', () => {
+  it('takes the latest start of a sport whatever its length, so a short run counts as the latest', () => {
+    const activities = [
+      makeActivity({
+        id: 'run-long',
+        sport: 'run',
+        startMs: Date.UTC(2025, 0, 20),
+        durationS: 3600,
+      }),
+      makeActivity({
+        id: 'run-short',
+        sport: 'run',
+        startMs: Date.UTC(2025, 0, 29),
+        durationS: 600,
+      }),
+    ]
+    expect(latestStartOf(activities, 'run')).toBe(Date.UTC(2025, 0, 29))
+    expect(latestStartOf(activities, 'ride')).toBeNull()
+  })
+
+  it('counts only the activities of a sport as long as the headline effort, since a shorter one rests on less', () => {
+    const activities = [
+      makeActivity({ id: 'run-1', sport: 'run', durationS: 1200 }),
+      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
+      makeActivity({ id: 'run-3', sport: 'run', durationS: 900 }),
+      makeActivity({ id: 'ride-1', sport: 'ride', durationS: 3600 }),
+    ]
+    expect(countEfforts(activities, 'run')).toBe(1)
+    expect(countEfforts(activities, 'ride')).toBe(1)
   })
 })
