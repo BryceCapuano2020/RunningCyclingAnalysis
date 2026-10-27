@@ -3,10 +3,7 @@ import {
   MAX_ACTIVITIES_PER_USER,
   MAX_DIGEST_BYTES_PER_USER,
 } from '@rca/contract'
-import { HttpError } from '../../errors.ts'
-
-export const accountDeleting = () =>
-  new HttpError(409, 'account_deleting', 'This account is being deleted')
+import { accountDeleting, HttpError } from '../../errors.ts'
 
 export const databaseFull = () =>
   new HttpError(503, 'database_full', 'Activities cannot be saved while the database is full')

@@ -27,3 +27,11 @@ export class HttpError extends Error {
 export function apiError(code: string, message: string): ApiError {
   return { error: { code, message } }
 }
+
+/**
+ * The refusal for an account being deleted, from a sign-in, upload or create. One message, so every
+ * route that refuses a deleting account answers the same way.
+ */
+export function accountDeleting(): HttpError {
+  return new HttpError(409, 'account_deleting', 'This account is being deleted. Try again later.')
+}

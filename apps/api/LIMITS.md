@@ -127,10 +127,12 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
   owned by another user returns **404 `not_found`**. An activity that starts at a different time returns
   **409 `activity_conflict`**, and so does a request whose file hash differs from the stored one.
 - **Order of checks.** A create that would insert a new row reads the account's counters first. An account
-  being deleted (409 `account_deleting`), a full library (403 `activity_quota`), the digest quota (403
-  `digest_quota`) or a full database (503 `database_full`) refuses it before a daily unit is taken, so a
-  refused create writes nothing. The insert holds the same limits for a request that races that read; it
-  then gives its daily unit back and answers with the refusal the account has by then. So a deletion that
+  whose deletion began after its session check is refused with 409 `account_deleting`, as is a full library
+  (403 `activity_quota`), the digest quota (403 `digest_quota`) or a full database (503 `database_full`).
+  These refuse it before a daily unit is taken, so a refused create writes nothing. An account whose
+  deletion began before the session check is signed out, and gets 401 `unauthenticated` from the session
+  check, so it never reaches this. The insert holds the same limits for a request that races that read; it
+  then gives its daily unit back and answers with the refusal the account has by then, so a deletion that
   starts in that race is answered 409 `account_deleting`, not a quota. When both a limit and the day are
   spent, the limit is the answer. The insert returns the stored row
   (`RETURNING`), so the answer needs no read-back.
@@ -290,7 +292,7 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion.                                         |
 | 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                                                                       |
-| 409    | `account_deleting`         | Sign-in, upload or create while the account is being deleted. New.                                                                 |
+| 409    | `account_deleting`         | Sign-in, or an upload or create whose deletion began after its session check. New.                                                 |
 | 403    | `activity_quota`           | 5,000 activities reached.                                                                                                          |
 | 403    | `storage_quota`            | 1 GiB of original files reached.                                                                                                   |
 | 429    | `rate_limited`             | Per-minute limiter.                                                                                                                |

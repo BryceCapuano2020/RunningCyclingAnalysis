@@ -7,7 +7,7 @@ import {
   unitsForAcceptLanguage,
 } from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
-import { apiError, HttpError } from '../../errors.ts'
+import { accountDeleting, apiError, HttpError } from '../../errors.ts'
 import { ensureProfile } from '../../auth/accounts.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { declaredLength, readExactBody } from '../../http.ts'
@@ -23,7 +23,6 @@ import { activityFileKey, checkR2PutBudget, reserveR2Put } from '../../storage.t
 import { activities } from '../../db/schema.ts'
 import { sha256Hex } from '../../util.ts'
 import { fileStorageUnavailable, findOwnedActivity, toRecord, type ActivityRow } from './shared.ts'
-import { accountDeleting } from './quota.ts'
 
 /** One upload in progress: the activity its file is for, and the reservation it holds. */
 interface Upload {

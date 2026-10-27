@@ -80,7 +80,9 @@ export interface ListedFiles {
  * `maxRows` rows. The first row for a file that appears twice is kept. A row with no file is skipped,
  * but a row with no name is kept, because its type still says what the file is. Only the Filename column
  * is needed. Null when the list is malformed: a quoted field left open at the end, or a row past
- * MAX_CSV_CELLS_PER_ROW cells.
+ * MAX_CSV_CELLS_PER_ROW cells. A row past `maxRows` is still parsed to its end before the row cap
+ * stops the read, so a row past the cap that is also too wide makes the whole list malformed, not
+ * one cut at the cap. The import then reads every file without the list's names. That is accepted.
  */
 export function parseActivityList(
   text: string,
