@@ -1,5 +1,10 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
-import { CLIENT_HEADER, CLIENT_HEADER_VALUE } from '@rca/contract'
+import {
+  CLIENT_HEADER,
+  CLIENT_HEADER_VALUE,
+  MAX_PAGE_DIGEST_BYTES,
+  MAX_PAGE_SIZE,
+} from '@rca/contract'
 import { DURATIONS_S } from '@rca/core/constants'
 import type { ActivityRecord, Me, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
@@ -133,6 +138,7 @@ function callOf(fetchMock: ReturnType<typeof stubFetch>, index = 0) {
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('signInUrl', () => {
@@ -356,7 +362,7 @@ describe('listActivities', () => {
     const fetchMock = stubFetch(respond(200, { items: [RECORD_WIRE], nextCursor: null }))
     const records = await listActivities()
 
-    expect(callOf(fetchMock).path).toBe('/api/activities?limit=25')
+    expect(callOf(fetchMock).path).toBe(`/api/activities?limit=${MAX_PAGE_SIZE}`)
     expect(callOf(fetchMock).init.method).toBe('GET')
     expect(records).toHaveLength(1)
     const [record] = records
@@ -379,9 +385,9 @@ describe('listActivities', () => {
     const records = await listActivities()
 
     expect(records.map((r) => r.id)).toEqual(['rec-1', 'rec-2', 'rec-3'])
-    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=25')
-    expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=25&cursor=c1')
-    expect(callOf(fetchMock, 2).path).toBe('/api/activities?limit=25&cursor=c2')
+    expect(callOf(fetchMock, 0).path).toBe(`/api/activities?limit=${MAX_PAGE_SIZE}`)
+    expect(callOf(fetchMock, 1).path).toBe(`/api/activities?limit=${MAX_PAGE_SIZE}&cursor=c1`)
+    expect(callOf(fetchMock, 2).path).toBe(`/api/activities?limit=${MAX_PAGE_SIZE}&cursor=c2`)
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
@@ -401,6 +407,107 @@ describe('listActivities', () => {
     const onUnreadable = vi.fn()
     await listActivities(undefined, undefined, onUnreadable)
     expect(onUnreadable).not.toHaveBeenCalled()
+  })
+
+  it('skips a record whose digest fails the schema, counts it, and loads the rest of the page', async () => {
+    const bad = { ...RECORD_WIRE, id: 'rec-bad', digest: { version: 1 } }
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    stubFetch(
+      respond(200, {
+        items: [RECORD_WIRE, bad, { ...RECORD_WIRE, id: 'rec-2' }],
+        nextCursor: 'c1',
+        unreadable: 1,
+      }),
+      respond(200, {
+        items: [
+          { ...RECORD_WIRE, id: 'rec-3', digest: null },
+          { ...RECORD_WIRE, id: 'rec-4' },
+        ],
+        nextCursor: null,
+      }),
+    )
+    const onUnreadable = vi.fn()
+    const pages: string[][] = []
+    await listActivities(undefined, undefined, onUnreadable, (items) => {
+      pages.push(items.map((item) => item.id))
+    })
+
+    expect(pages).toEqual([['rec-1', 'rec-2'], ['rec-4']])
+    // One the server counted, one skipped on the first page here, one on the second.
+    expect(onUnreadable).toHaveBeenCalledExactlyOnceWith(3)
+  })
+
+  it('logs the id and first failing path of each skipped digest, never its content', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const secret = 'private-text-in-a-digest'
+    stubFetch(
+      respond(200, {
+        items: [
+          { ...RECORD_WIRE, id: 'rec-bad', digest: { ...WIRE_DIGEST, startMs: secret } },
+          { ...RECORD_WIRE, id: 'rec-null', digest: null },
+          { ...RECORD_WIRE, id: 'rec-ok' },
+        ],
+        nextCursor: null,
+      }),
+    )
+    await listActivities()
+
+    const logged = warn.mock.calls.map(([line]) => JSON.parse(String(line)) as unknown)
+    expect(logged).toEqual([
+      { event: 'activity_digest_unreadable', activityId: 'rec-bad', path: 'startMs' },
+      { event: 'activity_digest_unreadable', activityId: 'rec-null', path: '' },
+    ])
+    expect(JSON.stringify(logged)).not.toContain(secret)
+  })
+
+  it('still fails the whole page when a record envelope is not valid', async () => {
+    // JSON leaves out a key that is undefined, so this record has no digest at all.
+    const withoutDigest = { ...RECORD_WIRE, digest: undefined }
+    for (const item of [{ ...RECORD_WIRE, fileName: 'x'.repeat(256) }, withoutDigest]) {
+      stubFetch(respond(200, { items: [item], nextCursor: null }))
+      await expect(listActivities()).rejects.toMatchObject({ code: 'invalid_response' })
+    }
+  })
+
+  it('checks each digest on its own, so one bad record does not change how the others parse', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    stubFetch(
+      respond(200, {
+        items: [{ ...RECORD_WIRE, digest: { ...WIRE_DIGEST, sport: 'swim' } }, RECORD_WIRE],
+        nextCursor: null,
+      }),
+    )
+    const records = await listActivities()
+    expect(records).toHaveLength(1)
+    expect(records[0]?.digest.curve[0]?.value).toBeNaN()
+  })
+
+  it('loads a full page of 90 worst-case records, which is past the old 64 KiB of envelope room', async () => {
+    // Control characters are six bytes each in JSON. The ids and file names take their full
+    // length; the digests, names included, fill the digest budget.
+    const digestBytes = Math.floor(MAX_PAGE_DIGEST_BYTES / MAX_PAGE_SIZE)
+    const baseBytes = JSON.stringify(WIRE_DIGEST).length
+    const digest = { ...WIRE_DIGEST, name: '\u0001'.repeat((digestBytes - baseBytes) / 6) }
+    const items = Array.from({ length: MAX_PAGE_SIZE }, (_, index) => ({
+      id: `${'\u0001'.repeat(60)}${String(index).padStart(4, '0')}`,
+      digest,
+      fileName: '\u0001'.repeat(255),
+      hasFile: false,
+      fileSize: Number.MAX_SAFE_INTEGER,
+      createdAt: -Number.MAX_SAFE_INTEGER,
+    }))
+    const first = JSON.stringify({
+      items,
+      nextCursor: '\u0001'.repeat(256),
+      unreadable: Number.MAX_SAFE_INTEGER,
+    })
+    expect(new TextEncoder().encode(first).byteLength).toBeGreaterThan(
+      MAX_PAGE_DIGEST_BYTES + 64 * 1024,
+    )
+    stubFetch(new Response(first, { status: 200 }), respond(200, { items: [], nextCursor: null }))
+
+    const records = await listActivities()
+    expect(records).toHaveLength(MAX_PAGE_SIZE)
   })
 
   it('hands each page to onPage as it arrives, and keeps no records when it is given', async () => {
@@ -429,14 +536,18 @@ describe('listActivities', () => {
       respond(200, { items: [{ ...RECORD_WIRE, id: 'rec-2' }], nextCursor: null }),
     )
     await listActivities(1_700_000_000_000)
-    expect(callOf(fetchMock, 0).path).toBe('/api/activities?limit=25&since=1700000000000')
-    expect(callOf(fetchMock, 1).path).toBe('/api/activities?limit=25&since=1700000000000&cursor=c1')
+    expect(callOf(fetchMock, 0).path).toBe(
+      `/api/activities?limit=${MAX_PAGE_SIZE}&since=1700000000000`,
+    )
+    expect(callOf(fetchMock, 1).path).toBe(
+      `/api/activities?limit=${MAX_PAGE_SIZE}&since=1700000000000&cursor=c1`,
+    )
   })
 
   it('treats since of 0 as a parameter, not as missing', async () => {
     const fetchMock = stubFetch(respond(200, { items: [], nextCursor: null }))
     await listActivities(0)
-    expect(callOf(fetchMock).path).toBe('/api/activities?limit=25&since=0')
+    expect(callOf(fetchMock).path).toBe(`/api/activities?limit=${MAX_PAGE_SIZE}&since=0`)
   })
 
   it('stops with an error when the server repeats a cursor instead of looping forever', async () => {

@@ -81,13 +81,14 @@ the build output.
 **View** (combine in the browser)
 
 1. The web app calls `GET /api/activities` with optional `since`, `limit` and `cursor` query
-   parameters. The page size is at most 25.
+   parameters. The page size is at most 90.
 2. The API returns that user's digests only. The user id comes from the session, never from the
    request.
 3. A browser Web Worker combines the digests with the profile settings (mass, priors) and runs the
-   Monte Carlo comparison. The server does indexed D1 reads and serialises JSON. The worker keeps
-   the analysis of the last four periods, so going back to one is not worked out again until a
-   digest or a mass changes.
+   Monte Carlo comparison. The server does indexed D1 reads and sends each stored digest as it is,
+   after checking only that it is JSON. The browser validates each digest and skips one that fails.
+   The worker keeps the analysis of the last four periods, so going back to one is not worked out
+   again until a digest or a mass changes.
 
 **Other account routes**
 
@@ -316,7 +317,7 @@ pricing](https://developers.cloudflare.com/r2/pricing/) before relying on a cost
 | R2            | R2 pricing        | Original files, only when a user keeps them        |
 
 CPU time per request is the binding constraint. The open risk is `GET /api/activities` for a large
-library, which serialises hundreds of digests in one request. Measure it with a realistic library
+library, which sends hundreds of stored digests in one request. Measure it with a realistic library
 before launch.
 
 ## Portability

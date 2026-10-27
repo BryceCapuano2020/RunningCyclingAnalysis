@@ -759,12 +759,12 @@ async function insertRawActivity(
 }
 
 describe('GET /api/activities with unreadable stored rows', () => {
-  it('skips a stored row that no longer validates, counts it, and still returns the valid rows', async () => {
+  it('skips a stored row that is not JSON, counts it, and still returns the valid rows', async () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)
     const valid = await idOf(await createActivity(h, token, {}, { startMs: START }))
-    await insertRawActivity(h, uid, 'bad-row', '{"version":1}', START + 10_000)
+    await insertRawActivity(h, uid, 'bad-row', '{"version":', START + 10_000)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
     const page = await pageOf(h, token, '')
@@ -781,7 +781,7 @@ describe('GET /api/activities with unreadable stored rows', () => {
     const token = await h.signIn()
     const uid = await userId(h, token)
     const oldValid = await idOf(await createActivity(h, token, {}, { startMs: START }))
-    await insertRawActivity(h, uid, 'bad-1', '{"version":1}', START + 1_000)
+    await insertRawActivity(h, uid, 'bad-1', '{"version":', START + 1_000)
     await insertRawActivity(h, uid, 'bad-2', 'not json', START + 2_000)
     h.clock.now = START + 3_000
     const newValid = await idOf(await createActivity(h, token, {}, { startMs: START + 3_000 }))
@@ -841,7 +841,7 @@ describe('GET /api/activities with unreadable stored rows', () => {
   })
 })
 
-/** Inserts rows whose digest does not validate, in one statement. */
+/** Inserts rows whose digest is not JSON, in one statement. */
 async function seedUnreadableActivities(
   h: Harness,
   uid: string,
@@ -852,7 +852,7 @@ async function seedUnreadableActivities(
     `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
      INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
        digest_json, file_name, file_hash, created_at)
-     SELECT 'bad-' || i, ?, 'bad-' || i, 'ride', i, 'legacy', 1, '{"version":1}', 'ride.fit',
+     SELECT 'bad-' || i, ?, 'bad-' || i, 'ride', i, 'legacy', 1, '{"version":', 'ride.fit',
        'h', ? + i FROM n`,
   )
     .bind(count, uid, firstCreatedAt)

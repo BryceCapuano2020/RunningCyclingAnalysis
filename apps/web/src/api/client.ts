@@ -1,5 +1,5 @@
 import {
-  ActivityPageSchema,
+  ActivityPageWireSchema,
   ActivityRecordSchema,
   ACCOUNT_SCOPE_HEADER,
   ApiErrorSchema,
@@ -14,6 +14,7 @@ import {
 } from '@rca/contract'
 import type { ActivityRecord, Me, Profile, ProfileInput } from '@rca/contract'
 import type { ActivityDigest } from '@rca/core/types'
+import { readableRecords } from './pageRecords'
 
 /** Where the browser starts Google sign-in. The API redirects back to the app when done. */
 export const signInUrl = '/api/auth/google'
@@ -239,8 +240,9 @@ export async function deleteAccount(userId?: string): Promise<void> {
 /**
  * Every activity the user has, newest first, following the server's pages to the end. With
  * `since` (epoch ms), only those created at or after it. `onUnreadable` receives the number of
- * stored activities the server could not read; it is called once, and only when that number is
- * above zero.
+ * stored activities that could not be read, whether the server found they are not JSON or a digest
+ * failed its schema here; it is called once, and only when that number is above zero. A digest that
+ * fails the schema is skipped, not fatal to the page.
  *
  * With `onPage`, each page's records are handed over as they arrive and are not kept, so a large
  * library never sits in memory whole; the promise then resolves to an empty array. Without it the
@@ -268,16 +270,17 @@ export async function listActivities(
     if (cursor !== undefined) params.set('cursor', cursor)
     const page = await readJson(
       await request('GET', `/api/activities?${params}`, undefined, userId),
-      ActivityPageSchema,
+      ActivityPageWireSchema,
       PAGE_BODY_LIMIT,
     )
     if (total + page.items.length > MAX_ACTIVITIES_PER_USER) {
       throw new ApiRequestError(200, 'invalid_response', INVALID_RESPONSE_MESSAGE)
     }
     total += page.items.length
-    if (onPage) onPage(page.items)
-    else records.push(...page.items)
-    unreadable += page.unreadable ?? 0
+    const readable = readableRecords(page.items)
+    if (onPage) onPage(readable.records)
+    else records.push(...readable.records)
+    unreadable += (page.unreadable ?? 0) + readable.unreadable
     cursor = page.nextCursor ?? undefined
     // A server that repeats a cursor would make this loop forever.
     if (cursor !== undefined) {

@@ -8,6 +8,7 @@ import {
   ActivityCreateSchema,
   ActivityDigestSchema,
   ActivityPageSchema,
+  ActivityPageWireSchema,
   ActivityRecordSchema,
   ApiErrorSchema,
   DevLoginSchema,
@@ -277,6 +278,25 @@ describe('string bounds on API payloads', () => {
     )
     const cursor = 'c'.repeat(257)
     expect(ActivityPageSchema.safeParse({ items: [], nextCursor: cursor }).success).toBe(false)
+  })
+
+  it('reads a page off the wire with each digest left for the caller to check', () => {
+    const wire = {
+      items: [record, { ...record, id: 'a2', digest: { version: 1 } }],
+      nextCursor: null,
+    }
+    expect(ActivityPageSchema.safeParse(wire).success).toBe(false)
+    const parsed = ActivityPageWireSchema.safeParse(wire)
+    expect(parsed.success).toBe(true)
+    expect(parsed.data?.items.map((item) => item.digest)).toEqual([digestWire, { version: 1 }])
+    // The envelope keeps the bounds of the strict page schema.
+    const longName = { ...record, fileName: 'x'.repeat(256) }
+    expect(ActivityPageWireSchema.safeParse({ items: [longName], nextCursor: null }).success).toBe(
+      false,
+    )
+    expect(
+      ActivityPageWireSchema.safeParse({ items: [], nextCursor: 'c'.repeat(257) }).success,
+    ).toBe(false)
   })
 
   it('bounds the error code and message', () => {

@@ -28,7 +28,7 @@ export interface SavedLibraryProps {
   status: string | null
   /** A library action failure message. */
   error: string | null
-  /** Stored activities the server could not read, so they are not listed. */
+  /** Stored activities that could not be read, so they are not listed. */
   unreadable?: number
   scope?: SavedScope
   /** A removal dialog is open beside the list, so no row confirmation stays open with it. */
@@ -55,7 +55,7 @@ const DELETE_FOR: Record<SavedScope, DeleteRule> = {
   },
 }
 
-/** The note on stored activities the server could not read, singular or plural. */
+/** The note on stored activities that could not be read, singular or plural. */
 function unreadableNote(count: number): string {
   const one = count === 1
   return `${plural(count, 'saved activity', 'saved activities')} could not be read and ${one ? 'is' : 'are'} hidden. Re-adding ${one ? 'its file' : 'their files'} will restore ${one ? 'it' : 'them'}.`

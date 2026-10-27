@@ -116,7 +116,7 @@ export type WorkerResponse =
    * account's original file and was not read, because the request did not ask for it.
    */
   | { type: 'routeShape'; route: RouteShape | null; original: boolean }
-  /** Stored activities the server could not read in the last library load, sent when above zero. */
+  /** Stored activities that could not be read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
   /**
    * The import stopped saving: the account ended or changed, storage is full, or a limit was

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'
 import { WEIGHT_LIMITS_KG } from './athlete.ts'
+import { MAX_CURSOR_CHARS, MAX_FILE_NAME_CHARS, MAX_RECORD_ID_CHARS } from './limits.ts'
 
 export const SexSchema = z.enum(['female', 'male'])
 export type Sex = z.infer<typeof SexSchema>
@@ -57,7 +58,7 @@ export const MeResponseSchema = MeSchema.nullable()
 export const ActivityCreateSchema = z
   .object({
     digest: ActivityDigestSchema,
-    fileName: z.string().min(1).max(255),
+    fileName: z.string().min(1).max(MAX_FILE_NAME_CHARS),
     /** Lowercase hex SHA-256 of the original file. */
     fileHash: z.string().regex(/^[0-9a-f]{64}$/),
   })
@@ -73,10 +74,10 @@ export const ActivityCreateSchema = z
 export type ActivityCreate = z.input<typeof ActivityCreateSchema>
 
 export const ActivityRecordSchema = z.object({
-  id: z.string().max(64),
+  id: z.string().max(MAX_RECORD_ID_CHARS),
   /** Read leniently: a stored row may come from an older revision that create would refuse. */
   digest: StoredActivityDigestSchema,
-  fileName: z.string().max(255),
+  fileName: z.string().max(MAX_FILE_NAME_CHARS),
   hasFile: z.boolean(),
   fileSize: z.number().int().nonnegative().nullable(),
   createdAt: z.number().int(),
@@ -85,14 +86,24 @@ export type ActivityRecord = z.infer<typeof ActivityRecordSchema>
 
 /**
  * One page of GET /api/activities. nextCursor is null on the last page. unreadable counts stored
- * activities on this page that the server could not read, so they are left out of items.
+ * activities on this page that could not be read, so they are left out of items. The server leaves
+ * out a digest that is not JSON; the client leaves out one that fails the schema.
  */
 export const ActivityPageSchema = z.object({
   items: z.array(ActivityRecordSchema),
-  nextCursor: z.string().max(256).nullable(),
+  nextCursor: z.string().max(MAX_CURSOR_CHARS).nullable(),
   unreadable: z.number().int().nonnegative().optional(),
 })
 export type ActivityPage = z.infer<typeof ActivityPageSchema>
+
+/**
+ * A page as the server sends it: the server only checks that each digest is JSON, so the digest is
+ * left unchecked here and the reader validates it record by record (see listActivities).
+ */
+export const ActivityPageWireSchema = ActivityPageSchema.extend({
+  items: z.array(ActivityRecordSchema.extend({ digest: z.unknown() })),
+})
+export type ActivityPageWire = z.infer<typeof ActivityPageWireSchema>
 
 /** The message summarises validation issues, so it can run longer than a sentence. */
 export const ApiErrorSchema = z.object({

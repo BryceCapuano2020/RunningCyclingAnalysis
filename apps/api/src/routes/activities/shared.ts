@@ -17,19 +17,25 @@ export function dedupeKeyFor(sport: Sport, startMs: number): string {
   return `${sport}-${Math.round(startMs / 1000)}`
 }
 
-export function toRecord(
-  row: ActivityRow,
-  digest: ActivityRecord['digest'] = StoredActivityDigestSchema.parse(JSON.parse(row.digestJson)),
-): ActivityRecord {
+/** Every field of a record except its digest. */
+export type ActivityEnvelope = Omit<ActivityRecord, 'digest'>
+
+export function toEnvelope(row: ActivityRow): ActivityEnvelope {
   return {
     id: row.id,
-    digest,
     fileName: row.fileName,
     hasFile: row.fileKey !== null,
     // A pending reservation counts toward quota internally, but is not a stored file yet.
     fileSize: row.fileKey === null ? null : row.fileSize,
     createdAt: row.createdAt,
   }
+}
+
+export function toRecord(
+  row: ActivityRow,
+  digest: ActivityRecord['digest'] = StoredActivityDigestSchema.parse(JSON.parse(row.digestJson)),
+): ActivityRecord {
+  return { ...toEnvelope(row), digest }
 }
 
 /** Looks up an activity owned by the user. Other users' activities read as not found. */

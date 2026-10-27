@@ -81,16 +81,45 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 ## Activity list
 
-- A page holds at most 25 activities and at most 1 MiB of digest JSON.
-- A stored row whose digest cannot be read is skipped, not returned. The response counts skipped rows in
-  `unreadable`, which is absent when the count is zero. Each skip is logged with the activity id and the
-  first failing path, never the content. A skipped row still moves the cursor on.
+- A page holds at most 90 activities (`MAX_PAGE_SIZE`) and at most 512 KiB of digest JSON
+  (`MAX_PAGE_DIGEST_BYTES`). The page read binds the user id plus one id per row, so 90 rows is 91 of the 100
+  bound parameters D1 allows a statement; a test pins `MAX_PAGE_SIZE + 1 <= 100`.
+- **Pages for a library.** A library of 1,915 activities lists in 22 pages (it was 77 at 25 a page). That holds
+  while every page of 90 digests fits the 512 KiB budget, which needs an average under about 5.7 KiB (5,825
+  bytes). A page whose digests are larger reaches the byte budget first, holds fewer than 90 rows, and so the
+  library takes more pages. The owner's 1,915 digests average about 5.0 KiB (9.85 MB listed in total), so the
+  pages are about 430 KB at 90 rows and only outlier pages are cut short.
+- **Why the digest budget is 512 KiB.** The server's work on a page is one `JSON.parse` per digest, and the
+  budget is the only bound on it. Workers Free allows 10 ms of CPU a request, so the budget is kept small.
+  A single digest is at most 256 KiB (`MAX_DIGEST_BYTES`), so a page always holds at least one.
+- **Response body cap.** `MAX_PAGE_BODY_BYTES` is the most the web client reads from a page. It is the digest
+  budget plus `MAX_PAGE_SIZE` times `MAX_RECORD_ENVELOPE_BYTES` (2,022 bytes) plus the page's own cursor and
+  count, 707,862 bytes in all. The record figure is the worst-case JSON of the record schema's limits: a
+  64-character id and a 255-character file name made of control characters, which JSON writes as `\u0001`
+  at six bytes each, the largest safe integer for the file size and for a negative created time, and the keys.
+  A page of 90 such records adds about 182 KB to the digests; the earlier flat 64 KiB of room would have
+  made the client refuse that page and fail the whole library load. The activity name sits in the digest, so
+  the digest budget counts it. The server cannot go over the cap: it stops a page at the digest budget and at
+  90 rows, and it leaves out, as unreadable, a row whose id, file name or numbers are past the schema's limits.
+- The server does not validate a stored digest or serialise it again. It parses each row's `digest_json` with
+  `JSON.parse` only to see that it is JSON, then builds the response body with the row's envelope (id, file
+  name and so on) serialised on its own and the stored digest text spliced in unchanged. Only text that
+  parsed is spliced, so the body is always valid JSON, and a stored value cannot close its record or add keys.
+- A stored row whose digest is not JSON, or whose id or file name is past the record schema's limits, is
+  skipped, not returned. The response counts skipped rows in
+  `unreadable`, which is absent when the count is zero. Each skip is logged with the activity id, never the
+  content. A skipped row still moves the cursor on.
+- The web client validates each item's digest with `StoredActivityDigestSchema`. An item that fails is left
+  out and added to the `unreadable` count the client reports, and the rest of the page loads. The client logs
+  each one to the browser console as `activity_digest_unreadable` with the activity id and the first failing
+  path, never the content. The envelope is still checked as a whole: one malformed envelope fails the page.
 - One request scans at most 8 database pages, which keeps it inside D1 Free's 50 queries per invocation
   even when many stored rows are unreadable. A request that hits the cap returns the rows it found, possibly
   none, with a cursor after the last row it examined; clients follow that cursor like any other.
-- Stored rows are read with a lenient schema, `StoredActivityDigestSchema`. It keeps the field types but not
-  the create-time rules (for example a null duration or a curve off the grid, which older revisions may
-  carry), and it bounds array lengths at four times the create limits. Creates still use the strict schema.
+- Stored digests are read with a lenient schema, `StoredActivityDigestSchema`, by the client. It keeps the
+  field types but not the create-time rules (for example a null duration or a curve off the grid, which older
+  revisions may carry), and it bounds array lengths at four times the create limits. Creates still use the
+  strict schema.
 
 ## Creates, replace and the database guard
 
@@ -195,13 +224,14 @@ before launch, and plan for Workers Paid if usage grows.
 - **The guard assumes a delete lowers `meta.size_after`.** SQLite can keep freed pages in the file, so a
   delete may not lower the reported size. This is not verified on D1. If it does not fall, the guard stays
   tripped until an operator acts.
-- **Legacy rows reach the web client.** Stored rows that the lenient schema reads are listed as they are. The
-  client parses them with the same contract (`ActivityPageSchema`), so the analysis must cope with a null
-  duration or an off-grid curve.
-- **CPU on Free (10 ms per request).** Hashing a 50 MiB upload with SHA-256 and parsing a 1 MiB list
-  page are both likely to exceed 10 ms of CPU. This is an estimate and has not been measured. The
-  app needs Workers Paid for production uploads, or a measured confirmation that the free plan can
-  handle them.
+- **Legacy rows reach the web client.** Stored rows that are JSON are listed as they are, whatever their shape.
+  The client reads each with the lenient schema (`StoredActivityDigestSchema`), so the analysis must cope with
+  a null duration or an off-grid curve. A tab running an older web build still validates the whole page, so it
+  fails to load while any stored row is JSON but not a digest.
+- **CPU on Free (10 ms per request).** Hashing a 50 MiB upload with SHA-256 is likely to exceed
+  10 ms of CPU. The `JSON.parse` check of a list page is bounded by the 512 KiB digest budget, which was
+  lowered from 1 MiB to keep it small. Both are estimates and have not been measured. The app needs Workers
+  Paid for production uploads, or a measured confirmation that the free plan can handle them.
 - **Streaming the SHA-256.** `crypto.DigestStream` exists, but the hash must be verified before the
   object is written. The body is single-pass, so streaming would need a staging key and a copy,
   which doubles Class A operations. Bodies are still buffered, with at most 2 uploads per user.
