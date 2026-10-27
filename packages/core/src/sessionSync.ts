@@ -22,8 +22,8 @@ export type SyncSink = (item: SyncItem) => Promise<void>
 export type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
 
 /**
- * State shared by the activities of one import: the first failure that stops saving, and the copies
- * skipped because a better format of the same workout is already held.
+ * State shared by the files of one import: the first failure that stops saving, and the files skipped
+ * because every activity in them is a workout the library already holds.
  */
 export interface SaveBatch {
   halt: SyncIssueCode | null

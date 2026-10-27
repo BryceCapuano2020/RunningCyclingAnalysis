@@ -7,13 +7,13 @@ import { groupRejected } from './rejectCopy'
 /** What an import's tally is worked out from: its counts, and the refused files it lists. */
 export type Counted = Pick<
   ImportOutcome,
-  'activities' | 'rejected' | 'duplicates' | 'notActivities'
+  'filesAdded' | 'rejected' | 'duplicates' | 'notActivities'
 >
 
 /** Where each file of an import went. The parts add up to the files the import saw. */
 export interface SkipTally {
-  /** Activities read and kept. */
-  saved: number
+  /** Files that kept an activity, whether the workout is new or was already held. */
+  added: number
   /** Files that could not be used, including those in a format the app does not read. */
   needLook: number
   /** Files of sports the app does not count, which are left out on purpose. */
@@ -32,7 +32,7 @@ export function tallyOf(outcome: Counted, rejected: readonly RejectedFile[]): Sk
   const otherSports = groupRejected(rejected)['other-sports'].length
   const alreadyAdded = outcome.duplicates.length
   return {
-    saved: outcome.activities - alreadyAdded,
+    added: outcome.filesAdded ?? 0,
     needLook: outcome.rejected - otherSports,
     otherSports,
     alreadyAdded,
@@ -40,25 +40,25 @@ export function tallyOf(outcome: Counted, rejected: readonly RejectedFile[]): Sk
   }
 }
 
-/** The files an import did not save. When it is nothing there is no summary of them to show. */
+/** The files an import did not add. When it is nothing there is no summary of them to show. */
 export function skippedTotal(tally: SkipTally): number {
   return tally.needLook + tally.otherSports + tally.alreadyAdded + tally.unlisted
 }
 
 /**
- * The headline over the groups, which adds up to every file: "3,018 files: 1,915 saved, 35 need a look,
+ * The headline over the groups, which adds up to every file: "3,018 files: 1,915 added, 35 need a look,
  * ...". A part with no files is left out.
  */
 export function tallySentence(tally: SkipTally): string {
-  const { saved, needLook, otherSports, alreadyAdded, unlisted } = tally
+  const { added, needLook, otherSports, alreadyAdded, unlisted } = tally
   const parts: Array<[count: number, text: string]> = [
-    [saved, `${formatCount(saved)} saved`],
+    [added, `${formatCount(added)} added`],
     [needLook, `${formatCount(needLook)} ${needLook === 1 ? 'needs' : 'need'} a look`],
     [otherSports, `${plural(otherSports, 'other sport')} left out on purpose`],
     [alreadyAdded, `${formatCount(alreadyAdded)} already added`],
     [unlisted, `${formatCount(unlisted)} not listed as activities`],
   ]
-  const files = saved + skippedTotal(tally)
+  const files = added + skippedTotal(tally)
   const shown = parts.filter(([count]) => count > 0).map(([, text]) => text)
   return `${plural(files, 'file')}: ${shown.join(', ')}.`
 }

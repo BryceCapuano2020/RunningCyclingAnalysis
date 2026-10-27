@@ -14,6 +14,7 @@ import './ImportStatus.css'
 type Outcome = Pick<
   ImportOutcome,
   | 'activities'
+  | 'filesAdded'
   | 'rejected'
   | 'duplicates'
   | 'notActivities'

@@ -44,3 +44,23 @@ describe('the headline and the nested disclosure', () => {
     expect(flat(css)).toMatch(/\.rejected-files__tally \{[^}]*margin: 0;/)
   })
 })
+
+describe('the group titles, which are headings', () => {
+  /** The declarations of the rule for the group title, with its selector and braces removed. */
+  function titleRule(): string {
+    const match = /\.rejected-files__title(?:,[^{]*)? \{([^}]*)\}/.exec(flat(css))
+    return match?.[1] ?? ''
+  }
+
+  it('sets them back to the size, family and case of the text round them, as the bold line they replace', () => {
+    const rule = titleRule()
+    expect(rule).toContain('font: inherit;')
+    expect(rule).toContain('font-weight: 700;')
+    expect(rule).toContain('text-transform: none;')
+    expect(rule).toContain('letter-spacing: normal;')
+  })
+
+  it('gives them no margin of their own', () => {
+    expect(titleRule()).toContain('margin: 0;')
+  })
+})

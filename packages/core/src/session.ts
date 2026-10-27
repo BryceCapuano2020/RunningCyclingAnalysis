@@ -18,7 +18,6 @@ import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import type { Rejection } from './import/result'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
 
@@ -46,9 +45,10 @@ export class AnalysisSession {
   private latestUnsynced = new Set<string>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
-  // Keyed by file name so importing the same export twice does not double-count.
-  private rejected = new Map<string, Rejection>()
-  private unsupported = new Map<string, number>()
+  // The files the last import refused, each listed as it was refused, and how many it left unread
+  // for being in a format the app does not read. Both are replaced by the next import.
+  private rejected: RejectedFile[] = []
+  private unsupported = { files: 0 }
   private isSample = false
   // The period the athlete picked. The default is the most recent window that holds both sports.
   private choice: PeriodChoice = 'default'
@@ -89,7 +89,10 @@ export class AnalysisSession {
     sink?: SyncSink,
     syncExisting = false,
     onComplete?: (outcome: {
+      /** The activities read, which a file may hold several of. */
       activities: number
+      /** The files that kept an activity: not refused, and not all copies. */
+      filesAdded: number
       rejected: number
       /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
       notActivities: number
@@ -99,18 +102,19 @@ export class AnalysisSession {
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     // The rejected files are those of this import, so an earlier import's are not listed again.
-    this.rejected.clear()
-    this.unsupported.clear()
+    this.rejected.length = 0
+    this.unsupported.files = 0
     this.latestUnsynced.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
-    const outcome = { activities: 0, rejected: 0, notActivities: 0 }
+    const outcome = { activities: 0, filesAdded: 0, rejected: 0, notActivities: 0 }
     for (const source of sources) {
       await importSource(source, {
         limits: this.limits,
         progress,
         outcome,
         rejected: this.rejected,
+        duplicates: batch.duplicates,
         unsupported: this.unsupported,
         hashFiles: sink !== undefined,
         consider: (activity, file) => this.consider(activity, file, sink, syncExisting, batch),
@@ -199,8 +203,9 @@ export class AnalysisSession {
 
   /**
    * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
-   * copy is reported as a duplicate and is not synced. Equally rich copies are both saved, and the
-   * analysis hides one of them. A poorer copy is saved but hidden from the analysis.
+   * copy is not synced, and the name of the held file it copies is given back. Equally rich copies
+   * are both saved, and the analysis hides one of them. A poorer copy is saved but hidden from the
+   * analysis. Gives null when the activity is kept.
    */
   private async consider(
     activity: Activity,
@@ -208,14 +213,11 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
-    if (copyOf !== null) {
-      const reason = `Same workout as ${copyOf}`
-      batch.duplicates.push({ fileName: file.fileName, reason, code: 'duplicate', detail: copyOf })
-      return
-    }
+    if (copyOf !== null) return copyOf
     await this.keep(activity, file, sink, syncExisting, batch)
+    return null
   }
 
   /**
@@ -287,8 +289,8 @@ export class AnalysisSession {
     this.digests.clear()
     this.outdatedKeys.clear()
     this.incompatibleKeys.clear()
-    this.rejected.clear()
-    this.unsupported.clear()
+    this.rejected.length = 0
+    this.unsupported.files = 0
     this.isSample = false
   }
 
@@ -363,10 +365,8 @@ export class AnalysisSession {
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
           : null,
-      rejected: [...this.rejected].map(([fileName, rejection]) =>
-        Object.assign({ fileName }, rejection),
-      ),
-      unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
+      rejected: [...this.rejected],
+      unsupportedFiles: this.unsupported.files,
       isSample: this.isSample,
       totalActivities: visible.length,
       outdatedActivities: this.outdatedKeys.size,

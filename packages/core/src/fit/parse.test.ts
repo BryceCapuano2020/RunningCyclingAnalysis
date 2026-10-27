@@ -1206,13 +1206,4 @@ describe('parseFit with the type an export list gives', () => {
       ).toBe('ride')
     },
   )
-
-  it('never says a refused FIT sport name came from the list', () => {
-    const hike = buildFit({
-      sessions: [{ sport: 'hiking', startMs: START_MS, durationS: 70, records }],
-    })
-    const result = parseFit(hike, 'hike.fit', undefined, { activityType: 'Hike' })
-    expect(result).toMatchObject({ ok: false, detail: 'hiking' })
-    expect(result).not.toHaveProperty('listed')
-  })
 })

@@ -31,60 +31,67 @@ type Carriers = ReadonlySet<RejectedFile>
  * What an import did with its files: one headline that adds up to all of them, which opens the
  * groups, with the first file that needs a look under it in both states. The files that need a look
  * are listed, one line each. The other sports are one line each with their count, and their files sit
- * behind Show the files. The files the export does not list, such as saved routes, are one line.
+ * behind Show the files. The files the export does not list, such as saved routes, are one line. When
+ * no group would have a line to show, the headline and that first file are text, with nothing to open.
  */
 export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedFilesProps) {
   const tally = tallyOf(outcome, rejected)
   if (skippedTotal(tally) === 0) return null
-  const headline = tallySentence(tally)
-  // Unlisted files alone are already said by the headline, so there is nothing to open.
-  if (tally.needLook + tally.otherSports + tally.alreadyAdded === 0) {
-    return (
-      <div className="rejected-files">
-        <p className="rejected-files__tally">{headline}</p>
-      </div>
-    )
-  }
   const groups = groupRejected([...rejected, ...outcome.duplicates])
   const problems = groups['need-a-look']
   const carriers = adviceCarriers(problems)
   const first = problems[0]
+  // The first file is shown under the headline, so the group's list leaves it out.
+  const beneath = problems.filter((file) => file !== first)
+  const lines = beneath.length + unsupportedFiles
+  const headline = tallySentence(tally)
+  const firstLine = first === undefined ? null : fileLine(first, carriers)
+  // The headline already says the files the export does not list, so they alone are nothing to open.
+  const detailed = lines + tally.otherSports + tally.alreadyAdded > 0
+  const guides = tally.needLook + tally.otherSports + tally.alreadyAdded > 0
   return (
     <div className="rejected-files">
-      <details>
-        <summary>
-          <span>{headline}</span>
-          {first !== undefined && (
-            <span className="rejected-files__first">{fileLine(first, carriers)}</span>
+      {detailed ? (
+        <details>
+          <summary>
+            <span>{headline}</span>
+            {firstLine !== null && <span className="rejected-files__first">{firstLine}</span>}
+          </summary>
+          {lines > 0 && (
+            <NeedALook
+              count={tally.needLook}
+              files={beneath}
+              carriers={carriers}
+              unsupportedFiles={unsupportedFiles}
+              namesNotActivity={problems.some((file) => file.code === 'not-activity')}
+            />
           )}
-        </summary>
-        {tally.needLook > 0 && (
-          <NeedALook
-            count={tally.needLook}
-            // The first file is shown under the headline, so the list leaves it out.
-            files={problems.filter((file) => file !== first)}
-            carriers={carriers}
-            unsupportedFiles={unsupportedFiles}
-            namesNotActivity={problems.some((file) => file.code === 'not-activity')}
-          />
-        )}
-        {tally.otherSports > 0 && (
-          <OtherSports count={tally.otherSports} files={groups['other-sports']} />
-        )}
-        {tally.alreadyAdded > 0 && (
-          <AlreadyAdded count={tally.alreadyAdded} files={groups['already-added']} />
-        )}
-        {tally.unlisted > 0 && (
-          <div className="rejected-files__group">
-            <p className="rejected-files__title">
-              <strong>{unlistedTitle(tally.unlisted)}</strong>
-            </p>
-          </div>
-        )}
-      </details>
-      <HowToGetFilesButton />
+          {tally.otherSports > 0 && (
+            <OtherSports count={tally.otherSports} files={groups['other-sports']} />
+          )}
+          {tally.alreadyAdded > 0 && (
+            <AlreadyAdded count={tally.alreadyAdded} files={groups['already-added']} />
+          )}
+          {tally.unlisted > 0 && (
+            <div className="rejected-files__group">
+              <Title>{unlistedTitle(tally.unlisted)}</Title>
+            </div>
+          )}
+        </details>
+      ) : (
+        <>
+          <p className="rejected-files__tally">{headline}</p>
+          {firstLine !== null && <p className="rejected-files__first">{firstLine}</p>}
+        </>
+      )}
+      {guides && <HowToGetFilesButton />}
     </div>
   )
+}
+
+/** A group's title, a heading of the notice region, set in the weight of the text round it. */
+function Title({ children }: { children: string }) {
+  return <h2 className="rejected-files__title">{children}</h2>
 }
 
 /** A file's name and its reason in plain words, with the advice when its line carries it. */
@@ -115,9 +122,7 @@ function NeedALook(props: {
   const { count, files, carriers, unsupportedFiles, namesNotActivity } = props
   return (
     <div className="rejected-files__group">
-      <p className="rejected-files__title">
-        <strong>{groupTitle('need-a-look', count)}</strong>
-      </p>
+      <Title>{groupTitle('need-a-look', count)}</Title>
       {(files.length > 0 || unsupportedFiles > 0) && (
         <ul className="rejected-files__list">
           <FileList files={files} carriers={carriers} />
@@ -134,9 +139,7 @@ function OtherSports({ count, files }: { count: number; files: RejectedFile[] })
   const sports = bySport(files)
   return (
     <div className="rejected-files__group">
-      <p className="rejected-files__title">
-        <strong>{groupTitle('other-sports', count)}</strong>
-      </p>
+      <Title>{groupTitle('other-sports', count)}</Title>
       <ul className="rejected-files__list">
         {sports.map(({ label, files: members }) => (
           <li key={label}>{`${label}: ${formatCount(members.length)}`}</li>
@@ -155,9 +158,7 @@ function OtherSports({ count, files }: { count: number; files: RejectedFile[] })
 function AlreadyAdded({ count, files }: { count: number; files: RejectedFile[] }) {
   return (
     <div className="rejected-files__group">
-      <p className="rejected-files__title">
-        <strong>{groupTitle('already-added', count)}</strong>
-      </p>
+      <Title>{groupTitle('already-added', count)}</Title>
       <p className="rejected-files__action">{ALREADY_ADDED_NOTE}</p>
       <ul className="rejected-files__list">
         <FileList files={files} carriers={NO_CARRIERS} />

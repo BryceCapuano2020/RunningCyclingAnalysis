@@ -38,9 +38,17 @@
   margin-top: var(--space-3);
 }
 
-.rejected-files__title,
 .rejected-files__action {
   margin: 0;
+}
+
+/* A group's title is a heading, set back to the weight of the text round it, not the display type. */
+.rejected-files__title {
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 /* The other sports' files sit behind their own disclosure, under the line for each sport. */

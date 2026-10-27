@@ -527,11 +527,12 @@ describe('AnalysisSession', () => {
     expect(state.outdatedActivities).toBe(0)
   })
 
-  it('importing the same garbage file twice does not double-count it as rejected', async () => {
+  it('lists each garbage file of one import, and an earlier import does not add to the next', async () => {
     const session = new AnalysisSession()
     const junk = (): File => textFile('junk.fit', 'this is plainly not a FIT file')
     const sameCall = await session.addFiles([junk(), junk()], SETTINGS)
     expect(sameCall.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
       { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
     ])
 
@@ -539,10 +540,10 @@ describe('AnalysisSession', () => {
     expect(laterCall.rejected).toHaveLength(1)
   })
 
-  it('importing the same zip twice does not double-count its unsupported files', async () => {
+  it('counts the unsupported files of each zip of one import, and not those of an earlier import', async () => {
     const session = new AnalysisSession()
     const sameCall = await session.addFiles([exportZip(), exportZip()], SETTINGS)
-    expect(sameCall.unsupportedFiles).toBe(1)
+    expect(sameCall.unsupportedFiles).toBe(2)
     expect(sameCall.result?.activities).toHaveLength(2)
 
     const laterCall = await session.addFiles([exportZip()], SETTINGS)

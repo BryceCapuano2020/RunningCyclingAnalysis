@@ -149,6 +149,7 @@ describe('ImportNotice: skipped files', () => {
         {...noticeProps({
           outcome: {
             activities: 800,
+            filesAdded: 799,
             rejected: 1,
             duplicates: [
               { fileName: 'copy.gpx', reason: 'x', code: 'duplicate', detail: 'run.fit' },
@@ -165,7 +166,7 @@ describe('ImportNotice: skipped files', () => {
     )
     expect(
       screen.getByText(
-        '1,121 files: 799 saved, 1 needs a look, 1 already added, 320 not listed as activities.',
+        '1,121 files: 799 added, 1 needs a look, 1 already added, 320 not listed as activities.',
       ),
     ).toBeInTheDocument()
   })

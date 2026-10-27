@@ -253,9 +253,35 @@ describe('rejectionCopy: a line keeps its advice unless it is told not to', () =
     expect(ADVICE['no-sport']).toBeUndefined()
   })
 
-  it('tells a too-short file to check the recording, as its group used to', () => {
-    expect(rejectionCopy(file('s.gpx', { code: 'too-short' }))).toBe(
-      'Too short: it records less than a minute. Check the recording on your device, or export a shorter range.',
+  it.each([
+    ['too-short', 'Too short: it records less than a minute.'],
+    ['too-sparse', 'Recorded too sparsely: its points are more than 10 seconds apart.'],
+    ['no-date', 'Its times are device time only, so it cannot be placed in your history.'],
+    ['implausible-date', 'Its date is not plausible, so it is left out.'],
+  ] as const)(
+    'tells a %s file to check the recording, and not to export a shorter range',
+    (code, sentence) => {
+      expect(rejectionCopy(file('s.gpx', { code }))).toBe(
+        `${sentence} Check the recording on your device.`,
+      )
+    },
+  )
+
+  it.each([
+    ['too-long', 'Longer than 48 hours, so it is left out.'],
+    ['too-much-data', 'Too much data for one file.'],
+  ] as const)(
+    'tells a %s file to check the recording or export a shorter range',
+    (code, sentence) => {
+      expect(rejectionCopy(file('l.gpx', { code }))).toBe(
+        `${sentence} Check the recording on your device, or export a shorter range.`,
+      )
+    },
+  )
+
+  it('tells a too-large file to export a shorter range, and nothing about the recording', () => {
+    expect(rejectionCopy(file('big.fit', { code: 'too-large' }))).toBe(
+      'Too large to read. Export a shorter range.',
     )
   })
 })
@@ -269,10 +295,17 @@ describe('adviceCarriers: each piece of advice is said once, in the first line t
   it('lets one line carry each different piece of advice', () => {
     const bad = file('bad.fit', { code: 'corrupt' })
     const big = file('big.fit', { code: 'too-large' })
-    const bigAgain = file('big2.fit', { code: 'too-much-data' })
+    const bigAgain = file('big2.fit', { code: 'too-large' })
+    const heavy = file('heavy.fit', { code: 'too-much-data' })
+    const long = file('long.fit', { code: 'too-long' })
     const short = file('short.fit', { code: 'too-short' })
     const sparse = file('sparse.fit', { code: 'too-sparse' })
-    expect([...adviceCarriers([bad, big, bigAgain, short, sparse])]).toEqual([bad, big, short])
+    expect([...adviceCarriers([bad, big, bigAgain, heavy, long, short, sparse])]).toEqual([
+      bad,
+      big,
+      heavy,
+      short,
+    ])
   })
 
   it('gives no carrier to a reason without advice', () => {

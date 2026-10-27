@@ -7,6 +7,7 @@ import type { ListedActivity } from './import/activitiesCsv'
 import { sha256Hex } from './sha256'
 import type { Activity } from './types'
 import type { Rejection } from './import/result'
+import type { RejectedFile } from './sessionState'
 
 /** The files an import has read so far, across all of its sources, and the progress callback. */
 export interface ImportProgress {
@@ -18,18 +19,32 @@ export interface ImportProgress {
 export interface SourceImport {
   limits: ExtractLimits
   progress: ImportProgress
-  outcome: { activities: number; rejected: number; notActivities: number }
-  /** Rejections by file name, shared by the import. */
-  rejected: Map<string, Rejection>
-  /** Activity files the sources hold in formats the app does not read, by source name. */
-  unsupported: Map<string, number>
+  /**
+   * The activities read, and the files by what became of them: `filesAdded` kept an activity,
+   * `rejected` were refused, and `notActivities` were left out unread. A file whose activities were
+   * all copies of held workouts is in none of these: it is in `duplicates`.
+   */
+  outcome: { activities: number; filesAdded: number; rejected: number; notActivities: number }
+  /**
+   * The refused files, in the order they were refused, shared by the import. Every refusal is listed,
+   * including two files of one name, and `outcome.rejected` counts exactly these and the unreadable
+   * formats. A file read cleanly takes back the refusals under its name.
+   */
+  rejected: RejectedFile[]
+  /** The files whose activities were all copies of workouts already held, one entry for each file. */
+  duplicates: RejectedFile[]
+  /** The activity files the sources hold in formats the app does not read, which are counted, not listed. */
+  unsupported: { files: number }
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
-  /** Considers one parsed activity of an imported file. */
+  /**
+   * Considers one parsed activity of an imported file. Gives the name of the held file it is a copy
+   * of, or null when it was kept.
+   */
   consider: (
     activity: Activity,
     file: { fileName: string; fileHash: string; bytes: Uint8Array },
-  ) => Promise<void>
+  ) => Promise<string | null>
 }
 
 /**
@@ -42,9 +57,21 @@ export async function sessionHashOf(bytes: Uint8Array): Promise<string | undefin
   return sha256Hex(bytes)
 }
 
-/** The part of a refused parse result that the import keeps. */
-function rejectionOf({ reason, code, detail, listed }: { reason: string } & Rejection): Rejection {
-  return { reason, code, detail, listed }
+/** Lists a refused file, and counts it. */
+function reject(ctx: SourceImport, fileName: string, rejection: Rejection): void {
+  const { reason, code, detail, listed } = rejection
+  ctx.rejected.push({ fileName, reason, code, detail, listed })
+  ctx.outcome.rejected++
+}
+
+/** Takes back the refusals under a file's name, and under its name with .gz, since the file read cleanly. */
+function takeBack(ctx: SourceImport, fileName: string): void {
+  for (let i = ctx.rejected.length - 1; i >= 0; i--) {
+    const name = ctx.rejected[i]!.fileName
+    if (name !== fileName && name !== `${fileName}.gz`) continue
+    ctx.rejected.splice(i, 1)
+    ctx.outcome.rejected--
+  }
 }
 
 /** Counts one more file as read, and reports the count. */
@@ -70,15 +97,40 @@ async function importFile(
     // A kept file is hashed as it always was, reusing the session key's hash when one was made.
     const fileHash = ctx.hashFiles ? (sessionKey ?? (await sha256Hex(file.bytes))) : ''
     const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
-    for (const activity of parsed.activities) await ctx.consider(activity, imported)
-    // A file that now reads cleanly replaces an earlier rejection under the same name.
-    ctx.rejected.delete(file.fileName)
-    ctx.rejected.delete(`${file.fileName}.gz`)
+    const copies: string[] = []
+    for (const activity of parsed.activities) {
+      const copyOf = await ctx.consider(activity, imported)
+      if (copyOf !== null) copies.push(copyOf)
+    }
+    countFile(ctx, file.fileName, copies, parsed.activities.length)
+    takeBack(ctx, file.fileName)
   } else {
-    ctx.outcome.rejected++
-    ctx.rejected.set(parsed.fileName, rejectionOf(parsed))
+    reject(ctx, parsed.fileName, parsed)
   }
   countRead(ctx.progress)
+}
+
+/**
+ * Counts a read file once. It is added when any of its activities was kept, and already added when
+ * every one was a copy of a held workout. The copies inside an added file are not counted.
+ */
+function countFile(
+  ctx: SourceImport,
+  fileName: string,
+  copies: string[],
+  activities: number,
+): void {
+  if (copies.length < activities) {
+    ctx.outcome.filesAdded++
+    return
+  }
+  const copyOf = copies[0]
+  ctx.duplicates.push({
+    fileName,
+    reason: `Same workout as ${copyOf}`,
+    code: 'duplicate',
+    detail: copyOf,
+  })
 }
 
 /**
@@ -105,8 +157,7 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
     (file) => importFile(file, listedFor(list?.files, file.fileName), ctx),
     (fileName, rejection) => {
       undecodable++
-      outcome.rejected++
-      ctx.rejected.set(fileName, rejection)
+      reject(ctx, fileName, rejection)
       // An activity file that could not be read was still read, so progress reaches its total.
       if (ACTIVITY.test(fileName)) countRead(progress)
     },
@@ -118,13 +169,12 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   const expected = (await countActivityFiles([source], ctx.limits, listed)) ?? 0
   for (let left = expected - (progress.filesRead - readBefore); left > 0; left--)
     countRead(progress)
-  ctx.unsupported.set(source.name, summary.otherActivityFiles)
+  ctx.unsupported.files += summary.otherActivityFiles
   outcome.rejected += summary.otherActivityFiles
   outcome.notActivities += summary.notActivities
   // A corrupt file is already reported under its own name, so do not also call it empty.
   if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
-    outcome.rejected++
-    ctx.rejected.set(source.name, {
+    reject(ctx, source.name, {
       reason: 'No supported activity files found (FIT, GPX or TCX)',
       code: 'not-activity',
     })

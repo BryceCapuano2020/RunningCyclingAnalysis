@@ -769,18 +769,26 @@ describe('parseGpx: where a refused sport name came from', () => {
     expect([refusalOf(b).detail, listedOf(b)]).toEqual(['Yoga', true])
   })
 
-  it('does not say it for a name the track gives, or a number with no list type', () => {
+  it('says it only for the name the list gave, not for a name the track gives or a bare number', () => {
+    const listed = parseGpx(
+      gpxFile(track(undefined, [points(120)])),
+      'a.gpx',
+      DEFAULT_PARSE_LIMITS,
+      options('Kayaking'),
+    )
     const own = parseGpx(
       gpxFile(track('kayaking', [points(120)])),
-      'a.gpx',
+      'b.gpx',
       DEFAULT_PARSE_LIMITS,
       options('Walk'),
     )
-    const code = parseGpx(gpxFile(track('4', [points(120)])), 'b.gpx')
-    expect(refusalOf(own).detail).toBe('kayaking')
-    expect(listedOf(own)).toBeUndefined()
-    expect(refusalOf(code).detail).toBe('4')
-    expect(listedOf(code)).toBeUndefined()
+    const code = parseGpx(gpxFile(track('4', [points(120)])), 'c.gpx')
+    expect([listed, own, code].map(listedOf)).toEqual([true, undefined, undefined])
+    expect([listed, own, code].map((result) => refusalOf(result).detail)).toEqual([
+      'Kayaking',
+      'kayaking',
+      '4',
+    ])
   })
 })
 

@@ -82,7 +82,8 @@ export function bySport(files: readonly RejectedFile[]): SportFiles[] {
 
 const EXPORT_AGAIN = 'Export it again.'
 const EXPORT_SHORTER_RANGE = 'Export a shorter range.'
-const CHECK_RECORDING = 'Check the recording on your device, or export a shorter range.'
+const CHECK_RECORDING = 'Check the recording on your device.'
+const CHECK_OR_SHORTER_RANGE = 'Check the recording on your device, or export a shorter range.'
 
 /**
  * The advice a reason gives, for the reasons the athlete can act on. A file that holds no points, or
@@ -92,10 +93,10 @@ export const ADVICE: Partial<Record<RejectCode, string>> = {
   'not-activity': 'Export your activities as FIT, GPX or TCX files, then add them again.',
   corrupt: EXPORT_AGAIN,
   'too-large': EXPORT_SHORTER_RANGE,
-  'too-much-data': EXPORT_SHORTER_RANGE,
+  'too-much-data': CHECK_OR_SHORTER_RANGE,
+  'too-long': CHECK_OR_SHORTER_RANGE,
   'too-short': CHECK_RECORDING,
   'too-sparse': CHECK_RECORDING,
-  'too-long': CHECK_RECORDING,
   'no-date': CHECK_RECORDING,
   'implausible-date': CHECK_RECORDING,
 }

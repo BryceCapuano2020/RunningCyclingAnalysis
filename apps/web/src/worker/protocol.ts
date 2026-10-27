@@ -15,14 +15,20 @@ export interface SavedActivity {
 }
 
 export interface ImportOutcome {
+  /** The activities the import read, which a file may hold several of. */
   activities: number
+  /**
+   * The files that kept an activity, which is not every file that was read: a file of copies is in
+   * `duplicates`, and a refused one in `rejected`. Absent from outcomes that do not count them.
+   */
+  filesAdded?: number
   rejected: number
   /**
    * Activity files an export's own list does not name, such as Strava's saved routes. They are left
    * unread, and are not in `rejected`. Absent from outcomes that do not count them.
    */
   notActivities?: number
-  /** Files skipped because a better copy of the same workout is already saved. */
+  /** Files whose every activity is a copy of a workout a better copy of which is already saved. */
   duplicates: RejectedFile[]
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
   runs?: number
