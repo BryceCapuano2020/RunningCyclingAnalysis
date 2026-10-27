@@ -24,6 +24,7 @@ import {
   paceIsTime,
   sportRecords,
   threshold,
+  thresholdRange,
 } from './records'
 
 describe('threshold', () => {
@@ -58,6 +59,25 @@ describe('threshold', () => {
     })
     expect(rideCp).not.toBeNull()
     expect(threshold(result, 'ride', massKg, 'metric')?.value).toBe('225 W')
+  })
+})
+
+describe('thresholdRange', () => {
+  it('gives a running threshold’s one-standard-error range, from the faster pace to the slower', () => {
+    // The fixture’s critical power is 4.0 W/kg, with a standard error of 0.05 W/kg either side.
+    expect(thresholdRange(makeResult(), 'run', 70, 'metric')).toBe('22:58 to 23:49 /km')
+    expect(thresholdRange(makeResult(), 'run', 70, 'imperial')).toBe('36:58 to 38:19 /mi')
+  })
+
+  it('gives a cycling threshold’s range in watts, from the lower to the higher', () => {
+    expect(thresholdRange(makeResult(), 'ride', 75, 'metric')).toBe('48 to 49 W')
+  })
+
+  it('is null without a fit, and when the low end would not be a positive work rate', () => {
+    expect(thresholdRange(makeResult({ runCp: null }), 'run', 70, 'metric')).toBeNull()
+    expect(thresholdRange(makeResult({ rideCp: null }), 'ride', 70, 'metric')).toBeNull()
+    const loose = makeResult({ runCp: { cp: 0.1, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 } })
+    expect(thresholdRange(loose, 'run', 70, 'metric')).toBeNull()
   })
 })
 

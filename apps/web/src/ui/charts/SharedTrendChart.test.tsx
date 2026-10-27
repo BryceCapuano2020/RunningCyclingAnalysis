@@ -412,11 +412,11 @@ describe('SharedTrendChart', () => {
     expect(screen.getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
   })
 
-  it('explains a low point as a window of easy efforts, in one sentence under the chart', () => {
+  it('explains a low point as one where even the best effort was easy, in one sentence under the chart', () => {
     renderChart()
     expect(
       screen.getByText(
-        'Each point is the best 20 min in the 2 weeks to that Sunday. A low point is a window of easy efforts, not an average.',
+        'Each point is the best 20 min in the 2 weeks to that Sunday. A low point means even the best effort in those weeks was easy.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/easy runs/)).toBeNull()
@@ -467,7 +467,7 @@ describe('SharedTrendChart', () => {
   it('explains a low energy point the same way, in the energy measure', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(
-      screen.getByText(/A low point is a window of easy efforts, not an average\./),
+      screen.getByText(/A low point means even the best effort in those weeks was easy\./),
     ).toBeInTheDocument()
   })
 

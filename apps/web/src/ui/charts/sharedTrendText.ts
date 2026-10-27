@@ -28,8 +28,8 @@ export const HELD_EMPTY = `Your rides are held until you add a weight on ${WEIGH
 /** The sentence that says cycling is held, which a trend's note ends with, or which stands alone when nothing is drawn. */
 export const HELD_NOTE = 'Cycling is held until a weight is added.'
 
-/** A point is the best of its window, not an average, so a low point can only be a window of easy efforts. */
-const LOW_POINT = 'A low point is a window of easy efforts, not an average.'
+/** A point is the best of its weeks, not an average, so a low point means even that best effort was easy. */
+const LOW_POINT = 'A low point means even the best effort in those weeks was easy.'
 /** The line's steps, which the caption says, so that the note under the chart is one line of meaning. */
 const STEPS = STEPPED_LINE_TEXT
 

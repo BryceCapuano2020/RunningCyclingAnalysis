@@ -50,6 +50,7 @@ import {
   refusalOf,
   sportRecords,
   threshold,
+  thresholdRange,
   valueAt,
 } from '../records'
 import type { SportRecord } from '../records'
@@ -76,7 +77,7 @@ export interface SportPageProps {
   missingAge: AgeGap | null
   /** The window in days, or null for all time: the figures' scope is named by it. */
   rangeDays: number | null
-  /** The period control, shown beside the heading. */
+  /** The period control, shown under the answer it changes. */
   controls: ReactNode
   /** The line that says what the page is based on, at its foot. */
   footnote?: ReactNode
@@ -147,6 +148,7 @@ export function SportPage({
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
   const hero = threshold(result, sport, massKg, units)
+  const range = thresholdRange(result, sport, massKg, units)
   const records = sportRecords(result, sport, massKg, units)
   const graded = records.map((record) => ({
     record,
@@ -221,6 +223,8 @@ export function SportPage({
     result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
   )
 
+  // Under the answer it changes: the threshold, or the empty or held note.
+  const periodControl = inLibrary > 0 ? controls : null
   return (
     <div className="page-stack">
       <div className="page-head">
@@ -228,11 +232,11 @@ export function SportPage({
           <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>
-        {inLibrary > 0 && controls}
       </div>
       {count === 0 ? (
         <section className="section">
           <p className="secondary">{emptyText}</p>
+          {periodControl}
           {inLibrary === 0 ? (
             <div className="sport-page__actions">
               <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
@@ -248,7 +252,10 @@ export function SportPage({
           )}
         </section>
       ) : held ? (
-        <WeightNote />
+        <>
+          <WeightNote />
+          {periodControl}
+        </>
       ) : (
         <>
           <section className="section" aria-labelledby={`${sport}-threshold`}>
@@ -263,6 +270,7 @@ export function SportPage({
             ) : (
               <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
             )}
+            {hero && range && <p className="muted sport-page__range">{range}</p>}
             {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
             {heartRateLine && <p className="muted">{heartRateLine}</p>}
             {headline && (
@@ -273,6 +281,7 @@ export function SportPage({
               />
             )}
           </section>
+          {periodControl}
 
           <section className="section" aria-labelledby={`${sport}-records`}>
             <h2 id={`${sport}-records`}>Best efforts</h2>

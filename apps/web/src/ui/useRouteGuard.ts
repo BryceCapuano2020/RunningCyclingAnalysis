@@ -43,7 +43,7 @@ export function coldNoticeFor({
  * notice to show.
  */
 export function useRouteGuard(input: RouteGuardInput): string | null {
-  const { route, hasResult, busy, waiting, libraryLoading } = input
+  const { route, hasResult, busy, waiting, libraryLoading, restoring } = input
   const importedOnColdPage = useRef(false)
 
   useEffect(() => {
@@ -53,8 +53,10 @@ export function useRouteGuard(input: RouteGuardInput): string | null {
   })
 
   useEffect(() => {
-    // A library load also holds the page busy, so busy is an import only when no load is running.
-    const importing = waiting || (busy && !libraryLoading)
+    // A library load also holds the page busy, so busy is an import only when no load is running. A kept
+    // library's restore is a load too, though the page's own requests, such as the age grades' trend on
+    // load, can hold it busy meanwhile: the restored result must not move the visitor off the page.
+    const importing = waiting || (busy && !libraryLoading && !restoring)
     if (!hasResult && importing && needsResult(route)) {
       importedOnColdPage.current = true
     } else if (hasResult && importedOnColdPage.current) {

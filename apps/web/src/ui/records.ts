@@ -176,6 +176,29 @@ export function threshold(
   return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
 }
 
+/**
+ * The threshold's likely range: the fit's standard error either side of its critical power, in the sport's
+ * own unit, such as "22:58 to 23:49 /km" or "48 to 49 W". Null without a fit, or when the low end would not
+ * be a positive work rate.
+ */
+export function thresholdRange(
+  result: AnalysisResult,
+  sport: Sport,
+  massKg: number,
+  units: UnitSystem,
+): string | null {
+  const fit = sport === 'run' ? result.runCp : result.rideCp
+  if (!fit || !(fit.cp - fit.cpSe > 0)) return null
+  const at = (cp: number): Figure =>
+    sport === 'run'
+      ? paceFigure(cp, units)
+      : powerFigure(metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean))
+  const low = at(fit.cp - fit.cpSe)
+  const high = at(fit.cp + fit.cpSe)
+  // A faster pace is the higher work rate, so a running range reads from its faster end.
+  return sport === 'run' ? `${high.number} to ${low.value}` : `${low.number} to ${high.value}`
+}
+
 /** Why a sport has no threshold, once its efforts are there to fit: null when it has one. */
 export function refusalOf(result: AnalysisResult, sport: Sport): CriticalPowerRefusal | null {
   return sport === 'run' ? result.runCpRefusal : result.rideCpRefusal

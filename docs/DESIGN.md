@@ -80,7 +80,8 @@ with estimated watts, from its power note; the footer links to it too. How sure 
 
 A deep link to a page that needs a result, with none on this device, stays where it is and says
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
-home page. An unknown hash becomes Balance's hash, so the address names the page shown.
+home page. A deep link opened while the results kept on this device are still restoring stays where it
+is, and shows them. An unknown hash becomes Balance's hash, so the address names the page shown.
 
 **Period.** Balance and the sport pages show one period, picked with the control under the answer: 6
 weeks, 12 weeks (the default), 12 months or All time, in that order, on one row at 390 px and in a 2
@@ -289,13 +290,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
-- A sport page reads top to bottom: the threshold, with a line on the best 20 minutes by heart rate
+- A sport page reads top to bottom: the threshold, with its likely range under the figure and a line on the best 20 minutes by heart rate
   under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
-  (the same grade line as the card), a line of recent form ("Last run 14 Jan · 9 runs · 42.10
+  (the same grade line as the card), then the period control, a line of recent form ("Last run 14 Jan · 9 runs · 42.10
   km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
   opens Activities filtered to that sport, the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
-  for running and "Power curve" for cycling. The threshold carries no count: the period control beside
-  the heading names the dates the efforts come from. A sport the library has no activities for has no
+  for running and "Power curve" for cycling. The threshold carries no count: the period control under
+  the answer names the dates the efforts come from. A sport the library has no activities for has no
   period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
   **How to get your files** side by side.
 - **A record says how long ago it was set**, as quiet text after the name of the activity that set it,
@@ -395,6 +396,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
   ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
+- **A threshold has its likely range under it.** The fit's standard error either side of its critical
+  power, in the sport's own unit: "22:58 to 23:49 /km" for a run, "48 to 49 W" for a ride. A range whose
+  low end would not be a positive work rate is left out, and so is the range of a refused threshold.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
   figure has not moved. It is absent for All time, and for a ride when either best's watts are
@@ -533,7 +537,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   table caption, with "Energy rate (metabolic W/kg)" on its axis. The shared energy trend and the heart-rate chart name their unit the same way, in their axes and column headings.
 - **Effort checks say "your hardest".** A best effort below 90% of your reference heart rate is "probably not
   your hardest", never "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate
-  in one sentence, where it explains the heart-rate check. A sport page's line says "so it was hard" at 90% or more,
+  in one sentence, where it explains the heart-rate check. Each line that names it glosses it once, as "(set from your highest
+  heart rates on file)", which holds for both sports: cycling's is derived from running's, so a ride is never
+  called your highest heart rate. A sport page's line says "so it was hard" at 90% or more,
   judged on the percent it shows, so a share that rounds to 90% is hard.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
@@ -701,7 +707,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   own persona and no such line. While the one prompt for the year of birth and sex is on the page, the unset
   line is left out of Balance, and of a run's page once that run has activities, where its age note asks the
   same. A held ride keeps its line, since its records give way to the weight note.
-- **A figure's scope is named by the period control beside its heading,** which shows the dates of a
+- **A figure's scope is named by the period control under the answer it changes,** which shows the dates of a
   window. The threshold carries no count under it, since a count of runs is not what it is fitted from.
   Under All time the control shows the span of the whole library.
   Method names its dated period on its "Counted over" line, as "Counted over 12 May – 3 Aug 2025.".

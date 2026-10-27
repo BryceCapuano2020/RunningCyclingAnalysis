@@ -89,13 +89,16 @@ function recordNamed(records: HTMLElement, eyebrow: string): HTMLElement {
 }
 
 describe('SportPage', () => {
-  it('is the sport’s own page heading, with the period control beside it', () => {
+  it('is the sport’s own page heading, with the period control under the answer, not in the heading row', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Run' })
     expect(heading).toHaveAttribute('id', 'page-heading')
     expect(heading).toHaveAttribute('tabindex', '-1')
-    expect(screen.getByText('Period picker')).toBeInTheDocument()
+    const picker = screen.getByText('Period picker')
+    const answer = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(answer.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(heading.closest('.page-head')?.contains(picker)).toBe(false)
   })
 
   it('offers the guides beside the add action, in the one section with the prompt, as a secondary action', () => {
@@ -215,7 +218,22 @@ describe('SportPage', () => {
     expect(within(section).queryByText(/Based on/)).not.toBeInTheDocument()
   })
 
-  it('names the period by its control beside the heading, not with a count under the threshold', () => {
+  it('shows the running threshold’s range, from the fit’s standard error, under its figure', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+
+    const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
+    expect(within(section).getByText('22:58 to 23:49 /km')).toBeInTheDocument()
+  })
+
+  it('shows the cycling threshold’s range in watts under its figure', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    renderPage('ride', makeResult({ activities: [ride] }))
+
+    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
+    expect(within(section).getByText('48 to 49 W')).toBeInTheDocument()
+  })
+
+  it('names the period by its control under the answer, not with a count under the threshold', () => {
     renderPage(
       'run',
       makeResult({ activities: [morningRun] }),
@@ -1208,7 +1226,7 @@ describe('SportPage depth', () => {
     const threshold = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
     expect(
       within(threshold).getByText(
-        'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest.',
+        'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file), so it was probably not your hardest.',
       ),
     ).toHaveClass('muted')
     expect(
@@ -1226,7 +1244,7 @@ describe('SportPage depth', () => {
     )
 
     const line = screen.getByText(
-      'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest.',
+      'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file), so it was probably not your hardest.',
     )
     expect(line).toHaveClass('muted')
     expect(line.previousElementSibling).toHaveTextContent(THRESHOLD_MEANING.run)

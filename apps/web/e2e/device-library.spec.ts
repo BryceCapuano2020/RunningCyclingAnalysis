@@ -41,6 +41,32 @@ test('results from files survive a reload for a signed-out visitor', async ({ pa
   expect(errors).toEqual([])
 })
 
+test('a reload on a deep link stays on it while the kept library restores, once an age is saved', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await page.goto('/')
+  await uploadFixtures(page, TWO_WORKOUTS)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
+  // A saved year of birth and sex make the page request its age grades on load, which holds it busy.
+  await goTo(page, 'Profile')
+  await page.getByLabel('Year of birth').fill('1986')
+  await page.getByLabel('Year of birth').press('Enter')
+  await page.getByText('Man', { exact: true }).click()
+  await goTo(page, 'Run')
+
+  await page.reload()
+  // The restored threshold shows once the kept library has replied. A redirect would follow that reply at once,
+  // so the page is checked a second after the threshold shows. A file chosen here would itself be an import on
+  // a deep link, which moves the visitor to Balance by design, so none is sent.
+  await expect(page.getByRole('region', { name: 'Threshold pace, estimated' })).toBeVisible()
+  await page.waitForTimeout(1000)
+
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
+  await expect(page).toHaveURL(/#\/run$/)
+  expect(errors).toEqual([])
+})
+
 test('removing all activities on the Profile page forgets the results kept for a signed-out visitor', async ({
   page,
 }) => {
