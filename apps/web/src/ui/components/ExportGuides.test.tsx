@@ -122,28 +122,28 @@ describe('ExportGuides', () => {
     }
   })
 
-  it('gives Wahoo two steps, and sends the one-activity export to the Strava guide', () => {
+  it('gives Wahoo three steps of its own, with Strava as the route for many', () => {
     render(<ExportGuides />)
     pick('Wahoo')
     const items = within(panel('Wahoo')).getAllByRole('listitem')
-    expect(items).toHaveLength(2)
-    expect(items[1]).toHaveTextContent('Strava guide')
-    expect(within(panel('Wahoo')).queryByText(/Export Original/)).not.toBeInTheDocument()
+    expect(items).toHaveLength(3)
+    expect(items[1]).toHaveTextContent('Download .fit activity')
+    expect(within(panel('Wahoo')).getByText(/Strava guide/)).toBeInTheDocument()
   })
 
-  it('says a guide’s steps come from published guides unless Strava’s own help was read', () => {
+  it('says each guide’s steps come from its own service’s help', () => {
     render(<ExportGuides />)
-    pick('Strava')
-    expect(
-      within(panel('Strava')).getByText(
-        `Steps from Strava’s help, checked ${GUIDES_CHECKED_ON}; menus can change.`,
-      ),
-    ).toBeInTheDocument()
-    for (const service of ['Garmin Connect', 'Wahoo', 'COROS', 'Zwift']) {
+    for (const [service, helpName] of [
+      ['Strava', 'Strava'],
+      ['Garmin Connect', 'Garmin'],
+      ['Wahoo', 'Wahoo'],
+      ['COROS', 'COROS'],
+      ['Zwift', 'Zwift'],
+    ] as const) {
       pick(service)
       expect(
         within(panel(service)).getByText(
-          `Steps from published guides, checked ${GUIDES_CHECKED_ON}; menus can change.`,
+          `Steps from ${helpName}’s help, checked ${GUIDES_CHECKED_ON}; menus can change.`,
         ),
       ).toBeInTheDocument()
     }

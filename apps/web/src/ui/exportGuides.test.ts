@@ -43,45 +43,56 @@ describe('EXPORT_GUIDES', () => {
     }
   })
 
-  it('marks only Strava as checked on its own help page', () => {
-    expect(EXPORT_GUIDES.filter((guide) => guide.verified).map((guide) => guide.service)).toEqual([
-      'Strava',
-    ])
+  it('marks every guide as checked on its service’s own help page', () => {
+    expect(EXPORT_GUIDES.filter((guide) => !guide.verified).map((guide) => guide.service)).toEqual(
+      [],
+    )
   })
 
   it('dates the check in code, as the day the steps were read', () => {
-    expect(GUIDES_CHECKED_ON).toBe('24 October 2026')
+    expect(GUIDES_CHECKED_ON).toBe('27 October 2026')
   })
 
   it('makes Strava the route for many, and says so on its own guide', () => {
     expect(guideFor('Strava').contains).toMatch(/route for many/)
   })
 
-  it('gives Zwift no route for many, since a ride from before a Strava link is not uploaded', () => {
-    expect(guideFor('Zwift').alsoAvailable).toBeUndefined()
-    expect(guideFor('Zwift').contains).toMatch(/Repeat the steps for each ride/)
+  it('gives Zwift one activity at a time, as its help article does, with no route for many', () => {
+    const zwift = guideFor('Zwift')
+    expect(zwift.alsoAvailable).toBeUndefined()
+    expect(zwift.contains).toMatch(/Repeat the steps for each one/)
+    expect(zwift.steps).toContain('Choose the cog icon, then “Download FIT file”.')
+    expect(zwift.helpUrl).toMatch(/locating-your-activity-log-and-workout-files/)
   })
 
-  it('gives Wahoo no route for many, and sends one workout to Strava to export it there', () => {
+  it('gives Wahoo its own download of one workout’s FIT file, and Strava for many', () => {
     const wahoo = guideFor('Wahoo')
-    expect(wahoo.alsoAvailable).toBeUndefined()
-    expect(wahoo.steps).toHaveLength(2)
-    expect(wahoo.steps[0]).toBe('In the Wahoo app, share the workout to Strava.')
-    expect(wahoo.steps[1]).toMatch(/Strava guide/)
-    expect(wahoo.steps.join(' ')).not.toMatch(/Export Original/)
-  })
-
-  it('tells the visitor to drop the Garmin download as it is: a FIT file, in a zip or as .fit.gz', () => {
-    const garmin = guideFor('Garmin Connect')
-    expect(garmin.steps[2]).toBe(
-      'Drop the download here as it is. It is a .FIT file, sometimes inside a zip or as a .fit.gz.',
+    expect(wahoo.steps[1]).toBe(
+      'Choose the three dots at the top right of its summary, then “Share activity”, then “Download .fit activity”.',
     )
-    expect(garmin.steps.join(' ')).not.toMatch(/Unzip/)
+    expect(wahoo.contains).toBe('One workout at a time, as a FIT file.')
+    expect(wahoo.alsoAvailable).toMatch(/Strava guide/)
   })
 
-  it('gives Garmin a whole-history request that can take days', () => {
-    expect(guideFor('Garmin Connect').alsoAvailable).toMatch(/garmin\.com\/account\/datamanagement/)
-    expect(guideFor('Garmin Connect').alsoAvailable).toMatch(/can take days/)
+  it('names Garmin’s menu item as its help article does, and drops the download as it is', () => {
+    const garmin = guideFor('Garmin Connect')
+    expect(garmin.steps[1]).toBe(
+      'Open the activity, choose the settings gear icon at the top right, then “Export File”.',
+    )
+    expect(garmin.steps.join(' ')).not.toMatch(/Export Original|Unzip/)
+    expect(garmin.steps[2]).toMatch(/^Drop the download here as it is, zipped or not\./)
+  })
+
+  it('gives Garmin a whole-history request with the wait its help article states', () => {
+    const also = guideFor('Garmin Connect').alsoAvailable ?? ''
+    expect(also).toMatch(/“Export Your Data”, then “Request Data Export”/)
+    expect(also).toMatch(/within 48 hours but can take up to 30 days/)
+  })
+
+  it('names COROS’s Activity List tab and Export Data, as its help article does', () => {
+    expect(guideFor('COROS').steps[1]).toBe(
+      'Open the Activity List tab at the top, then choose “Export Data” on the right.',
+    )
   })
 
   it('marks Strava’s wait step, the one that says the link may take a few hours', () => {

@@ -116,10 +116,10 @@ is `aria-expanded` and controls the one panel, which opens on Strava. Opening a 
 the panel's heading, so its steps are read from the top. The Strava guide has **Try the sample while
 you wait** right after its wait step, when the page offers the sample. Under the panel, the no-files
 and phone-only path says what to do without an export. Every guide ends with a source line and a link
-to its own service's help. The source line reads "Steps from Strava's help, checked 24 October 2026;
-menus can change." for Strava, which was read on its own help page. For the other four it reads
-"Steps from published guides, checked ...", because their steps came from guides or search summaries,
-not from the services' own pages.
+to its own service's help. Each guide was read on its service's own help page, so the source line
+names that page: "Steps from Strava's help, checked 27 October 2026; menus can change.", and the same
+for Garmin, Wahoo, COROS and Zwift. A guide whose steps came from anywhere else would read "Steps from
+published guides, checked ..." instead.
 `HowToGetFilesButton` opens the same guides in a dialog. It sits beside **Add rides** (or **Add runs**)
 on an empty Run or Ride page or card, as a secondary action; Profile can wire it in the same way. The dialog has no sample button, since a sample would replace the visitor's data.
 The notice region sits under the header and holds one summary per import, the sample banner while the
