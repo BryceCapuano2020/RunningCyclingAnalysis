@@ -55,7 +55,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn keepFiles fileRetentionAvailable={false} />)
     expect(
       screen.getByText(
-        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files stay on this device; existing saved originals are not deleted. Analysis runs in your browser.',
+        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser.',
       ),
     ).toBeInTheDocument()
   })

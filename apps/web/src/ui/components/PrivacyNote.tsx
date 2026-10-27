@@ -17,7 +17,7 @@ function privacyText(
     return 'Nothing is uploaded; analysis runs in your browser. Summaries are kept in this browser where it allows, so anyone using it can see them. Remove all my activities removes them.'
   }
   if (!fileRetentionAvailable) {
-    return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files stay on this device; existing saved originals are not deleted. Analysis runs in your browser.'
+    return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser.'
   }
   if (keepFiles) {
     return 'Your activity summaries and original files are stored in your private library. Analysis runs in your browser.'

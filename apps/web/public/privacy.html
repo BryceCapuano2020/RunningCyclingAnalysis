@@ -67,11 +67,11 @@
           average power, best efforts, climbs, power-meter calibration sums, the indoor flag and
           data-quality flags, and the file name. Its name comes from the activity list in a Strava
           export, else the title in the file, else the start time and sport. For an outdoor activity
-          with GPS it also holds an outline of the route: the track with its position and scale
-          removed, so it has no coordinates or scale. The outline is kept only in this browser and
-          is never uploaded. The summary has no GPS coordinates, per-second data or original file,
-          and it does not expire. When one file holds more than one activity, each of its summaries
-          keeps a SHA-256 hash of that file, so they are shown together.
+          with GPS it also holds an outline of the route with no coordinates or scale. The outline
+          is kept only in this browser and is never uploaded. The summary has no GPS coordinates,
+          per-second data or original file, and it does not expire. When one file holds more than
+          one activity, each of its summaries keeps a SHA-256 hash of that file, so they are shown
+          together.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
@@ -148,9 +148,9 @@
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,
         its ID. They never hold request bodies, files, tokens or query strings. Cloudflare's request
-        logs include each request's network address, approximate location and browser user agent,
-        and request URLs with the one-time Google sign-in code, which cannot be reused. The address
-        is used only as a rate-limit key. Request and error logs are kept three days.
+        logs may include each request's network address, approximate location and browser user
+        agent, and request URLs with the one-time Google sign-in code, which cannot be reused. The
+        address is used only as a rate-limit key. Request and error logs are kept three days.
       </p>
       <p>
         Cookies are strictly necessary only: the sign-in cookie, and two cookies that last ten

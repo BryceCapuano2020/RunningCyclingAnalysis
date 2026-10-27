@@ -44,6 +44,9 @@ const contractDigest = await readStylesheet(
 const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
 const productionNotes = await readStylesheet(import.meta.url, '../../../docs/PRODUCTION.md')
+const readme = await readStylesheet(import.meta.url, '../../../README.md')
+const deployGuide = await readStylesheet(import.meta.url, '../../../docs/DEPLOY.md')
+const accountsSource = await readStylesheet(import.meta.url, '../../api/src/auth/accounts.ts')
 
 /** The page's visible text: markup removed and whitespace collapsed. */
 function textOf(html: string): string {
@@ -161,6 +164,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
 
   it('says the route outline has no coordinates or scale, stays in this browser, is never uploaded, and is drawn from the original only on request', () => {
     expect(text).toMatch(/outline of the route[^.]*no coordinates or scale/)
+    expect(text).not.toContain('position and scale removed')
     expect(text).toMatch(/kept only in this browser and is never uploaded/)
     expect(text).toMatch(/drawn from your original only when you ask for it/)
   })
@@ -202,7 +206,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(rateLimit).toContain("c.req.header('CF-Connecting-IP')")
     expect(rateLimit).toContain('`ip:${address}`')
     expect(text).toContain(
-      "Cloudflare's request logs include each request's network address, approximate location and browser user agent",
+      "Cloudflare's request logs may include each request's network address, approximate location and browser user agent",
     )
     expect(text).toContain('The address is used only as a rate-limit key.')
   })
@@ -407,6 +411,18 @@ describe('privacy page says where activity names come from', () => {
   it('names the list and its column as the importer reads them', () => {
     expect(activitiesCsvSource).toContain("const LIST_NAME = 'activities.csv'")
     expect(activitiesCsvSource).toContain("columns.indexOf('activity name')")
+  })
+})
+
+describe('the README and deploy guide say original files are not kept', () => {
+  it('says so by default, which is the default for a new account', () => {
+    expect(accountsSource).toContain('keepFiles: false')
+    expect(readme.replace(/\s+/g, ' ')).toContain('original files are not kept by default')
+    expect(readme).not.toContain('stay on your device')
+    const guide = deployGuide.replace(/\s+/g, ' ')
+    expect(guide).toContain('Original activity files are not kept by default.')
+    expect(guide).toContain('original files are not kept and must be re-imported to reprocess')
+    expect(guide).not.toContain('stay on the device')
   })
 })
 
