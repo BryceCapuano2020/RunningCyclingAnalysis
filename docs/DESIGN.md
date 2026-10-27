@@ -87,9 +87,11 @@ visitor's own files are not held back by the restore. An unknown hash becomes Ba
 address names the page shown.
 
 **Period.** Balance and the sport pages show one period, picked with the control under the answer: 6
-weeks, 12 weeks (the default), 12 months or All time, in that order, on one row at 390 px and in a 2
-by 2 grid below 360 px. The control's dates sit beneath it, with the count of activities in the
-period when some are left out, and a note under them when there is one. The Activities page has its
+weeks, 12 weeks (the default), 12 months, All time or Custom, in that order. The five segments wrap onto
+a second row at 390 px rather than overflow, and sit in two columns below 360 px. Custom shows From and To date fields, prefilled with the period on
+screen, and an Apply button; the range applies on Apply, not on each change, and its days are taken in
+order. The fields stack under the segments on a phone. The control's dates sit beneath it, with the
+count of activities in the period when some are left out, and a note under them when there is one. The Activities page has its
 own period, sport and sort, which start with the whole library. Its view is kept in the address (for
 example `#/activities?sport=run&sort=distance&page=2`), so Back returns to the same page of it. A
 period only narrows what is analysed: an activity outside it still opens from the list or a link.
@@ -331,9 +333,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the control says why: "Your last 12 weeks don't hold both sports, so this shows all time." It says
   so only when the library holds both sports. The period is computed in
   `packages/core/src/period.ts`. Each fixed period is the same number of calendar days ending on the
-  newest activity's day.
+  newest activity's day. A custom range is the first to the last day the athlete picks, both counted,
+  with `periodOf` in `packages/core/src/period.ts` dating it from the first millisecond of its first
+  day to the last of its last. It may hold no activities, and the page then shows its empty state.
 - A period's comparison is the same length before it, drawn as a thin dashed mid-grey line and named
-  "Previous 6 weeks", "Previous 12 weeks" or "Previous 12 months". All time has none. The Balance trends
+  "Previous 6 weeks", "Previous 12 weeks", "Previous 12 months" or, for a custom range, "Previous N
+  days" (or the word for its length when it is one of the named lengths). All time has none. The Balance trends
   have no period comparison: each already spans the selected period.
 - A trend is the best effort of the chosen length (5, 20 or 60 minutes; Balance uses 20) in a
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a

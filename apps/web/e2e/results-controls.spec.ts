@@ -23,6 +23,37 @@ test('the Activities period narrows its own rows and All time restores them all,
   await expect(rows).toHaveCount(14)
 })
 
+test('Custom applies the two days entered, and the caption dates the period they name', async ({
+  page,
+}) => {
+  await openSample(page)
+  const period = page.getByRole('group', { name: 'Period' })
+  await period.getByText('Custom', { exact: true }).click()
+  const form = page.locator('.range-picker__custom')
+  await form.getByLabel('From').fill('2000-01-01')
+  await form.getByLabel('To').fill('2000-01-02')
+  // The range applies on Apply, so the caption still dates the period on screen until then.
+  await expect(page.locator('.range-picker__dates')).not.toHaveText('1 Jan – 2 Jan 2000')
+  await form.getByRole('button', { name: 'Apply' }).click()
+  await expect(page.locator('.range-picker__dates')).toHaveText('1 Jan – 2 Jan 2000')
+  await expect(page.locator('.range-picker__count')).toHaveText('0 of 14 activities')
+  await expect(period.getByRole('radio', { name: 'Custom' })).toBeChecked()
+})
+
+test('the Custom form fits 320 px, with no page scroll sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 })
+  await openSample(page)
+  await page.getByRole('group', { name: 'Period' }).getByText('Custom', { exact: true }).click()
+  const form = page.locator('.range-picker__custom')
+  await expect(form.getByLabel('From')).toBeVisible()
+  const edges = await form
+    .locator('input, button')
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().right))
+  for (const right of edges) expect(right).toBeLessThanOrEqual(320)
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth)
+  expect(overflow).toBeLessThanOrEqual(320)
+})
+
 test('the period picker is also on the Run and Ride pages', async ({ page }) => {
   await openSample(page)
   for (const sport of ['Run', 'Ride'] as const) {
@@ -75,17 +106,24 @@ test('the fitness over time card shows for sample data, and its table toggles', 
   await expect(details).not.toHaveAttribute('open')
 })
 
-test('the period control offers 6 weeks, 12 weeks, 12 months and All time, on one row at 390 px', async ({
+test('the period control offers 6 weeks, 12 weeks, 12 months, All time and Custom, within 390 px', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openSample(page)
   const options = page.getByRole('group', { name: 'Period' }).locator('.segmented-control__option')
-  await expect(options).toHaveText(['6 weeks', '12 weeks', '12 months', 'All time'])
-  const tops = await options.evaluateAll((elements) =>
-    elements.map((element) => Math.round(element.getBoundingClientRect().top)),
+  await expect(options).toHaveText(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
+  // Five segments wrap onto a second row at 390 px rather than overflow the page.
+  const edges = await options.evaluateAll((elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect()
+      return { left: box.left, right: box.right }
+    }),
   )
-  expect(new Set(tops).size).toBe(1)
+  for (const edge of edges) {
+    expect(edge.left).toBeGreaterThanOrEqual(0)
+    expect(edge.right).toBeLessThanOrEqual(390)
+  }
 })
 
 test('on a phone the grades sit under the meter, with the meter’s own gap', async ({

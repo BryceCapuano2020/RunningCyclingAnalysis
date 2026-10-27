@@ -26,6 +26,16 @@ describe('parsePeriodChoice', () => {
   it('falls back to the default for 3 months, which the control no longer offers', () => {
     expect(parsePeriodChoice(JSON.stringify(91))).toBe('default')
   })
+
+  it('reads back a custom range the athlete picked, and falls back to the default for a malformed one', () => {
+    const range = { from: '2025-05-12', to: '2025-06-03' }
+    expect(parsePeriodChoice(JSON.stringify(range))).toEqual(range)
+    expect(parsePeriodChoice(JSON.stringify({ from: '2025-06-31', to: '2025-06-03' }))).toBe(
+      'default',
+    )
+    expect(parsePeriodChoice(JSON.stringify({ from: '12 May', to: '2025-06-03' }))).toBe('default')
+    expect(parsePeriodChoice(JSON.stringify({ from: '2025-05-12' }))).toBe('default')
+  })
 })
 
 describe('usePeriodChoice', () => {

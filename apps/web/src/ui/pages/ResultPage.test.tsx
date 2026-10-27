@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sex } from '@rca/core/grade'
+import type { PeriodChoice } from '@rca/core/period'
 import type { Copy } from '@rca/core/session'
 import type { Route } from '../route'
 import type { SavedActivity } from '../../worker/protocol'
@@ -413,7 +414,7 @@ describe('ResultPage period', () => {
     localStorage.clear()
   })
 
-  function renderBalance(setRange: (choice: number | 'all' | 'default') => void) {
+  function renderBalance(setRange: (choice: PeriodChoice) => void) {
     const analysis = analysisStub({
       state: {
         result: makeResult(),

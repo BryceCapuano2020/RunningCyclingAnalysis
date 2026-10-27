@@ -6,6 +6,7 @@ import { sampleDataset } from './synthetic'
 import { combine, digestActivity, sportCurves } from './digest'
 import { DAY_MS, DEFAULT_BIKE_MODEL, HEADLINE_DURATION_S } from './constants'
 import type { AthleteSettings } from './types'
+import { dayOf } from './customRange'
 
 vi.mock('./digest/trend', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./digest/trend')>()
@@ -53,6 +54,24 @@ describe('AnalysisSession trend', () => {
     const rides = state.trend.filter((point) => point.rideWkg !== null)
     expect(rides.length).toBeGreaterThan(0)
     expect(rides.some((point) => point.rideRunSpeed !== null)).toBe(true)
+  })
+
+  it('recomputes the trend for a custom range that holds the same activities from another first day', () => {
+    const session = new AnalysisSession()
+    session.loadDigests(sampleDigests(), SETTINGS)
+    const starts = SAMPLE_DIGESTS.map((d) => d.startMs)
+    const first = new Date(Math.min(...starts))
+    const last = new Date(Math.max(...starts))
+    const day = (date: Date, shift: number) => {
+      const copy = new Date(date)
+      copy.setDate(copy.getDate() + shift)
+      return dayOf(copy.getTime())
+    }
+    // Both ranges hold every activity and have the same length, but start on different days.
+    session.setRange({ from: day(first, -10), to: dayOf(last.getTime()) }, SETTINGS)
+    fitnessTrend.mockClear()
+    session.setRange({ from: day(first, -9), to: day(last, 1) }, SETTINGS)
+    expect(fitnessTrend).toHaveBeenCalledTimes(EFFORTS)
   })
 
   it('recomputes the trend when the period changes, and reuses it for the same period', () => {

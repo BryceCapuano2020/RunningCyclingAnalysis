@@ -272,3 +272,105 @@ describe('RangePicker keeps the pressed control on screen', () => {
     expect(pickThenAnswer(400, 400)).not.toHaveBeenCalled()
   })
 })
+
+describe('RangePicker custom range', () => {
+  const RANGE = { from: '2025-05-12', to: '2025-06-03' }
+
+  function withCustom(props: Partial<RangePickerProps> = {}) {
+    return picker({ custom: true, range: RANGE, dates: '12 May – 3 Jun 2025', ...props })
+  }
+
+  it('offers Custom after All time only where the page offers it', () => {
+    const { unmount } = render(withCustom())
+    expect(
+      within(screen.getByRole('group', { name: 'Period' }))
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent),
+    ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
+    unmount()
+    render(picker())
+    expect(screen.queryByRole('radio', { name: 'Custom' })).toBeNull()
+  })
+
+  it('shows From and To, prefilled with the period on screen, when Custom is picked, and applies nothing yet', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(withCustom({ onChange }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked()
+    expect(screen.getByLabelText('From')).toHaveValue(RANGE.from)
+    expect(screen.getByLabelText('To')).toHaveValue(RANGE.to)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('applies the range on Apply, and not on each change to a date', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(withCustom({ onChange }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2025-04-01' } })
+    expect(onChange).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(
+      { from: '2025-04-01', to: RANGE.to },
+      expect.any(Function),
+    )
+  })
+
+  it('applies the days in order when the last day is before the first', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(withCustom({ onChange }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2025-06-03' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-05-12' } })
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(onChange).toHaveBeenCalledWith(RANGE, expect.any(Function))
+  })
+
+  it('does not apply a range with a date left empty', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(withCustom({ onChange, range: null }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('checks Custom for a custom range on screen, with its form open', () => {
+    render(withCustom({ choice: RANGE }))
+    expect(screen.getByRole('radio', { name: 'Custom' })).toBeChecked()
+    expect(screen.getByLabelText('From')).toHaveValue(RANGE.from)
+  })
+
+  it('keeps the form closed when a state with the same custom range arrives after a fixed pick', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(withCustom({ choice: RANGE }))
+    await user.click(screen.getByRole('radio', { name: '12 weeks' }))
+    expect(screen.queryByLabelText('From')).toBeNull()
+    // The worker answers with the same range as a new object, as it does on every state.
+    rerender(withCustom({ choice: { ...RANGE } }))
+    expect(screen.queryByLabelText('From')).toBeNull()
+  })
+
+  it('does not apply a date the core refuses, such as a year before 0100', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(withCustom({ onChange, range: null }))
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '0099-01-01' } })
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2025-06-03' } })
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
+    expect(screen.getByText('Pick dates from the year 100 on.')).toBeVisible()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('closes the form when a fixed period is picked', async () => {
+    const user = userEvent.setup()
+    render(withCustom())
+    await user.click(screen.getByRole('radio', { name: 'Custom' }))
+    await user.click(screen.getByRole('radio', { name: '12 weeks' }))
+    expect(screen.queryByLabelText('From')).toBeNull()
+  })
+})

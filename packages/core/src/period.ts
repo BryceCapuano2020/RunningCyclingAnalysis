@@ -6,6 +6,14 @@ import type { TrendPoint } from './digest/trend'
 import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
 import type { EffortLengthS } from './digest/trendPoints'
 import type { ActivityDigest, AthleteSettings, BikeModel, HrCrossCheck, SportCurves } from './types'
+import { dayOf, dayStartMs, isCustomChoice, orderedRange } from './customRange'
+import type { CustomRange } from './customRange'
+
+/**
+ * The longest number of days a period can count back over: a century. Past it a window would date
+ * outside the calendar the app can show, so such a choice is refused.
+ */
+export const MAX_PERIOD_DAYS = 36_500
 
 /** The default period is the latest window of this many weeks that holds a run and a ride. */
 export const DEFAULT_PERIOD_WEEKS = 12
@@ -13,9 +21,10 @@ export const DEFAULT_PERIOD_DAYS = DEFAULT_PERIOD_WEEKS * 7
 
 /**
  * A period the athlete can pick: the default window, a number of days back from the newest activity,
- * or all time. The stored preference and the period control both use this.
+ * all time, or a custom range of days the athlete names. The stored preference and the period control
+ * both use this.
  */
-export type PeriodChoice = 'default' | 'all' | number
+export type PeriodChoice = 'default' | 'all' | number | CustomRange
 
 /**
  * The period on screen. Its dates are inclusive, and both are null for an empty library. `days` is
@@ -65,6 +74,32 @@ export function endOfLocalDay(ms: number): number {
   const date = new Date(ms)
   date.setHours(23, 59, 59, 999)
   return date.getTime()
+}
+
+/** The choice a value names: a period the control offers or a custom range, and undefined for anything else. */
+export function periodChoiceOf(value: unknown): PeriodChoice | undefined {
+  if (value === 'default' || value === 'all') return value
+  if (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= MAX_PERIOD_DAYS
+  ) {
+    return value
+  }
+  return isCustomChoice(value) ? orderedRange(value) : undefined
+}
+
+/** Whether two choices name the same period: the same word or number, or the same two days. */
+export function sameChoice(a: PeriodChoice, b: PeriodChoice): boolean {
+  if (typeof a === 'object' && typeof b === 'object') return a.from === b.from && a.to === b.to
+  return a === b
+}
+
+/** The first and last day of a period, as `YYYY-MM-DD`, or null when it has no dates. */
+export function periodDays(period: Period): CustomRange | null {
+  if (period.startMs === null || period.endMs === null) return null
+  return { from: dayOf(period.startMs), to: dayOf(period.endMs) }
 }
 
 /** The instant that falls the given number of local calendar days before ms, at the same time of day. */
@@ -118,8 +153,9 @@ function defaultWindow(
 
 /** The period a choice names, dated from the visible digests. */
 export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoice): Period {
+  const ordered = typeof choice === 'object' ? orderedRange(choice) : choice
   if (visible.length === 0)
-    return { choice, startMs: null, endMs: null, days: null, fellBack: false }
+    return { choice: ordered, startMs: null, endMs: null, days: null, fellBack: false }
   const first = visible.reduce((low, d) => Math.min(low, d.startMs), Infinity)
   const newest = visible.reduce((high, d) => Math.max(high, d.startMs), -Infinity)
   const endMs = endOfLocalDay(newest)
@@ -130,7 +166,23 @@ export function periodOf(visible: readonly ActivityDigest[], choice: PeriodChoic
     if (window === null) return { ...allTime, fellBack: true }
     return { choice, ...window, days: calendarDays(window.startMs, window.endMs), fellBack: false }
   }
+  if (typeof choice === 'object') return customPeriod(choice)
   return { choice, ...windowEnding(newest, choice), days: choice, fellBack: false }
+}
+
+/**
+ * The period of a custom range: from the first millisecond of its first day to the last of its last,
+ * with the days in order. Not clipped to the library, so a range outside it is empty, not refused.
+ */
+function customPeriod(choice: CustomRange): Period {
+  const range = orderedRange(choice)
+  const startMs = dayStartMs(range.from)
+  const lastDay = dayStartMs(range.to)
+  if (startMs === null || lastDay === null) {
+    return { choice: range, startMs: null, endMs: null, days: null, fellBack: false }
+  }
+  const endMs = endOfLocalDay(lastDay)
+  return { choice: range, startMs, endMs, days: calendarDays(startMs, endMs), fellBack: false }
 }
 
 /**
@@ -200,7 +252,12 @@ const ANALYSES_KEPT = 4
 export class PeriodCache {
   private trendEntries = new Map<
     EffortLengthS,
-    Inputs & { rangeDays: number | null; equivalence: boolean; points: TrendPoint[] }
+    Inputs & {
+      rangeDays: number | null
+      startMs: number | null
+      equivalence: boolean
+      points: TrendPoint[]
+    }
   >()
   private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
     null
@@ -273,6 +330,7 @@ export class PeriodCache {
     if (
       cached &&
       cached.rangeDays === rangeDays &&
+      cached.startMs === startMs &&
       cached.equivalence === equivalence &&
       sameInputs(cached, selected, settings)
     ) {
@@ -289,6 +347,7 @@ export class PeriodCache {
       selected,
       ...masses(settings),
       rangeDays,
+      startMs,
       equivalence,
       points,
     })

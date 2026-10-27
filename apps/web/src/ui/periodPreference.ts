@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { isCustomChoice, orderedRange } from '@rca/core/customRange'
 import type { PeriodChoice } from '@rca/core/period'
 import type { LoadPeriod } from '../worker/protocol'
 import { RANGE_OPTIONS } from './components/rangeOptions'
@@ -13,6 +14,7 @@ export function parsePeriodChoice(raw: string | null): PeriodChoice {
   if (raw === null) return 'default'
   try {
     const value: unknown = JSON.parse(raw)
+    if (isCustomChoice(value)) return orderedRange(value)
     return RANGE_OPTIONS.find((option) => option.choice === value)?.choice ?? 'default'
   } catch {
     return 'default'

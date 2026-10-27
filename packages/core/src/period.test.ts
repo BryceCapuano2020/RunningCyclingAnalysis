@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from './constants'
 import { digestActivity } from './digest'
+import { isCustomChoice, orderedRange, dayStartMs, dayOf } from './customRange'
 import {
   DEFAULT_PERIOD_DAYS,
   DEFAULT_PERIOD_WEEKS,
+  MAX_PERIOD_DAYS,
+  periodChoiceOf,
+  periodDays,
   periodOf,
+  sameChoice,
   splitPeriods,
   startedWithin,
   windowEnding,
@@ -236,5 +241,110 @@ describe('startedWithin', () => {
 
   it('keeps nothing from an empty list', () => {
     expect(startedWithin([], 42)).toEqual([])
+  })
+})
+
+describe('a custom range', () => {
+  // 12 May to 3 June 2025 is 23 calendar days; the 23 days before 12 May are the previous period.
+  const FROM = '2025-05-12'
+  const TO = '2025-06-03'
+  const MAY12 = new Date(2025, 4, 12, 12).getTime()
+  const JUNE3 = new Date(2025, 5, 3, 12).getTime()
+  const JUNE_HOURS = endOfDay(JUNE3)
+
+  it('dates the period from the first millisecond of its first day to the last of its last, and counts the days', () => {
+    expect(periodOf([at(MAY12)], { from: FROM, to: TO })).toEqual({
+      choice: { from: FROM, to: TO },
+      startMs: startOfDay(MAY12),
+      endMs: JUNE_HOURS,
+      days: 23,
+      fellBack: false,
+    })
+  })
+
+  it('swaps a range whose last day is before its first, so the period reads in order', () => {
+    const period = periodOf([at(MAY12)], { from: TO, to: FROM })
+    expect(period.choice).toEqual({ from: FROM, to: TO })
+    expect(period.days).toBe(23)
+    expect(orderedRange({ from: TO, to: FROM })).toEqual({ from: FROM, to: TO })
+  })
+
+  it('selects the activities that fall on its days, the last one late in the day included', () => {
+    const late = new Date(2025, 5, 3, 22).getTime()
+    const outside = new Date(2025, 5, 4, 8).getTime()
+    const before = new Date(2025, 4, 11, 20).getTime()
+    const { selected } = splitPeriods([at(before), at(MAY12), at(late), at(outside)], {
+      from: FROM,
+      to: TO,
+    })
+    expect(selected.map((d) => d.startMs)).toEqual([MAY12, late])
+  })
+
+  it('selects the days of the same length before its first day as the previous period', () => {
+    const inside = new Date(2025, 4, 1, 9).getTime()
+    const tooEarly = new Date(2025, 3, 18, 9).getTime()
+    const { previous } = splitPeriods([at(inside), at(tooEarly), at(MAY12)], {
+      from: FROM,
+      to: TO,
+    })
+    expect(previous.map((d) => d.startMs)).toEqual([inside])
+  })
+
+  it('is allowed to hold no activities, so its selection is empty', () => {
+    const quiet = { from: '2024-01-01', to: '2024-01-10' }
+    const { selected, previous, period } = splitPeriods([at(MAY12)], quiet)
+    expect(selected).toEqual([])
+    expect(previous).toEqual([])
+    expect(period.days).toBe(10)
+  })
+
+  it('tells a range from a number of days, and the same range from another one', () => {
+    expect(sameChoice({ from: FROM, to: TO }, { from: FROM, to: TO })).toBe(true)
+    expect(sameChoice({ from: FROM, to: TO }, { from: FROM, to: '2025-06-04' })).toBe(false)
+    expect(sameChoice({ from: FROM, to: TO }, 23)).toBe(false)
+    expect(sameChoice(42, 42)).toBe(true)
+    expect(sameChoice('all', 'default')).toBe(false)
+  })
+
+  it('reads its own days back through dayOf, so the form and the period agree on them', () => {
+    expect(dayOf(MAY12)).toBe(FROM)
+    expect(dayOf(JUNE_HOURS)).toBe(TO)
+    expect(dayStartMs(FROM)).toBe(startOfDay(MAY12))
+  })
+
+  it('accepts only two real days as YYYY-MM-DD, and names no day that rolls over', () => {
+    expect(isCustomChoice({ from: FROM, to: TO })).toBe(true)
+    expect(isCustomChoice({ from: '2025-06-31', to: TO })).toBe(false)
+    expect(isCustomChoice({ from: '12/05/2025', to: TO })).toBe(false)
+    expect(isCustomChoice({ from: FROM })).toBe(false)
+    expect(isCustomChoice(42)).toBe(false)
+    expect(isCustomChoice(null)).toBe(false)
+  })
+
+  it('refuses a number of days past the sane maximum, which would date an impossible period', () => {
+    expect(periodChoiceOf(MAX_PERIOD_DAYS)).toBe(MAX_PERIOD_DAYS)
+    expect(periodChoiceOf(MAX_PERIOD_DAYS + 1)).toBeUndefined()
+    expect(periodChoiceOf(1e9)).toBeUndefined()
+  })
+
+  it('orders a reversed range even when the library is empty', () => {
+    expect(periodOf([], { from: TO, to: FROM }).choice).toEqual({ from: FROM, to: TO })
+  })
+
+  it('gives the choice a stored or sent value names, and nothing for anything else', () => {
+    expect(periodChoiceOf({ from: FROM, to: TO, extra: 1 })).toEqual({ from: FROM, to: TO })
+    expect(periodChoiceOf(42)).toBe(42)
+    expect(periodChoiceOf('all')).toBe('all')
+    expect(periodChoiceOf('nonsense')).toBeUndefined()
+    expect(periodChoiceOf(-3)).toBeUndefined()
+    expect(periodChoiceOf({ from: '2025-02-30', to: TO })).toBeUndefined()
+  })
+
+  it('dates the first and last day on screen, so the form can start from them', () => {
+    expect(periodDays(periodOf([at(MAY12)], { from: FROM, to: TO }))).toEqual({
+      from: FROM,
+      to: TO,
+    })
+    expect(periodDays(periodOf([], { from: FROM, to: TO }))).toBeNull()
   })
 })

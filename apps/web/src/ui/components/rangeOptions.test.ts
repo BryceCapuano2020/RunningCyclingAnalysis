@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
 import {
+  CUSTOM_OPTION,
   FALLBACK_NOTE,
   LIBRARY_RANGE_OPTIONS,
   RANGE_OPTIONS,
@@ -89,5 +90,13 @@ describe('previousPeriodLabel', () => {
 describe('FALLBACK_NOTE', () => {
   it('says the 12 weeks up to the newest activity lack both sports, and that the period shows all time', () => {
     expect(FALLBACK_NOTE).toBe("Your last 12 weeks don't hold both sports, so this shows all time.")
+  })
+})
+
+describe('CUSTOM_OPTION', () => {
+  it('is the Custom segment, whose value a custom range shares', () => {
+    expect(CUSTOM_OPTION).toEqual({ value: 'custom', label: 'Custom' })
+    expect(optionValue({ from: '2025-05-12', to: '2025-06-03' })).toBe(CUSTOM_OPTION.value)
+    expect(choiceOfValue(CUSTOM_OPTION.value)).toBeUndefined()
   })
 })
