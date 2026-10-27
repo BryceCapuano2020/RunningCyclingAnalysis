@@ -25,6 +25,34 @@ export const RUN_RECORD_DISTANCES_M = [
   HALF_MARATHON_M,
 ] as const
 export type RunRecordDistanceM = (typeof RUN_RECORD_DISTANCES_M)[number]
+
+/**
+ * The open men's world-record flat speed, m/s, at the durations a run's best is held over, from the
+ * event world records: 100 m in 9.58 s, 400 m in 43.03 s, 800 m, 1,500 m, 5,000 m, 10,000 m, the half
+ * marathon and the marathon. A best faster than its ceiling is not a possible effort. Between two
+ * entries the ceiling is interpolated, and beyond the ends it holds the end value; see runCeilingSpeed.
+ */
+export const RUN_WORLD_RECORD_SPEEDS: readonly { durationS: number; speedMs: number }[] = [
+  // 5 s and 10 s: the sprint limit.
+  { durationS: 5, speedMs: 12.2 },
+  { durationS: 10, speedMs: 12.2 },
+  // 100 m in 9.58 s.
+  { durationS: 20, speedMs: 10.44 },
+  // 400 m in 43.03 s.
+  { durationS: 43, speedMs: 9.3 },
+  // 800 m.
+  { durationS: 101, speedMs: 7.93 },
+  // 1,500 m.
+  { durationS: 206, speedMs: 7.28 },
+  // 5,000 m.
+  { durationS: 755, speedMs: 6.62 },
+  // 10,000 m.
+  { durationS: 1571, speedMs: 6.37 },
+  // The half marathon.
+  { durationS: 3450, speedMs: 6.12 },
+  // The marathon.
+  { durationS: 7235, speedMs: 5.83 },
+]
 /**
  * Most splits one run may have in each unit, counting a partial split. A run over the limit has
  * none in that unit. 500 is a 500 km run, and 320 miles is about 515 km.

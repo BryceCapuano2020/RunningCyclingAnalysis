@@ -20,7 +20,7 @@ import { plural } from '../components/plural'
 import { effortShareLine } from '../effortCaveat'
 import { formatCount } from '../format/count'
 import { recordChange } from '../recordChange'
-import { recordRow } from '../recordRow'
+import { recordRow, treadmillMarks } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeGap, AgeProfile } from '../grades'
@@ -52,6 +52,7 @@ import {
   threshold,
   valueAt,
 } from '../records'
+import type { SportRecord } from '../records'
 import './SportPage.css'
 
 export interface SportPageProps {
@@ -86,6 +87,11 @@ export interface SportPageProps {
    * to pick and asks for files; with some and none in the period, it offers All time.
    */
   inLibrary: number
+  /**
+   * Every visible activity, whatever the period. The period before's activities are not in the result,
+   * so the power source of an earlier best is looked up here.
+   */
+  library: ActivitySummary[]
   /** Shows every activity, from the All time action an empty period offers. */
   onShowAll?: () => void
   /** Adds files, from the action an empty sport page offers. */
@@ -130,6 +136,7 @@ export function SportPage({
   footnote = null,
   emptyText,
   inLibrary,
+  library,
   onShowAll,
   onAddFiles,
 }: SportPageProps) {
@@ -157,22 +164,31 @@ export function SportPage({
     profile === null || held ? null : sportGrade(result, sport, HEADLINE_DURATION_S, profile)
   const current = nativeCurve(sport, result)
   const earlier = previous && previousLabel ? nativeCurve(sport, previous) : null
-  const changeOf = (durationS: number): string | null =>
-    earlier && previousLabel
-      ? recordChange(
-          sport,
-          valueAt(current, durationS),
-          valueAt(earlier, durationS),
-          units,
-          previousLabel,
-        )
-      : null
+  // The activity behind the earlier period's best at a duration, found in the library.
+  const earlierActivityAt = (durationS: number): ActivitySummary | null => {
+    const id = earlier?.find((point) => point.durationS === durationS)?.activityId ?? null
+    return id === null ? null : (library.find((activity) => activity.id === id) ?? null)
+  }
+  // A change is named only between two demonstrated figures: a ride's estimated watts on either side
+  // leave it out, since two estimates moving is not a change in the rider.
+  const changeOf = (record: SportRecord): string | null => {
+    if (!earlier || !previousLabel) return null
+    if (isEstimatedRecord(sport, record.activity)) return null
+    if (isEstimatedRecord(sport, earlierActivityAt(record.durationS))) return null
+    return recordChange(
+      sport,
+      valueAt(current, record.durationS),
+      valueAt(earlier, record.durationS),
+      units,
+      previousLabel,
+    )
+  }
   // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
   const rows: RecordRow[] = graded.map(({ record, outcome }) =>
     recordRow(sport, record, {
       label: effortLabel(record.durationS),
       grade: recordGradeCell(sport, outcome, record.covered, 'row'),
-      change: changeOf(record.durationS),
+      change: changeOf(record),
       setDays: setDaysOf(record.activity, openedAt),
     }),
   )
@@ -183,7 +199,7 @@ export function SportPage({
     value: record.time,
     sub: paceIsTime(record.distanceM, units) ? null : record.pace,
     grade: recordGradeCell(sport, distanceOutcomes[index] ?? null, null, 'row'),
-    tags: [],
+    tags: treadmillMarks('run', record.activity),
     change: null,
     setDays: setDaysOf(record.activity, openedAt),
     activity: record.activity,

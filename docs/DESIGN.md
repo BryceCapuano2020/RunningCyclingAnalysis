@@ -384,11 +384,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a number only, and is left out with none.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
-  figure has not moved. It is absent for All time. A record with no grade leaves its grade out, so
-  every row keeps the same columns. A sport page's and an activity page's list says a ride's "Estimated
-  through its running equivalent" and its no-standard note, such as a run's "No age standard under 1
-  mile" or a ride's "No age standard for this duration", once, under the list, and each row then reads
-  only its level.
+  figure has not moved. It is absent for All time, and for a ride when either best's watts are
+  estimated, since two estimates moving is not a change in the rider. A record with no grade leaves
+  its grade out, so every row keeps the same columns. A sport page's and an activity page's list
+  says a ride's "Estimated through its running equivalent" and its no-standard note, such as a run's
+  "No age standard under 1 mile" or a ride's "No age standard for this duration", once, under the
+  list, and each row then reads only its level.
 - **Power is said to be measured or estimated on the page.** When a ride's watts were not measured by
   a power meter, the best efforts say "Power meters measured 2 of 5 rides. Watts for the rest are
   estimated." The line links to How sure is this?. The pipeline writes an average power only from a
@@ -430,8 +431,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Best efforts share one list,** `SportRecords`, on the Balance card, the sport page and the activity
   page: one row per record with one source size, built by `recordRow`. A run's own distance times, such
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
-  this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked Estimated unless a power meter measured them. When every
-  record was set in one activity, that activity is named once under the list ("All set on Morning run,
+  this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked
+  Estimated unless a power meter measured them. A record set by a run held indoors is marked
+  Treadmill in the same chip, on its row, on a distance time and in the grade line's effort. When
+  every record was set in one activity, that activity is named once under the list ("All set on Morning run,
   5 Jan · 5 months ago"), the link and its count on one line in the second column, the name wrapping
   so the date stays whole. Otherwise each record links to its own activity, with its own count on the
   link's line. A long activity name is cut short with an ellipsis, and its full name is the link's
