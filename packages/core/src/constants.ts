@@ -12,6 +12,7 @@ export const DURATIONS_S = [
 
 /** A half marathon, m: 21.0975 km. */
 export const HALF_MARATHON_M = 21_097.5
+export const MARATHON_M = 42_195
 
 /**
  * Distances, m, at which a run's fastest time is recorded: 1 km, 1 mile, 5 km, 10 km and a half
@@ -177,3 +178,39 @@ export const HR_SKIP_S = 600
  */
 export const HR_SET_ASIDE_MIN_S = 600
 export const HR_SET_ASIDE_FLOOR = 0.7
+
+/** The running races predicted, m: 5 km, 10 km, the half marathon and the marathon. */
+export const RUN_RACE_DISTANCES_M = [5_000, 10_000, HALF_MARATHON_M, MARATHON_M] as const
+
+/**
+ * Riegel's fatigue exponent: time grows as distance to this power (Riegel 1977, Runner's World). Vickers &
+ * Vertosick (2016, BMC Sports Sci Med Rehabil 8:26) found 1.07 well calibrated up to the half marathon in
+ * 2,303 recreational runners, so it is used as is, not fitted to bests that may not have been all-out.
+ */
+export const RIEGEL_EXPONENT = 1.07
+/** A best predicts a race at most this many times its own distance, since the error grows with the ratio. */
+export const RIEGEL_MAX_RATIO = 10
+
+/**
+ * The heart-rate estimate of VO2max uses windows of at least this long, s, at or above this share of the
+ * running reference heart rate, from at least this many runs. Below the share, the intercept of Swain's
+ * relation is a larger part of the estimate and its error grows; near the maximum, heart rate plateaus,
+ * so the share is a floor, not a target.
+ */
+export const VO2MAX_MIN_WINDOW_S = 600
+export const VO2MAX_MIN_HR_SHARE = 0.85
+export const VO2MAX_MIN_RUNS = 2
+
+/**
+ * The spread of a race prediction, as a standard deviation of log time, by race. The marathon's is
+ * Vickers & Vertosick's model 1 validation error (about 15 min at 3:40); the shorter races' are a
+ * judgement, scaled down with distance, since no comparable recreational validation was found.
+ */
+export const RACE_LOG_SD: Record<(typeof RUN_RACE_DISTANCES_M)[number], number> = {
+  5_000: 0.04,
+  10_000: 0.045,
+  [HALF_MARATHON_M]: 0.055,
+  [MARATHON_M]: 0.07,
+}
+/** The share of outcomes the range shows: from the 10th to the 90th percentile. */
+export const RACE_RANGE_Z = 1.2816

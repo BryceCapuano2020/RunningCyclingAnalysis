@@ -44,6 +44,7 @@ import { floorThreshold } from '../thresholdFloor'
 import { thresholdRange } from '../thresholdRange'
 import { unevenNote } from '../unevenNote'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { RacePredictions } from './RacePredictions'
 import {
   EFFORT_OPTIONS,
   activityNames,
@@ -325,6 +326,8 @@ export function SportPage({
               <ArrowRightIcon />
             </a>
           </section>
+
+          <RacePredictions sport={sport} result={result} units={units} />
 
           <section className="section" aria-labelledby={`${sport}-trend`}>
             <h2 id={`${sport}-trend`}>Week by week</h2>

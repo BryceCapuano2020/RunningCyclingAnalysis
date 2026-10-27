@@ -43,6 +43,7 @@ import { leaveOneOutAccuracy } from './accuracy'
 import type { Calibrated } from './accuracy'
 import { powerAt } from './terms'
 import { trustedHeartRate, withoutSetAside } from './trustedHeartRate'
+import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 
 export interface Equivalence {
   durationS: number
@@ -96,6 +97,8 @@ export interface AnalysisResult {
    * heart-rate check, the effort checks and the reference heart rates.
    */
   heartRateSetAside: string[]
+  /** VO2max from heart rate against pace on hard runs, for the race predictions; null without one. */
+  runVo2max: Vo2maxEstimate | null
   /** Whether each compared best effort was close to all-out, one entry per comparison duration. */
   effort: EffortCheck[]
   bikeModel: BikeModel
@@ -375,6 +378,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     runObservedMaxHeartRate: heart.observedMax.run,
     rideObservedMaxHeartRate: heart.observedMax.ride,
     heartRateSetAside: [...heart.setAside].sort(),
+    runVo2max: vo2maxFromHeartRate(heart.trusted, heart.reference.run, runCentralWkg),
     effort,
     bikeModel,
     bikeModelSource: fittedBike.source,

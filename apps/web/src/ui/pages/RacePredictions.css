@@ -1,0 +1,26 @@
+/* The race table fits a 320 px phone: three columns, the likely range under the time. */
+.race-table {
+  width: 100%;
+}
+
+.race-table caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--text-secondary);
+  padding: 0 0 var(--space-2);
+}
+
+.race-table th,
+.race-table td {
+  padding-inline: var(--space-2);
+  vertical-align: top;
+}
+
+.race-table__time,
+.race-table__range {
+  display: block;
+}
+
+.race-table__range {
+  font-size: var(--text-sm);
+}

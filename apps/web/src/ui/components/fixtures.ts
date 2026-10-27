@@ -94,6 +94,7 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
     runObservedMaxHeartRate: null,
     rideObservedMaxHeartRate: null,
     heartRateSetAside: [],
+    runVo2max: null,
     effort: [],
     bikeModel: { cda: 0.32, crr: 0.005 },
     bikeModelSource: 'default',
