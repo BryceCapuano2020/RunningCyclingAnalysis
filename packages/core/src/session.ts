@@ -107,6 +107,8 @@ export class AnalysisSession {
     onComplete?: (outcome: {
       activities: number
       rejected: number
+      /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
+      notActivities: number
       duplicates: RejectedFile[]
       added: ActivityDigest[]
     }) => void,
@@ -117,7 +119,7 @@ export class AnalysisSession {
     this.unsupported.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
-    const outcome = { activities: 0, rejected: 0 }
+    const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     for (const source of sources) {
       await importSource(source, {
         limits: this.limits,

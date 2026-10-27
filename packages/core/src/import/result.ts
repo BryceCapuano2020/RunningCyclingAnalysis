@@ -53,6 +53,12 @@ export interface ParseOptions {
    */
   activityName?: string
   /**
+   * The type the file's export gives the activity, such as Strava's "Trail Run" or "Virtual Ride". It
+   * fills in a sport the file does not say: a GPX track with no type, or a TCX activity whose Sport is
+   * Other. A sport the file names is never overridden, and a FIT file always keeps its own.
+   */
+  activityType?: string
+  /**
    * An id for this upload, such as the hash of its bytes. The legs of one upload share it as their
    * session key. Never the file name: two uploads of the same name are different sessions. Absent
    * when the caller gives none, and then the legs share no session.

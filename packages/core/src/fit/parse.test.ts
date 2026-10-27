@@ -1169,3 +1169,25 @@ describe('parseFit route shape', () => {
     expect(result.ok && result.activities[0]?.route).toBeUndefined()
   })
 })
+
+describe('parseFit with the type an export list gives', () => {
+  const records = secondly(START_MS, 70)
+
+  it('never overrides the sport the file names', () => {
+    const run = buildFit({
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 70, records }],
+    })
+    const swim = buildFit({
+      sessions: [{ sport: 'swimming', startMs: START_MS, durationS: 70, records }],
+    })
+
+    expect(firstActivity(parseFit(run, 'run.fit', undefined, { activityType: 'Ride' })).sport).toBe(
+      'run',
+    )
+    expect(parseFit(swim, 'pool.fit', undefined, { activityType: 'Run' })).toMatchObject({
+      ok: false,
+      code: 'unsupported-sport',
+      detail: 'swimming',
+    })
+  })
+})

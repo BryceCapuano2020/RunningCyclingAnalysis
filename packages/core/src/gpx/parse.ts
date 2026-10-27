@@ -5,6 +5,7 @@ import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime } from '../import/time'
 import { fileTitle } from '../import/names'
+import { sportOfType } from '../import/sportType'
 import {
   fixesOf,
   readNonNegative,
@@ -16,7 +17,6 @@ import {
 import type { LatLon } from '../import/trackpoints'
 import { scanXmlBytes, XmlError } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
-import { sportOf } from './sport'
 
 const NOT_GPX = 'Not a GPX file'
 const DECODE_FAILED = 'Could not decode GPX file'
@@ -105,7 +105,7 @@ function parseUnchecked(
     const reason = `GPX file exceeds the ${limits.maxFileBytes}-byte limit`
     return failure(fileName, reason, 'too-large', String(limits.maxFileBytes))
   }
-  const reader = new GpxReader(limits.maxRecordMessages)
+  const reader = new GpxReader(limits.maxRecordMessages, opts.activityType)
   try {
     scanXmlBytes(bytes, reader)
   } catch (error) {
@@ -113,10 +113,9 @@ function parseUnchecked(
     if (error instanceof XmlError) return failure(fileName, NOT_GPX, 'corrupt')
     throw error
   }
-  if (reader.units.every((unit) => unit.records.length === 0)) {
-    return failure(fileName, NO_RECORDS, 'empty')
-  }
-  const result = activitiesFromUnits({ fileName, units: reader.units }, limits, opts)
+  const units = reader.finish()
+  if (units.every(readsAsEmpty)) return failure(fileName, NO_RECORDS, 'empty')
+  const result = activitiesFromUnits({ fileName, units }, limits, opts)
   if (!result.ok) return result
   return { ...result, droppedValues: result.droppedValues + reader.dropped }
 }
@@ -127,18 +126,30 @@ function parseUnchecked(
  */
 class GpxReader implements XmlHandler {
   /** One unit per trk, in file order. */
-  readonly units: PipelineUnit[] = []
+  private readonly units: PipelineUnit[] = []
   /** Trackpoints dropped for having no valid time, a duplicate time, or a rejected position. */
   dropped = 0
   private readonly frames: Frame[] = []
   private readonly maxPoints: number
+  /** The type the export's list gives the activity, for a track that names no sport. */
+  private readonly activityType: string | undefined
   private pointCount = 0
   private creator: string | undefined = undefined
   private track: OpenTrack | undefined = undefined
   private point: OpenPoint | undefined = undefined
 
-  constructor(maxPoints: number) {
+  constructor(maxPoints: number, activityType: string | undefined) {
     this.maxPoints = maxPoints
+    this.activityType = activityType
+  }
+
+  /**
+   * The units read. A file with no track at all holds one empty unit when the export's list says what
+   * the activity was, so that a walk or a gym session with nothing recorded is reported as one.
+   */
+  finish(): PipelineUnit[] {
+    if (this.units.length > 0 || this.activityType === undefined) return this.units
+    return [buildUnit(newTrack(), this.creator, this.activityType).unit]
   }
 
   open(local: string, _name: string, attrs: Record<string, string>, depth: number): void {
@@ -202,15 +213,7 @@ class GpxReader implements XmlHandler {
       return 'root'
     }
     if (parent === 'root' && local === 'trk') {
-      this.track = {
-        type: undefined,
-        typeSeen: false,
-        name: undefined,
-        nameSeen: false,
-        anyPosition: false,
-        points: [],
-        untimed: 0,
-      }
+      this.track = newTrack()
       return 'track'
     }
     const track = this.track
@@ -287,10 +290,30 @@ class GpxReader implements XmlHandler {
     const track = this.track
     this.track = undefined
     if (track === undefined) return
-    const built = buildUnit(track, this.creator)
+    const built = buildUnit(track, this.creator, this.activityType)
     this.units.push(built.unit)
     this.dropped += built.dropped
   }
+}
+
+function newTrack(): OpenTrack {
+  return {
+    type: undefined,
+    typeSeen: false,
+    name: undefined,
+    nameSeen: false,
+    anyPosition: false,
+    points: [],
+    untimed: 0,
+  }
+}
+
+/**
+ * Whether a unit holds nothing to read and nothing that is refused for its sport, so that the file is
+ * empty. A refused sport is reported as the sport, even when the track has no points.
+ */
+function readsAsEmpty(unit: PipelineUnit): boolean {
+  return unit.records.length === 0 && (unit.sport !== null || unit.refusal?.code === 'no-sport')
 }
 
 /**
@@ -300,6 +323,7 @@ class GpxReader implements XmlHandler {
 function buildUnit(
   track: OpenTrack,
   creator: string | undefined,
+  activityType: string | undefined,
 ): { unit: PipelineUnit; dropped: number } {
   // Array.prototype.sort is stable, so the first of several equal times is the one kept.
   const sorted = track.points.sort((a, b) => a.tMs - b.tMs)
@@ -310,7 +334,7 @@ function buildUnit(
     else ordered.push(point)
   }
 
-  const choice = sportOf(track.type, creator)
+  const choice = sportOfType(track.type, creator, activityType)
   const motion = toRecords(ordered, MAX_SPEED_MPS[choice.sport ?? 'ride'])
   dropped += motion.rejected
   const unit: PipelineUnit = {

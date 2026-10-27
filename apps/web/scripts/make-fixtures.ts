@@ -71,9 +71,9 @@ function fixtureActivity(
   )
 }
 
-/** A 10-minute run written as GPX, for the Strava export zip. */
-function gpxRun(): Uint8Array {
-  return encodeGpx(fixtureActivity('gpx-run', 'run', GPX_RUN_START_MS, 10 * 60, GPX_RUN_SEED))
+/** A 10-minute run, which the Strava export zip holds as GPX. */
+function gpxRunActivity(): Activity {
+  return fixtureActivity('gpx-run', 'run', GPX_RUN_START_MS, 10 * 60, GPX_RUN_SEED)
 }
 
 /** A 20-minute ride written as GPX. */
@@ -87,6 +87,7 @@ function oneRunTcx(): Uint8Array {
   return encodeTcx(activity, { gps: true })
 }
 
+/** The GPX run is listed in activities.csv, as in a real export, which reads only the files its list names. */
 function stravaExport(): Uint8Array {
   const activities = sampleDataset().activities
   const files: Zippable = {}
@@ -96,8 +97,11 @@ function stravaExport(): Uint8Array {
     fileNames.push(fileName)
     files[fileName] = [gzip(encodeFit(activity, { gps: true })), { mtime: ZIP_MTIME, level: 0 }]
   })
-  files['activities/999.gpx.gz'] = [gzip(gpxRun()), { mtime: ZIP_MTIME, level: 0 }]
-  files['activities.csv'] = [activitiesCsv(activities, fileNames), { mtime: ZIP_MTIME, level: 9 }]
+  const gpxRun = gpxRunActivity()
+  const gpxName = 'activities/999.gpx.gz'
+  files[gpxName] = [gzip(encodeGpx(gpxRun)), { mtime: ZIP_MTIME, level: 0 }]
+  const listed = activitiesCsv([...activities, gpxRun], [...fileNames, gpxName])
+  files['activities.csv'] = [listed, { mtime: ZIP_MTIME, level: 9 }]
   return zipSync(files)
 }
 

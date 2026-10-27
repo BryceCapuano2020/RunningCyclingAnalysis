@@ -1,8 +1,9 @@
-import { countActivityFiles, extractFitFiles } from './fit'
-import type { ExtractLimits, RangedSource } from './fit'
+import { countActivityFiles, DEFAULT_EXTRACT_LIMITS, extractFitFiles } from './fit'
+import type { ExtractLimits, FitFile, RangedSource } from './fit'
 import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
-import { entryKey, readActivityNames } from './import/activitiesCsv'
+import { entryKey, listedOnly, readActivityList } from './import/activitiesCsv'
+import type { ListedActivity } from './import/activitiesCsv'
 import { sha256Hex } from './sha256'
 import type { Activity } from './types'
 import type { Rejection } from './import/result'
@@ -17,7 +18,7 @@ export interface ImportProgress {
 export interface SourceImport {
   limits: ExtractLimits
   progress: ImportProgress
-  outcome: { activities: number; rejected: number }
+  outcome: { activities: number; rejected: number; notActivities: number }
   /** Rejections by file name, shared by the import. */
   rejected: Map<string, Rejection>
   /** Activity files the sources hold in formats the app does not read, by source name. */
@@ -52,46 +53,56 @@ function countRead(progress: ImportProgress): void {
   progress.onProgress?.(progress.filesRead)
 }
 
+/** Parses one activity file of a source, given what the export's list says of it, and considers its activities. */
+async function importFile(
+  file: FitFile,
+  listed: ListedActivity | undefined,
+  ctx: SourceImport,
+): Promise<void> {
+  const sessionKey = await sessionHashOf(file.bytes)
+  const parsed = parseActivityFile(file.bytes, file.fileName, undefined, {
+    activityName: listed?.name,
+    activityType: listed?.type,
+    sessionKey,
+  })
+  if (parsed.ok) {
+    ctx.outcome.activities += parsed.activities.length
+    // A kept file is hashed as it always was, reusing the session key's hash when one was made.
+    const fileHash = ctx.hashFiles ? (sessionKey ?? (await sha256Hex(file.bytes))) : ''
+    const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
+    for (const activity of parsed.activities) await ctx.consider(activity, imported)
+    // A file that now reads cleanly replaces an earlier rejection under the same name.
+    ctx.rejected.delete(file.fileName)
+    ctx.rejected.delete(`${file.fileName}.gz`)
+  } else {
+    ctx.outcome.rejected++
+    ctx.rejected.set(parsed.fileName, rejectionOf(parsed))
+  }
+  countRead(ctx.progress)
+}
+
 /**
  * Imports one source (a file, or a zip and every activity file in it) into the import's state. The
- * source's activity names are read before its files, and its list's inflated bytes count against the
- * source's decompressed-bytes budget.
+ * source's activity list is read before its files, and its inflated bytes count against the source's
+ * decompressed-bytes budget. When the list names the export's activities, the other activity files of
+ * the zip, such as saved routes, are left unread and counted as not activities.
  */
 export async function importSource(source: RangedSource, ctx: SourceImport): Promise<void> {
   const { progress, outcome } = ctx
   let undecodable = 0
   const readBefore = progress.filesRead
-  // The export's names are read before its files, which may sit anywhere in the zip. The list's
+  // The export's list is read before its files, which may sit anywhere in the zip. The list's
   // inflated bytes count against the source's decompressed-bytes budget, as the files' do.
-  const listed = await readActivityNames(source, ctx.limits)
+  const list = await readActivityList(source, ctx.limits)
+  const listed = listedOnly(list)
   const extractLimits = {
     ...ctx.limits,
     maxTotalDecompressedBytes:
-      ctx.limits.maxTotalDecompressedBytes - (listed?.decompressedBytes ?? 0),
+      ctx.limits.maxTotalDecompressedBytes - (list?.decompressedBytes ?? 0),
   }
   const summary = await extractFitFiles(
     source,
-    async (file) => {
-      const sessionKey = await sessionHashOf(file.bytes)
-      const parsed = parseActivityFile(file.bytes, file.fileName, undefined, {
-        activityName: listed?.names.get(entryKey(file.fileName)),
-        sessionKey,
-      })
-      if (parsed.ok) {
-        outcome.activities += parsed.activities.length
-        // A kept file is hashed as it always was, reusing the session key's hash when one was made.
-        const fileHash = ctx.hashFiles ? (sessionKey ?? (await sha256Hex(file.bytes))) : ''
-        const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
-        for (const activity of parsed.activities) await ctx.consider(activity, imported)
-        // A file that now reads cleanly replaces an earlier rejection under the same name.
-        ctx.rejected.delete(file.fileName)
-        ctx.rejected.delete(`${file.fileName}.gz`)
-      } else {
-        outcome.rejected++
-        ctx.rejected.set(parsed.fileName, rejectionOf(parsed))
-      }
-      countRead(progress)
-    },
+    (file) => importFile(file, list?.files.get(entryKey(file.fileName)), ctx),
     (fileName, rejection) => {
       undecodable++
       outcome.rejected++
@@ -100,16 +111,20 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
       if (ACTIVITY.test(fileName)) countRead(progress)
     },
     extractLimits,
+    listed,
   )
   // An archive that stops early, or loses an entry, reports nothing for the files it did not
   // reach. They count as read here, up to the total its directory lists.
-  const expected = (await countActivityFiles([source])) ?? 0
+  const expected = (await countActivityFiles([source], DEFAULT_EXTRACT_LIMITS, listed)) ?? 0
   for (let left = expected - (progress.filesRead - readBefore); left > 0; left--)
     countRead(progress)
   ctx.unsupported.set(source.name, summary.otherActivityFiles)
   outcome.rejected += summary.otherActivityFiles
-  // A corrupt file is already reported under its own name, so do not also call it empty.
-  if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
+  outcome.notActivities += summary.notActivities
+  // A corrupt file is already reported under its own name, so do not also call it empty. Nor is a zip
+  // empty when its activity files were all left out as not activities.
+  const seen = summary.fitFiles + summary.otherActivityFiles + summary.notActivities
+  if (seen === 0 && undecodable === 0) {
     outcome.rejected++
     ctx.rejected.set(source.name, {
       reason: 'No supported activity files found (FIT, GPX or TCX)',

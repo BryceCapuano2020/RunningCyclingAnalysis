@@ -333,6 +333,7 @@ describe('parseGpx mapping', () => {
     'e-bike ride',
     'eBiking',
     'eBikeFitness',
+    'E-Mountain Bike Ride',
   ])('refuses the e-bike type %s with the FIT message', (type) => {
     const result = parseGpx(gpxFile(track(type, [points(120)])), 'ebike.gpx')
     expect(reasonOf(result)).toBe(E_BIKE)
@@ -649,5 +650,121 @@ describe('parseGpx route shape', () => {
 
     expect(result.ok && result.activities.length).toBe(1)
     expect(result.ok && result.activities[0]?.route).toBeUndefined()
+  })
+})
+
+/** The code and detail of a refusal. */
+function refusalOf(result: ParseResult): { code: string; detail: string | undefined } {
+  if (result.ok) throw new Error('expected a failure')
+  return { code: result.code, detail: result.detail }
+}
+
+describe('parseGpx with the type an export list gives', () => {
+  it.each([
+    ['Run', 'run', false],
+    ['Trail Run', 'run', false],
+    ['Virtual Run', 'run', true],
+    ['Ride', 'ride', false],
+    ['Gravel Ride', 'ride', false],
+    ['Mountain Bike Ride', 'ride', false],
+    ['Virtual Ride', 'ride', true],
+  ] as const)('reads a track with no type of its own as %s', (activityType, sport, indoor) => {
+    const file = gpxFile(track(undefined, [points(120)]))
+    const a = firstActivity(parseGpx(file, 'untyped.gpx', DEFAULT_PARSE_LIMITS, { activityType }))
+    expect(a.sport).toBe(sport)
+    expect(a.indoor).toBe(indoor)
+  })
+
+  it.each(['Trail Run', 'trail_running', 'TRAIL-RUN', 'trailrun'])(
+    'reads the type %s, spelled with spaces, dashes or underscores, as a run',
+    (type) => {
+      const a = firstActivity(parseGpx(gpxFile(track(type, [points(120)])), 'trail.gpx'))
+      expect(a.sport).toBe('run')
+    },
+  )
+
+  it('keeps refusing a track with no type when the list gives none', () => {
+    const file = gpxFile(track(undefined, [points(120)]))
+    const result = parseGpx(file, 'untyped.gpx', DEFAULT_PARSE_LIMITS, {})
+    expect(refusalOf(result).code).toBe('no-sport')
+  })
+
+  it('keeps refusing e-bike rides named by the list', () => {
+    const file = gpxFile(track(undefined, [points(120)]))
+    const options = { activityType: 'E-Bike Ride' }
+    const result = parseGpx(file, 'untyped.gpx', DEFAULT_PARSE_LIMITS, options)
+    expect(refusalOf(result).code).toBe('e-bike')
+  })
+
+  it('refuses a track with no type as the sport the list names, rather than as unsaid', () => {
+    const file = gpxFile(track(undefined, [points(120)]))
+    const result = parseGpx(file, 'hike.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Hike' })
+    expect(refusalOf(result)).toEqual({ code: 'unsupported-sport', detail: 'Hike' })
+  })
+
+  it('keeps the sport the track names, whatever the list says', () => {
+    const run = gpxFile(track('running', [points(120)]))
+    const code = gpxFile(track('9', [points(120)]))
+    const options = { activityType: 'Ride' }
+    expect(firstActivity(parseGpx(run, 'a.gpx', DEFAULT_PARSE_LIMITS, options)).sport).toBe('run')
+    expect(firstActivity(parseGpx(code, 'b.gpx', DEFAULT_PARSE_LIMITS, options)).sport).toBe('run')
+  })
+
+  it('labels a refused numeric type with the list type, and with the code when there is none', () => {
+    const file = gpxFile(track('4', [points(120)]))
+    const listed = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Hike' })
+    expect(refusalOf(listed)).toEqual({ code: 'unsupported-sport', detail: 'Hike' })
+    expect(refusalOf(parseGpx(file, 'a.gpx'))).toEqual({ code: 'unsupported-sport', detail: '4' })
+  })
+
+  it('keeps the type a track names in words, when it is not a run or a ride', () => {
+    const file = gpxFile(track('hiking', [points(120)]))
+    const result = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Walk' })
+    expect(refusalOf(result)).toEqual({ code: 'unsupported-sport', detail: 'hiking' })
+  })
+})
+
+describe('parseGpx with no points', () => {
+  it('reports the sport of an empty track that is refused, not that it is empty', () => {
+    const result = parseGpx(gpxFile(track('hiking', [[]])), 'hike.gpx')
+    expect(refusalOf(result)).toEqual({ code: 'unsupported-sport', detail: 'hiking' })
+  })
+
+  it('reports an empty e-bike track as an e-bike', () => {
+    const result = parseGpx(gpxFile(track('e-bike', [[]])), 'ebike.gpx')
+    expect(refusalOf(result).code).toBe('e-bike')
+  })
+
+  it('reports the sport the list names for an empty track with none of its own', () => {
+    const options = { activityType: 'Weight Training' }
+    const result = parseGpx(
+      gpxFile(track(undefined, [[]])),
+      'gym.gpx',
+      DEFAULT_PARSE_LIMITS,
+      options,
+    )
+    expect(refusalOf(result)).toEqual({ code: 'unsupported-sport', detail: 'Weight Training' })
+  })
+
+  it('keeps an empty run or ride as empty', () => {
+    expect(refusalOf(parseGpx(gpxFile(track('running', [[]])), 'a.gpx')).code).toBe('empty')
+    expect(refusalOf(parseGpx(gpxFile(track('9', [[]])), 'b.gpx')).code).toBe('empty')
+    const listed = parseGpx(gpxFile(track(undefined, [[]])), 'c.gpx', DEFAULT_PARSE_LIMITS, {
+      activityType: 'Ride',
+    })
+    expect(refusalOf(listed).code).toBe('empty')
+  })
+
+  it('keeps an empty track that names no sport as empty', () => {
+    expect(refusalOf(parseGpx(gpxFile(track(undefined, [[]])), 'a.gpx')).code).toBe('empty')
+  })
+
+  it('reads the sport from the list for a file with no track at all', () => {
+    const file = gpxFile()
+    const walk = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Walk' })
+    expect(refusalOf(walk)).toEqual({ code: 'unsupported-sport', detail: 'Walk' })
+    const run = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Run' })
+    expect(refusalOf(run).code).toBe('empty')
+    expect(refusalOf(parseGpx(file, 'a.gpx')).code).toBe('empty')
   })
 })

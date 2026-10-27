@@ -183,3 +183,26 @@ describe('countActivityFiles', () => {
     expect(bytesRead).toBeLessThan(bytes.length / 10)
   })
 })
+
+describe('countActivityFiles with a filter on the zip entries', () => {
+  it('counts only the activity files the filter keeps', async () => {
+    const bytes = zipSync({
+      'activities/1.fit': FIT,
+      'activities/2.gpx.gz': gzipSync(strToU8('gpx')),
+      'routes/1.gpx': strToU8('gpx'),
+      'routes/2.tcx.gz': gzipSync(strToU8('tcx')),
+    })
+    const listed = (entry: string) => entry.startsWith('activities/')
+
+    expect(
+      await countActivityFiles([fileSource('export.zip', bytes)], DEFAULT_EXTRACT_LIMITS, listed),
+    ).toBe(2)
+    expect(await countActivityFiles([fileSource('export.zip', bytes)])).toBe(4)
+  })
+
+  it('does not filter a single file', async () => {
+    const sources = [fileSource('ride.fit', FIT)]
+
+    expect(await countActivityFiles(sources, DEFAULT_EXTRACT_LIMITS, () => false)).toBe(1)
+  })
+})

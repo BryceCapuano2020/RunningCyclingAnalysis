@@ -27,14 +27,19 @@ import {
   UNSUPPORTED_COMPRESSION,
   UNSUPPORTED_FORMAT,
 } from './archiveReasons'
+import { bytesSource, readSource } from './archiveSource'
 import {
   ACTIVITY,
   DIRECTORY_TAIL_BYTES,
+  isEmptyZip,
   isIgnored,
   listedEntries,
   OTHER_ACTIVITY,
   ZIP,
 } from './zipDirectory'
+import type { EntryFilter } from './zipDirectory'
+
+export type { EntryFilter } from './zipDirectory'
 
 export interface FitFile {
   fileName: string
@@ -54,6 +59,8 @@ export interface ExtractSummary {
   fitFiles: number
   /** Activity files in formats this app does not read, seen and skipped. */
   otherActivityFiles: number
+  /** Activity files in the zip that its list does not name, such as saved routes, seen and left unread. */
+  notActivities: number
 }
 
 export type FitFileHandler = (file: FitFile) => void | Promise<void>
@@ -86,6 +93,8 @@ interface Sink {
   onFile: FitFileHandler
   onError: FitErrorHandler
   limits: ExtractLimits
+  /** Which entries of the top-level zip may be activities. Absent when every activity file may. */
+  listed: EntryFilter | undefined
 }
 
 /** Counters shared by a top-level zip and every zip nested inside it. */
@@ -102,16 +111,19 @@ interface ZipBudget {
  * Calls onFile for each FIT, GPX or TCX file in a source, gunzipped and named without its .gz.
  * Content is streamed and bounded; completed files are handed to onFile one at a time. Zips nested
  * up to two levels deep are read too. Invalid and over-limit data is reported through onError and
- * skipped. Errors thrown by handlers propagate after stream cleanup.
+ * skipped. Errors thrown by handlers propagate after stream cleanup. `listed` is for a zip whose own
+ * list names its activities: an activity file of the zip itself that it refuses is counted as not
+ * an activity, and is neither read nor counted against the file limit.
  */
 export async function extractFitFiles(
   source: FitSource,
   onFile: FitFileHandler,
   onError: FitErrorHandler = () => undefined,
   limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS,
+  listed?: EntryFilter,
 ): Promise<ExtractSummary> {
-  const summary: ExtractSummary = { fitFiles: 0, otherActivityFiles: 0 }
-  const sink: Sink = { summary, onFile, onError, limits }
+  const summary: ExtractSummary = { fitFiles: 0, otherActivityFiles: 0, notActivities: 0 }
+  const sink: Sink = { summary, onFile, onError, limits, listed }
   const name = source.name
   if (source.size !== undefined && source.size > limits.maxSourceBytes) {
     onError(name, sourceTooLarge(limits.maxSourceBytes))
@@ -285,6 +297,10 @@ async function streamZip(
     }
     const nested = ZIP.test(entry)
     if (!nested && !ACTIVITY.test(entry)) return drain(file)
+    if (!nested && depth === 0 && sink.listed?.(entry) === false) {
+      sink.summary.notActivities++
+      return drain(file)
+    }
     if (nested && depth >= MAX_NESTED_ARCHIVE_DEPTH) {
       reportEntryError(name, unreadable(TOO_DEEP))
       return drain(file)
@@ -522,84 +538,4 @@ function appendChunk(
   if (chunk.length > limit - existingBytes) return false
   chunks.push(chunk.slice())
   return true
-}
-
-async function readSource(
-  source: FitSource,
-  maxBytes: number,
-  onChunk: (chunk: Uint8Array) => boolean | Promise<boolean>,
-): Promise<Rejection | null> {
-  let reader: ReadableStreamDefaultReader<Uint8Array>
-  try {
-    reader = source.stream().getReader()
-  } catch {
-    return corrupt(READ_FAILED)
-  }
-  let total = 0
-  let complete = false
-  let failure: Rejection | null = null
-  let callbackError: unknown
-  try {
-    while (true) {
-      let step: ReadableStreamReadResult<Uint8Array>
-      try {
-        step = await reader.read()
-      } catch {
-        failure = corrupt(READ_FAILED)
-        break
-      }
-      if (step.done) {
-        complete = true
-        break
-      }
-      if (step.value.length > maxBytes - total) {
-        failure = sourceTooLarge(maxBytes)
-        break
-      }
-      total += step.value.length
-      let accepted: boolean
-      try {
-        accepted = await onChunk(step.value)
-      } catch (error) {
-        callbackError = error
-        break
-      }
-      if (!accepted) {
-        failure = fileTooLarge(maxBytes)
-        break
-      }
-    }
-  } finally {
-    if (!complete) {
-      try {
-        await reader.cancel(failure?.reason ?? 'Extraction stopped')
-      } catch {
-        // Releasing the lock is still required if cancellation is rejected by the source.
-      }
-    }
-    reader.releaseLock()
-  }
-  if (callbackError !== undefined) throw callbackError
-  return failure
-}
-
-/** A source over bytes already in memory, such as a zip nested in another zip. */
-function bytesSource(name: string, bytes: Uint8Array<ArrayBuffer>): FitSource {
-  return {
-    name,
-    stream: () =>
-      new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(bytes)
-          controller.close()
-        },
-      }),
-    arrayBuffer: async () => bytes.slice().buffer,
-  }
-}
-
-/** A zip with no entries starts with its end-of-central-directory record. */
-const EMPTY_ZIP_SIGNATURE = [0x50, 0x4b, 0x05, 0x06]
-function isEmptyZip(prefix: Uint8Array): boolean {
-  return prefix.length === 4 && EMPTY_ZIP_SIGNATURE.every((byte, i) => prefix[i] === byte)
 }
