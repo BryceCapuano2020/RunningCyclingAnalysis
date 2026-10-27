@@ -2,7 +2,6 @@ import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, encodeFit } from './fit'
 import { encodeGpx } from './gpx/encode'
-import { countImportFiles } from './import/activitiesCsv'
 import { AnalysisSession } from './session'
 import type { RejectedFile } from './session'
 import { sampleDataset } from './synthetic'
@@ -33,6 +32,8 @@ function zipFile(entries: Record<string, Uint8Array>): File {
 /** Adds the files, and returns the state with the counts the import ended on. */
 async function importFiles(files: File[], limits = DEFAULT_EXTRACT_LIMITS) {
   const session = new AnalysisSession(limits)
+  // The progress total the page is told before any file is read.
+  const total = await session.countFiles(files)
   const progress: number[] = []
   let outcome = { activities: -1, rejected: -1, notActivities: -1 }
   let duplicates: RejectedFile[] = []
@@ -51,7 +52,7 @@ async function importFiles(files: File[], limits = DEFAULT_EXTRACT_LIMITS) {
       duplicates = completed.duplicates
     },
   )
-  return { state, progress, outcome, duplicates }
+  return { state, progress, outcome, duplicates, total }
 }
 
 describe('AnalysisSession reading a Strava export', () => {
@@ -82,13 +83,13 @@ describe('AnalysisSession reading a Strava export', () => {
         'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
       }),
     ]
-    const { state, progress, outcome } = await importFiles(files)
+    const { state, progress, outcome, total } = await importFiles(files)
 
     expect(state.result?.activities).toHaveLength(1)
     expect(state.rejected).toEqual([])
     expect(outcome).toEqual({ activities: 1, rejected: 0, notActivities: 3 })
     expect(progress).toEqual([1])
-    expect(await countImportFiles(files)).toBe(1)
+    expect(total).toBe(1)
   })
 
   it('keeps the routes of a zip with no list, as any other activity file', async () => {
@@ -157,8 +158,7 @@ describe('which files of an export its list leaves out', () => {
 
   async function read(entries: Record<string, Uint8Array>) {
     const files = [zipFile(entries)]
-    const { state, outcome, progress } = await importFiles(files)
-    const total = await countImportFiles(files)
+    const { state, outcome, progress, total } = await importFiles(files)
     return {
       read: state.rejected.map((file) => file.fileName).sort(),
       activities: state.result?.activities.length ?? 0,
@@ -325,6 +325,47 @@ describe('which files of an export its list leaves out', () => {
     })
   })
 
+  it('leaves out routes/ of an export zipped with backslashes, with the list in a wrapper folder', async () => {
+    const result = await read({
+      'export\\activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+      'export\\activities\\1001.fit': encodeFit(run, { gps: true }),
+      'export\\routes\\1.gpx': ROUTE,
+    })
+
+    expect(result).toEqual({
+      read: [],
+      activities: 1,
+      rejected: 0,
+      notActivities: 1,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+
+  it('does not cover the zip with a row that is not a file, or that climbs above its root', async () => {
+    const result = await read({
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'routes/1.gpx': ROUTE,
+      'rides/2.gpx': ROUTE,
+      'activities.csv': list(
+        '1001,Morning Run,Run,activities/1001.fit',
+        '1002,Hike,Hike,../routes/1.gpx',
+        '1003,Hike,Hike,.',
+        '1004,Hike,Hike,./',
+        '1005,Hike,Hike,activities/old/..',
+      ),
+    })
+
+    expect(result).toEqual({
+      read: [],
+      activities: 1,
+      rejected: 0,
+      notActivities: 2,
+      unsupported: 0,
+      agrees: true,
+    })
+  })
+
   it('reads everything when two exports sit side by side, each with its own list', async () => {
     const result = await read({
       'a/activities/1001.fit': encodeFit(run, { gps: true }),
@@ -431,8 +472,10 @@ describe('AnalysisSession reading the sport an export list gives', () => {
     // The directory holds more entries than the limits accept, so extraction stops and the files it
     // did not reach are not counted as read.
     const limits = { ...DEFAULT_EXTRACT_LIMITS, maxArchiveEntries: 4 }
-    const { progress } = await importFiles([zipFile(entries)], limits)
+    const { progress, total } = await importFiles([zipFile(entries)], limits)
 
     expect(progress.at(-1)).toBe(4)
+    // The total is counted by the same limits, so it is unknown rather than a count the import cannot reach.
+    expect(total).toBeNull()
   })
 })

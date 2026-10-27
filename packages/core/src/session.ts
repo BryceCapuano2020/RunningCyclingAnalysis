@@ -3,6 +3,7 @@ import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
+import { countImportFiles } from './import/activitiesCsv'
 import type { ImportProgress } from './sessionSource'
 import { importSource } from './sessionSource'
 import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
@@ -96,6 +97,14 @@ export class AnalysisSession {
    */
   constructor(limits: ExtractLimits = DEFAULT_EXTRACT_LIMITS) {
     this.limits = limits
+  }
+
+  /**
+   * How many activity files an import of these sources would read, counted by this session's limits
+   * and the lists of the exports among them, without reading the files. Null when it is not known.
+   */
+  countFiles(sources: readonly RangedSource[]): Promise<number | null> {
+    return countImportFiles(sources, this.limits)
   }
 
   async addFiles(

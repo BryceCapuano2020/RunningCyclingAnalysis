@@ -2,7 +2,7 @@ import { countActivityFiles, extractFitFiles } from './fit'
 import type { ExtractLimits, FitFile, RangedSource } from './fit'
 import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
-import { entryKey, listedOnly, readActivityList } from './import/activitiesCsv'
+import { listedFor, listedOnly, readActivityList } from './import/activitiesCsv'
 import type { ListedActivity } from './import/activitiesCsv'
 import { sha256Hex } from './sha256'
 import type { Activity } from './types'
@@ -102,7 +102,7 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   }
   const summary = await extractFitFiles(
     source,
-    (file) => importFile(file, list?.files.get(entryKey(file.fileName)), ctx),
+    (file) => importFile(file, listedFor(list?.files, file.fileName), ctx),
     (fileName, rejection) => {
       undecodable++
       outcome.rejected++

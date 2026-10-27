@@ -3,7 +3,7 @@ import { activitiesFromUnits } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
-import { isEBikeType } from '../import/sportType'
+import { E_BIKE_REASON, E_BIKE_SKIPPED, isEBikeType } from '../import/sportType'
 import { decodeFit } from './protocol/decode'
 import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
@@ -17,8 +17,6 @@ const CORRUPT = 'File is corrupt (checksum mismatch)'
 const INCOMPLETE = 'File is incomplete or corrupt'
 const NO_DATE = 'Records have no date, only device time'
 const OVERLAP = 'Sessions overlap; times were adjusted'
-const E_BIKE_REASON =
-  'E-bike activities are not supported because motor assistance hides your own power'
 
 const INDOOR_SUB_SPORTS = new Set<string>([
   'treadmill',
@@ -152,7 +150,7 @@ function mapSport(
       ok: false,
       reason: E_BIKE_REASON,
       code: 'e-bike',
-      skipped: 'e-bike session skipped',
+      skipped: E_BIKE_SKIPPED,
     }
   }
   const indoor = inSet(INDOOR_SUB_SPORTS, subSport) || sport === 'fitnessEquipment'

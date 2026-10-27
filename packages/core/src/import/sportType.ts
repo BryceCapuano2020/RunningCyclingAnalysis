@@ -7,8 +7,11 @@ import type { Rejection } from './result'
  */
 
 const NO_SPORT = 'This GPX file does not say whether it is a run or a ride'
-const E_BIKE_REASON =
+
+/** Why an e-bike ride is refused, and how the file's skipped session is worded. FIT, GPX and TCX share both. */
+export const E_BIKE_REASON =
   'E-bike activities are not supported because motor assistance hides your own power'
+export const E_BIKE_SKIPPED = 'e-bike session skipped'
 
 /** Names are matched in lower case, with each run of spaces, dashes and underscores as one space. */
 const RUN_TYPES = new Set(['run', 'running', 'trail run', 'trail running', 'trailrun', '9'])
@@ -88,7 +91,7 @@ function choiceOf(type: string): SportChoice {
     const refusal = {
       reason: E_BIKE_REASON,
       code: 'e-bike' as const,
-      skipped: 'e-bike session skipped',
+      skipped: E_BIKE_SKIPPED,
     }
     return { sport: null, indoor: false, sportLabel: type, refusal }
   }

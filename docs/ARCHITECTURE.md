@@ -167,8 +167,9 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    anywhere in the zip. A zip nested inside the export is never searched for a list. Its `Filename`
    column names each activity file's path in the zip, without `.gz`, and its `Activity Name` and
    `Activity Type` columns say what the activity is called and what sport it was. The headers match
-   in any case, and paths are compared lowercase, with forward slashes and no `.gz`, and with `.` and
-   `..` segments and repeated slashes resolved.
+   in any case, and paths are compared lowercase, with forward slashes (a zip written with backslashes
+   is read too) and no `.gz`, and with `.` and `..` segments and repeated slashes resolved. A row that
+   climbs above the zip's root, or ends as a folder does (`.`, `..` or a closing slash), names no file.
    The list has at most 10,000 rows in all, and is limited to 32 MiB inflated. The cap
    is a memory budget: at the cap, reading the list uses about 100–150 MB at peak, holding its
    compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the

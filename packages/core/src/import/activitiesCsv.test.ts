@@ -45,8 +45,14 @@ describe('entryKey', () => {
   it('resolves . and .. segments and repeated slashes, so a path written another way is the same key', () => {
     expect(entryKey('export/./old//3.fit.gz')).toBe('export/old/3.fit')
     expect(entryKey('export/old/../activities/1.fit')).toBe('export/activities/1.fit')
-    expect(entryKey('../../a/1.fit')).toBe('a/1.fit')
     expect(entryKey('.\\old\\.\\3.FIT')).toBe('old/3.fit')
+  })
+
+  it('has no key for a path that climbs above the root of the zip', () => {
+    expect(entryKey('../routes/1.gpx')).toBeNull()
+    expect(entryKey('../../a/1.fit')).toBeNull()
+    expect(entryKey('a/../../b.fit')).toBeNull()
+    expect(entryKey('a/../b.fit')).toBe('b.fit')
   })
 })
 
@@ -99,6 +105,19 @@ describe('parseActivityList', () => {
 
   it('returns no files when the list has no file column', () => {
     expect(filesOf('Activity ID,Activity Name\n1,Morning Run\n').size).toBe(0)
+  })
+
+  it.each([
+    ['climbs above the root of the zip', '../routes/1.gpx'],
+    ['is the folder itself', '.'],
+    ['is the root', './'],
+    ['ends in a slash', 'activities/'],
+    ['ends in ..', 'activities/old/..'],
+    ['ends in .', 'activities/old/.'],
+    ['is the zip written with backslashes, ending in one', 'activities\\'],
+  ])('skips a row whose file %s, which names no file', (_what, file) => {
+    const files = filesOf(`Activity Name,Filename\nRun,${file}\nRun,activities/1.fit\n`)
+    expect([...files.keys()]).toEqual(['activities/1.fit'])
   })
 
   it('skips a row with no file', () => {
@@ -167,6 +186,18 @@ describe('listedOnly', () => {
     expect(keep?.('activities/1001.fit.gz')).toBe(true)
     expect(keep?.('Activities\\1002.GPX')).toBe(true)
     expect(keep?.('routes/1.gpx')).toBe(false)
+  })
+
+  it('lists no folder for a row that is not a file, so the zip is not covered by it', async () => {
+    const keep = await filterOf({
+      ...stravaLayout,
+      'activities.csv': strToU8(
+        'Activity Name,Filename\nRun,activities/1001.fit.gz\nRun,../routes/1.gpx\nRun,.\nRun,./\nRun,activities/old/..\n',
+      ),
+    })
+    expect(keep?.('activities/1001.fit.gz')).toBe(true)
+    expect(keep?.('routes/1.gpx')).toBe(false)
+    expect(keep?.('other/2.gpx')).toBe(false)
   })
 
   it('keeps a file the list does not name when it sits in the folder of one it does, as a partial list leaves it', async () => {
@@ -275,6 +306,16 @@ describe('readActivityList', () => {
     const listed = await readActivityList(fileOf('export.zip', zip))
 
     expect(listed?.files.get('export/activities/1001.fit')?.name).toBe('Morning Run')
+  })
+
+  it('finds the list of a zip written with backslashes, and prefers the one nearest the root', async () => {
+    const zip = zipSync({
+      'a\\b\\activities.csv': strToU8('Activity Name,Filename\nDeep,activities/1.fit\n'),
+      'export\\activities.csv': strToU8('Activity Name,Filename\nNear,activities/1.fit\n'),
+    })
+    const listed = await readActivityList(fileOf('export.zip', zip))
+
+    expect(listed?.files.get('export/activities/1.fit')?.name).toBe('Near')
   })
 
   it('prefers the list nearest the root of the zip', async () => {

@@ -73,7 +73,7 @@ export async function readZipEntry(
 
 /** Folders in an entry's name: the nearer the root, the fewer. */
 function depthOf(name: string): number {
-  return name.split('/').length
+  return name.split(/[\\/]/).length
 }
 
 /** The bytes from `start` for `length` bytes, or null when the source ends before them. */

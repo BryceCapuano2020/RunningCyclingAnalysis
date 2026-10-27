@@ -20,20 +20,34 @@ import { readCsvRows } from './csv'
 export const MAX_ACTIVITY_LIST_BYTES = 32 * 1024 * 1024
 
 const LIST_NAME = 'activities.csv'
-/** The list at the root of the zip, or in a folder at its root. The zip's own central directory is searched. */
-const LIST_PATH = new RegExp(`(^|/)${LIST_NAME.replace(/\./g, '\\.')}$`, 'i')
+/**
+ * The list at the root of the zip, or in a folder at its root, whether the folders are separated by "/"
+ * or by the "\\" some tools write. The zip's own central directory is searched.
+ */
+const LIST_PATH = new RegExp(`(^|[\\\\/])${LIST_NAME.replace(/\./g, '\\.')}$`, 'i')
 
 /**
  * A names key: lowercase, with forward slashes, no ".gz", and the path resolved: no empty or "." segment,
- * and a ".." segment removes the one before it. Nothing leads above the root.
+ * and a ".." segment removes the one before it. Null for a path that climbs above the root of the zip.
  */
-export function entryKey(path: string): string {
+export function entryKey(path: string): string | null {
   const segments: string[] = []
   for (const segment of path.replace(/\\/g, '/').replace(/\.gz$/i, '').toLowerCase().split('/')) {
-    if (segment === '..') segments.pop()
-    else if (segment !== '' && segment !== '.') segments.push(segment)
+    if (segment === '..') {
+      if (segments.pop() === undefined) return null
+    } else if (segment !== '' && segment !== '.') {
+      segments.push(segment)
+    }
   }
   return segments.join('/')
+}
+
+/** The key of a list row's file, or null when the row names no file: it climbs above the zip or ends as a folder does. */
+function fileKey(path: string): string | null {
+  const last = path.replace(/\\/g, '/').replace(/\.gz$/i, '').split('/').at(-1)
+  if (last === undefined || last === '' || last === '.' || last === '..') return null
+  const key = entryKey(path)
+  return key === '' ? null : key
 }
 
 /** What a Strava export's activity list says about one activity file. A blank column is left out. */
@@ -84,9 +98,8 @@ export function parseActivityList(
       return false
     }
     rows++
-    const file = cellAt(cells, fileColumn)
-    const key = entryKey(folder + file)
-    if (file !== '' && !files.has(key)) {
+    const key = fileKey(folder + cellAt(cells, fileColumn))
+    if (key !== null && !files.has(key)) {
       files.set(key, listedActivity(cellAt(cells, nameColumn), cellAt(cells, typeColumn)))
     }
     return true
@@ -101,6 +114,15 @@ function cellAt(cells: string[], column: number): string {
 
 function listedActivity(name: string, type: string): ListedActivity {
   return { ...(name === '' ? {} : { name }), ...(type === '' ? {} : { type }) }
+}
+
+/** What the list says about a file of the zip, by the path the zip gives it. */
+export function listedFor(
+  files: ReadonlyMap<string, ListedActivity> | undefined,
+  fileName: string,
+): ListedActivity | undefined {
+  const key = entryKey(fileName)
+  return key === null ? undefined : files?.get(key)
 }
 
 /** What reading a Strava export's activity list gives. */
@@ -182,7 +204,7 @@ async function namesTheZip(
       (name) => {
         if (isIgnored(name)) return
         if (LIST_PATH.test(name)) lists++
-        else if (ACTIVITY.test(name) && files.has(entryKey(name))) named++
+        else if (ACTIVITY.test(name) && listedFor(files, name) !== undefined) named++
       },
     )
     return complete && lists === 1 && named > 0
@@ -196,9 +218,12 @@ function folderOf(key: string): string {
   return key.slice(0, key.lastIndexOf('/') + 1)
 }
 
-/** Whether a key sits in one of the folders, or in a folder below one. The root, '', is above every folder. */
-function isCovered(key: string, folders: ReadonlySet<string>): boolean {
-  if (folders.has('')) return true
+/**
+ * Whether a key sits in one of the folders, or in a folder below one. The root, '', is above every
+ * folder. A path with no key, which climbs above the zip, is kept, since the list cannot place it.
+ */
+function isCovered(key: string | null, folders: ReadonlySet<string>): boolean {
+  if (key === null || folders.has('')) return true
   let folder = ''
   for (const segment of key.split('/').slice(0, -1)) {
     folder += `${segment}/`

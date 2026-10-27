@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 import { MAX_FILE_BYTES } from '@rca/contract'
 import type { ActivityRecord } from '@rca/contract'
-import { countImportFiles } from '@rca/core/import'
 import { AnalysisSession, haltsImport, SyncFailure } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState, SyncItem } from '@rca/core/session'
@@ -64,7 +63,7 @@ async function addFiles(
   let outcome: ImportOutcome = { activities: 0, rejected: 0, notActivities: 0, duplicates: [] }
   // Read from the zips' directories before any entry is, so every progress message can show a total.
   // An export's saved routes are not activities, so they are not in it.
-  const filesTotal = await countImportFiles(request.files)
+  const filesTotal = await session.countFiles(request.files)
   const report = () =>
     post({
       type: 'progress',
