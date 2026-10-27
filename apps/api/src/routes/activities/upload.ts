@@ -136,10 +136,11 @@ async function reserveStorage(
       and(
         eq(activities.id, row.id),
         eq(activities.userId, userId),
-        // Reserve the bytes in the activity row with one atomic D1 write. Concurrent uploads
-        // therefore see this reservation when checking the same user's remaining storage.
+        // Reserve the bytes in the activity row with one atomic D1 write. The user's file_bytes
+        // moves with it, so concurrent uploads see this reservation when checking the same user's
+        // remaining storage, without summing the user's rows.
         sql`EXISTS (SELECT 1 FROM users WHERE id = ${userId} AND deleting_at IS NULL)`,
-        sql`(SELECT coalesce(sum(file_size), 0) FROM activities WHERE user_id = ${userId})
+        sql`(SELECT file_bytes FROM users WHERE id = ${userId})
           - coalesce(file_size, 0) <= ${MAX_STORED_BYTES_PER_USER - declared}`,
       ),
     )

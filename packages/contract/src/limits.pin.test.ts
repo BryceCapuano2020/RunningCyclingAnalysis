@@ -25,10 +25,14 @@ describe('contract limits', () => {
       fileDownload: 50,
       profileWrite: 50,
       activityDelete: 50,
-      activityCreate: 2000,
+      activityCreate: 5000,
       fileUpload: 2000,
       read: 100,
     })
+  })
+
+  it('lets one day create as many activities as a library may hold', () => {
+    expect(limits.DAILY_LIMITS.activityCreate).toBe(limits.MAX_ACTIVITIES_PER_USER)
   })
 
   it('pins the deployment-wide R2 budgets', () => {

@@ -53,14 +53,15 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 | File downloads                           | 50                          | Refunded if R2 refuses the read before it starts.                                                         |
 | Profile writes                           | 50                          | Includes keepFiles toggles.                                                                               |
 | Activity deletions                       | 50                          |                                                                                                           |
-| Activity creates                         | **2,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not. |
+| Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not. |
 | Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                   |
 | Library listings (`GET /api/activities`) | 100                         | First page of each listing. Continuation pages are free once; see Read charging.                          |
 | Original-file bytes uploaded             | 1 GiB (1,073,741,824 bytes) | Summed over the declared length of each upload. Refunded when the upload is refused before R2 is called.  |
 
 **Deviation from the owner's default of 50.** A first Strava export import is hundreds to thousands
-of activities, so activity creates and uploads need a higher daily allowance. The lifetime cap of
-5,000 activities still applies. Use the 2,000 figure only for those two actions.
+of activities, so activity creates and uploads need a higher daily allowance. Creates are capped at the
+library limit itself (`MAX_ACTIVITIES_PER_USER`, 5,000), so one day admits a whole library. Uploads are
+capped at 2,000. Use these figures only for those two actions.
 
 Daily rows older than seven UTC days are pruned by the scheduled job.
 
@@ -96,6 +97,12 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 - `POST /api/activities?replace=<id>` updates the named activity and never inserts. An id that is missing or
   owned by another user returns **404 `not_found`**. An activity that starts at a different time returns
   **409 `activity_conflict`**, and so does a request whose file hash differs from the stored one.
+- **Order of checks.** A create that would insert a new row reads the account's counters first. A full
+  library (403 `activity_quota`), the digest quota (403 `digest_quota`) or a full database (503
+  `database_full`) refuses it before a daily unit is taken, so a refused create writes nothing. The
+  insert holds the same limits for a request that races that read; it then gives its daily unit back.
+  When both a limit and the day are spent, the limit is the answer. The insert returns the stored row
+  (`RETURNING`), so the answer needs no read-back.
 - **Digest quota.** Each user may store 64 MiB of digest JSON (`MAX_DIGEST_BYTES_PER_USER`). A create past
   it returns **403 `digest_quota`** and stores nothing. An upgrade to a newer model revision is refused the
   same way unless it shrinks the digest. A request for a revision the row already has is answered with the
@@ -134,7 +141,7 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 | --------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Activities stored           | 5,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                   |
 | Digest JSON bytes stored    | 64 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                 |
-| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called.                                                                             |
+| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called. `users.file_bytes` is their sum, kept by triggers on `activities`.          |
 | Concurrent original uploads | 2                           | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job. |
 | Request body                | 256 KiB digest; 50 MiB file | Checked before parsing and while streaming.                                                                                   |
 
@@ -173,8 +180,11 @@ D1 writes are charged per row, including index rows. The 100,000 rows written pe
 all users. Rough per-request estimates from statement shape:
 
 - A read counted against the daily budget: about 2 rows.
-- An activity create: about 8 rows (activity row with its indexes, daily upsert, counter).
-- An upload: about 5 rows.
+- An activity create: about 8 rows (activity row with its indexes, daily upsert, counter). A first
+  import at the 5,000 cap writes about 40,000 rows, of the free 100,000 a day.
+- An upload: about 6 rows, one of them the `users.file_bytes` row that the trigger moves.
+- Turning keep files off writes one `users` row per stored file, through the trigger, on top of the
+  activity rows it clears.
 
 On Free, 100,000 writes a day supports only a small number of heavy users. Fifty users each at the
 100-read cap would write about 10,000 rows a day, a tenth of the allowance. Measure

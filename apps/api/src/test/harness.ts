@@ -261,9 +261,19 @@ export function digestFixture(
 
 export const START = START_MS
 
-/** Wraps a D1 binding and counts calls that reach the database. */
-export function countingDb(target: D1Database): { db: D1Database; count(): number; reset(): void } {
+/**
+ * Wraps a D1 binding. It counts the calls that reach the database and records the SQL of each
+ * statement prepared, in order. A batch holds statements that were prepared one after another, so
+ * they appear in the order they run.
+ */
+export function countingDb(target: D1Database): {
+  db: D1Database
+  count(): number
+  statements(): string[]
+  reset(): void
+} {
   let calls = 0
+  let sql: string[] = []
   const counted = new Set(['prepare', 'batch', 'exec', 'dump'])
   const db = new Proxy(target, {
     get(obj, prop) {
@@ -271,13 +281,22 @@ export function countingDb(target: D1Database): { db: D1Database; count(): numbe
       if (typeof prop === 'string' && counted.has(prop) && typeof value === 'function') {
         return (...args: unknown[]) => {
           calls += 1
+          if (prop === 'prepare') sql.push(String(args[0]))
           return Reflect.apply(value, obj, args)
         }
       }
       return typeof value === 'function' ? value.bind(obj) : value
     },
   })
-  return { db, count: () => calls, reset: () => (calls = 0) }
+  return {
+    db,
+    count: () => calls,
+    statements: () => sql.map((text) => text.replace(/\s+/g, ' ').trim()),
+    reset: () => {
+      calls = 0
+      sql = []
+    },
+  }
 }
 
 /**
