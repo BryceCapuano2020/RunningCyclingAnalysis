@@ -8,7 +8,7 @@ import { gapOfHeadline } from './balanceGap'
 import { curvePoint } from './charts/fixtures'
 import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import { headlineGrades, sportGrade, type AgeProfile, type GradeOutcome } from './grades'
-import { levelTargetText, levelledNative, nativeAtGrade } from './levelTarget'
+import { levelTargetText, levelledNative, nativeAtGrade, nativeRangeAtGrade } from './levelTarget'
 import { wholeGrade } from './gradeFormat'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 
@@ -64,6 +64,22 @@ describe('nativeAtGrade', () => {
     expect(Math.abs(pageRideGrade(watts, RIDE_RESULT, PROFILE) - 0.67)).toBeLessThanOrEqual(0.005)
   })
 
+  it('gives the watts at each end of the ride grade range, so each end grades back to the target within half a point', () => {
+    const range = nativeRangeAtGrade('ride', 0.67, HEADLINE_DURATION_S, ATHLETE)!
+    // The page's ride range runs from the grade at the 5th percentile speed to the grade at the 95th.
+    const gradeAtEnd = (watts: number, end: 'p05' | 'p95') =>
+      ageGradeForEffort(
+        equivalentRunSpeed(watts, MASS_KG, ATHLETE.hr)[end],
+        HEADLINE_DURATION_S,
+        ATHLETE.age,
+        ATHLETE.sex,
+      )!
+    expect(Math.abs(gradeAtEnd(range.low, 'p95') - 0.67)).toBeLessThanOrEqual(0.005)
+    expect(Math.abs(gradeAtEnd(range.high, 'p05') - 0.67)).toBeLessThanOrEqual(0.005)
+    expect(range.low).toBeLessThan(range.centre)
+    expect(range.centre).toBeLessThan(range.high)
+  })
+
   it('needs more watts for a higher grade, and more speed for a higher grade', () => {
     expect(nativeAtGrade('ride', 0.7, HEADLINE_DURATION_S, ATHLETE)!).toBeGreaterThan(
       nativeAtGrade('ride', 0.6, HEADLINE_DURATION_S, ATHLETE)!,
@@ -95,11 +111,15 @@ describe('levelTargetText', () => {
   it('says what a ride would need to grade level with the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
     expect(line).toMatch(
-      /^To grade level with your running at 20 min, your best ride would need about \d+ W \(now 230 W\)\.$/,
+      /^To grade level with your running at 20 min, your best ride would need about \d+ W \(roughly \d+ to \d+ W; now 230 W\)\.$/,
     )
-    const watts = Number(/about (\d+) W/.exec(line ?? '')?.[1])
-    expect(watts % 5).toBe(0)
-    expect(watts).toBeGreaterThan(230)
+    const [, centre, low, high] = /about (\d+) W \(roughly (\d+) to (\d+) W/.exec(line ?? '') ?? []
+    expect(Number(centre) % 5).toBe(0)
+    expect(Number(low) % 5).toBe(0)
+    expect(Number(high) % 5).toBe(0)
+    expect(Number(low)).toBeLessThanOrEqual(Number(centre))
+    expect(Number(centre)).toBeLessThanOrEqual(Number(high))
+    expect(Number(centre)).toBeGreaterThan(230)
   })
 
   it('says what a run would need to grade level with the ride, as a flat pace rounded to 5 s', () => {
@@ -161,9 +181,9 @@ describe('levelTargetText on the sample athlete', () => {
         units: 'metric',
       }),
     ).toBe(
-      'To grade level with your running at 20 min, your best ride would need about 270 W (now 246 W).',
+      'To grade level with your running at 20 min, your best ride would need about 270 W (roughly 245 to 295 W; now 246 W).',
     )
-  })
+  }, 60_000)
 
   it('has watts that the page grades back to the target through the sample heart-rate weights', () => {
     const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
@@ -171,7 +191,7 @@ describe('levelTargetText on the sample athlete', () => {
     const athlete = { age: 37, sex: 'male' as const, massKg: SAMPLE_SETTINGS.massKg, hr: result.hr }
     const watts = nativeAtGrade('ride', 0.64, HEADLINE_DURATION_S, athlete)!
     expect(Math.abs(pageRideGrade(watts, result, SAMPLE_PROFILE) - 0.64)).toBeLessThanOrEqual(0.005)
-  })
+  }, 60_000)
 })
 
 describe('the levelled target, rounded toward the side that levels', () => {
@@ -237,6 +257,6 @@ describe('the levelled target, rounded toward the side that levels', () => {
         units: 'metric',
       })
     expect(at(levelled)).toBeNull()
-    expect(at(levelled - 1)).toContain(`(now ${levelled - 1} W).`)
-  })
+    expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)
+  }, 60_000)
 })

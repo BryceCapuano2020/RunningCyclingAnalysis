@@ -54,6 +54,10 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
         a run, so a ride grade is an estimate.
       </p>
       <p className="secondary">
+        The level target on Balance is the watts whose running equivalent grades to the other
+        sport’s whole-percent grade, with the range from the equivalence’s 5th to 95th percentile.
+      </p>
+      <p className="secondary">
         Each effort is graded at the age on its own date, not the newest activity’s, because age
         changes across a period. A run takes the date of its best effort at that duration. A ride
         takes the date of its own best ride at that duration, because its running equivalent comes

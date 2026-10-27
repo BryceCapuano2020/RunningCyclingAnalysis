@@ -582,8 +582,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   single value is said as that value: "grades 6 points higher", "about 12% higher".
 - **The level target says what would level the balance.** When the balance leans, one muted line under the
   meter, below the grades, names what the lower sport's best effort at the headline length would need to grade
-  level with the higher sport's whole-percent grade, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s): "To grade level
-  with your running at 20 min, your best ride would need about 270 W (now 246 W)." The target inverts the age grade at the lower sport's
+  level with the higher sport's whole-percent grade, in its own unit, rounded toward the side that levels (watts up to the next 5 W, a pace to the faster 5 s), and a ride's range is the watts at the 5th and 95th percentile of its equivalence, rounded outward to 5 W: "To grade level
+  with your running at 20 min, your best ride would need about 270 W (roughly 245 to 295 W; now 246 W)." The target inverts the age grade at the lower sport's
   age, and a ride's watts invert the same equivalence its page grade is read from, with its heart-rate weights, so the
   words say "would need", never a prediction. It is left off when the
   balance is even, when either grade is not on screen (a ride's waits for the weight), and when the rounded target

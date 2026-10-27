@@ -6,7 +6,7 @@ import { equivalenceFor } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { PACE_UNIT, formatClock, formatPower, paceSeconds } from '@rca/core/units'
+import { PACE_UNIT, formatClock, formatWatts, paceSeconds } from '@rca/core/units'
 import type { Lean } from '../domain/lean'
 import { HEADLINE_LABEL, type GradeOutcome } from './grades'
 import { wholeGrade } from './gradeFormat'
@@ -24,11 +24,16 @@ export interface TargetAthlete {
   hr: AnalysisResult['hr']
 }
 
+/** Bisection steps over a flat speed, which costs no equivalence: each halves the bracket. */
+const SPEED_STEPS = 25
 /**
- * Bisection steps. Each halves the bracket, so 25 steps leave a power or a speed within a few millionths of
- * its bracket, far below the 5 W and 5 s steps the target is rounded to.
+ * A watts search stops once its estimate moves by less than this. Each evaluation of the equivalence costs
+ * about a millisecond, so the search converges in a few of them, to far below the 5 W steps.
  */
-const BISECTION_STEPS = 25
+const WATTS_TOLERANCE = 1e-3
+const MAX_SECANTS = 40
+/** The range's ends are searched within this fraction either side of the centre. */
+const END_SPAN = 0.15
 /** The first power tried when a ride's watts are bracketed, and how many times it doubles to reach a speed. */
 const FIRST_WATTS = 100
 const MAX_DOUBLINGS = 16
@@ -57,7 +62,7 @@ function runSpeedAtGrade(grade: number, durationS: number, athlete: TargetAthlet
   let lo = FIRST_GRADED_DISTANCE_M / durationS
   let hi = LAST_GRADED_DISTANCE_M / durationS
   if (!(gradeAt(lo) <= grade && grade <= gradeAt(hi))) return null
-  for (let step = 0; step < BISECTION_STEPS; step++) {
+  for (let step = 0; step < SPEED_STEPS; step++) {
     const mid = (lo + hi) / 2
     if (gradeAt(mid) < grade) lo = mid
     else hi = mid
@@ -65,51 +70,120 @@ function runSpeedAtGrade(grade: number, durationS: number, athlete: TargetAthlet
   return (lo + hi) / 2
 }
 
-/**
- * The watts whose page equivalent, the p50 of equivalentRunSpeed that the ride's grade is read from,
- * is the target speed. Equivalent speed rises with watts, so bisection finds the one power. Null when
- * no power up to a generous bracket reaches the speed.
- */
-function wattsAtSpeed(speedMs: number, athlete: TargetAthlete): number | null {
-  // Built once: the draws and the heart-rate weights do not change with the watts searched.
-  const equivalence = equivalenceFor(athlete.hr)
-  const p50At = (watts: number) => equivalence(watts, athlete.massKg).p50
-  let hi = FIRST_WATTS
-  for (let i = 0; i < MAX_DOUBLINGS && p50At(hi) < speedMs; i++) hi *= 2
-  if (!(p50At(hi) >= speedMs)) return null
-  let lo = 0
-  for (let step = 0; step < BISECTION_STEPS; step++) {
-    const mid = (lo + hi) / 2
-    if (p50At(mid) < speedMs) lo = mid
-    else hi = mid
-  }
-  return (lo + hi) / 2
+/** A value as a low, centre and high: a run's one pace is all three, and a ride's range is the equivalence's ends. */
+export interface NativeRange {
+  low: number
+  centre: number
+  high: number
 }
 
 /**
- * The sport's own figure that grades at the target, for each sport: the flat speed for a run, and
- * the watts for a ride, whose page equivalent is that speed. A sport added to SPORT_ORDER says its
- * inverse here.
+ * The power at which `at` reaches the speed, between lo and hi. `at` rises with power and is close to
+ * linear over a range of power, so the search is Illinois false position: it keeps a bracket and
+ * converges in a few evaluations. Null when the bracket does not hold the speed.
+ */
+function crossingPower(
+  speedMs: number,
+  at: (watts: number) => number,
+  lo: number,
+  hi: number,
+): number | null {
+  let fLo = at(lo) - speedMs
+  let fHi = at(hi) - speedMs
+  if (!(fLo < 0 && fHi >= 0)) return null
+  let estimate = lo
+  let lastMoved = 0
+  for (let step = 0; step < MAX_SECANTS; step++) {
+    const next = (lo * fHi - hi * fLo) / (fHi - fLo)
+    const fNext = at(next) - speedMs
+    if (fNext === 0 || Math.abs(next - estimate) < WATTS_TOLERANCE) return next
+    estimate = next
+    if (fNext < 0) {
+      lo = next
+      fLo = fNext
+      if (lastMoved === -1) fHi /= 2
+      lastMoved = -1
+    } else {
+      hi = next
+      fHi = fNext
+      if (lastMoved === 1) fLo /= 2
+      lastMoved = 1
+    }
+  }
+  return estimate
+}
+
+/** The power at which `at` reaches the speed, found by doubling the power until it does, then searching. */
+function searchPower(speedMs: number, at: (watts: number) => number): number | null {
+  let hi = FIRST_WATTS
+  for (let i = 0; i < MAX_DOUBLINGS && at(hi) < speedMs; i++) hi *= 2
+  return crossingPower(speedMs, at, 0, hi)
+}
+
+/**
+ * The power at one end of the range, searched near the centre, with a full search when the end lies
+ * outside that bracket.
+ */
+function endPower(speedMs: number, at: (watts: number) => number, centre: number): number | null {
+  const near = crossingPower(speedMs, at, centre * (1 - END_SPAN), centre * (1 + END_SPAN))
+  return near ?? searchPower(speedMs, at)
+}
+
+/**
+ * The watts whose page equivalent is the target speed, at its centre (the p50 the ride's grade is read
+ * from) and at each end of its range. The equivalence's ends are ordered, so the watts that reach the
+ * speed at the 95th percentile are the fewest, and at the 5th percentile the most. Null when the centre
+ * cannot be found, or an end cannot be bracketed around it.
+ */
+function wattsRangeAtSpeed(speedMs: number, athlete: TargetAthlete): NativeRange | null {
+  // Built once: the draws and the heart-rate weights do not change with the watts searched.
+  const equivalence = equivalenceFor(athlete.hr)
+  const endAt = (end: 'p05' | 'p50' | 'p95') => (watts: number) =>
+    equivalence(watts, athlete.massKg)[end]
+  const centre = searchPower(speedMs, endAt('p50'))
+  if (centre === null) return null
+  const low = endPower(speedMs, endAt('p95'), centre)
+  const high = endPower(speedMs, endAt('p05'), centre)
+  return low === null || high === null ? null : { low, centre, high }
+}
+
+/**
+ * The sport's own figures that grade at the target, for each sport: the flat speed for a run, a single
+ * pace, and for a ride the watts whose page equivalent is that speed, with the range the equivalence gives.
+ * A sport added to SPORT_ORDER says its inverse here.
  */
 const NATIVE_AT_GRADE: Record<
   Sport,
-  (grade: number, durationS: number, athlete: TargetAthlete) => number | null
+  (grade: number, durationS: number, athlete: TargetAthlete) => NativeRange | null
 > = {
-  run: (grade, durationS, athlete) => runSpeedAtGrade(grade, durationS, athlete),
+  run: (grade, durationS, athlete) => {
+    const speed = runSpeedAtGrade(grade, durationS, athlete)
+    return speed === null ? null : { low: speed, centre: speed, high: speed }
+  },
   ride: (grade, durationS, athlete) => {
     const speed = runSpeedAtGrade(grade, durationS, athlete)
-    return speed === null ? null : wattsAtSpeed(speed, athlete)
+    return speed === null ? null : wattsRangeAtSpeed(speed, athlete)
   },
 }
 
-/** The sport's own figure that grades at the target over durationS, or null when none does. */
+/** The sport's own range that grades at the target over durationS, or null when none does. */
+export function nativeRangeAtGrade(
+  sport: Sport,
+  grade: number,
+  durationS: number,
+  athlete: TargetAthlete,
+): NativeRange | null {
+  return NATIVE_AT_GRADE[sport](grade, durationS, athlete)
+}
+
+/** The sport's own centre that grades at the target over durationS, or null when none does. */
 export function nativeAtGrade(
   sport: Sport,
   grade: number,
   durationS: number,
   athlete: TargetAthlete,
 ): number | null {
-  return NATIVE_AT_GRADE[sport](grade, durationS, athlete)
+  return nativeRangeAtGrade(sport, grade, durationS, athlete)?.centre ?? null
 }
 
 /**
@@ -121,34 +195,55 @@ const OWN_OF_CURVE: Record<Sport, (value: number) => number> = {
   ride: (watts) => watts,
 }
 
+/** A pace, m/s, taken at the faster whole 5 s, so the rounded pace reaches the target. */
+function levelledSpeed(speedMs: number, units: UnitSystem): number {
+  const seconds = paceSeconds(speedMs, units)
+  const levelled = Math.max(PACE_STEP_S, floorTo(seconds, PACE_STEP_S))
+  return speedMs * (seconds / levelled)
+}
+
 /**
- * A target rounded toward the side that levels, in the sport's own unit: a run's speed is taken at the
- * faster pace on a 5 s step, and a ride's watts up to the next 5 W. Whole-percent grades floor, so a
+ * A target rounded toward the side that levels, in the sport's own unit: a run's pace is taken at the
+ * faster whole 5 s, and a ride's centre watts up to the next 5 W. The range's low end rounds down and its
+ * high end rounds up, so the rounded range still holds the centre. Whole-percent grades floor, so a
  * figure rounded the other way could leave the balance a percent short of level.
  */
-const LEVELLED: Record<Sport, (native: number, units: UnitSystem) => number> = {
-  run: (speedMs, units) => {
-    const seconds = paceSeconds(speedMs, units)
-    const levelled = Math.max(PACE_STEP_S, floorTo(seconds, PACE_STEP_S))
-    return speedMs * (seconds / levelled)
+const LEVELLED: Record<Sport, (range: NativeRange, units: UnitSystem) => NativeRange> = {
+  run: (range, units) => {
+    const pace = levelledSpeed(range.centre, units)
+    return { low: pace, centre: pace, high: pace }
   },
-  ride: (watts) => ceilTo(watts, WATTS_STEP),
+  ride: (range) => ({
+    low: floorTo(range.low, WATTS_STEP),
+    centre: ceilTo(range.centre, WATTS_STEP),
+    high: ceilTo(range.high, WATTS_STEP),
+  }),
 }
 
-/** The target, rounded toward the side that levels: see LEVELLED. */
+/** The range rounded toward the side that levels: see LEVELLED. */
+export function levelledRange(sport: Sport, range: NativeRange, units: UnitSystem): NativeRange {
+  return LEVELLED[sport](range, units)
+}
+
+/** The centre of a single figure, rounded toward the side that levels: see LEVELLED. */
 export function levelledNative(sport: Sport, native: number, units: UnitSystem): number {
-  return LEVELLED[sport](native, units)
-}
-
-/** The levelled target as the words a sentence uses: a flat pace, or watts. */
-const TARGET_TEXT: Record<Sport, (levelled: number, units: UnitSystem) => string> = {
-  run: (speedMs, units) =>
-    `a flat pace of about ${formatClock(paceSeconds(speedMs, units))} ${PACE_UNIT[units]}`,
-  ride: (watts) => `about ${formatPower(watts)}`,
+  return levelledRange(sport, { low: native, centre: native, high: native }, units).centre
 }
 
 /**
- * Whether the levelled target is strictly beyond the figure the page shows for the lower sport's best
+ * The levelled target as the words a sentence uses, with the figure the page shows for the lower
+ * sport's best effort: a flat pace, or watts with the range the ride's estimate carries.
+ */
+const SHOWN_TEXT: Record<Sport, (levelled: NativeRange, now: string, units: UnitSystem) => string> =
+  {
+    run: (levelled, now, units) =>
+      `a flat pace of about ${formatClock(paceSeconds(levelled.centre, units))} ${PACE_UNIT[units]} (now ${now})`,
+    ride: (levelled, now) =>
+      `about ${formatWatts(levelled.centre)} W (roughly ${formatWatts(levelled.low)} to ${formatWatts(levelled.high)} W; now ${now})`,
+  }
+
+/**
+ * Whether the levelled centre is strictly beyond the figure the page shows for the lower sport's best
  * effort: more whole watts, or a faster whole second of pace. Compared on the shown figures, so a
  * target that reads the same as the figure on screen is not a change to name.
  */
@@ -177,9 +272,9 @@ export interface LevelTargetInput {
 
 /**
  * The lower sport's best effort at the headline duration, as the sentence that says what it would
- * need to grade level with the higher sport's whole-percent grade, rounded toward the levelling side. Null
- * when the balance is even, when either grade is not on screen, or when the levelled target is not
- * strictly beyond the figure the page already shows for the lower sport.
+ * need to grade level with the higher sport's whole-percent grade: rounded toward the levelling side, and
+ * for a ride with the range its estimate carries. Null when the balance is even, when either grade is not
+ * on screen, or when the levelled centre is not strictly beyond the figure the page already shows.
  */
 export function levelTargetText(input: LevelTargetInput): string | null {
   const { lean, grades, result, sex, massKg, units } = input
@@ -192,12 +287,12 @@ export function levelTargetText(input: LevelTargetInput): string | null {
   if (!higherGrade || higherGrade.kind !== 'graded') return null
   const target = wholeGrade(higherGrade.grade.centre.grade) / 100
   const athlete = { age: lowerGrade.age, sex, massKg, hr: result.hr }
-  const needed = nativeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
+  const needed = nativeRangeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
   const now = OWN_OF_CURVE[lower](valueAt(curveOf(result, lower), HEADLINE_DURATION_S))
   if (needed === null || !Number.isFinite(now)) return null
-  const levelled = levelledNative(lower, needed, units)
-  if (!BEYOND_SHOWN[lower](levelled, now, units)) return null
+  const levelled = levelledRange(lower, needed, units)
+  if (!BEYOND_SHOWN[lower](levelled.centre, now, units)) return null
   const level = `To grade level with your ${SPORT_NOUN[higher]} at ${HEADLINE_LABEL}`
   const nowText = SPORT_FORMAT[lower].formatted(now, units)
-  return `${level}, your best ${BEST_NOUN[lower]} would need ${TARGET_TEXT[lower](levelled, units)} (now ${nowText}).`
+  return `${level}, your best ${BEST_NOUN[lower]} would need ${SHOWN_TEXT[lower](levelled, nowText, units)}.`
 }
