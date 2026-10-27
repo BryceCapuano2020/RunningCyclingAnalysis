@@ -3,9 +3,13 @@ import { sampleDataset } from '../../synthetic'
 import type { Activity, ActivityDigest } from '../../types'
 import { digestActivity } from '../digestActivity'
 
-/** JSON that tells NaN, the infinities and -0 apart, so equal text means equal values. */
+/**
+ * JSON that tells NaN, the infinities, -0 and a key set to undefined apart from what JSON writes
+ * for them, so equal text means equal values.
+ */
 function exactJson(digest: ActivityDigest): string {
   return JSON.stringify(digest, (_key, value: unknown) => {
+    if (value === undefined) return 'undefined'
     if (typeof value !== 'number') return value
     if (Object.is(value, -0)) return 'number:-0'
     return Number.isFinite(value) ? value : `number:${value}`
@@ -16,7 +20,7 @@ function exactJson(digest: ActivityDigest): string {
  * A copy of a sample activity with a pause, a recording gap, missing altitude and an altitude
  * outside the air-density range, so the masks and the density fallback are exercised too.
  */
-function rough(activity: Activity): Activity {
+function withGaps(activity: Activity): Activity {
   const { n } = activity
   const paused = new Uint8Array(n)
   const unrecorded = new Uint8Array(n)
@@ -26,12 +30,15 @@ function rough(activity: Activity): Activity {
   unrecorded.fill(1, at(0.5), at(0.5) + 60)
   altitude.fill(NaN, at(0.7), at(0.7) + 30)
   altitude[at(0.8)] = 20_000
-  return { ...activity, id: `${activity.id}-rough`, paused, unrecorded, altitude }
+  return { ...activity, id: `${activity.id}-gaps`, paused, unrecorded, altitude }
 }
 
-/** SHA-256 of the exact digest of every sample activity and of its rough copy, by activity id. */
+/** SHA-256 of the exact digest of every sample activity and of its copy with gaps, by activity id. */
 export async function sampleDigestHashes(): Promise<Record<string, string>> {
-  const activities = sampleDataset().activities.flatMap((activity) => [activity, rough(activity)])
+  const activities = sampleDataset().activities.flatMap((activity) => [
+    activity,
+    withGaps(activity),
+  ])
   const encoder = new TextEncoder()
   const hashes: Record<string, string> = {}
   for (const activity of activities) {

@@ -1,8 +1,7 @@
 import type { Activity } from '../types'
 
 // Every digest builds these over every sample, so they are plain loops. TypedArray.from with a map
-// function, and reduce, call back once per sample, which made the moving mask the digest's
-// largest cost.
+// function, and reduce, call back once per sample, which is many times slower.
 
 /** 1 for every second the device recorded. Activities without an unrecorded mask are all recorded. */
 export function recordedSeconds(activity: Pick<Activity, 'n' | 'unrecorded'>): Uint8Array {
