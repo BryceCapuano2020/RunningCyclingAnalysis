@@ -18,8 +18,10 @@
   display: block;
 }
 
+/* A table cell does not wrap, and the two estimates side by side run past a 320 px phone, so these lines do. */
 .race-table__sub {
   font-size: var(--text-sm);
+  white-space: normal;
 }
 
 .race-origins {

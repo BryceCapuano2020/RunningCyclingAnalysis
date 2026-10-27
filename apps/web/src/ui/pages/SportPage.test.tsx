@@ -20,7 +20,7 @@ import {
   makeResult,
 } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
-import { THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sports'
+import { THRESHOLD_FLOOR_LABEL, THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sports'
 import { RangePicker } from '../components/RangePicker'
 import { SportPage } from './SportPage'
 
@@ -87,7 +87,9 @@ function renderPage(
 
 /** The record list item for one duration, found by its eyebrow such as "20 min". */
 function recordNamed(records: HTMLElement, eyebrow: string): HTMLElement {
-  const item = within(records).getByText(eyebrow).closest('li')
+  const list = records.querySelector<HTMLElement>('ul.records')
+  if (list === null) throw new Error('No record list')
+  const item = within(list).getByText(eyebrow).closest('li')
   if (item === null) throw new Error(`No record named ${eyebrow}`)
   return item
 }
@@ -273,7 +275,7 @@ describe('SportPage', () => {
       }),
     )
 
-    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
+    const section = screen.getByRole('region', { name: THRESHOLD_FLOOR_LABEL.ride })
     expect(within(section).getByText('52 W')).toBeInTheDocument()
     expect(within(section).getByText('Likely 52 to 58 W')).toBeInTheDocument()
     expect(within(section).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
@@ -530,12 +532,13 @@ describe('SportPage', () => {
       }),
     )
 
-    const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(records).getByText('1 min')).toBeInTheDocument()
-    expect(within(records).getByText('5 min')).toBeInTheDocument()
-    expect(within(records).getByText('20 min')).toBeInTheDocument()
-    expect(within(records).getByText('60 min')).toBeInTheDocument()
-    expect(within(records).getAllByRole('link', { name: 'Morning run, 5 Jan' })[0]).toHaveAttribute(
+    const section = screen.getByRole('region', { name: 'Best efforts' })
+    const records = within(section.querySelector<HTMLElement>('ul.records')!)
+    expect(records.getByText('1 min')).toBeInTheDocument()
+    expect(records.getByText('5 min')).toBeInTheDocument()
+    expect(records.getByText('20 min')).toBeInTheDocument()
+    expect(records.getByText('60 min')).toBeInTheDocument()
+    expect(within(section).getAllByRole('link', { name: 'Morning run, 5 Jan' })[0]).toHaveAttribute(
       'href',
       '#/activities/run-1',
     )
@@ -576,10 +579,14 @@ describe('SportPage', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows every duration as a chart section', () => {
+  it('shows every duration as a chart under the records, with no heading of its own', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
-    expect(screen.getByRole('region', { name: 'Pace curve' })).toBeInTheDocument()
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(records).getByRole('figure', { name: /^Run flat pace .* by duration$/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Pace curve' })).not.toBeInTheDocument()
   })
 })
 
@@ -1379,11 +1386,14 @@ describe('SportPage depth', () => {
     )
   })
 
-  it('names the trend "Week by week" and the curve by sport', () => {
+  it('names the trend "Week by week" and draws the curve in the sport’s unit under the records', () => {
     renderPage('ride', makeResult({ activities: [makeActivity({ id: 'ride-1', sport: 'ride' })] }))
 
     expect(screen.getByRole('heading', { name: 'Week by week' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Power curve' })).toBeInTheDocument()
+    const records = screen.getByRole('region', { name: 'Best efforts' })
+    expect(
+      within(records).getByRole('figure', { name: 'Ride power in watts by duration' }),
+    ).toBeInTheDocument()
   })
 
   describe('at the same heart rate', () => {
@@ -1413,7 +1423,7 @@ describe('SportPage depth', () => {
     const rideActivity = () =>
       makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] })
 
-    it('follows the week-by-week trend and comes before the curve', () => {
+    it('follows the week-by-week trend', () => {
       renderPage(
         'ride',
         rideActivity(),
@@ -1431,7 +1441,6 @@ describe('SportPage depth', () => {
       )
       const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
       expect(headings.indexOf('At the same heart rate')).toBe(headings.indexOf('Week by week') + 1)
-      expect(headings.indexOf('Power curve')).toBe(headings.indexOf('At the same heart rate') + 1)
     })
 
     it('says a real change, and draws the chart with the heart rate in its title', () => {
@@ -1480,7 +1489,7 @@ describe('SportPage depth', () => {
       ).toBeInTheDocument()
     })
 
-    it('names what is missing, and draws no chart, with too little data', () => {
+    it('leaves the section out, and says what is missing in the list at the end, with too little data', () => {
       const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
       renderPage(
         'ride',
@@ -1497,11 +1506,13 @@ describe('SportPage depth', () => {
         null,
         none,
       )
-      const section = screen.getByRole('region', { name: 'At the same heart rate' })
-      expect(within(section).getByText(/Needs steady stretches from at least 6 rides/)).toHaveClass(
-        'muted',
-      )
-      expect(within(section).queryByRole('figure')).toBeNull()
+      expect(screen.queryByRole('region', { name: 'At the same heart rate' })).toBeNull()
+      const list = screen.getByRole('region', { name: 'Not enough yet' })
+      expect(
+        within(list).getByText(
+          'At the same heart rate: needs steady stretches from at least 6 rides in 4 weeks.',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('is not on a sport page with nothing in the period', () => {

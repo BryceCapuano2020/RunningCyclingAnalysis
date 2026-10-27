@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { SameHeartRateChart } from '../charts'
 import { plural } from '../components/plural'
 import { sameHeartRateCopy } from '../sameHeartRateCopy'
+import { SAME_HEART_RATE_NAME } from './sameHeartRateLack'
 
 /** What each sport's reading counts, since treadmill pace and estimated watts can be what is wrong. */
 const COUNTS: Record<Sport, string> = {
@@ -23,8 +24,8 @@ function noteFor(sport: Sport): string {
 
 /**
  * A sport's output at one heart rate, week by week, after the weekly best efforts. It says the change
- * in a sentence only when the first and last weeks' ranges do not overlap, and with too little data it
- * says what is missing instead of drawing.
+ * in a sentence only when the first and last weeks' ranges do not overlap. With too little data to draw
+ * it has no section: sameHeartRateLack says what is missing.
  */
 export function SameHeartRateSection({
   sport,
@@ -38,7 +39,7 @@ export function SameHeartRateSection({
   const copy = sameHeartRateCopy(sport, data, units)
   return (
     <section className="section" aria-labelledby={`${sport}-same-heart-rate`}>
-      <h2 id={`${sport}-same-heart-rate`}>At the same heart rate</h2>
+      <h2 id={`${sport}-same-heart-rate`}>{SAME_HEART_RATE_NAME}</h2>
       <p className={copy.kind === 'missing' ? 'muted' : 'secondary'}>{copy.text}</p>
       {data.change !== null && (
         <SameHeartRateChart sport={sport} data={data} units={units} note={noteFor(sport)} />

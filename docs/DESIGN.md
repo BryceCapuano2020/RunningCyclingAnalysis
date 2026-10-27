@@ -12,14 +12,14 @@ should feel **athletic and energetic** without hiding the honesty of the engine.
 
 Hash routes, so the static host needs no fallback rules.
 
-| Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `#/`               | Balance           | The answer and meter, a card per sport with its grade, the grade by duration for both sports, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                                                                                                                                                                             |
-| `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed                                               |
-| `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                              |
-| `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                               |
-| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                                                                              |
-| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept |
+| Route              | Page              | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#/`               | Balance           | The answer and meter, a card per sport with its grade, the grade by duration for both sports, evidence and cross-sport cards, one fitness trend for both sports on one scale, share sheet                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, the best-effort curve in pace or watts under the records (previous period dashed) with where the bests stand out as its caption, race predictions (runs), a weekly trend for 5, 20 or 60 minutes, output at the same heart rate, and one "Not enough yet" list for any section with nothing to show |
+| `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept                                                                                                                                        |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line under the energy view, where the charts would be. On a reload of a visit that kept
 results, every page except Profile and How sure is this? shows a restoring state in its place, with an
@@ -318,15 +318,32 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a section's heading, because a fragment would change the hash route.
 - A sport page reads top to bottom: the threshold, with its likely range under the figure, the line on uneven bests when there are any, and a line on the best 20 minutes by heart rate
   under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
-  (the same grade line as the card), then the period control, a line of recent form ("Last run 14 Jan · 9 runs · 42.10
-  km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
-  opens Activities filtered to that sport, "Where your bests stand out", the week-by-week trend under the heading "Week by week", then "At the same heart rate", then the curve, headed "Pace curve"
-  for running and "Power curve" for cycling. The threshold carries no count: the period control under
-  the answer names the dates the efforts come from. A sport the library has no activities for has no
-  period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
-  **How to get your files** side by side.
+  (the same grade line as the card), then the period control, then the sport's sections in the order its list
+  gives (`SPORT_SECTIONS` in `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or
+  drops a section there and the page maps it). The run's list is **Best efforts**, **Race predictions**,
+  **Week by week** and **At the same heart rate**; the ride's is the same without the race predictions.
+  - **Best efforts** holds a line of recent form ("Last run 14 Jan · 9 runs · 42.10 km"), the records, with the
+    Flat note under them on a run, and then, directly under the list, the best-effort curve in the sport's unit. It has no
+    section heading of its own, because it is the records' chart; the chart's own title ("Run flat pace per
+    kilometre by duration") names it.
+    Under the curve is the stand-out finding as its caption (below), then **See your runs**, which opens
+    Activities filtered to that sport.
+  - **Week by week** is the trend for 5, 20 or 60 minutes, with one muted line under the chart: "A step down
+    can be a best leaving the 4-week window, not a change in you." The window is the one the chart uses.
+  - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
+    page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
+    runs with heart rate." Each section names its need in the plain words it would have used under its own
+    heading, lower-cased after the section's name, so a new athlete sees no dead headings and no jargon.
+    The list is left out when every section has content, and on a page with no activities.
+  - **A threshold the fit refused, shown as its floor, is labelled "Threshold pace, at least"** (or "power"),
+    not "estimated", since the floor is a held best. A range whose two ends would print the same reads
+    "About 48 W" in place of "Likely 48 to 48 W".
+    The threshold carries no count: the period control under
+    the answer names the dates the efforts come from. A sport the library has no activities for has no
+    period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
+    **How to get your files** side by side.
 - **"Where your bests stand out" compares an athlete with their own curve, never with anyone else's.** The
-  section follows Best efforts on each sport page and says, for each duration from 5 s to 60 min, how far
+  finding is the caption of the curve under Best efforts on each sport page (it has no heading) and says, for each duration from 5 s to 60 min, how far
   the best sits above or below what the athlete's other durations predict (Morton's three-parameter
   critical-power model, fitted without that duration; the method is in
   [research/duration-profile.md](research/duration-profile.md)). A sentence leads: "Your 1 min best is 14%
@@ -334,11 +351,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   untested." It names at most the three that stand out most, shortest first, and only a duration whose
   range clears zero by 2% at its near end; one that stands out by less is on the chart only. A best below
   the rest is always said to be possibly untested, since a best is a lower bound. With none standing out it
-  says "Your bests are in line with each other from 5 s to 60 min." and shows no chart, and with some
+  says "Your bests are in line with each other from 5 s to 60 min." and offers no strip, and with some
   standing out by less than 2% it adds ", apart from small differences on the chart". Durations are named as every effort length is,
   in whole minutes ("60 min", never "1 h"). The words "limiter", "weak", "strength", "holding you back"
   and "ahead of" are never used, and "grade" means age grade only.
-  Under the sentence, when something stands out, is a lollipop strip: duration on a log x axis, 5 s to
+  Under the sentence, when something stands out, is a disclosure, "Show each best against the others" (it
+  reads "Hide ..." while open, and starts closed; the strip mounts when first opened), that holds a lollipop strip: duration on a log x axis, 5 s to
   60 min; a heavy zero line, the best in line with the others, with the vertical axis in per cent either side
   of zero. The axis is one range for the chart, symmetric about zero and rounded up from the widest likely
   range, and the chart says it under the plot ("Scale: ±40%") and in its table's caption, since a run's and a
@@ -350,10 +368,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   reading like the curve, and **View as table** lists duration, difference (with "above" or "below" when it
   stands out) and likely range. A ride reads measured power only, a run its metabolic W/kg, and each is read
   through a table keyed by sport. With fewer than five durations, no best at 1 min or under, none at
-  12 min or more, or bests from fewer than two sessions, the section is one muted line naming what is
-  missing, such as "Needs a best at 1 min or under and one at 12 min or more, with a power meter", and
-  no chart. When nothing is missing but no curve can be fitted, it says "A curve could not be fitted to your
-  bests, so none is compared". Without a best at 15 s or under only 2 min and up are shown, and a muted line says so.
+  12 min or more, or bests from fewer than two sessions, there is no caption and the finding is one line of
+  the "Not enough yet" list naming what is missing, such as "Where your bests stand out: needs a best at 1
+  min or under and one at 12 min or more, with a power meter.", and no strip. When nothing is missing but
+  no curve can be fitted, that line says "a curve could not be fitted to your bests, so none is compared". Without a best at 15 s or under only 2 min and up are shown, and a muted line says so.
 - **A record says how long ago it was set**, as quiet text after the name of the activity that set it,
   on the same line, such as "Morning run, 5 Jan · 12 days ago" or "Morning run, 5 Jan · today". The count
   runs in calendar days from today, read once when the page opens, so
@@ -401,8 +419,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   otherwise names the week: "At 145 bpm in the week ending Sun 6 Apr 2025 you rode 214 W, against 198 W 5 weeks
   earlier." Without a real change, it quotes the first and last values: "At 145 bpm your pace went from 4:49 to
   5:01 /km: no clear change, within the error." (or "your power went from 204 to 207 W"), and with fewer than 4
-  reporting weeks it says only "Too few weeks to show a change yet." in a muted line. With too little data, a
-  muted line names what is missing, one of: too few steady 5-minute stretches, too few activities, activities in
+  reporting weeks it says only "Too few weeks to show a change yet." in a muted line. With too little data
+  to draw, the section has no heading, and a line of the "Not enough yet" list names what is missing, one of: too few steady 5-minute stretches, too few activities, activities in
   too few weeks, heart rate that hardly varies, no effort near the reference heart rate in the latest weeks, or
   less than 4 weeks of steady efforts in the period ("Needs 4 weeks of steady efforts with heart rate. Pick a
   longer period to see it."); the numbers in them come from `SAME_HEART_RATE`. The reference heart rate is the
@@ -523,7 +541,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
 - **A threshold has its likely range under it, in small text.** It reads "Likely 22:58 to 23:49 /km" for a
-  run and "Likely 48 to 49 W" for a ride. The method is the standard error of the critical-power fit: one
+  run and "Likely 48 to 49 W" for a ride, or "About 48 W" when both ends would print the same. The method is the standard error of the critical-power fit: one
   standard error either side of the critical power, a rough spread of the fit rather than a confidence
   interval. A range is left out when its low end is not above resting metabolic rate, which
   would be no estimate of a threshold; when a ride's fit draws on an effort whose watts are estimated from
@@ -709,7 +727,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   bests and the races their heart-rate VO2max would run, both carried by Riegel's law at 1.07 and, for the
   marathon, Vickers & Vertosick's mileage-corrected model. The note says how many hard runs the heart-rate
   side rests on, how many hilly runs it left out, and, when the two disagree, which points higher and
-  why. The evidence disclosure says which best each estimate was carried from. The method and its sources
+  why. The evidence disclosure says which best each estimate was carried from. With no best from the mile up
+  and no heart-rate VO2max, the section has no heading and says so in the "Not enough yet" list. The method and its sources
   are in `docs/research/race-prediction.md`. Predictors are keyed by sport in
   `apps/web/src/ui/racePredictions.ts`, so a sport adds one there and the page shows it.
 - **Heart rate that cannot be right is set aside.** When a ride with a power meter, or an outdoor run, holds

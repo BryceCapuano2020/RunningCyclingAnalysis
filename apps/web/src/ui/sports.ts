@@ -78,9 +78,6 @@ export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' 
 /** One activity of the sport as the noun in a sentence, lower case: "this run", "this ride". */
 export const SPORT_ACTIVITY: Record<Sport, string> = { run: 'run', ride: 'ride' }
 
-/** The heading of a sport's best-effort curve, in the sport's own unit: pace for running, power for riding. */
-export const CURVE_TITLE: Record<Sport, string> = { run: 'Pace curve', ride: 'Power curve' }
-
 /** A sport's threshold as the noun in a sentence, lower case: the card's "Running threshold pace". */
 export const THRESHOLD_NOUN: Record<Sport, string> = {
   run: 'threshold pace',
@@ -91,6 +88,15 @@ export const THRESHOLD_NOUN: Record<Sport, string> = {
 export const THRESHOLD_LABEL: Record<Sport, string> = {
   run: 'Threshold pace, estimated',
   ride: 'Threshold power, estimated',
+}
+
+/**
+ * The label over a threshold the fit refused, when the lowest of the bests it left out is shown in its place.
+ * That is a held best and a floor, not an estimate, so it is not called one.
+ */
+export const THRESHOLD_FLOOR_LABEL: Record<Sport, string> = {
+  run: 'Threshold pace, at least',
+  ride: 'Threshold power, at least',
 }
 
 /** The shortest and longest efforts as copy: "3" and "20 min", the fit's own window. */
