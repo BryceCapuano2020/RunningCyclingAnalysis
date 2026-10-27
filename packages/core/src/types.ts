@@ -122,6 +122,12 @@ export interface CurvePoint {
   activityId: string | null
   /** Start sample index of the best window within that activity, or -1. */
   startIndex: number
+  /**
+   * Length, s, of the window the value came from, which can be longer than durationS once the monotone
+   * envelope has copied a longer effort's value. Carried with the value, as startIndex is. Absent on
+   * curves made without digests.
+   */
+  windowS?: number | null
 }
 
 export type Curve = CurvePoint[]

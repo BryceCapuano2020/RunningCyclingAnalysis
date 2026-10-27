@@ -8,7 +8,8 @@ import {
   RESTING_W_PER_KG,
 } from '../constants'
 import { possibleRunWkg } from '../curves'
-import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
+import { criticalPowerOutcome, fitCriticalPowerUnchecked, unevenFit, wPrimeFloor } from '../cp'
+import type { UnevenFit } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts } from '../effort'
 import { crossCheck } from '../hr'
@@ -73,6 +74,9 @@ export interface AnalysisResult {
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
   runCpRefusal: CriticalPowerRefusal | null
   rideCpRefusal: CriticalPowerRefusal | null
+  /** The threshold without the uneven bests, which set only a floor on it; null without one. See cp/uneven. */
+  runCpUneven: UnevenFit | null
+  rideCpUneven: UnevenFit | null
   hr: HrCrossCheck
   comparison: Comparison
   equivalents: Equivalence[]
@@ -319,6 +323,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   })
   const runCp = runOutcome.fit
   const rideCp = rideOutcome.fit
+  const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
+  const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
   const hr = crossCheck(
     atOrBelowCriticalPower(runPoints, runFit),
     atOrBelowCriticalPower(ridePoints, rideFit),
@@ -358,6 +364,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     rideCp,
     runCpRefusal: runOutcome.refusal,
     rideCpRefusal: rideOutcome.refusal,
+    runCpUneven,
+    rideCpUneven,
     hr,
     comparison,
     equivalents,

@@ -6,6 +6,7 @@ import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import { thresholdRange } from './thresholdRange'
+import { floorThreshold } from './thresholdFloor'
 import { countEfforts, latestStartOf } from './records'
 import {
   RECORD_DURATIONS_S,
@@ -108,6 +109,72 @@ describe('thresholdRange', () => {
     expect(
       thresholdRange(makeResult({ activities, rideCurve: outside }), 'ride', 75, 'metric'),
     ).toBe('48 to 49 W')
+  })
+})
+
+describe('thresholdRange with an uneven fit', () => {
+  // The floor is the lowest of the bests left out, 3.2 W/kg, which is 52 W for a 75 kg rider.
+  const uneven = (cp: number, floor = 3.2) => ({
+    fit: { cp, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+    leftOutS: [900, 1200],
+    floor,
+  })
+
+  it('runs from the main threshold to the uneven one, from its faster end', () => {
+    // The main fit is 4.0 W/kg and the uneven one 4.2, which is the faster pace, so it reads first.
+    const result = makeResult({ runCpUneven: uneven(4.2) })
+    expect(thresholdRange(result, 'run', 70, 'metric')).toBe('21:49 to 23:23 /km')
+  })
+
+  it('runs from the main threshold to the uneven one in watts for a ride', () => {
+    const result = makeResult({ rideCpUneven: uneven(3.6) })
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('48 to 58 W')
+  })
+
+  it('is shown for a ride whose fit draws on estimated watts, since the note says so', () => {
+    const activities = [
+      makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'virtual' }),
+      makeActivity({ id: 'ride-2', sport: 'ride', powerSource: 'measured' }),
+    ]
+    const inWindow = [curvePoint(300, 3.0, 'ride-1'), curvePoint(1200, 2.8, 'ride-2')]
+    const result = makeResult({ activities, rideCurve: inWindow, rideCpUneven: uneven(3.6) })
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('48 to 58 W')
+  })
+
+  it('starts from the floor when the main threshold is refused, so the range still shows', () => {
+    const result = makeResult({ rideCp: null, rideCpRefusal: 'shape', rideCpUneven: uneven(3.6) })
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBe('52 to 58 W')
+  })
+
+  it('is null when the uneven threshold does not sit above its floor', () => {
+    const result = makeResult({ rideCp: null, rideCpUneven: uneven(3.0, 3.2) })
+    expect(thresholdRange(result, 'ride', 75, 'metric')).toBeNull()
+  })
+})
+
+describe('floorThreshold', () => {
+  const uneven = {
+    fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+    leftOutS: [900, 1200],
+    floor: 3.2,
+  }
+
+  it('is the floor in the sport’s figure, when the main threshold is refused', () => {
+    const result = makeResult({ rideCp: null, rideCpRefusal: 'shape', rideCpUneven: uneven })
+    const figure = floorThreshold(result, 'ride', 75, 'metric')
+    expect(figure?.value).toBe('52 W')
+    expect(figure?.sub).toMatch(/W\/kg/)
+  })
+
+  it('is null while the main threshold is there, or when no uneven fit set a floor', () => {
+    expect(floorThreshold(makeResult({ rideCpUneven: uneven }), 'ride', 75, 'metric')).toBeNull()
+    expect(floorThreshold(makeResult({ rideCp: null }), 'ride', 75, 'metric')).toBeNull()
+  })
+
+  it('is null when the floor is not below the fit, so a figure never stands without its range', () => {
+    const level = { ...uneven, floor: uneven.fit.cp }
+    const result = makeResult({ rideCp: null, rideCpRefusal: 'shape', rideCpUneven: level })
+    expect(floorThreshold(result, 'ride', 75, 'metric')).toBeNull()
   })
 })
 

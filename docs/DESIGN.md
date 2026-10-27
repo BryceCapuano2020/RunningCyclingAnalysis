@@ -299,7 +299,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   above it. The chart mounts when the disclosure is first opened, so a closed section draws nothing.
 - **In-page jumps are buttons, not fragments.** The contents list on How sure is this? moves focus to
   a section's heading, because a fragment would change the hash route.
-- A sport page reads top to bottom: the threshold, with its likely range under the figure and a line on the best 20 minutes by heart rate
+- A sport page reads top to bottom: the threshold, with its likely range under the figure, the line on uneven bests when there are any, and a line on the best 20 minutes by heart rate
   under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
   (the same grade line as the card), then the period control, a line of recent form ("Last run 14 Jan · 9 runs · 42.10
   km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
@@ -417,6 +417,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   interval. A range is left out when its low end is not above resting metabolic rate, which
   would be no estimate of a threshold; when a ride's fit draws on an effort whose watts are estimated from
   virtual power, since that range would be an estimate of an estimate; and for a refused threshold.
+- **An uneven best sets only a floor, so the range runs up to a second threshold.** A best of 10 minutes
+  or more is uneven when a shorter best from the same ride, at least 40% as long, lies inside its window
+  and the rest of that window averages under 85% of the shorter best: a 15 or 20 minute effort held
+  while the easier riding round it was all the rider could hold at the start. The threshold is then
+  fitted without those bests, and it is the top of the range, from the main threshold to that one
+  ("Likely 261 to 296 W"). Such a fit is kept only above the main one. Under the range, one muted
+  line says why: "Your best 15 min and 20 min each held a shorter hard effort with easier riding around
+  it, so they only set a floor. A steady all-out 20 min would narrow this." A run says "running". When
+  the uneven fit draws on estimated watts, the line adds "The top end uses estimated watts." The range
+  replaces the standard-error range for that sport. When the main threshold is refused, the range starts
+  from the floor instead, the lowest of those bests, and the figure shown in place of the refusal is that
+  floor, with the same line under it: a demonstrated effort the threshold sits above, not a threshold.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
   figure has not moved. It is absent for All time, and for a ride when either best's watts are
