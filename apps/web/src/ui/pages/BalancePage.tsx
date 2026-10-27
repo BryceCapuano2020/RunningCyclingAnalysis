@@ -32,6 +32,7 @@ import { BalanceStrip } from './BalanceStrip'
 import { CrossSportCard } from './CrossSportCard'
 import { EmptySportCard } from './EmptySportCard'
 import { EvidenceCard } from './EvidenceCard'
+import { GradeProfileSection } from './GradeProfileSection'
 import { SportCard } from './SportCard'
 import './BalancePage.css'
 
@@ -229,6 +230,13 @@ export function BalancePage({
       </div>
 
       {sourceLine}
+
+      <GradeProfileSection
+        result={result}
+        profile={profile}
+        massKg={settings.massKg}
+        weightKnown={weightKnown}
+      />
 
       {missingAge !== null && (
         <div className="balance__profile">

@@ -96,7 +96,10 @@ export const UNEVEN_MIN_S = 600
 export const UNEVEN_NESTED_FRACTION = 0.4
 export const UNEVEN_REST_FRACTION = 0.85
 
-/** The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. */
+/**
+ * The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. The
+ * analysis prices these in every combine, so each added here costs one sort of the 4,000 draws there.
+ */
 export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
   180,
   300,
@@ -107,6 +110,15 @@ export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
 ]
 /** The shortest ride, s, that an equivalence is worked out for. */
 export const EQUIVALENCE_MIN_S = EQUIVALENCE_DURATIONS_S[0]!
+
+/**
+ * The durations, s, the age grade by duration is drawn at: every curve duration from EQUIVALENCE_MIN_S up
+ * to the curve's longest, 3 hours. The ride's equivalents beyond EQUIVALENCE_DURATIONS_S are priced by
+ * the page that draws them, not by every combine.
+ */
+export const PROFILE_DURATIONS_S: readonly number[] = DURATIONS_S.filter(
+  (durationS) => durationS >= EQUIVALENCE_MIN_S,
+)
 
 export const DAY_MS = 86_400_000
 /** A calendar month on average: 365.25 days over twelve months. */

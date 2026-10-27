@@ -1,0 +1,24 @@
+/* The finding, and the chart behind a disclosure when no duration separates the sports. */
+.grade-profile {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* The sentence the chart would have as its lede, on the page's reading measure. */
+.grade-profile__finding {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+}
+
+.grade-profile__details {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.grade-profile__details[open] > summary {
+  margin-bottom: var(--space-1);
+}
