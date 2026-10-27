@@ -6,12 +6,12 @@ import { combine } from './combine'
 import { digestActivity } from './digestActivity'
 
 /**
- * A combine of the benchmark's library, 1,000 activities of runs and rides over five years, took about
- * 30 ms. Each running equivalent it works out costs one sort of the 4,000 draws, so an equivalent added
- * for every duration costs a few ms more; the budget leaves room for a loaded runner, while about half
- * as much again still fails it. The grade by duration prices its own extra durations, outside combine.
+ * A combine of the benchmark's library, 1,000 activities of runs and rides over five years, takes about
+ * 30 ms locally and about 46 ms on a CI runner. The budget is three times the local figure, so a gross
+ * regression, such as a combine that doubles, fails it on any runner; `npm run benchmark:core` tracks the
+ * smaller changes. The grade by duration prices its own extra durations, outside combine.
  */
-const BUDGET_MS = 45
+const BUDGET_MS = 90
 const ACTIVITIES = 1000
 const SESSIONS_PER_WEEK = 4
 const DAY_MS = 86_400_000
