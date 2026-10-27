@@ -126,11 +126,13 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 - `POST /api/activities?replace=<id>` updates the named activity and never inserts. An id that is missing or
   owned by another user returns **404 `not_found`**. An activity that starts at a different time returns
   **409 `activity_conflict`**, and so does a request whose file hash differs from the stored one.
-- **Order of checks.** A create that would insert a new row reads the account's counters first. A full
-  library (403 `activity_quota`), the digest quota (403 `digest_quota`) or a full database (503
-  `database_full`) refuses it before a daily unit is taken, so a refused create writes nothing. The
-  insert holds the same limits for a request that races that read; it then gives its daily unit back.
-  When both a limit and the day are spent, the limit is the answer. The insert returns the stored row
+- **Order of checks.** A create that would insert a new row reads the account's counters first. An account
+  being deleted (409 `account_deleting`), a full library (403 `activity_quota`), the digest quota (403
+  `digest_quota`) or a full database (503 `database_full`) refuses it before a daily unit is taken, so a
+  refused create writes nothing. The insert holds the same limits for a request that races that read; it
+  then gives its daily unit back and answers with the refusal the account has by then. So a deletion that
+  starts in that race is answered 409 `account_deleting`, not a quota. When both a limit and the day are
+  spent, the limit is the answer. The insert returns the stored row
   (`RETURNING`), so the answer needs no read-back.
 - **Digest quota.** Each user may store 64 MiB of digest JSON (`MAX_DIGEST_BYTES_PER_USER`). A create past
   it returns **403 `digest_quota`** and stores nothing. An upgrade to a newer model revision is refused the
@@ -288,7 +290,7 @@ Every D1 statement and R2 call in a run counts against `MAX_MAINTENANCE_OPERATIO
 | ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | 401    | `unauthenticated`          | No valid session. Also returned for an account being deleted, except for its own deletion.                                         |
 | 409    | `account_changed`          | The browser's expected account no longer matches the cookie.                                                                       |
-| 409    | `account_deleting`         | Sign-in or upload while the account is being deleted. New.                                                                         |
+| 409    | `account_deleting`         | Sign-in, upload or create while the account is being deleted. New.                                                                 |
 | 403    | `activity_quota`           | 5,000 activities reached.                                                                                                          |
 | 403    | `storage_quota`            | 1 GiB of original files reached.                                                                                                   |
 | 429    | `rate_limited`             | Per-minute limiter.                                                                                                                |

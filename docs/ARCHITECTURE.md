@@ -176,10 +176,12 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    The list has at most 10,000 rows in all, and is limited to 32 MiB inflated. The cap
    is a memory budget: at the cap, reading the list uses about 100–150 MB at peak, holding its
    compressed bytes, its inflated bytes and their decoded text. Its inflated bytes count against the
-   zip's decompressed-bytes budget, even when the list is malformed.
+   zip's decompressed-bytes budget, even when the list is malformed. No row may hold more than 256
+   cells: a row of commas is a cell per byte, so the byte cap alone does not bound the cells a parse
+   builds.
    The first row wins for a file that appears twice. A row with a file and no name is kept, since its
-   type still says what the file is. A list that ends inside a quoted field is ignored, so it names
-   no files.
+   type still says what the file is. A list that ends inside a quoted field, or has a row of more than
+   256 cells, is malformed and is ignored, so it names no files.
    An activity file of that zip which the list does not name is not an activity when no file the list
    names sits in its folder or a folder above it: Strava's saved routes in `routes/`. It is not read,
    not counted in the progress total or as rejected, and not counted against the 10,000-file cap. The

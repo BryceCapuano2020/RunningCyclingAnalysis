@@ -214,6 +214,24 @@ describe('a create that loses a race after its checks passed', () => {
     expect(await activityRows(h)).toBe(0)
   })
 
+  it('answers 409 account_deleting, not a quota, when the account starts deleting after its checks passed', async () => {
+    // A deletion that starts after the session check and the create's checks, before its insert.
+    let h: Harness | undefined
+    const racing = racingDb(testEnv().DB, /^INSERT INTO daily_budget/, async () => {
+      await h?.env.DB.prepare('UPDATE users SET deleting_at = ?').bind(START).run()
+    })
+    h = createHarness({}, { DB: racing })
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+
+    const res = await post(h, token)
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ error: { code: 'account_deleting' } })
+    expect(await dailyUsed(h, uid)).toBe(0)
+    expect(await activityRows(h)).toBe(0)
+  })
+
   it('gives the day back and answers with the activity the other request wrote', async () => {
     let h: Harness | undefined
     let token = ''

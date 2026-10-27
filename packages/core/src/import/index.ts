@@ -4,7 +4,7 @@ import { parseTcx } from '../tcx/parse'
 import type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 export { DEFAULT_PARSE_LIMITS } from './result'
-export { MAX_ACTIVITY_LIST_BYTES } from './activitiesCsv'
+export { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from './activitiesCsv'
 export type { ParseLimits, ParseOptions, ParseResult } from './result'
 
 const UNSUPPORTED = 'Not a FIT, GPX or TCX file'

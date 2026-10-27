@@ -24,7 +24,14 @@ import {
   toRecord,
   type ActivityRow,
 } from './shared.ts'
-import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
+import {
+  accountDeleting,
+  accountState,
+  activityQuota,
+  createRefusal,
+  databaseFull,
+  digestQuota,
+} from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
 const MAX_CREATE_BODY_BYTES = MAX_DIGEST_BYTES + 16 * 1024
@@ -102,9 +109,7 @@ async function reserveDigestDelta(db: D1Database, userId: string, delta: number)
     .first()
   if (reserved) return
   const state = await accountState(db, userId)
-  if (state.deletingAt !== null) {
-    throw new HttpError(409, 'account_deleting', 'This account is being deleted')
-  }
+  if (state.deletingAt !== null) throw accountDeleting()
   if (delta > 0 && state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
     throw databaseFull()
   }
