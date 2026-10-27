@@ -8,7 +8,6 @@ import type { ImportProgress } from './sessionSource'
 import { importSource } from './sessionSource'
 import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
-import type { RouteShape } from './route/routeShape'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
@@ -18,6 +17,7 @@ import { HEADLINE_DURATION_S } from './constants'
 import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
+import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
 import type { Rejection } from './import/result'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
@@ -31,34 +31,7 @@ export type { RejectCode, Rejection } from './import/result'
 export { copyOfDigest, dedupeKey, outranks } from './duplicates'
 export type { Copy } from './duplicates'
 
-/** What the sink receives for each newly digested activity. */
-export interface SyncItem {
-  digest: ActivityDigest
-  /** The activity file's name inside its source (a zip entry path, or the file name). */
-  fileName: string
-  /** Lowercase hex SHA-256 of bytes. */
-  fileHash: string
-  /** The activity file's bytes. The session drops its reference once the sink returns. */
-  bytes: Uint8Array
-  /** The route shape of the activity, when it has a GPS track. Kept on the device, never uploaded. */
-  route?: RouteShape
-}
-
-export type SyncSink = (item: SyncItem) => Promise<void>
-
-/** An activity file as the sink receives it. */
-type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
-
-/**
- * State shared by the activities of one import: the first failure that stops saving, and the copies
- * skipped because a better format of the same workout is already held.
- */
-interface SaveBatch {
-  halt: SyncIssueCode | null
-  duplicates: RejectedFile[]
-  /** The digests this import added to the library, by key. A replacement updates its entry. */
-  added: Map<string, ActivityDigest>
-}
+export type { SyncItem, SyncSink } from './sessionSync'
 
 /**
  * Holds one digest per activity between requests, so that changing a setting re-runs the
