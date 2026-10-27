@@ -52,8 +52,8 @@ The header's sizes are custom properties in `tokens.css`, and the header measure
 text size. A control that focus or Back brings into view is not hidden under the header. At 840 px and
 below the wordmark is hidden, so the brand mark and the actions keep one row. The breakpoints are named once,
 in `apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 840 px for the wordmark, 560 px
-for the compact one (the tab glyphs and the account name), 420 px for the narrow one, and 900 px for
-Profile's two columns.
+for the compact one (the tab glyphs and the account name), 420 px for the narrow one, 700 px in height for
+a short phone's setup dialog, and 900 px for Profile's two columns.
 
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
@@ -678,6 +678,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Units follow the browser's language:** imperial for en-US, en-LR and my-MM, metric elsewhere.
   A new account takes the language of its sign-in request the same way. The Units choice comes
   first in setup and on Profile, and a unit typed after a weight ("150 lb") is read as typed.
+- **Setup's two buttons share one row on a short phone,** below 420 px wide and 700 px tall, and the spacing above the fields tightens so the sex options clear the sticky footer.
 - **The export may hold a null body mass,** written as null, for a weight that was never entered.
 
 ## Accessibility
