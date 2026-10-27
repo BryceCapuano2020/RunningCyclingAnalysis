@@ -6,6 +6,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { formatPercent } from '@rca/core/units'
 import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick, type BalanceReading } from '../components/balanceScale'
+import { percentEdge } from '../components/headlineText'
 import { plural } from '../components/plural'
 import { pickHeadline } from '../components/pickHeadline'
 import { PER } from '../format/units'
@@ -97,12 +98,25 @@ function heldBalanceItem(reading: BalanceReading, sport: Sport, newBest: boolean
     return { text: 'Your running and cycling are still in balance.' }
   }
   if (newBest) {
-    const value = amountText(reading.unit, Math.abs(reading.lead.centre))
+    // A percent edge reads as the Balance page reads it, with a decimal below 1%, so a lean never reads as 0%.
+    const value =
+      reading.unit === 'percent'
+        ? percentEdge(Math.abs(reading.lead.centre), false)
+        : amountText(reading.unit, Math.abs(reading.lead.centre))
     return { text: `Your balance held at ${value}.` }
   }
   return {
     text: `Your balance did not move: this ${SPORT_ACTIVITY[sport]} set no new best at ${HEADLINE_LABEL}.`,
   }
+}
+
+/** Whether a workout of the sport the import added is listed on the period on screen, rather than outside it. */
+function addedOnScreen(before: AnalysisResult, after: AnalysisResult, sport: Sport): boolean {
+  const onFile = workoutsOn(before)
+  return after.activities.some(
+    (activity) =>
+      activity.sport === sport && !onFile.has(dedupeKey(activity.sport, activity.startMs)),
+  )
 }
 
 /**
@@ -157,6 +171,11 @@ function balanceItem(
   }
   const moved = leanItem(readingBefore, readingAfter)
   if (moved !== null || added === null) return moved
+  if (!addedOnScreen(before, after, added)) {
+    return {
+      text: `This ${SPORT_ACTIVITY[added]} is outside the period on screen, so the balance there is unchanged.`,
+    }
+  }
   return heldBalanceItem(readingAfter, added, setHeadlineBest(before, after, added))
 }
 
@@ -278,7 +297,8 @@ function present(items: (MovedItem | null)[]): MovedItem[] {
  * items wait for it: the ride threshold, the ride bests and the balance.
  *
  * When the import added exactly one activity (`added`, its sport), the list leads with the balance,
- * always listed when both results have one, then the sport's headline grade, then the rest.
+ * listed when both results have one and a weight is entered, then the sport's headline grade, then
+ * the rest.
  */
 export function whatMoved(
   before: AnalysisResult | null,

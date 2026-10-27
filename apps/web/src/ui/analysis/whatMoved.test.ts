@@ -692,7 +692,8 @@ describe('whatMoved: an import that added one activity', () => {
 
   it('leaves out the grade line when the whole percent did not change', () => {
     const before = gradedResult(3.8)
-    const after = gradedResult(3.8)
+    // The new ride is on screen, but its best is the one on file, so the grade does not move.
+    const after = gradedResult(3.8, { activities: [RUN, RIDE, NEW_RIDE] })
     expect(whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')).toEqual([
       { text: 'Your balance did not move: this ride set no new best at 20 min.' },
     ])
@@ -756,6 +757,48 @@ describe('listedMoves: an import that added one run', () => {
     }
     expect(listedMoves(change, SETTINGS, 'imperial', null).map((item) => item.text)).toEqual([
       'Your balance did not move: this run set no new best at 20 min.',
+    ])
+  })
+})
+
+describe('whatMoved: review fixes for one added activity', () => {
+  it('says the activity is outside the period on screen when none of its workouts is listed', () => {
+    // The import added a run, but the period on screen (the default 12 weeks, or a custom range) does not list it.
+    const before = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
+    const after = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
+      { text: 'This run is outside the period on screen, so the balance there is unchanged.' },
+    ])
+  })
+
+  it('reads a held energy lead that rounds to 0% by its edge, as the Balance page does', () => {
+    // A 0.4% lead is still a lean, so it reads as 0.4%, never as 0%.
+    const before = resultWith({ comparison: balance(interval(1.001, 1.004, 1.007)) })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RUN],
+      comparison: balance(interval(1.001, 1.004, 1.007)),
+      runCurve: [curvePoint(1200, 15.988, 'run-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
+      { text: 'Your balance held at 0.4%.' },
+      {
+        text: 'New best 20 min run: 7:05 /mi',
+        spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
+      },
+    ])
+  })
+
+  it('holds the balance line while no weight is entered, for a single run that set a best', () => {
+    const before = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RUN],
+      runCurve: [curvePoint(1200, 15.988, 'run-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, false, 'run')).toEqual([
+      {
+        text: 'New best 20 min run: 7:05 /mi',
+        spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
+      },
     ])
   })
 })
