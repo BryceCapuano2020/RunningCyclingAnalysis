@@ -19,6 +19,12 @@ export const COMPACT_PHONE_MAX_WIDTH_PX = 560
 /** At or below this width Add files shows its plus only. */
 export const NARROW_PHONE_MAX_WIDTH_PX = 420
 
+/**
+ * At or below this height a narrow phone's setup dialog tightens its spacing and sets its two buttons on
+ * one row, so the sex options clear the sticky footer at 320 x 568 (SetupDialog.css, AthleteFields.css).
+ */
+export const SHORT_PHONE_MAX_HEIGHT_PX = 600
+
 /** At or below this width the tab labels shrink, so four equal tabs keep "ACTIVITIES" in one line. */
 export const SMALL_PHONE_MAX_WIDTH_PX = 360
 

@@ -35,3 +35,19 @@
     font-size: var(--text-sm);
   }
 }
+
+/* On a short phone (ui/layoutBreakpoints.ts: SHORT_PHONE_MAX_HEIGHT_PX) the year and the sex options sit
+   closer, so the sex options clear the sticky footer at 320 x 568. */
+@media (max-width: 420px) and (max-height: 600px) {
+  .athlete-fields {
+    gap: var(--space-2);
+  }
+
+  .athlete-fields .number-field {
+    margin-top: 0;
+  }
+
+  .athlete-fields .segmented-control__option {
+    padding-block: var(--space-1);
+  }
+}
