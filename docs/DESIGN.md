@@ -567,6 +567,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   heart rates on file)", which holds for both sports: cycling's is derived from running's, so a ride is never
   called your highest heart rate. A sport page's line says "so it was hard" at 90% or more,
   judged on the percent it shows, so a share that rounds to 90% is hard.
+- **Heart rate that cannot be right is set aside.** When a ride with a power meter, or an outdoor run, holds
+  a best effort of 10 min or more at or above the sport's threshold and its heart rate stays under 70% of
+  the reference heart rate, or was flagged as too low for the power through it, the sensor was wrong. That
+  activity's heart rate is left out of the heart-rate check, the effort checks and the reference heart
+  rates (`packages/core/src/hr/setAside.ts`). Its watts and pace still count. How sure is this? says how
+  many runs and rides were set aside, and the activity's data notes say why. Estimated watts and treadmill
+  pace are never the judge, since they can be what is wrong.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
   "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes, headings,
@@ -618,7 +625,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   skipped reading the section reads "Data notes"; with one it reads "Skipped readings". The words are
   `flagKindSentence` and `flagSpanText` on the page, and the row's count is `skippedReadingsText`, all in
   `apps/web/src/ui/analysis/flagCopy.ts`. The activity page uses them, so the core's English is never
-  shown. The words say what happened, never "impossible".
+  shown. The words say what happened, never "impossible". An activity whose heart rate the analysis set
+  aside gets one more note, last, even with no flags: `SET_ASIDE_ACTIVITY_TEXT` in
+  `apps/web/src/ui/analysis/setAsideCopy.ts`.
 - **Times are the viewer's own.** A limit's reset reads in local time: "It resets at 4:00 PM, your
   time.", never UTC.
 - **Every number names its source**: the activity that set it, with a link to that activity.

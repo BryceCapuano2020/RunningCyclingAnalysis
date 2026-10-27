@@ -208,7 +208,10 @@ export function ActivityPage({
         period={period}
         splitsLoad={splitsLoad}
       />
-      <ActivityIssues activity={activity} />
+      <ActivityIssues
+        activity={activity}
+        heartRateSetAside={result.heartRateSetAside.includes(activity.id)}
+      />
 
       {routeId !== null && onDelete && (
         <div className="activity-page__remove">
