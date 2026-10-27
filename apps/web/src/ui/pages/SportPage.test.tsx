@@ -735,7 +735,7 @@ describe('SportPage age grades', () => {
     renderPage('run', result, 'metric', null, previous, 'Previous 6 weeks')
 
     expect(
-      screen.getByRole('figure', { name: 'Running flat pace per kilometre by duration' }),
+      screen.getByRole('figure', { name: 'Run flat pace per kilometre by duration' }),
     ).toBeInTheDocument()
     const legend = screen.getByRole('list', { name: 'Legend' })
     expect(within(legend).getByText('Previous 6 weeks')).toBeInTheDocument()
@@ -788,7 +788,7 @@ describe('SportPage fitness trend', () => {
     expect(within(choice).getByRole('radio', { name: '20 min' })).toBeChecked()
     expect(
       screen.getByRole('figure', {
-        name: /^Running flat pace per kilometre, best 20 min, trailing/,
+        name: /^Run flat pace per kilometre, best 20 min, trailing/,
       }),
     ).toBeInTheDocument()
   })
@@ -800,7 +800,7 @@ describe('SportPage fitness trend', () => {
     fireEvent.click(within(choice).getByRole('radio', { name: '5 min' }))
     expect(
       screen.getByRole('figure', {
-        name: /^Running flat pace per kilometre, best 5 min, trailing/,
+        name: /^Run flat pace per kilometre, best 5 min, trailing/,
       }),
     ).toBeInTheDocument()
     expect(paceColumnOf('best 5 min')).toEqual(paceList(TRENDS[FIVE_MIN_S]))

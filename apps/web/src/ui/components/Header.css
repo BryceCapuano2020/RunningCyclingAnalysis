@@ -117,12 +117,12 @@ html {
 
 /* The current page is marked by a flat bar along its foot, and by colour, so the mark does not rest
    on colour alone. The bar is a pseudo-element, so the tab's rounded corners do not curl it. */
-.header__tab[aria-current='page'],
+.header__tab--current,
 .header__profile[aria-current='page'] {
   color: var(--text-primary);
 }
 
-.header__tab[aria-current='page']::after,
+.header__tab--current::after,
 .header__profile[aria-current='page']::after {
   content: '';
   position: absolute;
@@ -191,7 +191,7 @@ html {
   }
 
   /* The current tab is marked on the bar's top edge, where it stands out from the page. */
-  .header__tab[aria-current='page']::after {
+  .header__tab--current::after {
     top: 0;
     bottom: auto;
   }
@@ -320,7 +320,7 @@ html {
   }
 
   /* The current tab's own colour is more specific than the rule above, so it is set here too. */
-  .header__tab[aria-current='page'] {
+  .header__tab--current {
     color: CanvasText;
   }
 
@@ -330,7 +330,7 @@ html {
     outline-offset: -2px;
   }
 
-  .header__tab[aria-current='page']::after,
+  .header__tab--current::after,
   .header__profile[aria-current='page']::after {
     background: Highlight;
   }

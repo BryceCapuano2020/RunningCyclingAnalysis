@@ -111,7 +111,7 @@ export const SPORT_GLYPHS: Record<'run' | 'ride', SportGlyph> = {
   // Two wheels and a frame have more ink than the runner's five strokes at the same width, so the
   // ride is drawn a shade lighter and its wheels smaller. At 3.8 and 1.75 it carried about 1.65 times
   // the runner's ink at 16 to 30 px; at 3 and 1.5 it carries at most 1.3 times. The stroke is 1 px at
-  // 16 px, which is as thin as it goes. The runner stays put: moving it was tried and widened its gap.
+  // 16 px, which is as thin as it goes. The runner keeps its place on the grid: moving it was tried and widened its gap, so each box is cropped to its ink instead (inkBox).
   ride: {
     strokeWidth: 1.5,
     dots: [
@@ -136,4 +136,60 @@ export const SPORT_GLYPHS: Record<'run' | 'ride', SportGlyph> = {
       ],
     ],
   },
+}
+
+/** A box on a glyph's grid: its top-left corner and its size, in the same units as the grid. */
+export interface GlyphBox {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** The points a path's steps pass through. A curve's control points count, since they bound it. */
+function pointsOf(steps: readonly PathStep[]): [number, number][] {
+  return steps.flatMap((step): [number, number][] => {
+    switch (step.op) {
+      case 'M':
+      case 'L':
+        return [[step.x, step.y]]
+      case 'C':
+        return [
+          [step.x1, step.y1],
+          [step.x2, step.y2],
+          [step.x, step.y],
+        ]
+      case 'Z':
+        return []
+    }
+  })
+}
+
+/**
+ * The box a glyph's ink fills. A stroke's round caps and joins reach half its width past each point,
+ * and an outlined dot reaches half its width past its radius, so each is grown by that much. The
+ * icon's viewBox is this box, so the ink starts at the icon's own left edge, and the gap to a label
+ * is the same for every glyph.
+ */
+export function inkBox(glyph: SportGlyph): GlyphBox {
+  const half = glyph.strokeWidth / 2
+  const edges: [number, number, number, number][] = [
+    ...glyph.dots.map((dot): [number, number, number, number] => {
+      const reach = dot.filled ? dot.r : dot.r + half
+      return [dot.cx - reach, dot.cy - reach, dot.cx + reach, dot.cy + reach]
+    }),
+    ...glyph.paths.flatMap((steps) =>
+      pointsOf(steps).map(([x, y]): [number, number, number, number] => [
+        x - half,
+        y - half,
+        x + half,
+        y + half,
+      ]),
+    ),
+  ]
+  const left = Math.min(...edges.map((edge) => edge[0]))
+  const top = Math.min(...edges.map((edge) => edge[1]))
+  const right = Math.max(...edges.map((edge) => edge[2]))
+  const bottom = Math.max(...edges.map((edge) => edge[3]))
+  return { x: left, y: top, width: right - left, height: bottom - top }
 }

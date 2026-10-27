@@ -6,7 +6,7 @@ import { formatDuration, formatPercent } from '@rca/core/units'
 import type { Lean } from '../../domain/lean'
 import { plural } from './plural'
 import { effortLabel } from '../records'
-import { SPORT_NOUN, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_NOUN, SPORT_TITLE } from '../sports'
 import { energyReading, type BalanceReading } from './balanceScale'
 
 /** The title when both sports are on file but no efforts of the same length can be compared yet. */
@@ -123,7 +123,7 @@ export function balanceSummary(reading: BalanceReading, durationS: number): stri
 
 /**
  * The 90% range of the energy ratio, as the Method page quotes it. It names the sport that leads and
- * gives the same figures as the Balance sentence and its meter: "Cycling against running, 90% range:
+ * gives the same figures as the Balance sentence and its meter: "Ride against Run, 90% range:
  * 11% to 33%." Even balances keep running first, with signed figures.
  */
 export function headlineText(point: ComparisonPoint): { range: string } {
@@ -131,7 +131,7 @@ export function headlineText(point: ComparisonPoint): { range: string } {
   const leading: Sport = reading.lean === 'ride' ? 'ride' : 'run'
   const other: Sport = leading === 'run' ? 'ride' : 'run'
   return {
-    range: `${SPORT_TITLE[leading]} against ${SPORT_NOUN[other]}, 90% range: ${rangeText(reading)}.`,
+    range: `${SPORT_LABEL[leading]} against ${SPORT_LABEL[other]}, 90% range: ${rangeText(reading)}.`,
   }
 }
 

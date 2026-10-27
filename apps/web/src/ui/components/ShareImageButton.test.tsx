@@ -546,3 +546,74 @@ describe('ShareImageButton', () => {
     )
   })
 })
+
+describe('the name on the card', () => {
+  const FIELD = 'Name on the card'
+  const KEY = 'rca.card-name.v1'
+
+  /** The model the last card was drawn from. */
+  function lastCard() {
+    return vi.mocked(renderShareCard).mock.calls.at(-1)?.[0]
+  }
+
+  afterEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('is empty by default, so the card carries no name until one is typed', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    expect(within(dialog).getByRole('textbox', { name: FIELD })).toHaveValue('')
+    expect(lastCard()?.name).toBeNull()
+  })
+
+  it('draws the name typed on the card, and keeps it on this device', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    fireEvent.change(within(dialog).getByRole('textbox', { name: FIELD }), {
+      target: { value: 'Bryce Capuano' },
+    })
+    await waitFor(() => expect(lastCard()?.name).toBe('Bryce Capuano'))
+    expect(localStorage.getItem(KEY)).toBe('Bryce Capuano')
+  })
+
+  it('shows the name kept on this device when the sheet opens', async () => {
+    localStorage.setItem(KEY, 'Bryce')
+    renderButton()
+    const dialog = await openSheet()
+    expect(within(dialog).getByRole('textbox', { name: FIELD })).toHaveValue('Bryce')
+    expect(lastCard()?.name).toBe('Bryce')
+  })
+
+  it('holds the name to 40 characters, in the field and on the card', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    const field = within(dialog).getByRole('textbox', { name: FIELD })
+    expect(field).not.toHaveAttribute('maxLength')
+    fireEvent.change(field, { target: { value: 'c'.repeat(60) } })
+    await waitFor(() => expect(lastCard()?.name).toBe('c'.repeat(40)))
+    expect(localStorage.getItem(KEY)).toBe('c'.repeat(40))
+  })
+
+  it('counts the 40 characters by code point, so 45 emoji keep 40 whole ones', async () => {
+    renderButton()
+    const dialog = await openSheet()
+    const field = within(dialog).getByRole('textbox', { name: FIELD })
+    fireEvent.change(field, { target: { value: '😀'.repeat(45) } })
+    await waitFor(() => expect(lastCard()?.name).toBe('😀'.repeat(40)))
+    expect(field).toHaveValue('😀'.repeat(40))
+  })
+
+  it('still draws the name for this visit when storage is refused', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied')
+    })
+    renderButton()
+    const dialog = await openSheet()
+    fireEvent.change(within(dialog).getByRole('textbox', { name: FIELD }), {
+      target: { value: 'Bryce' },
+    })
+    await waitFor(() => expect(lastCard()?.name).toBe('Bryce'))
+  })
+})

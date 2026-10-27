@@ -1,9 +1,16 @@
+/*
+ * An icon is drawn on a 24 unit grid across --icon-size, so one unit is --icon-unit. A sport glyph
+ * is cropped to its ink (icons.tsx) and sized in those units, so its box is only as big as its ink.
+ */
 .icon {
+  --icon-size: 1.25em;
+  --icon-unit: calc(var(--icon-size) / 24);
+  --icon-base: -0.2em;
   display: inline-block;
   flex-shrink: 0;
-  width: 1.25em;
-  height: 1.25em;
-  vertical-align: -0.2em;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  vertical-align: var(--icon-base);
 }
 
 .brand-mark {

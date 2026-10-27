@@ -4,7 +4,7 @@ import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
 import { RECORD_DURATIONS_S } from '../records'
-import { SPORT_FORMAT, SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import { sharedSourceOf, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -179,7 +179,7 @@ function tooltipFor(row: CurveRow, x: number, y: number, view: View): TooltipCon
 
 /** The name of the chart, with the unit spelt out: "per kilometre", "in watts". */
 function titleOf(sport: Sport, units: UnitSystem): string {
-  return `${SPORT_TITLE[sport]} ${SPORT_FORMAT[sport].titleUnit(units)} by duration`
+  return `${SPORT_LABEL[sport]} ${SPORT_FORMAT[sport].titleUnit(units)} by duration`
 }
 
 /**

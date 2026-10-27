@@ -5,6 +5,7 @@ import {
   SANS_400,
   SANS_500,
   SANS_600,
+  cutWithEllipsis,
   drawLines,
   drawPill,
   fitText,
@@ -36,6 +37,10 @@ export const NAME: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
 const BADGE: TextStyle = { ...SANS_600, size: 24, lineHeight: 30 }
 const BADGE_HEIGHT = 40
 const BADGE_PADDING = 14
+/** The athlete's name on the card, small, so it reads as a label for the card rather than its headline. */
+const ATHLETE: TextStyle = { ...SANS_500, size: 24, lineHeight: 30 }
+/** Between the brand mark and the app name, and between the top row's items. */
+const ROW_GAP = 16
 export const PERIOD: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
 /** The balance in words under the headline. */
 export const MAGNITUDE_LINE: TextStyle = { ...SANS_600, size: 30, lineHeight: 36 }
@@ -72,7 +77,53 @@ function textBlock(
   ]
 }
 
-/** The top row: the brand mark and app name in volt, with the sample badge at the right. */
+/**
+ * The sample badge at the right of the top row. Returns the width it takes, so the name beside it can
+ * stop short of it.
+ */
+function drawBadge(
+  ctx: CardContext,
+  badge: string,
+  right: number,
+  y: number,
+  mark: number,
+): number {
+  setFont(ctx, BADGE)
+  const width = ctx.measureText(badge).width + 2 * BADGE_PADDING
+  const top = y + (mark - BADGE_HEIGHT) / 2
+  drawPill(ctx, right - width, top, width, BADGE_HEIGHT, CARD_COLORS.surface)
+  const textY = top + (BADGE_HEIGHT - BADGE.lineHeight) / 2
+  drawLines(ctx, [badge], right - width + BADGE_PADDING, textY, BADGE, CARD_COLORS.secondary)
+  return width
+}
+
+/**
+ * The athlete's name, small and secondary, ending at `right` and kept to one line: it fills the top
+ * row between the app name and the badge, and is cut with an ellipsis where it would run into them.
+ */
+function drawAthleteName(
+  ctx: CardContext,
+  name: string,
+  left: number,
+  right: number,
+  y: number,
+  mark: number,
+): void {
+  const room = right - left
+  const [wrapped = ''] = wrapIn(ctx, name, ATHLETE, room, 1)
+  setFont(ctx, ATHLETE)
+  const measure = (text: string) => ctx.measureText(text).width
+  // Wrapping leaves a name with no spaces whole, so one too wide for the row is cut here.
+  const line = measure(wrapped) <= room ? wrapped : cutWithEllipsis(wrapped, room, measure)
+  if (line === '' || measure(line) > room) return
+  const top = y + (mark - ATHLETE.lineHeight) / 2
+  drawLines(ctx, [line], right - measure(line), top, ATHLETE, CARD_COLORS.secondary)
+}
+
+/**
+ * The top row: the brand mark and app name in volt, the athlete's name small beside them when there
+ * is one, and the sample badge at the right.
+ */
 function brandBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout): Block {
   const x = layout.marginX
   const right = layout.width - layout.marginX
@@ -82,22 +133,16 @@ function brandBlock(ctx: CardContext, model: ShareCardModel, layout: CardLayout)
     height: mark,
     draw: (y) => {
       drawBrandMark(ctx, x, y, mark)
+      const titleLeft = x + mark + ROW_GAP
       const nameY = y + (mark - NAME.lineHeight) / 2
-      drawLines(ctx, [model.title], x + mark + 16, nameY, NAME, CARD_COLORS.brand)
-      if (model.badge === null) return
-      setFont(ctx, BADGE)
-      const width = ctx.measureText(model.badge).width + 2 * BADGE_PADDING
-      const top = y + (mark - BADGE_HEIGHT) / 2
-      drawPill(ctx, right - width, top, width, BADGE_HEIGHT, CARD_COLORS.surface)
-      const textY = top + (BADGE_HEIGHT - BADGE.lineHeight) / 2
-      drawLines(
-        ctx,
-        [model.badge],
-        right - width + BADGE_PADDING,
-        textY,
-        BADGE,
-        CARD_COLORS.secondary,
-      )
+      drawLines(ctx, [model.title], titleLeft, nameY, NAME, CARD_COLORS.brand)
+      // The badge, when there is one, takes the right end of the row; the name ends at it, or at the edge.
+      const badgeWidth = model.badge === null ? 0 : drawBadge(ctx, model.badge, right, y, mark)
+      if (model.name === null) return
+      setFont(ctx, NAME)
+      const titleRight = titleLeft + ctx.measureText(model.title).width
+      const nameRight = badgeWidth === 0 ? right : right - badgeWidth - ROW_GAP
+      drawAthleteName(ctx, model.name, titleRight + ROW_GAP, nameRight, y, mark)
     },
   }
 }

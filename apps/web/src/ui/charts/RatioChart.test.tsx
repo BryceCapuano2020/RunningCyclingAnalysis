@@ -13,7 +13,7 @@ function cssRule(selector: string): string {
   return ruleBody(ratioCss, selector)
 }
 
-const TITLE = 'Running compared with cycling by duration'
+const TITLE = 'Run compared with Ride by duration'
 
 /** The chart's figure is named by its visible title. */
 function tableOf(container: HTMLElement) {
@@ -37,8 +37,8 @@ describe('RatioChart', () => {
     expect(screen.getAllByTestId('ratio-median')).toHaveLength(1)
     // The zero tick on the axis reads Even; the table says Even for its own row.
     expect(screen.getByText('Even', { selector: 'text' })).toBeInTheDocument()
-    expect(screen.getByText('Higher running energy rate')).toBeInTheDocument()
-    expect(screen.getByText('Higher cycling energy rate')).toBeInTheDocument()
+    expect(screen.getByText('Higher Run energy rate')).toBeInTheDocument()
+    expect(screen.getByText('Higher Ride energy rate')).toBeInTheDocument()
 
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual(['Duration', 'Reading', 'Median', '90% range'])
@@ -124,7 +124,7 @@ describe('RatioChart', () => {
 
   it('labels the percentage axis with what the signs mean', () => {
     render(<RatioChart comparison={comparisonFixture(false)} />)
-    expect(screen.getByText('Run above (+) or below (−) cycling, %')).toBeInTheDocument()
+    expect(screen.getByText('Run above (+) or below (−) Ride, %')).toBeInTheDocument()
   })
 
   it('tints the running side coral above the line and the cycling side blue below it', () => {

@@ -48,6 +48,20 @@ function tabOf(route: Route): Route['page'] | null {
   return route.page
 }
 
+/**
+ * A tab's aria-current. The tab of the page itself is "page". An activity is a page of its section, so
+ * that section's tab is "true" there. Any other page, such as the method page, marks its tab by class
+ * only, so a screen reader is not told the tab is the page.
+ */
+function ariaCurrentOf(
+  route: Route | null,
+  tab: Tab,
+  current: Route['page'] | null,
+): 'page' | 'true' | undefined {
+  if (route?.page === tab.route.page) return 'page'
+  return route?.page === 'activity' && current === tab.route.page ? 'true' : undefined
+}
+
 export function Header({ route, showTabs = route !== null, addFiles, account }: HeaderProps) {
   const current = route ? tabOf(route) : null
   const headerRef = useRef<HTMLElement>(null)
@@ -111,9 +125,11 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
           {TABS.map((tab) => (
             <a
               key={tab.label}
-              className="header__tab"
+              className={
+                current === tab.route.page ? 'header__tab header__tab--current' : 'header__tab'
+              }
               href={hrefFor(tab.route)}
-              aria-current={current === tab.route.page ? 'page' : undefined}
+              aria-current={ariaCurrentOf(route, tab, current)}
             >
               {tab.glyph}
               {tab.label}

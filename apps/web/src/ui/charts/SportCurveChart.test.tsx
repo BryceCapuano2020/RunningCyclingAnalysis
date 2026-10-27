@@ -87,7 +87,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Running flat pace per kilometre by duration' }),
+      screen.getByRole('figure', { name: 'Run flat pace per kilometre by duration' }),
     ).toBeInTheDocument()
     metric.unmount()
 
@@ -101,7 +101,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Running flat pace per mile by duration' }),
+      screen.getByRole('figure', { name: 'Run flat pace per mile by duration' }),
     ).toBeInTheDocument()
     imperial.unmount()
 
@@ -115,7 +115,7 @@ describe('SportCurveChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Cycling power in watts by duration' }),
+      screen.getByRole('figure', { name: 'Ride power in watts by duration' }),
     ).toBeInTheDocument()
   })
 

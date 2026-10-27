@@ -29,7 +29,7 @@ const ACTIVE_MARKER_R = 5
 /** Space kept above and below the data on the percentage axis, as a fraction of 100%. */
 const HEADROOM = 0.05
 const EMPTY = 'Add at least one run and one ride to compare them.'
-const PERCENT_AXIS_TITLE = `${SPORT_LABEL.run} above (+) or below (−) ${SPORT_NOUN.ride}, %`
+const PERCENT_AXIS_TITLE = `${SPORT_LABEL.run} above (+) or below (−) ${SPORT_LABEL.ride}, %`
 const CAPTION =
   'Above the line, your running is higher than your cycling at that duration; below it, your cycling is higher.'
 const NOTE = 'Shading shows the 90% range. The line is the middle estimate.'
@@ -261,7 +261,7 @@ export function RatioChart({ comparison }: RatioChartProps) {
 
   return (
     <ChartFrame
-      title={`${SPORT_TITLE.run} compared with ${SPORT_NOUN.ride} by duration`}
+      title={`${SPORT_LABEL.run} compared with ${SPORT_LABEL.ride} by duration`}
       description={`${SPORT_TITLE.run} energy rate as a percentage of ${SPORT_NOUN.ride} at each duration, with 90% ranges. Zero means equal. Duration is on a log scale.`}
       legend={rows.length > 0 && hasCalibrated ? LEGEND_CALIBRATED : undefined}
       table={tableFor(rows, hasCalibrated)}
@@ -332,10 +332,10 @@ export function RatioChart({ comparison }: RatioChartProps) {
               y2={m.zeroY}
             />
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.top + 14}>
-              {`Higher ${SPORT_NOUN.run} energy rate`}
+              {`Higher ${SPORT_LABEL.run} energy rate`}
             </text>
             <text className="ratio-chart__label" x={plot.left + 8} y={plot.bottom - 8}>
-              {`Higher ${SPORT_NOUN.ride} energy rate`}
+              {`Higher ${SPORT_LABEL.ride} energy rate`}
             </text>
             {activeX !== undefined ? <Crosshair x={activeX} plot={plot} /> : null}
             {activeMedian ? (

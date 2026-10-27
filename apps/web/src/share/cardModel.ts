@@ -14,6 +14,7 @@ import { plural } from '../ui/components/plural'
 import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
 import { countSport, threshold } from '../ui/records'
 import { SPORT_ORDER, THRESHOLD_EFFORT_TEXT, THRESHOLD_LABEL } from '../ui/sports'
+import { cardNameShown } from './cardName'
 import { hasShareableContent } from './hasShareableContent'
 
 /**
@@ -68,6 +69,8 @@ export interface ShareCardModel {
   /** The site's host when it is public, or an empty string for a local or private address. */
   origin: string
   badge: string | null
+  /** The name the visitor typed for the card, trimmed, or null when there is none. Kept on this device. */
+  name: string | null
 }
 
 /** A graded card names the standard its levels come from, and says what a level is. */
@@ -186,6 +189,7 @@ export function buildShareCard(
   weightKnown: boolean,
   gap: BalanceGap | null,
   grades: Record<Sport, GradeOutcome | null>,
+  name: string | null = null,
 ): ShareCardModel | null {
   if (!hasShareableContent(result, gap, weightKnown)) return null
   const pick = pickHeadline(result.comparison)
@@ -208,5 +212,6 @@ export function buildShareCard(
     footnote: heroes.some((hero) => hero.grade !== null) ? GRADED_FOOTNOTE : ESTIMATE_FOOTNOTE,
     origin: typeof window === 'undefined' ? '' : shareableHost(window.location.origin),
     badge: isSample ? 'Sample athlete' : null,
+    name: cardNameShown(name ?? ''),
   }
 }

@@ -3,6 +3,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, EffortCheck, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { saveCardName, storedCardName } from '../../share/cardName'
 import { cardFileName, type CardFormat } from '../../share/cardLayout'
 import {
   canShareImage,
@@ -16,6 +17,7 @@ import {
 import { hasShareableContent } from '../../share/hasShareableContent'
 import type { BalanceGap } from '../balanceGap'
 import type { GradeOutcome } from '../grades'
+import { CardNameField } from './CardNameField'
 import { SegmentedControl, type SegmentedControlOption } from './SegmentedControl'
 import { useModalDialog } from './useModalDialog'
 import './ShareImageButton.css'
@@ -40,7 +42,7 @@ export interface ShareImageButtonProps {
 }
 
 /** What the card is drawn from: the page's inputs, without the analysis state. */
-type CardInputs = Omit<ShareImageButtonProps, 'disabled'>
+type CardInputs = Omit<ShareImageButtonProps, 'disabled'> & { name: string }
 
 interface Preview {
   format: CardFormat
@@ -116,6 +118,7 @@ async function makeFile(
     inputs.weightKnown,
     inputs.gap,
     inputs.grades,
+    inputs.name,
   )
   if (card === null) return null
   const canvas = document.createElement('canvas')
@@ -136,6 +139,12 @@ export function ShareImageButton(props: ShareImageButtonProps) {
   const [open, setOpen] = useState(false)
   const [format, setFormat] = useState<CardFormat>('square')
   const [status, setStatus] = useState('')
+  // The name on the card, read from this device once and kept there as it is typed.
+  const [name, setName] = useState(storedCardName)
+  const changeName = (next: string) => {
+    setName(next)
+    saveCardName(next)
+  }
   const [generating, setGenerating] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [basis, setBasis] = useState({ result, period, units })
@@ -182,6 +191,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     weightKnown,
     gap,
     grades,
+    name,
   ]
   const [seenFrom, setSeenFrom] = useState<readonly unknown[]>(drawnFrom)
   if (drawnFrom.some((value, index) => value !== seenFrom[index])) {
@@ -230,6 +240,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
       weightKnown,
       gap,
       grades,
+      name,
     }
     makeFile(source, format, new Date(), loadCard).then(
       (file) => {
@@ -254,6 +265,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
     weightKnown,
     gap,
     grades,
+    name,
     loadCard,
   ])
 
@@ -322,6 +334,7 @@ export function ShareImageButton(props: ShareImageButtonProps) {
         <div className="share-sheet__body">
           <h2 id={titleId}>{SHEET_TITLE}</h2>
           <p className="muted">{PRIVACY_NOTE}</p>
+          <CardNameField value={name} onChange={changeName} />
           <SegmentedControl
             legend="Format"
             options={SHAPES}

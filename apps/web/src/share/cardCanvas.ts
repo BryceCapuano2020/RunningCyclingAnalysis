@@ -75,10 +75,22 @@ export function wrapText(
 
   const kept = lines.slice(0, maxLines)
   const lastIndex = kept.length - 1
-  let last = kept[lastIndex] ?? ''
-  while (last !== '' && measure(`${last}…`) > maxWidth) last = last.slice(0, -1)
-  kept[lastIndex] = `${last.trimEnd()}…`
+  kept[lastIndex] = cutWithEllipsis(kept[lastIndex] ?? '', maxWidth, measure)
   return kept
+}
+
+/**
+ * The text cut, with an ellipsis, until the cut and the ellipsis fit maxWidth. It is cut by code point,
+ * so an emoji is never left as half of one.
+ */
+export function cutWithEllipsis(
+  text: string,
+  maxWidth: number,
+  measure: (line: string) => number,
+): string {
+  const kept = [...text]
+  while (kept.length > 0 && measure(`${kept.join('')}…`) > maxWidth) kept.pop()
+  return `${kept.join('').trimEnd()}…`
 }
 
 /** Wraps text in the style, measured with the font the style sets. */

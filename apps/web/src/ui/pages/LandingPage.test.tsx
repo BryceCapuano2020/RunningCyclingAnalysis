@@ -179,7 +179,7 @@ describe('LandingPage', () => {
         name: 'Running grades 6 points higher than cycling (range 1 to 12\u00a0points)',
       }),
     ).toBeInTheDocument()
-    expect(within(example).getByText('Running · Local · 64%')).toBeInTheDocument()
+    expect(within(example).getByText('Run · Local · 64%')).toBeInTheDocument()
     expect(within(example).getByText('Pace 4:29 /km')).toBeInTheDocument()
     expect(within(example).getByText('Power 225 W')).toBeInTheDocument()
     expect(within(example).queryByText(/W\/kg/)).not.toBeInTheDocument()

@@ -61,13 +61,16 @@ export const SPORT_FORMAT: Record<Sport, SportFormat> = {
   },
 }
 
-/** The name of each sport in text, shown beside its SportIcon. */
+/** The name of each sport on screen: a tab, a card heading, a chart title, a legend or a table heading. */
 export const SPORT_LABEL: Record<Sport, string> = { run: 'Run', ride: 'Ride' }
 
-/** The full name of each sport as a title, such as a chart legend entry or a table heading. */
+/**
+ * The sport as the word that opens a sentence, such as "Running grades 6 points higher than cycling".
+ * Titles and labels use SPORT_LABEL.
+ */
 export const SPORT_TITLE: Record<Sport, string> = { run: 'Running', ride: 'Cycling' }
 
-/** The sport as the noun in a sentence, such as "running and cycling in balance". */
+/** The sport as the noun in a sentence, lower case, such as "running and cycling in balance". */
 export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cycling' }
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }

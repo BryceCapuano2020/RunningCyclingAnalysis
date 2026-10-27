@@ -1,5 +1,5 @@
 import type { Sport } from '@rca/core/types'
-import { SPORT_GLYPHS } from '../ui/components/iconPaths'
+import { SPORT_GLYPHS, inkBox } from '../ui/components/iconPaths'
 import { CARD_COLORS } from './cardColors'
 import {
   CONDENSED_700,
@@ -144,18 +144,22 @@ function drawFigure(
   ctx.textBaseline = 'top'
 }
 
-/** A sport's glyph at a size and top-left corner, traced from the path data icons.tsx also draws. */
+/**
+ * A sport's glyph, traced from the path data icons.tsx also draws and cropped to its ink as the icon
+ * is: its left edge at x, and its middle on the line through `middle`. The grid keeps its size.
+ */
 function drawSportGlyph(
   ctx: CardContext,
   sport: Sport,
   x: number,
-  y: number,
+  middle: number,
   size: number,
   colour: string,
 ): void {
   const glyph = SPORT_GLYPHS[sport]
+  const box = inkBox(glyph)
   const scale = size / GLYPH_GRID
-  const at = placer(x, y, scale)
+  const at = placer(x - box.x * scale, middle - (box.y + box.height / 2) * scale, scale)
   for (const dot of glyph.dots) {
     const [cx, cy] = at(dot.cx, dot.cy)
     const arc = () => ctx.arc(cx, cy, dot.r * scale, 0, Math.PI * 2)
@@ -185,9 +189,9 @@ function drawColumn(
   const textX = x + EDGE_WIDTH + TEXT_INSET
   ctx.fillStyle = sportColour(hero.sport)
   ctx.fillRect(x, y, EDGE_WIDTH, edgeHeight)
-  // The glyph sits in the inset, centred on the label's first line.
-  const glyphY = y + (column.labelStyle.lineHeight - GLYPH_SIZE) / 2
-  drawSportGlyph(ctx, hero.sport, x + EDGE_WIDTH + GLYPH_GAP, glyphY, GLYPH_SIZE, CARD_COLORS.text)
+  // The glyph sits in the inset, its ink starting at the inset and its middle on the label's first line.
+  const middle = y + column.labelStyle.lineHeight / 2
+  drawSportGlyph(ctx, hero.sport, x + EDGE_WIDTH + GLYPH_GAP, middle, GLYPH_SIZE, CARD_COLORS.text)
   drawLines(ctx, column.label, textX, y, column.labelStyle, CARD_COLORS.muted)
   let lineY = y + column.labelRows * column.labelStyle.lineHeight + SPACE
   // The figure is text, so it takes the text colour; only the edge above carries the sport.

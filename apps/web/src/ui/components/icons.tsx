@@ -2,7 +2,7 @@
  * The app's icons. Each is decorative (aria-hidden) and drawn in currentColor, so the text beside
  * it names it and its colour follows the text.
  */
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   BRAND_RIDING,
   BRAND_RUNNING,
@@ -10,9 +10,10 @@ import {
   WARNING_DOT,
   WARNING_STEM,
   WARNING_TRIANGLE,
+  inkBox,
   pathData,
 } from './iconPaths'
-import type { SportGlyph } from './iconPaths'
+import type { GlyphBox, SportGlyph } from './iconPaths'
 import './icons.css'
 
 export type IconSport = 'run' | 'ride' | 'swim'
@@ -21,16 +22,28 @@ interface IconProps {
   className?: string
 }
 
+/** The size of a glyph's box: its grid units, at the icon's unit (icons.css), so the box hugs its ink. */
+function inkStyle(box: GlyphBox): CSSProperties {
+  return {
+    width: `calc(${box.width} * var(--icon-unit))`,
+    height: `calc(${box.height} * var(--icon-unit))`,
+    // The box keeps its centre where the 24 unit icon's centre sits, so a shorter glyph does not drop.
+    verticalAlign: `calc(var(--icon-base) + (var(--icon-size) - ${box.height} * var(--icon-unit)) / 2)`,
+  }
+}
+
 function Icon({
   className,
   sport,
+  box,
   children,
-}: IconProps & { sport?: IconSport; children: ReactNode }) {
+}: IconProps & { sport?: IconSport; box?: GlyphBox; children: ReactNode }) {
   return (
     <svg
       className={className ? `icon ${className}` : 'icon'}
       data-sport={sport}
-      viewBox="0 0 24 24"
+      viewBox={box ? `${box.x} ${box.y} ${box.width} ${box.height}` : '0 0 24 24'}
+      style={box ? inkStyle(box) : undefined}
       aria-hidden="true"
       focusable="false"
       fill="none"
@@ -88,10 +101,16 @@ const SPORT_PATHS: Record<IconSport, ReactNode> = {
   ),
 }
 
+/** A sport's glyph cropped to its ink, so its edge is the ink's edge. Swimming is drawn on the full grid. */
+const SPORT_BOXES: Partial<Record<IconSport, GlyphBox>> = {
+  run: inkBox(SPORT_GLYPHS.run),
+  ride: inkBox(SPORT_GLYPHS.ride),
+}
+
 /** The sport's glyph, shown next to every sport name. */
 export function SportIcon({ sport, className }: IconProps & { sport: IconSport }) {
   return (
-    <Icon className={className} sport={sport}>
+    <Icon className={className} sport={sport} box={SPORT_BOXES[sport]}>
       {SPORT_PATHS[sport]}
     </Icon>
   )
