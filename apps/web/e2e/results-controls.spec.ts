@@ -54,6 +54,24 @@ test('the Custom form fits 320 px, with no page scroll sideways', async ({ page 
   expect(overflow).toBeLessThanOrEqual(320)
 })
 
+test('the Custom fields are a control tall with 16 px text, Apply sits below them, and Custom is not a bar at 390 px', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openSample(page)
+  const period = page.getByRole('group', { name: 'Period' })
+  await period.getByText('Custom', { exact: true }).click()
+  const form = page.locator('.range-picker__custom')
+  const from = form.getByLabel('From')
+  const fromBox = await from.boundingBox()
+  const applyBox = await form.getByRole('button', { name: 'Apply' }).boundingBox()
+  const customBox = await period.locator('.segmented-control__option').last().boundingBox()
+  expect(fromBox?.height ?? 0).toBeGreaterThanOrEqual(40)
+  expect(await from.evaluate((element) => getComputedStyle(element).fontSize)).toBe('16px')
+  expect((applyBox?.y ?? 0) > (fromBox?.y ?? 0) + (fromBox?.height ?? 0)).toBe(true)
+  expect(customBox?.width ?? 390).toBeLessThan(200)
+})
+
 test('the period picker is also on the Run and Ride pages', async ({ page }) => {
   await openSample(page)
   for (const sport of ['Run', 'Ride'] as const) {

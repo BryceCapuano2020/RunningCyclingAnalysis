@@ -32,7 +32,7 @@
 }
 
 .range-picker .segmented-control__option {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin: 0;
   padding-inline: var(--space-2);
   border-radius: var(--radius-sm);
@@ -62,13 +62,15 @@
 }
 
 /*
- * The Custom form sits under the segments. Its two fields share a line when there is room, and stack
- * when there is not, so at 320 px they are one above the other with Apply beneath.
+ * The Custom form sits under the segments. Its two fields share a row when there is room for two of
+ * the minimum width, and stack when there is not. Apply and the hint take a row of their own below.
+ * Fields are a control tall (44 px on a finger, from --control-height) with 16 px text, so iOS does
+ * not zoom on focus.
  */
 .range-picker__custom {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-field)), 1fr));
+  align-items: end;
   gap: var(--space-2);
   margin: 0;
 }
@@ -76,18 +78,35 @@
 .range-picker__field {
   display: grid;
   gap: var(--space-1);
-  flex: 1 1 9rem;
   min-width: 0;
   font-size: var(--text-sm);
 }
 
 .range-picker__field input {
+  box-sizing: border-box;
+  width: 100%;
   min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
   font: inherit;
+  font-size: var(--text-md);
+}
+
+.range-picker__apply {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
 .range-picker__hint {
-  flex: 1 0 100%;
+  grid-column: 1 / -1;
   margin: 0;
   font-size: var(--text-sm);
+}
+
+/* The note that a reversed range was swapped, after the dates and count it sits beside. */
+.range-picker__swapped {
+  color: var(--text-secondary);
 }

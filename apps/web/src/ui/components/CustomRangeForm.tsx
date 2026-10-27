@@ -9,8 +9,8 @@ export const UNUSABLE_DATES = 'Pick dates from the year 100 on.'
 export interface CustomRangeFormProps {
   /** The first and last day on screen, which the two fields start from. Null when there are none. */
   range: CustomRange | null
-  /** Called once, with the days in order, when the athlete presses Apply. */
-  onApply: (range: CustomRange) => void
+  /** Called once, with the days in order, when the athlete presses Apply. `reversed` says they were swapped. */
+  onApply: (range: CustomRange, reversed: boolean) => void
 }
 
 /**
@@ -28,7 +28,7 @@ export function CustomRangeForm({ range, onApply }: CustomRangeFormProps) {
     const ordered = orderedRange({ from, to })
     setFrom(ordered.from)
     setTo(ordered.to)
-    onApply(ordered)
+    onApply(ordered, ordered.from !== from)
   }
   return (
     <form className="range-picker__custom" onSubmit={apply}>
