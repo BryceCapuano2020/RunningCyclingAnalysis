@@ -150,7 +150,7 @@ export function ActivityPage({
       <div className="page-title">
         <BackLink origin={originOf()} />
         <p className="eyebrow activity-page__eyebrow">
-          <SportIcon sport={activity.sport} className={`activity-page__icon--${activity.sport}`} />
+          <SportIcon sport={activity.sport} className="activity-page__icon" />
           <span>{SPORT_LABEL[activity.sport]}</span>
           <span>{formatDay(activity.startMs)}</span>
           <span>{formatTimeOfDay(activity.startMs)}</span>
@@ -185,7 +185,8 @@ export function ActivityPage({
             {chips.map((label) => (
               <a
                 key={label}
-                className={`chip chip--${activity.sport}`}
+                className="chip"
+                data-sport={activity.sport}
                 href={hrefFor({ page: activity.sport })}
               >
                 {label}

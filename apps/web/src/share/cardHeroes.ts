@@ -30,12 +30,11 @@ const BASELINE = 0.8
 /**
  * A sport's glyph sits in the inset beside the first line of its label, so it takes no height: a card
  * with no room to spare would shed its origin or its magnitude line to fit one above. Its grid and
- * stroke are the icon's own.
+ * stroke are the glyph's own, from iconPaths.ts.
  */
 const GLYPH_SIZE = 22
 const GLYPH_GAP = 4
 const GLYPH_GRID = 24
-const GLYPH_STROKE = 2
 
 /** The hero label's sizes, largest first: it steps down only where a label would run past two lines. */
 const LABEL_SIZES = [30, 28, 26]
@@ -166,11 +165,11 @@ function drawSportGlyph(
       ctx.fillStyle = colour
       ctx.fill()
     } else {
-      strokeWith(ctx, colour, GLYPH_STROKE * scale, arc)
+      strokeWith(ctx, colour, glyph.strokeWidth * scale, arc)
     }
   }
   for (const steps of glyph.paths) {
-    strokeWith(ctx, colour, GLYPH_STROKE * scale, () => traceSteps(ctx, steps, at))
+    strokeWith(ctx, colour, glyph.strokeWidth * scale, () => traceSteps(ctx, steps, at))
   }
 }
 

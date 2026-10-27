@@ -14,6 +14,14 @@
   align-items: center;
 }
 
+.swatch-run {
+  background: var(--series-run);
+}
+
+.swatch-ride {
+  background: var(--series-ride);
+}
+
 .chart-legend__swatch--neutral {
   background: var(--neutral-band);
   box-shadow: inset 0 0 0 1px var(--neutral-mark);

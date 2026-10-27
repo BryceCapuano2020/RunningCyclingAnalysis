@@ -21,10 +21,15 @@ interface IconProps {
   className?: string
 }
 
-function Icon({ className, children }: IconProps & { children: ReactNode }) {
+function Icon({
+  className,
+  sport,
+  children,
+}: IconProps & { sport?: IconSport; children: ReactNode }) {
   return (
     <svg
       className={className ? `icon ${className}` : 'icon'}
+      data-sport={sport}
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
@@ -41,6 +46,7 @@ function Icon({ className, children }: IconProps & { children: ReactNode }) {
 
 /** A glyph's dots and paths, drawn from the path data the share card also draws. */
 function GlyphShapes({ glyph }: { glyph: SportGlyph }) {
+  const { strokeWidth } = glyph
   return (
     <>
       {glyph.dots.map((dot) =>
@@ -54,11 +60,17 @@ function GlyphShapes({ glyph }: { glyph: SportGlyph }) {
             stroke="none"
           />
         ) : (
-          <circle key={`${dot.cx},${dot.cy}`} cx={dot.cx} cy={dot.cy} r={dot.r} />
+          <circle
+            key={`${dot.cx},${dot.cy}`}
+            cx={dot.cx}
+            cy={dot.cy}
+            r={dot.r}
+            strokeWidth={strokeWidth}
+          />
         ),
       )}
       {glyph.paths.map((steps) => (
-        <path key={pathData(steps)} d={pathData(steps)} />
+        <path key={pathData(steps)} d={pathData(steps)} strokeWidth={strokeWidth} />
       ))}
     </>
   )
@@ -78,7 +90,11 @@ const SPORT_PATHS: Record<IconSport, ReactNode> = {
 
 /** The sport's glyph, shown next to every sport name. */
 export function SportIcon({ sport, className }: IconProps & { sport: IconSport }) {
-  return <Icon className={className}>{SPORT_PATHS[sport]}</Icon>
+  return (
+    <Icon className={className} sport={sport}>
+      {SPORT_PATHS[sport]}
+    </Icon>
+  )
 }
 
 export function WarningIcon({ className }: IconProps) {

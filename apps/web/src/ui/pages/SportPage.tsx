@@ -224,7 +224,7 @@ export function SportPage({
   return (
     <div className="page-stack">
       <div className="page-head">
-        <h1 id={PAGE_HEADING_ID} tabIndex={-1} className={`sport-page__title sport-${sport}`}>
+        <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="sport-page__title">
           <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>

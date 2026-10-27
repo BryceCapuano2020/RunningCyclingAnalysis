@@ -20,14 +20,6 @@
   background: var(--sport-colour);
 }
 
-.sport-card--run {
-  --sport-colour: var(--series-run);
-}
-
-.sport-card--ride {
-  --sport-colour: var(--series-ride);
-}
-
 .sport-card__name {
   display: inline-flex;
   align-items: center;

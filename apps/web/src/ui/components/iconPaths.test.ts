@@ -38,6 +38,11 @@ describe('SPORT_GLYPHS', () => {
     ])
   })
 
+  it('draws the ride glyph at a 1.75 stroke, lighter than the runner at 2, so the two match in weight', () => {
+    expect(SPORT_GLYPHS.run.strokeWidth).toBe(2)
+    expect(SPORT_GLYPHS.ride.strokeWidth).toBe(1.75)
+  })
+
   it('writes the ride glyph as the icon always drew it: two wheels and a frame', () => {
     expect(SPORT_GLYPHS.ride.dots).toEqual([
       { cx: 5.5, cy: 16.5, r: 3.8, filled: false },

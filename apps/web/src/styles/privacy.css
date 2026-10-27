@@ -1,10 +1,19 @@
 /*
  * Colours copied from apps/web/src/styles/tokens.css (surface-0, text-primary, text-muted, link and
  * border). tokens.test.ts keeps them in step. The font stacks and the brand mark's colours are
- * copied too, with --text-lead, and privacyPage.test.ts checks them. This page is static, outside React.
+ * copied too, with the small sizes, and privacyPage.test.ts checks them. The faces are the app's own
+ * @fontsource files, so the build bundles them with this page, as it does for the app.
  */
+@import '@fontsource/barlow/latin-400.css';
+@import '@fontsource/barlow/latin-500.css';
+@import '@fontsource/barlow/latin-600.css';
+@import '@fontsource/barlow-condensed/latin-700.css';
+@import '@fontsource/barlow-condensed/latin-800.css';
+
 :root {
   --control-height: 40px;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
   --text-lead: 1.125rem;
   --page: #f5f6f8;
   --ink: #0e1116;
@@ -57,7 +66,7 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--text-md);
   line-height: 1.6;
   font-family:
     'Barlow',
@@ -170,7 +179,7 @@ h2 {
 .updated {
   margin: 0;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   font-weight: 700;
   letter-spacing: 0.12em;
 }
@@ -236,7 +245,7 @@ code {
 .footer {
   border-top: 1px solid var(--rule);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .footer .wrap {

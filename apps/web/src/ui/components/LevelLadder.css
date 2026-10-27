@@ -2,15 +2,14 @@
 .level-ladder {
   --level-track: 1rem;
   --level-marker: 1.25rem;
+  --ladder-colour: var(--sport-colour);
 }
 
 .level-ladder--run {
-  --ladder-colour: var(--series-run);
   --ladder-band: var(--ladder-run-band);
 }
 
 .level-ladder--ride {
-  --ladder-colour: var(--series-ride);
   --ladder-band: var(--ladder-ride-band);
 }
 
