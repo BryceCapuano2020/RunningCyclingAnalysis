@@ -20,6 +20,15 @@
   gap: var(--space-5);
 }
 
+/* On a short phone the header, the notices and the page sit closer, so Add files and the meter are on
+   the first screen at 320 x 568 (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts). A short desktop
+   window keeps these gaps: the query asks for a finger or a phone-width window. */
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+  .page {
+    gap: var(--space-3);
+  }
+}
+
 .section {
   display: grid;
   gap: var(--space-4);
@@ -201,6 +210,14 @@
   gap: var(--space-2);
   margin: 0;
   overflow: visible;
+}
+
+/* On a short phone the meter and the ladder share a tighter stack, so the meter ends above the fold at
+   320 x 568 (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts). */
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+  .scale-figure {
+    gap: var(--space-1);
+  }
 }
 
 .swatch {

@@ -1,21 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { readStylesheet, ruleBody } from '../components/stylesheet'
-import { SHORT_PHONE_MAX_HEIGHT_PX } from '../layoutBreakpoints'
+import { mediaBlock, readStylesheet, ruleBody } from '../components/stylesheet'
+import { PHONE_MAX_WIDTH_PX, SHORT_PHONE_MAX_HEIGHT_PX } from '../layoutBreakpoints'
 
 const app = await readStylesheet(import.meta.url, '../../App.css')
 const example = await readStylesheet(import.meta.url, './LandingExample.css')
 const design = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN.md')
 
+/** The short-phone query as App.css writes it: short, and a finger or a phone-width window. */
+const SHORT_PHONE = `(max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
+/** The same, held sideways. */
+const SHORT_LANDSCAPE = `(orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
+
 /** The text of the phone-and-narrow media query with this width, braces included, or '' when none. */
 function narrowBody(maxWidth: string): string {
   const escaped = maxWidth.replace(/[()]/g, '\\$&')
   return new RegExp(`@media \\(max-width: ${escaped}\\) \\{([\\s\\S]*?)\\n\\}`).exec(app)?.[1] ?? ''
-}
-
-/** The text of the short-phone media query, from its opening line to its closing brace, or '' when none. */
-function shortPhoneBody(): string {
-  const start = app.indexOf(`@media (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) {`)
-  return start < 0 ? '' : app.slice(start, app.indexOf('\n}', start))
 }
 
 describe('landing start', () => {
@@ -26,15 +25,13 @@ describe('landing start', () => {
 
 describe('landing on a short landscape screen', () => {
   it('sets the pitch beside the drop zone at the height named in layoutBreakpoints.ts, so Add files is on the first screen', () => {
-    const query = `(orientation: landscape) and (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px)`
-    expect(app).toContain(`@media ${query} {`)
-    expect(app).toMatch(
+    expect(mediaBlock(app, SHORT_LANDSCAPE)).toMatch(
       /\.landing__hero \{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
     )
   })
 
   it('tightens the gap in a short phone held upright, so Add files stays on the first screen at 320 x 568', () => {
-    expect(shortPhoneBody()).toMatch(/\.landing__hero \{\s*gap:\s*var\(--space-5\);/)
+    expect(mediaBlock(app, SHORT_PHONE)).toMatch(/\.landing__hero \{\s*gap:\s*var\(--space-4\);/)
   })
 
   it('keeps the pitch and the drop zone in one element, so the landscape layout can set them side by side', async () => {

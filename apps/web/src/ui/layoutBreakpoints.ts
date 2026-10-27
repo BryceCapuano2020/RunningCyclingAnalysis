@@ -21,9 +21,12 @@ export const NARROW_PHONE_MAX_WIDTH_PX = 420
 
 /**
  * At or below this height a short phone tightens its spacing: a narrow phone's setup dialog sets its two
- * buttons on one row, so the sex options clear the sticky footer at 320 x 568 (SetupDialog.css); the landing
- * and Balance heroes tighten theirs, and in landscape sit their pitch or answer beside the drop zone or meter,
- * so Add files and the meter are on the first screen (App.css, BalancePage.css).
+ * buttons on one row, so the sex options clear the sticky footer at 320 x 568 (SetupDialog.css). The page's
+ * gaps, the figure stack, the drop zone, and the landing and Balance heroes tighten theirs, so Add files and
+ * the meter's scale are on the first screen at 320 x 568 (components.css, Dropzone.css, App.css,
+ * BalancePage.css). In landscape the pitch and the answer sit beside the drop zone and the meter.
+ * Those rules match a finger (pointer: coarse) or a window at most PHONE_MAX_WIDTH_PX wide, so a short
+ * desktop window keeps the tall layout. Each stylesheet writes 700 and 760 as literals, so change them together.
  */
 export const SHORT_PHONE_MAX_HEIGHT_PX = 700
 

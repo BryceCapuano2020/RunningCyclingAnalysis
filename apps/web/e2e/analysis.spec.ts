@@ -5,6 +5,7 @@ import {
   LANDING_TITLE,
   SETUP_DIALOG_NAME,
   activitiesRows,
+  edgesOf,
   fixturePath,
   goTo,
   openSample,
@@ -321,18 +322,49 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
   await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
 })
 
-test('on a short landscape phone the meter is on the first screen, beside the answer', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 844, height: 390 })
-  await openSample(page)
-  const meter = await page.locator('.balance-meter').boundingBox()
-  expect((meter?.y ?? 0) + (meter?.height ?? 0)).toBeLessThanOrEqual(390)
+/**
+ * The top of the section tabs at a phone width. There they are fixed to the foot of the window and cover
+ * what is under them, so a meter is on the first screen only when it ends above this line. The test fails
+ * if they are not fixed there, since the line would then be wrong.
+ */
+async function tabBarTop(page: Page): Promise<number> {
+  const tabs = page.locator('.header__tabs')
+  expect(await tabs.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
+  return (await edgesOf(tabs)).top
+}
+
+// A landscape phone is a touch screen, so it takes the short-screen layout the touch emulation selects.
+// At 844 wide the tabs sit in the header, not at the foot, so the window's bottom is the first screen's.
+test.describe('on a short landscape phone', () => {
+  test.use({ hasTouch: true })
+
+  test('the meter is on the first screen, beside the answer', async ({ page }) => {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await openSample(page)
+    const meter = await edgesOf(page.locator('.balance-meter'))
+    expect(meter.bottom).toBeLessThanOrEqual(390)
+  })
 })
 
-test('at 320 by 640 the key under the meter ends above the fold', async ({ page }) => {
+test('at 320 by 568 the meter scale is above the section tabs', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await openSample(page)
+  const tabs = await tabBarTop(page)
+  // The key under the scale ends beneath the tabs at this height, so the scale is what must clear them.
+  expect((await edgesOf(page.locator('.balance-meter__band'))).bottom).toBeLessThanOrEqual(tabs)
+  expect((await edgesOf(page.locator('.balance-meter__dot'))).bottom).toBeLessThanOrEqual(tabs)
+})
+
+test('at 667 by 375 the meter is above the section tabs', async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 375 })
+  await openSample(page)
+  const meter = await edgesOf(page.locator('.balance-meter'))
+  expect(meter.bottom).toBeLessThanOrEqual(await tabBarTop(page))
+})
+
+test('at 320 by 640 the key under the meter is above the section tabs', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await openSample(page)
-  const key = await page.locator('.balance-meter__key').boundingBox()
-  expect((key?.y ?? 0) + (key?.height ?? 0)).toBeLessThanOrEqual(640)
+  const key = await edgesOf(page.locator('.balance-meter__key'))
+  expect(key.bottom).toBeLessThanOrEqual(await tabBarTop(page))
 })

@@ -54,7 +54,8 @@ text size. A control that focus or Back brings into view is not hidden under the
 below the wordmark is hidden, so the brand mark and the actions keep one row. The breakpoints are named once,
 in `apps/web/src/ui/layoutBreakpoints.ts`: 760 px for the phone layout, 840 px for the wordmark, 560 px
 for the compact one (the tab glyphs and the account name), 420 px for the narrow one, 700 px in height for
-a short phone's setup dialog, and 900 px for Profile's two columns.
+a short phone's spacing, and 900 px for Profile's two columns. The short-phone spacing needs a finger or a
+window 760 px wide or less, so a short desktop window keeps the tall layout.
 
 **Touch targets.** A control is 40 px tall. On a phone, or where the pointer is a finger, every
 control is 44 px (`--control-height` in `tokens.css`): the header's controls, buttons, the account
@@ -106,7 +107,8 @@ as the 3 months of an earlier version, reads as the default.
 
 The landing page is the promise, the drop zone with **Add files** (its one primary action) and
 **See a sample athlete**, the example result, three steps, three sentences on how the result is worked
-out with a **Full method** link, and the export guides. On a short phone (SHORT_PHONE_MAX_HEIGHT_PX, 700 px tall) the pitch and the drop zone sit closer, so
+out with a **Full method** link, and the export guides. On a short phone (SHORT_PHONE_MAX_HEIGHT_PX, 700 px
+tall, and a finger or a window 760 px wide or less) the pitch and the drop zone sit closer, so
 **Add files** is on the first screen at 320 x 568; in landscape the pitch sits beside the drop zone, so
 **Add files** is on the first screen at 844 x 390 and 667 x 375. The drop zone's **No files yet? How to get
 them** link moves focus to the guides below the steps. The guides are one tile per service. Each tile
@@ -245,8 +247,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
 - A sport glyph (`SportIcon`) sits next to every sport name. Its path data and stroke width are in
   `iconPaths.ts`, the one source for the icon and for the glyph on the share card. The ride is drawn at
-  a 1.75 stroke and the runner at 2, since two wheels and a frame carry more ink than five strokes; the
-  runner is not moved.
+  a 1.5 stroke with wheels of radius 3, and the runner at 2, since two wheels and a frame carry more ink
+  than five strokes. Measured in the app at 16, 20, 24 and 30 px, the ride carries 1.15 to 1.3 times the
+  runner's ink (it was 1.6 to 1.8 at a 3.8 radius and a 1.75 stroke); the runner is not moved.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
@@ -350,9 +353,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   has values, and otherwise its key row says there were none. A trend with one week of values keeps its title
   and says so in a line beneath it: "Only one week has a value: Run 60%, week ending Sun 12 Jan 2025. A trend
   needs two weeks with values."
-- On a short screen the answer sits closer to its meter (SHORT_PHONE_MAX_HEIGHT_PX). In landscape it sits
-  beside the meter, so the meter is on the first screen at 844 x 390 and 667 x 375, and the key under it
-  ends above the fold at 320 x 640.
+- On a short screen (SHORT_PHONE_MAX_HEIGHT_PX, for a finger or a window 760 px wide or less) the page's
+  header, notices and sections sit closer, the answer sits closer to its meter, and the meter's plot, ends and
+  key sit closer still. At 320 x 568 the meter's scale is above the section tabs, which are the bar at the foot
+  of the screen there; the key under the scale ends beneath that bar, so it may need a short scroll. At 320 x
+  640 the key is above the bar. In landscape the answer sits beside its meter: at 667 x 375 the meter is above
+  the foot bar, and at 844 x 390 it is on the first screen, where the tabs sit in the header.
 - The balance meter spans the card row, so its centre is the gap between the two cards. Running is
   on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
   the cards, the meter, the landing example and the share card all follow it. The meter plots the

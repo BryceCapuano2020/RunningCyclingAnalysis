@@ -49,16 +49,23 @@
 
 /*
  * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the answer and its meter sit
- * closer, so the key under the meter ends above the fold at 320 x 640.
+ * closer, and the answer's own gaps tighten too, so the meter's scale is above the section tabs at 320 x 568,
+ * and its key is above them at 320 x 640. A short desktop window keeps the tall gaps: the query asks for a
+ * finger or a phone-width window.
  */
-@media (max-height: 700px) {
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+  .balance-hero {
+    gap: var(--space-2);
+  }
+
   .balance-hero__pair {
-    gap: var(--space-5);
+    gap: var(--space-4);
   }
 }
 
 /* In landscape the answer sits beside its meter, so the meter is on the first screen at 844 x 390 and 667 x 375. */
-@media (orientation: landscape) and (max-height: 700px) {
+@media (orientation: landscape) and (max-height: 700px) and (pointer: coarse),
+  (orientation: landscape) and (max-height: 700px) and (max-width: 760px) {
   .balance-hero__pair {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;

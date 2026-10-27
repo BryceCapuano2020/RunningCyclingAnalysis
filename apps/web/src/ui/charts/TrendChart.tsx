@@ -296,6 +296,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
             {fillsArea(sport) ? (
               <path
                 className={`chart-series__area chart-series__area--${sport}`}
+                data-sport={sport}
                 d={stepAreaPath(m.points, plot.bottom)}
               />
             ) : null}
