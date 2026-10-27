@@ -18,6 +18,11 @@
   justify-items: start;
 }
 
+/* The level target sits under the meter, below the grades, so the meter stays above the section tabs on a phone. */
+.balance-hero__level {
+  max-width: 62ch;
+}
+
 /* The meter and, on a phone, the grades under it: one group, so the grades take the meter's gap. */
 .balance-hero__meter {
   display: grid;

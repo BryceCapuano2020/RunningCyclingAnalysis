@@ -580,6 +580,15 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   exact number, and the meter's flag gives the best estimate; the energy ratio does the same: "Over 20 min,
   your running is 5% to 20% higher than your cycling, as energy per kilogram." A range that rounds to a
   single value is said as that value: "grades 6 points higher", "about 12% higher".
+- **The level target says what would level the balance.** When the balance leans, one muted line under the
+  meter, below the grades, names what the lower sport's best effort at the headline length would need to grade
+  level with the higher sport's whole-percent grade, in its own unit, rounded to 5 W or a 5 s pace: "To grade level
+  with your running at 20 min, your best ride would need about 270 W (now 246 W)." The target inverts the age grade at the lower sport's
+  age, and a ride's watts invert the same equivalence its page grade is read from, with its heart-rate weights, so the
+  words say "would need", never a prediction. It is left off when the
+  balance is even, when either grade is not on screen (a ride's waits for the weight), and when the lower sport
+  already reaches the target. It sits under the meter rather than the lede, so the meter stays above the section
+  tabs on a phone. The share card does not carry it, so the card keeps the layout it had.
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.

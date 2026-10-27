@@ -180,6 +180,40 @@ describe('BalanceHero answer on the energy ratio', () => {
   })
 })
 
+describe('BalanceHero level line', () => {
+  const LINE =
+    'To grade level with your running at 20 min, your best ride would need about 285 W (now 230 W).'
+
+  it('sets the level line under the meter, muted, when one is given', () => {
+    const { container } = render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+        levelLine={LINE}
+      />,
+    )
+    const line = screen.getByText(LINE)
+    expect(line.tagName).toBe('P')
+    expect(line).toHaveClass('muted')
+    expect(line.parentElement).toHaveClass('balance-hero__meter')
+    expect(container.querySelector('.balance-hero__level')).toBe(line)
+  })
+
+  it('shows no level line when none is given, as when the balance is even', () => {
+    const { container } = render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult()}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+      />,
+    )
+    expect(container.querySelector('.balance-hero__level')).toBeNull()
+  })
+})
+
 describe('BalanceHero on the age-grade gap', () => {
   it('titles the answer from the gap, and says the gap in points for the headline duration', () => {
     render(

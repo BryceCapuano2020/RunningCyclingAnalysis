@@ -35,6 +35,8 @@ export interface BalanceHeroProps {
   rideLevel?: string | null
   /** The grades under the meter on a phone, shown only beside a meter. They keep the meter's gap. */
   strip?: ReactNode
+  /** What the lower sport would need to grade level, under the meter; null when the balance is even. */
+  levelLine?: string | null
 }
 
 /** Under this many activities in a sport, the answer rests on few of them, so the page counts each sport. */
@@ -138,6 +140,7 @@ export function BalanceHero({
   runLevel = null,
   rideLevel = null,
   strip = null,
+  levelLine = null,
 }: BalanceHeroProps) {
   const reading = weightKnown ? balanceOfPick(gap, pick) : null
   const head = (title: ReactNode, className?: string) => (
@@ -200,6 +203,7 @@ export function BalanceHero({
       <div className="balance-hero__meter">
         <BalanceMeter reading={reading} adjusted={pick?.calibrated ?? false} />
         {strip}
+        {levelLine !== null && <p className="muted balance-hero__level">{levelLine}</p>}
       </div>
     </div>
   )
