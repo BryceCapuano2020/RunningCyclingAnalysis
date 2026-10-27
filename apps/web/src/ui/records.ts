@@ -218,12 +218,16 @@ export function sportRecords(
 
 /**
  * The headline effort's figure as the grade line names it, such as "6:37 /mi", with "estimated" when
- * a ride's watts did not come from a power meter. Null when there is no headline effort.
+ * a ride's watts did not come from a power meter, or "treadmill" when a run was held indoors. Null
+ * when there is no headline effort.
  */
 export function headlineEffort(sport: Sport, records: readonly SportRecord[]): string | null {
   const headline = records.find((record) => record.durationS === HEADLINE_DURATION_S)
   if (headline === undefined) return null
-  return `${headline.value}${isEstimatedRecord(sport, headline.activity) ? ', estimated' : ''}`
+  if (isEstimatedRecord(sport, headline.activity)) return `${headline.value}, estimated`
+  return isTreadmillRecord(sport, headline.activity)
+    ? `${headline.value}, treadmill`
+    : headline.value
 }
 
 export function countSport(activities: ActivitySummary[], sport: Sport): number {
@@ -244,6 +248,14 @@ export function calendarDaysBetween(earlierMs: number, laterMs: number): number 
  */
 export function isEstimatedRecord(sport: Sport, activity: ActivitySummary | null): boolean {
   return sport === 'ride' && activity?.powerSource !== 'measured'
+}
+
+/**
+ * Whether a record was set by a run held indoors, on a treadmill: such a record is marked Treadmill
+ * as a ride's estimated watts are marked Estimated. A record from an unknown activity is not marked.
+ */
+export function isTreadmillRecord(sport: Sport, activity: ActivitySummary | null): boolean {
+  return sport === 'run' && activity?.indoor === true
 }
 
 /** The equivalence to feature: 20 minutes when there is one, else the longest effort below it. */

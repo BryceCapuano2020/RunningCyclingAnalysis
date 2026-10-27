@@ -7,7 +7,7 @@ import {
   PRIORS,
   RESTING_W_PER_KG,
 } from '../constants'
-import { mergeCurves, monotoneEnvelope } from '../curves'
+import { mergeCurves, monotoneEnvelope, possibleRunWkg } from '../curves'
 import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import type { EffortPoint } from '../effort'
 import { checkEfforts, referenceMaxHeartRates } from '../effort'
@@ -157,9 +157,13 @@ export function orderedCurrent(digests: ActivityDigest[]): ActivityDigest[] {
   return digests.filter((digest) => digest.modelRevision === MODEL_REVISION).sort(canonicalOrder)
 }
 
-/** Gross metabolic W/kg of a run curve point at the prior-mean running economy. */
+/**
+ * Gross metabolic W/kg of a run curve point at the prior-mean running economy, or NaN when the point
+ * is faster than the world-record ceiling for its duration. Every best built from a digest's run
+ * points reads them through here, so an impossible point is left out of all of them.
+ */
 export function runCentralWkg(point: DigestCurvePoint): number {
-  return point.value
+  return possibleRunWkg(point.durationS, point.value)
 }
 
 /** Mechanical watts of a ride curve point at total mass totalMassKg, with the fitted bike model. */
