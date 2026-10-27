@@ -37,6 +37,13 @@ describe('rejectionCopy: one plain sentence per reason code', () => {
     expect(rejectionCopy(file('a.fit', { code, detail }), false)).toBe(copy)
   })
 
+  it('says a file added again is already in the library, rather than the same workout as itself', () => {
+    const again = file('run.fit', { code: 'duplicate', detail: 'run.fit' })
+    expect(rejectionCopy(again)).toBe('Already in your library, so it was not counted twice.')
+    const copy = file('run.gpx', { code: 'duplicate', detail: 'run.fit' })
+    expect(rejectionCopy(copy)).toBe('Same workout as run.fit, so it was not counted twice.')
+  })
+
   it('never calls an empty file damaged, or tells its owner to export it again', () => {
     const copy = rejectionCopy(file('empty.gpx', { code: 'empty' }))
     expect(copy).toBe('It holds no recorded points, so there is nothing to read.')

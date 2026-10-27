@@ -94,6 +94,69 @@ describe('an import counts files, not the activities they hold', () => {
   })
 })
 
+describe('an import adds only files that hold a workout the library did not', () => {
+  it('counts the same files added again as already added, not as added', async () => {
+    const session = await sessionHolding(MORNING_MS, EVENING_MS)
+    const { outcome, duplicates } = await importFiles(session, [
+      fit('held-0.fit', run(MORNING_MS, 150)),
+      fit('held-1.fit', run(EVENING_MS, 150)),
+    ])
+    expect(outcome).toEqual({ activities: 2, filesAdded: 0, rejected: 0, notActivities: 0 })
+    expect(duplicates.map(({ fileName, detail }) => ({ fileName, detail }))).toEqual([
+      { fileName: 'held-0.fit', detail: 'held-0.fit' },
+      { fileName: 'held-1.fit', detail: 'held-1.fit' },
+    ])
+  })
+
+  it('counts a different file that holds the same activity as already added', async () => {
+    const session = await sessionHolding(MORNING_MS)
+    const { outcome, duplicates } = await importFiles(session, [
+      fit('same-run.fit', run(MORNING_MS, 150)),
+    ])
+    expect(outcome.filesAdded).toBe(0)
+    expect(duplicates).toEqual([
+      expect.objectContaining({ fileName: 'same-run.fit', detail: 'held-0.fit' }),
+    ])
+  })
+
+  it('counts a richer copy of a held workout as already added: the workout was in the library', async () => {
+    const session = new AnalysisSession()
+    await importFiles(session, [fit('poor.fit', run(MORNING_MS))])
+    const { outcome, duplicates } = await importFiles(session, [
+      fit('rich.fit', run(MORNING_MS, 150)),
+    ])
+    expect(outcome.filesAdded).toBe(0)
+    expect(duplicates).toEqual([
+      expect.objectContaining({ fileName: 'rich.fit', detail: 'poor.fit' }),
+    ])
+  })
+
+  it('counts a file added twice in one import once, as added, and the second time as already added', async () => {
+    const { outcome, duplicates } = await importFiles(new AnalysisSession(), [
+      fit('first.fit', run(MORNING_MS)),
+      fit('second.fit', run(MORNING_MS)),
+    ])
+    expect(outcome.filesAdded).toBe(1)
+    expect(duplicates).toEqual([expect.objectContaining({ fileName: 'second.fit' })])
+  })
+
+  it('adds up a mixed import: new files, files added again, a copy and a refused file', async () => {
+    const session = await sessionHolding(MORNING_MS, EVENING_MS)
+    const NEXT_DAY_MS = Date.UTC(2024, 4, 2, 7, 30)
+    const { outcome, duplicates, state } = await importFiles(session, [
+      fit('new-a.fit', run(NEXT_DAY_MS, 150)),
+      fit('new-b.fit', run(NEXT_DAY_MS + 4 * 3600_000, 150)),
+      fit('held-0.fit', run(MORNING_MS, 150)),
+      fit('poorer-copy.fit', run(EVENING_MS)),
+      new File([new Uint8Array(40)], 'broken.fit'),
+    ])
+    expect(outcome.filesAdded).toBe(2)
+    expect(duplicates.map((copy) => copy.fileName)).toEqual(['held-0.fit', 'poorer-copy.fit'])
+    expect(state.rejected.map((file) => file.fileName)).toEqual(['broken.fit'])
+    expect(outcome.filesAdded + duplicates.length + outcome.rejected).toBe(5)
+  })
+})
+
 /** The refused files are counted and listed from one source: the count is the list and the unnamed files. */
 function agree(
   outcome: { rejected: number },

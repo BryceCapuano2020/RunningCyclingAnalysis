@@ -53,9 +53,9 @@ export function tallySentence(tally: SkipTally): string {
   const { added, needLook, otherSports, alreadyAdded, unlisted } = tally
   const parts: Array<[count: number, text: string]> = [
     [added, `${formatCount(added)} added`],
+    [alreadyAdded, `${formatCount(alreadyAdded)} already added`],
     [needLook, `${formatCount(needLook)} ${needLook === 1 ? 'needs' : 'need'} a look`],
     [otherSports, `${plural(otherSports, 'other sport')} left out on purpose`],
-    [alreadyAdded, `${formatCount(alreadyAdded)} already added`],
     [unlisted, `${formatCount(unlisted)} not listed as activities`],
   ]
   const files = added + skippedTotal(tally)

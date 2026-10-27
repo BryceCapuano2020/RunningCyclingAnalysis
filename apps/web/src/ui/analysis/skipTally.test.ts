@@ -133,7 +133,7 @@ describe('tallySentence: a headline that adds up to the files read', () => {
     }
     const rejected = [file('a.gpx', 'empty'), file('b.fit', 'unsupported-sport', 'hiking')]
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      '6 files: 2 added, 1 needs a look, 1 other sport left out on purpose, 1 already added, 1 not listed as activities.',
+      '6 files: 2 added, 1 already added, 1 needs a look, 1 other sport left out on purpose, 1 not listed as activities.',
     )
   })
 
@@ -141,6 +141,14 @@ describe('tallySentence: a headline that adds up to the files read', () => {
     const outcome = { filesAdded: 0, rejected: 2, duplicates: [] }
     const sentence = tallySentence(tallyOf(outcome, [file('a', 'empty'), file('b', 'corrupt')]))
     expect(sentence).toBe('2 files: 2 need a look.')
+  })
+
+  it('reads a re-import as already added, beside its refused file, and not as added', () => {
+    const again = Array.from({ length: 1204 }, (_, i) => file(`${i}.fit`, 'duplicate', `${i}.fit`))
+    const outcome = { filesAdded: 0, rejected: 1, duplicates: again }
+    expect(tallySentence(tallyOf(outcome, [file('a.gpx', 'empty')]))).toBe(
+      '1,205 files: 1,204 already added, 1 needs a look.',
+    )
   })
 
   it('names the copies of workouts already held', () => {

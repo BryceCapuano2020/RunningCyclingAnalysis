@@ -9,7 +9,7 @@ import { importSource } from './sessionSource'
 import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
+import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
@@ -91,7 +91,7 @@ export class AnalysisSession {
     onComplete?: (outcome: {
       /** The activities read, which a file may hold several of. */
       activities: number
-      /** The files that kept an activity: not refused, and not all copies. */
+      /** The files that added a workout the library did not hold: not refused, and not all already held. */
       filesAdded: number
       rejected: number
       /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
@@ -203,9 +203,10 @@ export class AnalysisSession {
 
   /**
    * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
-   * copy is not synced, and the name of the held file it copies is given back. Equally rich copies
-   * are both saved, and the analysis hides one of them. A poorer copy is saved but hidden from the
-   * analysis. Gives null when the activity is kept.
+   * copy is not synced. Equally rich copies are both saved, and the analysis hides one of them. A
+   * poorer copy is saved but hidden from the analysis. Gives the name of the held file when the
+   * workout was already in the library, whether this file is a copy, the same file again or a richer
+   * copy that replaces the held one, and null when the activity is a workout the library did not hold.
    */
   private async consider(
     activity: Activity,
@@ -216,8 +217,7 @@ export class AnalysisSession {
   ): Promise<string | null> {
     const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
     if (copyOf !== null) return copyOf
-    await this.keep(activity, file, sink, syncExisting, batch)
-    return null
+    return this.keep(activity, file, sink, syncExisting, batch)
   }
 
   /**
@@ -226,6 +226,7 @@ export class AnalysisSession {
    * to retain an original after that preference is enabled). A copy that outranks the held one for
    * the same start second replaces it. A sink failure is counted, not thrown.
    * After a failure that stops saving, the rest of the batch is digested but not sent to the sink.
+   * Gives the name of the file the held activity came from, or null when the workout was not held.
    */
   private async keep(
     activity: Activity,
@@ -233,28 +234,29 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
+    const heldName = held === undefined ? null : fileNameOf(held.id)
     const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
     if (
       held !== undefined &&
       !replaces &&
       (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
     )
-      return
+      return heldName
     const digest = held !== undefined && !replaces ? held : digestActivity(activity)
     this.digests.set(key, digest)
     if (held === undefined || batch.added.has(key)) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    if (sink === undefined) return
+    if (sink === undefined) return heldName
     if (batch.halt !== null) {
       // An activity already saved, offered again to keep its file, is not waiting for a save.
       if (held === undefined || replaces || this.unsynced.has(key)) {
         this.leaveUnsynced(key, batch.halt)
       }
-      return
+      return heldName
     }
     try {
       await sink({ digest, route: activity.route, ...file })
@@ -264,6 +266,7 @@ export class AnalysisSession {
       this.leaveUnsynced(key, code)
       if (stopsSaving(code)) batch.halt = code
     }
+    return heldName
   }
 
   private leaveUnsynced(key: string, code: SyncIssueCode): void {

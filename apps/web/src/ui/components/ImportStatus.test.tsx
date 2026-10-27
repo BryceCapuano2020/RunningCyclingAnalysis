@@ -399,7 +399,7 @@ describe('ImportStatus: announcements', () => {
       />,
     )
     expect(screen.getByRole('status').textContent).toBe(
-      'Nothing new: 2 activities already in your library. 3 files: 1 added, 1 needs a look, 1 already added.',
+      'Nothing new: 2 activities already in your library. 3 files: 1 added, 1 already added, 1 needs a look.',
     )
   })
 

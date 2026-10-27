@@ -380,6 +380,26 @@ describe('RejectedFiles: files the export does not list, and copies already adde
     ).toBeInTheDocument()
   })
 
+  it('lists a file added again and a different file of the same workout, which the library already holds', () => {
+    render(
+      <Skipped
+        duplicates={[
+          skipped('run.fit', 'duplicate', 'run.fit'),
+          skipped('copy.gpx', 'duplicate', 'run.fit'),
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('2 files: 2 already added.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Already added: 2 files' })).toBeInTheDocument()
+    expect(
+      screen.getByText('run.fit: Already in your library, so it was not counted twice.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('copy.gpx: Same workout as run.fit, so it was not counted twice.'),
+    ).toBeInTheDocument()
+  })
+
   it('is plain text with nothing to open when files the export does not list are all that was left out', () => {
     const { container } = render(<Skipped added={1915} unlisted={320} />)
 

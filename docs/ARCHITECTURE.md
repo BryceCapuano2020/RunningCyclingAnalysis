@@ -204,8 +204,9 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    reported as that sport. An empty run or ride stays empty.
    The refusal says `listed: true` when that name is the list's, so a page can show it as written; a
    name the file gives, such as a FIT sport, is not marked.
-   An import counts files, not activities. `filesAdded` is the files that kept an activity, and a file
-   whose activities are all copies of held workouts is one entry in `duplicates`. `activities` still
+   An import counts files, not activities. `filesAdded` is the files that added a workout the library
+   did not hold, and a file whose activities are all held already is one entry in `duplicates`: a copy
+   of a held workout, the same file added again, or a richer copy that replaces the held one. `activities` still
    counts the activities, for the sentence that says what an import added. Every refused file is
    listed, two files of one name included, and `rejected` counts those and the unreadable formats.
    A leg's name is the first of these that applies: the list's name, unless it is a device default

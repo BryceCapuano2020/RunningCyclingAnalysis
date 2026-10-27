@@ -20,9 +20,9 @@ export interface SourceImport {
   limits: ExtractLimits
   progress: ImportProgress
   /**
-   * The activities read, and the files by what became of them: `filesAdded` kept an activity,
-   * `rejected` were refused, and `notActivities` were left out unread. A file whose activities were
-   * all copies of held workouts is in none of these: it is in `duplicates`.
+   * The activities read, and the files by what became of them: `filesAdded` held a workout the library
+   * did not, `rejected` were refused, and `notActivities` were left out unread. A file whose
+   * activities were all workouts the library held is in none of these: it is in `duplicates`.
    */
   outcome: { activities: number; filesAdded: number; rejected: number; notActivities: number }
   /**
@@ -31,15 +31,15 @@ export interface SourceImport {
    * formats. A file read cleanly takes back the refusals under its name.
    */
   rejected: RejectedFile[]
-  /** The files whose activities were all copies of workouts already held, one entry for each file. */
+  /** The files whose activities were all workouts already held, one entry for each file. */
   duplicates: RejectedFile[]
   /** The activity files the sources hold in formats the app does not read, which are counted, not listed. */
   unsupported: { files: number }
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
   /**
-   * Considers one parsed activity of an imported file. Gives the name of the held file it is a copy
-   * of, or null when it was kept.
+   * Considers one parsed activity of an imported file. Gives the name of the held file it duplicates,
+   * which is the file itself when it is added again, or null when the library did not hold the workout.
    */
   consider: (
     activity: Activity,
@@ -97,12 +97,12 @@ async function importFile(
     // A kept file is hashed as it always was, reusing the session key's hash when one was made.
     const fileHash = ctx.hashFiles ? (sessionKey ?? (await sha256Hex(file.bytes))) : ''
     const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
-    const copies: string[] = []
+    const held: string[] = []
     for (const activity of parsed.activities) {
-      const copyOf = await ctx.consider(activity, imported)
-      if (copyOf !== null) copies.push(copyOf)
+      const heldName = await ctx.consider(activity, imported)
+      if (heldName !== null) held.push(heldName)
     }
-    countFile(ctx, file.fileName, copies, parsed.activities.length)
+    countFile(ctx, file.fileName, held, parsed.activities.length)
     takeBack(ctx, file.fileName)
   } else {
     reject(ctx, parsed.fileName, parsed)
@@ -111,25 +111,21 @@ async function importFile(
 }
 
 /**
- * Counts a read file once. It is added when any of its activities was kept, and already added when
- * every one was a copy of a held workout. The copies inside an added file are not counted.
+ * Counts a read file once. It is added when any of its activities is a workout the library did not
+ * hold, and already added when every one was held: a copy, the same file again, or a richer copy that
+ * replaced the held one. The held workouts inside an added file are not counted.
  */
-function countFile(
-  ctx: SourceImport,
-  fileName: string,
-  copies: string[],
-  activities: number,
-): void {
-  if (copies.length < activities) {
+function countFile(ctx: SourceImport, fileName: string, held: string[], activities: number): void {
+  if (held.length < activities) {
     ctx.outcome.filesAdded++
     return
   }
-  const copyOf = copies[0]
+  const heldName = held[0]
   ctx.duplicates.push({
     fileName,
-    reason: `Same workout as ${copyOf}`,
+    reason: `Same workout as ${heldName}`,
     code: 'duplicate',
-    detail: copyOf,
+    detail: heldName,
   })
 }
 

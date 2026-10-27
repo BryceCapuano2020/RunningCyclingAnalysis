@@ -18,8 +18,9 @@ export interface ImportOutcome {
   /** The activities the import read, which a file may hold several of. */
   activities: number
   /**
-   * The files that kept an activity, which is not every file that was read: a file of copies is in
-   * `duplicates`, and a refused one in `rejected`. Absent from outcomes that do not count them.
+   * The files that added a workout the library did not hold, which is not every file that was read: a
+   * file whose workouts were all held is in `duplicates`, and a refused one in `rejected`. Absent from
+   * outcomes that do not count them.
    */
   filesAdded?: number
   rejected: number
@@ -28,7 +29,7 @@ export interface ImportOutcome {
    * unread, and are not in `rejected`. Absent from outcomes that do not count them.
    */
   notActivities?: number
-  /** Files whose every activity is a copy of a workout a better copy of which is already saved. */
+  /** Files whose every activity is a workout the library already holds: a copy, or the file added again. */
   duplicates: RejectedFile[]
   /** Runs and rides the import added to the library. Absent from outcomes that do not count them. */
   runs?: number

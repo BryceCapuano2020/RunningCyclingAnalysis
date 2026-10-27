@@ -103,7 +103,8 @@ export const ADVICE: Partial<Record<RejectCode, string>> = {
 
 /**
  * The sentence for each reason code, without the advice in ADVICE. The duplicate takes the detail the
- * core gives, and the sport takes the file, since the core also says whether its name is the list's.
+ * core gives, which is its own name for a file added again, and the sport takes the file, since the
+ * core also says whether its name is the list's.
  */
 const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: RejectedFile) => string> =
   {
@@ -120,8 +121,10 @@ const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: Rejecte
     'unsupported-sport': (_detail, file) => `${sportName(file).subject} is not a run or a ride.`,
     'no-sport': () => 'It does not say whether it is a run or a ride, so it is not guessed.',
     'e-bike': () => 'E-bike rides are left out, because motor help hides your own power.',
-    duplicate: (detail) =>
-      `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
+    duplicate: (detail, file) =>
+      detail === file.fileName
+        ? 'Already in your library, so it was not counted twice.'
+        : `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
     unreadable: () => 'This file could not be read.',
     'too-large': (detail) => tooLargeCopy(detail),
   }

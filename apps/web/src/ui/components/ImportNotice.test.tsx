@@ -166,7 +166,7 @@ describe('ImportNotice: skipped files', () => {
     )
     expect(
       screen.getByText(
-        '1,121 files: 799 added, 1 needs a look, 1 already added, 320 not listed as activities.',
+        '1,121 files: 799 added, 1 already added, 1 needs a look, 320 not listed as activities.',
       ),
     ).toBeInTheDocument()
   })
