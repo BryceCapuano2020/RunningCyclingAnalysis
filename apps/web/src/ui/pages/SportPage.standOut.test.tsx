@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
@@ -19,6 +20,7 @@ function renderPage(sport: Sport, result: AnalysisResult, weighted = true) {
       previous={null}
       previousLabel={null}
       trends={NO_TRENDS}
+      sameHeartRate={NO_SAME_HEART_RATE[sport]}
       windowDays={14}
       units="metric"
       massKg={75}

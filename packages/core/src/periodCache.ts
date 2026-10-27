@@ -1,0 +1,225 @@
+import { HEADLINE_DURATION_S } from './constants'
+import { combine, sportCurves } from './digest/combine'
+import type { AnalysisResult } from './digest/combine'
+import { sameHeartRate } from './digest/sameHeartRate'
+import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
+import { fitnessTrend } from './digest/trend'
+import type { TrendPoint } from './digest/trend'
+import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
+import type { EffortLengthS } from './digest/trendPoints'
+import type { ActivityDigest, AthleteSettings, BikeModel, HrCrossCheck, SportCurves } from './types'
+
+/*
+ * The cache behind a session's periods: the analysis, trends and same-heart-rate points of each period, reused
+ * while their inputs hold. Split from period.ts, which dates the periods.
+ */
+
+/** Whether two lists hold the same digest objects in the same order. */
+export function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
+  return a.length === b.length && a.every((digest, i) => digest === b[i])
+}
+
+/** The masses and digests that a cached result was computed from. */
+interface Inputs {
+  selected: ActivityDigest[]
+  massKg: number
+  bikeMassKg: number
+}
+
+function sameInputs(
+  cached: Inputs,
+  selected: ActivityDigest[],
+  settings: AthleteSettings,
+): boolean {
+  return (
+    cached.massKg === settings.massKg &&
+    cached.bikeMassKg === settings.bikeMassKg &&
+    sameDigests(cached.selected, selected)
+  )
+}
+
+/** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
+const ANALYSES_KEPT = 4
+
+/**
+ * The analysis, the trend and the previous period's curves, reused between calls while their inputs
+ * are the same. All are priced with the bike model of the selected period, which depends only on the
+ * selected digests and the masses, so those are the whole key. The heart-rate model behind the
+ * running equivalents also depends only on the selected digests and the masses, so it needs no key of
+ * its own; whether the equivalents are wanted does, and it is in the key.
+ */
+export class PeriodCache {
+  private trendEntries = new Map<
+    EffortLengthS,
+    Inputs & {
+      rangeDays: number | null
+      startMs: number | null
+      equivalence: boolean
+      points: TrendPoint[]
+    }
+  >()
+  private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
+    null
+  // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
+  // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
+  private sameEntries: {
+    selected: ActivityDigest[]
+    library: ActivityDigest[]
+    fromMs: number | null
+    setAside: string
+    result: SameHeartRateBySport
+  }[] = []
+  // Newest use first. A digest that is added, replaced or removed is a different object, so the
+  // analysis of a changed library has a different key and is never found for the old one.
+  private analysisEntries: (Inputs & { analysis: AnalysisResult })[] = []
+
+  /**
+   * The analysis of the selected digests, reused while they and both masses are the same. The last
+   * few are kept, so going back to a period already shown costs nothing.
+   */
+  analysis(selected: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
+    const hit = this.analysisEntries.findIndex((entry) => sameInputs(entry, selected, settings))
+    if (hit >= 0) {
+      const [entry] = this.analysisEntries.splice(hit, 1)
+      this.analysisEntries.unshift(entry!)
+      return entry!.analysis
+    }
+    const analysis = combine(selected, settings)
+    this.analysisEntries.unshift({ selected, ...masses(settings), analysis })
+    this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
+    return analysis
+  }
+
+  /**
+   * Releases the analyses that select a digest the library no longer holds. A removed or replaced
+   * digest is never in a new selection, so such an analysis can no longer be found and only holds a
+   * slot and memory. Analyses of digests still held are kept.
+   */
+  releaseAbsent(library: readonly ActivityDigest[]): void {
+    const held = new Set(library)
+    this.analysisEntries = this.analysisEntries.filter((entry) =>
+      entry.selected.every((digest) => held.has(digest)),
+    )
+    // The library holds the selection, so one test covers both.
+    this.sameEntries = this.sameEntries.filter((entry) =>
+      entry.library.every((digest) => held.has(digest)),
+    )
+  }
+
+  /**
+   * The weekly trend of each effort length over the selected period, reused while its inputs are the
+   * same. The headline trend also carries each week's running equivalent, with the heart-rate model
+   * of the selected analysis, when hr is given.
+   */
+  trends(
+    selected: ActivityDigest[],
+    settings: AthleteSettings,
+    rangeDays: number | null,
+    startMs: number | null,
+    bikeModel: BikeModel | undefined,
+    hr: HrCrossCheck | undefined,
+  ): Record<EffortLengthS, TrendPoint[]> {
+    return Object.fromEntries(
+      EFFORT_LENGTHS_S.map((durationS) => [
+        durationS,
+        this.trend(selected, settings, rangeDays, startMs, bikeModel, durationS, hr),
+      ]),
+    ) as Record<EffortLengthS, TrendPoint[]>
+  }
+
+  /** The weekly trend of one effort length: a third of the period in each window, within the period. */
+  private trend(
+    selected: ActivityDigest[],
+    settings: AthleteSettings,
+    rangeDays: number | null,
+    startMs: number | null,
+    bikeModel: BikeModel | undefined,
+    durationS: EffortLengthS,
+    hr: HrCrossCheck | undefined,
+  ): TrendPoint[] {
+    const equivalence = hr !== undefined && durationS === HEADLINE_DURATION_S
+    const cached = this.trendEntries.get(durationS)
+    if (
+      cached &&
+      cached.rangeDays === rangeDays &&
+      cached.startMs === startMs &&
+      cached.equivalence === equivalence &&
+      sameInputs(cached, selected, settings)
+    ) {
+      return cached.points
+    }
+    const points = fitnessTrend(selected, settings, {
+      durationS,
+      windowDays: trendWindowDays(rangeDays),
+      fromMs: startMs ?? undefined,
+      bikeModel,
+      equivalence: equivalence && hr !== undefined ? { hr } : undefined,
+    })
+    this.trendEntries.set(durationS, {
+      selected,
+      ...masses(settings),
+      rangeDays,
+      startMs,
+      equivalence,
+      points,
+    })
+    return points
+  }
+
+  /**
+   * Each sport's output at the same heart rate over the selected period, reused while the digests, the
+   * library (which sets the reference heart rate), the period's start and the activities set aside are the same. Masses do not enter, so a change of
+   * weight does not redo it.
+   */
+  sameHeartRate(
+    selected: ActivityDigest[],
+    library: ActivityDigest[],
+    fromMs: number | null,
+    setAside: readonly string[],
+  ): SameHeartRateBySport {
+    const key = setAside.join(',')
+    const hit = this.sameEntries.findIndex(
+      (entry) =>
+        entry.fromMs === fromMs &&
+        entry.setAside === key &&
+        sameDigests(entry.selected, selected) &&
+        sameDigests(entry.library, library),
+    )
+    if (hit >= 0) {
+      const [entry] = this.sameEntries.splice(hit, 1)
+      this.sameEntries.unshift(entry!)
+      return entry!.result
+    }
+    const result = sameHeartRate(selected, new Set(setAside), {
+      fromMs: fromMs ?? undefined,
+      library,
+    })
+    this.sameEntries.unshift({ selected, library, fromMs, setAside: key, result })
+    this.sameEntries.length = Math.min(this.sameEntries.length, ANALYSES_KEPT)
+    return result
+  }
+
+  /** The curves of the period before, priced with the selected period's bike model. */
+  previousCurves(
+    selected: ActivityDigest[],
+    previous: ActivityDigest[],
+    settings: AthleteSettings,
+    bikeModel: BikeModel,
+  ): SportCurves {
+    const cached = this.previousEntry
+    if (
+      cached !== null &&
+      sameInputs(cached, selected, settings) &&
+      sameDigests(cached.previous, previous)
+    ) {
+      return cached.curves
+    }
+    const curves = sportCurves(previous, settings, bikeModel)
+    this.previousEntry = { selected, ...masses(settings), previous, curves }
+    return curves
+  }
+}
+
+function masses(settings: AthleteSettings): { massKg: number; bikeMassKg: number } {
+  return { massKg: settings.massKg, bikeMassKg: settings.bikeMassKg }
+}

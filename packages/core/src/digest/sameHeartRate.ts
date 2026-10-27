@@ -1,0 +1,235 @@
+import { DAY_MS, HR_BLOCK_S, PRIORS, RESTING_W_PER_KG, SAME_HEART_RATE } from '../constants'
+import { possibleRunWkg } from '../curves'
+import { mulberry32, quantile } from '../math'
+import { metabolicToFlatSpeed } from '../metabolic'
+import type { ActivityDigest, DigestHrBlock, Sport } from '../types'
+import { orderedCurrent } from './combine'
+import { outputAtHeartRate } from './theilSen'
+import type { FitBlocks } from './theilSen'
+import { NO_SAME_HEART_RATE } from './sameHeartRateTypes'
+import type {
+  Lack,
+  SameHeartRate,
+  SameHeartRateBySport,
+  SameHeartRateChange,
+  SameHeartRateWeek,
+} from './sameHeartRateTypes'
+import { weekEndMs } from './trend'
+
+const WEEK_MS = 7 * DAY_MS
+const WINDOW_MS = SAME_HEART_RATE.windowDays * DAY_MS
+
+/** What a sport's steady blocks are read as, and which activities give blocks that can be trusted. */
+interface Reading {
+  /** Treadmill pace and estimated watts can be what is wrong, so they are not read. */
+  usable: (digest: ActivityDigest) => boolean
+  /** The block's output in the sport's unit (m/s, W), or NaN when it is not one to use. */
+  output: (block: DigestHrBlock) => number
+}
+
+const READING: Record<Sport, Reading> = {
+  run: {
+    usable: (digest) => !digest.indoor,
+    output: (block) => {
+      const wkg = possibleRunWkg(HR_BLOCK_S, block.value)
+      return wkg >= 2 * RESTING_W_PER_KG
+        ? metabolicToFlatSpeed(wkg, PRIORS.runEconomyScale.mean)
+        : Number.NaN
+    },
+  },
+  ride: {
+    usable: (digest) => digest.powerSource === 'measured',
+    output: (block) => (block.terms === null && block.value > 0 ? block.value : Number.NaN),
+  },
+}
+
+/** One steady block, in order of the time of its activity; `activity` counts the activities that give blocks. */
+interface Block {
+  startMs: number
+  activity: number
+  heartRate: number
+  output: number
+}
+
+function blocksOf(ordered: ActivityDigest[], sport: Sport, setAside: ReadonlySet<string>): Block[] {
+  const { usable, output } = READING[sport]
+  const blocks: Block[] = []
+  let activity = -1
+  for (const digest of ordered) {
+    if (digest.sport !== sport || !usable(digest) || setAside.has(digest.id)) continue
+    let counted = false
+    for (const block of digest.hrBlocks) {
+      const value = output(block)
+      if (!(value > 0 && block.heartRate > 0)) continue
+      if (!counted) activity++
+      counted = true
+      blocks.push({ startMs: digest.startMs, activity, heartRate: block.heartRate, output: value })
+    }
+  }
+  return blocks
+}
+
+/** The window's first lack, or null when it can report at referenceHr. Judged on the blocks a fit takes. */
+function lackOf(window: readonly Block[], referenceHr: number): Lack | null {
+  const { minBlocks, minActivities, minWeeks, minSpreadBpm } = SAME_HEART_RATE
+  if (window.length < minBlocks) return 'blocks'
+  if (new Set(window.map((b) => b.activity)).size < minActivities) return 'activities'
+  if (new Set(window.map((b) => weekEndMs(b.startMs))).size < minWeeks) return 'weeks'
+  const rates = window.map((b) => b.heartRate)
+  const mean = rates.reduce((sum, r) => sum + r, 0) / rates.length
+  const variance = rates.reduce((sum, r) => sum + (r - mean) ** 2, 0) / rates.length
+  if (Math.sqrt(variance) < minSpreadBpm) return 'spread'
+  if (referenceHr < Math.min(...rates) || referenceHr > Math.max(...rates)) return 'range'
+  return null
+}
+
+/** `count` of the items, evenly spread from the first to the last. All of them when there are no more. */
+function evenly<T>(items: readonly T[], count: number): T[] {
+  if (items.length <= count) return [...items]
+  return Array.from({ length: count }, (_, i) => items[Math.floor((i * items.length) / count)]!)
+}
+
+/**
+ * The blocks a fit takes from a window. Within the caps, all of them. Over them, the activities are
+ * thinned first, at most maxActivities spread through the window, and then each keeps an equal share of
+ * maxBlocks, spread through its own blocks. So the fit still spans the whole window, and no activity is
+ * kept with fewer than two blocks or dropped to make room for another's.
+ */
+function fittedBlocks(window: readonly Block[]): Block[] {
+  const { maxBlocks, maxActivities } = SAME_HEART_RATE
+  if (window.length <= maxBlocks) return [...window]
+  const byActivity = new Map<number, Block[]>()
+  for (const block of window) {
+    const group = byActivity.get(block.activity)
+    if (group === undefined) byActivity.set(block.activity, [block])
+    else group.push(block)
+  }
+  const kept = evenly([...byActivity.values()], maxActivities)
+  const share = Math.floor(maxBlocks / kept.length)
+  return kept.flatMap((group) => evenly(group, share))
+}
+
+/** Blocks as a fit takes them, owners numbered from 0 in order of activity. */
+function fitBlocksOf(kept: readonly Block[]): FitBlocks {
+  const owners = new Map<number, number>()
+  for (const block of kept) if (!owners.has(block.activity)) owners.set(block.activity, owners.size)
+  return {
+    heartRate: Float64Array.from(kept, (b) => b.heartRate),
+    output: Float64Array.from(kept, (b) => b.output),
+    owner: Uint16Array.from(kept, (b) => owners.get(b.activity)!),
+    activities: owners.size,
+  }
+}
+
+function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
+  const window = blocks.filter((b) => b.startMs > endMs - WINDOW_MS && b.startMs <= endMs)
+  const activities = new Set(window.map((b) => b.activity)).size
+  const base = { endMs, blocks: window.length, activities }
+  const kept = fittedBlocks(window)
+  const lacks = lackOf(kept, referenceHr)
+  if (lacks !== null) return { ...base, fit: null, lacks }
+  // Only the draws are the week's own: its seed comes from the week. The reference heart rate is the
+  // period's, so the same week can read a little differently in another period.
+  const random = mulberry32(SAME_HEART_RATE.seed + Math.round(endMs / WEEK_MS))
+  const fit = outputAtHeartRate(fitBlocksOf(kept), referenceHr, random)
+  return { ...base, fit, lacks: fit === null ? 'spread' : null }
+}
+
+/**
+ * The week ends to report: from the first whose 28-day window lies in the period to the last, newest
+ * maxWeeks. For all time, which has no start, the period starts at the sport's first block, so no week
+ * is read from a window shorter than the others.
+ */
+function weekEnds(blocks: readonly Block[], fromMs: number | undefined): number[] {
+  const first = blocks[0]!.startMs
+  const last = blocks.at(-1)!.startMs
+  const lastEnd = weekEndMs(last)
+  const earliest = Math.max(first, (fromMs ?? first) + WINDOW_MS)
+  const firstEnd = Math.max(weekEndMs(earliest), lastEnd - (SAME_HEART_RATE.maxWeeks - 1) * WEEK_MS)
+  const ends: number[] = []
+  for (let end = firstEnd; end <= lastEnd; end += WEEK_MS) ends.push(end)
+  return ends
+}
+
+/**
+ * The reference heart rate: the median heart rate of the library's blocks in its newest referenceWeeks
+ * weeks, rounded to the reference step. It is the library's, not the period's, so choosing another
+ * period does not move it. Null without a block.
+ */
+function referenceOf(library: readonly Block[]): number | null {
+  const last = library.at(-1)
+  if (last === undefined) return null
+  const from = weekEndMs(last.startMs) - SAME_HEART_RATE.referenceWeeks * WEEK_MS
+  const rates = library.filter((b) => b.startMs > from).map((b) => b.heartRate)
+  const step = SAME_HEART_RATE.referenceStepBpm
+  return Math.round(quantile(rates, 0.5) / step) * step
+}
+
+function changeOf(reported: readonly SameHeartRateWeek[]): SameHeartRateChange | null {
+  const first = reported[0]
+  const last = reported.at(-1)
+  if (first?.fit == null || last?.fit == null || first === last) return null
+  return {
+    fromEndMs: first.endMs,
+    toEndMs: last.endMs,
+    from: first.fit.output,
+    to: last.fit.output,
+    weeksApart: Math.round((last.endMs - first.endMs) / WEEK_MS),
+    relative: last.fit.output / first.fit.output - 1,
+    real: last.fit.low > first.fit.high || last.fit.high < first.fit.low,
+  }
+}
+
+/** The lack of the week that came closest to reporting: the one with most blocks, the latest of equals. */
+function nearestLack(weeks: readonly SameHeartRateWeek[]): Lack {
+  let best: SameHeartRateWeek | null = null
+  for (const week of weeks) {
+    if (week.lacks !== null && (best === null || week.blocks >= best.blocks)) best = week
+  }
+  return best?.lacks ?? 'weeks'
+}
+
+function forSport(
+  ordered: ActivityDigest[],
+  library: ActivityDigest[],
+  sport: Sport,
+  setAside: ReadonlySet<string>,
+  fromMs: number | undefined,
+): SameHeartRate {
+  const all = blocksOf(ordered, sport, setAside)
+  const referenceHeartRate = referenceOf(blocksOf(library, sport, setAside))
+  if (all.length === 0 || referenceHeartRate === null) return NO_SAME_HEART_RATE[sport]
+  // The period's last week is that of its newest activity, of either sport.
+  const latestWeekEndMs = weekEndMs(ordered.at(-1)!.startMs)
+  const ends = weekEnds(all, fromMs)
+  // Stretches that do not reach a window's length into the period leave no week whose window lies in it.
+  if (ends.length === 0) {
+    return { referenceHeartRate, weeks: [], change: null, lacks: 'period', latestWeekEndMs }
+  }
+  const weeks = ends.map((end) => weekOf(end, all, referenceHeartRate))
+  const change = changeOf(weeks.filter((week) => week.fit !== null))
+  const lacks = change === null ? nearestLack(weeks) : null
+  return { referenceHeartRate, weeks, change, lacks, latestWeekEndMs }
+}
+
+/**
+ * Each sport's output at the same heart rate, week by week. For a week, the blocks of steady effort
+ * in the 28 days to its Sunday are fitted by Theil-Sen, output on heart rate, and read at one
+ * reference heart rate for every period: the median heart rate of the library's newest year of blocks.
+ * Measured rides and outdoor runs only, and not the activities whose heart rate is set aside. fromMs is
+ * the period's start, so that no window reaches before it; `library` is every digest, whatever the
+ * period, and is the digests when not given. The result depends on these and the set-aside ids alone,
+ * not on body mass. See docs/research/same-heart-rate.md.
+ */
+export function sameHeartRate(
+  digests: ActivityDigest[],
+  setAside: ReadonlySet<string>,
+  opts: { fromMs?: number; library?: ActivityDigest[] },
+): SameHeartRateBySport {
+  const ordered = orderedCurrent(digests)
+  const library = opts.library === undefined ? ordered : orderedCurrent(opts.library)
+  return {
+    run: forSport(ordered, library, 'run', setAside, opts.fromMs),
+    ride: forSport(ordered, library, 'ride', setAside, opts.fromMs),
+  }
+}

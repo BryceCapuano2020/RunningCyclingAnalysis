@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
-import type { SportCurves, TrendPoint } from '@rca/core/digest'
+import type { SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
@@ -46,6 +46,7 @@ import { unevenNote } from '../unevenNote'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { RacePredictions } from './RacePredictions'
 import { StandOutSection } from './StandOutSection'
+import { SameHeartRateSection } from './SameHeartRateSection'
 import {
   EFFORT_OPTIONS,
   activityNames,
@@ -77,6 +78,8 @@ export interface SportPageProps {
   trends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
   /** The trailing window of each trend point, in days. */
   windowDays: number
+  /** This sport's output at one heart rate, week by week over the period. */
+  sameHeartRate: SameHeartRate
   units: UnitSystem
   massKg: number
   /** False while no body weight is entered; a ride's figures then wait for it. */
@@ -137,6 +140,7 @@ export function SportPage({
   previousLabel,
   trends,
   windowDays,
+  sameHeartRate,
   units,
   massKg,
   weighted,
@@ -352,6 +356,8 @@ export function SportPage({
               effortS={effort}
             />
           </section>
+
+          <SameHeartRateSection sport={sport} data={sameHeartRate} units={units} />
         </>
       )}
       {!held && count > 0 && (

@@ -14,3 +14,11 @@ export type { AnalysisResult, BikeModelSource, Equivalence } from './combine'
 export type { ActivitySummary } from './summary'
 export type { SportCurves } from '../types'
 export { parseDigest, serializeDigest } from './serialize'
+export { NO_SAME_HEART_RATE } from './sameHeartRateTypes'
+export type {
+  Lack,
+  SameHeartRate,
+  SameHeartRateBySport,
+  SameHeartRateChange,
+  SameHeartRateWeek,
+} from './sameHeartRateTypes'

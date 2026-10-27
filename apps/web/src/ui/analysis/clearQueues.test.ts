@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
+import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { Me } from '@rca/contract'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
@@ -58,6 +59,7 @@ const STATE = {
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,
+  sameHeartRate: NO_SAME_HEART_RATE,
   records: new Map(),
 }
 
