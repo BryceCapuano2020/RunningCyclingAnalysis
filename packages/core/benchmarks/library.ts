@@ -34,6 +34,7 @@ function memory() {
 
 const digests: ActivityDigest[] = []
 let totalSamples = 0
+let generateMs = 0
 const digestCpuStart = process.cpuUsage()
 const ingestionStarted = performance.now()
 for (let i = 0; i < activityCount; i++) {
@@ -41,6 +42,7 @@ for (let i = 0; i < activityCount; i++) {
   const weekday = (i % sessionsPerWeek) * 2
   const sport = i % 2 === 0 ? 'run' : 'ride'
   const durationS = i % 8 === 0 ? 7200 : i % 2 === 0 ? 3600 : 4500
+  const generateStart = performance.now()
   const activity = generateActivity(
     DEFAULT_ATHLETE,
     {
@@ -56,6 +58,7 @@ for (let i = 0; i < activityCount; i++) {
     },
     i + 1,
   )
+  generateMs += performance.now() - generateStart
   totalSamples += activity.n
   digests.push(digestActivity(activity))
 }
@@ -101,6 +104,7 @@ console.log(
         durations: '1 h standard run, 75 min standard ride, 2 h long session every 8th activity',
         sources: 'alternating run/ride; mostly measured power with virtual-power rides mixed in',
         digestRuns: 1,
+        digestSplit: 'generateMs times the synthetic generator alone; digestActivityMs is the rest',
         coldCombineRuns: 1,
         settingsCombineRuns: 5,
         memorySample: 'after digest construction and all combines; max RSS is process peak',
@@ -112,6 +116,8 @@ console.log(
       results: {
         digestLibraryMs: Math.round(ingestionMs),
         digestCpuMs: Math.round((digestCpu.user + digestCpu.system) / 1000),
+        generateMs: Math.round(generateMs),
+        digestActivityMs: Math.round(ingestionMs - generateMs),
         coldCombineMs: Math.round(coldCombineMs),
         coldCombineCpuMs: Math.round((coldCombineCpu.user + coldCombineCpu.system) / 1000),
         settingsCombine: combineStats,

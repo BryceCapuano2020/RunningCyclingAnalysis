@@ -36,15 +36,49 @@ export function airDensityStream(
   const { n, altitude } = activity
   const out = new Float64Array(n)
   if (!activity.hasAltitude || activity.indoor) return out.fill(RHO_AIR)
-  const usable = (i: number): boolean =>
-    (validAltitude?.[i] ?? 1) === 1 && isUsableAltitude(altitude[i]!)
-  const valid: number[] = []
+  // Recorded altitude often holds one value for many seconds, so an unchanged altitude reuses the
+  // last density instead of another power.
+  let missing = 0
+  let lastAltitude = NaN
+  let lastDensity = RHO_AIR
   for (let i = 0; i < n; i++) {
-    if (usable(i)) valid.push(altitude[i]!)
+    if (isMissing(altitude, validAltitude, i)) {
+      missing++
+      continue
+    }
+    const altitudeM = altitude[i]!
+    if (altitudeM !== lastAltitude) {
+      lastAltitude = altitudeM
+      lastDensity = airDensity(altitudeM)
+    }
+    out[i] = lastDensity
   }
-  const fallback = valid.length > 0 ? airDensity(quantile(valid, 0.5)) : RHO_AIR
-  for (let i = 0; i < n; i++) {
-    out[i] = usable(i) ? airDensity(altitude[i]!) : fallback
-  }
+  if (missing > 0) fillMissing(out, altitude, validAltitude, n - missing)
   return out
+}
+
+/** Whether sample i has no altitude to use: `validAltitude` marks it 0, or it is unusable. */
+function isMissing(altitude: Float64Array, validAltitude: Uint8Array | undefined, i: number) {
+  return (validAltitude?.[i] ?? 1) !== 1 || !isUsableAltitude(altitude[i]!)
+}
+
+/**
+ * Gives every missing sample the density at the median of the usable altitudes, or sea level when
+ * there are none. The median is taken only here, because most activities miss no sample.
+ */
+function fillMissing(
+  density: Float64Array,
+  altitude: Float64Array,
+  validAltitude: Uint8Array | undefined,
+  usableCount: number,
+): void {
+  const usable = new Float64Array(usableCount)
+  let k = 0
+  for (let i = 0; i < density.length; i++) {
+    if (!isMissing(altitude, validAltitude, i)) usable[k++] = altitude[i]!
+  }
+  const fallback = usableCount > 0 ? airDensity(quantile(usable, 0.5)) : RHO_AIR
+  for (let i = 0; i < density.length; i++) {
+    if (isMissing(altitude, validAltitude, i)) density[i] = fallback
+  }
 }
