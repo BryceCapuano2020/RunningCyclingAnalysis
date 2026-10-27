@@ -33,6 +33,7 @@ import { PAGE_HEADING_ID } from './pageHeading'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
+import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import './MethodPage.css'
 
@@ -164,6 +165,7 @@ export function MethodPage({
   const pick = result ? pickHeadline(result.comparison) : null
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
+  const setAside = result ? setAsideText(result) : null
   const accuracy = result ? result.virtualAccuracy : null
   // The accuracy section shows with no result too, where it says what its check needs.
   const showAccuracy = accuracy !== null || !hasResult
@@ -331,6 +333,7 @@ export function MethodPage({
         <ul className="method__facts">
           <li>{referenceDefinition()}</li>
           {reference && <li>{reference}</li>}
+          {setAside && <li>{setAside}</li>}
           {hardEfforts && (
             <li>
               Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each

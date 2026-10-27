@@ -158,3 +158,11 @@ export const HR_MODEL_DISCREPANCY = 0.05
  */
 export const HR_BLOCK_S = 300
 export const HR_SKIP_S = 600
+
+/**
+ * Heart rate that cannot be right is set aside. A best effort of at least HR_SET_ASIDE_MIN_S held at
+ * or above threshold drives heart rate toward its maximum, so a window mean under
+ * HR_SET_ASIDE_FLOOR of the sport's reference heart rate is a sensor fault, not the athlete.
+ */
+export const HR_SET_ASIDE_MIN_S = 600
+export const HR_SET_ASIDE_FLOOR = 0.7

@@ -10,7 +10,7 @@ import {
 import { possibleRunWkg } from '../curves'
 import { criticalPowerOutcome, fitCriticalPowerUnchecked, wPrimeFloor } from '../cp'
 import type { EffortPoint } from '../effort'
-import { checkEfforts, referenceMaxHeartRates } from '../effort'
+import { checkEfforts } from '../effort'
 import { crossCheck } from '../hr'
 import { requirePositiveFinite } from '../math'
 import type {
@@ -41,6 +41,7 @@ import { addCalibrationSums, calibrationStatsAt, emptyCalibrationSums } from './
 import { leaveOneOutAccuracy } from './accuracy'
 import type { Calibrated } from './accuracy'
 import { powerAt } from './terms'
+import { trustedHeartRate, withoutSetAside } from './trustedHeartRate'
 
 export interface Equivalence {
   durationS: number
@@ -85,6 +86,12 @@ export interface AnalysisResult {
   runObservedMaxHeartRate: number | null
   /** Highest cycling heart rate on file, bpm; null without cycling heart-rate data. */
   rideObservedMaxHeartRate: number | null
+  /**
+   * Ids of the activities whose heart rate is set aside, sorted: a best effort of theirs held at or
+   * above threshold shows heart rate a working sensor would not. Their heart rate is left out of the
+   * heart-rate check, the effort checks and the reference heart rates.
+   */
+  heartRateSetAside: string[]
   /** Whether each compared best effort was close to all-out, one entry per comparison duration. */
   effort: EffortCheck[]
   bikeModel: BikeModel
@@ -196,15 +203,6 @@ export function fitBikeModelFor(totalSums: CalibrationSums, totalMassKg: number)
   return fitBikeModel(calibrationStatsAt(totalSums, totalMassKg))
 }
 
-function maxHeartRateOf(digests: ActivityDigest[]): number | null {
-  let best: number | null = null
-  for (const digest of digests) {
-    const value = digest.maxHeartRate
-    if (value !== null && (best === null || value > best)) best = value
-  }
-  return best
-}
-
 /** The best run and ride values at each duration. Rides are priced with bikeModel. */
 function bestCurves(
   ordered: ActivityDigest[],
@@ -299,7 +297,17 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     value: centralWkgFromWatts(p.value, massKg),
   }))
 
-  const { runPoints, ridePoints } = heartRatePoints(ordered, totalMassKg, massKg, bikeModel)
+  const runFit = fitCriticalPowerUnchecked(runCurve)
+  const rideFit = fitCriticalPowerUnchecked(rideMetabolicCurve)
+  // Each sport's points priced in its fit's unit, so a best effort is judged against its threshold.
+  const fitUnit: Record<Sport, (point: DigestCurvePoint) => number> = {
+    run: runCentralWkg,
+    ride: (point) => centralWkgFromWatts(rideWattsAt(point, totalMassKg, bikeModel), massKg),
+  }
+  const heart = trustedHeartRate(ordered, { run: runFit, ride: rideFit }, (digest, point) =>
+    fitUnit[digest.sport](point),
+  )
+  const { runPoints, ridePoints } = heartRatePoints(heart.trusted, totalMassKg, massKg, bikeModel)
 
   // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
   // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because
@@ -312,8 +320,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   const runCp = runOutcome.fit
   const rideCp = rideOutcome.fit
   const hr = crossCheck(
-    atOrBelowCriticalPower(runPoints, fitCriticalPowerUnchecked(runCurve)),
-    atOrBelowCriticalPower(ridePoints, fitCriticalPowerUnchecked(rideMetabolicCurve)),
+    atOrBelowCriticalPower(runPoints, runFit),
+    atOrBelowCriticalPower(ridePoints, rideFit),
   )
   const comparison = compareSports(runCurve, rideCurve, massKg, hr, {
     draws: DRAWS,
@@ -334,15 +342,10 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     }
   }
 
-  const maxHr = maxHeartRateOf(ordered)
-  const observedMaxOf = (sport: Sport) => maxHeartRateOf(ordered.filter((d) => d.sport === sport))
-  const runObservedMax = observedMaxOf('run')
-  const rideObservedMax = observedMaxOf('ride')
-  const maxRef = referenceMaxHeartRates(runObservedMax, rideObservedMax)
   const effort = checkEfforts(
-    runBest,
-    rideBest,
-    maxRef,
+    withoutSetAside(runBest, heart.setAside),
+    withoutSetAside(rideBest, heart.setAside),
+    heart.reference,
     comparison.prior.map((p) => p.durationS),
   )
 
@@ -358,11 +361,12 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     hr,
     comparison,
     equivalents,
-    maxHeartRate: maxHr,
-    runMaxHeartRate: maxRef.run,
-    rideMaxHeartRate: maxRef.ride,
-    runObservedMaxHeartRate: runObservedMax,
-    rideObservedMaxHeartRate: rideObservedMax,
+    maxHeartRate: heart.maxHr,
+    runMaxHeartRate: heart.reference.run,
+    rideMaxHeartRate: heart.reference.ride,
+    runObservedMaxHeartRate: heart.observedMax.run,
+    rideObservedMaxHeartRate: heart.observedMax.ride,
+    heartRateSetAside: [...heart.setAside].sort(),
     effort,
     bikeModel,
     bikeModelSource: fittedBike.source,
