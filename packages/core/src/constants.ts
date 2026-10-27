@@ -84,6 +84,17 @@ export const CP_FIT_REACH_TOLERANCE = 0.05
 export const W_PRIME_FLOOR_J = 3_000
 export const D_PRIME_FLOOR_M = 15
 
+/**
+ * A best effort is uneven, and sets only a floor on the threshold, when it is at least this long, s,
+ * and a shorter best from the same ride, at least UNEVEN_NESTED_FRACTION as long, lies inside its window
+ * while the rest of that window averages under UNEVEN_REST_FRACTION of the shorter best. An evenly paced
+ * all-out 20 minutes leaves its rest at about 0.9 of its 10 minute best, so 0.85 is below every even pace
+ * and above a rest that a hard effort set in easier riding leaves.
+ */
+export const UNEVEN_MIN_S = 600
+export const UNEVEN_NESTED_FRACTION = 0.4
+export const UNEVEN_REST_FRACTION = 0.85
+
 /** The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. */
 export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
   180,

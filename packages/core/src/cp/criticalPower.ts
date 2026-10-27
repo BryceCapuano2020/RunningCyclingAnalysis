@@ -18,6 +18,8 @@ export interface CriticalPowerOptions {
   maxS?: number
   /** The least work capacity the fit may show, in the unit of its curve. Defaults to none. */
   minWPrime?: number
+  /** The shortest longest effort the window may stop at, s. Defaults to 95% of maxS. */
+  minLongestS?: number
 }
 
 /** A fit, or the reason there is none. */
@@ -85,7 +87,8 @@ export function criticalPowerOutcome(
   const refused = (refusal: CriticalPowerRefusal): CriticalPowerOutcome => ({ fit: null, refusal })
   if (points.length < MIN_POINTS) return refused('missing')
   const longest = Math.max(...points.map((p) => p.durationS))
-  if (longest < maxS * (1 - CP_FIT_REACH_TOLERANCE)) return refused('missing')
+  const reach = opts.minLongestS ?? maxS * (1 - CP_FIT_REACH_TOLERANCE)
+  if (longest < reach) return refused('missing')
   const fit = regress(points)
   if (fit === null) return refused('missing')
   const lowest = Math.min(...points.map((p) => p.value))

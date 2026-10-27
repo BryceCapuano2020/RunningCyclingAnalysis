@@ -19,6 +19,7 @@ export function candidates(
       value,
       activityId: found ? digest.id : null,
       startIndex: found ? p.startIndex : -1,
+      windowS: found ? p.windowS : null,
       heartRate: found ? p.heartRate : null,
     }
   })
@@ -30,6 +31,7 @@ function emptyCurve(): EffortPoint[] {
     value: NaN,
     activityId: null,
     startIndex: -1,
+    windowS: null,
     heartRate: null,
   }))
 }
@@ -40,10 +42,11 @@ export function bestCurve(curves: EffortPoint[][]): EffortPoint[] {
 }
 
 export function plainCurve(points: EffortPoint[]): Curve {
-  return points.map(({ durationS, value, activityId, startIndex }) => ({
+  return points.map(({ durationS, value, activityId, startIndex, windowS }) => ({
     durationS,
     value,
     activityId,
     startIndex,
+    windowS,
   }))
 }

@@ -234,6 +234,48 @@ describe('SportPage', () => {
     expect(within(section).getByText('Likely 48 to 49 W')).toBeInTheDocument()
   })
 
+  it('says under the range that the best 15 and 20 min only set a floor, when the threshold has an uneven fit', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const uneven = {
+      fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+      leftOutS: [900, 1200],
+      floor: 3.2,
+    }
+    renderPage('ride', makeResult({ activities: [ride], rideCpUneven: uneven }))
+
+    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
+    expect(within(section).getByText('Likely 48 to 58 W')).toBeInTheDocument()
+    expect(
+      within(section).getByText(
+        'Your best 15 min and 20 min each held a shorter hard effort with easier riding around it, so they only set a floor. A steady all-out 20 min would narrow this.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the floor as the figure, with its range and note, when the threshold is refused', () => {
+    const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
+    const uneven = {
+      fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+      leftOutS: [900, 1200],
+      floor: 3.2,
+    }
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [ride],
+        rideCp: null,
+        rideCpRefusal: 'shape',
+        rideCpUneven: uneven,
+      }),
+    )
+
+    const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
+    expect(within(section).getByText('52 W')).toBeInTheDocument()
+    expect(within(section).getByText('Likely 52 to 58 W')).toBeInTheDocument()
+    expect(within(section).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
+    expect(within(section).getByText(/only set a floor/)).toBeInTheDocument()
+  })
+
   it('names the period by its control under the answer, not with a count under the threshold', () => {
     renderPage(
       'run',

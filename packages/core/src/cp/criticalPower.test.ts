@@ -142,6 +142,13 @@ describe('the fit window reaches 20 minutes', () => {
     expect(criticalPowerOutcome(curve).fit?.cp).toBeCloseTo(250, 6)
   })
 
+  it('takes the reach from minLongestS when the caller sets one, so a window may stop at 10 minutes', () => {
+    const curve = synthetic([180, 240, 300, 420, 600], 250, 20000)
+    expect(criticalPowerOutcome(curve).refusal).toBe('missing')
+    expect(criticalPowerOutcome(curve, { minLongestS: 600 }).fit?.cp).toBeCloseTo(250, 6)
+    expect(criticalPowerOutcome(curve, { minLongestS: 900 }).refusal).toBe('missing')
+  })
+
   it('reaches the top of a window the caller sets, not the default 20 minutes', () => {
     const curve = synthetic([200, 250, 500, 1000], 100, 10000)
     expect(criticalPowerOutcome(curve, { maxS: 1000 }).fit).not.toBeNull()

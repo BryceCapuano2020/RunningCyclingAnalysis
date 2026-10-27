@@ -40,7 +40,9 @@ import {
   THRESHOLD_MEANING,
   thresholdNeedsText,
 } from '../sports'
+import { floorThreshold } from '../thresholdFloor'
 import { thresholdRange } from '../thresholdRange'
+import { unevenNote } from '../unevenNote'
 import { PAGE_HEADING_ID } from './pageHeading'
 import {
   EFFORT_OPTIONS,
@@ -153,8 +155,11 @@ export function SportPage({
   const [openedAt] = useState(() => Date.now())
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
-  const hero = threshold(result, sport, massKg, units)
+  // With the threshold refused, an uneven fit's floor is shown in its place, so the refusal is not said.
+  const hero =
+    threshold(result, sport, massKg, units) ?? floorThreshold(result, sport, massKg, units)
   const range = thresholdRange(result, sport, massKg, units)
+  const floorNote = unevenNote(result, sport)
   const records = sportRecords(result, sport, massKg, units)
   const graded = records.map((record) => ({
     record,
@@ -267,6 +272,7 @@ export function SportPage({
           <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
         )}
         {hero && range && <p className="muted sport-page__range">{`Likely ${range}`}</p>}
+        {hero && floorNote && <p className="muted">{floorNote}</p>}
         {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
         {heartRateLine && <p className="muted">{heartRateLine}</p>}
         {headline && (
