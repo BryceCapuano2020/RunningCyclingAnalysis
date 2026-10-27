@@ -16,6 +16,7 @@ import { requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
   AthleteSettings,
+  Sport,
   SportCurves,
   BikeModel,
   CalibrationSums,
@@ -211,14 +212,10 @@ function bestCurves(
   bikeModel: BikeModel,
 ): { runBest: EffortPoint[]; rideBest: EffortPoint[] } {
   const rideWatts = (point: DigestCurvePoint): number => rideWattsAt(point, totalMassKg, bikeModel)
-  return {
-    runBest: bestCurve(
-      ordered.filter((d) => d.sport === 'run').map((d) => candidates(d, runCentralWkg)),
-    ),
-    rideBest: bestCurve(
-      ordered.filter((d) => d.sport === 'ride').map((d) => candidates(d, rideWatts)),
-    ),
-  }
+  // Each sport's best curve is read in that sport's own number, from the digests of that sport.
+  const bestOf = (sport: Sport, value: (point: DigestCurvePoint) => number) =>
+    bestCurve(ordered.filter((d) => d.sport === sport).map((d) => candidates(d, value)))
+  return { runBest: bestOf('run', runCentralWkg), rideBest: bestOf('ride', rideWatts) }
 }
 
 /**
@@ -338,8 +335,9 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   }
 
   const maxHr = maxHeartRateOf(ordered)
-  const runObservedMax = maxHeartRateOf(ordered.filter((d) => d.sport === 'run'))
-  const rideObservedMax = maxHeartRateOf(ordered.filter((d) => d.sport === 'ride'))
+  const observedMaxOf = (sport: Sport) => maxHeartRateOf(ordered.filter((d) => d.sport === sport))
+  const runObservedMax = observedMaxOf('run')
+  const rideObservedMax = observedMaxOf('ride')
   const maxRef = referenceMaxHeartRates(runObservedMax, rideObservedMax)
   const effort = checkEfforts(
     runBest,

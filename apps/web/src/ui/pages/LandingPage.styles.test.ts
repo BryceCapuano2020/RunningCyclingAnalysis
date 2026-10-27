@@ -5,6 +5,7 @@ import { PHONE_MAX_WIDTH_PX, SHORT_PHONE_MAX_HEIGHT_PX } from '../layoutBreakpoi
 const app = await readStylesheet(import.meta.url, '../../App.css')
 const example = await readStylesheet(import.meta.url, './LandingExample.css')
 const design = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN.md')
+const tokens = await readStylesheet(import.meta.url, '../../styles/tokens.css')
 
 /** The short-phone query as App.css writes it: short, and a finger or a phone-width window. */
 const SHORT_PHONE = `(max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (pointer: coarse), (max-height: ${SHORT_PHONE_MAX_HEIGHT_PX}px) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
@@ -60,7 +61,10 @@ describe('landing example', () => {
   })
 
   it('needs 12rem for each sport before it sits beside the other, so their scale labels never collide', () => {
-    expect(ruleBody(app, '.landing-example__stats')).toMatch(/minmax\(min\(100%, 12rem\), 1fr\)/)
+    expect(ruleBody(app, '.landing-example__stats')).toMatch(
+      /minmax\(min\(100%, var\(--column-example\)\), 1fr\)/,
+    )
+    expect(tokens).toMatch(/--column-example:\s*12rem/)
   })
 
   it('stacks the two sports in one column below 560 px, where their scale labels would collide', () => {

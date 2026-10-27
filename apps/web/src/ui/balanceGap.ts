@@ -1,18 +1,6 @@
+import { leanOfLead, type Lead, type Lean } from '../domain/lean'
 import type { HeadlineGrades, SportGrade } from './grades'
 import { wholeGrade } from './gradeFormat'
-
-/** Which way a balance leans: toward one sport, or even when its range spans zero. */
-export type Lean = 'run' | 'ride' | 'even'
-
-/**
- * A lead on a scale: its centre and the low and high ends of its range. A positive lead favours
- * running, whatever the scale measures.
- */
-export interface Lead {
-  centre: number
-  low: number
-  high: number
-}
 
 /** Running's age-grade lead over cycling, in whole points, with its range and the lean it gives. */
 export interface BalanceGap extends Lead {
@@ -28,16 +16,6 @@ function bounds(sport: SportGrade): Lead {
     low: wholeGrade(sport.range.low.grade),
     high: wholeGrade(sport.range.high.grade),
   }
-}
-
-/**
- * The lean of a lead. It leans toward a sport when its whole range is on that sport's side of zero,
- * and it is even when the range touches or spans zero: the balance is not told apart from even.
- */
-export function leanOfLead(lead: Lead): Lean {
-  if (lead.low > 0) return 'run'
-  if (lead.high < 0) return 'ride'
-  return 'even'
 }
 
 /**

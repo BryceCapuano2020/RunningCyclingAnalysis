@@ -24,7 +24,7 @@ import { recordRow, treadmillMarks } from '../recordRow'
 import type { RecordRow } from '../recordRow'
 import {
   DISTANCE_TIMES_NOTE,
-  FLAT_PACE_NOTE,
+  SPORT_NOTE,
   distanceGrade,
   listedGradeNotes,
   sportGrade,
@@ -303,7 +303,7 @@ export function SportPage({
                 {note}
               </p>
             ))}
-            {sport === 'run' && <p className="muted">{FLAT_PACE_NOTE}</p>}
+            {SPORT_NOTE[sport] && <p className="muted">{SPORT_NOTE[sport]}</p>}
             {distance?.partial && (
               <p className="muted">
                 Runs added before distance bests were recorded don’t have them yet, so these may not

@@ -1,12 +1,65 @@
 import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
 import type { CriticalPowerRefusal, Sport } from '@rca/core/types'
-import { formatDuration } from '@rca/core/units'
+import type { UnitSystem } from '@rca/core/units'
+import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
+import { PER } from './format/units'
 
 /**
  * The sports in the order they sit everywhere: the card row, the balance meter and the share card.
  * The first is on the left, so running is on the left and cycling on the right.
  */
 export const SPORT_ORDER = ['run', 'ride'] as const
+
+/**
+ * What differs between the sports, in one place. A sport's own number is its flat pace for running,
+ * a speed read as a pace, and its power for cycling, in watts. Keyed by Sport, so a sport added to
+ * SPORT_ORDER must say each of these.
+ */
+export interface SportFormat {
+  /** The own number in a heading, legend or tooltip: "Flat pace" or "Power". */
+  nativeLabel: string
+  /** The own number's unit spelt out after a chart's name: "flat pace per kilometre", "power in watts". */
+  titleUnit: (units: UnitSystem) => string
+  /** Whether the values also state their mechanical W/kg. Running names only its activity. */
+  showsWkg: boolean
+  /** The shape a chart marks the sport's points with. Rides are diamonds, so the sports differ in shape. */
+  glyph: 'dot' | 'diamond'
+  /** The grade's name on a ladder. A ride's grade is estimated through its running equivalent. */
+  gradeName: string
+  /** The vertical axis's title. Pace says which way is faster, since its axis runs the other way. */
+  axisTitle: (units: UnitSystem) => string
+  /** The own number on a vertical axis: seconds per unit for running, so a faster pace is smaller. */
+  plotted: (value: number, units: UnitSystem) => number
+  /** The own number as text, with its unit. */
+  formatted: (value: number, units: UnitSystem) => string
+  /** Whether a chart fills the area under its line. Watts fill down to zero; pace does not. */
+  fillsArea: boolean
+}
+
+export const SPORT_FORMAT: Record<Sport, SportFormat> = {
+  run: {
+    nativeLabel: 'Flat pace',
+    titleUnit: (units) => `flat pace ${PER[units]}`,
+    showsWkg: false,
+    glyph: 'dot',
+    gradeName: 'Age grade',
+    axisTitle: (units) => `Flat pace (${PACE_UNIT[units]}), faster up`,
+    plotted: (speedMs, units) => paceSeconds(speedMs, units),
+    formatted: (speedMs, units) => formatPace(speedMs, units),
+    fillsArea: false,
+  },
+  ride: {
+    nativeLabel: 'Power',
+    titleUnit: () => 'power in watts',
+    showsWkg: true,
+    glyph: 'diamond',
+    gradeName: 'Estimated age grade',
+    axisTitle: () => 'Power (W)',
+    plotted: (watts) => watts,
+    formatted: (watts) => formatPower(watts),
+    fillsArea: true,
+  },
+}
 
 /** The name of each sport in text, shown beside its SportIcon. */
 export const SPORT_LABEL: Record<Sport, string> = { run: 'Run', ride: 'Ride' }

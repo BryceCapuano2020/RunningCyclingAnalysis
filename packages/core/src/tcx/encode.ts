@@ -41,7 +41,7 @@ const RAD = Math.PI / 180
 export function encodeTcx(activity: Activity, opts: TcxEncodeOptions = {}): Uint8Array {
   const { n } = activity
   const start = new Date(activity.startMs).toISOString()
-  const sport = activity.sport === 'run' ? 'Running' : 'Biking'
+  const sport = { run: 'Running', ride: 'Biking' }[activity.sport]
   const laps = Math.max(1, Math.min(opts.laps ?? 1, n))
   const route = opts.gps ? routeOf(activity, opts.noise ?? 0) : []
 

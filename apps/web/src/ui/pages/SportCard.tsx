@@ -7,7 +7,7 @@ import { SportRecords } from '../components/SportRecords'
 import { recordRow } from '../recordRow'
 import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
-import { FLAT_PACE_NOTE } from '../grades'
+import { SPORT_NOTE } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { hrefFor } from '../route'
@@ -125,7 +125,7 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
                 }),
               )}
             />
-            {sport === 'run' && <p className="muted">{FLAT_PACE_NOTE}</p>}
+            {SPORT_NOTE[sport] && <p className="muted">{SPORT_NOTE[sport]}</p>}
           </details>
         )}
       </>

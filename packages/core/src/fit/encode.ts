@@ -37,7 +37,7 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
   const { n } = activity
   const startFit = Math.floor(activity.startMs / 1000) - FIT_EPOCH_OFFSET_S
   const endFit = startFit + n
-  const sport = activity.sport === 'run' ? SPORT.running : SPORT.cycling
+  const sport = { run: SPORT.running, ride: SPORT.cycling }[activity.sport]
   const totalDistance = n > 0 ? (sample(activity.distance, n - 1) ?? 0) : 0
   const totalMs = n * 1000
 

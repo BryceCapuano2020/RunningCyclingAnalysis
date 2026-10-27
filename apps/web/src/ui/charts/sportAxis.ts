@@ -1,13 +1,8 @@
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import {
-  PACE_UNIT,
-  formatClock,
-  formatPace,
-  formatPower,
-  groupThousands,
-  paceSeconds,
-} from '@rca/core/units'
+import { formatClock, groupThousands } from '@rca/core/units'
+import { PER } from '../format/units'
+import { SPORT_FORMAT } from '../sports'
 import type { AxisTick, PlotBox } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import type { Scale } from './scale'
@@ -28,27 +23,27 @@ export function usable(value: number): number {
  * number, and watts for cycling. Running values are speeds in m/s.
  */
 export function plottedValue(sport: Sport, value: number, units: UnitSystem): number {
-  return sport === 'run' ? paceSeconds(value, units) : value
+  return SPORT_FORMAT[sport].plotted(value, units)
 }
 
 /** A sport's own number as text: the pace with its unit, or the power in watts. */
 export function formatNative(sport: Sport, value: number, units: UnitSystem): string {
-  return sport === 'run' ? formatPace(value, units) : formatPower(value)
+  return SPORT_FORMAT[sport].formatted(value, units)
 }
 
 /** What a sport's own number is called, in table headings, tooltips and legends. */
 export function nativeLabel(sport: Sport): string {
-  return sport === 'run' ? 'Flat pace' : 'Power'
+  return SPORT_FORMAT[sport].nativeLabel
 }
 
 /** The vertical axis's title. Pace says which way is faster, since its axis runs the other way. */
 export function axisTitle(sport: Sport, units: UnitSystem): string {
-  return sport === 'run' ? `Flat pace (${PACE_UNIT[units]}), faster up` : 'Power (W)'
+  return SPORT_FORMAT[sport].axisTitle(units)
 }
 
 /** The pace unit spelt out, for a chart's name: "per kilometre" or "per mile". */
 export function paceUnitName(units: UnitSystem): string {
-  return units === 'imperial' ? 'per mile' : 'per kilometre'
+  return PER[units]
 }
 
 /**
@@ -57,7 +52,7 @@ export function paceUnitName(units: UnitSystem): string {
  * show the axis rather than the effort. Pace charts draw the line alone.
  */
 export function fillsArea(sport: Sport): boolean {
-  return sport === 'ride'
+  return SPORT_FORMAT[sport].fillsArea
 }
 
 /** A pace axis spans at least this many seconds, so a narrow range is not cut into a wall of ticks. */

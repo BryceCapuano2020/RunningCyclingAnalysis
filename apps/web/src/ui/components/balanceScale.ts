@@ -1,5 +1,6 @@
 import type { Interval } from '@rca/core/types'
-import { leanOfLead, type BalanceGap, type Lead, type Lean } from '../balanceGap'
+import { leanOfLead, type Lead, type Lean } from '../../domain/lean'
+import type { BalanceGap } from '../balanceGap'
 import { SPORT_ORDER } from '../sports'
 import type { HeadlinePick } from './pickHeadline'
 

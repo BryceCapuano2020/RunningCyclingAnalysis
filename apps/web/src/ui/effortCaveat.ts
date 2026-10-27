@@ -41,10 +41,14 @@ const REFERENCE_SOURCE = 'set from your highest heart rates on file'
 
 /** A best effort's heart rate as a share of its sport's reference, in words, without its ending. */
 function reachedText(sport: Sport, duration: string, fraction: number): string {
-  const share = percentOf(fraction)
-  return sport === 'run'
-    ? `Your best ${duration} running reached ${share}% of your running reference heart rate (${REFERENCE_SOURCE})`
-    : `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate (${REFERENCE_SOURCE})`
+  return REACHED[sport](duration, percentOf(fraction))
+}
+
+const REACHED: Record<Sport, (duration: string, share: number) => string> = {
+  run: (duration, share) =>
+    `Your best ${duration} running reached ${share}% of your running reference heart rate (${REFERENCE_SOURCE})`,
+  ride: (duration, share) =>
+    `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate (${REFERENCE_SOURCE})`,
 }
 
 /** Why the best efforts may not have been the hardest, or null when heart rate does not say so. */
@@ -89,7 +93,7 @@ export function effortShareLine(
   effort: EffortCheck | null | undefined,
 ): string | null {
   if (!effort) return null
-  const fraction = sport === 'run' ? effort.runHrFraction : effort.rideHrFraction
+  const fraction = { run: effort.runHrFraction, ride: effort.rideHrFraction }[sport]
   if (fraction === null) return null
   const verdict = isHard(fraction) ? VERDICT.hard : VERDICT.notHardest
   return `${reachedText(sport, HEADLINE_LABEL, fraction)}, ${verdict}.`

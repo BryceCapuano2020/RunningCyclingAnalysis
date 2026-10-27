@@ -75,6 +75,12 @@
   --tracking-caps: 0.08em;
   /* The narrowest column a landing card or example is laid out at, before it wraps. */
   --column-landing: 360px;
+  /* The narrowest column each other responsive grid wraps at, named by what it holds. */
+  --column-steps: 240px;
+  --column-balance: 340px;
+  --column-example: 12rem;
+  --column-stat: 9rem;
+  --column-export: 8.5rem;
   --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;

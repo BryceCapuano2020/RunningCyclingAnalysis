@@ -12,7 +12,7 @@
 .export-guides__tiles {
   display: grid;
   gap: var(--space-2);
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--column-export)), 1fr));
 }
 
 .export-guides__tile {

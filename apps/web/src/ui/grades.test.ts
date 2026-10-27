@@ -17,7 +17,7 @@ import {
   NO_DATE_TEXT,
   NO_STANDARD_TEXT,
   SEX_NOUN,
-  athleteOf,
+  ageAndSexAt,
   distanceGrade,
   gapRecordText,
   gradeParts,
@@ -43,19 +43,19 @@ function gradeOf(outcome: GradeOutcome): SportGrade {
   return outcome.grade
 }
 
-describe('athleteOf', () => {
+describe('ageAndSexAt', () => {
   it('reads the age on the date from the year of birth, with the sex', () => {
-    expect(athleteOf(MAN_BORN_1986, IN_2026)).toEqual({ age: 40, sex: 'male' })
+    expect(ageAndSexAt(MAN_BORN_1986, IN_2026)).toEqual({ age: 40, sex: 'male' })
   })
 
   it('is null outside the ages the standards cover, 5 to 100', () => {
-    expect(athleteOf({ birthYear: 2023, sex: 'male' }, IN_2026)).toBeNull()
-    expect(athleteOf({ birthYear: 2021, sex: 'male' }, IN_2026)).toEqual({ age: 5, sex: 'male' })
-    expect(athleteOf({ birthYear: 1926, sex: 'female' }, IN_2026)).toEqual({
+    expect(ageAndSexAt({ birthYear: 2023, sex: 'male' }, IN_2026)).toBeNull()
+    expect(ageAndSexAt({ birthYear: 2021, sex: 'male' }, IN_2026)).toEqual({ age: 5, sex: 'male' })
+    expect(ageAndSexAt({ birthYear: 1926, sex: 'female' }, IN_2026)).toEqual({
       age: 100,
       sex: 'female',
     })
-    expect(athleteOf({ birthYear: 1925, sex: 'female' }, IN_2026)).toBeNull()
+    expect(ageAndSexAt({ birthYear: 1925, sex: 'female' }, IN_2026)).toBeNull()
   })
 })
 

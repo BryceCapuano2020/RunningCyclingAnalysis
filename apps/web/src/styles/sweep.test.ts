@@ -39,6 +39,12 @@ const NEAR_DUPLICATE_SIZE = /font-size:\s*(0\.8rem|0\.8125rem|0\.85rem|13px)\b/
 /** The 17 px size the 18 px lead size replaced. It is no token, so the token sweep cannot see it. */
 const RETIRED_SIZE_REM = 1.0625
 
+/**
+ * A minmax() minimum written as a length, with or without the 100% cap. Its number is the first
+ * capture; zero is no column width, so a minimum of 0 is left alone.
+ */
+const MINMAX_LENGTH = /minmax\(\s*(?:min\(\s*100%\s*,\s*)?([\d.]+)(?:px|rem|em|ch)?\s*[,)]/g
+
 /** Each literal font size in a stylesheet, as its declared value. */
 function literalSizesOf(css: string): string[] {
   return rulesOf(css).flatMap(([, body]) =>
@@ -90,6 +96,15 @@ describe('every stylesheet in the app', () => {
       literalSizesOf(css)
         .filter((value) => remOf(value) === RETIRED_SIZE_REM)
         .map((value) => `${path}: font-size: ${value}`),
+    )
+    expect(offenders).toEqual([])
+  })
+
+  it('writes no column minimum as a literal length, so each responsive grid names a column token', () => {
+    const offenders = sheets.flatMap(({ path, css }) =>
+      [...css.matchAll(MINMAX_LENGTH)]
+        .filter(([, amount = '']) => Number(amount) !== 0)
+        .map(([call]) => `${path}: ${call}`),
     )
     expect(offenders).toEqual([])
   })
