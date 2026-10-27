@@ -378,7 +378,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(/cross-check of the age-grade gap/)
     expect(
       within(section).getByText(
-        'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio.',
+        'When Balance has no age-grade gap to show, it shows the energy ratio instead: running’s energy rate as a percentage of cycling’s. This view is that ratio.',
       ),
     ).toBeInTheDocument()
   })
@@ -587,7 +587,7 @@ describe('MethodPage heart-rate check', () => {
     renderPage()
 
     const section = screen.getByRole('region', { name: 'Heart-rate check' })
-    const heading = within(section).getByRole('heading', { level: 3, name: 'The 20 minute effort' })
+    const heading = within(section).getByRole('heading', { level: 3, name: 'The 20 min effort' })
     expect(heading).toHaveAttribute('id', TWENTY_MINUTE_ID)
     expect(
       within(section).getByText(/^Balance uses your best 20 min in each sport\./),
@@ -953,7 +953,7 @@ describe('MethodPage without a result', () => {
     expect(energy).toHaveTextContent(
       'Once your files are loaded, this view puts running and cycling on one scale',
     )
-    expect(energy).not.toHaveTextContent('this view is that ratio')
+    expect(energy).not.toHaveTextContent('This view is that ratio')
     const lines = within(screen.getByRole('list', { name: 'The short answer' })).getAllByRole(
       'listitem',
     )

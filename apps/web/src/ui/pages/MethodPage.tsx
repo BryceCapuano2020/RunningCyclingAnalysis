@@ -63,7 +63,7 @@ const NO_FILES_ENERGY =
 const ENERGY_CROSS_CHECK =
   'The energy view is a cross-check of the age-grade gap on Balance. Near even, the energy check can lean the other way from the age-grade gap.'
 const ENERGY_FALLBACK =
-  'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio.'
+  'When Balance has no age-grade gap to show, it shows the energy ratio instead: running’s energy rate as a percentage of cycling’s. This view is that ratio.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
@@ -328,19 +328,17 @@ export function MethodPage({
           Heart-rate check
         </h2>
         <TopicBody id="heart" />
-        {(reference !== null || hardEfforts) && (
-          <ul className="method__facts">
-            {reference && <li>{referenceDefinition()}</li>}
-            {reference && <li>{reference}</li>}
-            {hardEfforts && (
-              <li>
-                Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
-                sport&rsquo;s reference heart rate. That makes them hard, but does not prove either
-                was your hardest.
-              </li>
-            )}
-          </ul>
-        )}
+        <ul className="method__facts">
+          <li>{referenceDefinition()}</li>
+          {reference && <li>{reference}</li>}
+          {hardEfforts && (
+            <li>
+              Both best efforts reached at least {formatPercent(ALL_OUT_FRACTION)} of each
+              sport&rsquo;s reference heart rate. That makes them hard, but does not prove either
+              was your hardest.
+            </li>
+          )}
+        </ul>
         <TwentyMinuteEffort />
         {hasResult && (
           <>

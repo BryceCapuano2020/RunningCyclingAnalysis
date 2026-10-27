@@ -11,7 +11,7 @@ export function TwentyMinuteEffort() {
   return (
     <>
       <h3 id={TWENTY_MINUTE_ID} tabIndex={-1}>
-        The 20 minute effort
+        The 20 min effort
       </h3>
       <p className="secondary">
         {`Balance uses your best ${HEADLINE_LABEL} in each sport. The heart-rate check judges that effort against your reference heart rate, and says whether it was hard. A steady ${HEADLINE_LABEL} run or ridden hard, with heart rate on, is what narrows the check.`}

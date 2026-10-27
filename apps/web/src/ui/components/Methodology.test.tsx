@@ -124,7 +124,7 @@ describe('Methodology', () => {
     expect(detail).toHaveTextContent('period’s one bike model')
     expect(detail).not.toHaveTextContent('running economy')
     expect(plainOf('Best 20 min, week by week')).toHaveTextContent(
-      'Running is shown as flat pace, and cycling as power in watts.',
+      'Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.',
     )
   })
 

@@ -56,8 +56,8 @@
 
 /*
  * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the answer and its meter sit
- * closer, and the answer's own gaps tighten too, so the meter's scale is above the section tabs at 320 x 568,
- * and its key is above them at 320 x 640. A short desktop window keeps the tall gaps: the query asks for a
+ * closer, and the answer's own gaps tighten too, so the meter, key included, is above the section tabs at 320 x 568
+ * and 320 x 640 (the sample notice tightens too, in AppNotices.css). A short desktop window keeps the tall gaps: the query asks for a
  * finger or a phone-width window.
  */
 @media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {

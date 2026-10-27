@@ -104,7 +104,7 @@ export function EvidenceCard({ effort, noHeartRate }: EvidenceCardProps) {
         <p className="muted">
           <span>{howTo}</span>{' '}
           <MethodSectionLink sectionId={TWENTY_MINUTE_ID}>
-            How the 20 minute effort is checked
+            How the 20 min effort is checked
           </MethodSectionLink>
         </p>
       )}

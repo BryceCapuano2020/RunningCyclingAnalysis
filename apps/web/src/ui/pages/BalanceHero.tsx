@@ -123,8 +123,8 @@ function missingText(
 }
 
 /**
- * The answer: which way your balance leans, and the gap as a meter. The text is capped to a reading
- * measure; the meter is a sibling, so it spans the width of the card row beneath it.
+ * The answer: which way your balance leans, and the gap as a meter. The lede is capped to a reading
+ * measure and the headline runs the hero's width; the meter is a sibling, so it spans the width of the card row beneath it.
  */
 export function BalanceHero({
   result,

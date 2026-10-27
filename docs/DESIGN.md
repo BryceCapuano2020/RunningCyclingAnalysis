@@ -615,7 +615,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Every number names its source**: the activity that set it, with a link to that activity.
 - **Evidence gaps say what to do, on the card itself**: one plain paragraph under the gap, saying how to
   record a hard, steady 20-minute effort with heart rate on, or how to add heart rate to a file. Its
-  link is "How sure is this?", to the method page, which explains the check. Good news has no how-to.
+  links are "How sure is this?", to the method page, and, on the gap card, "How the 20 min effort is
+  checked", to that section of it. Good news has no how-to.
 - **Export guides cite their sources.** Each guide's steps name only what the sources cited beside
   them in `apps/web/src/ui/exportGuides.ts` support. The source line says where the steps came from,
   decided by the guide's `verified` flag, so a guide never claims a help page it did not read. Guides

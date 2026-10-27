@@ -224,7 +224,7 @@ describe('EvidenceCard links the gap to the 20 minute effort', () => {
 
     const card = screen.getByRole('region', { name: 'Your ride number could be higher' })
     expect(
-      within(card).getByRole('link', { name: 'How the 20 minute effort is checked' }),
+      within(card).getByRole('link', { name: 'How the 20 min effort is checked' }),
     ).toHaveAttribute('href', '#/method')
   })
 
@@ -232,7 +232,7 @@ describe('EvidenceCard links the gap to the 20 minute effort', () => {
     renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
 
     const card = screen.getByRole('region', { name: 'Your ride number could be higher' })
-    fireEvent.click(within(card).getByRole('link', { name: 'How the 20 minute effort is checked' }))
+    fireEvent.click(within(card).getByRole('link', { name: 'How the 20 min effort is checked' }))
     expect(requestedMethodSection()).toBe(TWENTY_MINUTE_ID)
     clearRequestedMethodSection()
   })

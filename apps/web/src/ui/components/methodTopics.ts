@@ -73,7 +73,7 @@ const TOPIC_LIST = [
     id: 'trend',
     title: `Best ${HEADLINE_LABEL}, week by week`,
     plain: [
-      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${HEADLINE_LABEL}. Running is shown as flat pace, and cycling as power in watts.`,
+      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${HEADLINE_LABEL}. Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.`,
       `Each point looks back over a window that ends that Sunday. Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days, so ${WINDOW_EXAMPLES}. All time uses ${DEFAULT_WINDOW_DAYS} days. Each window lies inside the period you chose.`,
       'A gap means no run or ride of that length fell inside the window.',
     ],
