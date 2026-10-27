@@ -59,18 +59,18 @@
 
       <h2>Without an account</h2>
       <ul>
-        <li>Files are analysed in your browser and not uploaded.</li>
         <li>
           Each activity's summary is kept in this browser's IndexedDB where the browser allows, so
-          results survive a reload. It holds the figures shown: times, splits per km and mile
-          (flat-pace times, climb and heart rate), moving time, distances, heart-rate and power,
-          average power, best efforts, climbs, power-meter calibration sums, the indoor flag and
-          data-quality flags, and the file name. Its name comes from the activity list in a Strava
-          export, else the title in the file, else the start time and sport. For an outdoor activity
-          with GPS it also holds an outline of the route with no coordinates or scale. The outline
-          is kept only in this browser and is never uploaded. The summary has no GPS coordinates,
-          per-second data or original file, and it does not expire. When one file holds more than
-          one activity, each of its summaries keeps a SHA-256 hash of that file, so they are shown
+          results survive a reload, and anyone using this browser can see them. It holds the figures
+          shown: times, distances, elevation gain, the power source (measured, estimated or none),
+          splits per km and mile (flat-pace times, climb and heart rate), moving time, heart-rate
+          and power, average power, best efforts, climbs, power-meter calibration sums, the indoor
+          flag and data-quality flags, and the file name. Its name comes from the activity list in a
+          Strava export, else the title in the file, else the start time and sport. For an outdoor
+          activity with GPS it also holds an outline of the route with no coordinates or scale. The
+          outline is kept only in this browser and is never uploaded. The summary has no per-second
+          data or original file, and it does not expire. When one file yields several summaries,
+          including a split activity, each keeps a SHA-256 hash of that file, so they are shown
           together.
         </li>
         <li>
@@ -113,12 +113,10 @@
           original files, and year of birth and sex if given.
         </li>
         <li>
-          <strong>Activity summaries:</strong> name (from the activity list in a Strava export, the
-          title in the file, or the start time and sport), sport, start and save times; file name
-          and SHA-256 hash; distance, duration and elevation gain; and the analysis summary: times,
-          splits per km and mile (flat-pace times, climb and heart rate), moving time, distances,
-          heart-rate and power, average power, best efforts, climbs, power-meter calibration sums,
-          the indoor flag and data-quality flags. No per-second recording or route data.
+          <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,
+          start and save times; file name and SHA-256 hash; distance, duration and elevation gain;
+          and the analysis summary, the same figures as the summary kept in this browser. No
+          per-second recording or route data.
         </li>
         <li>
           <strong>Original files:</strong> only while
@@ -128,7 +126,13 @@
         </li>
         <li>
           <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile
-          changes and library reads, kept for seven days.
+          changes and library reads, kept about a week, up to eight UTC days.
+        </li>
+        <li>
+          <strong>Bookkeeping:</strong> activity IDs, a key from each activity's sport and start,
+          digest versions, your activity count and digest bytes, the library page cursor, whether
+          and when deletion started, when your profile last changed, and an upload reservation token
+          while a file uploads.
         </li>
       </ul>
       <p>
@@ -141,25 +145,28 @@
         Accounts, sessions, settings, summaries, daily counts and the size of each kept original are
         in a Cloudflare D1 database, with short-lived rows for uploads in progress and for account
         deletions not yet finished. Original files are in a private Cloudflare R2 bucket, under keys
-        that include your account and activity IDs. Summaries kept without an account stay in your
-        browser, where it allows. Cloudflare hosts and processes this data as our provider, and
-        Google processes sign-in. We do not sell your data.
+        that include your account and activity IDs. Cloudflare hosts and processes this data as our
+        provider, and Google processes sign-in.
       </p>
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,
         its ID. They never hold request bodies, files, tokens or query strings. Cloudflare's request
         logs may include each request's network address, approximate location and browser user
         agent, and request URLs with the one-time Google sign-in code, which cannot be reused. The
-        address is used only as a rate-limit key. Request and error logs are kept three days.
+        address is used only as a rate-limit key. Request and error logs are kept three days on
+        Cloudflare's Free plan; retention depends on the plan.
       </p>
       <p>
         Cookies are strictly necessary only: the sign-in cookie, and two cookies that last ten
         minutes and protect the Google sign-in. There are no tracking or advertising cookies.
       </p>
       <p>
-        If backups are turned on, encrypted copies of the database are stored on GitHub, kept up to
-        90 days, then deleted. A backup also lists original-file objects, with keys and sizes, but
-        not the files. Deleted data can remain in backups until they expire.
+        If backups are run, each is an encrypted archive of the database: account identifiers, email
+        addresses, session hashes and activity summaries, plus a list of original-file keys and
+        sizes, but not the files. It is a downloadable artifact of the public GitHub repository, so
+        anyone who can read the repository can download it. Age encryption is its only protection,
+        and the private key is kept outside GitHub. Each archive is kept up to 90 days, then
+        deleted, and deleted data can remain in backups until then.
       </p>
 
       <h2>How to delete your data</h2>
@@ -172,7 +179,7 @@
         <li>
           Delete one activity from <strong>Saved library</strong>, or from
           <strong>Kept in this browser</strong> when signed out. This removes its summary and any
-          original file.
+          original file at once, or in the next daily cleanup if deleting the file fails.
         </li>
         <li>
           Choose <strong>Remove all my activities</strong> when signed out to remove every summary

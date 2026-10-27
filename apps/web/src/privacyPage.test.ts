@@ -44,6 +44,17 @@ const contractDigest = await readStylesheet(
 const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
 const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
 const productionNotes = await readStylesheet(import.meta.url, '../../../docs/PRODUCTION.md')
+const wrangler = await readStylesheet(import.meta.url, '../../api/wrangler.toml')
+const importPipeline = await readStylesheet(
+  import.meta.url,
+  '../../../packages/core/src/import/pipeline.ts',
+)
+const privacyNoteSource = await readStylesheet(import.meta.url, './ui/components/PrivacyNote.tsx')
+const removeRoute = await readStylesheet(
+  import.meta.url,
+  '../../api/src/routes/activities/remove.ts',
+)
+const maintenance = await readStylesheet(import.meta.url, '../../api/src/maintenance.ts')
 const readme = await readStylesheet(import.meta.url, '../../../README.md')
 const deployGuide = await readStylesheet(import.meta.url, '../../../docs/DEPLOY.md')
 const accountsSource = await readStylesheet(import.meta.url, '../../api/src/auth/accounts.ts')
@@ -169,13 +180,56 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/drawn from your original only when you ask for it/)
   })
 
-  it('lists the same analysis figures for a summary kept in this browser and one in the library', () => {
+  it('lists the figures once, for a summary kept in this browser, and the library refers to them', () => {
     const kept = sentenceWith('It holds the figures shown')
     const saved = sentenceWith('the analysis summary')
-    for (const figure of ANALYSIS_FIGURES) {
+    for (const figure of [
+      ...ANALYSIS_FIGURES,
+      'elevation gain',
+      'the power source (measured, estimated or none)',
+    ]) {
       expect(kept).toContain(figure)
-      expect(saved).toContain(figure)
     }
+    expect(saved).toContain('the same figures as the summary kept in this browser')
+    expect(saved).not.toContain('flat-pace times')
+  })
+
+  it('says the summary has no per-second data, and leaves coordinates to the route sentence', () => {
+    expect(text).toContain('The summary has no per-second data or original file')
+    expect(text).not.toContain('no GPS coordinates')
+  })
+
+  it('says a summary keeps a SHA-256 hash of its file only when the file yields several summaries', () => {
+    expect(text).toContain(
+      'When one file yields several summaries, including a split activity, each keeps a SHA-256 hash of that file, so they are shown together.',
+    )
+    expect(importPipeline).toContain('(multi || parts > 1) && context.sessionKey !== undefined')
+  })
+
+  it('says anyone using a browser can see the summaries kept in it, as the note says', () => {
+    expect(text).toContain('anyone using this browser can see them')
+    expect(privacyNoteSource).toContain('anyone using it can see them')
+  })
+
+  it('lists the account bookkeeping the server keeps beside the summaries', () => {
+    expect(text).toContain('Bookkeeping:')
+    expect(text).toContain('an upload reservation token while a file uploads')
+    expect(apiSchema).toMatch(/activityCount: integer\('activity_count'\)/)
+    expect(apiSchema).toMatch(/digestBytes: integer\('digest_bytes'\)/)
+    expect(apiSchema).toMatch(/listCursor: text\('list_cursor'\)/)
+    expect(apiSchema).toMatch(/deletingAt: integer\('deleting_at'\)/)
+    expect(apiSchema).toMatch(/fileReservationToken: text\('file_reservation_token'\)/)
+    expect(apiSchema).toMatch(/dedupeKey: text\('dedupe_key'\)/)
+    expect(apiSchema).toMatch(/digestVersion: integer\('digest_version'\)/)
+    expect(apiSchema).toMatch(/updatedAt: integer\('updated_at'\)\.notNull\(\)/)
+  })
+
+  it('says deleting an activity removes its original at once, or in the next daily cleanup if that fails', () => {
+    expect(removeRoute).toContain('c.env.FILES.delete([...keys])')
+    expect(maintenance).toMatch(/sweepOrphanObjects\(bound, deps\)/)
+    expect(text).toContain(
+      'This removes its summary and any original file at once, or in the next daily cleanup if deleting the file fails.',
+    )
   })
 
   it('keeps each figure it lists in the digest the server stores', () => {
@@ -220,7 +274,7 @@ describe('privacy page describes what is stored as the app stores it', () => {
 
   it('says what is counted each day, and that the counts are kept seven days', () => {
     expect(text).toMatch(/downloads, saves, deletions, uploads, profile changes and library reads/)
-    expect(text).toMatch(/kept for seven days/)
+    expect(text).toMatch(/kept about a week, up to eight UTC days/)
   })
 
   it('says when an account was created and when an activity was saved', () => {
@@ -240,10 +294,22 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toContain('keys that include your account and activity IDs')
   })
 
-  it('says backups are on GitHub only when they are turned on', () => {
-    expect(text).toMatch(
-      /If backups are turned on, encrypted copies of the database are stored on GitHub/,
+  it('says what a backup holds, where it is stored, and that age is its only protection', () => {
+    expect(text).toMatch(/If backups are run, each is an encrypted archive of the database/)
+    expect(text).toContain(
+      'account identifiers, email addresses, session hashes and activity summaries',
     )
+    expect(text).toContain('a list of original-file keys and sizes, but not the files')
+    expect(text).toContain(
+      'a downloadable artifact of the public GitHub repository, so anyone who can read the repository can download it',
+    )
+    expect(text).toContain(
+      'Age encryption is its only protection, and the private key is kept outside GitHub',
+    )
+    expect(text).not.toContain('turned on')
+    expect(backupWorkflow).toContain('workflow_dispatch:')
+    expect(backupWorkflow).toContain('age -R ops/backup-recipient.txt')
+    expect(backupWorkflow).toContain('actions/upload-artifact')
   })
 
   it('says data is kept until deleted, and that expired sessions are removed in daily cleanup', () => {
@@ -278,11 +344,13 @@ describe('privacy page states the limits the code sets', () => {
   it('logs are kept three days, as the operations notes say', () => {
     expect(apiLimits).toMatch(/3-day retention/)
     expect(text).toMatch(/three days/)
+    expect(text).toContain("Request and error logs are kept three days on Cloudflare's Free plan")
+    expect(wrangler).toMatch(/3 days on the Free plan/)
   })
 
   it('backups are kept 90 days, as the backup workflow says', () => {
     expect(backupWorkflow).toMatch(/retention-days: 90/)
-    expect(sentenceWith('If backups are turned on')).toMatch(/90 days/)
+    expect(text).toContain('Each archive is kept up to 90 days, then deleted')
   })
 })
 
@@ -401,11 +469,10 @@ describe('privacy page says where activity names come from', () => {
     expect(sentence).toMatch(/start time and sport/)
   })
 
-  it('says so in the account list of activity summaries', () => {
+  it('says the account list names an activity as the summary kept in this browser does', () => {
     const sentence = sentenceWith('Activity summaries')
-    expect(sentence).toMatch(/activity list in a Strava export/)
-    expect(sentence).toMatch(/title in the file/)
-    expect(sentence).toMatch(/start time and sport/)
+    expect(sentence).toContain('name (as in the summary kept in this browser)')
+    expect(sentence).not.toMatch(/activity list in a Strava export/)
   })
 
   it('names the list and its column as the importer reads them', () => {
@@ -444,10 +511,13 @@ describe('privacy page layout and copy', () => {
     expect(page).toContain('<title>Privacy policy · RunningCyclingAnalysis</title>')
   })
 
-  it('says summaries kept without an account stay in the browser, where it allows', () => {
-    expect(text).toContain(
-      'Summaries kept without an account stay in your browser, where it allows.',
-    )
+  it('says the browser-kept summaries are stated once, in the signed-out list', () => {
+    expect(text).not.toContain('Summaries kept without an account stay in your browser')
+    expect(text.match(/where the browser allows/g)).toHaveLength(1)
+  })
+
+  it('says we do not sell data once, on the lede', () => {
+    expect(text.match(/We do not sell your data/g)).toHaveLength(1)
   })
 
   it('says summaries are kept in this browser where the browser allows', () => {
