@@ -1,6 +1,5 @@
 import type { RouteShape } from './route/routeShape'
 import type { SyncIssueCode } from './saveFailure'
-import type { RejectedFile } from './sessionState'
 import type { ActivityDigest } from './types'
 
 /** What the sink receives for each newly digested activity. */
@@ -21,13 +20,9 @@ export type SyncSink = (item: SyncItem) => Promise<void>
 /** An activity file as the sink receives it. */
 export type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
 
-/**
- * State shared by the activities of one import: the first failure that stops saving, and the copies
- * skipped because a better format of the same workout is already held.
- */
+/** State shared by the files of one import: the first failure that stops saving, and what it added. */
 export interface SaveBatch {
   halt: SyncIssueCode | null
-  duplicates: RejectedFile[]
   /** The digests this import added to the library, by key. A replacement updates its entry. */
   added: Map<string, ActivityDigest>
 }

@@ -197,7 +197,7 @@ function openActivity(sportName: string | undefined, listed: string | undefined)
   const sport = sportOf(sportName)
   const unsaid = sport === null && (sportName === undefined || sportName === 'Other')
   if (listed !== undefined && (unsaid || isEBikeType(listed))) {
-    return { ...sportOfType(listed, undefined), points: [] }
+    return { ...sportOfType(undefined, undefined, listed), points: [] }
   }
   return { sport, indoor: false, sportLabel: sportName ?? 'unknown', points: [] }
 }
@@ -226,13 +226,14 @@ function pointOf(raw: RawTrackpoint): Point | undefined {
 
 /** Maps one Activity to the shared pipeline's input. */
 function unitOf(activity: OpenActivity): PipelineUnit {
-  const { sport, sportLabel, refusal } = activity
+  const { sport, sportLabel, fromList, refusal } = activity
   if (sport === null) {
     return {
       records: [],
       timerEvents: [],
       sport,
       sportLabel,
+      sportFromList: fromList,
       refusal,
       indoor: false,
       hasPosition: false,

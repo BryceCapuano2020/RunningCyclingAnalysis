@@ -110,8 +110,8 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
   const { runs = 0, rides = 0, firstStartMs, lastStartMs } = summary
   if (runs + rides === 0 || firstStartMs === undefined || lastStartMs === undefined) return null
   const counts = [
-    runs > 0 ? countText(runs, 'run') : '',
-    rides > 0 ? countText(rides, 'ride') : '',
+    runs > 0 ? plural(runs, 'run') : '',
+    rides > 0 ? plural(rides, 'ride') : '',
   ].filter((text) => text !== '')
   // The year is shown on both ends when they fall in different years, or when either is not this year.
   const firstYear = new Date(firstStartMs).getFullYear()
@@ -128,30 +128,13 @@ export function importSentence(summary: ImportCounts, nowMs = Date.now()): strin
   return addedSentence(summary, nowMs) ?? notAddedSentence(summary.activities)
 }
 
-/** The files an import skipped: those it could not use, and the copies of workouts it left out. */
-export function skippedCount(outcome: {
-  rejected: number
-  duplicates?: readonly unknown[]
-}): number {
-  return outcome.rejected + (outcome.duplicates?.length ?? 0)
-}
-
-export function skippedSentence(count: number): string {
-  return `${plural(count, 'file')} skipped.`
-}
-
 /**
  * The line for an import that added no runs or rides, so every import says what it did. What it read
  * was already in the library, or it read nothing.
  */
 export function notAddedSentence(activities: number): string {
   if (activities === 0) return 'No activities were analysed.'
-  return `Nothing new: ${formatCount(activities)} ${activities === 1 ? 'activity' : 'activities'} already in your library.`
-}
-
-/** "412 runs" or "1 ride", with thousands separated. */
-function countText(count: number, singular: string): string {
-  return `${formatCount(count)} ${count === 1 ? singular : `${singular}s`}`
+  return `Nothing new: ${plural(activities, 'activity', 'activities')} already in your library.`
 }
 
 export function deleteFailureText(message: ErrorReply): string {

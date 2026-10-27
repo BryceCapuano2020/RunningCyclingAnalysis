@@ -4,12 +4,12 @@ import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import type { ExtractLimits } from './fit'
 import { countImportFiles } from './import/activitiesCsv'
-import type { ImportProgress } from './sessionSource'
-import { importSource } from './sessionSource'
+import type { Considered, ImportProgress, ReadFile, Refused } from './sessionSource'
+import { importSource, sortRead } from './sessionSource'
 import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
-import { dedupeKey, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
+import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
@@ -18,7 +18,6 @@ import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import type { Rejection } from './import/result'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
 
@@ -46,9 +45,10 @@ export class AnalysisSession {
   private latestUnsynced = new Set<string>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
-  // Keyed by file name so importing the same export twice does not double-count.
-  private rejected = new Map<string, Rejection>()
-  private unsupported = new Map<string, number>()
+  // The files the last import refused, each listed as it was refused, and how many it left unread
+  // for being in a format the app does not read. Both are replaced by the next import.
+  private rejected: Refused[] = []
+  private unsupported = { files: 0 }
   private isSample = false
   // The period the athlete picked. The default is the most recent window that holds both sports.
   private choice: PeriodChoice = 'default'
@@ -89,7 +89,10 @@ export class AnalysisSession {
     sink?: SyncSink,
     syncExisting = false,
     onComplete?: (outcome: {
+      /** The activities read, which a file may hold several of. */
       activities: number
+      /** The files that added a workout the library now holds and shows: not refused, and not all already held or hidden as copies. */
+      filesAdded: number
       rejected: number
       /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
       notActivities: number
@@ -99,18 +102,21 @@ export class AnalysisSession {
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     // The rejected files are those of this import, so an earlier import's are not listed again.
-    this.rejected.clear()
-    this.unsupported.clear()
+    this.rejected.length = 0
+    this.unsupported.files = 0
     this.latestUnsynced.clear()
-    const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
+    const batch: SaveBatch = { halt: null, added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
-    for (const source of sources) {
+    const read: ReadFile[] = []
+    for (const [index, source] of sources.entries()) {
       await importSource(source, {
         limits: this.limits,
         progress,
+        source: index,
         outcome,
-        rejected: this.rejected,
+        refused: this.rejected,
+        read,
         unsupported: this.unsupported,
         hashFiles: sink !== undefined,
         consider: (activity, file) => this.consider(activity, file, sink, syncExisting, batch),
@@ -119,7 +125,9 @@ export class AnalysisSession {
     // Only digests still visible count as added, so the order the files arrive in does not matter.
     const hidden = hiddenDigests([...this.digests.values()])
     const added = [...batch.added.values()].filter((digest) => !hidden.has(digest))
-    onComplete?.({ ...outcome, duplicates: batch.duplicates, added })
+    const visible = [...this.digests.values()].filter((digest) => !hidden.has(digest))
+    const files = sortRead(read, new Set(added), visible)
+    onComplete?.({ ...outcome, ...files, added })
     return this.state(settings)
   }
 
@@ -199,8 +207,10 @@ export class AnalysisSession {
 
   /**
    * Keeps one activity of an import, unless a richer copy of the same workout is already held. That
-   * copy is reported as a duplicate and is not synced. Equally rich copies are both saved, and the
-   * analysis hides one of them. A poorer copy is saved but hidden from the analysis.
+   * copy is not synced. Equally rich copies are both saved, and the analysis hides one of them. A
+   * poorer copy is saved but hidden from the analysis. Says what became of the activity: the digest
+   * it added, or the name of the held file when its workout was already in the library, whether this
+   * is a copy, the same file again or a richer copy that replaces the held one.
    */
   private async consider(
     activity: Activity,
@@ -208,14 +218,10 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
-  ): Promise<void> {
+  ): Promise<Considered> {
     const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
-    if (copyOf !== null) {
-      const reason = `Same workout as ${copyOf}`
-      batch.duplicates.push({ fileName: file.fileName, reason, code: 'duplicate', detail: copyOf })
-      return
-    }
-    await this.keep(activity, file, sink, syncExisting, batch)
+    if (copyOf !== null) return { held: copyOf }
+    return this.keep(activity, file, sink, syncExisting, batch)
   }
 
   /**
@@ -224,6 +230,8 @@ export class AnalysisSession {
    * to retain an original after that preference is enabled). A copy that outranks the held one for
    * the same start second replaces it. A sink failure is counted, not thrown.
    * After a failure that stops saving, the rest of the batch is digested but not sent to the sink.
+   * A held activity whose save failed is not yet in the library for good: it is added when this
+   * import saves it, and is otherwise still the held workout, however it came to be left unsaved.
    */
   private async keep(
     activity: Activity,
@@ -231,7 +239,7 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
-  ): Promise<void> {
+  ): Promise<Considered> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
     const replaces = held !== undefined && outranksHeld(activity, file.fileName, held)
@@ -240,19 +248,28 @@ export class AnalysisSession {
       !replaces &&
       (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
     )
-      return
+      return { held: fileNameOf(held.id) }
+    // A workout this import is adding, or has added: new to the library, or a later copy of one.
+    const adding = held === undefined || batch.added.has(key)
+    const retry = !adding && this.unsynced.has(key)
     const digest = held !== undefined && !replaces ? held : digestActivity(activity)
     this.digests.set(key, digest)
-    if (held === undefined || batch.added.has(key)) batch.added.set(key, digest)
+    if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    if (sink === undefined) return
+    const considered = (saved: boolean): Considered => {
+      if (retry && saved) batch.added.set(key, digest)
+      return adding || (retry && saved) || held === undefined
+        ? { added: digest }
+        : { held: fileNameOf(held.id) }
+    }
+    if (sink === undefined) return considered(false)
     if (batch.halt !== null) {
       // An activity already saved, offered again to keep its file, is not waiting for a save.
       if (held === undefined || replaces || this.unsynced.has(key)) {
         this.leaveUnsynced(key, batch.halt)
       }
-      return
+      return considered(false)
     }
     try {
       await sink({ digest, route: activity.route, ...file })
@@ -261,7 +278,9 @@ export class AnalysisSession {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.leaveUnsynced(key, code)
       if (stopsSaving(code)) batch.halt = code
+      return considered(false)
     }
+    return considered(true)
   }
 
   private leaveUnsynced(key: string, code: SyncIssueCode): void {
@@ -287,8 +306,8 @@ export class AnalysisSession {
     this.digests.clear()
     this.outdatedKeys.clear()
     this.incompatibleKeys.clear()
-    this.rejected.clear()
-    this.unsupported.clear()
+    this.rejected.length = 0
+    this.unsupported.files = 0
     this.isSample = false
   }
 
@@ -363,10 +382,8 @@ export class AnalysisSession {
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
           : null,
-      rejected: [...this.rejected].map(([fileName, rejection]) =>
-        Object.assign({ fileName }, rejection),
-      ),
-      unsupportedFiles: [...this.unsupported.values()].reduce((a, b) => a + b, 0),
+      rejected: this.rejected.map(({ file }) => file),
+      unsupportedFiles: this.unsupported.files,
       isSample: this.isSample,
       totalActivities: visible.length,
       outdatedActivities: this.outdatedKeys.size,

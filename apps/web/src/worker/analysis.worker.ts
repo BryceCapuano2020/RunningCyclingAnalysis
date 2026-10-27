@@ -54,7 +54,13 @@ async function addFiles(
 ): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
   const { sync } = request
   let stoppedBy: SyncIssueCode | null = null
-  let outcome: ImportOutcome = { activities: 0, rejected: 0, notActivities: 0, duplicates: [] }
+  let outcome: ImportOutcome = {
+    activities: 0,
+    filesAdded: 0,
+    rejected: 0,
+    notActivities: 0,
+    duplicates: [],
+  }
   // Read from the zips' directories before any entry is, so every progress message can show a total.
   // An export's saved routes are not activities, so they are not in it.
   const reporter = new ImportReporter(post, await session.countFiles(request.files), sync !== null)

@@ -1,6 +1,7 @@
 import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, encodeFit } from './fit'
+import { buildFit, secondly } from './fit/fitTestFiles'
 import { encodeGpx } from './gpx/encode'
 import { AnalysisSession } from './session'
 import type { RejectedFile } from './session'
@@ -10,6 +11,7 @@ import type { Activity, AthleteSettings } from './types'
 /** A Strava export zip read by the session: its activities.csv names the activities, and routes/ holds saved routes. */
 
 const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
+const MORNING_MS = Date.UTC(2024, 4, 1, 7, 30)
 const sample = sampleDataset().activities
 const run = sample.find((activity) => activity.sport === 'run')!
 const ride = sample.find((activity) => activity.sport === 'ride')!
@@ -145,6 +147,36 @@ describe('AnalysisSession reading a Strava export', () => {
     ).toEqual([
       { fileName: 'activities/2001.gpx', code: 'unsupported-sport', detail: 'Walk' },
       { fileName: 'activities/2002.gpx', code: 'e-bike', detail: undefined },
+    ])
+  })
+
+  it('marks a refused sport that the export list named, and not one a FIT file names itself', async () => {
+    const swim = buildFit({
+      sessions: [
+        {
+          sport: 'swimming',
+          startMs: MORNING_MS,
+          durationS: 120,
+          records: secondly(MORNING_MS, 120),
+        },
+      ],
+    })
+    const { state } = await importFiles([
+      zipFile({
+        'activities/2000.fit': swim,
+        'activities/2001.gpx': untypedGpx(run),
+        'activities.csv': list(
+          '2000,Pool,Swim,activities/2000.fit',
+          '2001,Paddle,Kayaking,activities/2001.gpx',
+        ),
+      }),
+    ])
+
+    expect(
+      state.rejected.map(({ fileName, detail, listed }) => ({ fileName, detail, listed })),
+    ).toEqual([
+      { fileName: 'activities/2000.fit', detail: 'swimming', listed: undefined },
+      { fileName: 'activities/2001.gpx', detail: 'Kayaking', listed: true },
     ])
   })
 })

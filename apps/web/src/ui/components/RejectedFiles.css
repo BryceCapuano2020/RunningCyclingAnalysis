@@ -1,18 +1,24 @@
-/* The skipped files of an import, inside its summary. Plain text, so it reads as information. */
+/* Where an import's files went, inside its summary. Plain text, so it reads as information. */
 .rejected-files {
   margin-top: var(--space-2);
   font-size: var(--text-sm);
 }
 
-.rejected-files details {
+.rejected-files > details {
   margin-top: var(--space-2);
 }
 
+/* Unlisted files alone leave nothing to open, so the headline is a line of text. */
+.rejected-files__tally {
+  margin: 0;
+  color: var(--text-primary);
+}
+
 /*
- * The triangle and the count share the first row. The grid replaces the base flex row, so the first
- * file's reason takes the row under the count.
+ * The triangle and the headline share the first row. The grid replaces the base flex row, so the first
+ * file's reason takes the row under the headline. The nested Show the files keeps the base row.
  */
-.rejected-files summary {
+.rejected-files > details > summary {
   cursor: pointer;
   color: var(--text-primary);
   display: grid;
@@ -20,7 +26,7 @@
   gap: 0 var(--space-2);
 }
 
-/* The first file's reason sits under the count line, inside the summary, so it shows in both states. */
+/* The first file's reason sits under the headline, inside the summary, so it shows in both states. */
 .rejected-files__first {
   grid-column: 2;
   margin: 0;
@@ -32,9 +38,22 @@
   margin-top: var(--space-3);
 }
 
-.rejected-files__title,
 .rejected-files__action {
   margin: 0;
+}
+
+/* A group's title is a heading, set back from the display type to bold, heavier than the text round it. */
+.rejected-files__title {
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* The other sports' files sit behind their own disclosure, under the line for each sport. */
+.rejected-files__files {
+  margin-top: var(--space-1);
 }
 
 .rejected-files__action {

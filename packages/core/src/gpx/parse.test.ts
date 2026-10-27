@@ -744,6 +744,54 @@ describe('parseGpx with the type an export list gives', () => {
   })
 })
 
+/** Whether a refusal's sport name is the one the export's list gives. */
+function listedOf(result: ParseResult): boolean | undefined {
+  if (result.ok) throw new Error('expected a failure')
+  return result.listed
+}
+
+describe('parseGpx: where a refused sport name came from', () => {
+  const options = (activityType?: string) => ({ activityType })
+
+  it('says the name is the list type when the track names no sport', () => {
+    const file = gpxFile(track(undefined, [points(120)]))
+    const result = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, options('Kayaking'))
+    expect(refusalOf(result)).toEqual({ code: 'unsupported-sport', detail: 'Kayaking' })
+    expect(listedOf(result)).toBe(true)
+  })
+
+  it('says it for a track that names its sport only by a number, and for an empty track', () => {
+    const numbered = gpxFile(track('4', [points(120)]))
+    const empty = gpxFile(track(undefined, [[]]))
+    const a = parseGpx(numbered, 'a.gpx', DEFAULT_PARSE_LIMITS, options('Rock Climbing'))
+    const b = parseGpx(empty, 'b.gpx', DEFAULT_PARSE_LIMITS, options('Yoga'))
+    expect([refusalOf(a).detail, listedOf(a)]).toEqual(['Rock Climbing', true])
+    expect([refusalOf(b).detail, listedOf(b)]).toEqual(['Yoga', true])
+  })
+
+  it('says it only for the name the list gave, not for a name the track gives or a bare number', () => {
+    const listed = parseGpx(
+      gpxFile(track(undefined, [points(120)])),
+      'a.gpx',
+      DEFAULT_PARSE_LIMITS,
+      options('Kayaking'),
+    )
+    const own = parseGpx(
+      gpxFile(track('kayaking', [points(120)])),
+      'b.gpx',
+      DEFAULT_PARSE_LIMITS,
+      options('Walk'),
+    )
+    const code = parseGpx(gpxFile(track('4', [points(120)])), 'c.gpx')
+    expect([listed, own, code].map(listedOf)).toEqual([true, undefined, undefined])
+    expect([listed, own, code].map((result) => refusalOf(result).detail)).toEqual([
+      'Kayaking',
+      'kayaking',
+      '4',
+    ])
+  })
+})
+
 describe('parseGpx with no points', () => {
   it('reports the sport of an empty track that is refused, not that it is empty', () => {
     const result = parseGpx(gpxFile(track('hiking', [[]])), 'hike.gpx')

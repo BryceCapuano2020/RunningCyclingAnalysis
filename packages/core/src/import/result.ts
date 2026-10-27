@@ -25,11 +25,16 @@ export type RejectCode =
   | 'duplicate'
   | 'unreadable'
 
-/** The reason a file was refused. `detail` carries what the code needs, such as a sport's name. */
+/**
+ * The reason a file was refused. `detail` carries what the code needs, such as a sport's name. `listed`
+ * is true when that name is the type the export's own list gives, such as Strava's "Kayaking", which
+ * reads as written. A name the file gives, such as a FIT sport enum or a number, is not.
+ */
 export interface Rejection {
   reason: string
   code: RejectCode
   detail?: string
+  listed?: boolean
 }
 
 export type ParseResult =
@@ -85,11 +90,18 @@ export function failure(
   code: RejectCode,
   detail?: string,
 ): ParseResult {
+  return refused(fileName, { reason, code, detail })
+}
+
+/** A refused file's result, from its rejection. The detail and the list mark are left out when absent. */
+export function refused(fileName: string, rejection: Rejection): ParseResult {
+  const { reason, code, detail, listed } = rejection
   return {
     ok: false,
     fileName,
     reason,
     code,
     ...(detail === undefined ? {} : { detail }),
+    ...(listed === true ? { listed } : {}),
   }
 }

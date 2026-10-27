@@ -109,12 +109,19 @@ describe('AppNotices: one notice region', () => {
       <AppNotices
         {...noticesProps({
           state: { rejected: [makeRejectedFile()] },
-          importOutcome: { activities: 1, rejected: 1, duplicates: [], runs: 1, rides: 0 },
+          importOutcome: {
+            activities: 1,
+            filesAdded: 1,
+            rejected: 1,
+            duplicates: [],
+            runs: 1,
+            rides: 0,
+          },
         })}
       />,
     )
 
-    expect(screen.getByText('1 file skipped.')).toBeInTheDocument()
+    expect(screen.getByText('2 files: 1 added, 1 needs a look.')).toBeInTheDocument()
   })
 })
 

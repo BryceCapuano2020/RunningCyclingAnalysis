@@ -5,7 +5,7 @@ import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
 import type { GpsFix } from './gps'
 import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
-import { failure, MAX_FILE_SAMPLES } from './result'
+import { failure, MAX_FILE_SAMPLES, refused } from './result'
 import { nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
 
@@ -38,6 +38,8 @@ export interface PipelineUnit {
   sport: Sport | null
   /** The source's own sport name, used in the refusal `Unsupported sport: <sportLabel>`. */
   sportLabel: string
+  /** The name is the type the export's list gives, which the refusal says. */
+  sportFromList?: boolean
   /** Replaces the default refusal when sport is null, e.g. FIT e-bike sessions. */
   refusal?: { skipped: string } & Rejection
   /**
@@ -117,8 +119,7 @@ export function activitiesFromUnits(
     }
   }
   if (activities.length === 0) {
-    const { reason, code, detail } = pickReason(outcomes)
-    return failure(fileName, reason, code, detail)
+    return refused(fileName, pickReason(outcomes))
   }
   return { ok: true, activities: withStartTimesWhereShared(activities), skipped, droppedValues }
 }
@@ -151,6 +152,7 @@ function evaluateUnit(unit: PipelineUnit, index: number, context: Context): Outc
       reason: `Unsupported sport: ${unit.sportLabel}`,
       code: 'unsupported-sport' as const,
       detail: unit.sportLabel,
+      listed: unit.sportFromList,
       skipped: `${unit.sportLabel} session skipped`,
     }
     return [{ ...refusal, ok: false, fatal: false }]
@@ -387,7 +389,7 @@ function clampSpeed(speed: Float64Array, max: number): number {
 function pickReason(outcomes: Outcome[]): Rejection {
   const refusals = outcomes.filter((o) => !o.ok)
   const specific = refusals.find((o) => o.reason !== SHORT_REASON) ?? refusals[0]
-  return specific === undefined
-    ? { reason: SHORT_REASON, code: 'too-short' }
-    : { reason: specific.reason, code: specific.code, detail: specific.detail }
+  if (specific === undefined) return { reason: SHORT_REASON, code: 'too-short' }
+  const { reason, code, detail, listed } = specific
+  return { reason, code, detail, listed }
 }

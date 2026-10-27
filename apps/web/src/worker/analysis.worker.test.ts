@@ -212,7 +212,7 @@ describe('analysis worker', () => {
     ])
     expect(messages.at(-1)).toMatchObject({
       type: 'state',
-      outcome: { activities: 1, rejected: 0, notActivities: 2 },
+      outcome: { activities: 1, filesAdded: 1, rejected: 0, notActivities: 2 },
     })
   })
 

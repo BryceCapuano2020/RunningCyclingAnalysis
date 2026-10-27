@@ -762,6 +762,12 @@ function refusalOf(result: ParseResult): { code: string; detail: string | undefi
   return { code: result.code, detail: result.detail }
 }
 
+/** Whether a refusal's sport name is the one the export's list gives. */
+function listedOf(result: ParseResult): boolean | undefined {
+  if (result.ok) throw new Error('expected a failure')
+  return result.listed
+}
+
 describe('parseTcx with the type an export list gives', () => {
   const parseListed = (xml: Uint8Array, activityType: string | undefined): ParseResult =>
     parseTcx(xml, 'listed.tcx', undefined, { activityType })
@@ -799,6 +805,17 @@ describe('parseTcx with the type an export list gives', () => {
       code: 'unsupported-sport',
       detail: 'Other',
     })
+  })
+
+  it('says the refused name is the list type only when the list gave it, not when the file did', () => {
+    const swim = documentXml([activityXml('Swimming', [lapXml(runPoints(0, 90, true))])])
+    const results = [
+      parseListed(other, 'Yoga'),
+      parseListed(other, undefined),
+      parseListed(swim, 'Run'),
+    ]
+    expect(results.map(listedOf)).toEqual([true, undefined, undefined])
+    expect(results.map((result) => refusalOf(result).detail)).toEqual(['Yoga', 'Other', 'Swimming'])
   })
 
   it('keeps refusing a Sport the TCX schema does not allow, whatever the list says', () => {

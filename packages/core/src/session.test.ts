@@ -527,11 +527,12 @@ describe('AnalysisSession', () => {
     expect(state.outdatedActivities).toBe(0)
   })
 
-  it('importing the same garbage file twice does not double-count it as rejected', async () => {
+  it('lists each garbage file of one import, and an earlier import does not add to the next', async () => {
     const session = new AnalysisSession()
     const junk = (): File => textFile('junk.fit', 'this is plainly not a FIT file')
     const sameCall = await session.addFiles([junk(), junk()], SETTINGS)
     expect(sameCall.rejected).toEqual([
+      { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
       { fileName: 'junk.fit', reason: 'Not a FIT file', code: 'corrupt' },
     ])
 
@@ -539,10 +540,10 @@ describe('AnalysisSession', () => {
     expect(laterCall.rejected).toHaveLength(1)
   })
 
-  it('importing the same zip twice does not double-count its unsupported files', async () => {
+  it('counts the unsupported files of each zip of one import, and not those of an earlier import', async () => {
     const session = new AnalysisSession()
     const sameCall = await session.addFiles([exportZip(), exportZip()], SETTINGS)
-    expect(sameCall.unsupportedFiles).toBe(1)
+    expect(sameCall.unsupportedFiles).toBe(2)
     expect(sameCall.result?.activities).toHaveLength(2)
 
     const laterCall = await session.addFiles([exportZip()], SETTINGS)
@@ -795,6 +796,7 @@ describe('AnalysisSession', () => {
     expect(failed.syncIssues).toEqual([{ code: 'server', count: 1 }])
 
     const seen: string[] = []
+    let outcome: { filesAdded: number; duplicates: unknown[]; added: unknown[] } | null = null
     const retried = await session.addFiles(
       [fitFile('run.fit', run)],
       SETTINGS,
@@ -802,10 +804,88 @@ describe('AnalysisSession', () => {
       async (item) => {
         seen.push(item.digest.id)
       },
+      false,
+      (done) => {
+        outcome = done
+      },
     )
     expect(seen).toHaveLength(1)
     expect(retried.syncIssues).toEqual([])
     expect(retried.result?.activities).toHaveLength(1)
+    // The activity is saved by this import, so it is added, not already in the library.
+    expect(outcome).toMatchObject({ filesAdded: 1, duplicates: [], added: [expect.anything()] })
+  })
+
+  it('does not call a held activity added when its retry fails again', async () => {
+    const session = new AnalysisSession()
+    const offline = () => Promise.reject(new SyncFailure('network', 'Offline'))
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, offline)
+    let outcome: { filesAdded: number; duplicates: unknown[]; added: unknown[] } | null = null
+    const retried = await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      offline,
+      false,
+      (done) => {
+        outcome = done
+      },
+    )
+    // It is still unsaved, so this import did not add it: it was already in the library.
+    expect(retried.syncIssues).toEqual([{ code: 'network', count: 1 }])
+    expect(outcome).toMatchObject({
+      filesAdded: 0,
+      duplicates: [expect.objectContaining({ fileName: 'run.fit', detail: 'run.fit' })],
+      added: [],
+    })
+  })
+
+  it('does not call a held activity added when a halting save keeps it from being sent', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new SyncFailure('network', 'Offline')),
+    )
+    const sent: string[] = []
+    let outcome: { filesAdded: number; duplicates: unknown[]; added: unknown[] } | null = null
+    await session.addFiles(
+      [fitFile('ride.fit', ride), fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      async (item) => {
+        sent.push(item.digest.sport)
+        throw new SyncFailure('signed-out', 'Sign in required')
+      },
+      false,
+      (done) => {
+        outcome = done
+      },
+    )
+    // The ride is new, and its failed save halts the import before the held run is sent.
+    expect(sent).toEqual(['ride'])
+    expect(outcome).toMatchObject({
+      filesAdded: 1,
+      duplicates: [expect.objectContaining({ fileName: 'run.fit' })],
+      added: [expect.objectContaining({ sport: 'ride' })],
+    })
+  })
+
+  it('does not call a held activity added when a retry has no sink to save it with', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new Error('offline')),
+    )
+    let outcome: { filesAdded: number; duplicates: unknown[] } | null = null
+    await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      (d) => {
+        outcome = d
+      },
+    )
+    expect(outcome).toMatchObject({ filesAdded: 0, duplicates: [expect.anything()] })
   })
 
   it('keeps a failed save counted when a later import without a sink does not touch it', async () => {

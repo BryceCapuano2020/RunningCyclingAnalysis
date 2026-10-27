@@ -202,6 +202,20 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    the list's type, such as `Hike`, when the file gives none or gives only a number. A GPX file is
    checked for its sport before it is called empty, so a walk or a gym session with no points is
    reported as that sport. An empty run or ride stays empty.
+   The refusal says `listed: true` when that name is the list's, so a page can show it as written; a
+   name the file gives, such as a FIT sport, is not marked.
+   An import counts files, not activities. `filesAdded` is the files with an activity that is in the
+   library afterwards and shown, which is a workout the library did not hold or a held one whose save
+   had failed and now succeeds, and not one hidden as a copy of another. Every other file read is one
+   entry in `duplicates`: a copy of a held workout, the same file added again, a richer copy that
+   replaces a held one (a richer copy that replaces a held one is already added), or a new activity
+   hidden as a copy. A held activity whose save failed is added only when this import saves it: a
+   retry that fails again, or that a halting save keeps from being sent, stays already added. So `filesAdded` is zero exactly when the
+   import added no run or ride. `activities` still counts the activities, for the sentence that says
+   what an import added. Every refused file is listed, two files of one name included, and `rejected`
+   counts those and the unreadable formats. A file read cleanly takes back a refusal only of its own
+   source under its name, or its name with `.gz`, once the source has been read, so the order of a
+   zip's entries does not decide it.
    A leg's name is the first of these that applies: the list's name, unless it is a device default
    such as `ACTIVE LOG`, a bare number or a date; the file's own title, which is a GPX track name; or
    a name made from the start time on the importing device's clock and the sport, such as
