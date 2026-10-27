@@ -81,14 +81,15 @@ function reject(ctx: SourceImport, fileName: string, rejection: Rejection): void
 }
 
 /**
- * Takes back the refusals under a file's name, and under its name with .gz, since the file read
- * cleanly. Only those of its own source: a different file that shares a name stays refused.
+ * Takes back the refusals of this source under the name of each file it read cleanly, and under that
+ * name with .gz. Only those of its own source: a different file that shares a name stays refused. It
+ * is done once the source has been read, so the order of its entries does not decide it.
  */
-function takeBack(ctx: SourceImport, fileName: string): void {
+function takeBack(ctx: SourceImport, files: readonly ReadFile[]): void {
+  const names = new Set(files.flatMap(({ fileName }) => [fileName, `${fileName}.gz`]))
   for (let i = ctx.refused.length - 1; i >= 0; i--) {
     const { source, file } = ctx.refused[i]!
-    if (source !== ctx.source) continue
-    if (file.fileName !== fileName && file.fileName !== `${fileName}.gz`) continue
+    if (source !== ctx.source || !names.has(file.fileName)) continue
     ctx.refused.splice(i, 1)
     ctx.outcome.rejected--
   }
@@ -124,7 +125,6 @@ async function importFile(
       else result.held.push(considered.held)
     }
     ctx.read.push(result)
-    takeBack(ctx, file.fileName)
   } else {
     reject(ctx, parsed.fileName, parsed)
   }
@@ -167,6 +167,7 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   const { progress, outcome } = ctx
   let undecodable = 0
   const readBefore = progress.filesRead
+  const filesBefore = ctx.read.length
   // The export's list is read before its files, which may sit anywhere in the zip. The list's
   // inflated bytes count against the source's decompressed-bytes budget, as the files' do.
   const list = await readActivityList(source, ctx.limits)
@@ -188,6 +189,7 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
     extractLimits,
     listed,
   )
+  takeBack(ctx, ctx.read.slice(filesBefore))
   // An archive that stops early, or loses an entry, reports nothing for the files it did not
   // reach. They count as read here, up to the total its directory lists.
   const expected = (await countActivityFiles([source], ctx.limits, listed)) ?? 0

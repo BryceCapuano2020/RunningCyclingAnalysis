@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from 'fflate'
+import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { buildFit, secondly } from './fit/fitTestFiles'
 import { AnalysisSession } from './session'
@@ -232,15 +232,33 @@ describe('an import lists every file it refuses, and counts what it lists', () =
     agree(outcome, state)
   })
 
-  it('takes back a refusal when a member of the same zip of that name is then read cleanly, and the count with it', async () => {
-    // The damaged `.gz` member is refused under its own name, and the clean member of the name is read after it.
-    const entries = { '2024-05-01.fit.gz': strToU8('not gzip'), '2024-05-01.fit': fitBytes() }
-    const { outcome, state } = await importFiles(new AnalysisSession(), [zip(entries)])
-    expect(state.rejected).toEqual([])
-    expect(outcome.rejected).toBe(0)
-    expect(outcome.filesAdded).toBe(1)
-    agree(outcome, state)
-  })
+  it.each([
+    [
+      'a damaged .gz member before the clean member',
+      () => ({ 'x.fit.gz': strToU8('not gzip'), 'x.fit': fitBytes() }),
+    ],
+    [
+      'the clean member before a damaged .gz member',
+      () => ({ 'x.fit': fitBytes(), 'x.fit.gz': strToU8('not gzip') }),
+    ],
+    [
+      'a damaged member before the clean .gz member',
+      () => ({ 'x.fit': strToU8('not fit'), 'x.fit.gz': gzipSync(fitBytes()) }),
+    ],
+    [
+      'the clean .gz member before a damaged member',
+      () => ({ 'x.fit.gz': gzipSync(fitBytes()), 'x.fit': strToU8('not fit') }),
+    ],
+  ])(
+    'takes back the refusal of a zip member of one name once its pair is read cleanly, and the count with it, whatever the order: %s',
+    async (_order, entries) => {
+      const { outcome, state } = await importFiles(new AnalysisSession(), [zip(entries())])
+      expect(state.rejected).toEqual([])
+      expect(outcome.rejected).toBe(0)
+      expect(outcome.filesAdded).toBe(1)
+      agree(outcome, state)
+    },
+  )
 
   it.each([
     ['damaged first', ['broken', 'clean']],

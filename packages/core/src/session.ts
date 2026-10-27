@@ -229,8 +229,9 @@ export class AnalysisSession {
    * left alone unless syncExisting requests a sink call for an existing activity (for example,
    * to retain an original after that preference is enabled). A copy that outranks the held one for
    * the same start second replaces it. A sink failure is counted, not thrown.
-   * After a failure that stops saving, the rest of the batch is digested but not sent to the sink. A
-   * held activity whose save failed is not yet in the library for good, so saving it again adds it.
+   * After a failure that stops saving, the rest of the batch is digested but not sent to the sink.
+   * A held activity whose save failed is not yet in the library for good: it is added when this
+   * import saves it, and is otherwise still the held workout, however it came to be left unsaved.
    */
   private async keep(
     activity: Activity,
@@ -248,21 +249,27 @@ export class AnalysisSession {
       (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
     )
       return { held: fileNameOf(held.id) }
-    const adds = held === undefined || this.unsynced.has(key) || batch.added.has(key)
+    // A workout this import is adding, or has added: new to the library, or a later copy of one.
+    const adding = held === undefined || batch.added.has(key)
+    const retry = !adding && this.unsynced.has(key)
     const digest = held !== undefined && !replaces ? held : digestActivity(activity)
     this.digests.set(key, digest)
-    if (adds) batch.added.set(key, digest)
+    if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    const result: Considered =
-      adds || held === undefined ? { added: digest } : { held: fileNameOf(held.id) }
-    if (sink === undefined) return result
+    const considered = (saved: boolean): Considered => {
+      if (retry && saved) batch.added.set(key, digest)
+      return adding || (retry && saved) || held === undefined
+        ? { added: digest }
+        : { held: fileNameOf(held.id) }
+    }
+    if (sink === undefined) return considered(false)
     if (batch.halt !== null) {
       // An activity already saved, offered again to keep its file, is not waiting for a save.
       if (held === undefined || replaces || this.unsynced.has(key)) {
         this.leaveUnsynced(key, batch.halt)
       }
-      return result
+      return considered(false)
     }
     try {
       await sink({ digest, route: activity.route, ...file })
@@ -271,8 +278,9 @@ export class AnalysisSession {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.leaveUnsynced(key, code)
       if (stopsSaving(code)) batch.halt = code
+      return considered(false)
     }
-    return result
+    return considered(true)
   }
 
   private leaveUnsynced(key: string, code: SyncIssueCode): void {

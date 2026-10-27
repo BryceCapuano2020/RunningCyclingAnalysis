@@ -90,7 +90,7 @@ export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedF
 }
 
 /**
- * A group's title, a heading of the notice region, set in the weight of the text round it. The line
+ * A group's title, a heading of the notice region, set in bold, heavier than the text round it. The line
  * for the files the export does not list has no group under it, so it is a paragraph in the same look.
  */
 function Title({ children }: { children: string }) {
