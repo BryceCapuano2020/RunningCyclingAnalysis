@@ -433,14 +433,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   card lists only its own six durations (`EQUIVALENCE_DURATIONS_S`), though the result holds more. Drawing follows the age-grade
   trend: a run is a solid line with a dot, a ride is estimated, so it is dashed with a ring and its 90% range
   is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
-  The finding is the chart's lede, a sentence under its title, and the chart supports it. It counts a lead
-  only where one sport's whole percent is outside the other's range, the rule the balance uses. It reads "Your
-  running grades higher than your cycling at every duration from 3 to 180 min." when one sport leads
-  throughout the durations both have, from the first to the last in whole minutes; "Your cycling grades higher up to 5 min, your running from 10 min on."
-  when the lead changes hands; "Your running and cycling grade within range of each other at every duration."
-  when neither leads. When a lead holds for only some durations it says where, then that the rest are even:
-  "Your running grades higher than your cycling at 20 min. The two grade within range of each other at the
-  other durations." The section is left out without a year of birth and sex,
+  The finding is the chart's lede, a sentence under its title, and the chart supports it. It is about the
+  shape of the gap between the sports, read from the centre grades (whole percents) at the durations both
+  sports have, never from the per-duration lean, which flips on a rounding where a run sits at the edge of
+  the ride's range. When one sport grades higher at every shared duration it says by how much and how that
+  changes: "Your running grades about 5 points higher than your cycling at every duration from 10 to 90 min,
+  by a steady margin." The points are the median of the centre differences, in whole points. A shape clause
+  is added when the gap changes by 4 points or more from the shortest shared duration to the longest: ", and
+  the gap widens toward longer efforts" or ", and the gap narrows toward longer efforts"; below that it is
+  ", by a steady margin". Where a duration reads the same in both, "at every duration" is dropped. When the
+  higher sport changes, it says where: "Your cycling grades higher up to 7 min, your running from 10 min on.";
+  with more than one change it walks through each, a sport's neighbouring stretches said together. When
+  every centre reads the same: "Your running and cycling grade the same at every duration." Then, when the
+  gap is inside the ride's range at more than half the shared durations (the balance's own rule, in whole
+  percents), one qualifier: "Cycling's grades are estimated, so a gap this size is within their range." The section is left out without a year of birth and sex,
   without a weight (a ride's grade waits for it), and with fewer than two durations graded in both sports,
   since a chart that would only repeat the 20 minute balance says nothing more. The chart's table lists each
   grade, with a ride's range in brackets, and its tooltip names the level.

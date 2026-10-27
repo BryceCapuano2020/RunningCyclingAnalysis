@@ -54,7 +54,7 @@ describe('GradeProfileSection', () => {
     expect(within(section).getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
     expect(
       within(section).getByText(
-        'Your running grades higher than your cycling at every duration from 10 to 60 min.',
+        /^Your running grades about \d+ points higher than your cycling at every duration from 10 to 60 min, /,
       ),
     ).toBeInTheDocument()
   })
