@@ -582,6 +582,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   heart rates on file)", which holds for both sports: cycling's is derived from running's, so a ride is never
   called your highest heart rate. A sport page's line says "so it was hard" at 90% or more,
   judged on the percent it shows, so a share that rounds to 90% is hard.
+- **Race predictions sit in the middle.** The Run page predicts the 5 km, 10 km, half marathon and
+  marathon after Best efforts: the time, its pace, and "likely" its 10th to 90th percentile. Each is the
+  geometric mean of the runner's bests and the races their heart-rate VO2max would run, both carried by
+  Riegel's law at 1.07 and, for the marathon, Vickers & Vertosick's mileage-corrected model. When the two
+  disagree, the note says which points higher. The evidence disclosure gives each estimate on its own. The
+  method and its sources are in `docs/research/race-prediction.md`. Predictors are keyed by sport in
+  `apps/web/src/ui/racePredictions.ts`, so a sport adds one there and the page shows it.
 - **Heart rate that cannot be right is set aside.** When a ride with a power meter, or an outdoor run, holds
   a best effort of 10 min or more at or above the sport's threshold and its heart rate stays under 70% of
   the reference heart rate, or was flagged as too low for the power through it, the sensor was wrong. That
