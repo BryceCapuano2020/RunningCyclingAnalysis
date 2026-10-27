@@ -4,12 +4,14 @@ import type { Activity, ActivityDigest } from '../../types'
 import { digestActivity } from '../digestActivity'
 
 /**
- * JSON that tells NaN, the infinities, -0 and a key set to undefined apart from what JSON writes
- * for them, so equal text means equal values.
+ * JSON in which equal text means equal values. Plain JSON writes NaN and the infinities as null, -0
+ * as 0, and leaves out a key set to undefined. Every string is tagged too, so no string can pass
+ * for one of those.
  */
 function exactJson(digest: ActivityDigest): string {
   return JSON.stringify(digest, (_key, value: unknown) => {
     if (value === undefined) return 'undefined'
+    if (typeof value === 'string') return `string:${value}`
     if (typeof value !== 'number') return value
     if (Object.is(value, -0)) return 'number:-0'
     return Number.isFinite(value) ? value : `number:${value}`
