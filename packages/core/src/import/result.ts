@@ -54,8 +54,9 @@ export interface ParseOptions {
   activityName?: string
   /**
    * The type the file's export gives the activity, such as Strava's "Trail Run" or "Virtual Ride". It
-   * fills in a sport the file does not say: a GPX track with no type, or a TCX activity whose Sport is
-   * Other. A sport the file names is never overridden, and a FIT file always keeps its own.
+   * fills in a sport the file does not say: a GPX track with no type or only a number the app does not
+   * know, or a TCX activity whose Sport is Other. A sport the file names is never overridden, and a FIT
+   * file always keeps its own.
    */
   activityType?: string
   /**

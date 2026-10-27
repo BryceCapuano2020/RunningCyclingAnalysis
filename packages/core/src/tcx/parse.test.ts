@@ -801,6 +801,14 @@ describe('parseTcx with the type an export list gives', () => {
     })
   })
 
+  it('keeps refusing a Sport the TCX schema does not allow, whatever the list says', () => {
+    const swim = documentXml([activityXml('Swimming', [lapXml(runPoints(0, 90, true))])])
+    expect(refusalOf(parseListed(swim, 'Run'))).toEqual({
+      code: 'unsupported-sport',
+      detail: 'Swimming',
+    })
+  })
+
   it('keeps refusing an e-bike ride named by the list', () => {
     expect(refusalOf(parseListed(other, 'E-Bike Ride')).code).toBe('e-bike')
   })

@@ -126,8 +126,8 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    delivered. `.kml`, `.kmz`, `.pwx` and `.hrm` entries are counted and skipped. Skipped entries are
    drained, not buffered. Entry counts, entry sizes and total decompressed bytes are all capped, so
    an oversized archive stops with a reason instead of exhausting memory. When the export's activity
-   list (step 7) names its activities, the zip's other `.fit`, `.gpx` and `.tcx` entries are drained
-   and counted as not activities.
+   list (step 7) names its activities, the zip's `.fit`, `.gpx` and `.tcx` entries in a folder with no
+   named file are drained and counted as not activities.
 2. **Dispatch** (`parseActivityFile` in `packages/core/src/import/index.ts`). The extension, after
    any `.gz`, selects `parseFit`, `parseGpx` or `parseTcx`. Other names are refused. The bytes must
    already be decompressed.
@@ -175,19 +175,23 @@ Strava export zip. The stages are in the browser Web Worker, and none of them ne
    The first row wins for a file that appears twice. A row with a file and no name is kept, since its
    type still says what the file is. A list that ends inside a quoted field is ignored, so it names
    no files.
-   When the list names at least one file and was read to its end, it is the export's own account of
-   its activities. A FIT, GPX or TCX file of that zip which the list does not name, such as Strava's
-   saved routes in `routes/`, is not an activity: it is not read, not counted in the progress total
-   or as rejected, and not counted against the 10,000-file cap. The import reports it apart as
-   `notActivities`. With no list, a malformed one, or one cut at the row cap, every activity file is
-   read. Files inside a zip nested in the export, and single files, are never left out this way.
-   A GPX track with no `<type>`, and a TCX activity whose Sport is Other or missing, takes its
-   sport from the `Activity Type` column: Run, Trail Run and Virtual Run are runs; Ride, Virtual
-   Ride, Gravel Ride and Mountain Bike Ride are rides; Virtual Run and Virtual Ride are indoor;
-   E-Bike Ride is refused. A sport the file names is never overridden, and a FIT file keeps its own.
-   A sport that is refused is reported under the list's type, such as `Hike`, when the file gives
-   none or gives only a number. A GPX file is checked for its sport before it is called empty, so a
-   walk or a gym session with no points is reported as that sport. An empty run or ride stays empty.
+   An activity file of that zip which the list does not name is not an activity when no file in its
+   folder is named: Strava's saved routes in `routes/`. It is not read, not counted in the progress
+   total or as rejected, and not counted against the 10,000-file cap. The import reports it apart as
+   `notActivities`. A file the list does not name is still read when a named file sits in its folder,
+   as a partial or edited list leaves it. Nothing is left out when the list cannot be trusted to say
+   what is an activity: there is no list, or it is malformed, names no file, or was cut at the row cap;
+   the zip holds more than one `activities.csv`; or the list names none of the zip's activity files,
+   as when they sit in a folder it does not expect or are spelled another way. Files inside a zip
+   nested in the export, and single files, are never left out this way.
+   A GPX track with no `<type>` or only a number the app does not know, and a TCX activity whose
+   Sport is Other or missing, takes its sport from the `Activity Type` column: Run, Trail Run and
+   Virtual Run are runs; Ride, Virtual Ride, Gravel Ride and Mountain Bike Ride are rides; Virtual Run
+   and Virtual Ride are indoor; E-Bike Ride is refused. A sport the file names is never overridden,
+   and a FIT file keeps its own. A sport that is refused is reported under the list's type, such as
+   `Hike`, when the file gives none or gives only a number. A GPX file is checked for its sport before
+   it is called empty, so a walk or a gym session with no points is reported as that sport. An empty
+   run or ride stays empty.
    A leg's name is the first of these that applies: the list's name, unless it is a device default
    such as `ACTIVE LOG`, a bare number or a date; the file's own title, which is a GPX track name; or
    a name made from the start time on the importing device's clock and the sport, such as

@@ -717,6 +717,15 @@ describe('parseGpx with the type an export list gives', () => {
     expect(refusalOf(parseGpx(file, 'a.gpx'))).toEqual({ code: 'unsupported-sport', detail: '4' })
   })
 
+  it('reads a track whose type is a number the app does not know as the list says', () => {
+    const file = gpxFile(track('16', [points(120)]))
+    const ride = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Virtual Ride' })
+    expect(firstActivity(ride).sport).toBe('ride')
+    expect(firstActivity(ride).indoor).toBe(true)
+    const ebike = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'E-Bike Ride' })
+    expect(refusalOf(ebike).code).toBe('e-bike')
+  })
+
   it('keeps the type a track names in words, when it is not a run or a ride', () => {
     const file = gpxFile(track('hiking', [points(120)]))
     const result = parseGpx(file, 'a.gpx', DEFAULT_PARSE_LIMITS, { activityType: 'Walk' })

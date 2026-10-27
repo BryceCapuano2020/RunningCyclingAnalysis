@@ -47,9 +47,9 @@ export interface SportChoice {
 
 /**
  * The sport of a track's `type`. A track that names none takes the sport of `listed`, the type its
- * export's list gives, and is refused as unsaid only when the list names none either. A track that names
- * its sport keeps it. A refusal is labelled with the sport's name, which is the list's for a sport the
- * track names only by number.
+ * export's list gives, and is refused as unsaid only when the list names none either. So does a track
+ * that names its sport only by a number the app does not know. A track that names its sport keeps it.
+ * A refusal is labelled with the sport's name, which is the list's when the track gave none or a number.
  */
 export function sportOfType(
   type: string | undefined,
@@ -59,7 +59,7 @@ export function sportOfType(
   if (type === undefined) return listed === undefined ? unsaid(creator) : choiceOf(listed)
   const choice = choiceOf(type)
   return choice.sport === null && listed !== undefined && CODE.test(type.trim())
-    ? { ...choice, sportLabel: listed }
+    ? choiceOf(listed)
     : choice
 }
 

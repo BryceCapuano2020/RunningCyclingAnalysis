@@ -94,7 +94,7 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   // The export's list is read before its files, which may sit anywhere in the zip. The list's
   // inflated bytes count against the source's decompressed-bytes budget, as the files' do.
   const list = await readActivityList(source, ctx.limits)
-  const listed = listedOnly(list)
+  const listed = await listedOnly(source, ctx.limits, list)
   const extractLimits = {
     ...ctx.limits,
     maxTotalDecompressedBytes:
@@ -121,10 +121,8 @@ export async function importSource(source: RangedSource, ctx: SourceImport): Pro
   ctx.unsupported.set(source.name, summary.otherActivityFiles)
   outcome.rejected += summary.otherActivityFiles
   outcome.notActivities += summary.notActivities
-  // A corrupt file is already reported under its own name, so do not also call it empty. Nor is a zip
-  // empty when its activity files were all left out as not activities.
-  const seen = summary.fitFiles + summary.otherActivityFiles + summary.notActivities
-  if (seen === 0 && undecodable === 0) {
+  // A corrupt file is already reported under its own name, so do not also call it empty.
+  if (summary.fitFiles === 0 && summary.otherActivityFiles === 0 && undecodable === 0) {
     outcome.rejected++
     ctx.rejected.set(source.name, {
       reason: 'No supported activity files found (FIT, GPX or TCX)',

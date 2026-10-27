@@ -143,25 +143,74 @@ describe('parseActivityList', () => {
 })
 
 describe('listedOnly', () => {
-  const list = (text: string) => {
-    const parsed = parseActivityList(text)
-    if (parsed === null) throw new Error('expected the list to read')
-    return { ...parsed, decompressedBytes: 0 }
+  /** The filter for a zip of these entries, from the list it holds. */
+  async function filterOf(entries: Record<string, Uint8Array>, limits = DEFAULT_EXTRACT_LIMITS) {
+    const file = fileOf('export.zip', zipSync(entries))
+    return listedOnly(file, limits, await readActivityList(file, limits))
+  }
+  const stravaLayout = {
+    'activities/1001.fit.gz': strToU8('fit'),
+    'activities/1002.gpx.gz': strToU8('gpx'),
+    'routes/1.gpx': strToU8('gpx'),
+    'activities.csv': strToU8(LIST),
   }
 
-  it('keeps the files the list names, however the entry spells its path', () => {
-    const keep = listedOnly(list(LIST))
+  it('keeps the files the list names, however the entry spells its path, and leaves out routes/', async () => {
+    const keep = await filterOf(stravaLayout)
     expect(keep?.('activities/1001.fit.gz')).toBe(true)
     expect(keep?.('Activities\\1002.GPX')).toBe(true)
     expect(keep?.('routes/1.gpx')).toBe(false)
   })
 
-  it('does not filter without a list, with a list that names no file, or with one cut at the cap', () => {
-    expect(listedOnly(null)).toBeUndefined()
-    expect(listedOnly(list('Activity ID,Activity Name\n1,Morning Run\n'))).toBeUndefined()
-    expect(listedOnly(list('Activity Name,Filename\nManual entry,\n'))).toBeUndefined()
-    expect(listedOnly({ ...list(LIST), complete: false })).toBeUndefined()
+  it('keeps a file the list does not name when it sits in the folder of one it does, as a partial list leaves it', async () => {
+    const keep = await filterOf({ ...stravaLayout, 'activities/1003.fit': strToU8('fit') })
+    expect(keep?.('activities/1003.fit')).toBe(true)
+    expect(keep?.('routes/1.gpx')).toBe(false)
   })
+
+  it('compares folders exactly, so a folder below a listed one is not kept with it', async () => {
+    const keep = await filterOf(stravaLayout)
+    expect(keep?.('activities/old/1.fit')).toBe(false)
+  })
+
+  it('does not filter without a list, with a list that names no file, or with one cut at the cap', async () => {
+    const file = fileOf('export.zip', zipSync(stravaLayout))
+    const list = await readActivityList(file)
+    expect(await listedOnly(file, DEFAULT_EXTRACT_LIMITS, null)).toBeUndefined()
+    expect(
+      await listedOnly(file, DEFAULT_EXTRACT_LIMITS, { ...list!, files: new Map() }),
+    ).toBeUndefined()
+    expect(
+      await listedOnly(file, DEFAULT_EXTRACT_LIMITS, { ...list!, complete: false }),
+    ).toBeUndefined()
+  })
+
+  it('does not filter a zip that holds more than one activities.csv', async () => {
+    const keep = await filterOf({
+      ...stravaLayout,
+      'other/activities.csv': strToU8('Activity Name,Filename\nRun,activities/1001.fit\n'),
+    })
+    expect(keep).toBeUndefined()
+  })
+
+  it.each([
+    ['a wrapper folder the list does not know of', 'export/'],
+    ['names written another way', 'activities/My%20Run.fit'],
+  ])(
+    'does not filter when the list names none of the activity files in the zip: %s',
+    async (_name, entry) => {
+      const named = entry.endsWith('/') ? `${entry}activities/1001.fit` : entry
+      const list = strToU8(
+        'Activity Name,Filename\nRun,activities/My Run.fit\nRide,activities/1001.fit\n',
+      )
+      const keep = await filterOf({
+        [named]: strToU8('fit'),
+        'routes/1.gpx': strToU8('gpx'),
+        'activities.csv': list,
+      })
+      expect(keep).toBeUndefined()
+    },
+  )
 })
 
 describe('readActivityList', () => {
@@ -234,7 +283,8 @@ describe('readActivityList', () => {
     expect(listed).not.toBeNull()
     expect(listed?.files.size).toBe(0)
     expect(listed?.decompressedBytes).toBe(malformed.length)
-    expect(listedOnly(listed)).toBeUndefined()
+    const file = fileOf('export.zip', zip)
+    expect(await listedOnly(file, DEFAULT_EXTRACT_LIMITS, listed)).toBeUndefined()
   })
 
   it('returns null when the list alone exceeds the export budget for decompressed bytes', async () => {

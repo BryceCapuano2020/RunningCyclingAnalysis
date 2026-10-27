@@ -3,7 +3,14 @@ import type { ExtractLimits } from '../fit/archive'
 import { countActivityFiles } from '../fit/count'
 import { readZipEntry } from '../fit/zipEntry'
 import type { EntryFilter, RangedSource } from '../fit/zipDirectory'
-import { ZIP } from '../fit/zipDirectory'
+import {
+  ACTIVITY,
+  directoryOf,
+  isIgnored,
+  readRange,
+  walkDirectory,
+  ZIP,
+} from '../fit/zipDirectory'
 import { readCsvRows } from './csv'
 
 /**
@@ -126,15 +133,61 @@ export async function readActivityList(
 }
 
 /**
- * The filter that leaves out of a zip's activities those its list does not name, such as the saved
- * routes of a Strava export. Undefined, so that every activity file stays, when the zip has no usable
- * list: none, a malformed one, one that names no file, or one stopped at the row cap, which would
- * leave out files that are activities.
+ * The filter that leaves out of a zip's activities those that its list does not name and that sit in
+ * a folder with none that it does, such as the saved routes of a Strava export. A file the list does
+ * not name is still read when it shares its folder with one it does, as a partial or edited list
+ * leaves it. Undefined, so that every activity file stays, when the list cannot be trusted to say
+ * what is an activity: there is none, or it is malformed, names no file or was stopped at the row cap;
+ * or the zip holds more than one activities.csv; or the list names none of the zip's activity files,
+ * as when they sit in another folder than it expects or are spelled another way.
  */
-export function listedOnly(list: ActivityList | null): EntryFilter | undefined {
+export async function listedOnly(
+  source: RangedSource,
+  limits: ExtractLimits,
+  list: ActivityList | null,
+): Promise<EntryFilter | undefined> {
   if (list === null || !list.complete || list.files.size === 0) return undefined
   const { files } = list
-  return (entry) => files.has(entryKey(entry))
+  const folders = await listedFolders(source, limits, files)
+  if (folders === undefined) return undefined
+  return (entry) => {
+    const key = entryKey(entry)
+    return files.has(key) || folders.has(folderOf(key))
+  }
+}
+
+/** The folders of the zip's activity files that the list names; undefined when the list is not to be trusted. */
+async function listedFolders(
+  source: RangedSource,
+  limits: ExtractLimits,
+  files: ReadonlyMap<string, ListedActivity>,
+): Promise<Set<string> | undefined> {
+  try {
+    const directory = await directoryOf(source, limits)
+    if (directory === null) return undefined
+    const folders = new Set<string>()
+    let lists = 0
+    const complete = await walkDirectory(
+      (start, end) => readRange(source, start, end),
+      directory.offset,
+      directory.size,
+      limits.maxArchiveEntries,
+      (name) => {
+        if (isIgnored(name)) return
+        if (LIST_PATH.test(name)) lists++
+        else if (ACTIVITY.test(name) && files.has(entryKey(name)))
+          folders.add(folderOf(entryKey(name)))
+      },
+    )
+    return complete && lists === 1 && folders.size > 0 ? folders : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The folder of a key, with its closing slash; empty at the root. */
+function folderOf(key: string): string {
+  return key.slice(0, key.lastIndexOf('/') + 1)
 }
 
 /**
@@ -147,11 +200,8 @@ export async function countImportFiles(
 ): Promise<number | null> {
   let total = 0
   for (const source of sources) {
-    const count = await countActivityFiles(
-      [source],
-      limits,
-      listedOnly(await readActivityList(source, limits)),
-    )
+    const list = await readActivityList(source, limits)
+    const count = await countActivityFiles([source], limits, await listedOnly(source, limits, list))
     if (count === null) return null
     total += count
   }

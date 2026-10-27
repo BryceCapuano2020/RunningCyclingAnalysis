@@ -1,4 +1,4 @@
-import { strToU8, zipSync } from 'fflate'
+import { gzipSync, strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS, encodeFit } from './fit'
 import { encodeGpx } from './gpx/encode'
@@ -91,19 +91,6 @@ describe('AnalysisSession reading a Strava export', () => {
     expect(await countImportFiles(files)).toBe(1)
   })
 
-  it('does not call a zip of only routes empty or unsupported', async () => {
-    const { state, outcome } = await importFiles([
-      zipFile({
-        'routes/1.gpx': ROUTE,
-        'routes/2.gpx': ROUTE,
-        'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
-      }),
-    ])
-
-    expect(state.rejected).toEqual([])
-    expect(outcome).toEqual({ activities: 0, rejected: 0, notActivities: 2 })
-  })
-
   it('keeps the routes of a zip with no list, as any other activity file', async () => {
     const { state, outcome } = await importFiles([zipFile({ 'routes/1.gpx': ROUTE })])
 
@@ -158,5 +145,127 @@ describe('AnalysisSession reading a Strava export', () => {
       { fileName: 'activities/2001.gpx', code: 'unsupported-sport', detail: 'Walk' },
       { fileName: 'activities/2002.gpx', code: 'e-bike', detail: undefined },
     ])
+  })
+})
+
+/**
+ * What a zip's activity files become when its activities.csv names some of them. A saved route is an
+ * empty GPX, so one that is read shows in `rejected` as empty, and one that is left out does not.
+ */
+describe('which files of an export its list leaves out', () => {
+  const rideLater = { ...ride, startMs: ride.startMs + 86_400_000 }
+
+  async function read(entries: Record<string, Uint8Array>) {
+    const files = [zipFile(entries)]
+    const { state, outcome, progress } = await importFiles(files)
+    const total = await countImportFiles(files)
+    return {
+      read: state.rejected.map((file) => file.fileName).sort(),
+      activities: state.result?.activities.length ?? 0,
+      notActivities: outcome.notActivities,
+      // The progress total agrees with the files the import read.
+      agrees: total === (progress.at(-1) ?? 0),
+    }
+  }
+
+  it('leaves out routes/ in the layout Strava writes, with the list and files in a wrapper folder or not', async () => {
+    for (const root of ['', 'Strava Export/']) {
+      const result = await read({
+        [`${root}activities/1001.fit.gz`]: gzipSync(encodeFit(run, { gps: true })),
+        [`${root}routes/1.gpx`]: ROUTE,
+        [`${root}routes/2.gpx`]: ROUTE,
+        [`${root}media/photo.jpg`]: strToU8('jpeg'),
+        [`${root}activities.csv`]: list('1001,Morning Run,Run,activities/1001.fit.gz'),
+      })
+
+      expect(result).toEqual({ read: [], activities: 1, notActivities: 2, agrees: true })
+    }
+  })
+
+  it('reads a file the list does not name when it sits beside one it does, as a partial list leaves it', async () => {
+    const result = await read({
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'activities/1002.fit': encodeFit(rideLater, { gps: true }),
+      'activities/1003.gpx': ROUTE,
+      'routes/1.gpx': ROUTE,
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+    })
+
+    expect(result).toEqual({
+      read: ['activities/1003.gpx'],
+      activities: 2,
+      notActivities: 1,
+      agrees: true,
+    })
+  })
+
+  it('leaves out any folder with no listed file in it, as it does routes/', async () => {
+    const result = await read({
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+      'rides/2.gpx': ROUTE,
+      'extra.gpx': ROUTE,
+    })
+
+    expect(result).toEqual({ read: [], activities: 1, notActivities: 2, agrees: true })
+  })
+
+  it('reads everything when two exports sit side by side, each with its own list', async () => {
+    const result = await read({
+      'a/activities/1001.fit': encodeFit(run, { gps: true }),
+      'a/routes/1.gpx': ROUTE,
+      'a/activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+      'b/activities/2001.fit': encodeFit(rideLater, { gps: true }),
+      'b/routes/1.gpx': ROUTE,
+      'b/activities.csv': list('2001,Lunch Ride,Ride,activities/2001.fit'),
+    })
+
+    expect(result).toEqual({
+      read: ['a/routes/1.gpx', 'b/routes/1.gpx'],
+      activities: 2,
+      notActivities: 0,
+      agrees: true,
+    })
+  })
+
+  it('reads everything when the list sits outside the folder that holds the files', async () => {
+    const result = await read({
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+      'Strava Export/activities/1001.fit': encodeFit(run, { gps: true }),
+      'Strava Export/routes/1.gpx': ROUTE,
+    })
+
+    expect(result).toEqual({
+      read: ['Strava Export/routes/1.gpx'],
+      activities: 1,
+      notActivities: 0,
+      agrees: true,
+    })
+  })
+
+  it('reads everything when the file names are written another way than the list writes them', async () => {
+    const result = await read({
+      'activities.csv': list('1001,Morning Run,Run,activities/Morning Run.fit'),
+      'activities/Morning%20Run.fit': encodeFit(run, { gps: true }),
+      'routes/1.gpx': ROUTE,
+    })
+
+    expect(result).toEqual({
+      read: ['routes/1.gpx'],
+      activities: 1,
+      notActivities: 0,
+      agrees: true,
+    })
+  })
+
+  it('reads a file written another way beside one that is named, because they share a folder', async () => {
+    const result = await read({
+      'activities.csv': list('1001,Morning Run,Run,activities/1001.fit'),
+      'activities/1001.fit': encodeFit(run, { gps: true }),
+      'activities/Lunch%20Ride.fit': encodeFit(rideLater, { gps: true }),
+      'routes/1.gpx': ROUTE,
+    })
+
+    expect(result).toEqual({ read: [], activities: 2, notActivities: 1, agrees: true })
   })
 })
