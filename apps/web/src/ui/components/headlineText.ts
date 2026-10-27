@@ -40,7 +40,7 @@ function pointsUnit(count: number): string {
  * A percent edge of a range, in words. An edge that rounds to 0 shows one decimal, so the range
  * reads as a value, not as a zero.
  */
-function percentEdge(percent: number, signed: boolean): string {
+export function percentEdge(percent: number, signed: boolean): string {
   if (percent === 0 || Math.round(percent) !== 0) return formatPercent(percent / 100, signed)
   // Below a twentieth of a percent, one decimal would print 0.0, so the edge says it is under a tenth.
   if (Math.abs(percent) < 0.05) return 'under 0.1%'

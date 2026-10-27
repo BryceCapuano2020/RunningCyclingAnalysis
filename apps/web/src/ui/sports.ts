@@ -75,6 +75,9 @@ export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cyclin
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
 
+/** One activity of the sport as the noun in a sentence, lower case: "this run", "this ride". */
+export const SPORT_ACTIVITY: Record<Sport, string> = { run: 'run', ride: 'ride' }
+
 /** The heading of a sport's best-effort curve, in the sport's own unit: pace for running, power for riding. */
 export const CURVE_TITLE: Record<Sport, string> = { run: 'Pace curve', ride: 'Power curve' }
 
