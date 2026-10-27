@@ -272,4 +272,57 @@ describe('GradeProfileChart', () => {
       expect(ticks(container)).toEqual(['3', '10', '180'])
     })
   })
+
+  describe('where only one sport has a grade', () => {
+    /** The run alone at 7 min and the ride alone at 120 min, with both between. */
+    const ENDS: GradeProfile = {
+      run: [
+        { durationS: 7 * MIN, grade: runAt(0.7) },
+        { durationS: 10 * MIN, grade: runAt(0.62) },
+        { durationS: 20 * MIN, grade: runAt(0.64) },
+      ],
+      ride: [
+        { durationS: 10 * MIN, grade: rideAt(0.55) },
+        { durationS: 20 * MIN, grade: rideAt(0.55) },
+        { durationS: 120 * MIN, grade: rideAt(0.4) },
+      ],
+    }
+    const xsOf = (path: string | null | undefined) =>
+      Array.from((path ?? '').matchAll(/[ML]([\d.]+) /g), (match) => Number(match[1]))
+
+    it('draws the ride’s band only over the durations both sports share, but its line and rings throughout', () => {
+      const { container } = renderChart({ profile: ENDS })
+      const rings = Array.from(
+        container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),
+      ).map((ring) => Number(ring.getAttribute('cx')))
+      expect(rings).toHaveLength(3)
+      const band = xsOf(container.querySelector('[data-testid="profile-band"]')?.getAttribute('d'))
+      expect(Math.min(...band)).toBeCloseTo(rings[0] ?? NaN, 0)
+      expect(Math.max(...band)).toBeCloseTo(rings[1] ?? NaN, 0)
+      const runMarkers = container.querySelectorAll(
+        '[data-testid="profile-marker"][data-sport="run"]',
+      )
+      expect(runMarkers).toHaveLength(3)
+    })
+
+    it('draws no band at all where the sports share fewer than two durations', () => {
+      const profile: GradeProfile = {
+        run: [
+          { durationS: 5 * MIN, grade: runAt(0.6) },
+          { durationS: 10 * MIN, grade: runAt(0.6) },
+        ],
+        ride: [
+          { durationS: 10 * MIN, grade: rideAt(0.55) },
+          { durationS: 20 * MIN, grade: rideAt(0.55) },
+        ],
+      }
+      const { container } = renderChart({ profile })
+      expect(container.querySelector('[data-testid="profile-band"]')?.getAttribute('d')).toBe('')
+    })
+  })
+
+  it('has no lede without a finding', () => {
+    const { container } = renderChart({ finding: undefined })
+    expect(container.querySelector('.chart-frame__lede')).toBeNull()
+  })
 })

@@ -13,8 +13,8 @@ Peak RSS is the process maximum; heap and array-buffer values are sampled after 
 | Generate and digest the library   |      1,906 ms |                                2,185 ms |
 | of which, generating activities   |        694 ms |                                         |
 | of which, `digestActivity`        |      1,212 ms |                                         |
-| First combine                     |         55 ms |                                   93 ms |
-| Five combines per setting, median | 31–33 ms each | included in 600 ms total across 15 runs |
+| First combine                     |         50 ms |                                   88 ms |
+| Five combines per setting, median | 27–28 ms each | included in 530 ms total across 15 runs |
 
 Peak RSS was 226.3 MiB. At the final sample, V8 heap used 45.1 MiB and array buffers used 1.3 MiB.
 Measured on 26 October 2026 for PR #99; each figure is the median of three runs, interleaved with

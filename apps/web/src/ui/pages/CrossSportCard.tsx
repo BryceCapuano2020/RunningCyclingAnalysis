@@ -1,7 +1,7 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { UnitSystem } from '@rca/core/units'
-import { EQUIVALENCE_DURATIONS_S, EQUIVALENCE_MIN_S } from '@rca/core/constants'
+import { EQUIVALENCE_MIN_S } from '@rca/core/constants'
 import { PACE_UNIT, formatDuration, formatPaceValue, formatPower } from '@rca/core/units'
 import { EquivalenceTable } from '../components'
 import { WeightNote } from '../components/WeightNote'
@@ -61,11 +61,7 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
       </section>
     )
   }
-  // The result holds more durations for the grade profile; this card lists the cross-sport ones.
-  const equivalents = result.equivalents.filter((equivalent) =>
-    EQUIVALENCE_DURATIONS_S.includes(equivalent.durationS),
-  )
-  const featured = featuredEquivalence(equivalents)
+  const featured = featuredEquivalence(result.equivalents)
   if (!featured || !(featured.runSpeed.p50 > 0 && Number.isFinite(featured.runSpeed.p50))) {
     return (
       <section className="cross-sport" aria-labelledby="cross-sport-card">
@@ -107,7 +103,7 @@ export function CrossSportCard({ result, units, weighted, period }: CrossSportCa
       <details className="cross-sport__details">
         <summary>See the pace curve</summary>
         <EquivalenceTable
-          equivalents={equivalents}
+          equivalents={result.equivalents}
           units={units}
           weighted={weighted}
           estimated={(durationS) => isEstimatedRecord('ride', rideAt(result, durationS))}

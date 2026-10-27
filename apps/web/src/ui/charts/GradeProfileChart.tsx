@@ -24,8 +24,8 @@ import './ChartSeries.css'
 
 export interface GradeProfileChartProps {
   profile: GradeProfile
-  /** The sentence the chart supports, set under its title. */
-  finding: string
+  /** The sentence the chart supports, set under its title; left out where the page says it above the chart. */
+  finding?: string
 }
 
 /**

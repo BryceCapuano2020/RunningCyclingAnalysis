@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_BIKE_MODEL, DURATIONS_S, RESTING_W_PER_KG } from '../constants'
+import {
+  DEFAULT_BIKE_MODEL,
+  DURATIONS_S,
+  EQUIVALENCE_DURATIONS_S,
+  PROFILE_DURATIONS_S,
+  RESTING_W_PER_KG,
+} from '../constants'
 import { smoothGrade } from '../metabolic'
 import { mulberry32 } from '../math'
 import { airDensityStream } from '../physics/air'
@@ -643,5 +649,25 @@ describe('equivalenceFor', () => {
         expect(equivalence(watts, 75)).toEqual(equivalentRunSpeed(watts, 75, hr))
       }
     }
+  })
+
+  it("prices a result's own equivalents again from the result's heart-rate check and the athlete's mass", () => {
+    // The grade by duration prices the durations a combine leaves out this way, so it must agree with it.
+    const equivalence = equivalenceFor(result.hr)
+    expect(result.equivalents.length).toBeGreaterThan(0)
+    for (const { ridePowerW, runSpeed } of result.equivalents) {
+      expect(equivalence(ridePowerW, settings.massKg)).toEqual(runSpeed)
+    }
+  })
+
+  it('leaves the combine at the cross-sport durations, which the grade by duration extends', () => {
+    expect(result.equivalents.map((e) => e.durationS)).toEqual(
+      EQUIVALENCE_DURATIONS_S.filter((durationS) =>
+        result.rideCurve.some((p) => p.durationS === durationS && Number.isFinite(p.value)),
+      ),
+    )
+    expect(PROFILE_DURATIONS_S).toEqual([
+      180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200, 10800,
+    ])
   })
 })

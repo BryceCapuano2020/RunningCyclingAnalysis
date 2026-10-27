@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { PROFILE_DURATIONS_S } from '@rca/core/constants'
+import {
+  EQUIVALENCE_DURATIONS_S,
+  HEADLINE_DURATION_S,
+  PROFILE_DURATIONS_S,
+} from '@rca/core/constants'
+import { analyze, equivalentRunSpeed } from '@rca/core/pipeline'
+import { sampleDataset } from '@rca/core/synthetic'
 import { curvePoint } from './charts/fixtures'
 import {
   MAN_BORN_1986,
@@ -9,11 +15,21 @@ import {
   makeEquivalence,
   makeResult,
 } from './components/fixtures'
-import { gradeProfile, profileDurations, profileFinding } from './gradeProfile'
+import { gapOfHeadline } from './balanceGap'
+import {
+  gradeProfile,
+  profileDurations,
+  profileEquivalents,
+  profileFinding,
+  profileLeans,
+  profileSeparated,
+} from './gradeProfile'
 import type { GradeProfile } from './gradeProfile'
+import { headlineGrades, sportGrade } from './grades'
 import type { Grade, SportGrade } from './grades'
 
 const MIN = 60
+const MASS_KG = 75
 
 /** A run's grade: one activity's estimate, so a point with no range. */
 function runAt(fraction: number): SportGrade {
@@ -32,13 +48,19 @@ function rideAt(fraction: number, spread = 0.03): SportGrade {
 type Row = readonly [minutes: number, run: number | null, ride: number | null]
 
 /** A profile with a run and a ride grade at each of the durations, in minutes. */
-function profileOf(rows: readonly Row[]): GradeProfile {
+function profileOf(rows: readonly Row[], spread = 0.03): GradeProfile {
   const points = (pick: (row: Row) => number | null, make: (fraction: number) => SportGrade) =>
     rows.flatMap((row) => {
       const grade = pick(row)
       return grade === null ? [] : [{ durationS: row[0] * MIN, grade: make(grade) }]
     })
-  return { run: points((row) => row[1], runAt), ride: points((row) => row[2], rideAt) }
+  return {
+    run: points((row) => row[1], runAt),
+    ride: points(
+      (row) => row[2],
+      (fraction) => rideAt(fraction, spread),
+    ),
+  }
 }
 
 describe('gradeProfile', () => {
@@ -77,14 +99,14 @@ describe('gradeProfile', () => {
 
   it('grades each sport at the durations from 3 min to 3 h that it has a best, in order', () => {
     const result = makeResult({ activities, runCurve, rideCurve, equivalents })
-    const profile = gradeProfile(result, MAN_BORN_1986)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
     expect(profile.run.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
     expect(profile.ride.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
   })
 
   it('gives a run a point and a ride its range', () => {
     const result = makeResult({ activities, runCurve, rideCurve, equivalents })
-    const profile = gradeProfile(result, MAN_BORN_1986)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
     expect(profile.run.every((point) => point.grade.range === null)).toBe(true)
     expect(profile.ride.every((point) => point.grade.range !== null)).toBe(true)
   })
@@ -96,7 +118,7 @@ describe('gradeProfile', () => {
       rideCurve,
       equivalents,
     })
-    const profile = gradeProfile(result, MAN_BORN_1986)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
     expect(profile.run.map((point) => point.durationS)).not.toContain(10 * MIN)
     expect(profile.ride.map((point) => point.durationS)).toContain(10 * MIN)
   })
@@ -109,14 +131,67 @@ describe('gradeProfile', () => {
       rideCurve,
       equivalents: equivalents.filter((equivalence) => equivalence.durationS !== 180),
     })
-    const profile = gradeProfile(result, MAN_BORN_1986)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
     expect(profile.run.map((point) => point.durationS)).toEqual([20 * MIN])
     expect(profile.ride.map((point) => point.durationS)).not.toContain(3 * MIN)
   })
 
   it('has no points for a sport with no curve', () => {
     const result = makeResult({ activities, runCurve, rideCurve: [], equivalents })
-    expect(gradeProfile(result, MAN_BORN_1986).ride).toEqual([])
+    expect(gradeProfile(result, MAN_BORN_1986, MASS_KG).ride).toEqual([])
+  })
+})
+
+describe('the durations a combine leaves out', () => {
+  const { activities } = sampleDataset()
+  const result = analyze(activities, { massKg: MASS_KG, bikeMassKg: 9 })
+  const beyond = (durationS: number) => !EQUIVALENCE_DURATIONS_S.includes(durationS)
+
+  it('prices an equivalent at each longer or shorter duration the ride curve has a best at', () => {
+    const extras = profileEquivalents(result, MASS_KG)
+    const ridden = PROFILE_DURATIONS_S.filter(beyond).filter((durationS) =>
+      result.rideCurve.some((p) => p.durationS === durationS && Number.isFinite(p.value)),
+    )
+    expect(ridden.length).toBeGreaterThan(0)
+    expect(extras.map((e) => e.durationS)).toEqual(ridden)
+  })
+
+  it('prices them as a combine does: the same draws, the result’s heart-rate check, the mass', () => {
+    for (const extra of profileEquivalents(result, MASS_KG)) {
+      expect(extra.runSpeed).toEqual(equivalentRunSpeed(extra.ridePowerW, MASS_KG, result.hr))
+    }
+  })
+
+  it('leaves the result’s own equivalents as they were, and prices none a combine already holds', () => {
+    const before = structuredClone(result.equivalents)
+    gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    expect(result.equivalents).toEqual(before)
+    const held = result.equivalents.map((e) => e.durationS)
+    expect(profileEquivalents(result, MASS_KG).some((e) => held.includes(e.durationS))).toBe(false)
+  })
+
+  it('draws a ride’s grade at those durations, graded as one the combine held would be', () => {
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    // A 4 min equivalent runs under a mile, which has no standard, so the first graded one is read.
+    const extra = profileEquivalents(result, MASS_KG).find((e) =>
+      profile.ride.some((p) => p.durationS === e.durationS),
+    )!
+    const priced = { ...result, equivalents: [...result.equivalents, extra] }
+    const expected = sportGrade(priced, 'ride', extra.durationS, MAN_BORN_1986)
+    expect(expected.kind).toBe('graded')
+    const point = profile.ride.find((p) => p.durationS === extra.durationS)
+    expect(point?.grade).toEqual(expected.kind === 'graded' ? expected.grade : null)
+    expect(profile.ride.some((p) => beyond(p.durationS))).toBe(true)
+  })
+
+  it('prices them at the mass given, so the same watts are worth a slower run for a heavier athlete', () => {
+    const light = profileEquivalents(result, 60)[0]!
+    const heavy = profileEquivalents(result, 90)[0]!
+    expect(heavy.runSpeed.p50).toBeLessThan(light.runSpeed.p50)
+  })
+
+  it('prices nothing when the ride curve has no best beyond the combine’s durations', () => {
+    expect(profileEquivalents({ ...result, rideCurve: [] }, MASS_KG)).toEqual([])
   })
 })
 
@@ -132,11 +207,78 @@ describe('profileDurations', () => {
   })
 })
 
-const ESTIMATED = "Cycling's grades are estimated, so a gap this size is within their range."
+describe('profileLeans and profileSeparated', () => {
+  const sample = analyze(sampleDataset().activities, { massKg: MASS_KG, bikeMassKg: 9 })
+
+  it('reads the lean at 20 min from the grades and the balance rule the headline uses', () => {
+    const grades = headlineGrades(sample, MAN_BORN_1986)
+    const gap = gapOfHeadline(grades)
+    const profile = gradeProfile(sample, MAN_BORN_1986, MASS_KG)
+    const at20 = profileLeans(profile).find((lean) => lean.durationS === HEADLINE_DURATION_S)
+    expect(gap).not.toBeNull()
+    expect(at20?.lean).toBe(gap?.lean)
+    expect(at20?.gap).toBe(gap?.centre)
+  })
+
+  it('takes the ride’s grade at 20 min from the same equivalence the headline grades', () => {
+    const grades = headlineGrades(sample, MAN_BORN_1986)
+    const profile = gradeProfile(sample, MAN_BORN_1986, MASS_KG)
+    const ride = profile.ride.find((point) => point.durationS === HEADLINE_DURATION_S)
+    expect(grades.ride.kind).toBe('graded')
+    expect(ride?.grade).toEqual(grades.ride.kind === 'graded' ? grades.ride.grade : null)
+  })
+
+  it('says whether any duration is outside the ride’s range, which is when a sport is higher', () => {
+    expect(
+      profileSeparated(
+        profileOf([
+          [10, 0.62, 0.6],
+          [20, 0.7, 0.6],
+        ]),
+      ),
+    ).toBe(true)
+    expect(
+      profileSeparated(
+        profileOf([
+          [10, 0.62, 0.6],
+          [20, 0.58, 0.6],
+        ]),
+      ),
+    ).toBe(false)
+    expect(profileSeparated({ run: [], ride: [] })).toBe(false)
+  })
+})
+
+const WITHIN = 'elsewhere the two are within range'
 
 describe('profileFinding', () => {
-  it('says how many points the sport that grades higher is ahead by, at every duration, steadily', () => {
-    // A ride's range is 3 points either side, so a run 6 above it is outside that range.
+  it('says no duration separates the sports when every gap is within the ride’s range', () => {
+    const profile = profileOf([
+      [3, 0.62, 0.6],
+      [5, 0.58, 0.6],
+      [10, 0.6, 0.6],
+      [60, 0.61, 0.6],
+    ])
+    expect(profileFinding(profile)).toBe(
+      "No duration separates your running and cycling: at every duration from 3 to 60 min the gap is within cycling's range.",
+    )
+  })
+
+  it('counts a run at the edge of the range as within it, by whole percents', () => {
+    // The ride's range is 57 to 63%: a run at 63.9% shows as 63%, so it does not separate them.
+    const edge = profileOf([
+      [5, 0.639, 0.6],
+      [10, 0.639, 0.6],
+    ])
+    expect(profileFinding(edge)).toContain('No duration separates')
+    const past = profileOf([
+      [5, 0.64, 0.6],
+      [10, 0.64, 0.6],
+    ])
+    expect(profileFinding(past)).toContain('Your running grades about')
+  })
+
+  it('says how many points higher the sport is, steadily, when it is outside the range at every duration', () => {
     const profile = profileOf([
       [10, 0.7, 0.64],
       [20, 0.7, 0.64],
@@ -158,29 +300,26 @@ describe('profileFinding', () => {
     )
   })
 
-  it('says the gap widens toward longer efforts when it grows by 4 points or more', () => {
-    const profile = profileOf([
+  it('says the gap widens or narrows toward longer efforts when it changes by 4 points or more', () => {
+    const widens = profileOf([
       [10, 0.68, 0.64],
       [30, 0.72, 0.64],
       [60, 0.74, 0.64],
     ])
-    expect(profileFinding(profile)).toBe(
+    expect(profileFinding(widens)).toBe(
       'Your running grades about 8 points higher than your cycling at every duration from 10 to 60 min, and the gap widens toward longer efforts.',
     )
-  })
-
-  it('says the gap narrows toward longer efforts when it shrinks by 4 points or more', () => {
-    const profile = profileOf([
+    const narrows = profileOf([
       [10, 0.74, 0.64],
       [30, 0.72, 0.64],
       [60, 0.68, 0.64],
     ])
-    expect(profileFinding(profile)).toBe(
+    expect(profileFinding(narrows)).toBe(
       'Your running grades about 8 points higher than your cycling at every duration from 10 to 60 min, and the gap narrows toward longer efforts.',
     )
   })
 
-  it('calls a change of 3 points steady, and one of 4 a shape', () => {
+  it('calls a change of 3 points steady, takes the shape from the two ends, and a change of 4 is a shape', () => {
     const steady = profileOf([
       [10, 0.7, 0.64],
       [60, 0.73, 0.64],
@@ -191,15 +330,12 @@ describe('profileFinding', () => {
       [60, 0.74, 0.64],
     ])
     expect(profileFinding(widening)).toContain('the gap widens')
-  })
-
-  it('takes the shape from the shortest and longest shared durations, not the ones between', () => {
-    const profile = profileOf([
+    const bump = profileOf([
       [10, 0.7, 0.64],
       [20, 0.8, 0.64],
       [60, 0.7, 0.64],
     ])
-    expect(profileFinding(profile)).toContain('by a steady margin')
+    expect(profileFinding(bump)).toContain('by a steady margin')
   })
 
   it('gives the median of the gaps in whole points, averaging the middle two', () => {
@@ -217,14 +353,17 @@ describe('profileFinding', () => {
   })
 
   it('says one point in the singular', () => {
-    const profile = profileOf([
-      [10, 0.65, 0.64],
-      [20, 0.65, 0.64],
-    ])
+    const profile = profileOf(
+      [
+        [10, 0.65, 0.64],
+        [20, 0.65, 0.64],
+      ],
+      0.005,
+    )
     expect(profileFinding(profile)).toContain('about 1 point higher')
   })
 
-  it('names where the higher sport changes', () => {
+  it('names where the higher sport changes, with nothing else to say when every duration separates them', () => {
     const profile = profileOf([
       [3, 0.6, 0.8],
       [5, 0.6, 0.8],
@@ -251,81 +390,55 @@ describe('profileFinding', () => {
     )
   })
 
-  it('reads the centres, so a run at the edge of the ride’s range is not a change of lead', () => {
-    // Run 64, 63, 64, 55 against a ride of 58, 57, 58, 50 with an 8 point range either side: the run
-    // is inside the range at every duration, yet ahead by its centre at each, so the lead never flips.
-    const profile: GradeProfile = {
-      run: [
-        { durationS: 10 * MIN, grade: runAt(0.64) },
-        { durationS: 15 * MIN, grade: runAt(0.63) },
-        { durationS: 20 * MIN, grade: runAt(0.64) },
-        { durationS: 30 * MIN, grade: runAt(0.55) },
-      ],
-      ride: [
-        { durationS: 10 * MIN, grade: rideAt(0.58, 0.08) },
-        { durationS: 15 * MIN, grade: rideAt(0.57, 0.08) },
-        { durationS: 20 * MIN, grade: rideAt(0.58, 0.08) },
-        { durationS: 30 * MIN, grade: rideAt(0.5, 0.08) },
-      ],
-    }
+  it('names only the stretches outside the range, and says the rest are within it', () => {
+    const upTo = profileOf([
+      [3, 0.7, 0.6],
+      [5, 0.7, 0.6],
+      [10, 0.6, 0.6],
+      [20, 0.6, 0.6],
+    ])
+    expect(profileFinding(upTo)).toBe(`Your running grades higher up to 5 min; ${WITHIN}.`)
+    const from = profileOf([
+      [3, 0.6, 0.6],
+      [5, 0.6, 0.6],
+      [10, 0.6, 0.8],
+      [20, 0.6, 0.8],
+    ])
+    expect(profileFinding(from)).toBe(`Your cycling grades higher from 10 min on; ${WITHIN}.`)
+    const one = profileOf([
+      [3, 0.6, 0.6],
+      [5, 0.8, 0.6],
+      [10, 0.6, 0.6],
+    ])
+    expect(profileFinding(one)).toBe(`Your running grades higher at 5 min; ${WITHIN}.`)
+  })
+
+  it('keeps one stretch where the run dips inside the range between durations it is outside, and names the dip', () => {
+    // 10, 30 and 60 min are within the range, and 15, 20 and 45 min are outside it: the rounding at the
+    // edge of the range must not break the lead into fragments.
+    const profile = profileOf([
+      [10, 0.62, 0.6],
+      [15, 0.7, 0.6],
+      [20, 0.7, 0.6],
+      [30, 0.62, 0.6],
+      [45, 0.7, 0.6],
+      [60, 0.6, 0.6],
+    ])
     expect(profileFinding(profile)).toBe(
-      `Your running grades about 6 points higher than your cycling at every duration from 10 to 30 min, by a steady margin. ${ESTIMATED}`,
+      `Your running grades higher from 15 to 45 min, apart from 30 min; ${WITHIN}.`,
     )
   })
 
-  it('adds that the estimate’s grades are estimates when the gap is within its range at more than half the durations', () => {
-    // Gaps of 2, 2 and 5 against a range of 3 either side: within it at two of three.
+  it('names a change of lead and the durations within range between the two', () => {
     const profile = profileOf([
-      [10, 0.66, 0.64],
-      [20, 0.66, 0.64],
-      [30, 0.69, 0.64],
+      [3, 0.6, 0.8],
+      [5, 0.6, 0.8],
+      [10, 0.6, 0.6],
+      [20, 0.8, 0.6],
+      [60, 0.8, 0.6],
     ])
     expect(profileFinding(profile)).toBe(
-      `Your running grades about 2 points higher than your cycling at every duration from 10 to 30 min, by a steady margin. ${ESTIMATED}`,
-    )
-  })
-
-  it('leaves the qualifier off at exactly half the durations, and when the gap is outside the range', () => {
-    const half = profileOf([
-      [10, 0.66, 0.64],
-      [20, 0.7, 0.64],
-    ])
-    expect(profileFinding(half)).not.toContain('estimated')
-    const outside = profileOf([
-      [10, 0.7, 0.64],
-      [20, 0.7, 0.64],
-    ])
-    expect(profileFinding(outside)).not.toContain('estimated')
-  })
-
-  it('adds the qualifier to a change of lead too', () => {
-    const profile = profileOf([
-      [5, 0.62, 0.64],
-      [10, 0.66, 0.64],
-      [20, 0.62, 0.64],
-    ])
-    expect(profileFinding(profile)).toBe(
-      `Your cycling grades higher up to 5 min, your running at 10 min, your cycling from 20 min on. ${ESTIMATED}`,
-    )
-  })
-
-  it('does not say every duration where the two read the same at one', () => {
-    const profile = profileOf([
-      [10, 0.64, 0.64],
-      [20, 0.66, 0.64],
-    ])
-    expect(profileFinding(profile)).toBe(
-      `Your running grades about 1 point higher than your cycling from 10 to 20 min, by a steady margin. ${ESTIMATED}`,
-    )
-  })
-
-  it('says the sports grade the same when every centre reads the same', () => {
-    const profile = profileOf([
-      [10, 0.64, 0.64],
-      [20, 0.64, 0.64],
-    ])
-    expect(profileFinding(profile)).toBe(
-      'Your running and cycling grade the same at every duration.',
+      `Your cycling grades higher up to 5 min, your running from 20 min on; ${WITHIN}.`,
     )
   })
 

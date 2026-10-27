@@ -42,7 +42,7 @@ export function rowsOf(profile: GradeProfile): ProfileRow[] {
     }))
 }
 
-/** A sport's marks, one per row: its grade, and the ends of its range when it has one. */
+/** A sport's marks, one per row: its grade, and the ends of its range where it has one and every sport is graded. */
 export interface SportMarks {
   sport: Sport
   ranged: boolean
@@ -112,19 +112,22 @@ export function profileLayout(
   const { domain, ticks } = niceDomain(percentsOf(rows), 4, 0.05)
   const y = linearScale(domain, [plot.bottom, plot.top])
   const decimals = tickDecimals(ticks)
-  const marks = drawnSports(profile).map((sport): SportMarks => {
-    const at = (pick: (grade: SportGrade) => number | undefined) =>
-      rows.map((row): Point | null => {
+  const sports = drawnSports(profile)
+  // A range is drawn only where every sport has a grade, so it is never shown against nothing.
+  const shared = rows.map((row) => sports.every((sport) => row.grades[sport] !== undefined))
+  const marks = sports.map((sport): SportMarks => {
+    const at = (pick: (grade: SportGrade) => number | undefined, onlyShared = false) =>
+      rows.map((row, i): Point | null => {
         const grade = row.grades[sport]
-        const value = grade === undefined ? undefined : pick(grade)
+        const value = grade === undefined || (onlyShared && !shared[i]) ? undefined : pick(grade)
         return value === undefined ? null : { x: x(row.durationS), y: y(plotted('grade', value)) }
       })
     return {
       sport,
       ranged: isRanged(profile, sport),
       centre: at((grade) => grade.centre.grade),
-      low: at((grade) => grade.range?.low.grade),
-      high: at((grade) => grade.range?.high.grade),
+      low: at((grade) => grade.range?.low.grade, true),
+      high: at((grade) => grade.range?.high.grade, true),
     }
   })
   return {

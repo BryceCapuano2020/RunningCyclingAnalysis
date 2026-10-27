@@ -231,7 +231,12 @@ export function BalancePage({
 
       {sourceLine}
 
-      <GradeProfileSection result={result} profile={profile} weightKnown={weightKnown} />
+      <GradeProfileSection
+        result={result}
+        profile={profile}
+        massKg={settings.massKg}
+        weightKnown={weightKnown}
+      />
 
       {missingAge !== null && (
         <div className="balance__profile">

@@ -97,8 +97,8 @@ export const UNEVEN_NESTED_FRACTION = 0.4
 export const UNEVEN_REST_FRACTION = 0.85
 
 /**
- * The ride durations, s, the cross-sport card lists its running equivalents at: 3 minutes up to an hour.
- * The result holds an equivalent at every PROFILE_DURATIONS_S, so the card reads only these.
+ * The ride durations, s, a cross-sport equivalence is worked out at: 3 minutes up to an hour. The
+ * analysis prices these in every combine, so each added here costs one sort of the 4,000 draws there.
  */
 export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
   180,
@@ -112,9 +112,9 @@ export const EQUIVALENCE_DURATIONS_S: readonly number[] = [
 export const EQUIVALENCE_MIN_S = EQUIVALENCE_DURATIONS_S[0]!
 
 /**
- * The durations, s, a running equivalent is worked out at wherever the ride curve has a best: every
- * curve duration from EQUIVALENCE_MIN_S up to the curve's longest, 3 hours. The age grade by duration
- * is drawn at these.
+ * The durations, s, the age grade by duration is drawn at: every curve duration from EQUIVALENCE_MIN_S up
+ * to the curve's longest, 3 hours. The ride's equivalents beyond EQUIVALENCE_DURATIONS_S are priced by
+ * the page that draws them, not by every combine.
  */
 export const PROFILE_DURATIONS_S: readonly number[] = DURATIONS_S.filter(
   (durationS) => durationS >= EQUIVALENCE_MIN_S,

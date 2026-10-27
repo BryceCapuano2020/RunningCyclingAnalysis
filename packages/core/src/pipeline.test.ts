@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  DURATIONS_S,
-  EQUIVALENCE_DURATIONS_S,
-  PRIORS,
-  PROFILE_DURATIONS_S,
-  RESTING_W_PER_KG,
-} from './constants'
+import { DURATIONS_S, PRIORS, RESTING_W_PER_KG } from './constants'
 import type { AnalysisResult } from './pipeline'
 import { combine, digestActivity } from './digest'
 import { analyze, equivalentRunSpeed } from './pipeline'
@@ -127,19 +121,7 @@ describe('analyze on simulated ground truth', () => {
       expect(eq.runSpeed.p05).toBeLessThan(trueSpeed)
       expect(eq.runSpeed.p95).toBeGreaterThan(trueSpeed)
     }
-    expect(PROFILE_DURATIONS_S).toEqual([
-      180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200, 10800,
-    ])
-    // One for each duration of 3 min to 3 h at which the ride curve has a value, and none invented.
-    const ridden = result.rideCurve
-      .filter((p) => Number.isFinite(p.value))
-      .map((p) => p.durationS)
-      .filter((durationS) => PROFILE_DURATIONS_S.includes(durationS))
-    expect(result.equivalents.map((e) => e.durationS)).toEqual(ridden)
-    expect(ridden.length).toBeGreaterThan(EQUIVALENCE_DURATIONS_S.length)
-    for (const durationS of EQUIVALENCE_DURATIONS_S) {
-      expect(result.equivalents.map((e) => e.durationS)).toContain(durationS)
-    }
+    expect(result.equivalents.map((e) => e.durationS)).toEqual([180, 300, 600, 1200, 1800, 3600])
   })
 
   it('is deterministic', () => {
