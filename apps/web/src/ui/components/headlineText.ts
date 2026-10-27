@@ -81,23 +81,23 @@ export function rangeText({ unit, lean, lead }: BalanceReading): string {
   return `${percentEdge(low, false)} to ${percentEdge(high, false)}`
 }
 
-/**
- * A lead's likely range, in brackets after the lead, so a lead is never read as one exact number:
- * " (likely 2 to 10 points)". Empty when the range is a single value.
- */
-function likelyText(reading: BalanceReading): string {
-  const { low, high } = reading.lead
-  return Math.round(low) === Math.round(high) ? '' : ` (likely ${rangeText(reading)})`
+/** Whether a lead's range rounds to a single value, so the lead is said as that one value. */
+function isPoint(reading: BalanceReading): boolean {
+  return Math.round(reading.lead.low) === Math.round(reading.lead.high)
 }
 
 /**
- * A leaning grade gap on the headline duration, with its range: "Your running grades 6 points higher
- * than your cycling (likely 2 to 10 points), on your best 20 min in each.".
+ * A leaning grade gap on the headline duration, said as its likely range so it is never read as one
+ * exact number: "Your running grades 2 to 10 points higher than your cycling, on your best 20 min in
+ * each.". The meter's flag gives the best estimate.
  */
 function leaningGradeSummary(reading: BalanceReading & { lean: Exclude<Lean, 'even'> }): string {
   const { leader, other } = leaderOf(reading.lean)
+  const amount = isPoint(reading)
+    ? points(Math.abs(Math.round(reading.lead.centre)))
+    : rangeText(reading)
   return (
-    `Your ${leader} grades ${points(Math.abs(Math.round(reading.lead.centre)))} higher than your ${other}${likelyText(reading)}, ` +
+    `Your ${leader} grades ${amount} higher than your ${other}, ` +
     `on your best ${formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)} in each.`
   )
 }
@@ -122,9 +122,11 @@ function energySummary({ unit, lean, lead }: BalanceReading, duration: string): 
     return `Over ${duration}, your running and your cycling are within the model's range of each other, as energy per kilogram.`
   }
   const { leader, other } = leaderOf(lean)
-  // The edge's rule, so a lead under half a percent reads as its value, never as 0% beside its range.
-  const percent = percentEdge(Math.abs(lead.centre), false)
-  return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other}${likelyText({ unit, lean, lead })}, as energy per kilogram.`
+  // The edge's rule, so a lead under half a percent reads as its value, never as 0%.
+  const amount = isPoint({ unit, lean, lead })
+    ? `about ${percentEdge(Math.abs(lead.centre), false)}`
+    : rangeText({ unit, lean, lead })
+  return `Over ${duration}, your ${leader} is ${amount} higher than your ${other}, as energy per kilogram.`
 }
 
 /** The summary under the headline. A grade gap is on the headline duration; the energy ratio on the duration given. */

@@ -562,11 +562,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence
   and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure is this?, and "Run
   against Ride, 90% range: -2% to +4%." only when the two are even. The lede names no dates: the period control's caption under the meter gives them when the period is
-  not All time, so the lede reads "Your running grades 6 points higher than your cycling (likely 2 to 10
-  points), on your best 20 min in each." on its own. The lede always gives a lead with its likely range, so
-  the gap is never read as one exact number; the energy ratio does the same: "Over 20 min, your running is
-  about 12% higher than your cycling (likely 5% to 20%), as energy per kilogram." A range that rounds to a
-  single value is left out.
+  not All time, so the lede reads "Your running grades 2 to 10 points higher than your cycling, on your best
+  20 min in each." on its own. The lede says a lead as its likely range, so the gap is never read as one
+  exact number, and the meter's flag gives the best estimate; the energy ratio does the same: "Over 20 min,
+  your running is 5% to 20% higher than your cycling, as energy per kilogram." A range that rounds to a
+  single value is said as that value: "grades 6 points higher", "about 12% higher".
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
