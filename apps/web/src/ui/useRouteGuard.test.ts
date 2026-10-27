@@ -89,6 +89,27 @@ describe('useRouteGuard on a deep link', () => {
     expect(window.location.hash).toBe('#/run')
   })
 
+  it('keeps the deep link through a kept library’s restore, which holds the page busy but is not an import', () => {
+    window.location.hash = '#/run'
+    // The age grades’ trend request is quiet, so it does not hold the page busy while the library restores.
+    const restoring: RouteGuardInput = { ...cold, busy: false, restoring: true }
+    const { rerender } = renderHook((input: RouteGuardInput) => useRouteGuard(input), {
+      initialProps: restoring,
+    })
+    rerender({ ...restoring, restoring: false, hasResult: true })
+    expect(window.location.hash).toBe('#/run')
+  })
+
+  it('moves a visitor whose own import, made while a kept library restores, brings the result to Balance', async () => {
+    window.location.hash = '#/run'
+    const importing: RouteGuardInput = { ...cold, busy: true, restoring: true }
+    const { rerender } = renderHook((input: RouteGuardInput) => useRouteGuard(input), {
+      initialProps: importing,
+    })
+    rerender({ ...importing, busy: false, restoring: false, hasResult: true })
+    await waitFor(() => expect(window.location.hash).toBe('#/'))
+  })
+
   it('moves a visitor who imports from the deep link to Balance, the home page', async () => {
     window.location.hash = '#/run'
     const importing: RouteGuardInput = { ...cold, busy: true }

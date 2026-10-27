@@ -53,7 +53,8 @@ export function useRouteGuard(input: RouteGuardInput): string | null {
   })
 
   useEffect(() => {
-    // A library load also holds the page busy, so busy is an import only when no load is running.
+    // A library load also holds the page busy, so busy is an import only when no load is running. A
+    // visitor's own import during a kept library's restore is an import, and moves them to Balance.
     const importing = waiting || (busy && !libraryLoading)
     if (!hasResult && importing && needsResult(route)) {
       importedOnColdPage.current = true

@@ -34,6 +34,7 @@ import {
   THRESHOLD_MEANING,
   thresholdNeedsText,
 } from '../sports'
+import { thresholdRange } from '../thresholdRange'
 import { PAGE_HEADING_ID } from './pageHeading'
 import {
   EFFORT_OPTIONS,
@@ -76,7 +77,7 @@ export interface SportPageProps {
   missingAge: AgeGap | null
   /** The window in days, or null for all time: the figures' scope is named by it. */
   rangeDays: number | null
-  /** The period control, shown beside the heading. */
+  /** The period control, shown under the answer it changes. */
   controls: ReactNode
   /** The line that says what the page is based on, at its foot. */
   footnote?: ReactNode
@@ -147,6 +148,7 @@ export function SportPage({
   // A ride's figures use the body mass, so the page holds them until the weight is entered.
   const held = sport === 'ride' && !weighted
   const hero = threshold(result, sport, massKg, units)
+  const range = thresholdRange(result, sport, massKg, units)
   const records = sportRecords(result, sport, massKg, units)
   const graded = records.map((record) => ({
     record,
@@ -221,6 +223,51 @@ export function SportPage({
     result.effort.find((check) => check.durationS === HEADLINE_DURATION_S),
   )
 
+  // Under the answer it changes: the threshold, or the empty or held note.
+  const periodControl = inLibrary > 0 ? controls : null
+  // The answer is one slot, and the period control the next child in every state, so the control keeps its
+  // parent and place, and its focus, when a pick takes the sport to or from zero activities.
+  const answer =
+    count === 0 ? (
+      <section className="section">
+        <p className="secondary">{emptyText}</p>
+        {inLibrary === 0 ? (
+          <div className="sport-page__actions">
+            <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
+            <HowToGetFilesButton />
+          </div>
+        ) : (
+          rangeDays !== null &&
+          onShowAll && (
+            <button type="button" className="btn" onClick={onShowAll}>
+              Show all time
+            </button>
+          )
+        )}
+      </section>
+    ) : held ? (
+      <WeightNote />
+    ) : (
+      <section className="section" aria-labelledby={`${sport}-threshold`}>
+        <h2 id={`${sport}-threshold`} className="eyebrow sport-page__threshold">
+          {THRESHOLD_LABEL[sport]}
+        </h2>
+        {hero ? (
+          <p className="sport-page__hero">
+            <span className="hero-number">{hero.value}</span>
+            {hero.sub && <span className="sport-page__hero-sub secondary">{hero.sub}</span>}
+          </p>
+        ) : (
+          <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
+        )}
+        {hero && range && <p className="muted sport-page__range">{`Likely ${range}`}</p>}
+        {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+        {heartRateLine && <p className="muted">{heartRateLine}</p>}
+        {headline && (
+          <AgeGradeBlock sport={sport} outcome={headline} effort={headlineEffort(sport, records)} />
+        )}
+      </section>
+    )
   return (
     <div className="page-stack">
       <div className="page-head">
@@ -228,52 +275,11 @@ export function SportPage({
           <SportIcon sport={sport} />
           {SPORT_LABEL[sport]}
         </h1>
-        {inLibrary > 0 && controls}
       </div>
-      {count === 0 ? (
-        <section className="section">
-          <p className="secondary">{emptyText}</p>
-          {inLibrary === 0 ? (
-            <div className="sport-page__actions">
-              <AddSportFiles sport={sport} onAddFiles={onAddFiles} />
-              <HowToGetFilesButton />
-            </div>
-          ) : (
-            rangeDays !== null &&
-            onShowAll && (
-              <button type="button" className="btn" onClick={onShowAll}>
-                Show all time
-              </button>
-            )
-          )}
-        </section>
-      ) : held ? (
-        <WeightNote />
-      ) : (
+      {answer}
+      {periodControl}
+      {!held && count > 0 && (
         <>
-          <section className="section" aria-labelledby={`${sport}-threshold`}>
-            <h2 id={`${sport}-threshold`} className="eyebrow sport-page__threshold">
-              {THRESHOLD_LABEL[sport]}
-            </h2>
-            {hero ? (
-              <p className="sport-page__hero">
-                <span className="hero-number">{hero.value}</span>
-                {hero.sub && <span className="sport-page__hero-sub secondary">{hero.sub}</span>}
-              </p>
-            ) : (
-              <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
-            )}
-            {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
-            {heartRateLine && <p className="muted">{heartRateLine}</p>}
-            {headline && (
-              <AgeGradeBlock
-                sport={sport}
-                outcome={headline}
-                effort={headlineEffort(sport, records)}
-              />
-            )}
-          </section>
-
           <section className="section" aria-labelledby={`${sport}-records`}>
             <h2 id={`${sport}-records`}>Best efforts</h2>
             {form && <p className="muted">{form}</p>}
@@ -328,7 +334,6 @@ export function SportPage({
           </section>
         </>
       )}
-
       {!held && count > 0 && (
         <section className="section" aria-labelledby={`${sport}-curve`}>
           <h2 id={`${sport}-curve`}>{CURVE_TITLE[sport]}</h2>

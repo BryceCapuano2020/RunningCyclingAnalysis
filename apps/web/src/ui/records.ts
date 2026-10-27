@@ -75,10 +75,10 @@ export function coveredText(metres: number, durationS: number, units: UnitSystem
   return `${formatDistance(metres, units)} in ${effortLabel(durationS)}`
 }
 
-type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
+export type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
 
 /** A running value (gross metabolic W/kg) as the flat pace with the same cost. */
-function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
+export function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
   const speed = metabolicToFlatSpeed(metabolicWkg)
   return {
     value: formatPace(speed, units),
@@ -93,7 +93,7 @@ export function runPace(metabolicWkg: number, units: UnitSystem): string {
 }
 
 /** A cycling value as mechanical watts. */
-function powerFigure(watts: number): Figure {
+export function powerFigure(watts: number): Figure {
   return { value: formatPower(watts), number: formatWatts(watts), unit: 'W' }
 }
 

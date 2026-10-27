@@ -33,12 +33,18 @@ function isHard(fraction: number): boolean {
   return percentOf(fraction) >= Math.round(ALL_OUT * 100)
 }
 
+/**
+ * Where the reference heart rate is named, its one gloss, in words that hold for both sports: cycling's is
+ * derived from running's, so "your highest heart rate" would be wrong for a ride.
+ */
+const REFERENCE_SOURCE = 'set from your highest heart rates on file'
+
 /** A best effort's heart rate as a share of its sport's reference, in words, without its ending. */
 function reachedText(sport: Sport, duration: string, fraction: number): string {
   const share = percentOf(fraction)
   return sport === 'run'
-    ? `Your best ${duration} running reached ${share}% of your running reference heart rate`
-    : `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate`
+    ? `Your best ${duration} running reached ${share}% of your running reference heart rate (${REFERENCE_SOURCE})`
+    : `Your best ${duration} on the bike reached ${share}% of your cycling reference heart rate (${REFERENCE_SOURCE})`
 }
 
 /** Why the best efforts may not have been the hardest, or null when heart rate does not say so. */
@@ -51,7 +57,8 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
       title: 'Both numbers could be higher',
       text:
         `Your best ${duration} reached ${percentOf(run)}% of your running reference heart rate ` +
-        `and ${percentOf(ride)}% of your cycling one, so neither was probably your hardest.`,
+        `and ${percentOf(ride)}% of your cycling one (both ${REFERENCE_SOURCE}), ` +
+        'so neither was probably your hardest.',
       short: `Best efforts over ${duration} may not have been your hardest.`,
     }
   }
@@ -74,8 +81,8 @@ export function effortCaveat(effort: EffortCheck | null | undefined): EffortCave
 
 /**
  * One line on a sport's best effort at the headline duration, by heart rate, such as "Your best 20 min
- * running reached 70% of your running reference heart rate, so it was probably not your hardest". Null
- * when heart rate does not say, or the check is missing.
+ * running reached 70% of your running reference heart rate (set from your highest heart rates on file),
+ * so it was probably not your hardest". Null when heart rate does not say, or the check is missing.
  */
 export function effortShareLine(
   sport: Sport,

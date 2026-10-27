@@ -27,6 +27,11 @@
   font-weight: 700;
 }
 
+/* The likely range under the figure is small, so it reads as the figure's qualification, not a second value. */
+.sport-page__range {
+  font-size: var(--text-sm);
+}
+
 /* The threshold's label is a heading that sets as the eyebrow above a value, on the eyebrow's line. */
 .sport-page__threshold {
   line-height: 1.5;

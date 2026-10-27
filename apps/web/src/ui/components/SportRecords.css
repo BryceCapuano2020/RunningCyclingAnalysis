@@ -112,10 +112,14 @@
   white-space: nowrap;
 }
 
-/* On the shared line the whole name shows, wrapped if it must, so the date is never cut short. */
+/*
+ * On the shared line the whole name shows, wrapped if it must, so the date is never cut short. An unbroken
+ * name has no space to wrap at, so it breaks anywhere rather than widening the page.
+ */
 .records__shared .records__link {
   white-space: normal;
   overflow: visible;
+  overflow-wrap: anywhere;
 }
 
 /* A finger needs a control's height to tap a record's link. A mouse keeps the line's own height. */
