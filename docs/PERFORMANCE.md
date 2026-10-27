@@ -8,16 +8,19 @@ script builds every digest once, records the first combine separately, then perf
 for each of three body/bike-mass settings. Process CPU time is reported separately from wall time.
 Peak RSS is the process maximum; heap and array-buffer values are sampled after the work.
 
-| Phase                             |     Wall time |                          Process CPU time |
-| --------------------------------- | ------------: | ----------------------------------------: |
-| Generate and digest the library   |      1,293 ms |                                  1,522 ms |
-| First combine                     |         79 ms |                                    104 ms |
-| Five combines per setting, median | 60–61 ms each | included in 1,035 ms total across 15 runs |
+| Phase                             |     Wall time |                        Process CPU time |
+| --------------------------------- | ------------: | --------------------------------------: |
+| Generate and digest the library   |      2,171 ms |                                2,461 ms |
+| First combine                     |         48 ms |                                   84 ms |
+| Five combines per setting, median | 27–28 ms each | included in 522 ms total across 15 runs |
 
-Peak RSS was 204.8 MiB. At the final sample, V8 heap used 21.5 MiB and array buffers used 1.2
-MiB. These values are a local reference point, not CI thresholds. This is a Node CPU benchmark of
-generated activities and digest combination; it does not measure browser startup/rendering, FIT
-decoding, archive extraction, or account/network latency.
+Peak RSS was 212.9 MiB. At the final sample, V8 heap used 47.4 MiB and array buffers used 1.1 MiB.
+Measured on 26 October 2026 at main fe2f14c; each figure is the median of three runs. Since the 23
+October baseline, a combine has fallen from 60 ms to 27 ms, because each comparison quantity is now
+sorted once. Digesting takes 2,171 ms against 1,293 ms then; it already took 2,171 ms at f7b210d,
+before that change. These values are a local reference point, not CI thresholds. This is a Node CPU
+benchmark of generated activities and digest combination; it does not measure browser
+startup/rendering, FIT decoding, archive extraction, or account/network latency.
 
 The current default import ceilings are:
 
