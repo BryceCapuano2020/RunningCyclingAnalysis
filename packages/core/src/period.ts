@@ -226,6 +226,18 @@ export class PeriodCache {
   }
 
   /**
+   * Releases the analyses that select a digest the library no longer holds. A removed or replaced
+   * digest is never in a new selection, so such an analysis can no longer be found and only holds a
+   * slot and memory. Analyses of digests still held are kept.
+   */
+  releaseAbsent(library: readonly ActivityDigest[]): void {
+    const held = new Set(library)
+    this.analysisEntries = this.analysisEntries.filter((entry) =>
+      entry.selected.every((digest) => held.has(digest)),
+    )
+  }
+
+  /**
    * The weekly trend of each effort length over the selected period, reused while its inputs are the
    * same. The headline trend also carries each week's running equivalent, with the heart-rate model
    * of the selected analysis, when hr is given.

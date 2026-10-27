@@ -99,6 +99,12 @@ describe('confirmedOrder', () => {
     expect(confirmedOrder([1, 2, 3], [0, 1])).toEqual([0, 1, 2])
   })
 
+  it('sorts when the given order holds an index outside the values or one that is not whole', () => {
+    // Indices 7 to 10 have no value, and two missing values compare equal, so they looked ascending.
+    expect(confirmedOrder([4, 3, 2, 1], [7, 8, 9, 10])).toEqual([3, 2, 1, 0])
+    expect(confirmedOrder([4, 3, 2, 1], [0, 1.5, 2, 3])).toEqual([3, 2, 1, 0])
+  })
+
   it('sorts as the plain sort does when a value is not a number', () => {
     const values = [3, Number.NaN, 1, 2, Number.NaN, 0]
     for (const likely of [sortedOrder(values), sortedOrder(values, true), [0, 1, 2, 3, 4, 5]]) {

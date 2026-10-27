@@ -341,6 +341,8 @@ export class AnalysisSession {
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
     const all = [...this.digests.values()]
+    // Every change to the library is followed by a state, so the analyses it made stale go here.
+    this.periods.releaseAbsent(all)
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
     const { period, selected, previous } = splitPeriods(visible, this.choice)

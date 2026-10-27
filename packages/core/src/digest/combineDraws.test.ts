@@ -9,7 +9,7 @@ vi.mock('../compare/sampling', async (importOriginal) => {
   return { ...actual, drawPriors: vi.fn(actual.drawPriors) }
 })
 
-it('draws the priors once for the comparison and once for every equivalent', () => {
+it('draws the priors once for the comparison and once for all the equivalents', () => {
   const { athlete, activities } = sampleDataset()
   const digests = activities.map((a) => digestActivity(a))
   vi.mocked(sampling.drawPriors).mockClear()

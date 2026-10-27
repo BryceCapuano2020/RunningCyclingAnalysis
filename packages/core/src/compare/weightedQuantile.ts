@@ -23,15 +23,22 @@ export function sortedOrder(values: ArrayLike<number>, descending = false): numb
   return indicesByValue(values, values.length, descending)
 }
 
-/** Whether order is exactly what `sortedOrder(values)` returns, found in one pass over it. */
+/**
+ * Whether order is exactly what `sortedOrder(values)` returns, found in one pass over it. Every entry
+ * must be a whole index of values: with every index in range, the strictly increasing pairs of value
+ * and index also make the order a permutation.
+ */
 function isAscendingOrder(values: ArrayLike<number>, order: readonly number[]): boolean {
-  if (order.length !== values.length) return false
-  for (let k = 1; k < order.length; k++) {
+  const n = values.length
+  if (order.length !== n) return false
+  for (let k = 0; k < n; k++) {
+    const index = order[k]!
+    if (!Number.isInteger(index) || index < 0 || index >= n) return false
+    if (k === 0) continue
     const before = order[k - 1]!
-    const after = order[k]!
     const low = values[before]!
-    const high = values[after]!
-    if (!(low < high || (low === high && before < after))) return false
+    const high = values[index]!
+    if (!(low < high || (low === high && before < index))) return false
   }
   return true
 }

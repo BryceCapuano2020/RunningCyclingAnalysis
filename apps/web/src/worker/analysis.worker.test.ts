@@ -428,6 +428,27 @@ describe('analysis worker', () => {
     })
   })
 
+  it('analyses the account library once on the stored period, after the sample was on screen', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    await send({ type: 'loadSample', settings: SETTINGS, choice: 'all' })
+    // Counted from here. A period set before the account loads would analyse the sample first.
+    const { PeriodCache } = await import('@rca/core/period')
+    const analysis = vi.spyOn(PeriodCache.prototype, 'analysis')
+    const messages = await send({
+      type: 'loadServer',
+      settings: SETTINGS,
+      userId: USER_ID,
+      choice: 42,
+    })
+
+    expect(analysis).toHaveBeenCalledTimes(1)
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { totalActivities: 1, period: { choice: 42, days: 42 } },
+    })
+  })
+
   it('loads the sample on the period the page asks for, in one analysis', async () => {
     const { send } = await startWorker()
     const messages = await send({ type: 'loadSample', settings: SETTINGS, choice: 'all' })

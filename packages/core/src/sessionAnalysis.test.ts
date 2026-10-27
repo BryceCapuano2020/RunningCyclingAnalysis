@@ -59,6 +59,21 @@ describe('AnalysisSession analysis cache', () => {
     expect(combine).toHaveBeenCalledTimes(6)
   })
 
+  it('keeps a revisited analysis over the one used longest ago', () => {
+    const session = loadedSession()
+    const first = [7, 14, 21, 28].map((choice) => session.setRange(choice, SETTINGS).result)
+    expect(combine).toHaveBeenCalledTimes(4)
+    // Revisiting the 7 days alone makes them the newest, so the fifth period pushes out the 14 days.
+    expect(session.setRange(7, SETTINGS).result).toBe(first[0])
+    expect(combine).toHaveBeenCalledTimes(4)
+    session.setRange(42, SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(5)
+    expect(session.setRange(7, SETTINGS).result).toBe(first[0])
+    expect(combine).toHaveBeenCalledTimes(5)
+    session.setRange(14, SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(6)
+  })
+
   it('shares one analysis between periods that select the same activities', () => {
     const session = new AnalysisSession()
     const whole = session.loadDigests([...SAMPLE_DIGESTS], SETTINGS).result
@@ -101,6 +116,33 @@ describe('AnalysisSession analysis cache', () => {
     expect(combine).toHaveBeenCalledTimes(1)
     expect(after.activities).toHaveLength(kept.length)
     expect(before.activities.length).toBeGreaterThan(kept.length)
+  })
+
+  it('analyses again after the library is cleared, even when the same activities are loaded back', () => {
+    const session = new AnalysisSession()
+    session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(1)
+    session.clear()
+    session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(2)
+  })
+
+  it('analyses again once a different library has replaced the one first loaded', () => {
+    const session = new AnalysisSession()
+    session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
+    session.loadDigests(SAMPLE_DIGESTS.slice(0, 5), SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(2)
+    session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(3)
+  })
+
+  it('analyses once, on the chosen period, when the library loads after the choice', () => {
+    const session = loadedSession()
+    session.choosePeriod(21)
+    expect(combine).not.toHaveBeenCalled()
+    const state = session.loadDigests([...SAMPLE_DIGESTS], SETTINGS)
+    expect(combine).toHaveBeenCalledTimes(1)
+    expect(state.period.days).toBe(21)
   })
 
   it('analyses again when a file adds an activity to the period', async () => {
