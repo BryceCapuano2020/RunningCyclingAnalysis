@@ -373,7 +373,7 @@ export class AnalysisSession {
     const sameHeartRate =
       analysis === null
         ? NO_SAME_HEART_RATE
-        : this.periods.sameHeartRate(selected, fromMs, analysis.heartRateSetAside)
+        : this.periods.sameHeartRate(selected, visible, fromMs, analysis.heartRateSetAside)
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],

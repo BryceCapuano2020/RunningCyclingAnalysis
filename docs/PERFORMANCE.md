@@ -31,8 +31,8 @@ combine has fallen from 60 ms to 27 ms, because each comparison quantity is now 
 Output at the same heart rate (`sameHeartRate`, docs/research/same-heart-rate.md) is worked out beside
 the combine, not inside it, and does not read body mass, so a change of weight does not redo it. Each reported
 week fits at most 48 blocks by Theil-Sen and resamples the activities 200 times, which costs about 0.9 ms of
-CPU. For a 3,000-activity library, the default 12 weeks took about 17 ms of CPU and all time, which reports the
-newest 52 weeks of each sport, took about 90 ms. A first version that sorted every draw's blocks with a comparator and
+CPU. For a 3,000-activity library, the default 12 weeks took about 16 ms of CPU and all time, which reports the
+newest 52 weeks of each sport, took about 66 ms. The last few periods are kept, so picking one shown before costs nothing. A first version that sorted every draw's blocks with a comparator and
 took up to 100 blocks needed about 510 ms of wall time for all time. Measured on 27 October 2026, the fastest of twelve runs of a synthetic library of
 eight activities a week, alternating sport, 15 steady blocks each. `npm run test:perf` holds 100 ms and 400 ms
 for the two cases.

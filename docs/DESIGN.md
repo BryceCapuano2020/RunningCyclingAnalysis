@@ -390,11 +390,16 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **"At the same heart rate"** follows "Week by week" on each sport page and reads the one signal built from
   easy and steady efforts (`docs/research/same-heart-rate.md`). A sentence sits above the chart and says one of
   three things. With a real change: "At 145 bpm you now run 5:52 /km, against 6:10 /km 8 weeks ago." (or
-  "you now ride 214 W, against 198 W"). Without one: "At 145 bpm your pace has held at about 6:00 /km, within the
-  error." (or "your power has held at about"). With too little data, a muted line names what is missing, one
-  of: too few steady 5-minute stretches, too few activities, activities in too few weeks, heart rate that
-  hardly varies, no effort near the reference heart rate in the latest weeks, or steady stretches that do not reach
-  the 4-week window's length into the period; the numbers in it come from `SAME_HEART_RATE`. A change is real only when the 90% ranges
+  "you now ride 214 W, against 198 W"). It says "now" only when the change reaches the period's last week; it
+  otherwise names the week: "At 145 bpm in the week ending Sun 6 Apr 2025 you rode 214 W, against 198 W 5 weeks
+  earlier." Without a real change, it quotes the first and last values: "At 145 bpm your pace went from 4:49 to
+  5:01 /km: no clear change, within the error." (or "your power went from 204 to 207 W"), and with fewer than 4
+  reporting weeks it says only "Too few weeks to show a change yet." in a muted line. With too little data, a
+  muted line names what is missing, one of: too few steady 5-minute stretches, too few activities, activities in
+  too few weeks, heart rate that hardly varies, no effort near the reference heart rate in the latest weeks, or
+  less than 4 weeks of steady efforts in the period ("Needs 4 weeks of steady efforts with heart rate. Pick a
+  longer period to see it."); the numbers in them come from `SAME_HEART_RATE`. The reference heart rate is the
+  library's, not the period's, so choosing 6 or 12 weeks does not move it. A change is real only when the 90% ranges
   of the first and last reporting weeks do not overlap, and a fall is told as plainly as a rise. The words are
   "output at the same heart rate", never "fitness", "limiter", "weak", "strength", "holding you back" or "ahead
   of". The chart is titled with the heart rate and the sport's unit, "Your output at 145 bpm, flat pace per

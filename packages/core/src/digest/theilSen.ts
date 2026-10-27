@@ -1,5 +1,4 @@
 import { SAME_HEART_RATE } from '../constants'
-import { quantile } from '../math'
 
 /** The blocks of one fit: each has a heart rate, an output, and the activity (0 up) it came from. */
 export interface FitBlocks {
@@ -88,15 +87,23 @@ function totalWeight(pairs: SortedSlopes, counts: Float64Array): number {
   return total
 }
 
-/** The median slope under those weights. NaN when no pair is left. */
+/**
+ * The median slope under those weights: with an even total weight, the mean of the two middle slopes,
+ * as an unweighted median of an even number is. NaN when no pair is left.
+ */
 function weightedSlope(pairs: SortedSlopes, counts: Float64Array): number {
   const { slope, first, second } = pairs
-  const half = totalWeight(pairs, counts) / 2
-  if (!(half > 0)) return Number.NaN
+  const total = totalWeight(pairs, counts)
+  if (!(total > 0)) return Number.NaN
+  // Weights are whole numbers, so the middle is the slope reaching `lower` and the one reaching `upper`.
+  const lower = Math.ceil(total / 2)
+  const upper = Math.floor(total / 2) + 1
   let running = 0
+  let below = Number.NaN
   for (let k = 0; k < slope.length; k++) {
     running += counts[first[k]!]! * counts[second[k]!]!
-    if (running >= half) return slope[k]!
+    if (Number.isNaN(below) && running >= lower) below = slope[k]!
+    if (running >= upper) return (below + slope[k]!) / 2
   }
   return Number.NaN
 }
@@ -108,8 +115,8 @@ interface Scratch {
 
 /**
  * The weighted median of the line's output at the reference heart rate, over the blocks: each block
- * counts as many times as its activity was drawn, and the median is the first value at which half the
- * weight is reached.
+ * counts as many times as its activity was drawn, and the median is the mean of the two middle values
+ * when the weight is even.
  */
 function weightedOutputAt(
   blocks: FitBlocks,
@@ -128,20 +135,39 @@ function weightedOutputAt(
     for (let c = counts[owner[i]!]!; c > 0; c--) scratch.values[at++] = value
   }
   const present = scratch.values.subarray(0, total).sort()
-  return present[Math.ceil(total / 2) - 1]!
+  return (present[Math.ceil(total / 2) - 1]! + present[Math.floor(total / 2)]!) / 2
+}
+
+/**
+ * The 95th percentile of Student's t for 1 to 30 degrees of freedom, which makes a two-sided 90%
+ * interval. Beyond 30 it is 1.66, near the normal 1.645.
+ */
+const T_95 = [
+  6.314, 2.92, 2.353, 2.132, 2.015, 1.943, 1.895, 1.86, 1.833, 1.812, 1.796, 1.782, 1.771, 1.761,
+  1.753, 1.746, 1.74, 1.734, 1.729, 1.725, 1.721, 1.717, 1.714, 1.711, 1.708, 1.706, 1.703, 1.701,
+  1.699, 1.697,
+]
+
+function tQuantile(degrees: number): number {
+  return T_95[degrees - 1] ?? 1.66
 }
 
 /**
  * Output at referenceHr by Theil-Sen: the median of the pairwise slopes of output on heart rate, and
- * the median of what each block says the output is at referenceHr along that slope. The interval
- * resamples the activities, not the blocks, since one activity's blocks share its day. The draws come
- * from `random`. Null when the blocks have no two heart rates apart.
+ * the median of what each block says the output is at referenceHr along that slope. The activities,
+ * not the blocks, are resampled, since one activity's blocks share its day. A percentile interval of
+ * the draws is too narrow with few activities (it covered about 80% of the time with four), so the
+ * 90% interval is the output plus and minus the draws' standard deviation, taken as that of
+ * `activities` clusters (scaled by the square root of n over n - 1) and read on Student's t with
+ * activities - 1 degrees of freedom. The draws come from `random`. Null with fewer than two
+ * activities, or when the blocks have no two heart rates apart.
  */
 export function outputAtHeartRate(
   blocks: FitBlocks,
   referenceHr: number,
   random: () => number,
 ): OutputAtHeartRate | null {
+  if (blocks.activities < 2) return null
   const pairs = sortedSlopes(blocks)
   const scratch: Scratch = { values: new Float64Array(blocks.heartRate.length * 2) }
   const once = new Float64Array(blocks.activities).fill(1)
@@ -158,6 +184,9 @@ export function outputAtHeartRate(
     if (Number.isNaN(drawSlope)) continue
     draws.push(weightedOutputAt(blocks, counts, drawSlope, referenceHr, scratch))
   }
-  const tail = (1 - SAME_HEART_RATE.intervalLevel) / 2
-  return { output, low: quantile(draws, tail), high: quantile(draws, 1 - tail) }
+  const n = blocks.activities
+  const centre = draws.reduce((sum, v) => sum + v, 0) / draws.length
+  const sd = Math.sqrt(draws.reduce((sum, v) => sum + (v - centre) ** 2, 0) / draws.length)
+  const half = tQuantile(n - 1) * sd * Math.sqrt(n / (n - 1))
+  return { output, low: output - half, high: output + half }
 }

@@ -36,6 +36,7 @@ function dataOf(outputs: (number | null)[]): SameHeartRate {
       real: false,
     },
     lacks: null,
+    latestWeekEndMs: reported.at(-1)!.endMs,
   }
 }
 
@@ -148,7 +149,7 @@ describe('SameHeartRateChart', () => {
     expect(status).toHaveTextContent('90% range 194 W to 206 W')
     expect(status).toHaveTextContent('14 stretches from 5 rides')
     for (let i = 0; i < 3; i++) fireEvent.keyDown(plot, { key: 'ArrowRight' })
-    expect(status).toHaveTextContent('Needs steady stretches from at least 4 rides')
+    expect(status).toHaveTextContent('Needs steady stretches from at least 6 rides')
     fireEvent.keyDown(plot, { key: 'Escape' })
     expect(status).toBeEmptyDOMElement()
   })

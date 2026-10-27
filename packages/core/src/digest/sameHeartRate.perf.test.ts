@@ -8,7 +8,7 @@ import { BASE, MONDAY, heartRatesOf, withBlocks } from './test/sameHeartRateFixt
 
 /**
  * The work is capped by the blocks in a fit and the weeks reported, not by the library. It took about
- * 17 ms of CPU for the default 12 weeks of a 3,000-activity library and about 90 ms for all time, which
+ * 16 ms of CPU for the default 12 weeks of a 3,000-activity library and about 66 ms for all time, which
  * reports the newest 52 weeks of each sport. The budgets leave room for a loaded runner while work
  * that grows with the library, or fits more blocks a week, fails them.
  */

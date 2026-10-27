@@ -67,24 +67,38 @@ export const BASE: Record<Sport, (heartRate: number) => number> = {
   ride: (heartRate) => 1.6 * heartRate,
 }
 
+/** The days of the week (0 is Monday) that `perWeek` activities a week are on. */
+const DAYS: Record<number, number[]> = {
+  1: [0],
+  2: [0, 3],
+  3: [0, 2, 5],
+  4: [0, 2, 4, 5],
+  8: [0, 1, 2, 3, 4, 5, 6, 6],
+}
+
 /**
- * Three activities a week for `weeks` weeks from MONDAY, on Monday, Wednesday and Saturday. Each holds
- * the blocks of heartRatesOf, with output BASE times `factor(startMs)` times `noise()`.
+ * `perWeek` activities a week (three by default) for `weeks` weeks from MONDAY. Each holds the blocks of
+ * heartRatesOf, with output BASE times `factor(startMs)`, times `noise()` for each block and
+ * `dayNoise()` for each activity, the way one day is better or worse than another.
  */
 export function weeksOf(
   sport: Sport,
   weeks: number,
   factor: (startMs: number) => number,
   noise: () => number = () => 1,
+  perWeek = 3,
+  dayNoise: () => number = () => 1,
 ): ActivityDigest[] {
   const out: ActivityDigest[] = []
+  const days = DAYS[perWeek]!
   for (let week = 0; week < weeks; week++) {
-    for (const [i, day] of [0, 2, 5].entries()) {
-      const index = week * 3 + i
+    for (const [i, day] of days.entries()) {
+      const index = week * days.length + i
       const startMs = MONDAY + (week * 7 + day) * DAY_MS
+      const effect = dayNoise()
       const blocks = heartRatesOf(index).map((heartRate) => ({
         heartRate,
-        output: BASE[sport](heartRate) * factor(startMs) * noise(),
+        output: BASE[sport](heartRate) * factor(startMs) * effect * noise(),
       }))
       out.push(withBlocks(sport, `${sport}-${index}`, startMs, blocks))
     }

@@ -35,4 +35,20 @@ describe('the session state: output at the same heart rate', () => {
     expect(state.sameHeartRate.run.weeks).toEqual([])
     expect(state.sameHeartRate.ride.referenceHeartRate).toBeNull()
   })
+
+  it('keeps the library’s reference heart rate when another period is picked', () => {
+    const session = new AnalysisSession()
+    session.loadDigests(digests(), SETTINGS)
+    const all = session.setRange('all', SETTINGS).sameHeartRate.ride.referenceHeartRate
+    expect(all).not.toBeNull()
+    expect(session.setRange(42, SETTINGS).sameHeartRate.ride.referenceHeartRate).toBe(all)
+  })
+
+  it('is not worked out again when a period already shown is picked again', () => {
+    const session = new AnalysisSession()
+    session.loadDigests(digests(), SETTINGS)
+    const first = session.setRange(42, SETTINGS)
+    session.setRange('all', SETTINGS)
+    expect(session.setRange(42, SETTINGS).sameHeartRate).toBe(first.sameHeartRate)
+  })
 })

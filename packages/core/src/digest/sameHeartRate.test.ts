@@ -14,6 +14,8 @@ import {
 const WEEK_MS = 7 * DAY_MS
 const NONE = new Set<string>()
 const FROM_START = { fromMs: MONDAY }
+/** A period that began well before the data, so the earliest windows are the data's own, however short. */
+const EARLY = { fromMs: MONDAY - 40 * DAY_MS }
 /** Output rising 5% over the 7 weeks between the middle of the first window and the middle of the last. */
 const rising = (startMs: number) => 1 + (0.05 / 7) * ((startMs - MONDAY) / WEEK_MS)
 
@@ -100,6 +102,18 @@ describe('output at the same heart rate', () => {
     expect(mixed).toEqual(plain)
   })
 
+  it('has every reported week’s value inside its own interval, with the interval about it', () => {
+    const digests = weeksOf('ride', 12, () => 1, jitter(21, 0.02))
+    const { weeks } = sameHeartRate(digests, NONE, FROM_START).ride
+    const fits = weeks.flatMap((week) => (week.fit === null ? [] : [week.fit]))
+    expect(fits.length).toBe(8)
+    for (const { output, low, high } of fits) {
+      expect(low).toBeLessThan(output)
+      expect(high).toBeGreaterThan(output)
+      expect(output - low).toBeCloseTo(high - output, 9)
+    }
+  })
+
   it('gives the same answer twice, and whatever order the digests come in', () => {
     const digests = weeksOf('ride', 12, rising, jitter(7, 0.02))
     const first = sameHeartRate(digests, NONE, FROM_START)
@@ -119,6 +133,60 @@ describe('output at the same heart rate', () => {
   })
 })
 
+describe('the reference heart rate and the weeks', () => {
+  /** Twenty weeks, the last eight ridden 15 bpm higher. */
+  const drifted = revised(
+    weeksOf('ride', 20, () => 1),
+    (d) => ({
+      hrBlocks: d.hrBlocks.map((b) => ({
+        ...b,
+        heartRate: b.heartRate + (d.startMs > MONDAY + 12 * WEEK_MS ? 15 : 0),
+      })),
+    }),
+  )
+
+  it('is the library’s, so choosing a shorter period does not move it', () => {
+    const year = sameHeartRate(drifted, NONE, {}).ride.referenceHeartRate
+    const from = MONDAY + 12 * WEEK_MS
+    const period = drifted.filter((d) => d.startMs >= from)
+    const shorter = sameHeartRate(period, NONE, { fromMs: from, library: drifted }).ride
+    expect(shorter.referenceHeartRate).toBe(year)
+    // Read from the period alone it would be the higher heart rate.
+    expect(sameHeartRate(period, NONE, { fromMs: from }).ride.referenceHeartRate).toBeGreaterThan(
+      year!,
+    )
+  })
+
+  it('starts all time at the first full 28-day window, not before it', () => {
+    const { weeks } = sameHeartRate(
+      weeksOf('ride', 12, () => 1),
+      NONE,
+      {},
+    ).ride
+    expect(weeks[0]!.endMs).toBeGreaterThanOrEqual(MONDAY + 28 * DAY_MS)
+  })
+
+  it('names the last week of the period by its newest activity, of either sport', () => {
+    const rides = weeksOf('ride', 10, () => 1)
+    const run = withBlocks('run', 'late-run', MONDAY + 80 * DAY_MS, [])
+    const { ride } = sameHeartRate([...rides, run], NONE, FROM_START)
+    const sunday = Date.UTC(2025, 2, 30, 23, 59, 59, 999)
+    expect(ride.latestWeekEndMs).toBe(sunday)
+  })
+
+  it('keeps the weeks of a long window across its whole span when it has more blocks than a fit takes', () => {
+    // Eight activities a week, 15 blocks each: 480 blocks in a window, over the cap. Output rises 20% over
+    // 8 weeks, so the last window's middle is 15% above the start. Keeping the oldest blocks would read 10%.
+    const ramp = (startMs: number) => 1 + (0.2 * (startMs - MONDAY)) / (56 * DAY_MS)
+    const digests = weeksOf('ride', 8, ramp, undefined, 8)
+    const { weeks, referenceHeartRate } = sameHeartRate(digests, NONE, FROM_START).ride
+    const last = weeks.at(-1)!
+    expect(last.activities).toBeGreaterThan(24)
+    expect(last.fit!.output / BASE.ride(referenceHeartRate!)).toBeGreaterThan(1.13)
+    expect(last.fit!.output / BASE.ride(referenceHeartRate!)).toBeLessThan(1.17)
+  })
+})
+
 describe('what a week needs before it reports', () => {
   const rideAt = (id: string, startMs: number, index: number) =>
     withBlocks(
@@ -130,7 +198,7 @@ describe('what a week needs before it reports', () => {
 
   it('names too few blocks', () => {
     const few = [withBlocks('ride', 'a', MONDAY, [{ heartRate: 140, output: 220 }])]
-    expect(sameHeartRate(few, NONE, {}).ride.lacks).toBe('blocks')
+    expect(sameHeartRate(few, NONE, EARLY).ride.lacks).toBe('blocks')
   })
 
   it('names no blocks at all as too few', () => {
@@ -139,17 +207,18 @@ describe('what a week needs before it reports', () => {
       weeks: [],
       change: null,
       lacks: 'blocks',
+      latestWeekEndMs: null,
     })
   })
 
   it('names too few activities', () => {
     const rides = [0, 1].map((i) => rideAt(`r${i}`, MONDAY + i * 3 * DAY_MS, i))
-    expect(sameHeartRate(rides, NONE, {}).ride.lacks).toBe('activities')
+    expect(sameHeartRate(rides, NONE, EARLY).ride.lacks).toBe('activities')
   })
 
   it('names activities all in one week', () => {
-    const rides = [0, 1, 2, 3].map((i) => rideAt(`r${i}`, MONDAY + i * 3_600_000, i))
-    expect(sameHeartRate(rides, NONE, {}).ride.lacks).toBe('weeks')
+    const rides = [0, 1, 2, 3, 4, 5].map((i) => rideAt(`r${i}`, MONDAY + i * 3_600_000, i))
+    expect(sameHeartRate(rides, NONE, EARLY).ride.lacks).toBe('weeks')
   })
 
   it('names heart rate that hardly varies', () => {
@@ -164,13 +233,13 @@ describe('what a week needs before it reports', () => {
 
   it('leaves a week out when the reference heart rate is outside what it observed', () => {
     const early = weeksOf('ride', 8, () => 1)
-    // One a week for the last four weeks, so the last window holds only these.
-    const high = [0, 1, 2, 3].map((i) =>
+    // Six in the last four weeks, so the last window holds only these.
+    const high = [0, 1, 2, 3, 4, 5].map((i) =>
       withBlocks(
         'ride',
         `late-${i}`,
-        MONDAY + (8 + i) * 7 * DAY_MS,
-        [150, 160, 170, 180].map((heartRate) => ({ heartRate, output: BASE.ride(heartRate) })),
+        MONDAY + ((8 + (i % 4)) * 7 + (i >= 4 ? 2 : 0)) * DAY_MS,
+        [165, 175, 185, 195].map((heartRate) => ({ heartRate, output: BASE.ride(heartRate) })),
       ),
     )
     const { weeks } = sameHeartRate([...early, ...high], NONE, FROM_START).ride

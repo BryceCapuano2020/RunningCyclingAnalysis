@@ -1397,17 +1397,18 @@ describe('SportPage depth', () => {
     })
     const reading = (from: number, to: number, real: boolean): SameHeartRate => ({
       referenceHeartRate: 145,
-      weeks: [fitted(0, from), fitted(1, (from + to) / 2), fitted(2, to)],
+      weeks: [0, 1, 2, 3, 4].map((i) => fitted(i, from + ((to - from) * i) / 4)),
       change: {
         fromEndMs: fitted(0, from).endMs,
-        toEndMs: fitted(2, to).endMs,
+        toEndMs: fitted(4, to).endMs,
         from,
         to,
-        weeksApart: 2,
+        weeksApart: 4,
         relative: to / from - 1,
         real,
       },
       lacks: null,
+      latestWeekEndMs: fitted(4, to).endMs,
     })
     const rideActivity = () =>
       makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] })
@@ -1451,14 +1452,14 @@ describe('SportPage depth', () => {
       )
       const section = screen.getByRole('region', { name: 'At the same heart rate' })
       expect(
-        within(section).getByText(/At 145 bpm you now ride 214 W, against 198 W 2 weeks ago\./),
+        within(section).getByText(/At 145 bpm you now ride 214 W, against 198 W 4 weeks ago\./),
       ).toBeInTheDocument()
       expect(
         within(section).getByRole('figure', { name: /Your output at 145 bpm/ }),
       ).toBeInTheDocument()
     })
 
-    it('says it has held when the ranges overlap', () => {
+    it('quotes the first and last values, and says no clear change, when the ranges overlap', () => {
       renderPage(
         'ride',
         rideActivity(),
@@ -1475,7 +1476,7 @@ describe('SportPage depth', () => {
         reading(204, 207, false),
       )
       expect(
-        screen.getByText(/your power has held at about 206 W, within the error/),
+        screen.getByText(/your power went from 204 to 207 W: no clear change, within the error/),
       ).toBeInTheDocument()
     })
 
@@ -1497,7 +1498,7 @@ describe('SportPage depth', () => {
         none,
       )
       const section = screen.getByRole('region', { name: 'At the same heart rate' })
-      expect(within(section).getByText(/Needs steady stretches from at least 4 rides/)).toHaveClass(
+      expect(within(section).getByText(/Needs steady stretches from at least 6 rides/)).toHaveClass(
         'muted',
       )
       expect(within(section).queryByRole('figure')).toBeNull()

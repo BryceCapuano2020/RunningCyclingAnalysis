@@ -43,6 +43,11 @@ export interface SameHeartRate {
   change: SameHeartRateChange | null
   /** What is missing, when there is no change to give. */
   lacks: Lack | null
+  /**
+   * The end of the period's last week: the Sunday of its newest activity, of either sport. A change
+   * reaching it is "now"; one ending earlier is of an earlier week. Null without a block.
+   */
+  latestWeekEndMs: number | null
 }
 
 export type SameHeartRateBySport = Record<Sport, SameHeartRate>
@@ -52,6 +57,7 @@ const NOTHING: SameHeartRate = {
   weeks: [],
   change: null,
   lacks: 'blocks',
+  latestWeekEndMs: null,
 }
 
 /** Nothing to report in either sport: the state before any analysis. Frozen, since every empty state shares it. */

@@ -61,12 +61,14 @@ export class PeriodCache {
   private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
     null
   // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
-  private sameEntry: {
+  // Newest use first, a few kept like the analyses, so going back to a period already shown is free.
+  private sameEntries: {
     selected: ActivityDigest[]
+    library: ActivityDigest[]
     fromMs: number | null
     setAside: string
     result: SameHeartRateBySport
-  } | null = null
+  }[] = []
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
   private analysisEntries: (Inputs & { analysis: AnalysisResult })[] = []
@@ -97,6 +99,10 @@ export class PeriodCache {
     const held = new Set(library)
     this.analysisEntries = this.analysisEntries.filter((entry) =>
       entry.selected.every((digest) => held.has(digest)),
+    )
+    // The library holds the selection, so one test covers both.
+    this.sameEntries = this.sameEntries.filter((entry) =>
+      entry.library.every((digest) => held.has(digest)),
     )
   }
 
@@ -162,26 +168,34 @@ export class PeriodCache {
 
   /**
    * Each sport's output at the same heart rate over the selected period, reused while the digests, the
-   * period's start and the activities set aside are the same. Masses do not enter, so a change of
+   * library (which sets the reference heart rate), the period's start and the activities set aside are the same. Masses do not enter, so a change of
    * weight does not redo it.
    */
   sameHeartRate(
     selected: ActivityDigest[],
+    library: ActivityDigest[],
     fromMs: number | null,
     setAside: readonly string[],
   ): SameHeartRateBySport {
     const key = setAside.join(',')
-    const cached = this.sameEntry
-    if (
-      cached !== null &&
-      cached.fromMs === fromMs &&
-      cached.setAside === key &&
-      sameDigests(cached.selected, selected)
-    ) {
-      return cached.result
+    const hit = this.sameEntries.findIndex(
+      (entry) =>
+        entry.fromMs === fromMs &&
+        entry.setAside === key &&
+        sameDigests(entry.selected, selected) &&
+        sameDigests(entry.library, library),
+    )
+    if (hit >= 0) {
+      const [entry] = this.sameEntries.splice(hit, 1)
+      this.sameEntries.unshift(entry!)
+      return entry!.result
     }
-    const result = sameHeartRate(selected, new Set(setAside), { fromMs: fromMs ?? undefined })
-    this.sameEntry = { selected, fromMs, setAside: key, result }
+    const result = sameHeartRate(selected, new Set(setAside), {
+      fromMs: fromMs ?? undefined,
+      library,
+    })
+    this.sameEntries.unshift({ selected, library, fromMs, setAside: key, result })
+    this.sameEntries.length = Math.min(this.sameEntries.length, ANALYSES_KEPT)
     return result
   }
 
