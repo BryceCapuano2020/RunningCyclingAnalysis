@@ -125,6 +125,68 @@ function* serializeTableRows(db, tableName) {
   }
 }
 
+const TRIGGER_START =
+  /^\s*(?:(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)*CREATE\s+(?:TEMP\s+|TEMPORARY\s+)?TRIGGER\b/i
+
+/** The index just past the quoted text that opens at `opening`, whose quote doubles to escape itself. */
+function endOfQuoted(sql, opening) {
+  const quote = sql[opening] === '[' ? ']' : sql[opening]
+  let at = opening + 1
+  for (;;) {
+    at = sql.indexOf(quote, at)
+    if (at === -1) return sql.length
+    if (quote === ']' || sql[at + 1] !== quote) return at + 1
+    at += 2
+  }
+}
+
+/**
+ * Splits an export into statements at the semicolons that sit outside quotes and comments. A
+ * trigger holds semicolons of its own, so it ends at the semicolon that follows its END.
+ */
+function splitStatements(sql) {
+  const statements = []
+  let start = 0
+  let lastWord = ''
+  let at = 0
+  while (at < sql.length) {
+    const char = sql[at]
+    const pair = sql.slice(at, at + 2)
+    if (char === "'" || char === '"' || char === '`' || char === '[') {
+      at = endOfQuoted(sql, at)
+      lastWord = ''
+    } else if (pair === '--' || pair === '/*') {
+      const close = sql.indexOf(pair === '--' ? '\n' : '*/', at)
+      at = close === -1 ? sql.length : close + (pair === '--' ? 1 : 2)
+    } else if (/\w/.test(char)) {
+      const word = /^\w+/.exec(sql.slice(at, at + 64))[0]
+      lastWord = word.toUpperCase()
+      at += word.length
+    } else {
+      if (char === ';' && !(TRIGGER_START.test(sql.slice(start, at)) && lastWord !== 'END')) {
+        statements.push(sql.slice(start, at + 1))
+        start = at + 1
+      }
+      if (!/\s/.test(char)) lastWord = ''
+      at += 1
+    }
+  }
+  if (sql.slice(start).trim()) statements.push(sql.slice(start))
+  return statements
+}
+
+/**
+ * Loads an export into an empty database with its triggers held back until every row is in. A
+ * trigger that ran over rows already stored would apply their changes a second time, as a counter
+ * that follows another column would. The restored database gets the triggers, after the rows.
+ */
+function loadExport(db, exportSql) {
+  const statements = splitStatements(exportSql)
+  const isTrigger = (statement) => TRIGGER_START.test(statement)
+  db.exec(statements.filter((statement) => !isTrigger(statement)).join('\n'))
+  db.exec(statements.filter(isTrigger).join('\n'))
+}
+
 /** Convert a trusted Cloudflare D1 SQL export to schema-first, FK-ordered restore SQL. */
 export function prepareD1RestoreSql(exportSql) {
   if (typeof exportSql !== 'string') {
@@ -139,7 +201,7 @@ export function prepareD1RestoreSql(exportSql) {
   const db = new DatabaseSync(':memory:')
   try {
     db.exec('PRAGMA foreign_keys=OFF;')
-    db.exec(exportSql)
+    loadExport(db, exportSql)
     const objects = requireKnownSchema(db)
     checkDatabase(db)
     const tableOrder = getTableOrder(

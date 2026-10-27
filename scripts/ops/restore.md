@@ -52,8 +52,9 @@ node apps/api/scripts/prepare-d1-restore.mjs "$WORK/database.sql" "$WORK/restore
 
 The helper refuses exports that contain unknown tables, fail `PRAGMA integrity_check` or
 `foreign_key_check`, or exceed 64 MiB. Its output creates the schema first, then the rows in
-foreign-key order, then indexes and triggers. If it refuses, stop and escalate: the backup is not
-restorable by this procedure.
+foreign-key order, then indexes and triggers. It holds the triggers back while it loads the export,
+so none runs over a stored row. If it refuses, stop and escalate: the backup is not restorable by
+this procedure.
 
 ## 3. Create a new database, never `rca`
 
@@ -117,6 +118,9 @@ npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
 
 Every sampled digest must be valid JSON. The revision shows which analysis model produced it.
 
+Compare one activity's `file_hash` with the SHA-256 of the owner's original file for it, if the
+owner still has that file.
+
 Triggers keep each user's `file_bytes` equal to the sum of their `file_size`. The restore creates
 them after the rows, but check the counter anyway. This query must return no rows:
 
@@ -126,9 +130,11 @@ npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
 ```
 
 If it lists accounts, set every counter from the rows with one statement:
-`UPDATE users SET file_bytes = (SELECT coalesce(sum(file_size), 0) FROM activities WHERE activities.user_id = users.id);`
-Compare one activity's `file_hash` with the SHA-256 of the owner's original file for it, if the
-owner still has that file.
+
+```bash
+npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
+  --command "UPDATE users SET file_bytes = (SELECT coalesce(sum(file_size), 0) FROM activities WHERE activities.user_id = users.id);"
+```
 
 For the R2 side, list the keys that existed and check them against the `file_key` values in the
 restored `activities` table. Keys in the manifest but missing from the bucket cannot be restored

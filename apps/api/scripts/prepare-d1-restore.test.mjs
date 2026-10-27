@@ -66,7 +66,8 @@ test('rewrites child-first D1 exports into schema-first parent order and preserv
     userStatement.setReadBigInts(true)
     const user = userStatement.get()
     assert.equal(user.email, "o'hara@example.test")
-    assert.equal(user.name, 'Alex (imported)')
+    // The export's own trigger does not run over rows it already holds, so the stored name stays.
+    assert.equal(user.name, 'Alex')
     assert.equal(user.picture_url, null)
     assert.equal(user.created_at, 9007199254740993n)
     assert.deepEqual([...user.raw], [0, 255, 16])
@@ -177,4 +178,81 @@ test('accepts exports from the current schema, orders its new tables after their
   })
   // Exports from before the budget and deletion tables existed still restore.
   assert.doesNotThrow(() => prepareD1RestoreSql(schema))
+})
+
+/** The three triggers that migration 0008 puts on activities, as the export would carry them. */
+const fileBytesTriggers = (
+  await readFile(new URL('../migrations/0008_file_bytes.sql', import.meta.url), 'utf8')
+)
+  .split('--> statement-breakpoint')
+  .map((statement) => statement.trim())
+  .filter((statement) => statement.startsWith('CREATE TRIGGER'))
+
+/** An export whose users carry file_bytes and whose activities carry file_size. */
+function fileBytesExport({ triggersBeforeRows }) {
+  const tables = `
+  PRAGMA defer_foreign_keys=TRUE;
+  CREATE TABLE d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TEXT NOT NULL);
+  CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL, picture_url TEXT, created_at INTEGER NOT NULL, file_bytes integer DEFAULT 0 NOT NULL);
+  CREATE TABLE activities (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, file_size integer);
+  CREATE TABLE oauth_accounts (provider TEXT NOT NULL, provider_user_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(provider, provider_user_id));
+  CREATE TABLE profiles (user_id TEXT PRIMARY KEY REFERENCES users(id), units TEXT);
+  CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id));
+  CREATE TABLE r2_storage_budget (id INTEGER PRIMARY KEY, lifetime_put_bytes INTEGER NOT NULL, monthly_period TEXT NOT NULL, monthly_operations INTEGER NOT NULL);
+  `
+  const rows = `
+  INSERT INTO users VALUES ('user-1', 'a@example.test', 'Alex', NULL, 1, 300);
+  INSERT INTO users VALUES ('user-2', 'b@example.test', 'Blair', NULL, 1, 0);
+  INSERT INTO activities VALUES ('act-1', 'user-1', 100);
+  INSERT INTO activities VALUES ('act-2', 'user-1', 200);
+  INSERT INTO activities VALUES ('act-3', 'user-2', NULL);
+  INSERT INTO d1_migrations(name, applied_at) VALUES ('0008_file_bytes', '2026-10-26');
+  `
+  const triggers = fileBytesTriggers.join('\n')
+  return triggersBeforeRows ? tables + triggers + rows : tables + rows + triggers
+}
+
+for (const [name, triggersBeforeRows] of [
+  ['after the rows, as a dump writes them', false],
+  ['before the rows, with each user loaded ahead of its activities', true],
+]) {
+  test(`restores each user's file_bytes as it was when the triggers come ${name}`, () => {
+    assert.equal(fileBytesTriggers.length, 3)
+    const prepared = prepareD1RestoreSql(fileBytesExport({ triggersBeforeRows }))
+    assert.ok(prepared.indexOf('CREATE TRIGGER') > prepared.indexOf('INSERT INTO "activities"'))
+
+    inspect(prepared, (db) => {
+      const counters = db.prepare('SELECT id, file_bytes FROM users ORDER BY id').all()
+      assert.deepEqual(
+        counters.map((row) => [row.id, row.file_bytes]),
+        [
+          ['user-1', 300],
+          ['user-2', 0],
+        ],
+      )
+      assert.equal(
+        db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'trigger'").get().n,
+        3,
+      )
+      // The restored triggers are live: a later change to file_size moves the counter.
+      db.exec("UPDATE activities SET file_size = 150 WHERE id = 'act-1'")
+      assert.equal(db.prepare("SELECT file_bytes AS n FROM users WHERE id = 'user-1'").get().n, 350)
+    })
+  })
+}
+
+test('keeps row text that looks like SQL, and splits only at real statement ends', () => {
+  const text =
+    "it's; -- not a comment /* nor this */ CREATE TRIGGER fake AFTER INSERT ON users BEGIN SELECT 1; END;"
+  const dump = fileBytesExport({ triggersBeforeRows: true })
+    .replace("'Alex'", `'${text.replaceAll("'", "''")}'`)
+    .replace('PRAGMA defer_foreign_keys=TRUE;', '-- one; two\nPRAGMA defer_foreign_keys=TRUE;')
+  inspect(prepareD1RestoreSql(dump), (db) => {
+    assert.equal(db.prepare("SELECT name FROM users WHERE id = 'user-1'").get().name, text)
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'trigger'").get().n,
+      3,
+    )
+    assert.equal(db.prepare("SELECT file_bytes AS n FROM users WHERE id = 'user-1'").get().n, 300)
+  })
 })

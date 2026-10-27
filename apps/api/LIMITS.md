@@ -180,8 +180,11 @@ D1 writes are charged per row, including index rows. The 100,000 rows written pe
 all users. Rough per-request estimates from statement shape:
 
 - A read counted against the daily budget: about 2 rows.
-- An activity create: about 8 rows (activity row with its indexes, daily upsert, counter).
-- An upload: about 5 rows.
+- An activity create: about 8 rows (activity row with its indexes, daily upsert, counter). A first
+  import at the 5,000 cap writes about 40,000 rows, of the free 100,000 a day.
+- An upload: about 6 rows, one of them the `users.file_bytes` row that the trigger moves.
+- Turning keep files off writes one `users` row per stored file, through the trigger, on top of the
+  activity rows it clears.
 
 On Free, 100,000 writes a day supports only a small number of heavy users. Fifty users each at the
 100-read cap would write about 10,000 rows a day, a tenth of the allowance. Measure

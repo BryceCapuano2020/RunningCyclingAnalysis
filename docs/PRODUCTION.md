@@ -217,7 +217,7 @@ until the same-file retry, activity deletion, or file-retention opt-out. This pr
 retries from freeing quota that another upload still needs. The activity response reports a stored
 file only after finalization. Original uploads are capped at 50 MiB. Body reads have a 15-second
 idle timeout and a two-minute total limit, and release readers on all exit paths.
-Per-user UTC daily budgets allow 2,000 new activities and 2,000 original-file uploads,
+Per-user UTC daily budgets allow 5,000 new activities (the library limit) and 2,000 original-file uploads,
 with separate budgets of 100 library listings (`GET /api/activities`; `GET /api/me` is not
 charged), 50 profile writes, 50 activity deletes and 50 file downloads. Contract constants and detailed behavior are listed in
 [LIMITS.md](../apps/api/LIMITS.md).
