@@ -21,10 +21,15 @@ export interface SyncStatusProps {
 const MAX_FILE_MB = megabytes(MAX_FILE_BYTES)
 const NOTHING_SAVED = 'No new activities were saved to your library.'
 
-/** What an import that stopped at a limit got done: the activities saved, when known, and those waiting. */
-function stoppedCounts(waiting: number, saved: number | null): string {
-  const waitingText = `${formatCount(waiting)} waiting.`
-  return saved === null ? waitingText : `${formatCount(saved)} saved, ${waitingText}`
+/**
+ * What an import that stopped at a limit got done: the activities it saved, when known, and those
+ * it left waiting. The saved count is the latest import's, so it goes only with that import's own
+ * waiting; a limit an earlier import reached shows the session's count alone.
+ */
+function stoppedCounts({ count, latest }: SyncIssue, saved: number | null): string {
+  if (latest === 0) return `${formatCount(count)} waiting.`
+  const waiting = `${formatCount(latest ?? count)} waiting.`
+  return saved === null ? waiting : `${formatCount(saved)} saved, ${waiting}`
 }
 
 /**
@@ -32,7 +37,8 @@ function stoppedCounts(waiting: number, saved: number | null): string {
  * original is uploaded, so the failures that can hit either step say 'not fully saved'. A limit
  * stops the import, so its sentence counts what was saved and what is waiting instead.
  */
-function issueSentence({ code, count }: SyncIssue, saved: number | null): string {
+function issueSentence(issue: SyncIssue, saved: number | null): string {
+  const { code, count } = issue
   const activities = plural(count, 'activity', 'activities')
   const originals = plural(count, 'original')
   const wereOrWas = count === 1 ? 'was' : 'were'
@@ -44,7 +50,7 @@ function issueSentence({ code, count }: SyncIssue, saved: number | null): string
     case 'account-changed':
       return `Your account changed in another tab, so ${activities} ${wereOrWas} not saved. Reload this page.`
     case 'activity-quota':
-      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities). ${stoppedCounts(count, saved)} Delete older activities to make room, then add the rest again.`
+      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities). ${stoppedCounts(issue, saved)} Delete older activities to make room, then add the rest again.`
     case 'storage-quota':
       return `Your original-file storage is full, so ${originals} ${wereOrWas} not kept. ${summaries}`
     case 'storage-budget':
@@ -52,9 +58,9 @@ function issueSentence({ code, count }: SyncIssue, saved: number | null): string
     case 'file-too-large':
       return `${originals} ${wereOrWas} too large to keep (over ${MAX_FILE_MB} MB). ${summaries}`
     case 'rate-limited':
-      return `Too many requests at once. ${stoppedCounts(count, saved)} Wait a minute, then add the rest again.`
+      return `Too many requests at once. ${stoppedCounts(issue, saved)} Wait a minute, then add the rest again.`
     case 'daily-limit':
-      return `You have reached today's limit on saves. ${stoppedCounts(count, saved)} ${resetSentence()} Add the rest again after that.`
+      return `You have reached today's limit on saves. ${stoppedCounts(issue, saved)} ${resetSentence()} Add the rest again after that.`
     case 'upload-in-progress':
       return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then add ${them} again.`
     case 'account-deleting':

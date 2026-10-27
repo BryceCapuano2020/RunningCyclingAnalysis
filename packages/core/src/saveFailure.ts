@@ -20,6 +20,8 @@ export interface SyncIssue {
   code: SyncIssueCode
   /** Activities affected in the current library session. */
   count: number
+  /** Of `count`, those the most recent import left. Absent when it left all of them. */
+  latest?: number
 }
 
 /** A sink throws this to say why a save failed. Any other error is reported as 'server'. */
@@ -65,4 +67,26 @@ const LIMIT_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
  */
 export function stopsSaving(code: SyncIssueCode): boolean {
   return haltsImport(code) || LIMIT_CODES.has(code)
+}
+
+/**
+ * The unsaved activities by cause. `latest` holds the keys the most recent import left, so a count
+ * that spans imports can be told from what one import left.
+ */
+export function countIssues(
+  unsynced: ReadonlyMap<string, SyncIssueCode>,
+  latest: ReadonlySet<string>,
+): SyncIssue[] {
+  const counts = new Map<SyncIssueCode, { count: number; latest: number }>()
+  for (const [key, code] of unsynced) {
+    const entry = counts.get(code) ?? { count: 0, latest: 0 }
+    entry.count++
+    if (latest.has(key)) entry.latest++
+    counts.set(code, entry)
+  }
+  return [...counts].map(([code, entry]) =>
+    entry.latest === entry.count
+      ? { code, count: entry.count }
+      : { code, count: entry.count, latest: entry.latest },
+  )
 }

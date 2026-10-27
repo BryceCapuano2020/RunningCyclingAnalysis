@@ -87,8 +87,17 @@ export type WorkerRequest =
   | { type: 'forgetRoutes' }
 
 export type WorkerResponse =
-  /** `filesTotal` is the activity files the request holds, when that is known before they are read. */
-  | { type: 'progress'; filesRead: number; filesTotal?: number; uploaded?: number }
+  /**
+   * `filesTotal` is the activity files the request holds, when that is known before they are read.
+   * `paused` is set while a rate limit holds the saves back; the next progress message ends it.
+   */
+  | {
+      type: 'progress'
+      filesRead: number
+      filesTotal?: number
+      uploaded?: number
+      paused?: true
+    }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   /** The account's saved activities when signed in, or the ones kept in this browser when not. */

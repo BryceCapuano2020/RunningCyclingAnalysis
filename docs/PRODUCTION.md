@@ -251,10 +251,12 @@ Activity listing uses at most 25 records per page, a 1 MiB digest JSON budget an
 headroom. The API scans small metadata before fetching the selected digests. Cursors are based on
 delivered rows so byte-limited pages do not skip activities. Browser readers bound JSON/download
 sizes and network time, reject malformed/repeated cursors, and retry a write only where repeating it
-is safe: a create, which the server dedupes by its key, is sent once more after a lost connection or a
-5xx with no Retry-After. An import that gets a 429 waits for its Retry-After and saves that activity
-once more. Metadata requests have a 15-second deadline; original-file transfers have two minutes, including
-body consumption. The activity table renders at most 20 activities at a time with accessible paging.
+is safe. A create, including the one a rebuild makes to replace a stored digest, is deduped by its key
+on the server, so it is sent once more after a lost connection or a 5xx with no Retry-After, unless the
+refusal is `database_full`. Every other write is sent once. An import that gets a 429 waits for its
+Retry-After and saves that activity once more. Metadata requests have a 15-second deadline;
+original-file transfers have two minutes, including body consumption. The activity table renders at
+most 20 activities at a time with accessible paging.
 
 ## Browser and data recovery
 

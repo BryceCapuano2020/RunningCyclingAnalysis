@@ -30,7 +30,8 @@ account control. The guides are not in the header: they are reached from Profile
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window and
 appears only once a run has lasted about 400 ms, so a quick change never moves the page. The reason
-the sample is off waits the same time. On a phone the strip sits above the tab bar. Nothing is held
+the sample is off waits the same time. While a rate limit holds an import's saves back, the strip reads
+"Too many saves at once. Saving resumes in about a minute." in place of its file count, once in its live region. On a phone the strip sits above the tab bar. Nothing is held
 for the account: a file is analysed at once and saved once the account is known.
 
 The header stays at

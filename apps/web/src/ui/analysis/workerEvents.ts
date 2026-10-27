@@ -77,6 +77,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         current.imports.setProgress({
           filesRead: message.filesRead,
           filesTotal: message.filesTotal ?? null,
+          ...(message.paused ? { paused: true as const } : {}),
         })
         current.imports.setUploading(message.uploaded ?? null)
         return

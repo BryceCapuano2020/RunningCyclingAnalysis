@@ -1,11 +1,7 @@
 import { SyncFailure } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import { ApiRequestError } from '../api/client'
-
-/** What an error says, whether or not it is an Error. */
-export function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
+import { messageOf } from '../api/messageOf'
 
 /** The cause shown to the user for a failed save or read. Unknown failures count as the server's. */
 export function syncIssueFor(error: unknown): SyncIssueCode {

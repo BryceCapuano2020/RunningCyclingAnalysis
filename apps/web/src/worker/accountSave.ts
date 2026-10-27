@@ -19,6 +19,8 @@ export interface AccountSaveContext {
   routes: Pick<RouteMemory, 'remember'>
   /** Called after each activity is saved, with its original when files are kept. */
   onSaved: () => void
+  /** Called when a rate limit holds the saves back, just before they wait for it to lift. */
+  onPaused: () => void
   /** Called with the first failure that stops the import's saves. */
   onStopped: (code: SyncIssueCode) => void
 }
@@ -69,7 +71,7 @@ export function accountSaver(ctx: AccountSaveContext): SyncSink {
 
   return async (item) => {
     try {
-      await retryAfterRateLimit(() => saveOnce(item))
+      await retryAfterRateLimit(() => saveOnce(item), ctx.onPaused)
     } catch (error) {
       const failure = syncFailureOf(error)
       if (stopsSaving(failure.code)) ctx.onStopped(failure.code)

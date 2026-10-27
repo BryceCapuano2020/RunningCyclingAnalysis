@@ -32,6 +32,30 @@ describe('retryAfterRateLimit', () => {
     expect(attempt).toHaveBeenCalledTimes(2)
   })
 
+  it('says it is about to wait, before it does, and says nothing when it does not', async () => {
+    const events: string[] = []
+    const attempt = vi.fn(async () => {
+      events.push(`attempt ${attempt.mock.calls.length}`)
+      if (attempt.mock.calls.length === 1) throw limited(5_000)
+    })
+    const result = retryAfterRateLimit(attempt, () => events.push('waiting'))
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(events).toEqual(['attempt 1', 'waiting'])
+    await vi.advanceTimersByTimeAsync(5_000)
+    await result
+    expect(events).toEqual(['attempt 1', 'waiting', 'attempt 2'])
+
+    const quiet = vi.fn()
+    await retryAfterRateLimit(async () => 'saved', quiet)
+    await expect(
+      retryAfterRateLimit(async () => {
+        throw limited(2 * RATE_LIMIT_WINDOW_MS + 1)
+      }, quiet),
+    ).rejects.toMatchObject({ status: 429 })
+    expect(quiet).not.toHaveBeenCalled()
+  })
+
   it('waits as long as the server asked, whatever the usual window', async () => {
     const attempt = vi.fn().mockRejectedValueOnce(limited(7_000)).mockResolvedValueOnce('saved')
     const result = retryAfterRateLimit(attempt)

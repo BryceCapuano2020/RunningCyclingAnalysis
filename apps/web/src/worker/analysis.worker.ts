@@ -5,17 +5,18 @@ import { AnalysisSession } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import { ApiRequestError, deleteActivity } from '../api/client'
+import { messageOf } from '../api/messageOf'
 import { accountSaver } from './accountSave'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
-import { throttled } from './progressThrottle'
+import { ImportReporter } from './importReporter'
 import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { summarizeAdded } from './importSummary'
 import { savedActivityOf } from './savedActivity'
-import { messageOf, syncIssueFor } from './syncIssue'
+import { syncIssueFor } from './syncIssue'
 
 const session = new AnalysisSession()
 const post = (message: WorkerResponse) => self.postMessage(message)
@@ -53,28 +54,11 @@ async function addFiles(
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
 ): Promise<{ state: SessionState; outcome: ImportOutcome }> {
   const { sync } = request
-  let filesRead = 0
-  // Activities saved to the library, counting the digest alone when files are not kept.
-  let uploaded = 0
   let stoppedBy: SyncIssueCode | null = null
   let outcome: ImportOutcome = { activities: 0, rejected: 0, duplicates: [] }
   // Read from the zips' directories before any entry is, so every progress message can show a total.
-  const filesTotal = await countActivityFiles(request.files)
-  const progress = throttled<WorkerResponse>(post)
-  const report = () =>
-    progress.report(
-      {
-        type: 'progress',
-        filesRead,
-        ...(filesTotal === null ? {} : { filesTotal }),
-        ...(sync ? { uploaded } : {}),
-      },
-      // The last file ends the count, so it is sent at once, before the analysis of the library.
-      filesTotal !== null && filesRead >= filesTotal,
-    )
-  // Reported before any file is read, so an import that saves nothing still starts and ends.
-  if (sync) report()
-
+  const reporter = new ImportReporter(post, await countActivityFiles(request.files), sync !== null)
+  reporter.begin()
   const save =
     sync === null
       ? undefined
@@ -83,10 +67,8 @@ async function addFiles(
           savedRecords,
           missingOriginals,
           routes,
-          onSaved: () => {
-            uploaded++
-            report()
-          },
+          onSaved: () => reporter.activitySaved(),
+          onPaused: () => reporter.savesPaused(),
           onStopped: (code) => {
             stoppedBy ??= code
           },
@@ -101,20 +83,16 @@ async function addFiles(
     state = await session.addFiles(
       request.files,
       request.settings,
-      (count) => {
-        filesRead = count
-        report()
-      },
+      (count) => reporter.filesReadSoFar(count),
       save ?? (request.saveToDevice ? device.save : undefined),
       sync?.keepFiles === true,
       ({ added, ...completed }) => {
         outcome = { ...completed, ...summarizeAdded(added) }
       },
     )
-    // The count the page ends on is exact, however the messages before it were spaced.
-    progress.flush()
+    reporter.end()
   } finally {
-    progress.cancel()
+    reporter.abandon()
   }
   if (sync !== null) {
     post({ type: 'missingOriginals', count: missingOriginals.size })

@@ -48,11 +48,13 @@ const REQUEST_TIMEOUT_MS = 15_000
 /** Originals may be tens of MiB; allow a bounded transfer without imposing a metadata deadline. */
 const TRANSFER_TIMEOUT_MS = 120_000
 /**
- * The methods tried once more after a lost connection or a 5xx with no Retry-After, and the wait
- * before that try. A read repeats at once. A create waits a moment, and is safe to repeat: the server
- * dedupes it by dedupe_key, so a second try returns the activity the first one stored.
+ * How long a create waits before its one retry after a lost connection or a 5xx with no
+ * Retry-After. Only a create asks for one: the server dedupes it by dedupe_key, so a second try
+ * returns the activity the first stored. A read always repeats at once, and nothing else repeats.
  */
-const RETRY_BACKOFF_MS: Partial<Record<Method, number>> = { GET: 0, POST: 1_000 }
+const CREATE_RETRY_BACKOFF_MS = 1_000
+/** Refusals that will not clear in a moment, so they are never retried. */
+const NOT_TRANSIENT = new Set(['database_full'])
 const CLIENT_PAGE_SIZE = MAX_PAGE_SIZE
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
 const ERROR_BODY_LIMIT = 64 * 1024
@@ -81,11 +83,16 @@ async function fetchOnce(path: string, init: RequestInit, timeoutMs: number) {
   }
 }
 
+/**
+ * Sends a request. A read is tried once more at once, and with `retryBackoffMs` any other request is
+ * tried once more after that long, when it fails by a lost connection or a 5xx with no Retry-After.
+ */
 async function request(
   method: Method,
   path: string,
   body?: Body,
   userId?: string,
+  retryBackoffMs?: number,
 ): Promise<Response> {
   const headers = new Headers()
   if (method !== 'GET') headers.set(CLIENT_HEADER, CLIENT_HEADER_VALUE)
@@ -101,7 +108,7 @@ async function request(
   }
   const init: RequestInit = { method, credentials: 'same-origin', headers, body: payload }
   const timeoutMs = path.endsWith('/file') ? TRANSFER_TIMEOUT_MS : REQUEST_TIMEOUT_MS
-  const backoffMs = RETRY_BACKOFF_MS[method]
+  const backoffMs = method === 'GET' ? 0 : retryBackoffMs
   for (let attempt = 0; ; attempt++) {
     const response = await fetchOnce(path, init, timeoutMs)
     const canRetry = backoffMs !== undefined && attempt === 0
@@ -113,8 +120,8 @@ async function request(
     } else if (!canRetry || response.status < 500 || response.headers.get('retry-after') !== null) {
       throw await errorFrom(response)
     } else {
-      void response.body?.cancel().catch(() => undefined)
-      clearResponseTimeout(response)
+      const error = await errorFrom(response)
+      if (NOT_TRANSIENT.has(error.code)) throw error
     }
     if (backoffMs) await new Promise((resolve) => setTimeout(resolve, backoffMs))
   }
@@ -299,10 +306,9 @@ export async function createActivity(
   const response = await request(
     'POST',
     `/api/activities${query}`,
-    {
-      json: { digest, fileName, fileHash },
-    },
+    { json: { digest, fileName, fileHash } },
     userId,
+    CREATE_RETRY_BACKOFF_MS,
   )
   return {
     record: await readJson(response, ActivityRecordSchema),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { messageOf } from '../api/messageOf'
 import { useLatest } from './analysis/useLatest'
 import { isReadableFileName } from './readableFiles'
 import type { AccountStatus } from './useAccount'
@@ -23,9 +24,7 @@ function markDeviceSetupDone() {
   }
 }
 
-function messageOf(failure: unknown): string {
-  return failure instanceof Error ? failure.message : 'Your answers could not be saved. Try again.'
-}
+const NOT_SAVED = 'Your answers could not be saved. Try again.'
 
 export interface SetupOptions {
   /**
@@ -140,7 +139,7 @@ export function useSetup({
           markDeviceSetupDone()
           setDeviceDone(true)
         },
-        (failure: unknown) => setSaveError(messageOf(failure)),
+        (failure: unknown) => setSaveError(messageOf(failure, NOT_SAVED)),
       )
     },
     [latestSave],
@@ -196,7 +195,7 @@ export function useSetup({
       try {
         await store(patch)
       } catch (failure) {
-        setSaveError(messageOf(failure))
+        setSaveError(messageOf(failure, NOT_SAVED))
       }
       setSaving(false)
     },

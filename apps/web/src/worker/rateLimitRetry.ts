@@ -10,9 +10,13 @@ const MAX_WAIT_MS = 2 * RATE_LIMIT_WINDOW_MS
 /**
  * Runs one save. When the server answers 429, it waits for the Retry-After that came with it and
  * tries the same save once more: a create is idempotent, so the second try cannot duplicate it. A
- * second refusal, or any other failure, is thrown as it is.
+ * second refusal, or any other failure, is thrown as it is. `onWait` is called just before the wait,
+ * so the page can say why nothing is moving.
  */
-export async function retryAfterRateLimit<T>(attempt: () => Promise<T>): Promise<T> {
+export async function retryAfterRateLimit<T>(
+  attempt: () => Promise<T>,
+  onWait?: () => void,
+): Promise<T> {
   try {
     return await attempt()
   } catch (error) {
@@ -20,6 +24,7 @@ export async function retryAfterRateLimit<T>(attempt: () => Promise<T>): Promise
     const waitMs =
       (error instanceof ApiRequestError ? error.retryAfterMs : undefined) ?? RATE_LIMIT_WINDOW_MS
     if (waitMs > MAX_WAIT_MS) throw error
+    onWait?.()
     await new Promise((resolve) => setTimeout(resolve, waitMs))
     return attempt()
   }

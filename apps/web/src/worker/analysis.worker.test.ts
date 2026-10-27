@@ -1,7 +1,7 @@
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
-import { encodeFit } from '@rca/core/fit'
+import { countActivityFiles, encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
 import { parseActivityFile } from '@rca/core/import'
 import { AnalysisSession } from '@rca/core/session'
@@ -13,6 +13,7 @@ import { ApiRequestError } from '../api/client'
 import { buildAccountExport } from '../export/accountExport'
 import { workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
+import * as importSummary from './importSummary'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 /** A reply waits on a full analysis, which takes most of a second on its own; vi.waitFor's 1 s is too short under load. */
@@ -28,6 +29,16 @@ vi.mock('@rca/contract', async (importOriginal) => {
       return limits.maxFileBytes
     },
   }
+})
+
+vi.mock('@rca/core/fit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@rca/core/fit')>()
+  return { ...actual, countActivityFiles: vi.fn(actual.countActivityFiles) }
+})
+
+vi.mock('./importSummary', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./importSummary')>()
+  return { ...actual, summarizeAdded: vi.fn(actual.summarizeAdded) }
 })
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -109,7 +120,7 @@ async function startWorker() {
     }, WAIT_FOR_MS)
     return posted.slice(start)
   }
-  return { send }
+  return { send, posted }
 }
 
 function fitFile(activity?: Activity, name = 'run.fit'): File {
@@ -216,6 +227,44 @@ describe('analysis worker', () => {
         expect(messages.indexOf(progress.at(-1) as WorkerResponse)).toBeLessThan(
           messages.findIndex((message) => message.type === 'state'),
         )
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
+    it('ends on the exact count when the total is not known, with nothing to send it at once', async () => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
+      vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
+      try {
+        const { send } = await startWorker()
+        const messages = await send(importOf({ keepFiles: false, userId: USER_ID }))
+        const progress = messages.filter((message) => message.type === 'progress')
+
+        expect(progress.length).toBeLessThan(FILES)
+        expect(progress.at(-1)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
+        expect(messages.indexOf(progress.at(-1) as WorkerResponse)).toBeLessThan(
+          messages.findIndex((message) => message.type === 'state'),
+        )
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
+    it('sends no progress after an import fails, whatever was waiting to go out', async () => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000)
+      // With no total there is no last file to send at once, so a message is waiting at the end.
+      vi.mocked(countActivityFiles).mockResolvedValueOnce(null)
+      vi.mocked(importSummary.summarizeAdded).mockImplementationOnce(() => {
+        throw new Error('The summary failed')
+      })
+      try {
+        const { send, posted } = await startWorker()
+        const messages = await send(importOf(null))
+        expect(messages.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
+
+        // The throttled message would have gone out one interval after the first.
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        expect(posted.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
       } finally {
         clock.mockRestore()
       }
@@ -927,6 +976,35 @@ describe('analysis worker', () => {
     expect(messages.findLast((message) => message.type === 'progress')).toMatchObject({
       uploaded: 2,
     })
+  })
+
+  it('tells the page the saves are paused before it waits, and the next progress ends that', async () => {
+    const { send, posted } = await startWorker()
+    let postedAtRetry: WorkerResponse[] = []
+    mocked.createActivity
+      .mockRejectedValueOnce(new ApiRequestError(429, 'rate_limited', 'Slow down', 1))
+      .mockImplementationOnce(async (digest) => {
+        postedAtRetry = [...posted]
+        return { record: recordFor(digest), created: true }
+      })
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(sampleActivity, 'run-a.fit'), fitFile(secondSampleActivity, 'run-b.fit')],
+      settings: SETTINGS,
+      sync: { keepFiles: false, userId: USER_ID },
+    })
+
+    // The pause carries the counts so far, and was sent before the second try began.
+    expect(postedAtRetry.at(-1)).toEqual({
+      type: 'progress',
+      filesRead: 0,
+      filesTotal: 2,
+      uploaded: 0,
+      paused: true,
+    })
+    const progress = messages.filter((message) => message.type === 'progress')
+    expect(progress.filter((message) => 'paused' in message)).toHaveLength(1)
+    expect(progress.at(-1)).not.toHaveProperty('paused')
   })
 
   it('stops saving when the rate limit holds after the wait', async () => {

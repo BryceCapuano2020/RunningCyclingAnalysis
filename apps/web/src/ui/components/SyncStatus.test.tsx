@@ -277,6 +277,38 @@ describe('SyncStatus', () => {
     expect(status).toHaveClass('sync-status__message--failed')
   })
 
+  it('counts only what the latest import left as waiting beside what it saved', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 90 })} />)
+    rerender(
+      <SyncStatus
+        {...props({
+          uploading: null,
+          issues: [{ code: 'daily-limit', count: 1_103, latest: 10 }],
+        })}
+      />,
+    )
+    expect(screen.getByRole('status').textContent).toMatch(
+      /^You have reached today's limit on saves\. 90 saved, 10 waiting\. /,
+    )
+  })
+
+  it('leaves the saved count out for a limit an earlier import reached', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 4 })} />)
+    rerender(
+      <SyncStatus
+        {...props({
+          uploading: null,
+          issues: [{ code: 'activity-quota', count: 1_103, latest: 0 }],
+        })}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Your library is full (5,000 activities). 1,103 waiting. Delete older activities to make room, then add the rest again.',
+    )
+  })
+
   it('says none were saved when the limit came before the first save', () => {
     const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
     rerender(<SyncStatus {...props({ uploading: null, issues: [issue('rate-limited', 40)] })} />)

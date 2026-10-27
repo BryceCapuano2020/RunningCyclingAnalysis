@@ -1,7 +1,7 @@
 import { SyncFailure } from '@rca/core/session'
 import { describe, expect, it } from 'vitest'
 import { ApiRequestError } from '../api/client'
-import { messageOf, syncFailureOf, syncIssueFor } from './syncIssue'
+import { syncFailureOf, syncIssueFor } from './syncIssue'
 
 describe('syncIssueFor', () => {
   it.each([
@@ -63,12 +63,5 @@ describe('syncFailureOf', () => {
 
   it('counts anything else as a server failure', () => {
     expect(syncFailureOf('offline')).toMatchObject({ code: 'server', message: 'offline' })
-  })
-})
-
-describe('messageOf', () => {
-  it('reads an error, and writes out anything else', () => {
-    expect(messageOf(new Error('boom'))).toBe('boom')
-    expect(messageOf(404)).toBe('404')
   })
 })

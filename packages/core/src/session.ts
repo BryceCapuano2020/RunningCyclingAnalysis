@@ -14,8 +14,8 @@ import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
-import { stopsSaving, SyncFailure } from './saveFailure'
-import type { SyncIssue, SyncIssueCode } from './saveFailure'
+import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
+import type { SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { Rejection } from './import/result'
 import { recordHolders } from './records'
@@ -68,6 +68,8 @@ export class AnalysisSession {
   private digests = new Map<string, ActivityDigest>()
   // Activities whose last sink call failed, and why. Re-importing the file tries them again.
   private unsynced = new Map<string, SyncIssueCode>()
+  // The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones.
+  private latestUnsynced = new Set<string>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
@@ -115,6 +117,7 @@ export class AnalysisSession {
     // The rejected files are those of this import, so an earlier import's are not listed again.
     this.rejected.clear()
     this.unsupported.clear()
+    this.latestUnsynced.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0 }
@@ -261,7 +264,7 @@ export class AnalysisSession {
     this.incompatibleKeys.delete(key)
     if (sink === undefined) return
     if (batch.halt !== null) {
-      this.unsynced.set(key, batch.halt)
+      this.leaveUnsynced(key, batch.halt)
       return
     }
     try {
@@ -269,9 +272,14 @@ export class AnalysisSession {
       this.unsynced.delete(key)
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
-      this.unsynced.set(key, code)
+      this.leaveUnsynced(key, code)
       if (stopsSaving(code)) batch.halt = code
     }
+  }
+
+  private leaveUnsynced(key: string, code: SyncIssueCode): void {
+    this.unsynced.set(key, code)
+    this.latestUnsynced.add(key)
   }
 
   /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
@@ -284,6 +292,7 @@ export class AnalysisSession {
 
   private reset(): void {
     this.unsynced.clear()
+    this.latestUnsynced.clear()
     this.resetLibrary()
   }
 
@@ -294,12 +303,6 @@ export class AnalysisSession {
     this.rejected.clear()
     this.unsupported.clear()
     this.isSample = false
-  }
-
-  private syncIssues(): SyncIssue[] {
-    const counts = new Map<SyncIssueCode, number>()
-    for (const code of this.unsynced.values()) counts.set(code, (counts.get(code) ?? 0) + 1)
-    return [...counts].map(([code, count]) => ({ code, count }))
   }
 
   /**
@@ -384,7 +387,7 @@ export class AnalysisSession {
       hiddenDuplicates: hidden.size,
       period,
       library: settings === null ? [] : activitySummaries(visible),
-      syncIssues: this.syncIssues(),
+      syncIssues: countIssues(this.unsynced, this.latestUnsynced),
       records:
         athlete === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, athlete),
     }

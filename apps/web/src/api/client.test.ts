@@ -543,18 +543,15 @@ describe('createActivity', () => {
       status: 403,
       code: 'digest_quota',
     })
-    // The server sends no Retry-After with this refusal, so the create is tried once more.
-    vi.useFakeTimers()
-    const full = { error: { code: 'database_full', message: 'Database full' } }
-    stubFetch(respond(503, full), respond(503, full))
-    const refused = expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject(
-      {
-        status: 503,
-        code: 'database_full',
-      },
+    // A full database does not clear in a moment, so the create is not tried again.
+    const fetchMock = stubFetch(
+      respond(503, { error: { code: 'database_full', message: 'Database full' } }),
     )
-    await vi.advanceTimersByTimeAsync(1_000)
-    await refused
+    await expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject({
+      status: 503,
+      code: 'database_full',
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 })
 
@@ -675,6 +672,46 @@ describe('retry policy', () => {
     await vi.advanceTimersByTimeAsync(10_000)
     await rejection
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries the create that replaces a stored activity, as a rebuild makes it', async () => {
+    vi.useFakeTimers()
+    const fetchMock = stubFetch(
+      respond(502, { error: { code: 'bad_gateway', message: 'Upstream' } }),
+      respond(200, RECORD_WIRE),
+    )
+    await afterBackoff(createActivity(DIGEST, 'run.fit', 'a'.repeat(64), 'u1', 'rec-1'))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(callOf(fetchMock, 1).path).toBe('/api/activities?replace=rec-1')
+  })
+
+  it('sends any other write exactly once, whatever fails', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        respond(500, { error: { code: 'internal_error', message: 'Oops' } }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(logout()).rejects.toMatchObject({ status: 500 })
+    await expect(deleteActivity('rec-1')).rejects.toMatchObject({ status: 500 })
+    await expect(updateProfile(PROFILE_INPUT)).rejects.toMatchObject({ status: 500 })
+    await expect(deleteAccount()).rejects.toMatchObject({ status: 500 })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    await expect(logout()).rejects.toMatchObject({ status: 0 })
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a create that a full database refused, though the server sent no Retry-After', async () => {
+    const fetchMock = stubFetch(
+      respond(503, { error: { code: 'database_full', message: 'Database full' } }),
+    )
+    await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
+      status: 503,
+      code: 'database_full',
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it('does not retry a POST that the server answered with Retry-After', async () => {
