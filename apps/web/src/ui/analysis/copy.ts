@@ -38,7 +38,7 @@ export const SAVE_STATE_TEXT = {
   failed: SAVE_FAILED,
 } as const
 export const RETENTION_UNAVAILABLE =
-  'Original file storage is unavailable right now. Your saved preference is preserved; new imports save summaries only and original files stay on this device. Existing saved originals are not deleted.'
+  'Original file storage is unavailable right now. Your saved preference is preserved; new imports save summaries only and original files are not kept. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
 /** What an import reports for its summary: the files it read and could not use, and what it added. */
 export type ImportCounts = Pick<ImportOutcome, 'activities' | 'rejected'> &

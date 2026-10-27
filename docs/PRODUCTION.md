@@ -399,7 +399,8 @@ restored database lacks their references.
   keep their own originals, and the owner should not promise that a stored original is recoverable.
   The manifest only records which objects existed, so an activity whose original is missing can be
   identified and re-imported.
-- **A deletion log.** The application keeps no record of deleted accounts. A restored backup can
+- **A deletion log.** The application keeps no record of deleted accounts once a deletion
+  completes. Until then, a pending_account_deletions row names the account. A restored backup can
   contain accounts that were deleted after it was taken, so the restore procedure requires
   reconciling them.
 - **Anything after the backup time.** Changes after the newest backup are lost.

@@ -36,6 +36,14 @@ const activitiesCsvSource = await readStylesheet(
   import.meta.url,
   '../../../packages/core/src/import/activitiesCsv.ts',
 )
+const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
+const contractDigest = await readStylesheet(
+  import.meta.url,
+  '../../../packages/contract/src/digest.ts',
+)
+const apiSchema = await readStylesheet(import.meta.url, '../../api/src/db/schema.ts')
+const rateLimit = await readStylesheet(import.meta.url, '../../api/src/rateLimit.ts')
+const productionNotes = await readStylesheet(import.meta.url, '../../../docs/PRODUCTION.md')
 
 /** The page's visible text: markup removed and whitespace collapsed. */
 function textOf(html: string): string {
@@ -52,6 +60,22 @@ const text = textOf(page)
 function sentenceWith(phrase: string): string {
   return text.split('. ').find((sentence) => sentence.includes(phrase)) ?? ''
 }
+
+/** The analysis figures a summary holds, named the same way in both lists. */
+const ANALYSIS_FIGURES = [
+  'splits per km and mile',
+  'flat-pace times',
+  'moving time',
+  'average power',
+  'power-meter calibration sums',
+  'the indoor flag',
+]
+
+describe('privacy page date', () => {
+  it('is dated 26 October 2026', () => {
+    expect(page).toContain('<p class="updated">Last updated 26 October 2026</p>')
+  })
+})
 
 describe('privacy page brand', () => {
   it('shows the app name in the header, as the app does', () => {
@@ -135,10 +159,59 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(text).toMatch(/until you clear this site's data/)
   })
 
-  it('says the route outline has no location, stays in this browser, is never uploaded, and is drawn from the original only on request', () => {
-    expect(text).toMatch(/outline of the route[^.]*no location/)
+  it('says the route outline has no coordinates or scale, stays in this browser, is never uploaded, and is drawn from the original only on request', () => {
+    expect(text).toMatch(/outline of the route[^.]*no coordinates or scale/)
     expect(text).toMatch(/kept only in this browser and is never uploaded/)
     expect(text).toMatch(/drawn from your original only when you ask for it/)
+  })
+
+  it('lists the same analysis figures for a summary kept in this browser and one in the library', () => {
+    const kept = sentenceWith('It holds the figures shown')
+    const saved = sentenceWith('the analysis summary')
+    for (const figure of ANALYSIS_FIGURES) {
+      expect(kept).toContain(figure)
+      expect(saved).toContain(figure)
+    }
+  })
+
+  it('keeps each figure it lists in the digest the server stores', () => {
+    expect(contractDigest).toMatch(/splits: digestSplits\(1\)\.optional\(\)/)
+    expect(contractDigest).toMatch(
+      /gradeAdjustedSeconds: z\.number\(\)\.nonnegative\(\)\.nullable\(\)/,
+    )
+    expect(contractDigest).toMatch(/indoor: z\.boolean\(\)/)
+    expect(contractDigest).toMatch(/calibration: calibrationSums\.nullable\(\)/)
+    expect(contractDigest).toMatch(/movingS: z\.number\(\)\.int\(\)\.nonnegative\(\)\.optional\(\)/)
+    expect(contractDigest).toMatch(/avgPowerW: nullableNumber\.optional\(\)/)
+  })
+
+  it('names the view period key the app reads, among the settings kept in this browser', () => {
+    expect(periodPreference).toContain("PERIOD_KEY = 'rca.period.v1'")
+    expect(sentenceWith('Settings are kept')).toContain('rca.period.v1')
+  })
+
+  it('says the database holds each kept original size, and short-lived rows for uploads and deletions', () => {
+    expect(apiSchema).toMatch(/fileSize: integer\('file_size'\)/)
+    expect(apiSchema).toMatch(/sqliteTable\(\s*'upload_slots'/)
+    expect(apiSchema).toMatch(/sqliteTable\(\s*'pending_account_deletions'/)
+    expect(text).toContain('the size of each kept original')
+    expect(text).toContain('short-lived rows for uploads in progress and for account deletions')
+  })
+
+  it('says what each request carries, and that the address is only a rate-limit key', () => {
+    expect(rateLimit).toContain("c.req.header('CF-Connecting-IP')")
+    expect(rateLimit).toContain('`ip:${address}`')
+    expect(text).toContain(
+      "Cloudflare's request logs include each request's network address, approximate location and browser user agent",
+    )
+    expect(text).toContain('The address is used only as a rate-limit key.')
+  })
+
+  it('names the pending-deletion row in the production notes until a deletion completes', () => {
+    const notes = productionNotes.replace(/\s+/g, ' ')
+    expect(notes).toContain(
+      'keeps no record of deleted accounts once a deletion completes. Until then, a pending_account_deletions row names the account.',
+    )
   })
 
   it('says what is counted each day, and that the counts are kept seven days', () => {

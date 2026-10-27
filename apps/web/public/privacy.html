@@ -40,7 +40,7 @@
     </header>
 
     <main class="wrap policy">
-      <p class="updated">Last updated 24 October 2026</p>
+      <p class="updated">Last updated 26 October 2026</p>
       <h1>Privacy policy</h1>
 
       <p class="lede">
@@ -62,19 +62,21 @@
         <li>Files are analysed in your browser and not uploaded.</li>
         <li>
           Each activity's summary is kept in this browser's IndexedDB where the browser allows, so
-          results survive a reload. It holds the figures shown (times, distances, heart-rate and
-          power, best efforts, climbs, data-quality flags) and the file name. Its name comes from
-          the activity list in a Strava export, else the title in the file, else the start time and
-          sport. For an outdoor activity with GPS it also holds an outline of the route: the track
-          with its position and scale removed, so it shows no location. The outline is kept only in
-          this browser and is never uploaded. The summary has no GPS coordinates, per-second data or
-          original file, and it does not expire. When one file holds more than one activity, each of
-          its summaries keeps a SHA-256 hash of that file, so they are shown together.
+          results survive a reload. It holds the figures shown: times, splits per km and mile
+          (flat-pace times, climb and heart rate), moving time, distances, heart-rate and power,
+          average power, best efforts, climbs, power-meter calibration sums, the indoor flag and
+          data-quality flags, and the file name. Its name comes from the activity list in a Strava
+          export, else the title in the file, else the start time and sport. For an outdoor activity
+          with GPS it also holds an outline of the route: the track with its position and scale
+          removed, so it has no coordinates or scale. The outline is kept only in this browser and
+          is never uploaded. The summary has no GPS coordinates, per-second data or original file,
+          and it does not expire. When one file holds more than one activity, each of its summaries
+          keeps a SHA-256 hash of that file, so they are shown together.
         </li>
         <li>
           Settings are kept in this browser's local storage: weight, bike and gear weight, units,
-          year and sex if given, and whether setup is answered. This copy is kept whether or not you
-          have an account.
+          year and sex if given, whether setup is answered, and the view period you pick, under
+          rca.period.v1. This copy is kept whether or not you have an account.
         </li>
         <li>
           A flag in this browser's local storage, named rca.kept.v1, says whether this browser had
@@ -113,9 +115,10 @@
         <li>
           <strong>Activity summaries:</strong> name (from the activity list in a Strava export, the
           title in the file, or the start time and sport), sport, start and save times; file name
-          and SHA-256 hash; distance, duration and elevation gain; and the analysis summary (best
-          efforts, heart-rate figures, climb sections, data-quality flags). No per-second recording
-          or route data.
+          and SHA-256 hash; distance, duration and elevation gain; and the analysis summary: times,
+          splits per km and mile (flat-pace times, climb and heart rate), moving time, distances,
+          heart-rate and power, average power, best efforts, climbs, power-meter calibration sums,
+          the indoor flag and data-quality flags. No per-second recording or route data.
         </li>
         <li>
           <strong>Original files:</strong> only while
@@ -135,18 +138,19 @@
 
       <h2>Storage, logs and backups</h2>
       <p>
-        Accounts, sessions, settings, summaries and daily counts are in a Cloudflare D1 database.
-        Original files are in a private Cloudflare R2 bucket, under keys that include your account
-        and activity IDs. Summaries kept without an account stay in your browser, where it allows.
-        Cloudflare hosts and processes this data as our provider, and Google processes sign-in. We
-        do not sell your data.
+        Accounts, sessions, settings, summaries, daily counts and the size of each kept original are
+        in a Cloudflare D1 database, with short-lived rows for uploads in progress and for account
+        deletions not yet finished. Original files are in a private Cloudflare R2 bucket, under keys
+        that include your account and activity IDs. Summaries kept without an account stay in your
+        browser, where it allows. Cloudflare hosts and processes this data as our provider, and
+        Google processes sign-in. We do not sell your data.
       </p>
       <p>
         Error logs hold a request ID, the error type and, for a saved activity that cannot be read,
-        its ID. They never hold request bodies, files, tokens or query strings. Cloudflare sees each
-        request's network address, which we use only as a rate-limit key. Cloudflare's request logs
-        include request URLs with the one-time Google sign-in code, which cannot be reused. Request
-        and error logs are kept three days.
+        its ID. They never hold request bodies, files, tokens or query strings. Cloudflare's request
+        logs include each request's network address, approximate location and browser user agent,
+        and request URLs with the one-time Google sign-in code, which cannot be reused. The address
+        is used only as a rate-limit key. Request and error logs are kept three days.
       </p>
       <p>
         Cookies are strictly necessary only: the sign-in cookie, and two cookies that last ten

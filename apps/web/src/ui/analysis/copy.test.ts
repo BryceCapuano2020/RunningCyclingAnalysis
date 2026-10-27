@@ -10,6 +10,7 @@ import {
   notAddedSentence,
   rebuildNoticeText,
   importSentence,
+  RETENTION_UNAVAILABLE,
   skippedCount,
   skippedSentence,
   STOPPED_BY_USER,
@@ -281,5 +282,12 @@ describe('skippedCount and skippedSentence', () => {
 describe('STOPPED_BY_USER', () => {
   it('is neutral and says what to do next, with no fault prefix', () => {
     expect(STOPPED_BY_USER).toBe("Stopped. Add your files again when you're ready.")
+  })
+})
+
+describe('RETENTION_UNAVAILABLE', () => {
+  it('says original files are not kept, rather than that they stay on this device', () => {
+    expect(RETENTION_UNAVAILABLE).toContain('original files are not kept')
+    expect(RETENTION_UNAVAILABLE).not.toContain('stay on this device')
   })
 })
