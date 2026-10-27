@@ -5,7 +5,7 @@ import { ALL_OUT_FRACTION } from '@rca/core/effort'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { ENERGY_RATE_UNIT, formatDuration, formatPercent } from '@rca/core/units'
+import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
 import { pickHeadline } from '../components'
@@ -30,6 +30,7 @@ import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { hrefFor } from '../route'
 import { activityNames } from '../records'
 import { PAGE_HEADING_ID } from './pageHeading'
+import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
@@ -56,10 +57,13 @@ const NO_FILES_EVIDENCE = 'Add your files to see this evidence.'
 /** Where a chart would be, while a kept library loads and may still bring the results. */
 const RESTORING_EVIDENCE = 'Your saved results are loading.'
 /** The energy view before any results: what it will show, since there is no ratio to name yet. */
-const NO_FILES_ENERGY = `Once your files are loaded, this view puts running and cycling on one scale: the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight.`
+const NO_FILES_ENERGY =
+  'Once your files are loaded, this view puts running and cycling on one scale, described below.'
 /** The energy view, when Balance shows the age-grade gap, and when it shows the energy ratio instead. */
-const ENERGY_CROSS_CHECK = `The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight. Near even, the energy check can lean the other way from the age-grade gap.`
-const ENERGY_FALLBACK = `When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, measured as the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight.`
+const ENERGY_CROSS_CHECK =
+  'The energy view is a cross-check of the age-grade gap on Balance. Near even, the energy check can lean the other way from the age-grade gap.'
+const ENERGY_FALLBACK =
+  'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
@@ -337,6 +341,7 @@ export function MethodPage({
             )}
           </ul>
         )}
+        <TwentyMinuteEffort />
         {hasResult && (
           <>
             {!weightKnown && rides > 0 && (

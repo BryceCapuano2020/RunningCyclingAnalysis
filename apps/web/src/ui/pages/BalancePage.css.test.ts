@@ -37,6 +37,12 @@ describe('Balance page stylesheet', () => {
     )
   })
 
+  it('lifts the 62 character measure from the answer block, so the headline runs its full width, and keeps it on the lines under the headline', () => {
+    expect(page).toMatch(/\.balance-hero \{[^}]*display:\s*grid;[^}]*\}/)
+    expect(page).not.toMatch(/\.balance-hero \{[^}]*max-width/)
+    expect(page).toMatch(/\.balance-hero > p \{[^}]*max-width:\s*62ch;/)
+  })
+
   it('ends the step just below 360 px, so 360 px keeps the headline at its size', () => {
     expect(HEADLINE_SMALL_MAX_WIDTH_PX).toBe(359)
   })

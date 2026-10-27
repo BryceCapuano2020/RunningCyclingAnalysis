@@ -1,6 +1,13 @@
+/*
+ * The headline runs the answer's full width. The text under it keeps the 62 character measure, as the
+ * lede and the other lines do.
+ */
 .balance-hero {
   display: grid;
   gap: var(--space-4);
+}
+
+.balance-hero > p {
   max-width: 62ch;
 }
 

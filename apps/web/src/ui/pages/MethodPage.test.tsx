@@ -23,6 +23,7 @@ import {
 import type { AgeProfile } from '../grades'
 import { MethodPage } from './MethodPage'
 import { requestMethodSection } from '../components/methodSection'
+import { TWENTY_MINUTE_ID } from './TwentyMinuteEffort'
 
 afterEach(() => {
   cleanup()
@@ -364,7 +365,7 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight. Near even, the energy check can lean the other way from the age-grade gap.',
+        'The energy view is a cross-check of the age-grade gap on Balance. Near even, the energy check can lean the other way from the age-grade gap.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/energy ratio/)
@@ -377,7 +378,7 @@ describe('MethodPage energy view', () => {
     expect(section.textContent).not.toMatch(/cross-check of the age-grade gap/)
     expect(
       within(section).getByText(
-        'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, measured as the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.',
+        'When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio.',
       ),
     ).toBeInTheDocument()
   })
@@ -582,6 +583,17 @@ describe('MethodPage evidence disclosures', () => {
 })
 
 describe('MethodPage heart-rate check', () => {
+  it('explains the 20 minute effort under the heart-rate check, where the evidence card links', () => {
+    renderPage()
+
+    const section = screen.getByRole('region', { name: 'Heart-rate check' })
+    const heading = within(section).getByRole('heading', { level: 3, name: 'The 20 minute effort' })
+    expect(heading).toHaveAttribute('id', TWENTY_MINUTE_ID)
+    expect(
+      within(section).getByText(/^Balance uses your best 20 min in each sport\./),
+    ).toBeInTheDocument()
+  })
+
   it('shows the heart-rate check, and its reading note once the evidence is open', async () => {
     renderPage()
 
@@ -606,12 +618,12 @@ describe('MethodPage heart-rate check', () => {
     ).toBeInTheDocument()
   })
 
-  it('has the reference maxima and the cycling offset behind More detail', () => {
+  it('has the reason for the cycling offset behind More detail', () => {
     renderPage()
 
     const section = screen.getByRole('region', { name: 'Heart-rate check' })
     expect(section.querySelector('details.methodology__detail')).toHaveTextContent(
-      'Cycling uses the higher of its own maximum and 6 bpm below the running maximum',
+      'A cycling maximum usually runs 5 to 7 bpm lower',
     )
   })
 })
@@ -726,6 +738,15 @@ describe('MethodPage copy', () => {
     await openAllEvidence(container)
 
     expect(container.textContent).not.toMatch(/model draws|draws/)
+  })
+
+  it('says each conversion once: the energy rate is defined in the unit topic, not in the energy view', async () => {
+    const { container } = renderPage(makeResult(CONTRIBUTING), MAN_BORN_1986)
+    await openAllEvidence(container)
+    const text = container.textContent ?? ''
+
+    expect(text.match(/the energy each sport costs per kilogram/g)).toHaveLength(1)
+    expect(text).not.toMatch(/running and cycling on one scale: the energy rate/)
   })
 
   it('does not put one sentence on the page twice', async () => {

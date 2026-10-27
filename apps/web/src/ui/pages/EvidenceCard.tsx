@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import type { EffortCheck } from '@rca/core/types'
 import { effortCaveat, hardEffortsOnFile } from '../effortCaveat'
+import { MethodSectionLink } from '../components/GradingLink'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from '../components/icons'
 import { HEADLINE_LABEL } from '../grades'
 import { effortLabel } from '../records'
 import { hrefFor } from '../route'
+import { TWENTY_MINUTE_ID } from './TwentyMinuteEffort'
 
 export interface EvidenceCardProps {
   /** Heart-rate check for the headline duration, or null when there is no comparison to check. */
@@ -98,7 +100,14 @@ export function EvidenceCard({ effort, noHeartRate }: EvidenceCardProps) {
       </span>
       <h2 id="evidence-card">{title}</h2>
       <p className="secondary">{text}</p>
-      {howTo && <p className="muted">{howTo}</p>}
+      {howTo && (
+        <p className="muted">
+          <span>{howTo}</span>{' '}
+          <MethodSectionLink sectionId={TWENTY_MINUTE_ID}>
+            How the 20 minute effort is checked
+          </MethodSectionLink>
+        </p>
+      )}
       {action}
     </section>
   )

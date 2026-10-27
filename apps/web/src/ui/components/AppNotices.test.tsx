@@ -52,7 +52,7 @@ describe('AppNotices live regions', () => {
     props.analysis.state = { ...props.analysis.state, result: makeResult(), isSample: true }
     view.rerender(<AppNotices {...props} />)
 
-    const notice = screen.getByText(/Showing a sample athlete, a 37-year-old man at 75 kg\./)
+    const notice = screen.getByText(/Sample athlete, a 37-year-old man at 75 kg\./)
     expect(regions).toContain(notice.closest('[role="status"]'))
   })
 
@@ -62,10 +62,10 @@ describe('AppNotices live regions', () => {
     props.analysis.state = { ...props.analysis.state, result: makeResult(), isSample: true }
     view.rerender(<AppNotices {...props} />)
 
-    const banner = screen.getByText(/The sample is not kept/)
+    const banner = screen.getByText(/Not kept: add files to replace it/)
     expect(banner).toBeVisible()
     expect(banner.className).toBe('sample-banner')
-    expect(screen.getAllByText(/The sample is not kept/)).toHaveLength(1)
+    expect(screen.getAllByText(/Not kept: add files to replace it/)).toHaveLength(1)
   })
 
   it('announces a neutral stop in a region that was already on the page, not as a fault', () => {

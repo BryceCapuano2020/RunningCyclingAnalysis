@@ -10,6 +10,10 @@ import { lbToKg } from '@rca/core/units'
 /** Hard-coded text from the landing page; the test suite checks it, so change both together. */
 export const LANDING_TITLE = 'How balanced are you as an athlete?'
 
+/** The sample banner, the line that says once that the sample is not kept. Two lines on a 320 px phone. */
+export const SAMPLE_BANNER =
+  /^Sample athlete, a 37-year-old man at 75 kg\. Not kept: add files to replace it\.$/
+
 /**
  * The Balance page's h1: the answer, what is missing before the two sports can be compared, or the
  * balance held until a weight is entered.

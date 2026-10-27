@@ -8,3 +8,13 @@
   color: var(--text-primary);
   font-size: var(--text-label);
 }
+
+/*
+ * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the banner's padding is tighter. At
+ * 320 x 568 the banner is two lines, and this keeps the meter's key above the section tabs there.
+ */
+@media (max-height: 700px) and (pointer: coarse), (max-height: 700px) and (max-width: 760px) {
+  .sample-banner {
+    padding-block: var(--space-1);
+  }
+}

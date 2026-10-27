@@ -1147,6 +1147,32 @@ describe('SportPage depth', () => {
     expect(section.getByText('1:27:54')).toBeInTheDocument()
   })
 
+  it('says distance times are as run, once, under the best efforts, where a distance is listed', () => {
+    const fiveK = makeActivity({
+      id: 'five-k',
+      name: 'Five K',
+      sport: 'run',
+      startMs: new Date(2026, 0, 18, 9).getTime(),
+      distanceBests: [{ distanceM: 5000, seconds: 1245 }],
+    })
+    renderPage('run', makeResult({ activities: [fiveK] }))
+
+    const section = within(
+      screen.getByRole('heading', { name: 'Best efforts' }).closest('section')!,
+    )
+    expect(
+      section.getAllByText(
+        'Distance times are as run. The pace curve allows for hills, so they can differ.',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('leaves the distance note out when no run has a distance best', () => {
+    renderPage('run', makeResult({ activities: [morningRun] }))
+
+    expect(screen.queryByText(/Distance times are as run/)).toBeNull()
+  })
+
   it('gives the recent form in one line: the last run, the runs and their distance', () => {
     const run = makeActivity({
       id: 'run-1',
