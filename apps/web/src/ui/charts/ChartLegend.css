@@ -131,11 +131,14 @@
   background: none;
 }
 
+/* An estimate keys a sport's line, so it is drawn at that line's width (.chart-series__line), not the thin comparison's. */
 .chart-legend__key--dashed-run {
+  border-top-width: 2.5px;
   border-top-color: var(--series-run);
 }
 
 .chart-legend__key--dashed-ride {
+  border-top-width: 2.5px;
   border-top-color: var(--series-ride);
 }
 

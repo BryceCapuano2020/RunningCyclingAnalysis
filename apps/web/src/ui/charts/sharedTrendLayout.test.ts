@@ -4,7 +4,7 @@ import type { ChartSize, PlotBox } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
-import { BAND_CLEAR_PX, sharedTrendLayout } from './sharedTrendLayout'
+import { BAND_CLEAR_PX, LABEL_REACH_EM, sharedTrendLayout } from './sharedTrendLayout'
 import type { EndLabel, SharedLayout } from './sharedTrendLayout'
 
 /** Sunday 12 January 2025, 23:59:59.999 UTC: the end of the first week. */
@@ -170,6 +170,28 @@ const STEPPED_BAND_WEEKS: SharedWeek[] = [
   week(5, 0.5706, 0.4538),
 ]
 
+/** A week with the ride's range given as its own edges, wider than the other fixtures' fixed three points. */
+function ranged(
+  index: number,
+  run: number | null,
+  ride: number,
+  low: number,
+  high: number,
+): SharedWeek {
+  return { ...week(index, run, ride), rideLow: low, rideHigh: high }
+}
+
+/**
+ * From the review: the run ends at 64 per cent, on the top edge of a wide ride band, and the nearest spot that
+ * clears the band is eleven points below the run's point, beside the band's lower edge.
+ */
+const WIDE_BAND_WEEKS: SharedWeek[] = [
+  ranged(0, 0.52, 0.465, 0.42, 0.512),
+  ranged(1, 0.64, 0.58, 0.527, 0.64),
+  ranged(2, 0.64, 0.58, 0.527, 0.64),
+  ranged(3, null, 0.47, 0.425, 0.516),
+]
+
 /** The chart box at a width and height, laid out as ChartFrame lays out its plot. */
 function sizeAt(width: number, height = 320): ChartSize {
   return {
@@ -279,9 +301,12 @@ describe('sharedTrendLayout end labels', () => {
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
-  it('keeps the run label clear of the ride band at 340 px when both read 60%', () => {
+  it('keeps the run label within reach of its point at 340 px when both read 60%, since the band is too wide to clear', () => {
     const layout = layoutOf(EQUAL_WEEKS, 340)
-    expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
+    const point = layout.run.findLast((p) => p !== null)
+    expect(Math.abs(labelOf(layout, 'run').at.y - (point?.y ?? 0))).toBeLessThanOrEqual(
+      LABEL_REACH_EM * labelSizePx(DEFAULT_ROOT_PX),
+    )
   })
 
   it('keeps the run label clear of the ride band at 340 px when the run lies inside the band', () => {
@@ -289,10 +314,13 @@ describe('sharedTrendLayout end labels', () => {
     expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
   })
 
-  it('keeps the run label clear of the ride band at 600 px, since band avoidance applies at every width', () => {
+  it('keeps the run label within reach of its point at 600 px, as at every width', () => {
     const layout = layoutOf(EQUAL_WEEKS, 600)
+    const point = layout.run.findLast((p) => p !== null)
     expect(labelOf(layout, 'run').text).toBe('Run 60%')
-    expect(overlaps(boxOf(labelOf(layout, 'run')), rideBand(layout))).toBe(false)
+    expect(Math.abs(labelOf(layout, 'run').at.y - (point?.y ?? 0))).toBeLessThanOrEqual(
+      LABEL_REACH_EM * labelSizePx(DEFAULT_ROOT_PX),
+    )
   })
 
   it('places a run label whose point is at the plot’s left edge to the right of the point, clear of the y tick labels', () => {
@@ -414,5 +442,18 @@ describe('sharedTrendLayout end labels', () => {
     for (const label of layout.labels) {
       expect(insidePlot(boxOf(label), sizeAt(480).plot)).toBe(true)
     }
+  })
+
+  it('keeps each end label beside its own point, over the band where the only clear spot is far away', () => {
+    const layout = layoutOf(WIDE_BAND_WEEKS, 358)
+    const reach = LABEL_REACH_EM * labelSizePx(DEFAULT_ROOT_PX)
+    const run = labelOf(layout, 'run')
+    const ride = labelOf(layout, 'ride')
+    expect(
+      Math.abs(run.at.y - (layout.run.findLast((p) => p !== null)?.y ?? 0)),
+    ).toBeLessThanOrEqual(reach)
+    expect(
+      Math.abs(ride.at.y - (layout.ride.findLast((p) => p !== null)?.y ?? 0)),
+    ).toBeLessThanOrEqual(reach)
   })
 })

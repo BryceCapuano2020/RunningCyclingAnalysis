@@ -43,6 +43,14 @@ describe('AgeGradingSection', () => {
     expect(section()).not.toHaveTextContent('Its range is the model’s 90% range')
   })
 
+  it('says how Grade by duration is read: the best at each duration, the ride’s range, and where a sport is higher', () => {
+    render(<AgeGradingSection gradedSex={null} />)
+
+    expect(section()).toHaveTextContent(
+      'Grade by duration on Balance grades each sport’s best effort at each duration, the ride with its range, and a sport is higher at a duration only where the run’s grade leaves the ride’s range; inside it, the two are level.',
+    )
+  })
+
   it('explains why each effort is graded at its own date, and which date a ride takes', () => {
     render(<AgeGradingSection gradedSex={null} />)
 

@@ -209,7 +209,8 @@ function leadingSentence({
     const { other } = leaderOf(lean)
     return `${SPORT_TITLE[lean]} grades ${points(Math.abs(Math.round(lead.centre)))} higher than ${other}`
   }
-  const percent = formatPercent(Math.abs(lead.centre) / 100)
+  // The edge's rule, so a lead under half a percent reads as its value, never as 0%.
+  const percent = percentEdge(Math.abs(lead.centre), false)
   return `${SPORT_TITLE[lean]} ${percent} higher, as energy per kilogram`
 }
 

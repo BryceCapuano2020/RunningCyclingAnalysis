@@ -43,6 +43,12 @@ export interface SharedLayout {
 export const BAND_CLEAR_PX = 2
 /** The space a run label's box keeps from the run's own line and markers, where it can. */
 const LINE_CLEAR_PX = 4
+/**
+ * How far, in ems, a label's baseline may move from its own point to keep clear of the band or the line.
+ * A label further from its point reads as the label of whatever line is beside it, so past this reach
+ * the label stays beside its point, over the band, which its halo keeps legible.
+ */
+export const LABEL_REACH_EM = 4
 
 /** The baselines that keep a label's box inside the plot's top and bottom. */
 interface Span {
@@ -144,8 +150,8 @@ function sideOf(
 /**
  * The label at the latest value of one sport, named by its sport and its value, such as "Run 64%". Its
  * preferred place is left of its point, and below it unless the line arrives from below. Its other spots
- * are the other side of its point, and the baselines beside the band's edges and the line's under it, each
- * kept inside the plot. Null when the sport has no value.
+ * are the other side of its point, and the baselines beside the band's edges and the line's under it that
+ * lie within LABEL_REACH_EM of the point, each kept inside the plot. Null when the sport has no value.
  */
 function endLabel(
   kind: EndLabel['kind'],
@@ -181,8 +187,9 @@ function endLabel(
     spots: [
       clamp(preferred),
       clamp(other),
-      ...edgeSpots(underBand, em, BAND_CLEAR_PX).map(clamp),
-      ...edgeSpots(underLine, em, LINE_CLEAR_PX).map(clamp),
+      ...[...edgeSpots(underBand, em, BAND_CLEAR_PX), ...edgeSpots(underLine, em, LINE_CLEAR_PX)]
+        .map(clamp)
+        .filter((y) => Math.abs(y - point.y) <= LABEL_REACH_EM * em),
     ],
     band: rules.band,
     line: rules.line,
