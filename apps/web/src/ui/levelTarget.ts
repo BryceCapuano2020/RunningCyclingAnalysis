@@ -29,13 +29,18 @@ const BISECTION_STEPS = 60
 /** The first power tried when a ride's watts are bracketed, and how many times it doubles to reach a speed. */
 const FIRST_WATTS = 100
 const MAX_DOUBLINGS = 16
-/** The pace is named to the nearest 5 s, and the watts to the nearest 5 W. */
+/** The pace is named on a 5 s step, and the watts on a 5 W step. */
 const PACE_STEP_S = 5
 const WATTS_STEP = 5
 
-/** Rounds to the nearest multiple of step. */
-function roundTo(value: number, step: number): number {
-  return Math.round(value / step) * step
+/** Rounds up to the next multiple of step. */
+function ceilTo(value: number, step: number): number {
+  return Math.ceil(value / step) * step
+}
+
+/** Rounds down to the multiple of step at or below value. */
+function floorTo(value: number, step: number): number {
+  return Math.floor(value / step) * step
 }
 
 /**
@@ -111,11 +116,41 @@ const OWN_OF_CURVE: Record<Sport, (value: number) => number> = {
   ride: (watts) => watts,
 }
 
-/** The target as the words a sentence uses, rounded: a flat pace to 5 s, and watts to 5 W. */
-const TARGET_TEXT: Record<Sport, (native: number, units: UnitSystem) => string> = {
+/**
+ * A target rounded toward the side that levels, in the sport's own unit: a run's speed is taken at the
+ * faster pace on a 5 s step, and a ride's watts up to the next 5 W. Whole-percent grades floor, so a
+ * figure rounded the other way could leave the balance a percent short of level.
+ */
+const LEVELLED: Record<Sport, (native: number, units: UnitSystem) => number> = {
+  run: (speedMs, units) => {
+    const seconds = paceSeconds(speedMs, units)
+    const levelled = Math.max(PACE_STEP_S, floorTo(seconds, PACE_STEP_S))
+    return speedMs * (seconds / levelled)
+  },
+  ride: (watts) => ceilTo(watts, WATTS_STEP),
+}
+
+/** The target, rounded toward the side that levels: see LEVELLED. */
+export function levelledNative(sport: Sport, native: number, units: UnitSystem): number {
+  return LEVELLED[sport](native, units)
+}
+
+/** The levelled target as the words a sentence uses: a flat pace, or watts. */
+const TARGET_TEXT: Record<Sport, (levelled: number, units: UnitSystem) => string> = {
   run: (speedMs, units) =>
-    `a flat pace of about ${formatClock(roundTo(paceSeconds(speedMs, units), PACE_STEP_S))} ${PACE_UNIT[units]}`,
-  ride: (watts) => `about ${formatPower(roundTo(watts, WATTS_STEP))}`,
+    `a flat pace of about ${formatClock(paceSeconds(speedMs, units))} ${PACE_UNIT[units]}`,
+  ride: (watts) => `about ${formatPower(watts)}`,
+}
+
+/**
+ * Whether the levelled target is strictly beyond the figure the page shows for the lower sport's best
+ * effort: more whole watts, or a faster whole second of pace. Compared on the shown figures, so a
+ * target that reads the same as the figure on screen is not a change to name.
+ */
+const BEYOND_SHOWN: Record<Sport, (levelled: number, now: number, units: UnitSystem) => boolean> = {
+  run: (target, now, units) =>
+    Math.round(paceSeconds(target, units)) < Math.round(paceSeconds(now, units)),
+  ride: (target, now) => Math.round(target) > Math.round(now),
 }
 
 /** The best effort as a noun in a sentence: "your best run", "your best ride". */
@@ -137,8 +172,9 @@ export interface LevelTargetInput {
 
 /**
  * The lower sport's best effort at the headline duration, as the sentence that says what it would
- * need to grade level with the higher sport's whole-percent grade. Null when the balance is even,
- * when either grade is not on screen, or when the lower sport already reaches the target.
+ * need to grade level with the higher sport's whole-percent grade, rounded toward the levelling side. Null
+ * when the balance is even, when either grade is not on screen, or when the levelled target is not
+ * strictly beyond the figure the page already shows for the lower sport.
  */
 export function levelTargetText(input: LevelTargetInput): string | null {
   const { lean, grades, result, sex, massKg, units } = input
@@ -153,8 +189,10 @@ export function levelTargetText(input: LevelTargetInput): string | null {
   const athlete = { age: lowerGrade.age, sex, massKg, hr: result.hr }
   const needed = nativeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
   const now = OWN_OF_CURVE[lower](valueAt(curveOf(result, lower), HEADLINE_DURATION_S))
-  if (needed === null || !Number.isFinite(now) || !(needed > now)) return null
+  if (needed === null || !Number.isFinite(now)) return null
+  const levelled = levelledNative(lower, needed, units)
+  if (!BEYOND_SHOWN[lower](levelled, now, units)) return null
   const level = `To grade level with your ${SPORT_NOUN[higher]} at ${HEADLINE_LABEL}`
   const nowText = SPORT_FORMAT[lower].formatted(now, units)
-  return `${level}, your best ${BEST_NOUN[lower]} would need ${TARGET_TEXT[lower](needed, units)} (now ${nowText}).`
+  return `${level}, your best ${BEST_NOUN[lower]} would need ${TARGET_TEXT[lower](levelled, units)} (now ${nowText}).`
 }

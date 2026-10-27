@@ -8,7 +8,8 @@ import { gapOfHeadline } from './balanceGap'
 import { curvePoint } from './charts/fixtures'
 import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import { headlineGrades, sportGrade, type AgeProfile, type GradeOutcome } from './grades'
-import { levelTargetText, nativeAtGrade } from './levelTarget'
+import { levelTargetText, levelledNative, nativeAtGrade } from './levelTarget'
+import { wholeGrade } from './gradeFormat'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 
 /** A 37-year-old man at 75 kg, with the heart-rate cross-check of the fixture result. */
@@ -170,5 +171,72 @@ describe('levelTargetText on the sample athlete', () => {
     const athlete = { age: 37, sex: 'male' as const, massKg: SAMPLE_SETTINGS.massKg, hr: result.hr }
     const watts = nativeAtGrade('ride', 0.64, HEADLINE_DURATION_S, athlete)!
     expect(Math.abs(pageRideGrade(watts, result, SAMPLE_PROFILE) - 0.64)).toBeLessThanOrEqual(0.005)
+  })
+})
+
+describe('the levelled target, rounded toward the side that levels', () => {
+  const sampleRide = () => {
+    const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
+    if (result === null) throw new Error('The sample has no result')
+    return result
+  }
+
+  it('reaches every whole grade from 50 to 80 for the sample athlete, both sports, as the page grades it', () => {
+    const result = sampleRide()
+    const athlete = {
+      age: 37,
+      sex: 'male' as const,
+      massKg: SAMPLE_SETTINGS.massKg,
+      hr: result.hr,
+    }
+    for (let whole = 50; whole <= 80; whole++) {
+      const grade = whole / 100
+      const watts = nativeAtGrade('ride', grade, HEADLINE_DURATION_S, athlete)
+      if (watts === null) throw new Error(`No ride reaches ${whole}%`)
+      const rideGrade = pageRideGrade(
+        levelledNative('ride', watts, 'metric'),
+        result,
+        SAMPLE_PROFILE,
+      )
+      expect(wholeGrade(rideGrade), `ride at ${whole}%`).toBeGreaterThanOrEqual(whole)
+
+      const speed = nativeAtGrade('run', grade, HEADLINE_DURATION_S, athlete)
+      if (speed === null) throw new Error(`No run reaches ${whole}%`)
+      const levelled = levelledNative('run', speed, 'metric')
+      const runGrade = ageGradeForEffort(levelled, HEADLINE_DURATION_S, athlete.age, athlete.sex)
+      expect(wholeGrade(runGrade ?? 0), `run at ${whole}%`).toBeGreaterThanOrEqual(whole)
+    }
+  }, 120_000)
+
+  it('names no line when the ride already shows the levelled watts, and one when it shows one watt less', () => {
+    const result = sampleRide()
+    const athlete = {
+      age: 37,
+      sex: 'male' as const,
+      massKg: SAMPLE_SETTINGS.massKg,
+      hr: result.hr,
+    }
+    const levelled = levelledNative(
+      'ride',
+      nativeAtGrade('ride', 0.64, HEADLINE_DURATION_S, athlete)!,
+      'metric',
+    )
+    const rideId = result.activities.find((activity) => activity.sport === 'ride')!.id
+    const grades = headlineGrades(result, SAMPLE_PROFILE)
+    const withRideAt = (watts: number) => ({
+      ...result,
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, watts, rideId)],
+    })
+    const at = (watts: number) =>
+      levelTargetText({
+        lean: 'run',
+        grades,
+        result: withRideAt(watts),
+        sex: SAMPLE_PROFILE.sex,
+        massKg: SAMPLE_SETTINGS.massKg,
+        units: 'metric',
+      })
+    expect(at(levelled)).toBeNull()
+    expect(at(levelled - 1)).toContain(`(now ${levelled - 1} W).`)
   })
 })
