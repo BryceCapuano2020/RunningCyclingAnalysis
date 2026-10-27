@@ -21,7 +21,7 @@ export const NARROW_PHONE_MAX_WIDTH_PX = 420
 
 /**
  * At or below this height a narrow phone's setup dialog tightens its spacing and sets its two buttons on
- * one row, so the sex options clear the sticky footer at 320 x 568 (SetupDialog.css, AthleteFields.css).
+ * one row, so the sex options clear the sticky footer at 320 x 568 (SetupDialog.css).
  */
 export const SHORT_PHONE_MAX_HEIGHT_PX = 600
 

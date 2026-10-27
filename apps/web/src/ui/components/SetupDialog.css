@@ -80,7 +80,8 @@
 /*
  * A short phone (ui/layoutBreakpoints.ts: SHORT_PHONE_MAX_HEIGHT_PX) puts the buttons on one row while
  * both labels fit, and wraps them to full-width rows at larger text. The spacing is tighter too, so the
- * sex options clear the sticky footer.
+ * sex options clear the sticky footer. The athlete fields' rules sit here, under the dialog, so Profile
+ * keeps its own spacing.
  */
 @media (max-width: 420px) and (max-height: 600px) {
   .setup-dialog {
@@ -90,11 +91,23 @@
   }
 
   .setup-dialog__form {
-    gap: var(--space-3);
+    gap: var(--space-2);
   }
 
   .setup-dialog__actions .btn {
     flex: 1 1 auto;
     padding-inline: var(--space-2);
+  }
+
+  .setup-dialog .athlete-fields {
+    gap: var(--space-2);
+  }
+
+  .setup-dialog .athlete-fields .number-field {
+    margin-top: 0;
+  }
+
+  .setup-dialog .athlete-fields .segmented-control__option {
+    padding-block: var(--space-1);
   }
 }

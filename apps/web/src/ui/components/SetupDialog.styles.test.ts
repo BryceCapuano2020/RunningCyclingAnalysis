@@ -52,7 +52,8 @@ describe('setup dialog', () => {
     expect(body).toMatch(/\.setup-dialog__actions \.btn \{[^}]*padding-inline:\s*var\(--space-2\)/)
   })
 
-  it('lets the footer buttons wrap, so larger text stacks them full width rather than cutting their labels', () => {
+  it('wraps the footer buttons by default, so larger text stacks them full width rather than cutting their labels', () => {
+    expect(ruleBody(dialogCss, '.setup-dialog__actions')).toMatch(/flex-wrap:\s*wrap/)
     expect(shortPhoneBody(dialogCss)).not.toMatch(/flex-wrap:\s*nowrap/)
   })
 
@@ -63,7 +64,7 @@ describe('setup dialog', () => {
       /\.setup-dialog \{[^}]*max-height:\s*calc\(100dvh - 2 \* var\(--space-2\)\)/,
     )
     expect(body).toMatch(/\.setup-dialog \{[^}]*padding-top:\s*var\(--space-4\)/)
-    expect(body).toMatch(/\.setup-dialog__form \{[^}]*gap:\s*var\(--space-3\)/)
+    expect(body).toMatch(/\.setup-dialog__form \{[^}]*gap:\s*var\(--space-2\)/)
   })
 })
 
@@ -80,12 +81,16 @@ describe('athlete fields', () => {
     )
   })
 
-  it('tightens the year and sex spacing on a short phone, so the sex options clear the sticky footer', () => {
-    const body = shortPhoneBody(fieldsCss)
-    expect(body).toMatch(/\.athlete-fields \{[^}]*gap:\s*var\(--space-2\)/)
-    expect(body).toMatch(/\.athlete-fields \.number-field \{[^}]*margin-top:\s*0/)
+  it('tightens the year and sex spacing inside the setup dialog on a short phone, so the sex options clear the sticky footer', () => {
+    const body = shortPhoneBody(dialogCss)
+    expect(body).toMatch(/\.setup-dialog \.athlete-fields \{[^}]*gap:\s*var\(--space-2\)/)
+    expect(body).toMatch(/\.setup-dialog \.athlete-fields \.number-field \{[^}]*margin-top:\s*0/)
     expect(body).toMatch(
-      /\.athlete-fields \.segmented-control__option \{[^}]*padding-block:\s*var\(--space-1\)/,
+      /\.setup-dialog \.athlete-fields \.segmented-control__option \{[^}]*padding-block:\s*var\(--space-1\)/,
     )
+  })
+
+  it('keeps the short-phone spacing out of the shared athlete fields, so Profile keeps its own', () => {
+    expect(shortPhoneBody(fieldsCss)).toBe('')
   })
 })
