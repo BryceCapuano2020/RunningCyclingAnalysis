@@ -346,6 +346,8 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     seed: SEED,
   })
 
+  // The draws and their heart-rate weights are the same for every duration, so they are built once.
+  const equivalence = equivalenceFor(hr)
   const equivalents: Equivalence[] = []
   for (const durationS of EQUIVALENCE_DURATIONS_S) {
     const point = rideCurve.find((p) => p.durationS === durationS)
@@ -353,7 +355,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
       equivalents.push({
         durationS,
         ridePowerW: point.value,
-        runSpeed: equivalentRunSpeed(point.value, massKg, hr),
+        runSpeed: equivalence(point.value, massKg),
       })
     }
   }

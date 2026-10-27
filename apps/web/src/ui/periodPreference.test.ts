@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { PERIOD_KEY, parsePeriodChoice, usePeriodChoice } from './periodPreference'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  PERIOD_KEY,
+  parsePeriodChoice,
+  storedPeriodChoice,
+  usePeriodChoice,
+} from './periodPreference'
 
 describe('parsePeriodChoice', () => {
   it('is the default when nothing is stored, or the stored value is not a period', () => {
@@ -37,5 +42,28 @@ describe('usePeriodChoice', () => {
     })
     expect(result.current[0]).toBe('all')
     expect(JSON.parse(localStorage.getItem(PERIOD_KEY) ?? 'null')).toBe('all')
+  })
+})
+
+describe('storedPeriodChoice', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('is the period stored on this device, and the default when there is none', () => {
+    expect(storedPeriodChoice()).toBe('default')
+    localStorage.setItem(PERIOD_KEY, JSON.stringify(42))
+    expect(storedPeriodChoice()).toBe(42)
+  })
+
+  it('is the default when storage cannot be read', () => {
+    const read = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    try {
+      expect(storedPeriodChoice()).toBe('default')
+    } finally {
+      read.mockRestore()
+    }
   })
 })

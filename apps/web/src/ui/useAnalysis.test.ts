@@ -17,6 +17,7 @@ import { useAnalysis } from './useAnalysis'
 import { formatDay } from './format/date'
 import { makeResult } from './components/fixtures'
 import { EMPTY_PERIOD } from './analysis/model'
+import { PERIOD_KEY } from './periodPreference'
 
 const SAVED_COPY: Copy = {
   id: 'saved-copy',
@@ -177,6 +178,29 @@ describe('useAnalysis account handling', () => {
   it('loads the stored activities when the page opens already signed in', () => {
     setup(SIGNED_IN_KEEP)
     expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+  })
+
+  it('loads the stored activities on the period picked on this device', () => {
+    localStorage.setItem(PERIOD_KEY, JSON.stringify(42))
+    try {
+      setup(SIGNED_IN_KEEP)
+      expect(worker().posted).toEqual([
+        { type: 'loadServer', settings: SETTINGS, userId: USER_ID, choice: 42 },
+      ])
+    } finally {
+      localStorage.removeItem(PERIOD_KEY)
+    }
+  })
+
+  it('names no period when the athlete has picked none, or has picked the default', () => {
+    localStorage.setItem(PERIOD_KEY, JSON.stringify('default'))
+    try {
+      setup(SIGNED_IN_KEEP)
+      expect(worker().posted).toEqual([{ type: 'loadServer', settings: SETTINGS, userId: USER_ID }])
+      expect(worker().posted[0]).not.toHaveProperty('choice')
+    } finally {
+      localStorage.removeItem(PERIOD_KEY)
+    }
   })
 
   it('loads the stored activities into the active worker under StrictMode', () => {

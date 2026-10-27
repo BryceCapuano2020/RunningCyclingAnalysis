@@ -158,7 +158,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       return session.loadSample(request.settings)
     case 'loadServer':
       showingSample = false
-      return loadServer(libraryContext, request.settings, request.userId)
+      return loadServer(libraryContext, request.settings, request.userId, request.choice)
     case 'rebuildStale':
       return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':

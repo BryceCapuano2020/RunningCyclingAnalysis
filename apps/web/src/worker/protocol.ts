@@ -53,7 +53,11 @@ export type WorkerRequest =
    */
   | { type: 'loadDevice'; settings: AthleteSettings }
   | { type: 'loadSample'; settings: AthleteSettings }
-  | { type: 'loadServer'; settings: AthleteSettings; userId: string }
+  /**
+   * `choice` is the period the page will show. Without it the session keeps the one it has, which
+   * is the default for a new session, so a period stored on the device would cost a second analysis.
+   */
+  | { type: 'loadServer'; settings: AthleteSettings; userId: string; choice?: PeriodChoice }
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */

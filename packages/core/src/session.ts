@@ -1,4 +1,4 @@
-import { activitySummaries, combine, digestActivity } from './digest'
+import { activitySummaries, digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
@@ -338,7 +338,8 @@ export class AnalysisSession {
     const { period, selected, previous } = splitPeriods(visible, this.choice)
     const athlete = settings === null ? null : this.athleteFor(settings)
     // A period with no activities still has a result, so the page can say what is missing from it.
-    const analysis = athlete !== null && visible.length > 0 ? combine(selected, athlete) : null
+    const analysis =
+      athlete !== null && visible.length > 0 ? this.periods.analysis(selected, athlete) : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     const efforts =

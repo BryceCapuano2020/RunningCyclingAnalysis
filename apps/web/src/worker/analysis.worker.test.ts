@@ -397,6 +397,37 @@ describe('analysis worker', () => {
     ])
   })
 
+  it('loads the account digests on the period the page asks for, in one analysis', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    const messages = await send({
+      type: 'loadServer',
+      settings: SETTINGS,
+      userId: USER_ID,
+      choice: 42,
+    })
+
+    expect(messages.filter((message) => message.type === 'state')).toEqual([
+      {
+        type: 'state',
+        state: expect.objectContaining({
+          totalActivities: 1,
+          period: expect.objectContaining({ choice: 42, days: 42 }),
+        }),
+      },
+    ])
+  })
+
+  it('loads the account digests on the default period when the page asks for none', async () => {
+    mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
+    const { send } = await startWorker()
+    const messages = await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+    expect(messages.at(-1)).toMatchObject({
+      type: 'state',
+      state: { period: { choice: 'default' } },
+    })
+  })
+
   it('rebuilds stale digests from their stored originals and refreshes the active analysis', async () => {
     const stale = { ...SAMPLE_DIGEST, modelRevision: 1 }
     mocked.listActivities
