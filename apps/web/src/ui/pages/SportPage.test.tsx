@@ -1159,6 +1159,37 @@ describe('SportPage depth', () => {
     expect(screen.getByText('Last run 5 Jan · 1 run · 10.0 km')).toBeInTheDocument()
   })
 
+  it('groups the power-meter count and the ride count from a thousand on', () => {
+    const measured = Array.from({ length: 1005 }, (_, i) =>
+      makeActivity({
+        id: `ride-measured-${i}`,
+        sport: 'ride',
+        name: `Meter ride ${i}`,
+        startMs: morningRun.startMs + i * 1000,
+        powerSource: 'measured',
+      }),
+    )
+    const virtual = makeActivity({
+      id: 'ride-1',
+      sport: 'ride',
+      name: 'Hill ride',
+      powerSource: 'virtual',
+    })
+    renderPage(
+      'ride',
+      makeResult({
+        activities: [...measured, virtual],
+        rideCurve: [curvePoint(60, 400, 'ride-1')],
+      }),
+    )
+
+    expect(
+      screen.getByText(
+        'Power meters measured 1,005 of 1,006 rides. Watts for the rest are estimated.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('says which watts are estimated when no power meter measured the rides', () => {
     const ride = makeActivity({
       id: 'ride-1',

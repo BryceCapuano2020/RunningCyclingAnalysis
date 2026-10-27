@@ -80,6 +80,10 @@ describe('previousPeriodLabel', () => {
   it('counts in days for a period that is not one of the named lengths', () => {
     expect(previousPeriodLabel(55)).toBe('Previous 55 days')
   })
+
+  it('groups the days from a thousand on', () => {
+    expect(previousPeriodLabel(1500)).toBe('Previous 1,500 days')
+  })
 })
 
 describe('FALLBACK_NOTE', () => {

@@ -3,6 +3,7 @@ export {
   formatClock,
   formatRecordTime,
   formatDistance,
+  groupThousands,
   formatDuration,
   formatPartialDistance,
   formatElevation,

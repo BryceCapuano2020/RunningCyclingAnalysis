@@ -7,6 +7,7 @@ export interface Span {
   endMs: number | null
 }
 import { formatSpan } from '../format/date'
+import { formatCount } from '../format/count'
 
 export interface RangeOption {
   /** The control's value for the choice. */
@@ -55,7 +56,7 @@ function lengthOf(days: number): string {
   if (days === SIX_WEEKS_DAYS) return SIX_WEEKS_LABEL
   if (days === DEFAULT_PERIOD_DAYS) return DEFAULT_LABEL
   if (days === ONE_YEAR_DAYS) return ONE_YEAR_LABEL
-  return `${days} days`
+  return `${formatCount(days)} days`
 }
 
 /** Why the default shows all time, under the period's dates. */

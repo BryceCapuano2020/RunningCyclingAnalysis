@@ -71,26 +71,28 @@ export function limitedSentence(
 ): string {
   const noun = count === 1 ? 'activity was' : 'activities were'
   if (kind === 'rate') {
-    return `${count} ${noun} not updated. The server asked us to slow down; try again in a minute.`
+    return `${formatCount(count)} ${noun} not updated. The server asked us to slow down; try again in a minute.`
   }
   if (kind === 'daily') {
-    return `${count} ${noun} not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. ${resetSentence(resetsAtMs)}`
+    return `${formatCount(count)} ${noun} not updated because today's limit on downloads (${formatCount(DAILY_LIMITS.fileDownload)} per day) was reached. ${resetSentence(resetsAtMs)}`
   }
-  return `${count} ${noun} not updated. Try again later.`
+  return `${formatCount(count)} ${noun} not updated. Try again later.`
 }
 
 /** The notice after a rebuild: what was rebuilt, and what was not, and why. */
 export function rebuildNoticeText(outcome: RebuildOutcome): string {
   const notice = [
-    `Updated ${outcome.rebuilt} saved ${outcome.rebuilt === 1 ? 'activity' : 'activities'}.`,
+    `Updated ${formatCount(outcome.rebuilt)} saved ${outcome.rebuilt === 1 ? 'activity' : 'activities'}.`,
   ]
   if (outcome.missing > 0) {
     notice.push(
-      `${outcome.missing} original ${outcome.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; add ${outcome.missing === 1 ? 'that original file' : 'those original files'} again.`,
+      `${formatCount(outcome.missing)} original ${outcome.missing === 1 ? 'file is' : 'files are'} missing or could not be matched; add ${outcome.missing === 1 ? 'that original file' : 'those original files'} again.`,
     )
   }
   if (outcome.failed > 0) {
-    notice.push(`${outcome.failed} could not be updated; try again when the server is available.`)
+    notice.push(
+      `${formatCount(outcome.failed)} could not be updated; try again when the server is available.`,
+    )
   }
   if (outcome.limited > 0) {
     notice.push(limitedSentence(outcome.limited, outcome.limitKind, outcome.limitResetsAtMs))

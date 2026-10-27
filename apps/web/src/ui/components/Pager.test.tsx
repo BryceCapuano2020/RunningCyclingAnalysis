@@ -43,6 +43,20 @@ describe('Pager', () => {
     expect(screen.getByText(/^Showing /)).toBeInTheDocument()
   })
 
+  it('groups the counts in the summary from a thousand on', () => {
+    render(pager({ page: 50, pageCount: 53, total: 1045 }))
+    expect(
+      screen.getByText('Showing 1,001–1,020 of 1,045 activities. Page 51 of 53.'),
+    ).toBeInTheDocument()
+  })
+
+  it('groups the page numbers from a thousand on, as the counts are', () => {
+    render(pager({ page: 1000, pageCount: 1053, total: 21045 }))
+    expect(
+      screen.getByText('Showing 20,001–20,020 of 21,045 activities. Page 1,001 of 1,053.'),
+    ).toBeInTheDocument()
+  })
+
   it('disables Previous on the first page and Next on the last', () => {
     const { rerender } = render(pager())
     expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled()

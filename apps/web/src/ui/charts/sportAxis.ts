@@ -1,6 +1,13 @@
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { PACE_UNIT, formatClock, formatPace, formatPower, paceSeconds } from '@rca/core/units'
+import {
+  PACE_UNIT,
+  formatClock,
+  formatPace,
+  formatPower,
+  groupThousands,
+  paceSeconds,
+} from '@rca/core/units'
 import type { AxisTick, PlotBox } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import type { Scale } from './scale'
@@ -98,6 +105,9 @@ export function sportYAxis(
   const decimals = tickDecimals(ticks)
   return {
     y,
-    ticks: ticks.map((watts) => ({ position: y(watts), label: watts.toFixed(decimals) })),
+    ticks: ticks.map((watts) => ({
+      position: y(watts),
+      label: groupThousands(watts.toFixed(decimals)),
+    })),
   }
 }

@@ -485,6 +485,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 
 ## Copy
 
+- **Numbers are grouped in comma thousands, with a point for decimals, whatever the browser's
+  locale.** "1,234 runs" and "10,234.5 km" read the same in every locale. Years, clock times and
+  dates are not grouped.
 - **Balance is neutral.** Say which way it leans ("Your balance leans toward running"), never
   that a sport is a limiter, a weakness or holding you back.
 - **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher

@@ -62,6 +62,11 @@ describe('sportYAxis', () => {
     expect(top).toBeLessThan(bottom)
   })
 
+  it('groups the watt labels from a thousand on', () => {
+    const { ticks } = sportYAxis('ride', [210, 2000], PLOT)
+    expect(ticks.map((tick) => tick.label)).toEqual(expect.arrayContaining(['1,000', '2,000']))
+  })
+
   it('draws a cycling axis from zero, with the larger power higher up', () => {
     const { ticks } = sportYAxis('ride', [210, 400], PLOT)
     expect(ticks[0]?.label).toBe('0')

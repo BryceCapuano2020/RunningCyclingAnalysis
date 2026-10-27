@@ -18,6 +18,7 @@ import { WeightNote } from '../components/WeightNote'
 import { ArrowRightIcon, SportIcon } from '../components/icons'
 import { plural } from '../components/plural'
 import { effortShareLine } from '../effortCaveat'
+import { formatCount } from '../format/count'
 import { recordChange } from '../recordChange'
 import { recordRow } from '../recordRow'
 import type { RecordRow } from '../recordRow'
@@ -263,7 +264,7 @@ export function SportPage({
             {missingAge !== null && <AgeNote missing={missingAge} />}
             {sport === 'ride' && someEstimated && (
               <p className="muted">
-                {`Power meters measured ${measuredRides} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}{' '}
+                {`Power meters measured ${formatCount(measuredRides)} of ${plural(count, 'ride', 'rides')}. Watts for the rest are estimated.`}{' '}
                 <a href={hrefFor({ page: 'method' })}>How sure is this?</a>
               </p>
             )}

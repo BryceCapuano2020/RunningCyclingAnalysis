@@ -117,6 +117,14 @@ describe('rebuildNoticeText', () => {
     )
   })
 
+  it('groups the counts of a rebuild from a thousand on', () => {
+    expect(
+      rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1204, missing: 1100, failed: 1050 }),
+    ).toBe(
+      'Updated 1,204 saved activities. 1,100 original files are missing or could not be matched; add those original files again. 1,050 could not be updated; try again when the server is available.',
+    )
+  })
+
   it('uses the singular for one missing original', () => {
     expect(rebuildNoticeText({ ...NOTHING_LIMITED, rebuilt: 1, missing: 1 })).toContain(
       '1 original file is missing or could not be matched',
@@ -150,6 +158,22 @@ describe('limitedSentence', () => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitedSentence(1, 'daily', resetsAt)).toBe(
       `1 activity was not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
+    )
+  })
+
+  it('groups a count of a thousand or more in the rate-limit and the plain sentence', () => {
+    expect(limitedSentence(1204, 'rate', null)).toBe(
+      '1,204 activities were not updated. The server asked us to slow down; try again in a minute.',
+    )
+    expect(limitedSentence(1204, null, null)).toBe(
+      '1,204 activities were not updated. Try again later.',
+    )
+  })
+
+  it('groups a count of a thousand or more on a daily limit', () => {
+    const resetsAt = Date.UTC(2026, 9, 24)
+    expect(limitedSentence(1204, 'daily', resetsAt)).toBe(
+      `1,204 activities were not updated because today's limit on downloads (${DAILY_LIMITS.fileDownload} per day) was reached. It resets at ${localTime(resetsAt)}, your time.`,
     )
   })
 

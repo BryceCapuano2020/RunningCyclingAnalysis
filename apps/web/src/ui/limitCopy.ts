@@ -1,5 +1,6 @@
 import { DAILY_LIMITS } from '@rca/contract'
 import type { DailyLimitAction } from '@rca/contract'
+import { formatCount } from './format/count'
 
 /** The noun each daily limit is named by in every message, whichever screen shows it. */
 const NOUNS: Record<DailyLimitAction, string> = {
@@ -35,5 +36,5 @@ export function limitReached(
   resetsAtMs: number | null = null,
   nowMs = Date.now(),
 ): string {
-  return `You have reached today's limit on ${NOUNS[action]} (${DAILY_LIMITS[action]} per day). ${resetSentence(resetsAtMs, nowMs)}`
+  return `You have reached today's limit on ${NOUNS[action]} (${formatCount(DAILY_LIMITS[action])} per day). ${resetSentence(resetsAtMs, nowMs)}`
 }

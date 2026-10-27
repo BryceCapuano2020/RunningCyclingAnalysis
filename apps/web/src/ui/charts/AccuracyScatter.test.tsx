@@ -32,6 +32,22 @@ describe('AccuracyScatter', () => {
     expect(screen.getByText('2 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
   })
 
+  it('groups the watt ticks from a thousand on', () => {
+    const wide = {
+      ...accuracyFixture,
+      nSegments: 2,
+      segments: [
+        { activityId: 'ride-1', start: 0, end: 240, measuredW: 300, estimatedW: 320 },
+        { activityId: 'ride-2', start: 300, end: 540, measuredW: 2000, estimatedW: 1980 },
+      ],
+    }
+    const { container } = render(<AccuracyScatter accuracy={wide} />)
+    const labels = Array.from(container.querySelectorAll('.chart-x-axis__tick')).map(
+      (tick) => tick.textContent,
+    )
+    expect(labels).toContain('2,000')
+  })
+
   it('keeps each axis to at most five tick labels', () => {
     const many = {
       ...accuracyFixture,
@@ -48,6 +64,11 @@ describe('AccuracyScatter', () => {
     expect(container.querySelectorAll('.chart-x-axis__tick').length).toBeLessThanOrEqual(5)
     expect(container.querySelectorAll('.chart-y-axis__tick').length).toBeLessThanOrEqual(5)
     expect(screen.getByText('40 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
+  })
+
+  it('groups the climb count from a thousand on', () => {
+    render(<AccuracyScatter accuracy={{ ...accuracyFixture, nSegments: 1204 }} />)
+    expect(screen.getByText('1,204 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
   })
 
   it('formats measured, estimated and signed error in the table view', () => {
