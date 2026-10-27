@@ -6,9 +6,10 @@ import { airDensity, airDensityStream } from './air'
 /**
  * A power per sample and a median of every altitude, none of it missing, took about 11 ms. A
  * varying altitude still needs a power at each change, so it is only about twice as fast as that
- * and is not budgeted: so narrow a margin would not hold on every runner.
+ * and is not budgeted: so narrow a margin would not hold on every runner. The budget is about half
+ * the old cost, so a loaded runner does not fail it while a return to the old path still does.
  */
-const BUDGET_MS = 2.5
+const BUDGET_MS = 5
 const ALTITUDE_M = 412.6
 
 describe('airDensityStream performance', () => {

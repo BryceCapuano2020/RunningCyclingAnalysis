@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sampleDigestHashes } from './test/digestHashes'
 
 /**
- * Digests of the sample dataset as main produced them at 8dd5f0b, before the digest speed-up. A
+ * Digests of the sample dataset at the current MODEL_REVISION, first taken from main at 8dd5f0b. A
  * change that only makes digesting faster must leave every hash as it is. A change that means to
  * alter digests bumps MODEL_REVISION and copies the received hashes from this test's failure.
  */
