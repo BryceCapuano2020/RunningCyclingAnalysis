@@ -7,10 +7,15 @@ const KMH_PER_MS = 3.6
 const SECONDS_PER_HOUR = 3600
 const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g
 
+/** Digits with a comma between each group of three from the right, such as 10,234. */
+function groupThousands(digits: string): string {
+  return digits.replace(THOUSANDS, ',')
+}
+
 /** Whole number of the magnitude of x, with a minus sign only when a digit is shown. */
 function whole(x: number, grouped = false): string {
   const magnitude = Math.round(Math.abs(x))
-  const digits = grouped ? String(magnitude).replace(THOUSANDS, ',') : String(magnitude)
+  const digits = grouped ? groupThousands(String(magnitude)) : String(magnitude)
   return x < 0 && magnitude > 0 ? `-${digits}` : digits
 }
 
@@ -116,8 +121,10 @@ export function formatDistance(metres: number, system: UnitSystem): string {
   }
   const { unit, metres: metresPerUnit } = DISTANCE_UNIT[system]
   const amount = metres / metresPerUnit
-  // One decimal, so a tiny distance would read 0.0; it is under a tenth of a unit instead.
-  return amount > 0 && amount < 0.1 ? `<0.1 ${unit}` : `${amount.toFixed(1)} ${unit}`
+  // One decimal, so a tiny distance would read 0.0; it is under a tenth of a unit instead. The
+  // whole part is grouped as whole() groups it: "10,234.5 km".
+  const figure = amount.toFixed(1).replace(/\d+(?=\.)/, groupThousands)
+  return amount > 0 && amount < 0.1 ? `<0.1 ${unit}` : `${figure} ${unit}`
 }
 
 /**

@@ -59,7 +59,7 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'activity-conflict':
       return count === 1
         ? 'This workout is already saved from a different file. Delete the saved copy first to replace it.'
-        : `${count} workouts are already saved from different files. Delete the saved copies first to replace them.`
+        : `${formatCount(count)} workouts are already saved from different files. Delete the saved copies first to replace them.`
     case 'network':
       return `${activities} ${wereOrWas} not fully saved because the connection dropped. Add ${them} again to retry.`
     case 'server':
@@ -110,7 +110,7 @@ export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncS
       </p>
       {signedIn && uploading !== null && uploading > 0 && (
         <span className="sync-status__count" aria-hidden="true">
-          {`${uploading} saved`}
+          {`${formatCount(uploading)} saved`}
         </span>
       )}
     </div>

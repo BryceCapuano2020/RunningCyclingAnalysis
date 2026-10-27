@@ -1,3 +1,4 @@
+import { formatCount } from '../format/count'
 import './Pager.css'
 
 export interface PagerProps {
@@ -73,7 +74,7 @@ export function Pager({
   const to = shown?.to ?? Math.min(firstIndex + pageSize, total)
   const summary =
     pageCount > 1
-      ? `Showing ${from}–${to} of ${total} ${noun}. Page ${page + 1} of ${pageCount}.`
+      ? `Showing ${formatCount(from)}–${formatCount(to)} of ${formatCount(total)} ${noun}. Page ${page + 1} of ${pageCount}.`
       : ''
   return (
     <div

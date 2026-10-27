@@ -579,6 +579,23 @@ describe('ActivityPage', () => {
     expect(screen.queryByRole('heading', { name: 'Skipped readings' })).not.toBeInTheDocument()
   })
 
+  it('groups the count of readings and of listed flags from a thousand on', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Strap run',
+        flags: [{ kind: 'hr-dropout', start: 65, end: 125, message: 'Heart rate read zero' }],
+        flagCounts: { 'hr-dropout': 1060 },
+      }),
+    )
+    expect(
+      screen.getByText(
+        'Heart rate was missing or too low while moving 1,060 times. We left those out of your figures.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Showing the first 1 of 1,060.')).toBeInTheDocument()
+  })
+
   it('says how many are listed when there are more readings skipped than the digest keeps', () => {
     renderPage(
       makeActivity({

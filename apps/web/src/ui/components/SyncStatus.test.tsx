@@ -82,6 +82,21 @@ describe('SyncStatus', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
+  it('groups the running count and the finished count from a thousand on', () => {
+    const { rerender } = render(<SyncStatus {...props({ uploading: 0 })} />)
+    rerender(<SyncStatus {...props({ uploading: 1915 })} />)
+    expect(screen.getByText('1,915 saved')).toBeInTheDocument()
+    rerender(<SyncStatus {...props({ uploading: null })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Saved 1,915 activities to your library.')
+  })
+
+  it('groups the count in an issue sentence from a thousand on', () => {
+    render(<SyncStatus {...props({ issues: [issue('activity-conflict', 1204)] })} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '1,204 workouts are already saved from different files.',
+    )
+  })
+
   it('shows no running count when no upload is in progress', () => {
     render(<SyncStatus {...props({ uploading: null })} />)
     expect(screen.queryByText(/saved$/)).not.toBeInTheDocument()

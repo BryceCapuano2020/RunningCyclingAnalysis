@@ -169,6 +169,11 @@ describe('formatDistance', () => {
     expect(formatDistance(NaN, 'metric')).toBe(DASH)
     expect(formatDistance(NaN, 'imperial')).toBe(DASH)
   })
+
+  it('groups the whole part of a distance of a thousand or more', () => {
+    expect(formatDistance(10234500, 'metric')).toBe('10,234.5 km')
+    expect(formatDistance(999900, 'metric')).toBe('999.9 km')
+  })
 })
 
 describe('formatPartialDistance', () => {

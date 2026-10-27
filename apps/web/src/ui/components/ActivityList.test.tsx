@@ -430,7 +430,7 @@ describe('ActivityList paging', () => {
 
     expect(rowsShown()).toHaveLength(20)
     expect(screen.getAllByText('Readings skipped once')).toHaveLength(20)
-    expect(screen.getByText('Showing 1–20 of 5000 activities. Page 1 of 250.')).toBeVisible()
+    expect(screen.getByText('Showing 1–20 of 5,000 activities. Page 1 of 250.')).toBeVisible()
   })
 
   it('resets to page one when the selected activity library shrinks', () => {

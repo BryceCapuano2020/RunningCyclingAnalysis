@@ -50,6 +50,11 @@ describe('AccuracyScatter', () => {
     expect(screen.getByText('40 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
   })
 
+  it('groups the climb count from a thousand on', () => {
+    render(<AccuracyScatter accuracy={{ ...accuracyFixture, nSegments: 1204 }} />)
+    expect(screen.getByText('1,204 climbs. Mean absolute error 5%, bias 0%')).toBeInTheDocument()
+  })
+
   it('formats measured, estimated and signed error in the table view', () => {
     const { container } = render(<AccuracyScatter accuracy={accuracyFixture} />)
     const { headers, rows } = tableOf(container)

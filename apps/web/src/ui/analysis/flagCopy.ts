@@ -1,5 +1,6 @@
 import type { QualityFlag, QualityKind } from '@rca/core/types'
 import { formatDuration } from '@rca/core/units'
+import { formatCount } from '../format/count'
 
 /**
  * The data-quality flags of an activity, in the words the activity page shows. The core gives each a
@@ -17,7 +18,7 @@ function clockText(seconds: number): string {
   return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`
 }
 
-const timesText = (count: number) => (count === 1 ? 'once' : `${count} times`)
+const timesText = (count: number) => (count === 1 ? 'once' : `${formatCount(count)} times`)
 
 const leftOut = (count: number) => `We left ${count === 1 ? 'that' : 'those'} out of your figures.`
 
@@ -100,5 +101,5 @@ export function flagSpanText(flag: FlagSpan): string {
  * of readings the digest merged, so the line says how many times the skipping happened.
  */
 export function skippedReadingsText(count: number): string {
-  return count === 1 ? 'Readings skipped once' : `Readings skipped ${count} times`
+  return count === 1 ? 'Readings skipped once' : `Readings skipped ${formatCount(count)} times`
 }

@@ -14,6 +14,12 @@ describe('flagKindSentence: one line for each kind of reading', () => {
     )
   })
 
+  it('groups the count of times from a thousand on', () => {
+    expect(flagKindSentence('hr-dropout', 1204)).toBe(
+      'Heart rate was missing or too low while moving 1,204 times. We left those out of your figures.',
+    )
+  })
+
   it('says once for one reading, and that the one was left out', () => {
     expect(flagKindSentence('speed-spike', 1)).toBe(
       'GPS speed jumped suddenly once. We left that out of your figures.',
@@ -112,5 +118,9 @@ describe('skippedReadingsText', () => {
   it('says the readings were skipped once for one, and the count otherwise', () => {
     expect(skippedReadingsText(1)).toBe('Readings skipped once')
     expect(skippedReadingsText(2)).toBe('Readings skipped 2 times')
+  })
+
+  it('groups the count from a thousand on', () => {
+    expect(skippedReadingsText(1204)).toBe('Readings skipped 1,204 times')
   })
 })

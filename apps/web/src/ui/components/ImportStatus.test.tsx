@@ -202,6 +202,12 @@ describe('ImportStatus: the busy strip', () => {
     expect(screen.getByText('Read 12 files so far')).toHaveAttribute('aria-hidden', 'true')
   })
 
+  it('groups the files read so far from a thousand on', () => {
+    renderStatus({ busy: true, progress: { filesRead: 1204, filesTotal: null } })
+    afterDelay()
+    expect(screen.getByText('Read 1,204 files so far')).toBeInTheDocument()
+  })
+
   it('uses the singular when one file has been read', () => {
     renderStatus({ busy: true, progress: { filesRead: 1, filesTotal: null } })
     afterDelay()

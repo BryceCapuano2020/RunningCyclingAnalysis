@@ -1,4 +1,5 @@
 import type { ActivitySummary } from '@rca/core/pipeline'
+import { formatCount } from '../format/count'
 import { keyByContent } from '../contentKeys'
 import { flagKindSentence, flagSpanText, listsTimesOf, skippedKinds } from '../analysis/flagCopy'
 import { skippedCountOf } from '../activityFigures'
@@ -37,7 +38,9 @@ export function ActivityIssues({ activity }: { activity: ActivitySummary }) {
           )
         })}
       </ul>
-      {shown < total && <p className="secondary">{`Showing the first ${shown} of ${total}.`}</p>}
+      {shown < total && (
+        <p className="secondary">{`Showing the first ${formatCount(shown)} of ${formatCount(total)}.`}</p>
+      )}
     </section>
   )
 }

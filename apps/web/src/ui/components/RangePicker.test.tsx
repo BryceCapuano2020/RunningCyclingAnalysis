@@ -75,6 +75,11 @@ describe('RangePicker', () => {
     expect(screen.getByText('3 of 12 activities')).toBeInTheDocument()
   })
 
+  it('groups the shown count and the total from a thousand on', () => {
+    render(picker({ choice: 42, dates: '12 May – 3 Aug 2025', shown: 1001, total: 1234 }))
+    expect(screen.getByText('1,001 of 1,234 activities')).toBeInTheDocument()
+  })
+
   it('shows only the dates when every activity is in the period', () => {
     render(picker({ dates: '12 May – 3 Aug 2025', shown: 4, total: 4 }))
     expect(screen.getByText('12 May – 3 Aug 2025')).toBeInTheDocument()

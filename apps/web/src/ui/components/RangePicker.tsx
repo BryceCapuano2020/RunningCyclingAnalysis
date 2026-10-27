@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { PeriodChoice } from '@rca/core/period'
+import { formatCount } from '../format/count'
 import { plural } from './plural'
 import { RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
 import type { RangeOption } from './rangeOptions'
@@ -69,14 +70,14 @@ export function RangePicker({
   const checked = waiting && picks.latest !== null ? picks.latest : choice
   const [singular, pluralForm] = NOUNS[noun]
   const totalPhrase = plural(total, singular, pluralForm)
-  const count = shown < total ? `${shown} of ${totalPhrase}` : ''
+  const count = shown < total ? `${formatCount(shown)} of ${totalPhrase}` : ''
   // Changing the period changes every number on the page, so the choice, the count and the dates are
   // announced. The region stays mounted, so the announcement is made when its text changes.
   const counted =
     total === 0
       ? `No ${pluralForm} to show`
       : shown < total
-        ? `Showing ${shown} of ${totalPhrase}`
+        ? `Showing ${formatCount(shown)} of ${totalPhrase}`
         : `Showing all ${totalPhrase}`
   const choiceLabel = options.find((option) => option.value === optionValue(checked))?.label
   // While a pick waits for an import, the note says so instead of the page's note.

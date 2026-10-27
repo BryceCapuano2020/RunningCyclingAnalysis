@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { VirtualPowerAccuracy } from '@rca/core/types'
 import { formatDuration, formatPercent, formatPower } from '@rca/core/units'
+import { plural } from '../components/plural'
 import { keyByContent } from '../contentKeys'
 import { ChartFrame } from './ChartFrame'
 import { ChartTooltip } from './ChartTooltip'
@@ -85,8 +86,7 @@ function layout(accuracy: VirtualPowerAccuracy, size: ChartSize): Layout {
 
 /** Summary of the scored climbs, from the scores the core computed. */
 function noteFor(accuracy: VirtualPowerAccuracy): string {
-  const climbs = accuracy.nSegments === 1 ? 'climb' : 'climbs'
-  return `${accuracy.nSegments} ${climbs}. Mean absolute error ${Math.round(accuracy.mape * 100)}%, bias ${formatPercent(accuracy.bias, true)}`
+  return `${plural(accuracy.nSegments, 'climb')}. Mean absolute error ${Math.round(accuracy.mape * 100)}%, bias ${formatPercent(accuracy.bias, true)}`
 }
 
 const errorOf = (dot: Dot): number => (dot.estimatedW - dot.measuredW) / dot.measuredW
