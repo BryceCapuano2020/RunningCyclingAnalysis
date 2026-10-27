@@ -2,6 +2,7 @@ import { dedupeKey } from '@rca/core/session'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { formatPercent } from '@rca/core/units'
 import { gapOfHeadline } from '../balanceGap'
 import { balanceOfPick, type BalanceReading } from '../components/balanceScale'
@@ -9,12 +10,13 @@ import { plural } from '../components/plural'
 import { pickHeadline } from '../components/pickHeadline'
 import { PER } from '../format/units'
 import type { AgeProfile } from '../grades'
-import { headlineGrades } from '../grades'
+import { HEADLINE_LABEL, headlineGrades } from '../grades'
 import { curveOf, distanceRecords, effortLabel, sportRecords, threshold } from '../records'
 import type { SportNumber, SportRecord } from '../records'
-import { SPORT_NOUN, SPORT_ORDER } from '../sports'
+import { SPORT_ACTIVITY, SPORT_NOUN, SPORT_ORDER } from '../sports'
 import { addedSentence } from './copy'
 import type { ImportChange } from './importState'
+import { addedSportOf, headlineGradeItem } from './singleImport'
 
 /** One change in the athlete's numbers. `spoken` replaces the arrow and the figures for screen readers. */
 export interface MovedItem {
@@ -86,15 +88,55 @@ function leanItem(before: BalanceReading, after: BalanceReading): MovedItem | nu
 }
 
 /**
+ * The balance line for an import that added one activity and left the lean where it was. The
+ * rounded value held when the activity set a new best at the headline duration; otherwise the
+ * balance did not move, because the activity set no new best there.
+ */
+function heldBalanceItem(reading: BalanceReading, sport: Sport, newBest: boolean): MovedItem {
+  if (newBest && reading.lean === 'even') {
+    return { text: 'Your running and cycling are still in balance.' }
+  }
+  if (newBest) {
+    const value = amountText(reading.unit, Math.abs(reading.lead.centre))
+    return { text: `Your balance held at ${value}.` }
+  }
+  return {
+    text: `Your balance did not move: this ${SPORT_ACTIVITY[sport]} set no new best at ${HEADLINE_LABEL}.`,
+  }
+}
+
+/**
+ * Whether the activity an import added set a new best at the headline duration: its workout is not
+ * on file, and its best there beats the earlier one, or there was none.
+ */
+function setHeadlineBest(before: AnalysisResult, after: AnalysisResult, sport: Sport): boolean {
+  const point = curveOf(after, sport).find(
+    (candidate) => candidate.durationS === HEADLINE_DURATION_S,
+  )
+  if (point === undefined || point.activityId === null) return false
+  const activity = after.activities.find((candidate) => candidate.id === point.activityId)
+  if (
+    activity === undefined ||
+    workoutsOn(before).has(dedupeKey(activity.sport, activity.startMs))
+  ) {
+    return false
+  }
+  const earlier = bestAt(before, sport, HEADLINE_DURATION_S)
+  return !Number.isFinite(earlier) || bestAt(after, sport, HEADLINE_DURATION_S) > earlier
+}
+
+/**
  * The balance, read as the Balance page reads it: in points when both results grade both sports,
  * otherwise in energy. Energy only compares at the same duration and with the same heart-rate
- * calibration, and points never compare with energy.
+ * calibration, and points never compare with energy. For an import that added one activity, the
+ * balance is listed even when its lean did not move, since the summary leads with it.
  */
 function balanceItem(
   before: AnalysisResult,
   after: AnalysisResult,
   profile: AgeProfile | null,
   weighted: boolean,
+  added: Sport | null,
 ): MovedItem | null {
   // Held while no weight is entered: a ride's figures wait for it, so the balance does too.
   if (!weighted) return null
@@ -113,7 +155,9 @@ function balanceItem(
       pickBefore.calibrated === pickAfter.calibrated
     if (!sameHeadline) return null
   }
-  return leanItem(readingBefore, readingAfter)
+  const moved = leanItem(readingBefore, readingAfter)
+  if (moved !== null || added === null) return moved
+  return heldBalanceItem(readingAfter, added, setHeadlineBest(before, after, added))
 }
 
 /** The best at a duration, in its curve's own unit: W/kg for running, watts for riding; NaN if none. */
@@ -222,11 +266,19 @@ function distanceItems(
   return items
 }
 
+/** The items that are present, without the nulls a rule left out. */
+function present(items: (MovedItem | null)[]): MovedItem[] {
+  return items.filter((item): item is MovedItem => item !== null)
+}
+
 /**
  * What an import moved in the athlete's numbers: thresholds, then the balance, then new duration
  * bests, at most four. Only a change that alters the displayed, rounded value is listed. There is
  * no list without an earlier analysis to compare with. Without a weight (`weighted` false) the ride
  * items wait for it: the ride threshold, the ride bests and the balance.
+ *
+ * When the import added exactly one activity (`added`, its sport), the list leads with the balance,
+ * always listed when both results have one, then the sport's headline grade, then the rest.
  */
 export function whatMoved(
   before: AnalysisResult | null,
@@ -235,20 +287,23 @@ export function whatMoved(
   units: UnitSystem,
   profile: AgeProfile | null,
   weighted = true,
+  added: Sport | null = null,
 ): MovedItem[] {
   if (before === null) return []
   // Without a weight the ride's figures are worked out from the placeholder, so they wait for it.
-  const changes = [
+  const thresholds = present([
     thresholdItem(before, after, 'run', settings, units),
     weighted ? thresholdItem(before, after, 'ride', settings, units) : null,
-    balanceItem(before, after, profile, weighted),
-  ].filter((item): item is MovedItem => item !== null)
+  ])
+  const balance = balanceItem(before, after, profile, weighted, added)
   const sports: readonly Sport[] = weighted ? SPORT_ORDER : ['run']
   const bests = [
     ...bestItems(before, after, settings.massKg, units, sports),
     ...distanceItems(before, after, units),
   ]
-  return [...changes, ...bests].slice(0, MAX_ITEMS)
+  if (added === null) return [...thresholds, ...present([balance]), ...bests].slice(0, MAX_ITEMS)
+  const lead = present([balance, headlineGradeItem(before, after, added, profile, weighted)])
+  return [...lead, ...thresholds, ...bests].slice(0, MAX_ITEMS)
 }
 
 /**
@@ -265,5 +320,6 @@ export function listedMoves(
   if (change === null || change.after === null || addedSentence(change.outcome) === null) {
     return []
   }
-  return whatMoved(change.before, change.after, settings, units, profile, weighted)
+  const added = addedSportOf(change.outcome)
+  return whatMoved(change.before, change.after, settings, units, profile, weighted, added)
 }

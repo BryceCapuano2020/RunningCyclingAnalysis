@@ -12,6 +12,8 @@ import {
   makeEquivalence,
   makeResult,
 } from '../components/fixtures'
+import { formatGrade } from '../gradeFormat'
+import { headlineGrades } from '../grades'
 import type { ImportChange } from './importState'
 import { listedMoves, whatMoved } from './whatMoved'
 
@@ -580,5 +582,180 @@ describe('whatMoved while no weight is entered', () => {
     const after = resultWith({ comparison: balance(interval(1.02, 1.08, 1.14)) })
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, false)).toEqual([])
     expect(whatMoved(before, after, SETTINGS, 'imperial', null, true)).toHaveLength(1)
+  })
+})
+
+/** The ride's headline grade as the page writes it, for a result graded for MAN_BORN_1986. */
+function rideGradeText(result: AnalysisResult): string {
+  const outcome = headlineGrades(result, MAN_BORN_1986).ride
+  if (outcome.kind !== 'graded') throw new Error('the ride has no headline grade')
+  return formatGrade(outcome.grade.centre.grade)
+}
+
+describe('whatMoved: an import that added one activity', () => {
+  it('says the balance held, and names the new best, when the lean held and the run set a best', () => {
+    const before = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RUN],
+      runCurve: [curvePoint(1200, 15.988, 'run-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
+      { text: 'Your balance held at 12%.' },
+      {
+        text: 'New best 20 min run: 7:05 /mi',
+        spoken: 'New best 20 minutes run: 7 minutes 5 seconds per mile',
+      },
+    ])
+  })
+
+  it('says the balance did not move when the activity set no new best at the headline duration', () => {
+    const before = resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RUN],
+      runCurve: [curvePoint(1200, 15.749, 'run-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'run')).toEqual([
+      { text: 'Your balance did not move: this run set no new best at 20 min.' },
+    ])
+  })
+
+  it('says the balance did not move for a ride that set no new best', () => {
+    const before = resultWith({ rideCurve: [curvePoint(1200, 250, 'ride-1')] })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RIDE],
+      rideCurve: [curvePoint(1200, 250, 'ride-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride')).toEqual([
+      { text: 'Your balance did not move: this ride set no new best at 20 min.' },
+    ])
+  })
+
+  it('leads with the balance when it moved, before the thresholds and bests', () => {
+    const before = resultWith({
+      rideCp: rideFit(225),
+      comparison: balance(interval(1.05, 1.12, 1.2)),
+    })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RIDE],
+      rideCp: rideFit(231),
+      comparison: balance(interval(1.02, 1.08, 1.14)),
+      rideCurve: [curvePoint(1200, 262, 'ride-2')],
+    })
+    expect(
+      whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride').map((i) => i.text),
+    ).toEqual([
+      'Your balance now leans less toward running (12% → 8%)',
+      'Threshold power: 225 → 231 W',
+      'New best 20 min ride: 262 W',
+    ])
+  })
+
+  it('caps the list at four, keeping the balance first', () => {
+    const before = resultWith({
+      runCp: fit(15.749),
+      rideCp: rideFit(225),
+      rideCurve: [curvePoint(1200, 250, 'ride-1')],
+    })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RIDE],
+      runCp: fit(15.988),
+      rideCp: rideFit(231),
+      comparison: balance(interval(1.02, 1.08, 1.14)),
+      rideCurve: [curvePoint(1200, 262, 'ride-2'), curvePoint(3600, 210, 'ride-2')],
+    })
+    expect(
+      whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride').map((i) => i.text),
+    ).toEqual([
+      'Your balance now leans less toward running (12% → 8%)',
+      'Threshold pace: 7:12 → 7:05 /mi',
+      'Threshold power: 225 → 231 W',
+      'New best 20 min ride: 262 W',
+    ])
+  })
+
+  it('adds the sport headline grade after the balance, in a spoken form too, when its whole percent changed', () => {
+    const before = gradedResult(3.8)
+    const after = gradedResult(3.5, {
+      activities: [RUN, RIDE, NEW_RIDE],
+      rideCurve: [curvePoint(1200, 420, 'ride-2')],
+    })
+    const from = rideGradeText(before)
+    const to = rideGradeText(after)
+    expect(from).not.toBe(to)
+    const items = whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')
+    expect(items[0]?.text).toMatch(/^Your balance now leans more toward running \(/)
+    expect(items[1]).toEqual({
+      text: `Ride 20 min grade: ${from} → ${to}`,
+      spoken: `Ride 20 min grade from ${from} to ${to}`,
+    })
+  })
+
+  it('leaves out the grade line when the whole percent did not change', () => {
+    const before = gradedResult(3.8)
+    const after = gradedResult(3.8)
+    expect(whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, true, 'ride')).toEqual([
+      { text: 'Your balance did not move: this ride set no new best at 20 min.' },
+    ])
+  })
+
+  it('says running and cycling are still in balance, rather than a balance of zero points', () => {
+    const before = resultWith({ comparison: balance(interval(0.95, 1.0, 1.05)) })
+    const after = resultWith({
+      activities: [RUN, RIDE, NEW_RIDE],
+      comparison: balance(interval(0.97, 1.0, 1.03)),
+      rideCurve: [curvePoint(1200, 262, 'ride-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, 'ride')).toEqual([
+      { text: 'Your running and cycling are still in balance.' },
+      {
+        text: 'New best 20 min ride: 262 W',
+        spoken: 'New best 20 minutes ride: 262 watts',
+      },
+    ])
+  })
+
+  it('holds the ride side, the grade and the balance while no weight is entered', () => {
+    const before = gradedResult(3.8)
+    const after = gradedResult(3.5, {
+      activities: [RUN, RIDE, NEW_RIDE],
+      rideCurve: [curvePoint(1200, 420, 'ride-2')],
+    })
+    expect(whatMoved(before, after, SETTINGS, 'metric', MAN_BORN_1986, false, 'ride')).toEqual([])
+  })
+
+  it('keeps the list of an import of several activities as it was', () => {
+    const before = resultWith({ runCp: fit(15.749) })
+    const after = resultWith({ runCp: fit(15.988), comparison: balance(interval(1.05, 1.12, 1.2)) })
+    expect(whatMoved(before, after, SETTINGS, 'imperial', null, true, null)).toEqual([
+      {
+        text: 'Threshold pace: 7:12 → 7:05 /mi',
+        spoken: 'Threshold pace from 7:12 to 7:05 per mile',
+      },
+    ])
+  })
+})
+
+describe('listedMoves: an import that added one run', () => {
+  it('leads with the balance that did not move, for the run that set no new best', () => {
+    const ONE_RUN: ImportChange['outcome'] = {
+      activities: 1,
+      rejected: 0,
+      duplicates: [],
+      runs: 1,
+      rides: 0,
+      firstStartMs: LATER,
+      lastStartMs: LATER,
+    }
+    const change: ImportChange = {
+      outcome: ONE_RUN,
+      before: resultWith({ runCurve: [curvePoint(1200, 15.749, 'run-1')] }),
+      after: resultWith({
+        activities: [RUN, RIDE, NEW_RUN],
+        runCurve: [curvePoint(1200, 15.749, 'run-2')],
+      }),
+    }
+    expect(listedMoves(change, SETTINGS, 'imperial', null).map((item) => item.text)).toEqual([
+      'Your balance did not move: this run set no new best at 20 min.',
+    ])
   })
 })
