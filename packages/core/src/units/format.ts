@@ -8,7 +8,7 @@ const SECONDS_PER_HOUR = 3600
 const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g
 
 /** Digits with a comma between each group of three from the right, such as 10,234. */
-function groupThousands(digits: string): string {
+export function groupThousands(digits: string): string {
   return digits.replace(THOUSANDS, ',')
 }
 
