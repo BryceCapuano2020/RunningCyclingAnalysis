@@ -45,6 +45,8 @@ export interface SportChoice {
   sport: Sport | null
   indoor: boolean
   sportLabel: string
+  /** The label is the type the export's list gives, not a name the file does. */
+  fromList?: boolean
   refusal?: { skipped: string } & Rejection
 }
 
@@ -62,11 +64,15 @@ export function sportOfType(
   listed?: string,
 ): SportChoice {
   if (listed !== undefined && isEBikeType(listed)) return choiceOf(listed)
-  if (type === undefined) return listed === undefined ? unsaid(creator) : choiceOf(listed)
+  if (type === undefined) return listed === undefined ? unsaid(creator) : fromList(listed)
   const choice = choiceOf(type)
   return choice.sport === null && listed !== undefined && CODE.test(type.trim())
-    ? choiceOf(listed)
+    ? fromList(listed)
     : choice
+}
+
+function fromList(listed: string): SportChoice {
+  return { ...choiceOf(listed), fromList: true }
 }
 
 /** Whether a type names an e-bike ride, which is refused: its motor hides the athlete's own power. */

@@ -92,7 +92,7 @@ describe('tallySentence: a headline that adds up to the files read', () => {
       notActivities: 320,
     }
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      'Read 3,018 files: 1,915 saved, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities, so not read.',
+      '3,018 files: 1,915 saved, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
     )
   })
 
@@ -111,14 +111,14 @@ describe('tallySentence: a headline that adds up to the files read', () => {
       notActivities: 320,
     }
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      'Read 3,018 files: 1,947 saved, 2 need a look, 749 other sports left out on purpose, 320 not listed as activities, so not read.',
+      '3,018 files: 1,947 saved, 2 need a look, 749 other sports left out on purpose, 320 not listed as activities.',
     )
   })
 
   it('leaves out a part with no files', () => {
     const outcome = { activities: 4, rejected: 1, duplicates: [] }
     expect(tallySentence(tallyOf(outcome, [file('a.gpx', 'empty')]))).toBe(
-      'Read 5 files: 4 saved, 1 needs a look.',
+      '5 files: 4 saved, 1 needs a look.',
     )
   })
 
@@ -131,18 +131,18 @@ describe('tallySentence: a headline that adds up to the files read', () => {
     }
     const rejected = [file('a.gpx', 'empty'), file('b.fit', 'unsupported-sport', 'hiking')]
     expect(tallySentence(tallyOf(outcome, rejected))).toBe(
-      'Read 6 files: 2 saved, 1 needs a look, 1 other sport left out on purpose, 1 already added, 1 not listed as activities, so not read.',
+      '6 files: 2 saved, 1 needs a look, 1 other sport left out on purpose, 1 already added, 1 not listed as activities.',
     )
   })
 
   it('says nothing was saved by leaving the part out, not by writing 0', () => {
     const outcome = { activities: 0, rejected: 2, duplicates: [] }
     const sentence = tallySentence(tallyOf(outcome, [file('a', 'empty'), file('b', 'corrupt')]))
-    expect(sentence).toBe('Read 2 files: 2 need a look.')
+    expect(sentence).toBe('2 files: 2 need a look.')
   })
 
   it('names the copies of workouts already held', () => {
     const outcome = { activities: 12, rejected: 0, duplicates: [file('c.gpx', 'duplicate')] }
-    expect(tallySentence(tallyOf(outcome, []))).toBe('Read 12 files: 11 saved, 1 already added.')
+    expect(tallySentence(tallyOf(outcome, []))).toBe('12 files: 11 saved, 1 already added.')
   })
 })

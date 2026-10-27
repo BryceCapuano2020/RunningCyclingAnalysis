@@ -43,8 +43,8 @@ export async function sessionHashOf(bytes: Uint8Array): Promise<string | undefin
 }
 
 /** The part of a refused parse result that the import keeps. */
-function rejectionOf({ reason, code, detail }: { reason: string } & Rejection): Rejection {
-  return { reason, code, detail }
+function rejectionOf({ reason, code, detail, listed }: { reason: string } & Rejection): Rejection {
+  return { reason, code, detail, listed }
 }
 
 /** Counts one more file as read, and reports the count. */

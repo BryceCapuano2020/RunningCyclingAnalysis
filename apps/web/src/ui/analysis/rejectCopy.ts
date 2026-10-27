@@ -38,17 +38,27 @@ const SUBJECT_OF_NAME: ReadonlyMap<string, string> = new Map(
   ),
 )
 
-function sportSubject(name: string | undefined): string {
-  return (
-    (name === undefined ? undefined : SUBJECT_OF_NAME.get(nameKey(name))) ?? OTHER_SPORT_SUBJECT
-  )
+/**
+ * How a refused file names its sport: the table's word when it has one for the name, else the type
+ * the export's list gives, which is already readable ("Kayaking"), else "Another sport". A name the
+ * file gives and the table lacks, such as an unmapped FIT enum or a number, is not readable as it is.
+ */
+function sportName({ detail, listed }: RejectedFile): { subject: string; label: string } {
+  const subject = detail === undefined ? undefined : SUBJECT_OF_NAME.get(nameKey(detail))
+  if (subject !== undefined) return { subject, label: withoutArticle(subject) }
+  if (listed === true && detail) return { subject: detail, label: detail }
+  return { subject: OTHER_SPORT_SUBJECT, label: OTHER_SPORT_SUBJECT }
 }
 
-/** A sport's name for a line of its own, such as "Training session": its subject without the article. */
-export function sportLabel(file: RejectedFile): string {
-  if (file.code === 'e-bike') return E_BIKE_LABEL
-  const noun = sportSubject(file.detail).replace(/^An? /, '')
+/** "A training session" as "Training session". */
+function withoutArticle(subject: string): string {
+  const noun = subject.replace(/^An? /, '')
   return `${noun.charAt(0).toUpperCase()}${noun.slice(1)}`
+}
+
+/** A sport's name for a line of its own, such as "Training session". */
+export function sportLabel(file: RejectedFile): string {
+  return file.code === 'e-bike' ? E_BIKE_LABEL : sportName(file).label
 }
 
 export interface SportFiles {
@@ -91,28 +101,29 @@ export const ADVICE: Partial<Record<RejectCode, string>> = {
 }
 
 /**
- * The sentence for each reason code, without the advice in ADVICE. The duplicate and the sport take
- * the detail the core gives.
+ * The sentence for each reason code, without the advice in ADVICE. The duplicate takes the detail the
+ * core gives, and the sport takes the file, since the core also says whether its name is the list's.
  */
-const REASON_COPY: Record<RejectCode, (detail: string | undefined) => string> = {
-  'not-activity': () => 'Not a FIT, GPX or TCX file, so it cannot be read.',
-  corrupt: (detail) => corruptCopy(detail),
-  empty: () => 'It holds no recorded points, so there is nothing to read.',
-  'too-short': () => 'Too short: it records less than a minute.',
-  'too-sparse': () => 'Recorded too sparsely: its points are more than 10 seconds apart.',
-  'too-long': () => 'Longer than 48 hours, so it is left out.',
-  'too-much-data': () => 'Too much data for one file.',
-  'no-date': () => 'Its times are device time only, so it cannot be placed in your history.',
-  'implausible-date': () => 'Its date is not plausible, so it is left out.',
-  // The group says these were left out on purpose, so a line says only what the file is.
-  'unsupported-sport': (detail) => `${sportSubject(detail)} is not a run or a ride.`,
-  'no-sport': () => 'It does not say whether it is a run or a ride, so it is not guessed.',
-  'e-bike': () => 'E-bike rides are left out, because motor help hides your own power.',
-  duplicate: (detail) =>
-    `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
-  unreadable: () => 'This file could not be read.',
-  'too-large': (detail) => tooLargeCopy(detail),
-}
+const REASON_COPY: Record<RejectCode, (detail: string | undefined, file: RejectedFile) => string> =
+  {
+    'not-activity': () => 'Not a FIT, GPX or TCX file, so it cannot be read.',
+    corrupt: (detail) => corruptCopy(detail),
+    empty: () => 'It holds no recorded points, so there is nothing to read.',
+    'too-short': () => 'Too short: it records less than a minute.',
+    'too-sparse': () => 'Recorded too sparsely: its points are more than 10 seconds apart.',
+    'too-long': () => 'Longer than 48 hours, so it is left out.',
+    'too-much-data': () => 'Too much data for one file.',
+    'no-date': () => 'Its times are device time only, so it cannot be placed in your history.',
+    'implausible-date': () => 'Its date is not plausible, so it is left out.',
+    // The group says these were left out on purpose, so a line says only what the file is.
+    'unsupported-sport': (_detail, file) => `${sportName(file).subject} is not a run or a ride.`,
+    'no-sport': () => 'It does not say whether it is a run or a ride, so it is not guessed.',
+    'e-bike': () => 'E-bike rides are left out, because motor help hides your own power.',
+    duplicate: (detail) =>
+      `Same workout as ${detail ?? 'another file'}, so it was not counted twice.`,
+    unreadable: () => 'This file could not be read.',
+    'too-large': (detail) => tooLargeCopy(detail),
+  }
 
 /** A damaged file, or an archive that lost entries: the count the core gives is the detail. */
 function corruptCopy(detail: string | undefined): string {
@@ -135,7 +146,7 @@ function tooLargeCopy(detail: string | undefined): string {
  * default. A line that does not carry the advice leaves it out.
  */
 export function rejectionCopy(file: RejectedFile, carriesAdvice = true): string {
-  const sentence = REASON_COPY[file.code](file.detail)
+  const sentence = REASON_COPY[file.code](file.detail, file)
   const advice = ADVICE[file.code]
   return advice === undefined || !carriesAdvice ? sentence : `${sentence} ${advice}`
 }

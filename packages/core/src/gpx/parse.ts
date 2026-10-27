@@ -342,6 +342,7 @@ function buildUnit(
     timerEvents: [],
     sport: choice.sport,
     sportLabel: choice.sportLabel,
+    sportFromList: choice.fromList,
     indoor: choice.indoor,
     hasPosition: track.anyPosition,
     refusal: choice.refusal,

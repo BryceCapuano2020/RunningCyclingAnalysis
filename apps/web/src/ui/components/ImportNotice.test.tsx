@@ -165,13 +165,13 @@ describe('ImportNotice: skipped files', () => {
     )
     expect(
       screen.getByText(
-        'Read 1,121 files: 799 saved, 1 needs a look, 1 already added, 320 not listed as activities, so not read.',
+        '1,121 files: 799 saved, 1 needs a look, 1 already added, 320 not listed as activities.',
       ),
     ).toBeInTheDocument()
   })
 
   it('shows no line about files when every file was used', () => {
     render(<ImportNotice {...noticeProps()} />)
-    expect(screen.queryByText(/^Read [\d,]+ files?:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^[\d,]+ files?: /)).not.toBeInTheDocument()
   })
 })

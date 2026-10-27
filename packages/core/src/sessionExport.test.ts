@@ -147,6 +147,19 @@ describe('AnalysisSession reading a Strava export', () => {
       { fileName: 'activities/2002.gpx', code: 'e-bike', detail: undefined },
     ])
   })
+
+  it('marks a refused sport that the export list named, so a page can show its label as it is', async () => {
+    const { state } = await importFiles([
+      zipFile({
+        'activities/2001.gpx': untypedGpx(run),
+        'activities.csv': list('2001,Paddle,Kayaking,activities/2001.gpx'),
+      }),
+    ])
+
+    expect(state.rejected).toEqual([
+      expect.objectContaining({ code: 'unsupported-sport', detail: 'Kayaking', listed: true }),
+    ])
+  })
 })
 
 /**

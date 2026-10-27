@@ -46,8 +46,8 @@ export function skippedTotal(tally: SkipTally): number {
 }
 
 /**
- * The headline over the groups, which adds up to every file: "Read 3,018 files: 1,915 saved, 35 need a
- * look, ...". A part with no files is left out.
+ * The headline over the groups, which adds up to every file: "3,018 files: 1,915 saved, 35 need a look,
+ * ...". A part with no files is left out.
  */
 export function tallySentence(tally: SkipTally): string {
   const { saved, needLook, otherSports, alreadyAdded, unlisted } = tally
@@ -56,9 +56,9 @@ export function tallySentence(tally: SkipTally): string {
     [needLook, `${formatCount(needLook)} ${needLook === 1 ? 'needs' : 'need'} a look`],
     [otherSports, `${plural(otherSports, 'other sport')} left out on purpose`],
     [alreadyAdded, `${formatCount(alreadyAdded)} already added`],
-    [unlisted, `${formatCount(unlisted)} not listed as activities, so not read`],
+    [unlisted, `${formatCount(unlisted)} not listed as activities`],
   ]
   const files = saved + skippedTotal(tally)
   const shown = parts.filter(([count]) => count > 0).map(([, text]) => text)
-  return `Read ${plural(files, 'file')}: ${shown.join(', ')}.`
+  return `${plural(files, 'file')}: ${shown.join(', ')}.`
 }

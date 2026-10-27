@@ -114,7 +114,7 @@ describe('AppNotices: one notice region', () => {
       />,
     )
 
-    expect(screen.getByText('Read 2 files: 1 saved, 1 needs a look.')).toBeInTheDocument()
+    expect(screen.getByText('2 files: 1 saved, 1 needs a look.')).toBeInTheDocument()
   })
 })
 

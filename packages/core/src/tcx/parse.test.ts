@@ -801,6 +801,14 @@ describe('parseTcx with the type an export list gives', () => {
     })
   })
 
+  it('says the refused name is the list type when the list gave it, and not when the file did', () => {
+    const swim = documentXml([activityXml('Swimming', [lapXml(runPoints(0, 90, true))])])
+    expect(parseListed(other, 'Yoga')).toMatchObject({ detail: 'Yoga', listed: true })
+    expect(parseListed(other, undefined)).toMatchObject({ detail: 'Other' })
+    expect(parseListed(other, undefined)).not.toHaveProperty('listed')
+    expect(parseListed(swim, 'Run')).not.toHaveProperty('listed')
+  })
+
   it('keeps refusing a Sport the TCX schema does not allow, whatever the list says', () => {
     const swim = documentXml([activityXml('Swimming', [lapXml(runPoints(0, 90, true))])])
     expect(refusalOf(parseListed(swim, 'Run'))).toEqual({

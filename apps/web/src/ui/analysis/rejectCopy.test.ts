@@ -125,6 +125,44 @@ describe('rejectCopy: the sports of both sources', () => {
     }
   })
 
+  it('shows a type the export list gives as it is, when the table has no word for it', () => {
+    for (const detail of ['Kayaking', 'Rock Climbing', 'Yoga']) {
+      const refused = file('x.gpx', { code: 'unsupported-sport', detail, listed: true })
+      expect(rejectionCopy(refused)).toBe(`${detail} is not a run or a ride.`)
+      expect(sportLabel(refused)).toBe(detail)
+    }
+  })
+
+  it('prefers the table to a list type, so one sport is one line whichever source names it', () => {
+    const listed = file('x.gpx', { code: 'unsupported-sport', detail: 'Workout', listed: true })
+    expect(rejectionCopy(listed)).toBe('A training session is not a run or a ride.')
+    expect(sportLabel(listed)).toBe('Training session')
+  })
+
+  it('keeps Another sport for a name the file gives, listed or not', () => {
+    const named = [
+      file('a.fit', { code: 'unsupported-sport', detail: 'kayaking' }),
+      file('b.gpx', { code: 'unsupported-sport', detail: '4' }),
+      file('c.tcx', { code: 'unsupported-sport', detail: 'Other' }),
+      file('d.gpx', { code: 'unsupported-sport', detail: '', listed: true }),
+    ]
+    for (const refused of named) expect(sportLabel(refused)).toBe('Another sport')
+  })
+
+  it('counts a list type as a line of its own, apart from the same word a FIT file gives', () => {
+    const files = [
+      file('a.gpx', { code: 'unsupported-sport', detail: 'Kayaking', listed: true }),
+      file('b.gpx', { code: 'unsupported-sport', detail: 'Kayaking', listed: true }),
+      file('c.fit', { code: 'unsupported-sport', detail: 'kayaking' }),
+      file('d.gpx', { code: 'unsupported-sport', detail: 'Hike', listed: true }),
+    ]
+    expect(bySport(files).map(({ label, files: members }) => [label, members.length])).toEqual([
+      ['Kayaking', 2],
+      ['Another sport', 1],
+      ['Hike', 1],
+    ])
+  })
+
   it('labels a sport for a line of its own, without the article', () => {
     expect(sportLabel(file('x', { code: 'unsupported-sport', detail: 'Workout' }))).toBe(
       'Training session',

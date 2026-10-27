@@ -58,7 +58,7 @@ describe('RejectedFiles: the headline adds up', () => {
     )
 
     const headline = screen.getByText(
-      'Read 16 files: 9 saved, 1 needs a look, 2 other sports left out on purpose, 4 not listed as activities, so not read.',
+      '16 files: 9 saved, 1 needs a look, 2 other sports left out on purpose, 4 not listed as activities.',
     )
     expect(headline.closest('summary')).not.toBeNull()
   })
@@ -80,7 +80,7 @@ describe('RejectedFiles: the headline adds up', () => {
 
     expect(
       screen.getByText(
-        'Read 3,018 files: 1,915 saved, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities, so not read.',
+        '3,018 files: 1,915 saved, 35 need a look, 748 other sports left out on purpose, 320 not listed as activities.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByText('Need a look: 35 files')).toBeInTheDocument()
@@ -138,7 +138,7 @@ describe('RejectedFiles: the first file under the headline', () => {
     )
 
     const summary = container.querySelector('summary')!
-    const headline = within(summary).getByText(/^Read 2 files/)
+    const headline = within(summary).getByText(/^2 files:/)
     const first = summary.querySelector('.rejected-files__first')!
     const group = container.querySelector('.rejected-files__group')!
     expect(headline.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -232,7 +232,7 @@ describe('RejectedFiles: the files that need a look', () => {
   it('counts files in a format the app does not read, without naming them', () => {
     render(<Skipped unsupportedFiles={2} saved={1} />)
 
-    expect(screen.getByText(/^Read 3 files: 1 saved, 2 need a look\.$/)).toBeInTheDocument()
+    expect(screen.getByText(/^3 files: 1 saved, 2 need a look\.$/)).toBeInTheDocument()
     expect(screen.getByText('Need a look: 2 files')).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -284,6 +284,25 @@ describe('RejectedFiles: the other sports, left out on purpose', () => {
       within(nested).getByText('hiking/0.fit: A hike is not a run or a ride.'),
     ).toBeInTheDocument()
     expect(within(nested).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('shows a Strava type the table has no word for as it is, rather than as another sport', () => {
+    const yoga = (name: string) => ({ ...skipped(name, 'unsupported-sport', 'Yoga'), listed: true })
+    render(
+      <Skipped
+        saved={1}
+        rejected={[yoga('a.gpx'), yoga('b.gpx'), skipped('c.fit', 'unsupported-sport', 'kayaking')]}
+      />,
+    )
+
+    const group = screen
+      .getByText('Other sports, left out on purpose: 3 files')
+      .closest('.rejected-files__group') as HTMLElement
+    const lines = within(group)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent)
+    expect(lines.slice(0, 2)).toEqual(['Yoga: 2', 'Another sport: 1'])
+    expect(screen.getByText('a.gpx: Yoga is not a run or a ride.')).toBeInTheDocument()
   })
 
   it('names a Strava type in words, as a FIT sport is', () => {
@@ -339,7 +358,7 @@ describe('RejectedFiles: files the export does not list, and copies already adde
   it('names a copy of a workout already added, with the one note on why', () => {
     render(<Skipped saved={3} duplicates={[skipped('copy.gpx', 'duplicate', 'run.fit')]} />)
 
-    expect(screen.getByText('Read 4 files: 3 saved, 1 already added.')).toBeInTheDocument()
+    expect(screen.getByText('4 files: 3 saved, 1 already added.')).toBeInTheDocument()
     expect(
       screen.getByText('copy.gpx: Same workout as run.fit, so it was not counted twice.'),
     ).toBeInTheDocument()
@@ -352,7 +371,7 @@ describe('RejectedFiles: files the export does not list, and copies already adde
     const { container } = render(<Skipped saved={1915} unlisted={320} />)
 
     expect(
-      screen.getByText('Read 2,235 files: 1,915 saved, 320 not listed as activities, so not read.'),
+      screen.getByText('2,235 files: 1,915 saved, 320 not listed as activities.'),
     ).toBeVisible()
     expect(container.querySelector('details')).toBeNull()
     expect(screen.queryByRole('button', { name: 'How to get your files' })).not.toBeInTheDocument()
