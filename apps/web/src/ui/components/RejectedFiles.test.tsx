@@ -359,13 +359,16 @@ describe('RejectedFiles: files the export does not list, and copies already adde
       />,
     )
 
+    // The first three are headings, and the last is a line of text.
     const titles = screen.getAllByRole('heading').map((title) => title.textContent)
     expect(titles).toEqual([
       'Need a look: 2 files',
       'Other sports, left out on purpose: 1 file',
       'Already added: 1 file',
-      'Not listed as activities, such as saved routes: 2 files',
     ])
+    const unlisted = screen.getByText('Not listed as activities, such as saved routes: 2 files')
+    const copies = screen.getByRole('heading', { name: 'Already added: 1 file' })
+    expect(copies.compareDocumentPosition(unlisted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('names a copy of a workout already added, with the one note on why', () => {
@@ -474,12 +477,25 @@ describe('RejectedFiles: the group titles are headings', () => {
     )
 
     const headings = screen.getAllByRole('heading')
-    expect(headings.map((heading) => heading.tagName)).toEqual(['H2', 'H2', 'H2', 'H2'])
+    expect(headings.map((heading) => heading.tagName)).toEqual(['H2', 'H2', 'H2'])
     expect(headings.map((heading) => heading.textContent)).toEqual([
       'Need a look: 2 files',
       'Other sports, left out on purpose: 1 file',
       'Already added: 1 file',
-      'Not listed as activities, such as saved routes: 2 files',
     ])
+  })
+
+  it('leaves the line for files the export does not list as a paragraph, not a heading', () => {
+    render(
+      <Skipped
+        added={1}
+        rejected={[skipped('a.gpx', 'empty'), skipped('b.gpx', 'empty')]}
+        unlisted={320}
+      />,
+    )
+
+    const line = screen.getByText('Not listed as activities, such as saved routes: 320 files')
+    expect(line.tagName).toBe('P')
+    expect(screen.queryByRole('heading', { name: /Not listed/ })).not.toBeInTheDocument()
   })
 })

@@ -796,6 +796,7 @@ describe('AnalysisSession', () => {
     expect(failed.syncIssues).toEqual([{ code: 'server', count: 1 }])
 
     const seen: string[] = []
+    let outcome: { filesAdded: number; duplicates: unknown[]; added: unknown[] } | null = null
     const retried = await session.addFiles(
       [fitFile('run.fit', run)],
       SETTINGS,
@@ -803,10 +804,35 @@ describe('AnalysisSession', () => {
       async (item) => {
         seen.push(item.digest.id)
       },
+      false,
+      (done) => {
+        outcome = done
+      },
     )
     expect(seen).toHaveLength(1)
     expect(retried.syncIssues).toEqual([])
     expect(retried.result?.activities).toHaveLength(1)
+    // The activity is saved by this import, so it is added, not already in the library.
+    expect(outcome).toMatchObject({ filesAdded: 1, duplicates: [], added: [expect.anything()] })
+  })
+
+  it('does not call a held activity added when a retry has no sink to save it with', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS, undefined, () =>
+      Promise.reject(new Error('offline')),
+    )
+    let outcome: { filesAdded: number; duplicates: unknown[] } | null = null
+    await session.addFiles(
+      [fitFile('run.fit', run)],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      (d) => {
+        outcome = d
+      },
+    )
+    expect(outcome).toMatchObject({ filesAdded: 0, duplicates: [expect.anything()] })
   })
 
   it('keeps a failed save counted when a later import without a sink does not touch it', async () => {

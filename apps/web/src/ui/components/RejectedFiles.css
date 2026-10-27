@@ -42,7 +42,7 @@
   margin: 0;
 }
 
-/* A group's title is a heading, set back to the weight of the text round it, not the display type. */
+/* A group's title is a heading, set back to the bold of the text round it, not the display type. */
 .rejected-files__title {
   margin: 0;
   font: inherit;

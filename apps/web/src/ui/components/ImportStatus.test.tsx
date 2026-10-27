@@ -391,15 +391,16 @@ describe('ImportStatus: announcements', () => {
       <ImportStatus
         {...baseProps()}
         outcome={{
+          // One file of two sessions, both already held, and one refused file.
           activities: 2,
-          filesAdded: 1,
+          filesAdded: 0,
           rejected: 1,
           duplicates: [{ fileName: 'copy.gpx', reason: 'r', code: 'duplicate' }],
         }}
       />,
     )
     expect(screen.getByRole('status').textContent).toBe(
-      'Nothing new: 2 activities already in your library. 3 files: 1 added, 1 already added, 1 needs a look.',
+      'Nothing new: 2 activities already in your library. 2 files: 1 already added, 1 needs a look.',
     )
   })
 
@@ -408,7 +409,17 @@ describe('ImportStatus: announcements', () => {
     rerender(
       <ImportStatus
         {...baseProps()}
-        outcome={{ activities: 5, filesAdded: 5, rejected: 3, notActivities: 320, duplicates: [] }}
+        outcome={{
+          activities: 5,
+          filesAdded: 0,
+          rejected: 3,
+          notActivities: 320,
+          duplicates: Array.from({ length: 5 }, (_, i) => ({
+            fileName: `held-${i}.fit`,
+            reason: 'r',
+            code: 'duplicate' as const,
+          })),
+        }}
         rejected={[
           { fileName: 'a.fit', reason: 'r', code: 'unsupported-sport', detail: 'hiking' },
           { fileName: 'b.fit', reason: 'r', code: 'unsupported-sport', detail: 'walking' },
@@ -417,7 +428,7 @@ describe('ImportStatus: announcements', () => {
       />,
     )
     expect(screen.getByRole('status').textContent).toBe(
-      'Nothing new: 5 activities already in your library. 328 files: 5 added, 1 needs a look, 2 other sports left out on purpose, 320 not listed as activities.',
+      'Nothing new: 5 activities already in your library. 328 files: 5 already added, 1 needs a look, 2 other sports left out on purpose, 320 not listed as activities.',
     )
   })
 

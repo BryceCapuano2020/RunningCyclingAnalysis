@@ -4,8 +4,9 @@ import { ACTIVITY } from './fit/zipDirectory'
 import { parseActivityFile } from './import'
 import { listedFor, listedOnly, readActivityList } from './import/activitiesCsv'
 import type { ListedActivity } from './import/activitiesCsv'
+import { fileNameOf, isSameWorkout } from './duplicates'
 import { sha256Hex } from './sha256'
-import type { Activity } from './types'
+import type { Activity, ActivityDigest } from './types'
 import type { Rejection } from './import/result'
 import type { RejectedFile } from './sessionState'
 
@@ -15,36 +16,51 @@ export interface ImportProgress {
   onProgress?: (filesRead: number) => void
 }
 
-/** What one import records as it reads its sources. */
+/** A refused file, with the source it came from, so a clean read takes back only a refusal of its own source. */
+export interface Refused {
+  source: number
+  file: RejectedFile
+}
+
+/** What became of one activity: the digest it added to the library, or the name of the held file it duplicates. */
+export type Considered = { added: ActivityDigest } | { held: string }
+
+/** What became of one file's activities: the digests it added, and the held files the others duplicate. */
+export interface ReadFile {
+  fileName: string
+  added: ActivityDigest[]
+  held: string[]
+}
+
+/** What one import records as it reads one of its sources. */
 export interface SourceImport {
   limits: ExtractLimits
   progress: ImportProgress
+  /** The position of this source among the import's sources. */
+  source: number
   /**
-   * The activities read, and the files by what became of them: `filesAdded` held a workout the library
-   * did not, `rejected` were refused, and `notActivities` were left out unread. A file whose
-   * activities were all workouts the library held is in none of these: it is in `duplicates`.
+   * The activities read, the files refused and the files left out unread. A file whose activities
+   * were read is in `read`, and `rejected` counts exactly the files in `refused` and the unreadable
+   * formats.
    */
-  outcome: { activities: number; filesAdded: number; rejected: number; notActivities: number }
+  outcome: { activities: number; rejected: number; notActivities: number }
   /**
    * The refused files, in the order they were refused, shared by the import. Every refusal is listed,
-   * including two files of one name, and `outcome.rejected` counts exactly these and the unreadable
-   * formats. A file read cleanly takes back the refusals under its name.
+   * including two files of one name. A file read cleanly takes back the refusals of its own source
+   * under its name, and under its name with .gz, and no other.
    */
-  rejected: RejectedFile[]
-  /** The files whose activities were all workouts already held, one entry for each file. */
-  duplicates: RejectedFile[]
+  refused: Refused[]
+  /** The files whose activities were read, in the order they were read, shared by the import. */
+  read: ReadFile[]
   /** The activity files the sources hold in formats the app does not read, which are counted, not listed. */
   unsupported: { files: number }
   /** Whether each file's bytes are hashed, which the sink needs. */
   hashFiles: boolean
-  /**
-   * Considers one parsed activity of an imported file. Gives the name of the held file it duplicates,
-   * which is the file itself when it is added again, or null when the library did not hold the workout.
-   */
+  /** Considers one parsed activity of an imported file. */
   consider: (
     activity: Activity,
     file: { fileName: string; fileHash: string; bytes: Uint8Array },
-  ) => Promise<string | null>
+  ) => Promise<Considered>
 }
 
 /**
@@ -60,16 +76,20 @@ export async function sessionHashOf(bytes: Uint8Array): Promise<string | undefin
 /** Lists a refused file, and counts it. */
 function reject(ctx: SourceImport, fileName: string, rejection: Rejection): void {
   const { reason, code, detail, listed } = rejection
-  ctx.rejected.push({ fileName, reason, code, detail, listed })
+  ctx.refused.push({ source: ctx.source, file: { fileName, reason, code, detail, listed } })
   ctx.outcome.rejected++
 }
 
-/** Takes back the refusals under a file's name, and under its name with .gz, since the file read cleanly. */
+/**
+ * Takes back the refusals under a file's name, and under its name with .gz, since the file read
+ * cleanly. Only those of its own source: a different file that shares a name stays refused.
+ */
 function takeBack(ctx: SourceImport, fileName: string): void {
-  for (let i = ctx.rejected.length - 1; i >= 0; i--) {
-    const name = ctx.rejected[i]!.fileName
-    if (name !== fileName && name !== `${fileName}.gz`) continue
-    ctx.rejected.splice(i, 1)
+  for (let i = ctx.refused.length - 1; i >= 0; i--) {
+    const { source, file } = ctx.refused[i]!
+    if (source !== ctx.source) continue
+    if (file.fileName !== fileName && file.fileName !== `${fileName}.gz`) continue
+    ctx.refused.splice(i, 1)
     ctx.outcome.rejected--
   }
 }
@@ -97,12 +117,13 @@ async function importFile(
     // A kept file is hashed as it always was, reusing the session key's hash when one was made.
     const fileHash = ctx.hashFiles ? (sessionKey ?? (await sha256Hex(file.bytes))) : ''
     const imported = { fileName: file.fileName, fileHash, bytes: file.bytes }
-    const held: string[] = []
+    const result: ReadFile = { fileName: file.fileName, added: [], held: [] }
     for (const activity of parsed.activities) {
-      const heldName = await ctx.consider(activity, imported)
-      if (heldName !== null) held.push(heldName)
+      const considered = await ctx.consider(activity, imported)
+      if ('added' in considered) result.added.push(considered.added)
+      else result.held.push(considered.held)
     }
-    countFile(ctx, file.fileName, held, parsed.activities.length)
+    ctx.read.push(result)
     takeBack(ctx, file.fileName)
   } else {
     reject(ctx, parsed.fileName, parsed)
@@ -111,22 +132,29 @@ async function importFile(
 }
 
 /**
- * Counts a read file once. It is added when any of its activities is a workout the library did not
- * hold, and already added when every one was held: a copy, the same file again, or a richer copy that
- * replaced the held one. The held workouts inside an added file are not counted.
+ * Sorts the files an import read, once it has ended, into those that added a workout and those that
+ * did not. A file added one when a digest it added is among the visible digests the import added, so
+ * the order the files arrive in does not matter and a new activity hidden as a copy does not count.
+ * Every other file is one entry of `duplicates`, which names the held file its workout is in, or else
+ * the visible copy of it, or else the file itself.
  */
-function countFile(ctx: SourceImport, fileName: string, held: string[], activities: number): void {
-  if (held.length < activities) {
-    ctx.outcome.filesAdded++
-    return
+export function sortRead(
+  read: readonly ReadFile[],
+  visibleAdded: ReadonlySet<ActivityDigest>,
+  visibleLibrary: readonly ActivityDigest[],
+): { filesAdded: number; duplicates: RejectedFile[] } {
+  const duplicates: RejectedFile[] = []
+  let filesAdded = 0
+  for (const { fileName, added, held } of read) {
+    if (added.some((digest) => visibleAdded.has(digest))) {
+      filesAdded++
+      continue
+    }
+    const copy = added[0] && visibleLibrary.find((digest) => isSameWorkout(digest, added[0]!))
+    const detail = held[0] ?? (copy ? fileNameOf(copy.id) : fileName)
+    duplicates.push({ fileName, reason: `Same workout as ${detail}`, code: 'duplicate', detail })
   }
-  const heldName = held[0]
-  ctx.duplicates.push({
-    fileName,
-    reason: `Same workout as ${heldName}`,
-    code: 'duplicate',
-    detail: heldName,
-  })
+  return { filesAdded, duplicates }
 }
 
 /**

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { encodeFit } from '@rca/core/fit'
+import { AnalysisSession } from '@rca/core/session'
 import type { RejectCode, RejectedFile } from '@rca/core/session'
+import { sampleDataset } from '@rca/core/synthetic'
 import { skippedTotal, tallyOf, tallySentence } from './skipTally'
+import type { Counted } from './skipTally'
 
 function file(fileName: string, code: RejectCode, detail?: string): RejectedFile {
   return { fileName, reason: 'core reason', code, detail }
@@ -155,4 +159,38 @@ describe('tallySentence: a headline that adds up to the files read', () => {
     const outcome = { filesAdded: 11, rejected: 0, duplicates: [file('c.gpx', 'duplicate')] }
     expect(tallySentence(tallyOf(outcome, []))).toBe('12 files: 11 added, 1 already added.')
   })
+})
+
+describe('the headline of a real import', () => {
+  const settings = { massKg: 75, bikeMassKg: 9 }
+  const activity = sampleDataset().activities[0]!
+
+  /** A damaged and a clean file that share one name, dropped in either order. */
+  async function headline(damagedFirst: boolean): Promise<string> {
+    const clean = () =>
+      new File([new Uint8Array(encodeFit(activity, { gps: true }))], '2024-05-01.fit')
+    const damaged = () => new File([new Uint8Array(40)], '2024-05-01.fit')
+    let counted: Counted | null = null
+    const state = await new AnalysisSession().addFiles(
+      damagedFirst ? [damaged(), clean()] : [clean(), damaged()],
+      settings,
+      undefined,
+      undefined,
+      false,
+      (done) => {
+        counted = done
+      },
+    )
+    return tallySentence(tallyOf(counted as unknown as Counted, state.rejected))
+  }
+
+  it.each([
+    ['damaged first', true],
+    ['clean first', false],
+  ])(
+    'reads a damaged and a clean file of one name as one added and one that needs a look, %s',
+    async (_order, damagedFirst) => {
+      expect(await headline(damagedFirst)).toBe('2 files: 1 added, 1 needs a look.')
+    },
+  )
 })

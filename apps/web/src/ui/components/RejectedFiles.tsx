@@ -74,7 +74,7 @@ export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedF
           )}
           {tally.unlisted > 0 && (
             <div className="rejected-files__group">
-              <Title>{unlistedTitle(tally.unlisted)}</Title>
+              <p className="rejected-files__title">{unlistedTitle(tally.unlisted)}</p>
             </div>
           )}
         </details>
@@ -89,7 +89,10 @@ export function RejectedFiles({ outcome, rejected, unsupportedFiles }: RejectedF
   )
 }
 
-/** A group's title, a heading of the notice region, set in the weight of the text round it. */
+/**
+ * A group's title, a heading of the notice region, set in the weight of the text round it. The line
+ * for the files the export does not list has no group under it, so it is a paragraph in the same look.
+ */
 function Title({ children }: { children: string }) {
   return <h2 className="rejected-files__title">{children}</h2>
 }
