@@ -224,6 +224,26 @@ describe('ResultPage footnote', () => {
     expect(screen.getByText(/Add your weight on/)).toBeInTheDocument()
   })
 
+  it('drops the unset line from a run page while its age note asks for the year of birth and sex', () => {
+    render(
+      <ResultPage
+        signedIn={false}
+        route={{ page: 'run' }}
+        analysis={analysisStub()}
+        result={makeResult({
+          runCurve: [curvePoint(HEADLINE_DURATION_S, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+        })}
+        settings={{ massKg: 75, bikeMassKg: 9 }}
+        weightKnown={false}
+        units="metric"
+        birthYear={null}
+        sex={null}
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Add your year of birth and sex' })).toBeInTheDocument()
+    expect(screen.queryByText('Your details are not set yet.')).not.toBeInTheDocument()
+  })
+
   it('keeps the Add them link on a ride page with no ride to hold, where nothing else links', () => {
     renderHeldRide(null)
     expect(screen.getByRole('link', { name: 'Add them on Profile' })).toHaveAttribute(

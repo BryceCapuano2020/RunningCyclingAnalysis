@@ -10,7 +10,7 @@ import { HARDER_EFFORTS_TITLE, balanceSummary, balanceTitle } from '../component
 import { WeightPrompt } from '../components/WeightPrompt'
 import { betweenClause } from '../periodCopy'
 import { plural } from '../components/plural'
-import { countSport } from '../records'
+import { countEfforts, countSport } from '../records'
 import { HEADLINE_LABEL } from '../grades'
 import { PAGE_HEADING_ID } from './pageHeading'
 
@@ -42,8 +42,8 @@ const FEW_EFFORTS = 3
 
 /** The count under the lede when either sport has few efforts; null when both have enough, or one is missing. */
 function fewEffortsText(result: AnalysisResult): string | null {
-  const runs = countSport(result.activities, 'run')
-  const rides = countSport(result.activities, 'ride')
+  const runs = countEfforts(result.activities, 'run')
+  const rides = countEfforts(result.activities, 'ride')
   if (runs === 0 || rides === 0 || (runs >= FEW_EFFORTS && rides >= FEW_EFFORTS)) return null
   return `From ${plural(runs, 'run')} and ${plural(rides, 'ride')}. Add more runs or rides for a steadier answer.`
 }

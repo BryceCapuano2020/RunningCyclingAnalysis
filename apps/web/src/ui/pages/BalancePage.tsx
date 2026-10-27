@@ -11,7 +11,7 @@ import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
 import { gapOfHeadline } from '../balanceGap'
-import { countSport } from '../records'
+import { countSport, latestStartOf } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import {
   AGE_RANGE_TEXT,
@@ -243,6 +243,10 @@ export function BalancePage({
               effortS={HEADLINE_DURATION_S}
               emptyText={gradesCoverAge(trend, profile) ? undefined : AGE_RANGE_TEXT}
               rideKnown={weightKnown}
+              latestStartMs={{
+                run: latestStartOf(library, 'run'),
+                ride: latestStartOf(library, 'ride'),
+              }}
             />
           </div>
         </section>

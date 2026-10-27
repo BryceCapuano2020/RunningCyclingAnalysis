@@ -379,6 +379,26 @@ describe('BalanceHero without a comparison yet', () => {
     ).toBeInTheDocument()
   })
 
+  it('counts only the efforts as long as the headline effort, so a short run does not count as one', () => {
+    const runs = [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      makeActivity({ id: 'run-2', sport: 'run', durationS: 600 }),
+      makeActivity({ id: 'run-3', sport: 'run', durationS: 900 }),
+    ]
+    const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))
+    render(
+      <BalanceHero
+        {...ALL_TIME}
+        result={makeResult({ activities: [...runs, ...rides] })}
+        pick={pickFor(interval(1.05, 1.12, 1.2))}
+        gap={gradedGap()}
+      />,
+    )
+    expect(
+      screen.getByText('From 1 run and 3 rides. Add more runs or rides for a steadier answer.'),
+    ).toBeInTheDocument()
+  })
+
   it('leaves that count off once each sport has three efforts', () => {
     const runs = [1, 2, 3].map((n) => makeActivity({ id: `run-${n}`, sport: 'run' }))
     const rides = [1, 2, 3].map((n) => makeActivity({ id: `ride-${n}`, sport: 'ride' }))

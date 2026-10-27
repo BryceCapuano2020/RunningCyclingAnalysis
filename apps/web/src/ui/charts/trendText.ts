@@ -1,5 +1,5 @@
 import { plural } from '../components/plural'
-import { formatDay, formatDayMonth } from '../format/date'
+import { formatDay } from '../format/date'
 import { utcDayLocal } from './trendTicks'
 
 /** "2 weeks", or "30 days" for a window that is not a whole number of weeks. */
@@ -13,11 +13,6 @@ export function windowPhrase(days: number): string {
  */
 export function weekDay(ms: number): string {
   return formatDay(utcDayLocal(ms))
-}
-
-/** The day a trend's week ends on, without its weekday, such as "26 Jan": for a note that dates where a line stops. */
-export function weekDate(ms: number): string {
-  return formatDayMonth(utcDayLocal(ms))
 }
 
 /** How a trend's line is drawn, which the note or the caption under it says once. */

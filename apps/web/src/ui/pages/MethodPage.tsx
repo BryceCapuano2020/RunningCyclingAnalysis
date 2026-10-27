@@ -58,7 +58,7 @@ const RESTORING_EVIDENCE = 'Your saved results are loading.'
 /** The energy view before any results: what it will show, since there is no ratio to name yet. */
 const NO_FILES_ENERGY = `Once your files are loaded, this view puts running and cycling on one scale: the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight.`
 /** The energy view, when Balance shows the age-grade gap, and when it shows the energy ratio instead. */
-const ENERGY_CROSS_CHECK = `The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight.`
+const ENERGY_CROSS_CHECK = `The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight. Near even, the energy check can lean the other way from the age-grade gap.`
 const ENERGY_FALLBACK = `When Balance has no age-grade gap to show, it shows the energy ratio instead, and this view is that ratio: running and cycling on one scale, measured as the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight.`
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'

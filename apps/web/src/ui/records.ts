@@ -235,6 +235,27 @@ export function countSport(activities: ActivitySummary[], sport: Sport): number 
 }
 
 /**
+ * The activities of a sport the answer can rest on: those as long as the headline effort or longer, since
+ * the pick reads a best effort of that length.
+ */
+export function countEfforts(activities: ActivitySummary[], sport: Sport): number {
+  return activities.filter(
+    (activity) => activity.sport === sport && activity.durationS >= HEADLINE_DURATION_S,
+  ).length
+}
+
+/** The start of a sport's latest activity of any length, or null when the library holds none of it. */
+export function latestStartOf(activities: ActivitySummary[], sport: Sport): number | null {
+  let latest: number | null = null
+  for (const activity of activities) {
+    if (activity.sport === sport && (latest === null || activity.startMs > latest)) {
+      latest = activity.startMs
+    }
+  }
+  return latest
+}
+
+/**
  * Whole calendar days from one moment to a later one, in the device's zone. A clock change inside a
  * day does not make it a day short, since each moment is taken at the start of its own day.
  */

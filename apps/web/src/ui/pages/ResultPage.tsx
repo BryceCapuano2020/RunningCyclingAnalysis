@@ -94,9 +94,12 @@ export function ResultPage({
       unsetLink={!heldRide}
     />
   )
-  // Balance's prompt for a missing year of birth and sex says the same as the unset line, so the line goes
-  // while the prompt is there. A weight entered keeps the line, which then says what the page is based on.
-  const balanceFootnote = missingAge === 'year of birth and sex' && !weightKnown ? null : footnote
+  // The unset line says what the year-of-birth-and-sex prompt says, so it goes while that prompt is on the
+  // page: Balance's own prompt, or a run's age note under its best efforts. A held ride shows its weight
+  // note in place of its records, so it has no age note and keeps the line. A weight entered keeps the line
+  // too, which then says what the page is based on.
+  const askingForAge = missingAge === 'year of birth and sex' && !weightKnown
+  const balanceFootnote = askingForAge ? null : footnote
   const [storedChoice, storeChoice] = usePeriodChoice()
   // Library and sample loads are told the period picked on this device. Files analysed while the
   // account loads are not, so for them it is sent once there is a result to show it on.
@@ -163,7 +166,11 @@ export function ResultPage({
           library={library}
           onShowAll={() => pickPeriod('all')}
           onAddFiles={analysis.addFiles}
-          footnote={footnote}
+          footnote={
+            askingForAge && route.page === 'run' && countSport(result.activities, 'run') > 0
+              ? null
+              : footnote
+          }
         />
       )
     case 'activities':

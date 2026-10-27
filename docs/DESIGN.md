@@ -331,9 +331,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   names the effort as its segment labels it, such as "best 60 min", and the window. Each line steps from one Sunday to the next and breaks at a week
   with no value, and each Sunday has a marker. The latest value is labelled with its value alone, and the
   title names its effort and window, so it can differ from a card's best, which covers the whole period.
-  When a sport's line stops before the window does, the note under the chart dates where it stops:
-  "No runs since 25 May 2025." (or "No rides since"). The note is left off while both lines reach the last
-  week.
+  When a sport's line stops before the window does, the note under the chart dates that sport's latest
+  activity of any length, as long as it is before the last week: "No runs since 20 Jan 2025." (or "No rides
+  since"), the activity's own local day. A short run counts, though it gives the trend no value. The note is
+  left off while the line reaches the last week, and when the latest activity is in the last week.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
   each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the
@@ -611,8 +612,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
-  period, the answer says so beneath the lede: "From 1 run and 1 ride. Add more runs or rides for a steadier
-  answer." It is left off once each sport has three.
+  period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
+  and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.
 - One "How sure is this?" link per card at most.
 - **A level says how it is graded.** A level's grade line may link to its age grades with How is this
   graded?, which opens How sure is this? and focuses the grades heading, since a fragment would change
@@ -697,8 +698,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
   to Profile. A ride held for its weight, whose own note already links there, leaves out the link on
   "Your details are not set yet.". It is on the Balance, Run and Ride pages only, and the sample has its
-  own persona and no such line. On Balance the unset line is left out while the one prompt for the year of
-  birth and sex is on the page, so the page asks once.
+  own persona and no such line. While the one prompt for the year of birth and sex is on the page, the unset
+  line is left out of Balance, and of a run's page once that run has activities, where its age note asks the
+  same. A held ride keeps its line, since its records give way to the weight note.
 - **A figure's scope is named by the period control beside its heading,** which shows the dates of a
   window. The threshold carries no count under it, since a count of runs is not what it is fitted from.
   Under All time the control shows the span of the whole library.

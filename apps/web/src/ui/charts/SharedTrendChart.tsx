@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SPORT_PLURAL } from '../sports'
+import type { Sport } from '@rca/core/types'
 import { ChartFrame } from './ChartFrame'
 import type { ChartLegendEntry } from './ChartLegend'
 import { ChartXAxis } from './ChartXAxis'
@@ -43,6 +44,8 @@ export interface SharedTrendChartProps {
   rideKnown?: boolean
   /** Replaces the usual empty message, such as the ages the standards cover. */
   emptyText?: string
+  /** Each sport's latest activity of any length in the library, or null: a line that stops early is dated by it. */
+  latestStartMs: Record<Sport, number | null>
 }
 
 /**
@@ -102,6 +105,7 @@ export function SharedTrendChart({
   effortS,
   rideKnown = true,
   emptyText,
+  latestStartMs,
 }: SharedTrendChartProps) {
   const weeks = rideKnown ? given : given.map(withRideHeld)
   // The effort is named as its segment's label is, so the title reads "best 20 min", as the sport trend's does.
@@ -149,7 +153,7 @@ export function SharedTrendChart({
       title={copy.title}
       description={copy.description}
       legend={single === undefined ? legend : undefined}
-      note={hasData ? withEndedNotes(note, weeks) : heldRide ? HELD_NOTE : undefined}
+      note={hasData ? withEndedNotes(note, weeks, latestStartMs) : heldRide ? HELD_NOTE : undefined}
       table={{
         caption: copy.caption,
         columns,

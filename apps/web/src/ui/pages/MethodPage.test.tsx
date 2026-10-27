@@ -364,7 +364,7 @@ describe('MethodPage energy view', () => {
     const section = screen.getByRole('region', { name: 'The energy view' })
     expect(
       within(section).getByText(
-        'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight.',
+        'The energy view is a cross-check of the age-grade gap on Balance. It puts running and cycling on one scale: the energy rate (metabolic W/kg), the energy each sport costs per kilogram of body weight. Near even, the energy check can lean the other way from the age-grade gap.',
       ),
     ).toBeInTheDocument()
     expect(section.textContent).not.toMatch(/energy ratio/)
