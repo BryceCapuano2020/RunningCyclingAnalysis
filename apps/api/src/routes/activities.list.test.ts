@@ -102,9 +102,13 @@ async function seedRows(
     .run()
 }
 
-/** Wraps a D1 binding and records the most parameters any one statement was bound with. */
-function parameterCounting(target: D1Database): { db: D1Database; most(): number } {
-  let most = 0
+/** Wraps a D1 binding and records each statement's SQL with the values it was bound with. */
+function recordingDb(target: D1Database): {
+  db: D1Database
+  statements: { query: string; values: unknown[] }[]
+  most(): number
+} {
+  const statements: { query: string; values: unknown[] }[] = []
   const db = new Proxy(target, {
     get(obj, prop) {
       const value: unknown = Reflect.get(obj, prop, obj)
@@ -120,7 +124,7 @@ function parameterCounting(target: D1Database): { db: D1Database; most(): number
               return typeof member === 'function' ? member.bind(inner) : member
             }
             return (...values: unknown[]) => {
-              most = Math.max(most, values.length)
+              statements.push({ query, values })
               return inner.bind(...values)
             }
           },
@@ -128,7 +132,7 @@ function parameterCounting(target: D1Database): { db: D1Database; most(): number
       }
     },
   })
-  return { db, most: () => most }
+  return { db, statements, most: () => Math.max(0, ...statements.map((s) => s.values.length)) }
 }
 
 const FIXTURE_TEXT = JSON.stringify(digestFixture())
@@ -153,9 +157,10 @@ describe('GET /api/activities page size', () => {
   it('binds at most the 100 parameters D1 allows when it reads a full page', async () => {
     const h = createHarness()
     const token = await h.signIn()
-    await seedRows(h, await userId(h, token), MAX_PAGE_SIZE + 1, FIXTURE_TEXT)
+    const uid = await userId(h, token)
+    await seedRows(h, uid, MAX_PAGE_SIZE + 1, FIXTURE_TEXT)
 
-    const counted = parameterCounting(testEnv().DB)
+    const counted = recordingDb(testEnv().DB)
     const reader = createHarness({}, { DB: counted.db })
     const page = await (
       await reader.send({ path: `/api/activities?limit=${MAX_PAGE_SIZE}`, ...as(token) })
@@ -163,6 +168,15 @@ describe('GET /api/activities page size', () => {
     expect((page as ListedPage).items).toHaveLength(MAX_PAGE_SIZE)
     expect(counted.most()).toBe(MAX_PAGE_SIZE + 1)
     expect(counted.most()).toBeLessThanOrEqual(D1_BOUND_PARAMETERS)
+
+    // Both activity queries, the metadata scan and the page read, are scoped to the user.
+    const reads = counted.statements.filter(({ query }) => /from "activities"/i.test(query))
+    expect(reads.map(({ query }) => /\bin \(/i.test(query))).toContain(true)
+    expect(reads.length).toBeGreaterThanOrEqual(2)
+    for (const { query, values } of reads) {
+      expect(query, query).toMatch(/"user_id" = \?/)
+      expect(values, query).toContain(uid)
+    }
   })
 
   it('lists 1,915 activities in 22 pages', async () => {
@@ -230,6 +244,56 @@ describe('GET /api/activities digest text', () => {
     expect(ActivityPageSchema.parse(JSON.parse(text)).items.map((item) => item.id)).toEqual([
       'verbatim',
     ])
+  })
+
+  it('keeps the response shape whatever valid JSON a digest holds', async () => {
+    const h = createHarness()
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+    const stored = [
+      '5',
+      '-0',
+      '"str"',
+      'null',
+      'true',
+      '[]',
+      // A string that reads like the rest of the page, and is still only a string.
+      JSON.stringify('],"nextCursor":"forged","unreadable":99,"items":['),
+      ' \t\r\n{"a":1}\n\n ',
+      '\n[ 1 , 2 ]\t',
+      '{"__proto__":{"polluted":true},"id":"forged","hasFile":true}',
+      '{"a":1,"a":2,"digest":{"b":3}}',
+    ]
+    for (const [index, digestJson] of stored.entries()) {
+      await insertRow(h, uid, { id: `shape-${index}`, digestJson, createdAt: START + index })
+    }
+
+    const res = await h.send({ path: '/api/activities', ...as(token) })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    const text = await res.text()
+    const page = JSON.parse(text) as { items: Record<string, unknown>[] }
+    expect(Object.keys(page).sort()).toEqual(['items', 'nextCursor'])
+    expect(page.items).toHaveLength(stored.length)
+    // Newest first, each with exactly the record's keys, and its digest exactly as stored.
+    for (const [position, item] of page.items.entries()) {
+      const index = stored.length - 1 - position
+      expect(Object.keys(item).sort(), `row ${index}`).toEqual([
+        'createdAt',
+        'digest',
+        'fileName',
+        'fileSize',
+        'hasFile',
+        'id',
+      ])
+      expect(item.id).toBe(`shape-${index}`)
+      expect(item.hasFile).toBe(false)
+      expect(text).toContain(`"digest":${stored[index]}}`)
+      expect(item.digest).toEqual(JSON.parse(stored[index] ?? ''))
+    }
+    expect(Object.is(page.items[stored.length - 2]?.digest, -0)).toBe(true)
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined()
   })
 
   it('leaves the shape of a digest to the client, so JSON that is not a digest is passed on', async () => {

@@ -138,6 +138,7 @@ function callOf(fetchMock: ReturnType<typeof stubFetch>, index = 0) {
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('signInUrl', () => {
@@ -410,6 +411,7 @@ describe('listActivities', () => {
 
   it('skips a record whose digest fails the schema, counts it, and loads the rest of the page', async () => {
     const bad = { ...RECORD_WIRE, id: 'rec-bad', digest: { version: 1 } }
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     stubFetch(
       respond(200, {
         items: [RECORD_WIRE, bad, { ...RECORD_WIRE, id: 'rec-2' }],
@@ -435,6 +437,29 @@ describe('listActivities', () => {
     expect(onUnreadable).toHaveBeenCalledExactlyOnceWith(3)
   })
 
+  it('logs the id and first failing path of each skipped digest, never its content', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const secret = 'private-text-in-a-digest'
+    stubFetch(
+      respond(200, {
+        items: [
+          { ...RECORD_WIRE, id: 'rec-bad', digest: { ...WIRE_DIGEST, startMs: secret } },
+          { ...RECORD_WIRE, id: 'rec-null', digest: null },
+          { ...RECORD_WIRE, id: 'rec-ok' },
+        ],
+        nextCursor: null,
+      }),
+    )
+    await listActivities()
+
+    const logged = warn.mock.calls.map(([line]) => JSON.parse(String(line)) as unknown)
+    expect(logged).toEqual([
+      { event: 'activity_digest_unreadable', activityId: 'rec-bad', path: 'startMs' },
+      { event: 'activity_digest_unreadable', activityId: 'rec-null', path: '' },
+    ])
+    expect(JSON.stringify(logged)).not.toContain(secret)
+  })
+
   it('still fails the whole page when a record envelope is not valid', async () => {
     // JSON leaves out a key that is undefined, so this record has no digest at all.
     const withoutDigest = { ...RECORD_WIRE, digest: undefined }
@@ -445,6 +470,7 @@ describe('listActivities', () => {
   })
 
   it('checks each digest on its own, so one bad record does not change how the others parse', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     stubFetch(
       respond(200, {
         items: [{ ...RECORD_WIRE, digest: { ...WIRE_DIGEST, sport: 'swim' } }, RECORD_WIRE],

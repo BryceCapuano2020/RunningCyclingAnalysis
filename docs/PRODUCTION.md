@@ -247,8 +247,8 @@ calls through this Worker only. Keep `rca-files` private and dedicated: direct b
 other clients and dashboard operations can bypass application limits, and Cloudflare may bill R2
 usage above its free allowance.
 
-Activity listing uses at most 90 records per page, a 1 MiB digest JSON budget and envelope headroom
-of 2,022 bytes a record at the worst case (`MAX_PAGE_BODY_BYTES`, 1,232,150 bytes in all). The API
+Activity listing uses at most 90 records per page, a 512 KiB digest JSON budget and envelope headroom
+of 2,022 bytes a record at the worst case (`MAX_PAGE_BODY_BYTES`, 707,862 bytes in all). The API
 scans small metadata before fetching the selected digests. Cursors are based on delivered rows so
 byte-limited pages do not skip activities. Browser readers bound JSON/download sizes and network
 time, reject malformed/repeated cursors, and retry a write only where repeating it is safe. A create

@@ -61,8 +61,12 @@ export const MAX_GLOBAL_R2_STANDARD_OPERATIONS = 90_000
  */
 export const MAX_PAGE_SIZE = 90
 export const DEFAULT_PAGE_SIZE = MAX_PAGE_SIZE
-/** Maximum total digest JSON bytes returned by one activity-list request. */
-export const MAX_PAGE_DIGEST_BYTES = 1024 * 1024
+/**
+ * Maximum total digest JSON bytes returned by one activity-list request. It is the only bound on the
+ * server's JSON.parse work for a page, and Workers Free allows 10 ms of CPU a request, so it is kept
+ * small. A single digest is at most MAX_DIGEST_BYTES, so a page always holds at least one.
+ */
+export const MAX_PAGE_DIGEST_BYTES = 512 * 1024
 
 /** Longest record id, original file name and list cursor the API schemas accept, in characters. */
 export const MAX_RECORD_ID_CHARS = 64

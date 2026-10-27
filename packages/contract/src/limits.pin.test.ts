@@ -55,12 +55,12 @@ describe('contract limits', () => {
   it('pins the page sizes and page body limits', () => {
     expect(limits.DEFAULT_PAGE_SIZE).toBe(90)
     expect(limits.MAX_PAGE_SIZE).toBe(90)
-    expect(limits.MAX_PAGE_DIGEST_BYTES).toBe(1024 * 1024)
+    expect(limits.MAX_PAGE_DIGEST_BYTES).toBe(512 * 1024)
     expect(limits.MAX_RECORD_ID_CHARS).toBe(64)
     expect(limits.MAX_FILE_NAME_CHARS).toBe(255)
     expect(limits.MAX_CURSOR_CHARS).toBe(256)
     expect(limits.MAX_RECORD_ENVELOPE_BYTES).toBe(2022)
-    expect(limits.MAX_PAGE_BODY_BYTES).toBe(1_232_150)
+    expect(limits.MAX_PAGE_BODY_BYTES).toBe(707_862)
   })
 
   it('sizes the page body for 90 worst-case records beside a full digest budget', () => {
