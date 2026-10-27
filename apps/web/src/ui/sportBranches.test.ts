@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { readFilesUnder } from './components/stylesheet'
 
 /**
- * A comparison of a sport with a literal one, such as `view.sport === 'run'` or `sport !== 'ride'`.
- * Per-sport values (labels, units, colours, formatters, glyphs) are read from SPORT_FORMAT and the
- * other tables keyed by Sport, so a comparison left is a logic branch that a table cannot hold.
+ * A comparison with a literal sport, whatever the other side is called: `view.sport === 'run'`,
+ * `lean !== 'ride'`, `'run' === kind` or `case 'ride':`. Per-sport values (labels, units, colours,
+ * formatters, glyphs) are read from SPORT_FORMAT and the other tables keyed by Sport, so a comparison
+ * left is a logic branch that a table cannot hold.
  */
-const SPORT_CHECK = /\b[A-Za-z]*[Ss]port\s*[!=]==\s*'(?:run|ride)'/g
+const SPORT_CHECK =
+  /(?:[!=]==?)\s*['"](?:run|ride)['"]|['"](?:run|ride)['"]\s*(?:[!=]==?)|\bcase\s+['"](?:run|ride)['"]/g
 
 /** The most sport comparisons the source may hold outside tests. A new one needs a table instead. */
-const SPORT_CHECK_BUDGET = 42
+const SPORT_CHECK_BUDGET = 63
 
 /** The web app's and the two packages' source, without the tests, their fixtures or the benchmarks. */
 async function sourceFiles(): Promise<{ path: string; text: string }[]> {

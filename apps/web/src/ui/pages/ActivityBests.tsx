@@ -11,13 +11,7 @@ import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../
 import type { AgeProfile } from '../grades'
 import { FLAT_MARK, recordRow, treadmillMarks } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import {
-  effortLabel,
-  isEstimatedRecord,
-  ownDistanceRecords,
-  paceIsTime,
-  sportRecords,
-} from '../records'
+import { effortLabel, ownDistanceRecords, paceIsTime, sportRecords } from '../records'
 
 export interface ActivityBestsProps {
   activity: ActivitySummary
@@ -94,7 +88,7 @@ export function ActivityBests({
   if (bests.length === 0 && distances.length === 0) {
     // A ride with no measured power has no power curve, and the page says why rather than leaving it out.
     const reason =
-      activity.powerSource !== 'measured' && isEstimatedRecord(sport, activity)
+      sport === 'ride' && activity.powerSource !== 'measured'
         ? NO_POWER_CURVE[activity.powerSource]
         : null
     return reason === null ? null : <p className="secondary">{reason}</p>
