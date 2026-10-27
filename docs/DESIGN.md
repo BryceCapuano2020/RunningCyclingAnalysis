@@ -313,7 +313,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   under its meaning, on either sport when the library holds a 20 min best in both sports, then its grade and level ladder for the best 20 minutes
   (the same grade line as the card), then the period control, a line of recent form ("Last run 14 Jan · 9 runs · 42.10
   km"), the best efforts, with the Flat note under them on a run and **See your runs** under them, which
-  opens Activities filtered to that sport, "Where your bests stand out", the week-by-week trend under the heading "Week by week", then the curve, headed "Pace curve"
+  opens Activities filtered to that sport, "Where your bests stand out", the week-by-week trend under the heading "Week by week", then "At the same heart rate", then the curve, headed "Pace curve"
   for running and "Power curve" for cycling. The threshold carries no count: the period control under
   the answer names the dates the efforts come from. A sport the library has no activities for has no
   period control and no curve, and asks for files: one section holds that prompt, with **Add runs** and
@@ -387,6 +387,27 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   activity of any length, as long as it is before the last week: "No runs since 20 Jan 2025." (or "No rides
   since"), the activity's own local day. A short run counts, though it gives the trend no value. The note is
   left off while the line reaches the last week, and when the latest activity is in the last week.
+- **"At the same heart rate"** follows "Week by week" on each sport page and reads the one signal built from
+  easy and steady efforts (`docs/research/same-heart-rate.md`). A sentence sits above the chart and says one of
+  three things. With a real change: "At 145 bpm you now run 5:52 /km, against 6:10 /km 8 weeks ago." (or
+  "you now ride 214 W, against 198 W"). Without one: "At 145 bpm your pace has held at about 6:00 /km, within the
+  error." (or "your power has held at about"). With too little data, a muted line names what is missing, one
+  of: too few steady 5-minute stretches, too few activities, activities in too few weeks, heart rate that
+  hardly varies, no effort near the reference heart rate in the latest weeks, or steady stretches that do not reach
+  the 4-week window's length into the period; the numbers in it come from `SAME_HEART_RATE`. A change is real only when the 90% ranges
+  of the first and last reporting weeks do not overlap, and a fall is told as plainly as a rise. The words are
+  "output at the same heart rate", never "fitness", "limiter", "weak", "strength", "holding you back" or "ahead
+  of". The chart is titled with the heart rate and the sport's unit, "Your output at 145 bpm, flat pace per
+  kilometre". It has one dot for each week that reports (a diamond for a ride, as in every chart) with its 90%
+  range as a thin bar in the sport's colour, and no line across the weeks: a week that does not report has
+  no dot and a mark on the date axis, as in the trend. The vertical axis is the sport's own number, pace
+  with faster up or watts, and watts do not start at zero, since nothing is filled and a 5% change must
+  show. The chart uses the shared frame: its key row is absent, its tooltip and arrow-key reading say the week,
+  the value, the 90% range and the stretches and activities behind it, and **View as table** lists every
+  week. The note under it says how a dot is made, that only outdoor runs and rides with a power meter count, and
+  that fatigue can lower heart rate at a given effort, so a rise can come with fatigue as well as with
+  training. The windows lie inside the period, as the trend's do, so a 6-week period reports about two
+  weeks. The chart is drawn only with two or more reporting weeks.
 - On the Balance age-grade trend, a run is solid with a dot, as recorded. A ride is an estimate: it
   is graded through its running equivalent, as the cards grade it, so it is dashed with a ring at
   each week, its model range is a band (a soft tint in the ride colour, with a ride-coloured outline), and the

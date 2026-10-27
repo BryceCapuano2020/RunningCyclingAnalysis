@@ -57,15 +57,23 @@ export function fillsArea(sport: Sport): boolean {
 
 /** A pace axis spans at least this many seconds, so a narrow range is not cut into a wall of ticks. */
 const MIN_PACE_SPAN_S = 120
+/** A tight pace axis, for a small change, spans at least this many: ticks a quarter minute apart. */
+const MIN_TIGHT_PACE_SPAN_S = 60
 
-/** Round tick values, in seconds, that cover the values, with the step chosen from PACE_STEPS_S. */
-function paceDomain(seconds: number[]): { domain: [number, number]; ticks: number[] } {
+/**
+ * Round tick values, in seconds, that cover the values, with the step chosen from PACE_STEPS_S. The
+ * axis spans at least minSpan seconds.
+ */
+function paceDomain(
+  seconds: number[],
+  minSpan: number,
+): { domain: [number, number]; ticks: number[] } {
   let lo = Math.min(...seconds)
   let hi = Math.max(...seconds)
-  if (hi - lo < MIN_PACE_SPAN_S) {
+  if (hi - lo < minSpan) {
     const mid = (lo + hi) / 2
-    lo = mid - MIN_PACE_SPAN_S / 2
-    hi = mid + MIN_PACE_SPAN_S / 2
+    lo = mid - minSpan / 2
+    hi = mid + minSpan / 2
   }
   const span = hi - lo
   const step =
@@ -80,22 +88,29 @@ function paceDomain(seconds: number[]): { domain: [number, number]; ticks: numbe
 /**
  * The vertical scale for a sport's values, and its ticks. Running has faster up, so its pace
  * domain runs down the page; cycling starts at zero so that its area fill has a true baseline.
- * `values` are plotted values, from plottedValue. They must not be empty.
+ * `values` are plotted values, from plottedValue. They must not be empty. A chart of a small change,
+ * which has no area to fill, passes `tight`: watts do not start at zero, and a pace axis may span as
+ * little as a minute, so that a few per cent can be seen.
  */
 export function sportYAxis(
   sport: Sport,
   values: number[],
   plot: PlotBox,
+  tight = false,
 ): { y: Scale; ticks: AxisTick[] } {
   if (sport === 'run') {
-    const { domain, ticks } = paceDomain(values)
+    const { domain, ticks } = paceDomain(values, tight ? MIN_TIGHT_PACE_SPAN_S : MIN_PACE_SPAN_S)
     const y = linearScale(domain, [plot.top, plot.bottom])
     return {
       y,
       ticks: ticks.map((seconds) => ({ position: y(seconds), label: formatClock(seconds) })),
     }
   }
-  const { domain, ticks } = niceDomain([0, ...values], INTERVALS, 0)
+  const { domain, ticks } = niceDomain(
+    tight ? values : [0, ...values],
+    INTERVALS,
+    tight ? undefined : 0,
+  )
   const y = linearScale(domain, [plot.bottom, plot.top])
   const decimals = tickDecimals(ticks)
   return {

@@ -2,7 +2,8 @@
 import type { ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SportCurves, TrendPoint } from '@rca/core/digest'
+import type { SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
+import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
@@ -57,6 +58,7 @@ function renderPage(
   rangeDays: number | null = 42,
   emptyText = 'Nothing in this period.',
   missingAge: AgeGap | null = profile === null ? 'year of birth and sex' : null,
+  sameHeartRate: SameHeartRate = NO_SAME_HEART_RATE[sport],
 ) {
   return render(
     <SportPage
@@ -65,6 +67,7 @@ function renderPage(
       previous={previous}
       previousLabel={previousLabel}
       trends={trends}
+      sameHeartRate={sameHeartRate}
       windowDays={14}
       units={units}
       massKg={75}
@@ -137,6 +140,7 @@ describe('SportPage', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -448,6 +452,7 @@ describe('SportPage', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1380,6 +1385,129 @@ describe('SportPage depth', () => {
     expect(screen.getByRole('heading', { name: 'Week by week' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Power curve' })).toBeInTheDocument()
   })
+
+  describe('at the same heart rate', () => {
+    const WEEK_MS = 7 * 86_400_000
+    const fitted = (index: number, output: number): SameHeartRate['weeks'][number] => ({
+      endMs: Date.UTC(2025, 0, 12, 23, 59, 59, 999) + index * WEEK_MS,
+      fit: { output, low: output * 0.97, high: output * 1.03 },
+      lacks: null,
+      blocks: 14,
+      activities: 5,
+    })
+    const reading = (from: number, to: number, real: boolean): SameHeartRate => ({
+      referenceHeartRate: 145,
+      weeks: [fitted(0, from), fitted(1, (from + to) / 2), fitted(2, to)],
+      change: {
+        fromEndMs: fitted(0, from).endMs,
+        toEndMs: fitted(2, to).endMs,
+        from,
+        to,
+        weeksApart: 2,
+        relative: to / from - 1,
+        real,
+      },
+      lacks: null,
+    })
+    const rideActivity = () =>
+      makeResult({ activities: [makeActivity({ id: 'r', sport: 'ride' })] })
+
+    it('follows the week-by-week trend and comes before the curve', () => {
+      renderPage(
+        'ride',
+        rideActivity(),
+        'metric',
+        null,
+        null,
+        null,
+        NO_TRENDS,
+        true,
+        null,
+        42,
+        '',
+        null,
+        reading(198, 214, true),
+      )
+      const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+      expect(headings.indexOf('At the same heart rate')).toBe(headings.indexOf('Week by week') + 1)
+      expect(headings.indexOf('Power curve')).toBe(headings.indexOf('At the same heart rate') + 1)
+    })
+
+    it('says a real change, and draws the chart with the heart rate in its title', () => {
+      renderPage(
+        'ride',
+        rideActivity(),
+        'metric',
+        null,
+        null,
+        null,
+        NO_TRENDS,
+        true,
+        null,
+        42,
+        '',
+        null,
+        reading(198, 214, true),
+      )
+      const section = screen.getByRole('region', { name: 'At the same heart rate' })
+      expect(
+        within(section).getByText(/At 145 bpm you now ride 214 W, against 198 W 2 weeks ago\./),
+      ).toBeInTheDocument()
+      expect(
+        within(section).getByRole('figure', { name: /Your output at 145 bpm/ }),
+      ).toBeInTheDocument()
+    })
+
+    it('says it has held when the ranges overlap', () => {
+      renderPage(
+        'ride',
+        rideActivity(),
+        'metric',
+        null,
+        null,
+        null,
+        NO_TRENDS,
+        true,
+        null,
+        42,
+        '',
+        null,
+        reading(204, 207, false),
+      )
+      expect(
+        screen.getByText(/your power has held at about 206 W, within the error/),
+      ).toBeInTheDocument()
+    })
+
+    it('names what is missing, and draws no chart, with too little data', () => {
+      const none: SameHeartRate = { ...NO_SAME_HEART_RATE.ride, lacks: 'activities' }
+      renderPage(
+        'ride',
+        rideActivity(),
+        'metric',
+        null,
+        null,
+        null,
+        NO_TRENDS,
+        true,
+        null,
+        42,
+        '',
+        null,
+        none,
+      )
+      const section = screen.getByRole('region', { name: 'At the same heart rate' })
+      expect(within(section).getByText(/Needs steady stretches from at least 4 rides/)).toHaveClass(
+        'muted',
+      )
+      expect(within(section).queryByRole('figure')).toBeNull()
+    })
+
+    it('is not on a sport page with nothing in the period', () => {
+      renderPage('run', makeResult({ activities: [] }))
+      expect(screen.queryByRole('heading', { name: 'At the same heart rate' })).toBeNull()
+    })
+  })
 })
 
 describe('SportPage with nothing to show', () => {
@@ -1392,6 +1520,7 @@ describe('SportPage with nothing to show', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1417,6 +1546,7 @@ describe('SportPage with nothing to show', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1456,6 +1586,7 @@ describe('SportPage with nothing to show', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1485,6 +1616,7 @@ describe('SportPage period focus', () => {
         previous={null}
         previousLabel={null}
         trends={NO_TRENDS}
+        sameHeartRate={NO_SAME_HEART_RATE.run}
         windowDays={14}
         units="metric"
         massKg={75}

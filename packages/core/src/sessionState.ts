@@ -1,5 +1,6 @@
 import type { ActivitySummary, AnalysisResult } from './digest'
 import type { Period } from './period'
+import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import type { TrendPoint } from './digest/trend'
 import type { EffortLengthS } from './digest/trendPoints'
 import type { SportCurves } from './types'
@@ -44,6 +45,8 @@ export interface SessionState {
   trend: readonly TrendPoint[]
   /** The same weekly trend for each effort length, of which `trend` is the 20-minute one. */
   effortTrends: Readonly<Record<EffortLengthS, readonly TrendPoint[]>>
+  /** Each sport's output at one heart rate, week by week over the period. */
+  sameHeartRate: SameHeartRateBySport
   /**
    * The best run and ride curves of the period before the selected one, of the same length. Null for
    * all time, or when that period has no activities.

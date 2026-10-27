@@ -214,3 +214,25 @@ export const RACE_LOG_SD: Record<(typeof RUN_RACE_DISTANCES_M)[number], number> 
 }
 /** The share of outcomes the range shows: from the 10th to the 90th percentile. */
 export const RACE_RANGE_Z = 1.2816
+
+/**
+ * Output at the same heart rate (docs/research/same-heart-rate.md). Each week fits output on heart
+ * rate over the blocks of the trailing windowDays, and reports it at a reference heart rate kept for
+ * the whole period. A week reports only with at least minBlocks blocks from minActivities activities
+ * in minWeeks different weeks, and heart rate spread of at least minSpreadBpm (standard deviation).
+ * At most maxBlocks blocks enter a fit, and at most maxWeeks weeks are reported. The interval is the
+ * middle intervalLevel of `draws` resamples of the activities, seeded with `seed`.
+ */
+export const SAME_HEART_RATE = {
+  windowDays: 28,
+  minBlocks: 8,
+  minActivities: 4,
+  minWeeks: 2,
+  minSpreadBpm: 5,
+  maxBlocks: 48,
+  maxWeeks: 52,
+  referenceStepBpm: 5,
+  draws: 200,
+  seed: 1,
+  intervalLevel: 0.9,
+} as const

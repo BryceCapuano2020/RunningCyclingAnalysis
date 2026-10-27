@@ -1,6 +1,8 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
 import { combine, sportCurves } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
+import { sameHeartRate } from './digest/sameHeartRate'
+import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import { fitnessTrend } from './digest/trend'
 import type { TrendPoint } from './digest/trend'
 import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
@@ -261,6 +263,13 @@ export class PeriodCache {
   >()
   private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
     null
+  // Output at the same heart rate reads no mass, so its key is the digests, the period's start and the set-aside.
+  private sameEntry: {
+    selected: ActivityDigest[]
+    fromMs: number | null
+    setAside: string
+    result: SameHeartRateBySport
+  } | null = null
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
   private analysisEntries: (Inputs & { analysis: AnalysisResult })[] = []
@@ -352,6 +361,31 @@ export class PeriodCache {
       points,
     })
     return points
+  }
+
+  /**
+   * Each sport's output at the same heart rate over the selected period, reused while the digests, the
+   * period's start and the activities set aside are the same. Masses do not enter, so a change of
+   * weight does not redo it.
+   */
+  sameHeartRate(
+    selected: ActivityDigest[],
+    fromMs: number | null,
+    setAside: readonly string[],
+  ): SameHeartRateBySport {
+    const key = setAside.join(',')
+    const cached = this.sameEntry
+    if (
+      cached !== null &&
+      cached.fromMs === fromMs &&
+      cached.setAside === key &&
+      sameDigests(cached.selected, selected)
+    ) {
+      return cached.result
+    }
+    const result = sameHeartRate(selected, new Set(setAside), { fromMs: fromMs ?? undefined })
+    this.sameEntry = { selected, fromMs, setAside: key, result }
+    return result
   }
 
   /** The curves of the period before, priced with the selected period's bike model. */

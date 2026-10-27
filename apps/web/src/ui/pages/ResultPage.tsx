@@ -153,6 +153,7 @@ export function ResultPage({
           previousLabel={previousPeriodLabel(period.days)}
           trends={analysis.state.effortTrends}
           windowDays={trendWindowDays(period.days)}
+          sameHeartRate={analysis.state.sameHeartRate[route.page]}
           units={units}
           massKg={athleteSettings.massKg}
           weighted={weightKnown}

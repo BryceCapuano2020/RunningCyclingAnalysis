@@ -34,6 +34,35 @@ describe('sportYAxis', () => {
   })
 })
 
+describe('sportYAxis for watts', () => {
+  it('starts at zero by default, for an area to fill', () => {
+    const { ticks } = sportYAxis('ride', [196, 214], PLOT)
+    expect(ticks[0]?.label).toBe('0')
+  })
+
+  it('stays near the values when it is tight, so a 5% change can be seen', () => {
+    const { ticks } = sportYAxis('ride', [196, 214], PLOT, true)
+    expect(Number(ticks[0]?.label)).toBeGreaterThan(150)
+    expect(Number(ticks.at(-1)?.label)).toBeLessThan(260)
+  })
+})
+
+describe('sportYAxis for pace', () => {
+  it('spans two minutes at least by default, and a minute when it is tight', () => {
+    const span = (tight: boolean) => {
+      const { ticks } = sportYAxis('run', [320, 327], PLOT, tight)
+      const seconds = ticks.map((tick) => {
+        const [m, s] = tick.label.split(':').map(Number)
+        return m! * 60 + s!
+      })
+      return Math.max(...seconds) - Math.min(...seconds)
+    }
+    expect(span(false)).toBeGreaterThanOrEqual(120)
+    expect(span(true)).toBeLessThan(90)
+    expect(span(true)).toBeGreaterThanOrEqual(60)
+  })
+})
+
 describe('plottedValue, nativeLabel and axisTitle', () => {
   it('plots running as seconds per unit and cycling as watts', () => {
     expect(plottedValue('run', 4, 'metric')).toBe(250)

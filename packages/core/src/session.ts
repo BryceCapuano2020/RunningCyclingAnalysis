@@ -12,6 +12,7 @@ import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } f
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
+import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
 import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
@@ -361,23 +362,23 @@ export class AnalysisSession {
       athlete !== null && visible.length > 0 ? this.periods.analysis(selected, athlete) : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
+    // All time is not clipped at a start, so its trend begins at the first activity.
+    const fromMs = period.days === null ? null : period.startMs
+    // The sample is graded as its own athlete, so its rides carry their equivalents too.
+    const hr = this.gradeTrend || this.isSample ? analysis?.hr : undefined
     const efforts =
       athlete === null
         ? NO_TRENDS
-        : this.periods.trends(
-            selected,
-            athlete,
-            period.days,
-            // All time is not clipped at a start, so its trend begins at the first activity.
-            period.days === null ? null : period.startMs,
-            bikeModel,
-            // The sample is graded as its own athlete, so its rides carry their equivalents too.
-            this.gradeTrend || this.isSample ? analysis?.hr : undefined,
-          )
+        : this.periods.trends(selected, athlete, period.days, fromMs, bikeModel, hr)
+    const sameHeartRate =
+      analysis === null
+        ? NO_SAME_HEART_RATE
+        : this.periods.sameHeartRate(selected, fromMs, analysis.heartRateSetAside)
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],
       effortTrends: efforts,
+      sameHeartRate,
       previous:
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
