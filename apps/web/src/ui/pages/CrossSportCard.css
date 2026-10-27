@@ -19,12 +19,8 @@
   margin: 0;
 }
 
-.cross-sport__pair .icon:first-child {
-  color: var(--series-ride);
-}
-
-.cross-sport__pair .icon:last-child {
-  color: var(--series-run);
+.cross-sport__pair .icon {
+  color: var(--sport-colour);
 }
 
 /* The link to the activity is an inline source link, at the body size like the others. */

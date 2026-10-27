@@ -28,10 +28,11 @@
 
 /*
  * Only watts are filled. Pace has no zero to fill down to: its baseline is the slowest pace on the
- * axis, so a run's area would show the axis rather than the effort, and no run area is drawn.
+ * axis, so a run's area would show the axis rather than the effort, and no run area is drawn. The
+ * area names its sport on data-sport, so it reads that sport's soft colour.
  */
 .chart-series__area--ride {
-  fill: var(--series-ride-soft);
+  fill: var(--sport-colour-soft);
 }
 
 /*

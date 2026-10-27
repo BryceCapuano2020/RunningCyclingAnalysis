@@ -75,10 +75,10 @@ export function coveredText(metres: number, durationS: number, units: UnitSystem
   return `${formatDistance(metres, units)} in ${effortLabel(durationS)}`
 }
 
-type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
+export type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
 
 /** A running value (gross metabolic W/kg) as the flat pace with the same cost. */
-function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
+export function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
   const speed = metabolicToFlatSpeed(metabolicWkg)
   return {
     value: formatPace(speed, units),
@@ -93,7 +93,7 @@ export function runPace(metabolicWkg: number, units: UnitSystem): string {
 }
 
 /** A cycling value as mechanical watts. */
-function powerFigure(watts: number): Figure {
+export function powerFigure(watts: number): Figure {
   return { value: formatPower(watts), number: formatWatts(watts), unit: 'W' }
 }
 
@@ -232,6 +232,27 @@ export function headlineEffort(sport: Sport, records: readonly SportRecord[]): s
 
 export function countSport(activities: ActivitySummary[], sport: Sport): number {
   return activities.filter((activity) => activity.sport === sport).length
+}
+
+/**
+ * The activities of a sport the answer can rest on: those as long as the headline effort or longer, since
+ * the pick reads a best effort of that length.
+ */
+export function countEfforts(activities: ActivitySummary[], sport: Sport): number {
+  return activities.filter(
+    (activity) => activity.sport === sport && activity.durationS >= HEADLINE_DURATION_S,
+  ).length
+}
+
+/** The start of a sport's latest activity of any length, or null when the library holds none of it. */
+export function latestStartOf(activities: ActivitySummary[], sport: Sport): number | null {
+  let latest: number | null = null
+  for (const activity of activities) {
+    if (activity.sport === sport && (latest === null || activity.startMs > latest)) {
+      latest = activity.startMs
+    }
+  }
+  return latest
 }
 
 /**

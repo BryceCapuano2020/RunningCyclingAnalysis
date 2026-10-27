@@ -186,7 +186,7 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
 export function LevelLadder({ sport, grade, showKey = true }: LevelLadderProps) {
   const current = currentBands(grade)
   return (
-    <figure className={`scale-figure level-ladder level-ladder--${sport}`}>
+    <figure className={`scale-figure level-ladder level-ladder--${sport}`} data-sport={sport}>
       <div className="level-ladder__scale" aria-hidden="true">
         {SCALE_TICKS.map((tick, index) => (
           <span

@@ -45,6 +45,7 @@ function renderChart(overrides: Partial<SharedTrendChartProps> = {}) {
     measure: 'grade',
     windowDays: TWO_WEEKS,
     effortS: TWENTY_MINUTES_S,
+    latestStartMs: { run: null, ride: null },
     ...overrides,
   }
   return render(<SharedTrendChart {...props} />)
@@ -159,6 +160,7 @@ describe('SharedTrendChart', () => {
         measure="grade"
         windowDays={TWO_WEEKS}
         effortS={TWENTY_MINUTES_S}
+        latestStartMs={{ run: null, ride: null }}
       />,
     )
     expect(screen.getByText('Run 66%')).toBeInTheDocument()
@@ -410,20 +412,62 @@ describe('SharedTrendChart', () => {
     expect(screen.getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
   })
 
-  it('explains a low point as a window of easy efforts, in one sentence under the chart', () => {
+  it('explains a low point as one where even the best effort was easy, in one sentence under the chart', () => {
     renderChart()
     expect(
       screen.getByText(
-        'Each point is the best 20 min in the 2 weeks to that Sunday. A low point is a window of easy efforts, not an average.',
+        'Each point is the best 20 min in the 2 weeks to that Sunday. A low point means even the best effort in those weeks was easy.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/easy runs/)).toBeNull()
   })
 
+  it('dates a line that stops before the window does by its latest run, in the note under the chart', () => {
+    const runStops = [week(0, 0.6, 0.52), week(1, 0.62, 0.5), week(2, 0.64, 0.54)]
+    const rideLasts = [week(3, null, 0.56), week(4, null, 0.57), week(5, null, 0.58)]
+    const { container } = renderChart({
+      weeks: [...runStops, ...rideLasts],
+      latestStartMs: { run: new Date(2025, 0, 20, 12).getTime(), ride: null },
+    })
+    const note = container.querySelector('.chart-frame__note')
+    expect(note?.textContent).toMatch(
+      /A low point means even the best effort in those weeks was easy\. No runs since 20 Jan/,
+    )
+    expect(note?.textContent).not.toMatch(/26 Jan/)
+    expect(screen.queryByText(/No rides since/)).toBeNull()
+  })
+
+  it('dates the note by a short run that is the latest, though it gives the trend no value', () => {
+    const runStops = [week(0, 0.6, 0.52), week(1, 0.62, 0.5), week(2, 0.64, 0.54)]
+    const rideLasts = [week(3, null, 0.56), week(4, null, 0.57), week(5, null, 0.58)]
+    const { container } = renderChart({
+      weeks: [...runStops, ...rideLasts],
+      latestStartMs: { run: new Date(2025, 0, 29, 12).getTime(), ride: null },
+    })
+    expect(container.querySelector('.chart-frame__note')?.textContent).toMatch(
+      /No runs since 29 Jan/,
+    )
+  })
+
+  it('adds no dated note when the latest run falls in the last week, which the line would show', () => {
+    const runStops = [week(0, 0.6, 0.52), week(1, 0.62, 0.5), week(2, 0.64, 0.54)]
+    const rideLasts = [week(3, null, 0.56), week(4, null, 0.57), week(5, null, 0.58)]
+    const { container } = renderChart({
+      weeks: [...runStops, ...rideLasts],
+      latestStartMs: { run: new Date(2025, 1, 12, 12).getTime(), ride: null },
+    })
+    expect(container.textContent).not.toMatch(/No runs since/)
+  })
+
+  it('adds no dated note while both lines reach the last week', () => {
+    const { container } = renderChart()
+    expect(container.textContent).not.toMatch(/since \d/)
+  })
+
   it('explains a low energy point the same way, in the energy measure', () => {
     renderChart({ measure: 'energy', weeks: [week(0, 4, 3, false), week(1, 4.2, 3.1, false)] })
     expect(
-      screen.getByText(/A low point is a window of easy efforts, not an average\./),
+      screen.getByText(/A low point means even the best effort in those weeks was easy\./),
     ).toBeInTheDocument()
   })
 

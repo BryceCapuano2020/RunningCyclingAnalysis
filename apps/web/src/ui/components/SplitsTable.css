@@ -42,7 +42,7 @@
   display: block;
   height: 100%;
   border-radius: 3px;
-  background: var(--series-run);
+  background: var(--sport-colour);
 }
 
 .splits-list {

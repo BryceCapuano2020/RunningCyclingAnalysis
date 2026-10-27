@@ -15,9 +15,18 @@ import { readCsvRows } from './csv'
 
 /**
  * The most a Strava activity list may hold once inflated. A list of tens of thousands of activities
- * is a few megabytes, so this is generous, and it bounds the memory a list can take.
+ * is a few megabytes, so this is generous. It bounds the text a list inflates to, but not the cells
+ * a parser builds from that text: a row of commas is a cell per byte, and MAX_CSV_CELLS_PER_ROW
+ * bounds those.
  */
 export const MAX_ACTIVITY_LIST_BYTES = 32 * 1024 * 1024
+
+/**
+ * The most cells one row of a Strava activity list may hold. A Strava export has about 80 to 90
+ * columns, so 64 would refuse real exports; this leaves room for more. A row past the cap makes the
+ * list malformed, so every file is read.
+ */
+export const MAX_CSV_CELLS_PER_ROW = 256
 
 const LIST_NAME = 'activities.csv'
 /**
@@ -70,7 +79,10 @@ export interface ListedFiles {
  * their case. The list is read a row at a time, keeping only the three columns it needs, and at most
  * `maxRows` rows. The first row for a file that appears twice is kept. A row with no file is skipped,
  * but a row with no name is kept, because its type still says what the file is. Only the Filename column
- * is needed. Null when the list is malformed, which is a quoted field left open at the end.
+ * is needed. Null when the list is malformed: a quoted field left open at the end, or a row past
+ * MAX_CSV_CELLS_PER_ROW cells. A row past `maxRows` is still parsed to its end before the row cap
+ * stops the read, so a row past the cap that is also too wide makes the whole list malformed, not
+ * one cut at the cap. The import then reads every file without the list's names. That is accepted.
  */
 export function parseActivityList(
   text: string,
@@ -84,7 +96,7 @@ export function parseActivityList(
   let header = true
   let rows = 0
   let complete = true
-  const wellFormed = readCsvRows(text, (cells) => {
+  const wellFormed = readCsvRows(text, MAX_CSV_CELLS_PER_ROW, (cells) => {
     if (header) {
       header = false
       const columns = cells.map((cell) => cell.trim().toLowerCase())

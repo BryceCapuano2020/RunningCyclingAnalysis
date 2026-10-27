@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { readCsvRows } from './csv'
 
-/** The rows of some text, and whether the text read as well formed. */
-function rowsOf(text: string): { rows: string[][]; wellFormed: boolean } {
+/** A cell cap small enough to write a row past it by hand. */
+const CAP = 3
+
+/** The rows of some text, and whether the text read as well formed. The default cap is no cap. */
+function rowsOf(
+  text: string,
+  maxCells = Number.POSITIVE_INFINITY,
+): { rows: string[][]; wellFormed: boolean } {
   const rows: string[][] = []
-  const wellFormed = readCsvRows(text, (fields) => {
+  const wellFormed = readCsvRows(text, maxCells, (fields) => {
     rows.push(fields)
     return true
   })
@@ -63,11 +69,42 @@ describe('readCsvRows', () => {
 
   it('stops when the row callback says so, and that is not a failure', () => {
     let seen = 0
-    const wellFormed = readCsvRows('a\nb\nc\n', () => {
+    const wellFormed = readCsvRows('a\nb\nc\n', Number.POSITIVE_INFINITY, () => {
       seen++
       return seen < 2
     })
     expect(seen).toBe(2)
     expect(wellFormed).toBe(true)
+  })
+
+  it('keeps a row of exactly the cap, including one that ends the text', () => {
+    expect(rowsOf('a,b,c\n1,2,3', CAP)).toEqual({
+      rows: [
+        ['a', 'b', 'c'],
+        ['1', '2', '3'],
+      ],
+      wellFormed: true,
+    })
+  })
+
+  it('reports a row with more cells than the cap as not well formed, and does not deliver it', () => {
+    expect(rowsOf('a,b,c\n1,2,3,4\n5,6,7\n', CAP)).toEqual({
+      rows: [['a', 'b', 'c']],
+      wellFormed: false,
+    })
+  })
+
+  it('reports a last row one cell past the cap as not well formed when it has no line break', () => {
+    expect(rowsOf('a,b,c,d', CAP)).toEqual({ rows: [], wellFormed: false })
+  })
+
+  it('stops at the cap on a 32 MiB row of commas, so it never reads the rest of the row', () => {
+    let seen = 0
+    const wellFormed = readCsvRows(','.repeat(32 * 1024 * 1024), CAP, () => {
+      seen++
+      return true
+    })
+    expect(wellFormed).toBe(false)
+    expect(seen).toBe(0)
   })
 })

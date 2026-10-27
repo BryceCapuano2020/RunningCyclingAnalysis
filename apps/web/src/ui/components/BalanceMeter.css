@@ -130,12 +130,8 @@
 }
 
 /* The sport colour marks the glyph only; the label stays in ink. */
-.balance-meter__end[data-sport='run'] .balance-meter__glyph {
-  color: var(--series-run);
-}
-
-.balance-meter__end[data-sport='ride'] .balance-meter__glyph {
-  color: var(--series-ride);
+.balance-meter__glyph {
+  color: var(--sport-colour);
 }
 
 .balance-meter__glyph {

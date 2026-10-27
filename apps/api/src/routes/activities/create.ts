@@ -10,7 +10,7 @@ import {
   MAX_DIGEST_BYTES,
 } from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
-import { HttpError } from '../../errors.ts'
+import { accountDeleting, HttpError } from '../../errors.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { invalidRequest, limitBody, readBody } from '../../http.ts'
 import { chargeDaily } from '../../budget.ts'
@@ -102,9 +102,7 @@ async function reserveDigestDelta(db: D1Database, userId: string, delta: number)
     .first()
   if (reserved) return
   const state = await accountState(db, userId)
-  if (state.deletingAt !== null) {
-    throw new HttpError(409, 'account_deleting', 'This account is being deleted')
-  }
+  if (state.deletingAt !== null) throw accountDeleting()
   if (delta > 0 && state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
     throw databaseFull()
   }

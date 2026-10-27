@@ -7,7 +7,7 @@ import {
   unitsForAcceptLanguage,
 } from '@rca/contract'
 import type { AppEnv, Db } from '../../env.ts'
-import { apiError, HttpError } from '../../errors.ts'
+import { accountDeleting, apiError, HttpError } from '../../errors.ts'
 import { ensureProfile } from '../../auth/accounts.ts'
 import { currentUser, requireUser } from '../../middleware.ts'
 import { declaredLength, readExactBody } from '../../http.ts'
@@ -156,7 +156,7 @@ async function reserveStorage(
   )
     .bind(userId)
     .first()
-  if (deleting) throw new HttpError(409, 'account_deleting', 'This account is being deleted')
+  if (deleting) throw accountDeleting()
   throw new HttpError(403, 'storage_quota', 'Storing this file would exceed your storage limit')
 }
 

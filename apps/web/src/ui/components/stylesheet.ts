@@ -26,6 +26,21 @@ export function ruleBody(css: string, selector: string): string {
   return [...css.matchAll(pattern)].map((match) => match[1] ?? '').join('\n')
 }
 
+/**
+ * The text of the @media block with this query, from its opening line to its closing brace, or '' when
+ * there is none. Any run of whitespace in the query matches any run of whitespace, so a query that a
+ * stylesheet wraps over two lines is still found.
+ */
+export function mediaBlock(css: string, query: string): string {
+  const pattern = query
+    .split(/\s+/)
+    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+')
+  const match = new RegExp(`@media\\s+${pattern}\\s*\\{`).exec(css)
+  if (match === null) return ''
+  return css.slice(match.index, css.indexOf('\n}', match.index))
+}
+
 /** Every stylesheet under a directory, as its path and its source, for a test that sweeps them. */
 export async function readStylesheetsUnder(
   testUrl: string,

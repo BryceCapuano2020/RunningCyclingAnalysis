@@ -38,10 +38,16 @@ describe('SPORT_GLYPHS', () => {
     ])
   })
 
-  it('writes the ride glyph as the icon always drew it: two wheels and a frame', () => {
+  it('draws the ride glyph at a 1.5 stroke, lighter than the runner at 2, so the two match in weight', () => {
+    expect(SPORT_GLYPHS.run.strokeWidth).toBe(2)
+    expect(SPORT_GLYPHS.ride.strokeWidth).toBe(1.5)
+  })
+
+  // The wheels were 3.8 on the grid. At 3.8 the ride carried 1.65 times the runner's ink at header size.
+  it('writes the ride glyph as two wheels of radius 3 and a frame', () => {
     expect(SPORT_GLYPHS.ride.dots).toEqual([
-      { cx: 5.5, cy: 16.5, r: 3.8, filled: false },
-      { cx: 18.5, cy: 16.5, r: 3.8, filled: false },
+      { cx: 5.5, cy: 16.5, r: 3, filled: false },
+      { cx: 18.5, cy: 16.5, r: 3, filled: false },
     ])
     expect(SPORT_GLYPHS.ride.paths.map(pathData)).toEqual([
       'M5.5 16.5L9.5 9.5L16.5 9.5L18.5 16.5',

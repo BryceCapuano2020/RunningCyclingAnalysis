@@ -6,7 +6,7 @@ import { LABEL_REM } from '../ui/charts/rootFont'
 
 const tokensCss = await readStylesheet(import.meta.url, './tokens.css')
 const designMd = await readStylesheet(import.meta.url, '../../../../docs/DESIGN.md')
-const privacyCss = await readStylesheet(import.meta.url, '../../public/privacy.css')
+const privacyCss = await readStylesheet(import.meta.url, './privacy.css')
 const ladderCss = await readStylesheet(import.meta.url, '../ui/components/LevelLadder.css')
 
 /** The Colour section of docs/DESIGN.md, up to the Type section. */
@@ -116,6 +116,8 @@ const PRIVACY_TOKENS: Record<string, string> = {
 /** The privacy page's sizes, which no theme changes, mapped to the tokens they copy. */
 const PRIVACY_SIZES: Record<string, string> = {
   'control-height': 'control-height',
+  'text-sm': 'text-sm',
+  'text-md': 'text-md',
   'text-lead': 'text-lead',
 }
 
@@ -284,12 +286,9 @@ describe('level ladder stylesheet', () => {
     )
   })
 
-  it('draws each sport’s marker in the sport colour', () => {
-    expect(declarations(ladderCss, '.level-ladder--run').get('--ladder-colour')).toBe(
-      'var(--series-run)',
-    )
-    expect(declarations(ladderCss, '.level-ladder--ride').get('--ladder-colour')).toBe(
-      'var(--series-ride)',
+  it('draws each sport’s marker in the sport colour its figure carries, not a colour of its own', () => {
+    expect(declarations(ladderCss, '.level-ladder').get('--ladder-colour')).toBe(
+      'var(--sport-colour)',
     )
   })
 

@@ -6,6 +6,7 @@ import {
   entryKey,
   listedOnly,
   MAX_ACTIVITY_LIST_BYTES,
+  MAX_CSV_CELLS_PER_ROW,
   parseActivityList,
   readActivityList,
 } from './activitiesCsv'
@@ -19,6 +20,17 @@ const LIST = [
   '1003,"May 4, 2025, 7:00:00 AM",Manual entry,Run,600,,',
   '',
 ].join('\r\n')
+
+/**
+ * A list of `cells` cells in its header and in its one row: a name, filler columns, and the
+ * Filename column last, which names activities/1.fit.
+ */
+function wideList(cells: number): string {
+  const fillers = Array.from({ length: cells - 2 }, (_, i) => `Column ${i}`)
+  const header = ['Activity Name', ...fillers, 'Filename'].join(',')
+  const row = ['Morning Run', ...fillers.map(() => '1'), 'activities/1.fit'].join(',')
+  return `${header}\n${row}\n`
+}
 
 function fileOf(name: string, bytes: Uint8Array): File {
   return new File([new Uint8Array(bytes)], name)
@@ -144,6 +156,18 @@ describe('parseActivityList', () => {
     expect(parseActivityList('Activity Name,Filename\nRun,"activities/1.fit\n')).toBeNull()
   })
 
+  it('reads a list whose rows have exactly the cell cap', () => {
+    expect(nameOf(filesOf(wideList(MAX_CSV_CELLS_PER_ROW)), 'activities/1.fit')).toBe('Morning Run')
+  })
+
+  it('returns null for a list whose header has one cell past the cap, which is malformed', () => {
+    expect(parseActivityList(wideList(MAX_CSV_CELLS_PER_ROW + 1))).toBeNull()
+  })
+
+  it('returns null for a 32 MiB header of commas, the crafted list that the cell cap stops', () => {
+    expect(parseActivityList(','.repeat(MAX_ACTIVITY_LIST_BYTES))).toBeNull()
+  })
+
   it('stops at the row cap, so it never reads the rows past it', () => {
     // The last row is malformed, and a list that reads to its end would refuse the whole list.
     const rows = Array.from({ length: 1_000_000 }, (_, i) => `Run ${i},activities/${i}.fit`)
@@ -158,6 +182,18 @@ describe('parseActivityList', () => {
 
   it('honours a row cap given by the caller', () => {
     expect(filesOf(LIST, '', 1).size).toBe(1)
+  })
+
+  it('makes the whole list malformed when a row past the row cap is also too wide', () => {
+    const wide = ['Run', ...Array(MAX_CSV_CELLS_PER_ROW).fill('1'), 'activities/2.fit'].join(',')
+    const narrow = 'Run,activities/2.fit'
+    expect(
+      parseActivityList(`Activity Name,Filename\nRun,activities/1.fit\n${narrow}\n`, '', 1)
+        ?.complete,
+    ).toBe(false)
+    expect(
+      parseActivityList(`Activity Name,Filename\nRun,activities/1.fit\n${wide}\n`, '', 1),
+    ).toBeNull()
   })
 
   it('says whether it read the list to its end, which a list cut at the row cap did not', () => {
@@ -392,6 +428,16 @@ describe('countImportFiles', () => {
     const zip = zipSync({ 'activities/1.fit': FIT, 'routes/1.gpx': strToU8('gpx') })
 
     expect(await countImportFiles([fileOf('export.zip', zip), fileOf('ride.fit', FIT)])).toBe(3)
+  })
+
+  it('reads every file when a row of the list is past the cell cap, since the list is malformed', async () => {
+    const zip = zipSync({
+      'activities/1.fit': FIT,
+      'routes/1.gpx': strToU8('gpx'),
+      'activities.csv': strToU8(wideList(MAX_CSV_CELLS_PER_ROW + 1)),
+    })
+
+    expect(await countImportFiles([fileOf('export.zip', zip)])).toBe(2)
   })
 
   it('is unknown when any source cannot be counted from its directory', async () => {

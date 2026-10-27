@@ -284,6 +284,7 @@ export function SportCurveChart({
             {fillsArea(sport) ? (
               <path
                 className={`chart-series__area chart-series__area--${sport}`}
+                data-sport={sport}
                 d={areaPath(m.points, size.plot.bottom)}
               />
             ) : null}

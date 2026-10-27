@@ -64,7 +64,11 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
   const effort = headlineEffort(sport, records)
 
   return (
-    <section className={`card sport-card sport-card--${sport}`} aria-labelledby={headingId}>
+    <section
+      className={`card sport-card sport-card--${sport}`}
+      data-sport={sport}
+      aria-labelledby={headingId}
+    >
       <h2 id={headingId} className="sport-card__name">
         <SportIcon sport={sport} />
         {SPORT_LABEL[sport]}

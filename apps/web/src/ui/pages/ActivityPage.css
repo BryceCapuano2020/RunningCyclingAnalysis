@@ -14,12 +14,8 @@
   margin: 0;
 }
 
-.activity-page__icon--run {
-  color: var(--series-run);
-}
-
-.activity-page__icon--ride {
-  color: var(--series-ride);
+.activity-page__icon {
+  color: var(--sport-colour);
 }
 
 /* A long name wraps inside the page at any character, as a single token would otherwise widen it. */

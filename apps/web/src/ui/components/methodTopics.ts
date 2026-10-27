@@ -95,7 +95,7 @@ const TOPIC_LIST = [
       'The model assumes heart rate responds to energy rate in a similar way in both sports, so ' +
       'differences in the fitted slopes can adjust the energy estimates. That is not an ' +
       'independent measure of efficiency. Each sport’s best efforts are judged against a ' +
-      'reference maximum: its highest sustained heart rate, in beats per minute (bpm). Running ' +
+      'reference maximum, in beats per minute (bpm), set from the highest sustained heart rates on file. Running ' +
       'uses the higher of its own maximum and the cycling maximum. Cycling uses the higher of its ' +
       `own maximum and ${RIDE_MAX_OFFSET_BPM} bpm below the running maximum, because a cycling ` +
       'maximum usually runs 5 to 7 bpm lower.',

@@ -24,7 +24,7 @@ describe('EvidenceCard evidence gap', () => {
     expect(within(card).getByText('Could be higher')).toBeInTheDocument()
     expect(
       within(card).getByText(
-        'Your best 20 min on the bike reached 80% of your cycling reference heart rate, so it was probably not your hardest.',
+        'Your best 20 min on the bike reached 80% of your cycling reference heart rate (set from your highest heart rates on file), so it was probably not your hardest.',
       ),
     ).toBeInTheDocument()
   })
@@ -35,7 +35,7 @@ describe('EvidenceCard evidence gap', () => {
     const card = screen.getByRole('region', { name: 'Your run number could be higher' })
     expect(
       within(card).getByText(
-        'Your best 20 min running reached 70% of your running reference heart rate, so it was probably not your hardest.',
+        'Your best 20 min running reached 70% of your running reference heart rate (set from your highest heart rates on file), so it was probably not your hardest.',
       ),
     ).toBeInTheDocument()
   })
@@ -46,7 +46,7 @@ describe('EvidenceCard evidence gap', () => {
     const card = screen.getByRole('region', { name: 'Both numbers could be higher' })
     expect(
       within(card).getByText(
-        'Your best 20 min reached 70% of your running reference heart rate and 80% of your cycling one, so neither was probably your hardest.',
+        'Your best 20 min reached 70% of your running reference heart rate and 80% of your cycling one (both set from your highest heart rates on file), so neither was probably your hardest.',
       ),
     ).toBeInTheDocument()
   })

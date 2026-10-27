@@ -116,9 +116,11 @@ describe('what a new create costs', () => {
 describe('a create that the account cannot hold', () => {
   async function refusedCreate(
     prepare: (h: Harness, uid: string) => Promise<void>,
+    race?: { match: RegExp; before: () => Promise<void> },
   ): Promise<{ res: Response; writes: string[]; h: Harness; uid: string }> {
     const counted = countingDb(testEnv().DB)
-    const h = createHarness({}, { DB: counted.db })
+    const db = race ? racingDb(counted.db, race.match, race.before) : counted.db
+    const h = createHarness({}, { DB: db })
     const token = await h.signIn()
     const uid = await userId(h, token)
     await prepare(h, uid)
@@ -192,6 +194,22 @@ describe('a create that the account cannot hold', () => {
     expect(writes).toEqual([])
     expect(await dailyUsed(h, uid)).toBe(DAILY_LIMITS.activityCreate)
   })
+
+  it('answers 409 account_deleting, and writes nothing, when a deletion starts before the pre-check', async () => {
+    // The deletion lands on the account read that opens the create, before the refusal check. It runs
+    // on the raw binding, so the write it makes is not counted as the create's.
+    const { res, writes, h, uid } = await refusedCreate(async () => {}, {
+      match: /^SELECT deleting_at/,
+      before: async () => {
+        await testEnv().DB.prepare('UPDATE users SET deleting_at = ?').bind(START).run()
+      },
+    })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ error: { code: 'account_deleting' } })
+    expect(writes).toEqual([])
+    expect(await dailyUsed(h, uid)).toBe(0)
+    expect(await activityRows(h)).toBe(0)
+  })
 })
 
 describe('a create that loses a race after its checks passed', () => {
@@ -210,6 +228,24 @@ describe('a create that loses a race after its checks passed', () => {
 
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: { code: 'activity_quota' } })
+    expect(await dailyUsed(h, uid)).toBe(0)
+    expect(await activityRows(h)).toBe(0)
+  })
+
+  it('answers 409 account_deleting, not a quota, when the account starts deleting after its checks passed', async () => {
+    // A deletion that starts after the session check and the create's checks, before its insert.
+    let h: Harness | undefined
+    const racing = racingDb(testEnv().DB, /^INSERT INTO daily_budget/, async () => {
+      await h?.env.DB.prepare('UPDATE users SET deleting_at = ?').bind(START).run()
+    })
+    h = createHarness({}, { DB: racing })
+    const token = await h.signIn()
+    const uid = await userId(h, token)
+
+    const res = await post(h, token)
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ error: { code: 'account_deleting' } })
     expect(await dailyUsed(h, uid)).toBe(0)
     expect(await activityRows(h)).toBe(0)
   })

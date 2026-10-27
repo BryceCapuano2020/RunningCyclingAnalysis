@@ -214,6 +214,8 @@ describe('TrendChart', () => {
       />,
     )
     const area = container.querySelector('.chart-series__area--ride')
+    // The area takes its colour from --sport-colour-soft, which data-sport sets for the ride.
+    expect(area).toHaveAttribute('data-sport', 'ride')
     expect(area?.getAttribute('d')).toMatch(/Z/)
   })
 

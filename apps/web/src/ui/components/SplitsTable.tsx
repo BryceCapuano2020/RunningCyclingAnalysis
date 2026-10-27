@@ -49,7 +49,7 @@ function PaceBar({ percent }: { percent: number | null }) {
   if (percent === null) return null
   return (
     <span className="splits-table__track" aria-hidden="true">
-      <span className="splits-table__bar" style={{ width: `${percent}%` }} />
+      <span className="splits-table__bar" data-sport="run" style={{ width: `${percent}%` }} />
     </span>
   )
 }

@@ -10,8 +10,9 @@ import { readStylesheet, ruleBody } from './ui/components/stylesheet'
  * strings, numbers, field names and labels. They do not run the app and they do not check layout.
  * A change to one of those source strings fails here until the page is updated to match.
  */
-const page = await readStylesheet(import.meta.url, '../public/privacy.html')
-const privacyCss = await readStylesheet(import.meta.url, '../public/privacy.css')
+const page = await readStylesheet(import.meta.url, '../privacy.html')
+const privacyCss = await readStylesheet(import.meta.url, './styles/privacy.css')
+const mainSource = await readStylesheet(import.meta.url, './main.tsx')
 const tokensCss = await readStylesheet(import.meta.url, './styles/tokens.css')
 const icons = await readStylesheet(import.meta.url, './ui/components/icons.tsx')
 const app = await readStylesheet(import.meta.url, './App.tsx')
@@ -127,6 +128,23 @@ describe('privacy page type matches the app', () => {
     expect(lead).toBeDefined()
     expect(privacyCss).toContain(`--text-lead: ${lead};`)
     expect(privacyCss).not.toMatch(/font-size: 1\.(125|0625)rem/)
+  })
+})
+
+describe('privacy page loads the app fonts, from the same packages', () => {
+  it('imports the faces main.tsx imports, so Barlow is bundled and not left to the system', () => {
+    const appFaces = [...mainSource.matchAll(/^import '(@fontsource\/[^']+)'/gm)].map(
+      ([, face]) => face,
+    )
+    const pageFaces = [...privacyCss.matchAll(/^@import '(@fontsource\/[^']+)';/gm)].map(
+      ([, face]) => face,
+    )
+    expect(appFaces).toHaveLength(5)
+    expect(pageFaces).toEqual(appFaces)
+  })
+
+  it('links its stylesheet from the page, so the build bundles the faces it imports', () => {
+    expect(page).toContain('<link rel="stylesheet" href="./src/styles/privacy.css" />')
   })
 })
 
