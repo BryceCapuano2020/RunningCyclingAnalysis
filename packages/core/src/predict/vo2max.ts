@@ -1,6 +1,7 @@
 import { VO2MAX_MIN_HR_SHARE, VO2MAX_MIN_RUNS, VO2MAX_MIN_WINDOW_S } from '../constants'
 import { quantile } from '../math'
 import { metabolicToFlatSpeed } from '../metabolic'
+import { METRES_PER_MILE } from '../units'
 import type { ActivityDigest, DigestCurvePoint, Sport } from '../types'
 import { oxygenCost } from './daniels'
 
@@ -11,7 +12,12 @@ const PACED: Record<Sport, boolean> = { run: true, ride: false }
 export interface Vo2maxEstimate {
   vo2max: number
   runs: number
+  /** Runs left out because their flat-equivalent pace beat the fastest mile as run: see hillCapped. */
+  hillCapped: number
 }
+
+/** A run's estimate, or that its window was left out by the hill cap. */
+type RunEstimate = { vo2max: number } | { capped: true }
 
 /**
  * Swain et al. (1994): percent of maximum heart rate = 0.64 x percent of VO2max + 37, so a window's share
@@ -30,8 +36,9 @@ function runEstimate(
   digest: ActivityDigest,
   referenceHr: number,
   metabolicOf: (point: DigestCurvePoint) => number,
-): number | null {
-  let chosen: { durationS: number; vo2max: number } | null = null
+  speedCap: number,
+): RunEstimate | null {
+  let chosen: { durationS: number; estimate: RunEstimate } | null = null
   for (const point of digest.curve) {
     if (point.durationS < VO2MAX_MIN_WINDOW_S || point.startIndex < 0) continue
     if (point.heartRate === null) continue
@@ -39,29 +46,54 @@ function runEstimate(
     if (share < VO2MAX_MIN_HR_SHARE) continue
     const speed = metabolicToFlatSpeed(metabolicOf(point))
     if (!(speed > 0)) continue
-    const vo2max = oxygenCost(speed * 60) / vo2maxShare(Math.min(share, 1))
+    // A window of 10 min or more cannot be faster on the flat than the runner's fastest mile as run:
+    // when its flat-equivalent pace is, the grade model has inflated it on hills, so it is left out.
+    const estimate: RunEstimate =
+      speed > speedCap
+        ? { capped: true }
+        : { vo2max: oxygenCost(speed * 60) / vo2maxShare(Math.min(share, 1)) }
     if (chosen === null || point.durationS > chosen.durationS) {
-      chosen = { durationS: point.durationS, vo2max }
+      chosen = { durationS: point.durationS, estimate }
     }
   }
-  return chosen?.vo2max ?? null
+  return chosen?.estimate ?? null
+}
+
+/** The speed of the fastest mile as run, m/s, in the digests; Infinity without one, so nothing is capped. */
+export function fastestMileSpeed(digests: readonly ActivityDigest[]): number {
+  let fastest = Infinity
+  for (const digest of digests) {
+    for (const best of digest.distanceBests ?? []) {
+      if (best.distanceM === METRES_PER_MILE && best.seconds < fastest) fastest = best.seconds
+    }
+  }
+  return Number.isFinite(fastest) ? METRES_PER_MILE / fastest : Infinity
 }
 
 /**
  * VO2max from heart rate against pace, the way a watch estimates it: one estimate from each outdoor run
  * with trusted heart rate and a hard enough window, and their median. Null without a reference heart
- * rate or with fewer than VO2MAX_MIN_RUNS such runs. Treadmill pace is left out, since it can be wrong.
+ * rate or with fewer than VO2MAX_MIN_RUNS such runs. Treadmill pace is left out, since it can be wrong, and
+ * so is a window faster on the flat than speedCap, the fastest mile as run in the digests by default.
  */
 export function vo2maxFromHeartRate(
   trusted: readonly ActivityDigest[],
   referenceHr: number | null,
   metabolicOf: (point: DigestCurvePoint) => number,
+  speedCap = fastestMileSpeed(trusted),
 ): Vo2maxEstimate | null {
   if (referenceHr === null || !(referenceHr > 0)) return null
-  const estimates = trusted
+  const found = trusted
     .filter((digest) => PACED[digest.sport] && digest.hasHeartRate && !digest.indoor)
-    .map((digest) => runEstimate(digest, referenceHr, metabolicOf))
-    .filter((value): value is number => value !== null && Number.isFinite(value))
+    .map((digest) => runEstimate(digest, referenceHr, metabolicOf, speedCap))
+    .filter((value): value is RunEstimate => value !== null)
+  const estimates = found.flatMap((e) =>
+    'vo2max' in e && Number.isFinite(e.vo2max) ? [e.vo2max] : [],
+  )
   if (estimates.length < VO2MAX_MIN_RUNS) return null
-  return { vo2max: quantile(estimates, 0.5), runs: estimates.length }
+  return {
+    vo2max: quantile(estimates, 0.5),
+    runs: estimates.length,
+    hillCapped: found.length - estimates.length,
+  }
 }

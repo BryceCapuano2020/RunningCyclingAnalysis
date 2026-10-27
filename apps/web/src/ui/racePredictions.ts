@@ -36,12 +36,20 @@ const RACE_NAME: Record<(typeof RUN_RACE_DISTANCES_M)[number], string> = {
   [MARATHON_M]: 'Marathon',
 }
 
+/** A race's name, or a best's: the mile is named, other distances in whole kilometres. */
 export function raceName(distanceM: number): string {
-  return RACE_NAME[distanceM as keyof typeof RACE_NAME] ?? `${distanceM / 1000} km`
+  if (distanceM === METRES_PER_MILE) return 'mile'
+  return RACE_NAME[distanceM as keyof typeof RACE_NAME] ?? `${Math.round(distanceM / 1000)} km`
 }
 
-/** Each method's name in the table of how a prediction was reached. */
+/** Each method's name where a prediction's origin is told. */
 export const METHOD_NAME: Record<PredictionMethod, string> = {
   performances: 'From your best runs',
   heartRate: 'From heart rate',
+}
+
+/** Each method in a word or two, under a predicted time. */
+export const METHOD_SHORT: Record<PredictionMethod, string> = {
+  performances: 'runs',
+  heartRate: 'heart rate',
 }

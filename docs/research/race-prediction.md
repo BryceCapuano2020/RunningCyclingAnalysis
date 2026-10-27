@@ -27,6 +27,11 @@ from published errors, not from the two estimates' spread alone.
   - **Why 85%:** below 85%, the intercept of Swain's relation is a larger part of the estimate and its
     error grows; near the maximum, heart rate plateaus.
 
+**The hill cap.** A window of 10 min or more cannot be faster on the flat than the runner's fastest mile
+as run. When a window's flat-equivalent pace is, the grade model has inflated it on hills, so that run is left
+out of the heart-rate side, and the note says how many were. On one real library this took the heart-rate
+VO2max from 60 to 55 over 12 weeks, the same as its 12-month figure.
+
 ## Carrying anchors to races
 
 Both sources' anchors are carried the same way, so they differ only in what they rest on.
@@ -60,8 +65,8 @@ Both sources' anchors are carried the same way, so they differ only in what they
 
 - **The reference heart rate:** it is the highest on file in the period, not a tested maximum. A spike
   raises the heart-rate VO2max, and an easy period lowers it.
-- **Hills:** the flat-equivalent pace leans on a grade model whose downhill correction is unvalidated, so
-  hilly windows can raise the heart-rate VO2max.
+- **Hills:** the flat-equivalent pace leans on a grade model whose downhill correction is unvalidated. The
+  hill cap removes the worst windows, but a hilly window slower than the fastest mile still counts.
 - **Recency:** bests count only within the period on screen; they are not weighted.
 - **Models left out:** Tanda (2011) and Smyth & Muniz-Pumares' marathon fraction of critical speed were not
   used. Tanda was fitted on 40–111 km a week, outside many recreational runners' range, and Smyth's

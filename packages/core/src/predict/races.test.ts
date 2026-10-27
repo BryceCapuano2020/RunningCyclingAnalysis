@@ -12,7 +12,11 @@ const weeklyM = 40_000
 
 describe('predictRunRaces', () => {
   it('sets each race at the geometric middle of the runs and the heart rate', () => {
-    const { races } = predictRunRaces({ bests, vo2max: { vo2max: 55, runs: 4 }, weeklyM })
+    const { races } = predictRunRaces({
+      bests,
+      vo2max: { vo2max: 55, runs: 4, hillCapped: 0 },
+      weeklyM,
+    })
     const fiveK = races[0]!
     const fromHeart = Math.min(
       danielsTime(5000, 55),
@@ -26,12 +30,17 @@ describe('predictRunRaces', () => {
   it('widens the range with the published error and the methods’ disagreement', () => {
     const one = predictRunRaces({ bests, vo2max: null, weeklyM }).races[0]!
     expect(Math.log(one.high / one.seconds)).toBeCloseTo(RACE_RANGE_Z * RACE_LOG_SD[5000], 6)
-    const two = predictRunRaces({ bests, vo2max: { vo2max: 60, runs: 4 }, weeklyM }).races[0]!
+    const two = predictRunRaces({ bests, vo2max: { vo2max: 60, runs: 4, hillCapped: 0 }, weeklyM })
+      .races[0]!
     expect(Math.log(two.high / two.seconds)).toBeGreaterThan(RACE_RANGE_Z * RACE_LOG_SD[5000])
   })
 
   it('reads the fitness the bests show, and predicts every race from heart rate alone', () => {
-    const fromHeart = predictRunRaces({ bests: [], vo2max: { vo2max: 50, runs: 3 }, weeklyM })
+    const fromHeart = predictRunRaces({
+      bests: [],
+      vo2max: { vo2max: 50, runs: 3, hillCapped: 0 },
+      weeklyM,
+    })
     expect(fromHeart.races.map((p) => p.distanceM)).toEqual([...RUN_RACE_DISTANCES_M])
     expect(fromHeart.runsVdot).toBeNull()
     expect(predictRunRaces({ bests, vo2max: null, weeklyM }).runsVdot).toBeGreaterThan(40)

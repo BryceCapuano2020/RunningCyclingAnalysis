@@ -3,7 +3,7 @@ import { VO2MAX_MIN_HR_SHARE, VO2MAX_MIN_WINDOW_S } from '../constants'
 import { flatSpeedToMetabolic } from '../metabolic/converters'
 import type { ActivityDigest, DigestCurvePoint } from '../types'
 import { oxygenCost } from './daniels'
-import { vo2maxFromHeartRate } from './vo2max'
+import { fastestMileSpeed, vo2maxFromHeartRate } from './vo2max'
 
 const REFERENCE = 200
 
@@ -55,5 +55,34 @@ describe('vo2maxFromHeartRate', () => {
     ]
     expect(vo2maxFromHeartRate(others, REFERENCE, (p) => p.value)).toBeNull()
     expect(vo2maxFromHeartRate([...one, ...one], null, (p) => p.value)).toBeNull()
+  })
+
+  it('leaves out a window faster on the flat than the fastest mile as run, and counts it', () => {
+    const mile = { distanceM: 1609.344, seconds: 1609.344 / 3.9 }
+    const runs = [
+      run('a', { 1200: 180 }, { distanceBests: [mile] }),
+      run('b', { 1200: 180 }),
+      run('c', { 1200: 180 }),
+    ]
+    // Every window holds 4 m/s, faster than the 3.9 m/s mile, so none is used.
+    expect(vo2maxFromHeartRate(runs, REFERENCE, (p) => p.value)).toBeNull()
+    const slower = [
+      run('a', { 1200: 180 }, { distanceBests: [{ ...mile, seconds: 1609.344 / 4.2 }] }),
+      ...runs.slice(1),
+    ]
+    expect(vo2maxFromHeartRate(slower, REFERENCE, (p) => p.value)).toMatchObject({
+      runs: 3,
+      hillCapped: 0,
+    })
+    const mixed = vo2maxFromHeartRate(runs, REFERENCE, (p) => p.value, 4.1)
+    expect(mixed).toMatchObject({ runs: 3, hillCapped: 0 })
+    expect(vo2maxFromHeartRate(runs, REFERENCE, (p) => p.value, 3.9)).toBeNull()
+  })
+
+  it('reads the fastest mile as run, and caps nothing without one', () => {
+    expect(
+      fastestMileSpeed([run('a', {}, { distanceBests: [{ distanceM: 1609.344, seconds: 400 }] })]),
+    ).toBeCloseTo(1609.344 / 400, 9)
+    expect(fastestMileSpeed([run('a', {})])).toBe(Infinity)
   })
 })

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { RacePredictions } from './RacePredictions'
@@ -18,17 +18,27 @@ describe('RacePredictions', () => {
   afterEach(cleanup)
 
   it('shows each race with its time, pace and likely range', () => {
-    const result = makeResult({ activities: [withBests], runVo2max: { vo2max: 50, runs: 4 } })
+    const result = makeResult({
+      activities: [withBests],
+      runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
+    })
     render(<RacePredictions sport="run" result={result} units="metric" />)
     const table = screen.getAllByRole('table')[0]!
     const rows = within(table).getAllByRole('row').slice(1)
-    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
+    expect(rows.map((row) => row.querySelector('.race-table__name')?.textContent)).toEqual([
       '5 km',
       '10 km',
       'Half marathon',
       'Marathon',
     ])
     expect(within(rows[0]!).getByText(/^likely \d+:\d\d to \d+:\d\d$/)).toBeInTheDocument()
+    expect(within(rows[0]!).getByText(/^runs \d+:\d\d · heart rate \d+:\d\d$/)).toBeInTheDocument()
+    const details = screen.getByText(/Show the evidence/).closest('details')!
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(
+      screen.getByText('From your best runs: 20:57, carried from your best 10 km'),
+    ).toBeInTheDocument()
     expect(
       screen.getByText(
         /a VO2max of 50 would run, from your heart rate against pace on 4 hard runs/,
@@ -43,11 +53,14 @@ describe('RacePredictions', () => {
   })
 
   it('says when heart rate points to more than the runs show', () => {
-    const result = makeResult({ activities: [withBests], runVo2max: { vo2max: 62, runs: 5 } })
+    const result = makeResult({
+      activities: [withBests],
+      runVo2max: { vo2max: 62, runs: 5, hillCapped: 0 },
+    })
     render(<RacePredictions sport="run" result={result} units="metric" />)
     expect(
       screen.getByText(
-        /Your heart rate points to more than your best runs show \(about 62 against \d\d\)/,
+        /Your heart rate points to more than your best runs show \(about 62 against \d\d in VO2max terms\)/,
       ),
     ).toBeInTheDocument()
   })
@@ -64,5 +77,14 @@ describe('RacePredictions', () => {
       </>,
     )
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('says how many hilly runs were left out of the heart-rate side', () => {
+    const result = makeResult({
+      activities: [withBests],
+      runVo2max: { vo2max: 50, runs: 4, hillCapped: 3 },
+    })
+    render(<RacePredictions sport="run" result={result} units="metric" />)
+    expect(screen.getByText(/3 hilly runs left out of the heart-rate side/)).toBeInTheDocument()
   })
 })

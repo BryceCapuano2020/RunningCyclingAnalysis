@@ -14,8 +14,8 @@ describe('Riegel', () => {
 
   it('takes the best that implies the fastest time, since a best is a lower bound', () => {
     // The 10 km implies a faster 5 km than the 5 km best itself, which was not all-out.
-    expect(riegelTime(bests, 5000)).toBeCloseTo(carried(bests[1]!, 5000), 6)
-    expect(riegelTime(bests, 5000)).toBeLessThan(bests[0]!.seconds)
+    expect(riegelTime(bests, 5000)).toEqual({ seconds: carried(bests[1]!, 5000), fromM: 10000 })
+    expect(riegelTime(bests, 5000)!.seconds).toBeLessThan(bests[0]!.seconds)
   })
 
   it('carries no best from more than ten times away', () => {

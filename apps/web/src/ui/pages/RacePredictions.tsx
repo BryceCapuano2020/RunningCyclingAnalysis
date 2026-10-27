@@ -1,43 +1,86 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { RacePrediction, RunPredictions } from '@rca/core/predict'
+import type { MethodTime, RacePrediction, RunPredictions } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatRecordTime } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { METHOD_NAME, RACE_PREDICTORS, raceName } from '../racePredictions'
+import { METHOD_NAME, METHOD_SHORT, RACE_PREDICTORS, raceName } from '../racePredictions'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import './RacePredictions.css'
-
-/** The likely range under a prediction, from its 10th to 90th percentile. */
-function rangeText(prediction: RacePrediction): string {
-  return `${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
-}
 
 /** VO2max figures differ by more than this share before the note says the two estimates disagree. */
 const DISAGREE_SHARE = 0.1
 
-/** How the predictions were reached, from the methods the result could use. */
+/** The likely range under a prediction, from its 10th to 90th percentile. */
+function rangeText(prediction: RacePrediction): string {
+  return `likely ${formatRecordTime(prediction.low)} to ${formatRecordTime(prediction.high)}`
+}
+
+/** Each estimate in a few words, such as "runs 20:25 · heart rate 16:54"; null for one estimate. */
+function estimatesText(prediction: RacePrediction): string | null {
+  if (prediction.methods.length < 2) return null
+  return prediction.methods
+    .map((m) => `${METHOD_SHORT[m.method]} ${formatRecordTime(m.seconds)}`)
+    .join(' · ')
+}
+
+/** Where one estimate came from, such as "From your best runs: 20:25, carried from your best 10 km". */
+function originText(method: MethodTime, vo2max: number | null): string {
+  const time = formatRecordTime(method.seconds)
+  if (method.method === 'heartRate') {
+    return `${METHOD_NAME.heartRate}: ${time}, at a VO2max of ${Math.round(vo2max ?? 0)}`
+  }
+  return `${METHOD_NAME.performances}: ${time}, carried from your best ${raceName(method.fromM).toLowerCase()}`
+}
+
+/** A sentence when the runs and the heart rate point to different fitness, or nothing. */
+function disagreement(runsVdot: number | null, vo2max: number): string {
+  if (runsVdot === null || Math.abs(vo2max / runsVdot - 1) <= DISAGREE_SHARE) return ''
+  const [high, low] = vo2max > runsVdot ? [vo2max, runsVdot] : [runsVdot, vo2max]
+  const which =
+    vo2max > runsVdot
+      ? 'Your heart rate points to more than your best runs show'
+      : 'Your best runs show more than your heart rate suggests'
+  return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the range is wide. Best runs that were not all-out, and hills, both widen it; an all-out 5 km on the flat would show which is nearer.`
+}
+
+/** How the predictions were reached, from the sources the result could use. */
 function methodNote({ races, runsVdot, vo2max }: RunPredictions): string {
   const fromRuns = races.some((race) => race.methods.some((m) => m.method === 'performances'))
   const flat = 'for a flat course on a good day'
   if (!fromRuns || vo2max === null) {
     return `From ${fromRuns ? 'your best times in this period' : 'your heart rate against pace'} alone, ${flat}.`
   }
-  return `Each sits in the middle of two estimates: your best times in this period, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${flat}.${disagreement(runsVdot, vo2max.vo2max)}`
+  const capped =
+    vo2max.hillCapped > 0
+      ? ` ${plural(vo2max.hillCapped, 'hilly run')} left out of the heart-rate side, since ${vo2max.hillCapped === 1 ? 'its' : 'their'} flat-equivalent pace beat your fastest mile.`
+      : ''
+  return `Each sits in the middle of two estimates: your best times in this period, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${flat}.${capped}${disagreement(runsVdot, vo2max.vo2max)}`
 }
 
-/** A sentence when the runs and the heart rate point to different fitness, or nothing. */
-function disagreement(runsVdot: number | null, vo2max: number): string {
-  if (runsVdot === null || Math.abs(vo2max / runsVdot - 1) <= DISAGREE_SHARE) return ''
-  const more = vo2max > runsVdot
-  return more
-    ? ` Your heart rate points to more than your best runs show (about ${Math.round(vo2max)} against ${Math.round(runsVdot)}), so the range is wide; an all-out 5 km would show which is nearer.`
-    : ` Your best runs show more than your heart rate suggests (about ${Math.round(runsVdot)} against ${Math.round(vo2max)}), so the range is wide.`
+/** One race: its name and pace, then the predicted time, its range and the two estimates. */
+function RaceRow({ prediction, units }: { prediction: RacePrediction; units: UnitSystem }) {
+  const estimates = estimatesText(prediction)
+  return (
+    <tr>
+      <th scope="row">
+        <span className="race-table__name">{raceName(prediction.distanceM)}</span>
+        <span className="race-table__sub muted">
+          {formatPace(prediction.distanceM / prediction.seconds, units)}
+        </span>
+      </th>
+      <td className="num">
+        <span className="race-table__time">{formatRecordTime(prediction.seconds)}</span>
+        <span className="race-table__sub muted">{rangeText(prediction)}</span>
+        {estimates && <span className="race-table__sub muted">{estimates}</span>}
+      </td>
+    </tr>
+  )
 }
 
 /**
- * A sport's race predictions: the predicted time and pace for each race, its likely range, and how it
- * was reached. Nothing for a sport without a predictor or without the evidence for any race.
+ * A sport's race predictions: each race's predicted time and pace, its likely range and the two estimates
+ * it sits between, and how they were reached. Nothing for a sport without a predictor or without evidence.
  */
 export function RacePredictions({
   sport,
@@ -51,7 +94,6 @@ export function RacePredictions({
   const predict = RACE_PREDICTORS[sport]
   const found = predict ? predict(result) : null
   if (found === null || found.races.length === 0) return null
-  const predictions = found.races
   const headingId = `${sport}-races`
   return (
     <section className="section" aria-labelledby={headingId}>
@@ -59,62 +101,32 @@ export function RacePredictions({
       <table className="race-table">
         <thead>
           <tr>
-            <th scope="col">Race</th>
+            <th scope="col">Race and pace</th>
             <th scope="col" className="num">
               Predicted
-            </th>
-            <th scope="col" className="num">
-              Pace
             </th>
           </tr>
         </thead>
         <tbody>
-          {predictions.map((prediction) => {
-            return (
-              <tr key={prediction.distanceM}>
-                <th scope="row">{raceName(prediction.distanceM)}</th>
-                <td className="num">
-                  <span className="race-table__time">{formatRecordTime(prediction.seconds)}</span>
-                  <span className="race-table__range muted">{`likely ${rangeText(prediction)}`}</span>
-                </td>
-                <td className="num">
-                  {formatPace(prediction.distanceM / prediction.seconds, units)}
-                </td>
-              </tr>
-            )
-          })}
+          {found.races.map((prediction) => (
+            <RaceRow key={prediction.distanceM} prediction={prediction} units={units} />
+          ))}
         </tbody>
       </table>
       <p className="muted">{methodNote(found)}</p>
       <EvidenceDisclosure section="the race predictions">
-        <table className="race-table">
-          <caption>Each estimate on its own</caption>
-          <thead>
-            <tr>
-              <th scope="col">Race</th>
-              {Object.values(METHOD_NAME).map((name) => (
-                <th key={name} scope="col" className="num">
-                  {name}
-                </th>
+        <ul className="race-origins">
+          {found.races.map((prediction) => (
+            <li key={prediction.distanceM}>
+              <span className="race-origins__race">{raceName(prediction.distanceM)}</span>
+              {prediction.methods.map((method) => (
+                <span key={method.method} className="race-origins__method muted">
+                  {originText(method, found.vo2max?.vo2max ?? null)}
+                </span>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {predictions.map((prediction) => (
-              <tr key={prediction.distanceM}>
-                <th scope="row">{raceName(prediction.distanceM)}</th>
-                {Object.keys(METHOD_NAME).map((method) => {
-                  const time = prediction.methods.find((m) => m.method === method)?.seconds
-                  return (
-                    <td key={method} className="num">
-                      {time === undefined ? 'Not enough data' : formatRecordTime(time)}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </li>
+          ))}
+        </ul>
       </EvidenceDisclosure>
     </section>
   )
