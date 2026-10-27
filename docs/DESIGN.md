@@ -80,8 +80,10 @@ with estimated watts, from its power note; the footer links to it too. How sure 
 
 A deep link to a page that needs a result, with none on this device, stays where it is and says
 "Add your files to see this page." A file import that then brings a result moves to Balance, the
-home page. A deep link opened while the results kept on this device are still restoring stays where it
-is, and shows them. An unknown hash becomes Balance's hash, so the address names the page shown.
+home page. A deep link opened while the results kept on this device restore stays where it is, and shows
+them. A file import made during that restore moves to Balance, as any import from a deep link does: the
+visitor's own files are not held back by the restore. An unknown hash becomes Balance's hash, so the
+address names the page shown.
 
 **Period.** Balance and the sport pages show one period, picked with the control under the answer: 6
 weeks, 12 weeks (the default), 12 months or All time, in that order, on one row at 390 px and in a 2
@@ -396,9 +398,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   and its threshold then sits close to the best 20 minutes, which is honest: about what was held. The
   ride's floor is the same at every body mass. The share card labels its threshold "Threshold flat pace, estimated from your best 3 to 20 min" for a run, and "Threshold power, estimated from your best 3 to 20 min" for a ride, printed in capitals, and every column reserves the rows of the tallest label, so the two figures line up even where one label wraps to a single line. Both labels share one size, which steps down from 30 px to 26 px only where a label would run past two lines in the square's narrow column. The line "About ... estimated from your best 3 to 20 min efforts" sits under
   a number only, and is left out with none.
-- **A threshold has its likely range under it.** The fit's standard error either side of its critical
-  power, in the sport's own unit: "22:58 to 23:49 /km" for a run, "48 to 49 W" for a ride. A range whose
-  low end would not be a positive work rate is left out, and so is the range of a refused threshold.
+- **A threshold has its likely range under it, in small text.** It reads "Likely 22:58 to 23:49 /km" for a
+  run and "Likely 48 to 49 W" for a ride. The method is the standard error of the critical-power fit: one
+  standard error either side of the critical power, a rough spread of the fit rather than a confidence
+  interval. A range is left out when its low end is not above resting metabolic rate, which
+  would be no estimate of a threshold; when a ride's fit draws on an effort whose watts are estimated from
+  virtual power, since that range would be an estimate of an estimate; and for a refused threshold.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
   figure has not moved. It is absent for All time, and for a ride when either best's watts are

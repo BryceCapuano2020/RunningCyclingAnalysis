@@ -20,6 +20,7 @@ import {
 } from '../components/fixtures'
 import type { AgeGap, AgeProfile } from '../grades'
 import { THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sports'
+import { RangePicker } from '../components/RangePicker'
 import { SportPage } from './SportPage'
 
 // A fixed clock, so the friendly record dates do not depend on when the suite runs.
@@ -222,7 +223,7 @@ describe('SportPage', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
     const section = screen.getByRole('region', { name: 'Threshold pace, estimated' })
-    expect(within(section).getByText('22:58 to 23:49 /km')).toBeInTheDocument()
+    expect(within(section).getByText('Likely 22:58 to 23:49 /km')).toBeInTheDocument()
   })
 
   it('shows the cycling threshold’s range in watts under its figure', () => {
@@ -230,7 +231,7 @@ describe('SportPage', () => {
     renderPage('ride', makeResult({ activities: [ride] }))
 
     const section = screen.getByRole('region', { name: THRESHOLD_LABEL.ride })
-    expect(within(section).getByText('48 to 49 W')).toBeInTheDocument()
+    expect(within(section).getByText('Likely 48 to 49 W')).toBeInTheDocument()
   })
 
   it('names the period by its control under the answer, not with a count under the threshold', () => {
@@ -1402,5 +1403,42 @@ describe('SportPage with nothing to show', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Show all time' })).not.toBeInTheDocument()
+  })
+})
+
+describe('SportPage period focus', () => {
+  it('keeps the period control, and the focus on its pick, when a pick leaves the sport with nothing in the period', () => {
+    const page = (activities: AnalysisResult['activities']) => (
+      <SportPage
+        sport="run"
+        result={makeResult({ activities })}
+        previous={null}
+        previousLabel={null}
+        trends={NO_TRENDS}
+        windowDays={14}
+        units="metric"
+        massKg={75}
+        weighted
+        profile={null}
+        missingAge={null}
+        rangeDays={42}
+        controls={
+          <RangePicker choice={42} shown={activities.length} total={1} onChange={vi.fn()} />
+        }
+        emptyText="Nothing in this period."
+        inLibrary={1}
+        library={[morningRun]}
+        onAddFiles={vi.fn()}
+      />
+    )
+    const view = render(page([morningRun]))
+    const pick = view.container.querySelector<HTMLInputElement>('.range-picker input[type="radio"]')
+    if (pick === null) throw new Error('the period control has no pick')
+    pick.focus()
+
+    view.rerender(page([]))
+
+    expect(pick.isConnected).toBe(true)
+    expect(document.activeElement).toBe(pick)
   })
 })

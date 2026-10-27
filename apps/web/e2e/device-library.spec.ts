@@ -56,11 +56,10 @@ test('a reload on a deep link stays on it while the kept library restores, once 
   await goTo(page, 'Run')
 
   await page.reload()
-  // The restored threshold shows once the kept library has replied. A redirect would follow that reply at once,
-  // so the page is checked a second after the threshold shows. A file chosen here would itself be an import on
-  // a deep link, which moves the visitor to Balance by design, so none is sent.
+  // The restored threshold is the page's signal that the kept library has replied. The age grades' trend request
+  // was sent at load, before the library read, and the worker answers in order, so it has answered by then. A
+  // file chosen here would itself be an import on a deep link, which moves the visitor to Balance by design.
   await expect(page.getByRole('region', { name: 'Threshold pace, estimated' })).toBeVisible()
-  await page.waitForTimeout(1000)
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Run')
   await expect(page).toHaveURL(/#\/run$/)

@@ -5,6 +5,7 @@ import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
+import { thresholdRange } from './thresholdRange'
 import { countEfforts, latestStartOf } from './records'
 import {
   RECORD_DURATIONS_S,
@@ -24,7 +25,6 @@ import {
   paceIsTime,
   sportRecords,
   threshold,
-  thresholdRange,
 } from './records'
 
 describe('threshold', () => {
@@ -78,6 +78,36 @@ describe('thresholdRange', () => {
     expect(thresholdRange(makeResult({ rideCp: null }), 'ride', 70, 'metric')).toBeNull()
     const loose = makeResult({ runCp: { cp: 0.1, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 } })
     expect(thresholdRange(loose, 'run', 70, 'metric')).toBeNull()
+  })
+
+  it('is null when the low end would not be above resting metabolic rate, 1.22 W/kg', () => {
+    // The low end is 1.2 W/kg, under the resting rate, so no range is said; 1.4 gives one above it.
+    const below = { cp: 1.4, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 }
+    expect(thresholdRange(makeResult({ runCp: below }), 'run', 70, 'metric')).toBeNull()
+    const above = { cp: 1.6, wPrime: 20, cpSe: 0.2, r2: 0.9, nPoints: 6 }
+    expect(thresholdRange(makeResult({ runCp: above }), 'run', 70, 'metric')).not.toBeNull()
+  })
+
+  it('is null for a ride whose fit draws on an effort with estimated watts', () => {
+    const activities = [
+      makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'virtual' }),
+      makeActivity({ id: 'ride-2', sport: 'ride', powerSource: 'measured' }),
+    ]
+    const inWindow = [curvePoint(300, 3.0, 'ride-1'), curvePoint(1200, 2.8, 'ride-2')]
+    expect(
+      thresholdRange(makeResult({ activities, rideCurve: inWindow }), 'ride', 75, 'metric'),
+    ).toBeNull()
+  })
+
+  it('gives a ride range when the estimated watts lie outside the fit’s window', () => {
+    const activities = [
+      makeActivity({ id: 'ride-1', sport: 'ride', powerSource: 'virtual' }),
+      makeActivity({ id: 'ride-2', sport: 'ride', powerSource: 'measured' }),
+    ]
+    const outside = [curvePoint(3600, 2.5, 'ride-1'), curvePoint(600, 3.0, 'ride-2')]
+    expect(
+      thresholdRange(makeResult({ activities, rideCurve: outside }), 'ride', 75, 'metric'),
+    ).toBe('48 to 49 W')
   })
 })
 

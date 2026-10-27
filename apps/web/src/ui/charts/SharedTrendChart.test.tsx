@@ -431,7 +431,7 @@ describe('SharedTrendChart', () => {
     })
     const note = container.querySelector('.chart-frame__note')
     expect(note?.textContent).toMatch(
-      /A low point is a window of easy efforts, not an average\. No runs since 20 Jan/,
+      /A low point means even the best effort in those weeks was easy\. No runs since 20 Jan/,
     )
     expect(note?.textContent).not.toMatch(/26 Jan/)
     expect(screen.queryByText(/No rides since/)).toBeNull()

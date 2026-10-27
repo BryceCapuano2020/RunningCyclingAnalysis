@@ -151,7 +151,7 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
  * RIDE_MAX_OFFSET_BPM, so cycling is never judged against an artificially low maximum.
  */
 export function referenceDefinition(): string {
-  return `Your reference heart rate is your highest sustained heart rate: running’s is the higher of your running and cycling maxima, and cycling’s is the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`
+  return `Your reference heart rate is set from your highest sustained heart rates: running’s is the higher of your running and cycling maxima, and cycling’s is the higher of its own and ${RIDE_MAX_OFFSET_BPM} bpm below running’s.`
 }
 
 /**

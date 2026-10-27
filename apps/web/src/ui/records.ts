@@ -75,10 +75,10 @@ export function coveredText(metres: number, durationS: number, units: UnitSystem
   return `${formatDistance(metres, units)} in ${effortLabel(durationS)}`
 }
 
-type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
+export type Figure = Pick<SportNumber, 'value' | 'number' | 'unit'>
 
 /** A running value (gross metabolic W/kg) as the flat pace with the same cost. */
-function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
+export function paceFigure(metabolicWkg: number, units: UnitSystem): Figure {
   const speed = metabolicToFlatSpeed(metabolicWkg)
   return {
     value: formatPace(speed, units),
@@ -93,7 +93,7 @@ export function runPace(metabolicWkg: number, units: UnitSystem): string {
 }
 
 /** A cycling value as mechanical watts. */
-function powerFigure(watts: number): Figure {
+export function powerFigure(watts: number): Figure {
   return { value: formatPower(watts), number: formatWatts(watts), unit: 'W' }
 }
 
@@ -174,29 +174,6 @@ export function threshold(
   if (!result.rideCp) return null
   const watts = metabolicToRidePower(result.rideCp.cp, massKg, PRIORS.grossEfficiency.mean)
   return { ...powerFigure(watts), sub: formatWkg(watts / massKg) }
-}
-
-/**
- * The threshold's likely range: the fit's standard error either side of its critical power, in the sport's
- * own unit, such as "22:58 to 23:49 /km" or "48 to 49 W". Null without a fit, or when the low end would not
- * be a positive work rate.
- */
-export function thresholdRange(
-  result: AnalysisResult,
-  sport: Sport,
-  massKg: number,
-  units: UnitSystem,
-): string | null {
-  const fit = sport === 'run' ? result.runCp : result.rideCp
-  if (!fit || !(fit.cp - fit.cpSe > 0)) return null
-  const at = (cp: number): Figure =>
-    sport === 'run'
-      ? paceFigure(cp, units)
-      : powerFigure(metabolicToRidePower(cp, massKg, PRIORS.grossEfficiency.mean))
-  const low = at(fit.cp - fit.cpSe)
-  const high = at(fit.cp + fit.cpSe)
-  // A faster pace is the higher work rate, so a running range reads from its faster end.
-  return sport === 'run' ? `${high.number} to ${low.value}` : `${low.number} to ${high.value}`
 }
 
 /** Why a sport has no threshold, once its efforts are there to fit: null when it has one. */
