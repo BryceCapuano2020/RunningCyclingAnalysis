@@ -50,7 +50,7 @@ function rideAt(fraction: number): SportGrade {
   }
 }
 
-/** Both sports graded from 3 to 60 min, the ride ahead at the short end and the run at the long end. */
+/** Both sports graded from 3 to 60 min at six durations, the ride ahead at the short end and the run at the long end. */
 const PROFILE: GradeProfile = {
   run: [
     { durationS: 3 * MIN, grade: runAt(0.5) },
@@ -228,5 +228,48 @@ describe('GradeProfileChart', () => {
     expect(x).toContain('20')
     expect(x).toContain('60')
     expect(x.length).toBeLessThan(6)
+  })
+
+  describe('graded from 3 min to 3 h', () => {
+    const MINUTES = [3, 4, 5, 7, 10, 15, 20, 30, 45, 60, 90, 120, 180]
+    const LONG: GradeProfile = {
+      run: MINUTES.map((m, i) => ({ durationS: m * MIN, grade: runAt(0.7 - i * 0.01) })),
+      ride: MINUTES.map((m, i) => ({ durationS: m * MIN, grade: rideAt(0.6 - i * 0.005) })),
+    }
+    const ticks = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll('.chart-x-axis__tick')).map((tick) => tick.textContent)
+
+    it('labels every duration on a wide chart, and lists every one in the table', () => {
+      const { container } = renderChart({ profile: LONG })
+      expect(ticks(container)).toEqual(MINUTES.map(String))
+      expect(screen.getAllByRole('row')).toHaveLength(MINUTES.length + 1)
+    })
+
+    it('thins the labels on a 320 px phone, keeping the first, the last and 20, and every point', () => {
+      chartWidth(288)
+      const { container } = renderChart({ profile: LONG })
+      const shown = ticks(container)
+      expect(shown).toEqual(expect.arrayContaining(['3', '20', '180']))
+      expect(shown.length).toBeLessThan(MINUTES.length)
+      expect(
+        container.querySelectorAll('[data-testid="profile-marker"][data-sport="run"]'),
+      ).toHaveLength(MINUTES.length)
+    })
+
+    it('reads a duration that has no label by keyboard, in the tooltip', () => {
+      renderChart({ profile: LONG })
+      const surface = screen.getByTestId('plot-surface')
+      for (let i = 0; i < 4; i++) fireEvent.keyDown(surface, { key: 'ArrowRight' })
+      expect(screen.getByRole('status')).toHaveTextContent('7 min')
+    })
+
+    it('labels only durations that have a grade, not every length the axis could name', () => {
+      const profile: GradeProfile = {
+        run: LONG.run.filter((p) => [3, 10, 180].includes(p.durationS / MIN)),
+        ride: LONG.ride.filter((p) => [3, 10, 180].includes(p.durationS / MIN)),
+      }
+      const { container } = renderChart({ profile })
+      expect(ticks(container)).toEqual(['3', '10', '180'])
+    })
   })
 })

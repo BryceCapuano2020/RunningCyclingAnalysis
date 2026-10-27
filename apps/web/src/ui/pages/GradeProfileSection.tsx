@@ -14,7 +14,7 @@ export interface GradeProfileSectionProps {
 }
 
 /**
- * How the two sports' age grades compare from 3 to 60 min, with the finding as its lede. It is left out
+ * How the two sports' age grades compare from 3 min to 3 h, with the finding as its lede. It is left out
  * without the year of birth and sex, without a weight, and with fewer than two durations graded in both
  * sports, since a chart that would only repeat the balance at 20 min says nothing more.
  */

@@ -1,6 +1,5 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
-import { PROFILE_DURATIONS_S } from '../gradeProfile'
 import type { GradeProfile } from '../gradeProfile'
 import type { SportGrade } from '../grades'
 import { SPORT_ORDER } from '../sports'
@@ -82,18 +81,18 @@ function percentsOf(rows: readonly ProfileRow[]): number[] {
 }
 
 /**
- * The duration ticks inside the span, thinned to fit the width. Thinning keeps both ends and the 20 minute
- * tick, so a narrow chart still shows where it starts, where it stops and the length the balance is at.
+ * A tick at each duration that has a grade, thinned to fit the width. Thinning keeps both ends and the
+ * 20 minute tick, so a narrow chart still shows where it starts, where it stops and the length the balance
+ * is at. Every duration stays in the tooltip and the table, whether or not its tick is drawn.
  */
 function durationTicksOf(
-  fromS: number,
-  toS: number,
+  rows: readonly ProfileRow[],
   x: (durationS: number) => number,
   width: number,
 ): AxisTick[] {
-  const ticks = PROFILE_DURATIONS_S.filter((s) => s >= fromS && s <= toS).map((s) => ({
-    position: x(s),
-    label: minutesLabel(s),
+  const ticks = rows.map((row) => ({
+    position: x(row.durationS),
+    label: minutesLabel(row.durationS),
   }))
   const kept = new Set([ticks[0]?.label, ticks.at(-1)?.label, HEADLINE_TICK])
   return fitTicks(ticks, { axis: 'x', width, keep: (tick) => kept.has(tick.label) })
@@ -132,7 +131,7 @@ export function profileLayout(
     xs: rows.map((row) => x(row.durationS)),
     ys: rows.map((_, i) => marks.map((m) => m.centre[i]?.y).find((v) => v !== undefined) ?? null),
     marks,
-    xTicks: durationTicksOf(first.durationS, last.durationS, x, width),
+    xTicks: durationTicksOf(rows, x, width),
     yTicks: fitTicks(
       ticks.map((tick) => ({ position: y(tick), label: `${tick.toFixed(decimals)}%` })),
       { axis: 'y', width },

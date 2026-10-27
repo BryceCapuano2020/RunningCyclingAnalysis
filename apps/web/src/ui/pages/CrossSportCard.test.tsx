@@ -242,6 +242,22 @@ describe('CrossSportCard', () => {
     expect(within(details).getAllByRole('row')).toHaveLength(4)
   })
 
+  it('lists and features only the cross-sport durations, though the result holds more for the grade profile', () => {
+    renderCard(
+      makeResult({
+        equivalents: [
+          makeEquivalence({ durationS: 600, ridePowerW: 300 }),
+          makeEquivalence({ durationS: 900, ridePowerW: 280 }),
+          makeEquivalence({ durationS: 1800, ridePowerW: 220 }),
+        ],
+      }),
+    )
+    // The 15 min equivalence is for the profile alone: the headline stays on the 10 min effort below 20.
+    expect(screen.getByText(/^Your best 10 min on the bike, 300 W/)).toBeInTheDocument()
+    expect(within(everyDuration()).getAllByRole('row')).toHaveLength(3)
+    expect(within(everyDuration()).queryByText(/15 min at/)).not.toBeInTheDocument()
+  })
+
   it('names the dates the period covers in its needs-a-ride line', () => {
     renderCard(makeResult({ activities: [shortRide], equivalents: [] }), 'metric', true, SIX_WEEKS)
     expect(

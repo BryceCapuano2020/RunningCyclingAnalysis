@@ -1,4 +1,4 @@
-import { EQUIVALENCE_DURATIONS_S } from '@rca/core/constants'
+import { PROFILE_DURATIONS_S } from '@rca/core/constants'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { balanceGap } from './balanceGap'
@@ -7,12 +7,6 @@ import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
 import { effortLabel } from './records'
 import { SPORT_NOUN, SPORT_ORDER } from './sports'
-
-/**
- * The durations a grade is drawn at, 3 to 60 min. A ride is graded through its running equivalent,
- * and that is worked out at exactly these lengths, so they are the lengths both sports can be graded at.
- */
-export const PROFILE_DURATIONS_S: readonly number[] = EQUIVALENCE_DURATIONS_S
 
 /** A sport's age grade at one duration: a run is a point, and a ride carries its range. */
 export interface ProfilePoint {
@@ -24,7 +18,7 @@ export interface ProfilePoint {
 export type GradeProfile = Record<Sport, ProfilePoint[]>
 
 /**
- * Each sport's age grade at every duration from 3 to 60 min that its best-effort curve and the age
+ * Each sport's age grade at every duration from 3 min to 3 h that its best-effort curve and the age
  * standards grade. A duration without a best, or without a standard, is left out, never filled in.
  */
 export function gradeProfile(result: AnalysisResult, profile: AgeProfile): GradeProfile {

@@ -12,7 +12,7 @@ import type { ProfileRow } from './gradeProfileLayout'
 
 export const GRADE_PROFILE_TITLE = 'Grade by duration'
 export const GRADE_PROFILE_EMPTY =
-  'Add runs and rides of 3 to 60 minutes to compare them by duration.'
+  'Add runs and rides of 3 minutes or more to compare them by duration.'
 
 /** Said under the plot: what each point is, and what the shading around an estimate shows. */
 export const GRADE_PROFILE_NOTE =

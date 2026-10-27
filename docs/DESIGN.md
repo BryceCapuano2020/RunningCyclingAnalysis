@@ -423,17 +423,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   pages, cycling is drawn as measured: a solid line with dots.
 - **Grade by duration** sits on Balance after the cards and the grading source line, and before the evidence
   and the trend. It answers one question the 20 minute balance cannot: is one sport better at every duration,
-  or only at 20 minutes? Each sport's age grade is drawn at 3, 5, 10, 20, 30 and 60 minutes (the lengths a
-  ride's running equivalent is worked out at, `PROFILE_DURATIONS_S` in `gradeProfile.ts`) wherever its best
-  effort and the age standards grade it, on a log duration axis and an age-grade axis in per cent. No point
-  is invented: a run under a mile has no standard, so a run's 3 and 5 minute grades are missing unless the run
-  covered a mile in that time, and a duration without a best has no point. Drawing follows the age-grade
+  or only at 20 minutes? Each sport's age grade is drawn at every best-curve duration from 3 minutes to 3 hours
+  (3, 4, 5, 7, 10, 15, 20, 30, 45, 60, 90, 120 and 180 minutes, `PROFILE_DURATIONS_S` in `constants.ts`, taken
+  from `DURATIONS_S`) wherever its best effort and the age standards grade it, on a log duration axis and an
+  age-grade axis in per cent. A ride is graded through its running equivalent, which the analysis works out at
+  each of these durations where the ride curve has a best. No point is invented: a duration where a sport has
+  no best, or no standard (a run under a mile has none, so the shortest run grades are usually missing), has
+  no point for that sport, and the finding counts only the durations both sports are graded at. The cross-sport
+  card lists only its own six durations (`EQUIVALENCE_DURATIONS_S`), though the result holds more. Drawing follows the age-grade
   trend: a run is a solid line with a dot, a ride is estimated, so it is dashed with a ring and its 90% range
-  is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min)" and its ticks are the minutes alone, so they fit a 320 px phone, where thinning keeps the first, the last and the 20.
+  is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
   The finding is the chart's lede, a sentence under its title, and the chart supports it. It counts a lead
   only where one sport's whole percent is outside the other's range, the rule the balance uses. It reads "Your
-  running grades higher than your cycling at every duration from 3 to 60 min." when one sport leads
-  throughout the durations both have; "Your cycling grades higher up to 5 min, your running from 10 min on."
+  running grades higher than your cycling at every duration from 3 to 180 min." when one sport leads
+  throughout the durations both have, from the first to the last in whole minutes; "Your cycling grades higher up to 5 min, your running from 10 min on."
   when the lead changes hands; "Your running and cycling grade within range of each other at every duration."
   when neither leads. When a lead holds for only some durations it says where, then that the rest are even:
   "Your running grades higher than your cycling at 20 min. The two grade within range of each other at the

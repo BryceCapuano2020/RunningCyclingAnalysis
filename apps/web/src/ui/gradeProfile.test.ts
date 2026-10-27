@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EQUIVALENCE_DURATIONS_S } from '@rca/core/constants'
+import { PROFILE_DURATIONS_S } from '@rca/core/constants'
 import { curvePoint } from './charts/fixtures'
 import {
   MAN_BORN_1986,
@@ -47,32 +47,39 @@ describe('gradeProfile', () => {
     makeActivity({ id: 'run-1', sport: 'run', startMs }),
     makeActivity({ id: 'ride-1', sport: 'ride', startMs }),
   ]
-  /** Running speeds, m/s, that every duration from 3 to 60 min covers a mile or more at. */
+  /** Running speeds, m/s, that each duration from 3 min to 3 h covers a mile or more at, at its range's slow end too. */
   const runSpeeds: Record<number, number> = {
     180: 9.5,
+    240: 7.5,
     300: 5.8,
+    420: 5.5,
     600: 4.9,
+    900: 4.8,
     1200: 4.6,
     1800: 4.4,
+    2700: 4.3,
     3600: 4.1,
+    5400: 3.9,
+    7200: 3.8,
+    10800: 3.6,
   }
   const speedAt = (durationS: number) => runSpeeds[durationS] ?? 4
   const runCurve = Object.keys(runSpeeds).map((durationS) =>
     curvePoint(Number(durationS), flatWkg(speedAt(Number(durationS))), 'run-1'),
   )
-  const rideCurve = EQUIVALENCE_DURATIONS_S.map((durationS) => curvePoint(durationS, 300, 'ride-1'))
-  const equivalents = EQUIVALENCE_DURATIONS_S.map((durationS) =>
+  const rideCurve = PROFILE_DURATIONS_S.map((durationS) => curvePoint(durationS, 300, 'ride-1'))
+  const equivalents = PROFILE_DURATIONS_S.map((durationS) =>
     makeEquivalence({
       durationS,
       runSpeed: interval(speedAt(durationS) - 0.2, speedAt(durationS), speedAt(durationS) + 0.2),
     }),
   )
 
-  it('grades each sport at the durations from 3 to 60 min that it has a best, in order', () => {
+  it('grades each sport at the durations from 3 min to 3 h that it has a best, in order', () => {
     const result = makeResult({ activities, runCurve, rideCurve, equivalents })
     const profile = gradeProfile(result, MAN_BORN_1986)
-    expect(profile.run.map((point) => point.durationS)).toEqual([...EQUIVALENCE_DURATIONS_S])
-    expect(profile.ride.map((point) => point.durationS)).toEqual([...EQUIVALENCE_DURATIONS_S])
+    expect(profile.run.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
+    expect(profile.ride.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
   })
 
   it('gives a run a point and a ride its range', () => {
@@ -137,6 +144,19 @@ describe('profileFinding', () => {
     ])
     expect(profileFinding(profile)).toBe(
       'Your running grades higher than your cycling at every duration from 3 to 60 min.',
+    )
+  })
+
+  it('names the whole span in minutes when both sports are graded out to 3 h', () => {
+    const profile = profileOf([
+      [3, 0.8, 0.6],
+      [4, 0.8, 0.6],
+      [45, 0.8, 0.6],
+      [90, 0.8, 0.6],
+      [180, 0.8, 0.6],
+    ])
+    expect(profileFinding(profile)).toBe(
+      'Your running grades higher than your cycling at every duration from 3 to 180 min.',
     )
   })
 

@@ -29,7 +29,7 @@ export interface GradeProfileChartProps {
 }
 
 /**
- * Each sport's age grade at every duration from 3 to 60 min, on one scale. A recorded grade is a solid
+ * Each sport's age grade at every duration from 3 min to 3 h, on one scale. A recorded grade is a solid
  * line with dots. An estimate, as a ride's is, is dashed with a ring at each duration and a band for its
  * range. The 20 minute grade, the one the balance is taken at, is the larger mark.
  */

@@ -1,10 +1,10 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
 import {
-  EQUIVALENCE_DURATIONS_S,
   FLAT_RUN_COST,
   HR_BLOCK_S,
   PRIORS,
+  PROFILE_DURATIONS_S,
   RESTING_W_PER_KG,
 } from '../constants'
 import { possibleRunWkg } from '../curves'
@@ -351,7 +351,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   // The draws and their heart-rate weights are the same for every duration, so they are built once.
   const equivalence = equivalenceFor(hr)
   const equivalents: Equivalence[] = []
-  for (const durationS of EQUIVALENCE_DURATIONS_S) {
+  for (const durationS of PROFILE_DURATIONS_S) {
     const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
       equivalents.push({
