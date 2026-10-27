@@ -2,7 +2,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { FIRST_GRADED_DISTANCE_M, LAST_GRADED_DISTANCE_M, ageGradeForEffort } from '@rca/core/grade'
 import type { Sex } from '@rca/core/grade'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
-import { equivalentRunSpeed } from '@rca/core/digest'
+import { equivalenceFor } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
@@ -24,8 +24,11 @@ export interface TargetAthlete {
   hr: AnalysisResult['hr']
 }
 
-/** Bisection steps: far more than a speed or a power needs to be exact to a unit. */
-const BISECTION_STEPS = 60
+/**
+ * Bisection steps. Each halves the bracket, so 25 steps leave a power or a speed within a few millionths of
+ * its bracket, far below the 5 W and 5 s steps the target is rounded to.
+ */
+const BISECTION_STEPS = 25
 /** The first power tried when a ride's watts are bracketed, and how many times it doubles to reach a speed. */
 const FIRST_WATTS = 100
 const MAX_DOUBLINGS = 16
@@ -68,7 +71,9 @@ function runSpeedAtGrade(grade: number, durationS: number, athlete: TargetAthlet
  * no power up to a generous bracket reaches the speed.
  */
 function wattsAtSpeed(speedMs: number, athlete: TargetAthlete): number | null {
-  const p50At = (watts: number) => equivalentRunSpeed(watts, athlete.massKg, athlete.hr).p50
+  // Built once: the draws and the heart-rate weights do not change with the watts searched.
+  const equivalence = equivalenceFor(athlete.hr)
+  const p50At = (watts: number) => equivalence(watts, athlete.massKg).p50
   let hi = FIRST_WATTS
   for (let i = 0; i < MAX_DOUBLINGS && p50At(hi) < speedMs; i++) hi *= 2
   if (!(p50At(hi) >= speedMs)) return null

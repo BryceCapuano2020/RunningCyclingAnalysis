@@ -129,18 +129,22 @@ export function BalancePage({
     }),
     [headline, weightKnown],
   )
-  // The level target waits for the same things as the balance: both grades, and so the weight.
-  const levelLine =
-    gap !== null && profile !== null
-      ? levelTargetText({
-          lean: gap.lean,
-          grades,
-          result,
-          sex: profile.sex,
-          massKg: settings.massKg,
-          units,
-        })
-      : null
+  // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
+  // search runs on each change of these inputs, not on each render, so it is memoised on them.
+  const levelLine = useMemo(
+    () =>
+      gap !== null && sex !== null
+        ? levelTargetText({
+            lean: gap.lean,
+            grades,
+            result,
+            sex,
+            massKg: settings.massKg,
+            units,
+          })
+        : null,
+    [gap, grades, result, sex, settings.massKg, units],
+  )
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
