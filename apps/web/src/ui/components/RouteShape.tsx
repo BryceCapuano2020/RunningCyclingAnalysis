@@ -39,6 +39,7 @@ export function RouteShape({ shape, sport, takeFocus = false }: RouteShapeProps)
           points={points.map(([x, y]) => `${x},${y}`).join(' ')}
           vectorEffect="non-scaling-stroke"
           className={`route-shape__line route-shape__line--${sport}`}
+          data-sport={sport}
         />
       </svg>
     </figure>

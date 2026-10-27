@@ -66,12 +66,8 @@
   inset: 0;
 }
 
-.activity-list__icon--run {
-  color: var(--series-run);
-}
-
-.activity-list__icon--ride {
-  color: var(--series-ride);
+.activity-list__icon {
+  color: var(--sport-colour);
 }
 
 .activity-list__sport {

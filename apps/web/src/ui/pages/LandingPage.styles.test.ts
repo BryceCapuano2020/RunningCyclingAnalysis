@@ -3,6 +3,7 @@ import { readStylesheet, ruleBody } from '../components/stylesheet'
 
 const app = await readStylesheet(import.meta.url, '../../App.css')
 const example = await readStylesheet(import.meta.url, './LandingExample.css')
+const design = await readStylesheet(import.meta.url, '../../../../../docs/DESIGN.md')
 
 /** The text of the phone-and-narrow media query with this width, braces included, or '' when none. */
 function narrowBody(maxWidth: string): string {
@@ -23,6 +24,12 @@ describe('landing steps', () => {
 })
 
 describe('landing example', () => {
+  it('sets its figures at the body size, which DESIGN.md names, not at the 48 px hero size', () => {
+    expect(design).toMatch(/its figures at the body size/)
+    expect(design).not.toMatch(/48 px hero size/)
+    expect(ruleBody(example, '.landing-example__sport-name')).not.toMatch(/font-size/)
+  })
+
   it('has no rules for the dt, dd and stat-number markup it does not use', () => {
     expect(ruleBody(app, '.landing-example__stats dt')).toBe('')
     expect(ruleBody(app, '.landing-example__stats dd')).toBe('')

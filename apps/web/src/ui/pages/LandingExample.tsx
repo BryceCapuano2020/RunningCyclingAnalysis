@@ -22,7 +22,7 @@ function SportLine({ sport, units }: { sport: Sport; units: UnitSystem }) {
   return (
     <div className="landing-example__sport">
       <p className="landing-example__sport-name">
-        <SportIcon sport={sport} className={`landing-example__${sport}`} />
+        <SportIcon sport={sport} />
         {`${SPORT_TITLE[sport]} · ${grade.centre.level} · ${formatGrade(grade.centre.grade)}`}
       </p>
       <LevelLadder sport={sport} grade={grade} showKey={false} />

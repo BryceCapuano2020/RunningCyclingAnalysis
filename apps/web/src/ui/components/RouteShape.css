@@ -17,15 +17,8 @@
 
 .route-shape__line {
   fill: none;
+  stroke: var(--sport-colour);
   stroke-width: 3px;
   stroke-linejoin: round;
   stroke-linecap: round;
-}
-
-.route-shape__line--run {
-  stroke: var(--series-run);
-}
-
-.route-shape__line--ride {
-  stroke: var(--series-ride);
 }

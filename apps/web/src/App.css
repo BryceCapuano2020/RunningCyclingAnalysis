@@ -206,14 +206,6 @@
   margin: 0;
 }
 
-.icon.landing-example__run {
-  color: var(--series-run);
-}
-
-.icon.landing-example__ride {
-  color: var(--series-ride);
-}
-
 .file-retention__choice {
   display: inline-flex;
   align-items: center;

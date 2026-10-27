@@ -9,12 +9,8 @@
   outline-offset: var(--space-2);
 }
 
-.sport-run .icon {
-  color: var(--series-run);
-}
-
-.sport-ride .icon {
-  color: var(--series-ride);
+.sport-page__title .icon {
+  color: var(--sport-colour);
 }
 
 .sport-page__hero {

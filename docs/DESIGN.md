@@ -147,7 +147,9 @@ set the attribute, and no switch is planned.
 
 Ink and volt are the brand. Sport colours mark a sport: its data, its glyph, and the edge of its
 card. They never colour text, and never generic chrome such as buttons, links, tabs or focus rings.
-A sport's figure is set in ink, and its shape carries the colour. Status
+A sport's figure is set in ink, and its shape carries the colour. A surface of one sport reads
+`--sport-colour`, which `tokens.css` sets once for each `data-sport`, so a glyph, an edge, a ladder,
+a chip or a route takes its own sport's colour. Status
 colours always come with an icon and a label, so a warning never relies on red beside the run coral.
 
 | Token                  | Light       | Dark        | Use                                                                        |
@@ -235,8 +237,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   The one destructive button, a removal's confirm, keeps its red fill and white label on hover and
   press, and shows the state by brightness, so the generic hover never blanks it.
   A button is a sentence, so it is set in sentence case, not capitals. The header's Profile link is too.
-- A sport glyph (`SportIcon`) sits next to every sport name. Its path data is in `iconPaths.ts`, the one
-  source for the icon and for the glyph on the share card.
+- A sport glyph (`SportIcon`) sits next to every sport name. Its path data and stroke width are in
+  `iconPaths.ts`, the one source for the icon and for the glyph on the share card. The ride is drawn at
+  a 1.75 stroke and the runner at 2, since two wheels and a frame carry more ink than five strokes; the
+  runner is not moved.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
@@ -444,7 +448,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The evidence card is a card
   only for a gap with an action; good news is a quiet line with no heading.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
-  its numbers at the 48 px hero size, so the two never read as two drop targets. The export guides
+  its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
 - **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, in one line, "Run 64% Local / Ride 58% Recreational", with each sport's grade kept whole. The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
