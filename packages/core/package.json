@@ -16,6 +16,7 @@
     "./pipeline": "./src/pipeline.ts",
     "./period": "./src/period.ts",
     "./predict": "./src/predict/index.ts",
+    "./profile": "./src/profile/index.ts",
     "./session": "./src/session.ts",
     "./compare": "./src/compare/index.ts",
     "./cp": "./src/cp/index.ts",

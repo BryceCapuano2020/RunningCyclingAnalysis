@@ -1,0 +1,47 @@
+/* The line a best sits on when it is in line with the others: drawn above the gridlines, in ink. */
+.stand-out__zero {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+}
+
+/* A duration's likely range, a thin bar in its sport's colour behind the point. */
+.stand-out__bar {
+  stroke: var(--sport-colour);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/*
+ * Filled in the sport's colour when the best stands out, a ring over the page when it is in line. Both are
+ * outlined in the sport's colour, so the two are the same size.
+ */
+.stand-out__mark {
+  stroke: var(--sport-colour);
+  stroke-width: 2;
+}
+
+.stand-out__mark--hollow {
+  fill: var(--surface-1);
+}
+
+.stand-out__mark--filled {
+  fill: var(--sport-colour);
+}
+
+/* In forced colours the sport tints go, so filled and hollow still differ, and the sports by their shape. */
+@media (forced-colors: active) {
+  .stand-out__zero,
+  .stand-out__bar {
+    stroke: CanvasText;
+  }
+
+  .stand-out__mark--hollow {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
+  .stand-out__mark--filled {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+}

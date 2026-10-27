@@ -33,7 +33,7 @@ import type {
   Interval,
   VirtualPowerAccuracy,
 } from '../types'
-import { bestCurve, candidates, plainCurve } from './bestCurve'
+import { bestOf, isMeasured, plainCurve } from './bestCurve'
 import { MODEL_REVISION } from './modelRevision'
 import { summaryOf, type ActivitySummary } from './summary'
 import { fitBikeModel } from '../virtualPower'
@@ -70,6 +70,11 @@ export interface AnalysisResult {
   rideCurve: Curve
   /** rideCurve expressed as gross metabolic W/kg at the prior-mean efficiency. */
   rideMetabolicCurve: Curve
+  /**
+   * Best mechanical power while riding, W, from the rides with a power meter alone. Estimated watts are
+   * left out, so each value is a measurement, as the duration profile needs.
+   */
+  rideMeasuredCurve: Curve
   runCp: CriticalPowerFit | null
   rideCp: CriticalPowerFit | null
   /** Why runCp is null, once there are efforts to fit: see CriticalPowerRefusal. */
@@ -217,10 +222,15 @@ function bestCurves(
   bikeModel: BikeModel,
 ): { runBest: EffortPoint[]; rideBest: EffortPoint[] } {
   const rideWatts = (point: DigestCurvePoint): number => rideWattsAt(point, totalMassKg, bikeModel)
-  // Each sport's best curve is read in that sport's own number, from the digests of that sport.
-  const bestOf = (sport: Sport, value: (point: DigestCurvePoint) => number) =>
-    bestCurve(ordered.filter((d) => d.sport === sport).map((d) => candidates(d, value)))
-  return { runBest: bestOf('run', runCentralWkg), rideBest: bestOf('ride', rideWatts) }
+  return {
+    runBest: bestOf(ordered, 'run', runCentralWkg),
+    rideBest: bestOf(ordered, 'ride', rideWatts),
+  }
+}
+
+/** The best watts at each duration among the rides with a power meter, which need no bike model. */
+function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
+  return bestOf(ordered, 'ride', (point) => point.value, isMeasured)
 }
 
 /**
@@ -299,6 +309,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   const { runBest, rideBest } = bestCurves(ordered, totalMassKg, bikeModel)
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
+  const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
   const rideMetabolicCurve = rideCurve.map((p) => ({
     ...p,
     value: centralWkgFromWatts(p.value, massKg),
@@ -363,6 +374,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     runCurve,
     rideCurve,
     rideMetabolicCurve,
+    rideMeasuredCurve,
     runCp,
     rideCp,
     runCpRefusal: runOutcome.refusal,
