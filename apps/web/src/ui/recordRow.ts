@@ -1,11 +1,19 @@
 import type { ReactNode } from 'react'
 import type { ActivitySummary } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
-import { isEstimatedRecord } from './records'
+import { isEstimatedRecord, isTreadmillRecord } from './records'
 import type { SportRecord } from './records'
 
 /** The mark a run's pace carries, as a flat pace: its word on a row, and the note that explains it. */
 export const FLAT_MARK = 'Flat'
+
+/** The mark a run held indoors carries, in the same chip as Estimated: its pace is a treadmill's. */
+export const TREADMILL_MARK = 'Treadmill'
+
+/** The Treadmill mark for a record that a run held indoors set, and no mark for any other record. */
+export function treadmillMarks(sport: Sport, activity: ActivitySummary | null): string[] {
+  return isTreadmillRecord(sport, activity) ? [TREADMILL_MARK] : []
+}
 
 /** One best effort as a row of a records list, whichever page or card lists it. */
 export interface RecordRow {
@@ -18,7 +26,10 @@ export interface RecordRow {
   sub: string | null
   /** The grade beside the figure, or a short gap line in its place; null when neither applies. */
   grade: ReactNode
-  /** Short marks beside the figure, each with its meaning in words elsewhere: "Flat", "Estimated". */
+  /**
+   * Short marks beside the figure, each with its meaning in words elsewhere: "Flat", "Estimated",
+   * "Treadmill".
+   */
   tags: string[]
   /** How the record moved on the period before, in words, or null without one. */
   change?: string | null
@@ -30,7 +41,8 @@ export interface RecordRow {
 
 /**
  * One best-effort record as a row. A run's pace is a flat pace, so it is marked Flat; a ride's
- * watts are marked estimated unless they were measured by a power meter.
+ * watts are marked estimated unless they were measured by a power meter. A run held indoors is
+ * marked Treadmill as well.
  */
 export function recordRow(
   sport: Sport,
@@ -51,7 +63,7 @@ export function recordRow(
     value: record.value,
     sub: record.sub,
     grade: options.grade,
-    tags: [...marks, ...(options.tags ?? [])],
+    tags: [...marks, ...treadmillMarks(sport, record.activity), ...(options.tags ?? [])],
     change: options.change ?? null,
     setDays: options.setDays ?? null,
     activity: record.activity,

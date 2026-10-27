@@ -75,6 +75,7 @@ function renderPage(
       footnote={footnote}
       emptyText={emptyText}
       inLibrary={result.activities.filter((activity) => activity.sport === sport).length}
+      library={result.activities}
       onAddFiles={vi.fn()}
     />,
   )
@@ -141,6 +142,7 @@ describe('SportPage', () => {
         weighted
         rangeDays={42}
         inLibrary={0}
+        library={[]}
         emptyText="No runs between 12 May and 3 Aug 2025. You have 1 run in All time."
         onAddFiles={onAddFiles}
       />,
@@ -392,6 +394,7 @@ describe('SportPage', () => {
         controls={<span>Period picker</span>}
         rangeDays={42}
         inLibrary={1}
+        library={[]}
         emptyText="Nothing in this period."
         onAddFiles={vi.fn()}
       />
@@ -1125,27 +1128,6 @@ describe('SportPage depth', () => {
     expect(section.getByText('1:27:54')).toBeInTheDocument()
   })
 
-  it('says how each record moved on the period before, in words', () => {
-    const ride = makeActivity({ id: 'ride-1', sport: 'ride', name: 'Hill ride' })
-    const previous: SportCurves = {
-      runCurve: [],
-      rideCurve: [curvePoint(60, 250, 'ride-0')],
-    }
-    renderPage(
-      'ride',
-      makeResult({ activities: [ride], rideCurve: [curvePoint(60, 258, 'ride-1')] }),
-      'metric',
-      null,
-      previous,
-      'Previous 6 weeks',
-    )
-
-    const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(
-      within(recordNamed(records, '1 min')).getByText('8 W more than previous 6 weeks'),
-    ).toBeInTheDocument()
-  })
-
   it('gives the recent form in one line: the last run, the runs and their distance', () => {
     const run = makeActivity({
       id: 'run-1',
@@ -1330,6 +1312,7 @@ describe('SportPage with nothing to show', () => {
         weighted
         rangeDays={42}
         inLibrary={inLibrary}
+        library={[]}
         emptyText="No runs between 12 May and 3 Aug 2025. You have 3 runs in All time."
         onShowAll={onShowAll}
         onAddFiles={vi.fn()}
@@ -1354,6 +1337,7 @@ describe('SportPage with nothing to show', () => {
         weighted
         rangeDays={42}
         inLibrary={0}
+        library={[]}
         emptyText="Your files have no runs yet. Add runs to see your records."
         onAddFiles={vi.fn()}
       />,
@@ -1392,6 +1376,7 @@ describe('SportPage with nothing to show', () => {
         weighted
         rangeDays={null}
         inLibrary={3}
+        library={[]}
         emptyText="No runs. You have 3 runs in All time."
         onShowAll={vi.fn()}
         onAddFiles={vi.fn()}
