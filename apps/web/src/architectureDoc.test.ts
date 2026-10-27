@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EXTRACT_LIMITS } from '@rca/core/fit'
-import { MAX_ACTIVITY_LIST_BYTES } from '@rca/core/import'
+import { MAX_ACTIVITY_LIST_BYTES, MAX_CSV_CELLS_PER_ROW } from '@rca/core/import'
 import { readStylesheet } from './ui/components/stylesheet'
 
 /*
@@ -16,6 +16,10 @@ const doc = (await readStylesheet(import.meta.url, '../../../docs/ARCHITECTURE.m
 describe('architecture doc states the Strava activity list limits as the code sets them', () => {
   it('gives the inflated byte cap in MiB', () => {
     expect(doc).toContain(`${MAX_ACTIVITY_LIST_BYTES / (1024 * 1024)} MiB`)
+  })
+
+  it('gives the cell cap per row, which bounds the cells a parse builds', () => {
+    expect(doc).toContain(`more than ${MAX_CSV_CELLS_PER_ROW} cells`)
   })
 
   it('gives the row cap as rows in all', () => {

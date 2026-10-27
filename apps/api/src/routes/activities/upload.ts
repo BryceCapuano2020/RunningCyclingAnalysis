@@ -23,6 +23,7 @@ import { activityFileKey, checkR2PutBudget, reserveR2Put } from '../../storage.t
 import { activities } from '../../db/schema.ts'
 import { sha256Hex } from '../../util.ts'
 import { fileStorageUnavailable, findOwnedActivity, toRecord, type ActivityRow } from './shared.ts'
+import { accountDeleting } from './quota.ts'
 
 /** One upload in progress: the activity its file is for, and the reservation it holds. */
 interface Upload {
@@ -156,7 +157,7 @@ async function reserveStorage(
   )
     .bind(userId)
     .first()
-  if (deleting) throw new HttpError(409, 'account_deleting', 'This account is being deleted')
+  if (deleting) throw accountDeleting()
   throw new HttpError(403, 'storage_quota', 'Storing this file would exceed your storage limit')
 }
 

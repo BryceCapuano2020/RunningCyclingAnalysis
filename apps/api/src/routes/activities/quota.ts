@@ -5,6 +5,9 @@ import {
 } from '@rca/contract'
 import { HttpError } from '../../errors.ts'
 
+export const accountDeleting = () =>
+  new HttpError(409, 'account_deleting', 'This account is being deleted')
+
 export const databaseFull = () =>
   new HttpError(503, 'database_full', 'Activities cannot be saved while the database is full')
 
@@ -47,8 +50,10 @@ export async function accountState(db: D1Database, userId: string): Promise<Acco
 /**
  * Why a new activity with a digest of this size does not fit the account, or undefined when it
  * does. The conditions are the ones the insert itself holds, in the order the answer reports them.
+ * An account being deleted is reported first: no create is admitted to one.
  */
 export function createRefusal(state: AccountState, digestBytes: number): HttpError | undefined {
+  if (state.deletingAt !== null) return accountDeleting()
   if (state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) return databaseFull()
   if (state.digestBytes + digestBytes > MAX_DIGEST_BYTES_PER_USER) return digestQuota()
   if (state.activityCount >= MAX_ACTIVITIES_PER_USER) return activityQuota()
