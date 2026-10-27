@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { EffortCheck } from '@rca/core/types'
+import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import { EvidenceCard } from './EvidenceCard'
+import { TWENTY_MINUTE_ID } from './TwentyMinuteEffort'
 
 afterEach(() => {
   cleanup()
@@ -213,5 +215,25 @@ describe('EvidenceCard links', () => {
     const card = screen.getByRole('region', { name: 'Hard efforts on file' })
     expect(within(card).getByRole('link', { name: 'How sure is this?' })).toBeInTheDocument()
     expect(within(card).queryByRole('link', { name: 'How is this graded?' })).toBeNull()
+  })
+})
+
+describe('EvidenceCard links the gap to the 20 minute effort', () => {
+  it('links the how-to to the 20 minute effort, on How sure is this?', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
+
+    const card = screen.getByRole('region', { name: 'Your ride number could be higher' })
+    expect(
+      within(card).getByRole('link', { name: 'How the 20 min effort is checked' }),
+    ).toHaveAttribute('href', '#/method')
+  })
+
+  it('asks How sure is this? to open that section when the link is followed', () => {
+    renderCard({ durationS: 1200, runHrFraction: 0.95, rideHrFraction: 0.8 })
+
+    const card = screen.getByRole('region', { name: 'Your ride number could be higher' })
+    fireEvent.click(within(card).getByRole('link', { name: 'How the 20 min effort is checked' }))
+    expect(requestedMethodSection()).toBe(TWENTY_MINUTE_ID)
+    clearRequestedMethodSection()
   })
 })

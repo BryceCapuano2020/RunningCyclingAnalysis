@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
+  SAMPLE_BANNER,
   SETUP_DIALOG_NAME,
   activitiesRows,
   edgesOf,
@@ -37,16 +38,10 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await openSample(page)
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(BALANCE_TITLE)
-  await expect(
-    page.getByRole('status').filter({ hasText: 'Showing a sample athlete' }),
-  ).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toBeVisible()
   await expect(page.getByRole('img', { name: BALANCE_METER })).toBeVisible()
   await expect(page.getByRole('figure', { name: BALANCE_TREND })).toBeVisible()
-  await expect(
-    page
-      .getByRole('status')
-      .filter({ hasText: 'Showing a sample athlete, a 37-year-old man at 75 kg.' }),
-  ).toHaveCount(1)
+  await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(1)
 
   await goTo(page, 'Run')
   await expect(page.getByRole('figure', { name: RUN_CURVE })).toBeVisible()
@@ -223,9 +218,7 @@ test('uploading the Strava export zip shows the results, including its GPX run',
   // Fourteen FIT activities and one GPX run.
   await expect(await activitiesRows(page)).toHaveCount(15)
   await expect(page.getByText(/^[\d,]+ files?: /)).toHaveCount(0)
-  await expect(
-    page.getByRole('status').filter({ hasText: 'Showing a sample athlete' }),
-  ).toHaveCount(0)
+  await expect(page.getByRole('status').filter({ hasText: SAMPLE_BANNER })).toHaveCount(0)
 })
 
 test('uploading a GPX ride and a TCX run shows the results', async ({ page }) => {
@@ -346,13 +339,46 @@ test.describe('on a short landscape phone', () => {
   })
 })
 
-test('at 320 by 568 the meter scale is above the section tabs', async ({ page }) => {
+test('at 320 by 568 the meter scale and its key are above the section tabs', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await openSample(page)
   const tabs = await tabBarTop(page)
-  // The key under the scale ends beneath the tabs at this height, so the scale is what must clear them.
   expect((await edgesOf(page.locator('.balance-meter__band'))).bottom).toBeLessThanOrEqual(tabs)
   expect((await edgesOf(page.locator('.balance-meter__dot'))).bottom).toBeLessThanOrEqual(tabs)
+  expect((await edgesOf(page.locator('.balance-meter__key'))).bottom).toBeLessThanOrEqual(tabs)
+})
+
+// On a wide screen the headline runs the answer's full width, the lede keeps its 62 character measure, and the
+// meter spans the sport cards below with Even on the gutter between them.
+test('at 1280 the headline runs the full width, the lede keeps its measure, and the meter spans the cards', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await openSample(page)
+  const headline = await page.getByRole('heading', { level: 1 }).boundingBox()
+  const lede = await page.locator('.balance-hero .lede').boundingBox()
+  const cards = await page.locator('.balance__sports').boundingBox()
+  const meter = await page.locator('.balance-meter').boundingBox()
+  const even = await page.locator('.balance-meter__even').boundingBox()
+  if (headline === null || lede === null || cards === null || meter === null || even === null) {
+    throw new Error('no box for the headline, lede, cards, meter or even tick')
+  }
+  // The lede keeps its own 62 character measure, which a probe in the lede's font measures.
+  const sixtyTwoCh = await page.locator('.balance-hero .lede').evaluate((el) => {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:absolute;visibility:hidden;width:62ch'
+    probe.style.font = getComputedStyle(el).font
+    el.parentElement!.appendChild(probe)
+    const width = probe.getBoundingClientRect().width
+    probe.remove()
+    return width
+  })
+  expect(headline.width).toBeGreaterThan(lede.width)
+  expect(lede.width).toBeLessThanOrEqual(sixtyTwoCh + 1)
+  expect(meter.y).toBeGreaterThanOrEqual(lede.y + lede.height)
+  expect(meter.x).toBeCloseTo(cards.x, 0)
+  expect(meter.x + meter.width).toBeCloseTo(cards.x + cards.width, 0)
+  expect(Math.abs(even.x + even.width / 2 - (cards.x + cards.width / 2))).toBeLessThanOrEqual(2)
 })
 
 test('at 667 by 375 the meter is above the section tabs', async ({ page }) => {

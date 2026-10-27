@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 import {
   BALANCE_TITLE,
   LANDING_TITLE,
+  SAMPLE_BANNER,
   activitiesRows,
   goTo,
   openSample,
@@ -98,7 +99,7 @@ test('the sample is never kept, so a reload after it shows the landing page', as
   await settleAfterReload(page)
 
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toBeVisible()
-  await expect(page.getByText('Showing a sample athlete')).toHaveCount(0)
+  await expect(page.getByText(SAMPLE_BANNER)).toHaveCount(0)
   await goTo(page, 'Profile')
   await expect(keptList(page)).toHaveCount(0)
   expect(errors).toEqual([])
@@ -120,7 +121,7 @@ test('files added over the sample join the results kept by this browser, without
   await uploadFixtures(page, ['one-run.fit'])
 
   await expect(await activitiesRows(page)).toHaveCount(2)
-  await expect(page.getByText('Showing a sample athlete')).toHaveCount(0)
+  await expect(page.getByText(SAMPLE_BANNER)).toHaveCount(0)
   expect(errors).toEqual([])
   expect(otherErrors).toEqual([])
 })

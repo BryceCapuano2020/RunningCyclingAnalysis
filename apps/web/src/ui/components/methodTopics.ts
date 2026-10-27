@@ -1,5 +1,5 @@
-import { RIDE_MAX_OFFSET_BPM } from '@rca/core/effort'
 import { FLAT_RUN_COST, PRIORS, RUN_COST_CORRECTION } from '@rca/core/constants'
+import { ENERGY_RATE_UNIT } from '@rca/core/units'
 import {
   DEFAULT_WINDOW_DAYS,
   EFFORT_LENGTHS_S,
@@ -50,7 +50,7 @@ const TOPIC_LIST = [
     id: 'unit',
     title: 'One unit for both sports',
     plain: [
-      'Cycling power is turned into energy using gross efficiency: the share of the energy the body burns that reaches the pedals. Running speed and gradient are turned into energy using published research.',
+      `Both sports go on one scale: the energy rate (${ENERGY_RATE_UNIT}), the energy each sport costs per kilogram of body weight. Cycling power is turned into that energy using gross efficiency: the share of the energy the body burns that reaches the pedals. Running speed and gradient are turned into it using published research.`,
     ],
     detail:
       `Gross efficiency averages about ${EFFICIENCY_PERCENT}%. Running uses the energy cost of ` +
@@ -67,20 +67,19 @@ const TOPIC_LIST = [
     detail:
       `Efficiency varies between people by about ${spreadPercent(PRIORS.grossEfficiency)}%, and ` +
       `running economy by about ${spreadPercent(PRIORS.runEconomyScale)}%. Those spreads are the ` +
-      'model’s assumptions behind the range. The energy view above says what the range is, and ' +
-      'what it leaves out.',
+      'model’s assumptions behind the range.',
   },
   {
     id: 'trend',
     title: `Best ${HEADLINE_LABEL}, week by week`,
     plain: [
-      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${HEADLINE_LABEL}. Running is shown as flat pace: your pace allowing for hills, as if on level ground, and cycling as power in watts.`,
+      `Each point is one week, ending on a Sunday in UTC. It shows your best effort in each sport over the chosen length: ${EFFORT_PHRASE}. Balance uses ${HEADLINE_LABEL}. Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.`,
       `Each point looks back over a window that ends that Sunday. Each window is a third of the period’s length, kept between ${MIN_WINDOW_DAYS} and ${DEFAULT_WINDOW_DAYS} days, so ${WINDOW_EXAMPLES}. All time uses ${DEFAULT_WINDOW_DAYS} days. Each window lies inside the period you chose.`,
       'A gap means no run or ride of that length fell inside the window.',
     ],
     detail:
-      'Each effort is judged on energy rate, using average efficiency and running economy, and ' +
-      'converted with the period’s one bike model, which is fitted to its activities. The ' +
+      'Each effort is judged on energy rate and converted with the period’s one bike model, which is ' +
+      'fitted to its activities. The ' +
       'headline reports the median, the middle of the model’s simulated answers, which ' +
       'heart-rate calibration can shift, so the headline and the trend can differ slightly. The ' +
       'range shown with the headline is not drawn for each week.',
@@ -95,10 +94,9 @@ const TOPIC_LIST = [
       'The model assumes heart rate responds to energy rate in a similar way in both sports, so ' +
       'differences in the fitted slopes can adjust the energy estimates. That is not an ' +
       'independent measure of efficiency. Each sport’s best efforts are judged against a ' +
-      'reference maximum, in beats per minute (bpm), set from the highest sustained heart rates on file. Running ' +
-      'uses the higher of its own maximum and the cycling maximum. Cycling uses the higher of its ' +
-      `own maximum and ${RIDE_MAX_OFFSET_BPM} bpm below the running maximum, because a cycling ` +
-      'maximum usually runs 5 to 7 bpm lower.',
+      'reference maximum, in beats per minute (bpm), set from the highest sustained heart rates on ' +
+      'file. A cycling maximum usually runs 5 to 7 bpm lower than a running one, so the cycling ' +
+      'reference allows for that.',
   },
   {
     id: 'virtual',

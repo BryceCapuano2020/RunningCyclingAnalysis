@@ -10,20 +10,37 @@ function isPlainPrimaryClick(event: MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 /**
- * A link to the age grades on How sure is this?. The page focuses that heading once it opens, because
- * a fragment would change the hash route.
+ * A link to one section of How sure is this?. The page focuses that heading once it opens, because a
+ * fragment would change the hash route.
  */
-export function GradesLink({ className, children }: { className?: string; children: ReactNode }) {
+export function MethodSectionLink({
+  sectionId,
+  className,
+  children,
+}: {
+  sectionId: string
+  className?: string
+  children: ReactNode
+}) {
   return (
     <a
       className={className}
       href={hrefFor({ page: 'method' })}
       onClick={(event) => {
-        if (isPlainPrimaryClick(event)) requestMethodSection(SECTION_ID.grades)
+        if (isPlainPrimaryClick(event)) requestMethodSection(sectionId)
       }}
     >
       {children}
     </a>
+  )
+}
+
+/** A link to the age grades on How sure is this?. */
+export function GradesLink({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <MethodSectionLink sectionId={SECTION_ID.grades} className={className}>
+      {children}
+    </MethodSectionLink>
   )
 }
 

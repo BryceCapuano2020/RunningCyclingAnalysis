@@ -18,7 +18,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, a weekly trend for 5, 20 or 60 minutes, the best-effort curve in pace or watts with the previous period dashed                                               |
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                              |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                               |
-| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                                                                                                                 |
+| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                                                                              |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line under the energy view, where the charts would be. On a reload of a visit that kept
@@ -355,11 +355,14 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   needs two weeks with values."
 - On a short screen (SHORT_PHONE_MAX_HEIGHT_PX, for a finger or a window 760 px wide or less) the page's
   header, notices and sections sit closer, the answer sits closer to its meter, and the meter's plot, ends and
-  key sit closer still. At 320 x 568 the meter's scale is above the section tabs, which are the bar at the foot
-  of the screen there; the key under the scale ends beneath that bar, so it may need a short scroll. At 320 x
-  640 the key is above the bar. In landscape the answer sits beside its meter: at 667 x 375 the meter is above
-  the foot bar, and at 844 x 390 it is on the first screen, where the tabs sit in the header.
-- The balance meter spans the card row, so its centre is the gap between the two cards. Running is
+  key sit closer still. At 320 x 568 the meter's scale and its key are above the section tabs, which are the
+  bar at the foot of the screen there. The sample banner is two lines at that width, and its padding tightens on a
+  short phone, which brings the key up. At 320 x 640 the key is above the bar too. In landscape the answer sits
+  beside its meter: at 667 x 375 the meter is above the foot bar, and at 844 x 390 it is on the first screen,
+  where the tabs sit in the header.
+- The Balance headline runs the answer's full width, so on a wide screen it is one measure across the card row.
+  The lede and the lines under it keep a 62 character measure. The balance meter spans the card row, so its centre
+  is the gap between the two cards. Running is
   on the left and cycling on the right, in the order `SPORT_ORDER` gives (`apps/web/src/ui/sports.ts`):
   the cards, the meter, the landing example and the share card all follow it. The meter plots the
   age-grade gap in whole points, with the range as a band and the best estimate as a dot. Ticks sit at
@@ -459,7 +462,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Best efforts share one list,** `SportRecords`, on the Balance card, the sport page and the activity
   page: one row per record with one source size, built by `recordRow`. A run's own distance times, such
   as its 5 km time, are graded at the day it was run, and the activity page links their level to How is
-  this graded?. A run's pace is marked Flat, which the note spells out; a ride's watts are marked
+  this graded?. A run's pace is marked Flat, which the note spells out. Under a run's list a line says its distance
+  times are as run, since the pace curve allows for hills: "Distance times are as run. The pace curve allows for
+  hills, so they can differ."; a ride's watts are marked
   Estimated unless a power meter measured them. A record set by a run held indoors is marked
   Treadmill in the same chip, on its row, on a distance time and in the grade line's effort. When
   every record was set in one activity, that activity is named once under the list ("All set on Morning run,
@@ -471,7 +476,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ride is worth 4:10 /km", with a no-break space), and the ride's watts marked estimated when no power meter measured them.
   Its ride figures and its table wait for the weight, as the cards' do, and its needs-a-ride line names
   the dates the period is missing a ride between, or says that a long ride needs power when it has no power curve. The evidence card is a card
-  only for a gap with an action; good news is a quiet line with no heading.
+  only for a gap with an action, and its how-to links to the 20 minute effort under How sure is this?'s heart-rate
+  check; good news is a quiet line with no heading.
 - **Only the drop area is dashed.** On the landing page the example beside it is a solid frame, with
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
@@ -609,7 +615,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Every number names its source**: the activity that set it, with a link to that activity.
 - **Evidence gaps say what to do, on the card itself**: one plain paragraph under the gap, saying how to
   record a hard, steady 20-minute effort with heart rate on, or how to add heart rate to a file. Its
-  link is "How sure is this?", to the method page, which explains the check. Good news has no how-to.
+  links are "How sure is this?", to the method page, and, on the gap card, "How the 20 min effort is
+  checked", to that section of it. Good news has no how-to.
 - **Export guides cite their sources.** Each guide's steps name only what the sources cited beside
   them in `apps/web/src/ui/exportGuides.ts` support. The source line says where the steps came from,
   decided by the guide's `verified` flag, so a guide never claims a help page it did not read. Guides

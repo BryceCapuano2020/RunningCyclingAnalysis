@@ -22,7 +22,13 @@ import { formatCount } from '../format/count'
 import { recordChange } from '../recordChange'
 import { recordRow, treadmillMarks } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
+import {
+  DISTANCE_TIMES_NOTE,
+  FLAT_PACE_NOTE,
+  distanceGrade,
+  listedGradeNotes,
+  sportGrade,
+} from '../grades'
 import type { AgeGap, AgeProfile } from '../grades'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
@@ -291,6 +297,7 @@ export function SportPage({
               </p>
             )}
             <SportRecords rows={[...rows, ...distanceRows]} />
+            {distanceRows.length > 0 && <p className="muted">{DISTANCE_TIMES_NOTE}</p>}
             {listNotes.map((note) => (
               <p key={note} className="muted">
                 {note}

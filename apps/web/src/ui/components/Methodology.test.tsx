@@ -122,8 +122,9 @@ describe('Methodology', () => {
     const detail = plainOf('Best 20 min, week by week').querySelector('details')
     expect(detail).toHaveTextContent('the median, the middle of the model’s simulated answers')
     expect(detail).toHaveTextContent('period’s one bike model')
+    expect(detail).not.toHaveTextContent('running economy')
     expect(plainOf('Best 20 min, week by week')).toHaveTextContent(
-      'Running is shown as flat pace: your pace allowing for hills, as if on level ground, and cycling as power in watts.',
+      'Running is shown as flat pace, your pace allowing for hills as if on level ground, and cycling as power in watts.',
     )
   })
 
@@ -144,12 +145,8 @@ describe('Methodology', () => {
     )
     const detail = section.querySelector('details')
     expect(detail).toHaveTextContent('beats per minute (bpm)')
-    expect(detail).toHaveTextContent(
-      'Running uses the higher of its own maximum and the cycling maximum.',
-    )
-    expect(detail).toHaveTextContent(
-      'Cycling uses the higher of its own maximum and 6 bpm below the running maximum',
-    )
+    // The rule for each sport's reference is said once, in the facts under the check.
+    expect(detail).not.toHaveTextContent('Running uses the higher of its own maximum')
     expect(detail).toHaveTextContent('5 to 7 bpm lower')
   })
 
@@ -179,7 +176,7 @@ describe('Methodology', () => {
     expect(detail).toHaveTextContent('by about 7%, and running economy by about 8%')
     // The range and its limits are defined once, on How sure is this?, so this topic refers back.
     expect(detail?.textContent).not.toMatch(/every source of|sensor error|90% range summarises/)
-    expect(detail).toHaveTextContent('The energy view above says what the range is')
+    expect(detail).not.toHaveTextContent('The energy view above says what the range is')
     expect(plainOf('One unit for both sports').querySelector('details')).toHaveTextContent(
       'Gross efficiency averages about 21.5%.',
     )

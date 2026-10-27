@@ -46,7 +46,7 @@ export function AgeGradingSection({ gradedSex }: AgeGradingSectionProps) {
       </p>
       <p className="secondary">
         A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for
-        hills with a published energy-cost curve.
+        hills.
       </p>
       <p className="secondary">
         A ride has no published cycling standard. Its best effort is converted to the flat running

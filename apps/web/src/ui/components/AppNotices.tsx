@@ -7,7 +7,7 @@ import { SyncStatus } from './SyncStatus'
 import './AppNotices.css'
 
 /** Shown on every page while the sample is loaded. It says once that the sample is not kept. */
-const SAMPLE_BANNER = `Showing a sample athlete, ${SAMPLE_DESCRIPTION}. The sample is not kept: add your own files and they replace it.`
+const SAMPLE_BANNER = `Sample athlete, ${SAMPLE_DESCRIPTION}. Not kept: add files to replace it.`
 const NO_MOVED: MovedItem[] = []
 
 export interface AppNoticesProps {

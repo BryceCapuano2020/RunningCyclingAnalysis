@@ -28,7 +28,7 @@ describe('AgeGradingSection', () => {
     render(<AgeGradingSection gradedSex={null} />)
 
     expect(section()).toHaveTextContent(
-      'A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for hills with a published energy-cost curve.',
+      'A run’s grade is read as recorded, from its flat pace: the recorded pace, corrected for hills.',
     )
     expect(section()).not.toHaveTextContent(/a fact from the file/)
   })
