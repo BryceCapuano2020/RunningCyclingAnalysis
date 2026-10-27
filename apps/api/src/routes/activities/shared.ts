@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, getTableColumns } from 'drizzle-orm'
 import { StoredActivityDigestSchema, type ActivityRecord } from '@rca/contract'
 import type { Sport } from '@rca/core/types'
 import type { Db } from '../../env.ts'
@@ -6,6 +6,11 @@ import { HttpError } from '../../errors.ts'
 import { activities } from '../../db/schema.ts'
 
 export type ActivityRow = typeof activities.$inferSelect
+
+/** Every activities column, aliased to its ActivityRow key, for a raw statement's RETURNING. */
+export const ACTIVITY_COLUMNS = Object.entries(getTableColumns(activities))
+  .map(([key, column]) => `${column.name} AS ${key}`)
+  .join(', ')
 
 /** Activities created from the same sport in the same second are the same activity. */
 export function dedupeKeyFor(sport: Sport, startMs: number): string {

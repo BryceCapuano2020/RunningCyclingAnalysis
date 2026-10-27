@@ -116,6 +116,17 @@ npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
 ```
 
 Every sampled digest must be valid JSON. The revision shows which analysis model produced it.
+
+Triggers keep each user's `file_bytes` equal to the sum of their `file_size`. The restore creates
+them after the rows, but check the counter anyway. This query must return no rows:
+
+```bash
+npm exec -w @rca/api -- wrangler d1 execute rca-restore-YYYYMMDD --remote \
+  --command "SELECT id FROM users WHERE file_bytes <> (SELECT coalesce(sum(file_size), 0) FROM activities WHERE user_id = users.id);"
+```
+
+If it lists accounts, set every counter from the rows with one statement:
+`UPDATE users SET file_bytes = (SELECT coalesce(sum(file_size), 0) FROM activities WHERE activities.user_id = users.id);`
 Compare one activity's `file_hash` with the SHA-256 of the owner's original file for it, if the
 owner still has that file.
 

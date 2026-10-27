@@ -496,7 +496,7 @@ describe('shared limits', () => {
       fileDownload: 50,
       profileWrite: 50,
       activityDelete: 50,
-      activityCreate: 2000,
+      activityCreate: 5000,
       fileUpload: 2000,
       read: 100,
     })

@@ -21,13 +21,14 @@ export const MAX_STORED_BYTES_PER_USER = 1024 * 1024 * 1024
  * Per-user daily budgets. Each counts one kind of request per UTC day and resets at 00:00 UTC.
  * Exceeding one returns 429 with code `daily_limit`. Activity creates and original uploads are
  * deliberately above the 50-a-day default: a first Strava export import is hundreds to thousands
- * of activities. The lifetime cap of MAX_ACTIVITIES_PER_USER still applies. See apps/api/LIMITS.md.
+ * of activities. Creates may fill a whole library in one day, so the largest library's first
+ * import completes in one day. See apps/api/LIMITS.md.
  */
 export const DAILY_LIMITS = {
   fileDownload: 50,
   profileWrite: 50,
   activityDelete: 50,
-  activityCreate: 2000,
+  activityCreate: MAX_ACTIVITIES_PER_USER,
   fileUpload: 2000,
   /** Library listings and profile reads. One listing of 5,000 rows is 5,000 D1 rows read. */
   read: 100,

@@ -16,14 +16,18 @@ import { invalidRequest, limitBody, readBody } from '../../http.ts'
 import { chargeDaily } from '../../budget.ts'
 import { recordDatabaseSize } from '../../storage.ts'
 import { activities } from '../../db/schema.ts'
-import { dedupeKeyFor, findOwnedActivity, toRecord, type ActivityRow } from './shared.ts'
+import { must } from '../../util.ts'
+import {
+  ACTIVITY_COLUMNS,
+  dedupeKeyFor,
+  findOwnedActivity,
+  toRecord,
+  type ActivityRow,
+} from './shared.ts'
+import { accountState, activityQuota, createRefusal, databaseFull, digestQuota } from './quota.ts'
 
 /** The digest limit applies to its JSON; the envelope (name, hash) gets this much headroom. */
 const MAX_CREATE_BODY_BYTES = MAX_DIGEST_BYTES + 16 * 1024
-
-const DATABASE_FULL_MESSAGE = 'Activities cannot be saved while the database is full'
-
-const DIGEST_QUOTA_MESSAGE = `You can store at most ${MAX_DIGEST_BYTES_PER_USER / (1024 * 1024)} MiB of activity digests`
 
 const CONFLICTING_FILE_MESSAGE =
   'This activity already exists with different original file contents'
@@ -43,45 +47,6 @@ type CreateInput = z.infer<typeof ActivityCreateSchema> & {
 /** A stored digest's size: UTF-8 bytes, as SQLite's length(CAST(digest_json AS BLOB)) counts them. */
 function digestByteLength(digestJson: string): number {
   return new TextEncoder().encode(digestJson).byteLength
-}
-
-interface AccountState {
-  deletingAt: number | null
-  digestBytes: number
-  databaseBytes: number
-}
-
-/** The account counters, read after a write was refused to say why. */
-async function accountState(db: D1Database, userId: string): Promise<AccountState> {
-  const row = await db
-    .prepare(
-      `SELECT deleting_at AS deletingAt, digest_bytes AS digestBytes,
-         coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) AS databaseBytes
-       FROM users WHERE id = ?`,
-    )
-    .bind(userId)
-    .first<AccountState>()
-  return row ?? { deletingAt: null, digestBytes: 0, databaseBytes: 0 }
-}
-
-/** The reason the insert wrote nothing, read back once the insert has been refused. */
-async function createRefusal(
-  db: D1Database,
-  userId: string,
-  digestBytes: number,
-): Promise<HttpError> {
-  const state = await accountState(db, userId)
-  if (state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
-    return new HttpError(503, 'database_full', DATABASE_FULL_MESSAGE)
-  }
-  if (state.digestBytes + digestBytes > MAX_DIGEST_BYTES_PER_USER) {
-    return new HttpError(403, 'digest_quota', DIGEST_QUOTA_MESSAGE)
-  }
-  return new HttpError(
-    403,
-    'activity_quota',
-    `You can store at most ${MAX_ACTIVITIES_PER_USER} activities`,
-  )
 }
 
 /** The request body as parsed JSON, read under the create limit. Anything else is refused. */
@@ -141,9 +106,9 @@ async function reserveDigestDelta(db: D1Database, userId: string, delta: number)
     throw new HttpError(409, 'account_deleting', 'This account is being deleted')
   }
   if (delta > 0 && state.databaseBytes > DATABASE_SOFT_LIMIT_BYTES) {
-    throw new HttpError(503, 'database_full', DATABASE_FULL_MESSAGE)
+    throw databaseFull()
   }
-  throw new HttpError(403, 'digest_quota', DIGEST_QUOTA_MESSAGE)
+  throw digestQuota()
 }
 
 /** The digest a newer model revision of the same original file replaces the stored one with. */
@@ -263,16 +228,20 @@ async function replaceExact(
   return upgradeExisting(c, userId, target, input)
 }
 
-/** One D1 batch: the row and its counters move together, and only if the insert is admitted. */
+/**
+ * One D1 batch: the row and its counters move together, and only if the insert is admitted. The
+ * result carries the inserted row, or no row when the insert was refused or another request wrote
+ * the same activity first.
+ */
 async function insertActivity(
   c: Context<AppEnv>,
   id: string,
   userId: string,
   input: CreateInput,
-): Promise<D1Result | undefined> {
+): Promise<D1Result<ActivityRow>> {
   const { deps } = c.var
   const { dedupeKey, digest, digestJson, digestBytes, fileName, fileHash } = input
-  const [inserted] = await c.env.DB.batch([
+  const [inserted] = await c.env.DB.batch<ActivityRow>([
     c.env.DB.prepare(
       `INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
           digest_json, file_name, file_hash, created_at)
@@ -281,7 +250,8 @@ async function insertActivity(
          AND (SELECT digest_bytes FROM users WHERE id = ?) + ? <= ?
          AND coalesce((SELECT d1_size_bytes FROM r2_storage_budget WHERE id = 1), 0) <= ?
          AND EXISTS (SELECT 1 FROM users WHERE id = ? AND deleting_at IS NULL)
-       ON CONFLICT(user_id, dedupe_key) DO NOTHING`,
+       ON CONFLICT(user_id, dedupe_key) DO NOTHING
+       RETURNING ${ACTIVITY_COLUMNS}`,
     ).bind(
       id,
       userId,
@@ -307,7 +277,7 @@ async function insertActivity(
        WHERE id = ? AND EXISTS (SELECT 1 FROM activities WHERE id = ? AND user_id = ?)`,
     ).bind(digestBytes, userId, id, userId),
   ])
-  return inserted
+  return must(inserted, 'insert result')
 }
 
 /** Inserts a new activity, refunding its daily unit when a concurrent request wrote it first. */
@@ -317,20 +287,26 @@ async function insertNew(
   input: CreateInput,
 ): Promise<Response> {
   const { db, deps } = c.var
+  // What the account cannot hold is refused before a daily unit is taken, so a refused create
+  // writes nothing. The insert holds the same limits, for requests that race this check.
+  const refusal = createRefusal(await accountState(c.env.DB, userId), input.digestBytes)
+  if (refusal) throw refusal
   // Only a request that will insert a new row takes a daily create unit.
   const charge = await chargeDaily(c.env.DB, userId, 'activityCreate', deps.now())
   const id = deps.randomUUID()
   const inserted = await insertActivity(c, id, userId, input)
-  const afterInsert = await findExisting(db, userId, input.dedupeKey)
-  if (afterInsert?.id === id) {
+  const row = inserted.results[0]
+  if (row) {
     // Only a create that wrote its row updates the size the guard reads.
-    if (inserted) await recordDatabaseSize(c.env.DB, deps.now(), inserted.meta.size_after)
-    return c.json(toRecord(afterInsert), 201)
+    await recordDatabaseSize(c.env.DB, deps.now(), inserted.meta.size_after)
+    return c.json(toRecord(row), 201)
   }
 
   await charge.refund()
-  if (afterInsert) return upgradeExisting(c, userId, afterInsert, input)
-  throw await createRefusal(c.env.DB, userId, input.digestBytes)
+  const existing = await findExisting(db, userId, input.dedupeKey)
+  if (existing) return upgradeExisting(c, userId, existing, input)
+  // Another request filled the account after the check above.
+  throw createRefusal(await accountState(c.env.DB, userId), input.digestBytes) ?? activityQuota()
 }
 
 export const createRoutes = new Hono<AppEnv>()

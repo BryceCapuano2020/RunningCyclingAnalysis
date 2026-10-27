@@ -178,7 +178,7 @@ describe('daily budgets', () => {
     expect(await list.json()).toMatchObject({ error: { code: 'daily_limit' } })
   })
 
-  it('allows 2,000 activity creates a day rather than the 50 used for other actions', async () => {
+  it('allows 5,000 activity creates a day, a whole library, rather than the 50 used for other actions', async () => {
     const h = createHarness()
     const token = await h.signIn()
     const uid = await userId(h, token)

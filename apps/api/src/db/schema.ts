@@ -22,6 +22,11 @@ export const users = sqliteTable('users', {
   deletingAt: integer('deleting_at'),
   /** Digest JSON bytes this user stores, kept in step with activities rows. Capped per user. */
   digestBytes: integer('digest_bytes').notNull().default(0),
+  /**
+   * Original-file bytes this user stores or has reserved: the sum of their activities' file_size.
+   * Triggers on activities (migration 0008) keep it in step, so no writer has to. Capped per user.
+   */
+  fileBytes: integer('file_bytes').notNull().default(0),
   /** The last continuation cursor the server issued for this user's library, spent once. */
   listCursor: text('list_cursor'),
 })

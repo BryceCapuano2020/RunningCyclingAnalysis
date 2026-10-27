@@ -114,6 +114,11 @@ describe('migrations', () => {
         { id: 'u1', digest_bytes: 21 },
         { id: 'u2', digest_bytes: 0 },
       ])
+      // The stored-file counter starts at the bytes each user's existing rows already hold.
+      expect(db.prepare('SELECT id, file_bytes FROM users ORDER BY id').all()).toEqual([
+        { id: 'u1', file_bytes: 300 },
+        { id: 'u2', file_bytes: 0 },
+      ])
       expect(db.prepare('SELECT list_cursor FROM users').all()).toEqual([
         { list_cursor: null },
         { list_cursor: null },
@@ -229,6 +234,85 @@ describe('migrations', () => {
       expect(db.prepare('SELECT user_id FROM profiles ORDER BY user_id').all()).toEqual([
         { user_id: 'u2' },
         { user_id: 'u3' },
+      ])
+      expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+      expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
+    } finally {
+      db.close()
+    }
+  })
+
+  it("counts each user's stored file bytes, backfilled, and keeps the count exact for any writer", () => {
+    const tags = journalTags()
+    const cut = tags.indexOf('0007_profile_mass_nullable')
+    expect(cut).toBeGreaterThan(0)
+    const db = new DatabaseSync(':memory:')
+    const counters = () =>
+      db
+        .prepare(
+          `SELECT id, file_bytes AS counter,
+             (SELECT coalesce(sum(file_size), 0) FROM activities WHERE user_id = users.id) AS actual
+           FROM users ORDER BY id`,
+        )
+        .all()
+    const agree = () =>
+      counters().map((row) => ({ id: row.id, counter: row.actual, actual: row.actual }))
+    try {
+      db.exec('PRAGMA foreign_keys = ON')
+      for (const tag of tags.slice(0, cut + 1)) applyMigration(db, tag)
+      db.exec(`
+        INSERT INTO users (id, email, name, picture_url, created_at)
+          VALUES ('u1', 'a@example.test', 'A', NULL, 1), ('u2', 'b@example.test', 'B', NULL, 1),
+                 ('u3', 'c@example.test', 'C', NULL, 1);
+        INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name, digest_version,
+          digest_json, file_name, file_hash, file_key, file_size, created_at) VALUES
+          ('a1', 'u1', 'ride-1', 'ride', 1000, 'One', 1, '{}', 'one.fit', 'h1', 'users/u1/a1', 100, 1),
+          ('a2', 'u1', 'ride-2', 'ride', 2000, 'Two', 1, '{}', 'two.fit', 'h2', NULL, NULL, 2),
+          ('a3', 'u1', 'run-3', 'run', 3000, 'Three', 1, '{}', 'three.fit', 'h3', NULL, 200, 3),
+          ('b1', 'u2', 'ride-1', 'ride', 1000, 'One', 1, '{}', 'one.fit', 'h4', 'users/u2/b1', 50, 1);
+      `)
+
+      for (const tag of tags.slice(cut + 1)) applyMigration(db, tag)
+
+      // A reservation (a size with no key yet) counts, as it does in the sum the quota used to take.
+      expect(counters()).toEqual([
+        { id: 'u1', counter: 300, actual: 300 },
+        { id: 'u2', counter: 50, actual: 50 },
+        { id: 'u3', counter: 0, actual: 0 },
+      ])
+
+      // The Worker that is live during a release writes file_size without naming file_bytes.
+      const insertC1 = (size: string) =>
+        db.exec(`INSERT INTO activities (id, user_id, dedupe_key, sport, start_ms, name,
+          digest_version, digest_json, file_name, file_hash, file_size, created_at)
+          VALUES ('c1', 'u3', 'ride-1', 'ride', 1, 'C', 1, '{}', 'c.fit', 'h5', ${size}, 1)`)
+      insertC1('70')
+      expect(counters()).toEqual(agree())
+      expect(db.prepare("SELECT file_bytes FROM users WHERE id = 'u3'").get()).toEqual({
+        file_bytes: 70,
+      })
+      for (const size of ['90', 'NULL', '40', '40']) {
+        db.exec(`UPDATE activities SET file_size = ${size} WHERE id = 'c1'`)
+        expect(counters()).toEqual(agree())
+      }
+      // A write that leaves file_size alone does not move the counter.
+      db.exec("UPDATE activities SET name = 'renamed', file_key = 'k' WHERE id = 'c1'")
+      expect(db.prepare("SELECT file_bytes FROM users WHERE id = 'u3'").get()).toEqual({
+        file_bytes: 40,
+      })
+      db.exec("DELETE FROM activities WHERE id = 'a1'")
+      db.exec("DELETE FROM activities WHERE id = 'a2'")
+      expect(counters()).toEqual(agree())
+      expect(db.prepare("SELECT file_bytes FROM users WHERE id = 'u1'").get()).toEqual({
+        file_bytes: 200,
+      })
+
+      // Deleting an account cascades to its activities, and the counter goes with the row.
+      db.exec("DELETE FROM users WHERE id = 'u2'")
+      expect(counters()).toEqual(agree())
+      expect(db.prepare('SELECT id FROM users ORDER BY id').all()).toEqual([
+        { id: 'u1' },
+        { id: 'u3' },
       ])
       expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
       expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' })
