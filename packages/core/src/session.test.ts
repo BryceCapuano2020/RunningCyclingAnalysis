@@ -875,7 +875,7 @@ describe('AnalysisSession', () => {
     expect(state.syncIssues).toEqual([{ code: 'account-changed', count: 2 }])
   })
 
-  it('keeps saving the rest of the import after a rate limit or a network failure', async () => {
+  it('keeps saving the rest of the import after a network or server failure', async () => {
     const session = new AnalysisSession()
     const attempted: Sport[] = []
     const state = await session.addFiles(
@@ -884,19 +884,25 @@ describe('AnalysisSession', () => {
       undefined,
       async (item) => {
         attempted.push(item.digest.sport)
-        if (item.digest.sport === 'run') throw new SyncFailure('rate-limited', 'Daily limit')
-        throw new SyncFailure('network', 'Offline')
+        if (item.digest.sport === 'run') throw new SyncFailure('network', 'Offline')
+        throw new SyncFailure('server', 'Oops')
       },
     )
 
     expect(attempted).toEqual(['run', 'ride'])
     expect(state.syncIssues).toEqual([
-      { code: 'rate-limited', count: 1 },
       { code: 'network', count: 1 },
+      { code: 'server', count: 1 },
     ])
   })
 
-  it.each<SyncIssueCode>(['digest-quota', 'database-full'])(
+  it.each<SyncIssueCode>([
+    'digest-quota',
+    'database-full',
+    'daily-limit',
+    'activity-quota',
+    'rate-limited',
+  ])(
     'stops calling the sink after a %s failure, since every further save would fail the same way',
     async (code) => {
       const session = new AnalysisSession()
@@ -913,6 +919,8 @@ describe('AnalysisSession', () => {
 
       expect(attempted).toEqual(['run'])
       expect(state.syncIssues).toEqual([{ code, count: 2 }])
+      // The analysis keeps every activity of the import, saved or waiting.
+      expect(state.totalActivities).toBe(2)
     },
   )
 

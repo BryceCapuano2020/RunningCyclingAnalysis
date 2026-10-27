@@ -49,3 +49,20 @@ const HALTING_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
 export function haltsImport(code: SyncIssueCode): boolean {
   return HALTING_CODES.has(code)
 }
+
+/** The limits an import can run into: the library's size, the day's saves, and the request rate. */
+const LIMIT_CODES: ReadonlySet<SyncIssueCode> = new Set<SyncIssueCode>([
+  'activity-quota',
+  'daily-limit',
+  'rate-limited',
+])
+
+/**
+ * Whether a failure stops the import's saves. A halting failure does, and so does a limit: once the
+ * library is full, the day's saves are spent, or the request rate is held (after the sink waited out
+ * the server's Retry-After and tried once more), later saves in the same import would be refused the
+ * same way. The activities after it are still analysed, and are counted as waiting to be saved.
+ */
+export function stopsSaving(code: SyncIssueCode): boolean {
+  return haltsImport(code) || LIMIT_CODES.has(code)
+}

@@ -543,11 +543,18 @@ describe('createActivity', () => {
       status: 403,
       code: 'digest_quota',
     })
-    stubFetch(respond(503, { error: { code: 'database_full', message: 'Database full' } }))
-    await expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject({
-      status: 503,
-      code: 'database_full',
-    })
+    // The server sends no Retry-After with this refusal, so the create is tried once more.
+    vi.useFakeTimers()
+    const full = { error: { code: 'database_full', message: 'Database full' } }
+    stubFetch(respond(503, full), respond(503, full))
+    const refused = expect(createActivity(DIGEST, 'run.fit', 'd'.repeat(64))).rejects.toMatchObject(
+      {
+        status: 503,
+        code: 'database_full',
+      },
+    )
+    await vi.advanceTimersByTimeAsync(1_000)
+    await refused
   })
 })
 
@@ -611,14 +618,86 @@ describe('deleteActivity', () => {
 })
 
 describe('retry policy', () => {
-  it('sends a POST exactly once when the connection drops, so a retry cannot duplicate it', async () => {
+  /** Lets the short wait before a create's one retry pass. */
+  async function afterBackoff<T>(request: Promise<T>): Promise<T> {
+    await vi.advanceTimersByTimeAsync(1_000)
+    return request
+  }
+
+  it('retries a POST once after the connection drops, after a short wait', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(respond(201, RECORD_WIRE))
+    vi.stubGlobal('fetch', fetchMock)
+    const request = createActivity(DIGEST, 'run.fit', 'a'.repeat(64))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const { created } = await afterBackoff(request)
+    expect(created).toBe(true)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(callOf(fetchMock, 1).init.body).toBe(callOf(fetchMock, 0).init.body)
+  })
+
+  it('gives up on a POST after its one retry when the connection stays down', async () => {
+    vi.useFakeTimers()
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
     vi.stubGlobal('fetch', fetchMock)
+    const request = createActivity(DIGEST, 'run.fit', 'a'.repeat(64))
+    const rejection = expect(request).rejects.toMatchObject({ status: 0, code: 'network_error' })
+    await vi.advanceTimersByTimeAsync(10_000)
+    await rejection
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries a POST once after a server error with no Retry-After', async () => {
+    vi.useFakeTimers()
+    const fetchMock = stubFetch(
+      respond(500, { error: { code: 'internal_error', message: 'Oops' } }),
+      respond(200, RECORD_WIRE),
+    )
+    const { created } = await afterBackoff(createActivity(DIGEST, 'run.fit', 'a'.repeat(64)))
+    expect(created).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up on a POST after its one retry when the server keeps failing', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        respond(502, { error: { code: 'bad_gateway', message: 'Upstream' } }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const request = createActivity(DIGEST, 'run.fit', 'a'.repeat(64))
+    const rejection = expect(request).rejects.toMatchObject({ status: 502 })
+    await vi.advanceTimersByTimeAsync(10_000)
+    await rejection
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry a POST that the server answered with Retry-After', async () => {
+    const fetchMock = stubFetch(
+      new Response(JSON.stringify({ error: { code: 'database_full', message: 'Paused' } }), {
+        status: 503,
+        headers: { 'content-type': 'application/json', 'retry-after': '300' },
+      }),
+    )
     await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
-      status: 0,
-      code: 'network_error',
+      status: 503,
     })
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('does not retry a POST that failed with a client error', async () => {
+    const fetchMock = stubFetch(
+      respond(403, { error: { code: 'activity_quota', message: 'Full' } }),
+    )
+    await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
+      status: 403,
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   it('sends a PUT exactly once when the connection drops', async () => {
@@ -628,16 +707,14 @@ describe('retry policy', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('sends a POST exactly once on a server error', async () => {
+  it('sends a PUT exactly once on a server error', async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(async () =>
         respond(500, { error: { code: 'internal_error', message: 'Oops' } }),
       )
     vi.stubGlobal('fetch', fetchMock)
-    await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
-      status: 500,
-    })
+    await expect(uploadFile('rec-1', new Uint8Array([1]))).rejects.toMatchObject({ status: 500 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -665,6 +742,36 @@ describe('retry policy', () => {
     const fetchMock = stubFetch(respond(404, { error: { code: 'not_found', message: 'Gone' } }))
     await expect(downloadActivityFile('rec-1')).rejects.toMatchObject({ status: 404 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Retry-After', () => {
+  const rateLimited = { error: { code: 'rate_limited', message: 'Slow down' } }
+
+  function limitedResponse(retryAfter?: string): Response {
+    return new Response(JSON.stringify(rateLimited), {
+      status: 429,
+      headers: {
+        'content-type': 'application/json',
+        ...(retryAfter === undefined ? {} : { 'retry-after': retryAfter }),
+      },
+    })
+  }
+
+  it('is carried on a failed request, in milliseconds', async () => {
+    stubFetch(limitedResponse('60'))
+    await expect(createActivity(DIGEST, 'run.fit', 'a'.repeat(64))).rejects.toMatchObject({
+      status: 429,
+      code: 'rate_limited',
+      retryAfterMs: 60_000,
+    })
+  })
+
+  it.each([undefined, 'soon', '-5', ''])('is absent when the header is %j', async (header) => {
+    stubFetch(limitedResponse(header))
+    const error = await createActivity(DIGEST, 'run.fit', 'a'.repeat(64)).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiRequestError)
+    expect((error as ApiRequestError).retryAfterMs).toBeUndefined()
   })
 })
 

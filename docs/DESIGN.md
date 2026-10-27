@@ -128,6 +128,9 @@ is compared with the result the worker last reported when it was sent, except a 
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
 is also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
+A limit stops an import's saves and not its analysis: a full library, the day's saves spent, or a rate limit
+that held after one wait. The sync status then says how many were saved and how many are waiting
+("1,915 saved, 1,103 waiting."), and what to do before adding the rest again.
 On the Activities page, a quiet line says what is kept: "Kept in this browser." signed out,
 or "Saved to your account." signed in. The subtitle gives the count.
 

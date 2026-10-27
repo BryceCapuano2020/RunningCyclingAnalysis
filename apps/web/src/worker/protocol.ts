@@ -104,7 +104,10 @@ export type WorkerResponse =
   | { type: 'routeShape'; route: RouteShape | null; original: boolean }
   /** Stored activities the server could not read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
-  /** The import stopped because the account ended or changed. Sent before its state. */
+  /**
+   * The import stopped saving: the account ended or changed, storage is full, or a limit was
+   * reached. Sent before its state.
+   */
   | { type: 'accountIssue'; issue: SyncIssueCode }
   | { type: 'state'; state: SessionState; outcome?: ImportOutcome }
   | {

@@ -7,10 +7,8 @@ import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
 import { originalActivity } from './originalActivity'
 import type { WorkerResponse } from './protocol'
+import { RATE_LIMIT_WINDOW_MS } from './rateLimitRetry'
 import { syncIssueFor } from './syncIssue'
-
-/** The edge rate limiter's window. */
-const RATE_LIMIT_WINDOW_MS = 60_000
 
 /** The first instant of the next UTC day, when the per-user daily limit resets. */
 function nextUtcMidnightMs(nowMs: number): number {
@@ -139,7 +137,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
   ctx.reportLibrary()
   ctx.reportUnreadable(unreadable)
-  // The error has no Retry-After, so a rate limit is assumed to clear with its 60 s window.
+  // The 429 sends Retry-After: 60, the limiter's window, so a rate limit clears in that long.
   const limitResetsAtMs =
     limitKind === 'daily'
       ? nextUtcMidnightMs(Date.now())

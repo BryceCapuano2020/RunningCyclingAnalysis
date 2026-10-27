@@ -1141,6 +1141,24 @@ describe('useAnalysis state', () => {
     expect(refresh).toHaveBeenCalledOnce()
   })
 
+  it.each(['daily-limit', 'activity-quota', 'rate-limited'] as const)(
+    'leaves the account alone when an import stops at %s',
+    (issue) => {
+      const markExpired = vi.fn()
+      const refresh = vi.fn(async () => meWith(true))
+      const { result } = setup({ ...SIGNED_IN_KEEP, markExpired, refresh })
+      finishLibraryLoad()
+      act(() => result.current.addFiles([FILE]))
+      const posted = worker().posted.length
+
+      act(() => worker().reply({ type: 'accountIssue', issue }))
+
+      expect(markExpired).not.toHaveBeenCalled()
+      expect(refresh).not.toHaveBeenCalled()
+      expect(worker().posted).toHaveLength(posted)
+    },
+  )
+
   it('clears the sync issues when the user signs in', () => {
     const { result, rerender } = setup(SIGNED_OUT)
     act(() => result.current.addFiles([FILE]))

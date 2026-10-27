@@ -14,14 +14,14 @@ import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
-import { haltsImport, SyncFailure } from './saveFailure'
+import { stopsSaving, SyncFailure } from './saveFailure'
 import type { SyncIssue, SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { Rejection } from './import/result'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
 
-export { haltsImport, SyncFailure } from './saveFailure'
+export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
@@ -49,8 +49,8 @@ export type SyncSink = (item: SyncItem) => Promise<void>
 type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
 
 /**
- * State shared by the activities of one import: the first halting failure, and the copies skipped
- * because a better format of the same workout is already held.
+ * State shared by the activities of one import: the first failure that stops saving, and the copies
+ * skipped because a better format of the same workout is already held.
  */
 interface SaveBatch {
   halt: SyncIssueCode | null
@@ -236,7 +236,7 @@ export class AnalysisSession {
    * left alone unless syncExisting requests a sink call for an existing activity (for example,
    * to retain an original after that preference is enabled). A copy that outranks the held one for
    * the same start second replaces it. A sink failure is counted, not thrown.
-   * After a halting failure, the rest of the batch is digested but not sent to the sink.
+   * After a failure that stops saving, the rest of the batch is digested but not sent to the sink.
    */
   private async keep(
     activity: Activity,
@@ -270,7 +270,7 @@ export class AnalysisSession {
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
       this.unsynced.set(key, code)
-      if (haltsImport(code)) batch.halt = code
+      if (stopsSaving(code)) batch.halt = code
     }
   }
 

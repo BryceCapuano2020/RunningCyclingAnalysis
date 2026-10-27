@@ -250,8 +250,10 @@ usage above its free allowance.
 Activity listing uses at most 25 records per page, a 1 MiB digest JSON budget and 64 KiB envelope
 headroom. The API scans small metadata before fetching the selected digests. Cursors are based on
 delivered rows so byte-limited pages do not skip activities. Browser readers bound JSON/download
-sizes and network time, reject malformed/repeated cursors, and do not retry write requests blindly.
-Metadata requests have a 15-second deadline; original-file transfers have two minutes, including
+sizes and network time, reject malformed/repeated cursors, and retry a write only where repeating it
+is safe: a create, which the server dedupes by its key, is sent once more after a lost connection or a
+5xx with no Retry-After. An import that gets a 429 waits for its Retry-After and saves that activity
+once more. Metadata requests have a 15-second deadline; original-file transfers have two minutes, including
 body consumption. The activity table renders at most 20 activities at a time with accessible paging.
 
 ## Browser and data recovery
@@ -264,6 +266,8 @@ body consumption. The activity table renders at most 20 activities at a time wit
 - A failed worker restarts once automatically. Repeated startup failures require manual restart,
   preventing an endless resource-consuming loop.
 - Failed saves remain locally analyzable and are counted. Re-importing the original retries them.
+  A full library, the daily save limit or a rate limit that holds after one retry stops the import's
+  saves; the remaining files are still analysed and are counted as waiting.
   A digest saved without a requested original is a partial failure. Originals above 50 MiB require
   turning off file retention before retrying; they can still be analysed locally within import limits.
 - Digest schema version and model revision are separate. The current model revision is

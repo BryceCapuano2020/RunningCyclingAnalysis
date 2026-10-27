@@ -21,11 +21,18 @@ export interface SyncStatusProps {
 const MAX_FILE_MB = megabytes(MAX_FILE_BYTES)
 const NOTHING_SAVED = 'No new activities were saved to your library.'
 
+/** What an import that stopped at a limit got done: the activities saved, when known, and those waiting. */
+function stoppedCounts(waiting: number, saved: number | null): string {
+  const waitingText = `${formatCount(waiting)} waiting.`
+  return saved === null ? waitingText : `${formatCount(saved)} saved, ${waitingText}`
+}
+
 /**
  * One sentence per cause: what happened, and the action that works. A summary is saved before its
- * original is uploaded, so the failures that can hit either step say 'not fully saved'.
+ * original is uploaded, so the failures that can hit either step say 'not fully saved'. A limit
+ * stops the import, so its sentence counts what was saved and what is waiting instead.
  */
-function issueSentence({ code, count }: SyncIssue): string {
+function issueSentence({ code, count }: SyncIssue, saved: number | null): string {
   const activities = plural(count, 'activity', 'activities')
   const originals = plural(count, 'original')
   const wereOrWas = count === 1 ? 'was' : 'were'
@@ -37,7 +44,7 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'account-changed':
       return `Your account changed in another tab, so ${activities} ${wereOrWas} not saved. Reload this page.`
     case 'activity-quota':
-      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities), so ${activities} ${wereOrWas} not saved. Delete older activities to make room.`
+      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities). ${stoppedCounts(count, saved)} Delete older activities to make room, then add the rest again.`
     case 'storage-quota':
       return `Your original-file storage is full, so ${originals} ${wereOrWas} not kept. ${summaries}`
     case 'storage-budget':
@@ -45,9 +52,9 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'file-too-large':
       return `${originals} ${wereOrWas} too large to keep (over ${MAX_FILE_MB} MB). ${summaries}`
     case 'rate-limited':
-      return `Too many requests at once, so ${activities} ${wereOrWas} not fully saved. Wait a minute, then add ${them} again.`
+      return `Too many requests at once. ${stoppedCounts(count, saved)} Wait a minute, then add the rest again.`
     case 'daily-limit':
-      return `You have reached today's limit on saves, so ${activities} ${wereOrWas} not fully saved. ${resetSentence()} Add ${them} again after that.`
+      return `You have reached today's limit on saves. ${stoppedCounts(count, saved)} ${resetSentence()} Add the rest again after that.`
     case 'upload-in-progress':
       return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then add ${them} again.`
     case 'account-deleting':
@@ -91,7 +98,7 @@ export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncS
 
   let text: string
   if (issues.length > 0) {
-    text = issues.map(issueSentence).join(' ')
+    text = issues.map((issue) => issueSentence(issue, finished?.saved ?? null)).join(' ')
   } else if (finished?.saved === 0) {
     text = NOTHING_SAVED
   } else if (finished !== null) {

@@ -2,6 +2,11 @@ import { SyncFailure } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import { ApiRequestError } from '../api/client'
 
+/** What an error says, whether or not it is an Error. */
+export function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /** The cause shown to the user for a failed save or read. Unknown failures count as the server's. */
 export function syncIssueFor(error: unknown): SyncIssueCode {
   if (error instanceof SyncFailure) return error.code
@@ -20,4 +25,11 @@ export function syncIssueFor(error: unknown): SyncIssueCode {
   if (error.status === 409 && error.code === 'activity_conflict') return 'activity-conflict'
   if (error.status === 429) return 'rate-limited'
   return 'server'
+}
+
+/** The failure the session records for an error from a save: the cause it maps to, and the error's words. */
+export function syncFailureOf(error: unknown): SyncFailure {
+  return error instanceof SyncFailure
+    ? error
+    : new SyncFailure(syncIssueFor(error), messageOf(error))
 }

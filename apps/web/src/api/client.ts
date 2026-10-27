@@ -22,12 +22,15 @@ export const signInUrl = '/api/auth/google'
 export class ApiRequestError extends Error {
   readonly status: number
   readonly code: string
+  /** How long the server asked to wait before trying again (its Retry-After), in milliseconds. */
+  readonly retryAfterMs: number | undefined
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, retryAfterMs?: number) {
     super(message)
     this.name = 'ApiRequestError'
     this.status = status
     this.code = code
+    this.retryAfterMs = retryAfterMs
   }
 }
 
@@ -44,7 +47,12 @@ type Body = { json: unknown } | { bytes: Uint8Array }
 const REQUEST_TIMEOUT_MS = 15_000
 /** Originals may be tens of MiB; allow a bounded transfer without imposing a metadata deadline. */
 const TRANSFER_TIMEOUT_MS = 120_000
-const READ_RETRIES = 1
+/**
+ * The methods tried once more after a lost connection or a 5xx with no Retry-After, and the wait
+ * before that try. A read repeats at once. A create waits a moment, and is safe to repeat: the server
+ * dedupes it by dedupe_key, so a second try returns the activity the first one stored.
+ */
+const RETRY_BACKOFF_MS: Partial<Record<Method, number>> = { GET: 0, POST: 1_000 }
 const CLIENT_PAGE_SIZE = MAX_PAGE_SIZE
 const PAGE_BODY_LIMIT = MAX_PAGE_BODY_BYTES
 const ERROR_BODY_LIMIT = 64 * 1024
@@ -56,6 +64,20 @@ function clearResponseTimeout(response: Response): void {
   if (timeout !== undefined) {
     clearTimeout(timeout)
     responseTimeouts.delete(response)
+  }
+}
+
+/** One fetch with its deadline. Resolves to null when the server could not be reached. */
+async function fetchOnce(path: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(path, { ...init, signal: controller.signal })
+    responseTimeouts.set(response, timeout)
+    return response
+  } catch {
+    clearTimeout(timeout)
+    return null
   }
 }
 
@@ -77,58 +99,47 @@ async function request(
     // A FIT file read from disk is always backed by a plain ArrayBuffer.
     payload = body.bytes as Uint8Array<ArrayBuffer>
   }
-  let attempt = 0
-  while (true) {
-    const controller = new AbortController()
-    const timeout = setTimeout(
-      () => controller.abort(),
-      path.endsWith('/file') ? TRANSFER_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
-    )
-    let response: Response
-    try {
-      response = await fetch(path, {
-        method,
-        credentials: 'same-origin',
-        headers,
-        body: payload,
-        signal: controller.signal,
-      })
-    } catch {
-      clearTimeout(timeout)
-      if (method === 'GET' && attempt < READ_RETRIES) {
-        attempt++
-        continue
-      }
-      throw new ApiRequestError(0, 'network_error', 'Could not reach the server')
-    }
-    responseTimeouts.set(response, timeout)
-    if (response.ok) {
+  const init: RequestInit = { method, credentials: 'same-origin', headers, body: payload }
+  const timeoutMs = path.endsWith('/file') ? TRANSFER_TIMEOUT_MS : REQUEST_TIMEOUT_MS
+  const backoffMs = RETRY_BACKOFF_MS[method]
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetchOnce(path, init, timeoutMs)
+    const canRetry = backoffMs !== undefined && attempt === 0
+    if (response === null) {
+      if (!canRetry) throw new ApiRequestError(0, 'network_error', 'Could not reach the server')
+    } else if (response.ok) {
       if (response.body === null) clearResponseTimeout(response)
       return response
-    }
-    if (
-      method === 'GET' &&
-      response.status >= 500 &&
-      response.headers.get('retry-after') === null &&
-      attempt < READ_RETRIES
-    ) {
+    } else if (!canRetry || response.status < 500 || response.headers.get('retry-after') !== null) {
+      throw await errorFrom(response)
+    } else {
       void response.body?.cancel().catch(() => undefined)
       clearResponseTimeout(response)
-      attempt++
-      continue
     }
-    throw await errorFrom(response)
+    if (backoffMs) await new Promise((resolve) => setTimeout(resolve, backoffMs))
   }
 }
 
 async function errorFrom(response: Response): Promise<ApiRequestError> {
   const body = await readResponseJson(response, ERROR_BODY_LIMIT).catch(() => undefined)
+  const retryAfterMs = retryAfterOf(response)
   const parsed = ApiErrorSchema.safeParse(body)
   if (parsed.success) {
-    return new ApiRequestError(response.status, parsed.data.error.code, parsed.data.error.message)
+    return new ApiRequestError(
+      response.status,
+      parsed.data.error.code,
+      parsed.data.error.message,
+      retryAfterMs,
+    )
   }
   const fallback = response.statusText || `Request failed with status ${response.status}`
-  return new ApiRequestError(response.status, 'http_error', fallback)
+  return new ApiRequestError(response.status, 'http_error', fallback, retryAfterMs)
+}
+
+/** The response's Retry-After in milliseconds, when it is a whole number of seconds. */
+function retryAfterOf(response: Response): number | undefined {
+  const seconds = response.headers.get('retry-after')
+  return seconds !== null && /^\d+$/.test(seconds) ? Number(seconds) * 1000 : undefined
 }
 
 /** Parses a response body with a contract schema. JSON has no NaN, so the schemas restore it. */
