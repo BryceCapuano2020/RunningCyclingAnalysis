@@ -122,7 +122,8 @@ function energySummary({ unit, lean, lead }: BalanceReading, duration: string): 
     return `Over ${duration}, your running and your cycling are within the model's range of each other, as energy per kilogram.`
   }
   const { leader, other } = leaderOf(lean)
-  const percent = formatPercent(Math.abs(lead.centre) / 100)
+  // The edge's rule, so a lead under half a percent reads as its value, never as 0% beside its range.
+  const percent = percentEdge(Math.abs(lead.centre), false)
   return `Over ${duration}, your ${leader} is about ${percent} higher than your ${other}${likelyText({ unit, lean, lead })}, as energy per kilogram.`
 }
 

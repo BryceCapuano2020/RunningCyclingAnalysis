@@ -236,6 +236,17 @@ describe('balanceSummary', () => {
     )
   })
 
+  it('gives a small energy lead its value, so it never reads as 0% beside its range', () => {
+    const reading = {
+      unit: 'percent' as const,
+      lean: 'run' as const,
+      lead: { centre: 0.3, low: 0.1, high: 0.6 },
+    }
+    expect(balanceSummary(reading, 1200)).toBe(
+      'Over 20 min, your running is about 0.3% higher than your cycling (likely 0.1% to 1%), as energy per kilogram.',
+    )
+  })
+
   it.each([
     ['a grade gap', gapReading(gap())],
     ['an even grade gap', gapReading(gap({ centre: 1, low: -2, high: 4, lean: 'even' }))],
