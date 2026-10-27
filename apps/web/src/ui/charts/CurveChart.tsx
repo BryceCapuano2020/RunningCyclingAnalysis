@@ -8,7 +8,7 @@ import {
   formatEnergyRateValue,
   formatPower,
 } from '@rca/core/units'
-import { SPORT_LABEL, SPORT_NOUN, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_NOUN } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { activityCell, sourceNote } from './activityText'
 import type { ChartLegendEntry } from './ChartLegend'
@@ -235,7 +235,7 @@ export function CurveChart({
 
   return (
     <ChartFrame
-      title={`${SPORT_TITLE.run} and ${SPORT_NOUN.ride} energy rate (${ENERGY_RATE_UNIT}) by duration`}
+      title={`${SPORT_LABEL.run} and ${SPORT_LABEL.ride} energy rate (${ENERGY_RATE_UNIT}) by duration`}
       description={`Best energy rate in metabolic watts per kilogram for ${SPORT_NOUN.run} and for ${SPORT_NOUN.ride}, on one axis. Duration is on a log scale.`}
       legend={hasData ? LEGEND : undefined}
       table={{

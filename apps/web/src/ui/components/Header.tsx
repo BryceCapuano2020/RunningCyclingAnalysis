@@ -111,9 +111,13 @@ export function Header({ route, showTabs = route !== null, addFiles, account }: 
           {TABS.map((tab) => (
             <a
               key={tab.label}
-              className="header__tab"
+              className={
+                current === tab.route.page ? 'header__tab header__tab--current' : 'header__tab'
+              }
               href={hrefFor(tab.route)}
-              aria-current={current === tab.route.page ? 'page' : undefined}
+              // Only the tab of the page itself is announced as current. A parent tab, such as Balance on
+              // the method page, is lit by its class alone, so a screen reader is not told it is the page.
+              aria-current={route?.page === tab.route.page ? 'page' : undefined}
             >
               {tab.glyph}
               {tab.label}

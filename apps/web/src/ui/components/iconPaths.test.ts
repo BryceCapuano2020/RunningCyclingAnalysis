@@ -5,6 +5,7 @@ import {
   SPORT_GLYPHS,
   WARNING_STEM,
   WARNING_TRIANGLE,
+  inkBox,
   pathData,
 } from './iconPaths'
 
@@ -54,5 +55,18 @@ describe('SPORT_GLYPHS', () => {
       'M9.5 9.5L12.5 16.5L5.5 16.5',
       'M14 6L17 6',
     ])
+  })
+})
+
+describe('inkBox', () => {
+  // The runner's ink reaches half a stroke past each point, and its head is a filled dot of radius 2.
+  // The box starts at the ink, so the runner's left edge is the icon's left edge.
+  it('crops the runner glyph to its ink, so its box starts where the ink starts', () => {
+    expect(inkBox(SPORT_GLYPHS.run)).toEqual({ x: 3.5, y: 2, width: 16, height: 19.5 })
+  })
+
+  // The wheels are outlined circles, so their ink reaches the radius plus half the stroke.
+  it('crops the ride glyph to its wheels and frame, half a stroke past each point', () => {
+    expect(inkBox(SPORT_GLYPHS.ride)).toEqual({ x: 1.75, y: 5.25, width: 20.5, height: 15 })
   })
 })

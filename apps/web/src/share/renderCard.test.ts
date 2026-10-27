@@ -372,3 +372,39 @@ describe('the card figures, levels and copy', () => {
     },
   )
 })
+
+describe('the name on the card', () => {
+  // The name sits in the brand row, small, so it adds no height and the card keeps its size.
+  it.each(FORMATS)('draws the name small, in the brand row, on the %s card', (format) => {
+    const { ok, ctx } = render(cardModel({ name: 'Bryce Capuano' }), format)
+    const { marginY, mark } = CARD_FORMATS[format]
+    expect(ok).toBe(true)
+    const name = ctx.texts.find((text) => text.text === 'Bryce Capuano')
+    expect(name?.size).toBe(24)
+    expect(name?.color).toBe(CARD_COLORS.secondary)
+    expect(name?.y).toBeGreaterThanOrEqual(marginY)
+    expect(name?.y).toBeLessThan(marginY + mark)
+  })
+
+  it('draws nothing extra when the card has no name, so it stays as it was', () => {
+    const without = render(cardModel({ name: null })).ctx
+    expect(without.texts.some((text) => text.size === 24)).toBe(false)
+    expect(words(without.texts)).toBe(words(render(cardModel()).ctx.texts))
+  })
+
+  it('keeps a long name to one line that ends inside the card, so the row never runs off it', () => {
+    const long = 'Bryce Capuano and a very long set of family names that goes on'
+    const { ok, ctx } = render(cardModel({ name: long, badge: 'Sample athlete' }))
+    expect(ok).toBe(true)
+    const { marginY, mark } = CARD_FORMATS.square
+    const names = ctx.texts.filter((text) => text.size === 24 && text.y < marginY + mark)
+    const shown = names.filter((text) => text.text !== 'Sample athlete')
+    expect(shown).toHaveLength(1)
+    expect(shown[0]?.text.endsWith('…')).toBe(true)
+    const badge = ctx.texts.find((text) => text.text === 'Sample athlete')
+    expect((shown[0]?.x ?? 0) + (shown[0]?.width ?? 0)).toBeLessThan(badge?.x ?? 0)
+    expect((badge?.x ?? 0) + (badge?.width ?? 0)).toBeLessThanOrEqual(
+      CARD_FORMATS.square.width - CARD_FORMATS.square.marginX,
+    )
+  })
+})

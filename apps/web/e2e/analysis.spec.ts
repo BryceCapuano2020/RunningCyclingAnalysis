@@ -19,10 +19,10 @@ const BALANCE_METER =
   /^(Running|Cycling) (grades \d+ points? higher|\d+% higher)|^In balance: |^Even within the model's range/
 /** The Balance trend: one chart for both sports, as age grades when the age and sex are known. */
 const BALANCE_TREND = /^(Age grade|Energy rate) of your best 20 min, trailing/
-const RUN_CURVE = /^Running flat pace per (kilometre|mile) by duration$/
-const RIDE_CURVE = /^Cycling power in watts by duration$/
-const ENERGY_SCALE = /^Running and cycling energy rate \(metabolic W\/kg\) by duration$/
-const RATIO = /^Running compared with cycling by duration$/
+const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
+const RIDE_CURVE = /^Ride power in watts by duration$/
+const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
+const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
 const POWER_ACCURACY = /^Estimated against measured power on climbs$/
 
@@ -311,7 +311,7 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
     page
       .getByRole('navigation', { name: 'Sections' })
       .getByRole('link', { name: 'Run', exact: true }),
-  ).toHaveAttribute('aria-current', 'page')
+  ).toHaveClass(/header__tab--current/)
   await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
 })
 

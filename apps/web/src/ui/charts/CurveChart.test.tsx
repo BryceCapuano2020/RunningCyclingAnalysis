@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { CurveChart } from './CurveChart'
 import { curveOf, rideCurveFixture, rideMetabolicCurveFixture, runCurveFixture } from './fixtures'
 
-const TITLE = 'Running and cycling energy rate (metabolic W/kg) by duration'
+const TITLE = 'Run and Ride energy rate (metabolic W/kg) by duration'
 
 /** The static chart image is named by its title, then its description. */
 

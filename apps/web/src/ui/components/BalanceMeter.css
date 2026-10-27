@@ -134,10 +134,10 @@
   color: var(--sport-colour);
 }
 
-.balance-meter__glyph {
+/* The meter sets its glyphs in rem, so their unit is one rem's share of the grid, not an em's. */
+.balance-meter__glyph.icon {
+  --icon-size: 1.25rem;
   flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
 }
 
 .balance-meter__even-label {

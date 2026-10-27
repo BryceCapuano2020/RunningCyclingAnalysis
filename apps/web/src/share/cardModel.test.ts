@@ -28,6 +28,7 @@ function cardFor(
   weightKnown = true,
   gap: BalanceGap | null = null,
   grades: Record<Sport, GradeOutcome | null> = NO_GRADES,
+  name: string | null = null,
 ) {
   return buildShareCard(
     result,
@@ -39,6 +40,7 @@ function cardFor(
     weightKnown,
     gap,
     grades,
+    name,
   )
 }
 
@@ -253,6 +255,15 @@ describe('buildShareCard', () => {
     ).toBe('Based on 12 May – 3 Aug 2025, 1 run, 1 ride')
   })
 
+  it('carries the name the card is given, and none when there is no name', () => {
+    const result = makeResult()
+    expect(
+      cardFor(result, SETTINGS, 'metric', 42, false, null, true, null, NO_GRADES, 'Bryce Capuano')
+        ?.name,
+    ).toBe('Bryce Capuano')
+    expect(cardFor(result, SETTINGS, 'metric', 42, false)?.name).toBeNull()
+  })
+
   it('carries a sample badge only for sample data', () => {
     expect(cardFor(makeResult(), SETTINGS, 'metric', 42, true)?.badge).toBe('Sample athlete')
     expect(cardFor(makeResult(), SETTINGS, 'metric', 42, false)?.badge).toBeNull()
@@ -283,6 +294,7 @@ describe('buildShareCard', () => {
 
   it('has exactly these keys, so no account, file or activity field can be added unnoticed', () => {
     const card = cardFor(makeResult(), SETTINGS, 'metric', 42, true, LOW_EFFORT)
+    // The name is the one the visitor types for the card, kept on this device; it is no account data.
     expect(Object.keys(card ?? {}).sort()).toEqual(
       [
         'badge',
@@ -292,6 +304,7 @@ describe('buildShareCard', () => {
         'heroes',
         'magnitude',
         'meter',
+        'name',
         'origin',
         'period',
         'title',

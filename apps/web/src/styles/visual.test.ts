@@ -93,19 +93,17 @@ const NEAR_DUPLICATE_SIZES = ['0.8rem', '0.8125rem', '0.85rem', '13px']
 describe('header', () => {
   it('marks the current tab with a flat bar, not an inset shadow on a rounded box', () => {
     expect(header).not.toMatch(/box-shadow:\s*inset/)
-    expect(header).toMatch(/\.header__tab\[aria-current='page'\]::after,[\s\S]*?height:\s*2px/)
+    expect(header).toMatch(/\.header__tab--current::after,[\s\S]*?height:\s*2px/)
   })
 
   it('keeps the current tab bar visible in forced colours, with a system colour', () => {
     const forced = mediaOf(header, FORCED)
-    expect(rulesWith(forced, ".header__tab[aria-current='page']::after")).toMatch(
-      /background:\s*Highlight/,
-    )
+    expect(rulesWith(forced, '.header__tab--current::after')).toMatch(/background:\s*Highlight/)
   })
 
   it('sets the current tab in the system text colour in forced colours, as its neighbours are', () => {
     // The current tab's own rule is more specific than the tab's, so forced colours must name it too.
-    expect(rulesWith(mediaOf(header, FORCED), ".header__tab[aria-current='page']")).toMatch(
+    expect(rulesWith(mediaOf(header, FORCED), '.header__tab--current')).toMatch(
       /color:\s*CanvasText/,
     )
   })

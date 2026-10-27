@@ -40,7 +40,7 @@ fixed to the foot of the screen, 48 px tall, with four equal tabs of 15 px label
 all fit, the bar scrolls and fades at its edge. On a phone the brand and actions share one row. On a wide screen the tabs take a second row under
 the brand and the actions, since one row would need more width than the 1,080 px page holds. Every tab has a glyph from 561 px: a balance
 beam for Balance, the runner, the rider and a list for Activities. The current tab is marked by a flat
-bar along its foot (its top edge on a phone) and by its colour. Sign-in stays
+bar along its foot (its top edge on a phone) and by its colour. The tab of a page's parent, such as Balance on the method page, is marked the same way, but only the page's own tab is `aria-current`, so a screen reader names no tab as the page it is on when that page is not a tab. Sign-in stays
 one tap away on a phone as the Google mark alone, 44 px square, named **Sign in with Google** for
 screen readers. Below 420 px **Add files** shows its plus only; its name is kept for screen readers and
 is its title, so a pointer shows it on hover. The account menu holds the email and Sign out; downloading data and deleting the account
@@ -250,6 +250,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   a 1.5 stroke with wheels of radius 3, and the runner at 2, since two wheels and a frame carry more ink
   than five strokes. Measured in the app at 16, 20, 24 and 30 px, the ride carries 1.15 to 1.3 times the
   runner's ink (it was 1.6 to 1.8 at a 3.8 radius and a 1.75 stroke); the runner is not moved.
+  Each sport glyph is cropped to its ink (`inkBox` in `iconPaths.ts`), so its box starts where the ink
+  starts. Its left edge is the icon's edge in the tabs, the headings and the meter, and the gap to its label
+  is the same for both sports. The share card draws the same crop, with the ink at the inset; its label
+  starts at a fixed x, so the gap there is wider for the narrower runner.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
@@ -502,14 +506,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   available" for a grade; "No altitude"; or "No heart rate".
 - The share image is a dark canvas card on ink, as a square (1080 by 1080, "Square (feed)") or a tall
   story (1080 by 1920, "Tall (story)"). Share sits under the answer's lede, dimmed and inert while the analysis runs, and opens a sheet: a
-  preview, the choice of shape, the note that it is made on this device, and one action. The action reads "Share file" only
+  preview, the note that it is made on this device, an optional **Name on the card** field, the choice of
+  shape, and one action. The name is 40 characters at most, empty by default, kept in this browser under
+  `rca.card-name.v1`, drawn only on the card, and never sent to the server. The action reads "Share file" only
   when the device's share sheet can take this image; otherwise it reads "Save image" and downloads the
   PNG. The PNG is encoded once, for the preview, so the share starts within the tap. Until the chosen
   shape is drawn, the action reads "Preparing…" and is held: a tap does nothing, and the last picture
   stays, dimmed. A click on the backdrop closes the sheet. The sheet's action is outlined like the other
   buttons, so the page's one primary action stays Add files. The file is named by the period's dates,
   such as `balance-2025-05-12_2025-08-03-square.png`.
-- The card holds the brand mark, in the two sport colours, and the app name in words, in volt. Under the
+- The card holds the brand mark, in the two sport colours, and the app name in words, in volt. When the
+  visitor has typed a name for the card, it sits small in secondary text at the right of that top row, before
+  the sample badge, cut with an ellipsis where it would reach the app name. Under the
   headline sits the lead in one line, "Running grades 6 points higher than cycling", the same words
   the meter reads. Then the balance meter, each sport's threshold, "Threshold flat pace, estimated from your
   best 3 to 20 min" for a run, with its W/kg and its level, such as "Local · 64% on best 20 min", under
@@ -540,17 +548,18 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
   cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
   levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence
-  and the meter: "Cycling against running, 90% range: 11% to 33%." on How sure is this?, and "Running
-  against cycling, 90% range: -2% to +4%." only when the two are even. The lede names no dates: the period control's caption under the meter gives them when the period is
+  and the meter: "Ride against Run, 90% range: 11% to 33%." on How sure is this?, and "Run
+  against Ride, 90% range: -2% to +4%." only when the two are even. The lede names no dates: the period control's caption under the meter gives them when the period is
   not All time, so the lede reads "Your running grades 6 points higher than your cycling, on your best
   20 min in each." on its own.
 - **Grades read as whole percents, floored.** `formatGrade` in `apps/web/src/ui/gradeFormat.ts` writes
   every grade on the cards, the ladder and the balance gap, so 64.5% reads as 64%, and a grade never
   reads above its level band: 89.6% is 89%. The gap is the difference of these whole percents.
-- **Titles keep Running and Cycling; labels say Run and Ride.** A chart title uses the prose nouns, as in
-  "Running compared with cycling by duration". Legends, tooltips, table headings, axis names and the strip
-  say Run and Ride, as "Run, as recorded" and "Ride, estimated"; prose may say running and cycling. The
-  Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
+- **One vocabulary for the sports: Run and Ride.** Every title, label, legend, axis name, card heading,
+  tab and table heading says Run or Ride, as "Run compared with Ride by duration", "Higher Ride energy rate",
+  "Run against Ride, 90% range" and "Run, as recorded". Running and cycling stay in sentences, where they
+  read naturally, such as "Running grades 6 points higher than cycling". A chart's accessible name is its
+  title, so the two match. The Method energy curve names its energy rate once, as "energy rate (metabolic W/kg)", in its title and its
   table caption, with "Energy rate (metabolic W/kg)" on its axis. The shared energy trend and the heart-rate chart name their unit the same way, in their axes and column headings.
 - **Effort checks say "your hardest".** A best effort below 90% of your reference heart rate is "probably not
   your hardest", never "all-out" or "heart-rate reference". How sure is this? defines the reference heart rate

@@ -197,6 +197,7 @@ export function cardModel(overrides: Partial<ShareCardModel> = {}): ShareCardMod
     footnote: 'Graded on the USATF road standards. A level, not a ranking.',
     origin: 'example.test',
     badge: null,
+    name: null,
     ...overrides,
   }
 }

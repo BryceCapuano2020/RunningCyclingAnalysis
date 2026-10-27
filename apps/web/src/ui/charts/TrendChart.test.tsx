@@ -86,7 +86,7 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByRole('figure', {
-        name: 'Running flat pace per kilometre, best 20 min, trailing 2 weeks',
+        name: 'Run flat pace per kilometre, best 20 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="trend-line"]')).toHaveLength(1)
@@ -366,7 +366,7 @@ describe('TrendChart', () => {
         effortS={TWENTY_MINUTES_S}
       />,
     )
-    expect(screen.queryByRole('img', { name: /^Cycling, best 20 min/ })).toBeNull()
+    expect(screen.queryByRole('img', { name: /^Ride, best 20 min/ })).toBeNull()
     expect(screen.getByText('Add rides in more than one week to see a trend')).toBeInTheDocument()
   })
 
@@ -419,7 +419,7 @@ describe('TrendChart', () => {
     )
     expect(
       screen.getByRole('figure', {
-        name: 'Running flat pace per kilometre, best 5 min, trailing 2 weeks',
+        name: 'Run flat pace per kilometre, best 5 min, trailing 2 weeks',
       }),
     ).toBeInTheDocument()
     expect(container.querySelector('caption')?.textContent).toMatch(/best 5 min in the 2 weeks/)
@@ -437,7 +437,7 @@ describe('TrendChart', () => {
       />,
     )
     expect(
-      screen.getByRole('figure', { name: 'Cycling power in watts, best 60 min, trailing 2 weeks' }),
+      screen.getByRole('figure', { name: 'Ride power in watts, best 60 min, trailing 2 weeks' }),
     ).toBeInTheDocument()
   })
 

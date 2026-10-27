@@ -38,6 +38,7 @@ const activitiesCsvSource = await readStylesheet(
   '../../../packages/core/src/import/activitiesCsv.ts',
 )
 const periodPreference = await readStylesheet(import.meta.url, './ui/periodPreference.ts')
+const cardName = await readStylesheet(import.meta.url, './share/cardName.ts')
 const contractDigest = await readStylesheet(
   import.meta.url,
   '../../../packages/contract/src/digest.ts',
@@ -264,6 +265,13 @@ describe('privacy page describes what is stored as the app stores it', () => {
   it('names the view period key the app reads, among the settings kept in this browser', () => {
     expect(periodPreference).toContain("PERIOD_KEY = 'rca.period.v1'")
     expect(sentenceWith('Settings are kept')).toContain('rca.period.v1')
+  })
+
+  it('says the name printed on a shared card stays in this browser, under the key the app reads', () => {
+    expect(cardName).toContain("CARD_NAME_KEY = 'rca.card-name.v1'")
+    expect(text).toContain('The name printed on a shared card stays in this browser')
+    expect(sentenceWith('stays in this browser')).toContain('rca.card-name.v1')
+    expect(sentenceWith('stays in this browser')).toContain('never uploaded')
   })
 
   it('says the database holds each kept original size, and short-lived rows for uploads and deletions', () => {

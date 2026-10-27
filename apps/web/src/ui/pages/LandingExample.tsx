@@ -9,7 +9,7 @@ import { SportIcon } from '../components/icons'
 import { formatGrade } from '../gradeFormat'
 import { LANDING_EXAMPLE } from '../landingExample'
 import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
-import { SPORT_ORDER, SPORT_TITLE } from '../sports'
+import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import './LandingExample.css'
 
 /** A sport's measure in the example: its pace in the units the reader uses, or its power in watts. */
@@ -26,7 +26,7 @@ function SportLine({ sport, units }: { sport: Sport; units: UnitSystem }) {
     <div className="landing-example__sport">
       <p className="landing-example__sport-name">
         <SportIcon sport={sport} />
-        {`${SPORT_TITLE[sport]} · ${grade.centre.level} · ${formatGrade(grade.centre.grade)}`}
+        {`${SPORT_LABEL[sport]} · ${grade.centre.level} · ${formatGrade(grade.centre.grade)}`}
       </p>
       <LevelLadder sport={sport} grade={grade} showKey={false} />
       <p className="secondary">{measure}</p>

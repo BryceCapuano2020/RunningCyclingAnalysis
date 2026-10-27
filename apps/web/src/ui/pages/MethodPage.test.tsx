@@ -40,7 +40,7 @@ const DATED_SIX_WEEKS: Period = {
 
 /** The page's facts about the comparison: the list that holds the model range fact. */
 function factsOf(): HTMLElement {
-  const list = screen.getByText(/^Running against cycling, 90% range/).closest('ul')
+  const list = screen.getByText(/^Run against Ride, 90% range/).closest('ul')
   if (!list) throw new Error('No facts list')
   return list
 }
@@ -395,7 +395,7 @@ describe('MethodPage energy view', () => {
     renderPage(makeResult(CONTRIBUTING))
 
     const facts = within(factsOf())
-    expect(facts.getByText('Running against cycling, 90% range: 5% to 20%.')).toBeInTheDocument()
+    expect(facts.getByText('Run against Ride, 90% range: 5% to 20%.')).toBeInTheDocument()
     expect(facts.getByText('Model range based on population assumptions.')).toBeInTheDocument()
     expect(facts.getByText('The range does not include every source of error.')).toBeInTheDocument()
   })
@@ -403,7 +403,7 @@ describe('MethodPage energy view', () => {
   it('reuses the headline range text rather than writing its own', () => {
     renderPage(makeResult(CONTRIBUTING))
 
-    expect(screen.getAllByText(/^Running against cycling, 90% range/)).toHaveLength(1)
+    expect(screen.getAllByText(/^Run against Ride, 90% range/)).toHaveLength(1)
   })
 
   it('says the range was adjusted when the heart-rate comparison is used', () => {
@@ -519,17 +519,17 @@ describe('MethodPage evidence disclosures', () => {
       expect(disclosure).not.toHaveAttribute('open')
     }
     expect(
-      screen.queryByRole('figure', { name: /^Running compared with cycling by duration$/ }),
+      screen.queryByRole('figure', { name: /^Run compared with Ride by duration$/ }),
     ).toBeNull()
 
     const energy = disclosureFor('energy view')
     await openEvidence(energy)
     expect(
-      within(energy).getByRole('figure', { name: 'Running compared with cycling by duration' }),
+      within(energy).getByRole('figure', { name: 'Run compared with Ride by duration' }),
     ).toBeInTheDocument()
     expect(
       within(energy).getByRole('figure', {
-        name: 'Running and cycling energy rate (metabolic W/kg) by duration',
+        name: 'Run and Ride energy rate (metabolic W/kg) by duration',
       }),
     ).toBeInTheDocument()
   })
@@ -927,7 +927,7 @@ describe('MethodPage without a weight', () => {
     )
 
     const section = screen.getByRole('region', { name: 'The energy view' })
-    expect(within(section).getByText(/^Running against cycling, 90% range/)).toBeInTheDocument()
+    expect(within(section).getByText(/^Run against Ride, 90% range/)).toBeInTheDocument()
     expect(within(section).queryByText(/Add your weight on Profile/)).toBeNull()
     expect(container.querySelector('details.method__evidence')).not.toBeNull()
   })

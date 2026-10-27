@@ -238,11 +238,20 @@ describe('Header', () => {
     expect(screen.getByRole('link', { name: 'Run' })).not.toHaveAttribute('aria-current')
   })
 
-  it('marks Activities current on an activity page and Balance on the method page', () => {
-    const { rerender } = render(<Header route={{ page: 'activity', id: 'a1' }} />)
+  it('lights the parent tab of the method page and activity page, but names no tab as the current page', () => {
+    const { rerender } = render(<Header route={{ page: 'method' }} />)
+    const balance = screen.getByRole('link', { name: 'Balance' })
+    expect(balance).toHaveClass('header__tab--current')
+    expect(balance).not.toHaveAttribute('aria-current')
+    rerender(<Header route={{ page: 'activity', id: 'a1' }} />)
+    const activities = screen.getByRole('link', { name: 'Activities' })
+    expect(activities).toHaveClass('header__tab--current')
+    expect(activities).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks a tab current, with aria-current, only on its own page', () => {
+    render(<Header route={{ page: 'activities' }} />)
     expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('aria-current', 'page')
-    rerender(<Header route={{ page: 'method' }} />)
-    expect(screen.getByRole('link', { name: 'Balance' })).toHaveAttribute('aria-current', 'page')
   })
 
   describe('an activity opened from a sport', () => {
@@ -251,17 +260,17 @@ describe('Header', () => {
     it('keeps that sport’s tab lit, since the visitor came from it', () => {
       window.history.replaceState({ rcaFrom: '#/run' }, '', '#/activities/a1')
       render(<Header route={{ page: 'activity', id: 'a1' }} />)
-      expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('aria-current', 'page')
-      expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: 'Run' })).toHaveClass('header__tab--current')
+      expect(screen.getByRole('link', { name: 'Run' })).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('link', { name: 'Activities' })).not.toHaveClass(
+        'header__tab--current',
+      )
     })
 
     it('keeps Activities lit when it was opened from the list', () => {
       window.history.replaceState({ rcaFrom: '#/activities' }, '', '#/activities/a1')
       render(<Header route={{ page: 'activity', id: 'a1' }} />)
-      expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute(
-        'aria-current',
-        'page',
-      )
+      expect(screen.getByRole('link', { name: 'Activities' })).toHaveClass('header__tab--current')
     })
   })
 

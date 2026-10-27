@@ -5,7 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatWkg } from '@rca/core/units'
 import { plural } from '../components/plural'
 import { effortLabel, nativeValue } from '../records'
-import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL, SPORT_TITLE } from '../sports'
+import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import { ChartFrame } from './ChartFrame'
 import { ChartXAxis } from './ChartXAxis'
 import { Crosshair } from './Crosshair'
@@ -219,7 +219,7 @@ function tooltipFor(row: WeekRow, x: number, y: number, view: View): TooltipCont
 
 /** The name of the chart: the unit, the effort and the window it is the best of. */
 function titleOf(sport: Sport, units: UnitSystem, effort: string, windowText: string): string {
-  return `${SPORT_TITLE[sport]} ${SPORT_FORMAT[sport].titleUnit(units)}, best ${effort}, trailing ${windowText}`
+  return `${SPORT_LABEL[sport]} ${SPORT_FORMAT[sport].titleUnit(units)}, best ${effort}, trailing ${windowText}`
 }
 
 /**
