@@ -97,6 +97,7 @@ export function ImportStatus({
   const [windowDragging, setWindowDragging] = useState(false)
   // This component's live region: it announces that a run started and how it ended, nothing between.
   const [announcedBusy, setAnnouncedBusy] = useState(busy)
+  const [announcedWaiting, setAnnouncedWaiting] = useState(waiting)
   const [announcedOutcome, setAnnouncedOutcome] = useState(outcome)
   const [announcement, setAnnouncement] = useState('')
   // Whether the run has lasted long enough for the strip and Stop to show.
@@ -148,6 +149,12 @@ export function ImportStatus({
     setAnnouncedBusy(busy)
     // The run's start is announced, and its end clears that, so "Reading files" does not outlast it.
     setAnnouncement(busy ? (waiting ?? 'Reading files') : '')
+  }
+  if (waiting !== announcedWaiting) {
+    setAnnouncedWaiting(waiting)
+    // A pause that begins mid-run is announced once. It is emptied when the run goes on, so a
+    // second pause is read out too. A reason a run starts with is announced with its start.
+    if (busy && announcedBusy) setAnnouncement(waiting ?? '')
   }
   if (outcome !== announcedOutcome) {
     setAnnouncedOutcome(outcome)

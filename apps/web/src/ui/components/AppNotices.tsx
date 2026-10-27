@@ -63,6 +63,7 @@ export function AppNotices({
       />
       <SyncStatus
         uploading={analysis.uploading}
+        savedCount={analysis.savedCount}
         issues={analysis.state.syncIssues}
         signedIn={signedIn}
         moved={moved.length > 0}

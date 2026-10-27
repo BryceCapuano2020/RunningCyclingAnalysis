@@ -77,8 +77,11 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         current.imports.setProgress({
           filesRead: message.filesRead,
           filesTotal: message.filesTotal ?? null,
+          ...(message.paused ? { paused: true as const } : {}),
         })
         current.imports.setUploading(message.uploaded ?? null)
+        // A new import has begun, so the last one's count no longer stands.
+        current.imports.setSavedCount(null)
         return
       }
       if (message.type === 'missingOriginals') {
@@ -235,6 +238,7 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   if (pending?.kind === 'rebuildStale') imports.setImportOutcome(null)
   imports.setState(message.state)
   if (message.type === 'state') {
+    imports.setSavedCount(message.saved ?? null)
     // An analysis made while the account loads is shown, but only the import that is saved is summarised.
     if (message.outcome && !pending?.provisional) {
       imports.setImportOutcome(message.outcome)

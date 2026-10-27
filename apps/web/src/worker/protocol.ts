@@ -38,6 +38,15 @@ export interface SyncOptions {
   keepFiles: boolean
 }
 
+/**
+ * The period a library or sample load starts on: the one the page will show. Without it the session
+ * keeps the one it has, which is the default for a new session, so a period stored on the device
+ * would cost a second analysis.
+ */
+export interface LoadPeriod {
+  choice?: PeriodChoice
+}
+
 export type WorkerRequest =
   /**
    * `sync` saves to the signed-in account. Without it, `saveToDevice` keeps the digests in this
@@ -56,9 +65,9 @@ export type WorkerRequest =
    * Loads the digests kept in this browser, unless the session already holds them or a sample is
    * showing.
    */
-  | { type: 'loadDevice'; settings: AthleteSettings }
-  | { type: 'loadSample'; settings: AthleteSettings }
-  | { type: 'loadServer'; settings: AthleteSettings; userId: string }
+  | ({ type: 'loadDevice'; settings: AthleteSettings } & LoadPeriod)
+  | ({ type: 'loadSample'; settings: AthleteSettings } & LoadPeriod)
+  | ({ type: 'loadServer'; settings: AthleteSettings; userId: string } & LoadPeriod)
   | { type: 'rebuildStale'; settings: AthleteSettings; userId: string }
   | { type: 'setSettings'; settings: AthleteSettings }
   /** Whether the headline trend carries running equivalents: only an age-graded Balance trend uses them. */
@@ -83,8 +92,17 @@ export type WorkerRequest =
   | { type: 'forgetRoutes' }
 
 export type WorkerResponse =
-  /** `filesTotal` is the activity files the request holds, when that is known before they are read. */
-  | { type: 'progress'; filesRead: number; filesTotal?: number; uploaded?: number }
+  /**
+   * `filesTotal` is the activity files the request holds, when that is known before they are read.
+   * `paused` is set while a rate limit holds the saves back; the next progress message ends it.
+   */
+  | {
+      type: 'progress'
+      filesRead: number
+      filesTotal?: number
+      uploaded?: number
+      paused?: true
+    }
   /** Saved activities without an original file. Sent before the state that ends the request. */
   | { type: 'missingOriginals'; count: number }
   /** The account's saved activities when signed in, or the ones kept in this browser when not. */
@@ -100,9 +118,16 @@ export type WorkerResponse =
   | { type: 'routeShape'; route: RouteShape | null; original: boolean }
   /** Stored activities the server could not read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
-  /** The import stopped because the account ended or changed. Sent before its state. */
+  /**
+   * The import stopped saving: the account ended or changed, storage is full, or a limit was
+   * reached. Sent before its state.
+   */
   | { type: 'accountIssue'; issue: SyncIssueCode }
-  | { type: 'state'; state: SessionState; outcome?: ImportOutcome }
+  /**
+   * `saved` is the activities an import saved to the account, counted by the worker, so the page
+   * ends on the right number however its progress messages were drawn. Absent when nothing is saved.
+   */
+  | { type: 'state'; state: SessionState; outcome?: ImportOutcome; saved?: number }
   | {
       type: 'rebuildComplete'
       state: SessionState

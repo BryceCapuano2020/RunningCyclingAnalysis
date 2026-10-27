@@ -3,6 +3,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { PeriodChoice } from '@rca/core/period'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisSettings } from '../athlete'
+import { storedPeriodRequest } from '../periodPreference'
 import {
   ACCOUNT_CHANGED_BEFORE_IMPORT,
   INTERRUPTED,
@@ -206,7 +207,7 @@ export function useImportActions({
       setError(SAMPLE_BLOCKED)
       return
     }
-    send({ type: 'loadSample', settings: settingsRef.current })
+    send({ type: 'loadSample', settings: settingsRef.current, ...storedPeriodRequest() })
   }, [accountRef, send, setError, settingsRef])
 
   // The requested period is kept as soon as it is chosen, so a clear that follows can send it again

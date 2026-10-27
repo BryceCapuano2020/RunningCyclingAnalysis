@@ -11,6 +11,7 @@ import {
   STOPPED,
 } from './copy'
 import type { LibraryState } from './libraryState'
+import { storedPeriodRequest } from '../periodPreference'
 import { drainBatches } from './model'
 import type { Account, Box, SetError } from './model'
 import type { WorkerTransport } from './workerTransport'
@@ -46,7 +47,12 @@ export function useLibraryActions({
   const loadLibrary = useCallback(
     (userId: string) => {
       setLibrary('loading')
-      send({ type: 'loadServer', settings: settingsRef.current, userId })
+      send({
+        type: 'loadServer',
+        settings: settingsRef.current,
+        userId,
+        ...storedPeriodRequest(),
+      })
     },
     [send, setLibrary, settingsRef],
   )

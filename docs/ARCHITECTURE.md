@@ -85,7 +85,9 @@ the build output.
 2. The API returns that user's digests only. The user id comes from the session, never from the
    request.
 3. A browser Web Worker combines the digests with the profile settings (mass, priors) and runs the
-   Monte Carlo comparison. The server does indexed D1 reads and serialises JSON.
+   Monte Carlo comparison. The server does indexed D1 reads and serialises JSON. The worker keeps
+   the analysis of the last four periods, so going back to one is not worked out again until a
+   digest or a mass changes.
 
 **Other account routes**
 

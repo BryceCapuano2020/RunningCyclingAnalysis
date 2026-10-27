@@ -30,7 +30,8 @@ account control. The guides are not in the header: they are reached from Profile
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window and
 appears only once a run has lasted about 400 ms, so a quick change never moves the page. The reason
-the sample is off waits the same time. On a phone the strip sits above the tab bar. Nothing is held
+the sample is off waits the same time. While a rate limit holds an import's saves back, the strip reads
+"Too many saves at once. Saving resumes in about a minute." in place of its file count, once in its live region. On a phone the strip sits above the tab bar. Nothing is held
 for the account: a file is analysed at once and saved once the account is known.
 
 The header stays at
@@ -128,6 +129,9 @@ is compared with the result the worker last reported when it was sent, except a 
 wait for the library, which keeps the result that wait ended with. After a Start over, the next import is
 compared with nothing. Deleting an activity clears the summary, since its count has changed. Each change
 is also read aloud in words. Signed in, the sync status's completion says "Your numbers moved." instead.
+A limit stops an import's saves and not its analysis: a full library, the day's saves spent, or a rate limit
+that held after one wait. The sync status then says how many were saved and how many are waiting
+("1,915 saved, 1,103 waiting."), and what to do before adding the rest again.
 On the Activities page, a quiet line says what is kept: "Kept in this browser." signed out,
 or "Saved to your account." signed in. The subtitle gives the count.
 

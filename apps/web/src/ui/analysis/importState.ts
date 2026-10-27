@@ -37,6 +37,8 @@ export function useImportState() {
   const [waitingReason, setWaitingReason] = useState<string | null>(null)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [uploading, setUploading] = useState<number | null>(null)
+  // What the last signed-in import saved, as the worker counted it in the reply that ended the import.
+  const [savedCount, setSavedCount] = useState<number | null>(null)
   const [importOutcome, setImportOutcome] = useState<ImportOutcome | null>(null)
   const [importChange, setImportChange] = useState<ImportChange | null>(null)
   const [rebuildNotice, setRebuildNotice] = useState<string | null>(null)
@@ -58,6 +60,8 @@ export function useImportState() {
     setProgress,
     uploading,
     setUploading,
+    savedCount,
+    setSavedCount,
     importOutcome,
     setImportOutcome,
     importChange,

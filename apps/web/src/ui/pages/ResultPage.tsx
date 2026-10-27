@@ -95,8 +95,8 @@ export function ResultPage({
     />
   )
   const [storedChoice, storeChoice] = usePeriodChoice()
-  // The worker starts on the default period, so the period picked on this device is sent once
-  // there is a result to show it on.
+  // Library and sample loads are told the period picked on this device. Files analysed while the
+  // account loads are not, so for them it is sent once there is a result to show it on.
   useEffect(() => {
     if (period.choice !== storedChoice) setRange(storedChoice)
   }, [period.choice, storedChoice, setRange])

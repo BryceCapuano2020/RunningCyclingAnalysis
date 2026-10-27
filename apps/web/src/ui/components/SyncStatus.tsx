@@ -11,6 +11,11 @@ import './SyncStatus.css'
 export interface SyncStatusProps {
   /** Activities saved so far in the current import, or null when no upload is running. */
   uploading: number | null
+  /**
+   * What the import that just ended saved, as the worker counted it. It is exact; `uploading` is the
+   * last count drawn, which can lag, so the finished sentence prefers this one.
+   */
+  savedCount?: number | null
   /** Activities in this library session that were not saved, or not kept, and why. */
   issues: SyncIssue[]
   signedIn: boolean
@@ -22,10 +27,23 @@ const MAX_FILE_MB = megabytes(MAX_FILE_BYTES)
 const NOTHING_SAVED = 'No new activities were saved to your library.'
 
 /**
- * One sentence per cause: what happened, and the action that works. A summary is saved before its
- * original is uploaded, so the failures that can hit either step say 'not fully saved'.
+ * What an import that stopped at a limit got done: the activities it saved, when known, and those
+ * it left waiting. The saved count is the latest import's, so it goes only with that import's own
+ * waiting; a limit an earlier import reached shows the session's count alone.
  */
-function issueSentence({ code, count }: SyncIssue): string {
+function stoppedCounts({ count, latest }: SyncIssue, saved: number | null): string {
+  if (latest === 0) return `${formatCount(count)} waiting.`
+  const waiting = `${formatCount(latest ?? count)} waiting.`
+  return saved === null ? waiting : `${formatCount(saved)} saved, ${waiting}`
+}
+
+/**
+ * One sentence per cause: what happened, and the action that works. A summary is saved before its
+ * original is uploaded, so the failures that can hit either step say 'not fully saved'. A limit
+ * stops the import, so its sentence counts what was saved and what is waiting instead.
+ */
+function issueSentence(issue: SyncIssue, saved: number | null): string {
+  const { code, count } = issue
   const activities = plural(count, 'activity', 'activities')
   const originals = plural(count, 'original')
   const wereOrWas = count === 1 ? 'was' : 'were'
@@ -37,7 +55,7 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'account-changed':
       return `Your account changed in another tab, so ${activities} ${wereOrWas} not saved. Reload this page.`
     case 'activity-quota':
-      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities), so ${activities} ${wereOrWas} not saved. Delete older activities to make room.`
+      return `Your library is full (${formatCount(MAX_ACTIVITIES_PER_USER)} activities). ${stoppedCounts(issue, saved)} Delete older activities to make room, then add the rest again.`
     case 'storage-quota':
       return `Your original-file storage is full, so ${originals} ${wereOrWas} not kept. ${summaries}`
     case 'storage-budget':
@@ -45,9 +63,9 @@ function issueSentence({ code, count }: SyncIssue): string {
     case 'file-too-large':
       return `${originals} ${wereOrWas} too large to keep (over ${MAX_FILE_MB} MB). ${summaries}`
     case 'rate-limited':
-      return `Too many requests at once, so ${activities} ${wereOrWas} not fully saved. Wait a minute, then add ${them} again.`
+      return `Too many requests at once. ${stoppedCounts(issue, saved)} Wait a minute, then add the rest again.`
     case 'daily-limit':
-      return `You have reached today's limit on saves, so ${activities} ${wereOrWas} not fully saved. ${resetSentence()} Add ${them} again after that.`
+      return `You have reached today's limit on saves. ${stoppedCounts(issue, saved)} ${resetSentence()} Add the rest again after that.`
     case 'upload-in-progress':
       return `Another original-file upload is still in progress, so ${activities} ${wereOrWas} not fully saved. Wait for it to finish, then add ${them} again.`
     case 'account-deleting':
@@ -74,7 +92,13 @@ function issueSentence({ code, count }: SyncIssue): string {
  * here, and the running count is visual only, shown once at least one activity is saved. Issues
  * stay visible until the parent clears them.
  */
-export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncStatusProps) {
+export function SyncStatus({
+  uploading,
+  savedCount = null,
+  issues,
+  signedIn,
+  moved = false,
+}: SyncStatusProps) {
   const [previous, setPrevious] = useState(uploading)
   // The completion keeps whether its import moved the numbers, so the note outlives the list.
   const [finished, setFinished] = useState<{ saved: number; moved: boolean } | null>(null)
@@ -85,13 +109,13 @@ export function SyncStatus({ uploading, issues, signedIn, moved = false }: SyncS
     if (uploading !== null && previous === null) {
       setFinished(null)
     } else if (uploading === null && previous !== null) {
-      setFinished({ saved: previous, moved })
+      setFinished({ saved: savedCount ?? previous, moved })
     }
   }
 
   let text: string
   if (issues.length > 0) {
-    text = issues.map(issueSentence).join(' ')
+    text = issues.map((issue) => issueSentence(issue, finished?.saved ?? null)).join(' ')
   } else if (finished?.saved === 0) {
     text = NOTHING_SAVED
   } else if (finished !== null) {

@@ -1,5 +1,6 @@
 import { DAY_MS, HEADLINE_DURATION_S } from './constants'
-import { sportCurves } from './digest/combine'
+import { combine, sportCurves } from './digest/combine'
+import type { AnalysisResult } from './digest/combine'
 import { fitnessTrend } from './digest/trend'
 import type { TrendPoint } from './digest/trend'
 import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
@@ -186,12 +187,15 @@ function sameInputs(
   )
 }
 
+/** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
+const ANALYSES_KEPT = 4
+
 /**
- * The trend and the previous period's curves, reused between calls while their inputs are the same.
- * Both are priced with the bike model of the selected period, which depends only on the selected
- * digests and the masses, so those are the whole key. The heart-rate model behind the running
- * equivalents also depends only on the selected digests and the masses, so it needs no key of its
- * own; whether the equivalents are wanted does, and it is in the key.
+ * The analysis, the trend and the previous period's curves, reused between calls while their inputs
+ * are the same. All are priced with the bike model of the selected period, which depends only on the
+ * selected digests and the masses, so those are the whole key. The heart-rate model behind the
+ * running equivalents also depends only on the selected digests and the masses, so it needs no key of
+ * its own; whether the equivalents are wanted does, and it is in the key.
  */
 export class PeriodCache {
   private trendEntries = new Map<
@@ -200,6 +204,38 @@ export class PeriodCache {
   >()
   private previousEntry: (Inputs & { previous: ActivityDigest[]; curves: SportCurves }) | null =
     null
+  // Newest use first. A digest that is added, replaced or removed is a different object, so the
+  // analysis of a changed library has a different key and is never found for the old one.
+  private analysisEntries: (Inputs & { analysis: AnalysisResult })[] = []
+
+  /**
+   * The analysis of the selected digests, reused while they and both masses are the same. The last
+   * few are kept, so going back to a period already shown costs nothing.
+   */
+  analysis(selected: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
+    const hit = this.analysisEntries.findIndex((entry) => sameInputs(entry, selected, settings))
+    if (hit >= 0) {
+      const [entry] = this.analysisEntries.splice(hit, 1)
+      this.analysisEntries.unshift(entry!)
+      return entry!.analysis
+    }
+    const analysis = combine(selected, settings)
+    this.analysisEntries.unshift({ selected, ...masses(settings), analysis })
+    this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
+    return analysis
+  }
+
+  /**
+   * Releases the analyses that select a digest the library no longer holds. A removed or replaced
+   * digest is never in a new selection, so such an analysis can no longer be found and only holds a
+   * slot and memory. Analyses of digests still held are kept.
+   */
+  releaseAbsent(library: readonly ActivityDigest[]): void {
+    const held = new Set(library)
+    this.analysisEntries = this.analysisEntries.filter((entry) =>
+      entry.selected.every((digest) => held.has(digest)),
+    )
+  }
 
   /**
    * The weekly trend of each effort length over the selected period, reused while its inputs are the

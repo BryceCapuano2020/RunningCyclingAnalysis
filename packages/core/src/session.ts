@@ -1,4 +1,4 @@
-import { activitySummaries, combine, digestActivity } from './digest'
+import { activitySummaries, digestActivity } from './digest'
 import { MODEL_REVISION } from './digest/modelRevision'
 import type { RangedSource } from './fit'
 import { DEFAULT_EXTRACT_LIMITS } from './fit'
@@ -15,14 +15,14 @@ import { PeriodCache, sameDigests, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
-import { haltsImport, SyncFailure } from './saveFailure'
-import type { SyncIssue, SyncIssueCode } from './saveFailure'
+import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
+import type { SyncIssueCode } from './saveFailure'
 import type { RejectedFile, SessionState } from './sessionState'
 import type { Rejection } from './import/result'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
 
-export { haltsImport, SyncFailure } from './saveFailure'
+export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
 export type { RejectedFile, SessionState } from './sessionState'
 export type { Period, PeriodChoice } from './period'
@@ -50,8 +50,8 @@ export type SyncSink = (item: SyncItem) => Promise<void>
 type ImportedFile = Omit<SyncItem, 'digest' | 'route'>
 
 /**
- * State shared by the activities of one import: the first halting failure, and the copies skipped
- * because a better format of the same workout is already held.
+ * State shared by the activities of one import: the first failure that stops saving, and the copies
+ * skipped because a better format of the same workout is already held.
  */
 interface SaveBatch {
   halt: SyncIssueCode | null
@@ -69,6 +69,8 @@ export class AnalysisSession {
   private digests = new Map<string, ActivityDigest>()
   // Activities whose last sink call failed, and why. Re-importing the file tries them again.
   private unsynced = new Map<string, SyncIssueCode>()
+  // The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones.
+  private latestUnsynced = new Set<string>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
   // Keyed by file name so importing the same export twice does not double-count.
@@ -126,6 +128,7 @@ export class AnalysisSession {
     // The rejected files are those of this import, so an earlier import's are not listed again.
     this.rejected.clear()
     this.unsupported.clear()
+    this.latestUnsynced.clear()
     const batch: SaveBatch = { halt: null, duplicates: [], added: new Map() }
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
@@ -208,6 +211,14 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /**
+   * Chooses the period without analysing, so the next load is analysed once, on that period. Nothing
+   * to choose keeps the period the session has.
+   */
+  choosePeriod(choice: PeriodChoice | undefined): void {
+    if (choice !== undefined) this.choice = choice
+  }
+
   clear(): SessionState {
     this.reset()
     return this.state(null)
@@ -239,7 +250,7 @@ export class AnalysisSession {
    * left alone unless syncExisting requests a sink call for an existing activity (for example,
    * to retain an original after that preference is enabled). A copy that outranks the held one for
    * the same start second replaces it. A sink failure is counted, not thrown.
-   * After a halting failure, the rest of the batch is digested but not sent to the sink.
+   * After a failure that stops saving, the rest of the batch is digested but not sent to the sink.
    */
   private async keep(
     activity: Activity,
@@ -264,7 +275,10 @@ export class AnalysisSession {
     this.incompatibleKeys.delete(key)
     if (sink === undefined) return
     if (batch.halt !== null) {
-      this.unsynced.set(key, batch.halt)
+      // An activity already saved, offered again to keep its file, is not waiting for a save.
+      if (held === undefined || replaces || this.unsynced.has(key)) {
+        this.leaveUnsynced(key, batch.halt)
+      }
       return
     }
     try {
@@ -272,9 +286,14 @@ export class AnalysisSession {
       this.unsynced.delete(key)
     } catch (error) {
       const code = error instanceof SyncFailure ? error.code : 'server'
-      this.unsynced.set(key, code)
-      if (haltsImport(code)) batch.halt = code
+      this.leaveUnsynced(key, code)
+      if (stopsSaving(code)) batch.halt = code
     }
+  }
+
+  private leaveUnsynced(key: string, code: SyncIssueCode): void {
+    this.unsynced.set(key, code)
+    this.latestUnsynced.add(key)
   }
 
   /** The run splits of a held activity, for its activity page. Null when it has none or is not held. */
@@ -287,6 +306,7 @@ export class AnalysisSession {
 
   private reset(): void {
     this.unsynced.clear()
+    this.latestUnsynced.clear()
     this.resetLibrary()
   }
 
@@ -297,12 +317,6 @@ export class AnalysisSession {
     this.rejected.clear()
     this.unsupported.clear()
     this.isSample = false
-  }
-
-  private syncIssues(): SyncIssue[] {
-    const counts = new Map<SyncIssueCode, number>()
-    for (const code of this.unsynced.values()) counts.set(code, (counts.get(code) ?? 0) + 1)
-    return [...counts].map(([code, count]) => ({ code, count }))
   }
 
   /**
@@ -344,12 +358,15 @@ export class AnalysisSession {
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
   private state(settings: AthleteSettings | null): SessionState {
     const all = [...this.digests.values()]
+    // Every change to the library is followed by a state, so the analyses it made stale go here.
+    this.periods.releaseAbsent(all)
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
     const { period, selected, previous } = splitPeriods(visible, this.choice)
     const athlete = settings === null ? null : this.athleteFor(settings)
     // A period with no activities still has a result, so the page can say what is missing from it.
-    const analysis = athlete !== null && visible.length > 0 ? combine(selected, athlete) : null
+    const analysis =
+      athlete !== null && visible.length > 0 ? this.periods.analysis(selected, athlete) : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     const efforts =
@@ -384,7 +401,7 @@ export class AnalysisSession {
       hiddenDuplicates: hidden.size,
       period,
       library: settings === null ? [] : activitySummaries(visible),
-      syncIssues: this.syncIssues(),
+      syncIssues: countIssues(this.unsynced, this.latestUnsynced),
       records:
         athlete === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, athlete),
     }
