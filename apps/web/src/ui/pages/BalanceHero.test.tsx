@@ -74,7 +74,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     )
     expect(
       screen.getByText(
-        'Over 20 min, your running is about 12% higher than your cycling, as energy per kilogram.',
+        'Over 20 min, your running is 5% to 20% higher than your cycling, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -112,7 +112,7 @@ describe('BalanceHero answer on the energy ratio', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Over 20 min, your cycling is about 25% higher than your running, as energy per kilogram.',
+        'Over 20 min, your cycling is 11% to 33% higher than your running, as energy per kilogram.',
       ),
     ).toBeInTheDocument()
   })
@@ -195,7 +195,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
+        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
   })
@@ -439,7 +439,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
+        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/12 May/)).not.toBeInTheDocument()
@@ -456,7 +456,7 @@ describe('BalanceHero without a comparison yet', () => {
     )
     expect(
       screen.getByText(
-        'Your running grades 6 points higher than your cycling, on your best 20 min in each.',
+        'Your running grades 2 to 10 points higher than your cycling, on your best 20 min in each.',
       ),
     ).toBeInTheDocument()
   })
