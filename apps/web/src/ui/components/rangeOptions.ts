@@ -37,7 +37,17 @@ export const RANGE_OPTIONS: RangeOption[] = [
 /** The periods the activity list offers. It shows the whole library until one is picked. */
 export const LIBRARY_RANGE_OPTIONS = RANGE_OPTIONS.filter((option) => option.choice !== 'default')
 
+/**
+ * The Custom segment. It picks a range the athlete enters rather than a fixed period, so it has no
+ * choice of its own: a custom range's value is this one too.
+ */
+export const CUSTOM_OPTION: Pick<RangeOption, 'value' | 'label'> = {
+  value: 'custom',
+  label: 'Custom',
+}
+
 export function optionValue(choice: PeriodChoice): string {
+  if (typeof choice === 'object') return CUSTOM_OPTION.value
   return choice === 'default' || choice === 'all' ? choice : String(choice)
 }
 

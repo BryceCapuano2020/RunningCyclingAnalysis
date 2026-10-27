@@ -60,3 +60,28 @@
   margin: 0;
   font-size: var(--text-sm);
 }
+
+/*
+ * The Custom form sits under the segments. Its two fields share a line when there is room, and stack
+ * when there is not, so at 320 px they are one above the other with Apply beneath.
+ */
+.range-picker__custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.range-picker__field {
+  display: grid;
+  gap: var(--space-1);
+  flex: 1 1 9rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.range-picker__field input {
+  min-width: 0;
+  font: inherit;
+}

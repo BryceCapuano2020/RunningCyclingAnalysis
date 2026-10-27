@@ -1,8 +1,11 @@
 import { useRef, useState } from 'react'
+import { isCustomChoice } from '@rca/core/customRange'
+import type { CustomRange } from '@rca/core/customRange'
 import type { PeriodChoice } from '@rca/core/period'
 import { formatCount } from '../format/count'
 import { plural } from './plural'
-import { RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
+import { CustomRangeForm } from './CustomRangeForm'
+import { CUSTOM_OPTION, RANGE_OPTIONS, choiceOfValue, optionValue } from './rangeOptions'
 import type { RangeOption } from './rangeOptions'
 import { SegmentedControl } from './SegmentedControl'
 import { usePickInPlace } from './usePickInPlace'
@@ -23,6 +26,10 @@ export interface RangePickerProps {
   choice: PeriodChoice
   /** The periods offered. The Balance and sport pages offer all of them, the activity list fewer. */
   options?: RangeOption[]
+  /** Whether the Custom segment is offered: the Balance and sport pages, not the activity list. */
+  custom?: boolean
+  /** The first and last day on screen, which the Custom form starts from. */
+  range?: CustomRange | null
   /** The period's dates, such as "12 May – 3 Aug 2025". Empty when there is nothing to date. */
   dates?: string
   /** A sentence under the dates, such as why the default shows all time. */
@@ -49,6 +56,8 @@ export interface RangePickerProps {
 export function RangePicker({
   choice,
   options = RANGE_OPTIONS,
+  custom = false,
+  range = null,
   dates = '',
   note,
   shown,
@@ -68,6 +77,15 @@ export function RangePicker({
   }>({ count: 0, answered: 0, latest: null })
   const waiting = picks.count > picks.answered
   const checked = waiting && picks.latest !== null ? picks.latest : choice
+  // The form is open while a custom range is on screen, or while the athlete has picked Custom and not
+  // yet a fixed period. A fixed period on screen closes it, but a new custom range keeps it open.
+  const [customOpen, setCustomOpen] = useState(() => isCustomChoice(choice))
+  const [seenChoice, setSeenChoice] = useState(choice)
+  if (choice !== seenChoice) {
+    setSeenChoice(choice)
+    setCustomOpen(isCustomChoice(choice))
+  }
+  const offered = custom ? [...options, CUSTOM_OPTION] : options
   const [singular, pluralForm] = NOUNS[noun]
   const totalPhrase = plural(total, singular, pluralForm)
   const count = shown < total ? `${formatCount(shown)} of ${totalPhrase}` : ''
@@ -79,7 +97,7 @@ export function RangePicker({
       : shown < total
         ? `Showing ${formatCount(shown)} of ${totalPhrase}`
         : `Showing all ${totalPhrase}`
-  const choiceLabel = options.find((option) => option.value === optionValue(checked))?.label
+  const choiceLabel = offered.find((option) => option.value === optionValue(checked))?.label
   // While a pick waits for an import, the note says so instead of the page's note.
   const noteText = waiting && busy ? WAITS_FOR_IMPORT : note
   const announcement = [counted, choiceLabel, dates]
@@ -87,24 +105,33 @@ export function RangePicker({
     .join(', ')
   const rootRef = useRef<HTMLDivElement>(null)
   const markPick = usePickInPlace(rootRef, waiting)
+  const pick = (next: PeriodChoice) => {
+    markPick()
+    const id = made.current + 1
+    made.current = id
+    setPicks((current) => ({ count: id, answered: current.answered, latest: next }))
+    onChange(next, () =>
+      setPicks((current) => ({ ...current, answered: Math.max(current.answered, id) })),
+    )
+  }
   return (
     <div className="range-picker" ref={rootRef}>
       <SegmentedControl
         legend="Period"
-        options={options.map(({ value, label }) => ({ value, label }))}
-        selected={optionValue(checked)}
+        options={offered.map(({ value, label }) => ({ value, label }))}
+        selected={customOpen ? CUSTOM_OPTION.value : optionValue(checked)}
         onSelect={(value) => {
+          if (value === CUSTOM_OPTION.value) {
+            setCustomOpen(true)
+            return
+          }
           const next = choiceOfValue(value)
           if (next === undefined) return
-          markPick()
-          const id = made.current + 1
-          made.current = id
-          setPicks((current) => ({ count: id, answered: current.answered, latest: next }))
-          onChange(next, () =>
-            setPicks((current) => ({ ...current, answered: Math.max(current.answered, id) })),
-          )
+          setCustomOpen(false)
+          pick(next)
         }}
       />
+      {custom && customOpen && <CustomRangeForm range={range} onApply={pick} />}
       {(dates !== '' || count !== '') && (
         <p className="range-picker__caption muted">
           {dates !== '' && <span className="range-picker__dates">{dates}</span>}

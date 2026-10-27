@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import type { ActivityRecord } from '@rca/contract'
+import { periodChoiceOf } from '@rca/core/period'
 import { AnalysisSession } from '@rca/core/session'
 import type { SyncIssueCode } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
@@ -117,11 +118,16 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'loadSample':
       showingSample = true
       device.replaced()
-      session.choosePeriod(request.choice)
+      session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings)
     case 'loadServer':
       showingSample = false
-      return loadServer(libraryContext, request.settings, request.userId, request.choice)
+      return loadServer(
+        libraryContext,
+        request.settings,
+        request.userId,
+        periodChoiceOf(request.choice),
+      )
     case 'rebuildStale':
       return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':
@@ -129,7 +135,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'setGradeTrend':
       return session.setGradeTrend(request.on, request.settings)
     case 'setRange':
-      return session.setRange(request.choice, request.settings)
+      return session.setRange(periodChoiceOf(request.choice) ?? 'default', request.settings)
     case 'loadDevice':
       // A sample on screen, or a library already read, stays as it is: loading it again would
       // drop what was imported since.
@@ -137,7 +143,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
-      session.choosePeriod(request.choice)
+      session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
       showingSample = false

@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import type { Sex } from '@rca/core/grade'
 import { outranks } from '@rca/core/session'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import { periodDays, sameChoice } from '@rca/core/period'
 import type { PeriodChoice } from '@rca/core/period'
 import { trendWindowDays } from '@rca/core/digest/trendPoints'
 import type { AthleteSettings, Sport } from '@rca/core/types'
@@ -104,7 +105,7 @@ export function ResultPage({
   // Library and sample loads are told the period picked on this device. Files analysed while the
   // account loads are not, so for them it is sent once there is a result to show it on.
   useEffect(() => {
-    if (period.choice !== storedChoice) setRange(storedChoice)
+    if (!sameChoice(period.choice, storedChoice)) setRange(storedChoice)
   }, [period.choice, storedChoice, setRange])
 
   const pickPeriod = (choice: PeriodChoice, answered?: (reply: unknown) => void) => {
@@ -129,6 +130,8 @@ export function ResultPage({
   ): ReactNode => (
     <RangePicker
       choice={period.choice}
+      custom
+      range={periodDays(period)}
       dates={periodDates(period)}
       note={[period.fellBack && bothSports ? FALLBACK_NOTE : null, dated].filter(Boolean).join(' ')}
       shown={shown}

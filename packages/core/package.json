@@ -7,6 +7,7 @@
   "exports": {
     "./types": "./src/types.ts",
     "./constants": "./src/constants.ts",
+    "./customRange": "./src/customRange.ts",
     "./digest": "./src/digest/index.ts",
     "./digest/modelRevision": "./src/digest/modelRevision.ts",
     "./digest/trendPoints": "./src/digest/trendPoints.ts",
