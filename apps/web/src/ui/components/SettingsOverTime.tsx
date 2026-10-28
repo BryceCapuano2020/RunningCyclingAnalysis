@@ -144,9 +144,11 @@ export function SettingsOverTime({
         zones are estimated from your activities.
       </p>
       <form className="settings-over-time__form" onSubmit={(event) => void add(event)}>
-        <label className="settings-over-time__field">
-          <span>Setting</span>
+        <div className="settings-over-time__field">
+          {/* Its own label, since a label that wrapped the select would be named by every option. */}
+          <label htmlFor={`${baseId}-choice`}>Setting</label>
           <select
+            id={`${baseId}-choice`}
             value={choiceId}
             disabled={state !== 'ready'}
             onChange={(event) => {
@@ -161,7 +163,7 @@ export function SettingsOverTime({
               </option>
             ))}
           </select>
-        </label>
+        </div>
         {/* Names the setting for the value field, which is labelled by its unit alone. */}
         <span id={`${baseId}-setting`} className="sr-only">
           {choice.label}
