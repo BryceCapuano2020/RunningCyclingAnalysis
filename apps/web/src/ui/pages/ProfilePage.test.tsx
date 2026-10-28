@@ -463,7 +463,7 @@ describe('ProfilePage kept in this browser', () => {
       ...KEPT_RUN,
       id: `run-${index}`,
       sport: index % 7 === 0 ? ('ride' as const) : ('run' as const),
-      startMs: new Date(2011 + Math.floor(index / 140), index % 12, 3, 12).getTime(),
+      startMs: new Date(2011 + Math.floor(index / 140), index % 12, 3, 12).getTime() + index,
     }))
     renderProfile({}, { savedActivities: many })
 

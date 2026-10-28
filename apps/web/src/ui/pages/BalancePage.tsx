@@ -159,7 +159,12 @@ export function BalancePage({
     [result.activities, trend],
   )
   // The trend's weeks, which the volume strip's margin is sized from as the trend's own is.
-  const trendWeeks = profile === null ? energyWeeks(trend) : gradeWeeks(trend, profile)
+  const trendWeeks =
+    weeksWithValue(trend) === 0
+      ? []
+      : profile === null
+        ? energyWeeks(trend)
+        : gradeWeeks(trend, profile)
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)

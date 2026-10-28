@@ -36,6 +36,32 @@ describe('ActivityDelete', () => {
     expect(screen.getByText('Delete “Morning run”? It is removed from your library.')).toBeTruthy()
   })
 
+  it('says a signed-in delete takes the original file too, and a signed-out one says nothing of files', async () => {
+    const user = userEvent.setup()
+    renderDelete({ signedIn: true })
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    expect(screen.getByText('Its original file is deleted too, if one is stored.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAccessibleDescription(
+      /removed from your library\. Its original file is deleted too/,
+    )
+    cleanup()
+    renderDelete({ signedIn: false })
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    expect(screen.queryByText(/original file/)).toBeNull()
+  })
+
+  it('cancels on Escape without deleting, and returns focus to the Delete button', async () => {
+    const user = userEvent.setup()
+    const onDelete = renderDelete()
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    await user.keyboard('{Escape}')
+    expect(onDelete).not.toHaveBeenCalled()
+    expect(screen.queryByRole('group')).toBeNull()
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Delete Morning run' })).toHaveFocus(),
+    )
+  })
+
   it('says the removal is from this browser when signed out, where a summary is only kept', async () => {
     const user = userEvent.setup()
     renderDelete({ signedIn: false })

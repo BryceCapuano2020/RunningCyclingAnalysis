@@ -24,6 +24,7 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
   const cancelRef = useRef<HTMLButtonElement>(null)
   const returnFocusRef = useRef(false)
   const questionId = useId()
+  const noteId = useId()
 
   useEffect(() => {
     if (asking) {
@@ -35,6 +36,10 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
   }, [asking])
 
   const removedFrom = signedIn ? 'your library' : 'this browser'
+  const cancel = () => {
+    returnFocusRef.current = true
+    setAsking(false)
+  }
   if (!asking) {
     return (
       <button
@@ -53,17 +58,22 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
   }
 
   return (
-    <div className="activity-delete__question" role="group" aria-labelledby={questionId}>
+    <div
+      className="activity-delete__question"
+      role="group"
+      aria-labelledby={questionId}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') cancel()
+      }}
+    >
       <p id={questionId}>{`Delete “${name}”? It is removed from ${removedFrom}.`}</p>
+      {signedIn && <p id={noteId}>Its original file is deleted too, if one is stored.</p>}
       <ConfirmActions
         confirmLabel="Delete"
         busy={busy}
-        confirmDescribedBy={questionId}
+        confirmDescribedBy={signedIn ? `${questionId} ${noteId}` : questionId}
         cancelRef={cancelRef}
-        onCancel={() => {
-          returnFocusRef.current = true
-          setAsking(false)
-        }}
+        onCancel={cancel}
         onConfirm={() => onDelete(savedId)}
       />
     </div>
