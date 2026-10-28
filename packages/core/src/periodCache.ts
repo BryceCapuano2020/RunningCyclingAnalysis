@@ -1,6 +1,8 @@
 import { HEADLINE_DURATION_S } from './constants'
 import { combine, sportCurves } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
+import { lateEvidence } from './digest/lateEvidence'
+import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
 import { sameHeartRate } from './digest/sameHeartRate'
 import type { SameHeartRateBySport } from './digest/sameHeartRateTypes'
 import { fitnessTrend } from './digest/trend'
@@ -68,6 +70,12 @@ export class PeriodCache {
     fromMs: number | null
     setAside: string
     result: SameHeartRateBySport
+  }[] = []
+  // Late-effort evidence reads no mass either: its key is the digests and the set-aside, newest use first.
+  private lateEntries: {
+    selected: ActivityDigest[]
+    setAside: string
+    result: LateEvidenceBySport
   }[] = []
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
@@ -196,6 +204,23 @@ export class PeriodCache {
     })
     this.sameEntries.unshift({ selected, library, fromMs, setAside: key, result })
     this.sameEntries.length = Math.min(this.sameEntries.length, ANALYSES_KEPT)
+    return result
+  }
+
+  /** Each sport's late-effort evidence over the selected period, reused while the digests and the set-aside are the same. */
+  late(selected: ActivityDigest[], setAside: readonly string[]): LateEvidenceBySport {
+    const key = setAside.join(',')
+    const hit = this.lateEntries.findIndex(
+      (entry) => entry.setAside === key && sameDigests(entry.selected, selected),
+    )
+    if (hit >= 0) {
+      const [entry] = this.lateEntries.splice(hit, 1)
+      this.lateEntries.unshift(entry!)
+      return entry!.result
+    }
+    const result = lateEvidence(selected, new Set(setAside))
+    this.lateEntries.unshift({ selected, setAside: key, result })
+    this.lateEntries.length = Math.min(this.lateEntries.length, ANALYSES_KEPT)
     return result
   }
 

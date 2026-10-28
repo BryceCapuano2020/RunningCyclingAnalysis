@@ -82,6 +82,7 @@ describe('AnalysisSession records', () => {
         'records',
         'result',
         'sameHeartRate',
+        'lateEvidence',
         'syncIssues',
         'totalActivities',
         'trend',

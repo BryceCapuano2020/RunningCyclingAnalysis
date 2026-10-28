@@ -9,6 +9,7 @@ import { DEFAULT_EXTRACT_LIMITS } from './fit'
 import { parseActivityFile } from './import'
 import { generatedName } from './import/names'
 import { AnalysisSession, SyncFailure } from './session'
+import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
@@ -412,6 +413,7 @@ describe('AnalysisSession', () => {
       trend: [],
       effortTrends: NO_TRENDS,
       sameHeartRate: NO_SAME_HEART_RATE,
+      lateEvidence: NO_LATE_EVIDENCE,
       previous: null,
       records: new Map(),
     })
@@ -496,6 +498,7 @@ describe('AnalysisSession', () => {
       trend: [],
       effortTrends: NO_TRENDS,
       sameHeartRate: NO_SAME_HEART_RATE,
+      lateEvidence: NO_LATE_EVIDENCE,
       previous: null,
       records: new Map(),
     })

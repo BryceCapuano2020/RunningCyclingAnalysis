@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { SessionState, SyncIssueCode } from '@rca/core/session'
+import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
@@ -101,5 +102,6 @@ export const EMPTY_SESSION: SessionState = {
   previous: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
+  lateEvidence: NO_LATE_EVIDENCE,
   records: new Map(),
 }
