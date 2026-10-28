@@ -1,5 +1,6 @@
 import { CLIMB_RATE_WINDOW_S, MAX_CLIMB_RATE_MS } from '../constants'
 import { rollingMean } from '../math'
+import type { AgreedStreams } from './agreement'
 import { agreedStreams } from './agreement'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
@@ -296,9 +297,13 @@ function messageFor(kind: QualityKind, durationS: number): string {
 /**
  * Finds sensor problems in an activity and returns per-sample masks. Masks are 1 where the
  * sample may be used. Flags describe each problem span; overlapping or touching flags of the
- * same kind are merged.
+ * same kind are merged. `disagreements` are the stretches where the activity's speed and distance
+ * disagree; a caller that has already compared them passes them, and otherwise they are found here.
  */
-export function assessQuality(activity: Activity): QualityReport {
+export function assessQuality(
+  activity: Activity,
+  disagreements: AgreedStreams['stretches'] = agreedStreams(activity).stretches,
+): QualityReport {
   const { n, speed } = activity
   const validMotion = new Uint8Array(n).fill(1)
   const validPower = new Uint8Array(n).fill(activity.hasPower ? 1 : 0)
@@ -318,7 +323,7 @@ export function assessQuality(activity: Activity): QualityReport {
   powerRules(activity, validPower, raw)
   motionRules(activity, validMotion, validGrade, validAltitude, raw, steady)
   // Nothing is masked: the digest credits only what both streams support there (agreement.ts).
-  for (const stretch of agreedStreams(activity).stretches) {
+  for (const stretch of disagreements) {
     raw.push({ kind: 'stream-disagreement', ...stretch })
   }
 

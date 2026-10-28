@@ -212,6 +212,22 @@ describe('distanceBests', () => {
     expect(compared).toBeGreaterThan(40)
   })
 
+  it('decides which distances a run covers from its recorded distance, not the lowered one', () => {
+    // 5.02 km recorded, but the lowered stream reaches only 4.98 km: the run still covers 5 km.
+    const { distance: recorded } = profile([[1673, 3]])
+    const { distance, valid } = profile([[1673, 2.98]])
+    expect(recorded.at(-1)).toBeGreaterThan(5000)
+    expect(distance.at(-1)).toBeLessThan(5000)
+    expect(secondsAt(distanceBests(distance, valid, recorded), 5000)).toBeCloseTo(5000 / 3, 6)
+  })
+
+  it('times a distance by the lowered stream when its windows reach it', () => {
+    // The recorded distance runs at 4 m/s, but the lowered stream only at 3 m/s: the 1 km is 333 s.
+    const recorded = profile([[1500, 4]]).distance
+    const { distance, valid } = profile([[1500, 3]])
+    expect(secondsAt(distanceBests(distance, valid, recorded), 1000)).toBeCloseTo(1000 / 3, 6)
+  })
+
   it('returns nothing for an empty stream', () => {
     expect(distanceBests(new Float64Array(0), new Uint8Array(0))).toEqual([])
   })
