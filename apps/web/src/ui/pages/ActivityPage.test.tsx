@@ -963,6 +963,24 @@ describe('route shape', () => {
     expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
   })
 
+  it('sets the figures beside a drawn route, and by themselves without one', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'shape', route: SHAPE }))
+    const view = renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+    const route = await screen.findByRole('img', { name: DRAWN })
+    const top = route.closest('.activity-page__top')
+    expect(top).toHaveClass('activity-page__top--route')
+    expect(top).toContainElement(screen.getByText('Distance'))
+    view.unmount()
+
+    renderPage(makeActivity())
+    expect(screen.getByText('Distance').closest('.activity-page__top')).not.toHaveClass(
+      'activity-page__top--route',
+    )
+  })
+
   it('offers to show a route from the kept file, and reads nothing until asked', async () => {
     const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'original' }))
     renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {

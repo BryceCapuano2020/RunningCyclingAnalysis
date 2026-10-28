@@ -63,6 +63,15 @@ describe('route shape', () => {
   })
 })
 
+describe('activity page header', () => {
+  it('puts the figures beside a drawn route from 761 px, and stacks them on a phone', () => {
+    const wide = inMedia(page, '(min-width: 761px)')
+    expect(wide).toContain('.activity-page__top--route')
+    expect(wide).toMatch(/grid-template-columns:\s*auto minmax\(0, 1fr\);/)
+    expect(declarations(page, '.activity-page__top')).not.toMatch(/grid-template-columns/)
+  })
+})
+
 describe('splits table', () => {
   it('aligns the caption with the section heading, not inset by the cell padding', () => {
     expect(declarations(splits, '.splits-table caption')).toMatch(
