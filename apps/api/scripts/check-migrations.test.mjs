@@ -44,7 +44,8 @@ test('deploy proceeds when no migrations are pending', async () => {
     undefined,
   )
   assert.equal(invocation[0], 'npx')
-  assert.deepEqual(invocation[1].slice(0, 6), [
+  assert.deepEqual(invocation[1].slice(0, 7), [
+    '--no-install',
     'wrangler',
     'd1',
     'migrations',
@@ -52,9 +53,9 @@ test('deploy proceeds when no migrations are pending', async () => {
     'rca',
     '--remote',
   ])
-  assert.equal(invocation[1][6], '--config')
-  assert.ok(invocation[1][7].startsWith('/'))
-  assert.ok(invocation[1][7].endsWith('/apps/api/wrangler.toml'))
+  assert.equal(invocation[1][7], '--config')
+  assert.ok(invocation[1][8].startsWith('/'))
+  assert.ok(invocation[1][8].endsWith('/apps/api/wrangler.toml'))
 })
 
 test('deploy is refused and names pending migrations', async () => {
@@ -62,7 +63,7 @@ test('deploy is refused and names pending migrations', async () => {
     checkMigrations(async () => ({ stdout: pendingOutput })),
     (error) => {
       assert.match(error.message, /0008_file_bytes\.sql, 0009_example_change\.sql/)
-      assert.match(error.message, /Apply them first: npx wrangler d1 migrations apply rca --remote/)
+      assert.match(error.message, /Apply them first: npm run db:migrate:remote -w @rca\/api$/)
       return true
     },
   )

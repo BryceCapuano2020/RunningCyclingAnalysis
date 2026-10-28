@@ -218,7 +218,7 @@ GitHub workflow in section 10 reads the same file from the repository.
 
 `npm run deploy` refuses to run unless the checkout is `main`, has no uncommitted or untracked
 changes, and matches `origin/main`. Run it from a clean, pushed `main`; from any other state it stops
-before building or deploying.
+before building or deploying. `npm run deploy:built` also refuses to run while remote D1 migrations are pending, so apply them first with `npm run db:migrate:remote -w @rca/api`.
 
 ## 8. Smoke test
 

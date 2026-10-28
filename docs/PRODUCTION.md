@@ -58,7 +58,7 @@ intended order:
 `origin/main` (`scripts/ops/check-release.mjs`). It then runs the release gate and deploys. It is
 the same release, without the approval and smoke-test steps, so use the workflow for production.
 `npm run deploy:built` refuses to run while remote D1 migrations are pending, so apply them first with
-`npx wrangler d1 migrations apply rca --remote`.
+`npm run db:migrate:remote -w @rca/api`.
 
 Every `uses:` reference in `.github/workflows` is pinned to a full commit SHA, with the release tag in
 a comment. Repository settings do not enforce SHA pinning, and GitHub does not block a workflow that

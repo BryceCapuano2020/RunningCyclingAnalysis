@@ -1,14 +1,17 @@
 import { execFile as nodeExecFile } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const execFile = promisify(nodeExecFile)
-const API_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const SELF = realpathSync(fileURLToPath(import.meta.url))
+const API_DIR = resolve(dirname(SELF), '..')
 const WRANGLER_CONFIG = resolve(API_DIR, 'wrangler.toml')
 const DATABASE = 'rca'
 const PENDING_MARKER = 'Migrations to be applied:'
 const NONE_MARKER = 'No migrations to apply'
+const APPLY_HINT = 'npm run db:migrate:remote -w @rca/api'
 
 /**
  * Read `wrangler d1 migrations list` output. Anything unrecognised fails closed, so a changed
@@ -33,9 +36,20 @@ export function parsePendingMigrations(stdout) {
 export async function checkMigrations(execFileImpl = execFile) {
   let stdout
   try {
+    // --no-install keeps npx from fetching an unpinned Wrangler when the local install is missing.
     ;({ stdout } = await execFileImpl(
       'npx',
-      ['wrangler', 'd1', 'migrations', 'list', DATABASE, '--remote', '--config', WRANGLER_CONFIG],
+      [
+        '--no-install',
+        'wrangler',
+        'd1',
+        'migrations',
+        'list',
+        DATABASE,
+        '--remote',
+        '--config',
+        WRANGLER_CONFIG,
+      ],
       { cwd: API_DIR, encoding: 'utf8', maxBuffer: 1024 * 1024 },
     ))
   } catch {
@@ -45,13 +59,11 @@ export async function checkMigrations(execFileImpl = execFile) {
   }
   const { pending } = parsePendingMigrations(stdout)
   if (pending.length > 0) {
-    throw new Error(
-      `Pending D1 migrations: ${pending.join(', ')}. Apply them first: npx wrangler d1 migrations apply rca --remote`,
-    )
+    throw new Error(`Pending D1 migrations: ${pending.join(', ')}. Apply them first: ${APPLY_HINT}`)
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === SELF) {
   checkMigrations()
     .then(() => console.log('No pending remote D1 migrations.'))
     .catch((error) => {
