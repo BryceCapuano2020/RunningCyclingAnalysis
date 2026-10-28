@@ -1,4 +1,6 @@
+import { CLIMB_RATE_WINDOW_S, MAX_CLIMB_RATE_MS } from '../constants'
 import { rollingMean } from '../math'
+import { agreedStreams } from './agreement'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
 
@@ -13,6 +15,11 @@ export const QUALITY_THRESHOLDS = {
   powerDropout: { minDurationS: 5, minSpeedMs: 3 },
   speedSpike: { maxSpeedMs: { run: 12.5, ride: 30 }, maxStepMs: 5, marginS: 3 },
   altitudeJump: { maxStepM: 10, marginS: 10 },
+  /**
+   * A rise of at least maxMs over windowS, in altitude smoothed over smoothS to quiet sample noise,
+   * is an altitude error. The light smoothing keeps a minute at maxMs flagged for most of it.
+   */
+  implausibleClimb: { maxMs: MAX_CLIMB_RATE_MS, windowS: CLIMB_RATE_WINDOW_S, smoothS: 10 },
   /** smoothGrade spreads an altitude error across its rolling mean and grade difference. */
   gradeContaminationMarginS: GRADE_SMOOTHING_MARGIN_S,
   /** Same-kind flags closer than this, in seconds, are one flag, so noisy sensors do not multiply flags. */
@@ -171,9 +178,11 @@ function motionRules(
   }
   // No steady gate here: a step right after a pause is still a discontinuity in the grade. Only the
   // paused samples themselves are skipped, since their altitude is not being recorded.
+  const steps = new Float64Array(n)
   for (let i = 1; i < n; i++) {
     const jump = Math.abs(altitude[i]! - altitude[i - 1]!) > t.altitudeJump.maxStepM
     if (paused[i] !== 1 && jump) {
+      steps[i] = altitude[i]! - altitude[i - 1]!
       const flagRange = around(i, t.altitudeJump.marginS, n)
       raw.push({ kind: 'altitude-jump', ...flagRange })
       validAltitude.fill(0, flagRange.start, flagRange.end)
@@ -183,6 +192,52 @@ function motionRules(
         Math.min(n, i + t.gradeContaminationMarginS + 1),
       )
     }
+  }
+  // Indoors the grade is zero whatever the altitude says, so a climb there is left alone.
+  if (!a.indoor) climbRule(a, steps, validGrade, validAltitude, raw)
+}
+
+/**
+ * Flags each stretch where smoothed altitude rises faster than anyone climbs, a ramp too gradual
+ * for the single-second jump rule. The steps the jump rule flagged (`steps`, the change at each) are
+ * taken out first, so a lone jump is reported once, as a jump, while a ramp around a jump is still
+ * a ramp. The flag covers the seconds at the centre of a too-fast window; the altitude is left out
+ * over those windows and the smoothing, and the grade with the margin a grade spreads over. Only
+ * rises are flagged: a fall too fast lowers a run's cost and a ride's power, so it cannot make a
+ * best, and a fast descent on a bike is real.
+ */
+function climbRule(
+  a: Activity,
+  steps: Float64Array,
+  validGrade: Uint8Array,
+  validAltitude: Uint8Array,
+  raw: RawFlag[],
+): void {
+  const { n } = a
+  const t = QUALITY_THRESHOLDS
+  const { maxMs, windowS, smoothS } = t.implausibleClimb
+  const half = Math.floor(windowS / 2)
+  const level = new Float64Array(n)
+  let offset = 0
+  for (let i = 0; i < n; i++) {
+    offset += steps[i]!
+    level[i] = a.altitude[i]! - offset
+  }
+  const smooth = rollingMean(level, smoothS)
+  // A stretch with no known altitude smooths to NaN, which makes the comparison false.
+  const tooFast = (i: number): boolean =>
+    i >= half && i + half < n && smooth[i + half]! - smooth[i - half]! >= maxMs * 2 * half
+  const reach = half + Math.floor(smoothS / 2)
+  for (const run of runsWhere(n, tooFast)) {
+    raw.push({ kind: 'implausible-climb', start: run.start, end: run.end })
+    const start = Math.max(0, run.start - reach)
+    const end = Math.min(n, run.end + reach)
+    validAltitude.fill(0, start, end)
+    validGrade.fill(
+      0,
+      Math.max(0, start - t.gradeContaminationMarginS),
+      Math.min(n, end + t.gradeContaminationMarginS),
+    )
   }
 }
 
@@ -226,6 +281,10 @@ function messageFor(kind: QualityKind, durationS: number): string {
       return 'GPS speed jumped to an impossible value'
     case 'altitude-jump':
       return `Altitude changed by more than ${t.altitudeJump.maxStepM} m in a single second`
+    case 'implausible-climb':
+      return `Altitude rose at ${t.implausibleClimb.maxMs} m/s or more for ${seconds}`
+    case 'stream-disagreement':
+      return `Speed and distance disagreed for ${seconds}`
     case 'missing-altitude':
       return (
         `No altitude was recorded for ${seconds}, so grade-based running cost, virtual power ` +
@@ -258,6 +317,10 @@ export function assessQuality(activity: Activity): QualityReport {
   if (activity.hasHeartRate) heartRateRules(activity, validHeartRate, raw, steady)
   powerRules(activity, validPower, raw)
   motionRules(activity, validMotion, validGrade, validAltitude, raw, steady)
+  // Nothing is masked: the digest credits only what both streams support there (agreement.ts).
+  for (const stretch of agreedStreams(activity).stretches) {
+    raw.push({ kind: 'stream-disagreement', ...stretch })
+  }
 
   const flags: QualityFlag[] = mergeFlags(raw)
     .sort((a, b) => a.start - b.start || compareKinds(a.kind, b.kind))

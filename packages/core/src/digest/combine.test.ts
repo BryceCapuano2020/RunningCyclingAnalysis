@@ -6,7 +6,7 @@ import {
   PROFILE_DURATIONS_S,
   RESTING_W_PER_KG,
 } from '../constants'
-import { smoothGrade } from '../metabolic'
+import { smoothGrade, travelledDistance } from '../metabolic'
 import { mulberry32 } from '../math'
 import { airDensityStream } from '../physics/air'
 import { crossCheck } from '../hr'
@@ -65,7 +65,7 @@ it('never mixes stored digests from an older model revision into current results
 function rideInputs(a: Activity): RideInputs {
   return {
     speed: a.speed,
-    grade: smoothGrade(a.altitude, a.distance),
+    grade: smoothGrade(a.altitude, travelledDistance(a.speed)),
     power: a.power,
     valid: assessQuality(a).validMotion,
     airDensity: airDensityStream(a),
@@ -243,7 +243,7 @@ describe('combine', () => {
     const point = r.rideCurve.find((p) => p.durationS === 300)!
     expect(point.activityId).toBe('climb')
     // Every window of this steady climb has the same value, so only the value is compared.
-    const grade = smoothGrade(ride.altitude, ride.distance)
+    const grade = smoothGrade(ride.altitude, travelledDistance(ride.speed))
     const estimate = estimatePower(
       ride.speed,
       grade,
@@ -370,7 +370,7 @@ describe('combine', () => {
     expect(r.virtualAccuracy!.nSegments).toBeGreaterThan(0)
     const totalMassKg = 84
     for (const seg of r.virtualAccuracy!.segments) {
-      const grade = smoothGrade(ride.altitude, ride.distance)
+      const grade = smoothGrade(ride.altitude, travelledDistance(ride.speed))
       const direct =
         estimatePower(ride.speed, grade, totalMassKg, DEFAULT_BIKE_MODEL, airDensityStream(ride))
           .subarray(seg.start, seg.end)

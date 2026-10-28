@@ -1,6 +1,6 @@
 import type {
   ActivityDigest,
-  DerivedStreams,
+  PowerSource,
   DigestDistanceBest,
   QualityFlag,
   QualityKind,
@@ -19,7 +19,7 @@ export interface ActivitySummary {
   elevationGainM: number
   hasHeartRate: boolean
   indoor: boolean
-  powerSource: DerivedStreams['powerSource']
+  powerSource: PowerSource
   /** The first quality flags of the activity; `flagCounts` has the true number of each kind. */
   flags: QualityFlag[]
   flagCounts: Partial<Record<QualityKind, number>>

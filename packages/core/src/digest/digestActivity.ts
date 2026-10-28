@@ -4,10 +4,11 @@ import type { HeartRateSource } from '../effort'
 import { maxHeartRate, windowHeartRate } from '../effort'
 import { averageBlocks } from '../hr'
 import { mean } from '../math'
-import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade } from '../metabolic'
+import { MIN_RUN_SPEED_MS, runMetabolicPower, smoothGrade, travelledDistance } from '../metabolic'
 import { runSplits } from '../splits/splits'
 import { airDensityStream } from '../physics/air'
 import { assessQuality } from '../quality'
+import { agreedStreams } from '../quality/agreement'
 import type {
   Activity,
   ActivityDigest,
@@ -250,11 +251,17 @@ function virtualParts(
  * itself, never on the athlete's settings, so it can be computed once at import and combined later.
  */
 export function digestActivity(activity: Activity): ActivityDigest {
-  // Indoor altitude is barometer drift or a simulated course, not a gradient being ridden.
+  // Where the file's speed and distance disagree, efforts credit only what both support. The
+  // summary and the splits keep the file's own distance.
+  const agreed = agreedStreams(activity)
+  const streams: Activity = { ...activity, speed: agreed.speed, distance: agreed.distance }
+  // Indoor altitude is barometer drift or a simulated course, not a gradient being ridden. Outdoors
+  // the grade is over the distance the speed stream implies, because every cost and power below is
+  // grade times that speed: so they credit the climb the altitude records, and no more.
   const rawGrade = activity.indoor
     ? new Float64Array(activity.n)
-    : smoothGrade(activity.altitude, activity.distance)
-  const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused, activity.speed)
+    : smoothGrade(activity.altitude, travelledDistance(streams.speed, streams.distance))
+  const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused, streams.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
   const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))
@@ -263,15 +270,15 @@ export function digestActivity(activity: Activity): ActivityDigest {
   // The run's metabolic stream feeds its curve, its heart-rate blocks and its splits, so it is built once.
   const metabolic =
     activity.sport === 'run'
-      ? runMetabolicPower(activity.speed, grade, PRIORS.runEconomyScale.mean)
+      ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean)
       : null
   let parts: Parts
   if (metabolic !== null) {
-    parts = runParts(activity, quality, metabolic, source)
+    parts = runParts(streams, quality, metabolic, source)
   } else if (activity.hasPower) {
-    parts = measuredParts(activity, quality, grade, source)
+    parts = measuredParts(streams, quality, grade, source)
   } else {
-    parts = virtualParts(activity, quality, grade, source)
+    parts = virtualParts(streams, quality, grade, source)
   }
 
   const moving = movingMask(activity)

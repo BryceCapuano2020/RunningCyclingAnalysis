@@ -1,3 +1,4 @@
+import { GRADE_HALF_SPAN_S } from './metabolic/grade'
 import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
 
 /** Binary sizes, for byte limits and for telling people how large a file may be. */
@@ -151,6 +152,34 @@ export const RUN_COST_CORRECTION = 0.3
 
 /** Cost of running on the flat, J/kg/m, with the level correction. Used by pace conversions. */
 export const FLAT_RUN_COST = MINETTI_FLAT_COST + RUN_COST_CORRECTION
+
+/**
+ * Climb rate, m/s, held over CLIMB_RATE_WINDOW_S, at which altitude is taken to be wrong and its
+ * grade is left out. The vertical-kilometre record climbs under 0.6 m/s for half an hour, and the
+ * best cyclists hold about 0.5 m/s, so 1 m/s for half a minute is an altitude error, not a climb.
+ */
+export const MAX_CLIMB_RATE_MS = 1.0
+
+/** Seconds over which the climb rate is measured: the span of smoothGrade's rise and run. */
+export const CLIMB_RATE_WINDOW_S = 2 * GRADE_HALF_SPAN_S
+
+/**
+ * Seconds, centred on each second, over which a file's speed and its recorded distance are compared
+ * (quality/agreement.ts): the span a grade is measured over, so a disagreement that could bend a
+ * grade is seen whole.
+ */
+export const AGREEMENT_WINDOW_S = 2 * GRADE_HALF_SPAN_S
+/** Metres both streams must cover over the window, 0.5 m/s: below it the athlete is standing still. */
+export const AGREEMENT_MIN_MOVING_M = 15
+/**
+ * The streams disagree over a window when they differ by at least AGREEMENT_MIN_DIFFERENCE_M, 1 m/s,
+ * and one covers more than AGREEMENT_MAX_RATIO times the other. On a corpus of 1,275 outdoor FIT
+ * runs this flags about one in ten, among them steps where a watch's speed reads twice its GPS
+ * track, and no GPX file, whose two streams are one. A ratio of 1.5 flags twice as many flat runs;
+ * a 60 m difference misses the steps.
+ */
+export const AGREEMENT_MIN_DIFFERENCE_M = 30
+export const AGREEMENT_MAX_RATIO = 2
 
 /**
  * Population priors: gross efficiency of cycling, and a multiplicative individual running economy

@@ -209,7 +209,25 @@ describe('sportRecords', () => {
     expect(sportRecords(result, 'ride', 70, 'metric').map((r) => r.durationS)).toEqual([
       60, 300, 3600,
     ])
-    expect(RECORD_DURATIONS_S).toEqual([60, 300, 1200, 3600])
+    expect(RECORD_DURATIONS_S.ride).toEqual([60, 300, 1200, 3600])
+  })
+
+  it('lists no run record shorter than 5 minutes, since grade-adjusted short windows follow the slope', () => {
+    const run = makeActivity({ id: 'run-1', sport: 'run', name: 'Morning run' })
+    const runs = makeResult({
+      activities: [run],
+      runCurve: [
+        curvePoint(60, 20, 'run-1'),
+        curvePoint(180, 18, 'run-1'),
+        curvePoint(300, 17, 'run-1'),
+        curvePoint(1200, 15, 'run-1'),
+        curvePoint(3600, 13, 'run-1'),
+      ],
+    })
+    expect(sportRecords(runs, 'run', 70, 'metric').map((r) => r.durationS)).toEqual([
+      300, 1200, 3600,
+    ])
+    expect(RECORD_DURATIONS_S.run).toEqual([300, 1200, 3600])
   })
 
   it('names the activity that set each record, or null when it is not in the result', () => {

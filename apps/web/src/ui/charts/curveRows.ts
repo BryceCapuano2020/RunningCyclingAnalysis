@@ -1,7 +1,7 @@
 import type { Curve, CurvePoint } from '@rca/core/types'
 
 /** Efforts shorter than a minute are too short to chart as a curve. */
-const MIN_DURATION_S = 60
+export const MIN_DURATION_S = 60
 
 export interface DurationRow {
   durationS: number

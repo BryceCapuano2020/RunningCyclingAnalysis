@@ -26,6 +26,10 @@ const leftOut = (count: number) => `We left ${count === 1 ? 'that' : 'those'} ou
 const jumpLeftOut = (count: number) =>
   `We left the climb and the slope-based figures near ${count === 1 ? 'that jump' : 'each jump'} out of your figures.`
 
+// The grade is masked around such a rise too, so the climb's slope-based figures are left out.
+const climbLeftOut = (count: number) =>
+  `We left the slope-based figures ${count === 1 ? 'there' : 'at those times'} out of your figures.`
+
 interface KindCopy {
   /** Whether its readings were left out of the figures, so they count as readings skipped. */
   removesReadings: boolean
@@ -55,6 +59,18 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
     listsTimes: true,
     sentence: (count) =>
       `Altitude jumped in a single second ${timesText(count)}. ${jumpLeftOut(count)}`,
+  },
+  'implausible-climb': {
+    removesReadings: false,
+    listsTimes: true,
+    sentence: (count) =>
+      `Altitude rose faster than anyone can climb ${timesText(count)}. ${climbLeftOut(count)}`,
+  },
+  'stream-disagreement': {
+    removesReadings: false,
+    listsTimes: true,
+    sentence: (count) =>
+      `Speed and distance disagreed ${timesText(count)}. We counted only what both support ${count === 1 ? 'there' : 'at those times'}.`,
   },
   // The core flags a missing altitude once, for the whole activity, so there is no count to give.
   'missing-altitude': {

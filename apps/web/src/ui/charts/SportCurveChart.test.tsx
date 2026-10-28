@@ -7,9 +7,9 @@ import type { PreviousCurve } from './SportCurveChart'
 
 const MASS_KG = 75
 
-/** Best run speeds in m/s: 4:30 /km at a minute, 4:10 /km at 20 minutes, 4:30 /km at 5 min ... */
+/** Best run speeds in m/s: 3:20 /km at 3 minutes, 4:10 /km at 20 minutes. A run's curve starts at 3 minutes. */
 const RUN_SPEEDS = [
-  curvePoint(60, 5.0, 'run-1'),
+  curvePoint(180, 5.0, 'run-1'),
   curvePoint(300, 4.5, 'run-1'),
   curvePoint(1200, 4.0, 'run-2'),
   curvePoint(3600, 3.5, 'run-2'),
@@ -31,7 +31,7 @@ const NAMES = {
 }
 
 const PREVIOUS_RUN: PreviousCurve = {
-  curve: [curvePoint(60, 4.8, 'run-0'), curvePoint(1200, 3.8, 'run-0')],
+  curve: [curvePoint(180, 4.8, 'run-0'), curvePoint(1200, 3.8, 'run-0')],
   label: 'Previous 6 weeks',
 }
 
@@ -317,7 +317,7 @@ describe('SportCurveChart', () => {
     const { container } = render(
       <SportCurveChart sport="run" curve={[]} previous={null} massKg={MASS_KG} units="metric" />,
     )
-    expect(screen.getByText(/Add runs of a minute or more/)).toBeInTheDocument()
+    expect(screen.getByText(/Add runs of 3 min or more/)).toBeInTheDocument()
     expect(container.querySelector('.chart-frame__legend')).toBeNull()
   })
 
@@ -350,7 +350,7 @@ describe('SportCurveChart', () => {
       />,
     )
     const plot = screen.getByTestId('plot-surface')
-    // Durations of at least a minute, shortest first: 1 min, 5 min, 20 min, 1 h.
+    // A run's durations from 3 minutes, shortest first: 3 min, 5 min, 20 min, 1 h.
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
     fireEvent.keyDown(plot, { key: 'ArrowRight' })
@@ -407,7 +407,7 @@ describe('SportCurveChart', () => {
     )
     const { headers, rows } = tableOf(container)
     expect(headers).toEqual(['Duration', 'Flat pace', 'Previous 6 weeks', 'From'])
-    // A minute at 4.8 m/s is 3:28 /km and 20 minutes at 3.8 m/s is 4:23 /km; five minutes has none before.
+    // Three minutes at 4.8 m/s is 3:28 /km and 20 minutes at 3.8 m/s is 4:23 /km; five minutes has none before.
     expect(rows[0]?.[2]).toBe('3:28 /km')
     expect(rows[1]?.[2]).toBe('—')
     expect(rows[2]?.[2]).toBe('4:23 /km')
@@ -417,14 +417,43 @@ describe('SportCurveChart', () => {
     render(
       <SportCurveChart
         sport="run"
-        curve={[curvePoint(60, 5, 'run-1')]}
+        curve={[curvePoint(180, 5, 'run-1')]}
         previous={null}
         massKg={MASS_KG}
         units="metric"
       />,
     )
     expect(screen.queryByRole('img')).toBeNull()
-    expect(screen.getByText('Add runs of a minute or more to see this curve')).toBeInTheDocument()
+    expect(screen.getByText('Add runs of 3 min or more to see this curve')).toBeInTheDocument()
+  })
+
+  it('starts a run’s curve at 3 minutes and a ride’s at a minute', () => {
+    const run = render(
+      <SportCurveChart
+        sport="run"
+        curve={[curvePoint(60, 5.4, 'run-1'), curvePoint(120, 5.2, 'run-1'), ...RUN_SPEEDS]}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(tableOf(run.container).rows.map((row) => row[0])).toEqual([
+      '3 min',
+      '5 min',
+      '20 min',
+      '1 h',
+    ])
+    run.unmount()
+    const ride = render(
+      <SportCurveChart
+        sport="ride"
+        curve={RIDE_WATTS}
+        previous={null}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+    expect(tableOf(ride.container).rows[0]?.[0]).toBe('1 min')
   })
 
   it('captions the table with what its values are', () => {
@@ -573,7 +602,7 @@ describe('the last point’s label beside the 20 minute label', () => {
 
 describe('the curve’s key row, table and labels', () => {
   const ONE_ACTIVITY = [
-    curvePoint(60, 5.0, 'run-1'),
+    curvePoint(180, 5.0, 'run-1'),
     curvePoint(300, 4.5, 'run-1'),
     curvePoint(1200, 4.0, 'run-1'),
   ]
@@ -618,7 +647,7 @@ describe('the curve’s key row, table and labels', () => {
       <SportCurveChart
         sport="run"
         curve={[
-          curvePoint(60, 5.0, 'run-1'),
+          curvePoint(180, 5.0, 'run-1'),
           curvePoint(300, 4.5, 'run-1'),
           curvePoint(600, 4.3, 'run-1'),
           curvePoint(1200, 4.0, 'run-1'),
@@ -676,7 +705,7 @@ describe('the curve’s key row, table and labels', () => {
       <SportCurveChart
         sport="run"
         curve={[
-          curvePoint(60, 5.0, 'run-1'),
+          curvePoint(180, 5.0, 'run-1'),
           curvePoint(300, 4.5, 'run-1'),
           curvePoint(1200, 4.0, 'run-1'),
           curvePoint(1800, 3.2, 'run-1'),

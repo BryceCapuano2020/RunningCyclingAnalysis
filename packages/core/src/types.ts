@@ -82,6 +82,8 @@ export type QualityKind =
   | 'power-dropout'
   | 'speed-spike'
   | 'altitude-jump'
+  | 'implausible-climb'
+  | 'stream-disagreement'
   | 'missing-altitude'
 
 export interface QualityFlag {
@@ -103,27 +105,17 @@ export interface QualityReport {
   /** 1 where grade derived from altitude is usable, else 0. Length n. */
   validGrade: Uint8Array
   /**
-   * 1 where the altitude sample is finite and not inside an altitude-jump flag, else 0. Unlike
-   * validGrade, it does not depend on the grade, so it is the mask for air density. Length n.
+   * 1 where the altitude sample is finite and not left out by an altitude-jump or implausible-climb
+   * flag, else 0. Unlike validGrade, it does not depend on the grade, so it is the mask for air
+   * density. Length n.
    */
   validAltitude: Uint8Array
   /** 1 where the heart-rate sample is usable, else 0. Length n. */
   validHeartRate: Uint8Array
 }
 
-/** Per-sample quantities derived from an Activity. Every stream has length n. */
-export interface DerivedStreams {
-  /** Smoothed gradient as rise/run (0.05 = 5%). */
-  grade: Float64Array
-  /** Mechanical power used for the model, W. Rides only; NaN for runs. */
-  mechanicalPower: Float64Array
-  /** Where mechanicalPower came from. */
-  powerSource: 'measured' | 'virtual' | 'none'
-  /** Gross metabolic power, W per kg body mass. NaN where it cannot be computed. */
-  metabolicPower: Float64Array
-  /** 1 where metabolicPower may be used in duration curves. Length n. */
-  valid: Uint8Array
-}
+/** Where a ride's watts come from: a power meter, the virtual-power model, or none (a run). */
+export type PowerSource = 'measured' | 'virtual' | 'none'
 
 export interface CurvePoint {
   durationS: number
@@ -356,7 +348,7 @@ export interface ActivityDigest {
   elevationGainM: number
   hasHeartRate: boolean
   indoor: boolean
-  powerSource: DerivedStreams['powerSource']
+  powerSource: PowerSource
   /** The first 50 quality flags, earliest first. */
   flags: QualityFlag[]
   /** True number of flags of each kind, including those beyond the 50 kept in `flags`. */

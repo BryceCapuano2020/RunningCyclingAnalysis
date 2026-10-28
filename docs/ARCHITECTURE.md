@@ -294,7 +294,7 @@ needed to fit the bike model against power-meter rides, so it can be refitted wi
 The trade-off: a model change that needs a per-sample quantity the digest does not hold requires
 re-digesting the original. Each digest carries a `modelRevision` inside its JSON; this is separate
 from the `digest_version` column, which remains the schema version. Digests at `MODEL_REVISION`
-(currently 4, in `packages/core/src/digest/modelRevision.ts`) are analysed on their own, while older
+(currently 6, in `packages/core/src/digest/modelRevision.ts`) are analysed on their own, while older
 digests are shown as outdated and excluded until the original activity file is re-imported. If its hash matches the stored activity, the API atomically replaces only the
 derived digest and preserves the activity id, original-file metadata and quota reservation. Retained
 R2 files can be downloaded by the browser to drive that recovery; no database migration is needed.

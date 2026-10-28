@@ -48,6 +48,27 @@ describe('flagKindSentence: one line for each kind of reading', () => {
     )
   })
 
+  it('says an implausible climb leaves the slope-based figures there out of the figures', () => {
+    expect(flagKindSentence('implausible-climb', 1)).toBe(
+      'Altitude rose faster than anyone can climb once. We left the slope-based figures there out of your figures.',
+    )
+    expect(flagKindSentence('implausible-climb', 2)).toBe(
+      'Altitude rose faster than anyone can climb 2 times. We left the slope-based figures at those times out of your figures.',
+    )
+    expect(flagSpanText({ kind: 'implausible-climb', start: 754, end: 799 })).toBe(
+      'from 12:34 to 13:19, 45 s',
+    )
+  })
+
+  it('says where speed and distance disagreed, only what both support was counted', () => {
+    expect(flagKindSentence('stream-disagreement', 1)).toBe(
+      'Speed and distance disagreed once. We counted only what both support there.',
+    )
+    expect(flagKindSentence('stream-disagreement', 3)).toBe(
+      'Speed and distance disagreed 3 times. We counted only what both support at those times.',
+    )
+  })
+
   it('says a missing altitude is one note for the whole activity, and that its climb figures are not shown', () => {
     const note = 'No altitude was recorded, so climb and slope-based figures are not shown.'
     expect(flagKindSentence('missing-altitude', 1)).toBe(note)
@@ -63,6 +84,8 @@ describe('flagKindSentence: one line for each kind of reading', () => {
       'power-dropout',
       'speed-spike',
       'altitude-jump',
+      'implausible-climb',
+      'stream-disagreement',
       'missing-altitude',
     ] as const
     const all = kinds.map((kind) => flagKindSentence(kind, 2)).join(' ')
@@ -104,7 +127,14 @@ describe('skippedReadings: the readings left out of the figures', () => {
   })
 
   it('counts nothing for an activity with only altitude notes', () => {
-    expect(skippedReadings({ 'altitude-jump': 1, 'missing-altitude': 1 })).toBe(0)
+    expect(
+      skippedReadings({
+        'altitude-jump': 1,
+        'implausible-climb': 1,
+        'stream-disagreement': 1,
+        'missing-altitude': 1,
+      }),
+    ).toBe(0)
   })
 })
 

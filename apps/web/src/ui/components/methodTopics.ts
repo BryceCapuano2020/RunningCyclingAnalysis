@@ -7,7 +7,7 @@ import {
   trendWindowDays,
 } from '@rca/core/digest/trendPoints'
 import { HEADLINE_LABEL } from '../grades'
-import { effortLabel } from '../records'
+import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
 import { RANGE_OPTIONS } from './rangeOptions'
 
 /** The ids of the sections on How sure is this?, which the contents list and the links name. */
@@ -136,6 +136,7 @@ const TOPIC_LIST = [
     title: 'Limits',
     plain: [
       'Best efforts are only as good as the hardest efforts on file. Heat, altitude and fatigue shift heart rate. Treadmill and indoor data have no gradient, so they are treated as flat.',
+      `Running bests by time start at ${effortLabel(RECORD_DURATIONS_S.run[0]!)} and the running curve at ${effortLabel(CURVE_START_S.run)}, because shorter grade-adjusted windows mostly measure the slope reading rather than the runner.`,
     ],
   },
 ] as const

@@ -3,7 +3,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Curve, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatWkg } from '@rca/core/units'
-import { RECORD_DURATIONS_S } from '../records'
+import { CURVE_START_S, RECORD_DURATIONS_S, effortLabel } from '../records'
 import { SPORT_FORMAT, SPORT_LABEL, SPORT_PLURAL } from '../sports'
 import { sharedSourceOf, sourceNote } from './activityText'
 import { ChartFrame } from './ChartFrame'
@@ -21,7 +21,7 @@ import {
   tooltipOverlay,
 } from './chartInteraction'
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
-import { durationRows } from './curveRows'
+import { durationRows, MIN_DURATION_S } from './curveRows'
 import { captionOf, columnsOf, tableRow } from './curveTable'
 import type { CurveRow, View } from './curveTable'
 import { areaPath, linePath } from './paths'
@@ -59,9 +59,15 @@ export interface SportCurveChartProps {
   activityNames?: Record<string, string>
 }
 
-/** One row per duration of at least a minute with a value in either period. */
-function buildRows(curve: Curve, before: Curve): CurveRow[] {
+/** The first duration, s, a sport's chart draws: its curve's start, and never under a minute. */
+function chartStartS(sport: Sport): number {
+  return Math.max(CURVE_START_S[sport], MIN_DURATION_S)
+}
+
+/** One row per duration from the sport's curve start with a value in either period. */
+function buildRows(sport: Sport, curve: Curve, before: Curve): CurveRow[] {
   return durationRows([curve, before])
+    .filter(({ durationS }) => durationS >= chartStartS(sport))
     .map(({ durationS, points: [current, earlier] }) => ({
       durationS,
       value: usable(current?.value ?? NaN),
@@ -94,8 +100,14 @@ function lastLabelOf(
 }
 
 /** A duration the records list names, which the curve marks at each of its points. */
-function isRecordDuration(durationS: number): boolean {
-  return (RECORD_DURATIONS_S as readonly number[]).includes(durationS)
+function isRecordDuration(sport: Sport, durationS: number): boolean {
+  return RECORD_DURATIONS_S[sport].includes(durationS)
+}
+
+/** The curve's first duration in words: "a minute", or "3 min" from two minutes up. */
+function startText(sport: Sport): string {
+  const startS = chartStartS(sport)
+  return startS === MIN_DURATION_S ? 'a minute' : effortLabel(startS)
 }
 
 /** The best 20 minutes when there is one, else the longest effort. Its index in rows, or -1. */
@@ -194,7 +206,7 @@ export function SportCurveChart({
   units,
   activityNames,
 }: SportCurveChartProps) {
-  const rows = buildRows(curve, previous?.curve ?? [])
+  const rows = buildRows(sport, curve, previous?.curve ?? [])
   // The previous period is drawn, listed and tabled only when it has a value to show.
   const shown =
     previous !== null && rows.some((row) => Number.isFinite(row.previous)) ? previous : null
@@ -233,7 +245,9 @@ export function SportCurveChart({
         textColumns: view.shared === null ? [columnsOf(view).length - 1] : [],
       }}
       empty={
-        hasData ? undefined : `Add ${SPORT_PLURAL[sport]} of a minute or more to see this curve`
+        hasData
+          ? undefined
+          : `Add ${SPORT_PLURAL[sport]} of ${startText(sport)} or more to see this curve`
       }
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
       overlay={(size) =>
@@ -318,7 +332,7 @@ export function SportCurveChart({
             {m.points.map((point, index) =>
               point !== null &&
               index !== emphasis &&
-              isRecordDuration(rows[index]?.durationS ?? NaN) ? (
+              isRecordDuration(sport, rows[index]?.durationS ?? NaN) ? (
                 <circle
                   key={rows[index]?.durationS}
                   data-testid="sport-curve-record"

@@ -1,13 +1,34 @@
+import { EQUIVALENCE_MIN_S } from '../constants'
+import type { Sport } from '../types'
+
 /** The shortest and longest durations, s, a duration profile reads: 5 s up to 60 min. */
 export const PROFILE_MIN_S = 5
 export const PROFILE_MAX_S = 3600
+
+/**
+ * The shortest duration, s, each sport's best-effort curve and its stand-out profile read. A run's flat
+ * pace over less than 3 minutes mostly measures the slope reading, so a run starts at 3 minutes (the
+ * shortest equivalence); a ride reads from PROFILE_MIN_S. The charts show nothing shorter than 1 minute.
+ */
+export const CURVE_START_S: Record<Sport, number> = {
+  run: EQUIVALENCE_MIN_S,
+  ride: PROFILE_MIN_S,
+}
 
 /** Fewest durations with a value that a profile needs. */
 export const PROFILE_MIN_DURATIONS = 5
 /** Fewest sessions the bests must come from, so that one session cannot be the whole curve. */
 export const PROFILE_MIN_SESSIONS = 2
-/** A profile needs a best at or under this, s: 1 min, to pin the short end of the curve. */
+/**
+ * A profile needs a best at or under this, s: 1 min, to pin the short end of the curve. A curve that
+ * starts later needs its first duration instead: see shortEndOf.
+ */
 export const PROFILE_SHORT_S = 60
+
+/** The duration, s, a best must be at or under to pin the short end of a curve that starts at startS. */
+export function shortEndOf(startS: number): number {
+  return Math.max(PROFILE_SHORT_S, startS)
+}
 /** A profile needs a best at or over this, s: 12 min, to pin the long end of the curve. */
 export const PROFILE_LONG_S = 720
 /**

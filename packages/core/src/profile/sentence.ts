@@ -7,7 +7,8 @@ import {
   PROFILE_NAMED_MARGIN,
   PROFILE_MIN_DURATIONS,
   PROFILE_MIN_SESSIONS,
-  PROFILE_SHORT_S,
+  PROFILE_MIN_S,
+  shortEndOf,
 } from './constants'
 import type { ProfileGap, ProfileRow, ReadyProfile } from './durationProfile'
 
@@ -61,8 +62,11 @@ export function profileSentence({ rows }: ReadyProfile, name: DurationName): str
 }
 
 /** What a profile still needs, in words and without a full stop, such as "Needs a best at 1 min or under". */
-export function profileNeeds(missing: readonly ProfileGap[]): string {
-  const short = `a best at ${formatDuration(PROFILE_SHORT_S)} or under`
+export function profileNeeds(
+  missing: readonly ProfileGap[],
+  startS: number = PROFILE_MIN_S,
+): string {
+  const short = `a best at ${formatDuration(shortEndOf(startS))} or under`
   const long = `a best at ${formatDuration(PROFILE_LONG_S)} or more`
   const needsShort = missing.includes('short')
   const needsLong = missing.includes('long')
@@ -83,11 +87,16 @@ export function profileNeeds(missing: readonly ProfileGap[]): string {
 }
 
 /**
- * Why the short end is left out, or null when it is shown. Without a best at 15 s or under, Morton's
- * maximal power is not inferred, so only the durations from 2 min are compared.
+ * Why the short end is left out, or null when it is shown or the sport's curve starts after it. Without
+ * a best at 15 s or under, Morton's maximal power is not inferred, so only the durations from 2 min are
+ * compared.
  */
-export function profileShortNote({ anchored }: ReadyProfile, name: DurationName): string | null {
-  return anchored
+export function profileShortNote(
+  { anchored, startS }: ReadyProfile,
+  name: DurationName,
+): string | null {
+  // A curve that starts after the anchor, as a run's does, never has one, so it has nothing to explain.
+  return anchored || startS > PROFILE_ANCHOR_S
     ? null
     : `Shown from ${name(PROFILE_FLOOR_S)}: there is no best at ${name(PROFILE_ANCHOR_S)} or under to anchor the short end.`
 }

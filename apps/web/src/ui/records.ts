@@ -1,12 +1,12 @@
 import {
-  DAY_MS,
   HALF_MARATHON_M,
   HEADLINE_DURATION_S,
   PRIORS,
   RUN_RECORD_DISTANCES_M,
 } from '@rca/core/constants'
 import type { RunRecordDistanceM } from '@rca/core/constants'
-import { startOfLocalDay } from '@rca/core/period'
+export { CURVE_START_S } from '@rca/core/profile'
+export { calendarDaysBetween, latestStartOf } from './activityDates'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
@@ -29,14 +29,20 @@ import {
   formatDuration,
 } from '@rca/core/units'
 
-/** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
-export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
+/**
+ * The durations each sport page lists as records. A ride lists 1, 5, 20 and 60 minutes. A run's flat
+ * pace over a minute is mostly the slope and altitude reading, so a run starts at 5 minutes.
+ */
+export const RECORD_DURATIONS_S: Record<Sport, readonly number[]> = {
+  run: [300, 1200, 3600],
+  ride: [60, 300, 1200, 3600],
+}
 
 /**
- * The durations that earn a chip, and that a Balance card lists: 5, 20 and 60 minutes. The
+ * The durations that earn a chip, and that a Balance card lists: 5, 20 and 60 minutes. A ride's
  * one-minute best is page-only.
  */
-export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.filter(
+export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.ride.filter(
   (durationS) => durationS >= 5 * 60,
 )
 
@@ -202,7 +208,7 @@ export function sportRecords(
   const curve = curveOf(result, sport)
   const byId = new Map(result.activities.map((activity) => [activity.id, activity]))
   const records: SportRecord[] = []
-  for (const durationS of RECORD_DURATIONS_S) {
+  for (const durationS of RECORD_DURATIONS_S[sport]) {
     const point = curve.find((candidate) => candidate.durationS === durationS)
     if (!point || !Number.isFinite(point.value)) continue
     const activity = point.activityId === null ? null : (byId.get(point.activityId) ?? null)
@@ -253,25 +259,6 @@ export function countEfforts(activities: ActivitySummary[], sport: Sport): numbe
   return activities.filter(
     (activity) => activity.sport === sport && activity.durationS >= HEADLINE_DURATION_S,
   ).length
-}
-
-/** The start of a sport's latest activity of any length, or null when the library holds none of it. */
-export function latestStartOf(activities: ActivitySummary[], sport: Sport): number | null {
-  let latest: number | null = null
-  for (const activity of activities) {
-    if (activity.sport === sport && (latest === null || activity.startMs > latest)) {
-      latest = activity.startMs
-    }
-  }
-  return latest
-}
-
-/**
- * Whole calendar days from one moment to a later one, in the device's zone. A clock change inside a
- * day does not make it a day short, since each moment is taken at the start of its own day.
- */
-export function calendarDaysBetween(earlierMs: number, laterMs: number): number {
-  return Math.round((startOfLocalDay(laterMs) - startOfLocalDay(earlierMs)) / DAY_MS)
 }
 
 /**

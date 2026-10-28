@@ -6,7 +6,7 @@ import {
   PROFILE_MIN_DURATIONS,
   PROFILE_MIN_S,
   PROFILE_MIN_SESSIONS,
-  PROFILE_SHORT_S,
+  shortEndOf,
   PROFILE_ALPHA,
 } from './constants'
 import { fitCurve } from './morton'
@@ -42,6 +42,8 @@ export interface ReadyProfile {
   rows: ProfileRow[]
   /** False without a best at 15 s or under: Pmax is not inferred, and only 2 min and over are shown. */
   anchored: boolean
+  /** The shortest duration the profile reads, s: 5 s for a ride, 3 min for a run. */
+  startS: number
 }
 
 /**
@@ -51,10 +53,10 @@ export interface ReadyProfile {
 export type DurationProfile =
   ReadyProfile | { status: 'missing'; missing: ProfileGap[] } | { status: 'unfit' }
 
-const inRange = (point: ProfilePoint): boolean =>
+const inRange = (startS: number) => (point: ProfilePoint) =>
   Number.isFinite(point.value) &&
   point.value > 0 &&
-  point.durationS >= PROFILE_MIN_S &&
+  point.durationS >= startS &&
   point.durationS <= PROFILE_MAX_S
 
 /**
@@ -62,13 +64,17 @@ const inRange = (point: ProfilePoint): boolean =>
  * asked of every best the athlete has, but the durations and the sessions are counted over `shown`, the
  * points the profile is made from.
  */
-function gapsOf(points: readonly ProfilePoint[], shown: readonly ProfilePoint[]): ProfileGap[] {
+function gapsOf(
+  points: readonly ProfilePoint[],
+  shown: readonly ProfilePoint[],
+  startS: number,
+): ProfileGap[] {
   const sessions = new Set(
     shown.flatMap((point) => (point.sessionId === null ? [] : [point.sessionId])),
   )
   const lacking: [ProfileGap, boolean][] = [
     ['durations', new Set(shown.map((p) => p.durationS)).size < PROFILE_MIN_DURATIONS],
-    ['short', !points.some((point) => point.durationS <= PROFILE_SHORT_S)],
+    ['short', !points.some((point) => point.durationS <= shortEndOf(startS))],
     ['long', !points.some((point) => point.durationS >= PROFILE_LONG_S)],
     ['sessions', sessions.size < PROFILE_MIN_SESSIONS],
   ]
@@ -131,7 +137,9 @@ function rowOf(held: Held, rows: number, quantiles: Map<number, number>): Profil
 }
 
 /**
- * Which durations of one sport's best curve stand out from the rest of it, 5 s to 60 min.
+ * Which durations of one sport's best curve stand out from the rest of it, from `startS` (5 s unless the
+ * sport's curve starts later, as a run's does) to 60 min. Nothing shorter than `startS` is read, named
+ * or returned.
  *
  * Each duration is predicted from the others with Morton's three-parameter critical-power model, fitted
  * on log values (see docs/research/duration-profile.md), and its best is compared with that. A duration
@@ -139,11 +147,14 @@ function rowOf(held: Held, rows: number, quantiles: Map<number, number>): Profil
  * curve, not about the athlete's capability: a best is a lower bound, so one far below the rest may be
  * untried.
  */
-export function durationProfile(curve: readonly ProfilePoint[]): DurationProfile {
-  const points = curve.filter(inRange).sort((a, b) => a.durationS - b.durationS)
+export function durationProfile(
+  curve: readonly ProfilePoint[],
+  startS: number = PROFILE_MIN_S,
+): DurationProfile {
+  const points = curve.filter(inRange(startS)).sort((a, b) => a.durationS - b.durationS)
   const anchored = points.some((point) => point.durationS <= PROFILE_ANCHOR_S)
   const shown = anchored ? points : points.filter((point) => point.durationS >= PROFILE_FLOOR_S)
-  const missing = gapsOf(points, shown)
+  const missing = gapsOf(points, shown, startS)
   if (missing.length > 0) return { status: 'missing', missing }
   const held = leaveOneOut(shown, anchored)
   if (held.length < PROFILE_MIN_DURATIONS) return { status: 'unfit' }
@@ -152,5 +163,6 @@ export function durationProfile(curve: readonly ProfilePoint[]): DurationProfile
     status: 'ready',
     rows: held.map((one) => rowOf(one, held.length, quantiles)),
     anchored,
+    startS,
   }
 }
