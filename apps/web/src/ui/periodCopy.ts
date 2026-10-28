@@ -8,12 +8,14 @@ import { agoText } from './format/ago'
 import { SPORT_PLURAL } from './sports'
 
 /**
- * The clause that names a span's dates, "between 12 May and 3 Aug 2025", or '' when the span has no
- * dates to name. Every sentence that says what a period is missing uses this one clause.
+ * The clause that names a span's dates, "between 12 May and 3 Aug 2025", or "on 20 Oct 2026" for a span
+ * of one day, or '' when the span has no dates to name. Every sentence that says what a period is
+ * missing uses this one clause.
  */
 export function betweenClause(span: Span | undefined): string {
-  const dates = span === undefined ? '' : periodDates(span).replace(' – ', ' and ')
-  return dates === '' ? '' : `between ${dates}`
+  const dates = span === undefined ? '' : periodDates(span)
+  if (dates === '') return ''
+  return dates.includes(' – ') ? `between ${dates.replace(' – ', ' and ')}` : `on ${dates}`
 }
 
 /**

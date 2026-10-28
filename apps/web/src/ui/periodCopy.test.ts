@@ -15,6 +15,17 @@ describe('betweenClause', () => {
     expect(betweenClause(SIX_WEEKS)).toBe('between 12 May and 3 Aug 2025')
   })
 
+  it('names a span of one day as "on 20 Oct 2026", since nothing lies between a day and itself', () => {
+    const day = new Date(2026, 9, 20, 12).getTime()
+    expect(betweenClause({ startMs: day, endMs: day })).toBe('on 20 Oct 2026')
+    expect(
+      betweenClause({
+        startMs: new Date(2026, 9, 20, 0).getTime(),
+        endMs: new Date(2026, 9, 20, 23, 59).getTime(),
+      }),
+    ).toBe('on 20 Oct 2026')
+  })
+
   it('is empty for a span with no dates, so a sentence can leave the clause out', () => {
     expect(betweenClause({ startMs: null, endMs: null })).toBe('')
     expect(betweenClause(undefined)).toBe('')
@@ -49,6 +60,11 @@ describe('listEmptyText', () => {
         endMs: new Date(2026, 5, 1, 23, 59).getTime(),
       }),
     ).toBe('No runs between 21 Apr and 1 Jun 2026.')
+  })
+
+  it('names the day of a one-day window, as in "No runs on 20 Oct 2026."', () => {
+    const day = new Date(2026, 9, 20, 12).getTime()
+    expect(listEmptyText('run', { startMs: day, endMs: day })).toBe('No runs on 20 Oct 2026.')
   })
 
   it('says the files have none, with no dates, for all activities', () => {
