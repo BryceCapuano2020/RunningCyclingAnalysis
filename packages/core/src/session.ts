@@ -348,14 +348,14 @@ export class AnalysisSession {
     // A period with no activities still has a result, so the page can say what is missing from it.
     const analysis =
       athlete !== null && visible.length > 0
-        ? this.periods.analysis(selected, athlete, setAside)
+        ? this.periods.analysis(selected, athlete, setAside, judgement.calibration)
         : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     // All time is not clipped at a start, so its trend begins at the first activity.
     const fromMs = period.days === null ? null : period.startMs
     // The sample is graded as its own athlete, so its rides carry their equivalents too.
-    const hr = this.gradeTrend || this.isSample ? analysis?.hr : undefined
+    const hr = this.gradeTrend || this.isSample ? judgement.calibration : undefined
     const efforts =
       athlete === null
         ? NO_TRENDS

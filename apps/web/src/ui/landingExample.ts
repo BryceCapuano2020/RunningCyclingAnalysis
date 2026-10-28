@@ -7,7 +7,9 @@ import type { SportGrade } from './grades'
  * so the example shows the sample's own levels and ranges: running 64% Local, cycling 58% Recreational
  * with a range of 53% to 64%. The threshold is the sample's exact speed, 3.722 m/s, which is 4:29 /km
  * and 7:12 /mi, and 225 W. Rounded speeds read a second off in miles, so the exact one is kept.
- * The ride grades moved in the fourth decimal at model revision 6, when grade began to follow speed.
+ * The ride grades moved in the fourth decimal at model revision 6, when grade began to follow speed, and again
+ * in the fourth when a ride's running equivalent began to read the library's heart-rate calibration and the
+ * strap-failure rule began to read the athlete's own heart rate.
  */
 export const LANDING_EXAMPLE: {
   gap: { centre: number; low: number; high: number; lean: 'run' }
@@ -21,10 +23,10 @@ export const LANDING_EXAMPLE: {
   grades: {
     run: { centre: { grade: 0.6424076254311415, level: 'Local' }, range: null },
     ride: {
-      centre: { grade: 0.5802402059278592, level: 'Recreational' },
+      centre: { grade: 0.5801377477223318, level: 'Recreational' },
       range: {
-        low: { grade: 0.5271909478480602, level: 'Recreational' },
-        high: { grade: 0.6395246550851634, level: 'Local' },
+        low: { grade: 0.526907106396036, level: 'Recreational' },
+        high: { grade: 0.6394963093342227, level: 'Local' },
       },
     },
   },

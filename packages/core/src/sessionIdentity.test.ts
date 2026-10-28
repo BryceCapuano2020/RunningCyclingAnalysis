@@ -16,6 +16,9 @@ import { stateHashes } from './test/stateHashes'
  * Re-pinned for the record-distance tolerance: two of the 24 templates are 9.9 km runs and gain a 10 km
  * best, which moves `library` and `result` (the activity summaries carry distance bests) and no other field:
  * `heartRateJudgement` and `timeInZones` read no distance best and are as on main.
+ * Re-pinned again for the analysis audit: `heartRateJudgement` gains the library's heart-rate `calibration` that every
+ * period's equivalents read. This alone moves no other field, because the copied library's periods calibrate as the
+ * library does.
  *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
@@ -84,13 +87,13 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': 'ddd2a6493f7bb9da',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '88ebc666d50196d3',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
-    '"default"/heartRateJudgement': '380c36e2c4adeab8',
+    '"default"/heartRateJudgement': '91a87c3dc3d638d8',
     '"default"/timeInZones': 'fc6b9e31fe436b00',
-    '"all"/heartRateJudgement': '380c36e2c4adeab8',
+    '"all"/heartRateJudgement': '91a87c3dc3d638d8',
     '"all"/timeInZones': '758a75cfb4bf5077',
-    '42/heartRateJudgement': '380c36e2c4adeab8',
+    '42/heartRateJudgement': '91a87c3dc3d638d8',
     '42/timeInZones': '991d484270127c28',
-    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '380c36e2c4adeab8',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '91a87c3dc3d638d8',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'ec9184c96ed97600',
   },
   'dated in UTC': {
@@ -130,13 +133,13 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '2e6b44bf83e3211c',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '50cd26f97126197f',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
-    '"default"/heartRateJudgement': '456acdace906d2e6',
+    '"default"/heartRateJudgement': 'a6353d809c20cd44',
     '"default"/timeInZones': '964b089af52d1c5f',
-    '"all"/heartRateJudgement': '456acdace906d2e6',
+    '"all"/heartRateJudgement': 'a6353d809c20cd44',
     '"all"/timeInZones': '4c754d39e1de6fae',
-    '42/heartRateJudgement': '456acdace906d2e6',
+    '42/heartRateJudgement': 'a6353d809c20cd44',
     '42/timeInZones': '811c6bc3bef6b25a',
-    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '456acdace906d2e6',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'a6353d809c20cd44',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '96d1ac2b54c66aaf',
   },
   'dated in Los Angeles': {
@@ -176,13 +179,13 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '2e6b44bf83e3211c',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '50cd26f97126197f',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '7de40011ebc2b6a9',
-    '"default"/heartRateJudgement': '456acdace906d2e6',
+    '"default"/heartRateJudgement': 'a6353d809c20cd44',
     '"default"/timeInZones': '964b089af52d1c5f',
-    '"all"/heartRateJudgement': '456acdace906d2e6',
+    '"all"/heartRateJudgement': 'a6353d809c20cd44',
     '"all"/timeInZones': '4c754d39e1de6fae',
-    '42/heartRateJudgement': '456acdace906d2e6',
+    '42/heartRateJudgement': 'a6353d809c20cd44',
     '42/timeInZones': '811c6bc3bef6b25a',
-    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '456acdace906d2e6',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'a6353d809c20cd44',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '0bcc5e074097a77f',
   },
   'dated in Auckland': {
@@ -222,13 +225,13 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '2e6b44bf83e3211c',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '2a5ba705c07c1dce',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': 'aa4c803ea5ad72ed',
-    '"default"/heartRateJudgement': '456acdace906d2e6',
+    '"default"/heartRateJudgement': 'a6353d809c20cd44',
     '"default"/timeInZones': '964b089af52d1c5f',
-    '"all"/heartRateJudgement': '456acdace906d2e6',
+    '"all"/heartRateJudgement': 'a6353d809c20cd44',
     '"all"/timeInZones': 'a1452de017a18219',
-    '42/heartRateJudgement': '456acdace906d2e6',
+    '42/heartRateJudgement': 'a6353d809c20cd44',
     '42/timeInZones': '811c6bc3bef6b25a',
-    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '456acdace906d2e6',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': 'a6353d809c20cd44',
     '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '579f93c8ff4eb0d3',
   },
 }

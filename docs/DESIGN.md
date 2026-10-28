@@ -1118,6 +1118,9 @@ activity's own zones, so a period can hold activities with different zones (a th
 body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so
 the reference is rounded to the number Profile shows (`zonesAt`: 187.6 bpm is 188 bpm) and its zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
 the zone above starts at 132), and a bin of it is shared by its whole numbers: 110 to 114 W with an edge at 111 W has one watt
+The judgement also carries the library's heart-rate calibration of ride against run efficiency (`calibration`: the
+slope ratio and its error), which every period's running equivalents and comparison read (`combine`'s `calibration`
+option), so one ride is worth the same run pace whichever period is shown; a period's own `hr` stays its own evidence.
 below it, a fifth of its seconds, and a bin of one beat is never split. A reading is in the zone it is at or above the floor of
 and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A speed bin that straddles an edge is shared in proportion to the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms

@@ -21,14 +21,9 @@ import type {
   HrPoint,
 } from '../types'
 import { estimatePower, solveBikeModel } from '../virtualPower'
-import {
-  atOrBelowCriticalPower,
-  combine,
-  equivalenceFor,
-  equivalentRunSpeed,
-  sportCurves,
-} from './combine'
+import { combine, equivalenceFor, equivalentRunSpeed, sportCurves } from './combine'
 import { digestActivity } from './digestActivity'
+import { atOrBelowCriticalPower } from './heartRateCrossCheck'
 import { powerAt } from './terms'
 import type { RideInputs } from './test/reference'
 import { referenceRideStats, sumReferenceStats } from './test/reference'
@@ -43,9 +38,7 @@ const constant = (n: number, value: number) => new Float64Array(n).fill(value)
 it('uses the same finite prior fallback for equivalent pace when heart-rate evidence conflicts', () => {
   const prior = equivalentRunSpeed(240, 75, null)
   for (const kappa of [3, 10]) {
-    expect(equivalentRunSpeed(240, 75, { run: null, ride: null, kappa, lnKappaSe: 0.05 })).toEqual(
-      prior,
-    )
+    expect(equivalentRunSpeed(240, 75, { kappa, lnKappaSe: 0.05 })).toEqual(prior)
   }
 })
 

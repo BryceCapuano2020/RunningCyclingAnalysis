@@ -5,7 +5,7 @@ import type {
   AthleteSettings,
   BikeModel,
   DigestCurvePoint,
-  HrCrossCheck,
+  HrCalibration,
   Interval,
   Sport,
 } from '../types'
@@ -63,7 +63,7 @@ export interface TrendOptions {
    * When given, each point's best ride is also converted to its running equivalent, with the
    * heart-rate model of the analysis of the same digests, as the cards convert it.
    */
-  equivalence?: { hr: HrCrossCheck | null }
+  equivalence?: { hr: HrCalibration | null }
 }
 
 export { weekEndMs }

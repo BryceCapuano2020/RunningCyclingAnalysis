@@ -1,6 +1,6 @@
 import { PRIORS } from '../constants'
 import { mulberry32, truncatedNormal } from '../math'
-import type { HrCrossCheck } from '../types'
+import type { HrCalibration } from '../types'
 
 /** Shared draws keep comparison and equivalent pace on the same assumptions and seed. */
 export function drawPriors(draws: number, seed: number) {
@@ -21,7 +21,7 @@ export function drawPriors(draws: number, seed: number) {
  * Stabilise in log space, then reject a cross-check supported by too few prior draws. ESS is a
  * numerical diagnostic, not evidence that the physiological assumptions are correct.
  */
-export function calibrationWeights(ge: Float64Array, s: Float64Array, hr: HrCrossCheck | null) {
+export function calibrationWeights(ge: Float64Array, s: Float64Array, hr: HrCalibration | null) {
   if (hr?.kappa == null || hr.lnKappaSe === null) return null
   const { kappa, lnKappaSe } = hr
   const weights = new Float64Array(ge.length)

@@ -1,6 +1,6 @@
 import { PRIORS, RESTING_W_PER_KG } from '../constants'
 import { requirePositiveFinite } from '../math'
-import type { Comparison, ComparisonPoint, Curve, HrCrossCheck } from '../types'
+import type { Comparison, ComparisonPoint, Curve, HrCalibration } from '../types'
 import { calibrationWeights, drawPriors } from './sampling'
 import { confirmedOrder, sortedOrder, weightedIntervalAlong } from './weightedQuantile'
 
@@ -85,7 +85,7 @@ export function compareSports(
   runCurve: Curve,
   rideCurve: Curve,
   massKg: number,
-  hr: HrCrossCheck | null,
+  hr: HrCalibration | null,
   opts: CompareOptions = {},
 ): Comparison {
   requirePositiveFinite('massKg', massKg)

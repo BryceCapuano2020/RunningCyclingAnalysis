@@ -9,6 +9,7 @@ const JUDGED: HeartRateJudgement = {
   setAside: ['n1', 'r1', 'r2'],
   referenceHr: { run: 200.4, ride: 194 },
   threshold: { run: 5, ride: 4 },
+  calibration: null,
 }
 
 describe('set-aside heart rate copy', () => {

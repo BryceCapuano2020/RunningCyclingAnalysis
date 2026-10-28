@@ -1,4 +1,4 @@
-import type { Sport } from '../types'
+import type { HrCalibration, Sport } from '../types'
 
 /**
  * Whose heart rate is set aside, judged over a whole library, with what it was judged against. A period's
@@ -12,6 +12,12 @@ export interface HeartRateJudgement {
   referenceHr: Record<Sport, number | null>
   /** Each sport's threshold the efforts were judged against, in the unit of its fit (gross metabolic W/kg). Null without one. */
   threshold: Record<Sport, number | null>
+  /**
+   * The heart-rate calibration of the run-versus-ride efficiency over the whole library, which every period's
+   * equivalents and comparison read, so one ride is worth the same run pace under any period. Null without
+   * enough heart rate in both sports.
+   */
+  calibration: HrCalibration | null
 }
 
 /** Nothing judged: no library, or none with a heart rate. */
@@ -19,4 +25,5 @@ export const NO_HEART_RATE_JUDGEMENT: HeartRateJudgement = {
   setAside: [],
   referenceHr: { run: null, ride: null },
   threshold: { run: null, ride: null },
+  calibration: null,
 }

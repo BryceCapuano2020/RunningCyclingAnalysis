@@ -216,6 +216,12 @@ export interface HrCrossCheck {
   lnKappaSe: number | null
 }
 
+/**
+ * What the run-versus-ride sampling reads of a heart-rate check: the ratio of the two slopes and its error.
+ * An `HrCrossCheck` is one; the library's judgement keeps only these two numbers.
+ */
+export type HrCalibration = Pick<HrCrossCheck, 'kappa' | 'lnKappaSe'>
+
 export interface Interval {
   p05: number
   p50: number
