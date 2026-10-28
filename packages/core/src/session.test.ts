@@ -529,6 +529,17 @@ describe('AnalysisSession', () => {
     expect(refreshed.outdatedActivities).toBe(0)
   })
 
+  it('treats revision 5 digests, from before the grade followed the speed stream, as outdated', async () => {
+    const session = new AnalysisSession()
+    const previous = { ...digestActivity(run), modelRevision: 5 }
+    const loaded = session.loadDigests([previous], SETTINGS)
+    expect(loaded.result).toBeNull()
+    expect(loaded.outdatedActivities).toBe(1)
+    expect(loaded.incompatibleActivities).toBe(0)
+    const refreshed = await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+    expect(refreshed.outdatedActivities).toBe(0)
+  })
+
   it('tolerates but excludes digests from a newer model revision until the file is re-imported', async () => {
     const session = new AnalysisSession()
     const future = { ...digestActivity(run), modelRevision: MODEL_REVISION + 1 }

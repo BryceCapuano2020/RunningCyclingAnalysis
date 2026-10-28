@@ -35,3 +35,20 @@ export function smoothGrade(altitude: Float64Array, distance: Float64Array): Flo
   }
   return grade
 }
+
+/**
+ * Cumulative metres the speed stream itself implies, one second per sample, by the trapezoid rule.
+ * Unknown (NaN) speed adds nothing. A grade over this distance times that speed is the climb rate the
+ * altitude records. A file's recorded distance can disagree with its speed over a stretch, as on
+ * stairs, and a grade over the recorded distance times the speed then credits climbing that never
+ * happened.
+ */
+export function travelledDistance(speed: Float64Array): Float64Array {
+  const out = new Float64Array(speed.length)
+  for (let i = 1; i < speed.length; i++) {
+    const a = speed[i - 1]!
+    const b = speed[i]!
+    out[i] = out[i - 1]! + ((Number.isNaN(a) ? 0 : a) + (Number.isNaN(b) ? 0 : b)) / 2
+  }
+  return out
+}

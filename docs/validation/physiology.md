@@ -4,7 +4,9 @@ Status: validation note. The executable checks are in
 `packages/core/src/validation/physiology.test.ts`. Values marked **unverified** were not checked
 against the primary text. The model described here is revision 5 (`MODEL_REVISION` 5). Sections 4
 and 8 record the revision 4 results as they were before the correction. Section 10 gives the
-revision 4 and revision 5 results side by side.
+revision 4 and revision 5 results side by side. Revision 6 changed only the gradient fed to these
+costs, which is now taken over the distance the speed stream implies so that gradient times speed is
+the recorded climb rate; the cost curves, and so every result here, are unchanged.
 
 ## 1. Question
 
