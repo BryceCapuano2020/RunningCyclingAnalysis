@@ -33,6 +33,8 @@ describe('limitReached', () => {
     ['read', 'library loads', '100'],
     ['activityDelete', 'deletions', '50'],
     ['profileWrite', 'profile changes', '50'],
+    ['measurementWrite', 'changes to your dated settings', '200'],
+    ['measurementRead', 'loads of your dated settings', '300'],
   ] as const)('names %s as "%s", with its daily allowance of %s', (action, noun, allowance) => {
     const resetsAt = Date.UTC(2026, 9, 24)
     expect(limitReached(action, resetsAt)).toBe(

@@ -41,6 +41,11 @@ export interface TrendPoint {
    * for it through `equivalence`.
    */
   rideRunSpeed: Interval | null
+  /**
+   * The body mass, kg, of the ride that set rideWkg. Present only when the athlete has dated body
+   * masses, since otherwise it is the one mass every ride is priced at.
+   */
+  rideMassKg?: number
 }
 
 export interface TrendOptions {
@@ -183,6 +188,7 @@ export function fitnessTrend(
       runAtMs: top.run?.startMs ?? null,
       rideAtMs: ride?.startMs ?? null,
       rideRunSpeed: ride ? speedOf(ride.best) : null,
+      ...(masses.dated && ride ? { rideMassKg: ride.best.massKg } : {}),
     })
   }
   return points

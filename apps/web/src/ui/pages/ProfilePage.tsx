@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react'
+import type { Measurement } from '@rca/core/athlete'
+import type { AthleteSettings } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import type { Sex } from '@rca/contract'
 import { SegmentedControl, SettingsBar } from '../components'
@@ -10,12 +12,15 @@ import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { plural } from '../components/plural'
 import { SavedLibraryCard } from '../components/SavedLibraryCard'
+import { SettingsOverTime } from '../components/SettingsOverTime'
+import { ZoneTables } from '../components/ZoneTables'
 import { UNIT_OPTIONS, displayBirthYear, readBirthYear } from '../athlete'
 import type { WeightSettings } from '../athlete'
 import { SAVE_STATE_TEXT, WAITING_FOR_ACCOUNT } from '../analysis/copy'
 import type { AnalysisController } from '../useAnalysis'
 import type { ProfilePatch } from '../profilePatch'
 import { hrefFor } from '../route'
+import type { MeasurementsController } from '../useMeasurements'
 import { useSaveStatus } from '../useSaveStatus'
 import type { SaveState } from '../useSaveStatus'
 import { PAGE_HEADING_ID } from './pageHeading'
@@ -24,6 +29,8 @@ import './ProfilePage.css'
 export interface ProfilePageProps {
   analysis: AnalysisController
   settings: WeightSettings
+  /** The settings the analysis runs on, dated ones included, which the zones are worked out from. */
+  athlete: AthleteSettings
   units: UnitSystem
   birthYear: number | null
   sex: Sex | null
@@ -38,6 +45,11 @@ export interface ProfilePageProps {
   fileRetentionAvailable: boolean
   /** Resolves when the change is saved. Rejects when it is refused, and the account shows why. */
   onSaveProfile: (next: ProfilePatch) => Promise<void>
+  /** The dated settings, and how they load. */
+  dated: Pick<MeasurementsController, 'entries' | 'state'>
+  /** Keeps a dated setting, and brings the current weight in step with it. Rejects when refused. */
+  onAddSetting: (entry: Measurement) => Promise<unknown>
+  onRemoveSetting: (entry: Measurement) => Promise<unknown>
   onSignIn: () => void
   /** Resolves with the account's data as a JSON file. Used only when signed in. */
   onDownloadData: () => Promise<Blob>
@@ -109,6 +121,7 @@ function removalCopy(kept: number, onScreen: boolean) {
 export function ProfilePage({
   analysis,
   settings,
+  athlete,
   units,
   birthYear,
   sex,
@@ -119,6 +132,9 @@ export function ProfilePage({
   keepFiles,
   fileRetentionAvailable,
   onSaveProfile,
+  dated,
+  onAddSetting,
+  onRemoveSetting,
   onSignIn,
   onDownloadData,
   onDeleteAccount,
@@ -274,6 +290,15 @@ export function ProfilePage({
           {profileSaved && levelsLink !== null && <> {levelsLink}</>}
         </p>
       </div>
+
+      <SettingsOverTime
+        entries={dated.entries}
+        state={dated.state}
+        units={shownUnits}
+        onAdd={onAddSetting}
+        onRemove={onRemoveSetting}
+      />
+      <ZoneTables athlete={athlete} result={analysis.state.result} units={shownUnits} />
 
       {email !== null ? (
         <AccountSection

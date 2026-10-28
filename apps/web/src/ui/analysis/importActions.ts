@@ -102,10 +102,13 @@ export function useImportActions({
             {
               type: 'addFiles',
               files,
-              settings: analysisSettings({
-                massKg: savedMe.profile.massKg,
-                bikeMassKg: savedMe.profile.bikeMassKg,
-              }),
+              settings: analysisSettings(
+                {
+                  massKg: savedMe.profile.massKg,
+                  bikeMassKg: savedMe.profile.bikeMassKg,
+                },
+                settingsRef.current.measurements,
+              ),
               sync: {
                 keepFiles: savedMe.profile.keepFiles && savedMe.fileRetentionAvailable !== false,
                 userId: submittedUserId,
@@ -142,6 +145,7 @@ export function useImportActions({
       sessionEpochRef,
       setError,
       setErrorNotice,
+      settingsRef,
       workerGenerationRef,
     ],
   )

@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
@@ -40,6 +41,7 @@ function renderProfile(
     <ProfilePage
       analysis={analysisStub(analysis)}
       settings={SETTINGS}
+      athlete={SETTINGS}
       units="metric"
       birthYear={1990}
       sex="female"
@@ -50,6 +52,9 @@ function renderProfile(
       keepFiles={false}
       fileRetentionAvailable
       onSaveProfile={onSaveProfile}
+      dated={{ entries: [], state: 'ready' }}
+      onAddSetting={async () => {}}
+      onRemoveSetting={async () => {}}
       onSignIn={onSignIn}
       onDownloadData={onDownloadData}
       onDeleteAccount={onDeleteAccount}
@@ -665,6 +670,7 @@ describe('ProfilePage questions follow their sections', () => {
       <ProfilePage
         analysis={analysisStub(analysis)}
         settings={SETTINGS}
+        athlete={SETTINGS}
         units="metric"
         birthYear={1990}
         sex="female"
@@ -675,6 +681,9 @@ describe('ProfilePage questions follow their sections', () => {
         keepFiles={false}
         fileRetentionAvailable
         onSaveProfile={vi.fn(async () => {})}
+        dated={{ entries: [], state: 'ready' }}
+        onAddSetting={async () => {}}
+        onRemoveSetting={async () => {}}
         onSignIn={vi.fn()}
         onDownloadData={vi.fn(async () => new Blob())}
         onDeleteAccount={vi.fn(async () => {})}
@@ -1001,5 +1010,56 @@ describe('ProfilePage see your levels, save by save', () => {
 
     expect(screen.getByText('Sex: Saved.')).toBeInTheDocument()
     expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage zones and dated settings', () => {
+  it('says zones appear once there is something to cut them from', () => {
+    renderProfile()
+    expect(screen.getByRole('heading', { level: 2, name: 'Training zones' })).toBeInTheDocument()
+    expect(screen.getByText(/Zones appear once you add files/)).toBeInTheDocument()
+  })
+
+  it('shows a table for each sport and measure the analysis has a reference for', () => {
+    const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
+    renderProfile({}, { state: { result } })
+    for (const name of [
+      /^Run heart rate zones\./,
+      /^Run pace zones\./,
+      /^Ride heart rate zones\./,
+      /^Ride power zones\./,
+    ]) {
+      expect(screen.getByRole('table', { name })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('table', { name: /^Run pace zones\./ })).toHaveAccessibleName(
+      /From your runs: threshold pace/,
+    )
+    expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
+      /From your rides: threshold power/,
+    )
+  })
+
+  it('shows a dated threshold as entered, and cuts its zones from it', () => {
+    const entries: Measurement[] = [
+      { kind: 'thresholdPower', sport: 'ride', value: 250, from: '2020-01-01' },
+    ]
+    renderProfile(
+      { athlete: { ...SETTINGS, measurements: entries }, dated: { entries, state: 'ready' } },
+      { state: { result: makeResult() } },
+    )
+    const table = screen.getByRole('table', { name: /^Ride power zones\./ })
+    expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
+    expect(within(table).getByText('Over 375 W')).toBeInTheDocument()
+    expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+  })
+
+  it('names the published scheme under each zone table', () => {
+    renderProfile({}, { state: { result: makeResult({ rideMaxHeartRate: 180 }) } })
+    expect(
+      screen.getByText(/Allen and Coggan, Training and Racing with a Power Meter/),
+    ).toBeVisible()
+    expect(screen.getByText(/Friel, The Triathlete's Training Bible/)).toBeVisible()
+    expect(screen.getByText(/Edwards, The Heart Rate Monitor Book/)).toBeVisible()
   })
 })

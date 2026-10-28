@@ -6,9 +6,10 @@ import { activityCell, sourceNote } from './activityText'
 import { nativeLabel, formatNative, paceUnitName } from './sportAxis'
 
 /** The table's caption for each sport: what its values are, in the sport's unit. */
-const CAPTION: Record<Sport, (units: UnitSystem) => string> = {
+const CAPTION: Record<Sport, (units: UnitSystem, dated: boolean) => string> = {
   run: (units) => `Best flat pace at each duration, ${paceUnitName(units)}.`,
-  ride: () => 'Best power at each duration, in watts, with W/kg at your body mass.',
+  ride: (_units, dated) =>
+    `Best power at each duration, in watts, with W/kg at your body mass${dated ? ' on the day of each ride' : ''}.`,
 }
 
 /** One duration's values, in each period, with the activity its current value is from. */
@@ -26,15 +27,23 @@ export interface View {
   sport: Sport
   units: UnitSystem
   massKg: number
+  /** The body mass on each activity's date, by id, when masses are dated; otherwise massKg stands. */
+  masses: Record<string, number> | undefined
   previous: { label: string } | null
   names: Record<string, string> | undefined
   /** The activity every value is from, which the caption names instead of a column, or null. */
   shared: string | null
 }
 
+/** A row's mechanical W/kg, at the body mass on the date of the activity the value is from. */
+export function wkgOf(row: CurveRow, view: View): number {
+  const dated = row.activityId === null ? undefined : view.masses?.[row.activityId]
+  return row.value / (dated ?? view.massKg)
+}
+
 /** The table's caption, saying what its values are, and which activity they all come from, if one did. */
 export function captionOf(view: View): string {
-  const base = CAPTION[view.sport](view.units)
+  const base = CAPTION[view.sport](view.units, Object.keys(view.masses ?? {}).length > 0)
   const from = view.shared === null ? undefined : sourceNote(view.shared, view.names)
   return from === undefined ? base : `${base} Every value is ${from}.`
 }
@@ -54,7 +63,7 @@ export function tableRow(row: CurveRow, view: View): string[] {
   return [
     formatDuration(row.durationS),
     formatNative(view.sport, row.value, view.units),
-    ...(SPORT_FORMAT[view.sport].showsWkg ? [formatWkg(row.value / view.massKg)] : []),
+    ...(SPORT_FORMAT[view.sport].showsWkg ? [formatWkg(wkgOf(row, view))] : []),
     ...(view.previous ? [formatNative(view.sport, row.previous, view.units)] : []),
     ...(view.shared === null ? [activityCell(row.activityId, view.names)] : []),
   ]

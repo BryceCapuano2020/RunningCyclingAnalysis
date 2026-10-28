@@ -1,0 +1,25 @@
+/* One table for each sport and measure: side by side where two fit, stacked on a narrow page. */
+.zone-tables__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-zones)), 1fr));
+  gap: var(--space-5) var(--space-6);
+  align-items: start;
+  min-width: 0;
+}
+
+.zone-tables__table {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.zone-tables__table caption {
+  padding-bottom: var(--space-2);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.zone-tables__citation {
+  margin: 0;
+  font-size: var(--text-sm);
+}

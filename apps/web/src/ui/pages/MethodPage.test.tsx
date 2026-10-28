@@ -741,7 +741,13 @@ describe('MethodPage how this works', () => {
       within(section)
         .getAllByRole('heading', { level: 3 })
         .map((heading) => heading.textContent),
-    ).toEqual(['Best 20 min, week by week', 'Data checks', 'Where speed comes from', 'Limits'])
+    ).toEqual([
+      'Best 20 min, week by week',
+      'Dated settings and zones',
+      'Data checks',
+      'Where speed comes from',
+      'Limits',
+    ])
   })
 })
 

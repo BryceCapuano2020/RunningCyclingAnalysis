@@ -300,6 +300,25 @@ describe('TrendChart', () => {
     expect(status).toHaveTextContent('3.3 W/kg')
   })
 
+  it('prices a ride’s week at the body mass of the ride that set it', () => {
+    // The watts follow the ride's mass, not the current one.
+    const lighter = { ...point(1, null, rideWkgAt(250)), rideMassKg: 60 }
+    const { container } = render(
+      <TrendChart
+        sport="ride"
+        points={[lighter, { ...lighter, endMs: lighter.endMs + WEEK_MS }]}
+        massKg={MASS_KG}
+        units="metric"
+        windowDays={TWO_WEEKS}
+        effortS={TWENTY_MINUTES_S}
+      />,
+    )
+    const { rows } = tableOf(container)
+    const watts = rideWkgAt(250) * PRIORS.grossEfficiency.mean * 60
+    expect(rows[0]?.[1]).toBe(`${Math.round(watts)} W`)
+    expect(rows[0]?.[2]).toBe(`${(watts / 60).toFixed(1)} W/kg`)
+  })
+
   it('lists every week in the table view, in the sport’s units, with the window in the caption', () => {
     const { container } = render(
       <TrendChart

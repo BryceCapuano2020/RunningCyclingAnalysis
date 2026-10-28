@@ -1,4 +1,5 @@
 import type { Profile } from '@rca/contract'
+import type { Measurement } from '@rca/core/athlete'
 import type { PeriodChoice } from '@rca/core/period'
 import type { Copy, RejectedFile, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { RouteShape } from '@rca/core/route/routeShape'
@@ -94,8 +95,14 @@ export type WorkerRequest =
   | { type: 'deleteActivity'; id: string; userId: string; settings: AthleteSettings }
   /** Removes one workout from the library kept in this browser; `id` is a SavedActivity id. */
   | { type: 'deleteDeviceActivity'; id: string; settings: AthleteSettings }
-  /** Builds the account's data export from its library. The account and profile come from the page. */
-  | { type: 'exportData'; userId: string; account: ExportAccount; profile: Profile }
+  /** Builds the account's data export from its library. The account, profile and dated settings come from the page. */
+  | {
+      type: 'exportData'
+      userId: string
+      account: ExportAccount
+      profile: Profile
+      measurements?: Measurement[]
+    }
   /** The run splits of one held activity, which the activity page asks for; answered by `splits`. */
   | { type: 'activitySplits'; id: string }
   /**

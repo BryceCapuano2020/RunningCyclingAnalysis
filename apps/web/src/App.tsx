@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { currentMass, localDateOf } from '@rca/core/athlete'
+import type { Measurement } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
@@ -22,6 +24,8 @@ import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
+import { useMeasurements } from './ui/useMeasurements'
+import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
@@ -66,10 +70,18 @@ export function App() {
         birthYear: preferences.birthYear,
         sex: preferences.sex,
       }
-  const { settings, units } = athleteValues
+  const { units } = athleteValues
+  const measurements = useMeasurements(account.status, account.me?.user.id ?? null)
+  // A dated weight in effect today stands in for a current weight not yet entered.
+  const now = useNow()
+  const datedKg = currentMass(measurements.entries, now)
+  const settings =
+    athleteValues.settings.massKg === null && datedKg !== null
+      ? { ...athleteValues.settings, massKg: datedKg }
+      : athleteValues.settings
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
-  // Memoised on its two values: an equal settings object built anew must not redraw the share preview.
-  const analysisAthlete = useAnalysisSettings(settings)
+  // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
+  const analysisAthlete = useAnalysisSettings(settings, measurements.entries)
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
@@ -90,6 +102,27 @@ export function App() {
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
   }
 
+  // Once weights are dated, setting the current weight adds one from today, so the two stay one answer.
+  const saveProfile = async (next: ProfilePatch) => {
+    await saveAnswers(next)
+    const kg = next.settings?.massKg
+    const dated = measurements.entries.some((entry) => entry.kind === 'massKg')
+    if (typeof kg === 'number' && dated && currentMass(measurements.entries, now) !== kg) {
+      await measurements.add({ kind: 'massKg', value: kg, from: localDateOf(now) })
+    }
+  }
+
+  // The current weight is the dated weight in effect today, so a change to the dated weights brings
+  // the profile's weight with it.
+  const followDatedWeight = async (entries: Measurement[]) => {
+    const kg = currentMass(entries, now)
+    if (kg !== null && kg !== athleteValues.settings.massKg)
+      await saveAnswers({ settings: { massKg: kg } })
+  }
+  const addSetting = async (entry: Measurement) => followDatedWeight(await measurements.add(entry))
+  const removeSetting = async (entry: Measurement) =>
+    followDatedWeight(await measurements.remove(entry))
+
   // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
   const gradeTrend = ageProfile !== null
   const analysis = useAnalysis(analysisAthlete, account, gradeTrend)
@@ -101,7 +134,7 @@ export function App() {
     workerStopped: analysis.workerStopped,
     preferencesDone: preferences.setupDone,
     addFiles: analysis.addFiles,
-    save: saveAnswers,
+    save: saveProfile,
   })
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
@@ -271,6 +304,7 @@ export function App() {
           <ProfilePage
             analysis={analysis}
             settings={settings}
+            athlete={analysisAthlete}
             units={units}
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
@@ -280,7 +314,10 @@ export function App() {
             email={account.me?.user.email ?? null}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
-            onSaveProfile={saveAnswers}
+            onSaveProfile={saveProfile}
+            dated={measurements}
+            onAddSetting={addSetting}
+            onRemoveSetting={removeSetting}
             onSignIn={account.signIn}
             onDownloadData={analysis.exportData}
             onDeleteAccount={deleteAccount}

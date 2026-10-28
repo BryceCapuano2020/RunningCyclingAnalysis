@@ -1892,7 +1892,7 @@ describe('account export', () => {
     }
     expect(exported).toMatchObject({
       format: 'rca-export',
-      version: 1,
+      version: 2,
       account: ACCOUNT,
       profile: PROFILE,
     })
@@ -1945,7 +1945,7 @@ describe('account export', () => {
     const { send } = await startWorker()
     const text = await exportedText(await send(REQUEST))
     expect(text).not.toContain('\n')
-    expect(text.startsWith('{"format":"rca-export","version":1,')).toBe(true)
+    expect(text.startsWith('{"format":"rca-export","version":2,')).toBe(true)
   })
 
   it('counts the stored activities the server could not read', async () => {

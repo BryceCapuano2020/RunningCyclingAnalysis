@@ -1,0 +1,63 @@
+.settings-over-time {
+  min-width: 0;
+}
+
+/*
+ * The setting, its value, its date and Add share a row when there is room, and wrap as the page
+ * narrows. Fields are a control tall (--control-height) with 16 px text, so iOS does not zoom on focus.
+ */
+.settings-over-time__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+
+.settings-over-time__field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.settings-over-time__field select,
+.settings-over-time__field input {
+  box-sizing: border-box;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-md);
+}
+
+/* The reason an entry was refused sits under the form, so the row does not move. */
+.settings-over-time__error {
+  margin: 0;
+  color: var(--status-critical);
+  font-size: var(--text-sm);
+}
+
+.settings-over-time__status {
+  min-height: 1lh;
+  margin: 0;
+}
+
+.settings-over-time__table {
+  width: 100%;
+}
+
+.settings-over-time__table caption {
+  padding-bottom: var(--space-2);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.settings-over-time__delete {
+  min-height: var(--control-height);
+  font-size: var(--text-md);
+}

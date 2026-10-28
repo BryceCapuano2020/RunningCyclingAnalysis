@@ -224,7 +224,8 @@ export function sportRecords(
         : {
             durationS,
             ...powerFigure(point.value),
-            sub: formatWkg(point.value / massKg),
+            // With dated body masses the ride is priced at the mass on its own date.
+            sub: formatWkg(point.value / (activity?.massKg ?? massKg)),
             activity,
             covered: null,
           },

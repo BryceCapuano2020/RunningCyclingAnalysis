@@ -79,6 +79,11 @@
           rca.period.v1. This copy is kept whether or not you have an account.
         </li>
         <li>
+          Dated settings you add on Profile when signed out, a weight, max heart rate or threshold
+          from a date, are kept in this browser's local storage under rca.measurements.v1. Signed
+          in, they are kept in your account instead.
+        </li>
+        <li>
           A flag in this browser's local storage, named rca.kept.v1, says whether this browser had
           results to show at its last visit, signed in or not, so a reload can show them at once. It
           holds no activity data.
@@ -136,6 +141,11 @@
           original files, and year of birth and sex if given.
         </li>
         <li>
+          <strong>Dated settings:</strong> each weight, max heart rate, threshold power or threshold
+          pace you add on Profile, with the date it takes effect, and for the heart rate and
+          thresholds the sport. At most 200.
+        </li>
+        <li>
           <strong>Activity summaries:</strong> name (as in the summary kept in this browser), sport,
           start and save times; file name and SHA-256 hash; distance, duration and elevation gain;
           and the analysis summary, the same figures as the summary kept in this browser. No
@@ -149,7 +159,7 @@
         </li>
         <li>
           <strong>Daily counts:</strong> per account, downloads, saves, deletions, uploads, profile
-          changes and library reads, kept about a week, up to eight UTC days.
+          changes, dated-setting changes and library reads, kept about a week, up to eight UTC days.
         </li>
         <li>
           <strong>Bookkeeping:</strong> activity IDs, a key from each activity's sport and start,
@@ -210,19 +220,20 @@
         </li>
         <li>Clear your year of birth, or choose <strong>Prefer not to say</strong> for sex.</li>
         <li>
-          Choose <strong>Delete account</strong>. It removes your account, sessions, profile,
-          activity summaries and original files. It does not clear this browser's copy of your
-          settings or summaries kept here before you signed in, until you clear this site's data or
-          use Remove all my activities while signed out.
+          Choose <strong>Delete account</strong>. It removes your account, sessions, profile, dated
+          settings, activity summaries and original files. It does not clear this browser's copy of
+          your settings or summaries kept here before you signed in, until you clear this site's
+          data or use Remove all my activities while signed out.
         </li>
       </ul>
 
       <h2>Your data file</h2>
       <p>
         Signed in, <strong>Download my data</strong> on the Profile page gives one JSON file: its
-        format and time, your account name and email, profile settings, and each saved activity's
-        ID, sport, start, name, file name, whether an original is stored, save time and summary. It
-        has no original files, and it says how many saved activities could not be read.
+        format and time, your account name and email, profile settings, your dated settings, and
+        each saved activity's ID, sport, start, name, file name, whether an original is stored, save
+        time and summary. It has no original files, and it says how many saved activities could not
+        be read.
       </p>
 
       <h2>Rights and changes</h2>

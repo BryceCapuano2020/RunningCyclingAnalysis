@@ -19,7 +19,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy, what is calculated and how this works                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept                                                                                                                                                               |
+| `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, Settings over time (dated weight, max heart rate and thresholds: a form and a table of entries, latest date first within each setting), Training zones (a table for each sport and measure, with where its reference came from), account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept                                                                                                                                                               |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line under the energy view, where the charts would be. On a reload of a visit that kept
 results, every page except Profile and How sure is this? shows a restoring state in its place, with an
@@ -992,3 +992,38 @@ Unchanged by the redesign: every chart has a table view, colour is never the onl
 at least 40 px tall (44 px on a phone or for a finger), focus is always visible, live regions stay mounted, and motion respects
 `prefers-reduced-motion`. In forced colours the chart marks keep their edges in the system's colours: the
 ratio bands and median, the trend and curve markers, and the heart-rate dots.
+
+## Settings over time and training zones
+
+Profile's **Settings over time** section dates the numbers an athlete knows: a body weight, a max heart
+rate for each sport, a threshold power for rides and a threshold pace for runs. Its form is a Setting
+select, a Value field in the units the athlete uses (kg or lb, bpm, W, or a pace such as 5:30 per km or
+per mile), a From date that starts on today, and Add. A refusal reads under the form in the critical
+colour and keeps what was typed. The entries sit in a table headed **Your dated settings**, one setting
+after another and the latest date first within each, each row with its own Delete (named with the setting
+and date). Deleting asks nothing, since the entry is easy to add again.
+
+**Policy.** An activity uses the entry in effect on its local date: the latest entry that starts on or
+before that date. Before the first entry the earliest entry applies. With no entry the app's own figure
+applies: the profile weight, or an estimate from the activities. The same sentence is on the Method page,
+under Dated settings and zones, and in `packages/core/src/athlete/measurements.ts`.
+
+**Current weight.** The profile weight is the dated weight in effect today. Adding a dated weight whose
+date is the latest sets the profile weight, and so does deleting the latest. Setting the weight in Body
+and bike, once weights are dated, adds a dated weight from today. A weight dated before a later entry
+leaves the profile weight alone. Signed out, the list is kept in this browser (`rca.measurements.v1`);
+signed in, it is the account's (`/api/measurements`), and the device list is not merged into it.
+
+**Where it shows.** A ride's W/kg uses the weight on its day: in the records, the best-effort curve
+table and tooltips, and the weekly trend, whose watts follow the ride that set each week. The activity
+list carries the weight in effect for each activity (`ActivitySummary.massKg`) only when weights are dated.
+The threshold and the level targets are for today, so they use today's weight.
+
+**Training zones.** One table for each sport and measure, side by side from two columns of 22 rem and
+stacked below that: run heart rate and pace, ride heart rate and power. The caption names the zone set and
+where its reference came from, such as "Ride power zones. From your rides: threshold power 250 W." or "You
+entered: max heart rate 188 bpm". Each table is a `ChartTable` of Zone, Name and Range, with the published
+scheme in a muted line under it. A run's range reads as a pace, the fast edge first. Without a reference
+the section says zones appear once there are files or an entered setting. The schemes are in
+[research/zones.md](research/zones.md). `zonesAt` in `packages/core/src/zones` is the one place they are
+built, and `AnalysisSession.zonesAt(date, settings)` answers from the worker's analysis.

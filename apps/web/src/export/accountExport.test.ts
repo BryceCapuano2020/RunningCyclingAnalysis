@@ -1,4 +1,5 @@
 import type { ActivityRecord, Profile } from '@rca/contract'
+import type { Measurement } from '@rca/core/athlete'
 import { digestActivity } from '@rca/core/digest'
 import { sampleDataset } from '@rca/core/synthetic'
 import { describe, expect, it } from 'vitest'
@@ -53,11 +54,27 @@ describe('buildAccountExport', () => {
       'exportedAt',
       'account',
       'profile',
+      'measurements',
       'activities',
       'unreadable',
       'notes',
     ])
-    expect(build()).toMatchObject({ format: 'rca-export', version: 1 })
+    expect(build()).toMatchObject({ format: 'rca-export', version: 2 })
+  })
+
+  it('writes the dated settings, field by field, and none when there are none', () => {
+    expect(build().measurements).toEqual([])
+    const doc = build({
+      measurements: [
+        { kind: 'massKg', value: 80, from: '2024-03-01', note: 'x' } as Measurement,
+        { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2025-01-01' },
+      ],
+    })
+    expect(doc.measurements).toEqual([
+      { kind: 'massKg', value: 80, from: '2024-03-01' },
+      { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2025-01-01' },
+    ])
+    expect(Object.keys(doc.measurements[1] ?? {})).toEqual(['kind', 'sport', 'value', 'from'])
   })
 
   it('stamps the export with the time it was made, in ISO form', () => {
@@ -180,6 +197,6 @@ describe('streamed export writers', () => {
   it('is compact, not pretty-printed', () => {
     const text = streamed([[RECORD]])
     expect(text).not.toContain('\n')
-    expect(text.startsWith('{"format":"rca-export","version":1,"exportedAt":')).toBe(true)
+    expect(text.startsWith('{"format":"rca-export","version":2,"exportedAt":')).toBe(true)
   })
 })

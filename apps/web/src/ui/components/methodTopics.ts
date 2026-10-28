@@ -110,6 +110,20 @@ const TOPIC_LIST = [
       '(ISA, 15 °C at sea level). Sea level is used when altitude is missing or the ride is indoors.',
   },
   {
+    id: 'settings',
+    title: 'Dated settings and zones',
+    plain: [
+      'On Profile you can date a body weight, a max heart rate or a threshold. Each activity uses the setting in effect on its own day: the latest entry that starts on or before it. Before your first entry your earliest one applies. With none, ride figures use your current weight, and thresholds and heart rates are estimated from your activities.',
+      'Training zones are cut from those settings by published schemes: Coggan’s seven power levels, five heart-rate zones of your max, and Friel’s pace zones from threshold pace. A zone set made from your own activities says so.',
+    ],
+    detail:
+      'A ride’s W/kg, and the watts estimated for a ride without a power meter, use the body and ' +
+      'bike weight in effect on that ride’s local day, so a ride from last year does not use ' +
+      'today’s weight. Your current weight is the dated weight in effect today, and setting it once ' +
+      'weights are dated adds an entry from today. The saved summary of an activity holds no weight, ' +
+      'so changing a dated weight changes results without reading any file again.',
+  },
+  {
     id: 'data',
     title: 'Data checks',
     plain: [
@@ -157,7 +171,7 @@ export const TOPICS: readonly Topic[] = TOPIC_LIST
 const TOPIC_BY_ID = new Map<TopicId, Topic>(TOPICS.map((topic) => [topic.id, topic]))
 
 /** The topics the How this works list on Method holds: the ones with no chart of their own. */
-export const HOW_THIS_WORKS: readonly TopicId[] = ['trend', 'data', 'speed', 'limits']
+export const HOW_THIS_WORKS: readonly TopicId[] = ['trend', 'settings', 'data', 'speed', 'limits']
 
 export function topicOf(id: TopicId): Topic {
   const topic = TOPIC_BY_ID.get(id)

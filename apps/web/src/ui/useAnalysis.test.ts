@@ -2158,6 +2158,7 @@ describe('useAnalysis account export', () => {
     userId: USER_ID,
     account: { name: 'Ada', email: 'a@example.com' },
     profile: meWith(true).profile,
+    measurements: [],
   }
 
   it('asks the worker for the export and resolves with its JSON', async () => {

@@ -61,6 +61,8 @@ interface WeekRow {
   value: number
   /** Activities in the window with a value. */
   count: number
+  /** The body mass the week's value is priced at, kg: the mass of the ride that set it. */
+  massKg: number
 }
 
 /** What the tooltip and the table need. */
@@ -71,9 +73,12 @@ interface View {
 }
 
 /** A sport's weekly W/kg and activity count, read from the trend's own fields for that sport. */
-const WEEK_OF: Record<Sport, (point: TrendPoint) => { wkg: number | null; count: number }> = {
+const WEEK_OF: Record<
+  Sport,
+  (point: TrendPoint) => { wkg: number | null; count: number; massKg?: number }
+> = {
   run: (point) => ({ wkg: point.runWkg, count: point.runCount }),
-  ride: (point) => ({ wkg: point.rideWkg, count: point.rideCount }),
+  ride: (point) => ({ wkg: point.rideWkg, count: point.rideCount, massKg: point.rideMassKg }),
 }
 
 /** The sport's name as a column heading, and as the chart describes its values. */
@@ -82,11 +87,13 @@ const TREND_NOUN: Record<Sport, string> = { run: 'flat pace, faster up', ride: '
 
 function weekRows(points: readonly TrendPoint[], sport: Sport, massKg: number): WeekRow[] {
   return points.map((point) => {
-    const { wkg, count } = WEEK_OF[sport](point)
+    // A ride's week is priced at the body mass of the ride that set it, when masses are dated.
+    const { wkg, count, massKg: rideMassKg } = WEEK_OF[sport](point)
     return {
       endMs: point.endMs,
-      value: wkg === null ? NaN : usable(nativeValue(sport, wkg, massKg)),
+      value: wkg === null ? NaN : usable(nativeValue(sport, wkg, rideMassKg ?? massKg)),
       count,
+      massKg: rideMassKg ?? massKg,
     }
   })
 }
@@ -197,7 +204,7 @@ function noteOf(row: WeekRow, view: View): string {
   const count = plural(row.count, SPORT_LABEL[view.sport].toLowerCase(), SPORT_PLURAL[view.sport])
   if (!hasValue(row)) return `No ${SPORT_PLURAL[view.sport]} in the window`
   return SPORT_FORMAT[view.sport].showsWkg
-    ? `${formatWkg(row.value / view.massKg)}, ${count} in the window`
+    ? `${formatWkg(row.value / row.massKg)}, ${count} in the window`
     : `${count} in the window`
 }
 
@@ -254,7 +261,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
         rows: rows.map((row) => [
           weekDay(row.endMs),
           formatNative(sport, row.value, units),
-          ...(SPORT_FORMAT[sport].showsWkg ? [formatWkg(row.value / massKg)] : []),
+          ...(SPORT_FORMAT[sport].showsWkg ? [formatWkg(row.value / row.massKg)] : []),
           String(row.count),
         ]),
         caption: `Each value is the best ${effort} in the ${windowText} that end that week; ${SPORT_PLURAL[sport]} count the activities in that window.`,

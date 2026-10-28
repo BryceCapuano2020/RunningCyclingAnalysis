@@ -22,11 +22,12 @@ function ride(id: string, day: [number, number, number], watts: number): Activit
     calibration: null,
     climbSections: [],
     hrBlocks: [],
-    curve: baseRide.curve.map((point) => ({
-      ...point,
-      value: point.durationS === HEADLINE_DURATION_S ? watts : Number.NaN,
-      terms: null,
-    })),
+    curve: baseRide.curve.map((point) =>
+      Object.assign({}, point, {
+        value: point.durationS === HEADLINE_DURATION_S ? watts : Number.NaN,
+        terms: null,
+      }),
+    ),
   }
 }
 
