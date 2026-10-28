@@ -193,6 +193,6 @@ export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string 
     return `${plural(notice.count, 'activity', 'activities')} ${one ? 'shows' : 'show'} here but could not be kept in this browser. ${one ? 'It' : 'They'} will not be here after a reload.`
   }
   return signedIn
-    ? 'This browser could not delete its copy of the activity you deleted. It may come back when you sign out.'
-    : 'This browser could not delete its kept activities. Use Remove all my activities to try again.'
+    ? 'This browser could not delete its copy of the activity or its recording. It may come back when you sign out.'
+    : 'This browser could not delete its kept activities or recordings. Use Remove all my activities to try again.'
 }

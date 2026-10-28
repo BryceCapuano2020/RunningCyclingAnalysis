@@ -489,7 +489,7 @@ describe('ProfilePage remove activities', () => {
 
     const section = screen.getByRole('region', { name: 'Remove activities' })
     expect(section).toHaveTextContent(
-      'Removes every activity kept in this browser, and the analysis on screen.',
+      'Removes every activity and detailed recording kept in this browser, and the analysis on screen.',
     )
     expect(section).not.toHaveTextContent(/account/i)
   })
@@ -546,7 +546,7 @@ describe('ProfilePage remove activities', () => {
 
     expect(
       screen.getByRole('alertdialog', { name: 'Clear the analysis on this page?' }),
-    ).toHaveAccessibleDescription(/Nothing is kept in this browser/)
+    ).toHaveAccessibleDescription(/No activities or detailed recordings are kept in this browser/)
   })
 
   it('names a single kept activity in the singular', () => {
@@ -596,7 +596,9 @@ describe('ProfilePage remove activities', () => {
     const dialog = screen.getByRole('alertdialog', {
       name: 'Remove all 1 activity kept in this browser?',
     })
-    expect(dialog).toHaveAccessibleDescription(/Their summaries are removed from this browser\./)
+    expect(dialog).toHaveAccessibleDescription(
+      /Their summaries and detailed recordings are removed from this browser\./,
+    )
     expect(dialog).not.toHaveAccessibleDescription(/analysis on screen/)
   })
 
@@ -738,7 +740,9 @@ describe('ProfilePage nothing kept', () => {
       screen.queryByRole('button', { name: 'Remove all my activities' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.getByText('Clears the analysis on screen. Nothing is kept in this browser.'),
+      screen.getByText(
+        'Clears the analysis on screen. No activities or detailed recordings are kept in this browser.',
+      ),
     ).toBeInTheDocument()
   })
 
