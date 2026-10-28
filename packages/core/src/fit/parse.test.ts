@@ -99,6 +99,130 @@ function reasonOf(result: ParseResult): string {
 }
 
 describe('parseFit round trip', () => {
+  it('normalizes FIT running cadence and retains temperature with device lap boundaries', () => {
+    const records = secondly(START_MS, 120, {
+      speed: 4,
+      power: 210,
+      cadence: 88,
+      fractionalCadence: 64,
+      temperature: 17,
+    })
+    records.forEach((record, i) => (record.distance = i * 4))
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'running', startMs: START_MS, durationS: 120, records }],
+          laps: [
+            { startMs: START_MS, endMs: START_MS + 60_000 },
+            { startMs: START_MS + 60_000, endMs: START_MS + 120_000 },
+          ],
+        }),
+        'workbench.fit',
+      ),
+    )
+    expect(parsed.cadence?.[30]).toBe(177)
+    expect(parsed.cadenceUnit).toBe('steps/min')
+    expect(parsed.temperature?.[30]).toBe(17)
+    expect(parsed.laps).toEqual([
+      { startS: 0, endS: 60 },
+      { startS: 60, endS: 120 },
+    ])
+  })
+
+  it('keeps the final second in a last lap that ends at the last record time', () => {
+    const records = secondly(START_MS, 120, { speed: 4 })
+    records.forEach((record, i) => (record.distance = i * 4))
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'running', startMs: START_MS, durationS: 120, records }],
+          laps: [
+            { startMs: START_MS, endMs: START_MS + 60_000 },
+            { startMs: START_MS + 60_000, endMs: START_MS + 119_000 },
+          ],
+        }),
+        'last-lap.fit',
+      ),
+    )
+    expect(parsed.n).toBe(120)
+    expect(parsed.laps).toEqual([
+      { startS: 0, endS: 60 },
+      { startS: 60, endS: 120 },
+    ])
+  })
+
+  it('ignores timer events outside the only session window, so the last second stays moving', () => {
+    // Real exports end a session window a fraction of a second before the last record, and write the
+    // closing stop at that record. The stop is outside the window, so it must not pause the file.
+    const records = secondly(START_MS, 102, { speed: 4, heartRate: 150, power: 200 })
+    records.forEach((record, i) => (record.distance = i * 4))
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 100.4, records }],
+          timerEvents: [
+            { tMs: START_MS, eventType: 'start' },
+            { tMs: START_MS + 101_000, eventType: 'stopAll' },
+          ],
+        }),
+        'window.fit',
+      ),
+    )
+    expect(parsed.n).toBe(102)
+    expect(parsed.paused.every((flag) => flag === 0)).toBe(true)
+    expect(parsed.speed[101]).toBe(4)
+    expect(parsed.heartRate[101]).toBe(150)
+  })
+
+  it('keeps FIT cycling cadence in revolutions per minute', () => {
+    const records = secondly(START_MS, 120, { speed: 5, cadence: 88 })
+    records.forEach((record, i) => (record.distance = i * 5))
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 120, records }],
+        }),
+        'workbench.fit',
+      ),
+    )
+    expect(parsed.cadence?.[30]).toBe(88)
+    expect(parsed.cadenceUnit).toBe('rev/min')
+  })
+
+  it('keeps FIT laps with their owning multisport session', () => {
+    const firstStart = START_MS
+    const secondStart = START_MS + 60_000
+    const a = firstResultActivities(
+      parseFit(
+        buildFit({
+          sessions: [
+            {
+              sport: 'running',
+              startMs: firstStart,
+              durationS: 60,
+              records: secondly(firstStart, 60, { speed: 3 }),
+            },
+            {
+              sport: 'cycling',
+              startMs: secondStart,
+              durationS: 60,
+              records: secondly(secondStart, 60, { speed: 8 }),
+            },
+          ],
+          laps: [
+            { startMs: firstStart, endMs: secondStart },
+            { startMs: secondStart, endMs: secondStart + 60_000 },
+          ],
+        }),
+        'multisport.fit',
+      ),
+    )
+    expect(a.map((activity) => activity.laps)).toEqual([
+      [{ startS: 0, endS: 60 }],
+      [{ startS: 0, endS: 60 }],
+    ])
+  })
+
   it('reproduces a ride with power and heart rate', () => {
     const original = makeActivity('ride', 120)
     const result = parseFit(encodeFit(original), 'Morning Ride.fit')

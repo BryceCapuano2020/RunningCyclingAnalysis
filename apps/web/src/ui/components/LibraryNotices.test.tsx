@@ -227,7 +227,7 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
 
     expect(
       screen.getByText(
-        'This browser could not delete its kept activities. Use Remove all my activities to try again.',
+        'This browser could not delete its kept activities or recordings. Use Remove all my activities to try again.',
       ),
     ).toBeInTheDocument()
   })
@@ -237,7 +237,7 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
 
     expect(
       screen.getByText(
-        'This browser could not delete its copy of the activity you deleted. It may come back when you sign out.',
+        'This browser could not delete its copy of the activity or its recording. It may come back when you sign out.',
       ),
     ).toBeInTheDocument()
   })

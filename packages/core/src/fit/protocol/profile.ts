@@ -20,9 +20,12 @@ export const FIELD = {
   positionLong: 1,
   altitude: 2,
   heartRate: 3,
+  cadence: 4,
+  fractionalCadence: 53,
   distance: 5,
   speed: 6,
   power: 7,
+  temperature: 13,
   /** Three bytes: a 12-bit speed and a 12-bit distance counter, used when speed or distance is absent. */
   compressedSpeedDistance: 8,
   enhancedSpeed: 73,

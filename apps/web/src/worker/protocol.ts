@@ -4,6 +4,8 @@ import type { Copy, RejectedFile, SessionState, SyncIssueCode } from '@rca/core/
 import type { RouteShape } from '@rca/core/route/routeShape'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { ExportAccount } from '../export/accountExport'
+import type { ActivityTraceReply } from './workbench'
+export type { ActivityTraceReply } from './workbench'
 
 export interface SavedActivity {
   id: string
@@ -104,6 +106,8 @@ export type WorkerRequest =
   | { type: 'routeShape'; id: string; userId?: string; fromOriginal?: boolean }
   /** The session ended without a sign-out: the route shapes this tab holds for it are forgotten. */
   | { type: 'forgetRoutes' }
+  /** A detail trace for an exact core activity id. Originals are read only on explicit request. */
+  | { type: 'activityTrace'; id: string; userId?: string; fromOriginal?: boolean }
 
 export type WorkerResponse =
   /**
@@ -130,6 +134,7 @@ export type WorkerResponse =
    * account's original file and was not read, because the request did not ask for it.
    */
   | { type: 'routeShape'; route: RouteShape | null; original: boolean }
+  | { type: 'activityTrace'; reply: ActivityTraceReply }
   /** Stored activities that could not be read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
   /** The library kept in this browser did not take a save or a removal. Sent before the state that ends the request. */

@@ -101,6 +101,7 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
       const rows = await activitiesRows(page)
       await rows.first().getByRole('link').click()
       await expect(page.getByRole('link', { name: 'Back to activities' })).toBeVisible()
+      await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
     },
   },
   {
@@ -129,6 +130,22 @@ for (const scheme of ['light', 'dark'] as const) {
     })
   }
 }
+
+test('the activity workbench fits a 320 px screen with its tables expanded', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'narrow-320', 'Measures the narrowest supported screen')
+  await openSample(page)
+  const rows = await activitiesRows(page)
+  await rows.first().getByRole('link').click()
+  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
+  const workbench = page.getByRole('region', { name: 'In detail', exact: true })
+  for (const summary of await workbench.locator('details > summary').all()) await summary.click()
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(0)
+  expect(await violationsOf(page)).toEqual([])
+})
 
 test('the level ladder labels are at least 11 px, and the page does not scroll sideways at 320 px', async ({
   page,

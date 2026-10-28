@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/client'
 import { ApiRequestError } from '../api/client'
 import { useAccount } from './useAccount'
+import { deleteAccountDetails } from '../worker/deleteAccountDetails'
+import { forgetAccountDetails } from '../worker/forgetAccountDetails'
+
+vi.mock('../worker/deleteAccountDetails', () => ({ deleteAccountDetails: vi.fn(async () => null) }))
+vi.mock('../worker/forgetAccountDetails', () => ({
+  forgetAccountDetails: vi.fn(async () => undefined),
+}))
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
@@ -63,6 +70,7 @@ async function attempt(action: () => Promise<unknown>): Promise<unknown> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(deleteAccountDetails).mockResolvedValue(null)
 })
 
 afterEach(() => {
@@ -146,6 +154,7 @@ describe('useAccount', () => {
       await result.current.signOut()
     })
     expect(mocked.logout).toHaveBeenCalledOnce()
+    expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
     expect(result.current.status).toBe('signed-out')
     expect(result.current.me).toBeNull()
   })
@@ -155,6 +164,7 @@ describe('useAccount', () => {
     mocked.logout.mockRejectedValue(failure)
     const { result } = await renderSignedIn()
     expect(await attempt(() => result.current.signOut())).toBe(failure)
+    expect(forgetAccountDetails).not.toHaveBeenCalled()
     expect(result.current.status).toBe('signed-in')
     expect(result.current.me).toEqual(ME)
     expect(result.current.error).toBe('Try again')
@@ -167,6 +177,10 @@ describe('useAccount', () => {
       await result.current.deleteAccount()
     })
     expect(mocked.deleteAccount).toHaveBeenCalledOnce()
+    expect(deleteAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
+    expect(mocked.deleteAccount.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(deleteAccountDetails).mock.invocationCallOrder[0]!,
+    )
     expect(result.current.status).toBe('signed-out')
     expect(result.current.me).toBeNull()
   })
@@ -176,9 +190,19 @@ describe('useAccount', () => {
     mocked.deleteAccount.mockRejectedValue(failure)
     const { result } = await renderSignedIn()
     expect(await attempt(() => result.current.deleteAccount())).toBe(failure)
+    expect(deleteAccountDetails).not.toHaveBeenCalled()
     expect(result.current.status).toBe('signed-in')
     expect(result.current.me).toEqual(ME)
     expect(result.current.error).toBe('Busy')
+  })
+
+  it('reports refused local recording cleanup after a successful account deletion', async () => {
+    mocked.deleteAccount.mockResolvedValue(undefined)
+    vi.mocked(deleteAccountDetails).mockResolvedValue('Local recordings could not be removed')
+    const { result } = await renderSignedIn()
+    await attempt(() => result.current.deleteAccount())
+    expect(result.current.status).toBe('signed-out')
+    expect(result.current.error).toBe('Local recordings could not be removed')
   })
 
   it('updateProfile sends a body mass only when the patch sets it, so a write leaves it alone', async () => {

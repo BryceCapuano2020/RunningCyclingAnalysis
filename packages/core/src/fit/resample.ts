@@ -18,6 +18,8 @@ export interface RawRecord {
   altitude?: number
   heartRate?: number
   power?: number
+  cadence?: number
+  temperature?: number
 }
 
 export interface RawTimerEvent {
@@ -34,6 +36,10 @@ export interface Resampled {
   altitude: Float64Array
   heartRate: Float64Array
   power: Float64Array
+  /** Recorded cadence, in steps or revolutions per minute; gaps stay NaN. */
+  cadence?: Float32Array
+  /** Recorded temperature in degrees Celsius; gaps stay NaN. */
+  temperature?: Float32Array
   /** 1 while an explicit timer pause is active, or inside a long record gap when events are absent. */
   paused: Uint8Array
   /**
@@ -44,6 +50,8 @@ export interface Resampled {
   hasPower: boolean
   hasHeartRate: boolean
   hasAltitude: boolean
+  /** False when no record had a speed or a distance, so those streams are placeholders. */
+  hasMotion: boolean
 }
 
 /**
@@ -89,6 +97,8 @@ export function resample(
   const altitudeKnown = new Float64Array(n).fill(NaN)
   const heartRateKnown = new Float64Array(n).fill(NaN)
   const powerKnown = new Float64Array(n).fill(NaN)
+  const cadenceKnown = new Float64Array(n).fill(NaN)
+  const temperatureKnown = new Float64Array(n).fill(NaN)
   const recorded = new Uint8Array(n)
   for (const r of sorted) {
     const i = indexOf(r)
@@ -98,6 +108,8 @@ export function resample(
     put(altitudeKnown, i, r.altitude)
     put(heartRateKnown, i, r.heartRate)
     put(powerKnown, i, r.power)
+    put(cadenceKnown, i, r.cadence)
+    put(temperatureKnown, i, r.temperature)
   }
   // FIT timer events distinguish actual pauses from a dropout in the record stream. Older or
   // stripped files may have no timer events, so retain the long-gap heuristic for those files.
@@ -116,6 +128,8 @@ export function resample(
   const hasAltitude = altitudeKnown.some(isFiniteValue)
   const hasHeartRate = heartRateKnown.some(isPositiveValue)
   const hasPower = powerKnown.some(isPositiveValue)
+  const hasCadence = cadenceKnown.some(isFiniteValue)
+  const hasTemperature = temperatureKnown.some(isFiniteValue)
 
   const altitude = hasAltitude
     ? fillStream(altitudeKnown, 'interpolate', 'interpolate', 'nearest', paused)
@@ -152,11 +166,14 @@ export function resample(
     altitude,
     heartRate,
     power,
+    ...(hasCadence ? { cadence: Float32Array.from(cadenceKnown) } : {}),
+    ...(hasTemperature ? { temperature: Float32Array.from(temperatureKnown) } : {}),
     paused,
     unrecorded,
     hasPower,
     hasHeartRate,
     hasAltitude,
+    hasMotion: hasSpeed || hasDistance,
   }
 }
 
@@ -174,6 +191,7 @@ function emptyResample(): Resampled {
     hasPower: false,
     hasHeartRate: false,
     hasAltitude: false,
+    hasMotion: false,
   }
 }
 

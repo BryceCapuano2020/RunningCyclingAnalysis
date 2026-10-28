@@ -87,19 +87,20 @@ function removalCopy(kept: number, onScreen: boolean) {
   if (kept === 0) {
     return {
       trigger: 'Clear the analysis',
-      lead: 'Clears the analysis on screen. Nothing is kept in this browser.',
+      lead: 'Clears the analysis on screen. No activities or detailed recordings are kept in this browser.',
       title: 'Clear the analysis on this page?',
-      description: 'Nothing is kept in this browser, so only the analysis on screen is cleared.',
+      description:
+        'No activities or detailed recordings are kept in this browser, so only the analysis on screen is cleared.',
       confirmLabel: 'Clear',
     }
   }
   return {
     trigger: 'Remove all my activities',
     lead: onScreen
-      ? 'Removes every activity kept in this browser, and the analysis on screen.'
-      : 'Removes every activity kept in this browser.',
+      ? 'Removes every activity and detailed recording kept in this browser, and the analysis on screen.'
+      : 'Removes every activity and detailed recording kept in this browser.',
     title: `Remove all ${plural(kept, 'activity', 'activities')} kept in this browser?`,
-    description: `Their summaries are removed from this browser${screen}. This cannot be undone. Add their files again to bring them back.`,
+    description: `Their summaries and detailed recordings are removed from this browser${screen}. This cannot be undone. Add their files again to bring them back.`,
     confirmLabel: 'Remove all',
   }
 }

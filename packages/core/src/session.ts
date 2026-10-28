@@ -10,16 +10,18 @@ import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
-import { PeriodCache, sameDigests, splitPeriods } from './period'
+import { PeriodCache, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
 import { countIssues, stopsSaving, SyncFailure } from './saveFailure'
 import type { SyncIssueCode } from './saveFailure'
-import type { RejectedFile, SessionState } from './sessionState'
+import type { SessionState } from './sessionState'
+import { noteKept } from './sessionHooks'
+import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import { recordHolders } from './records'
+import { RecordsCache } from './sessionRecords'
 import type { EarnedRecord } from './records'
 
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
@@ -59,13 +61,7 @@ export class AnalysisSession {
   private periods = new PeriodCache()
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
-  // The last record holders, with the digests and masses they were computed from.
-  private recordsCache: {
-    digests: ActivityDigest[]
-    massKg: number
-    bikeMassKg: number
-    records: Map<string, EarnedRecord[]>
-  } | null = null
+  private recordsCache = new RecordsCache()
 
   /**
    * Production passes no limits, so the constants apply. The argument is a seam for tests, which need
@@ -89,17 +85,9 @@ export class AnalysisSession {
     onProgress?: (filesRead: number) => void,
     sink?: SyncSink,
     syncExisting = false,
-    onComplete?: (outcome: {
-      /** The activities read, which a file may hold several of. */
-      activities: number
-      /** The files that added a workout the library now holds and shows: not refused, and not all already held or hidden as copies. */
-      filesAdded: number
-      rejected: number
-      /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
-      notActivities: number
-      duplicates: RejectedFile[]
-      added: ActivityDigest[]
-    }) => void,
+    onComplete?: (outcome: ImportCompletion) => void,
+    onActivity?: ActivityListeners['kept'],
+    onReplaced?: ActivityListeners['replaced'],
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     // The rejected files are those of this import, so an earlier import's are not listed again.
@@ -110,6 +98,7 @@ export class AnalysisSession {
     const progress: ImportProgress = { filesRead: 0, onProgress }
     const outcome = { activities: 0, rejected: 0, notActivities: 0 }
     const read: ReadFile[] = []
+    const listeners: ActivityListeners = { kept: onActivity, replaced: onReplaced }
     for (const [index, source] of sources.entries()) {
       await importSource(source, {
         limits: this.limits,
@@ -120,7 +109,8 @@ export class AnalysisSession {
         read,
         unsupported: this.unsupported,
         hashFiles: sink !== undefined,
-        consider: (activity, file) => this.consider(activity, file, sink, syncExisting, batch),
+        consider: (activity, file) =>
+          this.consider(activity, file, sink, syncExisting, batch, listeners),
       })
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
@@ -211,7 +201,8 @@ export class AnalysisSession {
    * copy is not synced. Equally rich copies are both saved, and the analysis hides one of them. A
    * poorer copy is saved but hidden from the analysis. Says what became of the activity: the digest
    * it added, or the name of the held file when its workout was already in the library, whether this
-   * is a copy, the same file again or a richer copy that replaces the held one.
+   * is a copy, the same file again or a richer copy that replaces the held one. The listeners hear of
+   * the activity when it is kept, or when it is the held file again, never of another skipped copy.
    */
   private async consider(
     activity: Activity,
@@ -219,10 +210,11 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
+    listeners?: ActivityListeners,
   ): Promise<Considered> {
     const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
     if (copyOf !== null) return { held: copyOf }
-    return this.keep(activity, file, sink, syncExisting, batch)
+    return this.keep(activity, file, sink, syncExisting, batch, listeners)
   }
 
   /**
@@ -240,6 +232,7 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
+    listeners?: ActivityListeners,
   ): Promise<Considered> {
     const key = dedupeKey(activity.sport, activity.startMs)
     const held = this.digests.get(key)
@@ -248,8 +241,11 @@ export class AnalysisSession {
       held !== undefined &&
       !replaces &&
       (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
-    )
+    ) {
+      // The same file again restores a recording that went missing; any other copy is only skipped.
+      await noteKept(activity, held, undefined, listeners)
       return { held: fileNameOf(held.id) }
+    }
     // A workout this import is adding, or has added: new to the library, or a later copy of one.
     const adding = held === undefined || batch.added.has(key)
     const retry = !adding && this.unsynced.has(key)
@@ -258,6 +254,7 @@ export class AnalysisSession {
     if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
+    await noteKept(activity, digest, replaces ? held : undefined, listeners)
     const considered = (saved: boolean): Considered => {
       if (retry && saved) batch.added.set(key, digest)
       return adding || (retry && saved) || held === undefined
@@ -310,33 +307,6 @@ export class AnalysisSession {
     this.rejected.length = 0
     this.unsupported.files = 0
     this.isSample = false
-  }
-
-  /**
-   * The best efforts each activity holds across the visible library, not the period. They are reused
-   * while the digests and both masses are the same.
-   */
-  private recordsFor(
-    visible: ActivityDigest[],
-    settings: AthleteSettings,
-  ): Map<string, EarnedRecord[]> {
-    const cached = this.recordsCache
-    if (
-      cached !== null &&
-      cached.massKg === settings.massKg &&
-      cached.bikeMassKg === settings.bikeMassKg &&
-      sameDigests(cached.digests, visible)
-    ) {
-      return cached.records
-    }
-    const records = recordHolders(visible, settings)
-    this.recordsCache = {
-      digests: visible,
-      massKg: settings.massKg,
-      bikeMassKg: settings.bikeMassKg,
-      records,
-    }
-    return records
   }
 
   /**
@@ -394,7 +364,9 @@ export class AnalysisSession {
       library: settings === null ? [] : activitySummaries(visible),
       syncIssues: countIssues(this.unsynced, this.latestUnsynced),
       records:
-        athlete === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, athlete),
+        athlete === null
+          ? new Map<string, EarnedRecord[]>()
+          : this.recordsCache.holders(visible, athlete),
     }
   }
 }

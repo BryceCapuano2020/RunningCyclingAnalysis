@@ -7,6 +7,7 @@ import type {
   SavedActivity,
   WorkerRequest,
   WorkerResponse,
+  ActivityTraceReply,
 } from '../worker/protocol'
 import { useAccountIssue, useAccountTransitions } from './analysis/accountSync'
 import { SAVES_PAUSED, STOPPED_BY_USER, WAITING_FOR_LIBRARY } from './analysis/copy'
@@ -25,6 +26,7 @@ import { replyOf } from './routeReply'
 import type { RouteReply } from './routeReply'
 import type { AccountStatus } from './useAccount'
 import { useGradeTrendRequest } from './analysis/useGradeTrendRequest'
+import { useActivityTraceRequest } from './analysis/useActivityTraceRequest'
 
 export type { LibraryStatus }
 
@@ -79,6 +81,7 @@ export interface AnalysisController {
   exportData: () => Promise<Blob>
   /** The run splits of one held activity; null when it has none. Does not make the page busy. */
   activitySplits: (id: string) => Promise<DigestSplits | null>
+  loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
   rebuildNotice: string | null
   rebuildSavedActivities: () => void
   addFiles: (files: File[]) => void
@@ -172,6 +175,7 @@ export function useAnalysis(
         request.type === 'loadDevice' ||
         request.type === 'exportData' ||
         request.type === 'activitySplits' ||
+        request.type === 'activityTrace' ||
         request.type === 'routeShape' ||
         request.type === 'forgetRoutes'
       if (!keepsError) setError(null)
@@ -199,6 +203,7 @@ export function useAnalysis(
   const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
   const { dropPendingReplies, dropUnsent, restartWorker, setWorkerStopped } = transport
   const { automaticRestartCountRef, send: sendToWorker } = transport
+  const loadTrace = useActivityTraceRequest(sendToWorker, accountRef)
 
   // Signed out, each worker starts from the library kept in this browser, once. While the account
   // is still loading it waits, so a signed-in account's page never shows the device library.
@@ -380,5 +385,6 @@ export function useAnalysis(
     setRange: importActions.setRange,
     clear: importActions.clear,
     loadRoute,
+    loadTrace,
   }
 }

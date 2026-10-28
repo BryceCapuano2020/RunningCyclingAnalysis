@@ -22,6 +22,15 @@ function fakeWorker() {
 }
 
 describe('worker transport', () => {
+  it('settles a detail read after the worker stops without replacing the library error', () => {
+    const { result, setError } = setup()
+    result.current.stoppedRef.current = true
+    const settle = vi.fn()
+    act(() => result.current.send({ type: 'activityTrace', id: 'run-1' }, undefined, settle))
+    expect(settle).toHaveBeenCalledWith(null)
+    expect(setError).not.toHaveBeenCalled()
+  })
+
   it('keeps a route request made while there is no worker, with its settle, and sends both when a worker starts', () => {
     const { result, pendingRepliesRef } = setup()
     const settle = vi.fn()

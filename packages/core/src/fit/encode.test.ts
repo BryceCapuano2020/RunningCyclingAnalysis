@@ -92,6 +92,14 @@ describe('encodeFit', () => {
     expect(records[2]?.enhancedAltitude).toBeCloseTo(a.altitude[2] ?? NaN, 1)
   })
 
+  it('writes normalized run cadence as FIT cycles and reconstructs its fractional part', () => {
+    const activity = makeActivity('run', 3, false)
+    activity.cadence = new Float32Array([177, 177, 177])
+    const records = decode(encodeFit(activity)).records
+    expect(records[1]?.cadence).toBe(88)
+    expect(records[1]?.fractionalCadence).toBe(0.5)
+  })
+
   it('omits fields whose value is NaN', () => {
     const records = decode(encodeFit(makeActivity('run', 3, false))).records
     expect(records.length).toBe(3)

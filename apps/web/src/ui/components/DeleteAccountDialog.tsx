@@ -125,10 +125,10 @@ export function DeleteAccountDialog({
           Delete your account?
         </h2>
         <p id={bodyId} className="delete-dialog__body">
-          This permanently deletes your profile, every activity and every stored file. It cannot be
-          undone. Activities kept in this browser from before you signed in are not part of your
-          account, so deleting it does not remove them. If you kept any, sign out and choose Remove
-          all my activities to remove them.
+          This permanently deletes your profile, every activity and every stored file, and this
+          browser’s recordings of them. It cannot be undone. Activities and recordings kept in this
+          browser from before you signed in are not part of your account, so deleting it does not
+          remove them. If you kept any, sign out and choose Remove all my activities to remove them.
         </p>
         <p className="delete-dialog__body">
           Your account is <strong>{email}</strong>.

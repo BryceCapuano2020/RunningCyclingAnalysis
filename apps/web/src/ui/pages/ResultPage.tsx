@@ -206,6 +206,7 @@ export function ResultPage({
           profile={profile}
           records={analysis.state.records}
           loadSplits={analysis.activitySplits}
+          loadTrace={analysis.loadTrace}
           routeId={activity === null ? null : (keptIds.get(activity.id) ?? null)}
           loadRoute={analysis.loadRoute}
           period={period}

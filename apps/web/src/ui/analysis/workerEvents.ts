@@ -218,6 +218,7 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
   // pending request is taken, so that request still gets its own reply.
   const front = transport.pendingRepliesRef.current[0]
   if (message.type === 'routeShape' && (front === undefined || !ROUTE_KINDS.has(front.kind))) return
+  if (message.type === 'activityTrace' && front?.kind !== 'activityTrace') return
   // Replies arrive in request order; the first pending request is the one this answers.
   const pending = transport.pendingRepliesRef.current.shift()
   // A period pick is answered by its own reply, which the page counts; its state is applied below as usual.
@@ -234,6 +235,11 @@ function handleReply(deps: WorkerEventDeps, message: ReplyResponse): void {
     return
   }
   rememberKeptLibrary(library, pending, message)
+  if (message.type === 'activityTrace' || pending?.kind === 'activityTrace') {
+    pending?.settle?.(message)
+    if (message.type === 'error' && message.issue !== undefined) handleAccountIssue(message.issue)
+    return
+  }
   if (message.type === 'exportReady' || message.type === 'routeShape') {
     pending?.settle?.(message)
     return

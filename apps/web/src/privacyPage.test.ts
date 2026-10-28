@@ -88,8 +88,8 @@ const ANALYSIS_FIGURES = [
 ]
 
 describe('privacy page date', () => {
-  it('is dated 26 October 2026', () => {
-    expect(page).toContain('<p class="updated">Last updated 26 October 2026</p>')
+  it('is dated 28 October 2026', () => {
+    expect(page).toContain('<p class="updated">Last updated 28 October 2026</p>')
   })
 })
 
@@ -213,9 +213,16 @@ describe('privacy page describes what is stored as the app stores it', () => {
     expect(saved).not.toContain('flat-pace times')
   })
 
-  it('says the summary has no per-second data, and leaves coordinates to the route sentence', () => {
+  it('distinguishes compact summaries from local detailed recordings', () => {
     expect(text).toContain('The summary has no per-second data or original file')
-    expect(text).not.toContain('no GPS coordinates')
+    expect(text).toContain('It contains no GPS coordinates or original files and is not uploaded.')
+    expect(text).toContain(
+      'Account recordings are kept separately from signed-out recordings and other accounts.',
+    )
+    expect(text).toContain(
+      'They can survive sign-out, but the app reads them only for their account.',
+    )
+    expect(text).toContain('reports a local cleanup failure separately')
   })
 
   it('says a summary keeps a SHA-256 hash of its file only when the file yields several summaries', () => {

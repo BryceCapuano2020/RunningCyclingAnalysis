@@ -150,7 +150,7 @@ describe('device library actions', () => {
     await library.put(workoutKeyOf(FIRST), FIRST)
     await library.put(workoutKeyOf(SECOND), SECOND)
 
-    await actions.forget()
+    await expect(actions.forget()).resolves.toBe(true)
 
     expect(await library.all()).toEqual([])
     expect(posted).toEqual([{ type: 'libraryActivities', activities: [] }])
@@ -164,7 +164,7 @@ describe('device library actions', () => {
     const { actions, library, posted } = setup(refusing)
     await library.put(workoutKeyOf(FIRST), FIRST)
 
-    await expect(actions.forget()).resolves.toBeUndefined()
+    await expect(actions.forget()).resolves.toBe(false)
     expect(posted).toEqual([
       { type: 'libraryActivities', activities: [listed(FIRST)] },
       { type: 'deviceIssue', issue: 'notForgotten' },

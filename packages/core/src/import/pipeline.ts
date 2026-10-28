@@ -5,19 +5,23 @@ import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
 import type { GpsFix } from './gps'
 import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
+import { SPORT_TRACE } from '../workbench/sportTrace'
+import type { CadenceUnit } from '../workbench/types'
 import { failure, MAX_FILE_SAMPLES, refused } from './result'
 import { nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
+import { cleanRecord } from './cleanRecord'
+import { lapsForSegment } from './laps'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
 /** The shortest activity, in seconds: the records must vouch for at least this much. */
 const MIN_SAMPLES = 60
 /** The fastest speed a sample may have, per sport. Faster samples are dropped as impossible. */
-export const MAX_SPEED_MPS: Record<Sport, number> = { ride: 30, run: 12.5 }
-const MAX_POWER_W = 3000
-const MIN_HEART_RATE = 25
-const MAX_HEART_RATE = 250
+export const MAX_SPEED_MPS: Record<Sport, number> = {
+  ride: SPORT_TRACE.ride.maxSpeedMs,
+  run: SPORT_TRACE.run.maxSpeedMs,
+}
 
 const SHORT_REASON = 'Activity is shorter than one minute'
 const SPARSE_REASON = 'Activity is recorded too sparsely: its points are more than 10 seconds apart'
@@ -32,6 +36,9 @@ const DATE_REASON = 'Activity date is not plausible'
 export interface PipelineUnit {
   /** Records of this unit, in any order. Times are epoch milliseconds. */
   records: RawRecord[]
+  /** Explicit lap boundaries retained by a source format, in epoch milliseconds. */
+  laps?: Array<{ startMs: number; endMs: number; label?: string }>
+  cadenceUnit?: CadenceUnit
   /** Timer start and stop events of this unit, in any order. May be empty. */
   timerEvents: RawTimerEvent[]
   /** The mapped sport, or null when the source's sport is not supported and the unit is refused. */
@@ -162,7 +169,7 @@ function evaluateUnit(unit: PipelineUnit, index: number, context: Context): Outc
   }
   const maxSpeed = MAX_SPEED_MPS[sport]
   const drops = new Map<RawRecord, number>()
-  const segments = splitAtGaps(unit.records.map((r) => clean(r, maxSpeed, drops)))
+  const segments = splitAtGaps(unit.records.map((r) => cleanRecord(r, maxSpeed, drops)))
 
   const outcomes: Outcome[] = []
   for (const [part, segment] of segments.entries()) {
@@ -307,37 +314,14 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     sport,
     indoor,
     ...resampled,
+    ...(resampled.cadence && unit.cadenceUnit ? { cadenceUnit: unit.cadenceUnit } : {}),
+    ...(unit.laps === undefined
+      ? {}
+      : { laps: lapsForSegment(unit.laps, resampled.startMs, resampled.n) }),
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
   }
   return { ok: true, activity, dropped }
-}
-
-/** Drops impossible values (sets them to undefined) and counts them per record. */
-function clean(r: RawRecord, maxSpeed: number, drops: Map<RawRecord, number>): RawRecord {
-  const counts = { dropped: 0 }
-  const cleaned: RawRecord = {
-    tMs: r.tMs,
-    distance: r.distance,
-    speed: keepWithin(r.speed, 0, maxSpeed, counts),
-    altitude: r.altitude,
-    heartRate: keepWithin(r.heartRate, MIN_HEART_RATE, MAX_HEART_RATE, counts),
-    power: keepWithin(r.power, 0, MAX_POWER_W, counts),
-  }
-  if (counts.dropped > 0) drops.set(cleaned, counts.dropped)
-  return cleaned
-}
-
-/** A value outside [min, max] is impossible: it is dropped and counted. */
-function keepWithin(
-  value: number | undefined,
-  min: number,
-  max: number,
-  counts: { dropped: number },
-): number | undefined {
-  if (value === undefined || (value >= min && value <= max)) return value
-  counts.dropped++
-  return undefined
 }
 
 /**

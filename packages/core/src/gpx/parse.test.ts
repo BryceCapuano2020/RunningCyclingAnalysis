@@ -216,6 +216,16 @@ describe('parseGpx mapping', () => {
     expect(a.power[10]).toBe(210)
   })
 
+  it('reads Garmin cadence and temperature extension values', () => {
+    const ext =
+      '<extensions><gpxtpx:TrackPointExtension><gpxtpx:cad>82</gpxtpx:cad>' +
+      '<gpxtpx:atemp>16</gpxtpx:atemp></gpxtpx:TrackPointExtension></extensions>'
+    const a = firstActivity(parseGpx(gpxFile(track('9', [points(120, { ext })])), 'detail.gpx'))
+    expect(a.cadenceUnit).toBe('unknown')
+    expect(a.cadence?.[20]).toBe(82)
+    expect(a.temperature?.[20]).toBe(16)
+  })
+
   it('reads PowerInWatts from any namespace prefix', () => {
     const ext = '<extensions><ns3:PowerInWatts>180</ns3:PowerInWatts></extensions>'
     const a = firstActivity(parseGpx(gpxFile(track('biking', [points(120, { ext })])), 'p.gpx'))

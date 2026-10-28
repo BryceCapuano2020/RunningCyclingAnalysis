@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import type { ActivityTraceReply } from '../../worker/protocol'
 import type { EarnedRecord } from '@rca/core/records'
 import type { Period } from '@rca/core/period'
 import type { DigestSplits } from '@rca/core/types'
@@ -25,6 +26,7 @@ import { ActivityBests } from './ActivityBests'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
+import { ActivityWorkbench } from './ActivityWorkbench'
 import { PAGE_HEADING_ID } from './pageHeading'
 import './ActivityPage.css'
 
@@ -45,6 +47,8 @@ export interface ActivityPageProps {
   records: ReadonlyMap<string, readonly EarnedRecord[]>
   /** Asks the worker for a run's splits; a run's splits are not kept in the page's result. */
   loadSplits: (id: string) => Promise<DigestSplits | null>
+  /** Reads a locally cached detail trace, or an original file only when explicitly requested. */
+  loadTrace?: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
   /** The library id this activity is saved under, or null when it is not saved, as with the sample. */
   routeId: string | null
   /** Reads a saved activity's route. `fromOriginal` reads the kept original file. */
@@ -104,6 +108,7 @@ export function ActivityPage({
   profile,
   records,
   loadSplits,
+  loadTrace,
   routeId,
   loadRoute,
   period,
@@ -169,6 +174,9 @@ export function ActivityPage({
       {route.kind === 'offer' && <RouteOffer status={route.status} onShow={show} />}
 
       <ActivityStats activity={activity} units={units} />
+      {loadTrace && (
+        <ActivityWorkbench activityId={activity.id} units={units} loadTrace={loadTrace} />
+      )}
       {activity.powerSource === 'virtual' && (
         <p className="secondary">
           Power here is estimated from speed and climbs. No power meter recorded it.

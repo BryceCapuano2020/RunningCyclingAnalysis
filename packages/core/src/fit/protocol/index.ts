@@ -4,6 +4,7 @@ export { decodeFit, DEFAULT_MAX_RECORDS } from './decode'
 export type {
   DecodedEvent,
   DecodedFileId,
+  DecodedLap,
   DecodedMessages,
   DecodedRecord,
   DecodedSession,
