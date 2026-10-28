@@ -3,11 +3,12 @@ import { DURATIONS_S } from '../constants'
 import { flatSpeedToMetabolic } from '../metabolic'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, DigestCurvePoint, DigestHrBlock, HrPoint } from '../types'
-import { heartRatePoints } from './combine'
 import { digestActivity } from './digestActivity'
+import { fixedMasses } from './masses'
+import { heartRatePoints } from './rideCurves'
 
 const { athlete, activities } = sampleDataset()
-const totalMassKg = athlete.massKg + athlete.bikeMassKg
+const masses = fixedMasses(athlete.massKg, athlete.bikeMassKg)
 const template = digestActivity(activities.find((a) => a.sport === 'run')!)
 const NO_CURVE: DigestCurvePoint[] = DURATIONS_S.map((durationS) => ({
   durationS,
@@ -30,7 +31,7 @@ function runWithBlocks(id: string, speeds: number[]): ActivityDigest {
 
 /** The run heart-rate points of one run's blocks, as the threshold check sees them. */
 function runPointsOf(digest: ActivityDigest): HrPoint[] {
-  return heartRatePoints([digest], totalMassKg, athlete.massKg, { cda: 0.32, crr: 0.005 }).runPoints
+  return heartRatePoints([digest], masses, { cda: 0.32, crr: 0.005 }).runPoints
 }
 
 describe('the run heart-rate blocks against the ceiling', () => {

@@ -32,10 +32,12 @@ export interface ActivitySummary {
   avgPowerW?: number | null
   /** The file the activity came from, when that file holds more than one activity: a session's legs share it. */
   sessionKey?: string
+  /** The body mass in effect on its date, kg. Present only when the athlete has dated body masses. */
+  massKg?: number
 }
 
 /** The library-list view of a digest. It carries distanceBests when the digest has them. */
-export function summaryOf(digest: ActivityDigest): ActivitySummary {
+export function summaryOf(digest: ActivityDigest, massKg?: number): ActivitySummary {
   return {
     id: digest.id,
     name: digest.name,
@@ -55,5 +57,6 @@ export function summaryOf(digest: ActivityDigest): ActivitySummary {
     ...(digest.avgHeartRate === undefined ? {} : { avgHeartRate: digest.avgHeartRate }),
     ...(digest.avgPowerW === undefined ? {} : { avgPowerW: digest.avgPowerW }),
     ...(digest.sessionKey === undefined ? {} : { sessionKey: digest.sessionKey }),
+    ...(massKg === undefined ? {} : { massKg }),
   }
 }

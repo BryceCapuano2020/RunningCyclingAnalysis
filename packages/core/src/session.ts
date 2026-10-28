@@ -24,6 +24,8 @@ import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
 import { RecordsCache } from './sessionRecords'
 import type { EarnedRecord } from './records'
+import { zonesAt } from './zones'
+import type { ZoneSet } from './zones'
 
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
 export type { SyncIssue, SyncIssueCode } from './saveFailure'
@@ -173,6 +175,14 @@ export class AnalysisSession {
     return this.state(settings)
   }
 
+  /**
+   * The zones in effect on a date: the athlete's dated settings first, else the references of the
+   * analysis for the period on screen. A feature that needs zones for an activity asks with its start.
+   */
+  zonesAt(at: number, settings: AthleteSettings): ZoneSet[] {
+    return zonesAt(at, this.athleteFor(settings), this.state(settings).result)
+  }
+
   /** Asks for the headline trend's running equivalents, which an age-graded Balance trend needs. */
   setGradeTrend(on: boolean, settings: AthleteSettings): SessionState {
     this.gradeTrend = on
@@ -312,11 +322,11 @@ export class AnalysisSession {
 
   /**
    * The settings the analysis uses. The sample athlete has its own body and bike masses, so it
-   * ignores the visitor's while it is on screen.
+   * ignores the visitor's, dated ones included, while it is on screen.
    */
   private athleteFor(settings: AthleteSettings): AthleteSettings {
     if (!this.isSample) return settings
-    return { ...settings, massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
+    return { massKg: DEFAULT_ATHLETE.massKg, bikeMassKg: DEFAULT_ATHLETE.bikeMassKg }
   }
 
   /** Null settings only after clear, when the library is empty and nothing needs analysing. */
@@ -365,7 +375,7 @@ export class AnalysisSession {
       incompatibleActivities: this.incompatibleKeys.size,
       hiddenDuplicates: hidden.size,
       period,
-      library: settings === null ? [] : activitySummaries(visible),
+      library: athlete === null ? [] : activitySummaries(visible, athlete),
       syncIssues: countIssues(this.unsynced, this.latestUnsynced),
       records:
         athlete === null

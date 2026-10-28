@@ -1,4 +1,5 @@
 import { HEADLINE_DURATION_S } from './constants'
+import { sameMasses } from './athlete/mass'
 import { combine, sportCurves } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
 import { lateEvidence } from './digest/lateEvidence'
@@ -21,11 +22,10 @@ export function sameDigests(a: ActivityDigest[], b: ActivityDigest[]): boolean {
   return a.length === b.length && a.every((digest, i) => digest === b[i])
 }
 
-/** The masses and digests that a cached result was computed from. */
+/** The settings and digests that a cached result was computed from. */
 interface Inputs {
   selected: ActivityDigest[]
-  massKg: number
-  bikeMassKg: number
+  settings: AthleteSettings
 }
 
 function sameInputs(
@@ -33,11 +33,7 @@ function sameInputs(
   selected: ActivityDigest[],
   settings: AthleteSettings,
 ): boolean {
-  return (
-    cached.massKg === settings.massKg &&
-    cached.bikeMassKg === settings.bikeMassKg &&
-    sameDigests(cached.selected, selected)
-  )
+  return sameMasses(cached.settings, settings) && sameDigests(cached.selected, selected)
 }
 
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
@@ -93,7 +89,7 @@ export class PeriodCache {
       return entry!.analysis
     }
     const analysis = combine(selected, settings)
-    this.analysisEntries.unshift({ selected, ...masses(settings), analysis })
+    this.analysisEntries.unshift({ selected, settings, analysis })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
     return analysis
   }
@@ -165,7 +161,7 @@ export class PeriodCache {
     })
     this.trendEntries.set(durationS, {
       selected,
-      ...masses(settings),
+      settings,
       rangeDays,
       startMs,
       equivalence,
@@ -240,11 +236,7 @@ export class PeriodCache {
       return cached.curves
     }
     const curves = sportCurves(previous, settings, bikeModel)
-    this.previousEntry = { selected, ...masses(settings), previous, curves }
+    this.previousEntry = { selected, settings, previous, curves }
     return curves
   }
-}
-
-function masses(settings: AthleteSettings): { massKg: number; bikeMassKg: number } {
-  return { massKg: settings.massKg, bikeMassKg: settings.bikeMassKg }
 }

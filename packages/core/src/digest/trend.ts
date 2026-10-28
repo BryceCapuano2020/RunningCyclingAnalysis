@@ -9,15 +9,11 @@ import type {
   Interval,
   Sport,
 } from '../types'
-import {
-  centralWkgFromWatts,
-  equivalenceFor,
-  fitBikeModelFor,
-  orderedCurrent,
-  rideWattsAt,
-  runCentralWkg,
-  totalCalibration,
-} from './combine'
+import { equivalenceFor } from './combine'
+import type { Masses } from './masses'
+import { massesOf } from './masses'
+import { orderedCurrent } from './ordered'
+import { centralWkgFromWatts, fitBikeModelOver, rideWattsAt, runCentralWkg } from './rideCurves'
 import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
 
 const MAX_POINTS = 260
@@ -71,6 +67,8 @@ interface Best {
   wkg: number
   /** Mechanical watts for a ride; NaN for a run. */
   watts: number
+  /** The body mass the activity was priced at, kg. */
+  massKg: number
 }
 
 /** One activity's best effort at or above the trend duration, with its sport and start. */
@@ -83,32 +81,32 @@ interface Reading {
 function measureOf(
   sport: Sport,
   point: DigestCurvePoint,
-  massKg: number,
-  totalMassKg: number,
+  masses: { massKg: number; totalMassKg: number },
   bikeModel: BikeModel,
 ): Best {
-  if (sport === 'run') return { wkg: runCentralWkg(point), watts: Number.NaN }
+  const { massKg, totalMassKg } = masses
+  if (sport === 'run') return { wkg: runCentralWkg(point), watts: Number.NaN, massKg }
   const watts = rideWattsAt(point, totalMassKg, bikeModel)
-  return { wkg: centralWkgFromWatts(watts, massKg), watts }
+  return { wkg: centralWkgFromWatts(watts, massKg), watts, massKg }
 }
 
 /**
  * The best effort of one activity at durationS or longer. Like combine's envelope, a shorter
  * duration takes the best of the longer ones, so a 30-minute value above the 20-minute one counts.
- * Null when the activity has no value there. Central W/kg rises with watts, so the best by W/kg
- * is the best by watts.
+ * Null when the activity has no value there. Within one activity the mass is one number, and central
+ * W/kg rises with watts, so the best by W/kg is the best by watts.
  */
 function bestAtOrAbove(
   digest: ActivityDigest,
   durationS: number,
-  massKg: number,
-  totalMassKg: number,
+  masses: Masses,
   bikeModel: BikeModel,
 ): Best | null {
   let best: Best | null = null
+  const own = { massKg: masses.bodyKg(digest), totalMassKg: masses.totalKg(digest) }
   for (const point of digest.curve) {
     if (point.durationS < durationS) continue
-    const candidate = measureOf(digest.sport, point, massKg, totalMassKg, bikeModel)
+    const candidate = measureOf(digest.sport, point, own, bikeModel)
     if (Number.isFinite(candidate.wkg) && (best === null || candidate.wkg > best.wkg)) {
       best = candidate
     }
@@ -138,23 +136,24 @@ export function fitnessTrend(
   const last = ordered.at(-1)
   if (first === undefined || last === undefined) return []
 
-  const massKg = settings.massKg
-  const totalMassKg = settings.massKg + settings.bikeMassKg
-  const bikeModel = opts.bikeModel ?? fitBikeModelFor(totalCalibration(ordered), totalMassKg).model
+  const masses = massesOf(settings)
+  const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
   const readings: Reading[] = []
   for (const digest of ordered) {
-    const best = bestAtOrAbove(digest, durationS, massKg, totalMassKg, bikeModel)
+    const best = bestAtOrAbove(digest, durationS, masses, bikeModel)
     if (best !== null) readings.push({ startMs: digest.startMs, sport: digest.sport, best })
   }
 
   const equivalenceAt = opts.equivalence ? equivalenceFor(opts.equivalence.hr) : null
-  const speedByWatts = new Map<number, Interval>()
-  const speedOf = (watts: number): Interval | null => {
+  // The speed depends on the power and the body mass it was ridden at, so both key the cache.
+  const speedByRide = new Map<string, Interval>()
+  const speedOf = ({ watts, massKg }: Best): Interval | null => {
     if (equivalenceAt === null) return null
-    let speed = speedByWatts.get(watts)
+    const key = `${watts}|${massKg}`
+    let speed = speedByRide.get(key)
     if (speed === undefined) {
       speed = equivalenceAt(watts, massKg)
-      speedByWatts.set(watts, speed)
+      speedByRide.set(key, speed)
     }
     return speed
   }
@@ -183,7 +182,7 @@ export function fitnessTrend(
       rideCount: count.ride,
       runAtMs: top.run?.startMs ?? null,
       rideAtMs: ride?.startMs ?? null,
-      rideRunSpeed: ride ? speedOf(ride.best.watts) : null,
+      rideRunSpeed: ride ? speedOf(ride.best) : null,
     })
   }
   return points

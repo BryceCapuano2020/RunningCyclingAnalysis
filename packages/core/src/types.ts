@@ -81,12 +81,7 @@ export interface Activity {
   route?: RouteShape
 }
 
-export interface AthleteSettings {
-  /** Body mass, kg. */
-  massKg: number
-  /** Bike plus kit mass, kg. */
-  bikeMassKg: number
-}
+export type { AthleteSettings } from './athlete/settings'
 
 export type QualityKind =
   | 'hr-dropout'

@@ -46,16 +46,27 @@ export const isMeasured = (digest: ActivityDigest): boolean => digest.powerSourc
 
 /**
  * One sport's best curve, read in that sport's own number from the digests of that sport that `keep`
- * allows, which is all of them unless it says otherwise.
+ * allows, which is all of them unless it says otherwise. `valueFor` gives the reading for one digest,
+ * so a number that depends on the activity, such as its body mass, is looked up once per activity.
  */
+export function bestOfEach(
+  ordered: ActivityDigest[],
+  sport: Sport,
+  valueFor: (digest: ActivityDigest) => (point: DigestCurvePoint) => number,
+  keep: (digest: ActivityDigest) => boolean = () => true,
+): EffortPoint[] {
+  const digests = ordered.filter((d) => d.sport === sport && keep(d))
+  return bestCurve(digests.map((d) => candidates(d, valueFor(d))))
+}
+
+/** bestOf for a reading that is the same for every activity. */
 export function bestOf(
   ordered: ActivityDigest[],
   sport: Sport,
   value: (point: DigestCurvePoint) => number,
   keep: (digest: ActivityDigest) => boolean = () => true,
 ): EffortPoint[] {
-  const digests = ordered.filter((d) => d.sport === sport && keep(d))
-  return bestCurve(digests.map((d) => candidates(d, value)))
+  return bestOfEach(ordered, sport, () => value, keep)
 }
 
 export function plainCurve(points: EffortPoint[]): Curve {
