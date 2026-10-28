@@ -105,6 +105,17 @@ test('sample details are available without persisting sample recordings', async 
   expect(saved).toBe(0)
 })
 
+/** An account save can take a while on a loaded machine, as in account.spec.ts. */
+const SAVED = { timeout: 30_000 }
+
+/**
+ * Waits for the signed-in header, so the account's saved units apply before the setup dialog reads
+ * them: a weight typed earlier can be shown in the other unit and refused.
+ */
+async function waitForAccount(page: Page): Promise<void> {
+  await expect(page.getByRole('button', { name: 'Workbench', exact: true })).toBeVisible()
+}
+
 test('an account original is read only on request, and account deletion removes its recording', async ({
   page,
 }) => {
@@ -113,8 +124,9 @@ test('an account original is read only on request, and account deletion removes 
   await signInAs(page.request, email, 'Workbench original')
   await enableFileRetention(page.request)
   await page.reload()
+  await waitForAccount(page)
   await uploadFixtures(page, ['one-run.tcx'])
-  await expect.poll(async () => (await apiActivities(page.request))[0]?.hasFile).toBe(true)
+  await expect.poll(async () => (await apiActivities(page.request))[0]?.hasFile, SAVED).toBe(true)
   await page.goto('/privacy')
   await removeRecordingCache(page)
   await page.goto('/')
@@ -171,8 +183,9 @@ test('a second account cannot read another account’s cached trace for the same
   await page.goto('/')
   await signInAs(page.request, uniqueEmail(), 'Workbench first')
   await page.reload()
+  await waitForAccount(page)
   await uploadFixtures(page, ['one-run.tcx'])
-  await expect.poll(async () => (await apiActivities(page.request)).length).toBe(1)
+  await expect.poll(async () => (await apiActivities(page.request)).length, SAVED).toBe(1)
   const [record] = await apiActivities(page.request)
   const first = await openFirstActivity(page)
   await expect(
