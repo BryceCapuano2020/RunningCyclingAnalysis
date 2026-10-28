@@ -24,6 +24,13 @@ describe('indexOrder', () => {
     }
   })
 
+  it('orders more values than it keeps working arrays for, and the sizes after them', () => {
+    for (const n of [70_000, 300, 70_000, 5000]) {
+      const values = varied(n, n)
+      expect(indexOrder(values, n, n === 300)).toEqual(comparatorOrder(values, n, n === 300))
+    }
+  })
+
   it('keeps equal values, and zeros of either sign, in index order', () => {
     const values = [0, -0, 2, 0, -0, 2]
     expect(indexOrder(values, values.length, false)).toEqual([0, 1, 3, 4, 2, 5])

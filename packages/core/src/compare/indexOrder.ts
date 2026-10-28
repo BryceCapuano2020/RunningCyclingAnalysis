@@ -57,19 +57,26 @@ let work: Scratch = {
   start: new Uint32Array(DIGIT_COUNT + 1),
 }
 
+/**
+ * The most values whose working arrays are kept between sorts: the draws and slopes of an analysis are
+ * a few thousand, so 64 Ki values hold 1.3 MB. A sort of more has arrays of its own that the next
+ * sort does not find, so one huge sort cannot leave megabytes held for the life of the page.
+ */
+const MAX_KEPT = 1 << 16
+
 /** The working arrays, grown to hold n values. A library's sorts are all of about the same size. */
 function scratch(n: number): Scratch {
-  if (work.high.length < n) {
-    work = {
-      high: new Uint32Array(n),
-      low: new Uint32Array(n),
-      from: new Uint32Array(n),
-      to: new Uint32Array(n),
-      digits: new Uint16Array(n),
-      start: work.start,
-    }
+  if (work.high.length >= n) return work
+  const arrays = {
+    high: new Uint32Array(n),
+    low: new Uint32Array(n),
+    from: new Uint32Array(n),
+    to: new Uint32Array(n),
+    digits: new Uint16Array(n),
+    start: work.start,
   }
-  return work
+  if (n <= MAX_KEPT) work = arrays
+  return arrays
 }
 
 /**
