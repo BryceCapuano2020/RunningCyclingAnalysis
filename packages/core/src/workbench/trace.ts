@@ -1,4 +1,5 @@
 import type { Activity } from '../types'
+import { isSport } from './sportTrace'
 import type { ActivityLap, ActivityTrace, TraceMetric } from './types'
 
 export const MAX_TRACE_DURATION_S = 48 * 60 * 60
@@ -16,7 +17,8 @@ const METRICS: readonly TraceMetric[] = [
 export function activityTraceOf(activity: Activity): ActivityTrace {
   const n = activity.n
   const streams: Partial<Record<TraceMetric, Float32Array>> = {
-    speed: Float32Array.from(activity.speed),
+    // With neither speed nor distance recorded the speed is a synthesized zero, which is not data.
+    ...(activity.hasMotion === false ? {} : { speed: Float32Array.from(activity.speed) }),
     ...(activity.hasHeartRate ? { heartRate: Float32Array.from(activity.heartRate) } : {}),
     ...(activity.hasAltitude ? { altitude: Float32Array.from(activity.altitude) } : {}),
     ...(activity.hasPower ? { power: Float32Array.from(activity.power) } : {}),
@@ -31,7 +33,8 @@ export function activityTraceOf(activity: Activity): ActivityTrace {
       ? {}
       : { cadenceUnit: activity.cadenceUnit }),
     durationS: n,
-    distance: activity.distance.slice(),
+    distance:
+      activity.hasMotion === false ? new Float64Array(n).fill(NaN) : activity.distance.slice(),
     paused: activity.paused.slice(),
     unrecorded: activity.unrecorded?.slice() ?? new Uint8Array(n),
     streams,
@@ -58,7 +61,7 @@ export function parseActivityTrace(value: unknown): ActivityTrace | null {
     version !== 1 ||
     typeof activityId !== 'string' ||
     activityId.length === 0 ||
-    (sport !== 'run' && sport !== 'ride') ||
+    !isSport(sport) ||
     !Number.isInteger(durationS) ||
     (durationS as number) < 0 ||
     (durationS as number) > MAX_TRACE_DURATION_S ||

@@ -56,6 +56,39 @@ describe('activity evidence trace', () => {
     expect(result.cadenceUnit).toBeUndefined()
   })
 
+  it('leaves speed and distance out when the source recorded neither', () => {
+    const activity = {
+      id: 'a',
+      name: 'A',
+      sport: 'ride' as const,
+      startMs: 0,
+      n: 3,
+      speed: new Float64Array(3),
+      distance: new Float64Array(3),
+      altitude: new Float64Array(3).fill(NaN),
+      heartRate: new Float64Array([120, 121, 122]),
+      power: new Float64Array(3).fill(NaN),
+      paused: new Uint8Array(3),
+      hasPower: false,
+      hasHeartRate: true,
+      hasAltitude: false,
+      hasMotion: false,
+      indoor: true,
+    }
+    const result = activityTraceOf(activity)
+    expect(result.streams.speed).toBeUndefined()
+    expect(result.streams.heartRate).toBeDefined()
+    expect(result.distance.every(Number.isNaN)).toBe(true)
+    expect(summarizeSelection(result, 0, 3).distanceM).toBeNull()
+    expect(parseActivityTrace(result)).not.toBeNull()
+  })
+
+  it('accepts only sports that have a trace row', () => {
+    expect(parseActivityTrace({ ...trace(3), sport: 'ride' })).not.toBeNull()
+    expect(parseActivityTrace({ ...trace(3), sport: 'swim' })).toBeNull()
+    expect(parseActivityTrace({ ...trace(3), sport: 'toString' })).toBeNull()
+  })
+
   it('retains explicit cadence provenance while validating and stripping unknown fields', () => {
     const valid = {
       ...trace(3),
@@ -104,10 +137,22 @@ describe('selection evidence', () => {
     expect(summarizeSelection(item, 0, 2).distanceM).toBe(20)
   })
 
-  it('uses both distance boundaries for an interior selection and clamps the final boundary', () => {
+  it('uses both distance boundaries for an interior selection and counts the final second', () => {
     const item = trace(30)
     expect(summarizeSelection(item, 10, 20).distanceM).toBe(100)
-    expect(summarizeSelection(item, 20, 30).distanceM).toBe(90)
+    // The last sample has no closing boundary, so the final second takes the step before it.
+    expect(summarizeSelection(item, 20, 30).distanceM).toBe(100)
+    expect(summarizeSelection(item, 29, 30).distanceM).toBe(10)
+    expect(summarizeSelection(item, 0, 30).distanceM).toBe(300)
+    expect(summarizeSelection(item, 0, 29).distanceM).toBe(290)
+  })
+
+  it('has no distance for the final second when the step before it is unknown', () => {
+    const lone = trace(1)
+    expect(summarizeSelection(lone, 0, 1).distanceM).toBeNull()
+    const item = trace(4)
+    item.distance[2] = NaN
+    expect(summarizeSelection(item, 3, 4).distanceM).toBeNull()
   })
 
   it('rejects a selection whose end boundary is inside an unrecorded gap', () => {
@@ -139,6 +184,12 @@ describe('selection evidence', () => {
       distributionOf(item, 'temperature', 0, 100).reduce((sum, bin) => sum + bin.seconds, 0),
     ).toBe(98)
     expect(distributionOf(item, 'power', 0, 100)).toEqual([])
+  })
+
+  it('puts a constant series in one bin', () => {
+    const item = trace(50)
+    expect(distributionOf(item, 'temperature', 0, 50)).toEqual([{ from: 18, to: 18, seconds: 50 }])
+    expect(distributionOf(item, 'temperature', 10, 11)).toEqual([{ from: 18, to: 18, seconds: 1 }])
   })
 
   it('shares observation validity with plots, summaries, and distributions', () => {
@@ -180,5 +231,34 @@ describe('conservative interval suggestions', () => {
     expect(suggestions.length).toBeGreaterThan(0)
     expect(suggestions.every((lap) => lap.label === 'Inferred interval')).toBe(true)
     expect(suggestions.every((lap) => lap.endS - lap.startS >= 60)).toBe(true)
+  })
+
+  it('places a step at its window centre, not a window early', () => {
+    const item = trace(240)
+    item.streams.speed = Float32Array.from({ length: 240 }, (_, i) => (i >= 60 && i < 150 ? 5 : 3))
+    const [interval, ...rest] = detectIntervals(item)
+    expect(rest).toEqual([])
+    expect(Math.abs(interval!.startS - 60)).toBeLessThanOrEqual(10)
+    expect(Math.abs(interval!.endS - 150)).toBeLessThanOrEqual(10)
+  })
+
+  it('does not bridge a paused or unrecorded stretch inside an effort', () => {
+    const item = trace(400)
+    item.streams.speed = Float32Array.from({ length: 400 }, (_, i) => (i >= 60 && i < 350 ? 5 : 3))
+    for (let i = 200; i < 206; i++) item.paused[i] = 1
+    for (let i = 280; i < 283; i++) item.unrecorded[i] = 1
+    const suggestions = detectIntervals(item)
+    expect(suggestions.length).toBe(3)
+    for (const lap of suggestions) {
+      for (let i = lap.startS; i < lap.endS; i++) {
+        expect(item.paused[i] === 1 || item.unrecorded[i] === 1).toBe(false)
+      }
+    }
+  })
+
+  it('suggests nothing from a trace with neither power nor speed', () => {
+    const item = trace(240)
+    delete item.streams.speed
+    expect(detectIntervals(item)).toEqual([])
   })
 })

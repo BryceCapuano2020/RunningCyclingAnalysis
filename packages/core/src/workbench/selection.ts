@@ -1,3 +1,4 @@
+import { SPORT_TRACE } from './sportTrace'
 import type { ActivityTrace, SelectionSummary, TraceMetric } from './types'
 
 const RANGE: Partial<Record<TraceMetric, readonly [number, number]>> = {
@@ -5,7 +6,6 @@ const RANGE: Partial<Record<TraceMetric, readonly [number, number]>> = {
   temperature: [-80, 80],
   power: [0, 3000],
   cadence: [0, 300],
-  speed: [0, 30],
   altitude: [-1000, 10000],
 }
 
@@ -77,15 +77,17 @@ export function distributionOf(
     min = Math.min(min, value)
     max = Math.max(max, value)
   }
+  // Every value equal: one bin holds them all, rather than several empty ones around it.
+  if (max === min) return [{ from: min, to: max, seconds: values.length }]
   const binCount = Math.min(10, Math.max(1, Math.ceil(Math.sqrt(values.length))))
-  const width = max === min ? 1 : (max - min) / binCount
+  const width = (max - min) / binCount
   const bins = Array.from({ length: binCount }, (_, index) => ({
     from: min + index * width,
     to: index === binCount - 1 ? max : min + (index + 1) * width,
     seconds: 0,
   }))
   for (const value of values) {
-    const index = max === min ? 0 : Math.min(binCount - 1, Math.floor((value - min) / width))
+    const index = Math.min(binCount - 1, Math.floor((value - min) / width))
     bins[index]!.seconds++
   }
   return bins
@@ -93,9 +95,11 @@ export function distributionOf(
 
 function distanceIn(trace: ActivityTrace, startS: number, endS: number): number | null {
   if (startS === endS) return 0
-  // Interior selections have both cumulative boundary samples. At the activity's final second the
-  // format has no extra endpoint, so clamp to the last recorded boundary rather than extrapolating.
-  const lastBoundary = endS < trace.durationS ? endS : trace.durationS - 1
+  // Interior selections have both cumulative boundary samples. The activity's final second has no
+  // closing sample, so a selection that reaches it measures up to the last sample and then adds
+  // that second's own distance, taken as the step the second before it made.
+  const reachesEnd = endS === trace.durationS
+  const lastBoundary = reachesEnd ? trace.durationS - 1 : endS
   const first = trace.distance[startS]!
   const last = trace.distance[lastBoundary]!
   if (!Number.isFinite(first) || !Number.isFinite(last) || last < first) return null
@@ -108,7 +112,17 @@ function distanceIn(trace: ActivityTrace, startS: number, endS: number): number 
       if (!Number.isFinite(next) || next < here) return null
     }
   }
-  return last - first
+  if (!reachesEnd) return last - first
+  const finalStep = finalSecondDistance(trace)
+  return finalStep === null ? null : last - first + finalStep
+}
+
+/** The metres covered in the activity's last second, or null when the step before it is not known. */
+function finalSecondDistance(trace: ActivityTrace): number | null {
+  const last = trace.durationS - 1
+  if (last < 1 || trace.unrecorded[last - 1] === 1) return null
+  const step = trace.distance[last]! - trace.distance[last - 1]!
+  return Number.isFinite(step) && step >= 0 ? step : null
 }
 
 /** Whether sample i is a usable observation for the selected activity metric. */
@@ -146,10 +160,11 @@ function assertSelection(trace: ActivityTrace, startS: number, endS: number): vo
   }
 }
 
+/** The values a stream may hold for this trace's sport; a value outside is not a measurement. */
 function rangeFor(
   trace: ActivityTrace,
   metric: TraceMetric,
 ): readonly [number, number] | undefined {
-  if (metric === 'speed') return [0, trace.sport === 'run' ? 12.5 : 30]
+  if (metric === 'speed') return [0, SPORT_TRACE[trace.sport].maxSpeedMs]
   return RANGE[metric]
 }

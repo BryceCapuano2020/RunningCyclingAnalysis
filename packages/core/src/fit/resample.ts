@@ -50,6 +50,8 @@ export interface Resampled {
   hasPower: boolean
   hasHeartRate: boolean
   hasAltitude: boolean
+  /** False when no record had a speed or a distance, so those streams are placeholders. */
+  hasMotion: boolean
 }
 
 /**
@@ -171,6 +173,7 @@ export function resample(
     hasPower,
     hasHeartRate,
     hasAltitude,
+    hasMotion: hasSpeed || hasDistance,
   }
 }
 
@@ -188,6 +191,7 @@ function emptyResample(): Resampled {
     hasPower: false,
     hasHeartRate: false,
     hasAltitude: false,
+    hasMotion: false,
   }
 }
 

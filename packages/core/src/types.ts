@@ -46,6 +46,8 @@ export interface Activity {
   hasPower: boolean
   hasHeartRate: boolean
   hasAltitude: boolean
+  /** False when the source recorded neither speed nor distance, so those streams are placeholders. */
+  hasMotion?: boolean
   /** Treadmill, trainer or virtual activity: gradient and GPS speed are not real. */
   indoor: boolean
   /**
