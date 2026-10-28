@@ -16,6 +16,7 @@ import type { ZoneEstimates } from './zones'
  */
 const BUDGET_MS = 50
 const ACTIVITIES = 2000
+const NO_SET_ASIDE: readonly string[] = []
 const DAY_MS = 24 * 3600_000
 
 const estimates: ZoneEstimates = {
@@ -78,10 +79,10 @@ describe('time in zones performance', () => {
 
   it('does not work it out again for the same inputs', () => {
     const cache = new ZoneTimeCache()
-    const first = cache.get(digests, [], settings, null, [])
+    const first = cache.get(digests, [], settings, null, NO_SET_ASIDE)
     let again: unknown
     const ms = fastestMs(() => {
-      again = cache.get(digests, [], { ...settings }, null, first.heartRateSetAside)
+      again = cache.get(digests, [], { ...settings }, null, NO_SET_ASIDE)
     })
     expect(again).toBe(first)
     // Comparing 2,000 digests by identity is the whole cost.

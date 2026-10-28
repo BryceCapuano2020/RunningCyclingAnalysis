@@ -15,6 +15,7 @@
     "./digest/lateEvidenceTypes": "./src/digest/lateEvidenceTypes.ts",
     "./digest/modelRevision": "./src/digest/modelRevision.ts",
     "./digest/sameHeartRateTypes": "./src/digest/sameHeartRateTypes.ts",
+    "./digest/setAsideTypes": "./src/digest/setAsideTypes.ts",
     "./digest/trendPoints": "./src/digest/trendPoints.ts",
     "./duplicates": "./src/duplicates.ts",
     "./math": "./src/math.ts",

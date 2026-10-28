@@ -3,7 +3,7 @@ import { fastestMs } from '../test/timing'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest } from '../types'
 import { digestActivity } from './digestActivity'
-import { heartRateSetAsideOf } from './setAside'
+import { judgeHeartRate } from './setAside'
 
 /**
  * The library-wide judgement of whose heart rate is set aside runs once per library change, so a period
@@ -14,7 +14,7 @@ import { heartRateSetAsideOf } from './setAside'
 const BUDGET_MS = 400
 const ACTIVITIES = 2000
 
-describe('heartRateSetAsideOf performance', () => {
+describe('judgeHeartRate performance', () => {
   it(`judges ${ACTIVITIES} activities in under ${BUDGET_MS} ms`, () => {
     const base = sampleDataset().activities.map((activity) => digestActivity(activity))
     const library: ActivityDigest[] = Array.from({ length: ACTIVITIES }, (_, i) => {
@@ -25,7 +25,7 @@ describe('heartRateSetAsideOf performance', () => {
       })
     })
     const settings = { massKg: 75, bikeMassKg: 9 }
-    const ms = fastestMs(() => heartRateSetAsideOf(library, settings), 3)
+    const ms = fastestMs(() => judgeHeartRate(library, settings), 3)
     expect(ms).toBeLessThan(BUDGET_MS)
   })
 })

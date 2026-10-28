@@ -206,7 +206,7 @@ export function ResultPage({
           units={units}
           massKg={athleteSettings.massKg}
           settings={athleteSettings}
-          heartRateSetAside={analysis.state.timeInZones.heartRateSetAside}
+          heartRateJudgement={analysis.state.heartRateJudgement}
           weightKnown={weightKnown}
           profile={profile}
           records={analysis.state.records}
@@ -227,6 +227,7 @@ export function ResultPage({
       return (
         <MethodPage
           result={result}
+          heartRateJudgement={analysis.state.heartRateJudgement}
           units={units}
           profile={profile}
           period={period}

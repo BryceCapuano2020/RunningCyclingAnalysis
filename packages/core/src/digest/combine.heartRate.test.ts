@@ -4,7 +4,7 @@ import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
 import { combine } from './combine'
 import { digestActivity } from './digestActivity'
-import { heartRateSetAsideOf } from './setAside'
+import { judgeHeartRate } from './setAside'
 
 const { athlete, activities } = sampleDataset()
 const settings: AthleteSettings = { massKg: athlete.massKg, bikeMassKg: athlete.bikeMassKg }
@@ -64,10 +64,10 @@ describe('heart rate that cannot be right', () => {
     if (check) expect(check.rideHrFraction).toBeNull()
   })
 
-  it('is the same judgement heartRateSetAsideOf makes without the rest of the analysis', () => {
+  it('is the same judgement judgeHeartRate makes without the rest of the analysis', () => {
     const library = [...digests, brokenSensorRide()]
-    expect(heartRateSetAsideOf(library, settings)).toEqual(after.heartRateSetAside)
-    expect(heartRateSetAsideOf(digests, settings)).toEqual([])
+    expect(judgeHeartRate(library, settings).setAside).toEqual(after.heartRateSetAside)
+    expect(judgeHeartRate(digests, settings).setAside).toEqual([])
   })
 
   it('takes a set-aside judged elsewhere as it is, for the activities it names', () => {

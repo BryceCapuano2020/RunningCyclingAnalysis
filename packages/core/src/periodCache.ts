@@ -85,22 +85,22 @@ export class PeriodCache {
   }[] = []
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
-  private analysisEntries: (Inputs & { setAside: string | null; analysis: AnalysisResult })[] = []
+  private analysisEntries: (Inputs & { setAside: string; analysis: AnalysisResult })[] = []
 
   /**
    * The analysis of the selected digests, reused while they, both masses and the heart rates set aside among
    * them are the same. The last few are kept, so going back to a period already shown costs nothing.
    *
-   * `setAside` is the library's judgement (`heartRateSetAsideOf`), which the analysis takes as it is rather
+   * `setAside` is the library's judgement (`judgeHeartRate`), which the analysis takes as it is rather
    * than judging the period alone. Only the ids in this period's digests can change its analysis, so those
    * are the key: an activity added outside the period does not redo it.
    */
   analysis(
     selected: ActivityDigest[],
     settings: AthleteSettings,
-    setAside?: readonly string[],
+    setAside: readonly string[],
   ): AnalysisResult {
-    const key = setAside === undefined ? null : setAsideAmong(selected, setAside)
+    const key = setAsideAmong(selected, setAside)
     const hit = this.analysisEntries.findIndex(
       (entry) => entry.setAside === key && sameInputs(entry, selected, settings),
     )
@@ -109,11 +109,7 @@ export class PeriodCache {
       this.analysisEntries.unshift(entry!)
       return entry!.analysis
     }
-    const analysis = combine(
-      selected,
-      settings,
-      setAside === undefined ? {} : { heartRateSetAside: new Set(setAside) },
-    )
+    const analysis = combine(selected, settings, { heartRateSetAside: new Set(setAside) })
     this.analysisEntries.unshift({ selected, settings, setAside: key, analysis })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
     return analysis

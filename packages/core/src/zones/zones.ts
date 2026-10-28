@@ -142,8 +142,12 @@ export function zonesAt(
       const entered = entryAt(settings.measurements ?? [], ZONE_OVERRIDE[measure], sport, at)
       const estimate = estimates === null ? null : ESTIMATE[sport][measure]?.(estimates, massKg)
       const source: ZoneSource = entered === null ? 'estimated' : 'entered'
-      const reference = entered?.value ?? estimate?.reference ?? null
-      if (reference === null || !Number.isFinite(reference) || reference <= 0) continue
+      const raw = entered?.value ?? estimate?.reference ?? null
+      if (raw === null || !Number.isFinite(raw)) continue
+      // A heart rate and a power are whole numbers, and Profile shows the reference as one, so the zones are cut
+      // from the number shown: what the athlete sees, 188 bpm, is what the edges are worked out from.
+      const reference = WHOLE_NUMBER_MEASURES[measure] ? Math.round(raw) : raw
+      if (reference <= 0) continue
       sets.push({
         sport,
         measure,

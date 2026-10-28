@@ -6,6 +6,7 @@ import { AnalysisSession } from '../session'
 import { sampleDataset } from '../synthetic'
 import type { AthleteSettings } from '../types'
 import { noTimeInZones, periodTimeInZones } from './periodTime'
+import { sameEnteredReferences } from './zoneShares'
 import { ZoneTimeCache } from './timeCache'
 import { noon, zoneDigest } from './test/zoneDigests'
 
@@ -96,6 +97,58 @@ describe('periodTimeInZones', () => {
     ]
     const row = heartRate(periodTimeInZones(digests, withEntries(measurements), null), 'run')
     expect(row.enteredReferences).toEqual([180, 200])
+  })
+
+  describe('a dated setting that starts part-way through a period', () => {
+    const digests = [
+      zoneDigest({ id: 'a', sport: 'run', startMs: noon(2026, 1, 10), heartRate: [150, 600] }),
+      zoneDigest({ id: 'b', sport: 'run', startMs: noon(2026, 1, 20), heartRate: [150, 600] }),
+      zoneDigest({ id: 'c', sport: 'run', startMs: noon(2026, 2, 10), heartRate: [150, 600] }),
+      zoneDigest({ id: 'd', sport: 'run', startMs: noon(2026, 2, 20), heartRate: [150, 600] }),
+    ]
+    const [january, february] = [digests.slice(0, 2), digests.slice(2)]
+    const row = (list: typeof digests, entries: Measurement[]) =>
+      heartRate(periodTimeInZones(list, withEntries(entries), null), 'run')
+
+    it('applies the earliest entry before its date, so a lone entry puts both periods in the same zones', () => {
+      // Entered from 15 January: the 10 January run is before it, and the earliest entry applies.
+      const entries: Measurement[] = [
+        { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-15' },
+      ]
+      const [before, after] = [row(january, entries), row(february, entries)]
+      expect(before.enteredReferences).toEqual([200])
+      expect(after.enteredReferences).toEqual([200])
+      expect([before.counted, before.entered]).toEqual([2, 2])
+      expect(sameEnteredReferences(before, after)).toBe(true)
+    })
+
+    it('puts the periods in different zones when a second entry starts between them', () => {
+      const entries: Measurement[] = [
+        { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-15' },
+        { kind: 'maxHeartRate', sport: 'run', value: 180, from: '2026-02-01' },
+      ]
+      const [before, after] = [row(january, entries), row(february, entries)]
+      expect([before.enteredReferences, after.enteredReferences]).toEqual([[200], [180]])
+      expect(sameEnteredReferences(before, after)).toBe(false)
+    })
+
+    it('does not compare a period cut by an entry with one that had none', () => {
+      const entries: Measurement[] = [
+        { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-15' },
+      ]
+      const estimates = {
+        runCp: null,
+        rideCp: null,
+        runMaxHeartRate: 190,
+        rideMaxHeartRate: null,
+        runObservedMaxHeartRate: 190,
+        rideObservedMaxHeartRate: null,
+      }
+      const entered = row(january, entries)
+      const estimated = heartRate(periodTimeInZones(february, settings, estimates), 'run')
+      expect(estimated.entered).toBe(0)
+      expect(sameEnteredReferences(entered, estimated)).toBe(false)
+    })
   })
 
   it('leaves an estimated reference out, even one that moves with a dated weight', () => {
@@ -210,7 +263,6 @@ describe('ZoneTimeCache', () => {
     const times = new ZoneTimeCache().get(current, before, withEntries(entries), analysis, ['junk'])
     const row = times.previous!.run.find((each) => each.measure === 'heartRate')!
     expect([row.counted, row.setAside, row.totalSeconds]).toEqual([1, 1, 600])
-    expect(times.heartRateSetAside).toEqual(['junk'])
   })
 
   it('has no previous period for all time', () => {
@@ -247,10 +299,10 @@ describe('AnalysisSession time in zones', () => {
     const session = new AnalysisSession()
     session.loadSample(settings)
     const all = session.setRange('all', settings)
-    expect(all.timeInZones.heartRateSetAside).toEqual(all.result?.heartRateSetAside)
+    expect(all.heartRateJudgement.setAside).toEqual(all.result?.heartRateSetAside)
     const narrow = session.setRange(30, settings)
     expect(narrow.timeInZones.previous).not.toBeNull()
-    expect(narrow.timeInZones.heartRateSetAside).toEqual(all.result?.heartRateSetAside)
+    expect(narrow.heartRateJudgement.setAside).toEqual(all.result?.heartRateSetAside)
   })
 
   it('is empty with nothing loaded', () => {

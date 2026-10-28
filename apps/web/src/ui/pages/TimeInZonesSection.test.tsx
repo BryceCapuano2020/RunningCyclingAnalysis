@@ -45,7 +45,7 @@ describe('TimeInZonesSection', () => {
 
   it('leaves out a measure with too little time, and says what moved against the period before', () => {
     const thin = measureTime('run', 'pace', [60, 0, 0, 0, 0], { counted: 1 })
-    const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0])
+    const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], { entered: 8 })
     render(
       <TimeInZonesSection
         sport="run"
@@ -79,7 +79,7 @@ describe('TimeInZonesSection', () => {
   it('adds the previous period to the table, and says when the zones changed instead of comparing', () => {
     const rows = [{ ...hr, enteredReferences: [190] }]
     const same = {
-      ...measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0]),
+      ...measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], { entered: 8 }),
       enteredReferences: [190],
     }
     const { unmount } = render(

@@ -40,7 +40,8 @@ function referencesOf(digests: ActivityDigest[]) {
  * by last. valueOf prices a curve point in the fit's unit.
  *
  * With `given`, the set-aside was judged elsewhere, over a larger set of activities, and is used as it is
- * for those of `ordered` it names: only the references are taken, from the rest.
+ * for those of `ordered` it names. The references reported are then these activities' own, taken from the
+ * ones not named, and are not the references the set-aside was judged by (`HeartRateJudgement` has those).
  */
 export function trustedHeartRate(
   ordered: ActivityDigest[],

@@ -3,6 +3,8 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Measurement } from '@rca/core/athlete'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
+import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { AthleteSettings } from '@rca/core/types'
 import { MAN_BORN_1986, makeActivity, makeResult } from '../components/fixtures'
 import type { RouteReply } from '../routeReply'
@@ -17,12 +19,19 @@ const settings = (measurements: Measurement[] = []): AthleteSettings => ({
   measurements,
 })
 
+/** A library judgement that sets these aside, against a reference of 190 bpm. */
+const judgement = (setAside: readonly string[]): HeartRateJudgement => ({
+  ...NO_HEART_RATE_JUDGEMENT,
+  setAside,
+  referenceHr: { run: 190, ride: 190 },
+})
+
 function show(
   activity: ActivitySummary,
   result: AnalysisResult,
   athlete: AthleteSettings | undefined,
   weightKnown = true,
-  heartRateSetAside?: readonly string[],
+  setAside: readonly string[] = [],
 ) {
   const trace = { ...steadyTrace(120), activityId: activity.id, sport: activity.sport }
   return render(
@@ -35,7 +44,7 @@ function show(
       massKg={70}
       settings={athlete}
       weightKnown={weightKnown}
-      heartRateSetAside={heartRateSetAside}
+      heartRateJudgement={judgement(setAside)}
       profile={MAN_BORN_1986}
       records={new Map()}
       loadSplits={vi.fn(async () => null)}
@@ -80,15 +89,23 @@ describe('the activity page zones', () => {
     expect(screen.queryByText(/heart rate zone/)).toBeNull()
   })
 
-  it('leaves out a heart rate the analysis set aside', async () => {
+  it('says why in the data note, citing the reference the library was judged against', async () => {
     const run = makeActivity({ id: 'run-c' })
+    show(run, makeResult({ runCp: null, runMaxHeartRate: 200 }), settings(), true, ['run-c'])
+    expect(
+      await screen.findByText(/across all your activities \(190 bpm running\)/),
+    ).toBeInTheDocument()
+  })
+
+  it('does not read the period’s own list: the library’s is the judgement', async () => {
+    const run = makeActivity({ id: 'run-f' })
+    // The period's analysis lists the run, but the library's judgement does not.
     show(
       run,
-      makeResult({ runCp: null, heartRateSetAside: ['run-c'], runMaxHeartRate: 200 }),
+      makeResult({ runCp: null, heartRateSetAside: ['run-f'], runMaxHeartRate: 200 }),
       settings(),
     )
-    await screen.findByText('Elapsed time')
-    expect(screen.queryByText(/heart rate zone/)).toBeNull()
+    expect(await screen.findByText(/in heart rate zone \d \(100%\)/)).toBeInTheDocument()
   })
 
   describe("a ride's estimated power zones", () => {
@@ -110,6 +127,7 @@ describe('the activity page zones', () => {
           massKg={70}
           settings={settings()}
           weightKnown={weightKnown}
+          heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
           profile={MAN_BORN_1986}
           records={new Map()}
           loadSplits={vi.fn(async () => null)}

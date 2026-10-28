@@ -193,7 +193,7 @@ export function activitySummaries(
 
 export interface CombineOptions {
   /**
-   * The activities whose heart rate is set aside, judged over the whole library (`heartRateSetAsideOf`). Given,
+   * The activities whose heart rate is set aside, judged over the whole library (`judgeHeartRate`). Given,
    * these digests are not judged again, so a period is read by the same judgement as every other period. Absent,
    * the digests are judged among themselves, which is the whole library's judgement when they are it.
    */

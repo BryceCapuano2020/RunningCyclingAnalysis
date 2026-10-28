@@ -9,18 +9,12 @@ export interface PeriodZoneTimes {
   current: TimeInZones
   /** Null for all time, or when the period before holds no activities. */
   previous: TimeInZones | null
-  /**
-   * The activities whose heart rate the library-wide analysis set aside, sorted. One list for every
-   * period, so an activity is read the same whichever period is on screen.
-   */
-  heartRateSetAside: readonly string[]
 }
 
 /** Nothing analysed yet. */
 export const NO_ZONE_TIMES: PeriodZoneTimes = {
   current: noTimeInZones(),
   previous: null,
-  heartRateSetAside: [],
 }
 
 /**
@@ -75,7 +69,6 @@ export class ZoneTimeCache {
       current: periodTimeInZones(selected, settings, analysis, setAside),
       previous:
         previous.length === 0 ? null : periodTimeInZones(previous, settings, analysis, setAside),
-      heartRateSetAside,
     }
     this.entry = { selected, previous, settings: key, analysis, heartRateSetAside, times }
     return times

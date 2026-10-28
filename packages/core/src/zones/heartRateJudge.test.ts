@@ -1,15 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import { combine } from '../digest/combine'
+import { NO_HEART_RATE_JUDGEMENT } from '../digest/setAsideTypes'
 import { HeartRateJudge } from './heartRateJudge'
 import { SET_ASIDE_SETTINGS as settings, setAsideLibrary } from './test/setAsideLibrary'
 
 describe('HeartRateJudge', () => {
   const { digests } = setAsideLibrary()
-  const expected = combine(digests, settings).heartRateSetAside
+  const library = combine(digests, settings)
 
   it("is the library's own judgement, with something actually set aside", () => {
-    expect(expected.length).toBeGreaterThan(0)
-    expect(new HeartRateJudge().of(digests, settings)).toEqual(expected)
+    const judgement = new HeartRateJudge().of(digests, settings)
+    expect(library.heartRateSetAside.length).toBeGreaterThan(0)
+    expect(judgement.setAside).toEqual(library.heartRateSetAside)
+  })
+
+  it('says what it was judged against: the references of the activities kept, and the thresholds', () => {
+    const judgement = new HeartRateJudge().of(digests, settings)
+    // The all-time analysis keeps the same activities and judges them by the same references.
+    expect(judgement.referenceHr).toEqual({
+      run: library.runMaxHeartRate,
+      ride: library.rideMaxHeartRate,
+    })
+    expect(judgement.threshold.run).toBeGreaterThan(0)
+    expect(judgement.threshold.ride).toBeGreaterThan(0)
   })
 
   it('keeps the answer while the digests and the masses are the same', () => {
@@ -36,6 +49,10 @@ describe('HeartRateJudge', () => {
 
   it('has nothing to judge in a library without heart rate', () => {
     const bare = digests.map((digest) => Object.assign({}, digest, { hasHeartRate: false }))
-    expect(new HeartRateJudge().of(bare, settings)).toEqual([])
+    expect(new HeartRateJudge().of(bare, settings)).toBe(NO_HEART_RATE_JUDGEMENT)
+  })
+
+  it('refuses a mass that is not a positive number, as the analysis does', () => {
+    expect(() => new HeartRateJudge().of(digests, { ...settings, massKg: 0 })).toThrow(RangeError)
   })
 })

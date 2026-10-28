@@ -34,6 +34,7 @@ import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { CalculatedSection } from './CalculatedSection'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import './MethodPage.css'
@@ -41,6 +42,8 @@ import './MethodPage.css'
 export interface MethodPageProps {
   /** The analysis, or null when no files are loaded: the method still reads, and each chart says so. */
   result: AnalysisResult | null
+  /** What the heart rate set aside was judged against, the library's, which the line on it cites. */
+  heartRateJudgement: HeartRateJudgement
   units: UnitSystem
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
@@ -154,6 +157,7 @@ function contributorsOf(curve: Curve): number {
 /** The model's own checks: the answer first, then the energy view, the grades and the evidence. */
 export function MethodPage({
   result,
+  heartRateJudgement,
   units,
   profile,
   period,
@@ -168,7 +172,7 @@ export function MethodPage({
   const pick = result ? pickHeadline(result.comparison) : null
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
-  const setAside = result ? setAsideText(result) : null
+  const setAside = result ? setAsideText(result, heartRateJudgement) : null
   const accuracy = result ? result.virtualAccuracy : null
   // The accuracy section shows with no result too, where it says what its check needs.
   const showAccuracy = accuracy !== null || !hasResult

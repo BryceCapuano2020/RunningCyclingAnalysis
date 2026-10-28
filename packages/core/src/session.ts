@@ -13,6 +13,7 @@ import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from '
 import { PeriodCache, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
+import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
@@ -342,7 +343,8 @@ export class AnalysisSession {
     const { period, selected, previous } = splitPeriods(visible, this.choice)
     const athlete = settings === null ? null : this.athleteFor(settings)
     // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
-    const setAside = athlete === null ? [] : this.judge.of(visible, athlete)
+    const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : this.judge.of(visible, athlete)
+    const setAside = judgement.setAside
     // A period with no activities still has a result, so the page can say what is missing from it.
     const analysis =
       athlete !== null && visible.length > 0
@@ -362,14 +364,14 @@ export class AnalysisSession {
       analysis === null
         ? NO_SAME_HEART_RATE
         : this.periods.sameHeartRate(selected, visible, fromMs, setAside)
-    const late =
-      analysis === null ? NO_LATE_EVIDENCE : this.periods.late(selected, analysis.heartRateSetAside)
+    const late = analysis === null ? NO_LATE_EVIDENCE : this.periods.late(selected, setAside)
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],
       effortTrends: efforts,
       sameHeartRate,
       lateEvidence: late,
+      heartRateJudgement: judgement,
       timeInZones:
         athlete === null || analysis === null
           ? NO_ZONE_TIMES

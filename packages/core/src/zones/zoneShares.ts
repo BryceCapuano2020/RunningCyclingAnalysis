@@ -81,16 +81,23 @@ export function biggestShift(before: MeasureTime, after: MeasureTime): ZoneShift
   return shift
 }
 
+/** Whether any counted activity used the app's estimate, not an entered setting. */
+function usedEstimate(time: MeasureTime): boolean {
+  return time.counted > time.entered
+}
+
 /**
- * Whether two periods of a measure were cut by the same entered settings. An estimated reference is the
- * same in both (the analysis on screen supplies it), and a dated body weight that moves an estimated ride
- * threshold is the app's own figure moving, so neither stops a comparison. What does is an entered setting
- * that changed between the periods, or one entered for one and not the other: the zones then moved, and a
+ * Whether two periods of a measure were cut by the same zones as far as the athlete's own entries go. An
+ * estimated reference is the same in both (the analysis on screen supplies it), and a dated body weight that
+ * moves an estimated ride threshold is the app's own figure moving, so neither stops a comparison. What does
+ * is an entered setting that changed between the periods, one entered for one period and not the other, or
+ * one period using an estimate for some of its activities and the other not: the zones then moved, and a
  * change in shares may be the zones and not the athlete.
  */
 export function sameEnteredReferences(a: MeasureTime, b: MeasureTime): boolean {
   return (
     a.enteredReferences.length === b.enteredReferences.length &&
-    a.enteredReferences.every((r, i) => r === b.enteredReferences[i])
+    a.enteredReferences.every((r, i) => r === b.enteredReferences[i]) &&
+    usedEstimate(a) === usedEstimate(b)
   )
 }

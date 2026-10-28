@@ -1063,17 +1063,21 @@ and 10% was hard (zones 4 and up)."). The shares are of the time with a reading,
 "with measured power" or "with a pace reading". Easy is zones 1 and 2 and hard is zone 4 and up for every measure
 (`EASY_THROUGH`, `HARD_FROM`). The period before is cut by the same estimated zones as the period on screen, so the two are
 compared in the same zones. An entered setting that changed between the periods means the zones differ (an estimate is the same in both, and a
-dated weight moving an estimated ride threshold does not stop the comparison), and then no change is claimed: the lede falls back to easy and hard, the previous column is left
+dated weight moving an estimated ride threshold does not stop the comparison), as does one period using an estimate for
+some activities and the other not; then no change is claimed: the lede falls back to easy and hard, the previous column is left
 out (it is also left out when the period before has no label), and a line says "Heart rate zones changed since the previous period, so the two are not compared." View as table
 adds a column with the previous period's share of each zone, headed by its label, where the periods can be compared.
 Under the bars, a muted line for each measure that left activities out ("2 of 12 runs had no heart rate to count.": no
 distribution in an older digest, no heart rate, no power meter; "had heart rate set aside": the analysis of the whole library
 judged the sensor; or "had no heart rate zones for their date": data but no reference), and one line on where the zones came from.
 Whose heart rate is set aside is a judgement of the data, not of a period: the session makes it once over every visible
-activity, with the bike model fitted over all of them (`heartRateSetAsideOf`, cached per library and masses by
-`HeartRateJudge`), and every reader takes that one list: each period's analysis (`combine`'s `heartRateSetAside` option, which lists
+activity, with the bike model fitted over all of them (`judgeHeartRate`, cached per library and masses by
+`HeartRateJudge`), exposes it as `SessionState.heartRateJudgement` (the sorted ids, and the reference heart rate and
+threshold of each sport it was judged against), and every reader takes that one list: each period's analysis (`combine`'s `heartRateSetAside` option, which lists
 only its own activities), the same-heart-rate and late-effort sections, the zones, the left-out notes and the activity page.
-Changing the period does not judge again. With too
+Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
+period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
+activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too
 little to describe, the section has no heading and "Time in zones: needs 3 activities with heart rate, or a threshold
 pace entered on Profile, and 1 hour of them." joins the "Not enough yet" list.
 
@@ -1087,7 +1091,7 @@ highlight colour. The figure is named by every bar read as text ("Heart rate: zo
 **Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
 body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so
-its zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
+the reference is rounded to the number Profile shows (`zonesAt`: 187.6 bpm is 188 bpm) and its zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
 the zone above starts at 132), and a bin of it is shared by its whole numbers: 110 to 114 W with an edge at 111 W has one watt
 below it, a fifth of its seconds, and a bin of one beat is never split. A reading is in the zone it is at or above the floor of
 and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A speed bin that straddles an edge is shared in proportion to the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a

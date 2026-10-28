@@ -4,6 +4,7 @@ import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import type { EarnedRecord } from '@rca/core/records'
 import type { Period } from '@rca/core/period'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { zonesAt } from '@rca/core/zones'
@@ -26,6 +27,7 @@ import { useRouteShape } from '../useRouteShape'
 import { useRunSplits } from '../useRunSplits'
 import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
+import { setAsideActivityText } from '../analysis/setAsideCopy'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
@@ -45,10 +47,10 @@ export interface ActivityPageProps {
   /** The settings the analysis runs on, dated ones included, which cut the activity's zones. Absent: no zones section. */
   settings?: AthleteSettings
   /**
-   * The activities whose heart rate the analysis of the whole library set aside, which holds an activity
-   * the period does not. Absent: the period's own list.
+   * Whose heart rate is set aside, judged once over the whole library, which holds an activity the period
+   * does not, and what it was judged against.
    */
-  heartRateSetAside?: readonly string[]
+  heartRateJudgement: HeartRateJudgement
   /** False while no body weight is entered: a ride's figures wait for it. */
   weightKnown: boolean
   /** The age and sex the grades are worked out with; null before the athlete gives them. */
@@ -136,7 +138,7 @@ export function ActivityPage({
   units,
   massKg,
   settings,
-  heartRateSetAside,
+  heartRateJudgement,
   weightKnown,
   profile,
   records,
@@ -153,7 +155,7 @@ export function ActivityPage({
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
   const removal = useDeleteOutcome(libraryNotice, libraryError)
-  const setAsideIds = heartRateSetAside ?? result.heartRateSetAside
+  const setAsideIds = heartRateJudgement.setAside
   const zoneSets = useMemo(
     () =>
       settings === undefined
@@ -264,7 +266,14 @@ export function ActivityPage({
         period={period}
         splitsLoad={splitsLoad}
       />
-      <ActivityIssues activity={activity} heartRateSetAside={setAsideIds.includes(activity.id)} />
+      <ActivityIssues
+        activity={activity}
+        setAsideNote={
+          setAsideIds.includes(activity.id)
+            ? setAsideActivityText(activity.sport, heartRateJudgement)
+            : null
+        }
+      />
 
       {routeId !== null && onDelete && (
         <div className="activity-page__remove">

@@ -99,12 +99,12 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
   are applied on the dates they were in effect. Zones are summed by level, which every date shares. A period is compared
   with the one before it in the same estimated zones, because the references of an analysis belong to the period on
   screen; entered settings are dated, so they apply on their own dates in both. When an entered setting changed between
-  the periods (`MeasureTime.enteredReferences` differ), the zones moved, so a change in shares could be the zones and not the
+  the periods (`MeasureTime.enteredReferences` differ, or one period used an estimate for some activities and the other did not), the zones moved, so a change in shares could be the zones and not the
   athlete: no change is claimed and the page says the zones changed. An estimated reference is the same in both, and a
   dated weight moving an estimated ride threshold is the app's own figure, so neither stops the comparison.
 - **Left out.** An activity is counted for a measure only with a distribution of it (digests from before distributions were
   kept have none), zones in effect on its date, and, for heart rate, a sensor the analysis did not set aside. The set-aside is
-  one judgement over every visible activity (`heartRateSetAsideOf`, the analysis' own rule without the rest of it), so the period
+  one judgement over every visible activity (`judgeHeartRate`, the analysis' own rule without the rest of it), so the period
   before is read by the same rule as the one on screen and an activity page agrees with the sport page. It is a judgement of the
   data, not of a period: it is made once, with the bike model fitted over all visible activities, and each period's analysis takes it,
   restricted to its own activities. A period judged alone can differ (a period with no calibrated rides prices rides with the

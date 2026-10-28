@@ -67,6 +67,19 @@ describe('zone shares', () => {
     )
   })
 
+  it('does not compare a period that used an estimate for some activities with one that did not', () => {
+    const entered = time([1, 1, 1, 1, 1], { enteredReferences: [190], counted: 8, entered: 8 })
+    const mixed = time([1, 1, 1, 1, 1], { enteredReferences: [190], counted: 8, entered: 5 })
+    const estimated = time([1, 1, 1, 1, 1], { enteredReferences: [], counted: 8, entered: 0 })
+    expect(sameEnteredReferences(entered, mixed)).toBe(false)
+    expect(sameEnteredReferences(mixed, entered)).toBe(false)
+    // Two periods that both used an estimate are in the same zones, whatever the estimate was.
+    expect(sameEnteredReferences(estimated, time([2, 2, 2, 2, 2], { enteredReferences: [] }))).toBe(
+      true,
+    )
+    expect(sameEnteredReferences(entered, entered)).toBe(true)
+  })
+
   it('needs activities and time before a measure is described', () => {
     const enough = time([MIN_ZONE_SECONDS, 0, 0, 0, 0], { counted: MIN_ZONE_ACTIVITIES })
     expect(hasEnoughZoneTime(enough)).toBe(true)
