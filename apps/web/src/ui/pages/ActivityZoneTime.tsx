@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { Sport } from '@rca/core/types'
 import type { ActivityTrace } from '@rca/core/workbench'
 import type { ZoneMeasure, ZoneSet } from '@rca/core/zones'
 import { traceTimeInZones } from '@rca/core/zones'
@@ -46,12 +47,31 @@ function SetAsideNote() {
   )
 }
 
-function ZoneNeed() {
+/** What a sport's zones other than heart rate are cut from, for the line that says they are missing. */
+const OTHER_ZONES: Record<Sport, { zones: string; threshold: string }> = {
+  run: { zones: 'Pace zones', threshold: 'threshold pace' },
+  ride: { zones: 'Power zones', threshold: 'threshold power' },
+}
+
+/**
+ * What the zones need. With heart rate set aside, the zones that are left are the sport's own, from a
+ * threshold, so it names that; otherwise a max heart rate does as well.
+ */
+function ZoneNeed({ sport, heartRateSetAside }: { sport: Sport; heartRateSetAside: boolean }) {
+  const profile = <a href={hrefFor({ page: 'profile' })}>Profile</a>
+  if (heartRateSetAside) {
+    const { zones, threshold } = OTHER_ZONES[sport]
+    return (
+      <p className="muted">
+        {zones} are missing. Enter a {threshold} on {profile}, or add more activities for the app to
+        estimate it.
+      </p>
+    )
+  }
   return (
     <p className="muted">
-      Time in zones needs zones. Enter a max heart rate or a threshold on{' '}
-      <a href={hrefFor({ page: 'profile' })}>Profile</a>, or add more activities for the app to
-      estimate them.
+      Time in zones needs zones. Enter a max heart rate or a threshold on {profile}, or add more
+      activities for the app to estimate them.
     </p>
   )
 }
@@ -81,7 +101,14 @@ export function ActivityZoneTime({
   const rows = useMemo(() => rowsOf(trace, sets, startS, endS), [trace, sets, startS, endS])
   const [lead] = rows
   if (lead === undefined) {
-    if (sets.length === 0) return heartRateSetAside ? <SetAsideNote /> : <ZoneNeed />
+    if (sets.length === 0) {
+      return (
+        <>
+          {heartRateSetAside && <SetAsideNote />}
+          <ZoneNeed sport={trace.sport} heartRateSetAside={heartRateSetAside} />
+        </>
+      )
+    }
     return (
       <>
         <p className="muted">

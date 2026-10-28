@@ -38,12 +38,21 @@ function referencesOf(digests: ActivityDigest[]) {
  * by, so the worst is set aside first and the references are retaken from the rest before the next
  * is judged. The set only grows, so it settles, and the references reported are those it was judged
  * by last. valueOf prices a curve point in the fit's unit.
+ *
+ * With `given`, the set-aside was judged elsewhere, over a larger set of activities, and is used as it is
+ * for those of `ordered` it names: only the references are taken, from the rest.
  */
 export function trustedHeartRate(
   ordered: ActivityDigest[],
   fits: Record<Sport, CriticalPowerFit | null>,
   valueOf: (digest: ActivityDigest, point: DigestCurvePoint) => number,
+  given?: ReadonlySet<string>,
 ): TrustedHeartRate {
+  if (given !== undefined) {
+    const trusted = ordered.filter((digest) => !given.has(digest.id))
+    const setAside = new Set(ordered.filter((d) => given.has(d.id)).map((d) => d.id))
+    return { setAside, trusted, maxHr: maxHeartRateOf(trusted), ...referencesOf(trusted) }
+  }
   const threshold = { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null }
   const setAside = new Set<string>()
   let trusted = ordered

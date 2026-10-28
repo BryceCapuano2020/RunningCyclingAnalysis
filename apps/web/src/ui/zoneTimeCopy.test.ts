@@ -57,10 +57,10 @@ describe('periodLede', () => {
 
   it('does not call a change when the zones themselves changed between the periods', () => {
     const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], {
-      references: [200],
+      enteredReferences: [200],
     })
     const after = measureTime('run', 'heartRate', [3600, 10_800, 7200, 14_400, 0], {
-      references: [180],
+      enteredReferences: [180],
     })
     expect(periodLede('run', [after], [before], 'Previous 6 weeks')).toMatch(/was easy/)
   })
@@ -79,6 +79,13 @@ describe('periodLede', () => {
     const hr = measureTime('ride', 'heartRate', [3600, 3600, 3600, 3600, 3600])
     expect(periodLede('ride', [hr, power], null, null)).toMatch(
       /^\d+% of your riding time with measured power was easy \(zones 1 and 2\)/,
+    )
+  })
+
+  it('says a pace is of the time with a pace reading', () => {
+    const pace = measureTime('run', 'pace', [7200, 14_400, 10_800, 3600, 0])
+    expect(periodLede('run', [pace], null, null)).toMatch(
+      /^60% of your running time with a pace reading was easy/,
     )
   })
 
@@ -153,11 +160,11 @@ describe('leftOutNotes', () => {
 })
 
 describe('zonesChangedNotes', () => {
-  const now = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { references: [180] })
+  const now = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { enteredReferences: [180] })
 
   it('names a measure whose zones changed since the period before', () => {
     const before = measureTime('run', 'heartRate', [3600, 3600, 3600, 3600, 3600], {
-      references: [200],
+      enteredReferences: [200],
     })
     expect(zonesChangedNotes([now], [before])).toEqual([
       'Heart rate zones changed since the previous period, so the two are not compared.',
@@ -166,11 +173,11 @@ describe('zonesChangedNotes', () => {
 
   it('says nothing when the zones match, or the period before has too little to compare', () => {
     const same = measureTime('run', 'heartRate', [3600, 3600, 3600, 3600, 3600], {
-      references: [180],
+      enteredReferences: [180],
     })
     const thin = measureTime('run', 'heartRate', [60, 0, 0, 0, 0], {
       counted: 1,
-      references: [200],
+      enteredReferences: [200],
     })
     expect(zonesChangedNotes([now], [same])).toEqual([])
     expect(zonesChangedNotes([now], [thin])).toEqual([])

@@ -66,7 +66,20 @@ describe('heart rate that cannot be right', () => {
 
   it('is the same judgement heartRateSetAsideOf makes without the rest of the analysis', () => {
     const library = [...digests, brokenSensorRide()]
-    expect(heartRateSetAsideOf(library, settings, after.bikeModel)).toEqual(after.heartRateSetAside)
-    expect(heartRateSetAsideOf(digests, settings, before.bikeModel)).toEqual([])
+    expect(heartRateSetAsideOf(library, settings)).toEqual(after.heartRateSetAside)
+    expect(heartRateSetAsideOf(digests, settings)).toEqual([])
+  })
+
+  it('takes a set-aside judged elsewhere as it is, for the activities it names', () => {
+    const library = [...digests, brokenSensorRide()]
+    const taken = combine(library, settings, { heartRateSetAside: new Set(['broken-sensor']) })
+    expect(taken.heartRateSetAside).toEqual(['broken-sensor'])
+    expect(taken.rideMaxHeartRate).toBe(before.rideMaxHeartRate)
+    // A set naming no activity here sets none aside, whatever these digests would have said alone.
+    const none = combine(library, settings, { heartRateSetAside: new Set(['elsewhere']) })
+    expect(none.heartRateSetAside).toEqual([])
+    // A period's analysis names only its own activities.
+    const period = combine(digests, settings, { heartRateSetAside: new Set(['broken-sensor']) })
+    expect(period.heartRateSetAside).toEqual([])
   })
 })

@@ -7,7 +7,7 @@ import {
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
-  sameZoneReferences,
+  sameEnteredReferences,
 } from '@rca/core/zones'
 import type { MeasureTime, ZoneMeasure } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
@@ -46,7 +46,7 @@ const TIME_NOUN: Record<Sport, string> = { run: 'running', ride: 'riding' }
 const WITH_READING: Record<ZoneMeasure, string> = {
   heartRate: 'with heart rate',
   power: 'with measured power',
-  pace: 'with pace',
+  pace: 'with a pace reading',
 }
 
 /** What an activity has to record for a measure to count it. */
@@ -99,7 +99,7 @@ export function periodLede(
   const shift =
     before !== undefined &&
     hasEnoughZoneTime(before) &&
-    sameZoneReferences(before, lead) &&
+    sameEnteredReferences(before, lead) &&
     previousLabel !== null
       ? biggestShift(before, lead)
       : null
@@ -159,7 +159,7 @@ export function zonesChangedNotes(
 ): string[] {
   return rows.flatMap((row) => {
     const before = previous?.find((each) => each.measure === row.measure)
-    return before !== undefined && hasEnoughZoneTime(before) && !sameZoneReferences(before, row)
+    return before !== undefined && hasEnoughZoneTime(before) && !sameEnteredReferences(before, row)
       ? [
           `${ROW_LABEL[row.measure]} zones changed since the previous period, so the two are not compared.`,
         ]

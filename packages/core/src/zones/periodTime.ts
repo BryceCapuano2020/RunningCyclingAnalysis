@@ -27,10 +27,11 @@ export interface MeasureTime {
   /** Of the counted activities, how many used zones the athlete entered; the rest used the app's estimate. */
   entered: number
   /**
-   * The distinct references (watts, bpm or m/s) the counted activities' zones were cut from, lowest first and
-   * rounded to a thousandth. Two periods are in the same zones only when these match.
+   * The distinct references (watts, bpm or m/s) the athlete entered that the counted activities' zones were cut
+   * from, lowest first. An estimate is the same in every period on screen, so only an entered setting that
+   * changed between two periods puts them in different zones.
    */
-  references: number[]
+  enteredReferences: number[]
 }
 
 /** Each sport's measures, in the order ZONE_MEASURES gives. A measure with nothing counted is still there. */
@@ -49,7 +50,7 @@ function emptyMeasure(sport: Sport, measure: ZoneMeasure): MeasureTime {
     setAside: 0,
     noZones: 0,
     entered: 0,
-    references: [],
+    enteredReferences: [],
   }
 }
 
@@ -95,11 +96,11 @@ export function periodTimeInZones(
   const out = noTimeInZones()
   const setsOn = zonesByDay(settings, estimates)
   const bySportMeasure = new Map<string, MeasureTime>()
-  const references = new Map<MeasureTime, Set<number>>()
+  const entered = new Map<MeasureTime, Set<number>>()
   for (const sport of Object.keys(out) as Sport[]) {
     for (const row of out[sport]) {
       bySportMeasure.set(`${sport}.${row.measure}`, row)
-      references.set(row, new Set())
+      entered.set(row, new Set())
     }
   }
   for (const digest of digests) {
@@ -117,8 +118,10 @@ export function periodTimeInZones(
       else if (time.kind === 'noZones') row.noZones++
       else {
         row.counted++
-        if (time.source === 'entered') row.entered++
-        references.get(row)!.add(Math.round(time.reference * 1000) / 1000)
+        if (time.source === 'entered') {
+          row.entered++
+          entered.get(row)!.add(Math.round(time.reference * 1000) / 1000)
+        }
         time.seconds.forEach((s, level) => {
           row.seconds[level]! += s
           row.totalSeconds += s
@@ -126,6 +129,6 @@ export function periodTimeInZones(
       }
     }
   }
-  for (const [row, set] of references) row.references = [...set].sort((a, b) => a - b)
+  for (const [row, set] of entered) row.enteredReferences = [...set].sort((a, b) => a - b)
   return out
 }

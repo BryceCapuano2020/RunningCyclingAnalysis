@@ -18,27 +18,20 @@ export const DISTRIBUTION_OF: Record<ZoneMeasure, DistributionMeasure> = {
   pace: 'speed',
 }
 
-/** Absorbs the rounding of a zone edge that lands on a bin edge, such as 0.3 m/s, or on a whole number. */
+/** Absorbs the rounding of a zone edge that lands on a bin edge, such as 0.3 m/s. */
 export const EDGE_EPSILON = 1e-9
 
 /**
- * The measures whose readings are whole numbers: a heart rate in beats and a power in watts. A bin of
- * one of them holds the whole numbers from its lower edge up to, not including, the next bin's (one
- * beat, or five watts), and nothing between them.
- */
-const WHOLE_READINGS: Record<ZoneMeasure, boolean> = { power: true, heartRate: true, pace: false }
-
-/**
- * The seconds of a distribution in each zone, lowest effort first, so one number a zone. Every second
- * is kept: the zones add up to the distribution's total.
+ * The seconds of a distribution in each zone, lowest effort first, so one number a zone. Every second is
+ * kept: the zones add up to the distribution's total.
  *
- * A reading is in the zone it is at or above the floor of and below the ceiling of, which is how the
- * activity page places a recorded second (`traceTimeInZones`) and how Profile writes a range ("138 to
- * 187 W"). So a heart rate or a power, which are whole numbers, is placed by its whole numbers: a bin
- * of 110 to 114 W cut at 110.55 W puts 110 W in the zone below and 111 to 114 W in the zone above, with
- * the bin's seconds shared evenly over its five watts. A bin of one beat is never split. Speed is not
- * a whole number, so a bin of it that straddles an edge is split in proportion to the width each side,
- * as if its seconds were spread evenly across it, which is under 0.05 m/s of error at each edge.
+ * A reading is in the zone it is at or above the floor of and below the ceiling of, as `traceTimeInZones`
+ * places a recorded second. Heart rate and power zones are cut on whole-number edges (`zonesFor`) and their
+ * bins hold whole numbers (one beat, or five watts), so a bin never straddles an edge by a fraction: a bin of
+ * 110 to 114 W cut at 111 W has one of its five watts below the edge, and a fifth of its seconds go to the
+ * zone below, shared evenly over its watts. Speed is not a whole number, so a bin of it that straddles an
+ * edge is split in proportion to the width each side, as if its seconds were spread evenly across it, which
+ * is under 0.05 m/s of error at each edge.
  */
 export function secondsByZone(
   zones: readonly Zone[],
@@ -46,12 +39,6 @@ export function secondsByZone(
   distribution: DigestDistribution,
 ): number[] {
   const width = DISTRIBUTION_BINS[DISTRIBUTION_OF[measure]].width
-  const whole = WHOLE_READINGS[measure]
-  // Where a zone ends on the axis the bins are laid on: a whole number's zone ends at the first whole
-  // number at or above the ceiling.
-  const edgeOf = (zone: Zone): number =>
-    zone.high === null ? Infinity : whole ? Math.ceil(zone.high - EDGE_EPSILON) : zone.high
-  const edges = zones.map(edgeOf)
   const out = new Array<number>(zones.length).fill(0)
   let k = 0
   distribution.counts.forEach((seconds, i) => {
@@ -59,17 +46,17 @@ export function secondsByZone(
     const lower = (distribution.offset + i) * width
     const upper = lower + width
     // Bins rise, so the first zone that can hold this bin never falls behind the last one's.
-    while (k < zones.length - 1 && edges[k]! <= lower + EDGE_EPSILON) k++
+    while (k < zones.length - 1 && zones[k]!.high! <= lower + EDGE_EPSILON) k++
     let from = lower
     for (let j = k; j < zones.length; j++) {
-      const edge = edges[j]!
-      if (upper <= edge + EDGE_EPSILON) {
+      const high = zones[j]!.high
+      if (high === null || upper <= high + EDGE_EPSILON) {
         // A whole bin is added as it is, so rounding in the widths never takes a second from it.
         out[j]! += from === lower ? seconds : seconds * ((upper - from) / width)
         break
       }
-      out[j]! += seconds * ((edge - from) / width)
-      from = edge
+      out[j]! += seconds * ((high - from) / width)
+      from = high
     }
   })
   return out

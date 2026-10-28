@@ -77,10 +77,10 @@ describe('TimeInZonesSection', () => {
   })
 
   it('adds the previous period to the table, and says when the zones changed instead of comparing', () => {
-    const rows = [{ ...hr, references: [190] }]
+    const rows = [{ ...hr, enteredReferences: [190] }]
     const same = {
       ...measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0]),
-      references: [190],
+      enteredReferences: [190],
     }
     const { unmount } = render(
       <TimeInZonesSection
@@ -94,7 +94,7 @@ describe('TimeInZonesSection', () => {
       screen.getByRole('columnheader', { name: 'Previous 6 weeks', hidden: true }),
     ).toBeInTheDocument()
     unmount()
-    const moved = { ...same, references: [200] }
+    const moved = { ...same, enteredReferences: [200] }
     render(
       <TimeInZonesSection
         sport="run"

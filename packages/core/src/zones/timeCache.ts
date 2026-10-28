@@ -41,11 +41,12 @@ interface Entry {
 }
 
 /**
- * The last time in zones, reused while its inputs hold: the activities of the period and the one
- * before, the settings the zones read, and the analysis that supplies estimated references (which is
- * itself kept while the digests and masses are the same, so the object is the key). The heart rates set aside are given by the caller, judged over every activity (HeartRateJudge) so the
- * previous period is read by the same rule as the one on screen. A list that is the same object is the same list. A session asks on
- * every state, so a change that moves none of these costs nothing.
+ * The last time in zones, reused while its inputs hold: the activities of the period and the one before,
+ * the settings the zones read, the analysis that supplies estimated references (itself kept while the
+ * digests and masses are the same, so the object is the key) and the list of heart rates set aside, which
+ * the caller judges over the whole library (HeartRateJudge) so every period is read by the same rule. A list
+ * that is the same object is the same list. A session asks on every state, so a change that moves none of
+ * these costs nothing.
  */
 export class ZoneTimeCache {
   private entry: Entry | null = null

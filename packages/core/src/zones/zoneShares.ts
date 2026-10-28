@@ -82,14 +82,15 @@ export function biggestShift(before: MeasureTime, after: MeasureTime): ZoneShift
 }
 
 /**
- * Whether two periods of a measure were cut by the same zones: the same references. An estimate is the
- * same in both periods, so they differ only when an entered setting changed between them (or a body
- * weight moved an estimated ride threshold), and then a change in shares may be the zones moving and
- * not the athlete.
+ * Whether two periods of a measure were cut by the same entered settings. An estimated reference is the
+ * same in both (the analysis on screen supplies it), and a dated body weight that moves an estimated ride
+ * threshold is the app's own figure moving, so neither stops a comparison. What does is an entered setting
+ * that changed between the periods, or one entered for one and not the other: the zones then moved, and a
+ * change in shares may be the zones and not the athlete.
  */
-export function sameZoneReferences(a: MeasureTime, b: MeasureTime): boolean {
+export function sameEnteredReferences(a: MeasureTime, b: MeasureTime): boolean {
   return (
-    a.references.length === b.references.length &&
-    a.references.every((r, i) => r === b.references[i])
+    a.enteredReferences.length === b.enteredReferences.length &&
+    a.enteredReferences.every((r, i) => r === b.enteredReferences[i])
   )
 }

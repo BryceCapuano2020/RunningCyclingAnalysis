@@ -5,7 +5,7 @@ import {
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
-  sameZoneReferences,
+  sameEnteredReferences,
   MIN_ZONE_ACTIVITIES,
   MIN_ZONE_SECONDS,
   zoneShares,
@@ -23,7 +23,7 @@ function time(seconds: number[], extra: Partial<MeasureTime> = {}): MeasureTime 
     noZones: 0,
     entered: 0,
     setAside: 0,
-    references: [],
+    enteredReferences: [],
     ...extra,
   }
 }
@@ -57,10 +57,14 @@ describe('zone shares', () => {
   })
 
   it('tells periods cut by the same zones from those whose zones changed', () => {
-    const a = time([1, 1, 1, 1, 1], { references: [190] })
-    expect(sameZoneReferences(a, time([2, 2, 2, 2, 2], { references: [190] }))).toBe(true)
-    expect(sameZoneReferences(a, time([1, 1, 1, 1, 1], { references: [185] }))).toBe(false)
-    expect(sameZoneReferences(a, time([1, 1, 1, 1, 1], { references: [185, 190] }))).toBe(false)
+    const a = time([1, 1, 1, 1, 1], { enteredReferences: [190] })
+    expect(sameEnteredReferences(a, time([2, 2, 2, 2, 2], { enteredReferences: [190] }))).toBe(true)
+    expect(sameEnteredReferences(a, time([1, 1, 1, 1, 1], { enteredReferences: [185] }))).toBe(
+      false,
+    )
+    expect(sameEnteredReferences(a, time([1, 1, 1, 1, 1], { enteredReferences: [185, 190] }))).toBe(
+      false,
+    )
   })
 
   it('needs activities and time before a measure is described', () => {

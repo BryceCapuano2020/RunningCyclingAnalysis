@@ -341,9 +341,13 @@ export class AnalysisSession {
     const visible = all.filter((d) => !hidden.has(d))
     const { period, selected, previous } = splitPeriods(visible, this.choice)
     const athlete = settings === null ? null : this.athleteFor(settings)
+    // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
+    const setAside = athlete === null ? [] : this.judge.of(visible, athlete)
     // A period with no activities still has a result, so the page can say what is missing from it.
     const analysis =
-      athlete !== null && visible.length > 0 ? this.periods.analysis(selected, athlete) : null
+      athlete !== null && visible.length > 0
+        ? this.periods.analysis(selected, athlete, setAside)
+        : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     // All time is not clipped at a start, so its trend begins at the first activity.
@@ -357,7 +361,7 @@ export class AnalysisSession {
     const sameHeartRate =
       analysis === null
         ? NO_SAME_HEART_RATE
-        : this.periods.sameHeartRate(selected, visible, fromMs, analysis.heartRateSetAside)
+        : this.periods.sameHeartRate(selected, visible, fromMs, setAside)
     const late =
       analysis === null ? NO_LATE_EVIDENCE : this.periods.late(selected, analysis.heartRateSetAside)
     return {
@@ -369,13 +373,7 @@ export class AnalysisSession {
       timeInZones:
         athlete === null || analysis === null
           ? NO_ZONE_TIMES
-          : this.zoneTimes.get(
-              selected,
-              previous,
-              athlete,
-              analysis,
-              this.judge.of(visible, athlete, selected, analysis),
-            ),
+          : this.zoneTimes.get(selected, previous, athlete, analysis, setAside),
       previous:
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)

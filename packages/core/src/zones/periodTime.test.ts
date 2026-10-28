@@ -84,7 +84,7 @@ describe('periodTimeInZones', () => {
     expect([row.counted, row.setAside, row.noData]).toEqual([1, 1, 1])
   })
 
-  it('records the references the zones were cut from, so two periods can be told apart', () => {
+  it('records the references the athlete entered, so two periods can be told apart', () => {
     const measurements: Measurement[] = [
       { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-01' },
       { kind: 'maxHeartRate', sport: 'run', value: 180, from: '2026-02-01' },
@@ -95,7 +95,20 @@ describe('periodTimeInZones', () => {
       zoneDigest({ id: 'c', sport: 'run', startMs: noon(2026, 2, 10), heartRate: [150, 600] }),
     ]
     const row = heartRate(periodTimeInZones(digests, withEntries(measurements), null), 'run')
-    expect(row.references).toEqual([180, 200])
+    expect(row.enteredReferences).toEqual([180, 200])
+  })
+
+  it('leaves an estimated reference out, even one that moves with a dated weight', () => {
+    const digests = sampleDataset().activities.map((activity) => digestActivity(activity))
+    const result = combine(digests, settings)
+    const heavier = withEntries([
+      { kind: 'massKg', value: 90, from: '2020-01-01' },
+      { kind: 'massKg', value: 70, from: '2025-06-01' },
+    ])
+    const time = periodTimeInZones(digests, heavier, result)
+    const power = time.ride.find((row) => row.measure === 'power')!
+    expect(power.counted).toBeGreaterThan(0)
+    expect(power.enteredReferences).toEqual([])
   })
 
   it('keeps a sport and a measure apart', () => {

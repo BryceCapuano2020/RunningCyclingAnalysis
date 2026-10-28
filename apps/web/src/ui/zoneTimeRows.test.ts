@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { measureTime } from './test/zoneTimeFixtures'
 import { barSummary, periodTables } from './zoneTimeRows'
 
-const now = measureTime('run', 'heartRate', [3600, 21_600, 7200, 3600, 0], { references: [190] })
+const now = measureTime('run', 'heartRate', [3600, 21_600, 7200, 3600, 0], {
+  enteredReferences: [190],
+})
 const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], {
-  references: [190],
+  enteredReferences: [190],
 })
 
 describe('barSummary', () => {
@@ -26,7 +28,7 @@ describe('periodTables', () => {
 
   it('shows a dash where a measure cannot be compared, and keeps the column for the others', () => {
     const power = measureTime('ride', 'power', [3600, 3600, 3600, 3600, 3600, 3600, 3600], {
-      references: [250],
+      enteredReferences: [250],
     })
     const { table } = periodTables([now, power], [before], 'Previous 6 weeks')
     expect(
@@ -37,11 +39,21 @@ describe('periodTables', () => {
 
   it('leaves the column out when the zones changed, so a shift in shares is not read as the athlete', () => {
     const moved = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], {
-      references: [200],
+      enteredReferences: [200],
     })
     expect(periodTables([now], [moved], 'Previous 6 weeks').table.columns).not.toContain(
       'Previous 6 weeks',
     )
+  })
+
+  it('leaves the column out when there is no label for the period before, as the lede does', () => {
+    expect(periodTables([now], [before], null).table.columns).toEqual([
+      'Measure',
+      'Zone',
+      'Name',
+      'Time',
+      'Share',
+    ])
   })
 
   it('counts a heart rate set aside among what a measure left out', () => {

@@ -1,46 +1,34 @@
 import { sameMasses } from '../athlete/mass'
-import type { AnalysisResult } from '../digest/combine'
 import { heartRateSetAsideOf } from '../digest/setAside'
 import { sameDigests } from '../periodCache'
-import type { ActivityDigest, AthleteSettings, BikeModel } from '../types'
+import type { ActivityDigest, AthleteSettings } from '../types'
 
 /** The list for a library with no heart rate to judge, one object so a cache keyed on it holds. */
 const NONE: readonly string[] = []
 
 /**
- * Whose heart rate is set aside, judged over every visible activity so that the period on screen and the
- * one before it are read by the same rule, whichever period is picked. For all time it is the period's own
- * analysis. Otherwise it is the judgement of `combine` without the rest of the analysis
- * (`heartRateSetAsideOf`), priced with the period's bike model, so it adds no analysis to the session.
- * The last one is kept while the digests, the masses and the bike model are the same.
+ * Whose heart rate is set aside: one judgement per library (`heartRateSetAsideOf` over every visible
+ * activity), whatever period is picked. Every reader takes this list, the period analyses, the heart-rate
+ * charts, the zones and the activity page, so an activity is judged once and the same everywhere.
+ *
+ * The last judgement is kept while the digests and the masses are the same, so changing the period costs
+ * nothing. A list that is the same object is the same list.
  */
 export class HeartRateJudge {
   private entry: {
     digests: ActivityDigest[]
     settings: AthleteSettings
-    bikeModel: BikeModel
     setAside: string[]
   } | null = null
 
-  of(
-    visible: ActivityDigest[],
-    settings: AthleteSettings,
-    selected: ActivityDigest[],
-    period: AnalysisResult,
-  ): readonly string[] {
-    if (sameDigests(selected, visible)) return period.heartRateSetAside
-    if (!visible.some((digest) => digest.distributions?.heartRate !== undefined)) return NONE
+  of(visible: ActivityDigest[], settings: AthleteSettings): readonly string[] {
+    if (!visible.some((digest) => digest.hasHeartRate)) return NONE
     const hit = this.entry
-    if (
-      hit !== null &&
-      hit.bikeModel === period.bikeModel &&
-      sameMasses(hit.settings, settings) &&
-      sameDigests(hit.digests, visible)
-    ) {
+    if (hit !== null && sameMasses(hit.settings, settings) && sameDigests(hit.digests, visible)) {
       return hit.setAside
     }
-    const setAside = heartRateSetAsideOf(visible, settings, period.bikeModel)
-    this.entry = { digests: visible, settings, bikeModel: period.bikeModel, setAside }
+    const setAside = heartRateSetAsideOf(visible, settings)
+    this.entry = { digests: visible, settings, setAside }
     return setAside
   }
 

@@ -50,6 +50,28 @@ describe('zonesFor', () => {
     expect(zones[4]?.high).toBeNull()
   })
 
+  it('starts a zone of whole numbers at the first whole number at or above the cut', () => {
+    // 0.6, 0.7, 0.8 and 0.9 of 219 bpm are 131.4, 153.3, 175.2 and 197.1.
+    expect(zonesFor('heartRate', 219).map((zone) => zone.low)).toEqual([0, 132, 154, 176, 198])
+    // A cut that is exactly a whole number stays there, whatever the rounding of the product.
+    expect(zonesFor('heartRate', 200).map((zone) => zone.low)).toEqual([0, 120, 140, 160, 180])
+    expect(zonesFor('power', 201).map((zone) => zone.low)).toEqual([
+      0, 111, 151, 181, 212, 242, 302,
+    ])
+    for (const measure of ['power', 'heartRate'] as const) {
+      for (const reference of [137.3, 188.6, 250.4]) {
+        for (const zone of zonesFor(measure, reference)) {
+          expect(Number.isInteger(zone.low)).toBe(true)
+          expect(zone.high === null || Number.isInteger(zone.high)).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('leaves the cuts of a pace as they are, since a speed is not a whole number', () => {
+    expect(zonesFor('pace', 4)[1]?.low).toBeCloseTo(4 / 1.29, 12)
+  })
+
   it('leaves no gap or overlap between zones, so every reading is in one zone', () => {
     for (const measure of ['power', 'heartRate', 'pace'] as const) {
       const zones = zonesFor(measure, 123)

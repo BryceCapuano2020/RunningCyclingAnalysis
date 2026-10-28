@@ -19,7 +19,7 @@ export {
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
-  sameZoneReferences,
+  sameEnteredReferences,
   zoneShares,
 } from './zoneShares'
 export type { EffortSplit, ZoneShift } from './zoneShares'

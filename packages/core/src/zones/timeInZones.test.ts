@@ -28,8 +28,9 @@ describe('secondsByZone', () => {
   })
 
   it('shares a power bin by its whole watts: those below the edge go to the zone below', () => {
-    // Threshold 201 W: the first edge is 0.55 * 201 = 110.55 W, inside the bin 110 to 114 W. Only 110 W is
-    // below it, so one of the bin's five watts, a fifth of its seconds, is in the lower zone.
+    // Threshold 201 W: the first cut is 0.55 * 201 = 110.55 W, so the zone above starts at 111 W, inside the
+    // bin 110 to 114 W. Only 110 W is below it, so one of the bin's five watts, a fifth of its seconds, is in
+    // the lower zone.
     const zones = zonesFor('power', 201)
     const seconds = secondsByZone(zones, 'power', { offset: 22, counts: [100] })
     expect(seconds[0]).toBeCloseTo(20, 9)
@@ -48,7 +49,8 @@ describe('secondsByZone', () => {
   })
 
   it('never splits a one-beat bin, whatever fraction the edge is', () => {
-    // Maximum 219 bpm: the first edge is 0.6 * 219 = 131.4 bpm. 131 bpm is below it and 132 bpm above.
+    // Maximum 219 bpm: the first cut is 0.6 * 219 = 131.4 bpm, so the zone above starts at 132 bpm. 131 bpm is
+    // below the cut and 132 bpm above it.
     const zones = zonesFor('heartRate', 219)
     expect(secondsByZone(zones, 'heartRate', { offset: 131, counts: [10, 10] })).toEqual([
       10, 10, 0, 0, 0,

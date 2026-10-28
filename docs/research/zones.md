@@ -83,9 +83,11 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
 
 - **From a digest.** A digest keeps moving seconds in bins (`DISTRIBUTION_BINS`: 1 bpm, 5 W, 0.05 m/s). The zones in effect
   on the activity's local date cut those bins. A reading is in the zone it is at or above the floor of and below the ceiling of.
-  Heart rate and measured power are whole numbers, so a bin of them holds whole numbers (one beat, or five watts) and is shared
-  by them: 110 to 114 W cut at 110.55 W has one watt below the edge and four above, so a fifth and four fifths of its seconds,
-  and a one-beat bin is never split. This agrees with the trace below and with the Profile ranges. Speed is not a whole
+  Heart rate and measured power are whole numbers, so `zonesFor` cuts their zones on whole-number edges, the first whole number
+  at or above the cut (0.6 of 219 bpm is 131.4, so the zone above starts at 132; 0.55 of 201 W is 110.55, so 111 W). A bin of them
+  holds whole numbers (one beat, or five watts) and is shared by them: 110 to 114 W with an edge at 111 W has one watt below
+  and four above, so a fifth and four fifths of its seconds, and a one-beat bin is never split. This agrees with the trace
+  below and with the Profile ranges, which are written from the same edges. Speed is not a whole
   number, so a bin that straddles an edge is split in proportion to the width each side, as if its seconds were spread evenly
   across it; the error is under 0.05 m/s of moving time at each edge. Every second is kept either way.
 - **From a trace.** The activity page reads the recorded stream second by second, so there is no bin to split. A reading
@@ -97,13 +99,16 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
   are applied on the dates they were in effect. Zones are summed by level, which every date shares. A period is compared
   with the one before it in the same estimated zones, because the references of an analysis belong to the period on
   screen; entered settings are dated, so they apply on their own dates in both. When an entered setting changed between
-  the periods, or a body weight moved an estimated ride threshold, the periods were cut by different references
-  (`MeasureTime.references`), so a change in shares could be the zones and not the athlete: no change is claimed and the
-  page says the zones changed.
+  the periods (`MeasureTime.enteredReferences` differ), the zones moved, so a change in shares could be the zones and not the
+  athlete: no change is claimed and the page says the zones changed. An estimated reference is the same in both, and a
+  dated weight moving an estimated ride threshold is the app's own figure, so neither stops the comparison.
 - **Left out.** An activity is counted for a measure only with a distribution of it (digests from before distributions were
   kept have none), zones in effect on its date, and, for heart rate, a sensor the analysis did not set aside. The set-aside is
   one judgement over every visible activity (`heartRateSetAsideOf`, the analysis' own rule without the rest of it), so the period
-  before is read by the same rule as the one on screen and an activity page agrees with the sport page. The page counts
+  before is read by the same rule as the one on screen and an activity page agrees with the sport page. It is a judgement of the
+  data, not of a period: it is made once, with the bike model fitted over all visible activities, and each period's analysis takes it,
+  restricted to its own activities. A period judged alone can differ (a period with no calibrated rides prices rides with the
+  default bike model), which is why none is. The page counts
   a set-aside heart rate apart from one that was never recorded. Power is
   counted from a power meter only, since a digest keeps no distribution for estimated watts. The page says how many
   activities each measure left out.

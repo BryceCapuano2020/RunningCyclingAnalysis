@@ -1,5 +1,5 @@
 import type { MeasureTime } from '@rca/core/zones'
-import { hasEnoughZoneTime, sameZoneReferences, zoneShares } from '@rca/core/zones'
+import { hasEnoughZoneTime, sameEnteredReferences, zoneShares } from '@rca/core/zones'
 import type { ChartTableData } from './charts/chartTypes'
 import type { ZoneChartRow } from './charts/ZoneTimeChart'
 import { ROW_LABEL, percentText, zoneTimeText } from './zoneTimeCopy'
@@ -21,13 +21,13 @@ export function periodBars(rows: readonly MeasureTime[]): ZoneChartRow[] {
   }))
 }
 
-/** The previous period's row of a measure, only when it can be compared: enough time, cut by the same zones. */
+/** The previous period's row of a measure, only when it can be compared: enough time, and the same entered settings. */
 function comparableBefore(
   row: MeasureTime,
   previous: readonly MeasureTime[] | null,
 ): MeasureTime | null {
   const before = previous?.find((each) => each.measure === row.measure)
-  return before !== undefined && hasEnoughZoneTime(before) && sameZoneReferences(before, row)
+  return before !== undefined && hasEnoughZoneTime(before) && sameEnteredReferences(before, row)
     ? before
     : null
 }
@@ -46,7 +46,10 @@ export function periodTables(
   table: ChartTableData
   summary: ChartTableData
 } {
-  const befores = rows.map((row) => comparableBefore(row, previous))
+  // Without a label for the period before there is no column to head, as there is no sentence to say it in.
+  const befores = rows.map((row) =>
+    previousLabel === null ? null : comparableBefore(row, previous),
+  )
   const withPrevious = befores.some((before) => before !== null)
   return {
     summary: {
@@ -67,7 +70,7 @@ export function periodTables(
         'Name',
         'Time',
         'Share',
-        ...(withPrevious ? [previousLabel ?? 'Previous period'] : []),
+        ...(withPrevious && previousLabel !== null ? [previousLabel] : []),
       ],
       textColumns: [2],
       rows: rows.flatMap((row, r) => {

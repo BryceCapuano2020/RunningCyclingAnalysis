@@ -24,6 +24,27 @@ describe('zoneRange', () => {
     expect(zoneRange('heartRate', heart[4]!, 'metric')).toBe('171 bpm or more')
   })
 
+  it('writes a range that agrees with where a reading is counted, whatever the cut rounds to', () => {
+    // 0.6 of 219 bpm is 131.4: 131 bpm is below the cut, so the zone above is written from 132.
+    const heart = zonesFor('heartRate', 219)
+    expect(zoneRange('heartRate', heart[0]!, 'metric')).toBe('Under 132 bpm')
+    expect(zoneRange('heartRate', heart[1]!, 'metric')).toBe('132–153 bpm')
+    // Every whole number from 0 to 250 is in exactly the zone whose written range holds it.
+    for (let bpm = 0; bpm <= 250; bpm++) {
+      const counted = heart.findIndex(
+        (zone) => bpm >= zone.low && (zone.high === null || bpm < zone.high),
+      )
+      const written = heart.filter((zone) => {
+        const text = zoneRange('heartRate', zone, 'metric')
+        const numbers = (text.match(/\d+/g) ?? []).map(Number)
+        if (text.startsWith('Under')) return bpm < numbers[0]!
+        if (text.endsWith('or more')) return bpm >= numbers[0]!
+        return bpm >= numbers[0]! && bpm <= numbers[1]!
+      })
+      expect(written.map((zone) => zone.level)).toEqual([counted + 1])
+    }
+  })
+
   it('writes run zones as paces, the fast edge first', () => {
     const pace = zonesFor('pace', 1000 / 300)
     expect(zoneRange('pace', pace[0]!, 'metric')).toBe('Slower than 6:27 /km')
