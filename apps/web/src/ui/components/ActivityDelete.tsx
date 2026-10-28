@@ -35,6 +35,18 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
     }
   }, [asking])
 
+  // Escape cancels while the question is open, wherever focus is on the page.
+  useEffect(() => {
+    if (!asking) return undefined
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      returnFocusRef.current = true
+      setAsking(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [asking])
+
   const removedFrom = signedIn ? 'your library' : 'this browser'
   const cancel = () => {
     returnFocusRef.current = true
@@ -58,14 +70,7 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
   }
 
   return (
-    <div
-      className="activity-delete__question"
-      role="group"
-      aria-labelledby={questionId}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') cancel()
-      }}
-    >
+    <div className="activity-delete__question" role="group" aria-labelledby={questionId}>
       <p id={questionId}>{`Delete “${name}”? It is removed from ${removedFrom}.`}</p>
       {signedIn && <p id={noteId}>Its original file is deleted too, if one is stored.</p>}
       <ConfirmActions

@@ -19,8 +19,8 @@ export function endLabelTexts(
   measure: SharedMeasure,
   rideKnown = true,
 ): string[] {
-  return (['run', 'ride'] as const).flatMap((kind) => {
-    if (kind === 'ride' && !rideKnown) return []
+  const kinds = rideKnown ? (['run', 'ride'] as const) : (['run'] as const)
+  return kinds.flatMap((kind) => {
     const latest = weeks.findLast((week) => week[kind] !== null)?.[kind] ?? null
     return latest === null ? [] : [`${SPORT_LABEL[kind]} ${formatValue(measure, latest)}`]
   })
