@@ -186,7 +186,7 @@ describe('rebuild, error and wait messages', () => {
 })
 
 describe('saved library', () => {
-  it('passes the library notice and error to the list, and disables delete while deleting', () => {
+  it('counts the saved activities on the profile page and leaves deleting to the activity pages', () => {
     window.location.hash = '#/profile'
     app.analysis.savedActivities = [
       {
@@ -197,22 +197,12 @@ describe('saved library', () => {
         copy: SAVED_COPY,
       },
     ]
-    app.analysis.libraryNotice = 'Deleted Morning run (20/10/2026).'
-    app.analysis.libraryError = 'Could not delete the activity. Network down'
-    app.analysis.libraryAction = 'deleting'
     render(<App />)
 
-    const region = screen.getByRole('region', { name: 'Saved library' })
-    expect(within(region).getByRole('status')).toHaveTextContent(
-      'Deleted Morning run (20/10/2026).',
-    )
-    expect(within(region).getByRole('alert')).toHaveTextContent(
-      'Could not delete the activity. Network down',
-    )
-    expect(within(region).getByRole('button', { name: /^Delete Morning run, / })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
+    const region = screen.getByRole('region', { name: /Kept in this browser|Saved library/ })
+    expect(within(region).getByText('1 run, Oct 2026')).toBeInTheDocument()
+    expect(within(region).queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument()
+    expect(within(region).getByRole('link', { name: 'See them in Activities' })).toBeInTheDocument()
   })
 })
 

@@ -1,11 +1,79 @@
-import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
+import type { ActivityTrace, MetricSelectionSummary, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { ChartTable } from '../charts/ChartTable'
 import { selectionOf } from './workbenchData'
-import { METRIC_ORDER, displayValue, metricLabel, readingRange } from './workbenchFormat'
+import {
+  METRIC_ORDER,
+  SPORT_READING,
+  displayValue,
+  isPaceReading,
+  metricLabel,
+  rangeHeadings,
+  readingRange,
+} from './workbenchFormat'
 
 const NONE = 'None in this interval'
+
+const MOVING_CAPTION =
+  'While moving in the selected interval. Time is how long each measure had a reading.'
+/** A pace table's averages leave out the stops, which are not paces, so it says so. */
+const PACE_CAPTION =
+  'Pace in the selected interval, leaving out stops. Time is how long it had a reading.'
+
+/** One table of the summary: the measures that share their headings for the lowest and highest reading. */
+interface StatGroup {
+  caption: string
+  columns: string[]
+  rows: string[][]
+}
+
+function rowOf(
+  metric: TraceMetric,
+  trace: ActivityTrace,
+  units: UnitSystem,
+  stats: MetricSelectionSummary,
+): string[] {
+  const label = metricLabel(metric, trace.sport)
+  if (stats.mean === null || stats.min === null || stats.max === null)
+    return [label, NONE, NONE, NONE, formatRecordTime(0)]
+  const text = (value: number) => displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
+  const { lowest, highest } = readingRange(metric, trace.sport, stats.min, stats.max)
+  return [label, text(stats.mean), text(lowest), text(highest), formatRecordTime(stats.seconds)]
+}
+
+/**
+ * The shown measures as tables. A pace is read fastest first, so it names its extremes Fastest and
+ * Slowest where the other measures say Lowest and Highest, and a table has one set of headings: the
+ * pace is a table of its own.
+ */
+function groupsOf(
+  trace: ActivityTrace,
+  units: UnitSystem,
+  metrics: readonly TraceMetric[],
+  summary: ReturnType<typeof selectionOf>,
+): StatGroup[] {
+  const groups: StatGroup[] = []
+  for (const metric of METRIC_ORDER.filter((candidate) => metrics.includes(candidate))) {
+    const stats = summary.metrics[metric]
+    if (!stats) continue
+    const [lowest, highest] = rangeHeadings(metric, trace.sport)
+    const row = rowOf(metric, trace, units, stats)
+    const group = groups.find((candidate) => candidate.columns[2] === lowest)
+    if (group) {
+      group.rows.push(row)
+      continue
+    }
+    const leavesOutStops =
+      isPaceReading(metric, trace.sport) && SPORT_READING[trace.sport].minSpeedMs > 0
+    groups.push({
+      caption: leavesOutStops ? PACE_CAPTION : MOVING_CAPTION,
+      columns: ['Measure', 'Average', lowest, highest, 'Time'],
+      rows: [row],
+    })
+  }
+  return groups
+}
 
 export function SelectionStats({
   trace,
@@ -37,24 +105,14 @@ export function SelectionStats({
       ? 'Not available for this interval'
       : formatDistance(summary.distanceM, units),
   ])
-  const rows = METRIC_ORDER.filter((metric) => metrics.includes(metric)).flatMap((metric) => {
-    const stats = summary.metrics[metric]
-    if (!stats) return []
-    const text = (value: number) =>
-      displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
-    if (stats.mean === null || stats.min === null || stats.max === null)
-      return [[metricLabel(metric, trace.sport), NONE, NONE, NONE, formatRecordTime(0)]]
-    const { lowest, highest } = readingRange(metric, trace.sport, stats.min, stats.max)
-    return [
-      [
-        metricLabel(metric, trace.sport),
-        text(stats.mean),
-        text(lowest),
-        text(highest),
-        formatRecordTime(stats.seconds),
-      ],
-    ]
-  })
+  // The activity header's figure for the interval: the distance over the moving time, stops included.
+  if (summary.distanceM !== null && summary.distanceM > 0 && summary.movingS > 0) {
+    const reading = SPORT_READING[trace.sport]
+    tiles.push([
+      `Average ${reading.speedLabel.toLowerCase()}`,
+      reading.speedText(summary.distanceM / summary.movingS, units),
+    ])
+  }
   return (
     <div className="activity-workbench__stats">
       <h3>Interval summary</h3>
@@ -66,13 +124,14 @@ export function SelectionStats({
           </div>
         ))}
       </dl>
-      {rows.length > 0 && (
+      {groupsOf(trace, units, metrics, summary).map((group) => (
         <ChartTable
-          caption="While moving in the selected interval. Time is how long each measure had a reading."
-          columns={['Measure', 'Average', 'Lowest', 'Highest', 'Time']}
-          rows={rows}
+          key={group.columns[2]}
+          caption={group.caption}
+          columns={group.columns}
+          rows={group.rows}
         />
-      )}
+      ))}
     </div>
   )
 }

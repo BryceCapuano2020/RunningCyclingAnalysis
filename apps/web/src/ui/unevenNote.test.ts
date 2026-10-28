@@ -10,9 +10,9 @@ const uneven = {
 }
 
 const RUN_NOTE =
-  'Your best 15 min and 20 min each held a shorter hard effort with easier running around it, so they only set a floor. A steady all-out 20 min would narrow this.'
+  'Your best 15 min and 20 min were uneven: each held a hard burst inside easier running, so the range stays wide. A steady all-out 20 min would narrow it.'
 const RIDE_NOTE =
-  'Your best 15 min and 20 min each held a shorter hard effort with easier riding around it, so they only set a floor. A steady all-out 20 min would narrow this.'
+  'Your best 15 min and 20 min were uneven: each held a hard burst inside easier riding, so the range stays wide. A steady all-out 20 min would narrow it.'
 
 describe('unevenNote', () => {
   it('is null without an uneven fit for the sport', () => {

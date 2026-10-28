@@ -103,17 +103,28 @@ function leaningGradeSummary(reading: BalanceReading & { lean: Exclude<Lean, 'ev
 }
 
 /**
- * A balance in range zero: the best estimate names the leading sport, and the range that includes
- * zero says why the two are in balance.
+ * A balance whose range spans zero. The title already says the two are in balance, so the line gives what
+ * the age grades say: the best estimate and the range around it, on the headline duration, and why that
+ * is level. The range is read from the leading sport's side, and says so ("for that lead"), so its signs
+ * agree with the sentence: a cycling lead of 4 points has a range of −2 to +10 points for cycling, not −10 to
+ * +2 for running. A level estimate with a lopsided range names its side.
  */
 function inBalanceSummary(reading: BalanceReading): string {
-  const range = rangeText(reading)
   const centre = Math.round(reading.lead.centre)
+  const duration = formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)
+  const on = `On your best ${duration} in each,`
+  const level = 'so the two are level.'
   if (centre === 0) {
-    return `On the age-grade best estimate, running and cycling grade the same, and the range (${range}) includes zero, so the two are in balance.`
+    // A range that is not symmetric about zero has a side, so it names the one it is read from.
+    const lopsided = Math.round(reading.lead.low) !== -Math.round(reading.lead.high)
+    const side = lopsided ? ' (running minus cycling)' : ''
+    return `${on} running and cycling have the same age grade, within ${rangeText(reading)}${side}, ${level}`
   }
-  const { leader } = leaderOf(centre > 0 ? 'run' : 'ride')
-  return `On the age-grade best estimate, ${leader} grades ${points(Math.abs(centre))} higher, but the range (${range}) includes zero, so the two are in balance.`
+  const { leader, other } = leaderOf(centre > 0 ? 'run' : 'ride')
+  const { low, high } = reading.lead
+  const [from, to] = centre > 0 ? [low, high] : [-high, -low]
+  const range = `${signedCount(from)} to ${signedCount(to)}${NO_BREAK}points`
+  return `${on} ${leader}’s age grade is ${points(Math.abs(centre))} higher than ${other}’s, with a range of ${range} for that lead, ${level}`
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */

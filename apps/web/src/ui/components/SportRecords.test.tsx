@@ -156,6 +156,23 @@ describe('SportRecords', () => {
     expect(source).toHaveTextContent('Morning run, 5 Jan · 5 months ago')
   })
 
+  it('keeps the dot with the activity, so a count that wraps never starts a line with it', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min', setDays: 156 }),
+          row({ key: 'b', label: '20 min', activity: lateRun, setDays: 4 }),
+        ]}
+      />,
+    )
+    const count = screen.getByText('4 days ago')
+    expect(count.textContent).toBe('4 days ago')
+    const where = count.parentElement?.querySelector('.records__where')
+    expect(where).toHaveTextContent('Late run, 9 Jan ·')
+    expect(where?.querySelector('.records__dot')).toHaveAttribute('aria-hidden', 'true')
+    expect(count.previousElementSibling).toBe(where)
+  })
+
   it('writes the shared count as quiet text, not a chip', () => {
     render(
       <SportRecords
@@ -165,7 +182,7 @@ describe('SportRecords', () => {
         ]}
       />,
     )
-    const count = screen.getByText('· 5 months ago')
+    const count = screen.getByText('5 months ago')
     expect(count).toHaveClass('records__set')
     expect(count).not.toHaveClass('chip')
   })
@@ -180,10 +197,10 @@ describe('SportRecords', () => {
       />,
     )
     expect(screen.queryByText(/All set on/)).not.toBeInTheDocument()
-    const count = screen.getByText('· 9 days ago')
+    const count = screen.getByText('9 days ago')
     expect(count).toHaveClass('records__set')
     expect(count).not.toHaveClass('chip')
-    expect(screen.getByText('· 4 days ago')).toBeInTheDocument()
+    expect(screen.getByText('4 days ago')).toBeInTheDocument()
   })
 
   it('puts each row’s count on its activity’s line, after the name, and not in the figure', () => {
@@ -205,6 +222,22 @@ describe('SportRecords', () => {
       'ago',
     )
     expect(second).toHaveTextContent('Late run, 9 Jan · 4 days ago')
+  })
+
+  it('sets the name and the date apart in a link, so a narrow line cuts the name and keeps the date', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min' }),
+          row({ key: 'b', label: '20 min', activity: lateRun }),
+        ]}
+      />,
+    )
+    const link = screen.getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
+    expect(link.querySelector('.records__name')).toHaveTextContent(/^Morning run$/)
+    expect(link.querySelector('.records__date')).toHaveTextContent(/^, 5 Jan$/)
+    // The whole text is still the title, so a cut name can be read in full.
+    expect(link).toHaveAttribute('title', 'Morning run, 5 Jan')
   })
 
   it('keeps each link when the records come from different activities', () => {

@@ -23,7 +23,7 @@ async function settleAfterReload(page: Page): Promise<void> {
   await expect(page.getByText('1 file: 1 needs a look.', { exact: true })).toBeVisible()
 }
 
-/** The activities kept in this browser, as the Profile page lists them. */
+/** The activities kept in this browser, as the Profile page counts them. */
 function keptList(page: Page): Locator {
   return page.getByRole('region', { name: 'Kept in this browser' })
 }
@@ -126,7 +126,7 @@ test('files added over the sample join the results kept by this browser, without
   expect(otherErrors).toEqual([])
 })
 
-test('deleting one kept activity on the Profile page removes it after a reload', async ({
+test('the Profile page counts the activities kept in this browser, and deletes none', async ({
   page,
 }) => {
   const errors = trackErrors(page)
@@ -136,25 +136,41 @@ test('deleting one kept activity on the Profile page removes it after a reload',
 
   await goTo(page, 'Profile')
   const kept = keptList(page)
-  const deleteButtons = kept.getByRole('button', { name: /^Delete / })
+  await expect(kept.getByText(/^1 run and 1 ride, /)).toBeVisible()
+  await expect(kept.getByRole('button')).toHaveCount(0)
+  await kept.getByRole('link', { name: 'See them in Activities' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Activities' })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('deleting one kept activity from the Activities page removes it after a reload', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await page.goto('/')
+  await uploadFixtures(page, TWO_WORKOUTS)
+  const rows = await activitiesRows(page)
+  await expect(rows).toHaveCount(2)
+
+  const deleteButtons = page.getByRole('button', { name: /^Delete / })
   await expect(deleteButtons).toHaveCount(2)
   const label = await deleteButtons.first().getAttribute('aria-label')
   if (label === null) throw new Error('a kept activity has no delete label')
   await deleteButtons.first().click()
-  await kept.getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(kept.getByRole('status')).toContainText('Deleted')
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Deleted' })).toBeVisible()
   await expect(deleteButtons).toHaveCount(1)
 
   await page.reload()
 
   // Counted only once the kept list has loaded again, so the label check cannot pass early.
-  await expect(kept.getByRole('button', { name: /^Delete / })).toHaveCount(1)
-  await expect(kept.getByRole('button', { name: label, exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(1)
+  await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(1)
   expect(errors).toEqual([])
 })
 
-test('deleting the last kept activity on the Profile page says so and empties the list', async ({
+test('deleting the last kept activity from the Activities page leaves nothing kept', async ({
   page,
 }) => {
   const errors = trackErrors(page)
@@ -162,13 +178,14 @@ test('deleting the last kept activity on the Profile page says so and empties th
   await uploadFixtures(page, ['one-ride.gpx'])
   await expect(await activitiesRows(page)).toHaveCount(1)
 
-  await goTo(page, 'Profile')
-  const kept = keptList(page)
-  await kept.getByRole('button', { name: /^Delete / }).click()
-  await kept.getByRole('button', { name: 'Delete', exact: true }).click()
+  await page.getByRole('button', { name: /^Delete / }).click()
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-  await expect(kept.getByRole('status')).toContainText('Deleted')
-  await expect(kept.getByText('No saved activities')).toBeVisible()
+  // Nothing is left to analyse, so the page asks for files again, and the notices say what was deleted.
+  await expect(page.getByText('Add your files to see this page.')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Deleted / })).toBeVisible()
+  await goTo(page, 'Profile')
+  await expect(keptList(page)).toHaveCount(0)
   expect(errors).toEqual([])
 })
 

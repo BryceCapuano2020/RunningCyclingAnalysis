@@ -180,8 +180,14 @@ export function useAnalysis(
         request.type === 'routeShape' ||
         request.type === 'forgetRoutes'
       if (!keepsError) setError(null)
-      // A new import or rebuild replaces the outcome of the last library change.
-      if (request.type === 'addFiles' || request.type === 'rebuildStale') {
+      // A new import or rebuild replaces the outcome of the last library change, and so does the sample or a
+      // clear, which leave nothing for that outcome to be about: the landing page would say it unprompted.
+      if (
+        request.type === 'addFiles' ||
+        request.type === 'rebuildStale' ||
+        request.type === 'loadSample' ||
+        request.type === 'clear'
+      ) {
         setLibraryNotice(null)
         setLibraryError(null)
       }

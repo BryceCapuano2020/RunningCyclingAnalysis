@@ -24,6 +24,15 @@ export const DISTRIBUTION_METRICS: readonly TraceMetric[] = [
   'cadence',
 ]
 
+/**
+ * The measures whose plot axis and histogram leave out the few extreme readings at either end, and the
+ * words for a reading beyond each end. A standing start or a stop leaves a handful of readings that would
+ * otherwise stretch the axis over space nothing else uses.
+ */
+export const TRIMMED_METRICS: Partial<Record<TraceMetric, { below: string; above: string }>> = {
+  speed: { below: 'slower than', above: 'faster than' },
+}
+
 /** What differs between the sports in an activity's readings, in one place and keyed by Sport. */
 interface SportReading {
   /** The name of the speed measure. */
@@ -128,6 +137,11 @@ export function displayValue(
   }
 }
 
+/** Whether a measure is read as a pace, so a faster reading is a lower number. */
+export function isPaceReading(metric: TraceMetric, sport: ActivityTrace['sport']): boolean {
+  return metric === 'speed' && SPORT_READING[sport].speedIsPace
+}
+
 /**
  * A measure's lowest and highest reading as the page reads them. A pace is lowest when it is fastest,
  * so its lowest reading comes from the highest speed.
@@ -138,7 +152,15 @@ export function readingRange(
   min: number,
   max: number,
 ): { lowest: number; highest: number } {
-  return metric === 'speed' && SPORT_READING[sport].speedIsPace
+  return isPaceReading(metric, sport)
     ? { lowest: max, highest: min }
     : { lowest: min, highest: max }
+}
+
+/** The headings over a measure's lowest and highest readings. A pace says fastest and slowest. */
+export function rangeHeadings(
+  metric: TraceMetric,
+  sport: ActivityTrace['sport'],
+): [lowest: string, highest: string] {
+  return isPaceReading(metric, sport) ? ['Fastest', 'Slowest'] : ['Lowest', 'Highest']
 }

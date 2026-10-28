@@ -58,11 +58,16 @@ const SECTIONS: Record<SectionId, (context: SectionContext) => SectionOutcome> =
     content: <BestEffortsSection {...context} />,
     lack: standOutLack(context.sport, context.result),
   }),
-  racePredictions: ({ sport, result, units }) => {
+  racePredictions: ({ sport, result, units, rangeDays }) => {
     const found = racePredictionsOf(sport, result)
     const need = RACE_PREDICTION_NEED[sport]
     if (found !== null) {
-      return { content: <RacePredictions sport={sport} found={found} units={units} />, lack: null }
+      return {
+        content: (
+          <RacePredictions sport={sport} found={found} units={units} allTime={rangeDays === null} />
+        ),
+        lack: null,
+      }
     }
     return {
       content: null,

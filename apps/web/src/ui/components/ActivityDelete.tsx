@@ -23,7 +23,9 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
   const openRef = useRef<HTMLButtonElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const returnFocusRef = useRef(false)
+  const questionRef = useRef<HTMLDivElement>(null)
   const questionId = useId()
+  const noteId = useId()
 
   useEffect(() => {
     if (asking) {
@@ -34,7 +36,28 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
     }
   }, [asking])
 
+  // Escape cancels while the question is open, wherever focus is on the page, unless a removal is running
+  // (the question stays until it ends) or another control already used the key. Focus goes back to the
+  // Delete button only when it was in the question or nowhere in particular, as the account menu does, so
+  // an Escape meant for another control does not pull focus away from it.
+  useEffect(() => {
+    if (!asking) return undefined
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || busy || event.defaultPrevented) return
+      const active = document.activeElement
+      returnFocusRef.current =
+        active === null || active === document.body || !!questionRef.current?.contains(active)
+      setAsking(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [asking, busy])
+
   const removedFrom = signedIn ? 'your library' : 'this browser'
+  const cancel = () => {
+    returnFocusRef.current = true
+    setAsking(false)
+  }
   if (!asking) {
     return (
       <button
@@ -53,17 +76,20 @@ export function ActivityDelete({ savedId, name, busy, signedIn, onDelete }: Acti
   }
 
   return (
-    <div className="activity-delete__question" role="group" aria-labelledby={questionId}>
+    <div
+      ref={questionRef}
+      className="activity-delete__question"
+      role="group"
+      aria-labelledby={questionId}
+    >
       <p id={questionId}>{`Delete “${name}”? It is removed from ${removedFrom}.`}</p>
+      {signedIn && <p id={noteId}>Its original file is deleted too, if one is stored.</p>}
       <ConfirmActions
         confirmLabel="Delete"
         busy={busy}
-        confirmDescribedBy={questionId}
+        confirmDescribedBy={signedIn ? `${questionId} ${noteId}` : questionId}
         cancelRef={cancelRef}
-        onCancel={() => {
-          returnFocusRef.current = true
-          setAsking(false)
-        }}
+        onCancel={cancel}
         onConfirm={() => onDelete(savedId)}
       />
     </div>

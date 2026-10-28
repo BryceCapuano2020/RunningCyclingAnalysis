@@ -31,7 +31,7 @@ export function ActivityIssues({
           const flags = activity.flags.filter((flag) => flag.kind === kind)
           return (
             <li key={kind}>
-              <p>{flagKindSentence(kind, activity.flagCounts[kind] ?? 0)}</p>
+              <p>{flagKindSentence(kind, activity.flagCounts[kind] ?? 0, activity.indoor)}</p>
               {listsTimesOf(kind) && flags.length > 0 && (
                 <ul className="activity-page__flag-times">
                   {keyByContent(flags, (flag) => `${flag.start}-${flag.end}`).map(

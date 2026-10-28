@@ -1,5 +1,5 @@
 import type { Sport } from '@rca/core/types'
-import { SPORT_ORDER, SPORT_TITLE } from './sports'
+import { SPORT_DOING, SPORT_ORDER, SPORT_TITLE } from './sports'
 import { formatHours } from './weeklyVolume'
 import type { VolumeWeek } from './weeklyVolume'
 
@@ -14,6 +14,9 @@ const TIE_POINTS = 1e-9
 const MIN_BEFORE_S = 1800
 
 type Seconds = Record<Sport, number>
+
+/** What a share is of. The strip holds only these sports' hours, so the line says whose: "your running and riding hours". */
+const HOURS = `your ${SPORT_ORDER.map((sport) => SPORT_DOING[sport]).join(' and ')} hours`
 
 function sportSeconds(weeks: readonly VolumeWeek[]): Seconds {
   const sum = Object.fromEntries(SPORT_ORDER.map((sport) => [sport, 0])) as Seconds
@@ -54,10 +57,10 @@ function mixedCaption(first: Seconds, second: Seconds, whole: Seconds): string {
   const shift = biggestShift(first, second)
   if (shift !== null && Math.abs(shift.points) >= SHIFT_MIN_POINTS) {
     const verb = shift.points > 0 ? 'rose' : 'fell'
-    return `${SPORT_TITLE[shift.sport]} ${verb} from ${percent(first, shift.sport)}% of your hours in the first half to ${percent(second, shift.sport)}% in the second.`
+    return `${SPORT_TITLE[shift.sport]} ${verb} from ${percent(first, shift.sport)}% of ${HOURS} in the first half to ${percent(second, shift.sport)}% in the second.`
   }
   const top = SPORT_ORDER.reduce((best, sport) => (whole[sport] > whole[best] ? sport : best))
-  return `${SPORT_TITLE[top]} was ${percent(whole, top)}% of your hours over these weeks.`
+  return `${SPORT_TITLE[top]} was ${percent(whole, top)}% of ${HOURS} over these weeks.`
 }
 
 /** The line for a period that holds one sport: how its weekly hours moved, or what they averaged. */

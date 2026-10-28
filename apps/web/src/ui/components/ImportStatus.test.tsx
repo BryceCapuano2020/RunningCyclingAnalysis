@@ -157,7 +157,10 @@ describe('ImportStatus: the busy strip', () => {
   it('shows the strip and Stop once the work has lasted about 400 ms', () => {
     renderStatus({ busy: true, progress: { filesRead: 13, filesTotal: 23 } })
     afterDelay()
-    expect(screen.getByText('Reading 13 of 23 files')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Reading 13 of 23 activity files')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
     expect(screen.getByRole('button', { name: 'Stop current analysis' })).toBeVisible()
   })
 
@@ -217,13 +220,16 @@ describe('ImportStatus: the busy strip', () => {
   it('says how many of the files are read when the total is known', () => {
     renderStatus({ busy: true, progress: { filesRead: 214, filesTotal: 1032 } })
     afterDelay()
-    expect(screen.getByText('Reading 214 of 1,032 files')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Reading 214 of 1,032 activity files')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
   })
 
   it('uses the singular for a total of one file', () => {
     renderStatus({ busy: true, progress: { filesRead: 1, filesTotal: 1 } })
     afterDelay()
-    expect(screen.getByText('Reading 1 of 1 file')).toBeInTheDocument()
+    expect(screen.getByText('Reading 1 of 1 activity file')).toBeInTheDocument()
   })
 
   it('fills the bar to the share of the total that is read, and keeps it hidden from screen readers', () => {
@@ -276,7 +282,7 @@ describe('ImportStatus: the busy strip', () => {
     expect(
       screen.getByText('Too many saves at once. Saving resumes in about a minute.'),
     ).toBeInTheDocument()
-    expect(screen.queryByText('Reading 3 of 9 files')).not.toBeInTheDocument()
+    expect(screen.queryByText('Reading 3 of 9 activity files')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Stop current analysis' })).toBeInTheDocument()
   })
 
@@ -292,9 +298,9 @@ describe('ImportStatus: announcements', () => {
   it('announces that reading has started, once, and says nothing per file', () => {
     const { rerender } = render(<ImportStatus {...baseProps()} />)
     rerender(<ImportStatus {...baseProps()} busy progress={null} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+    expect(screen.getByRole('status')).toHaveTextContent('Adding your files')
     rerender(<ImportStatus {...baseProps()} busy progress={{ filesRead: 2, filesTotal: 9 }} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+    expect(screen.getByRole('status')).toHaveTextContent('Adding your files')
     expect(screen.getByRole('status')).not.toHaveTextContent('of 9')
   })
 
@@ -304,10 +310,10 @@ describe('ImportStatus: announcements', () => {
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1)
   })
 
-  it('clears the "Reading files" announcement when the run ends with no outcome to replace it', () => {
+  it('clears the "Adding your files" announcement when the run ends with no outcome to replace it', () => {
     const { rerender } = render(<ImportStatus {...baseProps()} />)
     rerender(<ImportStatus {...baseProps()} busy progress={null} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+    expect(screen.getByRole('status')).toHaveTextContent('Adding your files')
 
     rerender(<ImportStatus {...baseProps()} busy={false} progress={null} />)
 
@@ -333,7 +339,7 @@ describe('ImportStatus: announcements', () => {
     const pause = 'Too many saves at once. Saving resumes in about a minute.'
     const { rerender } = render(<ImportStatus {...baseProps()} />)
     rerender(<ImportStatus {...baseProps()} busy progress={null} />)
-    expect(screen.getByRole('status')).toHaveTextContent('Reading files')
+    expect(screen.getByRole('status')).toHaveTextContent('Adding your files')
 
     rerender(
       <ImportStatus

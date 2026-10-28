@@ -65,26 +65,33 @@
   font-size: var(--text-sm);
 }
 
-/* A long activity name is cut short with an ellipsis; its full name is the link's title and label. */
+/*
+ * A long activity name is cut short with an ellipsis; its full name is the link's title and label. Only
+ * the name gives way: the date after it stays whole, since two records are told apart by it.
+ */
 .records__link {
-  display: block;
+  display: flex;
   min-width: 0;
   max-width: 100%;
   min-height: 24px;
-  overflow: hidden;
   font-size: var(--text-md);
+}
+
+.records__name {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.records__date {
+  flex: none;
   white-space: nowrap;
 }
 
 /* A row's activity and how long ago it was set share the second column's line; the count keeps its whole text. */
 .records__row > .records__source {
   grid-column: 2;
-}
-
-/* The count follows its activity after a dot, on the row's line and on the shared line alike. */
-.records__source > .records__set {
-  margin-left: var(--space-1);
 }
 
 .records__shared {
@@ -95,10 +102,30 @@
   font-size: var(--text-sm);
 }
 
-/* The link and its count share the second column's line, so the count never wraps onto a row of its own. */
+/*
+ * The link and its count share the second column's line while they fit. When they do not, the count drops
+ * to a line of its own, so the name keeps the whole width before it is cut, and the count keeps its text.
+ */
 .records__source {
   display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-1);
   min-width: 0;
+}
+
+/* The activity and the dot that ends it are one item, so a wrapped count leaves the dot behind with them. */
+.records__where {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.records__dot {
+  flex: none;
+  margin-left: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 .records__source .records__link {
@@ -116,10 +143,25 @@
  * On the shared line the whole name shows, wrapped if it must, so the date is never cut short. An unbroken
  * name has no space to wrap at, so it breaks anywhere rather than widening the page.
  */
+.records__shared .records__where {
+  display: block;
+}
+
 .records__shared .records__link {
+  display: inline;
   white-space: normal;
   overflow: visible;
   overflow-wrap: anywhere;
+}
+
+.records__shared .records__name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.records__shared .records__date {
+  white-space: normal;
 }
 
 /* A finger needs a control's height to tap a record's link. A mouse keeps the line's own height. */

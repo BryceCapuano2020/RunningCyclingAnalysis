@@ -737,9 +737,7 @@ describe('footer', () => {
 describe('sport records, on the card and the page', () => {
   it('sets a row’s activity and its count on one line in the second column, the count after a dot', () => {
     expect(rulesWith(sportRecords, '.records__row > .records__source')).toMatch(/grid-column:\s*2/)
-    expect(rulesWith(sportRecords, '.records__source > .records__set')).toMatch(
-      /margin-left:\s*var\(--space-1\)/,
-    )
+    expect(rulesWith(sportRecords, '.records__source')).toMatch(/column-gap:\s*var\(--space-1\)/)
   })
 
   it('gives the label column 6rem, so "Half marathon" fits beside its figure', () => {

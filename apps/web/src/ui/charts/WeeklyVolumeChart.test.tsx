@@ -19,7 +19,8 @@ function weeksOf(...hours: [number, number][]): VolumeWeek[] {
 /** A run-heavy block, a rest week, then a cycling block. */
 const WEEKS = weeksOf([4, 0], [3.5, 1], [0, 0], [1, 5], [0.5, 6])
 
-const LEDE = 'Cycling rose from 10% of your hours in the first half to 80% in the second.'
+const LEDE =
+  'Cycling rose from 10% of your running and riding hours in the first half to 80% in the second.'
 
 function renderChart(weeks = WEEKS) {
   return render(<WeeklyVolumeChart weeks={weeks} lede={LEDE} />)

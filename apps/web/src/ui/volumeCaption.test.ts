@@ -16,35 +16,39 @@ describe('volumeCaption', () => {
   it('names the sport whose share of the hours rose most between the halves', () => {
     const weeks = weeksOf([5, 1], [5, 1], [4, 2], [1, 5], [1, 5], [1, 4])
     expect(volumeCaption(weeks)).toBe(
-      'Cycling rose from 22% of your hours in the first half to 82% in the second.',
+      'Cycling rose from 22% of your running and riding hours in the first half to 82% in the second.',
     )
   })
 
   it('names the rise rather than the fall when the two are as large', () => {
     const weeks = weeksOf([9, 1], [9, 1], [1, 1], [1, 1])
     expect(volumeCaption(weeks)).toBe(
-      'Cycling rose from 10% of your hours in the first half to 50% in the second.',
+      'Cycling rose from 10% of your running and riding hours in the first half to 50% in the second.',
     )
   })
 
   it('names the rise when the rise and the fall differ only by floating-point noise', () => {
     const weeks = weeksOf([1, 2], [1, 2], [2, 1], [2, 1])
     expect(volumeCaption(weeks)).toBe(
-      'Running rose from 33% of your hours in the first half to 67% in the second.',
+      'Running rose from 33% of your running and riding hours in the first half to 67% in the second.',
     )
     expect(volumeCaption(weeksOf([0.7, 0.3], [0.7, 0.3], [0.3, 0.7], [0.3, 0.7]))).toBe(
-      'Cycling rose from 30% of your hours in the first half to 70% in the second.',
+      'Cycling rose from 30% of your running and riding hours in the first half to 70% in the second.',
     )
   })
 
   it('gives the share of the hours when neither sport moved by 15 points', () => {
     const weeks = weeksOf([4, 2], [3, 2], [4, 2], [4, 3], [4, 2], [3, 2])
-    expect(volumeCaption(weeks)).toBe('Running was 63% of your hours over these weeks.')
+    expect(volumeCaption(weeks)).toBe(
+      'Running was 63% of your running and riding hours over these weeks.',
+    )
   })
 
   it('gives the share when one half holds no training, since a share needs hours', () => {
     const weeks = weeksOf([0, 0], [0, 0], [3, 3], [3, 3])
-    expect(volumeCaption(weeks)).toBe('Running was 50% of your hours over these weeks.')
+    expect(volumeCaption(weeks)).toBe(
+      'Running was 50% of your running and riding hours over these weeks.',
+    )
   })
 
   it('reads the hours of a single sport as a change between the halves when they moved by a quarter', () => {

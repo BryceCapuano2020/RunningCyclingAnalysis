@@ -1,4 +1,5 @@
-import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore } from './chartInteraction'
+import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore, spreadWithin } from './chartInteraction'
+import { gutterLabels } from './sharedTrendGutter'
 import {
   ASCENT_EM,
   DESCENT_EM,
@@ -214,27 +215,15 @@ function cartesian<T>(lists: readonly (readonly T[])[]): T[][] {
   )
 }
 
-/**
- * Spreads spots apart, in order of y, so that each sits at least gap below the one above it. A run that
- * would pass the span's bottom is packed back up from it. Where the span cannot hold them all, the packed
- * spots are clamped into it, so they stay inside the plot though they may then overlap. Returns the spots
- * in their input order.
- */
+/** Spreads spots apart and inside the span, as spreadWithin spreads baselines. Returns the spots in their input order. */
 function spreadSpots(spots: readonly Spot[], gap: number, span: Span): Spot[] {
-  const placed = spots.map((spot) => ({ ...spot }))
-  const order = [...placed].sort((a, b) => a.y - b.y)
-  let floor = span.lo
-  for (const spot of order) {
-    spot.y = Math.max(spot.y, floor)
-    floor = spot.y + gap
-  }
-  let ceiling = span.hi
-  for (const spot of [...order].reverse()) {
-    spot.y = Math.min(spot.y, ceiling)
-    ceiling = spot.y - gap
-  }
-  for (const spot of placed) spot.y = clampToSpan(spot.y, span)
-  return placed
+  const ys = spreadWithin(
+    spots.map((spot) => spot.y),
+    gap,
+    span.lo,
+    span.hi,
+  )
+  return spots.map((spot, index) => ({ ...spot, y: ys[index] ?? spot.y }))
 }
 
 /** Whether a spot's box is inside the plot, both ways, and touches neither drawn piece its label keeps clear of. */
@@ -347,8 +336,8 @@ interface Drawn {
 }
 
 /**
- * The end labels of a shared trend, each at a baseline that keeps it inside the plot and clear of the
- * ride band and the run's own line. A label is named by its sport and value, so the title needs no window.
+ * The end labels of a shared trend, each at a baseline that keeps it inside the plot and clear of both
+ * lines and, for the run's, the ride band. A label is named by its sport and value, so the title needs no window.
  */
 function labelsOf(
   weeks: readonly SharedWeek[],
@@ -361,15 +350,21 @@ function labelsOf(
   const em = labelSizePx(rootPx)
   const span = { lo: plot.top + ASCENT_EM * em, hi: plot.bottom - DESCENT_EM * em }
   const rules: LabelRules = { measure, rootPx, plot, span }
+  const beside = gutterLabels(weeks, drawn, measure, size, span)
+  if (beside !== null) return beside
+  // Each label keeps clear of both lines and their markers, not only its own sport's: a label set over the
+  // other sport's markers reads as that sport's.
+  const markerR = markerRadii(width).active
+  const lines = [...stepBoxes(drawn.run, markerR), ...stepBoxes(drawn.ride, markerR)]
   const runLabel = endLabel('run', weeks, drawn.run, (week) => week.run, {
     ...rules,
     band: bandBoxes(drawn.xs, drawn.rideHigh, drawn.rideLow),
-    line: stepBoxes(drawn.run, markerRadii(width).active),
+    line: lines,
   })
   const rideLabel = endLabel('ride', weeks, drawn.ride, (week) => week.ride, {
     ...rules,
     band: null,
-    line: null,
+    line: lines,
   })
   const plans = [runLabel, rideLabel].flatMap((label) => (label === null ? [] : [label]))
   return placeLabels(plans, plot, span, (ASCENT_EM + DESCENT_EM) * em).map(({ plan, y }) => ({

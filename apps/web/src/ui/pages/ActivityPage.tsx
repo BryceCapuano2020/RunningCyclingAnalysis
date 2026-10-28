@@ -229,14 +229,23 @@ export function ActivityPage({
         </h1>
       </div>
 
-      <RouteOutline
-        shape={route.kind === 'shape' ? route.route : null}
-        sport={activity.sport}
-        takeFocus={route.kind === 'shape' && route.fromRequest}
-      />
       {route.kind === 'offer' && <RouteOffer status={route.status} onShow={show} />}
 
-      <ActivityStats activity={activity} units={units} />
+      {/* With a route, the figures sit beside it on a wide screen, so the header has no blank half. */}
+      <div
+        className={
+          route.kind === 'shape'
+            ? 'activity-page__top activity-page__top--route'
+            : 'activity-page__top'
+        }
+      >
+        <RouteOutline
+          shape={route.kind === 'shape' ? route.route : null}
+          sport={activity.sport}
+          takeFocus={route.kind === 'shape' && route.fromRequest}
+        />
+        <ActivityStats activity={activity} units={units} />
+      </div>
       {loadTrace && (
         <ActivityWorkbench
           activityId={activity.id}

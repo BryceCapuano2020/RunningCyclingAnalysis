@@ -584,6 +584,23 @@ describe('ActivityPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('names an indoor ride’s speed jump without GPS', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Trainer ride',
+        sport: 'ride',
+        indoor: true,
+        flags: [{ kind: 'speed-spike', start: 300, end: 301, message: 'GPS jumped' }],
+        flagCounts: { 'speed-spike': 1 },
+      }),
+    )
+    expect(
+      screen.getByText('Speed jumped suddenly once. We left that out of your figures.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/GPS/)).not.toBeInTheDocument()
+  })
+
   it('shows no skipped readings when the activity has none', () => {
     renderPage(morningRun)
     expect(screen.queryByRole('heading', { name: 'Skipped readings' })).not.toBeInTheDocument()
@@ -949,6 +966,24 @@ describe('route shape', () => {
     expect(loadRoute).toHaveBeenCalledOnce()
     expect(loadRoute).toHaveBeenCalledWith('saved-1', false)
     expect(screen.queryByRole('button', { name: 'Show route' })).toBeNull()
+  })
+
+  it('sets the figures beside a drawn route, and by themselves without one', async () => {
+    const loadRoute = vi.fn(async (): Promise<RouteReply> => ({ kind: 'shape', route: SHAPE }))
+    const view = renderPage(makeActivity(), resultWith(), 'metric', undefined, undefined, {
+      routeId: 'saved-1',
+      loadRoute,
+    })
+    const route = await screen.findByRole('img', { name: DRAWN })
+    const top = route.closest('.activity-page__top')
+    expect(top).toHaveClass('activity-page__top--route')
+    expect(top).toContainElement(screen.getByText('Distance'))
+    view.unmount()
+
+    renderPage(makeActivity())
+    expect(screen.getByText('Distance').closest('.activity-page__top')).not.toHaveClass(
+      'activity-page__top--route',
+    )
   })
 
   it('offers to show a route from the kept file, and reads nothing until asked', async () => {

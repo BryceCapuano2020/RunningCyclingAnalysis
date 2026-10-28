@@ -82,6 +82,28 @@ export function spreadApart(ys: readonly number[], gap: number): number[] {
   return placed
 }
 
+/**
+ * Spreads baselines apart, in order of y, so that each sits at least `gap` below the one above it and all
+ * lie within [lo, hi]. A run that would pass the bottom is packed back up from it. Where the span cannot
+ * hold them all, the packed baselines are clamped into it, so they stay inside the plot though they may
+ * then overlap, and a span too short to hold even one centres them. Returned in the input's order.
+ */
+export function spreadWithin(ys: readonly number[], gap: number, lo: number, hi: number): number[] {
+  const placed = ys.map((y, index) => ({ y, index }))
+  const order = [...placed].sort((a, b) => a.y - b.y)
+  let floor = lo
+  for (const item of order) {
+    item.y = Math.max(item.y, floor)
+    floor = item.y + gap
+  }
+  let ceiling = hi
+  for (const item of [...order].reverse()) {
+    item.y = Math.min(item.y, ceiling)
+    ceiling = item.y - gap
+  }
+  return placed.map(({ y }) => (hi < lo ? (lo + hi) / 2 : Math.min(Math.max(y, lo), hi)))
+}
+
 /** How far a label's baseline keeps above the plot's bottom edge, so it clears the x tick labels. */
 const FLOOR_GAP = 12
 

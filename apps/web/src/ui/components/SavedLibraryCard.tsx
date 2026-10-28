@@ -1,51 +1,51 @@
-import { SavedLibrary } from './SavedLibrary'
-import type { SavedScope } from './SavedLibrary'
+import { hrefFor } from '../route'
 import type { AnalysisController } from '../useAnalysis'
+import { plural } from './plural'
+import { savedSummary } from './savedSummary'
+
+/** The note on stored activities that could not be read, singular or plural. */
+function unreadableNote(count: number): string {
+  const one = count === 1
+  return `${plural(count, 'saved activity', 'saved activities')} could not be read and ${one ? 'is' : 'are'} hidden. Re-adding ${one ? 'its file' : 'their files'} will restore ${one ? 'it' : 'them'}.`
+}
 
 /**
  * The saved activities on the profile page: the signed-in library once it has loaded, or the
- * activities kept in this browser when signed out, which show only when there are some.
- * `removalOpen` is passed on so a confirmation here closes while a removal dialog is open.
+ * activities kept in this browser when signed out, which show only when there are some. It counts
+ * them and points to Activities, where each can be opened and deleted, rather than listing them again.
  */
 export function SavedLibraryCard({
   analysis,
   signedIn,
-  removalOpen = false,
 }: {
   analysis: AnalysisController
   signedIn: boolean
-  removalOpen?: boolean
 }) {
-  const list = (scope: SavedScope) => (
-    <SavedLibrary
-      scope={scope}
-      activities={analysis.savedActivities}
-      busy={analysis.busy || analysis.libraryAction !== null}
-      onDelete={analysis.deleteActivity}
-      status={analysis.libraryNotice}
-      error={analysis.libraryError}
-      unreadable={analysis.libraryUnreadable}
-      removalOpen={removalOpen}
-    />
-  )
-
-  if (signedIn) {
-    if (analysis.libraryStatus !== 'loaded') return null
-    return (
-      <section className="section" aria-labelledby="saved-library">
-        <h2 id="saved-library">Saved library</h2>
-        {list('account')}
-      </section>
-    )
-  }
-  // Kept mounted while a delete's outcome is shown, so deleting the last one is still announced.
-  const outcome = analysis.libraryNotice !== null || analysis.libraryError !== null
-  if (analysis.savedActivities.length === 0 && !outcome) return null
+  const { savedActivities, libraryUnreadable } = analysis
+  if (signedIn && analysis.libraryStatus !== 'loaded') return null
+  if (!signedIn && savedActivities.length === 0 && libraryUnreadable === 0) return null
+  const heading = signedIn ? 'Saved library' : 'Kept in this browser'
+  const id = signedIn ? 'saved-library' : 'kept-in-browser'
   return (
-    <section className="section" aria-labelledby="kept-in-browser">
-      <h2 id="kept-in-browser">Kept in this browser</h2>
-      <p className="secondary">Anyone using this browser can see these.</p>
-      {list('device')}
+    <section className="section" aria-labelledby={id}>
+      <h2 id={id}>{heading}</h2>
+      {savedActivities.length === 0 ? (
+        <p className="muted">No saved activities</p>
+      ) : (
+        <>
+          <p>{savedSummary(savedActivities)}</p>
+          {!signedIn && <p className="secondary">Anyone using this browser can see these.</p>}
+          <p className="secondary">
+            Open an activity from the list to see it, or delete it from its row or its own page.
+          </p>
+          <div>
+            <a className="btn" href={hrefFor({ page: 'activities' })}>
+              See them in Activities
+            </a>
+          </div>
+        </>
+      )}
+      {libraryUnreadable > 0 && <p className="muted">{unreadableNote(libraryUnreadable)}</p>}
     </section>
   )
 }

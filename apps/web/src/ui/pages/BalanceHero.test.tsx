@@ -256,7 +256,7 @@ describe('BalanceHero on the age-grade gap', () => {
     expect(screen.getByRole('img', { name: /Running grades 6 points/ })).toBeInTheDocument()
   })
 
-  it('says the two are in balance, with the best estimate and the range that includes zero', () => {
+  it('says the two are in balance in the title, and gives the best estimate and its range under it', () => {
     render(
       <BalanceHero
         {...ALL_TIME}
@@ -270,7 +270,7 @@ describe('BalanceHero on the age-grade gap', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        'On the age-grade best estimate, running grades 4 points higher, but the range (−2 to +10 points) includes zero, so the two are in balance.',
+        'On your best 20 min in each, running’s age grade is 4 points higher than cycling’s, with a range of −2 to +10 points for that lead, so the two are level.',
       ),
     ).toBeInTheDocument()
   })

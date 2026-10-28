@@ -212,11 +212,11 @@ describe('balanceSummary', () => {
     )
   })
 
-  it('says the two are in balance, with the best estimate and the range that includes zero', () => {
+  it('gives the best estimate and its range under a title that already says the two are in balance', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, running grades 4 points higher, but the range (−2 to +10\u00a0points) includes zero, so the two are in balance.',
+      'On your best 20\u00a0min in each, running’s age grade is 4 points higher than cycling’s, with a range of −2 to +10\u00a0points for that lead, so the two are level.',
     )
   })
 
@@ -224,15 +224,23 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 0, low: -2, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, running and cycling grade the same, and the range (−2 to +2\u00a0points) includes zero, so the two are in balance.',
+      'On your best 20\u00a0min in each, running and cycling have the same age grade, within −2 to +2\u00a0points, so the two are level.',
     )
   })
 
-  it('names cycling when its best estimate leads, inside a range that includes zero', () => {
+  it('names the side of a level estimate whose range is lopsided, and not one that is symmetric', () => {
+    expect(
+      balanceSummary(gapReading(gap({ centre: 0.2, low: -1, high: 3, lean: 'even' })), 1200),
+    ).toBe(
+      'On your best 20\u00a0min in each, running and cycling have the same age grade, within −1 to +3\u00a0points (running minus cycling), so the two are level.',
+    )
+  })
+
+  it('names cycling when its best estimate leads, inside a range that spans zero', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -4, low: -10, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, cycling grades 4 points higher, but the range (−10 to +2\u00a0points) includes zero, so the two are in balance.',
+      'On your best 20\u00a0min in each, cycling’s age grade is 4 points higher than running’s, with a range of −2 to +10\u00a0points for that lead, so the two are level.',
     )
   })
 

@@ -204,9 +204,7 @@ describe('ActivityWorkbench', () => {
     trace.streams.speed!.fill(0.05, 0, 12)
     trace.streams.speed![30] = 3.3
     show(trace)
-    const table = await screen.findByRole('table', {
-      name: /while moving in the selected interval/i,
-    })
+    const table = await screen.findByRole('table', { name: /pace in the selected interval/i })
     const pace = within(table).getByRole('row', { name: /^Pace/ })
     expect(pace).toHaveTextContent('5:03 /km')
     expect(pace).not.toHaveTextContent('—')
@@ -237,7 +235,7 @@ describe('ActivityWorkbench', () => {
     show(ride)
     expect(
       await screen.findByRole('img', {
-        name: /^Time at each speed, from 18\.0 km\/h to 35\.8 km\/h/,
+        name: /^Time at each speed, from 18\.4 km\/h to 35\.8 km\/h/,
       }),
     ).toBeInTheDocument()
   })

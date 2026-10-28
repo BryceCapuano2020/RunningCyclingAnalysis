@@ -21,6 +21,8 @@ export interface WeeklyVolumeChartProps {
   weeks: readonly VolumeWeek[]
   /** The one line under the title that says what the bars show. */
   lede: string
+  /** The plot's right margin, so the strip lines up with a trend above it that keeps a gutter for its labels. */
+  plotRightMargin?: (width: number) => number
 }
 
 const TITLE = 'Training hours per week'
@@ -52,7 +54,7 @@ function tooltipFor(week: VolumeWeek, x: number, y: number): TooltipContent {
  * stands under that week's point, and a week with no training is a gap. It shows when the trend moved
  * because training moved.
  */
-export function WeeklyVolumeChart({ weeks, lede }: WeeklyVolumeChartProps) {
+export function WeeklyVolumeChart({ weeks, lede, plotRightMargin }: WeeklyVolumeChartProps) {
   const [active, setActive] = useState<number | null>(null)
   const layoutOf = sizedOnce((size: ChartSize) => weeklyVolumeLayout(weeks, size))
   const legend: ChartLegendEntry[] = SPORT_ORDER.filter((sport) =>
@@ -66,6 +68,7 @@ export function WeeklyVolumeChart({ weeks, lede }: WeeklyVolumeChartProps) {
       lede={lede}
       height={HEIGHT}
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
+      plotRightMargin={plotRightMargin}
       legend={legend}
       table={{
         caption: 'Hours trained each week, by sport',

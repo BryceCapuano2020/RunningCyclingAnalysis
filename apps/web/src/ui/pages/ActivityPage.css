@@ -26,6 +26,21 @@
   text-wrap: balance;
 }
 
+/* Without a route the figures are the page's own; with one they take the width beside it. */
+.activity-page__top {
+  display: grid;
+  gap: var(--space-7);
+  min-width: 0;
+}
+
+@media (min-width: 761px) {
+  .activity-page__top--route {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-6);
+  }
+}
+
 .activity-page__summary {
   display: grid;
   gap: var(--space-4);
