@@ -61,7 +61,9 @@ function statusText(progress: ImportProgress | null): string {
   if (progress === null || progress.filesRead === 0) return 'Analysing'
   const total = knownTotal(progress)
   if (total === null) return `Read ${plural(progress.filesRead, 'file')} so far`
-  const noun = total === 1 ? 'file' : 'files'
+  // The total counts the files an export lists as activities, so it is named so: the summary's own
+  // count of files also holds the ones an export does not list, and the two are then not the same.
+  const noun = total === 1 ? 'activity file' : 'activity files'
   const [read, all] = [progress.filesRead, total].map((count) => formatCount(count))
   return `Reading ${read} of ${all} ${noun}`
 }
@@ -160,8 +162,9 @@ export function ImportStatus({
   // outcome, such as a stop or a fault, clears the start's announcement too.
   if (busy !== announcedBusy) {
     setAnnouncedBusy(busy)
-    // The run's start is announced, and its end clears that, so "Reading files" does not outlast it.
-    setAnnouncement(busy ? (waiting ?? 'Reading files') : '')
+    // The run's start is announced, and its end clears that, so "Adding your files" does not outlast it. It
+    // is not the strip's own "Reading ..." line, which a screen reader is not given, so no line says it twice.
+    setAnnouncement(busy ? (waiting ?? 'Adding your files') : '')
   }
   if (waiting !== announcedWaiting) {
     setAnnouncedWaiting(waiting)

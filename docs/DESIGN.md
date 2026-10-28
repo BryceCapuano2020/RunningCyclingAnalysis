@@ -29,7 +29,9 @@ header holds the wordmark, the four tabs (once there is a result, and while resu
 account control. The guides are not in the header: they are reached from Profile, the landing and an empty Run or Ride page. While the account is still loading, the account control reads "Checking sign-in…",
 and "Sign-in is unavailable right now" when accounts cannot be reached. Both hold the sign-in
 button's width, so the header does not move. The busy strip is fixed to the bottom of the window and
-appears only once a run has lasted about 400 ms, so a quick change never moves the page. The reason
+appears only once a run has lasted about 400 ms, so a quick change never moves the page. Its count reads "Reading 214 of 1,032 activity files": the total is the files an export lists as activities, so it
+differs from the summary's count of all the files, which also holds the ones an export does not list. A screen reader
+is told "Adding your files" once at the start and is not read the strip. The reason
 the sample is off waits the same time. While a rate limit holds an import's saves back, the strip reads
 "Too many saves at once. Saving resumes in about a minute." in place of its file count, once in its live region. On a phone the strip sits above the tab bar. Nothing is held
 for the account: a file is analysed at once and saved once the account is known.
