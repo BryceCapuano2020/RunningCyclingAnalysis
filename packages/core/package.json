@@ -39,6 +39,7 @@
     "./route/routeShape": "./src/route/routeShape.ts",
     "./sha256": "./src/sha256.ts",
     "./synthetic": "./src/synthetic/index.ts",
+    "./synthetic/odd": "./src/synthetic/odd.ts",
     "./tcx": "./src/tcx/index.ts",
     "./tcx/encode": "./src/tcx/encode.ts",
     "./units": "./src/units/index.ts",
