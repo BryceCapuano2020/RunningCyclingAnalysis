@@ -1,21 +1,7 @@
-import { SPORT_ORDER, SPORT_PLURAL, SPORT_ACTIVITY } from '../sports'
-import { formatMonth } from '../format/date'
 import { hrefFor } from '../route'
 import type { AnalysisController } from '../useAnalysis'
 import { plural } from './plural'
-
-type Saved = AnalysisController['savedActivities']
-
-/** The activities by sport and the months they span: "1,947 runs and 146 rides, from Mar 2011 to Oct 2026". */
-export function savedSummary(activities: Saved): string {
-  const parts = SPORT_ORDER.flatMap((sport) => {
-    const count = activities.filter((activity) => activity.sport === sport).length
-    return count === 0 ? [] : [plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])]
-  })
-  const times = activities.map((activity) => activity.startMs)
-  const [first, last] = [Math.min(...times), Math.max(...times)].map((ms) => formatMonth(ms, true))
-  return `${parts.join(' and ')}, ${first === last ? first : `from ${first} to ${last}`}`
-}
+import { savedSummary } from './savedSummary'
 
 /** The note on stored activities that could not be read, singular or plural. */
 function unreadableNote(count: number): string {

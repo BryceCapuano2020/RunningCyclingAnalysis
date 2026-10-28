@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import type { SavedActivity } from '../../worker/protocol'
-import { SavedLibraryCard, savedSummary } from './SavedLibraryCard'
+import { SavedLibraryCard } from './SavedLibraryCard'
 
 afterEach(() => {
   cleanup()
@@ -23,24 +23,6 @@ function saved(id: string, sport: 'run' | 'ride', year: number, month: number): 
 function card(signedIn: boolean, overrides: AnalysisStubOverrides = {}) {
   return render(<SavedLibraryCard analysis={analysisStub(overrides)} signedIn={signedIn} />)
 }
-
-describe('savedSummary', () => {
-  it('counts each sport, runs first, and names the months the library spans', () => {
-    expect(
-      savedSummary([
-        saved('a', 'ride', 2024, 4),
-        saved('b', 'run', 2019, 0),
-        saved('c', 'run', 2026, 9),
-      ]),
-    ).toBe('2 runs and 1 ride, from Jan 2019 to Oct 2026')
-  })
-
-  it('leaves out a sport with none, and names one month once', () => {
-    expect(savedSummary([saved('a', 'ride', 2026, 9), saved('b', 'ride', 2026, 9)])).toBe(
-      '2 rides, Oct 2026',
-    )
-  })
-})
 
 describe('SavedLibraryCard', () => {
   it('shows nothing signed out until something is kept', () => {
