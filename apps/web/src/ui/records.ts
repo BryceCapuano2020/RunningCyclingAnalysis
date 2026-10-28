@@ -1,13 +1,12 @@
 import {
-  DAY_MS,
   HALF_MARATHON_M,
   HEADLINE_DURATION_S,
   PRIORS,
   RUN_RECORD_DISTANCES_M,
 } from '@rca/core/constants'
 import type { RunRecordDistanceM } from '@rca/core/constants'
-import { startOfLocalDay } from '@rca/core/period'
 export { CURVE_START_S } from '@rca/core/profile'
+export { calendarDaysBetween, latestStartOf } from './activityDates'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
@@ -260,25 +259,6 @@ export function countEfforts(activities: ActivitySummary[], sport: Sport): numbe
   return activities.filter(
     (activity) => activity.sport === sport && activity.durationS >= HEADLINE_DURATION_S,
   ).length
-}
-
-/** The start of a sport's latest activity of any length, or null when the library holds none of it. */
-export function latestStartOf(activities: ActivitySummary[], sport: Sport): number | null {
-  let latest: number | null = null
-  for (const activity of activities) {
-    if (activity.sport === sport && (latest === null || activity.startMs > latest)) {
-      latest = activity.startMs
-    }
-  }
-  return latest
-}
-
-/**
- * Whole calendar days from one moment to a later one, in the device's zone. A clock change inside a
- * day does not make it a day short, since each moment is taken at the start of its own day.
- */
-export function calendarDaysBetween(earlierMs: number, laterMs: number): number {
-  return Math.round((startOfLocalDay(laterMs) - startOfLocalDay(earlierMs)) / DAY_MS)
 }
 
 /**
