@@ -1,0 +1,22 @@
+/*
+ * A sport's part of a week's bar, in the sport's colour (set once for each data-sport in tokens.css), edged
+ * in the page colour so that two stacked parts stay apart. The order of the stack, the key and the table say
+ * which part is which, so the colour is never the only cue.
+ */
+.volume-bar {
+  fill: var(--sport-colour);
+  stroke: var(--surface-0);
+  stroke-width: 1;
+}
+
+/* In forced colours the sport tints go: running is the text colour and the other sports the highlight. */
+@media (forced-colors: active) {
+  .volume-bar {
+    fill: Highlight;
+    stroke: Canvas;
+  }
+
+  .volume-bar[data-sport='run'] {
+    fill: CanvasText;
+  }
+}

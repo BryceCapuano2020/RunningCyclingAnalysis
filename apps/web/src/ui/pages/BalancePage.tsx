@@ -6,7 +6,7 @@ import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
-import { SharedTrendChart, energyWeeks, gradeWeeks } from '../charts'
+import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '../charts'
 import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
@@ -27,6 +27,8 @@ import type { AgeGap, AgeProfile, GradeOutcome } from '../grades'
 import { hrefFor } from '../route'
 import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
+import { volumeCaption } from '../volumeCaption'
+import { weeklyVolume } from '../weeklyVolume'
 import { BalanceHero } from './BalanceHero'
 import { BalanceStrip } from './BalanceStrip'
 import { CrossSportCard } from './CrossSportCard'
@@ -145,6 +147,15 @@ export function BalancePage({
           })
         : null,
     [gap, grades, result, sex, settings.massKg, units],
+  )
+  // The hours trained in the trend's own weeks, which the strip under the trend draws; null folds it away.
+  const volume = useMemo(
+    () =>
+      weeklyVolume(
+        result.activities,
+        trend.map((point) => point.endMs),
+      ),
+    [result.activities, trend],
   )
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
@@ -274,6 +285,10 @@ export function BalancePage({
                 ride: latestStartOf(library, 'ride'),
               }}
             />
+            {/* The hours behind the trend, on its time axis: where the balance moved because training did. */}
+            {volume === null ? null : (
+              <WeeklyVolumeChart weeks={volume} lede={volumeCaption(volume)} />
+            )}
           </div>
         </section>
       )}

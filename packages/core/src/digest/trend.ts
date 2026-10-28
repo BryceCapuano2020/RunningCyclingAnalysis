@@ -18,7 +18,7 @@ import {
   runCentralWkg,
   totalCalibration,
 } from './combine'
-import { DEFAULT_WINDOW_DAYS } from './trendPoints'
+import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
 
 const MAX_POINTS = 260
 const WEEK_MS = 7 * DAY_MS
@@ -64,13 +64,7 @@ export interface TrendOptions {
   equivalence?: { hr: HrCrossCheck | null }
 }
 
-/** The Sunday 23:59:59.999 UTC that ends the calendar week (Monday to Sunday, UTC) of ms. */
-export function weekEndMs(ms: number): number {
-  const date = new Date(ms)
-  const dayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-  const daysToSunday = (7 - date.getUTCDay()) % 7
-  return dayStart + (daysToSunday + 1) * DAY_MS - 1
-}
+export { weekEndMs }
 
 /** One activity's best effort at the trend duration: its central metabolic W/kg, and its watts. */
 interface Best {

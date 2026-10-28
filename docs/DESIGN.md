@@ -387,6 +387,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
   metabolic W/kg.
+- **The weekly volume sits under the Balance trend.** A stacked bar chart, "Training hours per week", with
+  one bar for each week of the trend above it: the moving time of the period's activities, in each sport's
+  colour, stacked in the order of `SPORT_ORDER`. It shares the trend's weeks and x scale (`weekEndMs`, the
+  UTC Sunday that ends each week), so a bar stands under the trend's point for that week; a week with no
+  training is a gap, marked on the axis as the trend marks one. Its one line under the title is chosen in
+  `volumeCaption.ts`: with more than one sport, the sport whose share of the hours moved most between the
+  first and second half of the weeks, when it moved by 15 points or more ("Cycling rose from 22% of your
+  hours in the first half to 82% in the second."), else the share of the sport with most hours; with one
+  sport, how its weekly hours moved between the halves when they changed by a quarter, else what they
+  averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week, hours of each
+  sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest
   activity's day, when they hold a run and a ride. A day is counted in the device's local zone and
   runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same
