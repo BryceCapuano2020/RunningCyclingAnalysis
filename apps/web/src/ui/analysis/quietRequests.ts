@@ -12,6 +12,7 @@ export function isQuietRequest(kind: Pending['kind']): boolean {
     isDeletion(kind) ||
     kind === 'exportData' ||
     kind === 'activitySplits' ||
+    kind === 'activityTrace' ||
     kind === 'loadDevice' ||
     kind === 'routeShape' ||
     kind === 'forgetRoutes' ||

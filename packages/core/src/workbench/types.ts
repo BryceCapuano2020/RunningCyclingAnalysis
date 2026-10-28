@@ -1,0 +1,53 @@
+import type { Sport } from '../types'
+
+export type CadenceUnit = 'steps/min' | 'rev/min' | 'unknown'
+
+/** Streams the detail view can show. `cadenceUnit` identifies cadence units when known. */
+export type TraceMetric = 'speed' | 'heartRate' | 'power' | 'cadence' | 'altitude' | 'temperature'
+
+/** Device lap boundaries in elapsed seconds, as a half-open integer range. */
+export interface ActivityLap {
+  startS: number
+  endS: number
+  label?: string
+}
+
+/** Compact, serializable evidence for one activity's detail workbench. */
+export interface ActivityTrace {
+  version: 1
+  activityId: string
+  sport: Sport
+  /** Omitted for legacy traces, whose cadence unit follows sport; `unknown` preserves GPX ambiguity. */
+  cadenceUnit?: CadenceUnit
+  durationS: number
+  /** Cumulative metres, at the one-second sample boundaries. */
+  distance: Float64Array
+  paused: Uint8Array
+  unrecorded: Uint8Array
+  /** Recorded streams only; virtual power is never included. Missing samples are NaN. */
+  streams: Partial<Record<TraceMetric, Float32Array>>
+  laps: ActivityLap[]
+}
+
+export interface MetricSelectionSummary {
+  /** Mean over valid, recorded seconds while moving; paused and unrecorded seconds are excluded. */
+  mean: number | null
+  min: number | null
+  max: number | null
+  /** Moving seconds with a finite, in-range value. */
+  seconds: number
+}
+
+export interface SelectionSummary {
+  startS: number
+  endS: number
+  elapsedS: number
+  /** Seconds neither paused nor unrecorded. */
+  movingS: number
+  /** Seconds that were not in a device recording gap, including pauses. */
+  recordedS: number
+  /** Null if the selected distance crosses an unknown or unrecorded boundary. */
+  distanceM: number | null
+  /** Moving-time summaries. Device pauses remain represented by elapsedS/recordedS. */
+  metrics: Partial<Record<TraceMetric, MetricSelectionSummary>>
+}

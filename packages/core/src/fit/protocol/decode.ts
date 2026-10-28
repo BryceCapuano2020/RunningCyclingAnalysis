@@ -43,6 +43,9 @@ export interface DecodedRecord {
   /** Metres. */
   altitude: number | undefined
   heartRate: number | undefined
+  cadence: number | undefined
+  fractionalCadence: number | undefined
+  temperature: number | undefined
   /** Metres. Taken from the compressed distance field when the record has no distance field. */
   distance: number | undefined
   /** Metres per second. Taken from the compressed speed field when the record has no speed field. */
@@ -52,6 +55,13 @@ export interface DecodedRecord {
   enhancedSpeed: number | undefined
   /** Metres. */
   enhancedAltitude: number | undefined
+}
+
+export interface DecodedLap {
+  startTimeMs: number | undefined
+  timestampMs: number | undefined
+  totalElapsedTime: number | undefined
+  totalTimerTime: number | undefined
 }
 
 export interface DecodedEvent {
@@ -64,6 +74,7 @@ export interface DecodedMessages {
   fileId?: DecodedFileId
   sports: DecodedSport[]
   sessions: DecodedSession[]
+  laps: DecodedLap[]
   records: DecodedRecord[]
   events: DecodedEvent[]
 }
@@ -92,7 +103,7 @@ type Values = Map<number, number | string>
  */
 export function decodeFit(bytes: Uint8Array, opts: DecodeOptions = {}): DecodeResult {
   const maxRecords = opts.maxRecords ?? DEFAULT_MAX_RECORDS
-  const messages: DecodedMessages = { sports: [], sessions: [], records: [], events: [] }
+  const messages: DecodedMessages = { sports: [], sessions: [], laps: [], records: [], events: [] }
   const errors: string[] = []
   const compressed = compressedReader()
   let recordCount = 0
@@ -147,6 +158,14 @@ function collect(messages: DecodedMessages, message: FitMessage): void {
         subSport: subSportName(numberOf(v, 6) ?? -1),
       })
       return
+    case MESG.lap:
+      messages.laps.push({
+        timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
+        startTimeMs: fitTimeToEpochMs(numberOf(v, 2)),
+        totalElapsedTime: scaled(v, 7, 1000),
+        totalTimerTime: scaled(v, 8, 1000),
+      })
+      return
     case MESG.event:
       messages.events.push({
         timestampMs: fitTimeToEpochMs(numberOf(v, FIELD.timestamp)),
@@ -168,6 +187,9 @@ function toRecord(v: Values, compressed: CompressedReading | undefined): Decoded
     positionLong: numberOf(v, FIELD.positionLong),
     altitude: scaled(v, FIELD.altitude, 5, 500),
     heartRate: numberOf(v, FIELD.heartRate),
+    cadence: numberOf(v, FIELD.cadence),
+    fractionalCadence: scaled(v, FIELD.fractionalCadence, 128),
+    temperature: numberOf(v, FIELD.temperature),
     distance: scaled(v, FIELD.distance, 100) ?? compressed?.distance,
     speed: scaled(v, FIELD.speed, 1000) ?? compressed?.speed,
     power: numberOf(v, FIELD.power),

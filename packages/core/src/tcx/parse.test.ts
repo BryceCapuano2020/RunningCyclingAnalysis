@@ -103,6 +103,7 @@ interface PointXml {
   speed?: number
   watts?: number
   runCadence?: number
+  cadence?: number
 }
 
 function optional(name: string, value: number | string | undefined): string {
@@ -124,13 +125,17 @@ function pointXml(p: PointXml): string {
   return (
     `<Trackpoint><Time>${p.time ?? isoAt(p.second)}</Time>${position}` +
     `${optional('AltitudeMeters', p.altitude)}${optional('DistanceMeters', p.distance)}` +
+    `${optional('Cadence', p.cadence)}` +
     `${hr}${extensions}</Trackpoint>`
   )
 }
 
-function lapXml(points: string[]): string {
+function lapXml(points: string[], timing?: { startS: number; totalTimeS: number }): string {
+  const start = timing === undefined ? '' : ` StartTime="${isoAt(timing.startS)}"`
+  const total =
+    timing === undefined ? '' : `<TotalTimeSeconds>${timing.totalTimeS}</TotalTimeSeconds>`
   return (
-    `<Lap StartTime="${isoAt(0)}"><TotalTimeSeconds>0</TotalTimeSeconds>` +
+    `<Lap${start}>${total}` +
     `<AverageHeartRateBpm><Value>999</Value></AverageHeartRateBpm>` +
     `<Intensity>Active</Intensity><TriggerMethod>Manual</TriggerMethod>` +
     `<Track>${points.join('')}</Track></Lap>`
@@ -274,6 +279,74 @@ describe('parseTcx round trip', () => {
 })
 
 describe('parseTcx garmin-style documents', () => {
+  it('retains TPX cadence and temperature and captures explicit TCX laps', () => {
+    const withSensors = (points: string[], cadence: number, temperature: number) =>
+      points.map((point) =>
+        point
+          .replace(
+            '<ns3:RunCadence>170</ns3:RunCadence>',
+            `<ns3:RunCadence>${cadence}</ns3:RunCadence>`,
+          )
+          .replace(
+            '</Trackpoint>',
+            `<Extensions><ns3:TPX><ns3:Temp>${temperature}</ns3:Temp></ns3:TPX></Extensions></Trackpoint>`,
+          ),
+      )
+    const laps = [
+      lapXml(withSensors(runPoints(0, 60, true), 170, 14)),
+      lapXml(withSensors(runPoints(60, 60, true), 172, 15)),
+    ]
+    const a = firstActivity(parseTcx(documentXml([activityXml('Running', laps)]), 'workbench.tcx'))
+    expect(a.cadence?.[30]).toBe(170)
+    expect(a.cadenceUnit).toBe('steps/min')
+    expect(a.cadence?.[90]).toBe(172)
+    expect(a.temperature?.[30]).toBe(14)
+    expect(a.temperature?.[90]).toBe(15)
+    expect(a.laps).toEqual([
+      { startS: 0, endS: 60, label: 'Lap 1' },
+      { startS: 60, endS: 120, label: 'Lap 2' },
+    ])
+  })
+
+  it('uses explicit TCX lap start and elapsed duration for smart-recorded tracks', () => {
+    const points = Array.from({ length: 90 }, (_, index) => {
+      const second = 5 + index * 5
+      return pointXml({
+        second,
+        lat: 51.5 + second * 0.00003,
+        lon: -0.12,
+        distance: second * 3.5,
+        altitude: 10 + second * 0.1,
+        hr: 140,
+        speed: 3.5,
+      })
+    })
+    const lap = lapXml(points, { startS: 5, totalTimeS: 300 })
+    const activity = firstActivity(
+      parseTcx(documentXml([activityXml('Running', [lap])]), 'smart.tcx'),
+    )
+    expect(activity.n).toBeGreaterThan(300)
+    expect(activity.laps).toEqual([{ startS: 0, endS: 300, label: 'Lap 1' }])
+  })
+
+  it('keeps standard TCX cycling cadence in revolutions per minute', () => {
+    const points = Array.from({ length: 120 }, (_, second) =>
+      pointXml({
+        second,
+        lat: 51.5 + second * 0.00003,
+        lon: -0.12,
+        distance: second * 5,
+        cadence: 88,
+      }),
+    )
+    const activity = firstActivity(
+      parseTcx(documentXml([activityXml('Biking', [lapXml(points)])]), 'ride.tcx'),
+    )
+    expect(activity.sport).toBe('ride')
+    expect(activity.cadence?.[30]).toBe(88)
+    expect(activity.cadenceUnit).toBe('rev/min')
+  })
+
   it('reads positions, heart rate, distance and TPX speed, and ignores lap averages', () => {
     const bytes = documentXml([activityXml('Running', [lapXml(runPoints(0, 90, true))])])
     const result = parseTcx(bytes, 'Garmin Run.tcx')

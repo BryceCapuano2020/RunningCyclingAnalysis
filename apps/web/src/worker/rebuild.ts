@@ -3,6 +3,7 @@ import { digestActivity, MODEL_REVISION } from '@rca/core/digest'
 import { haltsImport } from '@rca/core/session'
 import type { AnalysisSession, PeriodChoice, SessionState } from '@rca/core/session'
 import type { AthleteSettings } from '@rca/core/types'
+import type { Activity } from '@rca/core/types'
 import { createActivity, listActivities } from '../api/client'
 import { workoutKeyOf, type DeviceActions } from './device'
 import { originalActivity } from './originalActivity'
@@ -28,6 +29,8 @@ export interface LibraryContext {
   post: (message: WorkerResponse) => void
   reportLibrary: () => void
   reportUnreadable: (count: number) => void
+  /** Captures evidence only after its digest rebuild succeeded. */
+  captureTrace?: (activity: Activity, userId: string) => void | Promise<void>
 }
 
 /** Fetches the account's digests here, so a large library never crosses the main thread. */
@@ -98,6 +101,7 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
       )
       const recordIndex = records.findIndex((candidate) => candidate.id === record.id)
       if (recordIndex >= 0) records[recordIndex] = upgraded
+      await ctx.captureTrace?.(activity, userId)
       rebuilt++
     } catch (error) {
       const issue = syncIssueFor(error)

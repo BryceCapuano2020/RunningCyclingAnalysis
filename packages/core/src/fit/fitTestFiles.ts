@@ -12,6 +12,7 @@ import {
   FILE_ID_LAYOUT,
   RECORD_LAYOUT,
   SESSION_LAYOUT,
+  LAP_LAYOUT,
   SPORT_LAYOUT,
 } from './protocol/layouts'
 import { FitWriter } from './protocol/writer'
@@ -25,6 +26,9 @@ export interface TestRecord {
   altitude?: number
   heartRate?: number
   power?: number
+  cadence?: number
+  fractionalCadence?: number
+  temperature?: number
   distance?: number
   /** Writes a position so the record counts as outdoor. */
   gps?: boolean
@@ -49,6 +53,7 @@ export interface TestFile {
   sessions?: TestSession[]
   /** Timer events written independently of records, for pause-boundary parser fixtures. */
   timerEvents?: Array<{ tMs: number; eventType: FitEventType }>
+  laps?: Array<{ startMs: number; endMs: number }>
 }
 
 /** Epoch milliseconds to whole seconds since the FIT epoch. */
@@ -86,6 +91,17 @@ export function buildFit(file: TestFile): Uint8Array {
       eventType: EVENT_TYPE[timerEvent.eventType],
     })
   }
+  for (const [messageIndex, lap] of (file.laps ?? []).entries()) {
+    writer.message(LAP_LAYOUT, {
+      messageIndex,
+      event: EVENT.lap,
+      eventType: EVENT_TYPE.stop,
+      startTime: fitSeconds(lap.startMs),
+      timestamp: fitSeconds(lap.endMs),
+      totalElapsedTime: lap.endMs - lap.startMs,
+      totalTimerTime: lap.endMs - lap.startMs,
+    })
+  }
   return writer.finish()
 }
 
@@ -103,6 +119,9 @@ function writeRecord(writer: FitWriter, record: TestRecord): void {
     enhancedAltitude: record.altitude === undefined ? undefined : (record.altitude + 500) * 5,
     heartRate: record.heartRate,
     power: record.power,
+    cadence: record.cadence,
+    fractionalCadence: record.fractionalCadence,
+    temperature: record.temperature,
     distance: record.distance === undefined ? undefined : record.distance * 100,
   })
 }

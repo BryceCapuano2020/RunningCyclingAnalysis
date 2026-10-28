@@ -5,9 +5,11 @@ import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
 import type { GpsFix } from './gps'
 import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
+import type { ActivityLap, CadenceUnit } from '../workbench/types'
 import { failure, MAX_FILE_SAMPLES, refused } from './result'
 import { nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
+import { cleanRecord } from './cleanRecord'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
@@ -15,9 +17,6 @@ const MAX_FUTURE_MS = DAY_MS
 const MIN_SAMPLES = 60
 /** The fastest speed a sample may have, per sport. Faster samples are dropped as impossible. */
 export const MAX_SPEED_MPS: Record<Sport, number> = { ride: 30, run: 12.5 }
-const MAX_POWER_W = 3000
-const MIN_HEART_RATE = 25
-const MAX_HEART_RATE = 250
 
 const SHORT_REASON = 'Activity is shorter than one minute'
 const SPARSE_REASON = 'Activity is recorded too sparsely: its points are more than 10 seconds apart'
@@ -32,6 +31,9 @@ const DATE_REASON = 'Activity date is not plausible'
 export interface PipelineUnit {
   /** Records of this unit, in any order. Times are epoch milliseconds. */
   records: RawRecord[]
+  /** Explicit lap boundaries retained by a source format, in epoch milliseconds. */
+  laps?: Array<{ startMs: number; endMs: number; label?: string }>
+  cadenceUnit?: CadenceUnit
   /** Timer start and stop events of this unit, in any order. May be empty. */
   timerEvents: RawTimerEvent[]
   /** The mapped sport, or null when the source's sport is not supported and the unit is refused. */
@@ -162,7 +164,7 @@ function evaluateUnit(unit: PipelineUnit, index: number, context: Context): Outc
   }
   const maxSpeed = MAX_SPEED_MPS[sport]
   const drops = new Map<RawRecord, number>()
-  const segments = splitAtGaps(unit.records.map((r) => clean(r, maxSpeed, drops)))
+  const segments = splitAtGaps(unit.records.map((r) => cleanRecord(r, maxSpeed, drops)))
 
   const outcomes: Outcome[] = []
   for (const [part, segment] of segments.entries()) {
@@ -307,37 +309,35 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     sport,
     indoor,
     ...resampled,
+    ...(resampled.cadence && unit.cadenceUnit ? { cadenceUnit: unit.cadenceUnit } : {}),
+    ...(unit.laps === undefined
+      ? {}
+      : { laps: lapsForSegment(unit.laps, resampled.startMs, resampled.n) }),
     ...(route ? { route } : {}),
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
   }
   return { ok: true, activity, dropped }
 }
 
-/** Drops impossible values (sets them to undefined) and counts them per record. */
-function clean(r: RawRecord, maxSpeed: number, drops: Map<RawRecord, number>): RawRecord {
-  const counts = { dropped: 0 }
-  const cleaned: RawRecord = {
-    tMs: r.tMs,
-    distance: r.distance,
-    speed: keepWithin(r.speed, 0, maxSpeed, counts),
-    altitude: r.altitude,
-    heartRate: keepWithin(r.heartRate, MIN_HEART_RATE, MAX_HEART_RATE, counts),
-    power: keepWithin(r.power, 0, MAX_POWER_W, counts),
+function lapsForSegment(
+  laps: NonNullable<PipelineUnit['laps']>,
+  startMs: number,
+  n: number,
+): ActivityLap[] {
+  const endMs = startMs + n * 1000
+  const out: ActivityLap[] = []
+  let previousEnd = 0
+  for (const lap of laps) {
+    const from = Math.max(startMs, lap.startMs)
+    const to = Math.min(endMs, lap.endMs)
+    if (!(to > from)) continue
+    const startS = Math.max(previousEnd, Math.max(0, Math.round((from - startMs) / 1000)))
+    const endS = Math.max(0, Math.min(n, Math.round((to - startMs) / 1000)))
+    if (endS <= startS) continue
+    out.push({ startS, endS, ...(lap.label === undefined ? {} : { label: lap.label }) })
+    previousEnd = endS
   }
-  if (counts.dropped > 0) drops.set(cleaned, counts.dropped)
-  return cleaned
-}
-
-/** A value outside [min, max] is impossible: it is dropped and counted. */
-function keepWithin(
-  value: number | undefined,
-  min: number,
-  max: number,
-  counts: { dropped: number },
-): number | undefined {
-  if (value === undefined || (value >= min && value <= max)) return value
-  counts.dropped++
-  return undefined
+  return out
 }
 
 /**

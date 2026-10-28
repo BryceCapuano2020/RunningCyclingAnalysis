@@ -170,6 +170,7 @@ packages/core/       @rca/core: analysis library, pure TypeScript, no DOM
   import/            file dispatch by extension, shared pipeline, GPS speed
   xml/               streaming XML scanner for GPX and TCX
   quality/           sensor data-quality rules
+  workbench/         recorded timelines, elapsed selections, moving-time summaries and interval ranges
   digest/            per-activity digests, combining digests, serialisation and the fitness trend
   physics/           air density for the aerodynamic terms
   units/             unit conversion and formatting for imperial and metric

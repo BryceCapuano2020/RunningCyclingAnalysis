@@ -47,10 +47,13 @@ export const RECORD_LAYOUT = defineLayout(MESG.record, [
   { name: 'positionLat', num: 0, base: BASE.sint32 },
   { name: 'positionLong', num: 1, base: BASE.sint32 },
   { name: 'heartRate', num: 3, base: BASE.uint8 },
+  { name: 'cadence', num: 4, base: BASE.uint8 },
+  { name: 'fractionalCadence', num: 53, base: BASE.uint8 },
   { name: 'distance', num: 5, base: BASE.uint32 },
   { name: 'enhancedSpeed', num: 73, base: BASE.uint32 },
   { name: 'enhancedAltitude', num: 78, base: BASE.uint32 },
   { name: 'power', num: 7, base: BASE.uint16 },
+  { name: 'temperature', num: 13, base: BASE.sint8 },
 ])
 
 export const EVENT_LAYOUT = defineLayout(MESG.event, [

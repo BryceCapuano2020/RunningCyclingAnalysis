@@ -42,7 +42,6 @@ export class AnalysisSession {
   private digests = new Map<string, ActivityDigest>()
   // Activities whose last sink call failed, and why. Re-importing the file tries them again.
   private unsynced = new Map<string, SyncIssueCode>()
-  // The keys the latest import left in `unsynced`, so its own failures can be told from earlier ones.
   private latestUnsynced = new Set<string>()
   private outdatedKeys = new Set<string>()
   private incompatibleKeys = new Set<string>()
@@ -51,15 +50,11 @@ export class AnalysisSession {
   private rejected: Refused[] = []
   private unsupported = { files: 0 }
   private isSample = false
-  // The period the athlete picked. The default is the most recent window that holds both sports.
   private choice: PeriodChoice = 'default'
-  // Whether the headline trend carries each week's running equivalent, which only an age-graded
-  // Balance trend uses. Off until the page asks for it.
   private gradeTrend = false
   private periods = new PeriodCache()
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
-  // The last record holders, with the digests and masses they were computed from.
   private recordsCache: {
     digests: ActivityDigest[]
     massKg: number
@@ -90,16 +85,14 @@ export class AnalysisSession {
     sink?: SyncSink,
     syncExisting = false,
     onComplete?: (outcome: {
-      /** The activities read, which a file may hold several of. */
       activities: number
-      /** The files that added a workout the library now holds and shows: not refused, and not all already held or hidden as copies. */
       filesAdded: number
       rejected: number
-      /** Activity files the export's list does not name, such as saved routes, left unread and not counted as rejected. */
       notActivities: number
       duplicates: RejectedFile[]
       added: ActivityDigest[]
     }) => void,
+    onActivity?: (activity: Activity) => void | Promise<void>,
   ): Promise<SessionState> {
     if (this.isSample) this.clear()
     // The rejected files are those of this import, so an earlier import's are not listed again.
@@ -120,7 +113,8 @@ export class AnalysisSession {
         read,
         unsupported: this.unsupported,
         hashFiles: sink !== undefined,
-        consider: (activity, file) => this.consider(activity, file, sink, syncExisting, batch),
+        consider: (activity, file) =>
+          this.consider(activity, file, sink, syncExisting, batch, onActivity),
       })
     }
     // Only digests still visible count as added, so the order the files arrive in does not matter.
@@ -219,7 +213,13 @@ export class AnalysisSession {
     sink: SyncSink | undefined,
     syncExisting: boolean,
     batch: SaveBatch,
+    onActivity?: (activity: Activity) => void | Promise<void>,
   ): Promise<Considered> {
+    try {
+      await onActivity?.(activity)
+    } catch {
+      // Optional evidence capture must never change whether an activity is analysed or saved.
+    }
     const copyOf = heldCopyOf(this.digests.values(), activity, file.fileName)
     if (copyOf !== null) return { held: copyOf }
     return this.keep(activity, file, sink, syncExisting, batch)

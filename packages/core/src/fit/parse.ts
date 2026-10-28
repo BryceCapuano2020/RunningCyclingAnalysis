@@ -5,7 +5,7 @@ import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../impor
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { E_BIKE_REASON, E_BIKE_SKIPPED, isEBikeType } from '../import/sportType'
 import { decodeFit } from './protocol/decode'
-import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/decode'
+import type { DecodedEvent, DecodedLap, DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
 import { isFitFile, TRUNCATED_ERROR } from './protocol/reader'
 import type { RawRecord, RawTimerEvent } from './resample'
@@ -40,6 +40,7 @@ interface Unit {
   /** Sorted by time. */
   records: Timed[]
   events: RawTimerEvent[]
+  laps: DecodedLap[]
 }
 
 type DecodedSportMessage = {
@@ -95,7 +96,7 @@ function parseUnchecked(
   if (timed.length === 0) return failure(fileName, NO_DATE, 'no-date')
 
   const skipped: string[] = []
-  const units = assignUnits(messages.sessions, timed, messages.events, skipped)
+  const units = assignUnits(messages.sessions, timed, messages.events, messages.laps, skipped)
   const sportMesg = messages.sports[0]
   const origins = distanceOrigins(units, timed)
   // The file names its own sport and keeps it, except that a list which says e-bike refuses the file.
@@ -123,7 +124,11 @@ function toPipelineUnit(
   const mapping = mapSport(sport, subSport, listedEBike)
   const fixes = fitFixes(unit.records)
   const shared = {
-    records: unit.records.map((t) => toRaw(t)),
+    records: unit.records.map((t) => toRaw(t, mapping.ok ? mapping.sport : null)),
+    laps: lapBounds(unit.laps),
+    ...(mapping.ok && unit.records.some(({ record }) => record.cadence !== undefined)
+      ? { cadenceUnit: mapping.sport === 'run' ? ('steps/min' as const) : ('rev/min' as const) }
+      : {}),
     timerEvents: unit.events,
     sportLabel: sport ?? 'unknown',
     hasPosition: fixes.some((f) => isUsableLatLon(f.lat, f.lon)),
@@ -216,8 +221,9 @@ function fitFixes(records: Timed[]): GpsFix[] {
 }
 
 /** A decoded FIT record as a RawRecord. Impossible values are dropped later, by the pipeline. */
-function toRaw(t: Timed): RawRecord {
+function toRaw(t: Timed, sport: Sport | null): RawRecord {
   const r = t.record
+  const cadence = r.cadence === undefined ? undefined : r.cadence + (r.fractionalCadence ?? 0)
   return {
     tMs: t.tMs,
     distance: r.distance,
@@ -225,6 +231,10 @@ function toRaw(t: Timed): RawRecord {
     altitude: r.enhancedAltitude ?? r.altitude,
     heartRate: r.heartRate,
     power: r.power,
+    // FIT reports running cadence in cycles per minute (two steps); Activity uses steps/min.
+    // Field semantics: https://developer.garmin.com/fit/protocol/
+    cadence: cadence === undefined ? undefined : sport === 'run' ? cadence * 2 : cadence,
+    temperature: r.temperature,
   }
 }
 
@@ -260,26 +270,31 @@ function assignUnits(
   sessions: DecodedSession[],
   timed: Timed[],
   events: DecodedEvent[],
+  laps: DecodedLap[],
   skipped: string[],
 ): Unit[] {
   const timerEvents = timerEventsOf(events)
-  if (sessions.length === 0) return [{ session: undefined, records: timed, events: timerEvents }]
+  if (sessions.length === 0) {
+    return [{ session: undefined, records: timed, events: timerEvents, laps }]
+  }
 
-  const units: Unit[] = sessions.map((session) => ({ session, records: [], events: [] }))
-  const windows = sessionWindows(sessions)
-  if (overlaps(windows)) skipped.push(OVERLAP)
+  const units: Unit[] = sessions.map((session) => ({ session, records: [], events: [], laps: [] }))
   if (sessions.length === 1) {
     units[0]!.records = timed
-  } else {
-    const owners = ownersOf(
-      windows,
-      timed.map((t) => t.tMs),
-    )
-    timed.forEach((t, k) => {
-      const owner = owners[k]!
-      if (owner >= 0) units[owner]!.records.push(t)
-    })
+    units[0]!.laps = laps
+    units[0]!.events = timerEvents
+    return units
   }
+  const windows = sessionWindows(sessions)
+  if (overlaps(windows)) skipped.push(OVERLAP)
+  const owners = ownersOf(
+    windows,
+    timed.map((t) => t.tMs),
+  )
+  timed.forEach((t, k) => {
+    const owner = owners[k]!
+    if (owner >= 0) units[owner]!.records.push(t)
+  })
   const eventOwners = ownersOf(
     windows,
     timerEvents.map((e) => e.tMs),
@@ -288,7 +303,36 @@ function assignUnits(
     const owner = eventOwners[k]!
     if (owner >= 0) units[owner]!.events.push(event)
   })
+  const usableLaps = laps.map((lap) => ({ lap, startMs: lap.startTimeMs ?? lap.timestampMs }))
+  const lapOwners = ownersOf(
+    windows,
+    usableLaps.map((item) => item.startMs ?? Number.NEGATIVE_INFINITY),
+  )
+  usableLaps.forEach(({ lap }, k) => {
+    const owner = lapOwners[k]!
+    if (owner >= 0) units[owner]!.laps.push(lap)
+  })
   return units
+}
+
+function lapBounds(laps: DecodedLap[]): NonNullable<PipelineUnit['laps']> {
+  const out: NonNullable<PipelineUnit['laps']> = []
+  for (const lap of laps) {
+    const endMs = lap.timestampMs
+    const startMs =
+      lap.startTimeMs ??
+      (endMs === undefined || lap.totalElapsedTime === undefined
+        ? undefined
+        : endMs - lap.totalElapsedTime * 1000)
+    const resolvedEnd =
+      endMs ??
+      (startMs === undefined || lap.totalElapsedTime === undefined
+        ? undefined
+        : startMs + lap.totalElapsedTime * 1000)
+    if (startMs === undefined || resolvedEnd === undefined || resolvedEnd <= startMs) continue
+    out.push({ startMs, endMs: resolvedEnd })
+  }
+  return out.sort((a, b) => a.startMs - b.startMs)
 }
 
 function timerEventsOf(events: DecodedEvent[]): RawTimerEvent[] {

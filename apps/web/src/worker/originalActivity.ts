@@ -13,6 +13,20 @@ function savedType({ sport, indoor }: ActivityDigest): string {
   return indoor ? `Virtual ${type}` : type
 }
 
+/** Selects the exact activity from a retained multi-activity file. */
+export function matchOriginalActivity(
+  activities: Activity[],
+  digest: ActivityDigest,
+  expectedActivityId?: string,
+): Activity | undefined {
+  return activities.find(
+    (candidate) =>
+      (expectedActivityId === undefined || candidate.id === expectedActivityId) &&
+      candidate.sport === digest.sport &&
+      Math.round(candidate.startMs / 1000) === Math.round(digest.startMs / 1000),
+  )
+}
+
 /**
  * A saved activity's original file, downloaded and read again, with the activity in it that the
  * record's digest was made from. The activity is undefined when the file no longer reads or holds no
@@ -22,6 +36,7 @@ function savedType({ sport, indoor }: ActivityDigest): string {
 export async function originalActivity(
   record: ActivityRecord,
   userId: string,
+  expectedActivityId?: string,
 ): Promise<{ fileHash: string; activity: Activity | undefined }> {
   const bytes = await downloadActivityFile(record.id, userId)
   const fileHash = await sha256Hex(bytes)
@@ -30,10 +45,6 @@ export async function originalActivity(
     sessionKey: fileHash,
   })
   if (!parsed.ok) return { fileHash, activity: undefined }
-  const activity = parsed.activities.find(
-    (candidate) =>
-      candidate.sport === record.digest.sport &&
-      Math.round(candidate.startMs / 1000) === Math.round(record.digest.startMs / 1000),
-  )
+  const activity = matchOriginalActivity(parsed.activities, record.digest, expectedActivityId)
   return { fileHash, activity }
 }

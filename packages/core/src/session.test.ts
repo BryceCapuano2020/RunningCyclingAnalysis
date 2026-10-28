@@ -154,6 +154,27 @@ describe('AnalysisSession', () => {
     expect(again.result?.activities).toHaveLength(1)
   })
 
+  it('keeps the existing library when optional activity evidence capture fails', async () => {
+    const session = new AnalysisSession()
+    await session.addFiles([fitFile('run.fit', run)], SETTINGS)
+
+    const again = await session.addFiles(
+      [fitFile('run again.fit', run)],
+      SETTINGS,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      async () => {
+        throw new Error('evidence storage refused the trace')
+      },
+    )
+
+    expect(again.result?.activities).toHaveLength(1)
+    expect(again.totalActivities).toBe(1)
+    expect(again.rejected).toEqual([])
+  })
+
   it('reports the digests an import adds, leaving out copies it skips and what it replaces', async () => {
     const session = new AnalysisSession()
     const added: ActivityDigest[][] = []

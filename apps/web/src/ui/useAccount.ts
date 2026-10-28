@@ -3,6 +3,7 @@ import type { Me, Profile, ProfileInput } from '@rca/contract'
 import * as api from '../api/client'
 import { ApiRequestError, signInUrl } from '../api/client'
 import { messageOf } from '../api/messageOf'
+import { deleteAccountDetails } from '../worker/deleteAccountDetails'
 
 export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
 
@@ -167,12 +168,13 @@ export function useAccount(): AccountController {
     try {
       await profileWritesRef.current
       await api.deleteAccount(userId)
+      const cleanupNotice = await deleteAccountDetails(userId)
       meRef.current = null
       profileWriteFailureRef.current = null
       setMe(null)
       setStatus('signed-out')
       setSessionExpired(false)
-      setError(null)
+      setError(cleanupNotice)
     } catch (failure) {
       endingSessionRef.current = false
       setError(messageOf(failure))

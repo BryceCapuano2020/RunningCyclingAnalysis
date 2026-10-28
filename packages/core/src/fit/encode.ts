@@ -60,6 +60,7 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
       if (i < n) timer(startFit + i, EVENT_TYPE.start)
       continue
     }
+    const cadence = cadenceForFit(optionalSample(activity.cadence, i), activity.sport)
     writer.message(RECORD_LAYOUT, {
       timestamp: startFit + i,
       positionLat: opts.gps ? 0 : undefined,
@@ -69,6 +70,8 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
       enhancedAltitude: scaled(sample(activity.altitude, i), 5, 500),
       heartRate: sample(activity.heartRate, i),
       power: sample(activity.power, i),
+      ...cadence,
+      temperature: optionalSample(activity.temperature, i),
     })
     i++
   }
@@ -112,8 +115,32 @@ export function encodeFit(activity: Activity, opts: EncodeOptions = {}): Uint8Ar
   return writer.finish()
 }
 
+/** FIT stores running cadence as cycles/min and uses field 53 for the 1/128 fractional part. */
+function cadenceForFit(
+  value: number | undefined,
+  sport: Activity['sport'],
+): { cadence?: number; fractionalCadence?: number } {
+  if (value === undefined || !Number.isFinite(value)) return {}
+  const raw = sport === 'run' ? value / 2 : value
+  let cadence = Math.floor(raw)
+  let fractionalCadence = Math.round((raw - cadence) * 128)
+  if (fractionalCadence === 128) {
+    cadence++
+    fractionalCadence = 0
+  }
+  return {
+    cadence,
+    ...(fractionalCadence === 0 ? {} : { fractionalCadence }),
+  }
+}
+
 function sample(xs: Float64Array, i: number): number | undefined {
   const value = xs[i]
+  return value !== undefined && Number.isFinite(value) ? value : undefined
+}
+
+function optionalSample(xs: Float32Array | undefined, i: number): number | undefined {
+  const value = xs?.[i]
   return value !== undefined && Number.isFinite(value) ? value : undefined
 }
 

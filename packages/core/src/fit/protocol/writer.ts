@@ -26,11 +26,14 @@ interface Writable {
   max: number
   /** The base type's invalid value, written for an absent field. */
   invalid: number
+  signed?: boolean
 }
 
 const UINT8: Writable = { size: 1, min: 0, max: 0xfe, invalid: 0xff }
+const SINT8: Writable = { size: 1, min: -0x80, max: 0x7e, invalid: 0x7f, signed: true }
 const WRITABLE: Partial<Record<number, Writable>> = {
   [BASE.enum]: UINT8,
+  [BASE.sint8]: SINT8,
   [BASE.uint8]: UINT8,
   [BASE.uint16]: { size: 2, min: 0, max: 0xfffe, invalid: 0xffff },
   [BASE.uint32]: { size: 4, min: 0, max: 0xfffffffe, invalid: 0xffffffff },
@@ -150,7 +153,8 @@ function writeValue(
 ): void {
   const rounded = value === undefined ? NaN : Math.round(value)
   const raw = rounded >= writable.min && rounded <= writable.max ? rounded : writable.invalid
-  if (writable.size === 1) view.setUint8(offset, raw)
+  if (writable.size === 1 && writable.signed) view.setInt8(offset, raw)
+  else if (writable.size === 1) view.setUint8(offset, raw)
   else if (writable.size === 2) view.setUint16(offset, raw, true)
   else view.setUint32(offset, raw >>> 0, true)
 }

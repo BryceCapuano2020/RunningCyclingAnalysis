@@ -1,0 +1,243 @@
+.activity-workbench {
+  min-width: 0;
+}
+
+.activity-workbench__selection,
+.activity-workbench__metrics {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.activity-workbench__selection legend,
+.activity-workbench__metrics legend {
+  padding: 0 var(--space-1);
+  font-weight: 600;
+}
+
+.activity-workbench__range {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.activity-workbench__range label {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.activity-workbench__input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.activity-workbench__input-row input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.activity-workbench__input-row input[type='number'] {
+  width: 5.5rem;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.activity-workbench__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.activity-workbench__metrics label {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.activity-workbench__actions,
+.activity-workbench__lap-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.activity-workbench__laps,
+.activity-workbench__stats {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.activity-workbench__laps h3,
+.activity-workbench__stats h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.activity-workbench__laps p {
+  margin: 0;
+}
+
+.activity-workbench__plots {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.activity-workbench__plot {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+.activity-workbench__plot figcaption {
+  font-weight: 600;
+}
+
+.activity-workbench__plot figcaption span {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.activity-workbench__plot-range {
+  margin: var(--space-1) 0 0;
+}
+
+.activity-workbench__plot svg {
+  display: block;
+  width: 100%;
+  height: 11rem;
+  overflow: visible;
+  margin-top: var(--space-2);
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(25% - 1px),
+    var(--grid) calc(25% - 1px),
+    var(--grid) 25%
+  );
+}
+
+.activity-workbench__line {
+  fill: none;
+  stroke: var(--sport-colour);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.activity-workbench__axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-workbench__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.activity-workbench__summary div {
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.activity-workbench__summary dt {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.activity-workbench__summary dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-workbench__table-wrap {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.activity-workbench table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-workbench caption {
+  padding: var(--space-2) 0;
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.activity-workbench th,
+.activity-workbench td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.activity-workbench__distribution {
+  margin-top: var(--space-2);
+}
+
+.activity-workbench__histogram {
+  height: 3.5rem;
+  display: flex;
+  align-items: end;
+  gap: 1px;
+  margin-top: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-workbench__histogram span {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: var(--sport-colour);
+}
+
+.activity-workbench__distribution summary {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+@media (max-width: 479px) {
+  .activity-workbench__input-row {
+    flex-wrap: wrap;
+  }
+
+  .activity-workbench__input-row input[type='range'] {
+    flex-basis: 100%;
+    order: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .activity-workbench__line {
+    stroke: CanvasText;
+  }
+
+  .activity-workbench__histogram span {
+    background: CanvasText;
+    border: 1px solid CanvasText;
+  }
+}

@@ -1,4 +1,3 @@
-import type { RawRecord } from '../fit/resample'
 import { activitiesFromUnits, MAX_SPEED_MPS } from '../import/pipeline'
 import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
@@ -13,27 +12,31 @@ import {
   readNumber,
   readPosition,
   Refusal,
-  trackFromPoints,
 } from '../import/trackpoints'
 import type { LatLon } from '../import/trackpoints'
 import { scanXmlBytes, XmlError } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
+import { recordsOf } from './records'
+import type { GpxPoint } from './records'
 
 const NOT_GPX = 'Not a GPX file'
 const DECODE_FAILED = 'Could not decode GPX file'
 
 const POWER_NAMES = new Set(['power', 'PowerInWatts'])
 /** Elements whose own text is read when they close. */
-const TEXT_ROLES = new Set(['type', 'trackName', 'ele', 'time', 'heartRate', 'power'])
+const TEXT_ROLES = new Set([
+  'type',
+  'trackName',
+  'ele',
+  'time',
+  'heartRate',
+  'power',
+  'cadence',
+  'temperature',
+])
 
 /** One trkpt with a valid time. Position, altitude and extensions are optional. */
-interface Point {
-  tMs: number
-  position: LatLon | undefined
-  altitude: number | undefined
-  heartRate: number | undefined
-  power: number | undefined
-}
+type Point = GpxPoint
 
 /** The trkpt being read. Each value is taken from the first child or extension that gives one. */
 interface OpenPoint {
@@ -42,6 +45,8 @@ interface OpenPoint {
   altitude: number | undefined
   heartRate: number | undefined
   power: number | undefined
+  cadence: number | undefined
+  temperature: number | undefined
   eleSeen: boolean
   timeSeen: boolean
 }
@@ -70,6 +75,8 @@ type Role =
   | 'time'
   | 'heartRate'
   | 'power'
+  | 'cadence'
+  | 'temperature'
   | 'other'
 
 interface Frame {
@@ -196,6 +203,16 @@ class GpxReader implements XmlHandler {
           point.power = readNonNegative(frame.text)
         }
         break
+      case 'cadence':
+        if (point !== undefined && point.cadence === undefined) {
+          point.cadence = readNonNegative(frame.text)
+        }
+        break
+      case 'temperature':
+        if (point !== undefined && point.temperature === undefined) {
+          point.temperature = readNumber(frame.text)
+        }
+        break
       default:
         break
     }
@@ -244,10 +261,16 @@ class GpxReader implements XmlHandler {
           point.timeSeen = true
           return 'time'
         }
+        if (local === 'cad' || local === 'cadence') return 'cadence'
+        if (local === 'atemp' || local === 'temperature') return 'temperature'
       }
       // Extensions can sit at any depth inside the point, as in Garmin's TrackPointExtension.
       if (local === 'hr' && point.heartRate === undefined) return 'heartRate'
       if (POWER_NAMES.has(local) && point.power === undefined) return 'power'
+      if ((local === 'cad' || local === 'RunCadence') && point.cadence === undefined)
+        return 'cadence'
+      if ((local === 'atemp' || local === 'Temp') && point.temperature === undefined)
+        return 'temperature'
     }
     return 'other'
   }
@@ -263,6 +286,8 @@ class GpxReader implements XmlHandler {
       altitude: undefined,
       heartRate: undefined,
       power: undefined,
+      cadence: undefined,
+      temperature: undefined,
       eleSeen: false,
       timeSeen: false,
     }
@@ -284,6 +309,8 @@ class GpxReader implements XmlHandler {
       altitude: point.altitude,
       heartRate: point.heartRate,
       power: point.power,
+      cadence: point.cadence,
+      temperature: point.temperature,
     })
   }
 
@@ -336,10 +363,13 @@ function buildUnit(
   }
 
   const choice = sportOfType(track.type, creator, activityType)
-  const motion = toRecords(ordered, MAX_SPEED_MPS[choice.sport ?? 'ride'])
+  const motion = recordsOf(ordered, MAX_SPEED_MPS[choice.sport ?? 'ride'])
   dropped += motion.rejected
   const unit: PipelineUnit = {
     records: motion.records,
+    ...(choice.sport !== null && ordered.some((point) => point.cadence !== undefined)
+      ? { cadenceUnit: choice.sport === 'run' ? 'unknown' : 'rev/min' }
+      : {}),
     timerEvents: [],
     sport: choice.sport,
     sportLabel: choice.sportLabel,
@@ -351,44 +381,6 @@ function buildUnit(
     title: fileTitle(track.name),
   }
   return { unit, dropped }
-}
-
-/**
- * Turns time-ordered points into records. Positioned points are measured together by trackFromFixes.
- * Each one takes distance and speed from the accepted fix nearest in time. For an accepted point that
- * is itself, and for a rejected point it is the closest kept fix, with ties going to the earlier one.
- * Points without a position have no distance or speed. Heart rate, power and altitude always come
- * from the point itself.
- */
-function toRecords(
-  points: Point[],
-  maxSpeedMs: number,
-): { records: RawRecord[]; rejected: number } {
-  const track = trackFromPoints(points, maxSpeedMs)
-
-  const records: RawRecord[] = []
-  let nearest = 0
-  for (const point of points) {
-    const record: RawRecord = {
-      tMs: point.tMs,
-      altitude: point.altitude,
-      heartRate: point.heartRate,
-      power: point.power,
-    }
-    if (point.position !== undefined && track.tMs.length > 0) {
-      const at = point.tMs
-      while (
-        nearest + 1 < track.tMs.length &&
-        Math.abs(track.tMs[nearest + 1]! - at) < Math.abs(track.tMs[nearest]! - at)
-      ) {
-        nearest++
-      }
-      record.distance = track.distanceM[nearest]!
-      record.speed = track.speedMs[nearest]!
-    }
-    records.push(record)
-  }
-  return { records, rejected: track.rejected }
 }
 
 /** The trimmed text, or undefined when it is blank. */

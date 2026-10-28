@@ -1,0 +1,198 @@
+import { expect, test } from '@playwright/test'
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import type { Page } from '@playwright/test'
+import {
+  activitiesRows,
+  apiActivities,
+  CLIENT_HEADERS,
+  enableFileRetention,
+  fixturePath,
+  goTo,
+  openSample,
+  signInAs,
+  trackErrors,
+  uniqueEmail,
+  uploadFixtures,
+} from './helpers.js'
+
+async function openFirstActivity(page: Page) {
+  const rows = await activitiesRows(page)
+  await rows.first().getByRole('link').click()
+  return page.getByRole('region', { name: 'Activity workbench', exact: true })
+}
+
+async function removeRecordingCache(page: Page) {
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('rca-workbench-evidence')
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+      request.onblocked = () => reject(new Error('recording cache is still open'))
+    })
+  })
+}
+
+test('an imported activity supports keyboard selection and restores its details after reload', async ({
+  page,
+}) => {
+  const errors = trackErrors(page)
+  await page.goto('/')
+  await uploadFixtures(page, ['one-run.tcx'])
+  const workbench = await openFirstActivity(page)
+  const start = workbench.getByRole('spinbutton', {
+    name: 'Selected interval start time in seconds',
+  })
+  const end = workbench.getByRole('spinbutton', { name: 'Selected interval end time in seconds' })
+  await expect(start).toBeVisible()
+  await end.fill('30')
+  await start.fill('10')
+  await expect(workbench.getByText('10 s–30 s selected', { exact: true })).toBeVisible()
+  await start.focus()
+  await page.keyboard.press('ArrowUp')
+  await expect(start).toHaveValue('11')
+  await expect(workbench.getByRole('table', { name: /measure statistics/i })).toBeVisible()
+  await expect(workbench.locator('svg').first()).toBeVisible()
+
+  await page.reload()
+  await expect(start).toHaveValue('0')
+  await expect(workbench.locator('svg').first()).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('a legacy summary without detail evidence requests reimport and a duplicate import restores it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await uploadFixtures(page, ['one-run.tcx'])
+  await openFirstActivity(page)
+  // A new document destroys the worker and closes its cache connection before removing evidence.
+  await page.goto('/privacy')
+  await removeRecordingCache(page)
+  await page.goto('/')
+  const workbench = await openFirstActivity(page)
+  await expect(workbench.getByText(/Re-add the source file/)).toBeVisible()
+  await uploadFixtures(page, ['one-run.tcx'])
+  const restored = await openFirstActivity(page)
+  await expect(
+    restored.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
+  ).toBeVisible()
+  await expect(await activitiesRows(page)).toHaveCount(1)
+})
+
+test('sample details are available without persisting sample recordings', async ({ page }) => {
+  await openSample(page)
+  const workbench = await openFirstActivity(page)
+  await expect(
+    workbench.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
+  ).toBeVisible()
+  const saved = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('rca-workbench-evidence', 2)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      return await new Promise<number>((resolve, reject) => {
+        const request = db.transaction('traces').objectStore('traces').count()
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    } finally {
+      db.close()
+    }
+  })
+  expect(saved).toBe(0)
+})
+
+test('an account original is read only on request, and account deletion removes its recording', async ({
+  page,
+}) => {
+  const email = uniqueEmail()
+  await page.goto('/')
+  await signInAs(page.request, email, 'Workbench original')
+  await enableFileRetention(page.request)
+  await page.reload()
+  await uploadFixtures(page, ['one-run.tcx'])
+  await expect.poll(async () => (await apiActivities(page.request))[0]?.hasFile).toBe(true)
+  await page.goto('/privacy')
+  await removeRecordingCache(page)
+  await page.goto('/')
+  let downloads = 0
+  page.on('request', (request) => {
+    if (
+      request.method() === 'GET' &&
+      /\/api\/activities\/[^/]+\/file$/.test(new URL(request.url()).pathname)
+    )
+      downloads++
+  })
+  const workbench = await openFirstActivity(page)
+  await expect(workbench.getByRole('button', { name: 'Read original file' })).toBeVisible()
+  expect(downloads).toBe(0)
+  await workbench.getByRole('button', { name: 'Read original file' }).click()
+  await expect(
+    workbench.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
+  ).toBeVisible()
+  expect(downloads).toBe(1)
+
+  await goTo(page, 'Profile')
+  await page.getByRole('button', { name: 'Delete account…' }).click()
+  const dialog = page.getByRole('alertdialog', { name: 'Delete your account?' })
+  await dialog.getByLabel('Email address').fill(email)
+  await dialog.getByRole('button', { name: 'Delete account', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: 'How balanced are you as an athlete?', exact: true }),
+  ).toBeVisible()
+  const cache = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('rca-workbench-evidence', 2)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const transaction = db.transaction(['traces', 'owners'])
+    const count = (store: string) =>
+      new Promise<number>((resolve, reject) => {
+        const request = transaction.objectStore(store).count()
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    try {
+      return await Promise.all([count('traces'), count('owners')])
+    } finally {
+      db.close()
+    }
+  })
+  expect(cache).toEqual([0, 1])
+})
+
+test('a second account cannot read another account’s cached trace for the same digest', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await signInAs(page.request, uniqueEmail(), 'Workbench first')
+  await page.reload()
+  await uploadFixtures(page, ['one-run.tcx'])
+  await expect.poll(async () => (await apiActivities(page.request)).length).toBe(1)
+  const [record] = await apiActivities(page.request)
+  const first = await openFirstActivity(page)
+  await expect(
+    first.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
+  ).toBeVisible()
+  await page.goto('/privacy')
+  await signInAs(page.request, uniqueEmail(), 'Workbench second')
+  const response = await page.request.post('/api/activities', {
+    headers: CLIENT_HEADERS,
+    data: {
+      digest: record!.digest,
+      fileName: record!.fileName,
+      fileHash: createHash('sha256')
+        .update(await readFile(fixturePath('one-run.tcx')))
+        .digest('hex'),
+    },
+  })
+  expect(response.status()).toBe(201)
+  await page.goto('/')
+  const second = await openFirstActivity(page)
+  await expect(second.getByText(/Re-add the source file/)).toBeVisible()
+  await expect(second.getByRole('spinbutton')).toHaveCount(0)
+})

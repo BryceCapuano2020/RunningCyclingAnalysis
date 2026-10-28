@@ -2,14 +2,17 @@
 import type { ActivityRecord } from '@rca/contract'
 import { periodChoiceOf } from '@rca/core/period'
 import { AnalysisSession } from '@rca/core/session'
+import { sampleDataset } from '@rca/core/synthetic'
 import type { SyncIssueCode, SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
+import type { Activity } from '@rca/core/types'
 import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { accountSaver } from './accountSave'
 import { deviceActions, workoutKeyOf as activityKey } from './device'
 import { exportAccount } from './exportAccount'
 import { openDeviceLibrary } from './deviceLibrary'
+import { originalActivity } from './originalActivity'
 import { loadServer, rebuildStale, type LibraryContext } from './rebuild'
 import type { ImportOutcome, WorkerRequest, WorkerResponse } from './protocol'
 import { ImportReporter } from './importReporter'
@@ -17,12 +20,18 @@ import { RouteMemory, type RouteMemoryRequest } from './routes'
 import { summarizeAdded } from './importSummary'
 import { savedActivityOf } from './savedActivity'
 import { syncIssueFor } from './syncIssue'
+import { Workbench } from './workbench'
+import type { ActivityTraceReply } from './workbench'
+import type { TraceScope } from './workbenchStore'
 
 const session = new AnalysisSession()
 const post = (message: WorkerResponse) => self.postMessage(message)
 /** Keys of saved activities whose original file is not in the library. Recomputed on each load. */
 const missingOriginals = new Set<string>()
 const savedRecords = new Map<string, ActivityRecord>()
+const workbench = new Workbench()
+/** The exact library scope this worker is currently allowed to answer details for. */
+let activeScope: TraceScope | null = null
 
 /** Newest first; records that start together are ordered by id so the list is stable. */
 function reportLibrary() {
@@ -35,7 +44,9 @@ function reportLibrary() {
   })
 }
 
-const device = deviceActions(session, openDeviceLibrary(), post)
+const device = deviceActions(session, openDeviceLibrary(), post, async (activityId) =>
+  workbench.remove({ kind: 'device' }, activityId),
+)
 const libraryContext: LibraryContext = {
   session,
   device,
@@ -44,6 +55,9 @@ const libraryContext: LibraryContext = {
   post,
   reportLibrary,
   reportUnreadable,
+  captureTrace: async (activity: Activity, userId: string) => {
+    await workbench.capture(activity, { kind: 'account', userId })
+  },
 }
 const routes = new RouteMemory(savedRecords, (id) => device.route(id))
 // The sample is shown in place of the library kept in this browser, never added to it.
@@ -54,6 +68,10 @@ async function addFiles(
   request: Extract<WorkerRequest, { type: 'addFiles' }>,
 ): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
   const { sync } = request
+  if (showingSample) workbench.clearMemory()
+  const traceScope =
+    sync === null ? { kind: 'device' as const } : { kind: 'account' as const, userId: sync.userId }
+  activeScope = traceScope
   let stoppedBy: SyncIssueCode | null = null
   let outcome: ImportOutcome = {
     activities: 0,
@@ -106,6 +124,9 @@ async function addFiles(
       ({ added, ...completed }) => {
         outcome = { ...completed, ...summarizeAdded(added) }
       },
+      async (activity) => {
+        await workbench.capture(activity, traceScope)
+      },
     )
   } finally {
     // On a failure too: the page learns how many were saved before the error reply.
@@ -128,11 +149,15 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'addFiles':
       return (await addFiles(request)).state
     case 'loadSample':
+      workbench.clearMemory()
+      activeScope = { kind: 'device' }
       showingSample = true
       device.replaced()
       session.choosePeriod(periodChoiceOf(request.choice))
       return session.loadSample(request.settings)
     case 'loadServer':
+      workbench.clearMemory()
+      activeScope = { kind: 'account', userId: request.userId }
       showingSample = false
       return loadServer(
         libraryContext,
@@ -141,6 +166,8 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         periodChoiceOf(request.choice),
       )
     case 'rebuildStale':
+      workbench.clearMemory()
+      activeScope = { kind: 'account', userId: request.userId }
       return (await rebuildStale(libraryContext, request.settings, request.userId)).state
     case 'setSettings':
       return session.setSettings(request.settings)
@@ -155,15 +182,22 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         await device.report()
         return session.setSettings(request.settings)
       }
+      workbench.clearMemory()
+      activeScope = { kind: 'device' }
       session.choosePeriod(periodChoiceOf(request.choice))
       return device.load(request.settings)
     case 'clear':
       showingSample = false
+      workbench.clearMemory()
       routes.clear()
-      if (request.forgetDevice) await device.forget()
-      else device.replaced()
+      if (request.forgetDevice) {
+        await device.forget()
+        if (!(await workbench.clearScope({ kind: 'device' })))
+          post({ type: 'deviceIssue', issue: 'notForgotten' })
+      } else device.replaced()
       return session.clear()
     case 'deleteDeviceActivity':
+      workbench.clearMemory()
       return device.remove(request.id, request.settings)
     case 'exportData':
       // Answered by exportAccount with the export file, not with a session state.
@@ -171,7 +205,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
     case 'activitySplits':
       // Answered with a splits reply, not with a session state.
       throw new Error('A splits request is not a session request')
+    case 'activityTrace':
+      throw new Error('An activity trace is not a session request')
     case 'deleteActivity': {
+      if (activeScope?.kind !== 'account' || activeScope.userId !== request.userId)
+        throw new Error('Reload your library before deleting this activity.')
       const record = savedRecords.get(request.id)
       if (!record) throw new Error('Reload your library before deleting this activity.')
       try {
@@ -183,6 +221,12 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       savedRecords.delete(record.id)
       routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
+      const traceCleared = await workbench.remove(
+        { kind: 'account', userId: request.userId },
+        record.digest.id,
+      )
+      const deviceTraceCleared = await workbench.remove({ kind: 'device' }, record.digest.id)
+      if (!traceCleared || !deviceTraceCleared) post({ type: 'deviceIssue', issue: 'notForgotten' })
       // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
       // account copy is already gone, so a copy that cannot be removed here does not fail the delete;
       // the page is told, since it could return after a sign-out.
@@ -193,6 +237,40 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       post({ type: 'missingOriginals', count: missingOriginals.size })
       return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
     }
+  }
+}
+
+async function activityTraceReply(
+  request: Extract<WorkerRequest, { type: 'activityTrace' }>,
+): Promise<ActivityTraceReply> {
+  const scope =
+    activeScope !== null &&
+    (request.userId === undefined
+      ? activeScope.kind === 'device'
+      : activeScope.kind === 'account' && activeScope.userId === request.userId)
+      ? activeScope
+      : null
+  if (scope === null) return { kind: 'failed' }
+  const cached = await workbench.get(scope, request.id)
+  if (cached !== null) return { kind: 'trace', trace: cached }
+  if (request.userId === undefined) {
+    if (!showingSample) return { kind: 'missing' }
+    const activity = sampleDataset().activities.find((candidate) => candidate.id === request.id)
+    if (activity === undefined) return { kind: 'missing' }
+    workbench.captureSample(activity)
+    const trace = await workbench.get(scope, request.id)
+    return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
+  }
+  const record = [...savedRecords.values()].find((candidate) => candidate.digest.id === request.id)
+  if (record === undefined || !record.hasFile) return { kind: 'missing' }
+  if (request.fromOriginal !== true) return { kind: 'original' }
+  try {
+    const { activity } = await originalActivity(record, request.userId, request.id)
+    if (activity === undefined) return { kind: 'missing' }
+    const trace = await workbench.capture(activity, scope)
+    return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
+  } catch {
+    return { kind: 'failed' }
   }
 }
 
@@ -218,7 +296,13 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
       } else if (event.data.type === 'activitySplits') {
         post({ type: 'splits', id: event.data.id, splits: session.splitsOf(event.data.id) })
       } else if (event.data.type === 'routeShape' || event.data.type === 'forgetRoutes') {
+        if (event.data.type === 'forgetRoutes') {
+          workbench.clearMemory()
+          activeScope = null
+        }
         post(await routes.reply(event.data))
+      } else if (event.data.type === 'activityTrace') {
+        post({ type: 'activityTrace', reply: await activityTraceReply(event.data) })
       } else {
         post({ type: 'state', state: await handle(event.data) })
       }

@@ -14,7 +14,8 @@ import {
   Refusal,
   trackFromPoints,
 } from '../import/trackpoints'
-import type { LatLon } from '../import/trackpoints'
+import { sortAndDedupe } from './points'
+import type { Point } from './points'
 import { isEBikeType, sportOfType } from '../import/sportType'
 import type { SportChoice } from '../import/sportType'
 import type { Sport } from '../types'
@@ -28,7 +29,18 @@ const NO_ACTIVITIES = 'File contains no activities'
 const NO_ZONE = 'TCX times need a time zone (Z or ±hh:mm)'
 
 /** The values read from one Trackpoint, as text. Each element is taken once, the first one. */
-type Field = 'time' | 'lat' | 'lon' | 'distance' | 'altitude' | 'heartRate' | 'power' | 'speed'
+type Field =
+  | 'time'
+  | 'lat'
+  | 'lon'
+  | 'distance'
+  | 'altitude'
+  | 'heartRate'
+  | 'power'
+  | 'speed'
+  | 'cadence'
+  | 'runCadence'
+  | 'temperature'
 type RawTrackpoint = Partial<Record<Field, string>>
 
 /** Element paths below a Trackpoint that carry a value we read. */
@@ -41,27 +53,34 @@ const FIELD_PATHS = new Map<string, Field>([
   ['HeartRateBpm/Value', 'heartRate'],
   ['Extensions/TPX/Watts', 'power'],
   ['Extensions/TPX/Speed', 'speed'],
+  // The TCX Cadence element is cycling rpm; RunCadence is already running steps/min.
+  ['Cadence', 'cadence'],
+  ['Extensions/TPX/RunCadence', 'runCadence'],
+  ['Extensions/TPX/Temp', 'temperature'],
 ])
-
-/** One valid trackpoint. Each invalid value is left undefined. */
-interface Point {
-  tMs: number
-  position?: LatLon
-  distance?: number
-  altitude?: number
-  heartRate?: number
-  power?: number
-  speed?: number
-}
 
 /** One Activity while its Laps stream past. */
 interface OpenActivity extends SportChoice {
   points: Point[]
+  laps: NonNullable<PipelineUnit['laps']>
+  openLap?: OpenLap
+  lapCount: number
+}
+
+interface OpenLap {
+  pointStart: number
+  startMs?: number
+  totalTimeS?: number
 }
 
 /** The text of the value element being read, until it closes. */
 interface OpenField {
   field: Field
+  depth: number
+  text: string
+}
+
+interface OpenLapField {
   depth: number
   text: string
 }
@@ -117,6 +136,7 @@ class TcxScanner implements XmlHandler {
   private activity: OpenActivity | undefined
   private trackpoint: RawTrackpoint | undefined
   private field: OpenField | undefined
+  private lapField: OpenLapField | undefined
 
   constructor(units: PipelineUnit[], maxTrackpoints: number, activityType: string | undefined) {
     this.units = units
@@ -130,6 +150,20 @@ class TcxScanner implements XmlHandler {
       if (local !== 'TrainingCenterDatabase') throw new Refusal(NOT_TCX, 'corrupt')
     } else if (depth === 3 && local === 'Activity' && this.stack[1] === 'Activities') {
       this.activity = openActivity(attrs.Sport, this.activityType)
+    } else if (depth === 4 && local === 'Lap' && this.activity !== undefined) {
+      const startMs =
+        attrs.StartTime === undefined ? undefined : parseIsoTime(attrs.StartTime, 'refuse')
+      this.activity.openLap = {
+        pointStart: this.activity.points.length,
+        ...(typeof startMs === 'number' ? { startMs } : {}),
+      }
+      this.activity.lapCount++
+    } else if (
+      depth === 5 &&
+      local === 'TotalTimeSeconds' &&
+      this.activity?.openLap !== undefined
+    ) {
+      this.lapField = { depth, text: '' }
     } else if (depth === 6 && local === 'Trackpoint' && this.inTrack()) {
       this.trackpoints++
       if (this.trackpoints > this.maxTrackpoints) {
@@ -149,15 +183,25 @@ class TcxScanner implements XmlHandler {
 
   text(text: string, depth: number): void {
     if (this.field !== undefined && this.field.depth === depth) this.field.text += text
+    else if (this.lapField?.depth === depth) this.lapField.text += text
   }
 
   close(_local: string, _name: string, depth: number): void {
+    const lapField = this.lapField
+    if (lapField !== undefined && lapField.depth === depth) {
+      this.lapField = undefined
+      const duration = readNonNegative(lapField.text)
+      if (duration !== undefined && this.activity?.openLap !== undefined) {
+        this.activity.openLap.totalTimeS = duration
+      }
+    }
     const field = this.field
     if (field !== undefined && field.depth === depth) {
       this.field = undefined
       if (this.trackpoint !== undefined) this.trackpoint[field.field] = field.text
     }
     if (depth === 6 && this.trackpoint !== undefined) this.closeTrackpoint()
+    else if (depth === 4 && this.activity?.openLap !== undefined) this.closeLap()
     else if (depth === 3 && this.activity !== undefined) this.closeActivity()
     this.stack.pop()
   }
@@ -188,6 +232,26 @@ class TcxScanner implements XmlHandler {
     this.activity = undefined
     if (activity !== undefined) this.units.push(unitOf(activity))
   }
+
+  private closeLap(): void {
+    const activity = this.activity
+    const lap = activity?.openLap
+    if (activity === undefined || lap === undefined) return
+    const points = activity.points.slice(lap.pointStart)
+    activity.openLap = undefined
+    if (points.length === 0) return
+    let firstPointMs = Infinity
+    let lastMs = -Infinity
+    for (const point of points) {
+      firstPointMs = Math.min(firstPointMs, point.tMs)
+      lastMs = Math.max(lastMs, point.tMs)
+    }
+    const startMs = lap.startMs ?? firstPointMs
+    const endMs = lap.totalTimeS === undefined ? lastMs + 1000 : startMs + lap.totalTimeS * 1000
+    if (endMs > startMs) {
+      activity.laps.push({ startMs, endMs, label: `Lap ${activity.lapCount}` })
+    }
+  }
 }
 
 /**
@@ -198,9 +262,16 @@ function openActivity(sportName: string | undefined, listed: string | undefined)
   const sport = sportOf(sportName)
   const unsaid = sport === null && (sportName === undefined || sportName === 'Other')
   if (listed !== undefined && (unsaid || isEBikeType(listed))) {
-    return { ...sportOfType(undefined, undefined, listed), points: [] }
+    return { ...sportOfType(undefined, undefined, listed), points: [], laps: [], lapCount: 0 }
   }
-  return { sport, indoor: false, sportLabel: sportName ?? 'unknown', points: [] }
+  return {
+    sport,
+    indoor: false,
+    sportLabel: sportName ?? 'unknown',
+    points: [],
+    laps: [],
+    lapCount: 0,
+  }
 }
 
 function sportOf(name: string | undefined): Sport | null {
@@ -222,6 +293,9 @@ function pointOf(raw: RawTrackpoint): Point | undefined {
     heartRate: readNonNegative(raw.heartRate),
     power: readNonNegative(raw.power),
     speed: readNonNegative(raw.speed),
+    cadence: readNonNegative(raw.cadence),
+    runCadence: readNonNegative(raw.runCadence),
+    temperature: readNumber(raw.temperature),
   }
 }
 
@@ -231,6 +305,7 @@ function unitOf(activity: OpenActivity): PipelineUnit {
   if (sport === null) {
     return {
       records: [],
+      laps: [],
       timerEvents: [],
       sport,
       sportLabel,
@@ -242,8 +317,13 @@ function unitOf(activity: OpenActivity): PipelineUnit {
   }
   const points = sortAndDedupe(activity.points)
   const hasPosition = points.some((p) => hasUsablePosition(p.position))
+  const hasCadence = points.some((point) =>
+    sport === 'run' ? point.runCadence !== undefined : point.cadence !== undefined,
+  )
   return {
     records: recordsOf(points, sport),
+    laps: activity.laps,
+    ...(hasCadence ? { cadenceUnit: sport === 'run' ? 'steps/min' : 'rev/min' } : {}),
     timerEvents: [],
     sport,
     sportLabel,
@@ -252,36 +332,6 @@ function unitOf(activity: OpenActivity): PipelineUnit {
     hasPosition,
     fixes: fixesOf(points),
   }
-}
-
-/**
- * Sorts by time, stably, then drops exact duplicates: same time and same values. Points that share
- * a time but differ are both kept.
- */
-function sortAndDedupe(points: Point[]): Point[] {
-  const sorted = points.sort((a, b) => a.tMs - b.tMs)
-  const out: Point[] = []
-  let time = Number.NaN
-  let seen = new Set<string>()
-  for (const p of sorted) {
-    if (p.tMs !== time) {
-      time = p.tMs
-      seen = new Set()
-    }
-    const key = JSON.stringify([
-      p.position?.lat,
-      p.position?.lon,
-      p.distance,
-      p.altitude,
-      p.heartRate,
-      p.power,
-      p.speed,
-    ])
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push(p)
-  }
-  return out
 }
 
 /**
@@ -304,6 +354,8 @@ function recordsOf(points: Point[], sport: Sport): RawRecord[] {
     altitude: p.altitude,
     heartRate: p.heartRate,
     power: p.power,
+    cadence: sport === 'run' ? p.runCadence : p.cadence,
+    temperature: p.temperature,
   }))
 }
 

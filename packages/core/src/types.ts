@@ -5,6 +5,7 @@
  */
 
 import type { RouteShape } from './route/routeShape'
+import type { ActivityLap, CadenceUnit } from './workbench/types'
 
 export type Sport = 'run' | 'ride'
 
@@ -29,6 +30,14 @@ export interface Activity {
   heartRate: Float64Array
   /** Measured mechanical power, W. All NaN when the device had no power meter. */
   power: Float64Array
+  /** Optional measured cadence stream. GPX cadence source units may be unspecified. */
+  cadence?: Float32Array
+  /** Cadence unit provenance; absent for legacy Activities with the sport-standard unit. */
+  cadenceUnit?: CadenceUnit
+  /** Optional recorded ambient temperature, degrees Celsius. */
+  temperature?: Float32Array
+  /** Device-recorded lap boundaries, in elapsed seconds on this activity's grid. */
+  laps?: ActivityLap[]
   /**
    * 1 where the device was not recording (auto-pause or a stop). Speed and power
    * are 0 there, so duration curves treat a pause as rest in elapsed time.

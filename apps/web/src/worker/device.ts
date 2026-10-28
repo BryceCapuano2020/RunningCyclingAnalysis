@@ -63,6 +63,7 @@ export function deviceActions(
   session: AnalysisSession,
   device: DeviceLibrary,
   post: (message: WorkerResponse) => void,
+  onRemoved: (activityId: string) => Promise<boolean> = async () => true,
 ): DeviceActions {
   let held = false
   const report = async () => {
@@ -111,6 +112,8 @@ export function deviceActions(
       const kept = await device.get(id)
       if (!kept) throw new Error('This activity is no longer kept in this browser.')
       await device.remove(id)
+      if (!(await onRemoved(kept.id).catch(() => false)))
+        post({ type: 'deviceIssue', issue: 'notForgotten' })
       await report()
       return session.removeActivity(kept.sport, kept.startMs, settings)
     },

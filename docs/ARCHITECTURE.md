@@ -98,6 +98,29 @@ the build output.
 - `GET /api/activities/:id/file` downloads an original, and `DELETE /api/activities/:id` removes an
   activity and its stored original.
 
+**Activity workbench**
+
+The import callback extracts a versioned `ActivityTrace` before releasing the raw activity. The
+trace contains one-second measured streams, cumulative distance, pause and recording-gap masks,
+and recorded lap boundaries. It excludes GPS positions, original bytes and virtual power. The
+core workbench module owns validation, half-open elapsed-second selections, moving-time summaries,
+histograms and conservative interval boundaries. Display downsampling preserves extrema; statistics
+always use the full selected recording. The final sample has no following distance boundary, so
+terminal selections use the last known cumulative distance without extrapolating another second.
+
+The worker stores traces in the separate `rca-workbench-evidence` IndexedDB database. Its shared
+64 MiB budget and 12 MiB entry limit are defined in `workbenchSchema.ts`; an indexed metadata ledger
+evicts the least recently used recordings without reading every stream. A four-entry memory cache
+keeps recent views usable when a write is refused. Scope keys separate device results and each
+account. Identity changes clear memory and revoke lookup until that library has loaded. Account
+deletion clears and tombstones its scope to reject writes from stale workers. Ordinary sign-out
+keeps the account cache for its next sign-in.
+
+Existing digests remain sufficient for the library. A missing trace offers reimport; a retained
+account original is fetched and reparsed only after an explicit request. Reimporting an existing
+activity rebuilds its trace even when digest deduplication skips it. Cache failures never prevent
+digest analysis or saving. No server schema or model revision changes are required.
+
 ## Data model
 
 The tables below mirror `apps/api/src/db/schema.ts`. Wrangler also keeps a `d1_migrations` table
