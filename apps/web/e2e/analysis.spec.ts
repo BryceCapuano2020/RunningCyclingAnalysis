@@ -22,7 +22,7 @@ const BALANCE_TREND = /^(Age grade|Energy rate) of your best 20 min, trailing/
 const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
-const STAND_OUT = 'Where your bests stand out'
+const NOT_ENOUGH_YET = 'Not enough yet'
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
 const HEART_RATE = /^Heart rate against energy rate$/
@@ -48,13 +48,20 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
   await goTo(page, 'Run')
   await expect(page.getByRole('figure', { name: RUN_CURVE })).toBeVisible()
   // One run sets every best of the sample, so there is no curve of several sessions to compare yet.
-  await expect(page.getByRole('heading', { level: 2, name: STAND_OUT })).toBeVisible()
-  await expect(page.getByText('Needs bests from 2 or more sessions', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toBeVisible()
+  await expect(
+    page.getByText('Where your bests stand out: needs bests from 2 or more sessions.', {
+      exact: true,
+    }),
+  ).toBeVisible()
   await goTo(page, 'Ride')
   await expect(page.getByRole('figure', { name: RIDE_CURVE })).toBeVisible()
-  await expect(page.getByRole('heading', { level: 2, name: STAND_OUT })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toBeVisible()
   await expect(
-    page.getByText('Needs bests from 2 or more sessions, with a power meter', { exact: true }),
+    page.getByText(
+      'Where your bests stand out: needs bests from 2 or more sessions, with a power meter.',
+      { exact: true },
+    ),
   ).toBeVisible()
 
   await goTo(page, 'Balance')

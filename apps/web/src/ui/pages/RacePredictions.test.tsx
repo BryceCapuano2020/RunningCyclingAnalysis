@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { AnalysisResult } from '@rca/core/pipeline'
 import { makeActivity, makeResult } from '../components/fixtures'
+import { racePredictionsOf } from '../racePredictions'
 import { RacePredictions } from './RacePredictions'
 
 const withBests = makeActivity({
@@ -14,6 +16,13 @@ const withBests = makeActivity({
   ],
 })
 
+/** The run's predictions for a result, drawn the way the sport page draws them. */
+function renderPredictions(result: AnalysisResult) {
+  const found = racePredictionsOf('run', result)
+  if (found === null) throw new Error('the result gives no predictions')
+  return render(<RacePredictions sport="run" found={found} units="metric" />)
+}
+
 describe('RacePredictions', () => {
   afterEach(cleanup)
 
@@ -22,7 +31,7 @@ describe('RacePredictions', () => {
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
     })
-    render(<RacePredictions sport="run" result={result} units="metric" />)
+    renderPredictions(result)
     const table = screen.getAllByRole('table')[0]!
     const rows = within(table).getAllByRole('row').slice(1)
     expect(rows.map((row) => row.querySelector('.race-table__name')?.textContent)).toEqual([
@@ -48,7 +57,7 @@ describe('RacePredictions', () => {
 
   it('says it rests on the runs alone without heart rate', () => {
     const result = makeResult({ activities: [withBests] })
-    render(<RacePredictions sport="run" result={result} units="metric" />)
+    renderPredictions(result)
     expect(screen.getByText(/^From your best times in this period alone/)).toBeInTheDocument()
   })
 
@@ -57,7 +66,7 @@ describe('RacePredictions', () => {
       activities: [withBests],
       runVo2max: { vo2max: 62, runs: 5, hillCapped: 0 },
     })
-    render(<RacePredictions sport="run" result={result} units="metric" />)
+    renderPredictions(result)
     expect(
       screen.getByText(
         /Your heart rate points to more than your best runs show \(about 62 against \d\d in VO2max terms\)/,
@@ -65,18 +74,9 @@ describe('RacePredictions', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows nothing for a sport without a predictor, or without evidence', () => {
-    const { container } = render(
-      <>
-        <RacePredictions
-          sport="ride"
-          result={makeResult({ activities: [withBests] })}
-          units="metric"
-        />
-        <RacePredictions sport="run" result={makeResult()} units="metric" />
-      </>,
-    )
-    expect(container).toBeEmptyDOMElement()
+  it('finds none for a sport without a predictor, or without evidence', () => {
+    expect(racePredictionsOf('ride', makeResult({ activities: [withBests] }))).toBeNull()
+    expect(racePredictionsOf('run', makeResult())).toBeNull()
   })
 
   it('says how many hilly runs were left out of the heart-rate side', () => {
@@ -84,7 +84,7 @@ describe('RacePredictions', () => {
       activities: [withBests],
       runVo2max: { vo2max: 50, runs: 4, hillCapped: 3 },
     })
-    render(<RacePredictions sport="run" result={result} units="metric" />)
+    renderPredictions(result)
     expect(screen.getByText(/3 hilly runs left out of the heart-rate side/)).toBeInTheDocument()
   })
 })

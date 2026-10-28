@@ -1,10 +1,9 @@
-import type { AnalysisResult } from '@rca/core/pipeline'
 import type { MethodTime, RacePrediction, RunPredictions } from '@rca/core/predict'
 import type { Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatPace, formatRecordTime } from '@rca/core/units'
 import { plural } from '../components/plural'
-import { METHOD_NAME, METHOD_SHORT, RACE_PREDICTORS, raceName } from '../racePredictions'
+import { METHOD_NAME, METHOD_SHORT, RACE_PREDICTIONS_NAME, raceName } from '../racePredictions'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import './RacePredictions.css'
 
@@ -79,25 +78,22 @@ function RaceRow({ prediction, units }: { prediction: RacePrediction; units: Uni
 }
 
 /**
- * A sport's race predictions: each race's predicted time and pace, its likely range and the two estimates
- * it sits between, and how they were reached. Nothing for a sport without a predictor or without evidence.
+ * A sport's race predictions, as racePredictionsOf found them: each race's predicted time and pace, its
+ * likely range and the two estimates it sits between, and how they were reached.
  */
 export function RacePredictions({
   sport,
-  result,
+  found,
   units,
 }: {
   sport: Sport
-  result: AnalysisResult
+  found: RunPredictions
   units: UnitSystem
 }) {
-  const predict = RACE_PREDICTORS[sport]
-  const found = predict ? predict(result) : null
-  if (found === null || found.races.length === 0) return null
   const headingId = `${sport}-races`
   return (
     <section className="section" aria-labelledby={headingId}>
-      <h2 id={headingId}>Race predictions</h2>
+      <h2 id={headingId}>{RACE_PREDICTIONS_NAME}</h2>
       <table className="race-table">
         <thead>
           <tr>
