@@ -136,8 +136,9 @@ leads with the balance instead. The balance line is listed whenever both results
 entered (a ride's figures wait for the weight, as the balance does), and it states what changed in the
 figures the Balance page shows: the lean, the centre and the range. A changed centre reads "Your balance
 now leans less toward running (7 → 6 points)", or "(12% → 8%)" for energy, where an edge under 1% reads
-"0.4%", never 0%. A changed range reads "Its range moved from -5–16 to -4–16 points", and both read
-together when they change together. Only when every figure is the same does it say "Your balance did not
+"0.4%", never 0%. A changed range reads "Your balance's range was −5 to +16 points and is now −4 to +16 points", in the
+page's own "A to B" wording, and a changed even centre reads "Your balance's best estimate moved from +6 to +7
+points"; both read together when they change together ("..., and the range was ... and is now ..."). Only when every figure is the same does it say "Your balance did not
 move.", adding ": this ride set no new best at 20 min" only when the activity set none there. An activity
 outside the period on screen reads "This ride is outside the period on screen, so the balance there is
 unchanged." A line that says a figure changed counts as a move; a line that says the balance held is listed
@@ -351,8 +352,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   untested." It names at most the three that stand out most, shortest first, and only a duration whose
   range clears zero by 2% at its near end; one that stands out by less is on the chart only. A best below
   the rest is always said to be possibly untested, since a best is a lower bound. With none standing out it
-  says "Your bests are in line with each other from 5 s to 60 min." and offers no strip, and with some
-  standing out by less than 2% it adds ", apart from small differences on the chart". Durations are named as every effort length is,
+  says "Your bests are in line with each other, compared from 5 s to 60 min." and offers no strip, and with some
+  standing out by less than 2% it adds ", apart from small differences on the chart". The span names the first and last durations the profile compares (from 2 min when the short end is not anchored), which can start earlier than the curve above it, whose table begins at 1 min. Durations are named as every effort length is,
   in whole minutes ("60 min", never "1 h"). The words "limiter", "weak", "strength", "holding you back"
   and "ahead of" are never used, and "grade" means age grade only.
   Under the sentence, when something stands out, is a disclosure, "Show each best against the others" (it
@@ -558,6 +559,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   replaces the standard-error range for that sport. When the main threshold is refused, the range starts
   from the floor instead, the lowest of those bests, and the figure shown in place of the refusal is that
   floor, with the same line under it: a demonstrated effort the threshold sits above, not a threshold.
+  The Balance card follows the same rule: it shows the floor as its hero under "Threshold power, at least" (or
+  "pace"), with no meaning line, in place of "Needs a harder effort between 3 and 20 min". The share card does not:
+  its threshold is an estimate it labels "estimated", so a card with only a floor is not offered.
 - **A record's change on the period before** reads in words under its figure: "0:12 /mi faster than
   previous 6 weeks", or "8 W more than previous 6 weeks", or "Same as previous 6 weeks" when the
   figure has not moved. It is absent for All time, and for a ride when either best's watts are

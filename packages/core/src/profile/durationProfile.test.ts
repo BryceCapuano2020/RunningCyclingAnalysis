@@ -176,7 +176,20 @@ describe('profileShortNote', () => {
 describe('profileSentence', () => {
   it('says the bests are in line when none stands out', () => {
     expect(profileSentence(ready(modelCurve()), formatDuration)).toBe(
-      'Your bests are in line with each other from 5 s to 1 h.',
+      'Your bests are in line with each other, compared from 5 s to 1 h.',
+    )
+  })
+
+  it('names the first and last durations the rows compare, whatever the chart above it starts at', () => {
+    const rows: ProfileRow[] = [120, 600, 2700].map((durationS) => ({
+      durationS,
+      residual: 0,
+      low: -0.05,
+      high: 0.05,
+      standsOut: null,
+    }))
+    expect(profileSentence({ status: 'ready', anchored: false, rows }, formatDuration)).toBe(
+      'Your bests are in line with each other, compared from 2 min to 45 min.',
     )
   })
 
@@ -234,7 +247,7 @@ describe('profileSentence', () => {
         formatDuration,
       ),
     ).toBe(
-      'Your bests are in line with each other from 5 s to 1 h, apart from small differences on the chart.',
+      'Your bests are in line with each other, compared from 5 s to 1 h, apart from small differences on the chart.',
     )
   })
 

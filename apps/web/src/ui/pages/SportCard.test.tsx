@@ -18,6 +18,7 @@ import {
 import { headlineGrades } from '../grades'
 import { noMatchMedia, viewportAt } from '../../test/viewport'
 import type { AgeProfile } from '../grades'
+import { THRESHOLD_FLOOR_LABEL, THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sports'
 import { SportCard } from './SportCard'
 
 // A fixed clock, so the year on each record date does not depend on when the suite runs.
@@ -149,6 +150,31 @@ describe('SportCard threshold', () => {
     const card = cardNamed('Run')
     expect(within(card).getByText('Needs a harder effort between 3 and 20 min')).toBeInTheDocument()
     expect(within(card).queryByText('Needs efforts between 3 and 20 min')).not.toBeInTheDocument()
+  })
+
+  it('shows the uneven fit\u2019s floor under the "at least" label when the threshold is refused, as the sport page does', () => {
+    const uneven = {
+      fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
+      leftOutS: [900, 1200],
+      floor: 3.2,
+    }
+    renderCard(
+      'ride',
+      makeResult({
+        activities: [rideOnFriday],
+        rideCp: null,
+        rideCpRefusal: 'shape',
+        rideCpUneven: uneven,
+      }),
+    )
+
+    const card = cardNamed('Ride')
+    expect(within(card).getByText(THRESHOLD_FLOOR_LABEL.ride)).toBeInTheDocument()
+    expect(within(card).queryByText(THRESHOLD_LABEL.ride)).not.toBeInTheDocument()
+    expect(card.querySelector('.hero-number')).toHaveTextContent('52 W')
+    expect(within(card).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
+    // A floor is a held best, not an estimate, so the estimate's meaning is not said under it.
+    expect(within(card).queryByText(THRESHOLD_MEANING.ride)).not.toBeInTheDocument()
   })
 
   it('shows no threshold meaning when there is no threshold to explain', () => {
