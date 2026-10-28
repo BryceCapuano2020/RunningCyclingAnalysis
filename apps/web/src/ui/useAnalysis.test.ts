@@ -1890,6 +1890,36 @@ describe('useAnalysis state', () => {
     expect(result.current.libraryError).toBeNull()
   })
 
+  it("drops the last deletion's message when the sample is loaded or the analysis is cleared", () => {
+    const startMs = Date.UTC(2026, 9, 20, 12)
+    const deleteOne = (result: { current: { deleteActivity: (id: string) => void } }) => {
+      act(() => result.current.deleteActivity('run-1'))
+      act(() => worker().reply({ type: 'state', state: STATE }))
+    }
+    const saved = {
+      type: 'libraryActivities' as const,
+      activities: [
+        { id: 'run-1', name: 'Morning run', startMs, sport: 'run' as const, copy: SAVED_COPY },
+      ],
+    }
+    const { result } = setup(SIGNED_OUT)
+    act(() => worker().reply(saved))
+    finishDeviceLoad()
+    deleteOne(result)
+    expect(result.current.libraryNotice).toBe(`Deleted Morning run (${formatDay(startMs)}).`)
+
+    act(() => result.current.loadSample())
+    expect(result.current.libraryNotice).toBeNull()
+    act(() => worker().reply({ type: 'state', state: STATE }))
+
+    act(() => worker().reply(saved))
+    deleteOne(result)
+    expect(result.current.libraryNotice).not.toBeNull()
+    act(() => result.current.clear())
+    expect(result.current.libraryNotice).toBeNull()
+    expect(result.current.libraryError).toBeNull()
+  })
+
   it('says the library is still loading when a delete is asked for before it has loaded', () => {
     const { result } = setup(SIGNED_IN_KEEP)
 

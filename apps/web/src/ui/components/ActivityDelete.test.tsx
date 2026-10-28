@@ -93,6 +93,77 @@ describe('ActivityDelete', () => {
     )
   })
 
+  it('keeps the question on Escape while a removal is running', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+    const props = { savedId: 'saved-1', name: 'Morning run', signedIn: true, onDelete }
+    const view = render(<ActivityDelete {...props} busy={false} />)
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    view.rerender(<ActivityDelete {...props} busy />)
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('group')).toBeTruthy()
+    view.rerender(<ActivityDelete {...props} busy={false} />)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('group')).toBeNull()
+  })
+
+  it('leaves Escape to a control that already used it', async () => {
+    const user = userEvent.setup()
+    renderDelete()
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    const stop = (event: KeyboardEvent) => event.preventDefault()
+    document.addEventListener('keydown', stop, true)
+    await user.keyboard('{Escape}')
+    document.removeEventListener('keydown', stop, true)
+    expect(screen.getByRole('group')).toBeTruthy()
+  })
+
+  it('does not pull focus from another control when Escape closes the question', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <ActivityDelete
+          savedId="saved-1"
+          name="Morning run"
+          busy={false}
+          signedIn
+          onDelete={vi.fn()}
+        />
+        <input aria-label="Elsewhere" />
+      </>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    const elsewhere = screen.getByLabelText('Elsewhere')
+    elsewhere.focus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('group')).toBeNull()
+    expect(elsewhere).toHaveFocus()
+  })
+
+  it('stops listening for Escape once the question is closed or the component is gone', async () => {
+    const user = userEvent.setup()
+    const removed = vi.spyOn(document, 'removeEventListener')
+    const added = vi.spyOn(document, 'addEventListener')
+    const view = render(
+      <ActivityDelete
+        savedId="saved-1"
+        name="Morning run"
+        busy={false}
+        signedIn
+        onDelete={vi.fn()}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Delete Morning run' }))
+    const keydowns = added.mock.calls.filter(([type]) => type === 'keydown')
+    expect(keydowns.length).toBeGreaterThan(0)
+    view.unmount()
+    for (const [, handler] of keydowns) {
+      expect(removed.mock.calls.some(([type, h]) => type === 'keydown' && h === handler)).toBe(true)
+    }
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
   it('does not open the question while a removal is running', async () => {
     const user = userEvent.setup()
     renderDelete({ busy: true })

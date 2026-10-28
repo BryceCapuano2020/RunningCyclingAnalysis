@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DAY_MS } from '@rca/core/constants'
 import type { ChartSize, PlotBox } from './chartTypes'
+import { thinToMonths } from './monthlyTrend'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
 import { BAND_CLEAR_PX, LABEL_REACH_EM, sharedTrendLayout } from './sharedTrendLayout'
-import { endLabelGutter, endLabelTexts } from './sharedTrendGutter'
+import { endLabelGutter, endLabelTexts, trendGutter } from './sharedTrendGutter'
 import type { EndLabel, SharedLayout } from './sharedTrendLayout'
 
 /** Sunday 12 January 2025, 23:59:59.999 UTC: the end of the first week. */
@@ -529,5 +530,20 @@ describe('sharedTrendLayout end labels in a gutter', () => {
     if (layout === null) throw new Error('The weeks give no layout')
     const size = guttered(640)
     expect(labelOf(layout, 'run').at.x).toBeLessThanOrEqual(size.plot.right)
+  })
+
+  it('gives the trend and the strip under it one margin, sized from the weeks the trend draws', () => {
+    // Two years of weeks, in energy, where the run's latest value is mid-month and the thinned trend drops it.
+    const weeks: SharedWeek[] = Array.from({ length: 104 }, (_, index) => {
+      const run = index < 100 ? 8.2 : 10.4
+      return { ...week(index, run, null), run: index < 100 ? 8.2 : index === 100 ? 10.4 : null }
+    })
+    const thinned = thinToMonths(weeks).weeks
+    const drawn = endLabelGutter(640, endLabelTexts(thinned, 'energy'))
+    const everyWeek = endLabelGutter(640, endLabelTexts(weeks, 'energy'))
+    expect(everyWeek).not.toBe(drawn)
+    expect(trendGutter(weeks, 'energy')(640)).toBe(drawn)
+    // The chart and the strip both read the same function of the same weeks.
+    expect(trendGutter(weeks, 'energy')(640)).toBe(trendGutter([...weeks], 'energy')(640))
   })
 })

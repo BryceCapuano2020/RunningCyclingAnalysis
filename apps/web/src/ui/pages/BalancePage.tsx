@@ -7,7 +7,7 @@ import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '../charts'
-import { endLabelGutter, endLabelTexts } from '../charts/sharedTrendGutter'
+import { trendGutter } from '../charts/sharedTrendGutter'
 import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
@@ -298,12 +298,7 @@ export function BalancePage({
               <WeeklyVolumeChart
                 weeks={volume}
                 lede={volumeCaption(volume)}
-                plotRightMargin={(width) =>
-                  endLabelGutter(
-                    width,
-                    endLabelTexts(trendWeeks, trendMeasureOf(profile), weightKnown),
-                  )
-                }
+                plotRightMargin={trendGutter(trendWeeks, trendMeasureOf(profile), weightKnown)}
               />
             )}
           </div>

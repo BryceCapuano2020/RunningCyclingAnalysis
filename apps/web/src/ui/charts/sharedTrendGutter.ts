@@ -2,6 +2,7 @@ import { LABEL_GAP_X } from './chartInteraction'
 import { ASCENT_EM, DESCENT_EM } from './chartBoxes'
 import type { ChartSize, Point } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
+import { thinToMonths } from './monthlyTrend'
 import { PLOT_MARGIN } from './plotBox'
 import { labelSizePx, labelWidthPx, rootFontPx } from './rootFont'
 import { formatValue } from './sharedTrendText'
@@ -37,6 +38,21 @@ export function endLabelGutter(width: number, texts: readonly string[]): number 
   const rootPx = rootFontPx()
   const widest = Math.max(...texts.map((text) => labelWidthPx(text, rootPx)))
   return Math.ceil(widest) + LABEL_GAP_X + PLOT_MARGIN.right / 4
+}
+
+/**
+ * The right margin of the trend drawn from these weeks, as a function of the chart's width: the gutter its end
+ * labels need. The labels read the weeks the chart draws, which past 13 months are the thinned ones, whose
+ * latest valued week can be an earlier week than the latest of all. The chart and the strip under it both
+ * take their margin from here, so the two are always given the same one.
+ */
+export function trendGutter(
+  weeks: readonly SharedWeek[],
+  measure: SharedMeasure,
+  rideKnown = true,
+): (width: number) => number {
+  const texts = endLabelTexts(thinToMonths(weeks).weeks, measure, rideKnown)
+  return (width) => endLabelGutter(width, texts)
 }
 
 /**
