@@ -134,16 +134,16 @@ describe('the change on the period before', () => {
       name: 'Old run',
       startMs: EARLIER_ON,
     })
-    const previous: SportCurves = { runCurve: [curvePoint(60, 14, 'run-0')], rideCurve: [] }
+    const previous: SportCurves = { runCurve: [curvePoint(300, 14, 'run-0')], rideCurve: [] }
     renderPage(
       'run',
-      makeResult({ activities: [now], runCurve: [curvePoint(60, 14.5, 'run-1')] }),
+      makeResult({ activities: [now], runCurve: [curvePoint(300, 14.5, 'run-1')] }),
       previous,
       [now, earlier],
     )
 
     expect(
-      within(recordNamed('1 min')).getByText(/faster than previous 6 weeks/),
+      within(recordNamed('5 min')).getByText(/faster than previous 6 weeks/),
     ).toBeInTheDocument()
   })
 })
@@ -155,11 +155,11 @@ describe('the Treadmill mark', () => {
       'run',
       makeResult({
         activities: [indoor],
-        runCurve: [curvePoint(60, FIVE_K_IN_20_MIN_WKG, 'run-1')],
+        runCurve: [curvePoint(300, FIVE_K_IN_20_MIN_WKG, 'run-1')],
       }),
     )
 
-    const item = recordNamed('1 min')
+    const item = recordNamed('5 min')
     expect(within(item).getByText('Flat')).toBeInTheDocument()
     expect(within(item).getByText('Treadmill')).toBeInTheDocument()
   })

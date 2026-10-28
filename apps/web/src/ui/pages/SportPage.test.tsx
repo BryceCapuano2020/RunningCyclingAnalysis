@@ -391,7 +391,7 @@ describe('SportPage', () => {
       'run',
       makeResult({
         activities: [morningRun],
-        runCurve: [curvePoint(60, 5.5, 'run-1'), curvePoint(1200, 3.6, 'run-1')],
+        runCurve: [curvePoint(300, 5.5, 'run-1'), curvePoint(1200, 3.6, 'run-1')],
       }),
     )
 
@@ -414,11 +414,11 @@ describe('SportPage', () => {
     })
     renderPage(
       'run',
-      makeResult({ activities: [tomorrow], runCurve: [curvePoint(60, 5.5, 'run-tomorrow')] }),
+      makeResult({ activities: [tomorrow], runCurve: [curvePoint(300, 5.5, 'run-tomorrow')] }),
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '1 min')).getByText('· today')).toBeInTheDocument()
+    expect(within(recordNamed(records, '5 min')).getByText('· today')).toBeInTheDocument()
   })
 
   it('says a record was set today when its activity is from today', () => {
@@ -430,11 +430,11 @@ describe('SportPage', () => {
     })
     renderPage(
       'run',
-      makeResult({ activities: [today], runCurve: [curvePoint(60, 5.5, 'run-today')] }),
+      makeResult({ activities: [today], runCurve: [curvePoint(300, 5.5, 'run-today')] }),
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '1 min')).getByText('· today')).toBeInTheDocument()
+    expect(within(recordNamed(records, '5 min')).getByText('· today')).toBeInTheDocument()
   })
 
   it('reads the clock once when the page opens, so a later render does not move the count', () => {
@@ -534,7 +534,8 @@ describe('SportPage', () => {
 
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const records = within(section.querySelector<HTMLElement>('ul.records')!)
-    expect(records.getByText('1 min')).toBeInTheDocument()
+    // A run lists no best shorter than 5 minutes, though its curve holds a 1 minute point.
+    expect(records.queryByText('1 min')).not.toBeInTheDocument()
     expect(records.getByText('5 min')).toBeInTheDocument()
     expect(records.getByText('20 min')).toBeInTheDocument()
     expect(records.getByText('60 min')).toBeInTheDocument()
@@ -626,15 +627,15 @@ describe('SportPage age grades', () => {
       'run',
       makeResult({
         activities: [morningRun],
-        // 60 s at 8 m/s covers 480 m.
-        runCurve: [curvePoint(60, flatWkg(8), 'run-1')],
+        // 300 s at 5 m/s covers 1,500 m.
+        runCurve: [curvePoint(300, flatWkg(5), 'run-1')],
       }),
       'metric',
       MAN_BORN_1986,
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(recordNamed(records, '1 min').textContent).not.toMatch(/Estimated age grade/)
+    expect(recordNamed(records, '5 min').textContent).not.toMatch(/Estimated age grade/)
   })
 
   it('shows a ride record’s estimate with its range', () => {
@@ -769,7 +770,7 @@ describe('SportPage age grades', () => {
       'run',
       makeResult({
         activities: [morningRun],
-        runCurve: [curvePoint(60, flatWkg(8), 'run-1')],
+        runCurve: [curvePoint(300, flatWkg(5), 'run-1')],
       }),
       'metric',
       MAN_BORN_1986,
@@ -782,10 +783,10 @@ describe('SportPage age grades', () => {
   it('compares the best efforts with the period before, when one is selected', () => {
     const result = makeResult({
       activities: [morningRun],
-      runCurve: [curvePoint(60, flatWkg(5), 'run-1'), curvePoint(1200, flatWkg(4), 'run-1')],
+      runCurve: [curvePoint(180, flatWkg(5), 'run-1'), curvePoint(1200, flatWkg(4), 'run-1')],
     })
     const previous: SportCurves = {
-      runCurve: [curvePoint(60, flatWkg(4.8), 'run-0'), curvePoint(1200, flatWkg(3.8), 'run-0')],
+      runCurve: [curvePoint(180, flatWkg(4.8), 'run-0'), curvePoint(1200, flatWkg(3.8), 'run-0')],
       rideCurve: [],
     }
     renderPage('run', result, 'metric', null, previous, 'Previous 6 weeks')
@@ -1137,15 +1138,15 @@ describe('SportPage depth', () => {
       'run',
       makeResult({
         activities: [morningRun],
-        // 60 s at 8 m/s covers 480 m, under a mile.
-        runCurve: [curvePoint(60, flatWkg(8), 'run-1')],
+        // 300 s at 5 m/s covers 1,500 m, under a mile.
+        runCurve: [curvePoint(300, flatWkg(5), 'run-1')],
       }),
       'metric',
       MAN_BORN_1986,
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(recordNamed(records, '1 min').querySelector('.records__grade')).toBeNull()
+    expect(recordNamed(records, '5 min').querySelector('.records__grade')).toBeNull()
     expect(within(records).getByText('No age standard under 1 mile')).toBeInTheDocument()
   })
 

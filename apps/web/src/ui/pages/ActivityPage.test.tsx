@@ -270,11 +270,13 @@ describe('ActivityPage', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Best efforts set here' }),
     ).toBeInTheDocument()
-    expect(within(bestRow('Best 1 min')).getByText('4:07 /km')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Best 1 min', { selector: '.records__label' }),
+    ).not.toBeInTheDocument()
     expect(within(bestRow('Best 5 min')).getByText('4:31 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 20 min')).getByText('5:00 /km')).toBeInTheDocument()
     expect(within(bestRow('Best 60 min')).getByText('5:37 /km')).toBeInTheDocument()
-    expect(within(bestRow('Best 1 min')).getByText('Flat')).toBeInTheDocument()
+    expect(within(bestRow('Best 5 min')).getByText('Flat')).toBeInTheDocument()
     // The splits are not kept here, so the bests explain their Flat marks.
     expect(await within(bestsSection()).findByText(FLAT_PACE_NOTE)).toBeInTheDocument()
     expect(screen.queryByText(/GAP/)).not.toBeInTheDocument()

@@ -1,5 +1,6 @@
 import {
   DAY_MS,
+  EQUIVALENCE_MIN_S,
   HALF_MARATHON_M,
   HEADLINE_DURATION_S,
   PRIORS,
@@ -29,14 +30,26 @@ import {
   formatDuration,
 } from '@rca/core/units'
 
-/** The durations each sport page lists as records: 1, 5, 20 and 60 minutes. */
-export const RECORD_DURATIONS_S = [60, 300, 1200, 3600] as const
+/**
+ * The durations each sport page lists as records. A ride lists 1, 5, 20 and 60 minutes. A run's flat
+ * pace over a minute is mostly the slope and altitude reading, so a run starts at 5 minutes.
+ */
+export const RECORD_DURATIONS_S: Record<Sport, readonly number[]> = {
+  run: [300, 1200, 3600],
+  ride: [60, 300, 1200, 3600],
+}
+
+/** The shortest duration, s, a sport's best-effort curve is drawn from. A run's starts at 3 minutes. */
+export const CURVE_START_S: Record<Sport, number> = {
+  run: EQUIVALENCE_MIN_S,
+  ride: 60,
+}
 
 /**
- * The durations that earn a chip, and that a Balance card lists: 5, 20 and 60 minutes. The
+ * The durations that earn a chip, and that a Balance card lists: 5, 20 and 60 minutes. A ride's
  * one-minute best is page-only.
  */
-export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.filter(
+export const CHIP_DURATIONS_S: readonly number[] = RECORD_DURATIONS_S.ride.filter(
   (durationS) => durationS >= 5 * 60,
 )
 
@@ -202,7 +215,7 @@ export function sportRecords(
   const curve = curveOf(result, sport)
   const byId = new Map(result.activities.map((activity) => [activity.id, activity]))
   const records: SportRecord[] = []
-  for (const durationS of RECORD_DURATIONS_S) {
+  for (const durationS of RECORD_DURATIONS_S[sport]) {
     const point = curve.find((candidate) => candidate.durationS === durationS)
     if (!point || !Number.isFinite(point.value)) continue
     const activity = point.activityId === null ? null : (byId.get(point.activityId) ?? null)
