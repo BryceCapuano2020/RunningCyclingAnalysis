@@ -82,6 +82,7 @@ export type QualityKind =
   | 'power-dropout'
   | 'speed-spike'
   | 'altitude-jump'
+  | 'implausible-climb'
   | 'missing-altitude'
 
 export interface QualityFlag {

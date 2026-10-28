@@ -153,6 +153,16 @@ export const RUN_COST_CORRECTION = 0.3
 export const FLAT_RUN_COST = MINETTI_FLAT_COST + RUN_COST_CORRECTION
 
 /**
+ * Climb rate, m/s, held over CLIMB_RATE_WINDOW_S, at which altitude is taken to be wrong and its
+ * grade is left out. The vertical-kilometre record climbs under 0.6 m/s for half an hour, and the
+ * best cyclists hold about 0.5 m/s, so 1 m/s for half a minute is an altitude error, not a climb.
+ */
+export const MAX_CLIMB_RATE_MS = 1.0
+
+/** Seconds over which the climb rate is measured: the span of smoothGrade's rise and run. */
+export const CLIMB_RATE_WINDOW_S = 30
+
+/**
  * Population priors: gross efficiency of cycling, and a multiplicative individual running economy
  * on the corrected cost. Efficiency sd 0.015 keeps about 95% of draws within 18.5 to 24.5%, which
  * covers the 18 to 23.5% range of measured studies (docs/research/cycling-efficiency.md §5).

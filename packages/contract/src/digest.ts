@@ -62,6 +62,7 @@ const qualityKind = z.enum([
   'power-dropout',
   'speed-spike',
   'altitude-jump',
+  'implausible-climb',
   'missing-altitude',
 ])
 

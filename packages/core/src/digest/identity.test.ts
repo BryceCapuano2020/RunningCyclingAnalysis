@@ -5,7 +5,7 @@ import { sampleDigestHashes } from './test/digestHashes'
  * Digests of the sample dataset at the current MODEL_REVISION, first taken from main at 8dd5f0b. A
  * change that only makes digesting faster must leave every hash as it is. A change that means to
  * alter digests bumps MODEL_REVISION and copies the received hashes from this test's failure.
- * Re-pinned at revision 6: the grade is over the distance the speed stream implies.
+ * Re-pinned at revision 6: the grade is over the speed stream's distance and too-fast climbs are masked.
  */
 const PINNED: Record<string, string> = {
   'sample-01': 'b5b98be97e97ce64080055be24b8e5b9e1c162dffecee2259117df2caf3dd3cd',
