@@ -560,7 +560,7 @@ describe('distance bests', () => {
     '%s schema accepts a distance the run falls just short of, timed up to the distance',
     (_l, schema) => {
       const race = run({
-        distanceM: 9980,
+        distanceM: 9920,
         distanceBests: [{ distanceM: 10000, seconds: 2506 }],
       })
       expect(schema.safeParse(race).success).toBe(true)
@@ -586,14 +586,14 @@ describe('distance bests', () => {
   const rejected: [string, Record<string, unknown>][] = [
     ['not a record distance', { distanceBests: [{ distanceM: 2000, seconds: 500 }] }],
     ['a zero time', { distanceBests: [{ distanceM: 1000, seconds: 0 }] }],
-    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2513 }] }],
+    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2526 }] }],
     [
       'a distance the run does not cover',
       { distanceM: 900, distanceBests: [{ distanceM: 5000, seconds: 1250 }] },
     ],
     [
       'a distance further short than the tolerance',
-      { distanceM: 9900, distanceBests: [{ distanceM: 10000, seconds: 2500 }] },
+      { distanceM: 9850, distanceBests: [{ distanceM: 10000, seconds: 2500 }] },
     ],
     ['a repeated distance', { distanceBests: [bests[0], bests[0]] }],
     ['descending order', { distanceBests: [...bests].reverse() }],

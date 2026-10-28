@@ -232,9 +232,9 @@ describe('distanceBests', () => {
   })
 
   it('counts a race a little short of a record distance, timed up to the exact distance', () => {
-    // 4 m/s for 2495 s is 9.98 km: within 0.5% of 10 km, so it is a 10 km run at 2500 s.
-    const { distance, valid } = profile([[2495, 4]])
-    expect(distance.at(-1)).toBe(9980)
+    // 4 m/s for 2480 s is 9.92 km: within 1% of 10 km, so it is a 10 km run at 2500 s.
+    const { distance, valid } = profile([[2480, 4]])
+    expect(distance.at(-1)).toBe(9920)
     const bests = distanceBests(distance, valid)
     expect(secondsAt(bests, 10_000)).toBeCloseTo(2500, 6)
     // The distances it does cover are timed exactly, with no scaling.
@@ -242,8 +242,8 @@ describe('distanceBests', () => {
   })
 
   it('does not count a run further short of a record distance than the tolerance', () => {
-    const { distance, valid } = profile([[2480, 4]])
-    expect(distance.at(-1)).toBe(9920)
+    const { distance, valid } = profile([[2460, 4]])
+    expect(distance.at(-1)).toBe(9840)
     expect(secondsAt(distanceBests(distance, valid), 10_000)).toBeNaN()
   })
 

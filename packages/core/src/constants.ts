@@ -78,11 +78,12 @@ export const RIDE_SUSTAINED_SPEEDS: readonly { durationS: number; speedMs: numbe
 export const BEST_WINDOW_MIN_MOVING_FRACTION = 0.9
 
 /**
- * How far short of a record distance a run may fall and still be timed over it: 0.5%, which is 50 m
- * on a 10 km. Watches measure a race course a little short or long, so a 9.98 km race is a 10 km
- * race. The time is scaled up to the exact distance.
+ * How far short of a record distance a run may fall and still be timed over it: 1%, which is 100 m
+ * on a 10 km. Watches measure a certified course a little short or long (GPS under-reads the tangents
+ * of a course by up to about 1%), so a 9.92 km race is a 10 km race. The time is scaled up to the
+ * exact distance.
  */
-export const DISTANCE_BEST_TOLERANCE = 0.005
+export const DISTANCE_BEST_TOLERANCE = 0.01
 
 /**
  * Most splits one run may have in each unit, counting a partial split. A run over the limit has
