@@ -1,5 +1,9 @@
-import { DISTANCE_BEST_TOLERANCE, RUN_RECORD_DISTANCES_M } from '../constants'
-import { runCeilingSpeed } from '../curves'
+import {
+  DISTANCE_BEST_TOLERANCE,
+  RUN_RECORD_DISTANCES_M,
+  RUN_WORLD_RECORD_SPEEDS,
+} from '../constants'
+import { interpolatedCeiling } from '../curves/speedCeiling'
 import { QUALITY_THRESHOLDS } from '../quality'
 import type { DigestDistanceBest } from '../types'
 
@@ -70,19 +74,25 @@ function reachOf(distance: Float64Array, { lo, hi }: Stretch): number {
   return distance[hi]! - distance[lo]!
 }
 
+/** The least time for each record distance, which is worked out once. */
+const leastSecondsOf = new Map<number, number>()
+
 /**
  * The least time, s, in which `distanceM` can be run: the world-record pace at that distance. The
- * most a run covers in t seconds is runCeilingSpeed(t) x t, which rises with t, so the least time is
+ * most a run covers in t seconds is the ceiling speed x t, which rises with t, so the least time is
  * where that reaches the distance.
  */
 function leastSeconds(distanceM: number): number {
+  const known = leastSecondsOf.get(distanceM)
+  if (known !== undefined) return known
   let lo = 0
   let hi = 1e6
   for (let step = 0; step < 60; step++) {
     const mid = (lo + hi) / 2
-    if (runCeilingSpeed(mid) * mid >= distanceM) hi = mid
+    if (interpolatedCeiling(RUN_WORLD_RECORD_SPEEDS, mid) * mid >= distanceM) hi = mid
     else lo = mid
   }
+  leastSecondsOf.set(distanceM, hi)
   return hi
 }
 
