@@ -22,3 +22,9 @@ export type {
   SameHeartRateChange,
   SameHeartRateWeek,
 } from './sameHeartRateTypes'
+export { periodDurability } from './durabilityPeriod'
+export type { DurabilityAfter, DurabilityBest, PeriodDurabilityRow } from './durabilityPeriod'
+export { driftTrend } from './driftTrend'
+export type { DriftPoint } from './driftTrend'
+export { binStart, mergeDistributions } from './distributionMerge'
+export type { MergedDistribution } from './distributionMerge'

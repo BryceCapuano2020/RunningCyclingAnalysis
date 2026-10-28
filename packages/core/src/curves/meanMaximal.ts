@@ -3,13 +3,15 @@ import type { Curve, CurvePoint } from '../types'
 /**
  * Best mean of `values` over any window of exactly d consecutive samples in which every sample
  * is valid (valid = 1) and finite, for each duration d in whole seconds. Runs in O(n) per
- * duration using prefix sums and a prefix count of unusable samples.
+ * duration using prefix sums and a prefix count of unusable samples. Only windows that start at
+ * sample `firstStart` or later are considered.
  */
 export function meanMaximal(
   values: Float64Array,
   valid: Uint8Array,
   durations: readonly number[],
   activityId: string,
+  firstStart = 0,
 ): Curve {
   const n = values.length
   const sum = new Float64Array(n + 1)
@@ -20,7 +22,7 @@ export function meanMaximal(
     sum[i + 1] = sum[i]! + (usable ? v : 0)
     bad[i + 1] = bad[i]! + (usable ? 0 : 1)
   }
-  return durations.map((d) => bestWindow(d, n, sum, bad, activityId))
+  return durations.map((d) => bestWindow(d, n, sum, bad, activityId, firstStart))
 }
 
 function bestWindow(
@@ -29,12 +31,13 @@ function bestWindow(
   sum: Float64Array,
   bad: Int32Array,
   activityId: string,
+  firstStart: number,
 ): CurvePoint {
   const none: CurvePoint = { durationS: d, value: NaN, activityId: null, startIndex: -1 }
   if (!Number.isInteger(d) || d < 1 || d > n) return none
   let best = NaN
   let bestStart = -1
-  for (let i = 0; i + d <= n; i++) {
+  for (let i = firstStart; i + d <= n; i++) {
     if (bad[i + d]! - bad[i]! > 0) continue
     const mean = (sum[i + d]! - sum[i]!) / d
     if (bestStart === -1 || mean > best) {

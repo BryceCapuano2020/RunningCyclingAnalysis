@@ -89,3 +89,29 @@ describe('meanMaximal', () => {
     ])
   })
 })
+
+describe('meanMaximal from a first start', () => {
+  const values = new Float64Array([90, 80, 10, 20, 30, 40])
+
+  it('scores only windows that start at the first start or later', () => {
+    const curve = meanMaximal(values, ones(6), [1, 2, 4], 'a', 2)
+    expect(curve.map((p) => [p.value, p.startIndex])).toEqual([
+      [40, 5],
+      [35, 4],
+      [25, 2],
+    ])
+  })
+
+  it('has no window when none fits after the first start', () => {
+    const curve = meanMaximal(values, ones(6), [4], 'a', 3)
+    expect(curve[0]!.startIndex).toBe(-1)
+    expect(curve[0]!.value).toBeNaN()
+  })
+
+  it('is the whole-array result by default', () => {
+    expect(meanMaximal(values, ones(6), [2], 'a')).toEqual(
+      meanMaximal(values, ones(6), [2], 'a', 0),
+    )
+    expect(meanMaximal(values, ones(6), [2], 'a')[0]!.value).toBe(85)
+  })
+})

@@ -464,3 +464,118 @@ describe('moving time and averages on the wire', () => {
     expect(old).not.toHaveProperty('avgPowerW')
   })
 })
+
+describe('evidence on the wire', () => {
+  const ride = digests.find((d) => d.sport === 'ride' && d.powerSource === 'measured')!
+  const run = digests.find((d) => d.sport === 'run' && d.hasHeartRate)!
+
+  it('is on the sample digests, and a digest written before it reads as having none', () => {
+    expect(ride.distributions?.power).toBeDefined()
+    expect(run.distributions?.speed).toBeDefined()
+    const legacy = edited(ride, (o) => {
+      delete o.distributions
+      delete o.durability
+      delete o.drift
+    })
+    const old = parseDigest(legacy)
+    for (const key of ['distributions', 'durability', 'drift']) expect(old).not.toHaveProperty(key)
+  })
+
+  const distributions = (o: Record<string, unknown>) => o.distributions as Record<string, unknown>
+  const bad: [string, ActivityDigest, (o: Record<string, unknown>) => void, RegExp][] = [
+    [
+      'a speed distribution on a ride',
+      ride,
+      (o) => {
+        ;(o.distributions as Record<string, unknown>).speed = { offset: 1, counts: [1] }
+      },
+      /distributions\.speed is not a measure/,
+    ],
+    [
+      'a bin past the last',
+      run,
+      (o) => {
+        ;(o.distributions as Record<string, unknown>).heartRate = { offset: 255, counts: [1, 1] }
+      },
+      /distributions\.heartRate must not reach past bin 255/,
+    ],
+    [
+      'more seconds than the activity has',
+      run,
+      (o) => {
+        ;(o.distributions as Record<string, unknown>).heartRate = {
+          offset: 100,
+          counts: [run.durationS + 1],
+        }
+      },
+      /must not add up to more than durationS/,
+    ],
+    [
+      'an empty distribution',
+      run,
+      (o) => {
+        ;(o.distributions as Record<string, unknown>).heartRate = { offset: 100, counts: [] }
+      },
+      /counts must not be empty/,
+    ],
+    [
+      'a durability time that is not one of the three',
+      run,
+      (o) => {
+        o.durationS = 20_000
+        o.durability = [{ afterS: 4000, durationS: 300, value: 10 }]
+      },
+      /durability\[0\]\.afterS must be one of 3600, 5400, 7200/,
+    ],
+    [
+      'durability out of order',
+      run,
+      (o) => {
+        o.durationS = 20_000
+        o.durability = [
+          { afterS: 3600, durationS: 1200, value: 10 },
+          { afterS: 3600, durationS: 300, value: 11 },
+        ]
+      },
+      /durability must be in ascending order/,
+    ],
+    [
+      'a durability value of zero',
+      run,
+      (o) => {
+        o.durationS = 20_000
+        o.durability = [{ afterS: 3600, durationS: 300, value: 0 }]
+      },
+      /value must be positive/,
+    ],
+    [
+      'a drift without a heart-rate stream',
+      run,
+      (o) => {
+        o.hasHeartRate = false
+        delete distributions(o).heartRate
+        o.drift = { firstRatio: 1, secondRatio: 1, durationS: 3000 }
+      },
+      /drift needs a heart-rate stream/,
+    ],
+    [
+      'a drift longer than the activity',
+      run,
+      (o) => {
+        o.drift = { firstRatio: 1, secondRatio: 1, durationS: run.durationS + 1 }
+      },
+      /drift\.durationS must be positive and at most durationS/,
+    ],
+  ]
+  it('accepts the long digest the durability cases are made from', () => {
+    const long = edited(run, (o) => {
+      o.durationS = 20_000
+      o.durability = [{ afterS: 3600, durationS: 300, value: 10 }]
+    })
+    expect(parseDigest(long).durability).toHaveLength(1)
+  })
+
+  it.each(bad)('rejects %s', (_name, digest, edit, message) => {
+    expect(() => parseDigest(edited(digest, edit))).toThrow(message)
+  })
+})
