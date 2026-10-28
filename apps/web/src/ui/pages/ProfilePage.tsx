@@ -354,11 +354,7 @@ export function ProfilePage({
         </section>
       )}
 
-      <SavedLibraryCard
-        analysis={analysis}
-        signedIn={signedIn}
-        removalOpen={removing || retentionAsking || accountDialogOpen}
-      />
+      <SavedLibraryCard analysis={analysis} signedIn={signedIn} />
 
       {canRemoveAll && (
         <section className="section" aria-labelledby="profile-remove">

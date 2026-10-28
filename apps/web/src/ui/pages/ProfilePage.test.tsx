@@ -427,22 +427,23 @@ describe('ProfilePage saved library', () => {
     expect(screen.queryByRole('heading', { name: 'Saved library' })).not.toBeInTheDocument()
   })
 
-  it('shows the signed-in library under its own heading, with the account wording', () => {
+  it('counts the signed-in library under its own heading and points to Activities, with no list', () => {
     renderProfile({ signedIn: true }, { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] })
 
-    expect(screen.getByRole('heading', { name: 'Saved library' })).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'Saved library' })
+    expect(within(section).getByText('1 run, Oct 2026')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Kept in this browser' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    expect(
-      screen.getByRole('group', { name: 'Delete “Morning run”?' }),
-    ).toHaveAccessibleDescription(
-      /deletes the activity’s original file, if one is stored, and its saved summary from your account/,
+    expect(within(section).getByRole('link', { name: 'See them in Activities' })).toHaveAttribute(
+      'href',
+      '#/activities',
     )
+    expect(within(section).queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument()
+    expect(within(section).queryByRole('table')).not.toBeInTheDocument()
   })
 })
 
 describe('ProfilePage kept in this browser', () => {
-  it('lists the activities kept in this browser to a signed-out visitor, with a note', () => {
+  it('counts the activities kept in this browser, with a note and a link to Activities', () => {
     renderProfile({}, { savedActivities: [KEPT_RUN] })
 
     expect(
@@ -450,34 +451,48 @@ describe('ProfilePage kept in this browser', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Anyone using this browser can see these.')).toBeInTheDocument()
     const section = screen.getByRole('region', { name: 'Kept in this browser' })
+    expect(within(section).getByText('1 run, Oct 2026')).toBeInTheDocument()
+    expect(within(section).getByRole('link', { name: 'See them in Activities' })).toHaveAttribute(
+      'href',
+      '#/activities',
+    )
+  })
+
+  it('gives a long library as one line, not as a table with a delete on each row', () => {
+    const many = Array.from({ length: 98 * 20 }, (_, index) => ({
+      ...KEPT_RUN,
+      id: `run-${index}`,
+      sport: index % 7 === 0 ? ('ride' as const) : ('run' as const),
+      startMs: new Date(2011 + Math.floor(index / 140), index % 12, 3, 12).getTime(),
+    }))
+    renderProfile({}, { savedActivities: many })
+
+    const section = screen.getByRole('region', { name: 'Kept in this browser' })
     expect(
-      within(section).getByRole('button', { name: /^Delete Morning run, Run, / }),
+      within(section).getByText('1,680 runs and 280 rides, from Jan 2011 to Dec 2024'),
     ).toBeInTheDocument()
+    expect(within(section).queryAllByRole('button')).toHaveLength(0)
+    expect(
+      screen.queryByRole('navigation', { name: /saved activity pages/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('says where an activity is deleted, which is its row or its own page', () => {
+    renderProfile({}, { savedActivities: [KEPT_RUN] })
+    expect(screen.getByText(/delete it from its row or its own page/)).toBeInTheDocument()
+  })
+
+  it('names stored activities that could not be read, and shows the section for them alone', () => {
+    renderProfile({}, { savedActivities: [], libraryUnreadable: 2 })
+    const section = screen.getByRole('region', { name: 'Kept in this browser' })
+    expect(section).toHaveTextContent(
+      '2 saved activities could not be read and are hidden. Re-adding their files will restore them.',
+    )
   })
 
   it('is not shown when no activities are kept in this browser', () => {
     renderProfile({}, { libraryStatus: 'loaded' })
     expect(screen.queryByRole('heading', { name: 'Kept in this browser' })).not.toBeInTheDocument()
-  })
-
-  it('words the delete confirmation for the summary kept in this browser', () => {
-    renderProfile({}, { savedActivities: [KEPT_RUN] })
-
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-
-    expect(
-      screen.getByRole('group', { name: 'Delete “Morning run”?' }),
-    ).toHaveAccessibleDescription(/removes the activity’s summary from this browser/)
-  })
-
-  it('deletes the kept activity that was chosen, on confirming', () => {
-    const deleteActivity = vi.fn()
-    renderProfile({}, { savedActivities: [KEPT_RUN], deleteActivity })
-
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-
-    expect(deleteActivity).toHaveBeenCalledWith('run-1')
   })
 })
 
@@ -564,20 +579,6 @@ describe('ProfilePage remove activities', () => {
     ).toHaveAccessibleDescription(/cannot be undone/)
   })
 
-  it('closes a kept activity’s confirmation when the removal dialog opens over the list', () => {
-    renderProfile({}, { state: { result: makeResult() }, savedActivities: [KEPT_RUN] })
-
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    expect(screen.getByRole('group', { name: 'Delete “Morning run”?' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Remove all my activities' }))
-
-    expect(screen.queryByRole('group', { name: 'Delete “Morning run”?' })).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('alertdialog', { name: 'Remove all 1 activity kept in this browser?' }),
-    ).toBeInTheDocument()
-  })
-
   it('offers the removal to a signed-out visitor whose kept activities are not on screen', () => {
     renderProfile({}, { savedActivities: [KEPT_RUN] })
 
@@ -626,37 +627,6 @@ describe('ProfilePage remove activities', () => {
 
     expect(screen.getByRole('button', { name: 'Clear the analysis' })).toBeDisabled()
     expect(screen.getByText('Available when the current analysis finishes.')).toBeInTheDocument()
-  })
-})
-
-describe('ProfilePage dialogs over the list', () => {
-  it('closes an open row confirmation when the Keep original files question opens', () => {
-    renderProfile(
-      { signedIn: true, email: EMAIL, keepFiles: true },
-      { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] },
-    )
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    expect(screen.getByRole('group', { name: 'Delete “Morning run”?' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Keep original files in my library' }))
-
-    expect(screen.queryByRole('group', { name: 'Delete “Morning run”?' })).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('alertdialog', { name: 'Turn off keeping original files?' }),
-    ).toBeInTheDocument()
-  })
-
-  it('closes an open row confirmation when the delete account dialog opens', () => {
-    renderProfile(
-      { signedIn: true, email: EMAIL, keepFiles: false },
-      { libraryStatus: 'loaded', savedActivities: [KEPT_RUN] },
-    )
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete account…' }))
-
-    expect(screen.queryByRole('group', { name: 'Delete “Morning run”?' })).not.toBeInTheDocument()
-    expect(screen.getByRole('alertdialog', { name: 'Delete your account?' })).toBeInTheDocument()
   })
 })
 

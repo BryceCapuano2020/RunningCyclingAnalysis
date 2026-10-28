@@ -1,73 +1,70 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
 import type { SavedActivity } from '../../worker/protocol'
-import { deleteNoticeText } from '../analysis/copy'
-import { SavedLibraryCard } from './SavedLibraryCard'
+import { SavedLibraryCard, savedSummary } from './SavedLibraryCard'
 
 afterEach(() => {
   cleanup()
 })
 
-const KEPT_RUN: SavedActivity = {
-  id: 'run-1',
-  name: 'Morning run',
-  startMs: new Date(2026, 9, 20, 12).getTime(),
-  sport: 'run',
-  copy: { id: 'run-1', rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
+function saved(id: string, sport: 'run' | 'ride', year: number, month: number): SavedActivity {
+  return {
+    id,
+    name: `Activity ${id}`,
+    startMs: new Date(year, month, 12, 12).getTime(),
+    sport,
+    copy: { id, rank: 3, hasPower: false, hasHeartRate: true, durationS: 3600 },
+  }
 }
 
-/** The card for a signed-out visitor, with the analysis state the test sets. */
-function kept(overrides: AnalysisStubOverrides = {}) {
-  return <SavedLibraryCard analysis={analysisStub(overrides)} signedIn={false} />
+function card(signedIn: boolean, overrides: AnalysisStubOverrides = {}) {
+  return render(<SavedLibraryCard analysis={analysisStub(overrides)} signedIn={signedIn} />)
 }
 
-function keptSection(): HTMLElement {
-  return screen.getByRole('region', { name: 'Kept in this browser' })
-}
-
-describe('SavedLibraryCard kept in this browser, after the last activity is deleted', () => {
-  it('keeps the section, with its delete outcome, after the last kept activity is deleted', () => {
-    const deleteActivity = vi.fn()
-    const { rerender } = render(kept({ savedActivities: [KEPT_RUN], deleteActivity }))
-
-    fireEvent.click(screen.getByRole('button', { name: /^Delete Morning run, / }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(deleteActivity).toHaveBeenCalledWith('run-1')
-
-    rerender(kept({ savedActivities: [], libraryNotice: deleteNoticeText(KEPT_RUN) }))
-
-    expect(keptSection()).toBeInTheDocument()
-    expect(within(keptSection()).getByRole('status')).toHaveTextContent(deleteNoticeText(KEPT_RUN))
-    expect(within(keptSection()).getByText('No saved activities')).toBeInTheDocument()
-  })
-
-  it('keeps the section while a failed delete of the last kept activity is shown', () => {
-    render(
-      kept({
-        savedActivities: [],
-        libraryError: 'Could not delete Morning run. Try again.',
-      }),
-    )
-
-    expect(within(keptSection()).getByRole('alert')).toHaveTextContent(
-      'Could not delete Morning run. Try again.',
-    )
-  })
-
-  it('removes the section once its outcome is cleared and nothing is kept', () => {
-    const { rerender } = render(
-      kept({ savedActivities: [], libraryNotice: deleteNoticeText(KEPT_RUN) }),
-    )
-    expect(keptSection()).toBeInTheDocument()
-
-    rerender(kept({ savedActivities: [] }))
-
-    expect(screen.queryByRole('region', { name: 'Kept in this browser' })).not.toBeInTheDocument()
+describe('savedSummary', () => {
+  it('counts each sport, runs first, and names the months the library spans', () => {
     expect(
-      screen.queryByRole('heading', { level: 2, name: 'Kept in this browser' }),
-    ).not.toBeInTheDocument()
+      savedSummary([
+        saved('a', 'ride', 2024, 4),
+        saved('b', 'run', 2019, 0),
+        saved('c', 'run', 2026, 9),
+      ]),
+    ).toBe('2 runs and 1 ride, from Jan 2019 to Oct 2026')
+  })
+
+  it('leaves out a sport with none, and names one month once', () => {
+    expect(savedSummary([saved('a', 'ride', 2026, 9), saved('b', 'ride', 2026, 9)])).toBe(
+      '2 rides, Oct 2026',
+    )
+  })
+})
+
+describe('SavedLibraryCard', () => {
+  it('shows nothing signed out until something is kept', () => {
+    const { container } = card(false)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('shows nothing signed in until the library has loaded', () => {
+    const { container } = card(true, { libraryStatus: 'loading' })
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('says a loaded signed-in library is empty', () => {
+    card(true, { libraryStatus: 'loaded' })
+    expect(
+      within(screen.getByRole('region', { name: 'Saved library' })).getByText(
+        'No saved activities',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('offers no delete: an activity is deleted from its row or its page', () => {
+    card(false, { savedActivities: [saved('a', 'run', 2026, 9)] })
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'See them in Activities' })).toBeInTheDocument()
   })
 })
