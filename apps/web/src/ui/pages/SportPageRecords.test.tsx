@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SportCurves } from '@rca/core/digest'
+import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
@@ -37,6 +38,7 @@ function renderPage(
       previousLabel={previous === null ? null : 'Previous 6 weeks'}
       trends={NO_TRENDS}
       sameHeartRate={NO_SAME_HEART_RATE[sport]}
+      lateEvidence={NO_LATE_EVIDENCE[sport]}
       windowDays={14}
       units="metric"
       massKg={75}

@@ -154,6 +154,7 @@ export function ResultPage({
           trends={analysis.state.effortTrends}
           windowDays={trendWindowDays(period.days)}
           sameHeartRate={analysis.state.sameHeartRate[route.page]}
+          lateEvidence={analysis.state.lateEvidence[route.page]}
           units={units}
           massKg={athleteSettings.massKg}
           weighted={weightKnown}

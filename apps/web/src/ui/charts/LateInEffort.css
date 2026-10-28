@@ -1,0 +1,58 @@
+/* The late-effort charts: the durability rows, and the drift chart's reference line. */
+
+.late-chart__group {
+  fill: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.late-chart__label {
+  fill: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.late-chart__value {
+  fill: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The rail a row's mark sits on: a hairline, so the eye reads a distance along it. */
+.late-chart__track {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+/* The fresh best, carried down through every row of its duration: a late mark is read against it. */
+.late-chart__fresh {
+  stroke: var(--previous-mark);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* From the fresh best to a late one, in the sport's colour: the length is the fall. */
+.late-chart__stem {
+  stroke: var(--sport-colour);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The common reference line on the drift chart, dashed grey as a comparison is, never in a sport's colour. */
+.drift-chart__reference {
+  stroke: var(--previous-mark);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+@media (forced-colors: active) {
+  .late-chart__track,
+  .late-chart__fresh,
+  .drift-chart__reference {
+    stroke: CanvasText;
+  }
+
+  .late-chart__stem {
+    stroke: Highlight;
+  }
+}

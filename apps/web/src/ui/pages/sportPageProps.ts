@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
+import type { LateEvidence, SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
@@ -20,6 +20,8 @@ export interface SportPageProps {
   windowDays: number
   /** This sport's output at one heart rate, week by week over the period. */
   sameHeartRate: SameHeartRate
+  /** This sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */
+  lateEvidence: LateEvidence
   units: UnitSystem
   massKg: number
   /** False while no body weight is entered; a ride's figures then wait for it. */
