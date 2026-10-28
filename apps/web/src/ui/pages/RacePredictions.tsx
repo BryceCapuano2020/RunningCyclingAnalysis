@@ -43,18 +43,24 @@ function disagreement(runsVdot: number | null, vo2max: number): string {
   return ` ${which} (about ${Math.round(high)} against ${Math.round(low)} in VO2max terms), so the range is wide. Best runs that were not all-out, and hills, both widen it; an all-out 5 km on the flat would show which is nearer.`
 }
 
+/** What All time's predictions are of: the best period in the files, which a shorter period would not be. */
+const ALL_TIME_NOTE =
+  ' In All time they reflect your best period. A shorter period shows your recent form.'
+
 /** How the predictions were reached, from the sources the result could use. */
-function methodNote({ races, runsVdot, vo2max }: RunPredictions): string {
+function methodNote({ races, runsVdot, vo2max }: RunPredictions, allTime: boolean): string {
   const fromRuns = races.some((race) => race.methods.some((m) => m.method === 'performances'))
   const flat = 'for a flat course on a good day'
+  const when = allTime ? ALL_TIME_NOTE : ''
+  const times = allTime ? 'your best times on file' : 'your best times in this period'
   if (!fromRuns || vo2max === null) {
-    return `From ${fromRuns ? 'your best times in this period' : 'your heart rate against pace'} alone, ${flat}.`
+    return `From ${fromRuns ? times : 'your heart rate against pace'} alone, ${flat}.${when}`
   }
   const capped =
     vo2max.hillCapped > 0
       ? ` ${plural(vo2max.hillCapped, 'hilly run')} left out of the heart-rate side, since ${vo2max.hillCapped === 1 ? 'its' : 'their'} flat-equivalent pace beat your fastest mile.`
       : ''
-  return `Each sits in the middle of two estimates: your best times in this period, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${flat}.${capped}${disagreement(runsVdot, vo2max.vo2max)}`
+  return `Each sits in the middle of two estimates: ${times}, carried to the distance, and the times a VO2max of ${Math.round(vo2max.vo2max)} would run, from your heart rate against pace on ${plural(vo2max.runs, 'hard run')}. Both allow for your weekly distance in the marathon, ${flat}.${capped}${disagreement(runsVdot, vo2max.vo2max)}${when}`
 }
 
 /** One race: its name and pace, then the predicted time, its range and the two estimates. */
@@ -85,10 +91,13 @@ export function RacePredictions({
   sport,
   found,
   units,
+  allTime,
 }: {
   sport: Sport
   found: RunPredictions
   units: UnitSystem
+  /** The period on screen is All time, so the note says the predictions are of the best period in it. */
+  allTime: boolean
 }) {
   const headingId = `${sport}-races`
   return (
@@ -109,7 +118,7 @@ export function RacePredictions({
           ))}
         </tbody>
       </table>
-      <p className="muted">{methodNote(found)}</p>
+      <p className="muted">{methodNote(found, allTime)}</p>
       <EvidenceDisclosure section="the race predictions">
         <ul className="race-origins">
           {found.races.map((prediction) => (

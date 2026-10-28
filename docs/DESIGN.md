@@ -420,7 +420,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   training is a gap, marked on the axis as the trend marks one. Its one line under the title is chosen in
   `volumeCaption.ts`: with more than one sport, the sport whose share of the hours moved most between the
   first and second half of the weeks, when it moved by 15 points or more ("Cycling rose from 22% of your
-  hours in the first half to 82% in the second."), else the share of the sport with most hours; with one
+  running and riding hours in the first half to 82% in the second."), else the share of the sport with most hours; with one
   sport, how its weekly hours moved between the halves when they changed by a quarter from at least half an hour a week, else what they
   averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
@@ -590,8 +590,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   while the easier riding round it was all the rider could hold at the start. The threshold is then
   fitted without those bests, and it is the top of the range, from the main threshold to that one
   ("Likely 261 to 296 W"). Such a fit is kept only above the main one. Under the range, one muted
-  line says why: "Your best 15 min and 20 min each held a shorter hard effort with easier riding around
-  it, so they only set a floor. A steady all-out 20 min would narrow this." A run says "running". When
+  line says why: "Your best 15 min and 20 min were uneven: each held a hard burst inside easier riding, so
+  the range stays wide. A steady all-out 20 min would narrow it." A run says "running". When
   the uneven fit draws on estimated watts, the line adds "The top end uses estimated watts." The range
   replaces the standard-error range for that sport. When the main threshold is refused, the range starts
   from the floor instead, the lowest of those bests, and the figure shown in place of the refusal is that
@@ -738,10 +738,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   that a sport is a limiter, a weakness or holding you back.
 - **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
   than your cycling, on your best 20 min in each." When the gap's range spans zero, the best
-  estimate is named and the range is given: "On the age-grade best estimate, running grades 4 points
-  higher, but the range (−2 to +10 points) includes zero, so the two are in balance." When the best
-  estimate is level: "On the age-grade best estimate, running and cycling grade the same, and the range
-  (−2 to +2 points) includes zero, so the two are in balance." Never "ahead of". Without an age and
+  estimate is named and the range is given, under the title "Your running and cycling are in balance":
+  "On your best 20 min in each, your running grades 4 points higher than your cycling, within −2 to +10
+  points." When the best estimate is level: "On your best 20 min in each, your running and cycling grade
+  the same, within −2 to +2 points." Never "ahead of". Without an age and
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
   cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
   levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence
@@ -783,7 +783,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   bests and the races their heart-rate VO2max would run, both carried by Riegel's law at 1.07 and, for the
   marathon, Vickers & Vertosick's mileage-corrected model. The note says how many hard runs the heart-rate
   side rests on, how many hilly runs it left out, and, when the two disagree, which points higher and
-  why. The evidence disclosure says which best each estimate was carried from. With no best from the mile up
+  why. In All time the note adds "In All time they reflect your best period. A shorter period shows your recent form." The evidence disclosure says which best each estimate was carried from. With no best from the mile up
   and no heart-rate VO2max, the section has no heading and says so in the "Not enough yet" list. The method and its sources
   are in `docs/research/race-prediction.md`. Predictors are keyed by sport in
   `apps/web/src/ui/racePredictions.ts`, so a sport adds one there and the page shows it.

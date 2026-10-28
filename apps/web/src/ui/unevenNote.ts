@@ -23,7 +23,7 @@ function durationList(seconds: number[]): string {
 export function unevenNote(result: AnalysisResult, sport: Sport): string | null {
   const uneven = { run: result.runCpUneven, ride: result.rideCpUneven }[sport]
   if (!uneven) return null
-  const floor = `Your best ${durationList(uneven.leftOutS)} each held a shorter hard effort with easier ${ACTIVITY_ING[sport]} around it, so they only set a floor. A steady all-out ${formatDuration(CP_FIT_MAX_S)} would narrow this.`
+  const wide = `Your best ${durationList(uneven.leftOutS)} were uneven: each held a hard burst inside easier ${ACTIVITY_ING[sport]}, so the range stays wide. A steady all-out ${formatDuration(CP_FIT_MAX_S)} would narrow it.`
   const estimate = { run: '', ride: fitRestsOnEstimate(result) ? ESTIMATE_LINE : '' }[sport]
-  return `${floor}${estimate}`
+  return `${wide}${estimate}`
 }

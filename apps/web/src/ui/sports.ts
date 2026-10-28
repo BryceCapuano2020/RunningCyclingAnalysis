@@ -75,6 +75,9 @@ export const SPORT_NOUN: Record<Sport, string> = { run: 'running', ride: 'cyclin
 
 export const SPORT_PLURAL: Record<Sport, string> = { run: 'runs', ride: 'rides' }
 
+/** The sport as the activity in a phrase about its hours: "your running and riding hours". */
+export const SPORT_DOING: Record<Sport, string> = { run: 'running', ride: 'riding' }
+
 /** One activity of the sport as the noun in a sentence, lower case: "this run", "this ride". */
 export const SPORT_ACTIVITY: Record<Sport, string> = { run: 'run', ride: 'ride' }
 

@@ -103,17 +103,19 @@ function leaningGradeSummary(reading: BalanceReading & { lean: Exclude<Lean, 'ev
 }
 
 /**
- * A balance in range zero: the best estimate names the leading sport, and the range that includes
- * zero says why the two are in balance.
+ * A balance whose range spans zero. The title already says the two are in balance, so the line gives what
+ * the grades say: the best estimate and the range around it, on the headline duration.
  */
 function inBalanceSummary(reading: BalanceReading): string {
   const range = rangeText(reading)
   const centre = Math.round(reading.lead.centre)
+  const duration = formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)
+  const on = `On your best ${duration} in each,`
   if (centre === 0) {
-    return `On the age-grade best estimate, running and cycling grade the same, and the range (${range}) includes zero, so the two are in balance.`
+    return `${on} your running and cycling grade the same, within ${range}.`
   }
-  const { leader } = leaderOf(centre > 0 ? 'run' : 'ride')
-  return `On the age-grade best estimate, ${leader} grades ${points(Math.abs(centre))} higher, but the range (${range}) includes zero, so the two are in balance.`
+  const { leader, other } = leaderOf(centre > 0 ? 'run' : 'ride')
+  return `${on} your ${leader} grades ${points(Math.abs(centre))} higher than your ${other}, within ${range}.`
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */

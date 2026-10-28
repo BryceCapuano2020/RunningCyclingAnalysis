@@ -243,7 +243,7 @@ describe('SportPage', () => {
     expect(within(section).getByText('Likely 48 to 49 W')).toBeInTheDocument()
   })
 
-  it('says under the range that the best 15 and 20 min only set a floor, when the threshold has an uneven fit', () => {
+  it('says under the range that the best 15 and 20 min were uneven, when the threshold has an uneven fit', () => {
     const ride = makeActivity({ id: 'ride-1', sport: 'ride' })
     const uneven = {
       fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },
@@ -256,7 +256,7 @@ describe('SportPage', () => {
     expect(within(section).getByText('Likely 48 to 58 W')).toBeInTheDocument()
     expect(
       within(section).getByText(
-        'Your best 15 min and 20 min each held a shorter hard effort with easier riding around it, so they only set a floor. A steady all-out 20 min would narrow this.',
+        'Your best 15 min and 20 min were uneven: each held a hard burst inside easier riding, so the range stays wide. A steady all-out 20 min would narrow it.',
       ),
     ).toBeInTheDocument()
   })
@@ -282,7 +282,7 @@ describe('SportPage', () => {
     expect(within(section).getByText('52 W')).toBeInTheDocument()
     expect(within(section).getByText('Likely 52 to 58 W')).toBeInTheDocument()
     expect(within(section).queryByText(/Needs a harder effort/)).not.toBeInTheDocument()
-    expect(within(section).getByText(/only set a floor/)).toBeInTheDocument()
+    expect(within(section).getByText(/were uneven: each held a hard burst/)).toBeInTheDocument()
     // A floor is a held best, not an estimate, so the estimate's meaning is not said under it.
     expect(within(section).queryByText(THRESHOLD_MEANING.ride)).not.toBeInTheDocument()
   })

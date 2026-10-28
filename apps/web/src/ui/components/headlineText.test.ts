@@ -212,11 +212,11 @@ describe('balanceSummary', () => {
     )
   })
 
-  it('says the two are in balance, with the best estimate and the range that includes zero', () => {
+  it('gives the best estimate and its range under a title that already says the two are in balance', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, running grades 4 points higher, but the range (−2 to +10\u00a0points) includes zero, so the two are in balance.',
+      'On your best 20\u00a0min in each, your running grades 4 points higher than your cycling, within −2 to +10\u00a0points.',
     )
   })
 
@@ -224,15 +224,15 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 0, low: -2, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, running and cycling grade the same, and the range (−2 to +2\u00a0points) includes zero, so the two are in balance.',
+      'On your best 20\u00a0min in each, your running and cycling grade the same, within −2 to +2\u00a0points.',
     )
   })
 
-  it('names cycling when its best estimate leads, inside a range that includes zero', () => {
+  it('names cycling when its best estimate leads, inside a range that spans zero', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -4, low: -10, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On the age-grade best estimate, cycling grades 4 points higher, but the range (−10 to +2\u00a0points) includes zero, so the two are in balance.',
+      'On your best 20\u00a0min in each, your cycling grades 4 points higher than your running, within −10 to +2\u00a0points.',
     )
   })
 

@@ -17,10 +17,10 @@ const withBests = makeActivity({
 })
 
 /** The run's predictions for a result, drawn the way the sport page draws them. */
-function renderPredictions(result: AnalysisResult) {
+function renderPredictions(result: AnalysisResult, allTime = false) {
   const found = racePredictionsOf('run', result)
   if (found === null) throw new Error('the result gives no predictions')
-  return render(<RacePredictions sport="run" found={found} units="metric" />)
+  return render(<RacePredictions sport="run" found={found} units="metric" allTime={allTime} />)
 }
 
 describe('RacePredictions', () => {
@@ -59,6 +59,34 @@ describe('RacePredictions', () => {
     const result = makeResult({ activities: [withBests] })
     renderPredictions(result)
     expect(screen.getByText(/^From your best times in this period alone/)).toBeInTheDocument()
+  })
+
+  it('says All time reflects your best period, and a dated period does not', () => {
+    const result = makeResult({
+      activities: [withBests],
+      runVo2max: { vo2max: 50, runs: 4, hillCapped: 0 },
+    })
+    const view = renderPredictions(result, true)
+    expect(screen.getByText(/your best times on file, carried to the distance/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /In All time they reflect your best period\. A shorter period shows your recent form\.$/,
+      ),
+    ).toBeInTheDocument()
+    view.unmount()
+
+    renderPredictions(result, false)
+    expect(screen.queryByText(/best period/)).not.toBeInTheDocument()
+    expect(screen.getByText(/your best times in this period, carried/)).toBeInTheDocument()
+  })
+
+  it('names the best period for runs alone in All time too', () => {
+    renderPredictions(makeResult({ activities: [withBests] }), true)
+    expect(
+      screen.getByText(
+        /^From your best times on file alone, for a flat course on a good day\. In All time they reflect your best period/,
+      ),
+    ).toBeInTheDocument()
   })
 
   it('says when heart rate points to more than the runs show', () => {

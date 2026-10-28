@@ -90,7 +90,7 @@ describe('the weekly volume under the Balance trend', () => {
     expect(trend.compareDocumentPosition(volume) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(
       within(volume).getByText(
-        'Cycling rose from 17% of your hours in the first half to 100% in the second.',
+        'Cycling rose from 17% of your running and riding hours in the first half to 100% in the second.',
       ),
     ).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="volume-bar"]')).toHaveLength(6)
