@@ -567,6 +567,41 @@ describe('distance bests', () => {
     },
   )
 
+  it.each(SCHEMAS)(
+    '%s schema accepts what the digest makes for a run whose only clean stretch is a little short',
+    (_l, schema) => {
+      // 10,020 m covered, but a jump in the first seconds leaves one clean stretch about 9.94 km
+      // long: the 10 km is timed over it and scaled up to a time past the 3,600 s of the activity.
+      const n = 3600
+      const speed = new Float64Array(n).fill(9950 / (n - 2))
+      speed[0] = 0
+      speed[1] = 70
+      const distance = new Float64Array(n)
+      for (let i = 1; i < n; i++) distance[i] = distance[i - 1]! + speed[i]!
+      const digest = digestActivity({
+        id: 'short-stretch',
+        name: 'Short stretch',
+        sport: 'run',
+        startMs: 0,
+        n,
+        speed,
+        distance,
+        altitude: new Float64Array(n).fill(100),
+        heartRate: new Float64Array(n).fill(NaN),
+        power: new Float64Array(n).fill(NaN),
+        paused: new Uint8Array(n),
+        hasPower: false,
+        hasHeartRate: false,
+        hasAltitude: true,
+        indoor: false,
+      })
+      const tenK = digest.distanceBests!.find((b) => b.distanceM === 10_000)!
+      expect(tenK.seconds).toBeGreaterThan(n)
+      const wire = JSON.parse(serializeDigest(digest)) as Record<string, unknown>
+      expect(schema.safeParse(wire).success).toBe(true)
+    },
+  )
+
   it('accepts a digest without the field, as digests from before it are', () => {
     expect(ActivityDigestSchema.safeParse(atRevision(MODEL_REVISION)).success).toBe(true)
     expect(StoredActivityDigestSchema.safeParse(atRevision(MODEL_REVISION)).success).toBe(true)
@@ -586,7 +621,7 @@ describe('distance bests', () => {
   const rejected: [string, Record<string, unknown>][] = [
     ['not a record distance', { distanceBests: [{ distanceM: 2000, seconds: 500 }] }],
     ['a zero time', { distanceBests: [{ distanceM: 1000, seconds: 0 }] }],
-    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2501 }] }],
+    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2526 }] }],
     [
       'a distance the run does not cover',
       { distanceM: 900, distanceBests: [{ distanceM: 5000, seconds: 1250 }] },

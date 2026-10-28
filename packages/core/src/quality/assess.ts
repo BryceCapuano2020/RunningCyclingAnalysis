@@ -167,14 +167,13 @@ function motionRules(
   // like that is one event: where a single-sample spike falls inside it, the stretch is the flag and
   // the spike is only masked, so the burst is not counted twice.
   const sustained = implausibleSpeedStretches(a)
-  const insideStretch = (r: Range): boolean =>
-    sustained.some((s) => s.start < r.end && r.start < s.end)
+  const insideStretch = (i: number): boolean => sustained.some((s) => s.start <= i && i < s.end)
   for (let i = 0; i < n; i++) {
     const v = speed[i]!
     const jumped = i > 0 && steady[i] === 1 && Math.abs(v - speed[i - 1]!) > t.speedSpike.maxStepMs
     if (v > maxSpeed || jumped) {
       const range = around(i, t.speedSpike.marginS, n)
-      if (insideStretch(range)) validMotion.fill(0, range.start, range.end)
+      if (insideStretch(i)) validMotion.fill(0, range.start, range.end)
       else markRange(raw, validMotion, 'speed-spike', range)
     }
   }

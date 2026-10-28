@@ -553,6 +553,22 @@ describe('assessQuality: speed-spike', () => {
     expect(report.validMotion[203]).toBe(0)
   })
 
+  it('flags a spike just outside a sustained stretch as its own, though its margin reaches the stretch', () => {
+    const fast = new Float64Array(400).fill(3)
+    fast.fill(9, 200, 380)
+    const stretchStart = assessQuality(makeActivity(400, { speed: fast })).flags.find(
+      (f) => f.kind === 'implausible-speed',
+    )!.start
+    const at = stretchStart - 2
+    const speed = Float64Array.from(fast)
+    speed[at] = 14
+    const flags = assessQuality(makeActivity(400, { speed })).flags
+    const stretch = flags.find((f) => f.kind === 'implausible-speed')!
+    // The spike sample is outside the stretch, though the three seconds either side of it are not.
+    expect(at).toBeLessThan(stretch.start)
+    expect(flags.some((f) => f.kind === 'speed-spike' && f.start <= at && at < f.end)).toBe(true)
+  })
+
   it('still flags a spike that is not inside a sustained stretch', () => {
     const speed = new Float64Array(400).fill(3)
     speed[50] = 14

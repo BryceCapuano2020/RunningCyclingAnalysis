@@ -303,17 +303,34 @@ describe('distanceBests', () => {
     expect(secondsAt(distanceBests(possible.distance, possible.valid), 1000)).toBeCloseTo(160, 6)
   })
 
-  it('falls back to the fastest window that could have been run, not to no time', () => {
-    // 100 s at 10 m/s is a kilometre in 100 s, which no one runs. The windows that reach a kilometre
-    // by taking in some of the slower running either side are possible, so the best is among those.
+  it('does not time a stretch that holds a window faster than the world record', () => {
+    // 100 s at 10 m/s is a kilometre in 100 s, which no one runs. The windows beside it share the
+    // fault (a window that takes in part of it is a hair slower, not a real 3:20 kilometre), so the
+    // stretch gives no kilometre rather than one near the world record.
     const { distance, valid } = profile([
       [300, 5],
       [100, 10],
       [300, 5],
     ])
-    const seconds = secondsAt(distanceBests(distance, valid), 1000)
-    expect(seconds).toBeGreaterThan(125)
-    expect(seconds).toBeLessThan(200)
+    expect(secondsAt(distanceBests(distance, valid), 1000)).toBeNaN()
+  })
+
+  it('times a kilometre from another stretch when one holds an impossible window', () => {
+    // The first stretch has the impossible kilometre. A masked sample later, the second is clean at
+    // 5 m/s, and the athlete's real pace there, 200 s a kilometre, is the best.
+    const bad = profile([
+      [300, 5],
+      [100, 10],
+      [300, 5],
+    ])
+    const good = profile([[400, 5]])
+    const distance = Float64Array.from([
+      ...bad.distance,
+      ...good.distance.map((d) => d + bad.distance.at(-1)!),
+    ])
+    const valid = Uint8Array.from([...bad.valid, ...good.valid])
+    valid[bad.valid.length] = 0
+    expect(secondsAt(distanceBests(distance, valid), 1000)).toBeCloseTo(200, 6)
   })
 
   it('prefers a stretch that covers a distance to a faster stretch that falls just short of it', () => {

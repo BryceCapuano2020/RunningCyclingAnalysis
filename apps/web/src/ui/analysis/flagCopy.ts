@@ -58,7 +58,7 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
     removesReadings: true,
     listsTimes: true,
     sentence: (count) =>
-      `Speed stayed beyond what anyone can sustain, ${timesText(count)}. ${leftOut(count)}`,
+      `Speed stayed beyond what anyone can sustain ${timesText(count)}. ${leftOut(count)}`,
   },
   'altitude-jump': {
     removesReadings: false,
