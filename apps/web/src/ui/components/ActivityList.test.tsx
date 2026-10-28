@@ -218,6 +218,15 @@ describe('ActivityList rows', () => {
     expect(screen.getAllByText(/skipped/)).toHaveLength(1)
   })
 
+  it('marks a run at walking pace, which the analysis leaves out', () => {
+    renderList([
+      makeActivity({ id: 'hike', name: 'Hike', walkingPace: true }),
+      makeActivity({ id: 'run', name: 'Run' }),
+    ])
+    expect(within(rowFor('Hike')).getByText('Walking pace')).toBeInTheDocument()
+    expect(within(rowFor('Run')).queryByText('Walking pace')).not.toBeInTheDocument()
+  })
+
   it('leaves the chip off a skip too short to move a figure, which the activity page still lists', () => {
     const blip = { kind: 'hr-spike' as const, start: 600, end: 611, message: 'Heart rate jumped' }
     renderList([

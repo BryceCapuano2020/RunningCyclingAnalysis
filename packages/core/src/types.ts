@@ -373,6 +373,11 @@ export interface ActivityDigest {
   avgPowerW?: number | null
   /** The file this activity came from, when that file holds more than one activity. See Activity.sessionKey. */
   sessionKey?: string
+  /**
+   * Runs only: true for a run at walking pace, a hike recorded as a run (see WALKING_PACE). It is kept in the
+   * library and left out of the analysis. Absent otherwise and on older digests.
+   */
+  walkingPace?: true
   /** Seconds in each bin of heart rate, power and speed, so zones can be applied later. Absent on older digests. */
   distributions?: DigestDistributions
   /** Best output after 1, 1.5 and 2 hours of moving time; only the points the activity supports. Absent on older digests. */

@@ -32,6 +32,8 @@ export interface ActivitySummary {
   avgPowerW?: number | null
   /** The file the activity came from, when that file holds more than one activity: a session's legs share it. */
   sessionKey?: string
+  /** Runs only: a run at walking pace, kept in the library and left out of the analysis. See ActivityDigest.walkingPace. */
+  walkingPace?: true
   /** The body mass in effect on its date, kg. Present only when the athlete has dated body masses. */
   massKg?: number
 }
@@ -71,6 +73,7 @@ function summaryFrom(digest: ActivityDigest, massKg: number | undefined): Activi
     ...(digest.avgHeartRate === undefined ? {} : { avgHeartRate: digest.avgHeartRate }),
     ...(digest.avgPowerW === undefined ? {} : { avgPowerW: digest.avgPowerW }),
     ...(digest.sessionKey === undefined ? {} : { sessionKey: digest.sessionKey }),
+    ...(digest.walkingPace === undefined ? {} : { walkingPace: digest.walkingPace }),
     ...(massKg === undefined ? {} : { massKg }),
   }
 }

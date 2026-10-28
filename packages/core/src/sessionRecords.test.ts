@@ -89,6 +89,7 @@ describe('AnalysisSession records', () => {
         'totalActivities',
         'trend',
         'unsupportedFiles',
+        'walkingPaceRuns',
       ].sort(),
     )
   })

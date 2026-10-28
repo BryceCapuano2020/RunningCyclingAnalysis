@@ -898,6 +898,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it.
+- **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
+  is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
+  cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). It stays in the
+  library with a Walking pace mark, is left out of every run analysis, volume and best, and a line under the
+  import notices counts them.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
   and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.

@@ -35,6 +35,11 @@ export interface SessionState {
    * (FIT over TCX over GPX) is saved too. They stay in the library.
    */
   hiddenDuplicates: number
+  /**
+   * Saved runs at walking pace, hikes recorded as runs (see WALKING_PACE), left out of the analysis. They stay
+   * in the library, marked.
+   */
+  walkingPaceRuns: number
   /** The period analysed: its choice and its dates. The library lists every activity regardless. */
   period: Period
   /** Every visible activity, newest first, whatever the period: the activity list and its pages. */

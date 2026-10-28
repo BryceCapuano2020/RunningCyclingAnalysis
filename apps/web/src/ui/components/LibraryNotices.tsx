@@ -19,6 +19,15 @@ function hiddenCopiesText(count: number): string {
   )
 }
 
+/** Note for saved runs at walking pace: hikes recorded as runs, which stay in the list and out of the analysis. */
+function walkingPaceText(count: number): string {
+  return (
+    `${plural(count, 'saved run is', 'saved runs are')} at walking pace, so ` +
+    `${count === 1 ? 'it stays' : 'they stay'} in your activities and ` +
+    `${count === 1 ? 'is' : 'are'} left out of your run analysis.`
+  )
+}
+
 /**
  * Saved activities made by an older analysis model. Signed in, they are rebuilt from their files; a
  * visitor who is not signed in has them kept in this browser, and adds the files again.
@@ -154,6 +163,9 @@ export function LibraryNotices({
       </section>
       {analysis.state.hiddenDuplicates > 0 && (
         <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
+      )}
+      {analysis.state.walkingPaceRuns > 0 && (
+        <p className="secondary">{walkingPaceText(analysis.state.walkingPaceRuns)}</p>
       )}
     </>
   )

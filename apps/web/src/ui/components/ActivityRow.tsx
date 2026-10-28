@@ -112,6 +112,7 @@ export function ActivityRow({
             </span>
             <span>{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
             {activity.indoor && <span className="chip">Indoor</span>}
+            {activity.walkingPace && <span className="chip">Walking pace</span>}
             {skipped > 0 && (
               <span className="chip chip--warning">
                 <WarningIcon />

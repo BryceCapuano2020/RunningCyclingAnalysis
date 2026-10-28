@@ -100,6 +100,7 @@ export const EMPTY_SESSION: SessionState = {
   outdatedActivities: 0,
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
+  walkingPaceRuns: 0,
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,

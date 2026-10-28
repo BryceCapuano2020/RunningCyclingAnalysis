@@ -33,6 +33,7 @@ import { climbMask, estimatePower, findSegments, splitSegment } from '../virtual
 import { calibrationSums } from './calibration'
 import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
+import { atWalkingPace } from './walkingPace'
 import { digestEvidence } from './evidence'
 import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
@@ -330,6 +331,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
       ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean)
       : null
   const moving = movingMask(activity)
+  const movingS = countKept(moving)
   const occupancy: Occupancy = { moving, minFraction: BEST_WINDOW_MIN_MOVING_FRACTION }
   let parts: Parts
   if (metabolic !== null) {
@@ -348,7 +350,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
     sport: activity.sport,
     startMs: activity.startMs,
     durationS: activity.n,
-    movingS: countKept(moving),
+    movingS,
     distanceM: activity.n > 0 ? activity.distance[activity.n - 1]! : 0,
     elevationGainM: elevationGain(activity.altitude, quality.validGrade),
     hasHeartRate: activity.hasHeartRate,
@@ -382,6 +384,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
           ),
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
+    ...(atWalkingPace(activity, moving, movingS) ? { walkingPace: true as const } : {}),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
   }
 }
