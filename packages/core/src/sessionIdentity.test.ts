@@ -9,7 +9,8 @@ import { stateHashes } from './test/stateHashes'
 /**
  * The session state for a library of 400 copied activities, ten a week from 4 January 2021, under four
  * periods, first taken from main at 379c9458, before the draws were sorted by their bits, the trend and
- * same-heart-rate windows were found by search, and a summary was made once. A change that only makes
+ * same-heart-rate windows were found by search, and a summary was made once. The heart-rate judgement and the
+ * time in zones were pinned when they were added, at 379c9458 plus that change; the judgement is the same under every period. A change that only makes
  * the analysis faster must leave every hash as it is. A change that means to alter the analysis copies
  * the received hashes from this test's failure, and says in its description which field moved and why.
  *
@@ -80,6 +81,14 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': 'ddd2a6493f7bb9da',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': 'a4aaf3b846398647',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
+    '"default"/heartRateJudgement': '380c36e2c4adeab8',
+    '"default"/timeInZones': 'fc6b9e31fe436b00',
+    '"all"/heartRateJudgement': '380c36e2c4adeab8',
+    '"all"/timeInZones': '758a75cfb4bf5077',
+    '42/heartRateJudgement': '380c36e2c4adeab8',
+    '42/timeInZones': '991d484270127c28',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '380c36e2c4adeab8',
+    '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': 'ec9184c96ed97600',
   },
   'dated in UTC': {
     '"default"/result': '3b8691b6e0f884f2',
@@ -118,6 +127,14 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '2e6b44bf83e3211c',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '3dd1ddf1dd87a8c1',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '96d95e57a4633ca0',
+    '"default"/heartRateJudgement': '456acdace906d2e6',
+    '"default"/timeInZones': '964b089af52d1c5f',
+    '"all"/heartRateJudgement': '456acdace906d2e6',
+    '"all"/timeInZones': '4c754d39e1de6fae',
+    '42/heartRateJudgement': '456acdace906d2e6',
+    '42/timeInZones': '811c6bc3bef6b25a',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '456acdace906d2e6',
+    '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '96d1ac2b54c66aaf',
   },
   'dated in Los Angeles': {
     '"default"/result': '3b8691b6e0f884f2',
@@ -156,6 +173,14 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '2e6b44bf83e3211c',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '3dd1ddf1dd87a8c1',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': '7de40011ebc2b6a9',
+    '"default"/heartRateJudgement': '456acdace906d2e6',
+    '"default"/timeInZones': '964b089af52d1c5f',
+    '"all"/heartRateJudgement': '456acdace906d2e6',
+    '"all"/timeInZones': '4c754d39e1de6fae',
+    '42/heartRateJudgement': '456acdace906d2e6',
+    '42/timeInZones': '811c6bc3bef6b25a',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '456acdace906d2e6',
+    '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '0bcc5e074097a77f',
   },
   'dated in Auckland': {
     '"default"/result': '3b8691b6e0f884f2',
@@ -194,6 +219,14 @@ const PINNED: Record<string, Record<string, string>> = {
     '{"from":"2021-03-10","to":"2021-03-20"}/records': '2e6b44bf83e3211c',
     '{"from":"2021-03-10","to":"2021-03-20"}/library': '5363f61970f87a1c',
     '{"from":"2021-03-10","to":"2021-03-20"}/period': 'aa4c803ea5ad72ed',
+    '"default"/heartRateJudgement': '456acdace906d2e6',
+    '"default"/timeInZones': '964b089af52d1c5f',
+    '"all"/heartRateJudgement': '456acdace906d2e6',
+    '"all"/timeInZones': 'a1452de017a18219',
+    '42/heartRateJudgement': '456acdace906d2e6',
+    '42/timeInZones': '811c6bc3bef6b25a',
+    '{"from":"2021-03-10","to":"2021-03-20"}/heartRateJudgement': '456acdace906d2e6',
+    '{"from":"2021-03-10","to":"2021-03-20"}/timeInZones': '579f93c8ff4eb0d3',
   },
 }
 
@@ -232,6 +265,10 @@ describe('session state', () => {
     expect(state.sameHeartRate.run.weeks.some((week) => week.fit !== null)).toBe(true)
     expect(state.sameHeartRate.ride.weeks.some((week) => week.fit !== null)).toBe(true)
     expect(state.lateEvidence.run.drift.length).toBeGreaterThan(0)
+    expect(state.heartRateJudgement.referenceHr.run).toBeGreaterThan(0)
+    expect(state.heartRateJudgement.threshold.ride).toBeGreaterThan(0)
+    expect(state.timeInZones.current.run.some((row) => row.counted > 0)).toBe(true)
+    expect(state.timeInZones.current.ride.some((row) => row.counted > 0)).toBe(true)
     expect(state.lateEvidence.ride.durability.length).toBeGreaterThan(0)
     expect(state.records.size).toBeGreaterThan(0)
     expect(state.result!.equivalents.length).toBeGreaterThan(0)
