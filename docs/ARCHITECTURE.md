@@ -269,17 +269,26 @@ itself. Recomputing it from raw files on every view would mean parsing originals
 which a free-tier Worker cannot afford. The browser therefore computes a digest once per file and
 the server stores only that. A digest holds:
 
-- **Best-effort curve**: mean-maximal power per sport for each duration in `DURATIONS_S`.
+- **Best-effort curve**: mean-maximal power per sport for each duration in `DURATIONS_S`. A window
+  counts only when at least 90% of its seconds were recorded and moving (neither paused nor in a record
+  gap), so a stretch that is mostly stopped is not an effort of its length. A window is also left out
+  where the speed stream holds a speed above a per-sport ceiling for the window's length (the
+  world-record paces for a run, a generous table for a ride), flagged `implausible-speed`.
 - **Heart-rate blocks**: all 5-minute blocks after the 10-minute warm-up. Critical-power selection
   happens at combine time, because the critical power depends on the merged curve.
 - **Mass-free power terms and calibration sums**: the per-sample terms of the virtual-power model
   with mass and bike constants left out.
 - **Run distance bests**: for runs only, the fastest wall-clock time over each distance in
-  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km and 10 km). A window may not include a second the
-  device did not record (a gap of over 10 s that no timer pause covers, where distance is held and
-  time is unknown), an invalid motion sample, or a distance step above the top run speed. A timer
-  pause is real time and counts. Grade does not matter here. It is absent for rides and for digests
-  from before the field, and an empty list for a run under 1 km.
+  `RUN_RECORD_DISTANCES_M` (1 km, 1 mi, 5 km, 10 km and the half marathon). A window may not include a
+  second the device did not record (a gap of over 10 s that no timer pause covers, where distance is
+  held and time is unknown), an invalid motion sample (which includes a stretch flagged
+  `implausible-speed`), or a distance step above the top run speed. A timer pause is real time and
+  counts. Grade does not matter here. A run that covers a distance keeps its exact time. A run that
+  falls short of a distance by no more than `DISTANCE_BEST_TOLERANCE` (1%) is timed over the distance it
+  covers and the time is scaled up to the exact distance, so a 9.92 km race is a 10 km race. A time
+  faster than the world record for its distance is a recording fault, so the next fastest window is
+  used instead. It is absent for rides and for digests from before the field, and an empty list for a
+  run under 1 km.
 - **Splits** (runs only): each whole kilometre and mile, with its wall-clock seconds, flat-pace
   seconds (the flat time at the same metabolic cost, as the best efforts pace is), elevation gain and
   mean heart rate. A split with a boundary inside a gap the device did not record, where the distance is

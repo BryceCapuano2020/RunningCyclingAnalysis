@@ -1,5 +1,6 @@
 import { PRIORS, RUN_WORLD_RECORD_SPEEDS } from '../constants'
 import { metabolicToFlatSpeed } from '../metabolic'
+import { interpolatedCeiling } from './speedCeiling'
 
 // Every run curve point and heart-rate block of a library is checked against the ceiling of one of the
 // few durations the digests use, so each ceiling is worked out once. A few more than they use are kept.
@@ -14,25 +15,10 @@ const MAX_REMEMBERED = 64
 export function runCeilingSpeed(durationS: number): number {
   let speed = ceilings.get(durationS)
   if (speed === undefined) {
-    speed = ceilingAt(durationS)
+    speed = interpolatedCeiling(RUN_WORLD_RECORD_SPEEDS, durationS)
     if (ceilings.size < MAX_REMEMBERED) ceilings.set(durationS, speed)
   }
   return speed
-}
-
-function ceilingAt(durationS: number): number {
-  const first = RUN_WORLD_RECORD_SPEEDS[0]!
-  const last = RUN_WORLD_RECORD_SPEEDS.at(-1)!
-  if (durationS <= first.durationS) return first.speedMs
-  if (durationS >= last.durationS) return last.speedMs
-  const hiIndex = RUN_WORLD_RECORD_SPEEDS.findIndex((entry) => entry.durationS >= durationS)
-  const lo = RUN_WORLD_RECORD_SPEEDS[hiIndex - 1]!
-  const hi = RUN_WORLD_RECORD_SPEEDS[hiIndex]!
-  if (hi.durationS === durationS) return hi.speedMs
-  const share =
-    (Math.log(durationS) - Math.log(lo.durationS)) /
-    (Math.log(hi.durationS) - Math.log(lo.durationS))
-  return Math.exp(Math.log(lo.speedMs) + share * (Math.log(hi.speedMs) - Math.log(lo.speedMs)))
 }
 
 /**

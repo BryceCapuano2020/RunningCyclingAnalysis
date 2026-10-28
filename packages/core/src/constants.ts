@@ -55,6 +55,40 @@ export const RUN_WORLD_RECORD_SPEEDS: readonly { durationS: number; speedMs: num
   // The marathon.
   { durationS: 7235, speedMs: 5.83 },
 ]
+
+/**
+ * The fastest speed, m/s, a rider holds over a duration, for the sustained-speed check on a ride's
+ * speed stream. It is far above anything an unpaced rider averages and is meant to catch only a
+ * vehicle or a GPS fault: 5 s at 108 km/h, 1 min at 100 km/h, 5 min at 90 km/h, 20 min at 80 km/h and
+ * an hour at 70 km/h. The hour record, unpaced on a track, is 56.8 km/h, and the longest alpine
+ * descents average well under 80 km/h over 20 minutes. Interpolated as RUN_WORLD_RECORD_SPEEDS is.
+ */
+export const RIDE_SUSTAINED_SPEEDS: readonly { durationS: number; speedMs: number }[] = [
+  { durationS: 5, speedMs: 30 },
+  { durationS: 60, speedMs: 28 },
+  { durationS: 300, speedMs: 25 },
+  { durationS: 1200, speedMs: 22.2 },
+  { durationS: 3600, speedMs: 19.4 },
+]
+
+/**
+ * The share of a best window's seconds that must be recorded and moving: neither paused nor in a
+ * record gap. A window that is mostly stopped or unrecorded is not an effort of its length, however
+ * high its mean.
+ */
+export const BEST_WINDOW_MIN_MOVING_FRACTION = 0.9
+
+/**
+ * How far short of a record distance a run may fall and still be timed over it: 1%, which is 100 m
+ * on a 10 km. A watch can read a certified course short or long: GPS cuts the corners of a road
+ * course, which reads short, and wanders, which reads long. The treatment is not symmetric. A run
+ * that reads long covers the distance, so its fastest exact window is the time. A run that reads
+ * short is timed over the distance it covers and the time is scaled up to the exact distance, which
+ * assumes an even pace over the part that was missed, so a 9.92 km race is a 10 km race. The 1% is a
+ * convention set from the size of the GPS error on a measured course, not a measured constant.
+ */
+export const DISTANCE_BEST_TOLERANCE = 0.01
+
 /**
  * Most splits one run may have in each unit, counting a partial split. A run over the limit has
  * none in that unit. 500 is a 500 km run, and 320 miles is about 515 km.

@@ -84,9 +84,9 @@ describe('digest evidence', () => {
 
   it('bins the speed a run is credited, not the raw speed, where the file speed and distance disagree', () => {
     const n = 600
-    const base = syntheticActivity({ n, sport: 'run', speed: new Float64Array(n).fill(7) })
-    // The recorded distance advances 3 m/s while the speed stream reads 7 m/s.
-    const distance = Float64Array.from({ length: n }, (_, i) => 3 * i)
+    const base = syntheticActivity({ n, sport: 'run', speed: new Float64Array(n).fill(6) })
+    // The recorded distance advances 2.5 m/s while the speed stream reads 6 m/s.
+    const distance = Float64Array.from({ length: n }, (_, i) => 2.5 * i)
     const disagreeing = { ...base, distance }
     const agreed = agreedStreams(disagreeing)
     expect(agreed.stretches.length).toBeGreaterThan(0)
@@ -105,7 +105,7 @@ describe('digest evidence', () => {
     const { speed } = digestActivity(disagreeing).distributions!
     expect(speed).toEqual(expected)
     expect(speed).not.toEqual(raw)
-    // Most seconds are at the lower 3 m/s (bin 60), none at the raw 7 m/s (bin 140).
-    expect(speed!.offset).toBeLessThan(140)
+    // Most seconds are at the lower 2.5 m/s (bin 50), none at the raw 6 m/s (bin 120).
+    expect(speed!.offset).toBeLessThan(120)
   })
 })

@@ -404,6 +404,41 @@ describe('distance bests on the wire', () => {
     expect(parseDigest(serializeDigest(ride))).not.toHaveProperty('distanceBests')
   })
 
+  it('reads the distance bests of a run whose only clean stretch falls a little short of a distance', () => {
+    // 10,020 m covered, but a jump in the first seconds leaves one clean stretch of 9,940 m, so the
+    // 10 km is timed over that stretch and scaled up: a time past the 3,600 s of the activity.
+    const long = 3600
+    const speed = new Float64Array(long).fill(9950 / (long - 2))
+    speed[0] = 0
+    speed[1] = 70
+    const distance = new Float64Array(long)
+    for (let i = 1; i < long; i++) distance[i] = distance[i - 1]! + speed[i]!
+    const shortStretch = digestActivity({
+      ...run,
+      id: 'short-stretch',
+      n: long,
+      speed,
+      distance,
+      altitude: new Float64Array(long).fill(100),
+      heartRate: new Float64Array(long).fill(NaN),
+      power: new Float64Array(long).fill(NaN),
+      paused: new Uint8Array(long),
+    })
+    expect(shortStretch.distanceM).toBeGreaterThan(10_000)
+    const tenK = shortStretch.distanceBests!.find((b) => b.distanceM === 10_000)!
+    expect(tenK.seconds).toBeGreaterThan(long)
+    expect(parseDigest(serializeDigest(shortStretch))).toEqual(shortStretch)
+  })
+
+  it('reads a time up to the duration over the tolerance for any distance, and no more', () => {
+    const timed = (seconds: number) =>
+      editedRun((o) => {
+        o.distanceBests = [{ distanceM: 10_000, seconds }]
+      })
+    expect(() => parseDigest(timed(run.n / 0.99 - 1))).not.toThrow()
+    expect(() => parseDigest(timed(run.n / 0.99 + 1))).toThrow(/must not exceed durationS/)
+  })
+
   it('rejects malformed distance bests', () => {
     expect(() => parseDigest(editedRun((o) => (o.distanceBests = {})))).toThrow(
       /distanceBests must be an array/,
@@ -421,7 +456,7 @@ describe('distance bests on the wire', () => {
     expect(() =>
       parseDigest(
         editedRun((o) => {
-          bestsOf(o)[0]!.seconds = run.n + 1
+          bestsOf(o)[0]!.seconds = run.n * 1.02
         }),
       ),
     ).toThrow(/distanceBests\[0\]\.seconds must not exceed durationS/)

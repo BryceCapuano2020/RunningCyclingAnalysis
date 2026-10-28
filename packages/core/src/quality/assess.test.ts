@@ -504,33 +504,77 @@ describe('assessQuality: power-dropout', () => {
 })
 
 describe('assessQuality: speed-spike', () => {
-  it('fires on a run faster than 12.5 m/s', () => {
-    const a = makeActivity(60, { speed: new Float64Array(60).fill(13) })
-    const report = assessQuality(a)
+  /** 60 samples at a steady speed with one sample set to `peak`: no step is above 5 m/s and no window is sustained. */
+  const withPeak = (sport: 'run' | 'ride', base: number, peak: number) => {
+    const speed = new Float64Array(60).fill(base)
+    speed[30] = peak
+    return makeActivity(60, { sport, speed })
+  }
+
+  it('fires on a run sample faster than 12.5 m/s', () => {
+    const report = assessQuality(withPeak('run', 8, 13))
     expect(report.flags).toEqual([
       {
         kind: 'speed-spike',
-        start: 0,
-        end: 60,
+        start: 27,
+        end: 34,
         message: 'GPS speed jumped to an impossible value',
       },
     ])
-    expect(zeroIndices(report.validMotion)).toEqual(span(0, 60))
+    expect(zeroIndices(report.validMotion)).toEqual(span(27, 34))
   })
 
   it('does not fire at exactly 12.5 m/s on a run', () => {
-    const a = makeActivity(60, { speed: new Float64Array(60).fill(12.5) })
-    const report = assessQuality(a)
+    const report = assessQuality(withPeak('run', 8, 12.5))
     expect(report.flags).toEqual([])
     expect(zeroIndices(report.validMotion)).toEqual([])
   })
 
   it('uses a 30 m/s limit for rides, so 30 m/s is fine and 31 m/s fires', () => {
-    const fine = makeActivity(60, { sport: 'ride', speed: new Float64Array(60).fill(30) })
-    expect(assessQuality(fine).flags).toEqual([])
+    expect(assessQuality(withPeak('ride', 26, 30)).flags).toEqual([])
 
-    const fast = makeActivity(60, { sport: 'ride', speed: new Float64Array(60).fill(31) })
-    expect(assessQuality(fast).flags.map((f) => [f.start, f.end])).toEqual([[0, 60]])
+    const fast = assessQuality(withPeak('ride', 26, 31)).flags
+    expect(fast.map((f) => [f.kind, f.start, f.end])).toEqual([['speed-spike', 27, 34]])
+  })
+
+  it('flags a sustained speed no one holds once, with a spike inside it counted in the stretch', () => {
+    const speed = new Float64Array(400).fill(3)
+    speed.fill(9, 100, 300)
+    speed[200] = 14
+    const report = assessQuality(makeActivity(400, { speed }))
+    expect(report.flags.map((f) => f.kind)).toEqual(['implausible-speed'])
+    expect(report.flags[0]!.message).toMatch(
+      /^Speed stayed beyond what anyone can sustain for \d+ seconds$/,
+    )
+    // The spike is masked all the same.
+    const stretch = report.flags[0]!
+    for (let i = stretch.start; i < stretch.end; i++) expect(report.validMotion[i]).toBe(0)
+    expect(report.validMotion[197]).toBe(0)
+    expect(report.validMotion[203]).toBe(0)
+  })
+
+  it('flags a spike just outside a sustained stretch as its own, though its margin reaches the stretch', () => {
+    const fast = new Float64Array(400).fill(3)
+    fast.fill(9, 200, 380)
+    const stretchStart = assessQuality(makeActivity(400, { speed: fast })).flags.find(
+      (f) => f.kind === 'implausible-speed',
+    )!.start
+    const at = stretchStart - 2
+    const speed = Float64Array.from(fast)
+    speed[at] = 14
+    const flags = assessQuality(makeActivity(400, { speed })).flags
+    const stretch = flags.find((f) => f.kind === 'implausible-speed')!
+    // The spike sample is outside the stretch, though the three seconds either side of it are not.
+    expect(at).toBeLessThan(stretch.start)
+    expect(flags.some((f) => f.kind === 'speed-spike' && f.start <= at && at < f.end)).toBe(true)
+  })
+
+  it('still flags a spike that is not inside a sustained stretch', () => {
+    const speed = new Float64Array(400).fill(3)
+    speed[50] = 14
+    speed.fill(9, 200, 380)
+    const kinds = assessQuality(makeActivity(400, { speed })).flags.map((f) => f.kind)
+    expect(kinds.sort()).toEqual(['implausible-speed', 'speed-spike'])
   })
 
   it('fires on a step of more than 5 m/s between samples, masking 3 s either side', () => {

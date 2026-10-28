@@ -2,6 +2,7 @@ import { CLIMB_RATE_WINDOW_S, MAX_CLIMB_RATE_MS } from '../constants'
 import { rollingMean } from '../math'
 import type { AgreedStreams } from './agreement'
 import { agreedStreams } from './agreement'
+import { implausibleSpeedStretches } from './sustainedSpeed'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
 
@@ -162,13 +163,21 @@ function motionRules(
   const t = QUALITY_THRESHOLDS
   const maxSpeed = t.speedSpike.maxSpeedMs[a.sport]
 
+  // A speed no single sample gives away, held for a window longer than anyone could hold it. A burst
+  // like that is one event: where a single-sample spike falls inside it, the stretch is the flag and
+  // the spike is only masked, so the burst is not counted twice.
+  const sustained = implausibleSpeedStretches(a)
+  const insideStretch = (i: number): boolean => sustained.some((s) => s.start <= i && i < s.end)
   for (let i = 0; i < n; i++) {
     const v = speed[i]!
     const jumped = i > 0 && steady[i] === 1 && Math.abs(v - speed[i - 1]!) > t.speedSpike.maxStepMs
     if (v > maxSpeed || jumped) {
-      markRange(raw, validMotion, 'speed-spike', around(i, t.speedSpike.marginS, n))
+      const range = around(i, t.speedSpike.marginS, n)
+      if (insideStretch(i)) validMotion.fill(0, range.start, range.end)
+      else markRange(raw, validMotion, 'speed-spike', range)
     }
   }
+  for (const stretch of sustained) markRange(raw, validMotion, 'implausible-speed', stretch)
 
   if (!a.hasAltitude) {
     // Outdoors, grade is unknown, so nothing grade-dependent may be used. Indoors, grade is zero.
@@ -280,6 +289,8 @@ function messageFor(kind: QualityKind, durationS: number): string {
       return `Power meter stopped reporting for ${seconds} while moving`
     case 'speed-spike':
       return 'GPS speed jumped to an impossible value'
+    case 'implausible-speed':
+      return `Speed stayed beyond what anyone can sustain for ${seconds}`
     case 'altitude-jump':
       return `Altitude changed by more than ${t.altitudeJump.maxStepM} m in a single second`
     case 'implausible-climb':
