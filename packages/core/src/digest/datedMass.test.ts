@@ -175,10 +175,10 @@ describe('when the best watts and the best power-to-weight are different rides',
 describe('the period cache with dated masses', () => {
   it('reuses an analysis while the masses hold, and redoes it when a dated mass changes', () => {
     const cache = new PeriodCache()
-    const first = cache.analysis(rides, dated)
+    const first = cache.analysis(rides, dated, [])
     // A fresh but equal object, as each worker message brings, finds the same analysis.
     const equal = { ...dated, measurements: dated.measurements?.map((entry) => ({ ...entry })) }
-    expect(cache.analysis(rides, equal)).toBe(first)
+    expect(cache.analysis(rides, equal, [])).toBe(first)
     // Another kind of setting does not touch the masses.
     const heartRate: Measurement = {
       kind: 'maxHeartRate',
@@ -187,9 +187,13 @@ describe('the period cache with dated masses', () => {
       from: '2024-01-01',
     }
     expect(
-      cache.analysis(rides, { ...dated, measurements: [...(dated.measurements ?? []), heartRate] }),
+      cache.analysis(
+        rides,
+        { ...dated, measurements: [...(dated.measurements ?? []), heartRate] },
+        [],
+      ),
     ).toBe(first)
     const heavier = { ...dated, measurements: [mass(95, '2023-01-01'), mass(70, '2024-01-01')] }
-    expect(cache.analysis(rides, heavier)).not.toBe(first)
+    expect(cache.analysis(rides, heavier, [])).not.toBe(first)
   })
 })

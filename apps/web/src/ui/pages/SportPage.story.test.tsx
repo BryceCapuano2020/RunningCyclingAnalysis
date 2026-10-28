@@ -7,9 +7,11 @@ import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
+import type { MeasureTime } from '@rca/core/zones'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
+import { measureTime } from '../test/zoneTimeFixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -40,11 +42,18 @@ const RUN_SAME_HEART_RATE: SameHeartRate = {
   latestWeekEndMs: week(4, 3.4).endMs,
 }
 
+/** Ten hours of a run's heart rate over eight runs, mostly in zone 2, so the section has something to say. */
+const RUN_ZONES: MeasureTime[] = [
+  measureTime('run', 'heartRate', [3600, 21_600, 7200, 3600, 0]),
+  measureTime('run', 'pace', [0, 0, 0, 0, 0], { counted: 0 }),
+]
+
 function renderPage(
   sport: Sport,
   result: AnalysisResult,
   sameHeartRate?: SameHeartRate,
   lateEvidence: LateEvidence = NO_LATE_EVIDENCE[sport],
+  zoneTimes?: readonly MeasureTime[],
 ) {
   return render(
     <SportPage
@@ -55,6 +64,7 @@ function renderPage(
       trends={NO_TRENDS}
       sameHeartRate={sameHeartRate ?? NO_SAME_HEART_RATE[sport]}
       lateEvidence={lateEvidence}
+      zoneTimes={zoneTimes}
       windowDays={28}
       units="metric"
       massKg={75}
@@ -101,8 +111,8 @@ function fullRun(): AnalysisResult {
 }
 
 describe('a sport page with everything to show', () => {
-  it('reads answer, best efforts, race predictions, week by week, the same heart rate, then late in long sessions', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+  it('reads answer, best efforts, race predictions, week by week, the same heart rate, late in long sessions, then time in zones', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(headings()).toEqual([
       'Threshold pace, estimated',
       'Best efforts',
@@ -110,18 +120,19 @@ describe('a sport page with everything to show', () => {
       'Week by week',
       'At the same heart rate',
       'Late in long sessions',
+      'Time in zones',
     ])
   })
 
   it('has no heading of its own for the curve or for the stand-out finding', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(screen.queryByRole('heading', { name: 'Pace curve' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Where your bests stand out' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Not enough yet' })).toBeNull()
   })
 
   it('puts the curve under the records list, with the stand-out finding as its caption', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const list = section.querySelector('ul.records')!
     const curve = within(section).getByRole('figure', { name: /^Run flat pace .* by duration$/ })
@@ -131,7 +142,7 @@ describe('a sport page with everything to show', () => {
   })
 
   it('keeps the strip behind a closed disclosure that opens to show each best against the others', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const details = within(section)
       .getByText('Show each best against the others')
@@ -149,13 +160,13 @@ describe('a sport page with everything to show', () => {
       activities: [...profileActivities('run'), withBests],
       runCurve: profileCurve(),
     })
-    renderPage('run', result, RUN_SAME_HEART_RATE)
+    renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(screen.queryByText(/each best against the others/)).toBeNull()
     expect(screen.getByText(/^Your bests are in line with each other/)).toBeInTheDocument()
   })
 
   it('says under the week-by-week chart that a step down can be a best leaving the window', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Week by week' })
     const line = within(section).getByText(
       'A step down can be a best leaving the 4-week window, not a change in you.',
@@ -165,7 +176,13 @@ describe('a sport page with everything to show', () => {
   })
 
   it('never uses the words the page has banned', () => {
-    const { container } = renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+    const { container } = renderPage(
+      'run',
+      fullRun(),
+      RUN_SAME_HEART_RATE,
+      lateEvidenceFor('run'),
+      RUN_ZONES,
+    )
     const text = (container.textContent ?? '').toLowerCase()
     for (const word of ['limiter', 'weak', 'strength', 'holding you back', 'ahead of']) {
       expect(text).not.toContain(word)
@@ -195,6 +212,7 @@ describe('a sport page with sections that have nothing to show', () => {
         /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
       ),
       'Late in long sessions: add 3 runs longer than an hour. Needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
+      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
     ])
     expect(section.querySelector('ul')).toHaveClass('muted')
   })
@@ -215,7 +233,7 @@ describe('a sport page with sections that have nothing to show', () => {
   })
 
   it('shows no list when every section has something to say', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
   })
 

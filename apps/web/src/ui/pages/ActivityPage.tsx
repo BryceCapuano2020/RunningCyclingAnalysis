@@ -1,11 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import type { EarnedRecord } from '@rca/core/records'
 import type { Period } from '@rca/core/period'
-import type { DigestSplits } from '@rca/core/types'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
+import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
+import { zonesAt } from '@rca/core/zones'
+import type { ZoneSet } from '@rca/core/zones'
 import { ActivityDelete } from '../components/ActivityDelete'
 import { RouteOffer } from '../components/RouteOffer'
 import { RouteShape as RouteOutline } from '../components/RouteShape'
@@ -22,7 +25,9 @@ import type { RouteReply } from '../routeReply'
 import { useDeleteOutcome } from '../useDeleteOutcome'
 import { useRouteShape } from '../useRouteShape'
 import { useRunSplits } from '../useRunSplits'
+import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
+import { setAsideActivityText } from '../analysis/setAsideCopy'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
@@ -39,6 +44,13 @@ export interface ActivityPageProps {
   units: UnitSystem
   /** Body mass, kg, for the W/kg of cycling bests. Only used while weightKnown. */
   massKg: number
+  /** The settings the analysis runs on, dated ones included, which cut the activity's zones. Absent: no zones section. */
+  settings?: AthleteSettings
+  /**
+   * Whose heart rate is set aside, judged once over the whole library, which holds an activity the period
+   * does not, and what it was judged against.
+   */
+  heartRateJudgement: HeartRateJudgement
   /** False while no body weight is entered: a ride's figures wait for it. */
   weightKnown: boolean
   /** The age and sex the grades are worked out with; null before the athlete gives them. */
@@ -64,6 +76,27 @@ export interface ActivityPageProps {
   /** The library's notice and error, which say how a removal from this page ended. */
   libraryNotice?: string | null
   libraryError?: string | null
+}
+
+/**
+ * The zones in effect on the day of the activity, for its sport. A ride's estimated power zones wait
+ * for the body weight, as on Profile, and a heart rate the analysis set aside is not read into zones.
+ */
+function zoneSetsOf(
+  activity: ActivitySummary | null,
+  settings: AthleteSettings,
+  result: AnalysisResult,
+  weightKnown: boolean,
+  setAsideIds: readonly string[],
+): ZoneSet[] {
+  if (activity === null) return []
+  const setAside = setAsideIds.includes(activity.id)
+  return zonesAt(activity.startMs, settings, result).filter(
+    (set) =>
+      set.sport === activity.sport &&
+      !(setAside && set.measure === 'heartRate') &&
+      !(!weightKnown && set.source === 'estimated' && NEEDS_WEIGHT[set.measure]),
+  )
 }
 
 /** A modified or non-primary click is the browser's to open in a tab, as a link is. */
@@ -104,6 +137,8 @@ export function ActivityPage({
   result,
   units,
   massKg,
+  settings,
+  heartRateJudgement,
   weightKnown,
   profile,
   records,
@@ -120,6 +155,14 @@ export function ActivityPage({
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
   const removal = useDeleteOutcome(libraryNotice, libraryError)
+  const setAsideIds = heartRateJudgement.setAside
+  const zoneSets = useMemo(
+    () =>
+      settings === undefined
+        ? undefined
+        : zoneSetsOf(activity, settings, result, weightKnown, setAsideIds),
+    [activity, settings, result, weightKnown, setAsideIds],
+  )
   // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
   const splitsLoad = useRunSplits(activity?.sport === 'run' ? activity.id : null, loadSplits)
   // Once the library has removed the activity, the list replaces this page in the history, so Back never
@@ -180,6 +223,8 @@ export function ActivityPage({
           units={units}
           indoor={activity.indoor}
           loadTrace={loadTrace}
+          zoneSets={zoneSets}
+          heartRateSetAside={setAsideIds.includes(activity.id)}
         />
       )}
       {activity.powerSource === 'virtual' && (
@@ -223,7 +268,11 @@ export function ActivityPage({
       />
       <ActivityIssues
         activity={activity}
-        heartRateSetAside={result.heartRateSetAside.includes(activity.id)}
+        setAsideNote={
+          setAsideIds.includes(activity.id)
+            ? setAsideActivityText(activity.sport, heartRateJudgement)
+            : null
+        }
       />
 
       {routeId !== null && onDelete && (

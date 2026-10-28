@@ -77,3 +77,13 @@ export const ZONE_OVERRIDE: Record<ZoneMeasure, MeasurementKind> = {
   heartRate: 'maxHeartRate',
   pace: 'thresholdPace',
 }
+
+/**
+ * The measures read as whole numbers, a heart rate in beats and a power in watts. Their zones are cut on
+ * whole-number edges (`zonesFor`), so a zone holds whole numbers and no reading sits between two zones.
+ */
+export const WHOLE_NUMBER_MEASURES: Record<ZoneMeasure, boolean> = {
+  power: true,
+  heartRate: true,
+  pace: false,
+}

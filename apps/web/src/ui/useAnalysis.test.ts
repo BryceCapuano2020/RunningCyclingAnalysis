@@ -4,6 +4,8 @@ import { act, render, renderHook, screen, waitFor } from '@testing-library/react
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
+import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
+import { NO_ZONE_TIMES } from '@rca/core/zones'
 import { createElement, StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import { DAILY_LIMITS } from '@rca/contract'
@@ -163,6 +165,8 @@ const STATE = {
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
+  heartRateJudgement: NO_HEART_RATE_JUDGEMENT,
+  timeInZones: NO_ZONE_TIMES,
   records: new Map(),
 }
 

@@ -50,6 +50,28 @@ describe('zonesFor', () => {
     expect(zones[4]?.high).toBeNull()
   })
 
+  it('starts a zone of whole numbers at the first whole number at or above the cut', () => {
+    // 0.6, 0.7, 0.8 and 0.9 of 219 bpm are 131.4, 153.3, 175.2 and 197.1.
+    expect(zonesFor('heartRate', 219).map((zone) => zone.low)).toEqual([0, 132, 154, 176, 198])
+    // A cut that is exactly a whole number stays there, whatever the rounding of the product.
+    expect(zonesFor('heartRate', 200).map((zone) => zone.low)).toEqual([0, 120, 140, 160, 180])
+    expect(zonesFor('power', 201).map((zone) => zone.low)).toEqual([
+      0, 111, 151, 181, 212, 242, 302,
+    ])
+    for (const measure of ['power', 'heartRate'] as const) {
+      for (const reference of [137.3, 188.6, 250.4]) {
+        for (const zone of zonesFor(measure, reference)) {
+          expect(Number.isInteger(zone.low)).toBe(true)
+          expect(zone.high === null || Number.isInteger(zone.high)).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('leaves the cuts of a pace as they are, since a speed is not a whole number', () => {
+    expect(zonesFor('pace', 4)[1]?.low).toBeCloseTo(4 / 1.29, 12)
+  })
+
   it('leaves no gap or overlap between zones, so every reading is in one zone', () => {
     for (const measure of ['power', 'heartRate', 'pace'] as const) {
       const zones = zonesFor(measure, 123)
@@ -78,15 +100,15 @@ describe('zonesAt', () => {
   it("estimates every reference the analysis has, from the app's own figures", () => {
     const sets = zonesAt(local(2025, 1, 1), settings, result)
     expect(sets.every((set) => set.source === 'estimated')).toBe(true)
-    expect(find(sets, 'ride', 'heartRate')?.reference).toBe(result.rideMaxHeartRate)
-    expect(find(sets, 'run', 'heartRate')?.reference).toBe(result.runMaxHeartRate)
+    expect(find(sets, 'ride', 'heartRate')?.reference).toBe(Math.round(result.rideMaxHeartRate!))
+    expect(find(sets, 'run', 'heartRate')?.reference).toBe(Math.round(result.runMaxHeartRate!))
     expect(find(sets, 'run', 'pace')?.reference).toBeCloseTo(
       metabolicToFlatSpeed(result.runCp!.cp),
       12,
     )
-    expect(find(sets, 'ride', 'power')?.reference).toBeCloseTo(
-      result.rideCp!.cp * PRIORS.grossEfficiency.mean * 75,
-      9,
+    // A power is a whole number of watts, so the reference is the figure the app shows, rounded.
+    expect(find(sets, 'ride', 'power')?.reference).toBe(
+      Math.round(result.rideCp!.cp * PRIORS.grossEfficiency.mean * 75),
     )
   })
 
@@ -152,7 +174,30 @@ describe('zonesAt', () => {
     const withMass = { ...settings, measurements: entries }
     const before = find(zonesAt(local(2024, 1, 1), withMass, result), 'ride', 'power')!
     const after = find(zonesAt(local(2025, 6, 1), withMass, result), 'ride', 'power')!
-    expect(before.reference / after.reference).toBeCloseTo(90 / 70, 12)
+    // Each is a whole number of watts, so the ratio holds to a watt in 200.
+    expect(before.reference / after.reference).toBeCloseTo(90 / 70, 2)
+  })
+})
+
+describe('zonesAt, the reference and the zones cut from it', () => {
+  const settings: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
+
+  it('cuts a whole-number measure’s zones from the reference as shown, rounded', () => {
+    const entries: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 187.6, from: '2020-01-01' },
+    ]
+    const [set] = zonesAt(local(2025, 1, 1), { ...settings, measurements: entries }, null)
+    expect(set?.reference).toBe(188)
+    // The edges are worked out from 188, the figure Profile shows, not from 187.6.
+    expect(set?.zones.map((zone) => zone.low)).toEqual(zonesFor('heartRate', 188).map((z) => z.low))
+  })
+
+  it('leaves a pace reference as it is', () => {
+    const entries: Measurement[] = [
+      { kind: 'thresholdPace', sport: 'run', value: 3.4567, from: '2020-01-01' },
+    ]
+    const [set] = zonesAt(local(2025, 1, 1), { ...settings, measurements: entries }, null)
+    expect(set?.reference).toBe(3.4567)
   })
 })
 

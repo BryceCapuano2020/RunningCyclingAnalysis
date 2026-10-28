@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
+import type { ZoneSet } from '@rca/core/zones'
 import type { ActivityTraceReply } from '../../worker/protocol'
+import { ActivityZoneTime } from './ActivityZoneTime'
 import { LapChoices } from './ActivityWorkbenchLaps'
 import { ActivityWorkbenchPlot } from './ActivityWorkbenchPlot'
 import { RepFadeTable } from './ActivityWorkbenchReps'
@@ -19,6 +21,10 @@ export interface ActivityWorkbenchProps {
   /** A trainer ride or a treadmill run: a speed is the athlete's there, so reps are read by it without power. */
   indoor?: boolean
   loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
+  /** The zones in effect on the activity's date, for its time in zones. Absent: no zones section. */
+  zoneSets?: readonly ZoneSet[]
+  /** Whether the activity's heart rate is set aside, which its zones say instead of reading it. */
+  heartRateSetAside?: boolean
 }
 
 type LoadState =
@@ -79,6 +85,8 @@ export function ActivityWorkbench({
   units,
   indoor = false,
   loadTrace,
+  zoneSets,
+  heartRateSetAside,
 }: ActivityWorkbenchProps) {
   return (
     <ActivityWorkbenchSession
@@ -87,6 +95,8 @@ export function ActivityWorkbench({
       units={units}
       indoor={indoor}
       loadTrace={loadTrace}
+      zoneSets={zoneSets}
+      heartRateSetAside={heartRateSetAside}
     />
   )
 }
@@ -108,7 +118,10 @@ function ActivityWorkbenchSession({
   units,
   indoor,
   loadTrace,
-}: Required<ActivityWorkbenchProps>) {
+  zoneSets,
+  heartRateSetAside,
+}: Required<Omit<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>> &
+  Pick<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>) {
   const loaded = useTrace(activityId, loadTrace)
   const { status } = loaded.state
   if (status === 'ready' || status === 'original') {
@@ -118,6 +131,8 @@ function ActivityWorkbenchSession({
         trace={loaded.state.trace}
         units={units}
         indoor={indoor}
+        zoneSets={zoneSets}
+        heartRateSetAside={heartRateSetAside}
         fromOriginal={status === 'original'}
       />
     )
@@ -162,11 +177,15 @@ function ReadyWorkbench({
   trace,
   units,
   indoor,
+  zoneSets,
+  heartRateSetAside,
   fromOriginal,
 }: {
   trace: ActivityTrace
   units: UnitSystem
   indoor: boolean
+  zoneSets?: readonly ZoneSet[]
+  heartRateSetAside?: boolean
   fromOriginal: boolean
 }) {
   const available = useMemo(
@@ -233,6 +252,16 @@ function ReadyWorkbench({
         units={units}
         metrics={visible}
       />
+      {zoneSets && (
+        <ActivityZoneTime
+          trace={trace}
+          sets={zoneSets}
+          heartRateSetAside={heartRateSetAside}
+          startS={selection.startS}
+          endS={selection.endS}
+          units={units}
+        />
+      )}
     </WorkbenchSection>
   )
 }

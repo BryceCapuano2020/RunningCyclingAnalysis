@@ -36,6 +36,16 @@ function sameInputs(
   return sameMasses(cached.settings, settings) && sameDigests(cached.selected, selected)
 }
 
+/** The ids of a set among these digests, sorted and joined: what in a library's set-aside can move their analysis. */
+function setAsideAmong(digests: ActivityDigest[], setAside: readonly string[]): string {
+  const named = new Set(setAside)
+  return digests
+    .filter((digest) => named.has(digest.id))
+    .map((digest) => digest.id)
+    .sort()
+    .join(',')
+}
+
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
 const ANALYSES_KEPT = 4
 
@@ -75,21 +85,32 @@ export class PeriodCache {
   }[] = []
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
-  private analysisEntries: (Inputs & { analysis: AnalysisResult })[] = []
+  private analysisEntries: (Inputs & { setAside: string; analysis: AnalysisResult })[] = []
 
   /**
-   * The analysis of the selected digests, reused while they and both masses are the same. The last
-   * few are kept, so going back to a period already shown costs nothing.
+   * The analysis of the selected digests, reused while they, both masses and the heart rates set aside among
+   * them are the same. The last few are kept, so going back to a period already shown costs nothing.
+   *
+   * `setAside` is the library's judgement (`judgeHeartRate`), which the analysis takes as it is rather
+   * than judging the period alone. Only the ids in this period's digests can change its analysis, so those
+   * are the key: an activity added outside the period does not redo it.
    */
-  analysis(selected: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
-    const hit = this.analysisEntries.findIndex((entry) => sameInputs(entry, selected, settings))
+  analysis(
+    selected: ActivityDigest[],
+    settings: AthleteSettings,
+    setAside: readonly string[],
+  ): AnalysisResult {
+    const key = setAsideAmong(selected, setAside)
+    const hit = this.analysisEntries.findIndex(
+      (entry) => entry.setAside === key && sameInputs(entry, selected, settings),
+    )
     if (hit >= 0) {
       const [entry] = this.analysisEntries.splice(hit, 1)
       this.analysisEntries.unshift(entry!)
       return entry!.analysis
     }
-    const analysis = combine(selected, settings)
-    this.analysisEntries.unshift({ selected, settings, analysis })
+    const analysis = combine(selected, settings, { heartRateSetAside: new Set(setAside) })
+    this.analysisEntries.unshift({ selected, settings, setAside: key, analysis })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
     return analysis
   }

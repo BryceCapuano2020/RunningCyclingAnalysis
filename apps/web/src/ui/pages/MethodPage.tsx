@@ -10,9 +10,7 @@ import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
 import { pickHeadline } from '../components'
 import { balanceOfPick } from '../components/balanceScale'
-import type { BalanceReading } from '../components/balanceScale'
 import {
-  balanceTitle,
   headlineBasis,
   headlineText,
   referenceDefinition,
@@ -29,11 +27,13 @@ import { gradedSexOf, headlineGrades } from '../grades'
 import type { AgeProfile, GradeOutcome, HeadlineGrades } from '../grades'
 import { hrefFor } from '../route'
 import { activityNames } from '../records'
+import { answerVerdict, estimatesOf } from './methodAnswer'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
 import { CalculatedSection } from './CalculatedSection'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
 import './MethodPage.css'
@@ -41,6 +41,8 @@ import './MethodPage.css'
 export interface MethodPageProps {
   /** The analysis, or null when no files are loaded: the method still reads, and each chart says so. */
   result: AnalysisResult | null
+  /** What the heart rate set aside was judged against, the library's, which the line on it cites. */
+  heartRateJudgement: HeartRateJudgement
   units: UnitSystem
   /** The year of birth and sex for the grades, or null while either is missing. */
   profile: AgeProfile | null
@@ -72,37 +74,6 @@ const HELD_ENERGY = 'Waits for your weight, as Balance does.'
 const NEEDS_RIDE = 'Needs a ride to compare with running.'
 /** The energy view with no run to compare a ride with: the run-equivalent of NEEDS_RIDE. */
 const NEEDS_RUN = 'Needs a run to compare with cycling.'
-/** The answer's estimates line when no run has a usable effort to count. */
-const NO_RUN_EFFORT = 'No run has a usable effort yet.'
-/** Line two of the answer while a ride's grade waits for the weight. */
-const WAITS_FOR_WEIGHT = 'Your balance waits for your weight.'
-
-/**
- * Line two of the answer: which way the balance leans, in Balance's words, and whether even is inside
- * the range the model gives. Null while no balance is stated.
- */
-function answerVerdict(balance: BalanceReading | null, waitsForWeight: boolean): string | null {
-  if (waitsForWeight) return WAITS_FOR_WEIGHT
-  if (balance === null) return null
-  const even = balance.lean === 'even' ? 'inside' : 'outside'
-  return `${balanceTitle(balance)}. Even is ${even} its range.`
-}
-
-/**
- * The estimates line of the answer, once there are results: what the library's counts estimate. A ride
- * figure needs the weight and a ride, and a run threshold needs a run, so the line names only those.
- */
-function estimatesOf(runs: number, rides: number, weightKnown: boolean): string {
-  if (!weightKnown || rides === 0) {
-    if (runs === 0) return NO_RUN_EFFORT
-    return `Run thresholds are estimates from ${plural(runs, 'run')} with a usable effort.`
-  }
-  if (runs === 0) {
-    return `Ride levels and ride power without a meter are estimates from ${plural(rides, 'ride')} with a usable effort.`
-  }
-  return `Thresholds, ride levels, the balance and ride power without a meter are estimates from ${plural(runs, 'run')} and ${plural(rides, 'ride')} with a usable effort.`
-}
-
 interface ContentsEntry {
   id: string
   label: string
@@ -154,6 +125,7 @@ function contributorsOf(curve: Curve): number {
 /** The model's own checks: the answer first, then the energy view, the grades and the evidence. */
 export function MethodPage({
   result,
+  heartRateJudgement,
   units,
   profile,
   period,
@@ -168,7 +140,7 @@ export function MethodPage({
   const pick = result ? pickHeadline(result.comparison) : null
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
-  const setAside = result ? setAsideText(result) : null
+  const setAside = result ? setAsideText(result, heartRateJudgement) : null
   const accuracy = result ? result.virtualAccuracy : null
   // The accuracy section shows with no result too, where it says what its check needs.
   const showAccuracy = accuracy !== null || !hasResult

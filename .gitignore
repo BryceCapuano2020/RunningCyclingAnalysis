@@ -46,3 +46,6 @@ data/
 # Python bytecode from the data scripts
 __pycache__/
 *.pyc
+
+# TypeScript incremental build state
+*.tsbuildinfo

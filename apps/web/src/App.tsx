@@ -16,6 +16,7 @@ import { ProfilePage } from './ui/pages/ProfilePage'
 import { RestoringPage } from './ui/pages/RestoringPage'
 import { ResultPage } from './ui/pages/ResultPage'
 import { MethodPage } from './ui/pages/MethodPage'
+import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import type { Route } from './ui/route'
 import { hrefFor, useRoute } from './ui/route'
 import { restoreScroll, useRouteHistory } from './ui/routeHistory'
@@ -331,6 +332,7 @@ export function App() {
         ) : route.page === 'method' ? (
           <MethodPage
             result={null}
+            heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
             units={units}
             profile={null}
             weightKnown={weighted}

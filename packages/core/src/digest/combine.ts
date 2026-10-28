@@ -191,11 +191,24 @@ export function activitySummaries(
     .sort((a, b) => b.startMs - a.startMs)
 }
 
+export interface CombineOptions {
+  /**
+   * The activities whose heart rate is set aside, judged over the whole library (`judgeHeartRate`). Given,
+   * these digests are not judged again, so a period is read by the same judgement as every other period. Absent,
+   * the digests are judged among themselves, which is the whole library's judgement when they are it.
+   */
+  heartRateSetAside?: ReadonlySet<string>
+}
+
 /**
  * Combines per-activity digests into the athlete's analysis. Only the bike model, the body and
  * bike masses and the efficiency priors enter here, so the work per settings change is small.
  */
-export function combine(digests: ActivityDigest[], settings: AthleteSettings): AnalysisResult {
+export function combine(
+  digests: ActivityDigest[],
+  settings: AthleteSettings,
+  opts: CombineOptions = {},
+): AnalysisResult {
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const ordered = orderedCurrent(digests)
@@ -234,8 +247,11 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
         masses.bodyKg(digest),
       ),
   }
-  const heart = trustedHeartRate(ordered, { run: runFit, ride: rideFit }, (digest, point) =>
-    fitUnit[digest.sport](digest, point),
+  const heart = trustedHeartRate(
+    ordered,
+    { run: runFit, ride: rideFit },
+    (digest, point) => fitUnit[digest.sport](digest, point),
+    opts.heartRateSetAside,
   )
   const { runPoints, ridePoints } = heartRatePoints(heart.trusted, masses, bikeModel)
 

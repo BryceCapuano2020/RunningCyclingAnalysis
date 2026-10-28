@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { StrictMode, useEffect } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { MethodPage } from '../pages/MethodPage'
 import { focusPageHeading } from '../pages/pageHeading'
 import { makeResult } from './fixtures'
@@ -34,7 +35,15 @@ function settle(): Promise<void> {
 }
 
 function methodPage() {
-  return <MethodPage result={makeResult()} units="metric" profile={null} weightKnown />
+  return (
+    <MethodPage
+      result={makeResult()}
+      heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
+      units="metric"
+      profile={null}
+      weightKnown
+    />
+  )
 }
 
 function gradesHeading(): HTMLElement {

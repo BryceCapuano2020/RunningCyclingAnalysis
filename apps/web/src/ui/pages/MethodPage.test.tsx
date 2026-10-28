@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
+import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { Period } from '@rca/core/period'
 import type { EffortCheck } from '@rca/core/types'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
@@ -51,10 +53,12 @@ function renderPage(
   period: Period | null = DATED_SIX_WEEKS,
   weightKnown = true,
   restoring = false,
+  judgement: HeartRateJudgement = NO_HEART_RATE_JUDGEMENT,
 ) {
   return render(
     <MethodPage
       result={result}
+      heartRateJudgement={judgement}
       units="metric"
       profile={profile}
       period={period ?? undefined}

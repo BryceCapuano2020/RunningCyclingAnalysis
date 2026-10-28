@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type { Period } from '@rca/core/period'
+import { NO_HEART_RATE_JUDGEMENT } from '@rca/core/digest/setAsideTypes'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,6 +57,7 @@ function pageElement(
       units={units}
       massKg={70}
       weightKnown
+      heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
       profile={MAN_BORN_1986}
       records={records}
       loadSplits={loadSplits}
@@ -456,6 +458,7 @@ describe('ActivityPage', () => {
         units="metric"
         massKg={70}
         weightKnown
+        heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
         profile={MAN_BORN_1986}
         records={new Map()}
         loadSplits={vi.fn(async () => null)}

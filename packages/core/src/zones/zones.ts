@@ -5,7 +5,7 @@ import { PRIORS } from '../constants'
 import type { AnalysisResult } from '../digest/combine'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '../metabolic'
 import type { Sport } from '../types'
-import { ZONE_MEASURES, ZONE_OVERRIDE, ZONE_SCHEMES } from './schemes'
+import { WHOLE_NUMBER_MEASURES, ZONE_MEASURES, ZONE_OVERRIDE, ZONE_SCHEMES } from './schemes'
 import type { ZoneMeasure } from './schemes'
 
 /**
@@ -44,14 +44,26 @@ export interface ZoneSet {
   zones: Zone[]
 }
 
-/** The zones of a measure for a reference value, by the published scheme. */
+/** Absorbs the rounding of a product that is a whole number, such as 0.6 * 200. */
+const WHOLE_EPSILON = 1e-9
+
+/**
+ * The zones of a measure for a reference value, by the published scheme. A heart rate and a power are whole
+ * numbers, so their edges are the first whole number at or above the cut (0.7 of 190 bpm is 133; 0.6 of 219
+ * is 131.4, so 132): a reading of 131 bpm is below 131.4 and in the zone below, and 132 is the first in the
+ * zone above. Every edge is then a whole number, so the ranges Profile writes ("132 to 153 bpm"), the zones a
+ * recorded second is placed in and the zones a digest's bins are cut by agree. Pace is not a whole number,
+ * so its edges are the cuts as they are.
+ */
 export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
   const { names, cuts } = ZONE_SCHEMES[measure]
+  const edge = (cut: number): number =>
+    WHOLE_NUMBER_MEASURES[measure] ? Math.ceil(reference * cut - WHOLE_EPSILON) : reference * cut
   return names.map((name, i) => ({
     level: i + 1,
     name,
-    low: i === 0 ? 0 : reference * cuts[i - 1]!,
-    high: i === cuts.length ? null : reference * cuts[i]!,
+    low: i === 0 ? 0 : edge(cuts[i - 1]!),
+    high: i === cuts.length ? null : edge(cuts[i]!),
   }))
 }
 
@@ -130,8 +142,12 @@ export function zonesAt(
       const entered = entryAt(settings.measurements ?? [], ZONE_OVERRIDE[measure], sport, at)
       const estimate = estimates === null ? null : ESTIMATE[sport][measure]?.(estimates, massKg)
       const source: ZoneSource = entered === null ? 'estimated' : 'entered'
-      const reference = entered?.value ?? estimate?.reference ?? null
-      if (reference === null || !Number.isFinite(reference) || reference <= 0) continue
+      const raw = entered?.value ?? estimate?.reference ?? null
+      if (raw === null || !Number.isFinite(raw)) continue
+      // A heart rate and a power are whole numbers, and Profile shows the reference as one, so the zones are cut
+      // from the number shown: what the athlete sees, 188 bpm, is what the edges are worked out from.
+      const reference = WHOLE_NUMBER_MEASURES[measure] ? Math.round(raw) : raw
+      if (reference <= 0) continue
       sets.push({
         sport,
         measure,

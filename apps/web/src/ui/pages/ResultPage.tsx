@@ -155,6 +155,8 @@ export function ResultPage({
           windowDays={trendWindowDays(period.days)}
           sameHeartRate={analysis.state.sameHeartRate[route.page]}
           lateEvidence={analysis.state.lateEvidence[route.page]}
+          zoneTimes={analysis.state.timeInZones.current[route.page]}
+          previousZoneTimes={analysis.state.timeInZones.previous?.[route.page] ?? null}
           units={units}
           massKg={athleteSettings.massKg}
           weighted={weightKnown}
@@ -203,6 +205,8 @@ export function ResultPage({
           result={result}
           units={units}
           massKg={athleteSettings.massKg}
+          settings={athleteSettings}
+          heartRateJudgement={analysis.state.heartRateJudgement}
           weightKnown={weightKnown}
           profile={profile}
           records={analysis.state.records}
@@ -223,6 +227,7 @@ export function ResultPage({
       return (
         <MethodPage
           result={result}
+          heartRateJudgement={analysis.state.heartRateJudgement}
           units={units}
           profile={profile}
           period={period}

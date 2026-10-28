@@ -13,6 +13,7 @@ import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from '
 import { PeriodCache, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
+import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
@@ -24,7 +25,7 @@ import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
 import { RecordsCache } from './sessionRecords'
 import type { EarnedRecord } from './records'
-import { zonesAt } from './zones'
+import { zonesAt, HeartRateJudge, ZoneTimeCache, NO_ZONE_TIMES } from './zones'
 import type { ZoneSet } from './zones'
 
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
@@ -62,6 +63,8 @@ export class AnalysisSession {
   // Balance trend uses. Off until the page asks for it.
   private gradeTrend = false
   private periods = new PeriodCache()
+  private zoneTimes = new ZoneTimeCache()
+  private judge = new HeartRateJudge()
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
   private recordsCache = new RecordsCache()
@@ -334,13 +337,19 @@ export class AnalysisSession {
     const all = [...this.digests.values()]
     // Every change to the library is followed by a state, so the analyses it made stale go here.
     this.periods.releaseAbsent(all)
+    this.judge.release(all)
     const hidden = hiddenDigests(all)
     const visible = all.filter((d) => !hidden.has(d))
     const { period, selected, previous } = splitPeriods(visible, this.choice)
     const athlete = settings === null ? null : this.athleteFor(settings)
+    // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
+    const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : this.judge.of(visible, athlete)
+    const setAside = judgement.setAside
     // A period with no activities still has a result, so the page can say what is missing from it.
     const analysis =
-      athlete !== null && visible.length > 0 ? this.periods.analysis(selected, athlete) : null
+      athlete !== null && visible.length > 0
+        ? this.periods.analysis(selected, athlete, setAside)
+        : null
     // The selected period's bike model prices the trend and the previous period alike.
     const bikeModel = analysis?.bikeModel
     // All time is not clipped at a start, so its trend begins at the first activity.
@@ -354,15 +363,19 @@ export class AnalysisSession {
     const sameHeartRate =
       analysis === null
         ? NO_SAME_HEART_RATE
-        : this.periods.sameHeartRate(selected, visible, fromMs, analysis.heartRateSetAside)
-    const late =
-      analysis === null ? NO_LATE_EVIDENCE : this.periods.late(selected, analysis.heartRateSetAside)
+        : this.periods.sameHeartRate(selected, visible, fromMs, setAside)
+    const late = analysis === null ? NO_LATE_EVIDENCE : this.periods.late(selected, setAside)
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],
       effortTrends: efforts,
       sameHeartRate,
       lateEvidence: late,
+      heartRateJudgement: judgement,
+      timeInZones:
+        athlete === null || analysis === null
+          ? NO_ZONE_TIMES
+          : this.zoneTimes.get(selected, previous, athlete, analysis, setAside),
       previous:
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)

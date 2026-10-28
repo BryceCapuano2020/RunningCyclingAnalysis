@@ -29,6 +29,8 @@ const FIELDS = [
   'effortTrends',
   'sameHeartRate',
   'lateEvidence',
+  'heartRateJudgement',
+  'timeInZones',
   'previous',
   'records',
   'library',

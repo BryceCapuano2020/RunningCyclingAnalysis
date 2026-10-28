@@ -4,6 +4,7 @@ import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
 import { combine } from './combine'
 import { digestActivity } from './digestActivity'
+import { judgeHeartRate } from './setAside'
 
 const { athlete, activities } = sampleDataset()
 const settings: AthleteSettings = { massKg: athlete.massKg, bikeMassKg: athlete.bikeMassKg }
@@ -61,5 +62,24 @@ describe('heart rate that cannot be right', () => {
     )
     const check = after.effort.find((e) => e.durationS === HR_SET_ASIDE_MIN_S)
     if (check) expect(check.rideHrFraction).toBeNull()
+  })
+
+  it('is the same judgement judgeHeartRate makes without the rest of the analysis', () => {
+    const library = [...digests, brokenSensorRide()]
+    expect(judgeHeartRate(library, settings).setAside).toEqual(after.heartRateSetAside)
+    expect(judgeHeartRate(digests, settings).setAside).toEqual([])
+  })
+
+  it('takes a set-aside judged elsewhere as it is, for the activities it names', () => {
+    const library = [...digests, brokenSensorRide()]
+    const taken = combine(library, settings, { heartRateSetAside: new Set(['broken-sensor']) })
+    expect(taken.heartRateSetAside).toEqual(['broken-sensor'])
+    expect(taken.rideMaxHeartRate).toBe(before.rideMaxHeartRate)
+    // A set naming no activity here sets none aside, whatever these digests would have said alone.
+    const none = combine(library, settings, { heartRateSetAside: new Set(['elsewhere']) })
+    expect(none.heartRateSetAside).toEqual([])
+    // A period's analysis names only its own activities.
+    const period = combine(digests, settings, { heartRateSetAside: new Set(['broken-sensor']) })
+    expect(period.heartRateSetAside).toEqual([])
   })
 })

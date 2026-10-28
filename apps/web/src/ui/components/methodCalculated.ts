@@ -94,6 +94,11 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'In detail shows how long you spent in each band, summarises any stretch you select, and suggests intervals when the device marked no laps.',
   },
   {
+    name: 'Time in zones',
+    state: 'calculated',
+    line: 'How long you spent in each training zone over a period, or a stretch you select, from heart rate, power meter and run pace, by each day’s zones.',
+  },
+  {
     name: 'Heart-rate set-aside',
     state: 'calculated',
     line: 'A heart rate that cannot be right for the effort is left out of the heart-rate checks. The watts and pace still count.',

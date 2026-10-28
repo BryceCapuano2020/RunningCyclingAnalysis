@@ -71,6 +71,7 @@ describe('AnalysisSession records', () => {
     expect(Object.keys(cached).sort()).toEqual(
       [
         'effortTrends',
+        'heartRateJudgement',
         'hiddenDuplicates',
         'incompatibleActivities',
         'isSample',
@@ -84,6 +85,7 @@ describe('AnalysisSession records', () => {
         'sameHeartRate',
         'lateEvidence',
         'syncIssues',
+        'timeInZones',
         'totalActivities',
         'trend',
         'unsupportedFiles',

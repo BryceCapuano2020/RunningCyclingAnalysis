@@ -8,6 +8,8 @@ import type { SportCurves } from './types'
 import type { SyncIssue } from './saveFailure'
 import type { EarnedRecord } from './records'
 import type { Rejection } from './import/result'
+import type { HeartRateJudgement } from './digest/setAsideTypes'
+import type { PeriodZoneTimes } from './zones/timeCache'
 
 /** An activity file this import could not use, with why. */
 export interface RejectedFile extends Rejection {
@@ -50,6 +52,13 @@ export interface SessionState {
   sameHeartRate: SameHeartRateBySport
   /** Each sport's best efforts late in long sessions, and the drift of its steady efforts, over the period. */
   lateEvidence: LateEvidenceBySport
+  /**
+   * Whose heart rate is set aside, judged once over every visible activity whatever the period, with the reference
+   * heart rates and thresholds it was judged against. A period's analysis takes this list for its own activities.
+   */
+  heartRateJudgement: HeartRateJudgement
+  /** Each sport's time in zones over the period, and over the one before it. See periodTimeInZones. */
+  timeInZones: PeriodZoneTimes
   /**
    * The best run and ride curves of the period before the selected one, of the same length. Null for
    * all time, or when that period has no activities.
