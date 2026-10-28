@@ -1,12 +1,26 @@
 import { PRIORS, RUN_WORLD_RECORD_SPEEDS } from '../constants'
 import { metabolicToFlatSpeed } from '../metabolic'
 
+// Every run curve point and heart-rate block of a library is checked against the ceiling of one of the
+// few durations the digests use, so each ceiling is worked out once. A few more than they use are kept.
+const ceilings = new Map<number, number>()
+const MAX_REMEMBERED = 64
+
 /**
  * The fastest flat running speed, m/s, that a best of durationS can be. Between two entries of the
  * world-record table the ceiling is a straight line in log duration and log speed; beyond its ends it
  * holds the end value.
  */
 export function runCeilingSpeed(durationS: number): number {
+  let speed = ceilings.get(durationS)
+  if (speed === undefined) {
+    speed = ceilingAt(durationS)
+    if (ceilings.size < MAX_REMEMBERED) ceilings.set(durationS, speed)
+  }
+  return speed
+}
+
+function ceilingAt(durationS: number): number {
   const first = RUN_WORLD_RECORD_SPEEDS[0]!
   const last = RUN_WORLD_RECORD_SPEEDS.at(-1)!
   if (durationS <= first.durationS) return first.speedMs

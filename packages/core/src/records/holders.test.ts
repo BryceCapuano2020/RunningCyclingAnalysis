@@ -129,6 +129,13 @@ describe('recordHolders', () => {
     expect(held.has('stale')).toBe(false)
   })
 
+  it('finds a duration in a curve that is not in the usual order', () => {
+    const usual = [run('a', 1, { 300: 4.0, 1200: 3.5 }), run('b', 2, { 300: 5.0, 1200: 3.0 })]
+    const shuffled = usual.map((digest) => ({ ...digest, curve: [...digest.curve].reverse() }))
+    expect(recordHolders(shuffled, settings)).toEqual(recordHolders(usual, settings))
+    expect(recordHolders(usual, settings).get('b')).toEqual([{ kind: 'duration', durationS: 300 }])
+  })
+
   it('returns an empty map for an empty library', () => {
     expect(recordHolders([], settings).size).toBe(0)
   })
