@@ -14,6 +14,7 @@ import type { Masses } from './masses'
 import { massesOf } from './masses'
 import { orderedCurrent } from './ordered'
 import { centralWkgFromWatts, fitBikeModelOver, rideWattsAt, runCentralWkg } from './rideCurves'
+import { firstStartingAfter } from './startOrder'
 import { DEFAULT_WINDOW_DAYS, weekEndMs } from './trendPoints'
 
 const MAX_POINTS = 260
@@ -172,8 +173,10 @@ export function fitnessTrend(
     const windowStart = endMs - windowMs
     const top: Record<Sport, Reading | null> = { run: null, ride: null }
     const count: Record<Sport, number> = { run: 0, ride: 0 }
-    for (const reading of readings) {
-      if (reading.startMs <= windowStart || reading.startMs > endMs) continue
+    // The readings are in order of start, so a week's are found, not filtered out of every reading.
+    const end = firstStartingAfter(readings, endMs)
+    for (let r = firstStartingAfter(readings, windowStart); r < end; r++) {
+      const reading = readings[r]!
       count[reading.sport]++
       const current = top[reading.sport]
       if (current === null || reading.best.wkg > current.best.wkg) top[reading.sport] = reading
