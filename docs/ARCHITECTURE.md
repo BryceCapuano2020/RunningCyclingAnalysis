@@ -10,6 +10,8 @@ and the API.
 This page describes the hardening branch's source. For what is deployed and when it was verified,
 see the release state and live verification sections of [PRODUCTION.md](PRODUCTION.md).
 
+Designs for planned features, and the stage plan, are in [design/README.md](design/README.md).
+
 ## Components
 
 ```mermaid
