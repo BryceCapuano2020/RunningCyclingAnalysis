@@ -18,6 +18,7 @@ import {
   validTraceMetadata,
   workbenchDatabase,
   resetWorkbenchDatabase,
+  WorkbenchOpenError,
 } from './workbenchSchema'
 import type { StoreState, StoredTrace, TraceMetadata, TraceScope } from './workbenchSchema'
 
@@ -28,11 +29,24 @@ export interface WorkbenchStore {
   get(scope: TraceScope, activityId: string): Promise<ActivityTrace | null>
   /** Returns false when storage refuses the trace or it exceeds a cache limit. */
   put(scope: TraceScope, trace: ActivityTrace): Promise<boolean>
+  /** Whether a trace is stored, without reading it. False when storage cannot say. */
+  has(scope: TraceScope, activityId: string): Promise<boolean>
+  /**
+   * Resolves false only when storage refused the removal. Storage that cannot be opened at all holds
+   * nothing, so removing from it succeeds.
+   */
   remove(scope: TraceScope, activityId: string): Promise<boolean>
+  /** As remove, for every trace of the scope. */
   clearScope(scope: TraceScope): Promise<boolean>
+  /** Rejects when storage cannot say, so a caller can tell an unknown scope from a deleted one. */
   isDeleted(scope: TraceScope): Promise<boolean>
   /** Clears one account scope and permanently blocks writes from a stale worker. */
   deleteScope(scope: Extract<TraceScope, { kind: 'account' }>): Promise<boolean>
+}
+
+/** A database that cannot be opened at all never held a trace, so removing from it has nothing to do. */
+function nothingCached(error: unknown): boolean {
+  return error instanceof WorkbenchOpenError && error.nothingCached
 }
 
 /** Rebuilds accounting from small metadata rows and removes malformed or over-budget entries. */
@@ -121,9 +135,9 @@ export function openWorkbenchStore(): WorkbenchStore {
         transaction.objectStore(OWNERS).put({ scopeKey: scopeKey(scope), deletedAt: Date.now() })
       await done
       return true
-    } catch {
+    } catch (error) {
       resetWorkbenchDatabase()
-      return false
+      return nothingCached(error)
     }
   }
 
@@ -279,6 +293,21 @@ export function openWorkbenchStore(): WorkbenchStore {
 
     put: (scope, trace) => putTrace(scope, trace, false),
 
+    async has(scope, activityId) {
+      try {
+        const db = await workbenchDatabase()
+        const transaction = db.transaction(ENTRIES, 'readonly')
+        const row = await requestResult(
+          transaction.objectStore(ENTRIES).get(entryKey(scope, activityId)),
+        )
+        await transactionDone(transaction)
+        return row !== undefined
+      } catch {
+        resetWorkbenchDatabase()
+        return false
+      }
+    },
+
     async isDeleted(scope) {
       if (scope.kind !== 'account') return false
       try {
@@ -287,9 +316,9 @@ export function openWorkbenchStore(): WorkbenchStore {
         const deleted = await requestResult(transaction.objectStore(OWNERS).get(scopeKey(scope)))
         await transactionDone(transaction)
         return deleted !== undefined
-      } catch {
+      } catch (error) {
         resetWorkbenchDatabase()
-        return scope.kind === 'account'
+        throw error
       }
     },
 
@@ -314,9 +343,9 @@ export function openWorkbenchStore(): WorkbenchStore {
         else stateStore.put(updated)
         await done
         return true
-      } catch {
+      } catch (error) {
         resetWorkbenchDatabase()
-        return false
+        return nothingCached(error)
       }
     },
 

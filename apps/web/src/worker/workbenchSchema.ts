@@ -1,5 +1,7 @@
 import { parseActivityTrace } from '@rca/core/workbench'
 import type { ActivityTrace } from '@rca/core/workbench'
+import { openDatabase, WorkbenchOpenError } from './workbenchOpen'
+export { WorkbenchOpenError } from './workbenchOpen'
 export type TraceScope = { kind: 'device' } | { kind: 'account'; userId: string }
 
 export const WORKBENCH_TOTAL_BYTES = 64 * 1024 * 1024
@@ -132,83 +134,80 @@ export function activityTraceBytes(trace: ActivityTrace): number {
   )
 }
 
-function makeDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-    request.onupgradeneeded = () => {
-      const db = request.result
-      const transaction = request.transaction!
-      const traces = db.objectStoreNames.contains(TRACES)
-        ? transaction.objectStore(TRACES)
-        : db.createObjectStore(TRACES, { keyPath: 'key' })
-      const entries = db.objectStoreNames.contains(ENTRIES)
-        ? transaction.objectStore(ENTRIES)
-        : db.createObjectStore(ENTRIES, { keyPath: 'key' })
-      if (!entries.indexNames.contains('scopeKey'))
-        entries.createIndex('scopeKey', 'scopeKey', { unique: false })
-      if (!entries.indexNames.contains('savedAt'))
-        entries.createIndex('savedAt', 'savedAt', { unique: false })
-      if (!db.objectStoreNames.contains(STATE)) db.createObjectStore(STATE, { keyPath: 'key' })
-      if (!db.objectStoreNames.contains(OWNERS))
-        db.createObjectStore(OWNERS, { keyPath: 'scopeKey' })
+function upgradeDatabase(request: IDBOpenDBRequest): void {
+  const db = request.result
+  const transaction = request.transaction!
+  const traces = db.objectStoreNames.contains(TRACES)
+    ? transaction.objectStore(TRACES)
+    : db.createObjectStore(TRACES, { keyPath: 'key' })
+  const entries = db.objectStoreNames.contains(ENTRIES)
+    ? transaction.objectStore(ENTRIES)
+    : db.createObjectStore(ENTRIES, { keyPath: 'key' })
+  if (!entries.indexNames.contains('scopeKey'))
+    entries.createIndex('scopeKey', 'scopeKey', { unique: false })
+  if (!entries.indexNames.contains('savedAt'))
+    entries.createIndex('savedAt', 'savedAt', { unique: false })
+  if (!db.objectStoreNames.contains(STATE)) db.createObjectStore(STATE, { keyPath: 'key' })
+  if (!db.objectStoreNames.contains(OWNERS)) db.createObjectStore(OWNERS, { keyPath: 'scopeKey' })
 
-      // Version 1 stored metadata beside each full trace. Move just its small accounting fields.
-      if (db.version > 1 && transaction.objectStore(TRACES).keyPath === 'key') {
-        const cursorRequest = traces.openCursor()
-        let bytes = 0
-        let count = 0
-        cursorRequest.onsuccess = () => {
-          const cursor = cursorRequest.result
-          if (!cursor) {
-            transaction.objectStore(STATE).put({ key: 'total', bytes, count } satisfies StoreState)
-            return
-          }
-          const row = cursor.value as {
-            key?: unknown
-            scopeKey?: unknown
-            activityId?: unknown
-            savedAt?: unknown
-            bytes?: unknown
-            trace?: unknown
-          }
-          const trace = parseBoundedTrace(row.trace)
-          if (
-            typeof row.key === 'string' &&
-            typeof row.scopeKey === 'string' &&
-            typeof row.activityId === 'string' &&
-            Number.isInteger(row.bytes) &&
-            (row.bytes as number) >= 0 &&
-            (row.bytes as number) <= WORKBENCH_ENTRY_BYTES &&
-            trace !== null &&
-            trace.activityId === row.activityId &&
-            activityTraceBytes(trace) === row.bytes
-          ) {
-            entries.put({
-              key: row.key,
-              scopeKey: row.scopeKey,
-              activityId: row.activityId,
-              savedAt: typeof row.savedAt === 'number' ? row.savedAt : 0,
-              bytes: row.bytes as number,
-            } satisfies TraceMetadata)
-            cursor.update({ key: row.key, trace } satisfies StoredTrace)
-            bytes += row.bytes as number
-            count++
-          } else {
-            cursor.delete()
-          }
-          cursor.continue()
-        }
+  // Version 1 stored metadata beside each full trace. Move just its small accounting fields.
+  if (db.version > 1 && transaction.objectStore(TRACES).keyPath === 'key') {
+    const cursorRequest = traces.openCursor()
+    let bytes = 0
+    let count = 0
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result
+      if (!cursor) {
+        transaction.objectStore(STATE).put({ key: 'total', bytes, count } satisfies StoreState)
+        return
       }
+      const row = cursor.value as {
+        key?: unknown
+        scopeKey?: unknown
+        activityId?: unknown
+        savedAt?: unknown
+        bytes?: unknown
+        trace?: unknown
+      }
+      const trace = parseBoundedTrace(row.trace)
+      if (
+        typeof row.key === 'string' &&
+        typeof row.scopeKey === 'string' &&
+        typeof row.activityId === 'string' &&
+        Number.isInteger(row.bytes) &&
+        (row.bytes as number) >= 0 &&
+        (row.bytes as number) <= WORKBENCH_ENTRY_BYTES &&
+        trace !== null &&
+        trace.activityId === row.activityId &&
+        activityTraceBytes(trace) === row.bytes
+      ) {
+        entries.put({
+          key: row.key,
+          scopeKey: row.scopeKey,
+          activityId: row.activityId,
+          savedAt: typeof row.savedAt === 'number' ? row.savedAt : 0,
+          bytes: row.bytes as number,
+        } satisfies TraceMetadata)
+        cursor.update({ key: row.key, trace } satisfies StoredTrace)
+        bytes += row.bytes as number
+        count++
+      } else {
+        cursor.delete()
+      }
+      cursor.continue()
     }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new Error('Workbench storage failed'))
-  })
+  }
 }
 
 let opened: Promise<IDBDatabase> | null = null
+/** After a failed open, later calls fail the same way at once, so a stalled open is not waited on again for every activity. */
+const OPEN_RETRY_MS = 30_000
+let failed: { error: unknown; until: number } | null = null
 
 export function workbenchDatabase(): Promise<IDBDatabase> {
-  opened ??= makeDatabase()
+  if (failed !== null && Date.now() < failed.until) return Promise.reject(failed.error)
+  failed = null
+  opened ??= openDatabase(DB_NAME, DB_VERSION, upgradeDatabase)
     .then((db) => {
       db.onversionchange = () => {
         db.close()
@@ -221,6 +220,7 @@ export function workbenchDatabase(): Promise<IDBDatabase> {
     })
     .catch((error) => {
       opened = null
+      if (error instanceof WorkbenchOpenError) failed = { error, until: Date.now() + OPEN_RETRY_MS }
       throw error
     })
   return opened

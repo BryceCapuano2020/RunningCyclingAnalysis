@@ -69,9 +69,16 @@ async function addFiles(
 ): Promise<{ state: SessionState; outcome: ImportOutcome; saved?: number }> {
   const { sync } = request
   if (showingSample) workbench.clearMemory()
-  const traceScope =
-    sync === null ? { kind: 'device' as const } : { kind: 'account' as const, userId: sync.userId }
-  activeScope = traceScope
+  // Recordings are kept where the activities are: with the account, or in this browser when the
+  // visitor keeps their files here. Files analysed for one session only, as for a signed-in visitor
+  // whose account is not known yet, leave their recordings in memory.
+  const traceScope: TraceScope | null =
+    sync !== null
+      ? { kind: 'account', userId: sync.userId }
+      : request.saveToDevice === true
+        ? { kind: 'device' }
+        : null
+  activeScope = traceScope ?? { kind: 'device' }
   let stoppedBy: SyncIssueCode | null = null
   let outcome: ImportOutcome = {
     activities: 0,
@@ -125,7 +132,12 @@ async function addFiles(
         outcome = { ...completed, ...summarizeAdded(added) }
       },
       async (activity) => {
-        await workbench.capture(activity, traceScope)
+        if (traceScope === null) workbench.captureMemory(activity, { kind: 'device' })
+        else await workbench.capture(activity, traceScope)
+      },
+      async (replacedId) => {
+        if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
+        else await workbench.remove(traceScope, replacedId)
       },
     )
   } finally {
@@ -191,8 +203,9 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       workbench.clearMemory()
       routes.clear()
       if (request.forgetDevice) {
-        await device.forget()
-        if (!(await workbench.clearScope({ kind: 'device' })))
+        // The page is told once: forget() has already told it when the library would not clear.
+        const forgotten = await device.forget()
+        if (!(await workbench.clearScope({ kind: 'device' })) && forgotten)
           post({ type: 'deviceIssue', issue: 'notForgotten' })
       } else device.replaced()
       return session.clear()
@@ -226,13 +239,15 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         record.digest.id,
       )
       const deviceTraceCleared = await workbench.remove({ kind: 'device' }, record.digest.id)
-      if (!traceCleared || !deviceTraceCleared) post({ type: 'deviceIssue', issue: 'notForgotten' })
       // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
       // account copy is already gone, so a copy that cannot be removed here does not fail the delete;
-      // the page is told, since it could return after a sign-out.
-      await device.dropKept(activityKey(record.digest)).catch(() => {
+      // the page is told, once, since it could return after a sign-out.
+      const keptDropped = await device.dropKept(activityKey(record.digest)).then(
+        () => true,
+        () => false,
+      )
+      if (!traceCleared || !deviceTraceCleared || !keptDropped)
         post({ type: 'deviceIssue', issue: 'notForgotten' })
-      })
       reportLibrary()
       post({ type: 'missingOriginals', count: missingOriginals.size })
       return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)
@@ -257,7 +272,7 @@ async function activityTraceReply(
     if (!showingSample) return { kind: 'missing' }
     const activity = sampleDataset().activities.find((candidate) => candidate.id === request.id)
     if (activity === undefined) return { kind: 'missing' }
-    workbench.captureSample(activity)
+    workbench.captureMemory(activity, scope)
     const trace = await workbench.get(scope, request.id)
     return trace === null ? { kind: 'missing' } : { kind: 'trace', trace }
   }

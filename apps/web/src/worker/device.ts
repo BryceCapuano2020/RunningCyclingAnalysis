@@ -33,8 +33,10 @@ export interface DeviceActions {
   /**
    * Empties the library. Best effort, so starting over always clears the page. A refused clear posts
    * the library that remains, with a `notForgotten` issue, and the next call tries the clear again.
+   * Resolves true when nothing is left, and false when it posted that issue, so a caller that must
+   * report a later refusal of its own can tell the page once.
    */
-  forget(): Promise<void>
+  forget(): Promise<boolean>
 }
 
 export function workoutKeyOf(digest: Pick<ActivityDigest, 'sport' | 'startMs'>): string {
@@ -135,12 +137,13 @@ export function deviceActions(
           if (remaining !== null)
             post({ type: 'libraryActivities', activities: newestFirst(remaining) })
           post({ type: 'deviceIssue', issue: 'notForgotten' })
-          return
+          return false
         }
       }
       post({ type: 'libraryActivities', activities: [] })
       // Nothing to merge once empty.
       held = true
+      return true
     },
   }
 }

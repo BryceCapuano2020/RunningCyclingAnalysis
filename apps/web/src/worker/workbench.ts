@@ -49,26 +49,45 @@ function memoryKey(scope: TraceScope, activityId: string): string {
   return JSON.stringify([scope.kind, scope.kind === 'account' ? scope.userId : '', activityId])
 }
 
+/** What a memory entry stands for: a trace also kept in storage, or one held in memory alone. */
+interface MemoryEntry {
+  scope: TraceScope
+  trace: ActivityTrace
+  /** Stored traces can be removed by another tab, so they are checked before they are served. */
+  stored: boolean
+}
+
 /** Bounded worker cache and its IndexedDB backing store. Cache failures never affect digest saves. */
 export class Workbench {
   private readonly store: WorkbenchStore
-  private readonly traces = new Map<string, { scope: TraceScope; trace: ActivityTrace }>()
+  private readonly traces = new Map<string, MemoryEntry>()
 
   constructor(store: WorkbenchStore = openWorkbenchStore()) {
     this.store = store
   }
 
-  /** Stores one serialized evidence trace. The source Activity is not retained. */
+  /**
+   * Whether the scope's evidence was deleted, or null when storage cannot say. Unknown is not
+   * deleted: a trace is then kept in memory alone, so the recording still opens for this visit.
+   */
+  private async deleted(scope: TraceScope): Promise<boolean | null> {
+    return await this.store.isDeleted(scope).catch(() => null)
+  }
+
+  /**
+   * Keeps one serialized evidence trace, in storage too when storage takes it. The source Activity is
+   * not retained.
+   */
   async capture(activity: Activity, scope: TraceScope): Promise<ActivityTrace | null> {
     try {
       if (!activityFitsEntry(activity)) return null
       const trace = activityTraceOf(activity)
       if (activityTraceBytes(trace) > WORKBENCH_ENTRY_BYTES) return null
-      if (await this.store.isDeleted(scope).catch(() => scope.kind === 'account')) return null
-      const saved = await this.store.put(scope, trace).catch(() => false)
-      if (!saved && (await this.store.isDeleted(scope).catch(() => scope.kind === 'account')))
-        return null
-      this.remember(scope, trace)
+      const before = await this.deleted(scope)
+      if (before === true) return null
+      const stored = before === false && (await this.store.put(scope, trace).catch(() => false))
+      if (!stored && (await this.deleted(scope)) === true) return null
+      this.remember(scope, trace, stored)
       return trace
     } catch {
       // Evidence is optional. A malformed or oversized trace does not interrupt analysis or saving.
@@ -76,32 +95,38 @@ export class Workbench {
     }
   }
 
-  /** Keeps just the selected trace in memory for an ephemeral sample. */
-  captureSample(activity: Activity): void {
+  /**
+   * Keeps just the trace in memory, for an activity that is not kept in this browser: the ephemeral
+   * sample, or the files of a visitor whose account is not known yet.
+   */
+  captureMemory(activity: Activity, scope: TraceScope): void {
     try {
       if (!activityFitsEntry(activity)) return
       const trace = activityTraceOf(activity)
-      if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES)
-        this.remember({ kind: 'device' }, trace)
+      if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES) this.remember(scope, trace, false)
     } catch {
-      // Sample evidence is optional too.
+      // Memory evidence is optional too.
     }
   }
 
   async get(scope: TraceScope, activityId: string): Promise<ActivityTrace | null> {
-    if (await this.store.isDeleted(scope).catch(() => scope.kind === 'account')) {
-      this.traces.delete(memoryKey(scope, activityId))
+    const key = memoryKey(scope, activityId)
+    if ((await this.deleted(scope)) === true) {
+      this.traces.delete(key)
       return null
     }
-    const key = memoryKey(scope, activityId)
     const cached = this.traces.get(key)
     if (cached) {
+      // Another tab may have removed a stored trace since this one remembered it.
+      if (!cached.stored || (await this.store.has(scope, activityId).catch(() => false))) {
+        this.traces.delete(key)
+        this.traces.set(key, cached)
+        return cached.trace
+      }
       this.traces.delete(key)
-      this.traces.set(key, cached)
-      return cached.trace
     }
     const trace = await this.store.get(scope, activityId).catch(() => null)
-    if (trace) this.remember(scope, trace)
+    if (trace) this.remember(scope, trace, true)
     return trace
   }
 
@@ -110,8 +135,14 @@ export class Workbench {
     this.traces.clear()
   }
 
-  async remove(scope: TraceScope, activityId: string): Promise<boolean> {
+  /** Drops one memory-only trace, for an activity that was never stored. */
+  dropMemory(scope: TraceScope, activityId: string): void {
     this.traces.delete(memoryKey(scope, activityId))
+  }
+
+  /** False only when storage refused the removal; storage that cannot be opened holds nothing. */
+  async remove(scope: TraceScope, activityId: string): Promise<boolean> {
+    this.dropMemory(scope, activityId)
     return await this.store.remove(scope, activityId).catch(() => false)
   }
 
@@ -132,10 +163,10 @@ export class Workbench {
     return await this.store.deleteScope(scope).catch(() => false)
   }
 
-  private remember(scope: TraceScope, trace: ActivityTrace): void {
+  private remember(scope: TraceScope, trace: ActivityTrace, stored: boolean): void {
     const key = memoryKey(scope, trace.activityId)
     this.traces.delete(key)
-    this.traces.set(key, { scope, trace })
+    this.traces.set(key, { scope, trace, stored })
     while (this.traces.size > MEMORY_ENTRIES) {
       const oldest = this.traces.keys().next().value as string | undefined
       if (oldest === undefined) break

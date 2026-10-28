@@ -18,6 +18,7 @@ function memoryStore(overrides: Partial<WorkbenchStore> = {}) {
   const deleted = new Set<string>()
   const store: WorkbenchStore = {
     get: vi.fn(async (scope, id) => rows.get(scopeKey(scope, id)) ?? null),
+    has: vi.fn(async (scope, id) => rows.has(scopeKey(scope, id))),
     put: vi.fn(async (scope, trace) => {
       rows.set(scopeKey(scope, trace.activityId), trace)
       return true
@@ -64,7 +65,8 @@ describe('workbench evidence cache', () => {
     expect(store.put).not.toHaveBeenCalled()
     expect(await workbench.get({ kind: 'device' }, oversized.id)).toBeNull()
 
-    for (const activity of activities.slice(0, 5)) workbench.captureSample(activity)
+    for (const activity of activities.slice(0, 5))
+      workbench.captureMemory(activity, { kind: 'device' })
     expect(await workbench.get({ kind: 'device' }, activities[0]!.id)).toBeNull()
     expect(await workbench.get({ kind: 'device' }, activities[4]!.id)).not.toBeNull()
   })
@@ -75,6 +77,53 @@ describe('workbench evidence cache', () => {
     const trace = await workbench.capture(first, { kind: 'device' })
     expect(trace?.activityId).toBe(first.id)
     expect(await workbench.get({ kind: 'device' }, first.id)).toEqual(trace)
+  })
+
+  it('does not serve a stored trace from memory once another tab removed it', async () => {
+    const { rows, store } = memoryStore()
+    const workbench = new Workbench(store)
+    const trace = await workbench.capture(first, { kind: 'device' })
+    expect(await workbench.get({ kind: 'device' }, first.id)).toEqual(trace)
+
+    rows.clear()
+
+    expect(await workbench.get({ kind: 'device' }, first.id)).toBeNull()
+  })
+
+  it('serves a memory-only trace without asking storage, since storage never held it', async () => {
+    const { store } = memoryStore()
+    const workbench = new Workbench(store)
+    workbench.captureMemory(first, { kind: 'device' })
+
+    expect(await workbench.get({ kind: 'device' }, first.id)).not.toBeNull()
+    expect(store.has).not.toHaveBeenCalled()
+  })
+
+  it('keeps a signed-in trace in memory when storage cannot say whether the account was deleted', async () => {
+    const { store } = memoryStore({
+      isDeleted: vi.fn(async () => {
+        throw new Error('storage unavailable')
+      }),
+    })
+    const workbench = new Workbench(store)
+    const scope = { kind: 'account' as const, userId: 'alice' }
+
+    const trace = await workbench.capture(first, scope)
+
+    expect(trace?.activityId).toBe(first.id)
+    expect(store.put).not.toHaveBeenCalled()
+    expect(await workbench.get(scope, first.id)).toEqual(trace)
+  })
+
+  it('reports a refused removal and still drops the memory copy', async () => {
+    const { store } = memoryStore({ remove: vi.fn(async () => false) })
+    const workbench = new Workbench(store)
+    await workbench.capture(first, { kind: 'device' })
+
+    expect(await workbench.remove({ kind: 'device' }, first.id)).toBe(false)
+    // The refused store still holds the trace, and the next read goes to it, not to memory.
+    expect(await workbench.get({ kind: 'device' }, first.id)).not.toBeNull()
+    expect(store.get).toHaveBeenCalledTimes(1)
   })
 
   it('round-trips unknown GPX run cadence provenance through the cache', async () => {
