@@ -158,20 +158,24 @@ describe('AnalysisSession', () => {
     const session = new AnalysisSession()
     await session.addFiles([fitFile('run.fit', run)], SETTINGS)
 
+    // A new workout reaches the listener, which refuses it; the import still keeps it.
+    let offered = 0
     const again = await session.addFiles(
-      [fitFile('run again.fit', run)],
+      [fitFile('ride.fit', later(ride))],
       SETTINGS,
       undefined,
       undefined,
       false,
       undefined,
       async () => {
+        offered++
         throw new Error('evidence storage refused the trace')
       },
     )
 
-    expect(again.result?.activities).toHaveLength(1)
-    expect(again.totalActivities).toBe(1)
+    expect(offered).toBe(1)
+    expect(again.result?.activities).toHaveLength(2)
+    expect(again.totalActivities).toBe(2)
     expect(again.rejected).toEqual([])
   })
 
