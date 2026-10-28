@@ -43,6 +43,8 @@ export interface Stretch {
   speed?: number
   power?: number
   heartRate?: number
+  /** Metres climbed each second; a stream of altitude is made when any stretch gives it. */
+  climb?: number
 }
 
 /**
@@ -64,6 +66,13 @@ export function repsTrace(
     )
   }
   const streams: ActivityTrace['streams'] = {}
+  const climbs = stretches.flatMap((stretch) =>
+    Array.from({ length: stretch.seconds }, () => stretch.climb ?? 0),
+  )
+  if (stretches.some((stretch) => stretch.climb !== undefined)) {
+    let height = 100
+    streams.altitude = Float32Array.from(climbs, (climb) => (height += climb))
+  }
   for (const [metric, values] of [
     ['speed', stream((s) => s.speed)],
     ['power', stream((s) => s.power)],

@@ -29,7 +29,15 @@ function renderTable(
   onSelect = vi.fn(),
   units: 'metric' | 'imperial' = 'metric',
 ) {
-  render(<RepFadeTable trace={trace} units={units} selection={selection} onSelect={onSelect} />)
+  render(
+    <RepFadeTable
+      trace={trace}
+      units={units}
+      indoor={false}
+      selection={selection}
+      onSelect={onSelect}
+    />,
+  )
   return onSelect
 }
 
@@ -75,6 +83,33 @@ describe('RepFadeTable', () => {
     expect(screen.getByText('Rep 3 averaged 4% less power than rep 1.')).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Measured power' })).toBeInTheDocument()
     expect(screen.getByText('300 W')).toBeInTheDocument()
+  })
+
+  it('names and writes a run read on hills as a flat pace', () => {
+    const climbing = repsTrace(
+      'run',
+      [3.5, 3.5, 3.5].flatMap((speed) => [
+        { seconds: 600, speed, climb: 0, heartRate: 150 },
+        { seconds: 120, speed: 2, climb: 0 },
+      ]),
+      [0, 1, 2].map((i) => [i * 720, i * 720 + 600] as const),
+    )
+    renderTable(climbing)
+    expect(screen.getByRole('columnheader', { name: 'Flat pace' })).toBeInTheDocument()
+    expect(screen.getAllByText('4:46 /km')).toHaveLength(3)
+  })
+
+  it('has no table for a road ride without power', () => {
+    const road = repsTrace(
+      'ride',
+      [9, 8.7, 8.2].flatMap((speed) => [
+        { seconds: 240, speed },
+        { seconds: 60, speed: 4 },
+      ]),
+      [0, 1, 2].map((i) => [i * 300, i * 300 + 240] as const),
+    )
+    renderTable(road)
+    expect(screen.queryByRole('table')).toBeNull()
   })
 
   it('selects a rep’s lap when it is chosen, and marks the chosen one pressed', async () => {

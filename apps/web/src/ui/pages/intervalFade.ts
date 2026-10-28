@@ -1,5 +1,6 @@
 import type { ActivityLap, ActivityTrace } from '@rca/core/workbench'
 import type { Sport } from '@rca/core/types'
+import { flatSpeedOf } from './repFlatPace'
 import { selectionOf, suggestedIntervals } from './workbenchData'
 import { clampSelection } from './workbenchTime'
 import type { Selection } from './workbenchTime'
@@ -16,16 +17,21 @@ export const REP_FADE = { minReps: 3, lengthTolerance: 0.2, levelPct: 2, splitGa
 /** A seconds gap smaller than this between two laps means they run into each other. */
 const BACK_TO_BACK_S = 1
 
-/** The measures a rep's output is read from, in order: the first that every rep has. Keyed by Sport. */
-const OUTPUT_METRICS: Record<Sport, readonly RepMetric[]> = {
-  run: ['speed'],
-  ride: ['power', 'speed'],
+/**
+ * The measures a rep's output is read from, best first, and whether a speed stands in only on a trainer:
+ * a road ride's speed is the road's and the wind's, not the rider's. Keyed by Sport.
+ */
+const OUTPUT: Record<Sport, { metrics: readonly RepMetric[]; speedNeedsTrainer: boolean }> = {
+  run: { metrics: ['flatSpeed', 'speed'], speedNeedsTrainer: false },
+  ride: { metrics: ['power', 'speed'], speedNeedsTrainer: true },
 }
 
-export type RepMetric = 'speed' | 'power'
+/** Flat speed is a run's speed with the hills taken out, in m/s like speed. */
+export type RepMetric = 'flatSpeed' | 'speed' | 'power'
 
 /** How the lede says a rep's output differs from the first rep's, for each measure. */
 const DIFFERENCE: Record<RepMetric, (percent: number, higher: boolean) => string> = {
+  flatSpeed: (percent, higher) => `was ${percent}% ${higher ? 'faster' : 'slower'} than`,
   speed: (percent, higher) => `was ${percent}% ${higher ? 'faster' : 'slower'} than`,
   power: (percent, higher) => `averaged ${percent}% ${higher ? 'more' : 'less'} power than`,
 }
@@ -37,7 +43,7 @@ export interface Rep {
   lapNumber: number
   bounds: Selection
   durationS: number
-  /** Mean speed in m/s or power in W while moving. */
+  /** Mean flat or recorded speed in m/s, or power in W, while moving. */
   output: number
   /** Mean heart rate in bpm, or null when it has no reading. */
   heartRate: number | null
@@ -88,8 +94,13 @@ export function similarLengths(
 }
 
 /**
- * The hard laps of a set that holds hard laps and easy ones, as indices: where the sorted outputs part by
- * splitGap or more, the laps above the split. A set with no such split is returned whole.
+ * The reps of a set that holds reps and the recoveries between them, as indices in order. The hard laps
+ * are those above the first split of splitGap or more in the sorted outputs. They are the reps' places
+ * only when they alternate with the easy laps: every hard lap sits at a place of the same parity in the
+ * set, so the lap at each such place is a rep, even a slow one at the end or the start that has fallen
+ * to the recoveries' pace. Laps at the other places are recoveries and are left out. Any other
+ * pattern, such as slow laps with no recoveries between, is not alternation, and every lap is a rep:
+ * a rep that blew up is the fade to show, not a recovery.
  */
 export function hardLaps(
   indices: readonly number[],
@@ -98,9 +109,12 @@ export function hardLaps(
   const sorted = [...indices].sort((a, b) => outputOf(b) - outputOf(a))
   for (let k = 0; k + 1 < sorted.length; k++) {
     const above = outputOf(sorted[k]!)
-    if ((above - outputOf(sorted[k + 1]!)) / above >= REP_FADE.splitGap) {
-      return sorted.slice(0, k + 1).sort((a, b) => a - b)
-    }
+    if ((above - outputOf(sorted[k + 1]!)) / above < REP_FADE.splitGap) continue
+    const hard = new Set(sorted.slice(0, k + 1))
+    const places = indices.flatMap((lap, place) => (hard.has(lap) ? [place] : []))
+    const parity = places[0]! % 2
+    if (places.length < 2 || places.some((place) => place % 2 !== parity)) return [...indices]
+    return indices.filter((_, place) => place % 2 === parity)
   }
   return [...indices]
 }
@@ -112,8 +126,8 @@ function lapsOf(trace: ActivityTrace): { laps: ActivityLap[]; recorded: boolean 
 }
 
 /**
- * The lede: the rep that differs most from the first, or that the reps stayed level. A difference is the
- * rep's output over the first rep's, in the measure the table shows.
+ * The lede: the rep that differs most from the first, or that the reps stayed level. The gap is the
+ * rep's output over the first rep's, unrounded, so 2.4% is a difference and not "within 2%".
  */
 export function fadeLede(metric: RepMetric, outputs: readonly number[]): string {
   const first = outputs[0]!
@@ -122,17 +136,56 @@ export function fadeLede(metric: RepMetric, outputs: readonly number[]): string 
     (far, change, i) => (Math.abs(change) > Math.abs(changes[far]!) ? i : far),
     0,
   )
-  const percent = Math.round(Math.abs(changes[widest]!) * 100)
-  if (percent <= REP_FADE.levelPct) return `Your reps stayed within ${Math.max(percent, 1)}%.`
-  return `Rep ${widest + 1} ${DIFFERENCE[metric](percent, changes[widest]! > 0)} rep 1.`
+  const gap = Math.abs(changes[widest]!) * 100
+  if (gap <= REP_FADE.levelPct) return `Your reps stayed within ${Math.max(Math.ceil(gap), 1)}%.`
+  return `Rep ${widest + 1} ${DIFFERENCE[metric](Math.round(gap), changes[widest]! > 0)} rep 1.`
+}
+
+interface Usable {
+  lapNumber: number
+  bounds: Selection
+}
+
+/** The mean of a measure over a lap, NaN where it has no reading. */
+function outputOver(trace: ActivityTrace, metric: RepMetric, { bounds }: Usable): number {
+  const { startS, endS } = bounds
+  if (metric === 'flatSpeed') return flatSpeedOf(trace, startS, endS) ?? Number.NaN
+  return selectionOf(trace, startS, endS).metrics[metric]?.mean ?? Number.NaN
 }
 
 /**
- * How a run of reps held up, or null when the activity has none: at least minReps laps of one length with
- * an output each, set apart from the recoveries between them. Laps that run straight into each other
- * are splits of one effort, which the splits already show, so they are not reps.
+ * The reps read in one measure, or null when it cannot read them: every lap of the set of one length
+ * must have it, so no rep is dropped for want of a reading.
  */
-export function repFadeOf(trace: ActivityTrace): RepFade | null {
+function repsIn(trace: ActivityTrace, metric: RepMetric, usable: Usable[]): Rep[] | null {
+  const outputs = usable.map((lap) => outputOver(trace, metric, lap))
+  const lengths = usable.map(({ bounds }) => bounds.endS - bounds.startS)
+  const score = (i: number) => (Number.isFinite(outputs[i]!) ? outputs[i]! : -Infinity)
+  const similar = similarLengths(lengths, score)
+  if (similar.some((i) => !Number.isFinite(outputs[i]!))) return null
+  const chosen = hardLaps(similar, score)
+  if (chosen.length < REP_FADE.minReps) return null
+  return chosen.map((i, k) => {
+    const { lapNumber, bounds } = usable[i]!
+    const { startS, endS } = bounds
+    return {
+      number: k + 1,
+      lapNumber,
+      bounds,
+      durationS: endS - startS,
+      output: outputs[i]!,
+      heartRate: selectionOf(trace, startS, endS).metrics.heartRate?.mean ?? null,
+    }
+  })
+}
+
+/**
+ * How a run of reps held up, or null when the activity has none: at least minReps laps of one length,
+ * set apart from the recoveries between them, all read in one measure. A run is read as flat pace where
+ * its altitude allows, else as recorded; a ride by its power, or by its speed on a trainer only. Laps that
+ * run straight into each other are splits of one effort, which the splits already show.
+ */
+export function repFadeOf(trace: ActivityTrace, { indoor }: { indoor: boolean }): RepFade | null {
   const max = Math.floor(trace.durationS)
   const { laps, recorded } = lapsOf(trace)
   const usable = laps.flatMap((lap, i) =>
@@ -140,39 +193,25 @@ export function repFadeOf(trace: ActivityTrace): RepFade | null {
       ? [{ lapNumber: i + 1, bounds: clampSelection(lap, max) }]
       : [],
   )
-  const summaries = usable.map(({ bounds }) => selectionOf(trace, bounds.startS, bounds.endS))
-  const metric = OUTPUT_METRICS[trace.sport].find((candidate) =>
-    summaries.some((summary) => typeof summary.metrics[candidate]?.mean === 'number'),
-  )
-  if (metric === undefined) return null
-  const outputOf = (i: number) => summaries[i]!.metrics[metric]?.mean ?? -Infinity
-  const readable = usable.flatMap((_, i) => (Number.isFinite(outputOf(i)) ? [i] : []))
-  const lengths = readable.map((i) => usable[i]!.bounds.endS - usable[i]!.bounds.startS)
-  const similar = similarLengths(lengths, (k) => outputOf(readable[k]!)).map((k) => readable[k]!)
-  const chosen = hardLaps(similar, outputOf)
-  if (chosen.length < REP_FADE.minReps) return null
-  const reps = chosen.map((i, k): Rep => {
-    const { lapNumber, bounds } = usable[i]!
+  const { metrics, speedNeedsTrainer } = OUTPUT[trace.sport]
+  for (const metric of metrics) {
+    if (metric === 'speed' && speedNeedsTrainer && !indoor) continue
+    const reps = repsIn(trace, metric, usable)
+    if (reps === null) continue
+    const joined = reps.every(
+      (rep, k) =>
+        k === 0 || Math.abs(rep.bounds.startS - reps[k - 1]!.bounds.endS) < BACK_TO_BACK_S,
+    )
+    if (joined) return null
     return {
-      number: k + 1,
-      lapNumber,
-      bounds,
-      durationS: bounds.endS - bounds.startS,
-      output: outputOf(i),
-      heartRate: summaries[i]!.metrics.heartRate?.mean ?? null,
-    }
-  })
-  const joined = reps.every(
-    (rep, k) => k === 0 || Math.abs(rep.bounds.startS - reps[k - 1]!.bounds.endS) < BACK_TO_BACK_S,
-  )
-  if (joined) return null
-  return {
-    metric,
-    recorded,
-    reps,
-    lede: fadeLede(
       metric,
-      reps.map((rep) => rep.output),
-    ),
+      recorded,
+      reps,
+      lede: fadeLede(
+        metric,
+        reps.map((rep) => rep.output),
+      ),
+    }
   }
+  return null
 }

@@ -2,12 +2,31 @@ import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatRecordTime } from '@rca/core/units'
 import '../charts/ChartTable.css'
+import { SPORT_FORMAT } from '../sports'
 import { REP_FADE, repFadeOf } from './intervalFade'
 import type { RepFade } from './intervalFade'
 import { displayValue, metricLabel } from './workbenchFormat'
 import type { Selection } from './workbenchTime'
 
 const LENGTH_PERCENT = Math.round(REP_FADE.lengthTolerance * 100)
+
+/** A run's flat pace is the sport's own number, named and written as the best efforts name and write it. */
+function outputLabel(fade: RepFade, sport: ActivityTrace['sport']): string {
+  return fade.metric === 'flatSpeed'
+    ? SPORT_FORMAT[sport].nativeLabel
+    : metricLabel(fade.metric, sport)
+}
+
+function outputText(
+  fade: RepFade,
+  output: number,
+  sport: ActivityTrace['sport'],
+  units: UnitSystem,
+): string {
+  return fade.metric === 'flatSpeed'
+    ? SPORT_FORMAT[sport].formatted(output, units)
+    : displayValue(fade.metric, output, sport, units)
+}
 
 /**
  * Laps or intervals of about one length, one row each, with how the first compares with the last: the
@@ -17,15 +36,17 @@ const LENGTH_PERCENT = Math.round(REP_FADE.lengthTolerance * 100)
 export function RepFadeTable({
   trace,
   units,
+  indoor,
   selection,
   onSelect,
 }: {
   trace: ActivityTrace
   units: UnitSystem
+  indoor: boolean
   selection: Selection
   onSelect: (selection: Selection) => void
 }) {
-  const fade: RepFade | null = repFadeOf(trace)
+  const fade: RepFade | null = repFadeOf(trace, { indoor })
   if (fade === null) return null
   const { sport } = trace
   const lapName = fade.recorded ? 'Lap' : 'Interval'
@@ -46,7 +67,7 @@ export function RepFadeTable({
                 Time
               </th>
               <th scope="col" className="num">
-                {metricLabel(fade.metric, sport)}
+                {outputLabel(fade, sport)}
               </th>
               {withHeartRate && (
                 <th scope="col" className="num">
@@ -75,7 +96,7 @@ export function RepFadeTable({
                     </span>
                   </th>
                   <td className="num">{formatRecordTime(rep.durationS)}</td>
-                  <td className="num">{displayValue(fade.metric, rep.output, sport, units)}</td>
+                  <td className="num">{outputText(fade, rep.output, sport, units)}</td>
                   {withHeartRate && (
                     <td className="num">
                       {rep.heartRate === null
