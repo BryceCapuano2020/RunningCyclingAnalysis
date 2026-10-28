@@ -109,7 +109,7 @@ export function SharedTrendChart({
   emptyText,
   latestStartMs,
 }: SharedTrendChartProps) {
-  // Past a year the weeks are thinned to one a month, so the lines are not a smear of dots.
+  // Past 13 months the weeks are thinned to one a month, so the lines are not a smear of dots.
   const { weeks: thinned, monthly } = thinToMonths(rideKnown ? given : given.map(withRideHeld))
   const weeks = [...thinned]
   // The effort is named as its segment's label is, so the title reads "best 20 min", as the sport trend's does.

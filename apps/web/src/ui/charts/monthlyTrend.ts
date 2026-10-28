@@ -4,7 +4,7 @@ import { DAY_MS } from '@rca/core/constants'
 export const MONTHLY_AFTER_DAYS = 400
 
 /** Said under a trend drawn by the month, once, so the thinner line is not read as missing weeks. */
-export const MONTHLY_NOTE = 'Past a year, each point is the last week of its month.'
+export const MONTHLY_NOTE = 'Past 13 months, each point is the last week of its month.'
 
 /** The UTC month an instant falls in, as one number. */
 function monthOf(ms: number): number {

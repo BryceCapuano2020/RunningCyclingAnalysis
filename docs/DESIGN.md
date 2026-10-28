@@ -446,10 +446,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   trailing window that ends each week. The window is a third of the period, at most six weeks, so a
   six-week period uses two-week windows. Every point's window lies inside the period. The title
   names the effort as its segment labels it, such as "best 60 min", and the window. Each line steps from one Sunday to the next and breaks at a week
-  with no value, and each Sunday has a marker. Past about a year (400 days) a trend keeps the last week of each month, and its first and last
-  week as its ends, so five years are sixty dots, not two hundred and sixty; its note says "Past a year, each point is the last week of its
+  with no value, and each Sunday has a marker. Past 13 months (400 days) a trend keeps the last week of each month, and its first and last
+  week as its ends, so five years are sixty dots, not two hundred and sixty; its note says "Past 13 months, each point is the last week of its
   month." The first date of the axis carries its year, as the month ticks do. A sport's week-by-week chart also names its longest stretch
-  of eight weeks or more with no value inside the trend ("No rides with power from 30 Oct 2022 to 24 Sep 2023."). On a wide chart the
+  of eight weeks or more with no value inside the trend ("No rides with power of 20 min or longer from 30 Oct 2022 to 24 Sep 2023."), naming the trend's effort length, since a gap at 60 min is not a gap in training. On a wide chart the
   Balance trend's end labels sit in a gutter right of the plot, level with each line's last point, and the volume strip under it keeps the
   same margin so the two time axes line up; a narrow chart sets them over the plot, clear of both lines. The latest value is labelled with its value alone, and the
   title names its effort and window, so it can differ from a card's best, which covers the whole period.

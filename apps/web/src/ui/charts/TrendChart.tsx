@@ -238,7 +238,7 @@ function titleOf(sport: Sport, units: UnitSystem, effort: string, windowText: st
  */
 export function TrendChart({ sport, points, massKg, units, windowDays, effortS }: TrendChartProps) {
   const weekly = weekRows(points, sport, massKg)
-  // Past a year the weeks are thinned to one a month, so the line is not a smear of dots.
+  // Past 13 months the weeks are thinned to one a month, so the line is not a smear of dots.
   const { weeks: thinned, monthly } = thinToMonths(weekly)
   const rows = [...thinned]
   const hasData = rows.filter(hasValue).length >= 2
@@ -248,7 +248,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
     windowDays,
   )
   const note = [
-    ...(gap === null ? [] : [gapNote(sport, gap)]),
+    ...(gap === null ? [] : [gapNote(sport, gap, effortS)]),
     STEPPED_LINE_TEXT,
     ...(monthly ? [MONTHLY_NOTE] : []),
   ].join(' ')

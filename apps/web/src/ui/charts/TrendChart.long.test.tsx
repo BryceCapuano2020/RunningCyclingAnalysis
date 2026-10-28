@@ -30,7 +30,7 @@ function rideWeeks(count: number, gap: [from: number, to: number] | null): Trend
   })
 }
 
-function renderRide(points: TrendPoint[]) {
+function renderRide(points: TrendPoint[], effortS = 1200) {
   return render(
     <TrendChart
       sport="ride"
@@ -38,7 +38,7 @@ function renderRide(points: TrendPoint[]) {
       massKg={MASS_KG}
       units="metric"
       windowDays={84}
-      effortS={1200}
+      effortS={effortS}
     />,
   )
 }
@@ -58,7 +58,7 @@ describe('TrendChart over years', () => {
     expect(marked).toBeGreaterThanOrEqual(60)
     expect(marked).toBeLessThanOrEqual(62)
     expect(
-      screen.getByText(/Past a year, each point is the last week of its month\./),
+      screen.getByText(/Past 13 months, each point is the last week of its month\./),
     ).toBeInTheDocument()
     // The table holds the same months, not the 260 weeks.
     expect(container.querySelectorAll('tbody tr').length).toBe(marked)
@@ -82,13 +82,20 @@ describe('TrendChart over years', () => {
     const from = new Date(endOf(100) - 84 * DAY_MS)
     expect(from.getUTCFullYear()).toBe(2019)
     expect(
-      screen.getByText(/^No rides with power from \d+ \w+ 2019 to \d+ \w+ 2020\./),
+      screen.getByText(
+        /^No rides with power of 20 min or longer from \d+ \w+ 2019 to \d+ \w+ 2020\./,
+      ),
     ).toBeInTheDocument()
+  })
+
+  it('names the effort length of the trend, so a gap at 60 min is not read as a gap in riding', () => {
+    renderRide(rideWeeks(260, [100, 140]), 3600)
+    expect(screen.getByText(/^No rides with power of 60 min or longer from/)).toBeInTheDocument()
   })
 
   it('names no gap when the weeks run without a long break', () => {
     renderRide(rideWeeks(260, [100, 103]))
-    expect(screen.queryByText(/^No rides with power/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^No rides with power of/)).not.toBeInTheDocument()
   })
 })
 
