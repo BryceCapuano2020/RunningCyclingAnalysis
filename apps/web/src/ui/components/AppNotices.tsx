@@ -1,5 +1,5 @@
 import type { AnalysisController } from '../useAnalysis'
-import type { MovedItem } from '../analysis/whatMoved'
+import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import { SAMPLE_DESCRIPTION } from '../sampleAthlete'
 import { ImportNotice } from './ImportNotice'
 import { LibraryNotices } from './LibraryNotices'
@@ -66,7 +66,7 @@ export function AppNotices({
         savedCount={analysis.savedCount}
         issues={analysis.state.syncIssues}
         signedIn={signedIn}
-        moved={moved.length > 0}
+        moved={movedAnything(moved)}
       />
       <LibraryNotices
         analysis={analysis}

@@ -3,7 +3,7 @@ import { DAILY_LIMITS } from '@rca/contract'
 import type { SavedActivity, WorkerResponse } from '../../worker/protocol'
 import { limitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
-import { formatDay, formatMonth } from '../format/date'
+import { formatDay, formatDayMonth, formatMonth } from '../format/date'
 import type { ImportSummary } from '../../worker/importSummary'
 import type { ImportOutcome } from '../../worker/protocol'
 import { plural } from '../components/plural'
@@ -113,6 +113,10 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
     runs > 0 ? plural(runs, 'run') : '',
     rides > 0 ? plural(rides, 'ride') : '',
   ].filter((text) => text !== '')
+  // One activity has one day, so the sentence names that day rather than its month.
+  if (runs + rides === 1) {
+    return `Added ${counts.join(' and ')}, on ${formatDayMonth(firstStartMs, nowMs)}.`
+  }
   // The year is shown on both ends when they fall in different years, or when either is not this year.
   const firstYear = new Date(firstStartMs).getFullYear()
   const withYear =

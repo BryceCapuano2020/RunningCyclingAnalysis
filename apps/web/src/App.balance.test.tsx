@@ -81,9 +81,7 @@ describe('the import summary for an athlete with a birth year, a sex and a weigh
     render(<App />)
 
     expect(
-      screen.getByText(
-        /^Your balance now leans more toward running \(\d+ points? → \d+ points?\)$/,
-      ),
+      screen.getByText(/^Your balance now leans more toward running \(\d+ → \d+ points\)$/),
     ).toBeInTheDocument()
   })
 

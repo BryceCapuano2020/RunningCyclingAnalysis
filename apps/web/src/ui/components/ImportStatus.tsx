@@ -5,7 +5,7 @@ import type { ImportOutcome } from '../../worker/protocol'
 import { addedSentence, importSentence, MOVED_NOTE } from '../analysis/copy'
 import { skippedTotal, tallyOf, tallySentence } from '../analysis/skipTally'
 import type { ImportProgress } from '../analysis/model'
-import type { MovedItem } from '../analysis/whatMoved'
+import { movedAnything, type MovedItem } from '../analysis/whatMoved'
 import { useDelayedFlag } from '../useDelayedFlag'
 import { plural } from './plural'
 import { isFileDrag } from './useFilePicker'
@@ -82,7 +82,7 @@ function outcomeAnnouncement(
   const tally = tallyOf(outcome, rejected)
   const skippedText = skippedTotal(tally) > 0 ? ` ${tallySentence(tally)}` : ''
   // The note goes with a summary sentence only, as the list does.
-  const movedNote = moved.length > 0 && addedSentence(outcome) !== null ? ` ${MOVED_NOTE}` : ''
+  const movedNote = movedAnything(moved) && addedSentence(outcome) !== null ? ` ${MOVED_NOTE}` : ''
   return `${importSentence(outcome)}${skippedText}${movedNote}`
 }
 
