@@ -383,6 +383,16 @@ describe('parseGpx mapping', () => {
     expect(a.route?.points.length).toBeGreaterThanOrEqual(2)
   })
 
+  it('keeps a biking track outdoor when some of its points are real, though others are 0,0', () => {
+    const mixed = [
+      ...Array.from({ length: 10 }, (_, i) => fixText(i, '0', '0')),
+      ...points(120).slice(10),
+    ]
+    const a = firstActivity(parseGpx(gpxFile(track('biking', [mixed])), 'mixed.gpx'))
+    expect(a.indoor).toBe(false)
+    expect(a.route).toBeDefined()
+  })
+
   it('matches the type text case-insensitively and accepts the numeric type 1 as a ride', () => {
     const a = firstActivity(parseGpx(gpxFile(track(' RIDE ', [points(120)])), 'a.gpx'))
     expect(a.sport).toBe('ride')

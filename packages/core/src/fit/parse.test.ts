@@ -258,6 +258,32 @@ describe('parseFit round trip', () => {
   })
 })
 
+describe('parseFit placeholder positions', () => {
+  it('reads a trainer ride whose records are all 0,0 as indoor, with no route', () => {
+    const records = secondly(START_MS, 70, { speed: 8, power: 200, position: { lat: 0, lon: 0 } })
+    const bytes = buildFit({
+      sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 70, records }],
+    })
+    const a = firstActivity(parseFit(bytes, 'placeholder.fit'))
+    expect(a.indoor).toBe(true)
+    expect(a.hasAltitude).toBe(false)
+    expect(a.route).toBeUndefined()
+  })
+
+  it('keeps a ride with real positions outdoor, with its route', () => {
+    const records = secondly(START_MS, 70, { speed: 8, power: 200 })
+    records.forEach((record, t) => {
+      record.position = { lat: 51.5 + t * 0.00008, lon: -0.12 }
+    })
+    const bytes = buildFit({
+      sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 70, records }],
+    })
+    const a = firstActivity(parseFit(bytes, 'outdoor.fit'))
+    expect(a.indoor).toBe(false)
+    expect(a.route?.points.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
 describe('parseFit validation', () => {
   it('rejects garbage bytes', () => {
     const garbage = new Uint8Array(100).map((_, i) => (i * 37) % 251)
@@ -583,15 +609,12 @@ describe('parseFit sport mapping', () => {
   })
 
   it('marks an outdoor run with GPS positions as not indoor', () => {
+    const records = secondly(START_MS, 70, { speed: 3 })
+    records.forEach((record, t) => {
+      record.position = { lat: 51.5 + t * 0.00003, lon: -0.12 }
+    })
     const bytes = buildFit({
-      sessions: [
-        {
-          sport: 'running',
-          startMs: START_MS,
-          durationS: 70,
-          records: secondly(START_MS, 70, { speed: 3, gps: true }),
-        },
-      ],
+      sessions: [{ sport: 'running', startMs: START_MS, durationS: 70, records }],
     })
     expect(firstActivity(parseFit(bytes, 'road.fit')).indoor).toBe(false)
   })
