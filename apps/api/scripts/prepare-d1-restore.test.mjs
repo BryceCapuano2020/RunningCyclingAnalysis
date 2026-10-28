@@ -162,7 +162,9 @@ test('accepts exports from the current schema, orders its new tables after their
   CREATE TABLE daily_budget (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, action TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, action));
   CREATE TABLE upload_slots (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slot_id TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY (user_id, slot_id));
   CREATE TABLE pending_account_deletions (user_id TEXT PRIMARY KEY NOT NULL, requested_at INTEGER NOT NULL, sweep_pending INTEGER NOT NULL DEFAULT 1);
+  CREATE TABLE athlete_measurements (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL, sport TEXT NOT NULL DEFAULT '', from_date TEXT NOT NULL, value REAL NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, kind, sport, from_date));
   INSERT INTO users VALUES ('user-1', 'a@example.test', 'Alex', NULL, 1, 0, NULL);
+  INSERT INTO athlete_measurements VALUES ('user-1', 'massKg', '', '2026-01-01', 80, 0);
   INSERT INTO daily_budget VALUES ('user-1', '2026-10-22', 'read', 3);
   INSERT INTO upload_slots VALUES ('user-1', 'slot', 5);
   INSERT INTO pending_account_deletions VALUES ('user-1', 1, 0);
@@ -175,6 +177,7 @@ test('accepts exports from the current schema, orders its new tables after their
   inspect(prepared, (db) => {
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), [])
     assert.equal(db.prepare('SELECT used FROM daily_budget').get().used, 3)
+    assert.equal(db.prepare('SELECT value FROM athlete_measurements').get().value, 80)
   })
   // Exports from before the budget and deletion tables existed still restore.
   assert.doesNotThrow(() => prepareD1RestoreSql(schema))

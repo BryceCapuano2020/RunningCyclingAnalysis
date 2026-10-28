@@ -13,7 +13,12 @@ const TABLES = [
   'd1_migrations',
 ]
 /** Tables added after the first schema. Exports without them (pre-migration) still restore. */
-const OPTIONAL_TABLES = ['daily_budget', 'upload_slots', 'pending_account_deletions']
+const OPTIONAL_TABLES = [
+  'daily_budget',
+  'upload_slots',
+  'pending_account_deletions',
+  'athlete_measurements',
+]
 const TABLE_SET = new Set([...TABLES, ...OPTIONAL_TABLES])
 export const MAX_D1_EXPORT_BYTES = 64 * 1024 * 1024
 

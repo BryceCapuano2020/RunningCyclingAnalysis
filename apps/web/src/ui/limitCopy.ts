@@ -10,6 +10,8 @@ const NOUNS: Record<DailyLimitAction, string> = {
   read: 'library loads',
   activityDelete: 'deletions',
   profileWrite: 'profile changes',
+  measurementWrite: 'changes to your dated settings',
+  measurementRead: 'loads of your dated settings',
 }
 
 const LOCAL_TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })

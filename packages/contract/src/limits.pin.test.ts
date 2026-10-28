@@ -31,11 +31,17 @@ describe('contract limits', () => {
       activityCreate: 5000,
       fileUpload: 2000,
       read: 100,
+      measurementWrite: 200,
+      measurementRead: 300,
     })
   })
 
   it('lets one day create as many activities as a library may hold', () => {
     expect(limits.DAILY_LIMITS.activityCreate).toBe(limits.MAX_ACTIVITIES_PER_USER)
+  })
+
+  it('pins the most dated settings a user may keep', () => {
+    expect(limits.MAX_MEASUREMENTS_PER_USER).toBe(200)
   })
 
   it('pins the deployment-wide R2 budgets', () => {

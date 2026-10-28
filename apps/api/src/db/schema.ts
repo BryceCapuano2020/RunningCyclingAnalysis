@@ -9,6 +9,7 @@ import {
   text,
   unique,
 } from 'drizzle-orm/sqlite-core'
+import { MEASUREMENT_KINDS } from '@rca/core/athlete'
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -81,6 +82,37 @@ export const profiles = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => [check('profiles_sex_check', sql`${t.sex} IS NULL OR ${t.sex} IN ('female', 'male')`)],
+)
+
+/**
+ * The athlete's dated settings: a body mass, maximum heart rate or threshold in effect from a local
+ * date. A row is identified by its kind, sport and date, so a second value for the same date replaces
+ * the first. `sport` is '' for the body mass, which is not a sport's.
+ */
+export const athleteMeasurements = sqliteTable(
+  'athlete_measurements',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: MEASUREMENT_KINDS }).notNull(),
+    sport: text('sport', { enum: ['', 'run', 'ride'] })
+      .notNull()
+      .default(''),
+    /** The local calendar date the value takes effect, YYYY-MM-DD. */
+    fromDate: text('from_date').notNull(),
+    /** Kg, bpm, W or m/s, by kind. */
+    value: real('value').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kind, t.sport, t.fromDate] }),
+    check(
+      'athlete_measurements_kind_check',
+      sql`${t.kind} IN ('massKg', 'maxHeartRate', 'thresholdPower', 'thresholdPace')`,
+    ),
+    check('athlete_measurements_sport_check', sql`${t.sport} IN ('', 'run', 'ride')`),
+  ],
 )
 
 export const activities = sqliteTable(
@@ -181,6 +213,7 @@ export const schema = {
   oauthAccounts,
   sessions,
   profiles,
+  athleteMeasurements,
   activities,
   r2StorageBudget,
   dailyBudget,

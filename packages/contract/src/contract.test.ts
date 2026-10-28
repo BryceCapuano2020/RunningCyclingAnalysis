@@ -519,6 +519,8 @@ describe('shared limits', () => {
       activityCreate: 5000,
       fileUpload: 2000,
       read: 100,
+      measurementWrite: 200,
+      measurementRead: 300,
     })
     expect(MAX_CONCURRENT_UPLOADS_PER_USER).toBe(2)
     expect(MAX_GLOBAL_R2_WRITE_BYTES).toBe(4 * 1024 * 1024 * 1024)
