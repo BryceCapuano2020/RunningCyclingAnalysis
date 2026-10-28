@@ -24,8 +24,9 @@ function centreShown({ unit, lean, lead }: BalanceReading): string | null {
 }
 
 /**
- * The range as the Balance page states it. Its two edges are shown as a range only when they round
- * apart; otherwise the page states one value, which the centre already says.
+ * The range as the Balance page states it, "A to B" as its own range text writes it. Its two edges are
+ * shown as a range only when they round apart; otherwise the page states one value, which the centre
+ * already says.
  */
 function rangeOf({ unit, lean, lead }: BalanceReading): { words: string; isRange: boolean } {
   // A lean toward the second sport has a negative lead, so its edges are read the other way round.
@@ -35,12 +36,12 @@ function rangeOf({ unit, lean, lead }: BalanceReading): { words: string; isRange
   const middle = (low + high) / 2
   if (unit === 'percent') {
     const edge = (value: number) => percentEdge(value, lean === 'even')
-    const words = isRange ? `${edge(low)}–${edge(high)}` : edge(middle)
+    const words = isRange ? `${edge(low)} to ${edge(high)}` : edge(middle)
     return { words, isRange }
   }
   const count = (value: number) =>
     lean === 'even' ? signedCount(value) : String(Math.round(value))
-  const words = isRange ? `${count(low)}–${count(high)}` : count(middle)
+  const words = isRange ? `${count(low)} to ${count(high)}` : count(middle)
   return { words, isRange }
 }
 
@@ -61,7 +62,7 @@ function centreText(before: BalanceReading, after: BalanceReading): MovedItem {
   const to = centreShown(after) ?? ''
   const suffix = unitSuffix(after.unit)
   if (after.lean === 'even') {
-    return { text: `Its best estimate moved from ${from} to ${to}${suffix}` }
+    return { text: `Your balance's best estimate moved from ${from} to ${to}${suffix}` }
   }
   const direction = Math.abs(after.lead.centre) < Math.abs(before.lead.centre) ? 'less' : 'more'
   const sport = SPORT_NOUN[after.lean]
@@ -71,11 +72,13 @@ function centreText(before: BalanceReading, after: BalanceReading): MovedItem {
   }
 }
 
-/** A range that moved, in the page's own edges, such as "range moved from 5%–20% to 2%–25%". */
+/**
+ * A range that moved, in the page's own wording, such as "range was 5% to 20% and is now 2% to 25%".
+ * Each range is said whole, so the "to" inside one never runs into the "to" between two.
+ */
 function rangeWords(before: BalanceReading, after: BalanceReading): string {
-  const from = rangeOf(before).words
-  const to = rangeOf(after).words
-  return `range moved from ${from} to ${to}${unitSuffix(after.unit)}`
+  const suffix = unitSuffix(after.unit)
+  return `range was ${rangeOf(before).words}${suffix} and is now ${rangeOf(after).words}${suffix}`
 }
 
 /**
@@ -93,9 +96,9 @@ function changedItem(before: BalanceReading, after: BalanceReading): MovedItem |
     (rangeBefore.isRange || rangeAfter.isRange) && rangeBefore.words !== rangeAfter.words
   if (!leanMoved && !centreMoved && !rangeMoved) return null
   const main = leanMoved ? leanText(after) : centreMoved ? centreText(before, after) : null
-  if (main === null) return { text: `Its ${rangeWords(before, after)}` }
+  if (main === null) return { text: `Your balance's ${rangeWords(before, after)}` }
   if (!rangeMoved) return main
-  const joined = `, and its ${rangeWords(before, after)}`
+  const joined = `, and the ${rangeWords(before, after)}`
   return {
     text: `${main.text}${joined}`,
     ...(main.spoken === undefined ? {} : { spoken: `${main.spoken}${joined}` }),

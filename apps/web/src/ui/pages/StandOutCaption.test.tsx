@@ -55,7 +55,7 @@ describe('StandOutCaption', () => {
     })
     render(<StandOutCaption sport="run" result={result} />)
     expect(
-      screen.getByText('Your bests are in line with each other from 5 s to 60 min.'),
+      screen.getByText('Your bests are in line with each other, compared from 5 s to 60 min.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(OPEN_STRIP)).toBeNull()
     expect(screen.queryByRole('figure')).toBeNull()

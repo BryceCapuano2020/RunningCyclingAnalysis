@@ -11,10 +11,12 @@ import { SPORT_NOTE } from '../grades'
 import type { GradeOutcome } from '../grades'
 import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { hrefFor } from '../route'
+import { floorThreshold } from '../thresholdFloor'
 import { useNarrowScreen } from '../useNarrowScreen'
 import {
   SPORT_LABEL,
   SPORT_PLURAL,
+  THRESHOLD_FLOOR_LABEL,
   THRESHOLD_LABEL,
   THRESHOLD_MEANING,
   thresholdNeedsText,
@@ -55,7 +57,10 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
   const recordsOpen = chosen ?? !narrow
   // A ride's figures use the body mass, so they are held until it is entered; a run's are not.
   const held = sport === 'ride' && !weighted
-  const hero = held ? null : threshold(result, sport, massKg, units)
+  const fitted = held ? null : threshold(result, sport, massKg, units)
+  // The same rule as the sport page: a refused threshold shows an uneven fit's floor, under its own label.
+  const hero = held ? null : (fitted ?? floorThreshold(result, sport, massKg, units))
+  const label = fitted === null && hero !== null ? THRESHOLD_FLOOR_LABEL : THRESHOLD_LABEL
   const records = held
     ? []
     : sportRecords(result, sport, massKg, units).filter((record) =>
@@ -79,7 +84,7 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
             <WeightNote />
           ) : (
             <>
-              <p className="eyebrow">{THRESHOLD_LABEL[sport]}</p>
+              <p className="eyebrow">{label[sport]}</p>
               {hero ? (
                 <p>
                   <span className="hero-number">
@@ -97,7 +102,7 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
               ) : (
                 <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
               )}
-              {hero && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
+              {fitted && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
             </>
           )}
         </div>

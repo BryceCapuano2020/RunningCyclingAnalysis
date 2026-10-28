@@ -42,10 +42,11 @@ export function profileSentence({ rows }: ReadyProfile, name: DurationName): str
   if (named.length === 0) {
     const first = rows[0]!.durationS
     const last = rows.at(-1)!.durationS
-    const span = `from ${name(first)} to ${name(last)}`
+    // The rows' own first and last, so a chart that starts later never makes the sentence claim a span it lacks.
+    const span = `compared from ${name(first)} to ${name(last)}`
     return rows.some((row) => row.standsOut !== null)
-      ? `Your bests are in line with each other ${span}, apart from small differences on the chart.`
-      : `Your bests are in line with each other ${span}.`
+      ? `Your bests are in line with each other, ${span}, apart from small differences on the chart.`
+      : `Your bests are in line with each other, ${span}.`
   }
   const lows = named.filter((row) => row.standsOut === 'below').length
   const sentences = named.map((row, i) => {

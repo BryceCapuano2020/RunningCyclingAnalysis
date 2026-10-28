@@ -114,7 +114,7 @@ A duration **stands out** only when its interval, put back from logs to fraction
 may be relatively low, or untested." At most the three that stand out most are named, and only those whose
 interval clears zero by 2% at its near end; one that stands out by less is on the chart and not in the
 sentence, which then ends "apart from small differences on the chart". With none standing out: "Your bests
-are in line with each other from 5 s to 60 min.", and the page shows no chart. Words that rank or blame ("limiter",
+are in line with each other, compared from 5 s to 60 min.", and the page shows no chart. Words that rank or blame ("limiter",
 "weak", "strength", "holding you back", "ahead of") are never used, and "grade" means age grade only.
 
 ## 5. What it can and cannot find
