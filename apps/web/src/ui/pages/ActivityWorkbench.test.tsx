@@ -235,7 +235,7 @@ describe('ActivityWorkbench', () => {
     show(ride)
     expect(
       await screen.findByRole('img', {
-        name: /^Time at each speed, from 18\.4 km\/h to 35\.5 km\/h/,
+        name: /^Time at each speed, from 18\.4 km\/h to 35\.8 km\/h/,
       }),
     ).toBeInTheDocument()
   })

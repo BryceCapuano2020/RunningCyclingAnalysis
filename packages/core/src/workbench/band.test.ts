@@ -18,21 +18,32 @@ function runOf(n: number, speed: (i: number) => number): ActivityTrace {
   }
 }
 
-/** A steady ramp from 2.5 to 3.5 m/s with a slow start of three seconds and a spike of three at the end. */
-const rampWithArtifacts = (i: number) => (i < 3 ? 0.5 : i >= 497 ? 9 : 2.5 + (i - 3) / 494)
+/**
+ * A steady ramp from 2.5 to 3.5 m/s with a slow start of three seconds and a fast burst of three at the end,
+ * each burst second a little faster than the last.
+ */
+const rampWithArtifacts = (i: number) =>
+  i < 3 ? 0.5 : i >= 497 ? 9 + i / 1000 : 2.5 + (i - 3) / 494
 
 describe('readingBand', () => {
-  it('cuts the two percent at each end, and counts the seconds it cut', () => {
+  it('cuts two percent of the slow end and half a percent of the fast end, and counts the seconds it cut', () => {
     const band = readingBand(runOf(500, rampWithArtifacts), 'speed', 0, 500)
     expect(band).not.toBeNull()
     expect(band!.below).toBe(10)
-    expect(band!.above).toBe(10)
+    expect(band!.above).toBe(2)
     expect(band!.low).toBeGreaterThan(2.5)
-    expect(band!.high).toBeLessThan(3.5)
+    // The two fastest of the burst are past the band; the third is its edge, since a stride is not an artifact.
+    expect(band!.high).toBeGreaterThan(9)
+  })
+
+  it('does not cut a stretch of strides from the fast end of a short run', () => {
+    // 150 s with ten fast seconds, under two hundred readings: half a percent of them is none.
+    const item = runOf(150, (i) => (i >= 140 ? 5 + (i - 140) / 10 : 3 + i / 1000))
+    expect(readingBand(item, 'speed', 0, 150)).toMatchObject({ above: 0 })
   })
 
   it('keeps the whole span when cutting would leave a single value', () => {
-    const item = runOf(200, (i) => (i < 3 ? 0.5 : i >= 197 ? 9 : 3))
+    const item = runOf(200, (i) => (i < 3 ? 0.5 : i >= 199 ? 9 : 3))
     expect(readingBand(item, 'speed', 0, 200)).toEqual({ low: 0.5, high: 9, below: 0, above: 0 })
   })
 
@@ -51,7 +62,7 @@ describe('readingBand', () => {
 
 describe('distributionOf within a band', () => {
   it('spans only the band, so a stray reading leaves no empty bins', () => {
-    const item = runOf(500, rampWithArtifacts)
+    const item = runOf(500, (i) => (i < 3 ? 0.5 : 2.5 + (i - 3) / 494))
     const whole = distributionOf(item, 'speed', 0, 500)
     expect(whole[0]!.from).toBe(0.5)
     const band = readingBand(item, 'speed', 0, 500)!

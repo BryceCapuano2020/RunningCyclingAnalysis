@@ -1051,9 +1051,9 @@ sport's period. The maths is `packages/core/src/zones` (`timeInZones.ts`, `trace
 `zoneShares.ts`); the research notes are in [research/zones.md](research/zones.md#5-time-in-zones).
 
 **Activity page, In detail: the plots.** A plot's axis holds the readings the run held, not the artifacts at its ends. A
-pace (or a ride's speed) spans its 2nd to 98th percentile of moving readings (`readingBand` in
+pace (or a ride's speed) spans its 2nd to 99.5th percentile of moving readings, the slow end cut harder since a start, a stop or a dropout is slow and a stride or a descent is real (`readingBand` in
 `packages/core/src/workbench/band.ts`), and so does its histogram, so a standing start or a stop leaves neither a crushed
-axis nor empty bins. A selection of fewer than fifty readings, or one a cut would collapse to a single value, is left whole.
+axis nor empty bins. A cut removes nothing from a selection too short for it (under fifty readings at the slow end, two hundred at the fast end), and a band a cut would collapse to a single value is left whole.
 What lies past each end is a dot on the plot's edge, a line under the plot ("Past the axis, marked at its edge: 24 s slower
 than 6:39 /km, 28 s faster than 4:25 /km.") and a row at each end of the histogram's table, so the table still adds up to
 the moving time; the interval summary keeps the true extremes. The summary's extremes read Fastest and Slowest for a pace

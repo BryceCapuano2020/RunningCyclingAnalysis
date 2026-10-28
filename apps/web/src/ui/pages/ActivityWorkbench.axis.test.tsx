@@ -6,12 +6,13 @@ import { ActivityWorkbench } from './ActivityWorkbench'
 
 /**
  * A ten-minute run that alternates between 3 and 4 m/s, with six seconds of a standing start at 0.6 m/s
- * and six seconds of a GPS spike at 8 m/s: the artifacts a plot's axis must not stretch over.
+ * and three seconds of a fast burst from 8 m/s up: the standing start is an artifact the axis must not stretch
+ * over; the fast end is cut only by half a percent, so just the three fastest seconds of the burst are.
  */
 function runWithArtifacts(): ActivityTrace {
   const speed = Float32Array.from({ length: 600 }, (_, i) => {
     if (i < 6) return 0.6
-    if (i >= 594) return 8
+    if (i >= 597) return 8 + (i - 597) / 10
     return i % 2 === 0 ? 3 : 4
   })
   let metres = 0
@@ -55,7 +56,7 @@ describe('ActivityWorkbench: a pace plot and its artifacts', () => {
     expect(figure.querySelector('.activity-workbench__plot-body')).not.toHaveTextContent('27:47')
     expect(
       within(figure).getByText(
-        'Past the axis, marked at its edge: 6 s slower than 5:33 /km, 6 s faster than 4:10 /km.',
+        'Past the axis, marked at its edge: 6 s slower than 5:33 /km, 3 s faster than 4:10 /km.',
       ),
     ).toBeInTheDocument()
     // The clipped readings are dots on the plot's edges, and the line never leaves the plot.
@@ -75,7 +76,7 @@ describe('ActivityWorkbench: a pace plot and its artifacts', () => {
     const figure = await screen.findByRole('figure', { name: /^Pace/ })
     const histogram = within(figure).getByRole('img', { name: /^Time at each pace/ })
     expect(histogram).toHaveAccessibleName(
-      'Time at each pace, from 4:10 /km to 5:33 /km. Most time at 4:10 /km–4:16 /km.',
+      'Time at each pace, from 4:10 /km to 5:33 /km. Most time at 5:23 /km–5:33 /km.',
     )
   })
 
@@ -84,7 +85,7 @@ describe('ActivityWorkbench: a pace plot and its artifacts', () => {
     const figure = await screen.findByRole('figure', { name: /^Pace/ })
     const table = within(figure).getByRole('table', { name: /pace while moving/i })
     const rows = within(table).getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('Faster than 4:10 /km0:06')
+    expect(rows[1]).toHaveTextContent('Faster than 4:10 /km0:03')
     expect(rows.at(-1)).toHaveTextContent('Slower than 5:33 /km0:06')
   })
 
@@ -108,15 +109,15 @@ describe('ActivityWorkbench: the interval summary of a run', () => {
         .map((header) => header.textContent),
     ).toEqual(['Measure', 'Average', 'Fastest', 'Slowest', 'Time'])
     const pace = within(table).getByRole('row', { name: /^Pace/ })
-    expect(pace).toHaveTextContent('2:05 /km')
+    expect(pace).toHaveTextContent('2:02 /km')
     expect(pace).toHaveTextContent('27:47 /km')
   })
 
   it('gives the average pace the activity header gives: the distance over the moving time', async () => {
     show(runWithArtifacts())
     await screen.findByRole('figure', { name: /^Pace/ })
-    // The distance up to the last sample, 2,101.6 m, over the 600 s: the activity header's own sum.
-    expect(screen.getByText('Average pace').nextElementSibling).toHaveTextContent('4:45 /km')
+    // The distance up to the last sample, 2,087.7 m, over the 600 s: the activity header's own sum.
+    expect(screen.getByText('Average pace').nextElementSibling).toHaveTextContent('4:47 /km')
   })
 
   it('gives heart rate its own lowest and highest, in a table of its own beside the pace', async () => {

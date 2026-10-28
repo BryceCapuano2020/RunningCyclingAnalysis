@@ -30,7 +30,8 @@
 .activity-workbench__input-row input[type='range']::-webkit-slider-thumb {
   width: 22px;
   height: 22px;
-  margin-top: -9px;
+  /* Centres the thumb on the track's 6 px of content: half the difference of their heights. */
+  margin-top: -8px;
   border: 3px solid var(--surface-1);
   border-radius: 50%;
   background: var(--selected);
@@ -56,7 +57,26 @@
   background: var(--accent-hover);
 }
 
+.activity-workbench__input-row input[type='range']:active::-webkit-slider-thumb {
+  background: var(--accent-pressed);
+}
+
+.activity-workbench__input-row input[type='range']:active::-moz-range-thumb {
+  background: var(--accent-pressed);
+}
+
+/* The thumb is what moves, so it carries the focus ring, not the whole control's box. */
 .activity-workbench__input-row input[type='range']:focus-visible {
+  outline: none;
+}
+
+.activity-workbench__input-row input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.activity-workbench__input-row input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
