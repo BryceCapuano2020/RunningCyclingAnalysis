@@ -62,7 +62,7 @@ export function periodDates(span: Span): string {
 }
 
 /** A length in words for the named periods, and in days for any other. */
-function lengthOf(days: number): string {
+export function lengthOf(days: number): string {
   if (days === SIX_WEEKS_DAYS) return SIX_WEEKS_LABEL
   if (days === DEFAULT_PERIOD_DAYS) return DEFAULT_LABEL
   if (days === ONE_YEAR_DAYS) return ONE_YEAR_LABEL

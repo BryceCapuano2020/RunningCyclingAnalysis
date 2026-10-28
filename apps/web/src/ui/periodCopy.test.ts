@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Period } from '@rca/core/period'
-import { betweenClause, latestActivityText, listEmptyText, sportEmptyText } from './periodCopy'
+import {
+  betweenClause,
+  latestActivityText,
+  listEmptyText,
+  periodBestText,
+  sportEmptyText,
+} from './periodCopy'
 
 const SIX_WEEKS: Period = {
   choice: 42,
@@ -78,5 +84,30 @@ describe('latestActivityText', () => {
 
   it('says nothing when the library has no activity', () => {
     expect(latestActivityText(null, NOW)).toBeNull()
+  })
+})
+
+describe('periodBestText', () => {
+  it('names a fixed period by its length', () => {
+    expect(periodBestText({ ...SIX_WEEKS, choice: 365, days: 365 })).toBe(
+      'Best in the last 12 months',
+    )
+    expect(periodBestText(SIX_WEEKS)).toBe('Best in the last 6 weeks')
+    expect(periodBestText({ ...SIX_WEEKS, choice: 'default', days: 80 })).toBe(
+      'Best in the last 12 weeks',
+    )
+  })
+
+  it('names a custom range by its dates', () => {
+    expect(periodBestText({ ...SIX_WEEKS, choice: { from: '2025-05-12', to: '2025-08-03' } })).toBe(
+      'Best between 12 May and 3 Aug 2025',
+    )
+  })
+
+  it('names nothing for all time, whose bests are the all-time records', () => {
+    expect(periodBestText({ ...SIX_WEEKS, choice: 'all', days: null })).toBeNull()
+    expect(
+      periodBestText({ ...SIX_WEEKS, choice: 'default', days: null, fellBack: true }),
+    ).toBeNull()
   })
 })
