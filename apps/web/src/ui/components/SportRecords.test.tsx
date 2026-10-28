@@ -207,6 +207,22 @@ describe('SportRecords', () => {
     expect(second).toHaveTextContent('Late run, 9 Jan · 4 days ago')
   })
 
+  it('sets the name and the date apart in a link, so a narrow line cuts the name and keeps the date', () => {
+    render(
+      <SportRecords
+        rows={[
+          row({ key: 'a', label: '5 min' }),
+          row({ key: 'b', label: '20 min', activity: lateRun }),
+        ]}
+      />,
+    )
+    const link = screen.getByRole('link', { name: '5 min, from Morning run, 5 Jan' })
+    expect(link.querySelector('.records__name')).toHaveTextContent(/^Morning run$/)
+    expect(link.querySelector('.records__date')).toHaveTextContent(/^, 5 Jan$/)
+    // The whole text is still the title, so a cut name can be read in full.
+    expect(link).toHaveAttribute('title', 'Morning run, 5 Jan')
+  })
+
   it('keeps each link when the records come from different activities', () => {
     render(
       <SportRecords

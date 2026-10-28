@@ -65,15 +65,27 @@
   font-size: var(--text-sm);
 }
 
-/* A long activity name is cut short with an ellipsis; its full name is the link's title and label. */
+/*
+ * A long activity name is cut short with an ellipsis; its full name is the link's title and label. Only
+ * the name gives way: the date after it stays whole, since two records are told apart by it.
+ */
 .records__link {
-  display: block;
+  display: flex;
   min-width: 0;
   max-width: 100%;
   min-height: 24px;
-  overflow: hidden;
   font-size: var(--text-md);
+}
+
+.records__name {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.records__date {
+  flex: none;
   white-space: nowrap;
 }
 
@@ -117,9 +129,20 @@
  * name has no space to wrap at, so it breaks anywhere rather than widening the page.
  */
 .records__shared .records__link {
+  display: block;
   white-space: normal;
   overflow: visible;
   overflow-wrap: anywhere;
+}
+
+.records__shared .records__name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.records__shared .records__date {
+  white-space: normal;
 }
 
 /* A finger needs a control's height to tap a record's link. A mouse keeps the line's own height. */
