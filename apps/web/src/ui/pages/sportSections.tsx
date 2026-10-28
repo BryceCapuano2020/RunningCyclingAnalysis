@@ -8,13 +8,20 @@ import { RacePredictions } from './RacePredictions'
 import { SameHeartRateSection } from './SameHeartRateSection'
 import { sameHeartRateLack } from './sameHeartRateLack'
 import { standOutLack } from './standOutLack'
+import { TimeInZonesSection } from './TimeInZonesSection'
 import { WeekByWeekSection } from './WeekByWeekSection'
 import { lackLine } from './lackLine'
+import { timeInZonesLack } from '../zoneTimeCopy'
 import type { SectionContext } from './sportPageProps'
 
 /** The sections that can follow a sport page's answer. */
 export type SectionId =
-  'bestEfforts' | 'racePredictions' | 'weekByWeek' | 'sameHeartRate' | 'lateInEffort'
+  | 'bestEfforts'
+  | 'racePredictions'
+  | 'weekByWeek'
+  | 'sameHeartRate'
+  | 'lateInEffort'
+  | 'timeInZones'
 
 /**
  * What a section gives the page: its content, and why part of it or all of it is missing, in plain words.
@@ -28,12 +35,20 @@ export interface SectionOutcome {
 
 /**
  * The sections of each sport's page, in the order they are read: the best efforts with the curve under
- * them, what they predict, then how they moved week by week and at the same heart rate, and how they hold
- * up late in long sessions. A sport without race predictions leaves that section out; a sport that is not measured in time names its own.
+ * them, what they predict, then how they moved week by week and at the same heart rate, how they hold
+ * up late in long sessions, and last how the time was spread across training zones. A sport without
+ * race predictions leaves that section out; a sport that is not measured in time names its own.
  */
 export const SPORT_SECTIONS: Record<Sport, readonly SectionId[]> = {
-  run: ['bestEfforts', 'racePredictions', 'weekByWeek', 'sameHeartRate', 'lateInEffort'],
-  ride: ['bestEfforts', 'weekByWeek', 'sameHeartRate', 'lateInEffort'],
+  run: [
+    'bestEfforts',
+    'racePredictions',
+    'weekByWeek',
+    'sameHeartRate',
+    'lateInEffort',
+    'timeInZones',
+  ],
+  ride: ['bestEfforts', 'weekByWeek', 'sameHeartRate', 'lateInEffort', 'timeInZones'],
 }
 
 /** How each section makes its outcome from what the page worked out. */
@@ -91,6 +106,22 @@ const SECTIONS: Record<SectionId, (context: SectionContext) => SectionOutcome> =
         ),
       lack: need === null ? null : lackLine(LATE_IN_EFFORT_NAME, need),
     }
+  },
+  timeInZones: ({ sport, zoneTimes = [], previousZoneTimes = null, previousLabel }) => {
+    const lack = timeInZonesLack(sport, zoneTimes)
+    return lack === null
+      ? {
+          content: (
+            <TimeInZonesSection
+              sport={sport}
+              rows={zoneTimes}
+              previous={previousZoneTimes}
+              previousLabel={previousLabel}
+            />
+          ),
+          lack: null,
+        }
+      : { content: null, lack }
   },
 }
 

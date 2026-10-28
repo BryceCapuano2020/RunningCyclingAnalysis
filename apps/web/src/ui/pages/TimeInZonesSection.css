@@ -1,0 +1,7 @@
+/* The activities a measure left out, one muted line each, under the bars. */
+.time-in-zones__notes {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+}

@@ -22,7 +22,7 @@ export const EASY_THROUGH: Record<ZoneMeasure, number> = { power: 2, heartRate: 
 export const HARD_FROM: Record<ZoneMeasure, number> = { power: 4, heartRate: 4, pace: 4 }
 
 /** The share of the time in each zone, 0 to 1, or all zeros without any time. */
-export function zoneShares(time: MeasureTime): number[] {
+export function zoneShares(time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>): number[] {
   return time.seconds.map((s) => (time.totalSeconds > 0 ? s / time.totalSeconds : 0))
 }
 
@@ -45,7 +45,9 @@ export function effortSplit(time: MeasureTime): EffortSplit {
 }
 
 /** The zone with the largest share, 1 for the lowest effort; null without time. Ties go to the lower zone. */
-export function mainZone(time: MeasureTime): { level: number; share: number } | null {
+export function mainZone(
+  time: Pick<MeasureTime, 'seconds' | 'totalSeconds'>,
+): { level: number; share: number } | null {
   const shares = zoneShares(time)
   let best = -1
   shares.forEach((share, i) => {

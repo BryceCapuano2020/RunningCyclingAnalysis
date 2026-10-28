@@ -32,6 +32,7 @@ describe('What is calculated', () => {
       /Virtual power/,
       /Splits/,
       /Time at each pace/,
+      /Time in zones/,
       /Heart-rate set-aside/,
     ]) {
       expect(calculated).toMatch(feature)

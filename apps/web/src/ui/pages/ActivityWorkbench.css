@@ -307,3 +307,10 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* The time in zones sits under the interval summary, with the same gap as the other parts of the section. */
+.activity-workbench__zones {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
