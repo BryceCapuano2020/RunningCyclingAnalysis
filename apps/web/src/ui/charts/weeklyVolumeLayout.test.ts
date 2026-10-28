@@ -5,7 +5,12 @@ import type { ChartSize } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, plotBoxOf } from './plotBox'
 import { sharedTrendLayout } from './sharedTrendLayout'
-import { MAX_BAR_PX, weeklyVolumeLayout } from './weeklyVolumeLayout'
+import {
+  MAX_BAR_PX,
+  MIN_EDGED_BAR_PX,
+  MIN_EDGED_PART_PX,
+  weeklyVolumeLayout,
+} from './weeklyVolumeLayout'
 
 const FIRST_END = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
 const HOUR = 3600
@@ -86,6 +91,35 @@ describe('weeklyVolumeLayout', () => {
     const many = Array.from({ length: 200 }, (): [number, number] => [3, 1])
     const layout = weeklyVolumeLayout(weeksOf(...many), sizeOf(320))
     expect(layout?.bars.every((bar) => bar.width >= 1)).toBe(true)
+  })
+
+  it('keeps the first and last bar inside the plot, clear of the axis labels, at short and long ranges', () => {
+    for (const [count, width] of [
+      [3, 1000],
+      [3, 320],
+      [12, 320],
+      [260, 320],
+    ] as const) {
+      const size = sizeOf(width)
+      const weeks = weeksOf(...Array.from({ length: count }, (): [number, number] => [2, 1]))
+      const layout = weeklyVolumeLayout(weeks, size)
+      for (const bar of [layout?.bars[0], layout?.bars.at(-1)]) {
+        expect(bar?.left).toBeGreaterThanOrEqual(size.plot.left)
+        expect((bar?.left ?? 0) + (bar?.width ?? 0)).toBeLessThanOrEqual(size.plot.right + 1e-9)
+      }
+    }
+  })
+
+  it('edges a part only when it is wide and tall enough to keep its fill', () => {
+    const wide = weeklyVolumeLayout(weeksOf([4, 4], [4, 0.01], [1, 0]), sizeOf(640))
+    expect(wide?.bars[0]?.segments.map((segment) => segment.edged)).toEqual([true, true])
+    const thin = wide?.bars[1]?.segments.find((segment) => segment.sport === 'ride')
+    expect(thin?.height).toBeLessThan(MIN_EDGED_PART_PX)
+    expect(thin?.edged).toBe(false)
+    const many = Array.from({ length: 260 }, (): [number, number] => [3, 1])
+    const narrow = weeklyVolumeLayout(weeksOf(...many), sizeOf(320))
+    expect(narrow?.bars[0]?.width).toBeLessThan(MIN_EDGED_BAR_PX)
+    expect(narrow?.bars.every((bar) => bar.segments.every((segment) => !segment.edged))).toBe(true)
   })
 
   it('has no layout with fewer than two weeks', () => {

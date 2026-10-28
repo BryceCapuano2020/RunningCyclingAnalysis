@@ -121,7 +121,7 @@ export function WeeklyVolumeChart({ weeks, lede }: WeeklyVolumeChartProps) {
                   key={`${weeks[i]?.endMs}-${segment.sport}`}
                   data-testid="volume-bar"
                   data-sport={segment.sport}
-                  className="volume-bar"
+                  className={segment.edged ? 'volume-bar volume-bar--edged' : 'volume-bar'}
                   x={bar.left}
                   y={segment.y}
                   width={bar.width}

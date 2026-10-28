@@ -1,10 +1,13 @@
 /*
- * A sport's part of a week's bar, in the sport's colour (set once for each data-sport in tokens.css), edged
- * in the page colour so that two stacked parts stay apart. The order of the stack, the key and the table say
- * which part is which, so the colour is never the only cue.
+ * A sport's part of a week's bar, in the sport's colour (set once for each data-sport in tokens.css). The order
+ * of the stack, the key and the table say which part is which, so the colour is never the only cue.
  */
 .volume-bar {
   fill: var(--sport-colour);
+}
+
+/* Edged in the page colour so that two stacked parts stay apart, when the part is wide and tall enough to keep its fill. */
+.volume-bar--edged {
   stroke: var(--surface-0);
   stroke-width: 1;
 }
@@ -13,6 +16,9 @@
 @media (forced-colors: active) {
   .volume-bar {
     fill: Highlight;
+  }
+
+  .volume-bar--edged {
     stroke: Canvas;
   }
 

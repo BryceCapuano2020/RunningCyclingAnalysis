@@ -2,27 +2,36 @@ import type { Sport } from '@rca/core/types'
 import { SPORT_ORDER } from '../sports'
 import { hoursOf, totalSeconds } from '../weeklyVolume'
 import type { VolumeWeek } from '../weeklyVolume'
-import type { AxisTick, ChartSize } from './chartTypes'
+import type { AxisTick, ChartSize, PlotBox } from './chartTypes'
 import { linearScale, niceDomain, tickDecimals } from './scale'
 import { fitTicks } from './ticks'
 import { trendDateTicks } from './trendTicks'
 
-/** The widest a bar is drawn, in px. Half of it must fit in the plot's right margin, which is 16 px. */
-export const MAX_BAR_PX = 24
+/** The widest a bar is drawn, in px. */
+export const MAX_BAR_PX = 16
 /** The share of the room between two weeks that a bar fills. */
 const BAR_FILL = 0.7
 /** The narrowest a bar is drawn, so that a long period still shows each week. */
 const MIN_BAR_PX = 1
+/** A bar narrower than this has no edge, since a 1 px edge on each side would leave no fill. */
+export const MIN_EDGED_BAR_PX = 4
+/** A part shorter than this has no edge, since the edge would wipe it out. */
+export const MIN_EDGED_PART_PX = 2
 
 /** One sport's piece of a week's bar, in px: the sport it is, where it starts and how tall it is. */
 export interface BarSegment {
   sport: Sport
   y: number
   height: number
+  /** Whether the part is edged in the page colour to keep it apart from its neighbour: only when it has room. */
+  edged: boolean
 }
 
 export interface VolumeBar {
-  /** The bar's left edge and width, centred on the week's x. */
+  /**
+   * The bar's left edge and width, centred on the week's x, or moved in to lie inside the plot where it
+   * would cross an edge, so it never runs over the axis labels.
+   */
   left: number
   width: number
   /** Bottom to top, in the order of the sports. A sport with no time that week has no segment. */
@@ -45,6 +54,7 @@ function barOf(
   x: number,
   width: number,
   y: (hours: number) => number,
+  plot: PlotBox,
 ): VolumeBar {
   let top = y(0)
   const segments: BarSegment[] = []
@@ -52,10 +62,16 @@ function barOf(
     const hours = hoursOf(week.seconds[sport])
     if (hours <= 0) continue
     const next = top - (y(0) - y(hours))
-    segments.push({ sport, y: next, height: top - next })
+    segments.push({
+      sport,
+      y: next,
+      height: top - next,
+      edged: width >= MIN_EDGED_BAR_PX && top - next >= MIN_EDGED_PART_PX,
+    })
     top = next
   }
-  return { left: x - width / 2, width, segments }
+  const left = Math.min(Math.max(x - width / 2, plot.left), Math.max(plot.left, plot.right - width))
+  return { left, width, segments }
 }
 
 /**
@@ -78,7 +94,7 @@ export function weeklyVolumeLayout(
   const room = (plot.right - plot.left) / (weeks.length - 1)
   const barWidth = Math.min(MAX_BAR_PX, Math.max(MIN_BAR_PX, room * BAR_FILL))
   const decimals = tickDecimals(ticks)
-  const bars = weeks.map((week) => barOf(week, x(week.endMs), barWidth, y))
+  const bars = weeks.map((week) => barOf(week, x(week.endMs), barWidth, y, plot))
   return {
     xs: weeks.map((week) => x(week.endMs)),
     bars,

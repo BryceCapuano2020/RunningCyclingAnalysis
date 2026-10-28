@@ -8,6 +8,11 @@ export const SHIFT_MIN_POINTS = 15
 /** How much a lone sport's weekly hours must change between the halves, as a fraction, to be the finding. */
 export const CHANGE_MIN_FRACTION = 0.25
 
+/** Two shifts closer than this, in percentage points, are equal: the shares are ratios, so equal moves can differ by noise. */
+const TIE_POINTS = 1e-9
+/** A lone sport's first half must average at least this many seconds a week for a change from it to be a finding. */
+const MIN_BEFORE_S = 1800
+
 type Seconds = Record<Sport, number>
 
 function sportSeconds(weeks: readonly VolumeWeek[]): Seconds {
@@ -32,13 +37,16 @@ function biggestShift(first: Seconds, second: Seconds): { sport: Sport; points: 
     sport,
     points: (second[sport] / allSeconds(second) - first[sport] / allSeconds(first)) * 100,
   }))
-  // A rise is the finding when a rise and a fall are as large, as with two sports.
-  return shifts.reduce((best, shift) =>
-    Math.abs(shift.points) > Math.abs(best.points) ||
-    (Math.abs(shift.points) === Math.abs(best.points) && shift.points > best.points)
-      ? shift
-      : best,
-  )
+  return shifts.reduce((best, shift) => (outweighs(shift.points, best.points) ? shift : best))
+}
+
+/**
+ * Whether a shift beats the best so far: it is larger, or as large to within floating-point noise and a
+ * rise, since a rise is the finding when a rise and a fall are equal, as with two sports.
+ */
+function outweighs(points: number, best: number): boolean {
+  const size = Math.abs(points) - Math.abs(best)
+  return size > TIE_POINTS || (Math.abs(size) <= TIE_POINTS && points > best)
 }
 
 /** The line for a period that holds more than one sport. */
@@ -58,7 +66,9 @@ function lonelyCaption(sport: Sport, halves: [Seconds, Seconds], weeks: number):
   const half = Math.floor(weeks / 2)
   const before = first[sport] / half
   const after = second[sport] / (weeks - half)
-  if (before > 0 && Math.abs(after - before) / before >= CHANGE_MIN_FRACTION) {
+  const moved = Math.abs(after - before) / before >= CHANGE_MIN_FRACTION
+  // A change from almost nothing, or one that two rounded figures would hide, is not worth stating.
+  if (before >= MIN_BEFORE_S && moved && formatHours(before) !== formatHours(after)) {
     const verb = after > before ? 'rose' : 'fell'
     return `${SPORT_TITLE[sport]} ${verb} from ${formatHours(before)} h a week in the first half to ${formatHours(after)} h in the second.`
   }

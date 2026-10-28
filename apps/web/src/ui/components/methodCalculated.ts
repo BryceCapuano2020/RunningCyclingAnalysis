@@ -7,8 +7,11 @@ export type CalculationState = 'calculated' | 'read' | 'unavailable'
 
 /** The heading of each state, and the one line under it that says what the state means. */
 export const STATE_COPY: Record<CalculationState, { title: string; line: string }> = {
-  calculated: { title: 'Calculated by this app', line: 'Worked out from your files.' },
-  read: { title: 'Read from your files', line: 'Shown as your device recorded it.' },
+  calculated: {
+    title: 'Calculated by this app',
+    line: 'Worked out from your files, and from your year of birth, sex and weight where a figure uses them.',
+  },
+  read: { title: 'Read from your files', line: 'Taken from what your files recorded.' },
   unavailable: {
     title: 'Not available from activity files',
     line: 'These need inputs an activity file does not hold.',
@@ -48,7 +51,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Race predictions',
     state: 'calculated',
-    line: 'Times for the usual road races, up to the marathon, carried from your best runs and your heart-rate VO2max, with a likely range.',
+    line: 'Times for the usual road races, up to the marathon, carried from your best runs, your heart-rate VO2max and your weekly running distance, with a likely range.',
   },
   {
     name: 'Output at the same heart rate',
@@ -96,9 +99,9 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
     line: 'A heart rate that cannot be right for the effort is left out of the heart-rate checks. The watts and pace still count.',
   },
   {
-    name: 'Sport, start time, distance and route',
+    name: 'Sport, start time, distance, speed and route',
     state: 'read',
-    line: 'Taken from the file as it was recorded.',
+    line: 'Sport is the file’s activity type. Distance and speed are the device’s, or come from the recorded GPS positions with bad fixes dropped.',
   },
   {
     name: 'Heart rate',

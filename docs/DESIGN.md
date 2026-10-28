@@ -395,7 +395,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   `volumeCaption.ts`: with more than one sport, the sport whose share of the hours moved most between the
   first and second half of the weeks, when it moved by 15 points or more ("Cycling rose from 22% of your
   hours in the first half to 82% in the second."), else the share of the sport with most hours; with one
-  sport, how its weekly hours moved between the halves when they changed by a quarter, else what they
+  sport, how its weekly hours moved between the halves when they changed by a quarter from at least half an hour a week, else what they
   averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week, hours of each
   sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest

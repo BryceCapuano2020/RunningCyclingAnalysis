@@ -49,6 +49,15 @@ describe('What is calculated', () => {
     expect(unavailable[0]?.line).toMatch(/sleep, heart-rate variability and resting heart rate/)
   })
 
+  it('says what the figures come from, and where a file’s own values are the device’s', () => {
+    expect(STATE_COPY.calculated.line).toMatch(/year of birth, sex and weight/)
+    const read = CALCULATION_ITEMS.find((item) => item.name.startsWith('Sport, start time'))
+    expect(read?.line).toMatch(/activity type/)
+    expect(read?.line).toMatch(/GPS positions with bad fixes dropped/)
+    const race = CALCULATION_ITEMS.find((item) => item.name === 'Race predictions')
+    expect(race?.line).toMatch(/weekly running distance/)
+  })
+
   it('gives each state at least one item, and each name once', () => {
     for (const state of STATE_ORDER) expect(namesIn(state).length).toBeGreaterThan(0)
     const names = CALCULATION_ITEMS.map((item) => item.name)
