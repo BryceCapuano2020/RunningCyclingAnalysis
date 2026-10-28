@@ -5,15 +5,13 @@ import { keptLibraryHinted } from './keptLibrary'
 import type { LibraryStatus } from './model'
 
 /**
- * Whether a request tries the library kept in this browser again, or puts the sample in place of it,
- * so a refusal reported earlier no longer stands. The worker reports a new one before the request's
- * reply if the attempt fails too.
+ * Whether a request writes to the library kept in this browser again, so a refusal reported earlier no
+ * longer stands. The worker reports a new one before the request's reply if the attempt fails too. A
+ * read does not: the library the sign-out loads is where a copy that could not be deleted shows.
  */
 function retriesDevice(request: WorkerRequest): boolean {
   return (
     (request.type === 'addFiles' && request.saveToDevice === true) ||
-    request.type === 'loadDevice' ||
-    request.type === 'loadSample' ||
     request.type === 'deleteDeviceActivity' ||
     (request.type === 'clear' && request.forgetDevice === true)
   )
@@ -62,11 +60,24 @@ export function useLibraryState() {
     setLibraryStatus(next)
   }, [])
 
+  /**
+   * Drops the news of imports that no longer show, which an account change or the sample replaces. A
+   * refusal to delete is about what this browser still holds, which outlives both, so it stays.
+   */
+  const dropNotSaved = useCallback(
+    () => setDeviceIssue((issue) => (issue?.issue === 'notSaved' ? null : issue)),
+    [],
+  )
+
   /** Clears what a request replaces: an unreadable count a library load reports afresh, and a refusal it retries. */
-  const resetNoticesFor = useCallback((request: WorkerRequest) => {
-    if (request.type === 'loadServer' || request.type === 'rebuildStale') setLibraryUnreadable(0)
-    if (retriesDevice(request)) setDeviceIssue(null)
-  }, [])
+  const resetNoticesFor = useCallback(
+    (request: WorkerRequest) => {
+      if (request.type === 'loadServer' || request.type === 'rebuildStale') setLibraryUnreadable(0)
+      if (request.type === 'loadSample' || request.type === 'loadDevice') dropNotSaved()
+      if (retriesDevice(request)) setDeviceIssue(null)
+    },
+    [dropNotSaved],
+  )
 
   return {
     libraryStatus,
@@ -87,6 +98,7 @@ export function useLibraryState() {
     setLibraryUnreadable,
     deviceIssue,
     setDeviceIssue,
+    dropNotSaved,
     resetNoticesFor,
     savedActivities,
     savedActivitiesRef,

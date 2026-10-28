@@ -874,7 +874,7 @@ describe('useAnalysis account handling', () => {
       expect(result.current.deviceIssue).toBeNull()
     })
 
-    it('drops the refusal when the sample is loaded, and when the visitor signs in', () => {
+    it('drops the news of unsaved imports when the sample is loaded, and when the visitor signs in', () => {
       const { result, rerender } = setup(SIGNED_OUT)
       finishDeviceLoad(STATE)
       act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
@@ -883,9 +883,34 @@ describe('useAnalysis account handling', () => {
       act(() => result.current.loadSample())
       expect(result.current.deviceIssue).toBeNull()
 
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      expect(result.current.deviceIssue).toBeNull()
+    })
+
+    it('keeps a refused delete through the sample and an account change, since the copy stays in this browser', () => {
+      const { result, rerender } = setup(SIGNED_OUT)
+      finishDeviceLoad(STATE)
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+
+      act(() => result.current.loadSample())
+      expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
+
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
+    })
+
+    it('keeps a refused signed-in delete through sign-out, until this browser is asked again', () => {
+      const { result, rerender } = setup(SIGNED_IN_KEEP)
+      finishLibraryLoad(STATE)
       act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
       expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
-      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
+
+      // The worker that started on sign-out reads this browser's library, which retries it.
+      act(() => result.current.clear())
       expect(result.current.deviceIssue).toBeNull()
     })
 

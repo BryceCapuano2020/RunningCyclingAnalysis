@@ -187,7 +187,7 @@ describe('device library actions', () => {
     const unreadable: DeviceLibrary = {
       ...memoryDeviceLibrary(),
       clear: () => Promise.reject(new Error('Device storage failed')),
-      all: () => Promise.reject(new Error('Device storage failed')),
+      allStrict: () => Promise.reject(new Error('Device storage failed')),
     }
     const { actions, posted } = setup(unreadable)
 

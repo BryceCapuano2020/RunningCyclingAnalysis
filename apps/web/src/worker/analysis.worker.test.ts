@@ -1286,6 +1286,7 @@ function refusingLibrary(): DeviceLibrary {
   const refused = () => Promise.reject(new Error('Device storage is unavailable'))
   return {
     all: async () => [],
+    allStrict: async () => [],
     get: async () => null,
     route: async () => null,
     put: refused,
@@ -1579,6 +1580,29 @@ describe('device library', () => {
     // Both copies were offered to storage and refused, yet it is one workout.
     expect(attempts).toBe(2)
     expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notSaved', count: 1 })
+  })
+
+  it('says nothing about saving when another copy of the refused workout was kept', async () => {
+    const memory = memoryDeviceLibrary()
+    let attempts = 0
+    kept.library = {
+      ...memory,
+      put: (...args) =>
+        ++attempts === 1 ? memory.put(...args) : Promise.reject(new Error('QuotaExceededError')),
+    }
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [gpxFile(), fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(attempts).toBe(2)
+    expect(messages.some((message) => message.type === 'deviceIssue')).toBe(false)
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 1 } })
   })
 
   it('says nothing about saving when every activity of the import was kept', async () => {

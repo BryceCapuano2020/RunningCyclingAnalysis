@@ -123,7 +123,7 @@ function keepScreenAfterExpiry(deps: AccountTransitionDeps): void {
   // The account's list is no longer this visitor's to manage, and it is not the browser's either.
   deps.library.setSavedActivities([])
   deps.library.setLibraryUnreadable(0)
-  deps.library.setDeviceIssue(null)
+  deps.library.dropNotSaved()
   for (const files of drainBatches(deps.library.libraryWaitRef)) deps.addFiles(files)
 }
 
@@ -158,7 +158,7 @@ function switchAccount(deps: AccountTransitionDeps): void {
   transport.setWorkerStopped(false)
   library.setMissingOriginals(0)
   library.setLibraryUnreadable(0)
-  library.setDeviceIssue(null)
+  library.dropNotSaved()
   library.setSavedActivities([])
   imports.setImportOutcome(null)
   library.setLibrary('idle')
@@ -175,7 +175,7 @@ function startSession(deps: AccountTransitionDeps): void {
   // worker's account pass loads the library.
   deps.imports.setState(EMPTY_SESSION)
   deps.imports.setImportOutcome(null)
-  deps.library.setDeviceIssue(null)
+  deps.library.dropNotSaved()
   deps.setError(null)
   deps.transport.restartWorker()
 }
@@ -190,7 +190,7 @@ function loadSignedInLibrary(deps: AccountTransitionDeps, userId: string): void 
   // The analysis queued ahead of this load means each file is analysed twice. Restarting the worker
   // would avoid that, but a restart re-enters this transition, so the repeat is left as it is.
   const batches = drainBatches(deps.imports.provisionalImportsRef)
-  deps.library.setDeviceIssue(null)
+  deps.library.dropNotSaved()
   if (batches.length > 0) {
     deps.clearSession()
     deps.library.libraryWaitRef.current.push(...batches)

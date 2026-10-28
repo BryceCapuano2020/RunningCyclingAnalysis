@@ -124,8 +124,9 @@ export function deviceActions(
       } catch {
         // A clear is refused too when storage cannot be opened at all, with nothing ever kept. Only
         // what remains reloads next visit, so the page shows that and says so. The page still starts
-        // over, and the next read loads what remains into the session.
-        const remaining = await device.all().catch(() => null)
+        // over, and the next read loads what remains into the session. A read that fails after the
+        // refusal leaves it unknown what remains, so that is said too.
+        const remaining = await device.allStrict().catch(() => null)
         if (remaining === null || remaining.length > 0) {
           held = false
           if (remaining !== null)
