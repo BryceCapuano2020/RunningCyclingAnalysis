@@ -1,3 +1,4 @@
+import './zodConfig.ts'
 import { z } from 'zod'
 import { MODEL_REVISION } from '@rca/core/digest/modelRevision'
 import { ActivityDigestSchema, StoredActivityDigestSchema } from './digest.ts'

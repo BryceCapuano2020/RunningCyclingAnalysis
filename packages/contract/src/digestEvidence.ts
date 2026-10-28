@@ -1,3 +1,4 @@
+import './zodConfig.ts'
 import { z } from 'zod'
 import { DISTRIBUTION_BINS, DURABILITY_AFTER_S, DURABILITY_DURATIONS_S } from '@rca/core/constants'
 import type { DistributionMeasure } from '@rca/core/constants'

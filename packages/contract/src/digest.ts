@@ -1,3 +1,4 @@
+import './zodConfig.ts'
 import { z } from 'zod'
 import {
   DURATIONS_S,
@@ -8,9 +9,6 @@ import {
 import type { ActivityDigest } from '@rca/core/types'
 import { checkEvidence, evidenceFields } from './digestEvidence.ts'
 import { MAX_DIGEST_BYTES } from './limits.ts'
-
-// These contracts run in strict-CSP browsers and Workers, where dynamic code generation is blocked.
-z.config({ jitless: true })
 
 /**
  * JSON has no NaN: JSON.stringify writes non-finite numbers as null. Fields typed `number` in
