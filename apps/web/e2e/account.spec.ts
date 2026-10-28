@@ -350,8 +350,10 @@ test('saved activity deletion requires confirmation and persists after reload', 
   await deleteButton(list, record.digest.name).click()
   await list.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect.poll(async () => (await apiActivities(page.request)).length, IMPORT).toBe(0)
-  // The only activity is gone, so the list has nothing left to show.
-  await expect(list.getByRole('button', { name: /^Delete / })).toHaveCount(0)
+  // The only activity is gone, so no list is left to say so; the notices do.
+  await expect(
+    page.getByRole('status').filter({ hasText: `Deleted ${record.digest.name}` }),
+  ).toBeVisible()
   await page.reload()
   await expect(accountButton(page)).toBeVisible()
   expect((await page.request.get(`/api/activities/${record.id}/file`)).status()).toBe(404)

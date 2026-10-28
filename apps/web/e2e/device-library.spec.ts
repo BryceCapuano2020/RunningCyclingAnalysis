@@ -181,8 +181,9 @@ test('deleting the last kept activity from the Activities page leaves nothing ke
   await page.getByRole('button', { name: /^Delete / }).click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-  // Nothing is left to analyse, so the page asks for files again, and nothing is kept on Profile.
+  // Nothing is left to analyse, so the page asks for files again, and the notices say what was deleted.
   await expect(page.getByText('Add your files to see this page.')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Deleted / })).toBeVisible()
   await goTo(page, 'Profile')
   await expect(keptList(page)).toHaveCount(0)
   expect(errors).toEqual([])

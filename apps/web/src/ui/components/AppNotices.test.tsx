@@ -44,6 +44,36 @@ describe('AppNotices live regions', () => {
     for (const region of regions) expect(region).toBeEmptyDOMElement()
   })
 
+  it('says how a deletion ended when no result is left for a page to say it on', () => {
+    const props = noticesProps()
+    const view = render(<AppNotices {...props} />)
+    const regions = statusRegions()
+
+    props.analysis.libraryNotice = 'Deleted Morning run (20/10/2026).'
+    view.rerender(<AppNotices {...props} />)
+
+    const notice = screen.getByText('Deleted Morning run (20/10/2026).')
+    expect(regions).toContain(notice.closest('[role="status"]'))
+
+    props.analysis.libraryError = 'Could not delete Evening run. Try again.'
+    view.rerender(<AppNotices {...props} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not delete Evening run. Try again.')
+  })
+
+  it('leaves the deletion outcome to the page when a result is on screen', () => {
+    render(
+      <AppNotices
+        {...noticesProps({
+          state: { result: makeResult() },
+          libraryNotice: 'Deleted Morning run (20/10/2026).',
+          libraryError: 'Could not delete Evening run. Try again.',
+        })}
+      />,
+    )
+    expect(screen.queryByText(/Deleted Morning run/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('announces the sample athlete in a region that was already on the page', () => {
     const props = noticesProps()
     const view = render(<AppNotices {...props} />)

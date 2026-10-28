@@ -746,9 +746,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
   than your cycling, on your best 20 min in each." When the gap's range spans zero, the best
   estimate is named and the range is given, under the title "Your running and cycling are in balance":
-  "On your best 20 min in each, your running grades 4 points higher than your cycling, within −2 to +10
-  points." When the best estimate is level: "On your best 20 min in each, your running and cycling grade
-  the same, within −2 to +2 points." Never "ahead of". Without an age and
+  "On your best 20 min in each, running's age grade is 4 points higher than cycling's, within −2 to +10
+  points, so the two are level." The range is read from the leading sport's side, so a cycling lead reads "cycling's
+  age grade is 4 points higher than running's, within −2 to +10 points". When the best estimate is level: "On your best 20 min in each, running and cycling have the same age grade, within −2 to +2 points, so the two are level." Never "ahead of". Without an age and
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
   cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
   levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence

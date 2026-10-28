@@ -48,6 +48,10 @@ export function AppNotices({
   const { result, isSample } = analysis.state
   const neutralStop = analysis.error !== null && analysis.errorNeutral
   const kept = analysis.savedActivities.length
+  // The pages say how a deletion ended beside the activity. With no result left, as when the last activity
+  // was deleted, no page does, so the notices say it.
+  const bareLibraryNotice = result === null ? analysis.libraryNotice : null
+  const bareLibraryError = result === null ? analysis.libraryError : null
   // The Activities subtitle gives the count, so this line says only where the library is kept.
   const keptText = signedIn ? 'Saved to your account.' : 'Kept in this browser.'
   return (
@@ -76,6 +80,14 @@ export function AppNotices({
         onRetry={() => runThenFocus(analysis.retryLibrary)}
       />
       {activitiesPage && kept > 0 && <p className="secondary">{keptText}</p>}
+      <p role="status" className={bareLibraryNotice === null ? 'sr-only' : 'notice'}>
+        {bareLibraryNotice ?? ''}
+      </p>
+      {bareLibraryError !== null && (
+        <p className="notice notice--critical" role="alert">
+          {bareLibraryError}
+        </p>
+      )}
       <p role="status" className={result !== null && isSample ? 'sample-banner' : 'sr-only'}>
         {result !== null && isSample ? SAMPLE_BANNER : ''}
       </p>

@@ -216,7 +216,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 4, low: -2, high: 10, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, your running grades 4 points higher than your cycling, within −2 to +10\u00a0points.',
+      'On your best 20\u00a0min in each, running’s age grade is 4 points higher than cycling’s, within −2 to +10\u00a0points, so the two are level.',
     )
   })
 
@@ -224,7 +224,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: 0, low: -2, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, your running and cycling grade the same, within −2 to +2\u00a0points.',
+      'On your best 20\u00a0min in each, running and cycling have the same age grade, within −2 to +2\u00a0points, so the two are level.',
     )
   })
 
@@ -232,7 +232,7 @@ describe('balanceSummary', () => {
     expect(
       balanceSummary(gapReading(gap({ centre: -4, low: -10, high: 2, lean: 'even' })), 1200),
     ).toBe(
-      'On your best 20\u00a0min in each, your cycling grades 4 points higher than your running, within −10 to +2\u00a0points.',
+      'On your best 20\u00a0min in each, cycling’s age grade is 4 points higher than running’s, within −2 to +10\u00a0points, so the two are level.',
     )
   })
 

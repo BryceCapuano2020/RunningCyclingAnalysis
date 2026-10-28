@@ -104,18 +104,23 @@ function leaningGradeSummary(reading: BalanceReading & { lean: Exclude<Lean, 'ev
 
 /**
  * A balance whose range spans zero. The title already says the two are in balance, so the line gives what
- * the grades say: the best estimate and the range around it, on the headline duration.
+ * the age grades say: the best estimate and the range around it, on the headline duration, and why that
+ * is level. The range is read from the leading sport's side, so its signs agree with the sentence: a
+ * cycling lead of 4 points is "within −2 to +10 points" for cycling, not −10 to +2 for running.
  */
 function inBalanceSummary(reading: BalanceReading): string {
-  const range = rangeText(reading)
   const centre = Math.round(reading.lead.centre)
   const duration = formatDuration(HEADLINE_DURATION_S).replace(' ', NO_BREAK)
   const on = `On your best ${duration} in each,`
+  const level = 'so the two are level.'
   if (centre === 0) {
-    return `${on} your running and cycling grade the same, within ${range}.`
+    return `${on} running and cycling have the same age grade, within ${rangeText(reading)}, ${level}`
   }
   const { leader, other } = leaderOf(centre > 0 ? 'run' : 'ride')
-  return `${on} your ${leader} grades ${points(Math.abs(centre))} higher than your ${other}, within ${range}.`
+  const { low, high } = reading.lead
+  const [from, to] = centre > 0 ? [low, high] : [-high, -low]
+  const range = `${signedCount(from)} to ${signedCount(to)}${NO_BREAK}points`
+  return `${on} ${leader}’s age grade is ${points(Math.abs(centre))} higher than ${other}’s, within ${range}, ${level}`
 }
 
 /** The energy ratio, as the balance is before the grades: how far one sport is higher, in percent. */
