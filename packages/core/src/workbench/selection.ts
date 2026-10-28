@@ -54,12 +54,17 @@ export function summarizeSelection(
   }
 }
 
-/** A deterministic histogram of moving-time observations, with no more than ten equal-width bins. */
+/**
+ * A deterministic histogram of moving-time observations, with no more than ten equal-width bins. With
+ * `within`, only observations from its low to its high are counted, so the bins span that band and a few
+ * outliers do not leave empty bins between the bars.
+ */
 export function distributionOf(
   trace: ActivityTrace,
   metric: TraceMetric,
   startS: number,
   endS: number,
+  within?: { low: number; high: number },
 ): Array<{ from: number; to: number; seconds: number }> {
   assertSelection(trace, startS, endS)
   const stream = trace.streams[metric]
@@ -68,6 +73,7 @@ export function distributionOf(
   for (let i = startS; i < endS; i++) {
     const value = stream[i]!
     if (!isTraceObservation(trace, metric, i)) continue
+    if (within !== undefined && (value < within.low || value > within.high)) continue
     values.push(value)
   }
   if (values.length === 0) return []

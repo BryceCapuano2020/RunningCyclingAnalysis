@@ -2,9 +2,16 @@ import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatRecordTime } from '@rca/core/units'
 import { ChartTable } from '../charts/ChartTable'
-import { distributionFor, selectionOf } from './workbenchData'
-import { DISTRIBUTION_METRICS, displayValue, metricLabel, readingRange } from './workbenchFormat'
-import { binRange, distributionTitle, noReadingLabel } from './workbenchText'
+import { axisFor, distributionFor, selectionOf } from './workbenchData'
+import {
+  DISTRIBUTION_METRICS,
+  displayValue,
+  isPaceReading,
+  metricLabel,
+  rangeHeadings,
+  readingRange,
+} from './workbenchFormat'
+import { beyondAxis, binRange, distributionTitle, noReadingLabel } from './workbenchText'
 
 /** The most sections the interval is cut into for the table. */
 const SECTIONS = 10
@@ -51,6 +58,23 @@ export function PlotTable({
     binRange(bin, metric, trace, units),
     formatRecordTime(bin.seconds),
   ])
+  // The time past a trimmed axis has its own rows at the ends, so the table still adds up to the moving time.
+  const axis = bins.length > 0 ? axisFor(trace, metric, startS, endS) : null
+  if (axis !== null) {
+    const { below, above } = beyondAxis(metric, trace, units, axis)
+    const [first, last] = isPaceReading(metric, trace.sport) ? [above, below] : [below, above]
+    const row = (item: typeof below) =>
+      item === null
+        ? []
+        : [
+            [
+              item.words.charAt(0).toUpperCase() + item.words.slice(1),
+              formatRecordTime(item.seconds),
+            ],
+          ]
+    binRows.unshift(...row(first))
+    binRows.push(...row(last))
+  }
   if (bins.length > 0 && missing > 0)
     binRows.push([noReadingLabel(metric, trace.sport), formatRecordTime(missing)])
   return (
@@ -58,7 +82,7 @@ export function PlotTable({
       <summary>View as table</summary>
       <ChartTable
         caption={`${label} by section of the interval`}
-        columns={['From', 'Average', 'Lowest', 'Highest']}
+        columns={['From', 'Average', ...rangeHeadings(metric, trace.sport)]}
         rows={sections}
       />
       {binRows.length > 0 && (

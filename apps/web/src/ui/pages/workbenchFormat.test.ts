@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { displayValue, metricUnit, readingRange } from './workbenchFormat'
+import { displayValue, metricUnit, rangeHeadings, readingRange } from './workbenchFormat'
 import { parseClockTime } from './workbenchTime'
 
 describe('workbenchFormat', () => {
@@ -21,6 +21,12 @@ describe('workbenchFormat', () => {
     expect(readingRange('speed', 'run', 2, 4)).toEqual({ lowest: 4, highest: 2 })
     expect(readingRange('speed', 'ride', 2, 4)).toEqual({ lowest: 2, highest: 4 })
     expect(readingRange('heartRate', 'run', 100, 160)).toEqual({ lowest: 100, highest: 160 })
+  })
+
+  it('names a pace’s extremes fastest and slowest, and any other measure’s lowest and highest', () => {
+    expect(rangeHeadings('speed', 'run')).toEqual(['Fastest', 'Slowest'])
+    expect(rangeHeadings('speed', 'ride')).toEqual(['Lowest', 'Highest'])
+    expect(rangeHeadings('heartRate', 'run')).toEqual(['Lowest', 'Highest'])
   })
 })
 

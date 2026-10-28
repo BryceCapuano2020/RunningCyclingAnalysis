@@ -41,11 +41,6 @@
   min-width: 0;
 }
 
-.activity-workbench__input-row input[type='range'] {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .activity-workbench__input-row input[type='number'] {
   width: 6rem;
   min-height: var(--control-height);
@@ -192,6 +187,20 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* A reading past the axis is a dot on its edge: the plot's line is clamped there. */
+.activity-workbench__clipped {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.activity-workbench__note {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
 .activity-workbench__axis {
   grid-column: 2;
   display: flex;
@@ -290,15 +299,11 @@
   .activity-workbench__input-row {
     flex-wrap: wrap;
   }
-
-  .activity-workbench__input-row input[type='range'] {
-    flex-basis: 100%;
-    order: 1;
-  }
 }
 
 @media (forced-colors: active) {
-  .activity-workbench__line {
+  .activity-workbench__line,
+  .activity-workbench__clipped {
     stroke: CanvasText;
   }
 

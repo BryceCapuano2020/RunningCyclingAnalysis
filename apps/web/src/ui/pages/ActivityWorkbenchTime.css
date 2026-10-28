@@ -1,0 +1,83 @@
+/*
+ * The interval's sliders. The native control is kept, so it keeps its keyboard and touch behaviour, and
+ * only its track and thumb are drawn from the tokens. The input is a control tall, which is the thumb's
+ * touch target; the track and the thumb are drawn inside it.
+ */
+.activity-workbench__input-row input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--control-height);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.activity-workbench__input-row input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid var(--control-border);
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.activity-workbench__input-row input[type='range']::-moz-range-track {
+  height: 6px;
+  border: 1px solid var(--control-border);
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.activity-workbench__input-row input[type='range']::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  margin-top: -9px;
+  border: 3px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--selected);
+  box-shadow: 0 0 0 1px var(--control-border);
+  appearance: none;
+}
+
+.activity-workbench__input-row input[type='range']::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--surface-1);
+  border-radius: 50%;
+  background: var(--selected);
+  box-shadow: 0 0 0 1px var(--control-border);
+}
+
+.activity-workbench__input-row input[type='range']:hover::-webkit-slider-thumb {
+  background: var(--accent-hover);
+}
+
+.activity-workbench__input-row input[type='range']:hover::-moz-range-thumb {
+  background: var(--accent-hover);
+}
+
+.activity-workbench__input-row input[type='range']:focus-visible {
+  outline-offset: 2px;
+}
+
+/* On a phone the slider takes a line of its own, under the typed time. */
+@media (max-width: 479px) {
+  .activity-workbench__input-row input[type='range'] {
+    flex-basis: 100%;
+    order: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .activity-workbench__input-row input[type='range']::-webkit-slider-runnable-track,
+  .activity-workbench__input-row input[type='range']::-moz-range-track {
+    border-color: ButtonText;
+    background: Canvas;
+  }
+
+  .activity-workbench__input-row input[type='range']::-webkit-slider-thumb,
+  .activity-workbench__input-row input[type='range']::-moz-range-thumb {
+    border-color: Canvas;
+    background: ButtonText;
+  }
+}

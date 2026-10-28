@@ -4,7 +4,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatRecordTime } from '@rca/core/units'
 import { PlotDistribution } from './ActivityWorkbenchDistribution'
 import { PlotTable } from './ActivityWorkbenchPlotTable'
-import { plotRunsFor, selectionOf } from './workbenchData'
+import { axisFor, plotRunsFor } from './workbenchData'
 import type { PlotRun } from './workbenchDownsample'
 import {
   DISTRIBUTION_METRICS,
@@ -13,6 +13,7 @@ import {
   metricUnit,
   readingRange,
 } from './workbenchFormat'
+import { beyondAxis, beyondNote } from './workbenchText'
 
 const WIDTH = 600
 const HEIGHT = 180
@@ -33,15 +34,14 @@ export function ActivityWorkbenchPlot({
   const titleId = useId()
   if (!trace.streams[metric]) return null
   const label = metricLabel(metric, trace.sport)
-  const stats = selectionOf(trace, startS, endS).metrics[metric]
-  if (!stats || stats.min === null || stats.max === null)
-    return <p className="secondary">{label}: none in this interval.</p>
+  const axis = axisFor(trace, metric, startS, endS)
+  if (axis === null) return <p className="secondary">{label}: none in this interval.</p>
 
-  const low = stats.min
-  const high = stats.max
+  const { low, high } = axis
   const text = (value: number) => displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
-  const path = pathOf(plotRunsFor(trace, metric, startS, endS), low, high, startS, endS)
+  const runs = plotRunsFor(trace, metric, startS, endS)
   const range = readingRange(metric, trace.sport, low, high)
+  const note = beyondNote(beyondAxis(metric, trace, units, axis))
   const summary = `${label} from ${formatRecordTime(startS)} to ${formatRecordTime(endS)}, ${low === high ? `steady at ${text(low)}` : `between ${text(range.lowest)} and ${text(range.highest)}`}`
   return (
     <figure className="activity-workbench__plot" aria-labelledby={titleId}>
@@ -59,13 +59,20 @@ export function ActivityWorkbenchPlot({
           aria-label={summary}
           preserveAspectRatio="none"
         >
-          <path className="activity-workbench__line" d={path} />
+          <path className="activity-workbench__line" d={pathOf(runs, low, high, startS, endS)} />
+          {note !== null && (
+            <path
+              className="activity-workbench__clipped"
+              d={clippedMarks(runs, low, high, startS, endS)}
+            />
+          )}
         </svg>
         <div className="activity-workbench__axis" aria-hidden="true">
           <span>{formatRecordTime(startS)}</span>
           <span>{formatRecordTime(endS)}</span>
         </div>
       </div>
+      {note !== null && <p className="muted activity-workbench__note">{note}</p>}
       {DISTRIBUTION_METRICS.includes(metric) && (
         <PlotDistribution trace={trace} metric={metric} units={units} startS={startS} endS={endS} />
       )}
@@ -74,19 +81,49 @@ export function ActivityWorkbenchPlot({
   )
 }
 
+/** A reading's place on the plot, from the left edge and from the top. A reading past the axis sits on its edge. */
+function placeOf(
+  point: PlotRun[number],
+  low: number,
+  high: number,
+  startS: number,
+  endS: number,
+): { x: number; y: number } {
+  const span = Math.max(1, endS - startS)
+  const x = ((point.timeS - startS) / span) * WIDTH
+  if (high === low) return { x, y: HEIGHT / 2 }
+  const y = HEIGHT - ((point.value - low) / (high - low)) * HEIGHT
+  return { x, y: Math.min(HEIGHT, Math.max(0, y)) }
+}
+
 /** The runs as one path. A single reading is a zero-length stroke, drawn as a dot by the round cap. */
 function pathOf(runs: PlotRun[], low: number, high: number, startS: number, endS: number): string {
-  const span = Math.max(1, endS - startS)
   return runs
     .map((run) =>
       run
         .map((point, index) => {
-          const x = ((point.timeS - startS) / span) * WIDTH
-          const y =
-            high === low ? HEIGHT / 2 : HEIGHT - ((point.value - low) / (high - low)) * HEIGHT
+          const { x, y } = placeOf(point, low, high, startS, endS)
           return `${index === 0 ? 'M' : 'L'} ${x} ${y}${run.length === 1 ? ` L ${x} ${y}` : ''}`
         })
         .join(' '),
     )
+    .join(' ')
+}
+
+/** A dot on the axis edge for each reading past it, so a clipped reading is seen and not lost. */
+function clippedMarks(
+  runs: PlotRun[],
+  low: number,
+  high: number,
+  startS: number,
+  endS: number,
+): string {
+  return runs
+    .flat()
+    .filter((point) => point.value < low || point.value > high)
+    .map((point) => {
+      const { x, y } = placeOf(point, low, high, startS, endS)
+      return `M ${x} ${y} L ${x} ${y}`
+    })
     .join(' ')
 }

@@ -1,8 +1,19 @@
-import { detectIntervals, distributionOf, summarizeSelection } from '@rca/core/workbench'
-import type { ActivityLap, ActivityTrace, SelectionSummary, TraceMetric } from '@rca/core/workbench'
+import {
+  detectIntervals,
+  distributionOf,
+  readingBand,
+  summarizeSelection,
+} from '@rca/core/workbench'
+import type {
+  ActivityLap,
+  ActivityTrace,
+  ReadingBand,
+  SelectionSummary,
+  TraceMetric,
+} from '@rca/core/workbench'
 import { downsampleActivityTrace } from './workbenchDownsample'
 import type { PlotRun } from './workbenchDownsample'
-import { SPORT_READING } from './workbenchFormat'
+import { SPORT_READING, TRIMMED_METRICS, isPaceReading } from './workbenchFormat'
 
 export type DistributionBin = { from: number; to: number; seconds: number }
 
@@ -51,6 +62,26 @@ export function selectionOf(trace: ActivityTrace, startS: number, endS: number):
   )
 }
 
+/**
+ * What a measure's plot axis and histogram span over a selection, and the moving seconds beyond each end.
+ * A trimmed measure leaves out its few extreme readings; any other spans all of them. Null with no readings.
+ */
+export function axisFor(
+  trace: ActivityTrace,
+  metric: TraceMetric,
+  startS: number,
+  endS: number,
+): ReadingBand | null {
+  return remembered(trace, `axis:${metric}:${startS}:${endS}`, () => {
+    const stats = selectionOf(trace, startS, endS).metrics[metric]
+    if (stats === undefined || stats.min === null || stats.max === null) return null
+    if (TRIMMED_METRICS[metric] === undefined) {
+      return { low: stats.min, high: stats.max, below: 0, above: 0 }
+    }
+    return readingBand(readableTrace(trace), metric, startS, endS)
+  })
+}
+
 /** The histogram bins in the order the page reads them: a pace from its fastest bin to its slowest. */
 export function distributionFor(
   trace: ActivityTrace,
@@ -60,10 +91,10 @@ export function distributionFor(
 ): DistributionBin[] {
   return remembered(trace, `distribution:${metric}:${startS}:${endS}`, () => {
     // A measure that never moved has no spread to show.
-    const stats = selectionOf(trace, startS, endS).metrics[metric]
-    if (stats === undefined || stats.min === stats.max) return []
-    const bins = distributionOf(readableTrace(trace), metric, startS, endS)
-    return metric === 'speed' && SPORT_READING[trace.sport].speedIsPace ? bins.reverse() : bins
+    const axis = axisFor(trace, metric, startS, endS)
+    if (axis === null || axis.low === axis.high) return []
+    const bins = distributionOf(readableTrace(trace), metric, startS, endS, axis)
+    return isPaceReading(metric, trace.sport) ? bins.reverse() : bins
   })
 }
 

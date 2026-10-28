@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { parseClockTime } from './workbenchTime'
 import type { Selection } from './workbenchTime'
+import './ActivityWorkbenchTime.css'
 
 /** The selected interval, as a slider and a typed time for each end. */
 export function TimeSelection({
