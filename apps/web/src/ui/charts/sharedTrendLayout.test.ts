@@ -4,12 +4,8 @@ import type { ChartSize, PlotBox } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
-import {
-  BAND_CLEAR_PX,
-  LABEL_REACH_EM,
-  endLabelGutter,
-  sharedTrendLayout,
-} from './sharedTrendLayout'
+import { BAND_CLEAR_PX, LABEL_REACH_EM, sharedTrendLayout } from './sharedTrendLayout'
+import { endLabelGutter } from './sharedTrendGutter'
 import type { EndLabel, SharedLayout } from './sharedTrendLayout'
 
 /** Sunday 12 January 2025, 23:59:59.999 UTC: the end of the first week. */

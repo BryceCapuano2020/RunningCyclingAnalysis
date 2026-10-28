@@ -157,7 +157,10 @@ describe('ImportStatus: the busy strip', () => {
   it('shows the strip and Stop once the work has lasted about 400 ms', () => {
     renderStatus({ busy: true, progress: { filesRead: 13, filesTotal: 23 } })
     afterDelay()
-    expect(screen.getByText('Reading 13 of 23 activity files')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Reading 13 of 23 activity files')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
     expect(screen.getByRole('button', { name: 'Stop current analysis' })).toBeVisible()
   })
 
@@ -217,7 +220,10 @@ describe('ImportStatus: the busy strip', () => {
   it('says how many of the files are read when the total is known', () => {
     renderStatus({ busy: true, progress: { filesRead: 214, filesTotal: 1032 } })
     afterDelay()
-    expect(screen.getByText('Reading 214 of 1,032 activity files')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Reading 214 of 1,032 activity files')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
   })
 
   it('uses the singular for a total of one file', () => {

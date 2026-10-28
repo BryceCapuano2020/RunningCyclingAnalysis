@@ -14,7 +14,8 @@ import type { SharedMeasure } from './sharedTrendText'
 export type { SharedMeasure } from './sharedTrendText'
 import { lastAtOrBefore } from './hover'
 import { stepBandPath, stepPath } from './paths'
-import { endLabelGutter, sharedTrendLayout } from './sharedTrendLayout'
+import { endLabelGutter } from './sharedTrendGutter'
+import { sharedTrendLayout } from './sharedTrendLayout'
 import {
   HELD_EMPTY,
   HELD_NOTE,
