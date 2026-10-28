@@ -333,28 +333,30 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
     can be a best leaving the 4-week window, not a change in you." The window is the one the chart uses.
   - **Late in long sessions** is the last section. It holds two readings, each with its own sentence, chart and
     note, and each shown only once 3 activities stand behind it (`LATE_IN_EFFORT` in
-    `packages/core/src/constants.ts`). The first compares the best 5 and 20 min fresh with the best that
-    starts after 60, 90 and 120 min of moving time (`periodDurability`). Its sentence takes the deepest level
-    with 3 activities behind it, at the longest duration that has them, and does not count them: "After 90 min
-    your best 20 min is 6% below your fresh best." (or "above", or "is within 1% of" when it rounds to under
-    1%). The note gives the count ("Your best 20 min after 90 min rests on 4 rides."), says that a lower figure
-    late on can also mean the run never asked for more, and for a ride that only a power meter counts. The
-    chart is a row for the fresh best and one for each level shown, in the sport's own unit (a pace for a run,
-    which is the flat speed the late best costs, and watts for a ride), a mark on a track with better to the
-    right and a stem back to a dashed line at the fresh best. The track spans at least a fifth of the fresh
-    best, so a small fall stays a short stem. **View as table** lists each figure with its fall against fresh
-    and the activities behind it. The second reading is the drift of steady efforts over an hour
-    (`driftTrend`): "On steady runs over an hour, your output per heartbeat fell 3% from the first half to the
-    second (median of 12 runs)." (or "rose", or "held level" when it rounds to under 1%). The chart is a dot
-    for each steady effort by date, its fall in percent, with no line between them, and a dashed line at 5%
-    named in the key as "5%: under this is usually read as well-built endurance". That is a coaching
+    `packages/core/src/constants.ts`). The first compares the best 5 and 20 min overall, from any point in an
+    effort, with the best that starts after 60, 90 and 120 min of moving time (`periodDurability`). Its
+    sentence takes the deepest level with 3 activities behind it, at the longest duration that has them, and
+    does not count them: "After 90 min your best 20 min is 6% below your best 20 min overall." (or "above", or
+    "is within 1% of" when it rounds to under 1%). The note gives the count ("Your best 20 min after 90 min
+    rests on 4 rides."), says that a lower figure late on can also mean the run never asked for more, and for a
+    ride that only a power meter counts. The chart is a row for the best overall and one for each level shown,
+    in the sport's own unit (a pace for a run, which is the flat speed the late best costs, and watts for a
+    ride), a mark on a track with better to the right and a stem back to a dashed line at the best overall. The
+    track spans at least a fifth of the best overall, so a small fall stays a short stem. **View as table**
+    lists each figure with its fall against the best overall and the activities behind it. The second reading
+    is the drift of steady efforts over an hour (`driftTrend`): "On steady runs over an hour, your output per
+    heartbeat fell 3% from the first half to the second (median of 12 runs)." (or "rose", or "held level" when
+    it rounds to under 1%). The chart is a dot for each steady effort by date, its change in output per
+    heartbeat in percent (a fall is below zero), with no line between them, and a dashed line at a 5% fall
+    named in the key as "A fall of 5%: under this is usually read as well-built endurance". That is a coaching
     convention (`docs/research/durability.md`), a light reference and not a verdict, and the note says that
-    heat, hydration and tiredness also move heart rate, so a change is not fitness. An activity whose
-    heart rate is set aside has no drift. A half with too few activities is left out and named in the "Not
-    enough yet" list, such as "Late in long sessions: add 3 runs longer than an hour." (a ride adds "with a
-    power meter") or "Late in long sessions: needs 3 steady runs over an hour with heart rate to show how
-    output per heartbeat changes."; with neither, the section has no heading. The copy never says limiter,
-    weak, strength, "holding you back" or "ahead of".
+    heat, hydration and tiredness also move heart rate, so a change is not fitness. An activity whose heart
+    rate is set aside has no drift. A half with too few activities is left out and named in the "Not enough
+    yet" list, such as "Late in long sessions: add 3 runs longer than an hour." (a ride adds "with a power
+    meter") or "Late in long sessions: needs 3 steady runs over an hour with heart rate to show how output per
+    heartbeat changes." (a ride needs a power meter and heart rate). With neither, the section has no heading
+    and the line names both needs. The copy never says limiter, weak, strength, "holding you back" or "ahead
+    of".
   - **A section with nothing to show has no heading.** Its reason is one line of a muted list at the end of the
     page, headed "Not enough yet", before the footnote: "Race predictions: needs a best of a mile or more, or
     runs with heart rate." Each section names its need in the plain words it would have used under its own
@@ -612,14 +614,19 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   carries estimated watts.
 - **How your reps held up** sits in an activity's In detail section, under the lap buttons, when the activity
   has at least 3 laps (the device's, or the suggested intervals when it recorded none) of about one length:
-  within 20% of the middle one's duration. Where hard laps and easy ones are of one length, the table keeps the
-  hard ones, split where the sorted outputs part by 15% or more, and laps that run straight into each other
-  are splits of one effort, not reps, so they get no table. One sentence leads, naming the rep that differs
-  most from rep 1: "Rep 6 was 4% slower than rep 1." (a ride's power: "Rep 3 averaged 4% less power than
-  rep 1."), or "Your reps stayed within 2%." when the widest gap rounds to 2% or less. The table lists each rep
-  with its time, average pace or power (a ride's speed when it has no power) and average heart rate, and
-  drops the heart-rate column when no rep has one. A rep's button selects its lap as the lap buttons do.
-  The rules are in `apps/web/src/ui/pages/intervalFade.ts`.
+  within 20% of the middle one's duration. Recoveries between reps are left out only where they alternate with
+  the reps: where the sorted outputs part by 15% or more and the hard laps all sit at places of one parity, the
+  laps at those places are the reps, so a rep that fell to the recoveries' pace stays in. With any other
+  pattern every lap is a rep, so a rep that blew up is the fade shown. Laps that run straight into each other
+  are splits of one effort, not reps, so they get no table. Every rep needs the measure it is read in, and none
+  is dropped for want of one. A run is read as flat pace where its altitude gives a grade for each rep, so a hill
+  does not pass for a fade, and as recorded pace otherwise. A ride is read by its power; without power, by speed
+  on a trainer only, and an outdoor ride without power gets no table. One sentence leads, naming the rep that
+  differs most from rep 1: "Rep 6 was 4% slower than rep 1." (a ride's power: "Rep 3 averaged 4% less power
+  than rep 1."), or "Your reps stayed within 2%." when the widest unrounded gap is 2% or less. The table lists
+  each rep with its time, average pace or power and average heart rate, and drops the heart-rate column when no
+  rep has one. A rep's button selects its lap as the lap buttons do. The rules are in
+  `apps/web/src/ui/pages/intervalFade.ts`.
 - **An activity page reads top to bottom:** the name, the sport, the day and start time (with an
   **Indoor** chip for a trainer ride), the route when it was kept, then the moving time as the hero, with
   the elapsed time under it when the file kept both. Distance, average pace or speed over the moving time,

@@ -26,14 +26,14 @@ describe('DriftChart', () => {
     renderChart()
     expect(
       screen.getByRole('figure', {
-        name: 'Fall in output per heartbeat on steady runs, first half to second',
+        name: 'Change in output per heartbeat on steady runs, first half to second',
       }),
     ).toBeInTheDocument()
     cleanup()
     renderChart('ride')
     expect(
       screen.getByRole('figure', {
-        name: 'Fall in output per heartbeat on steady rides, first half to second',
+        name: 'Change in output per heartbeat on steady rides, first half to second',
       }),
     ).toBeInTheDocument()
   })
@@ -50,7 +50,7 @@ describe('DriftChart', () => {
     expect(screen.getByText(DECOUPLING_REFERENCE)).toBeInTheDocument()
   })
 
-  it('puts a bigger fall higher, and the reference between the 4% and the 6% dots', () => {
+  it('puts a fall below zero, a bigger fall lower, and the 5% fall line between the 4% and the 6% dots', () => {
     const { container } = renderChart()
     const dots = Array.from(container.querySelectorAll('[data-testid="drift-dot"]')).map((d) =>
       Number(d.getAttribute('cy')),
@@ -58,10 +58,23 @@ describe('DriftChart', () => {
     const reference = Number(
       container.querySelector('[data-testid="drift-reference"]')!.getAttribute('y1'),
     )
-    // SVG y grows downwards: the 6% dot (index 3) is above the reference, the 4% dot (index 4) below it.
-    expect(dots[3]).toBeLessThan(reference)
-    expect(dots[4]).toBeGreaterThan(reference)
-    expect(dots[3]).toBeLessThan(dots[0]!)
+    // SVG y grows downwards: the 6% fall (index 3) is below the 5% line, the 4% fall (index 4) above it.
+    expect(dots[3]).toBeGreaterThan(reference)
+    expect(dots[4]).toBeLessThan(reference)
+    expect(dots[3]).toBeGreaterThan(dots[0]!)
+  })
+
+  it('draws a rise above zero and reads it as a rise', () => {
+    const rising = driftPoints([-3, 2, 4])
+    const { container } = render(<DriftChart sport="run" points={rising} names={{}} note={NOTE} />)
+    const [rise, fall] = Array.from(container.querySelectorAll('[data-testid="drift-dot"]')).map(
+      (d) => Number(d.getAttribute('cy')),
+    )
+    expect(rise).toBeLessThan(fall!)
+    expect(container.querySelector('.chart-y-axis__title')?.textContent).toBe(
+      'Change in output per heartbeat (%)',
+    )
+    expect(within(screen.getByRole('table')).getByText('Rose 3%')).toBeInTheDocument()
   })
 
   it('keeps zero on the axis, so a small fall is read against it', () => {
@@ -70,6 +83,7 @@ describe('DriftChart', () => {
       (t) => t.textContent,
     )
     expect(labels).toContain('0%')
+    expect(labels).toContain('-6%')
   })
 
   it('names the effort and its change in a tooltip when a point is read with the arrow keys', () => {

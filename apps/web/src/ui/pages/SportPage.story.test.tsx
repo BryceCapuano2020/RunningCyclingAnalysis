@@ -194,7 +194,7 @@ describe('a sport page with sections that have nothing to show', () => {
       expect.stringMatching(
         /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
       ),
-      'Late in long sessions: add 3 runs longer than an hour.',
+      'Late in long sessions: add 3 runs longer than an hour. Needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
     ])
     expect(section.querySelector('ul')).toHaveClass('muted')
   })

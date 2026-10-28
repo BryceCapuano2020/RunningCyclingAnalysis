@@ -24,14 +24,14 @@
   stroke-width: 1;
 }
 
-/* The fresh best, carried down through every row of its duration: a late mark is read against it. */
-.late-chart__fresh {
+/* The best overall, carried down through every row of its duration: a late mark is read against it. */
+.late-chart__overall {
   stroke: var(--previous-mark);
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
 }
 
-/* From the fresh best to a late one, in the sport's colour: the length is the fall. */
+/* From the best overall to a late one, in the sport's colour: the length is the fall. */
 .late-chart__stem {
   stroke: var(--sport-colour);
   stroke-width: 2;
@@ -47,7 +47,7 @@
 
 @media (forced-colors: active) {
   .late-chart__track,
-  .late-chart__fresh,
+  .late-chart__overall,
   .drift-chart__reference {
     stroke: CanvasText;
   }

@@ -25,7 +25,7 @@ export interface DurabilityChartProps {
 const MARK_R = 5
 /** Space between the label column, the track and the value column, in px. */
 const COLUMN_GAP = 8
-/** The fall the track always spans, as a share of the fresh best, so a small fall reads as small. */
+/** The fall the track always spans, as a share of the best overall, so a small fall reads as small. */
 const MIN_SPAN = 0.2
 /** The narrowest the track may get before the labels give way, in px. */
 const MIN_TRACK = 40
@@ -37,19 +37,19 @@ interface Row {
   label: string
   value: number
   text: string
-  /** Null for the fresh best. */
+  /** Null for the best overall. */
   afterS: number | null
 }
 
-/** A group's rows: the fresh best, then each late one, with their value as the sport writes it. */
+/** A group's rows: the best overall, then each late one, with their value as the sport writes it. */
 function rowsOf(group: LateGroup, sport: Sport, units: UnitSystem): Row[] {
   const text = (value: number) => formatNative(sport, value, units)
   return [
     {
-      key: `${group.durationS}-fresh`,
-      label: 'Fresh',
-      value: group.fresh.value,
-      text: text(group.fresh.value),
+      key: `${group.durationS}-overall`,
+      label: 'Overall',
+      value: group.overall.value,
+      text: text(group.overall.value),
       afterS: null,
     },
     ...group.cells.map((cell) => ({
@@ -63,9 +63,9 @@ function rowsOf(group: LateGroup, sport: Sport, units: UnitSystem): Row[] {
 }
 
 /**
- * For each duration, the fresh best and the best starting after time on the move, as marks along a
- * track: the further left of the dashed fresh line, the further the output fell. The track spans at
- * least a fifth of the fresh best, so a small fall is a short stem. Position is the sport's own number
+ * For each duration, the best overall and the best starting after time on the move, as marks along a
+ * track: the further left of the dashed overall line, the further the output fell. The track spans at
+ * least a fifth of the best overall, so a small fall is a short stem. Position is the sport's own number
  * with better to the right, so a pace is placed by its speed and written as a pace.
  */
 export function DurabilityChart({ sport, groups, units, note }: DurabilityChartProps) {
@@ -97,10 +97,10 @@ export function DurabilityChart({ sport, groups, units, note }: DurabilityChartP
         return (
           <g data-sport={sport}>
             {sets.map(({ group, rows }) => {
-              const fresh = group.fresh.value
+              const overall = group.overall.value
               const lowest = Math.min(...rows.map((row) => row.value))
               const x = linearScale(
-                [Math.min(fresh * (1 - MIN_SPAN), lowest * 0.98), fresh],
+                [Math.min(overall * (1 - MIN_SPAN), lowest * 0.98), overall],
                 [x0, x1],
               )
               const startY = top
@@ -116,9 +116,9 @@ export function DurabilityChart({ sport, groups, units, note }: DurabilityChartP
                     {`Best ${effortLabel(group.durationS)}`}
                   </text>
                   <line
-                    className="late-chart__fresh"
-                    x1={x(fresh)}
-                    x2={x(fresh)}
+                    className="late-chart__overall"
+                    x1={x(overall)}
+                    x2={x(overall)}
                     y1={startY + headH}
                     y2={startY + headH + rows.length * rowH}
                   />
@@ -133,7 +133,7 @@ export function DurabilityChart({ sport, groups, units, note }: DurabilityChartP
                         {row.afterS === null ? null : (
                           <line
                             className="late-chart__stem"
-                            x1={x(fresh)}
+                            x1={x(overall)}
                             x2={x(row.value)}
                             y1={y}
                             y2={y}

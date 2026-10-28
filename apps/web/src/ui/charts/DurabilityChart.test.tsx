@@ -43,17 +43,17 @@ describe('DurabilityChart', () => {
     renderChart('run')
     expect(
       screen.getByRole('figure', {
-        name: 'Your best efforts fresh and late, flat pace per kilometre',
+        name: 'Your best efforts overall and late, flat pace per kilometre',
       }),
     ).toBeInTheDocument()
     cleanup()
     renderChart('ride')
     expect(
-      screen.getByRole('figure', { name: 'Your best efforts fresh and late, power in watts' }),
+      screen.getByRole('figure', { name: 'Your best efforts overall and late, power in watts' }),
     ).toBeInTheDocument()
   })
 
-  it('draws a group for each duration, with a row for the fresh best and each level shown', () => {
+  it('draws a group for each duration, with a row for the best overall and each level shown', () => {
     const { container } = renderChart('ride')
     const groups = Array.from(container.querySelectorAll('[data-testid="late-group"]'))
     expect(groups.map((g) => g.querySelector('.late-chart__group')?.textContent)).toEqual([
@@ -64,8 +64,8 @@ describe('DurabilityChart', () => {
       Array.from(g.querySelectorAll('.late-chart__label')).map((l) => l.textContent),
     )
     expect(labels).toEqual([
-      ['Fresh', 'After 60 min', 'After 90 min'],
-      ['Fresh', 'After 60 min', 'After 90 min'],
+      ['Overall', 'After 60 min', 'After 90 min'],
+      ['Overall', 'After 60 min', 'After 90 min'],
     ])
   })
 
@@ -83,7 +83,7 @@ describe('DurabilityChart', () => {
     expect(imperial.container.querySelector('.late-chart__value')?.textContent).toMatch(/\/mi$/)
   })
 
-  it('places a later mark to the left of the fresh one, and a larger fall further left', () => {
+  it('places a later mark to the left of the overall one, and a larger fall further left', () => {
     const { container } = renderChart('ride')
     const group = container.querySelector('[data-testid="late-group"]')!
     const xs = Array.from(group.querySelectorAll('[data-testid="late-mark"]')).map((mark) =>
@@ -93,7 +93,7 @@ describe('DurabilityChart', () => {
     expect(xs[2]).toBeLessThan(xs[1]!)
   })
 
-  it('draws a stem from the fresh line to each late mark, and none for the fresh best', () => {
+  it('draws a stem from the overall line to each late mark, and none for the best overall', () => {
     const { container } = renderChart('ride')
     const rows = container.querySelectorAll('[data-testid="late-row"]')
     expect(rows[0]!.querySelector('.late-chart__stem')).toBeNull()
@@ -117,7 +117,7 @@ describe('DurabilityChart', () => {
     renderChart('ride')
     const image = screen.getByRole('img')
     expect(image.getAttribute('aria-label')).toBe(
-      'Best 5 min: fresh 310 W; after 60 min 295 W, 5% below; after 90 min 285 W, 8% below. Best 20 min: fresh 270 W; after 60 min 259 W, 4% below; after 90 min 254 W, 6% below.',
+      'Best 5 min: overall 310 W; after 60 min 295 W, 5% below; after 90 min 285 W, 8% below. Best 20 min: overall 270 W; after 60 min 259 W, 4% below; after 90 min 254 W, 6% below.',
     )
   })
 
@@ -128,7 +128,7 @@ describe('DurabilityChart', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((h) => h.textContent),
-    ).toEqual(['Effort', 'Power', 'Against fresh', 'Activities'])
+    ).toEqual(['Effort', 'Power', 'Against overall', 'Activities'])
     const rows = within(table).getAllByRole('row').slice(1)
     expect(
       rows.map((r) => Array.from(r.querySelectorAll('th, td')).map((c) => c.textContent))[2],

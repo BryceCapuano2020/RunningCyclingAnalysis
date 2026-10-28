@@ -41,14 +41,19 @@ interface Layout {
   yTicks: AxisTick[]
 }
 
+/** A steady effort's change in output per heartbeat, in percent: negative when it fell, so a fall is down. */
+function changeOf(point: DriftPoint): number {
+  return -point.decouplingPct
+}
+
 function layout(points: readonly DriftPoint[], size: ChartSize): Layout | null {
   const first = points[0]
   const last = points.at(-1)
   if (first === undefined || last === undefined) return null
   const { plot, width } = size
-  // The reference and zero lines are always on the axis, so a fall is read against both.
+  // The reference and zero lines are always on the axis, so a change is read against both.
   const { domain, ticks } = niceDomain(
-    [...points.map((p) => p.decouplingPct), 0, LATE_IN_EFFORT.referenceDecouplingPct],
+    [...points.map(changeOf), 0, -LATE_IN_EFFORT.referenceDecouplingPct],
     Y_INTERVALS,
     0.1,
   )
@@ -65,8 +70,8 @@ function layout(points: readonly DriftPoint[], size: ChartSize): Layout | null {
       : Array.from({ length: DATE_TICKS + 1 }, (_, i) => first.startMs + (span * i) / DATE_TICKS)
   return {
     xs: points.map((p) => x(p.startMs)),
-    dots: points.map((p) => ({ x: x(p.startMs), y: y(p.decouplingPct) })),
-    referenceY: y(LATE_IN_EFFORT.referenceDecouplingPct),
+    dots: points.map((p) => ({ x: x(p.startMs), y: y(changeOf(p)) })),
+    referenceY: y(-LATE_IN_EFFORT.referenceDecouplingPct),
     xTicks: fitTicks(
       dateTicks.map((ms) => ({ position: x(ms), label: formatDayMonth(ms) })),
       { axis: 'x', width },
@@ -85,8 +90,8 @@ function changeCell(point: DriftPoint): string {
 }
 
 /**
- * A dot for each steady effort: how much its output per heartbeat fell from the first half to the
- * second, by date. A dashed line at the common 5% reference is named in the key. No line joins the
+ * A dot for each steady effort: how much its output per heartbeat changed from the first half to the
+ * second, by date, a fall below zero. A dashed line at the common 5% fall reference is named in the key. No line joins the
  * dots, since a line would claim the efforts between them.
  */
 export function DriftChart({ sport, points, names, note }: DriftChartProps) {
@@ -96,8 +101,8 @@ export function DriftChart({ sport, points, names, note }: DriftChartProps) {
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      title={`Fall in output per heartbeat on steady ${SPORT_PLURAL[sport]}, first half to second`}
-      description={`One dot for each steady ${SPORT_PLURAL[sport]} over an hour: the percent its output per heartbeat fell from the first half to the second, by date. A dashed line marks ${DECOUPLING_REFERENCE}.`}
+      title={`Change in output per heartbeat on steady ${SPORT_PLURAL[sport]}, first half to second`}
+      description={`One dot for each steady ${SPORT_PLURAL[sport]} over an hour: the percent its output per heartbeat changed from the first half to the second, by date, a fall being below zero. A dashed line marks ${DECOUPLING_REFERENCE}.`}
       legend={[{ label: DECOUPLING_REFERENCE, kind: 'neutral', swatch: 'dashed' }]}
       note={note}
       table={{
@@ -153,7 +158,12 @@ export function DriftChart({ sport, points, names, note }: DriftChartProps) {
         return (
           <g data-sport={sport}>
             <ChartXAxis ticks={m.xTicks} plot={plot} fontSize={fontSize} />
-            <ChartYAxis ticks={m.yTicks} plot={plot} title="Fall (%)" fontSize={fontSize} />
+            <ChartYAxis
+              ticks={m.yTicks}
+              plot={plot}
+              title="Change in output per heartbeat (%)"
+              fontSize={fontSize}
+            />
             <line
               data-testid="drift-reference"
               className="drift-chart__reference"

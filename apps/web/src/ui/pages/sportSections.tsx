@@ -77,13 +77,14 @@ const SECTIONS: Record<SectionId, (context: SectionContext) => SectionOutcome> =
   },
   // The section holds two readings, each with its own need: the page lists what is missing even beside content.
   lateInEffort: ({ sport, result, lateEvidence, units }) => {
-    const { durability, drift, need } = lateInEffort(sport, lateEvidence)
+    const reading = lateInEffort(sport, lateEvidence)
+    const { durability, drift, need } = reading
     return {
       content:
         durability === null && drift === null ? null : (
           <LateInEffortSection
             sport={sport}
-            evidence={lateEvidence}
+            reading={reading}
             activities={result.activities}
             units={units}
           />

@@ -18,27 +18,29 @@ describe('the copy keeps to the constants', () => {
     expect(DRIFT.minMovingS).toBe(3600)
     expect(DURABILITY_AFTER_S[0]).toBe(3600)
     expect(LATE_IN_EFFORT.minActivities).toBe(3)
-    expect(DECOUPLING_REFERENCE).toBe('5%: under this is usually read as well-built endurance')
+    expect(DECOUPLING_REFERENCE).toBe(
+      'A fall of 5%: under this is usually read as well-built endurance',
+    )
   })
 })
 
 describe('the durability lede', () => {
-  it('says how far the best at a duration is below the fresh best after a time', () => {
+  it('says how far the best at a duration is below the best at that duration overall after a time', () => {
     expect(durabilityLede(5400, 1200, 0.94)).toBe(
-      'After 90 min your best 20 min is 6% below your fresh best.',
+      'After 90 min your best 20 min is 6% below your best 20 min overall.',
     )
   })
 
   it('rounds to a whole percent, and reads under 1% as within 1%', () => {
     expect(durabilityLede(3600, 300, 0.9449)).toBe(
-      'After 60 min your best 5 min is 6% below your fresh best.',
+      'After 60 min your best 5 min is 6% below your best 5 min overall.',
     )
     expect(durabilityLede(3600, 300, 0.996)).toBe(
-      'After 60 min your best 5 min is within 1% of your fresh best.',
+      'After 60 min your best 5 min is within 1% of your best 5 min overall.',
     )
     expect(fadePercent(1.03)).toBe(-3)
     expect(durabilityLede(7200, 300, 1.03)).toBe(
-      'After 120 min your best 5 min is 3% above your fresh best.',
+      'After 120 min your best 5 min is 3% above your best 5 min overall.',
     )
   })
 })
@@ -47,14 +49,16 @@ describe('a sport’s late bests', () => {
   it('quote the deepest level that has enough activities, at its longest duration', () => {
     const { durability } = lateInEffort('ride', lateEvidenceFor('ride'))
     // 120 min has 2 activities at 5 min and none at 20 min; 90 min has 4 at 20 min and 5 at 5 min.
-    expect(durability!.lede).toBe('After 90 min your best 20 min is 6% below your fresh best.')
+    expect(durability!.lede).toBe(
+      'After 90 min your best 20 min is 6% below your best 20 min overall.',
+    )
   })
 
   it('keeps the activity count out of the lede and puts it in the note', () => {
     const { durability } = lateInEffort('ride', lateEvidenceFor('ride'))
     expect(durability!.lede).not.toMatch(/\d rides/)
     expect(durability!.note).toContain('Your best 20 min after 90 min rests on 4 rides.')
-    expect(durability!.note).toContain('A level shows once 3 rides have an effort that late.')
+    expect(durability!.note).not.toContain('A level shows once')
     expect(durability!.note).toContain('Counts rides with a power meter.')
   })
 
@@ -69,15 +73,15 @@ describe('a sport’s late bests', () => {
   it('read a run’s metabolic W/kg as the flat speed it costs, and the fall in that speed', () => {
     const { durability } = lateInEffort('run', lateEvidenceFor('run'))
     const group = durability!.groups[1]!
-    expect(group.fresh.value).toBeGreaterThan(2)
-    expect(group.fresh.value).toBeLessThan(6)
+    expect(group.overall.value).toBeGreaterThan(2)
+    expect(group.overall.value).toBeLessThan(6)
     const cell = group.cells[1]!
-    expect(cell.retention).toBeCloseTo(cell.value / group.fresh.value, 12)
+    expect(cell.retention).toBeCloseTo(cell.value / group.overall.value, 12)
     // The fall in speed is not the fall in W/kg: resting power comes off first.
     expect(cell.retention).not.toBeCloseTo(0.94, 3)
   })
 
-  it('have nothing without a fresh best, and nothing with 2 activities at every level', () => {
+  it('have nothing without a best overall, and nothing with 2 activities at every level', () => {
     const thin = {
       durability: [
         durabilityRow(300, 300, [{ value: 280, supporters: 2 }]),
@@ -99,7 +103,7 @@ describe('a sport’s late bests', () => {
       drift: [],
     }
     expect(lateInEffort('ride', evidence).durability!.lede).toBe(
-      'After 120 min your best 5 min is 10% below your fresh best.',
+      'After 120 min your best 5 min is 10% below your best 5 min overall.',
     )
   })
 })
@@ -149,17 +153,25 @@ describe('what the section needs', () => {
     expect(lateInEffort('run', lateEvidenceFor('run')).need).toBeNull()
   })
 
-  it('asks for longer efforts when there are no late bests, 3 when it has none', () => {
-    expect(lateInEffort('run', NONE).need).toBe('Add 3 runs longer than an hour.')
+  it('names both needs when neither half shows', () => {
+    expect(lateInEffort('run', NONE).need).toBe(
+      'Add 3 runs longer than an hour. Needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
+    )
+    expect(lateInEffort('ride', NONE).need).toBe(
+      'Add 3 rides longer than an hour with a power meter. Needs 3 steady rides over an hour with a power meter and heart rate to show how output per heartbeat changes.',
+    )
   })
 
-  it('asks for a power meter on a ride, and counts the efforts it already has', () => {
-    expect(lateInEffort('ride', NONE).need).toBe(
-      'Add 3 rides longer than an hour with a power meter.',
+  it('names the late bests’ need alone when only drift shows', () => {
+    expect(lateInEffort('run', { ...NONE, drift: driftPoints([2, 3, 4]) }).need).toBe(
+      'Add 3 runs longer than an hour.',
     )
+  })
+
+  it('counts the efforts a ride already has, and asks for a power meter', () => {
     const two = {
       durability: [durabilityRow(300, 300, [{ value: 280, supporters: 2 }])],
-      drift: [],
+      drift: driftPoints([2, 3, 4]),
     }
     expect(lateInEffort('ride', two).need).toBe(
       'Add 1 ride longer than an hour with a power meter.',

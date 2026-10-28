@@ -15,16 +15,16 @@ const { minActivities, referenceDecouplingPct } = LATE_IN_EFFORT
 export interface LateCell {
   afterS: number
   value: number
-  /** The late best over the fresh best, in the own number. Below 1 means output fades. */
+  /** The late best over the best overall, in the own number. Below 1 means output fades. */
   retention: number
   /** Activities with an effort that late at this duration. */
   supporters: number
 }
 
-/** One duration: the fresh best and the late bests that enough activities support, shallowest first. */
+/** One duration: the best overall, at any point in an effort, and the late bests that enough activities support, shallowest first. */
 export interface LateGroup {
   durationS: number
-  fresh: { value: number; supporters: number }
+  overall: { value: number; supporters: number }
   cells: LateCell[]
 }
 
@@ -99,7 +99,7 @@ function groupsOf(sport: Sport, rows: readonly PeriodDurabilityRow[]): LateGroup
       : [
           {
             durationS: row.durationS,
-            fresh: { value: NATIVE[sport](row.fresh.value), supporters: row.fresh.supporters },
+            overall: { value: NATIVE[sport](row.fresh.value), supporters: row.fresh.supporters },
             cells,
           },
         ]
@@ -111,21 +111,22 @@ export function afterLabel(afterS: number): string {
   return effortLabel(afterS)
 }
 
-/** How far a late best is below the fresh best, in whole percent; negative when it is above. */
+/** How far a late best is below the best overall, in whole percent; negative when it is above. */
 export function fadePercent(retention: number): number {
   return Math.round((1 - retention) * 100)
 }
 
 /**
- * The lede: how far the best at a duration falls once an effort is that old, against the fresh best. A
- * difference under 1% reads as within 1%, since a whole percent is the figure's precision.
+ * The lede: how far the best at a duration falls once an effort is that old, against the best at that
+ * duration overall. A difference under 1% reads as within 1%, since a whole percent is the figure's precision.
  */
 export function durabilityLede(afterS: number, durationS: number, retention: number): string {
   const percent = fadePercent(retention)
-  const opening = `After ${afterLabel(afterS)} your best ${effortLabel(durationS)}`
-  if (percent >= 1) return `${opening} is ${percent}% below your fresh best.`
-  if (percent <= -1) return `${opening} is ${-percent}% above your fresh best.`
-  return `${opening} is within 1% of your fresh best.`
+  const effort = effortLabel(durationS)
+  const opening = `After ${afterLabel(afterS)} your best ${effort}`
+  if (percent >= 1) return `${opening} is ${percent}% below your best ${effort} overall.`
+  if (percent <= -1) return `${opening} is ${-percent}% above your best ${effort} overall.`
+  return `${opening} is within 1% of your best ${effort} overall.`
 }
 
 /**
@@ -145,13 +146,12 @@ function durabilityReading(
   const groups = groupsOf(sport, rows)
   if (groups.length === 0) return null
   const { group, cell } = ledeCell(groups)
-  const need = `A level shows once ${minActivities} ${SPORT_PLURAL[sport]} have an effort that late.`
   const support = `Your best ${effortLabel(group.durationS)} after ${afterLabel(cell.afterS)} rests on ${plural(cell.supporters, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])}.`
   const limit = `A lower figure late on can also mean the ${SPORT_ACTIVITY[sport]} never asked for more.`
   return {
     lede: durabilityLede(cell.afterS, group.durationS, cell.retention),
     groups,
-    note: `${need} ${support} ${limit}${COUNTS[sport]}`,
+    note: `${support} ${limit}${COUNTS[sport]}`,
   }
 }
 
@@ -188,19 +188,34 @@ function driftReading(sport: Sport, points: readonly DriftPoint[]): DriftReading
 }
 
 /** The line a drift chart draws at the common reference, in words. */
-export const DECOUPLING_REFERENCE = `${referenceDecouplingPct}%: under this is usually read as well-built endurance`
+export const DECOUPLING_REFERENCE = `A fall of ${referenceDecouplingPct}%: under this is usually read as well-built endurance`
 
-/**
- * What the section needs, in the plain words of the "Not enough yet" list. With late bests to show, it is
- * the steady efforts drift reads; otherwise it is longer efforts, counting the ones a level already has.
- */
-function needOf(sport: Sport, evidence: LateEvidence, hasDurability: boolean): string {
-  if (hasDurability) {
-    return `Needs ${minActivities} steady ${SPORT_PLURAL[sport]} over an hour with heart rate to show how output per heartbeat changes.`
-  }
+/** What drift needs of a file besides its length: a heart rate, and for a ride a power meter. Keyed by Sport. */
+const DRIFT_NEEDS_DEVICE: Record<Sport, string> = {
+  run: 'heart rate',
+  ride: 'a power meter and heart rate',
+}
+
+/** What late bests need, counting the activities a level already has. */
+function durabilityNeed(sport: Sport, evidence: LateEvidence): string {
   const have = Math.max(0, ...evidence.durability.map((row) => row.after[0]?.best?.supporters ?? 0))
   const count = Math.max(1, minActivities - have)
   return `Add ${plural(count, SPORT_ACTIVITY[sport], SPORT_PLURAL[sport])} longer than an hour${NEEDS_DEVICE[sport]}.`
+}
+
+/** What drift needs: steady efforts over an hour with the readings it compares. */
+function driftNeed(sport: Sport): string {
+  return `Needs ${minActivities} steady ${SPORT_PLURAL[sport]} over an hour with ${DRIFT_NEEDS_DEVICE[sport]} to show how output per heartbeat changes.`
+}
+
+/** What the section needs, in the plain words of the "Not enough yet" list: each missing half's need. */
+function needOf(sport: Sport, evidence: LateEvidence, hasDurability: boolean, hasDrift: boolean) {
+  return [
+    hasDurability ? null : durabilityNeed(sport, evidence),
+    hasDrift ? null : driftNeed(sport),
+  ]
+    .filter((need) => need !== null)
+    .join(' ')
 }
 
 /**
@@ -212,6 +227,8 @@ export function lateInEffort(sport: Sport, evidence: LateEvidence): LateInEffort
   const durability = durabilityReading(sport, evidence.durability)
   const drift = driftReading(sport, evidence.drift)
   const need =
-    durability !== null && drift !== null ? null : needOf(sport, evidence, durability !== null)
+    durability !== null && drift !== null
+      ? null
+      : needOf(sport, evidence, durability !== null, drift !== null)
   return { durability, drift, need }
 }

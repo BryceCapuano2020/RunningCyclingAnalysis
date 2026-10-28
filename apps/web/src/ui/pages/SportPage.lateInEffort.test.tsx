@@ -58,7 +58,7 @@ describe('late in long sessions on a sport page', () => {
       const section = screen.getByRole('region', { name: 'Late in long sessions' })
       expect(
         within(section).getByText(
-          /^After 90 min your best 20 min is \d+% below your fresh best\.$/,
+          /^After 90 min your best 20 min is \d+% below your best 20 min overall\.$/,
         ),
       ).toBeInTheDocument()
       expect(
@@ -91,7 +91,7 @@ describe('late in long sessions on a sport page', () => {
     renderPage('ride', { ...lateEvidenceFor('ride'), durability: NO_LATE_EVIDENCE.ride.durability })
     const section = screen.getByRole('region', { name: 'Late in long sessions' })
     expect(within(section).getAllByRole('figure')).toHaveLength(1)
-    expect(within(section).queryByText(/fresh best/)).toBeNull()
+    expect(within(section).queryByText(/overall/)).toBeNull()
     expect(notEnough()).toContain(
       'Late in long sessions: add 3 rides longer than an hour with a power meter.',
     )
@@ -101,7 +101,7 @@ describe('late in long sessions on a sport page', () => {
     renderPage('ride', NO_LATE_EVIDENCE.ride)
     expect(screen.queryByRole('heading', { name: 'Late in long sessions' })).toBeNull()
     expect(notEnough()).toContain(
-      'Late in long sessions: add 3 rides longer than an hour with a power meter.',
+      'Late in long sessions: add 3 rides longer than an hour with a power meter. Needs 3 steady rides over an hour with a power meter and heart rate to show how output per heartbeat changes.',
     )
   })
 
