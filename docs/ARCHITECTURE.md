@@ -113,12 +113,21 @@ always use the full selected recording. The final sample has no following distan
 terminal selections use the last known cumulative distance without extrapolating another second.
 
 The worker stores traces in the separate `rca-workbench-evidence` IndexedDB database. Its shared
-64 MiB budget and 12 MiB entry limit are defined in `workbenchSchema.ts`; an indexed metadata ledger
-evicts the least recently used recordings without reading every stream. A four-entry memory cache
-keeps recent views usable when a write is refused. Scope keys separate device results and each
-account. Identity changes clear memory and revoke lookup until that library has loaded. Account
-deletion clears and tombstones its scope to reject writes from stale workers. Ordinary sign-out
-keeps the account cache for its next sign-in.
+64 MiB budget and 12 MiB entry limit are defined in `workbenchSchema.ts`. An indexed metadata
+ledger, ranked by the start of each activity and then by when its recording was saved, drops the
+recordings of the oldest activities first without reading every stream, so a large import keeps the
+newest activities whatever order its files arrive in. A recording of an activity older than
+everything in a full cache is not stored: it stays in the four-entry memory cache for the visit, and
+adding its file again is not reported as restored detail. The budget is global, not per scope: the
+device results and every account share the 64 MiB, so one scope's import can drop another's oldest
+recordings. Scope keys still separate who can read them. The memory cache also keeps recent views
+usable when a write is refused. Version 3 of the database added the activity start. An older
+database is emptied and rebuilt, since recordings can be made again from their files, but account
+deletion tombstones are kept. Older code cannot open version 3 and falls back to memory.
+
+Identity changes clear memory and revoke lookup until that library has loaded. Account deletion
+clears and tombstones its scope to reject writes from stale workers. Ordinary sign-out keeps the
+account cache for its next sign-in.
 
 Existing digests remain sufficient for the library. A missing trace offers reimport; a retained
 account original is fetched and reparsed only after an explicit request. Reimporting an existing

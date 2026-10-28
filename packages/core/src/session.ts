@@ -257,7 +257,7 @@ export class AnalysisSession {
       (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
     ) {
       // The same file again restores a recording that went missing; any other copy is only skipped.
-      await noteKept(activity, held, undefined, listeners)
+      await noteKept(activity, held, held, listeners)
       return { held: fileNameOf(held.id) }
     }
     // A workout this import is adding, or has added: new to the library, or a later copy of one.
@@ -268,7 +268,7 @@ export class AnalysisSession {
     if (adding) batch.added.set(key, digest)
     this.outdatedKeys.delete(key)
     this.incompatibleKeys.delete(key)
-    await noteKept(activity, digest, replaces ? held : undefined, listeners)
+    await noteKept(activity, digest, held, listeners)
     const considered = (saved: boolean): Considered => {
       if (retry && saved) batch.added.set(key, digest)
       return adding || (retry && saved) || held === undefined

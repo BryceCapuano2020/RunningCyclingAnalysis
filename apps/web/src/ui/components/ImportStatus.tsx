@@ -22,6 +22,7 @@ type Outcome = Pick<
   | 'rides'
   | 'firstStartMs'
   | 'lastStartMs'
+  | 'detailRestored'
 >
 
 /** Work shorter than this shows neither the busy strip nor its Stop button, so a quick change does not flash them. */

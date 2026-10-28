@@ -385,6 +385,21 @@ describe('ImportStatus: announcements', () => {
     )
   })
 
+  it('announces that detail was restored for activities the library already held', () => {
+    const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
+    rerender(
+      <ImportStatus
+        {...baseProps()}
+        busy={false}
+        progress={null}
+        outcome={{ activities: 3, rejected: 0, duplicates: [], detailRestored: 2 }}
+      />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Nothing new: 3 activities already in your library. Detail restored for 2 activities.',
+    )
+  })
+
   it('announces where the files went with the same counts the summary shows', () => {
     const { rerender } = render(<ImportStatus {...baseProps()} busy progress={null} />)
     rerender(

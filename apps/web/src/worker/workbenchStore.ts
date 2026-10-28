@@ -2,12 +2,8 @@ import type { ActivityTrace } from '@rca/core/workbench'
 import {
   ENTRIES,
   OWNERS,
-  RANK_INDEX,
   STATE,
   TRACES,
-  WORKBENCH_ENTRY_BYTES,
-  WORKBENCH_MAX_ENTRIES,
-  WORKBENCH_TOTAL_BYTES,
   activityTraceBytes,
   entryKey,
   parseBoundedTrace,
@@ -15,19 +11,14 @@ import {
   scopeKey,
   subtractMetadata,
   transactionDone,
-  validStoreState,
   validTraceMetadata,
   workbenchDatabase,
   resetWorkbenchDatabase,
   WorkbenchOpenError,
 } from './workbenchSchema'
-import type {
-  PutResult,
-  StoreState,
-  StoredTrace,
-  TraceMetadata,
-  TraceScope,
-} from './workbenchSchema'
+import type { PutResult, StoredTrace, TraceScope } from './workbenchSchema'
+import { putTrace } from './workbenchPut'
+import { rebuildLedger } from './workbenchLedger'
 
 export type { PutResult, TraceScope } from './workbenchSchema'
 export { WORKBENCH_ENTRY_BYTES, WORKBENCH_TOTAL_BYTES, activityTraceBytes } from './workbenchSchema'
@@ -60,66 +51,6 @@ function nothingCached(error: unknown): boolean {
   return error instanceof WorkbenchOpenError && error.nothingCached
 }
 
-/** Rebuilds accounting from small metadata rows and removes malformed or over-budget entries. */
-async function rebuildLedger(transaction: IDBTransaction): Promise<void> {
-  const entries = transaction.objectStore(ENTRIES)
-  const traces = transaction.objectStore(TRACES)
-  let bytes = 0
-  let count = 0
-  await new Promise<void>((resolve, reject) => {
-    const cursorRequest = entries.openCursor()
-    cursorRequest.onerror = () =>
-      reject(cursorRequest.error ?? new Error('Workbench storage failed'))
-    cursorRequest.onsuccess = () => {
-      const cursor = cursorRequest.result
-      if (!cursor) return resolve()
-      const row = cursor.value
-      if (!validTraceMetadata(row)) {
-        if (typeof cursor.primaryKey === 'string') traces.delete(cursor.primaryKey)
-        cursor.delete()
-      } else {
-        bytes += row.bytes
-        count++
-      }
-      cursor.continue()
-    }
-  })
-  if (bytes > WORKBENCH_TOTAL_BYTES || count > WORKBENCH_MAX_ENTRIES) {
-    await new Promise<void>((resolve, reject) => {
-      const cursorRequest = entries.index(RANK_INDEX).openCursor()
-      cursorRequest.onerror = () =>
-        reject(cursorRequest.error ?? new Error('Workbench storage failed'))
-      cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result
-        if (!cursor || (bytes <= WORKBENCH_TOTAL_BYTES && count <= WORKBENCH_MAX_ENTRIES))
-          return resolve()
-        const row = cursor.value as TraceMetadata
-        bytes -= row.bytes
-        count--
-        traces.delete(row.key)
-        cursor.delete()
-        cursor.continue()
-      }
-    })
-  }
-  transaction.objectStore(STATE).put({ key: 'total', bytes, count } satisfies StoreState)
-}
-
-/** Repairs metadata accounting in an isolated transaction after a corrupt row aborts a write. */
-async function repairLedger(): Promise<boolean> {
-  try {
-    const db = await workbenchDatabase()
-    const transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
-    const done = transactionDone(transaction)
-    await rebuildLedger(transaction)
-    await done
-    return true
-  } catch {
-    resetWorkbenchDatabase()
-    return false
-  }
-}
-
 /** A separate database keeps this schema independent of the long-lived digest library. */
 export function openWorkbenchStore(): WorkbenchStore {
   async function clear(scope: TraceScope, tombstone = false): Promise<boolean> {
@@ -149,114 +80,6 @@ export function openWorkbenchStore(): WorkbenchStore {
     } catch (error) {
       resetWorkbenchDatabase()
       return nothingCached(error)
-    }
-  }
-
-  async function putTrace(
-    scope: TraceScope,
-    input: ActivityTrace,
-    startMs: number,
-    repaired: boolean,
-  ): Promise<PutResult> {
-    /** A cache that cannot account for itself is rebuilt once; a second failure refuses the trace. */
-    const retry = async (): Promise<PutResult> =>
-      !repaired && (await repairLedger()) ? putTrace(scope, input, startMs, true) : 'refused'
-    try {
-      const trace = parseBoundedTrace(input)
-      if (!trace || trace.activityId !== input.activityId || !Number.isFinite(startMs))
-        return 'refused'
-      const bytes = activityTraceBytes(trace)
-      if (bytes > WORKBENCH_ENTRY_BYTES) return 'refused'
-      const db = await workbenchDatabase()
-      const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
-      const done = transactionDone(transaction)
-      const key = entryKey(scope, trace.activityId)
-      const entries = transaction.objectStore(ENTRIES)
-      const traces = transaction.objectStore(TRACES)
-      const stateStore = transaction.objectStore(STATE)
-      const owners = transaction.objectStore(OWNERS)
-      if (scope.kind === 'account' && (await requestResult(owners.get(scopeKey(scope))))) {
-        transaction.abort()
-        await done.catch(() => undefined)
-        return 'refused'
-      }
-      const [prior, stateRow] = await Promise.all([
-        requestResult(entries.get(key)) as Promise<unknown>,
-        requestResult(stateStore.get('total')) as Promise<unknown>,
-      ])
-      const ledger = validStoreState(stateRow) ? stateRow : null
-      const metadata = prior === undefined ? undefined : prior
-      const adjusted = metadata === undefined ? ledger : subtractMetadata(ledger, metadata)
-      if (adjusted === null) {
-        transaction.abort()
-        await done.catch(() => undefined)
-        return retry()
-      }
-      let totalBytes = adjusted.bytes
-      let count = adjusted.count
-      const mustEvict = () =>
-        totalBytes + bytes > WORKBENCH_TOTAL_BYTES || count >= WORKBENCH_MAX_ENTRIES
-      let corruptCandidate = false
-      // Set when the next recording to drop is of a newer activity than this one, which stays.
-      let outranked = false
-      if (mustEvict()) {
-        const cursorRequest = entries.index(RANK_INDEX).openCursor()
-        await new Promise<void>((resolve, reject) => {
-          cursorRequest.onerror = () =>
-            reject(cursorRequest.error ?? new Error('Workbench storage failed'))
-          cursorRequest.onsuccess = () => {
-            const cursor = cursorRequest.result
-            if (!cursor || !mustEvict() || corruptCandidate) return resolve()
-            if (!validTraceMetadata(cursor.value)) {
-              corruptCandidate = true
-              return resolve()
-            }
-            const candidate = cursor.value
-            if (candidate.key !== key) {
-              if (candidate.startMs > startMs) {
-                outranked = true
-                return resolve()
-              }
-              traces.delete(candidate.key)
-              totalBytes -= candidate.bytes
-              count--
-              cursor.delete()
-            }
-            cursor.continue()
-          }
-        })
-      }
-      if (corruptCandidate || !Number.isSafeInteger(totalBytes) || totalBytes < 0 || count < 0) {
-        transaction.abort()
-        await done.catch(() => undefined)
-        return retry()
-      }
-      if (mustEvict()) {
-        // Nothing was dropped, so the cache is as it was. Out of older recordings means the ledger is wrong.
-        transaction.abort()
-        await done.catch(() => undefined)
-        return outranked ? 'outranked' : retry()
-      }
-      const row: TraceMetadata = {
-        key,
-        scopeKey: scopeKey(scope),
-        activityId: trace.activityId,
-        startMs,
-        savedAt: Date.now(),
-        bytes,
-      }
-      entries.put(row)
-      traces.put({ key, trace } satisfies StoredTrace)
-      stateStore.put({
-        key: 'total',
-        bytes: totalBytes + bytes,
-        count: count + 1,
-      } satisfies StoreState)
-      await done
-      return 'stored'
-    } catch {
-      resetWorkbenchDatabase()
-      return 'refused'
     }
   }
 
@@ -312,7 +135,7 @@ export function openWorkbenchStore(): WorkbenchStore {
       }
     },
 
-    put: (scope, trace, startMs) => putTrace(scope, trace, startMs, false),
+    put: putTrace,
 
     async has(scope, activityId) {
       try {

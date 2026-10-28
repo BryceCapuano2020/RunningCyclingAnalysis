@@ -21,28 +21,38 @@ export interface ImportCompletion {
  * analysed or saved.
  */
 export interface ActivityListeners {
-  /** The activity the library now holds, whose digest was made from it. */
-  kept?: (activity: Activity) => void | Promise<void>
+  /**
+   * The activity the library now holds, whose digest was made from it. `held` is true when the
+   * library already held this workout, so the activity is the held file read again or a retried save
+   * of it. It is false for a workout the library gains, including a richer copy that replaces a held one.
+   */
+  kept?: (activity: Activity, info: { held: boolean }) => void | Promise<void>
   /** The id of a held copy that a richer copy of the same workout replaced, which the library no longer holds. */
   replaced?: (id: string) => void | Promise<void>
 }
 
-/** Tells the listeners which activity the library kept, and which held copy it replaced. */
+/**
+ * Tells the listeners which activity the library kept, and which held copy it replaced. `held` is
+ * the digest the library held for this workout before the activity, if any: the activity is that
+ * held workout again when `digest` is it, and replaces it when `digest` is another.
+ */
 export async function noteKept(
   activity: Activity,
   digest: ActivityDigest,
-  replaced: ActivityDigest | undefined,
+  held: ActivityDigest | undefined,
   listeners: ActivityListeners | undefined,
 ): Promise<void> {
   if (listeners === undefined) return
   try {
-    if (replaced !== undefined && replaced.id !== digest.id) await listeners.replaced?.(replaced.id)
+    if (held !== undefined && held !== digest && held.id !== digest.id)
+      await listeners.replaced?.(held.id)
   } catch {
     // Optional bookkeeping must never change whether an activity is analysed or saved.
   }
   try {
     // A held digest kept for a retried save was made from another file, not from this activity.
-    if (digest.id === activity.id) await listeners.kept?.(activity)
+    if (digest.id === activity.id)
+      await listeners.kept?.(activity, { held: held !== undefined && held === digest })
   } catch {
     // As above.
   }

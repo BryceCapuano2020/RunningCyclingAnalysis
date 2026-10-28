@@ -83,7 +83,6 @@ async function addFiles(
   // Activities the import already held and gave a recording back, which the summary says.
   const restored = new Set<string>()
   const addedIds = new Set<string>()
-  let replacing = false
   let outcome: ImportOutcome = {
     activities: 0,
     filesAdded: 0,
@@ -136,19 +135,17 @@ async function addFiles(
         for (const digest of added) addedIds.add(digest.id)
         outcome = { ...completed, ...summarizeAdded(added) }
       },
-      async (activity) => {
+      async (activity, { held }) => {
         if (traceScope === null) return workbench.captureMemory(activity, { kind: 'device' })
-        // A richer copy that replaces a held one is a new recording, not a restored one.
-        const swapped = replacing
-        replacing = false
-        const had = swapped || (await workbench.holds(traceScope, activity.id))
+        // Only a workout the library already held can have its recording restored.
+        const had = held && (await workbench.holds(traceScope, activity.id))
         const kept = await workbench.capture(activity, traceScope)
         // Counted once it is in storage: a recording held in memory alone is gone after a reload.
-        if (kept !== null && !had && workbench.isStored(traceScope, activity.id))
+        if (held && !had && kept !== null && workbench.isStored(traceScope, activity.id))
           restored.add(activity.id)
       },
       async (replacedId) => {
-        replacing = true
+        restored.delete(replacedId)
         if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
         else await workbench.remove(traceScope, replacedId)
       },
