@@ -1,3 +1,4 @@
+import { indexOrder } from '../compare/indexOrder'
 import { SAME_HEART_RATE } from '../constants'
 
 /** The blocks of one fit: each has a heart rate, an output, and the activity (0 up) it came from. */
@@ -50,9 +51,7 @@ function sortedSlopes(blocks: FitBlocks): SortedSlopes {
       p++
     }
   }
-  const order = new Uint32Array(p)
-  for (let k = 0; k < p; k++) order[k] = k
-  order.sort((a, b) => slope[a]! - slope[b]!)
+  const order = indexOrder(slope, p, false)
   const sorted: SortedSlopes = {
     slope: new Float64Array(p),
     first: new Uint16Array(p),
