@@ -14,7 +14,7 @@ import { plural } from '../components/plural'
 import { SavedLibraryCard } from '../components/SavedLibraryCard'
 import { SettingsOverTime } from '../components/SettingsOverTime'
 import { ZoneTables } from '../components/ZoneTables'
-import { UNIT_OPTIONS, displayBirthYear, readBirthYear } from '../athlete'
+import { UNIT_OPTIONS, displayBirthYear, readBirthYear, weightKnown } from '../athlete'
 import type { WeightSettings } from '../athlete'
 import { SAVE_STATE_TEXT, WAITING_FOR_ACCOUNT } from '../analysis/copy'
 import type { AnalysisController } from '../useAnalysis'
@@ -46,7 +46,7 @@ export interface ProfilePageProps {
   /** Resolves when the change is saved. Rejects when it is refused, and the account shows why. */
   onSaveProfile: (next: ProfilePatch) => Promise<void>
   /** The dated settings, and how they load. */
-  dated: Pick<MeasurementsController, 'entries' | 'state'>
+  dated: Pick<MeasurementsController, 'entries' | 'state' | 'elsewhere'>
   /** Keeps a dated setting, and brings the current weight in step with it. Rejects when refused. */
   onAddSetting: (entry: Measurement) => Promise<unknown>
   onRemoveSetting: (entry: Measurement) => Promise<unknown>
@@ -294,11 +294,18 @@ export function ProfilePage({
       <SettingsOverTime
         entries={dated.entries}
         state={dated.state}
+        elsewhere={dated.elsewhere}
         units={shownUnits}
         onAdd={onAddSetting}
         onRemove={onRemoveSetting}
       />
-      <ZoneTables athlete={athlete} result={analysis.state.result} units={shownUnits} />
+      <ZoneTables
+        athlete={athlete}
+        // The sample is not the athlete's own activities, so it supplies no estimate.
+        result={analysis.state.isSample ? null : analysis.state.result}
+        weightKnown={weightKnown(settings)}
+        units={shownUnits}
+      />
 
       {email !== null ? (
         <AccountSection

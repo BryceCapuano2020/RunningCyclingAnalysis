@@ -65,7 +65,11 @@ function rideWkgAt(
 /** The run and ride curves a combine works from, with the ride in each unit it needs. */
 export interface BestCurves {
   runBest: EffortPoint[]
-  /** Best watts at each duration, each ride priced at its own mass. */
+  /**
+   * The ride in watts. Without dated masses it is the best watts at each duration. With them it is
+   * the watts of the best power-to-weight ride at each duration, so its activity, heart rate and
+   * window are those of rideMetabolic, and every use of the two agrees on one ride.
+   */
   rideBest: EffortPoint[]
   /** The ride as gross metabolic W/kg: the best power-to-weight, each ride at its own body mass. */
   rideMetabolic: Curve
@@ -75,6 +79,8 @@ export interface BestCurves {
    * at todayKg, so the comparison still reads each ride at the mass it was ridden at.
    */
   rideComparable: Curve
+  /** The body mass of each activity by id, kg. Empty without dated masses, when todayKg is every mass. */
+  bodyKgById: Map<string, number>
 }
 
 /** The best run and ride values at each duration. Rides are priced with bikeModel. */
@@ -85,24 +91,34 @@ export function bestCurves(
   todayKg: number,
 ): BestCurves {
   const runBest = bestOf(ordered, 'run', runCentralWkg)
-  const rideBest = bestOfEach(ordered, 'ride', (digest) => {
-    const total = masses.totalKg(digest)
-    return (point) => rideWattsAt(point, total, bikeModel)
-  })
-  const rideCurve = plainCurve(rideBest)
   if (!masses.dated) {
+    const rideBest = bestOfEach(ordered, 'ride', (digest) => {
+      const total = masses.totalKg(digest)
+      return (point) => rideWattsAt(point, total, bikeModel)
+    })
+    const rideCurve = plainCurve(rideBest)
     const rideMetabolic = rideCurve.map((p) => ({
       ...p,
       value: centralWkgFromWatts(p.value, todayKg),
     }))
-    return { runBest, rideBest, rideMetabolic, rideComparable: rideCurve }
+    return { runBest, rideBest, rideMetabolic, rideComparable: rideCurve, bodyKgById: new Map() }
   }
-  const rideMetabolic = plainCurve(
-    bestOfEach(ordered, 'ride', (digest) => (point) => rideWkgAt(point, digest, masses, bikeModel)),
+  // The best ride at a duration is the best power-to-weight, and its watts follow from its own mass.
+  const wkgBest = bestOfEach(
+    ordered,
+    'ride',
+    (digest) => (point) => rideWkgAt(point, digest, masses, bikeModel),
   )
+  const bodyKgById = new Map(ordered.map((digest) => [digest.id, masses.bodyKg(digest)]))
   const efficiency = PRIORS.grossEfficiency.mean
+  const rideBest = wkgBest.map((point) =>
+    Object.assign({}, point, {
+      value: point.value * efficiency * (bodyKgById.get(point.activityId ?? '') ?? Number.NaN),
+    }),
+  )
+  const rideMetabolic = plainCurve(wkgBest)
   const rideComparable = rideMetabolic.map((p) => ({ ...p, value: p.value * efficiency * todayKg }))
-  return { runBest, rideBest, rideMetabolic, rideComparable }
+  return { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById }
 }
 
 /** The best watts at each duration among the rides with a power meter, which need no bike model. */

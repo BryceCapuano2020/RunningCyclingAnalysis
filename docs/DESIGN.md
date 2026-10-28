@@ -1008,22 +1008,29 @@ before that date. Before the first entry the earliest entry applies. With no ent
 applies: the profile weight, or an estimate from the activities. The same sentence is on the Method page,
 under Dated settings and zones, and in `packages/core/src/athlete/measurements.ts`.
 
-**Current weight.** The profile weight is the dated weight in effect today. Adding a dated weight whose
-date is the latest sets the profile weight, and so does deleting the latest. Setting the weight in Body
-and bike, once weights are dated, adds a dated weight from today. A weight dated before a later entry
-leaves the profile weight alone. Signed out, the list is kept in this browser (`rca.measurements.v1`);
-signed in, it is the account's (`/api/measurements`), and the device list is not merged into it.
+**Current weight.** With dated weights, the weight today is the dated weight in effect today, whatever the
+saved profile holds, so a weight dated for a later day takes effect on that day with no edit (the page
+reads the day again at local midnight). The saved profile weight follows it: adding or deleting the latest
+dated weight updates it. Setting the weight in Body and bike, once weights are dated, adds a dated weight
+from today. A signed-in weight waits for the account's dated settings, and says so if they are still
+loading or did not load; if the profile weight is saved and its dated copy is refused, the status line
+says what was kept. A weight dated before a later entry leaves the weight today alone. Signed out, the
+list is kept in this browser (`rca.measurements.v1`); signed in, it is the account's (`/api/measurements`).
+The browser's list is not merged into the account, and Profile says so in one line when it still holds some.
+Download my data waits for the dated settings too, rather than leave them out.
 
-**Where it shows.** A ride's W/kg uses the weight on its day: in the records, the best-effort curve
-table and tooltips, and the weekly trend, whose watts follow the ride that set each week. The activity
-list carries the weight in effect for each activity (`ActivitySummary.massKg`) only when weights are dated.
-The threshold and the level targets are for today, so they use today's weight.
+**Where it shows.** The best ride at a duration is the one with the best power-to-weight when weights are
+dated, and every ride figure at that duration comes from that ride: its watts, W/kg, running equivalent,
+age-grade date, record, threshold fit and heart-rate check. A ride's W/kg uses the weight on its day: in the
+records, the best-effort curve table and tooltips, and the weekly trend, whose watts follow the ride that set
+each week. The activity list carries the weight in effect for each activity (`ActivitySummary.massKg`) only
+when weights are dated. The level targets are for today: a ride's watts are compared at today's weight.
 
 **Training zones.** One table for each sport and measure, side by side from two columns of 22 rem and
 stacked below that: run heart rate and pace, ride heart rate and power. The caption names the zone set and
 where its reference came from, such as "Ride power zones. From your rides: threshold power 250 W." or "You
 entered: max heart rate 188 bpm". Each table is a `ChartTable` of Zone, Name and Range, with the published
-scheme in a muted line under it. A run's range reads as a pace, the fast edge first. Without a reference
+scheme in a muted line under it. Ranges are whole numbers that do not repeat a shared edge ("Under 138 W", "138–187 W", "375 W or more"); a run's range reads as a pace, the fast edge first, and a pace belongs to the zone it is slower than the next one's edge. A heart-rate estimate that rests on both sports says "From your runs and rides". Without a weight, estimated ride power zones are not shown and the section asks for one. While the sample is loaded, only the visitor's entered settings make zones. Without a reference
 the section says zones appear once there are files or an entered setting. The schemes are in
 [research/zones.md](research/zones.md). `zonesAt` in `packages/core/src/zones` is the one place they are
 built, and `AnalysisSession.zonesAt(date, settings)` answers from the worker's analysis.

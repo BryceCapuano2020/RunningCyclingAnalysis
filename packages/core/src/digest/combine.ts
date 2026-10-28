@@ -43,7 +43,10 @@ import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 
 export interface Equivalence {
   durationS: number
-  /** Best mechanical power held for durationS, W. */
+  /**
+   * Best mechanical power held for durationS, W: the ride's own watts, from the same ride as rideCurve.
+   * With dated body masses that ride is the best power-to-weight one.
+   */
   ridePowerW: number
   /** Flat running speed with the same gross metabolic power, m/s. */
   runSpeed: Interval
@@ -62,7 +65,11 @@ export interface AnalysisResult {
   activities: ActivitySummary[]
   /** Best gross metabolic power while running, W/kg, at the prior-mean economy. */
   runCurve: Curve
-  /** Best mechanical power while riding, W. See the note above on rides without a power meter. */
+  /**
+   * Best mechanical power while riding, W. See the note above on rides without a power meter. With dated
+   * body masses each value is the watts of the best power-to-weight ride at that duration, so it comes
+   * from the same ride as rideMetabolicCurve.
+   */
   rideCurve: Curve
   /** rideCurve expressed as gross metabolic W/kg at the prior-mean efficiency. */
   rideMetabolicCurve: Curve
@@ -205,7 +212,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
       ? leaveOneOutAccuracy(calibrated, (digest) => masses.totalKg(digest))
       : null
 
-  const { runBest, rideBest, rideMetabolic, rideComparable } = bestCurves(
+  const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = bestCurves(
     ordered,
     masses,
     bikeModel,
@@ -257,12 +264,14 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   const equivalence = equivalenceFor(hr)
   const equivalents: Equivalence[] = []
   for (const durationS of EQUIVALENCE_DURATIONS_S) {
-    const point = rideComparable.find((p) => p.durationS === durationS)
+    const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
+      // The ride's own watts at the body mass it rode at, which is massKg without dated masses.
+      const rideKg = bodyKgById.get(point.activityId ?? '') ?? massKg
       equivalents.push({
         durationS,
         ridePowerW: point.value,
-        runSpeed: equivalence(point.value, massKg),
+        runSpeed: equivalence(point.value, rideKg),
       })
     }
   }

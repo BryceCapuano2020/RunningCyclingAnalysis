@@ -22,6 +22,7 @@ vi.mock('./ui/useAnalysis', async () => ({
 vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
+vi.mock('./api/measurements', async () => (await import('./test/appMocks')).measurementsApi)
 vi.mock('./ui/charts', async () => {
   const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
   return { ...heavyChartStubs, ...(await trendCharts()) }

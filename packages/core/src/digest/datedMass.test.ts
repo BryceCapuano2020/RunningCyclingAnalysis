@@ -5,7 +5,7 @@ import { PeriodCache } from '../periodCache'
 import { recordHolders } from '../records'
 import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
-import { centralWkgFromWatts, combine } from './combine'
+import { centralWkgFromWatts, combine, equivalentRunSpeed, sportCurves } from './combine'
 import { digestActivity } from './digestActivity'
 import { fitnessTrend } from './trend'
 
@@ -43,6 +43,12 @@ const old = ride('old', [2023, 6, 15], 260)
 const recent = ride('recent', [2025, 6, 15], 220)
 const rides = [old, recent]
 
+/** Two numbers that are close, or both NaN where a duration has no ride. */
+function expectClose(actual: number, expected: number, digits: number): void {
+  if (Number.isNaN(expected)) expect(actual).toBeNaN()
+  else expect(actual).toBeCloseTo(expected, digits)
+}
+
 const atHeadline = (curve: { durationS: number }[]) =>
   curve.findIndex((point) => point.durationS === HEADLINE_DURATION_S)
 
@@ -53,10 +59,10 @@ describe('an analysis with dated body mass', () => {
     // 260 W at 90 kg is 2.9 W/kg; 220 W at 70 kg is 3.1 W/kg, so the later ride holds the best W/kg.
     expect(wkg.activityId).toBe('recent')
     expect(wkg.value).toBeCloseTo(centralWkgFromWatts(220, 70), 12)
-    // The best watts are still the earlier ride's, since watts do not depend on mass.
+    // The watts curve is from the same ride, and holds that ride's own watts.
     const watts = result.rideCurve[atHeadline(result.rideCurve)]!
-    expect(watts.activityId).toBe('old')
-    expect(watts.value).toBe(260)
+    expect(watts.activityId).toBe('recent')
+    expect(watts.value).toBeCloseTo(220, 9)
   })
 
   it("with today's mass for every ride, would have chosen the heavier ride", () => {
@@ -70,8 +76,12 @@ describe('an analysis with dated body mass', () => {
     const flat: AthleteSettings = { ...plain, measurements: [mass(70, '2020-01-01')] }
     const withDates = combine(rides, flat)
     const without = combine(rides, plain)
-    expect(withDates.rideMetabolicCurve).toEqual(without.rideMetabolicCurve)
-    expect(withDates.rideCurve).toEqual(without.rideCurve)
+    const [dated, undated] = [withDates.rideCurve, without.rideCurve]
+    expect(dated.map((p) => p.activityId)).toEqual(undated.map((p) => p.activityId))
+    dated.forEach((p, i) => expectClose(p.value, undated[i]!.value, 9))
+    withDates.rideMetabolicCurve.forEach((p, i) =>
+      expectClose(p.value, without.rideMetabolicCurve[i]!.value, 12),
+    )
     expect(withDates.comparison).toEqual(without.comparison)
     expect(withDates.equivalents).toEqual(without.equivalents)
   })
@@ -103,10 +113,62 @@ describe('an analysis with dated body mass', () => {
     expect(recentWeek?.rideWkg).toBeCloseTo(centralWkgFromWatts(220, 70), 12)
   })
 
-  it('does not change which ride holds a record, which is read in watts', () => {
+  it('gives the record to the ride with the best power-to-weight, as the curve shows', () => {
     const holders = recordHolders(rides, dated)
-    expect(holders.get('old')).toContainEqual({ kind: 'duration', durationS: HEADLINE_DURATION_S })
-    expect(holders.has('recent')).toBe(false)
+    expect(holders.get('recent')).toContainEqual({
+      kind: 'duration',
+      durationS: HEADLINE_DURATION_S,
+    })
+    expect(holders.has('old')).toBe(false)
+  })
+})
+
+describe('when the best watts and the best power-to-weight are different rides', () => {
+  // 300 W at 90 kg is 3.33 W/kg. 290 W at 80 kg is 3.63 W/kg, so the lighter, weaker ride is the best.
+  const heavy = ride('heavy', [2023, 6, 15], 300)
+  const light = ride('light', [2025, 6, 15], 290)
+  const two = [heavy, light]
+  const settings: AthleteSettings = {
+    massKg: 80,
+    bikeMassKg: 9,
+    measurements: [mass(90, '2023-01-01'), mass(80, '2024-01-01')],
+  }
+  const result = combine(two, settings)
+  const at = (curve: { durationS: number }[]) => atHeadline(curve)
+
+  it('takes the watts curve, the W/kg curve and the equivalents from one ride', () => {
+    const watts = result.rideCurve[at(result.rideCurve)]!
+    const wkg = result.rideMetabolicCurve[at(result.rideMetabolicCurve)]!
+    expect(watts.activityId).toBe('light')
+    expect(wkg.activityId).toBe('light')
+    expect(watts.startIndex).toBe(wkg.startIndex)
+    expect(watts.value).toBeCloseTo(290, 9)
+    const equivalent = result.equivalents.find((e) => e.durationS === HEADLINE_DURATION_S)
+    expect(equivalent?.ridePowerW).toBeCloseTo(290, 9)
+    // Its running equivalent is the 290 W at 80 kg, not 290 W at another mass.
+    expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(290, 80, result.hr).p50, 9)
+  })
+
+  it('agrees for every duration that has a ride', () => {
+    result.rideCurve.forEach((point, i) => {
+      expect(point.activityId).toBe(result.rideMetabolicCurve[i]!.activityId)
+    })
+  })
+
+  it('holds the record with that ride, and lists each ride with its own mass', () => {
+    expect(recordHolders(two, settings).get('light')).toContainEqual({
+      kind: 'duration',
+      durationS: HEADLINE_DURATION_S,
+    })
+    expect(result.activities.map((a) => [a.id, a.massKg])).toEqual([
+      ['light', 80],
+      ['heavy', 90],
+    ])
+  })
+
+  it('draws the previous period from the same ride, so two periods compare alike', () => {
+    const curves = sportCurves(two, settings, result.bikeModel)
+    expect(curves.rideCurve[at(curves.rideCurve)]!.activityId).toBe('light')
   })
 })
 

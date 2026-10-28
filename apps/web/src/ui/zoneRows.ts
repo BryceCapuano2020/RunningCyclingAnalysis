@@ -1,5 +1,5 @@
 import type { Zone, ZoneMeasure, ZoneSet, ZoneSource } from '@rca/core/zones'
-import { formatPaceValue, formatPower, PACE_UNIT } from '@rca/core/units'
+import { formatClock, formatPaceValue, formatPower, PACE_UNIT, paceSeconds } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
 import { SPORT_LABEL, SPORT_PLURAL } from './sports'
 
@@ -13,7 +13,18 @@ const MEASURE_TITLE: Record<ZoneMeasure, string> = {
 /** Where a zone set's reference came from, in the words under its title. */
 const SOURCE_TEXT: Record<ZoneSource, (set: ZoneSet) => string> = {
   entered: () => 'You entered',
-  estimated: (set) => `From your ${SPORT_PLURAL[set.sport]}`,
+  estimated: (set) =>
+    `From your ${set.estimatedFrom.map((sport) => SPORT_PLURAL[sport]).join(' and ')}`,
+}
+
+/**
+ * Whether a measure's zones in the app's own estimate need the athlete's weight: a ride's threshold is
+ * found as energy per kilogram and becomes watts only at a body weight.
+ */
+export const NEEDS_WEIGHT: Record<ZoneMeasure, boolean> = {
+  power: true,
+  heartRate: false,
+  pace: false,
 }
 
 export function sourceText(set: ZoneSet): string {
@@ -28,23 +39,30 @@ interface Edges {
 
 type RangeText = (edges: Edges, units: UnitSystem) => string
 
-/** Watts and beats are whole numbers; the first zone has no floor to name and the last no ceiling. */
+/**
+ * Watts and beats are whole numbers, and a zone holds the whole numbers from its floor up to the one
+ * before the next zone's floor, so no number is in two zones. The first zone has no floor to name and
+ * the last no ceiling.
+ */
 function wholeRange(unit: string): RangeText {
-  const whole = (value: number) => String(Math.round(value))
   return ({ low, high }) => {
-    if (low === 0) return `Under ${whole(high ?? 0)} ${unit}`
-    if (high === null) return `Over ${whole(low)} ${unit}`
-    return `${whole(low)}–${whole(high)} ${unit}`
+    if (high === null) return `${Math.round(low)} ${unit} or more`
+    if (low === 0) return `Under ${Math.round(high)} ${unit}`
+    return `${Math.round(low)}–${Math.round(high) - 1} ${unit}`
   }
 }
 
-/** Speeds shown as paces, which run the other way: a higher speed is a shorter pace. */
+/**
+ * Speeds shown as paces, which run the other way: a higher speed is a shorter pace. Paces are whole
+ * seconds. A zone holds its slow edge and not its fast one, so a pace is in one zone only: the fast
+ * edge belongs to the zone above.
+ */
 const paceRange: RangeText = ({ low, high }, units) => {
   const unit = PACE_UNIT[units]
-  const pace = (speed: number) => formatPaceValue(speed, units)
-  if (low === 0) return `Slower than ${pace(high ?? 0)} ${unit}`
-  if (high === null) return `Faster than ${pace(low)} ${unit}`
-  return `${pace(high)}–${pace(low)} ${unit}`
+  const seconds = (speed: number) => Math.round(paceSeconds(speed, units))
+  if (high === null) return `${formatClock(seconds(low))} ${unit} or faster`
+  if (low === 0) return `Slower than ${formatClock(seconds(high))} ${unit}`
+  return `${formatClock(seconds(high) + 1)}–${formatClock(seconds(low))} ${unit}`
 }
 
 const RANGE_TEXT: Record<ZoneMeasure, RangeText> = {

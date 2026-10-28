@@ -52,7 +52,7 @@ function renderProfile(
       keepFiles={false}
       fileRetentionAvailable
       onSaveProfile={onSaveProfile}
-      dated={{ entries: [], state: 'ready' }}
+      dated={{ entries: [], state: 'ready', elsewhere: 0 }}
       onAddSetting={async () => {}}
       onRemoveSetting={async () => {}}
       onSignIn={onSignIn}
@@ -681,7 +681,7 @@ describe('ProfilePage questions follow their sections', () => {
         keepFiles={false}
         fileRetentionAvailable
         onSaveProfile={vi.fn(async () => {})}
-        dated={{ entries: [], state: 'ready' }}
+        dated={{ entries: [], state: 'ready', elsewhere: 0 }}
         onAddSetting={async () => {}}
         onRemoveSetting={async () => {}}
         onSignIn={vi.fn()}
@@ -1044,12 +1044,15 @@ describe('ProfilePage zones and dated settings', () => {
       { kind: 'thresholdPower', sport: 'ride', value: 250, from: '2020-01-01' },
     ]
     renderProfile(
-      { athlete: { ...SETTINGS, measurements: entries }, dated: { entries, state: 'ready' } },
+      {
+        athlete: { ...SETTINGS, measurements: entries },
+        dated: { entries, state: 'ready', elsewhere: 0 },
+      },
       { state: { result: makeResult() } },
     )
     const table = screen.getByRole('table', { name: /^Ride power zones\./ })
     expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
-    expect(within(table).getByText('Over 375 W')).toBeInTheDocument()
+    expect(within(table).getByText('375 W or more')).toBeInTheDocument()
     expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
   })
@@ -1061,5 +1064,64 @@ describe('ProfilePage zones and dated settings', () => {
     ).toBeVisible()
     expect(screen.getByText(/Friel, The Triathlete's Training Bible/)).toBeVisible()
     expect(screen.getByText(/Edwards, The Heart Rate Monitor Book/)).toBeVisible()
+  })
+
+  it('shows no estimated ride power zones, and says a weight is needed, when none is entered', () => {
+    const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
+    renderProfile({ settings: { massKg: null, bikeMassKg: 9 } }, { state: { result } })
+    expect(screen.queryByRole('table', { name: /^Ride power zones\./ })).not.toBeInTheDocument()
+    expect(screen.getByText(/Add your body weight to see ride power zones/)).toBeInTheDocument()
+    // The zones that do not need a weight are still there.
+    expect(screen.getByRole('table', { name: /^Run pace zones\./ })).toBeInTheDocument()
+  })
+
+  it('still shows an entered threshold power without a weight', () => {
+    const entries: Measurement[] = [
+      { kind: 'thresholdPower', sport: 'ride', value: 250, from: '2020-01-01' },
+    ]
+    renderProfile(
+      {
+        settings: { massKg: null, bikeMassKg: 9 },
+        athlete: { ...SETTINGS, measurements: entries },
+      },
+      { state: { result: makeResult() } },
+    )
+    expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
+      /You entered/,
+    )
+  })
+
+  it('does not mix the sample athlete’s estimates with the visitor’s own dated settings', () => {
+    const entries: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2020-01-01' },
+    ]
+    renderProfile(
+      {
+        athlete: { ...SETTINGS, measurements: entries },
+        dated: { entries, state: 'ready', elsewhere: 0 },
+      },
+      {
+        state: {
+          result: makeResult({ runMaxHeartRate: 170, rideMaxHeartRate: 160 }),
+          isSample: true,
+        },
+      },
+    )
+    // Only what the visitor entered: the sample's heart rates and thresholds supply nothing.
+    expect(screen.getAllByRole('table', { name: /zones\./ })).toHaveLength(1)
+    expect(screen.getByRole('table', { name: /^Run heart rate zones\./ })).toHaveAccessibleName(
+      /You entered: max heart rate 188 bpm/,
+    )
+  })
+
+  it('says when dated settings kept in this browser are not the account’s', () => {
+    renderProfile({
+      signedIn: true,
+      email: EMAIL,
+      dated: { entries: [], state: 'ready', elsewhere: 2 },
+    })
+    expect(
+      screen.getByText(/This browser also holds 2 dated settings from before you signed in/),
+    ).toBeInTheDocument()
   })
 })

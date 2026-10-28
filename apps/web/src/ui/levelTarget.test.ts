@@ -135,6 +135,20 @@ describe('levelTargetText', () => {
     expect(seconds % 5).toBe(0)
   })
 
+  it("compares a ride held at an earlier weight with the target at today's weight", () => {
+    // 300 W at 100 kg is the power-to-weight of 240 W at 80 kg, which is what the target is worked out at.
+    const heavier = makeResult({
+      activities: [
+        makeActivity({ id: 'run-1', sport: 'run' }),
+        makeActivity({ id: 'ride-1', sport: 'ride', massKg: 100 }),
+      ],
+      runCurve: result.runCurve,
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
+    })
+    const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
+    expect(line).toMatch(/now 240 W\)\.$/)
+  })
+
   it('names no line when the balance is even', () => {
     expect(levelTargetText({ ...base, lean: 'even' })).toBeNull()
   })

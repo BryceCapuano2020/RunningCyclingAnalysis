@@ -9,6 +9,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { PACE_UNIT, formatClock, formatWatts, paceSeconds } from '@rca/core/units'
 import type { Lean } from '../domain/lean'
 import { HEADLINE_LABEL, type GradeOutcome } from './grades'
+import { activityMasses } from './activityMasses'
 import { wholeGrade } from './gradeFormat'
 import { curveOf, valueAt } from './records'
 import { SPORT_FORMAT, SPORT_NOUN } from './sports'
@@ -195,6 +196,16 @@ const OWN_OF_CURVE: Record<Sport, (value: number) => number> = {
   ride: (watts) => watts,
 }
 
+/**
+ * A sport's own number for the best effort, as it would read at today's mass. A ride's watts were held
+ * at the body mass on its day, and the target is worked out at today's, so the two are compared at
+ * the same power-to-weight. Without dated masses the two masses are one, and a run has no mass.
+ */
+const AT_TODAYS_MASS: Record<Sport, (own: number, rideKg: number, todayKg: number) => number> = {
+  run: (speed) => speed,
+  ride: (watts, rideKg, todayKg) => (watts * todayKg) / rideKg,
+}
+
 /** A pace, m/s, taken at the faster whole 5 s, so the rounded pace reaches the target. */
 function levelledSpeed(speedMs: number, units: UnitSystem): number {
   const seconds = paceSeconds(speedMs, units)
@@ -288,7 +299,15 @@ export function levelTargetText(input: LevelTargetInput): string | null {
   const target = wholeGrade(higherGrade.grade.centre.grade) / 100
   const athlete = { age: lowerGrade.age, sex, massKg, hr: result.hr }
   const needed = nativeRangeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
-  const now = OWN_OF_CURVE[lower](valueAt(curveOf(result, lower), HEADLINE_DURATION_S))
+  const curve = curveOf(result, lower)
+  const rideKg = activityMasses(result.activities)[
+    curve.find((p) => p.durationS === HEADLINE_DURATION_S)?.activityId ?? ''
+  ]
+  const now = AT_TODAYS_MASS[lower](
+    OWN_OF_CURVE[lower](valueAt(curve, HEADLINE_DURATION_S)),
+    rideKg ?? massKg,
+    massKg,
+  )
   if (needed === null || !Number.isFinite(now)) return null
   const levelled = levelledRange(lower, needed, units)
   if (!BEYOND_SHOWN[lower](levelled.centre, now, units)) return null

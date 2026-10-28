@@ -119,7 +119,8 @@ const TOPIC_LIST = [
     detail:
       'A ride’s W/kg, and the watts estimated for a ride without a power meter, use the body and ' +
       'bike weight in effect on that ride’s local day, so a ride from last year does not use ' +
-      'today’s weight. Your current weight is the dated weight in effect today, and setting it once ' +
+      'today’s weight. With dated weights the best ride at a duration is the one with the most watts ' +
+      'per kilogram on its day, and that one ride supplies its watts, grade and running equivalent. Your current weight is the dated weight in effect today, and setting it once ' +
       'weights are dated adds an entry from today. The saved summary of an activity holds no weight, ' +
       'so changing a dated weight changes results without reading any file again.',
   },

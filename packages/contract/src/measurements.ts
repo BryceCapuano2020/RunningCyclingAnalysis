@@ -1,3 +1,4 @@
+import './zodConfig.ts'
 import { z } from 'zod'
 import { MEASUREMENT_KINDS, MEASUREMENT_SPORTS, isLocalDate } from '@rca/core/athlete'
 import type { MeasurementKind } from '@rca/core/athlete'

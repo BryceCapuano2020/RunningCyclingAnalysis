@@ -8,20 +8,30 @@ import type { AccountStatus } from './useAccount'
 const NOT_KEPT = 'This browser would not keep the setting. Check that it may store site data.'
 const NO_ENTRIES: readonly Measurement[] = []
 
+/** Why a weight cannot be saved, or the data downloaded, until the account's dated settings are known. */
+export const SETTINGS_NOT_READY = {
+  loading: 'Your dated settings are still loading. Try again in a moment.',
+  failed: 'Your dated settings could not be loaded. Reload the page and try again.',
+} as const
+
 export interface MeasurementsController {
   /** The dated settings, earliest date first. The same array until a setting changes. */
   entries: readonly Measurement[]
   /** 'loading' while the account's list is read, 'failed' when it could not be. */
   state: 'ready' | 'loading' | 'failed'
+  /** Signed in: how many dated settings this browser holds from before, which are not the account's. */
+  elsewhere: number
   /** Sets the value in effect from a date, replacing one for the same kind, sport and date. */
   add: (entry: Measurement) => Promise<Measurement[]>
   remove: (entry: Measurement) => Promise<Measurement[]>
 }
 
 /**
- * The athlete's dated settings. Signed in, the account keeps them and this reads and writes through
- * the API. Signed out, and while the account is still loading, this browser keeps them. A write
+ * The athlete's dated settings. Signed in, the account keeps them: this reads and writes them through
+ * the API, and there are none to use until the account's list has arrived (state 'loading'). Signed
+ * out, and while the sign-in is still being looked up, the list kept in this browser is used. A write
  * resolves with the new list once it is stored, and rejects, changing nothing, when it is refused.
+ * The browser's own list is left as it was when signed in; it is not merged into the account.
  */
 export function useMeasurements(
   status: AccountStatus,
@@ -88,5 +98,5 @@ export function useMeasurements(
 
   let state: MeasurementsController['state'] = 'ready'
   if (signedIn && !loaded) state = failed ? 'failed' : 'loading'
-  return { entries, state, add, remove }
+  return { entries, state, elsewhere: signedIn ? device.length : 0, add, remove }
 }

@@ -90,6 +90,29 @@ describe('zonesAt', () => {
     )
   })
 
+  it('says which sports a heart-rate reference rests on', () => {
+    const from = (estimates: Partial<typeof result>) =>
+      find(zonesAt(local(2025, 1, 1), settings, { ...result, ...estimates }), 'ride', 'heartRate')
+        ?.estimatedFrom
+    // Its own highest heart rate stands, so it rests on the sport alone.
+    expect(from({ rideMaxHeartRate: 175, rideObservedMaxHeartRate: 175 })).toEqual(['ride'])
+    // Worked out from the runs, which are higher, it rests on both sports.
+    expect(from({ rideMaxHeartRate: 183, rideObservedMaxHeartRate: 175 })).toEqual(['run', 'ride'])
+    // No ride heart rate on file at all: it rests on the runs alone.
+    expect(from({ rideMaxHeartRate: 183, rideObservedMaxHeartRate: null })).toEqual(['run'])
+    expect(
+      find(zonesAt(local(2025, 1, 1), settings, result), 'ride', 'power')?.estimatedFrom,
+    ).toEqual(['ride'])
+  })
+
+  it('rests an entered reference on nothing', () => {
+    const entries: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'ride', value: 181, from: '2020-01-01' },
+    ]
+    const sets = zonesAt(local(2025, 1, 1), { ...settings, measurements: entries }, result)
+    expect(find(sets, 'ride', 'heartRate')?.estimatedFrom).toEqual([])
+  })
+
   it('has nothing without a reference', () => {
     expect(zonesAt(local(2025, 1, 1), settings, null)).toEqual([])
   })

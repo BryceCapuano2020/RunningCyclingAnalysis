@@ -24,11 +24,13 @@ import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
-import { useMeasurements } from './ui/useMeasurements'
+import { messageOf } from './api/messageOf'
+import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
+import { ExplainedError } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
@@ -72,13 +74,12 @@ export function App() {
       }
   const { units } = athleteValues
   const measurements = useMeasurements(account.status, account.me?.user.id ?? null)
-  // A dated weight in effect today stands in for a current weight not yet entered.
+  // The weight today is the dated weight in effect today, whatever the saved profile holds, so a weight
+  // dated for a later day takes effect on that day with no edit. Without dated weights it is the profile's.
   const now = useNow()
   const datedKg = currentMass(measurements.entries, now)
   const settings =
-    athleteValues.settings.massKg === null && datedKg !== null
-      ? { ...athleteValues.settings, massKg: datedKg }
-      : athleteValues.settings
+    datedKg === null ? athleteValues.settings : { ...athleteValues.settings, massKg: datedKg }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
   // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
   const analysisAthlete = useAnalysisSettings(settings, measurements.entries)
@@ -103,12 +104,22 @@ export function App() {
   }
 
   // Once weights are dated, setting the current weight adds one from today, so the two stay one answer.
+  // A signed-in weight waits for the account's dated settings, since without them it could not tell
+  // whether to date the weight. A weight saved to the profile whose dated copy is refused says so.
   const saveProfile = async (next: ProfilePatch) => {
-    await saveAnswers(next)
     const kg = next.settings?.massKg
+    if (typeof kg === 'number' && measurements.state !== 'ready') {
+      throw new ExplainedError(SETTINGS_NOT_READY[measurements.state])
+    }
+    await saveAnswers(next)
     const dated = measurements.entries.some((entry) => entry.kind === 'massKg')
-    if (typeof kg === 'number' && dated && currentMass(measurements.entries, now) !== kg) {
+    if (typeof kg !== 'number' || !dated || currentMass(measurements.entries, now) === kg) return
+    try {
       await measurements.add({ kind: 'massKg', value: kg, from: localDateOf(now) })
+    } catch (failure) {
+      throw new ExplainedError(
+        `Saved as your profile weight, but not as a dated weight, so results still use the weight dated before. ${messageOf(failure)}`,
+      )
     }
   }
 
@@ -126,6 +137,12 @@ export function App() {
   // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
   const gradeTrend = ageProfile !== null
   const analysis = useAnalysis(analysisAthlete, account, gradeTrend)
+
+  // The download holds the dated settings, so it waits for them rather than leave them out.
+  const downloadData = async () => {
+    if (measurements.state !== 'ready') throw new Error(SETTINGS_NOT_READY[measurements.state])
+    return analysis.exportData()
+  }
   // Sample data carries its own persona weight, so it is weighted whatever the visitor has entered.
   const weighted = analysis.state.isSample || weightKnown(settings)
   // Called after useAnalysis, so its settings are in place before held files are sent.
@@ -319,7 +336,7 @@ export function App() {
             onAddSetting={addSetting}
             onRemoveSetting={removeSetting}
             onSignIn={account.signIn}
-            onDownloadData={analysis.exportData}
+            onDownloadData={downloadData}
             onDeleteAccount={deleteAccount}
             onRemoveAll={removeAll}
           />

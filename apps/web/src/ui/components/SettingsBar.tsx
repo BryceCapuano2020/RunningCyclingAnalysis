@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { FocusEvent, KeyboardEvent, ReactNode } from 'react'
 import type { UnitSystem } from '@rca/core/units'
 import { displayWeight, readWeight, weightKg, weightUnit } from '../athlete'
+import { ExplainedError } from '../profilePatch'
 import type { WeightField, WeightSettings } from '../athlete'
 import { isTypicalBodyKg, unusualKgText, unusualWeightSentence } from '../typicalWeight'
 import { NumberField } from './NumberField'
@@ -52,6 +53,8 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
   // field is left.
   const [unusual, setUnusual] = useState<number | null>(null)
   const [status, setStatus] = useState<SaveStatus>('idle')
+  // What a change saved in part says in place of the usual failure, such as what was and was not kept.
+  const [partial, setPartial] = useState<string | null>(null)
   // The units the bar last showed. A change of units drops the draft, its error and its question:
   // the same figures would mean other things in the new units.
   const [shownUnits, setShownUnits] = useState(units)
@@ -82,9 +85,11 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
       setError(null)
       setUnusual(null)
       setDraft(null)
+      setPartial(null)
       setStatus('saved')
-    } catch {
+    } catch (failure) {
       // A refused change keeps its draft, so the question and its save control stay until it is tried again.
+      setPartial(failure instanceof ExplainedError ? failure.message : null)
       setStatus('failed')
     }
   }
@@ -178,7 +183,7 @@ export function SettingsBar({ settings, units, onChange, seeLevels = null }: Set
         {hint}
       </p>
       <p role="status" className="settings-bar__status">
-        {STATUS_TEXT[status]}
+        {status === 'failed' && partial !== null ? partial : STATUS_TEXT[status]}
         {status === 'saved' && seeLevels !== null && <> {seeLevels}</>}
       </p>
     </div>

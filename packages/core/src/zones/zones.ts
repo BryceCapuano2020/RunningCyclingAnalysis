@@ -33,6 +33,12 @@ export interface ZoneSet {
   source: ZoneSource
   /** Threshold power W, maximum heart rate bpm, or threshold speed m/s that the zones are cut from. */
   reference: number
+  /**
+   * The sports whose activities an estimated reference rests on, empty when it was entered. A heart-rate
+   * reference is the higher of the sport's own maximum and one worked out from the other sport's, so it
+   * can rest on both.
+   */
+  estimatedFrom: Sport[]
   /** The published scheme, for the line under the table. */
   citation: string
   zones: Zone[]
@@ -52,10 +58,38 @@ export function zonesFor(measure: ZoneMeasure, reference: number): Zone[] {
 /** What an analysis offers as references: the threshold fits and the reference heart rates. */
 export type ZoneEstimates = Pick<
   AnalysisResult,
-  'runCp' | 'rideCp' | 'runMaxHeartRate' | 'rideMaxHeartRate'
+  | 'runCp'
+  | 'rideCp'
+  | 'runMaxHeartRate'
+  | 'rideMaxHeartRate'
+  | 'runObservedMaxHeartRate'
+  | 'rideObservedMaxHeartRate'
 >
 
-type Estimate = (estimates: ZoneEstimates, massKg: number) => number | null
+interface Estimated {
+  reference: number
+  from: Sport[]
+}
+
+type Estimate = (estimates: ZoneEstimates, massKg: number) => Estimated | null
+
+/** A reference that rests on the sport's own activities alone. */
+const own = (sport: Sport, reference: number | null): Estimated | null =>
+  reference === null ? null : { reference, from: [sport] }
+
+const OTHER_SPORT: Record<Sport, Sport> = { run: 'ride', ride: 'run' }
+
+/**
+ * A heart-rate reference. It is the sport's own highest heart rate when that is the higher figure,
+ * and otherwise it is worked out from the other sport's. With none of its own it rests on the other
+ * sport alone, and with both it rests on both.
+ */
+function heartRate(sport: Sport, reference: number | null, observed: number | null) {
+  if (reference === null) return null
+  if (reference === observed) return { reference, from: [sport] }
+  if (observed === null) return { reference, from: [OTHER_SPORT[sport]] }
+  return { reference, from: ['run', 'ride'] as Sport[] }
+}
 
 /**
  * The app's own reference for each sport and measure, null without one. A ride's threshold is a
@@ -63,13 +97,16 @@ type Estimate = (estimates: ZoneEstimates, massKg: number) => number | null
  */
 const ESTIMATE: Record<Sport, Partial<Record<ZoneMeasure, Estimate>>> = {
   run: {
-    heartRate: (e) => e.runMaxHeartRate,
-    pace: (e) => (e.runCp ? metabolicToFlatSpeed(e.runCp.cp) : null),
+    heartRate: (e) => heartRate('run', e.runMaxHeartRate, e.runObservedMaxHeartRate),
+    pace: (e) => own('run', e.runCp ? metabolicToFlatSpeed(e.runCp.cp) : null),
   },
   ride: {
-    heartRate: (e) => e.rideMaxHeartRate,
+    heartRate: (e) => heartRate('ride', e.rideMaxHeartRate, e.rideObservedMaxHeartRate),
     power: (e, massKg) =>
-      e.rideCp ? metabolicToRidePower(e.rideCp.cp, massKg, PRIORS.grossEfficiency.mean) : null,
+      own(
+        'ride',
+        e.rideCp ? metabolicToRidePower(e.rideCp.cp, massKg, PRIORS.grossEfficiency.mean) : null,
+      ),
   },
 }
 
@@ -93,13 +130,14 @@ export function zonesAt(
       const entered = entryAt(settings.measurements ?? [], ZONE_OVERRIDE[measure], sport, at)
       const estimate = estimates === null ? null : ESTIMATE[sport][measure]?.(estimates, massKg)
       const source: ZoneSource = entered === null ? 'estimated' : 'entered'
-      const reference = entered?.value ?? estimate ?? null
+      const reference = entered?.value ?? estimate?.reference ?? null
       if (reference === null || !Number.isFinite(reference) || reference <= 0) continue
       sets.push({
         sport,
         measure,
         source,
         reference,
+        estimatedFrom: entered === null ? (estimate?.from ?? []) : [],
         citation: ZONE_SCHEMES[measure].citation,
         zones: zonesFor(measure, reference),
       })

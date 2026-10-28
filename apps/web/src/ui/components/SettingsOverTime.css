@@ -22,6 +22,12 @@
   color: var(--text-secondary);
 }
 
+.settings-over-time__date {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
 .settings-over-time__field select,
 .settings-over-time__field input {
   box-sizing: border-box;

@@ -2,6 +2,18 @@ import type { Profile, ProfileInput, Sex } from '@rca/contract'
 import type { UnitSystem } from '@rca/core/units'
 import type { WeightSettings } from './athlete'
 
+/**
+ * A failure whose message is meant to be read as it is: why a change could not be made, or what was
+ * kept and what was not when it was saved in part. The control that asked for the change shows it in
+ * place of its usual "Couldn't save".
+ */
+export class ExplainedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ExplainedError'
+  }
+}
+
 /** A change to what the app keeps about the athlete, signed in or out. */
 export type ProfilePatch = Partial<{
   /** Only the weights the change sets: a weight left out keeps its saved value. */
