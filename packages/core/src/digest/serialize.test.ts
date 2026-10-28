@@ -404,6 +404,26 @@ describe('distance bests on the wire', () => {
     expect(parseDigest(serializeDigest(ride))).not.toHaveProperty('distanceBests')
   })
 
+  it('lets a distance the run falls short of be timed up to the activity over the tolerance', () => {
+    // A 9.92 km run: its 10 km may be timed up to the duration over 0.99.
+    const shortRun = (seconds: number) =>
+      editedRun((o) => {
+        o.distanceM = 9920
+        o.distanceBests = [{ distanceM: 10_000, seconds }]
+      })
+    expect(() => parseDigest(shortRun(2500))).not.toThrow()
+    expect(() => parseDigest(shortRun(run.n / 0.99 - 1))).not.toThrow()
+    expect(() => parseDigest(shortRun(run.n / 0.99 + 1))).toThrow(/must not exceed durationS/)
+    // A distance the run covers in full is held to the duration.
+    expect(() =>
+      parseDigest(
+        editedRun((o) => {
+          o.distanceBests = [{ distanceM: 1000, seconds: run.n + 1 }]
+        }),
+      ),
+    ).toThrow(/must not exceed durationS/)
+  })
+
   it('rejects malformed distance bests', () => {
     expect(() => parseDigest(editedRun((o) => (o.distanceBests = {})))).toThrow(
       /distanceBests must be an array/,
@@ -421,7 +441,7 @@ describe('distance bests on the wire', () => {
     expect(() =>
       parseDigest(
         editedRun((o) => {
-          bestsOf(o)[0]!.seconds = run.n * 1.02
+          bestsOf(o)[0]!.seconds = run.n + 1
         }),
       ),
     ).toThrow(/distanceBests\[0\]\.seconds must not exceed durationS/)

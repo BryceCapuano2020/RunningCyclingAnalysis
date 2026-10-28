@@ -55,6 +55,7 @@ export const RUN_WORLD_RECORD_SPEEDS: readonly { durationS: number; speedMs: num
   // The marathon.
   { durationS: 7235, speedMs: 5.83 },
 ]
+
 /**
  * The fastest speed, m/s, a rider holds over a duration, for the sustained-speed check on a ride's
  * speed stream. It is far above anything an unpaced rider averages and is meant to catch only a
@@ -79,9 +80,12 @@ export const BEST_WINDOW_MIN_MOVING_FRACTION = 0.9
 
 /**
  * How far short of a record distance a run may fall and still be timed over it: 1%, which is 100 m
- * on a 10 km. Watches measure a certified course a little short or long (GPS under-reads the tangents
- * of a course by up to about 1%), so a 9.92 km race is a 10 km race. The time is scaled up to the
- * exact distance.
+ * on a 10 km. A watch can read a certified course short or long: GPS cuts the corners of a road
+ * course, which reads short, and wanders, which reads long. The treatment is not symmetric. A run
+ * that reads long covers the distance, so its fastest exact window is the time. A run that reads
+ * short is timed over the distance it covers and the time is scaled up to the exact distance, which
+ * assumes an even pace over the part that was missed, so a 9.92 km race is a 10 km race. The 1% is a
+ * convention set from the size of the GPS error on a measured course, not a measured constant.
  */
 export const DISTANCE_BEST_TOLERANCE = 0.01
 

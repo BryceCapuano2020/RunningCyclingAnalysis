@@ -537,6 +537,30 @@ describe('assessQuality: speed-spike', () => {
     expect(fast.map((f) => [f.kind, f.start, f.end])).toEqual([['speed-spike', 27, 34]])
   })
 
+  it('flags a sustained speed no one holds once, with a spike inside it counted in the stretch', () => {
+    const speed = new Float64Array(400).fill(3)
+    speed.fill(9, 100, 300)
+    speed[200] = 14
+    const report = assessQuality(makeActivity(400, { speed }))
+    expect(report.flags.map((f) => f.kind)).toEqual(['implausible-speed'])
+    expect(report.flags[0]!.message).toMatch(
+      /^Speed stayed beyond what anyone can sustain for \d+ seconds$/,
+    )
+    // The spike is masked all the same.
+    const stretch = report.flags[0]!
+    for (let i = stretch.start; i < stretch.end; i++) expect(report.validMotion[i]).toBe(0)
+    expect(report.validMotion[197]).toBe(0)
+    expect(report.validMotion[203]).toBe(0)
+  })
+
+  it('still flags a spike that is not inside a sustained stretch', () => {
+    const speed = new Float64Array(400).fill(3)
+    speed[50] = 14
+    speed.fill(9, 200, 380)
+    const kinds = assessQuality(makeActivity(400, { speed })).flags.map((f) => f.kind)
+    expect(kinds.sort()).toEqual(['implausible-speed', 'speed-spike'])
+  })
+
   it('fires on a step of more than 5 m/s between samples, masking 3 s either side', () => {
     const a = withPower(120)
     a.speed[50] = 11

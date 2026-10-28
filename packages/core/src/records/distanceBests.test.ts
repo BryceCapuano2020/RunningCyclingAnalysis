@@ -18,6 +18,22 @@ function secondsAt(result: { distanceM: number; seconds: number }[], distanceM: 
   return result.find((b) => b.distanceM === distanceM)?.seconds ?? NaN
 }
 
+/** The most distance, m, that any run of valid samples with no step above maxStep covers. */
+function longestReach(distance: Float64Array, valid: Uint8Array, maxStep: number): number {
+  let longest = 0
+  let from = -1
+  for (let i = 0; i <= distance.length; i++) {
+    const usable = i < distance.length && valid[i] === 1
+    const jump = usable && from >= 0 && distance[i]! - distance[i - 1]! > maxStep
+    if (from >= 0 && (!usable || jump)) {
+      longest = Math.max(longest, distance[i - 1]! - distance[from]!)
+      from = -1
+    }
+    if (usable && from < 0) from = i
+  }
+  return longest
+}
+
 describe('distanceBests', () => {
   it('gives exact times for a constant-pace run at every record distance', () => {
     const { distance, valid } = profile([[2500, 4]])
@@ -201,9 +217,11 @@ describe('distanceBests', () => {
         }
         const mine = secondsAt(bests, span)
         if (brute === Infinity) {
-          // Only the distance tolerance can time a span that no window covers in full.
-          const reach = distance[n - 1]! >= span * (1 - DISTANCE_BEST_TOLERANCE)
-          expect(Number.isNaN(mine) || reach, `seed ${seed}, ${span} m`).toBe(true)
+          // Only the distance tolerance can time a span that no clean stretch covers in full, and it
+          // does so exactly when some clean stretch reaches within the tolerance of the span.
+          const near =
+            longestReach(distance, valid, maxStep) >= span * (1 - DISTANCE_BEST_TOLERANCE)
+          expect(Number.isNaN(mine), `seed ${seed}, ${span} m`).toBe(!near)
         } else {
           compared++
           expect(mine, `seed ${seed}, ${span} m`).toBeLessThanOrEqual(brute + 1e-6)
@@ -241,6 +259,27 @@ describe('distanceBests', () => {
     expect(secondsAt(bests, 5000)).toBeCloseTo(1250, 6)
   })
 
+  it('times a short stretch that starts after a masked section, whatever the rounding of its distances', () => {
+    // The stretch's reach added to its first distance can land above its last distance in floating
+    // point (about 2% of stretches), so a sweep for exactly that span finds nothing. Every seed must
+    // still give a 5 km best, from a stretch about 4,960 m (0.8% short) that starts after a masked sample.
+    for (let seed = 1; seed <= 300; seed++) {
+      const random = mulberry32(seed)
+      const head = 11
+      const distance = new Float64Array(head + 1241)
+      distance[0] = 1234.5678 * random() * 10
+      for (let i = 1; i < distance.length; i++) {
+        const step = i <= head ? 3 : 3.9 + 0.2 * random()
+        distance[i] = distance[i - 1]! + step
+      }
+      const valid = new Uint8Array(distance.length).fill(1)
+      valid[head - 1] = 0
+      const seconds = secondsAt(distanceBests(distance, valid), 5000)
+      expect(seconds, `seed ${seed}`).toBeGreaterThan(1240)
+      expect(seconds, `seed ${seed}`).toBeLessThan(1260)
+    }
+  })
+
   it('does not count a run further short of a record distance than the tolerance', () => {
     const { distance, valid } = profile([[2460, 4]])
     expect(distance.at(-1)).toBe(9840)
@@ -262,6 +301,33 @@ describe('distanceBests', () => {
     expect(secondsAt(distanceBests(impossible.distance, impossible.valid), 1000)).toBeNaN()
     const possible = profile([[300, 6.25]])
     expect(secondsAt(distanceBests(possible.distance, possible.valid), 1000)).toBeCloseTo(160, 6)
+  })
+
+  it('falls back to the fastest window that could have been run, not to no time', () => {
+    // 100 s at 10 m/s is a kilometre in 100 s, which no one runs. The windows that reach a kilometre
+    // by taking in some of the slower running either side are possible, so the best is among those.
+    const { distance, valid } = profile([
+      [300, 5],
+      [100, 10],
+      [300, 5],
+    ])
+    const seconds = secondsAt(distanceBests(distance, valid), 1000)
+    expect(seconds).toBeGreaterThan(125)
+    expect(seconds).toBeLessThan(200)
+  })
+
+  it('prefers a stretch that covers a distance to a faster stretch that falls just short of it', () => {
+    // Stretch one covers 5 km at 4 m/s (1,250 s). Stretch two, after a masked sample, is 4,960 m at
+    // 5 m/s, which scaled up to 5 km would be 1,000 s. The exact stretch wins: the tolerance is a fallback.
+    const a = profile([[1250, 4]])
+    const b = profile([[992, 5]])
+    const distance = Float64Array.from([
+      ...a.distance,
+      ...b.distance.map((d) => d + a.distance.at(-1)!),
+    ])
+    const valid = Uint8Array.from([...a.valid, ...b.valid])
+    valid[a.valid.length] = 0
+    expect(secondsAt(distanceBests(distance, valid), 5000)).toBeCloseTo(1250, 6)
   })
 
   it('returns nothing for an empty stream', () => {

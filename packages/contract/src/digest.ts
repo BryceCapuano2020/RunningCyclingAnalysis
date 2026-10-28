@@ -148,11 +148,21 @@ interface DistanceBestsFields {
   distanceBests?: { distanceM: number; seconds: number }[]
 }
 
+/** The longest a distance best may take: the activity's duration, or scaled up if the run falls short. */
+function longestBestSeconds(
+  distanceM: number,
+  digest: Pick<DistanceBestsFields, 'distanceM' | 'durationS'>,
+): number {
+  const covered = distanceM <= digest.distanceM
+  return covered ? digest.durationS : digest.durationS / (1 - DISTANCE_BEST_TOLERANCE)
+}
+
 /**
  * Runs only; ascending distances, each covered by the run, each no longer than the activity. A run
- * covers a distance within DISTANCE_BEST_TOLERANCE of it, and a time scaled up to the distance may
- * exceed the activity by that much. The stored schema applies these too: rows written before the
- * field do not exist, so nothing is lost.
+ * covers a distance within DISTANCE_BEST_TOLERANCE of it. A distance the run covers in full is no
+ * longer than the activity; one it falls short of is timed over what it covers and scaled up to the
+ * distance, so its time is at most the activity's over (1 - DISTANCE_BEST_TOLERANCE). The stored
+ * schema applies these too: rows written before the field do not exist, so nothing is lost.
  */
 function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): void {
   const bests = digest.distanceBests
@@ -171,7 +181,7 @@ function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): 
       ctx.addIssue({ code: 'custom', path, message: 'Distance bests must ascend' })
     } else if (!(best.distanceM * (1 - DISTANCE_BEST_TOLERANCE) <= digest.distanceM)) {
       ctx.addIssue({ code: 'custom', path, message: 'The run does not cover this distance' })
-    } else if (!(best.seconds <= digest.durationS * (1 + DISTANCE_BEST_TOLERANCE))) {
+    } else if (!(best.seconds <= longestBestSeconds(best.distanceM, digest))) {
       ctx.addIssue({ code: 'custom', path, message: 'Time exceeds the digest duration' })
     }
   })

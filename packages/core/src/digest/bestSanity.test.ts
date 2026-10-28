@@ -46,11 +46,12 @@ const valueAt = (digest: ReturnType<typeof digestOf>, durationS: number): number
 
 describe('best efforts from sparse and noisy GPS files', () => {
   it('does not credit a sustained impossible speed in a position-derived track', () => {
-    // Steady 3 m/s, then 3 minutes at 9.5 m/s (a 2:49 mile) with nothing to disagree with it.
+    // A fix every 3 s: steady 3 m/s, then 3 minutes at 9.5 m/s (a 2:49 mile) with nothing to
+    // disagree with it, since the speed is made from the positions.
     const digest = digestOf([
-      { fromS: 0, toS: 900, speed: 3 },
-      { fromS: 901, toS: 1081, speed: 9.5 },
-      { fromS: 1082, toS: 1900, speed: 3 },
+      { fromS: 0, toS: 900, speed: 3, everyS: 3 },
+      { fromS: 903, toS: 1083, speed: 9.5, everyS: 3 },
+      { fromS: 1086, toS: 1902, speed: 3, everyS: 3 },
     ])
     expect(digest.flags.map((f) => f.kind)).toContain('implausible-speed')
     // The best 2 minutes is the steady pace, not the glitch.
@@ -58,14 +59,27 @@ describe('best efforts from sparse and noisy GPS files', () => {
     expect(valueAt(digest, 300)).toBeLessThan(flatMetabolic(4))
   })
 
+  it('does not time a distance best through a sustained impossible speed', () => {
+    // The glitch covers 1.7 km, so a kilometre inside it would be about 105 s. The kilometre is timed
+    // over the steady running outside it, at 3 m/s.
+    const digest = digestOf([
+      { fromS: 0, toS: 900, speed: 3, everyS: 3 },
+      { fromS: 903, toS: 1083, speed: 9.5, everyS: 3 },
+      { fromS: 1086, toS: 1902, speed: 3, everyS: 3 },
+    ])
+    const km = digest.distanceBests!.find((b) => b.distanceM === 1000)!
+    expect(km.seconds).toBeGreaterThan(320)
+    expect(km.seconds).toBeLessThan(345)
+  })
+
   it('does not credit a fast window that is mostly stopped or unrecorded', () => {
     // Fast running either side of a 70 s gap with no fixes. Any 5 minute window over the gap is 77%
     // moving; read as an effort it would be a 5.3 m/s average.
     const digest = digestOf([
-      { fromS: 0, toS: 600, speed: 3 },
-      { fromS: 601, toS: 760, speed: 6.9 },
-      { fromS: 830, toS: 900, speed: 6.9 },
-      { fromS: 901, toS: 1500, speed: 3 },
+      { fromS: 0, toS: 600, speed: 3, everyS: 2 },
+      { fromS: 602, toS: 760, speed: 6.9, everyS: 2 },
+      { fromS: 830, toS: 900, speed: 6.9, everyS: 2 },
+      { fromS: 902, toS: 1500, speed: 3, everyS: 2 },
     ])
     const best = digest.curve.find((p) => p.durationS === 300)!
     const overGap = Math.max(
@@ -83,6 +97,7 @@ describe('best efforts from sparse and noisy GPS files', () => {
       { fromS: 1101, toS: 1275, speed: 1000 / 174 },
       { fromS: 1276, toS: 1800, speed: 3 },
     ])
+    expect(digest.distanceBests!.length).toBeGreaterThan(0)
     expect(digest.flags.map((f) => f.kind)).not.toContain('implausible-speed')
     expect(valueAt(digest, 300)).toBeGreaterThan(flatMetabolic(5.3))
     const km = digest.distanceBests!.find((b) => b.distanceM === 1000)!
@@ -110,6 +125,45 @@ describe('best windows over pauses', () => {
     const best = digest.curve.find((p) => p.durationS === 300)!
     let stopped = 0
     for (let i = best.startIndex; i < best.startIndex + best.windowS; i++) stopped += pausedMask[i]!
+    expect(stopped).toBeLessThanOrEqual((1 - BEST_WINDOW_MIN_MOVING_FRACTION) * best.windowS + 1e-9)
+  })
+
+  /** The seconds of [start, start + length) that the mask marks. */
+  const markedIn = (mask: Uint8Array, start: number, length: number): number => {
+    let count = 0
+    for (let i = start; i < start + length; i++) count += mask[i]!
+    return count
+  }
+
+  it('holds a power-meter ride to the same rule', () => {
+    const n = 1400
+    const power = new Float64Array(n).fill(200)
+    power.fill(350, 400, 700)
+    // A 40 s pause in the burst, with no power while paused.
+    power.fill(0, 550, 590)
+    const pausedMask = paused(n, 550, 590)
+    const ride = syntheticActivity({ sport: 'ride', n, power, paused: pausedMask })
+    const best = digestActivity(ride).curve.find((p) => p.durationS === 300)!
+    expect(best.startIndex).toBeGreaterThanOrEqual(0)
+    const stopped = markedIn(pausedMask, best.startIndex, best.windowS)
+    expect(stopped).toBeLessThanOrEqual((1 - BEST_WINDOW_MIN_MOVING_FRACTION) * best.windowS + 1e-9)
+  })
+
+  it('holds a ride without a power meter to the same rule', () => {
+    // A steady climb with a paused stretch early on. Every window ties on power, so the first window
+    // would win and take in the pause were it allowed to.
+    const n = 900
+    const pausedMask = paused(n, 100, 140)
+    const climb = syntheticActivity({
+      sport: 'ride',
+      n,
+      speed: new Float64Array(n).fill(8),
+      grade: 0.05,
+      paused: pausedMask,
+    })
+    const best = digestActivity(climb).curve.find((p) => p.durationS === 300)!
+    expect(best.startIndex).toBeGreaterThanOrEqual(0)
+    const stopped = markedIn(pausedMask, best.startIndex, best.windowS)
     expect(stopped).toBeLessThanOrEqual((1 - BEST_WINDOW_MIN_MOVING_FRACTION) * best.windowS + 1e-9)
   })
 

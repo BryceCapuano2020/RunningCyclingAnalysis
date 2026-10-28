@@ -6,11 +6,18 @@ export interface Occupancy {
   minFraction: number
 }
 
+export interface MeanMaximalOptions {
+  /** The first sample a window may start at. Default 0. */
+  firstStart?: number
+  /** The share of a window that must be moving. Default none. */
+  occupancy?: Occupancy
+}
+
 /**
  * Best mean of `values` over any window of exactly d consecutive samples in which every sample
  * is valid (valid = 1) and finite, for each duration d in whole seconds. Runs in O(n) per
- * duration using prefix sums and a prefix count of unusable samples. Only windows that start at
- * sample `firstStart` or later are considered. With `occupancy`, a window must also be mostly
+ * duration using prefix sums and a prefix count of unusable samples. With `firstStart`, only windows
+ * that start at that sample or later are considered. With `occupancy`, a window must also be mostly
  * moving: a stretch that is mostly stopped is not an effort of its length, whatever its mean.
  */
 export function meanMaximal(
@@ -18,8 +25,7 @@ export function meanMaximal(
   valid: Uint8Array,
   durations: readonly number[],
   activityId: string,
-  firstStart = 0,
-  occupancy?: Occupancy,
+  { firstStart = 0, occupancy }: MeanMaximalOptions = {},
 ): Curve {
   const n = values.length
   const sum = new Float64Array(n + 1)

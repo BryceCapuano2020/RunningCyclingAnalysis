@@ -67,16 +67,21 @@ describe('implausibleSpeedStretches', () => {
     expect(implausibleSpeedStretches(at(60, 25, 'ride'))).toEqual([])
   })
 
-  it('skips windows with an unknown speed, and merges overlapping windows into one stretch', () => {
+  it('does not check a window with an unknown second, so that second splits the stretch', () => {
     const a = at(400, 3)
     a.speed.fill(9.5, 100, 300)
     a.speed[200] = NaN
     const stretches = implausibleSpeedStretches(a)
-    // The unknown second splits no stretch: shorter windows either side are still flagged.
-    expect(stretches.length).toBeGreaterThan(0)
-    for (let i = 1; i < stretches.length; i++) {
-      expect(stretches[i]!.start).toBeGreaterThan(stretches[i - 1]!.end - 1)
-    }
+    const covers = (i: number) => stretches.some((s) => s.start <= i && i < s.end)
+    // Every window over second 200 has an unknown speed and is skipped, so nothing covers it. The
+    // fast seconds either side are still caught by the windows that stop short of it or start after it.
+    expect(covers(200)).toBe(false)
+    expect(covers(150)).toBe(true)
+    expect(covers(250)).toBe(true)
+    expect(stretches.length).toBe(2)
+    // The stretches are in order and apart.
+    expect(stretches[0]!.end).toBeLessThanOrEqual(200)
+    expect(stretches[1]!.start).toBeGreaterThan(200)
   })
 
   it('returns nothing for an empty activity', () => {

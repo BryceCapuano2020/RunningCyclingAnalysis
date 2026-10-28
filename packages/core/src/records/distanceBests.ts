@@ -36,13 +36,14 @@ function validStretches(distance: Float64Array, valid: Uint8Array): Stretch[] {
 }
 
 /**
- * Fastest elapsed time to cover `span` metres inside one stretch, or Infinity when none fits.
- * A window is continuous: its start and end may fall between samples. The optimum lies at a
- * window whose start or end is a whole sample, so two sweeps cover every case. The first fixes the
- * start sample and interpolates the end. The second fixes the end sample and interpolates the
- * start, taking the last moment the distance was at that level, since a stop still counts.
+ * Fastest elapsed time to cover `span` metres inside one stretch, or Infinity when none fits. Times
+ * under `minSeconds` are not possible and are passed over, so the answer is the fastest window that
+ * could have been run. A window is continuous: its start and end may fall between samples. The optimum
+ * lies at a window whose start or end is a whole sample, so two sweeps cover every case. The first
+ * fixes the start sample and interpolates the end. The second fixes the end sample and interpolates
+ * the start, taking the last moment the distance was at that level, since a stop still counts.
  */
-function fastestWithin(d: Float64Array, { lo, hi }: Stretch, span: number): number {
+function fastestWithin(d: Float64Array, { lo, hi }: Stretch, span: number, minSeconds = 0): number {
   let best = Infinity
   let end = lo
   for (let start = lo; start <= hi; start++) {
@@ -51,7 +52,7 @@ function fastestWithin(d: Float64Array, { lo, hi }: Stretch, span: number): numb
     // Targets rise with the start, so the first sample at or past each target never moves back.
     while (d[end]! < target) end++
     const e = end - 1 + (target - d[end - 1]!) / (d[end]! - d[end - 1]!)
-    best = Math.min(best, e - start)
+    if (e - start >= minSeconds) best = Math.min(best, e - start)
   }
   let start = lo
   for (let last = lo; last <= hi; last++) {
@@ -59,7 +60,7 @@ function fastestWithin(d: Float64Array, { lo, hi }: Stretch, span: number): numb
     if (d[lo]! > target) continue
     while (start + 1 <= hi && d[start + 1]! <= target) start++
     const s = start + (target - d[start]!) / (d[start + 1]! - d[start]!)
-    best = Math.min(best, last - s)
+    if (last - s >= minSeconds) best = Math.min(best, last - s)
   }
   return best
 }
@@ -69,12 +70,33 @@ function reachOf(distance: Float64Array, { lo, hi }: Stretch): number {
   return distance[hi]! - distance[lo]!
 }
 
+/**
+ * The least time, s, in which `distanceM` can be run: the world-record pace at that distance. The
+ * most a run covers in t seconds is runCeilingSpeed(t) x t, which rises with t, so the least time is
+ * where that reaches the distance.
+ */
+function leastSeconds(distanceM: number): number {
+  let lo = 0
+  let hi = 1e6
+  for (let step = 0; step < 60; step++) {
+    const mid = (lo + hi) / 2
+    if (runCeilingSpeed(mid) * mid >= distanceM) hi = mid
+    else lo = mid
+  }
+  return hi
+}
+
 /** The fastest time over `target` metres in any stretch that covers it, or Infinity when none does. */
-function fastestOver(distance: Float64Array, stretches: Stretch[], target: number): number {
+function fastestOver(
+  distance: Float64Array,
+  stretches: Stretch[],
+  target: number,
+  minSeconds: number,
+): number {
   let seconds = Infinity
   for (const stretch of stretches) {
     if (reachOf(distance, stretch) >= target) {
-      seconds = Math.min(seconds, fastestWithin(distance, stretch, target))
+      seconds = Math.min(seconds, fastestWithin(distance, stretch, target, minSeconds))
     }
   }
   return seconds
@@ -83,14 +105,26 @@ function fastestOver(distance: Float64Array, stretches: Stretch[], target: numbe
 /**
  * The time over `target` metres from a stretch that falls short of it by no more than
  * DISTANCE_BEST_TOLERANCE, or Infinity when none does. The stretch is timed over its whole length and
- * the time scaled up to the target: a 9.98 km race is a 10 km race.
+ * the time scaled up to the target: a 9.92 km race is a 10 km race. The span is a hair under the reach
+ * because a stretch that starts part-way along the stream can have a reach that, added to its first
+ * distance, rounds to above its last.
  */
-function fastestNear(distance: Float64Array, stretches: Stretch[], target: number): number {
+function fastestNear(
+  distance: Float64Array,
+  stretches: Stretch[],
+  target: number,
+  minSeconds: number,
+): number {
   let seconds = Infinity
   for (const stretch of stretches) {
     const reach = reachOf(distance, stretch)
     if (reach >= target * (1 - DISTANCE_BEST_TOLERANCE) && reach < target) {
-      seconds = Math.min(seconds, (fastestWithin(distance, stretch, reach) * target) / reach)
+      const span = reach * (1 - 1e-9)
+      const scale = target / span
+      seconds = Math.min(
+        seconds,
+        fastestWithin(distance, stretch, span, minSeconds / scale) * scale,
+      )
     }
   }
   return seconds
@@ -120,18 +154,17 @@ export function distanceBests(
   for (const distanceM of RUN_RECORD_DISTANCES_M) {
     if (total < distanceM * (1 - DISTANCE_BEST_TOLERANCE)) continue
     // A run that covers a distance keeps its exact time; the tolerance applies only when none does.
-    let seconds = fastestOver(distance, stretches, distanceM)
+    // A window faster than the world record is a recording fault, so the next fastest one stands.
+    const least = leastSeconds(distanceM)
+    let seconds = fastestOver(distance, stretches, distanceM, least)
     if (!Number.isFinite(seconds) && recorded !== distance) {
-      seconds = fastestOver(recorded, recordedStretches, distanceM)
+      seconds = fastestOver(recorded, recordedStretches, distanceM, least)
     }
-    if (!Number.isFinite(seconds)) seconds = fastestNear(distance, stretches, distanceM)
+    if (!Number.isFinite(seconds)) seconds = fastestNear(distance, stretches, distanceM, least)
     if (!Number.isFinite(seconds) && recorded !== distance) {
-      seconds = fastestNear(recorded, recordedStretches, distanceM)
+      seconds = fastestNear(recorded, recordedStretches, distanceM, least)
     }
-    // Faster than the world record at that distance is a recording fault, not a time.
-    if (Number.isFinite(seconds) && distanceM / seconds <= runCeilingSpeed(seconds)) {
-      bests.push({ distanceM, seconds })
-    }
+    if (Number.isFinite(seconds)) bests.push({ distanceM, seconds })
   }
   return bests
 }

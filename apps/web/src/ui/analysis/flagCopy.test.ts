@@ -28,7 +28,7 @@ describe('flagKindSentence: one line for each kind of reading', () => {
 
   it('says a sustained speed was left out', () => {
     expect(flagKindSentence('implausible-speed', 2)).toBe(
-      'Speed stayed higher than anyone sustains 2 times. We left those out of your figures.',
+      'Speed stayed beyond what anyone can sustain, 2 times. We left those out of your figures.',
     )
   })
 

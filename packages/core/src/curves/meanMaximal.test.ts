@@ -94,7 +94,7 @@ describe('meanMaximal from a first start', () => {
   const values = new Float64Array([90, 80, 10, 20, 30, 40])
 
   it('scores only windows that start at the first start or later', () => {
-    const curve = meanMaximal(values, ones(6), [1, 2, 4], 'a', 2)
+    const curve = meanMaximal(values, ones(6), [1, 2, 4], 'a', { firstStart: 2 })
     expect(curve.map((p) => [p.value, p.startIndex])).toEqual([
       [40, 5],
       [35, 4],
@@ -103,14 +103,14 @@ describe('meanMaximal from a first start', () => {
   })
 
   it('has no window when none fits after the first start', () => {
-    const curve = meanMaximal(values, ones(6), [4], 'a', 3)
+    const curve = meanMaximal(values, ones(6), [4], 'a', { firstStart: 3 })
     expect(curve[0]!.startIndex).toBe(-1)
     expect(curve[0]!.value).toBeNaN()
   })
 
   it('is the whole-array result by default', () => {
     expect(meanMaximal(values, ones(6), [2], 'a')).toEqual(
-      meanMaximal(values, ones(6), [2], 'a', 0),
+      meanMaximal(values, ones(6), [2], 'a', { firstStart: 0 }),
     )
     expect(meanMaximal(values, ones(6), [2], 'a')[0]!.value).toBe(85)
   })
@@ -123,7 +123,9 @@ describe('meanMaximal with an occupancy requirement', () => {
     // Samples 3 to 6 are stopped: the 5 s window over 2..6 has 1 moving sample of 5.
     const moving = Uint8Array.from([1, 1, 1, 0, 0, 0, 0, 1, 1, 1])
     const plain = meanMaximal(values, ones(10), [5], 'a')[0]!
-    const gated = meanMaximal(values, ones(10), [5], 'a', 0, { moving, minFraction: 0.9 })[0]!
+    const gated = meanMaximal(values, ones(10), [5], 'a', {
+      occupancy: { moving, minFraction: 0.9 },
+    })[0]!
     expect(plain.startIndex).toBe(0)
     // Only a window with all five moving would pass, and there is none.
     expect(gated.startIndex).toBe(-1)
@@ -134,16 +136,20 @@ describe('meanMaximal with an occupancy requirement', () => {
     const moving = ones(10)
     moving[2] = 0
     // 4 of 5 moving is 80%: kept at 0.8, skipped at 0.9. The best all-moving window starts at 3.
-    const kept = meanMaximal(values, ones(10), [5], 'a', 0, { moving, minFraction: 0.8 })[0]!
+    const kept = meanMaximal(values, ones(10), [5], 'a', {
+      occupancy: { moving, minFraction: 0.8 },
+    })[0]!
     expect(kept.startIndex).toBe(0)
-    const strict = meanMaximal(values, ones(10), [5], 'a', 0, { moving, minFraction: 0.9 })[0]!
+    const strict = meanMaximal(values, ones(10), [5], 'a', {
+      occupancy: { moving, minFraction: 0.9 },
+    })[0]!
     expect(strict.startIndex).toBe(3)
     expect(strict.value).toBeCloseTo(4.6, 9)
   })
 
   it('is the plain result when everything is moving', () => {
     const occupancy = { moving: ones(10), minFraction: 0.9 }
-    expect(meanMaximal(values, ones(10), [1, 3, 5, 10], 'a', 0, occupancy)).toEqual(
+    expect(meanMaximal(values, ones(10), [1, 3, 5, 10], 'a', { occupancy })).toEqual(
       meanMaximal(values, ones(10), [1, 3, 5, 10], 'a'),
     )
   })

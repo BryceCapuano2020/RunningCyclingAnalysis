@@ -163,17 +163,22 @@ function motionRules(
   const t = QUALITY_THRESHOLDS
   const maxSpeed = t.speedSpike.maxSpeedMs[a.sport]
 
+  // A speed no single sample gives away, held for a window longer than anyone could hold it. A burst
+  // like that is one event: where a single-sample spike falls inside it, the stretch is the flag and
+  // the spike is only masked, so the burst is not counted twice.
+  const sustained = implausibleSpeedStretches(a)
+  const insideStretch = (r: Range): boolean =>
+    sustained.some((s) => s.start < r.end && r.start < s.end)
   for (let i = 0; i < n; i++) {
     const v = speed[i]!
     const jumped = i > 0 && steady[i] === 1 && Math.abs(v - speed[i - 1]!) > t.speedSpike.maxStepMs
     if (v > maxSpeed || jumped) {
-      markRange(raw, validMotion, 'speed-spike', around(i, t.speedSpike.marginS, n))
+      const range = around(i, t.speedSpike.marginS, n)
+      if (insideStretch(range)) validMotion.fill(0, range.start, range.end)
+      else markRange(raw, validMotion, 'speed-spike', range)
     }
   }
-  // A speed no single sample gives away, held for a window longer than anyone could hold it.
-  for (const stretch of implausibleSpeedStretches(a)) {
-    markRange(raw, validMotion, 'implausible-speed', stretch)
-  }
+  for (const stretch of sustained) markRange(raw, validMotion, 'implausible-speed', stretch)
 
   if (!a.hasAltitude) {
     // Outdoors, grade is unknown, so nothing grade-dependent may be used. Indoors, grade is zero.
@@ -286,7 +291,7 @@ function messageFor(kind: QualityKind, durationS: number): string {
     case 'speed-spike':
       return 'GPS speed jumped to an impossible value'
     case 'implausible-speed':
-      return `Speed stayed above what anyone sustains for ${seconds}`
+      return `Speed stayed beyond what anyone can sustain for ${seconds}`
     case 'altitude-jump':
       return `Altitude changed by more than ${t.altitudeJump.maxStepM} m in a single second`
     case 'implausible-climb':

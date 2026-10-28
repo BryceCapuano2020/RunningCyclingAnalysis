@@ -559,11 +559,11 @@ describe('distance bests', () => {
   it.each(SCHEMAS)(
     '%s schema accepts a distance the run falls just short of, timed up to the distance',
     (_l, schema) => {
-      const race = run({
-        distanceM: 9920,
-        distanceBests: [{ distanceM: 10000, seconds: 2506 }],
-      })
-      expect(schema.safeParse(race).success).toBe(true)
+      // The longest scaled time is the duration over (1 - tolerance): 2,500 / 0.99 is 2,525.25 s.
+      for (const seconds of [2506, 2525]) {
+        const race = run({ distanceM: 9920, distanceBests: [{ distanceM: 10000, seconds }] })
+        expect(schema.safeParse(race).success).toBe(true)
+      }
     },
   )
 
@@ -586,10 +586,14 @@ describe('distance bests', () => {
   const rejected: [string, Record<string, unknown>][] = [
     ['not a record distance', { distanceBests: [{ distanceM: 2000, seconds: 500 }] }],
     ['a zero time', { distanceBests: [{ distanceM: 1000, seconds: 0 }] }],
-    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2526 }] }],
+    ['a time past the duration', { distanceBests: [{ distanceM: 1000, seconds: 2501 }] }],
     [
       'a distance the run does not cover',
       { distanceM: 900, distanceBests: [{ distanceM: 5000, seconds: 1250 }] },
+    ],
+    [
+      'a short distance timed past the scaled duration',
+      { distanceM: 9920, distanceBests: [{ distanceM: 10000, seconds: 2526 }] },
     ],
     [
       'a distance further short than the tolerance',

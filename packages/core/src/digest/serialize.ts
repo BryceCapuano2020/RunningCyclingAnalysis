@@ -152,16 +152,22 @@ function asClimbSection(value: unknown, path: string, durationS: number): Digest
 }
 
 /** Distance bests are optional, so a digest from before the field is read without one. */
-function asDistanceBests(value: unknown, durationS: number): DigestDistanceBest[] {
+function asDistanceBests(
+  value: unknown,
+  durationS: number,
+  digestDistanceM: number,
+): DigestDistanceBest[] {
   const bests = asArray(value, 'distanceBests').map((b, i) => {
     const path = `distanceBests[${i}]`
     const o = asObject(b, path)
     const seconds = asPositive(o.seconds, `${path}.seconds`)
-    // A time scaled up to its distance may pass the activity by the distance tolerance.
-    if (seconds > durationS * (1 + DISTANCE_BEST_TOLERANCE)) {
-      fail(`${path}.seconds`, 'must not exceed durationS')
-    }
-    return { distanceM: asPositive(o.distanceM, `${path}.distanceM`), seconds }
+    const distanceM = asPositive(o.distanceM, `${path}.distanceM`)
+    // A distance the run falls short of is timed over what it covers and scaled up to the distance,
+    // so its time may pass the activity's, by at most the distance tolerance.
+    const longest =
+      distanceM <= digestDistanceM ? durationS : durationS / (1 - DISTANCE_BEST_TOLERANCE)
+    if (seconds > longest) fail(`${path}.seconds`, 'must not exceed durationS')
+    return { distanceM, seconds }
   })
   if (bests.some((b, i) => i > 0 && b.distanceM <= bests[i - 1]!.distanceM)) {
     fail('distanceBests', 'must be in ascending distance')
@@ -235,7 +241,9 @@ export function parseDigest(json: string): ActivityDigest {
   const distanceM = asNumberOrNaN(o.distanceM, 'distanceM')
   if (distanceM < 0) fail('distanceM', 'must not be negative')
   const distanceBests =
-    o.distanceBests === undefined ? undefined : asDistanceBests(o.distanceBests, durationS)
+    o.distanceBests === undefined
+      ? undefined
+      : asDistanceBests(o.distanceBests, durationS, distanceM)
   const sport = asOneOf(o.sport, SPORTS, 'sport')
   const powerSource = asOneOf(o.powerSource, POWER_SOURCES, 'powerSource')
   const hasHeartRate = asBoolean(o.hasHeartRate, 'hasHeartRate')
