@@ -5,6 +5,7 @@ import type { SessionState, SyncIssueCode } from '@rca/core/session'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
+import { NO_ZONE_TIMES } from '@rca/core/zones'
 import type { WorkerRequest, WorkerResponse } from '../../worker/protocol'
 import type { AccountController } from '../useAccount'
 
@@ -103,5 +104,6 @@ export const EMPTY_SESSION: SessionState = {
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
   lateEvidence: NO_LATE_EVIDENCE,
+  timeInZones: NO_ZONE_TIMES,
   records: new Map(),
 }

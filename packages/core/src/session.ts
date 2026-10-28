@@ -24,7 +24,7 @@ import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
 import { RecordsCache } from './sessionRecords'
 import type { EarnedRecord } from './records'
-import { zonesAt } from './zones'
+import { zonesAt, ZoneTimeCache, NO_ZONE_TIMES } from './zones'
 import type { ZoneSet } from './zones'
 
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
@@ -62,6 +62,7 @@ export class AnalysisSession {
   // Balance trend uses. Off until the page asks for it.
   private gradeTrend = false
   private periods = new PeriodCache()
+  private zoneTimes = new ZoneTimeCache()
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
   private recordsCache = new RecordsCache()
@@ -363,6 +364,10 @@ export class AnalysisSession {
       effortTrends: efforts,
       sameHeartRate,
       lateEvidence: late,
+      timeInZones:
+        athlete === null || analysis === null
+          ? NO_ZONE_TIMES
+          : this.zoneTimes.get(selected, previous, athlete, analysis),
       previous:
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)

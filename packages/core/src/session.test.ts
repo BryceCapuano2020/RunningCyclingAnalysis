@@ -12,6 +12,7 @@ import { AnalysisSession, SyncFailure } from './session'
 import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
+import { NO_ZONE_TIMES } from './zones'
 import type { RejectedFile, SyncIssueCode, SyncItem } from './session'
 import { DEFAULT_ATHLETE, generateActivity, sampleDataset } from './synthetic'
 import type { Activity, ActivityDigest, AthleteSettings, Sport } from './types'
@@ -414,6 +415,7 @@ describe('AnalysisSession', () => {
       effortTrends: NO_TRENDS,
       sameHeartRate: NO_SAME_HEART_RATE,
       lateEvidence: NO_LATE_EVIDENCE,
+      timeInZones: NO_ZONE_TIMES,
       previous: null,
       records: new Map(),
     })
@@ -499,6 +501,7 @@ describe('AnalysisSession', () => {
       effortTrends: NO_TRENDS,
       sameHeartRate: NO_SAME_HEART_RATE,
       lateEvidence: NO_LATE_EVIDENCE,
+      timeInZones: NO_ZONE_TIMES,
       previous: null,
       records: new Map(),
     })

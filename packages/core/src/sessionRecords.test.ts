@@ -84,6 +84,7 @@ describe('AnalysisSession records', () => {
         'sameHeartRate',
         'lateEvidence',
         'syncIssues',
+        'timeInZones',
         'totalActivities',
         'trend',
         'unsupportedFiles',
