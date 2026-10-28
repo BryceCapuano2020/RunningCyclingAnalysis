@@ -171,6 +171,43 @@ describe('workbench evidence cache', () => {
     expect(await workbench.get({ kind: 'device' }, activities[0]!.id)).not.toBeNull()
   })
 
+  it('does not serve a pending trace whose account was deleted while it was being written', async () => {
+    const { store } = memoryStore()
+    const calls = { isDeleted: 0 }
+    store.isDeleted = vi.fn(async () => {
+      calls.isDeleted++
+      // Unreachable at capture, then live for get's own check, then deleted when the write runs.
+      if (calls.isDeleted <= 2) throw new Error('backing off')
+      return calls.isDeleted > 3
+    })
+    const workbench = new Workbench(store)
+    const scope = { kind: 'account' as const, userId: 'alice' }
+    await workbench.capture(first, scope)
+    expect(store.put).not.toHaveBeenCalled()
+
+    expect(await workbench.get(scope, first.id)).toBeNull()
+    expect(store.put).not.toHaveBeenCalled()
+  })
+
+  it('drops a pending trace when its activity is removed, so it is never written back', async () => {
+    let down = true
+    const { rows, store } = memoryStore()
+    const isDeleted = store.isDeleted
+    store.isDeleted = vi.fn(async (scope) => {
+      if (down) throw new Error('backing off')
+      return isDeleted(scope)
+    })
+    const workbench = new Workbench(store)
+    await workbench.capture(first, { kind: 'device' })
+    await workbench.remove({ kind: 'device' }, first.id)
+
+    down = false
+    await workbench.capture(activities[1]!, { kind: 'device' })
+
+    expect([...rows.values()].map((trace) => trace.activityId)).toEqual([activities[1]!.id])
+    expect(await workbench.get({ kind: 'device' }, first.id)).toBeNull()
+  })
+
   it('reports a refused removal and still drops the memory copy', async () => {
     const { store } = memoryStore({ remove: vi.fn(async () => false) })
     const workbench = new Workbench(store)

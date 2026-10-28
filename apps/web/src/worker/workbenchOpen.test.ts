@@ -123,6 +123,18 @@ describe('the workbench store when it cannot be opened', () => {
     request.onblocked?.()
     expect(await removing).toBe(false)
     expect(indexedDb.open).toHaveBeenCalledTimes(2)
+
+    // That failure was of a fresh open, so removals in the same window fail closed without waiting.
+    expect(await store.remove(SCOPE, 'a')).toBe(false)
+    expect(await store.clearScope(SCOPE)).toBe(false)
+    expect(indexedDb.open).toHaveBeenCalledTimes(2)
+
+    // Once the window has passed, a removal opens again.
+    await vi.advanceTimersByTimeAsync(31_000)
+    const later = store.remove(SCOPE, 'a')
+    request.onblocked?.()
+    expect(await later).toBe(false)
+    expect(indexedDb.open).toHaveBeenCalledTimes(3)
   })
 
   it('tries to open again once the backoff has passed', async () => {

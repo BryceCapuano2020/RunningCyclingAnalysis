@@ -125,17 +125,20 @@ export class Workbench {
     const cached = this.traces.get(key)
     if (cached) {
       if (cached.home === 'pending') await this.writePending((other) => other === key)
-      // Another tab may have removed a stored trace since this one remembered it. Storage that
-      // cannot say leaves the trace served: it is gone only when storage says it is.
-      if (
-        cached.home !== 'stored' ||
-        (await this.store.has(scope, activityId).catch(() => null)) !== false
-      ) {
+      // Writing can drop the entry, when its scope was deleted meanwhile; storage then answers.
+      if (this.traces.get(key) === cached) {
+        // Another tab may have removed a stored trace since this one remembered it. Storage that
+        // cannot say leaves the trace served: it is gone only when storage says it is.
+        if (
+          cached.home !== 'stored' ||
+          (await this.store.has(scope, activityId).catch(() => null)) !== false
+        ) {
+          this.traces.delete(key)
+          this.traces.set(key, cached)
+          return cached.trace
+        }
         this.traces.delete(key)
-        this.traces.set(key, cached)
-        return cached.trace
       }
-      this.traces.delete(key)
     }
     const trace = await this.store.get(scope, activityId).catch(() => null)
     if (trace) this.remember(scope, trace, 'stored')

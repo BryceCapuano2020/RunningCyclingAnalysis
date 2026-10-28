@@ -202,14 +202,17 @@ function upgradeDatabase(request: IDBOpenDBRequest): void {
 let opened: Promise<IDBDatabase> | null = null
 /** After a failed open, later calls fail the same way at once, so a stalled open is not waited on again for every activity. */
 const OPEN_RETRY_MS = 30_000
-let failed: { error: unknown; until: number } | null = null
+let failed: { error: unknown; until: number; fresh: boolean } | null = null
 
 /**
- * The open database. Reads and writes fail at once while a recent open has failed; `fresh` is for
- * what must remove recordings, which must not be told it succeeded because storage is backing off.
+ * The open database. Reads and writes fail at once while a recent open has failed. `fresh` is for
+ * what must remove recordings, which must not be told it succeeded because storage is backing off,
+ * so it opens again once after a failure of a read or write. A failure of a fresh open stops later
+ * ones too, so a stalled upgrade costs one wait per back-off window, and they fail closed.
  */
 export function workbenchDatabase(fresh = false): Promise<IDBDatabase> {
-  if (!fresh && failed !== null && Date.now() < failed.until) return Promise.reject(failed.error)
+  if (failed !== null && Date.now() < failed.until && !(fresh && !failed.fresh))
+    return Promise.reject(failed.error)
   failed = null
   opened ??= openDatabase(DB_NAME, DB_VERSION, upgradeDatabase)
     .then((db) => {
@@ -224,7 +227,8 @@ export function workbenchDatabase(fresh = false): Promise<IDBDatabase> {
     })
     .catch((error) => {
       opened = null
-      if (error instanceof WorkbenchOpenError) failed = { error, until: Date.now() + OPEN_RETRY_MS }
+      if (error instanceof WorkbenchOpenError)
+        failed = { error, until: Date.now() + OPEN_RETRY_MS, fresh }
       throw error
     })
   return opened
