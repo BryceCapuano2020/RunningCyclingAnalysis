@@ -26,6 +26,7 @@ import {
   withEndedNotes,
   withRideHeld,
 } from './sharedTrendText'
+import { MONTHLY_NOTE, thinToMonths } from './monthlyTrend'
 import { effortLabel } from '../records'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
 import { axisFontSize } from './ticks'
@@ -107,7 +108,9 @@ export function SharedTrendChart({
   emptyText,
   latestStartMs,
 }: SharedTrendChartProps) {
-  const weeks = rideKnown ? given : given.map(withRideHeld)
+  // Past a year the weeks are thinned to one a month, so the lines are not a smear of dots.
+  const { weeks: thinned, monthly } = thinToMonths(rideKnown ? given : given.map(withRideHeld))
+  const weeks = [...thinned]
   // The effort is named as its segment's label is, so the title reads "best 20 min", as the sport trend's does.
   const effort = effortLabel(effortS)
   const windowText = windowPhrase(windowDays)
@@ -133,7 +136,8 @@ export function SharedTrendChart({
         ]
       : []),
   ]
-  const note = rideKnown ? copy.note : `${copy.note} ${HELD_NOTE}`
+  const held = rideKnown ? copy.note : `${copy.note} ${HELD_NOTE}`
+  const note = monthly ? `${held} ${MONTHLY_NOTE}` : held
   const columns = [
     'Week ending',
     copy.runHeading,

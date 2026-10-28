@@ -22,6 +22,11 @@ export function shortDate(ms: number): string {
   return `${new Date(ms).getUTCDate()} ${formatMonth(utcDayLocal(ms), false)}`
 }
 
+/** The UTC day, month and year of an instant, such as "12 Jan 2025". */
+export function shortDateWithYear(ms: number): string {
+  return `${shortDate(ms)} ${new Date(ms).getUTCFullYear()}`
+}
+
 /** First instants of the calendar months, in UTC, that fall after fromMs and up to toMs. */
 function monthStartsBetween(fromMs: number, toMs: number): number[] {
   const from = new Date(fromMs)
@@ -36,7 +41,8 @@ function monthStartsBetween(fromMs: number, toMs: number): number[] {
 /**
  * The date-axis ticks of a trend whose samples end at endsMs, in ascending order. A short span
  * labels every sample's week. A longer one labels the month starts between the first and last
- * samples, and always the first and last samples themselves.
+ * samples, and always the first and last samples themselves. The month starts carry their year, so the
+ * first sample, which has none before it to say which, carries its own.
  */
 export function trendDateTicks(endsMs: readonly number[], x: Scale): AxisTick[] {
   const first = endsMs[0]
@@ -49,7 +55,7 @@ export function trendDateTicks(endsMs: readonly number[], x: Scale): AxisTick[] 
     .filter((ms) => ms - first >= END_CLEARANCE_MS && last - ms >= END_CLEARANCE_MS)
     .map((ms) => ({ position: x(ms), label: formatMonth(utcDayLocal(ms), true) }))
   return [
-    { position: x(first), label: shortDate(first) },
+    { position: x(first), label: shortDateWithYear(first) },
     ...months,
     { position: x(last), label: shortDate(last) },
   ]

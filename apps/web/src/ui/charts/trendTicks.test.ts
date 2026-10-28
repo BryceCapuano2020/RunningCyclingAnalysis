@@ -1,7 +1,7 @@
 import { DAY_MS } from '@rca/core/constants'
 import { describe, expect, it } from 'vitest'
 import { linearScale } from './scale'
-import { shortDate, trendDateTicks } from './trendTicks'
+import { shortDate, shortDateWithYear, trendDateTicks } from './trendTicks'
 
 /** Sunday 12 January 2025 and the Sundays that follow it, as the trend ends its weeks. */
 const FIRST = Date.UTC(2025, 0, 12, 23, 59, 59, 999)
@@ -11,6 +11,12 @@ const x = linearScale([FIRST, FIRST + 100 * DAY_MS], [0, 100])
 describe('shortDate', () => {
   it('names the UTC day and month of an instant, such as 12 Jan', () => {
     expect(shortDate(FIRST)).toBe('12 Jan')
+  })
+})
+
+describe('shortDateWithYear', () => {
+  it('adds the UTC year, such as 12 Jan 2025', () => {
+    expect(shortDateWithYear(FIRST)).toBe('12 Jan 2025')
   })
 })
 
@@ -32,7 +38,7 @@ describe('trendDateTicks', () => {
     const ticks = trendDateTicks(ends, x)
     // The 1 June month start is within two weeks of the last sample, so it is left out.
     expect(ticks.map((tick) => tick.label)).toEqual([
-      '12 Jan',
+      '12 Jan 2025',
       'Feb 2025',
       'Mar 2025',
       'Apr 2025',

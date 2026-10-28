@@ -37,6 +37,8 @@ import {
   usable,
 } from './sportAxis'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE } from './plotBox'
+import { MONTHLY_NOTE, thinToMonths } from './monthlyTrend'
+import { gapNote, longestGap } from './trendGap'
 import { trendDateTicks } from './trendTicks'
 import { STEPPED_LINE_TEXT, weekDay, windowPhrase } from './trendText'
 import { axisFontSize, fitTicks } from './ticks'
@@ -235,8 +237,21 @@ function titleOf(sport: Sport, units: UnitSystem, effort: string, windowText: st
  * week's value is marked.
  */
 export function TrendChart({ sport, points, massKg, units, windowDays, effortS }: TrendChartProps) {
-  const rows = weekRows(points, sport, massKg)
+  const weekly = weekRows(points, sport, massKg)
+  // Past a year the weeks are thinned to one a month, so the line is not a smear of dots.
+  const { weeks: thinned, monthly } = thinToMonths(weekly)
+  const rows = [...thinned]
   const hasData = rows.filter(hasValue).length >= 2
+  const gap = longestGap(
+    weekly.map((row) => row.endMs),
+    weekly.map(hasValue),
+    windowDays,
+  )
+  const note = [
+    ...(gap === null ? [] : [gapNote(sport, gap)]),
+    STEPPED_LINE_TEXT,
+    ...(monthly ? [MONTHLY_NOTE] : []),
+  ].join(' ')
   const [active, setActive] = useState<number | null>(null)
   const windowText = windowPhrase(windowDays)
   // The effort is named as its segment's label is, so the title and the control read the same.
@@ -250,7 +265,7 @@ export function TrendChart({ sport, points, massKg, units, windowDays, effortS }
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
       title={titleOf(sport, units, effort, windowText)}
       description={`Best ${effort} of ${SPORT_PLURAL[sport]} in the ${windowText} that end each week, as ${TREND_NOUN[sport]}.`}
-      note={hasData ? STEPPED_LINE_TEXT : undefined}
+      note={hasData ? note : undefined}
       table={{
         columns: [
           'Week ending',
