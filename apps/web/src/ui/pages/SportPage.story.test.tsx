@@ -160,7 +160,7 @@ describe('a sport page with everything to show', () => {
       activities: [...profileActivities('run'), withBests],
       runCurve: profileCurve(),
     })
-    renderPage('run', result, RUN_SAME_HEART_RATE, RUN_ZONES)
+    renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(screen.queryByText(/each best against the others/)).toBeNull()
     expect(screen.getByText(/^Your bests are in line with each other/)).toBeInTheDocument()
   })
