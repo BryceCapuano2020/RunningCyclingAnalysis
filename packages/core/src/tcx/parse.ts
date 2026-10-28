@@ -7,6 +7,7 @@ import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { parseIsoTime, ZONELESS } from '../import/time'
 import {
   fixesOf,
+  hasUsablePosition,
   readNonNegative,
   readNumber,
   readPosition,
@@ -240,7 +241,7 @@ function unitOf(activity: OpenActivity): PipelineUnit {
     }
   }
   const points = sortAndDedupe(activity.points)
-  const hasPosition = points.some((p) => p.position !== undefined)
+  const hasPosition = points.some((p) => hasUsablePosition(p.position))
   return {
     records: recordsOf(points, sport),
     timerEvents: [],

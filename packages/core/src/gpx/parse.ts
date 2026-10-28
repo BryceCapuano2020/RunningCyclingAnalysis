@@ -8,6 +8,7 @@ import { fileTitle } from '../import/names'
 import { sportOfType } from '../import/sportType'
 import {
   fixesOf,
+  hasUsablePosition,
   readNonNegative,
   readNumber,
   readPosition,
@@ -272,7 +273,7 @@ class GpxReader implements XmlHandler {
     const track = this.track
     this.point = undefined
     if (point === undefined || track === undefined) return
-    if (point.position !== undefined) track.anyPosition = true
+    if (hasUsablePosition(point.position)) track.anyPosition = true
     if (point.tMs === undefined) {
       track.untimed++
       return

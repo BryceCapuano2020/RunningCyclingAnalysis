@@ -366,6 +366,23 @@ describe('parseGpx mapping', () => {
     expect(a.indoor).toBe(true)
   })
 
+  it('treats a biking track whose points are all (0,0) as indoor, as one with no position', () => {
+    const pts = Array.from({ length: 120 }, (_, i) => {
+      const time = new Date(START_MS + i * 1000).toISOString()
+      return `<trkpt lat="0" lon="0"><time>${time}</time></trkpt>`
+    })
+    const a = firstActivity(parseGpx(gpxFile(track('biking', [pts])), 'placeholder.gpx'))
+    expect(a.sport).toBe('ride')
+    expect(a.indoor).toBe(true)
+    expect(a.route).toBeUndefined()
+  })
+
+  it('keeps a biking track with real positions outdoor, with its route', () => {
+    const a = firstActivity(parseGpx(gpxFile(track('biking', [points(120)])), 'outdoor.gpx'))
+    expect(a.indoor).toBe(false)
+    expect(a.route?.points.length).toBeGreaterThanOrEqual(2)
+  })
+
   it('matches the type text case-insensitively and accepts the numeric type 1 as a ride', () => {
     const a = firstActivity(parseGpx(gpxFile(track(' RIDE ', [points(120)])), 'a.gpx'))
     expect(a.sport).toBe('ride')

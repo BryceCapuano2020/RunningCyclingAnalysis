@@ -320,6 +320,15 @@ describe('indoor inference for units without positions', () => {
     )
   })
 
+  it('infers indoor from 0,0 placeholder fixes as it does for a unit with no positions', () => {
+    const records = unpositionedRecords(120, undefined, 200)
+    const placeholders: GpsFix[] = records.map((r) => ({ t: r.tMs, lat: 0, lon: 0 }))
+    const ride = rideOf(records, { fixes: placeholders })
+    const run = rideOf(records, { sport: 'run', sportLabel: 'running', fixes: placeholders })
+    expect(isIndoor(ride)).toBe(true)
+    expect(isIndoor(run)).toBe(false)
+  })
+
   it('keeps a powered ride without GPS or speed outdoor when it climbs 150 m', () => {
     const climb: RawRecord[] = Array.from({ length: 120 }, (_, i) => ({
       tMs: START + i * 1000,

@@ -590,6 +590,43 @@ describe('parseTcx distance and speed sources', () => {
   })
 })
 
+describe('parseTcx positions', () => {
+  /** A 120 s ride at 9 m/s with power, each second at the position `at` gives for it. */
+  function rideAt(at: (s: number) => { lat: number; lon: number }): string[] {
+    return Array.from({ length: 120 }, (_, s) =>
+      pointXml({ second: s, ...at(s), distance: s * 9, hr: 130, watts: 200, speed: 9 }),
+    )
+  }
+
+  it('reads a trainer ride whose positions are all 0,0 as indoor, with no route', () => {
+    const xml = documentXml([activityXml('Biking', [lapXml(rideAt(() => ({ lat: 0, lon: 0 })))])])
+    const a = firstActivity(parseTcx(xml, 'placeholder.tcx'))
+    expect(a.sport).toBe('ride')
+    expect(a.indoor).toBe(true)
+    expect(a.route).toBeUndefined()
+  })
+
+  it('keeps a ride with real positions outdoor, with its route', () => {
+    const real = rideAt((s) => ({ lat: 51.5 + s * 0.00008, lon: -0.12 }))
+    const a = firstActivity(
+      parseTcx(documentXml([activityXml('Biking', [lapXml(real)])]), 'outdoor.tcx'),
+    )
+    expect(a.indoor).toBe(false)
+    expect(a.route?.points.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('keeps a ride outdoor when some of its positions are real, though others are 0,0', () => {
+    const mixed = rideAt((s) =>
+      s < 10 ? { lat: 0, lon: 0 } : { lat: 51.5 + s * 0.00008, lon: -0.12 },
+    )
+    const a = firstActivity(
+      parseTcx(documentXml([activityXml('Biking', [lapXml(mixed)])]), 'mixed.tcx'),
+    )
+    expect(a.indoor).toBe(false)
+    expect(a.route).toBeDefined()
+  })
+})
+
 describe('parseTcx timestamps', () => {
   it('refuses a trackpoint time with no time zone, with a clear reason', () => {
     const points = runPoints(0, 90, false)
