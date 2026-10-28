@@ -7,7 +7,7 @@ import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '../charts'
-import { endLabelGutter } from '../charts/sharedTrendGutter'
+import { endLabelGutter, endLabelTexts } from '../charts/sharedTrendGutter'
 import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
@@ -158,6 +158,8 @@ export function BalancePage({
       ),
     [result.activities, trend],
   )
+  // The trend's weeks, which the volume strip's margin is sized from as the trend's own is.
+  const trendWeeks = profile === null ? energyWeeks(trend) : gradeWeeks(trend, profile)
   // The standards line is shown only when a grade is on screen, so it never cites grades that are not
   // there: a ride's grade is on screen only once the weight is entered.
   const sourceSex = gradedSexOf(headline, profile, weightKnown)
@@ -275,7 +277,7 @@ export function BalancePage({
           <div className="balance__trends">
             {/* One trend for both sports, on one scale: age grades when the age and sex are known. */}
             <SharedTrendChart
-              weeks={profile === null ? energyWeeks(trend) : gradeWeeks(trend, profile)}
+              weeks={trendWeeks}
               measure={trendMeasureOf(profile)}
               windowDays={trendWindowDays(period.days)}
               effortS={HEADLINE_DURATION_S}
@@ -291,7 +293,12 @@ export function BalancePage({
               <WeeklyVolumeChart
                 weeks={volume}
                 lede={volumeCaption(volume)}
-                plotRightMargin={endLabelGutter}
+                plotRightMargin={(width) =>
+                  endLabelGutter(
+                    width,
+                    endLabelTexts(trendWeeks, trendMeasureOf(profile), weightKnown),
+                  )
+                }
               />
             )}
           </div>

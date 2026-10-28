@@ -1,4 +1,4 @@
-import { LABEL_GAP_X, spreadApart } from './chartInteraction'
+import { LABEL_GAP_X } from './chartInteraction'
 import { ASCENT_EM, DESCENT_EM } from './chartBoxes'
 import type { ChartSize, Point } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
@@ -10,17 +10,56 @@ import { NARROW_WIDTH } from './ticks'
 import { SPORT_LABEL } from '../sports'
 import type { EndLabel } from './sharedTrendLayout'
 
-/** The widest an end label can be, "Ride 100%", which the gutter beside the plot is sized to hold. */
-const WIDEST_LABEL = 'Ride 100%'
+/**
+ * The text of each sport's end label: its name and its latest value, such as "Run 56%" or "Ride 8.2 W/kg".
+ * A held ride, whose value waits for the weight, has none.
+ */
+export function endLabelTexts(
+  weeks: readonly SharedWeek[],
+  measure: SharedMeasure,
+  rideKnown = true,
+): string[] {
+  return (['run', 'ride'] as const).flatMap((kind) => {
+    if (kind === 'ride' && !rideKnown) return []
+    const latest = weeks.findLast((week) => week[kind] !== null)?.[kind] ?? null
+    return latest === null ? [] : [`${SPORT_LABEL[kind]} ${formatValue(measure, latest)}`]
+  })
+}
 
 /**
- * The plot's right margin. A wide chart keeps a gutter beside the plot for the end labels, so they name the
- * lines without lying over their markers; a narrow one has no room to spare and sets them over the plot.
- * The chart under it, which shares the time axis, takes the same margin so the two line up.
+ * The plot's right margin. A wide chart keeps a gutter beside the plot for its end labels, sized to the
+ * widest of their texts so none of it is reserved and unused, and the labels name the lines without lying
+ * over their markers; a narrow one has no room to spare and sets them over the plot. The chart under it,
+ * which shares the time axis, takes the same margin so the two line up.
  */
-export function endLabelGutter(width: number): number {
-  if (width < NARROW_WIDTH) return PLOT_MARGIN.right
-  return Math.ceil(labelWidthPx(WIDEST_LABEL, rootFontPx())) + LABEL_GAP_X + PLOT_MARGIN.right / 4
+export function endLabelGutter(width: number, texts: readonly string[]): number {
+  if (width < NARROW_WIDTH || texts.length === 0) return PLOT_MARGIN.right
+  const rootPx = rootFontPx()
+  const widest = Math.max(...texts.map((text) => labelWidthPx(text, rootPx)))
+  return Math.ceil(widest) + LABEL_GAP_X + PLOT_MARGIN.right / 4
+}
+
+/**
+ * Spreads baselines apart, in order, so that each sits at least `gap` below the one above it, and inside
+ * [lo, hi]. Each is clamped first, then packed down from lo and back up from hi, so two at the foot keep
+ * their gap instead of piling on one another. Returned in the input's order.
+ */
+function spreadWithin(ys: readonly number[], gap: number, lo: number, hi: number): number[] {
+  const top = Math.min(lo, hi)
+  const bottom = Math.max(lo, hi)
+  const placed = ys.map((y, index) => ({ y: Math.min(Math.max(y, top), bottom), index }))
+  const order = [...placed].sort((a, b) => a.y - b.y)
+  let floor = top
+  for (const item of order) {
+    item.y = Math.max(item.y, floor)
+    floor = item.y + gap
+  }
+  let ceiling = bottom
+  for (const item of [...order].reverse()) {
+    item.y = Math.min(item.y, ceiling)
+    ceiling = item.y - gap
+  }
+  return placed.map((item) => item.y)
 }
 
 /** The drawn points of a shared trend that the gutter labels read: each sport's line. */
@@ -63,17 +102,16 @@ export function gutterLabels(
   if (ends.length === 0 || size.width - size.plot.right < LABEL_GAP_X + widest) return null
   if (ends.some(({ point }) => point.x < size.plot.right - 1)) return null
   const level = ((ASCENT_EM - DESCENT_EM) / 2) * em
-  const ys = spreadApart(
+  const ys = spreadWithin(
     ends.map(({ point }) => point.y + level),
     (ASCENT_EM + DESCENT_EM) * em,
+    span.lo,
+    span.hi,
   )
   return ends.map(({ kind, point }, i) => ({
     kind,
     text: texts[i] ?? '',
     anchor: 'start',
-    at: {
-      x: point.x + LABEL_GAP_X,
-      y: Math.min(Math.max(ys[i] ?? point.y, span.lo), Math.max(span.lo, span.hi)),
-    },
+    at: { x: point.x + LABEL_GAP_X, y: ys[i] ?? point.y },
   }))
 }

@@ -5,7 +5,7 @@ import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
 import { BAND_CLEAR_PX, LABEL_REACH_EM, sharedTrendLayout } from './sharedTrendLayout'
-import { endLabelGutter } from './sharedTrendGutter'
+import { endLabelGutter, endLabelTexts } from './sharedTrendGutter'
 import type { EndLabel, SharedLayout } from './sharedTrendLayout'
 
 /** Sunday 12 January 2025, 23:59:59.999 UTC: the end of the first week. */
@@ -462,12 +462,33 @@ describe('sharedTrendLayout end labels', () => {
 describe('sharedTrendLayout end labels in a gutter', () => {
   const guttered = (width: number): ChartSize => ({
     ...sizeAt(width),
-    plot: plotBoxOf(width, 320, endLabelGutter(width), PLOT_BOTTOM_WITHOUT_X_TITLE),
+    plot: plotBoxOf(
+      width,
+      320,
+      endLabelGutter(width, endLabelTexts(GRADE_WEEKS, 'grade')),
+      PLOT_BOTTOM_WITHOUT_X_TITLE,
+    ),
   })
 
   it('keeps a gutter beside a wide plot and the usual margin beside a narrow one', () => {
-    expect(endLabelGutter(479)).toBe(PLOT_MARGIN.right)
-    expect(endLabelGutter(640)).toBeGreaterThan(labelWidthPx('Ride 100%', DEFAULT_ROOT_PX))
+    const texts = endLabelTexts(GRADE_WEEKS, 'grade')
+    expect(texts).toEqual(['Run 66%', 'Ride 58%'])
+    expect(endLabelGutter(479, texts)).toBe(PLOT_MARGIN.right)
+    expect(endLabelGutter(640, texts)).toBeGreaterThan(labelWidthPx('Run 66%', DEFAULT_ROOT_PX))
+    expect(endLabelGutter(640, [])).toBe(PLOT_MARGIN.right)
+  })
+
+  it('sizes the gutter from the widest label, so a short label reserves no more than it needs', () => {
+    const grade = endLabelGutter(640, ['Run 66%', 'Ride 58%'])
+    const energy = endLabelGutter(640, ['Run 8.2 W/kg', 'Ride 10.4 W/kg'])
+    expect(energy).toBeGreaterThan(grade)
+    expect(grade).toBeLessThan(
+      Math.ceil(labelWidthPx('Ride 100%', DEFAULT_ROOT_PX)) + 8 + PLOT_MARGIN.right / 4,
+    )
+  })
+
+  it('names no ride label while the ride waits for the weight', () => {
+    expect(endLabelTexts(GRADE_WEEKS, 'grade', false)).toEqual(['Run 66%'])
   })
 
   it('sets each label right of the plot, level with its line’s last point, so none lies over a marker', () => {
@@ -489,6 +510,18 @@ describe('sharedTrendLayout end labels in a gutter', () => {
     if (layout === null) throw new Error('The weeks give no layout')
     const [run, ride] = [labelOf(layout, 'run'), labelOf(layout, 'ride')]
     expect(Math.abs(run.at.y - ride.at.y)).toBeGreaterThanOrEqual(labelSizePx(DEFAULT_ROOT_PX))
+  })
+
+  it('keeps the two labels apart when both points sit at the foot of the plot', () => {
+    const weeks = [week(0, 0.6, 0.6), week(1, 0.4, 0.4), week(2, 0.41, 0.405)]
+    const size = guttered(640)
+    const layout = sharedTrendLayout(weeks, 'grade', size)
+    if (layout === null) throw new Error('The weeks give no layout')
+    const [run, ride] = [labelOf(layout, 'run'), labelOf(layout, 'ride')]
+    expect(Math.abs(run.at.y - ride.at.y)).toBeGreaterThanOrEqual(labelSizePx(DEFAULT_ROOT_PX))
+    for (const label of [run, ride]) {
+      expect(label.at.y).toBeLessThanOrEqual(size.plot.bottom)
+    }
   })
 
   it('sets the labels over the plot when a line ends before its right edge', () => {

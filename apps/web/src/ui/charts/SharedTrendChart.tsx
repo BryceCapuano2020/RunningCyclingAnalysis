@@ -14,7 +14,7 @@ import type { SharedMeasure } from './sharedTrendText'
 export type { SharedMeasure } from './sharedTrendText'
 import { lastAtOrBefore } from './hover'
 import { stepBandPath, stepPath } from './paths'
-import { endLabelGutter } from './sharedTrendGutter'
+import { endLabelGutter, endLabelTexts } from './sharedTrendGutter'
 import { sharedTrendLayout } from './sharedTrendLayout'
 import {
   HELD_EMPTY,
@@ -155,7 +155,7 @@ export function SharedTrendChart({
   return (
     <ChartFrame
       plotBottomMargin={PLOT_BOTTOM_WITHOUT_X_TITLE}
-      plotRightMargin={endLabelGutter}
+      plotRightMargin={(width) => endLabelGutter(width, endLabelTexts(weeks, measure, rideKnown))}
       title={copy.title}
       description={copy.description}
       legend={single === undefined ? legend : undefined}

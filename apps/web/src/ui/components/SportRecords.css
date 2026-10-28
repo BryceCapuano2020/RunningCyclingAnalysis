@@ -94,11 +94,6 @@
   grid-column: 2;
 }
 
-/* The count follows its activity after a dot, on the row's line and on the shared line alike. */
-.records__source > .records__set {
-  margin-left: var(--space-1);
-}
-
 .records__shared {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -107,9 +102,14 @@
   font-size: var(--text-sm);
 }
 
-/* The link and its count share the second column's line, so the count never wraps onto a row of its own. */
+/*
+ * The link and its count share the second column's line while they fit. When they do not, the count drops
+ * to a line of its own, so the name keeps the whole width before it is cut, and the count keeps its text.
+ */
 .records__source {
   display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-1);
   min-width: 0;
 }
 

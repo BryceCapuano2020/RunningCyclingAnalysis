@@ -10,6 +10,10 @@ describe('SportRecords: a shared activity name on a phone', () => {
 })
 
 describe('SportRecords: a record row’s link on a phone', () => {
+  it('wraps the count under the link rather than shrinking the name to make room for it', () => {
+    expect(ruleBody(css, '.records__source')).toContain('flex-wrap: wrap;')
+  })
+
   it('cuts the name short and keeps the date whole', () => {
     expect(ruleBody(css, '.records__name')).toContain('text-overflow: ellipsis;')
     expect(ruleBody(css, '.records__name')).toContain('overflow: hidden;')
