@@ -16,6 +16,7 @@ export const SECTION_ID = {
   grades: 'method-grades',
   heart: 'method-hr',
   accuracy: 'method-accuracy',
+  calculated: 'method-calculated',
   how: 'method-how',
 } as const
 

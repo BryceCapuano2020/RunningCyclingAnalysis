@@ -270,6 +270,47 @@ describe('MethodPage answer', () => {
   })
 })
 
+describe('MethodPage what is calculated', () => {
+  it('lists what the app shows in three states, under one heading in the contents', () => {
+    renderPage(null)
+
+    const section = screen.getByRole('region', { name: 'What is calculated' })
+    expect(
+      within(section)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual([
+      'Calculated by this app',
+      'Read from your files',
+      'Not available from activity files',
+    ])
+    const unavailable = screen.getByRole('region', { name: 'Not available from activity files' })
+    expect(within(unavailable).getByText('Readiness and recovery scores')).toBeInTheDocument()
+    expect(within(unavailable).getByText('Vendor tests such as 4DP')).toBeInTheDocument()
+    const calculated = screen.getByRole('region', { name: 'Calculated by this app' })
+    expect(within(calculated).getByText('Race predictions')).toBeInTheDocument()
+    expect(within(calculated).getByText('Heart-rate set-aside')).toBeInTheDocument()
+  })
+
+  it('moves focus to the section from the contents', () => {
+    renderPage(null)
+
+    const nav = screen.getByRole('navigation', { name: 'On this page' })
+    fireEvent.click(within(nav).getByRole('button', { name: 'What is calculated' }))
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { level: 2, name: 'What is calculated' }),
+    )
+  })
+
+  it('sits before How this works, with the results or without them', () => {
+    renderPage(makeResult())
+
+    const section = screen.getByRole('region', { name: 'What is calculated' })
+    const how = screen.getByRole('region', { name: 'How this works and what it assumes' })
+    expect(section.compareDocumentPosition(how) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
 describe('MethodPage contents', () => {
   it('lists the sections on the page, and moves focus to the one chosen', async () => {
     renderPage(makeResult({ virtualAccuracy: { nSegments: 3, mape: 0.06, bias: 0, segments: [] } }))
@@ -284,6 +325,7 @@ describe('MethodPage contents', () => {
       'Age grades and levels',
       'Heart-rate check',
       'Virtual power meter accuracy',
+      'What is calculated',
       'How this works and what it assumes',
     ])
 
