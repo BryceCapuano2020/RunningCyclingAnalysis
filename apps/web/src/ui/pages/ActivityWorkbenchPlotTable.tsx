@@ -48,7 +48,8 @@ export function PlotTable({
   const selection = selectionOf(trace, startS, endS)
   const missing = Math.max(0, selection.movingS - (selection.metrics[metric]?.seconds ?? 0))
   const binRows = bins.map((bin) => [binRange(bin, metric, trace, units), `${bin.seconds}`])
-  if (bins.length > 0 && missing > 0) binRows.push([noReadingLabel(metric), `${missing}`])
+  if (bins.length > 0 && missing > 0)
+    binRows.push([noReadingLabel(metric, trace.sport), `${missing}`])
   return (
     <details className="activity-workbench__details">
       <summary>View as table</summary>

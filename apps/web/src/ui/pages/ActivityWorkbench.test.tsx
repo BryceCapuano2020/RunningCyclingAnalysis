@@ -215,6 +215,18 @@ describe('ActivityWorkbench', () => {
     ).toBeInTheDocument()
   })
 
+  it('calls a ride’s missing speed no reading, since only a run has a stop floor', async () => {
+    const ride = steadyTrace(60, 8)
+    ride.activityId = 'ride-2'
+    ride.sport = 'ride'
+    ride.streams.speed = Float32Array.from({ length: 60 }, (_, index) =>
+      index < 6 ? Number.NaN : 5 + index / 20,
+    )
+    show(ride)
+    expect(await screen.findByText('No reading for 6 s of moving time.')).toBeInTheDocument()
+    expect(screen.queryByText(/Stopped or no reading/)).not.toBeInTheDocument()
+  })
+
   it('draws a distribution only for pace, heart rate, power and cadence', async () => {
     const user = userEvent.setup()
     const trace = runTrace()

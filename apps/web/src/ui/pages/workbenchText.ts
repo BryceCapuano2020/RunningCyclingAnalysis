@@ -1,7 +1,7 @@
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import type { DistributionBin } from './workbenchData'
-import { displayValue, readingRange } from './workbenchFormat'
+import { displayValue, readingRange, SPORT_READING } from './workbenchFormat'
 
 /** A bin as the range it covers, from its lowest reading to its highest. */
 export function binRange(
@@ -15,7 +15,9 @@ export function binRange(
   return `${text(lowest)}–${text(highest)}`
 }
 
-/** What a missing reading is called: a run's missing pace is mostly standing still. */
-export function noReadingLabel(metric: TraceMetric): string {
-  return metric === 'speed' ? 'Stopped or no reading' : 'No reading'
+/** What a missing reading is called. Where speed has a floor, a missing one is mostly standing still. */
+export function noReadingLabel(metric: TraceMetric, sport: ActivityTrace['sport']): string {
+  return metric === 'speed' && SPORT_READING[sport].minSpeedMs > 0
+    ? 'Stopped or no reading'
+    : 'No reading'
 }

@@ -31,7 +31,7 @@ export function SelectionStats({
   tiles.push([
     'Distance',
     summary.distanceM === null
-      ? 'Not available across an unrecorded gap'
+      ? 'Not available for this interval'
       : formatDistance(summary.distanceM, units),
   ])
   const rows = METRIC_ORDER.flatMap((metric) => {

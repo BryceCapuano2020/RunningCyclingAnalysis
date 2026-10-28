@@ -27,7 +27,7 @@ export function PlotDistribution({
   if (bins.length === 0)
     return missing > 0 ? (
       <p className="muted">
-        {noReadingLabel(metric)} for {missing} s of moving time.
+        {noReadingLabel(metric, trace.sport)} for {missing} s of moving time.
       </p>
     ) : null
   const maximum = Math.max(1, ...bins.map((bin) => bin.seconds))
@@ -59,7 +59,7 @@ export function PlotDistribution({
       </div>
       {missing > 0 && (
         <p className="muted">
-          {noReadingLabel(metric)} for {missing} s of moving time.
+          {noReadingLabel(metric, trace.sport)} for {missing} s of moving time.
         </p>
       )}
     </div>

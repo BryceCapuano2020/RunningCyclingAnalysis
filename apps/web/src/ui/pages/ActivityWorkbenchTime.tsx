@@ -91,7 +91,7 @@ function TimeField({
         <input
           id={id}
           type="text"
-          inputMode="numeric"
+          inputMode="text"
           autoComplete="off"
           spellCheck={false}
           value={draft ?? formatRecordTime(value)}
