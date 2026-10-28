@@ -8,7 +8,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
-import { pickHeadline } from '../components'
+import { headlinePick } from '../components'
 import { balanceOfPick } from '../components/balanceScale'
 import {
   headlineBasis,
@@ -137,7 +137,7 @@ export function MethodPage({
   const noResultLine = restoring ? RESTORING_EVIDENCE : NO_FILES_EVIDENCE
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
-  const pick = result ? pickHeadline(result.comparison) : null
+  const pick = result ? headlinePick(result) : null
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
   const setAside = result ? setAsideText(result, heartRateJudgement) : null

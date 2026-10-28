@@ -241,7 +241,11 @@ test('uploading a GPX ride and a TCX run shows the results', async ({ page }) =>
   await page.goto('/')
   await uploadFixtures(page, ['one-ride.gpx', 'one-run.tcx'])
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
+  // The 12 min run has no 20 min effort or threshold to set against the ride, so the balance is held.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Not enough to compare yet')
+  await expect(page.getByText(/^From 1 run and 1 ride\./)).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Run', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Ride', exact: true })).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(2)
   await expect(page.getByText(/^[\d,]+ files?: /)).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1, name: LANDING_TITLE })).toHaveCount(0)

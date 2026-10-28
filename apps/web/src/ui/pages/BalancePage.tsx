@@ -10,7 +10,7 @@ import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '..
 import { trendGutter } from '../charts/sharedTrendGutter'
 import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
-import { ShareImageButton, pickHeadline } from '../components'
+import { ShareImageButton, headlinePick } from '../components'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTargetText } from '../levelTarget'
 import { countSport, latestStartOf } from '../records'
@@ -109,7 +109,7 @@ export function BalancePage({
   footnote = null,
 }: BalancePageProps) {
   const { isSample, period, library, trend } = analysis.state
-  const pick = pickHeadline(result.comparison)
+  const pick = headlinePick(result)
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the

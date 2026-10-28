@@ -12,6 +12,7 @@ import type { GradeOutcome } from '../grades'
 import { COMPACT_PHONE_MAX_WIDTH_PX } from '../layoutBreakpoints'
 import { hrefFor } from '../route'
 import { floorThreshold } from '../thresholdFloor'
+import { thresholdNeedsLine } from '../thresholdNeeds'
 import { useNarrowScreen } from '../useNarrowScreen'
 import {
   SPORT_LABEL,
@@ -19,16 +20,8 @@ import {
   THRESHOLD_FLOOR_LABEL,
   THRESHOLD_LABEL,
   THRESHOLD_MEANING,
-  thresholdNeedsText,
 } from '../sports'
-import {
-  CHIP_DURATIONS_S,
-  effortLabel,
-  headlineEffort,
-  refusalOf,
-  sportRecords,
-  threshold,
-} from '../records'
+import { CHIP_DURATIONS_S, effortLabel, headlineEffort, sportRecords, threshold } from '../records'
 import './SportCard.css'
 
 export interface SportCardProps {
@@ -100,7 +93,7 @@ export function SportCard({ sport, result, units, massKg, grade, weighted }: Spo
                   )}
                 </p>
               ) : (
-                <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
+                <p className="secondary">{thresholdNeedsLine(result, sport)}</p>
               )}
               {fitted && <p className="muted">{THRESHOLD_MEANING[sport]}</p>}
             </>

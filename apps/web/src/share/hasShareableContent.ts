@@ -1,7 +1,7 @@
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick } from '../ui/components/balanceScale'
-import { pickHeadline } from '../ui/components/pickHeadline'
+import { headlinePick } from '../ui/components/pickHeadline'
 
 /**
  * Whether the balance on screen can be shared: a weight is entered, both sports have a threshold, and
@@ -19,6 +19,6 @@ export function hasShareableContent(
     weightKnown &&
     result.runCp !== null &&
     result.rideCp !== null &&
-    balanceOfPick(gap, pickHeadline(result.comparison)) !== null
+    balanceOfPick(gap, headlinePick(result)) !== null
   )
 }

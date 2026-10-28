@@ -577,7 +577,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
   each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
   20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
-  3 and 20 min". No threshold: the efforts are flat, the work capacity is below the least a rider or a
+  3 and 20 min", or, when efforts are held in that range and none reaches 1140 s, "Needs an effort of about
+  20 min. Your longest so far is 5 min.", so the place never asks for efforts the card lists. No threshold: the efforts are flat, the work capacity is below the least a rider or a
   runner has (3 kJ of cycling W′, or 15 m of running D′, which is 58.5 J per kg), or the threshold is
   not below the lowest of the efforts it was fitted to, since a threshold cannot be faster than an effort
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
@@ -810,13 +811,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   spike never sets aside a sound one. Its watts and pace still count. How sure is this? says how
   many runs and rides were set aside, and the activity's data notes say why. Estimated watts and treadmill
   pace are never the judge, since they can be what is wrong.
-- **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
 - **Heart rate too low for the power is judged against the athlete's own heart rate.** A stretch of at
   least half the ride's median power, 90 s or more, whose 5 min mean heart rate is under 75% of the athlete's
   median heart rate at about the same power (within 15%) elsewhere in the same activity, after the 10 min
   warm-up, is flagged and its heart rate is left out (`packages/core/src/quality/lowHeartRate.ts`). A fixed
   bpm floor mistook a fit athlete's easy ride for a fault. A whole activity read low has nothing of its own
   to fall below, so the set-aside above judges it against the athlete's reference heart rate.
+- **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
   "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes, headings,
   tooltips, notes and end labels of the energy charts, the energy rate's unit is "metabolic W/kg", never
@@ -898,6 +899,10 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it.
+- **The headline needs evidence on both sides.** Each sport needs a fitted threshold or an effort as long as
+  the headline's (20 min). A sport known only from shorter efforts, such as one estimated 5 min ride, is not set
+  against the other: the answer reads "Not enough to compare yet" (`headlinePick`), on the page, the share card
+  and the import summary alike.
 - **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
   is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
   cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). It stays in the
@@ -995,8 +1000,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A Skip whose kept answers cannot be stored still goes on.** The dialog closes and every file held
   then is imported, including one dropped while the Skip was saving, with setup not marked done, so the
   questions come back on the next import. Nothing is saved. A second Skip while one is saving does nothing.
-- **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
-  man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
+- **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, man and your
+  age at each effort. Change on Profile". It gives no age of its own, since each grade states the age on the day
+  of its effort and today's age would seem to contradict it. It names only the parts the athlete has set, in their units, and it links
   to Profile. A ride held for its weight, whose own note already links there, leaves out the link on
   "Your details are not set yet.". It is on the Balance, Run and Ride pages only, and the sample has its
   own persona and no such line. While the one prompt for the year of birth and sex is on the page, the unset
@@ -1112,6 +1118,9 @@ activity, with the bike model fitted over all of them (`judgeHeartRate`, cached 
 `HeartRateJudge`), exposes it as `SessionState.heartRateJudgement` (the sorted ids, and the reference heart rate and
 threshold of each sport it was judged against), and every reader takes that one list: each period's analysis (`combine`'s `heartRateSetAside` option, which lists
 only its own activities), the same-heart-rate and late-effort sections, the zones, the left-out notes and the activity page.
+The judgement also carries the library's heart-rate calibration of ride against run efficiency (`calibration`: the
+slope ratio and its error), which every period's running equivalents and comparison read (`combine`'s `calibration`
+option), so one ride is worth the same run pace whichever period is shown; a period's own `hr` stays its own evidence.
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
 activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too
@@ -1130,9 +1139,6 @@ activity's own zones, so a period can hold activities with different zones (a th
 body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so
 the reference is rounded to the number Profile shows (`zonesAt`: 187.6 bpm is 188 bpm) and its zones are cut on whole-number edges (`zonesFor`: the first whole number at or above the cut, so 0.6 of 219 bpm is 131.4 and
 the zone above starts at 132), and a bin of it is shared by its whole numbers: 110 to 114 W with an edge at 111 W has one watt
-The judgement also carries the library's heart-rate calibration of ride against run efficiency (`calibration`: the
-slope ratio and its error), which every period's running equivalents and comparison read (`combine`'s `calibration`
-option), so one ride is worth the same run pace whichever period is shown; a period's own `hr` stays its own evidence.
 below it, a fifth of its seconds, and a bin of one beat is never split. A reading is in the zone it is at or above the floor of
 and below the ceiling of, as on the activity page, and the Profile ranges are written from the same edges, so they agree. A speed bin that straddles an edge is shared in proportion to the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms

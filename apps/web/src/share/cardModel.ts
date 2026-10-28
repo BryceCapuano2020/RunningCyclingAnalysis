@@ -8,7 +8,7 @@ import type { BalanceGap } from '../ui/balanceGap'
 import { balanceOfPick, type BalanceReading } from '../ui/components/balanceScale'
 import { effortCaveat } from '../ui/effortCaveat'
 import { balanceTitle, leadSentence } from '../ui/components/headlineText'
-import { pickHeadline } from '../ui/components/pickHeadline'
+import { headlinePick } from '../ui/components/pickHeadline'
 import { periodDates } from '../ui/components/rangeOptions'
 import { plural } from '../ui/components/plural'
 import { heroGradeLine, LEVEL_NOT_RANKING, type GradeOutcome } from '../ui/grades'
@@ -192,7 +192,7 @@ export function buildShareCard(
   name: string | null = null,
 ): ShareCardModel | null {
   if (!hasShareableContent(result, gap, weightKnown)) return null
-  const pick = pickHeadline(result.comparison)
+  const pick = headlinePick(result)
   const reading = balanceOfPick(gap, pick)
   const heroes = heroesFor(result, settings, units, grades)
   if (reading === null || heroes === null) return null
