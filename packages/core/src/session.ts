@@ -10,7 +10,7 @@ import { DEFAULT_ATHLETE, sampleDataset } from './synthetic'
 import { requirePositiveFinite } from './math'
 import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } from './types'
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
-import { PeriodCache, sameDigests, splitPeriods } from './period'
+import { PeriodCache, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
@@ -21,7 +21,7 @@ import type { SessionState } from './sessionState'
 import { noteKept } from './sessionHooks'
 import type { ActivityListeners, ImportCompletion } from './sessionHooks'
 import type { ImportedFile, SaveBatch, SyncSink } from './sessionSync'
-import { recordHolders } from './records'
+import { RecordsCache } from './sessionRecords'
 import type { EarnedRecord } from './records'
 
 export { haltsImport, stopsSaving, SyncFailure } from './saveFailure'
@@ -61,13 +61,7 @@ export class AnalysisSession {
   private periods = new PeriodCache()
   // The extraction limits of every import. The constants unless a test or caller sets others.
   private readonly limits: ExtractLimits
-  // The last record holders, with the digests and masses they were computed from.
-  private recordsCache: {
-    digests: ActivityDigest[]
-    massKg: number
-    bikeMassKg: number
-    records: Map<string, EarnedRecord[]>
-  } | null = null
+  private recordsCache = new RecordsCache()
 
   /**
    * Production passes no limits, so the constants apply. The argument is a seam for tests, which need
@@ -208,7 +202,7 @@ export class AnalysisSession {
    * poorer copy is saved but hidden from the analysis. Says what became of the activity: the digest
    * it added, or the name of the held file when its workout was already in the library, whether this
    * is a copy, the same file again or a richer copy that replaces the held one. The listeners hear of
-   * the activity only when it is kept, never of a copy that is skipped.
+   * the activity when it is kept, or when it is the held file again, never of another skipped copy.
    */
   private async consider(
     activity: Activity,
@@ -247,8 +241,11 @@ export class AnalysisSession {
       held !== undefined &&
       !replaces &&
       (sink === undefined || (!this.unsynced.has(key) && !syncExisting))
-    )
+    ) {
+      // The same file again restores a recording that went missing; any other copy is only skipped.
+      await noteKept(activity, held, undefined, listeners)
       return { held: fileNameOf(held.id) }
+    }
     // A workout this import is adding, or has added: new to the library, or a later copy of one.
     const adding = held === undefined || batch.added.has(key)
     const retry = !adding && this.unsynced.has(key)
@@ -313,33 +310,6 @@ export class AnalysisSession {
   }
 
   /**
-   * The best efforts each activity holds across the visible library, not the period. They are reused
-   * while the digests and both masses are the same.
-   */
-  private recordsFor(
-    visible: ActivityDigest[],
-    settings: AthleteSettings,
-  ): Map<string, EarnedRecord[]> {
-    const cached = this.recordsCache
-    if (
-      cached !== null &&
-      cached.massKg === settings.massKg &&
-      cached.bikeMassKg === settings.bikeMassKg &&
-      sameDigests(cached.digests, visible)
-    ) {
-      return cached.records
-    }
-    const records = recordHolders(visible, settings)
-    this.recordsCache = {
-      digests: visible,
-      massKg: settings.massKg,
-      bikeMassKg: settings.bikeMassKg,
-      records,
-    }
-    return records
-  }
-
-  /**
    * The settings the analysis uses. The sample athlete has its own body and bike masses, so it
    * ignores the visitor's while it is on screen.
    */
@@ -394,7 +364,9 @@ export class AnalysisSession {
       library: settings === null ? [] : activitySummaries(visible),
       syncIssues: countIssues(this.unsynced, this.latestUnsynced),
       records:
-        athlete === null ? new Map<string, EarnedRecord[]>() : this.recordsFor(visible, athlete),
+        athlete === null
+          ? new Map<string, EarnedRecord[]>()
+          : this.recordsCache.holders(visible, athlete),
     }
   }
 }

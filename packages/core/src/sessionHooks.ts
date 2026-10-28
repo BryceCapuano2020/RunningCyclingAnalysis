@@ -16,8 +16,9 @@ export interface ImportCompletion {
 
 /**
  * Optional listeners that follow the library an import builds. Each is told only of an activity the
- * library keeps, so nothing is recorded for a copy that is skipped or hidden. A listener that throws
- * or rejects never changes whether an activity is analysed or saved.
+ * library keeps, or of the held file read again, so nothing is recorded for a different copy that is
+ * skipped or hidden. A listener that throws or rejects never changes whether an activity is
+ * analysed or saved.
  */
 export interface ActivityListeners {
   /** The activity the library now holds, whose digest was made from it. */

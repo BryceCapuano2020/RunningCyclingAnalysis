@@ -52,14 +52,19 @@ describe('AnalysisSession activity listeners', () => {
     expect(state.totalActivities).toBe(1)
   })
 
-  it('does not hear of a copy the library skips as poorer or as the same file again', async () => {
-    const { kept, replaced, state } = await importing([
-      fitFile('run.fit'),
-      gpxFile('run.gpx'),
-      fitFile('run.fit'),
-    ])
+  it('does not hear of a different copy the library skips as poorer', async () => {
+    const { kept, replaced, state } = await importing([fitFile('run.fit'), gpxFile('run.gpx')])
 
     expect(kept).toHaveLength(1)
+    expect(replaced).toEqual([])
+    expect(state.totalActivities).toBe(1)
+  })
+
+  it('hears of the held file read again, so a recording that went missing can be restored', async () => {
+    const { kept, replaced, state } = await importing([fitFile('run.fit'), fitFile('run.fit')])
+
+    expect(kept).toHaveLength(2)
+    expect(kept[1]).toBe(kept[0])
     expect(replaced).toEqual([])
     expect(state.totalActivities).toBe(1)
   })
