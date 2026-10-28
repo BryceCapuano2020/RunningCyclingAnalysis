@@ -9,6 +9,8 @@ Decisions section. Status is one of designed, in progress or built.
   supported. Status: in progress.
 - [training-load.md](training-load.md): load per sport and short-against-long sentences, no fitness
   or fatigue curves. Status: designed.
+- [architecture-1.md](architecture-1.md): a local originals store, an analysis-module registry and a
+  unified local storage layer (stage B). Status: designed.
 
 ## Stage plan
 
