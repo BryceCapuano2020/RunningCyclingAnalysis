@@ -216,6 +216,10 @@ export function gradedSexOf(
  */
 export const FLAT_PACE_NOTE = 'Flat pace: your pace allowing for hills, as if on level ground.'
 
+/** The note under splits where a steep descent has left a flat pace out. */
+export const STEEP_DESCENT_NOTE =
+  'Flat pace is left out where a steep descent would make it much slower than the pace you ran.'
+
 /** The note a run's distance times carry: they are as run, and the pace curve allows for hills. */
 export const DISTANCE_TIMES_NOTE =
   'Distance times are as run. The pace curve allows for hills, so they can differ.'

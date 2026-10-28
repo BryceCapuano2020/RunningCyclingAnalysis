@@ -200,6 +200,7 @@ export function ResultPage({
       const activity = library.find((candidate) => candidate.id === route.id) ?? null
       return (
         <ActivityPage
+          key={route.id}
           activity={activity}
           library={library}
           result={result}

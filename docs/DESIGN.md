@@ -630,7 +630,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **An activity page reads top to bottom:** the name, the sport, the day and start time (with an
   **Indoor** chip for a trainer ride), the route when it was kept, then the moving time as the hero, with
   the elapsed time under it when the file kept both. Distance, average pace or speed over the moving time,
-  climb, average heart rate with the highest, and average power follow. An indoor ride reports no speed
+  climb, average heart rate with the highest 30 s average (the stream's own highest reading is higher), and average power follow. An indoor ride reports no speed
   anywhere, since a trainer's speed is virtual rather than measured on a road. A ride without a power meter says so in a line beneath
   the figures: "Power here is estimated from speed and climbs. No power meter recorded it." Earlier and
   Later name the activities either side in the library, then a link to the sport's records. Then the all-time records as chips, each linking to its sport's page (underlined on hover, not at rest), the splits, the best efforts set here, the skipped
@@ -690,7 +690,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   are in the page, and a media query shows exactly one at each width, so the accessibility tree
   holds one representation. Never set `display: block` on a table element, which drops its table
   semantics. A split's columns earn their place: Elevation gain shows only when some split climbs, and Flat
-  pace only when some split has one that differs from its Pace, so a run with no altitude or no flat pace shows neither column. A partial last split, shorter than one unit, reads to
+  pace only when some split has one that differs from its Pace, so a run with no altitude or no flat pace shows neither column. A flat pace more than 1.5 times the time run (a descent past about 8.5%, where the energy model is least sure) is left out as a dash, and one note under the splits says so once, not per row. Only one split with a pace is never marked Fastest. Where the device recorded laps that are not its automatic mile or kilometre laps, as an interval session does, the splits open on the laps once the recorded detail has loaded (or after 1.5 s, whichever is first, showing the units meanwhile), with a Miles or Kilometres / Laps toggle to switch; after that the view never changes by itself, and the athlete's choice wins. Each lap shows its time, distance, pace and heart rate, the time being its seconds less its rests, as a split's is, and a lap timed for under 5 s or faster than any runner has no pace. The flat pace note follows the view that is open: with the laps open, it sits under the best efforts. A partial last split, shorter than one unit, reads to
   two decimals, such as "0.97 mi", rounded down so it never reads as a whole unit. Below 480 px a split
   leads with its split and pace, then its other figures, which wrap as the width needs: two or three lines. The splits table on the activity page is the first use, and the efforts table on a Balance card
   is the second, whose list shows below 480 px with its labels once above the rows. The saved library on Profile is a third, switched in code rather than CSS: a table, which drops its sport column at 560 px and below, so the sport sits under the name, and at 420 px and below a list of blocks, each with a full-width Delete. Record any new one here.

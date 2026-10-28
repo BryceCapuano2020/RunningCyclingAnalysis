@@ -15,6 +15,9 @@ export type SplitsLoad =
   /** `splits` is null when the run's digest was made before splits were kept. */
   | { status: 'loaded'; splits: DigestSplits | null }
 
+/** Which view of the splits is open: the whole kilometres or miles, or the laps the device recorded. */
+export type SplitsViewName = 'units' | 'laps'
+
 /** One row, as both representations show it. A null field is a value the digest could not give. */
 export interface SplitCells {
   label: string
@@ -23,32 +26,76 @@ export interface SplitCells {
   /** Width of the pace bar, from zero to the fastest known pace, as a percentage. */
   barPercent: number | null
   gradeAdjustedPace: string | null
+  /** The flat pace was left out because a steep descent makes it far slower than the pace run. */
+  flatWithheld: boolean
   elevation: string | null
   heartRate: string | null
+  /** The extent of a recorded lap, which laps differ in and the whole units of splits do not. */
+  lap?: { time: string | null; distance: string | null }
 }
 
 /** The optional figures that earn a column: each is left out when it would say nothing new. */
 export interface Columns {
   flat: boolean
   elevation: boolean
+  /** Some flat pace in the column is left out for a steep descent, which the page says once. */
+  steepDescent: boolean
+  /** Laps show the time and distance of each lap, because laps are not all one length. */
+  lap: boolean
+}
+
+/**
+ * A flat pace is left out when its time is more than this many times the pace run. Downhill running
+ * costs less energy than level running, so the level pace of the same effort is slower than the pace
+ * run: 1.16 times at a 3% descent and 1.34 times at 6%, by the energy model's cost of running. Past 1.5,
+ * about an 8.5% descent, the steepness is where the model is least sure and braking is much of the
+ * effort, so the figure says little.
+ */
+export const FLAT_PACE_MAX_RATIO = 1.5
+
+/** Whether the flat time is so far past the time run that the flat pace is left out. */
+function flatWithheldFor(split: DigestSplit): boolean {
+  const { seconds, gradeAdjustedSeconds } = split
+  return (
+    seconds !== null &&
+    gradeAdjustedSeconds !== null &&
+    seconds > 0 &&
+    gradeAdjustedSeconds > seconds * FLAT_PACE_MAX_RATIO
+  )
+}
+
+/**
+ * The fastest speed among the known ones, and the index of the row to mark with it. Only the first row
+ * at that speed is marked, so a tie does not mark two, and none is marked unless two rows have a speed:
+ * a lone row is not the fastest of anything.
+ */
+export function fastestOf(speeds: (number | null)[]): {
+  fastest: number | null
+  fastestIndex: number
+} {
+  const known = speeds.filter((speed): speed is number => speed !== null)
+  const fastest = known.length > 0 ? Math.max(...known) : null
+  return {
+    fastest,
+    fastestIndex: fastest === null || known.length < 2 ? -1 : speeds.indexOf(fastest),
+  }
 }
 
 /**
  * The rows in display form. A split whose time is unknown has no pace, so it is not marked fastest
- * and does not set the bar scale. Whether a column shows is columnsOf's decision, not this one's.
+ * and does not set the bar scale; nor is a lone split, which has nothing to be fastest among. Whether
+ * a column shows is columnsOf's decision, not this one's.
  */
 export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
   const unitMetres = units === 'imperial' ? METRES_PER_MILE : METRES_PER_KM
   const speeds = rows.map((split) =>
     split.seconds === null ? null : split.distanceM / split.seconds,
   )
-  const known = speeds.filter((speed): speed is number => speed !== null)
-  const fastest = known.length > 0 ? Math.max(...known) : null
-  // Only the first split at the fastest pace is marked, so a tie does not mark two rows.
-  const fastestIndex = fastest === null ? -1 : speeds.indexOf(fastest)
+  const { fastest, fastestIndex } = fastestOf(speeds)
   return rows.map((split, index) => {
     const speed = speeds[index]!
-    const gradeAdjusted = split.gradeAdjustedSeconds
+    const withheld = flatWithheldFor(split)
+    const gradeAdjusted = withheld ? null : split.gradeAdjustedSeconds
     return {
       label:
         split.distanceM < unitMetres
@@ -59,6 +106,7 @@ export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
       barPercent: speed === null || fastest === null ? null : (speed / fastest) * 100,
       gradeAdjustedPace:
         gradeAdjusted === null ? null : formatPace(split.distanceM / gradeAdjusted, units),
+      flatWithheld: withheld,
       elevation:
         split.elevationGainM === null ? null : formatElevation(split.elevationGainM, units),
       heartRate: split.avgHeartRate === null ? null : `${Math.round(split.avgHeartRate)} bpm`,
@@ -69,13 +117,17 @@ export function cellsOf(rows: DigestSplit[], units: UnitSystem): SplitCells[] {
 /**
  * Elevation gain has a column when some split climbs. Flat pace has one when some split has a flat pace
  * that differs from its pace, so a column never repeats the one beside it, and never holds only dashes.
+ * The steep descent note shows with that column, when some split in it has its flat pace left out.
  */
 export function columnsOf(rows: DigestSplit[], cells: SplitCells[]): Columns {
+  const flat = cells.some(
+    (cell) => cell.gradeAdjustedPace !== null && cell.gradeAdjustedPace !== cell.pace,
+  )
   return {
     elevation: rows.some((split) => (split.elevationGainM ?? 0) > 0),
-    flat: cells.some(
-      (cell) => cell.gradeAdjustedPace !== null && cell.gradeAdjustedPace !== cell.pace,
-    ),
+    flat,
+    steepDescent: flat && cells.some((cell) => cell.flatWithheld),
+    lap: cells.some((cell) => cell.lap !== undefined),
   }
 }
 
@@ -86,10 +138,15 @@ export function rowsOf(splits: DigestSplits, units: UnitSystem): DigestSplit[] {
 
 /**
  * Whether the splits show the flat pace note, which they do with their flat pace column: they have rows,
- * and some split's flat pace differs from its pace. Otherwise the note belongs under the best efforts.
+ * the whole units are the view open (laps have no flat pace), and some split's flat pace differs from
+ * its pace. Otherwise the note belongs under the best efforts.
  */
-export function splitsShowFlatNote(load: SplitsLoad, units: UnitSystem): boolean {
-  if (load.status !== 'loaded' || load.splits === null) return false
+export function splitsShowFlatNote(
+  load: SplitsLoad,
+  units: UnitSystem,
+  view: SplitsViewName = 'units',
+): boolean {
+  if (view !== 'units' || load.status !== 'loaded' || load.splits === null) return false
   const rows = rowsOf(load.splits, units)
   return rows.length > 0 && columnsOf(rows, cellsOf(rows, units)).flat
 }

@@ -80,7 +80,7 @@ export function ActivityStats({
             value={`${Math.round(activity.avgHeartRate)} bpm`}
             sub={
               typeof activity.maxHeartRate === 'number'
-                ? `Highest ${Math.round(activity.maxHeartRate)} bpm`
+                ? `Highest 30 s average ${Math.round(activity.maxHeartRate)} bpm`
                 : undefined
             }
             className="activity-page__stat"

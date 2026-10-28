@@ -298,13 +298,18 @@ the server stores only that. A digest holds:
   faster than the world record for its distance is a recording fault, so the next fastest window is
   used instead. It is absent for rides and for digests from before the field, and an empty list for a
   run under 1 km.
-- **Splits** (runs only): each whole kilometre and mile, with its wall-clock seconds, flat-pace
+- **Splits** (runs only): each whole kilometre and mile, with its moving seconds, flat-pace
   seconds (the flat time at the same metabolic cost, as the best efforts pace is), elevation gain and
-  mean heart rate. A split with a boundary inside a gap the device did not record, where the distance is
-  held and then stepped, has null seconds. The gaps are the resampler's `unrecorded` mask: a record gap
-  over 10 s that no timer pause covers, in GPX, TCX and timer-less FIT alike. A split that only contains
-  such a gap keeps its time, and takes the gap at the split's recorded effort, so its flat-pace time
-  stays known.
+  mean heart rate. The seconds are the split's time less its rests, scaled by the distance over the
+  distance less what the rests gained, so the pace and the flat pace are over the same running. A rest
+  is a stretch the device was not timing (a timer pause, or a gap the resampler's `unrecorded` mask
+  marks: a record gap over 10 s that no timer pause covers, in GPX, TCX and timer-less FIT alike)
+  across which the distance rose by less than 0.5 m/s. When the step into the first timed sample is a
+  second of running, that second and its metres are run, not rested. A gap the distance stepped across by a run's worth is not a rest, and stays in the
+  time. A split with a boundary inside a gap, where the distance is held and then stepped, has null
+  seconds. A split that only contains a gap keeps its time, and takes the gap at the split's recorded
+  effort, so its flat-pace time stays known. The activity page reads a recorded lap's time and pace by
+  the same rule (`restsOf` in `@rca/core/splits`).
   Digests made before splits were kept have none, and rides never do. Splits are stored in each digest
   and load with the library. They are kept out of activity summaries and SessionState, and the activity
   page reads them from the session on demand.

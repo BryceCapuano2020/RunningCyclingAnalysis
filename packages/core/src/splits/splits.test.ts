@@ -85,6 +85,23 @@ function runWithStep(): Activity {
   return { ...syntheticActivity({ n, speed }), distance }
 }
 
+/**
+ * A run at `speed` with a timer pause over the seconds [from, to): the speed is zero, the timer is
+ * paused, and the distance is held through the pause and carried on from where it stood, with no step
+ * into the first timed sample.
+ */
+function pausedRun(n: number, speed: number, from: number, to: number): Activity {
+  const v = constant(n, speed)
+  v.fill(0, from, to)
+  const paused = new Uint8Array(n)
+  paused.fill(1, from, to)
+  const distance = Float64Array.from(
+    { length: n },
+    (_, i) => speed * (i - Math.max(0, Math.min(i, to) - from)),
+  )
+  return { ...syntheticActivity({ n, speed: v, paused }), distance }
+}
+
 describe('run splits: which splits exist', () => {
   it('splits at every whole kilometre and mile, and keeps a partial remainder', () => {
     // 1 m/s for 3000 s covers 2999 m: two whole kilometres and 999 m.
@@ -133,7 +150,7 @@ describe('run splits: which splits exist', () => {
   })
 })
 
-describe('run splits: wall-clock time', () => {
+describe('run splits: moving time', () => {
   it('gives equal splits at a constant pace, and the partial remainder its own time', () => {
     // 4 m/s for 1000 s covers 3996 m, so the partial remainder is 996 m.
     const { km } = splitsOf(run(1000, 4))
@@ -156,29 +173,31 @@ describe('run splits: wall-clock time', () => {
     expect(km[1]!.seconds).toBe(300)
   })
 
-  it('counts time paused as well as time stopped, with the same grade-adjusted time', () => {
+  it('leaves time paused out of the split, with the same grade-adjusted time', () => {
+    const { km } = splitsOf(pausedRun(1000, 4, 400, 450))
+    expect(km[1]!.seconds).toBe(250)
+    expect(km[1]!.gradeAdjustedSeconds).toBeCloseTo(250, 2)
+  })
+
+  it('counts the second of running that a resumed file holds in the step into its first timed sample', () => {
+    // The synthetic distance steps by the speed into each sample, so the step into the first timed
+    // sample after the pause is a second of running, and that second is run, not rested.
     const speed = constant(1000, 4)
     speed.fill(0, 400, 450)
     const paused = new Uint8Array(1000)
     paused.fill(1, 400, 450)
     const { km } = splitsOf(run(1000, 4, { speed, paused }))
-    expect(km[1]!.seconds).toBe(300)
-    expect(km[1]!.gradeAdjustedSeconds).toBeCloseTo(300, 2)
+    expect(km[1]!.seconds).toBe(251)
   })
 })
 
 describe('run splits: a timer pause in the recording', () => {
-  it('keeps the wall-clock seconds of a split whose timer pause spans where a boundary would fall', () => {
+  it('counts a split whose timer pause spans where a boundary would fall over its moving seconds', () => {
     // At 4 m/s the first kilometre would end at 250 s. A 10 s timer pause from 245 s to 254 s holds
     // the distance at 976 m, so the kilometre is reached at 260 s. The pause is recorded and has no
-    // unrecorded mask, so its seconds count as wall-clock time and the split is known.
-    const n = 1100
-    const speed = constant(n, 4)
-    speed.fill(0, 245, 255)
-    const paused = new Uint8Array(n)
-    paused.fill(1, 245, 255)
-    const { km } = splitsOf(run(n, 4, { speed, paused }))
-    expect(km[0]!.seconds).toBe(260)
+    // unrecorded mask, so the split is known, and its 10 s pause is not in its time.
+    const { km } = splitsOf(pausedRun(1100, 4, 245, 255))
+    expect(km[0]!.seconds).toBe(250)
     expect(km[1]!.seconds).toBe(250)
   })
 })
@@ -353,5 +372,69 @@ describe('run splits: the rest of the digest', () => {
   it('keeps splits off the activity summary, so a summary stays small', () => {
     const [summary] = analyze([run(2500, 4)], { massKg: 70, bikeMassKg: 8 }).activities
     expect(summary).not.toHaveProperty('splits')
+  })
+})
+
+/**
+ * Four 400 m reps at 5 m/s, each followed by a 300 s rest the device did not record, with the
+ * distance held through it. The unit boundaries fall inside the reps, so no split touches a gap.
+ */
+function repsWithRests(restStepM = 0): Activity {
+  const reps = 4
+  const repS = 80
+  const restS = 300
+  const n = reps * (repS + restS) - restS
+  const speed = new Float64Array(n)
+  const distance = new Float64Array(n)
+  const unrecorded = new Uint8Array(n)
+  let metres = 0
+  for (let rep = 0; rep < reps; rep++) {
+    const start = rep * (repS + restS)
+    for (let k = 0; k < repS; k++) {
+      speed[start + k] = 5
+      distance[start + k] = metres
+      metres += 5
+    }
+    for (let k = repS; k < repS + restS && start + k < n; k++) {
+      distance[start + k] = metres
+      unrecorded[start + k] = 1
+    }
+    metres += restStepM
+  }
+  const activity = syntheticActivity({ n, speed, altitude: constant(n, 100) })
+  return { ...activity, distance, unrecorded }
+}
+
+describe('run splits: an interval file with long rests', () => {
+  it('reads each split over the time the device was timing, not the rests between reps', () => {
+    // 1595 m of reps and 900 s of rest. The first kilometre holds two and a half reps: 200 s at 5 m/s.
+    const { km } = splitsOf(repsWithRests())
+    expect(km[0]!.seconds).toBeCloseTo(200, 0)
+    expect(km[1]!.seconds).toBeCloseTo(119, 0)
+  })
+
+  it('puts the pace and the flat pace on the same time', () => {
+    const { km } = splitsOf(repsWithRests())
+    for (const split of km) {
+      expect(split.gradeAdjustedSeconds).toBeCloseTo(split.seconds!, 0)
+    }
+  })
+
+  it('takes the metres a walk gained in a rest out of the pace, as well as its seconds', () => {
+    // 60 m walked across each 300 s rest is 0.2 m/s. The kilometre holds two rests, so 120 m of it
+    // were walked in no timed seconds: read over its 176 timed seconds the run would be 5.7 m/s.
+    // The reps were run at 5 m/s, which is 200 s for the kilometre.
+    const { km } = splitsOf(repsWithRests(60))
+    // The step into each resumed sample is the 60 m walked, so a second of running at 5 m/s is taken
+    // off it, and its second off the rest: the kilometre reads exactly as run.
+    expect(km[0]!.seconds).toBeCloseTo(200, 1)
+    expect(km[0]!.gradeAdjustedSeconds).toBeCloseTo(200, 1)
+  })
+
+  it('keeps the rest in the time of a gap the runner moved through', () => {
+    // 300 m covered across each 300 s gap is 1 m/s, a recovery walk. The first kilometre holds the first
+    // gap whole: its 80 s rep, the 300 s gap, and the 60 s that finish the kilometre.
+    const { km } = splitsOf(repsWithRests(300))
+    expect(km[0]!.seconds).toBeCloseTo(440, 0)
   })
 })

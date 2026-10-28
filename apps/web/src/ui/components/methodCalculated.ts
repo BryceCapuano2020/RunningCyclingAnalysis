@@ -81,7 +81,7 @@ export const CALCULATION_ITEMS: readonly CalculationItem[] = [
   {
     name: 'Splits',
     state: 'calculated',
-    line: 'Run splits by kilometre or mile, with flat pace, worked out from the recorded distance and time.',
+    line: 'Run splits by kilometre or mile, with flat pace, from the recorded distance and moving time. Laps the device recorded are offered as a second view.',
   },
   {
     name: 'Moving time and climb',

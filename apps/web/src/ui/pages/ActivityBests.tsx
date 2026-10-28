@@ -6,7 +6,7 @@ import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
 import { periodDates } from '../components/rangeOptions'
-import { splitsShowFlatNote, type SplitsLoad } from '../components/splitRows'
+import { splitsShowFlatNote, type SplitsLoad, type SplitsViewName } from '../components/splitRows'
 import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
 import { FLAT_MARK, recordRow, treadmillMarks } from '../recordRow'
@@ -27,6 +27,8 @@ export interface ActivityBestsProps {
   period?: Period
   /** The run's splits as the page holds them, which say where the flat pace note goes. */
   splitsLoad: SplitsLoad
+  /** The view of the splits that is open, which says whether their flat pace column is on the page. */
+  splitsView: SplitsViewName
 }
 
 /** Why a ride without measured power has no power curve, as the page says it. */
@@ -43,11 +45,15 @@ const NO_POWER_CURVE: Record<'virtual' | 'none', string> = {
 function flatNoteHere(
   sport: ActivitySummary['sport'],
   splitsLoad: SplitsLoad,
+  splitsView: SplitsViewName,
   units: UnitSystem,
   rows: readonly RecordRow[],
 ): boolean {
   if (sport !== 'run' || splitsLoad.status === 'loading') return false
-  return !splitsShowFlatNote(splitsLoad, units) && rows.some((row) => row.tags.includes(FLAT_MARK))
+  return (
+    !splitsShowFlatNote(splitsLoad, units, splitsView) &&
+    rows.some((row) => row.tags.includes(FLAT_MARK))
+  )
 }
 
 function outsideText(period: Period | undefined): string {
@@ -71,6 +77,7 @@ export function ActivityBests({
   inPeriod,
   period,
   splitsLoad,
+  splitsView,
 }: ActivityBestsProps) {
   const sport = activity.sport
   if (!inPeriod) {
@@ -149,7 +156,9 @@ export function ActivityBests({
           {note}
         </p>
       ))}
-      {flatNoteHere(sport, splitsLoad, units, rows) && <p className="muted">{FLAT_PACE_NOTE}</p>}
+      {flatNoteHere(sport, splitsLoad, splitsView, units, rows) && (
+        <p className="muted">{FLAT_PACE_NOTE}</p>
+      )}
       {anyGraded && <GradingLink />}
     </section>
   )

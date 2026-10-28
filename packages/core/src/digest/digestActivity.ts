@@ -378,6 +378,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
             metabolic,
             PRIORS.runEconomyScale.mean,
             agreed.covered,
+            moving,
           ),
         }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),

@@ -25,6 +25,11 @@ export interface ActivityWorkbenchProps {
   zoneSets?: readonly ZoneSet[]
   /** Whether the activity's heart rate is set aside, which its zones say instead of reading it. */
   heartRateSetAside?: boolean
+  /**
+   * Told the trace once it is read, and null when there is none, with whether the loading has settled
+   * (it has either read a trace or found there is none), so the page can use its laps beside it.
+   */
+  onTrace?: (trace: ActivityTrace | null, settled: boolean) => void
 }
 
 type LoadState =
@@ -87,6 +92,7 @@ export function ActivityWorkbench({
   loadTrace,
   zoneSets,
   heartRateSetAside,
+  onTrace = noTrace,
 }: ActivityWorkbenchProps) {
   return (
     <ActivityWorkbenchSession
@@ -97,9 +103,12 @@ export function ActivityWorkbench({
       loadTrace={loadTrace}
       zoneSets={zoneSets}
       heartRateSetAside={heartRateSetAside}
+      onTrace={onTrace}
     />
   )
 }
+
+function noTrace() {}
 
 const HEADING_ID = 'activity-workbench-heading'
 
@@ -124,10 +133,20 @@ function ActivityWorkbenchSession({
   loadTrace,
   zoneSets,
   heartRateSetAside,
+  onTrace,
 }: Required<Omit<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>> &
   Pick<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>) {
   const loaded = useTrace(activityId, loadTrace)
   const { status } = loaded.state
+  const trace =
+    loaded.state.status === 'ready' || loaded.state.status === 'original'
+      ? loaded.state.trace
+      : null
+  const settled = status !== 'loading'
+  useEffect(() => {
+    onTrace(trace, settled)
+    return () => onTrace(null, false)
+  }, [trace, settled, onTrace])
   if (status === 'ready' || status === 'original') {
     return (
       <ReadyWorkbench
