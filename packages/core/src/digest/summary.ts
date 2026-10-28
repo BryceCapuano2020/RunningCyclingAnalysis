@@ -36,8 +36,22 @@ export interface ActivitySummary {
   massKg?: number
 }
 
+// A digest is never changed once it is held, so its summary is made once. The period's activities and
+// the library list then hold the same objects, and a structured clone sends each of them once.
+const summaries = new WeakMap<ActivityDigest, ActivitySummary>()
+
 /** The library-list view of a digest. It carries distanceBests when the digest has them. */
 export function summaryOf(digest: ActivityDigest, massKg?: number): ActivitySummary {
+  let summary = summaries.get(digest)
+  // The body mass is the athlete's, not the digest's, so a summary made for another mass is made again.
+  if (summary === undefined || summary.massKg !== massKg) {
+    summary = summaryFrom(digest, massKg)
+    summaries.set(digest, summary)
+  }
+  return summary
+}
+
+function summaryFrom(digest: ActivityDigest, massKg: number | undefined): ActivitySummary {
   return {
     id: digest.id,
     name: digest.name,

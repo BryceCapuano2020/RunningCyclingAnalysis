@@ -42,6 +42,55 @@ prices its extra durations once per result, in the page. `combine.perf.test.ts` 
 1,000-activity library under 90 ms (fastest of seven): three times the 30 ms it takes locally, since a CI
 runner took 46 ms. It catches a gross regression on any runner; the benchmark tracks smaller ones.
 
+## A library of 2,000 activities
+
+Measured on 28 October 2026 at main aaf79118 and at this change, interleaved, taking the fastest of four
+processes of the fastest of several runs each; the machine was shared, so the figures carry about
+10% of noise. The library is 2,000 synthetic activities (ten a week for about four years, the benchmark's
+mix) and, beside it, the 1,915 activities of a real export of 2,698 files and 215 MB. Both give the
+same shapes. Everything below runs in the worker; nothing in it is on the main thread.
+
+| Work, 2,000 synthetic activities            |          Before |           After |
+| ------------------------------------------- | --------------: | --------------: |
+| `combine`, all time                         |           36 ms |           17 ms |
+| `combine`, 6 weeks                          |           23 ms |            8 ms |
+| Load and analyse, default 12 weeks          |           49 ms |           30 ms |
+| Load and analyse, all time                  |          153 ms |          104 ms |
+| Switch to 6 weeks / 12 months (first time)  |     31 / 114 ms |      15 / 84 ms |
+| Change of body mass, all time               |           50 ms |           23 ms |
+| Toggle the age-graded trend                 |           51 ms |           18 ms |
+| `sameHeartRate`, all time                   |           97 ms |           76 ms |
+| `recordHolders`                             |          3.5 ms |          1.4 ms |
+| State posted for all time, structured clone | 2.3 MB, 14.7 ms | 1.8 MB, 11.8 ms |
+
+The real export gives the same picture: a change of body mass 61 to 26 ms, all time 135 to 84 ms,
+`combine` 44 to 20 ms, `sameHeartRate` 47 to 36 ms.
+
+What did not change, and what it costs. Digesting is 2.8 ms an activity. Reading 2,000 digests back from
+storage with `parseDigest` is 54 ms (76 ms for the real ones), and the schema check each stored digest passes
+when the account's library is listed adds 130 ms, both while the page waits for the network. Importing is linear, 5.7 ms an activity
+from FIT files at 400 and at 2,000, and a real export of 2,698 files took 15 to 24 s of wall time and about
+19 s of CPU, with no step that grows faster than the library. Its largest costs are FIT decoding (the
+per-message `Map`) and inflate, in that order; reusing the `Map` was tried and gave nothing measurable. The
+trace of a 48-hour file builds in 1 ms and takes 10 ms to check when stored or read. The weekly volume strip,
+late-effort evidence and distribution merge each take under 1 ms for 2,000 activities.
+
+What changed: the 4,000 prior draws are ordered by a radix sort on their bits, not a comparison (a combine
+did so 26 times), which is the order the comparison gave; the trend and the same-heart-rate weeks find their
+windows by binary search; each run ceiling is worked out once per duration; an activity's summary is made
+once, so the period's activities and the library list are the same objects and a clone sends them once; the
+FIT checksum is read a byte at a time. Every state and analysis on both libraries is equal, as JSON, before and
+after. Left alone: the same-heart-rate fit (a Theil-Sen of up to 48 blocks for each of 52 weeks and 200
+resamples, now 76 ms for all time) is the one large cost left, and it is worked out even on the Balance page,
+which does not show it; computing it when a sport page asks, as the age-graded trend is, would halve a first
+switch to a long period, but changes what the page shows while it waits.
+
+`npm run test:perf` holds the 2,000-activity loads and the mass change (`sessionLibrary.perf.test.ts`:
+300, 80 and 80 ms), late-effort evidence (20 ms), the distribution merge (15 ms), a 48-hour trace (6 ms to
+build, 50 ms to check), 200 workbench captures (30 ms), the weekly volume strip (15 ms), and that the radix
+order takes under two thirds of the comparison's time. Each is the fastest of several runs, three to twenty
+times the local figure.
+
 These values are a local reference point, not CI thresholds. This is a Node CPU benchmark of
 generated activities and digest combination; it does not measure browser startup/rendering, FIT
 decoding, archive extraction, or account/network latency.

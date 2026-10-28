@@ -37,6 +37,13 @@ describe('runCeilingSpeed', () => {
     expect(runCeilingSpeed(86_400)).toBe(5.83)
   })
 
+  it('gives the same ceiling when it is asked again, whether or not it kept the first', () => {
+    // More durations than it keeps, each asked twice: the first answers are worked out, the second may be kept.
+    const durations = Array.from({ length: 300 }, (_, i) => 5 + i * 11.37)
+    const first = durations.map((durationS) => runCeilingSpeed(durationS))
+    expect(durations.map((durationS) => runCeilingSpeed(durationS))).toEqual(first)
+  })
+
   it('never rises with duration', () => {
     let previous = Infinity
     for (let durationS = 5; durationS <= 8000; durationS += 7) {

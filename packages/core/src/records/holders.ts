@@ -51,10 +51,15 @@ export function recordHolders(
 
   for (const sport of ['run', 'ride'] satisfies Sport[]) {
     const own = ordered.filter((digest) => digest.sport === sport)
-    for (const durationS of DURATIONS_S) {
+    for (const [index, durationS] of DURATIONS_S.entries()) {
       let best: { id: string; value: number } | null = null
       for (const digest of own) {
-        const point = digest.curve.find((p) => p.durationS === durationS)
+        // A digest's curve holds one point per duration in this order, so its point is at the index.
+        const aligned = digest.curve[index]
+        const point =
+          aligned?.durationS === durationS
+            ? aligned
+            : digest.curve.find((p) => p.durationS === durationS)
         if (!point) continue
         const value =
           sport === 'run' ? runCentralWkg(point) : rideValueAt(point, digest, masses, bikeModel)

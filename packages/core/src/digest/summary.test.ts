@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleDataset } from '../synthetic'
 import type { AthleteSettings } from '../types'
-import { combine } from './combine'
+import { activitySummaries, combine } from './combine'
 import { digestActivity } from './digestActivity'
 import { summaryOf } from './summary'
 import { syntheticActivity as activity } from './test/syntheticActivity'
@@ -34,5 +34,33 @@ describe('summaryOf: the library list fields', () => {
     expect(summary.maxHeartRate).toBe(digest.maxHeartRate)
     expect(summary.flagCounts).toEqual(digest.flagCounts)
     expect(Object.values(summary.flagCounts).reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
+  })
+})
+
+describe('summaryOf: one summary for each digest', () => {
+  it('is the same object each time, so the period and the library list hold the same summaries', () => {
+    const digests = activities.slice(0, 6).map((a) => digestActivity(a))
+    const summary = summaryOf(digests[0]!)
+    expect(summaryOf(digests[0]!)).toBe(summary)
+    const period = combine(digests, settings).activities
+    const library = activitySummaries(digests)
+    expect(period.length).toBe(digests.length)
+    for (const entry of period) expect(library).toContain(entry)
+  })
+
+  it('is made again for another body mass, and kept for the same one', () => {
+    const digest = digestActivity(activities[0]!)
+    const heavy = summaryOf(digest, 80)
+    expect(heavy.massKg).toBe(80)
+    expect(summaryOf(digest, 80)).toBe(heavy)
+    expect(summaryOf(digest, 70).massKg).toBe(70)
+    expect(summaryOf(digest)).not.toHaveProperty('massKg')
+  })
+
+  it('reads its digest, not a neighbour of the same activity', () => {
+    const digest = digestActivity(activities[0]!)
+    const renamed = { ...digest, name: 'Renamed' }
+    expect(summaryOf(renamed).name).toBe('Renamed')
+    expect(summaryOf(digest).name).toBe(digest.name)
   })
 })

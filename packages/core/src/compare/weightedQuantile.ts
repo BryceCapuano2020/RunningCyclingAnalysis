@@ -1,18 +1,5 @@
 import type { Interval } from '../types'
-
-/** The first n indices, ordered by their values and then by index: a stable sort. */
-function indicesByValue(values: ArrayLike<number>, n: number, descending: boolean): number[] {
-  const order: number[] = []
-  for (let i = 0; i < n; i++) order.push(i)
-  const sign = descending ? -1 : 1
-  return order.sort((a, b) => {
-    const va = values[a]!
-    const vb = values[b]!
-    if (va < vb) return -sign
-    if (va > vb) return sign
-    return 0
-  })
-}
+import { indexOrder } from './indexOrder'
 
 /**
  * The indices of values in ascending order, equal values in index order; with `descending`, the
@@ -20,7 +7,7 @@ function indicesByValue(values: ArrayLike<number>, n: number, descending: boolea
  * whichever way the engine sorts, so the order is the same everywhere. NaN has no place in it.
  */
 export function sortedOrder(values: ArrayLike<number>, descending = false): number[] {
-  return indicesByValue(values, values.length, descending)
+  return indexOrder(values, values.length, descending)
 }
 
 /**
@@ -97,7 +84,7 @@ export function weightedQuantiles(
   qs: readonly number[],
 ): number[] {
   const n = Math.min(values.length, weights.length)
-  return weightedQuantilesAlong(values, weights, indicesByValue(values, n, false), qs)
+  return weightedQuantilesAlong(values, weights, indexOrder(values, n, false), qs)
 }
 
 export function weightedQuantile(

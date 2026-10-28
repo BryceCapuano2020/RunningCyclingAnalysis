@@ -14,6 +14,7 @@ import type {
   SameHeartRateChange,
   SameHeartRateWeek,
 } from './sameHeartRateTypes'
+import { firstStartingAfter } from './startOrder'
 import { weekEndMs } from './trend'
 
 const WEEK_MS = 7 * DAY_MS
@@ -122,7 +123,10 @@ function fitBlocksOf(kept: readonly Block[]): FitBlocks {
 }
 
 function weekOf(endMs: number, blocks: readonly Block[], referenceHr: number): SameHeartRateWeek {
-  const window = blocks.filter((b) => b.startMs > endMs - WINDOW_MS && b.startMs <= endMs)
+  const window = blocks.slice(
+    firstStartingAfter(blocks, endMs - WINDOW_MS),
+    firstStartingAfter(blocks, endMs),
+  )
   const activities = new Set(window.map((b) => b.activity)).size
   const base = { endMs, blocks: window.length, activities }
   const kept = fittedBlocks(window)
