@@ -57,11 +57,13 @@ export function latestActivityText(newestMs: number | null, nowMs = Date.now()):
 
 /**
  * The mark of a best that is the best of the period, such as "Best in the last 12 months" or "Best
- * between 12 May and 3 Aug 2025". Null for all time, whose bests are the all-time records.
+ * between 12 May and 3 Aug 2025", or "Best on 3 Aug 2025" for one day. Null for all time, whose bests are the all-time records.
  */
 export function periodBestText(period: Period): string | null {
   const { choice } = period
   if (period.days === null || choice === 'all') return null
-  if (typeof choice === 'object') return `Best ${betweenClause(period)}`
+  if (typeof choice === 'object') {
+    return period.days === 1 ? `Best on ${periodDates(period)}` : `Best ${betweenClause(period)}`
+  }
   return `Best in the last ${lengthOf(choice === 'default' ? DEFAULT_PERIOD_DAYS : choice)}`
 }

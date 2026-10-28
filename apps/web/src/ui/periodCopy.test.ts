@@ -104,6 +104,19 @@ describe('periodBestText', () => {
     )
   })
 
+  it('says "on" for a custom range of one day', () => {
+    const day = new Date(2025, 7, 3, 12).getTime()
+    expect(
+      periodBestText({
+        choice: { from: '2025-08-03', to: '2025-08-03' },
+        startMs: day,
+        endMs: day,
+        days: 1,
+        fellBack: false,
+      }),
+    ).toBe('Best on 3 Aug 2025')
+  })
+
   it('names nothing for all time, whose bests are the all-time records', () => {
     expect(periodBestText({ ...SIX_WEEKS, choice: 'all', days: null })).toBeNull()
     expect(

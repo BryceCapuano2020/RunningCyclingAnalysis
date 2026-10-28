@@ -638,10 +638,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   climbs, and a ride with no power data has none. A ride's bests and chips wait for the weight. An
   activity from before moving time was kept shows its elapsed time, and says so.
   The best efforts set here do not follow a period the athlete picked elsewhere without saying so: a best that is an
-  all-time record is marked "All-time record", matching its chip, and one that is only the best of the period on screen
-  says which, such as "Best in the last 12 months" (a custom range gives its dates; all time names none). An activity
-  outside that period has no period bests, so it lists its distance times and names its all-time records, with a link to
-  the sport page for their figures, and never says its bests are "not counted".
+  all-time record is marked "All-time record" exactly when it has a chip above (a ride's one-minute best has none), and
+  one that is only the best of the period on screen says which, such as "Best in the last 12 months" (a custom range
+  gives its dates, or "Best on 3 Aug 2025" for one day; all time names none). An activity outside that period has no
+  period bests, so it lists its distance times and names its all-time records, with a link to the sport page for their
+  figures ("Choose All time on the Run page to see their figures", or "See the Run page for their figures" when the
+  period is already all time), and never says its bests are "not counted".
 - **A list row reads the same figures.** The name, sport, day and start time, with the **Indoor**
   and skipped-readings chips, then the moving time, distance and climb, labelled, and the record
   chips. A ride's record chips wait for the weight, as its page's do. At the right sit the pace for

@@ -72,16 +72,6 @@ function flatNoteHere(
 /** The mark an all-time record carries, in the same chip as the marks of the figure. */
 const ALL_TIME_MARK = 'All-time record'
 
-/** Whether the activity holds the all-time record at a duration. */
-function holdsDuration(earned: readonly EarnedRecord[], durationS: number): boolean {
-  return earned.some((record) => record.kind === 'duration' && record.durationS === durationS)
-}
-
-/** Whether the activity holds the all-time record at a distance. */
-function holdsDistance(earned: readonly EarnedRecord[], distanceM: number): boolean {
-  return earned.some((record) => record.kind === 'distance' && record.distanceM === distanceM)
-}
-
 /**
  * The best efforts this activity set, as one records list: the bests it holds over the period the page
  * names, then the run distances it has its own time at. A best that is an all-time record says so, and
@@ -105,14 +95,19 @@ export function ActivityBests({
 }: ActivityBestsProps) {
   const sport = activity.sport
   const periodMark = period === undefined ? null : periodBestText(period)
+  // A period of all time already holds every record, so the sport page has nothing to switch to.
+  const allTimeShown = period !== undefined && period.days === null
   const bests = inPeriod
     ? sportRecords(result, sport, massKg, units).filter(
         (record) => record.activity?.id === activity.id,
       )
     : []
   const distances = ownDistanceRecords(activity, units)
-  // The period's distance bests, found over the activities the result holds.
-  const periodDistances = inPeriod ? distanceRecords(result.activities, units).records : []
+  // The period's distance bests, found over the activities the result holds, when there are times to mark.
+  const periodDistances =
+    inPeriod && distances.length > 0 ? distanceRecords(result.activities, units).records : []
+  // The records the chips name, which are the only ones marked, so the marks and the chips agree.
+  const chipped = new Set(chipLabels(earned))
   // The all-time records the chips name that the period's curve gives no figure for here.
   const unfigured = chipLabels(earned.filter((record) => record.kind === 'duration')).filter(
     (label) => !bests.some((record) => `Best ${effortLabel(record.durationS)}` === label),
@@ -160,7 +155,7 @@ export function ActivityBests({
       const row = recordRow(sport, record, {
         label: `Best ${effortLabel(record.durationS)}`,
         grade: recordGradeCell(sport, outcome, record.covered, 'row'),
-        tags: scopeMark(holdsDuration(earned, record.durationS), true),
+        tags: scopeMark(chipped.has(`Best ${effortLabel(record.durationS)}`), true),
       })
       row.activity = null
       return row
@@ -178,7 +173,7 @@ export function ActivityBests({
         grade: recordGradeCell(sport, outcome, null, 'row'),
         tags: [
           ...treadmillMarks(sport, activity),
-          ...scopeMark(holdsDistance(earned, record.distanceM), ofPeriod),
+          ...scopeMark(chipped.has(`Best ${record.label}`), ofPeriod),
         ],
         change: null,
         setDays: null,
@@ -192,9 +187,9 @@ export function ActivityBests({
       {rows.length > 0 && <SportRecords rows={rows} />}
       {unfigured.length > 0 && (
         <p className="secondary">
-          {`All-time records here: ${unfigured.join(', ')}. Choose All time on the `}
+          {`All-time records here: ${unfigured.join(', ')}. ${allTimeShown ? 'See' : 'Choose All time on'} the `}
           <a href={hrefFor({ page: sport })}>{`${SPORT_LABEL[sport]} page`}</a>
-          {' to see their figures.'}
+          {allTimeShown ? ' for their figures.' : ' to see their figures.'}
         </p>
       )}
       {listNotes.map((note) => (
