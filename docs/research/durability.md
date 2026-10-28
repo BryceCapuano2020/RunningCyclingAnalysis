@@ -2,7 +2,7 @@
 
 Status: evidence implemented 2026-10-28 in `packages/core/src/digest` (`distributions.ts`,
 `durability.ts`, `drift.ts`), inside model revision 6. No view uses it yet. Both citations below were
-checked against the publisher or Crossref record; the 5% rule of thumb was read in Friel's article but
+checked against the publisher or Crossref record; the 5% rule of thumb was seen in summaries of Friel's article but
 is a coaching convention, not a measured threshold.
 
 ## 1. Why
@@ -17,10 +17,10 @@ them later without keeping the stream.
 
 ## 2. Sources
 
-| Source                                                                                                                                                                                                      | Finding used                                                                                                                                                           | Status                       |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Maunder E, Seiler S, Mildenhall MJ, Kilding AE, Plews DJ. The importance of "durability" in the physiological profiling of endurance athletes. Sports Med 2021;51:1619-1628. doi:10.1007/s40279-021-01459-0 | Profiling should quantify when, and by how much, a characteristic deteriorates during prolonged exercise. Output after prolonged work is the performance form of this. | Verified (Crossref)          |
-| Friel J. Aerobic endurance and decoupling. TrainingPeaks blog (`trainingpeaks.com/blog/aerobic-endurance-and-decoupling/`)                                                                                  | Pa:Hr (pace) and Pw:Hr (power) compare output per heart rate in the first and second half of a steady effort. A fall of under 5% is read as well-developed endurance.  | Article read; web convention |
+| Source                                                                                                                                                                                                      | Finding used                                                                                                                                                           | Status                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Maunder E, Seiler S, Mildenhall MJ, Kilding AE, Plews DJ. The importance of "durability" in the physiological profiling of endurance athletes. Sports Med 2021;51:1619-1628. doi:10.1007/s40279-021-01459-0 | Profiling should quantify when, and by how much, a characteristic deteriorates during prolonged exercise. Output after prolonged work is the performance form of this. | Verified (Crossref)                                      |
+| Friel J. Aerobic endurance and decoupling. TrainingPeaks blog (`trainingpeaks.com/blog/aerobic-endurance-and-decoupling/`)                                                                                  | Pa:Hr (pace) and Pw:Hr (power) compare output per heart rate in the first and second half of a steady effort. A fall of under 5% is read as well-developed endurance.  | Seen in search results, not read in full; web convention |
 
 ## 3. Method
 
