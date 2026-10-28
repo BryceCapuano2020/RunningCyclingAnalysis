@@ -170,6 +170,16 @@ describe('where an import keeps recordings', () => {
     expect(spy.rows.size).toBe(1)
   })
 
+  it('restores a missing recording when the file the library holds is added again', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(fitFile()))
+    spy.rows.clear()
+
+    await send(signedOutImport(fitFile()))
+
+    expect(spy.rows.size).toBe(1)
+  })
+
   it('drops the recording of a copy that a richer copy replaces', async () => {
     const { send } = await startWorker()
     const gpx = gpxFile()

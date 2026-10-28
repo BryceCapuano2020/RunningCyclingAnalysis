@@ -6,8 +6,12 @@ import * as api from '../api/client'
 import { ApiRequestError } from '../api/client'
 import { useAccount } from './useAccount'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
+import { forgetAccountDetails } from '../worker/forgetAccountDetails'
 
 vi.mock('../worker/deleteAccountDetails', () => ({ deleteAccountDetails: vi.fn(async () => null) }))
+vi.mock('../worker/forgetAccountDetails', () => ({
+  forgetAccountDetails: vi.fn(async () => undefined),
+}))
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
@@ -150,6 +154,7 @@ describe('useAccount', () => {
       await result.current.signOut()
     })
     expect(mocked.logout).toHaveBeenCalledOnce()
+    expect(forgetAccountDetails).toHaveBeenCalledExactlyOnceWith('u1')
     expect(result.current.status).toBe('signed-out')
     expect(result.current.me).toBeNull()
   })
@@ -159,6 +164,7 @@ describe('useAccount', () => {
     mocked.logout.mockRejectedValue(failure)
     const { result } = await renderSignedIn()
     expect(await attempt(() => result.current.signOut())).toBe(failure)
+    expect(forgetAccountDetails).not.toHaveBeenCalled()
     expect(result.current.status).toBe('signed-in')
     expect(result.current.me).toEqual(ME)
     expect(result.current.error).toBe('Try again')

@@ -49,12 +49,17 @@ function memoryKey(scope: TraceScope, activityId: string): string {
   return JSON.stringify([scope.kind, scope.kind === 'account' ? scope.userId : '', activityId])
 }
 
-/** What a memory entry stands for: a trace also kept in storage, or one held in memory alone. */
+/**
+ * Where a memory entry's trace lives besides memory. A stored trace can be removed by another tab, so
+ * it is checked before it is served. A pending one is meant for storage, which refused it or could
+ * not be reached, and is written when storage next answers. A memory one is never written.
+ */
+type TraceHome = 'stored' | 'pending' | 'memory'
+
 interface MemoryEntry {
   scope: TraceScope
   trace: ActivityTrace
-  /** Stored traces can be removed by another tab, so they are checked before they are served. */
-  stored: boolean
+  home: TraceHome
 }
 
 /** Bounded worker cache and its IndexedDB backing store. Cache failures never affect digest saves. */
@@ -87,7 +92,9 @@ export class Workbench {
       if (before === true) return null
       const stored = before === false && (await this.store.put(scope, trace).catch(() => false))
       if (!stored && (await this.deleted(scope)) === true) return null
-      this.remember(scope, trace, stored)
+      this.remember(scope, trace, stored ? 'stored' : 'pending')
+      // Storage answered, so what it refused or could not be reached for earlier is written now.
+      if (stored) await this.writePending((key) => key !== memoryKey(scope, trace.activityId))
       return trace
     } catch {
       // Evidence is optional. A malformed or oversized trace does not interrupt analysis or saving.
@@ -103,7 +110,7 @@ export class Workbench {
     try {
       if (!activityFitsEntry(activity)) return
       const trace = activityTraceOf(activity)
-      if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES) this.remember(scope, trace, false)
+      if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES) this.remember(scope, trace, 'memory')
     } catch {
       // Memory evidence is optional too.
     }
@@ -117,8 +124,13 @@ export class Workbench {
     }
     const cached = this.traces.get(key)
     if (cached) {
-      // Another tab may have removed a stored trace since this one remembered it.
-      if (!cached.stored || (await this.store.has(scope, activityId).catch(() => false))) {
+      if (cached.home === 'pending') await this.writePending((other) => other === key)
+      // Another tab may have removed a stored trace since this one remembered it. Storage that
+      // cannot say leaves the trace served: it is gone only when storage says it is.
+      if (
+        cached.home !== 'stored' ||
+        (await this.store.has(scope, activityId).catch(() => null)) !== false
+      ) {
         this.traces.delete(key)
         this.traces.set(key, cached)
         return cached.trace
@@ -126,8 +138,26 @@ export class Workbench {
       this.traces.delete(key)
     }
     const trace = await this.store.get(scope, activityId).catch(() => null)
-    if (trace) this.remember(scope, trace, true)
+    if (trace) this.remember(scope, trace, 'stored')
     return trace
+  }
+
+  /**
+   * Writes the pending entries that `wanted` accepts to storage, now that it answers. An entry of a
+   * deleted scope is dropped instead, and one that storage still refuses stays pending.
+   */
+  private async writePending(wanted: (key: string) => boolean): Promise<void> {
+    for (const [key, entry] of [...this.traces]) {
+      if (entry.home !== 'pending' || !wanted(key)) continue
+      const deleted = await this.deleted(entry.scope)
+      if (deleted === true && this.traces.get(key) === entry) this.traces.delete(key)
+      if (deleted !== false || this.traces.get(key) !== entry) continue
+      const saved = await this.store.put(entry.scope, entry.trace).catch(() => false)
+      if (!saved) continue
+      if (this.traces.get(key) === entry) entry.home = 'stored'
+      // It was removed while it was being written, so the write must not bring it back.
+      else await this.store.remove(entry.scope, entry.trace.activityId).catch(() => false)
+    }
   }
 
   /** Drops per-tab references when a session or account identity changes. */
@@ -163,10 +193,10 @@ export class Workbench {
     return await this.store.deleteScope(scope).catch(() => false)
   }
 
-  private remember(scope: TraceScope, trace: ActivityTrace, stored: boolean): void {
+  private remember(scope: TraceScope, trace: ActivityTrace, home: TraceHome): void {
     const key = memoryKey(scope, trace.activityId)
     this.traces.delete(key)
-    this.traces.set(key, { scope, trace, stored })
+    this.traces.set(key, { scope, trace, home })
     while (this.traces.size > MEMORY_ENTRIES) {
       const oldest = this.traces.keys().next().value as string | undefined
       if (oldest === undefined) break

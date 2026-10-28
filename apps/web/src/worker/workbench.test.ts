@@ -115,6 +115,62 @@ describe('workbench evidence cache', () => {
     expect(await workbench.get(scope, first.id)).toEqual(trace)
   })
 
+  it('serves a stored trace from memory when storage cannot say whether it is still there', async () => {
+    const { rows, store } = memoryStore({ has: vi.fn(async () => null) })
+    const workbench = new Workbench(store)
+    const trace = await workbench.capture(first, { kind: 'device' })
+    rows.clear()
+
+    expect(await workbench.get({ kind: 'device' }, first.id)).toEqual(trace)
+  })
+
+  it('writes a trace storage could not take once storage next answers', async () => {
+    let down = true
+    const { rows, store } = memoryStore()
+    store.isDeleted = vi.fn(async (scope) => {
+      if (down) throw new Error('backing off')
+      return scope.kind === 'account' && false
+    })
+    const workbench = new Workbench(store)
+    const scope = { kind: 'account' as const, userId: 'alice' }
+    await workbench.capture(activities[0]!, scope)
+    await workbench.capture(activities[1]!, scope)
+    expect(rows.size).toBe(0)
+
+    down = false
+    await workbench.capture(activities[2]!, scope)
+
+    expect([...rows.values()].map((trace) => trace.activityId).sort()).toEqual(
+      activities
+        .slice(0, 3)
+        .map((activity) => activity.id)
+        .sort(),
+    )
+  })
+
+  it('never writes a memory-only trace, and drops a pending one whose account was deleted', async () => {
+    let down = true
+    const { rows, deleted, store } = memoryStore()
+    const isDeleted = store.isDeleted
+    store.isDeleted = vi.fn(async (scope) => {
+      if (down) throw new Error('backing off')
+      return isDeleted(scope)
+    })
+    const workbench = new Workbench(store)
+    const scope = { kind: 'account' as const, userId: 'alice' }
+    workbench.captureMemory(activities[0]!, { kind: 'device' })
+    await workbench.capture(activities[1]!, scope)
+
+    down = false
+    deleted.add('alice')
+    await workbench.capture(activities[2]!, { kind: 'account', userId: 'bob' })
+
+    expect(rows.size).toBe(1)
+    expect([...rows.values()][0]!.activityId).toBe(activities[2]!.id)
+    expect(await workbench.get(scope, activities[1]!.id)).toBeNull()
+    expect(await workbench.get({ kind: 'device' }, activities[0]!.id)).not.toBeNull()
+  })
+
   it('reports a refused removal and still drops the memory copy', async () => {
     const { store } = memoryStore({ remove: vi.fn(async () => false) })
     const workbench = new Workbench(store)

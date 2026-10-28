@@ -204,8 +204,12 @@ let opened: Promise<IDBDatabase> | null = null
 const OPEN_RETRY_MS = 30_000
 let failed: { error: unknown; until: number } | null = null
 
-export function workbenchDatabase(): Promise<IDBDatabase> {
-  if (failed !== null && Date.now() < failed.until) return Promise.reject(failed.error)
+/**
+ * The open database. Reads and writes fail at once while a recent open has failed; `fresh` is for
+ * what must remove recordings, which must not be told it succeeded because storage is backing off.
+ */
+export function workbenchDatabase(fresh = false): Promise<IDBDatabase> {
+  if (!fresh && failed !== null && Date.now() < failed.until) return Promise.reject(failed.error)
   failed = null
   opened ??= openDatabase(DB_NAME, DB_VERSION, upgradeDatabase)
     .then((db) => {

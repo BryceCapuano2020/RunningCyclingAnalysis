@@ -29,8 +29,8 @@ export interface WorkbenchStore {
   get(scope: TraceScope, activityId: string): Promise<ActivityTrace | null>
   /** Returns false when storage refuses the trace or it exceeds a cache limit. */
   put(scope: TraceScope, trace: ActivityTrace): Promise<boolean>
-  /** Whether a trace is stored, without reading it. False when storage cannot say. */
-  has(scope: TraceScope, activityId: string): Promise<boolean>
+  /** Whether a trace is stored, without reading it. Null when storage cannot say. */
+  has(scope: TraceScope, activityId: string): Promise<boolean | null>
   /**
    * Resolves false only when storage refused the removal. Storage that cannot be opened at all holds
    * nothing, so removing from it succeeds.
@@ -113,7 +113,7 @@ async function repairLedger(): Promise<boolean> {
 export function openWorkbenchStore(): WorkbenchStore {
   async function clear(scope: TraceScope, tombstone = false): Promise<boolean> {
     try {
-      const db = await workbenchDatabase()
+      const db = await workbenchDatabase(true)
       const transaction = db.transaction([TRACES, ENTRIES, STATE, OWNERS], 'readwrite')
       const done = transactionDone(transaction)
       const traces = transaction.objectStore(TRACES)
@@ -304,7 +304,7 @@ export function openWorkbenchStore(): WorkbenchStore {
         return row !== undefined
       } catch {
         resetWorkbenchDatabase()
-        return false
+        return null
       }
     },
 
@@ -324,7 +324,7 @@ export function openWorkbenchStore(): WorkbenchStore {
 
     async remove(scope, activityId) {
       try {
-        const db = await workbenchDatabase()
+        const db = await workbenchDatabase(true)
         const transaction = db.transaction([TRACES, ENTRIES, STATE], 'readwrite')
         const done = transactionDone(transaction)
         const key = entryKey(scope, activityId)

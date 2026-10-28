@@ -77,7 +77,8 @@ describe('the workbench store when it cannot be opened', () => {
     expect(await store.remove(SCOPE, 'a')).toBe(true)
     expect(await store.clearScope(SCOPE)).toBe(true)
     expect(await store.get(SCOPE, 'a')).toBeNull()
-    expect(await store.has(SCOPE, 'a')).toBe(false)
+    // Storage that is not there cannot say whether a trace is in it.
+    expect(await store.has(SCOPE, 'a')).toBeNull()
   })
 
   it('cannot say what a blocked database holds, so a removal from it is refused', async () => {
@@ -88,8 +89,61 @@ describe('the workbench store when it cannot be opened', () => {
     request.onblocked?.()
 
     expect(await removing).toBe(false)
-    // The next call does not wait on the open again.
-    expect(await store.clearScope(SCOPE)).toBe(false)
+    // The next removal opens afresh, and is refused just the same.
+    const clearing = store.clearScope(SCOPE)
+    request.onblocked?.()
+    expect(await clearing).toBe(false)
+  })
+
+  it('cannot say what a database that errors on open holds, however long ago it did', async () => {
+    const request = stubIndexedDb()
+    const { openWorkbenchStore } = await load()
+    const store = openWorkbenchStore()
+    const removing = store.remove(SCOPE, 'a')
+    request.onerror?.()
+
+    expect(await removing).toBe(false)
+  })
+
+  it('opens afresh to remove, so a backoff is never taken for a removal', async () => {
+    const request = stubIndexedDb()
+    const { openWorkbenchStore } = await load()
+    const store = openWorkbenchStore()
+    const reading = store.has(SCOPE, 'a')
+    request.onblocked?.()
+    expect(await reading).toBeNull()
+    const indexedDb = (globalThis as unknown as { indexedDB: { open: ReturnType<typeof vi.fn> } })
+      .indexedDB
+    expect(indexedDb.open).toHaveBeenCalledTimes(1)
+
+    // Reads and writes fail at once while backing off; a removal opens again.
+    expect(await store.has(SCOPE, 'a')).toBeNull()
+    expect(indexedDb.open).toHaveBeenCalledTimes(1)
+    const removing = store.remove(SCOPE, 'a')
+    request.onblocked?.()
+    expect(await removing).toBe(false)
+    expect(indexedDb.open).toHaveBeenCalledTimes(2)
+  })
+
+  it('tries to open again once the backoff has passed', async () => {
+    const request = stubIndexedDb()
+    const { openWorkbenchStore } = await load()
+    const store = openWorkbenchStore()
+    const reading = store.has(SCOPE, 'a')
+    request.onblocked?.()
+    await reading
+    const indexedDb = (globalThis as unknown as { indexedDB: { open: ReturnType<typeof vi.fn> } })
+      .indexedDB
+
+    await vi.advanceTimersByTimeAsync(29_000)
+    await store.has(SCOPE, 'a')
+    expect(indexedDb.open).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(2_000)
+    const again = store.has(SCOPE, 'a')
+    request.onblocked?.()
+    await again
+    expect(indexedDb.open).toHaveBeenCalledTimes(2)
   })
 
   it('rejects the account deleted check rather than guessing', async () => {

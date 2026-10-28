@@ -2,9 +2,10 @@
 const OPEN_TIMEOUT_MS = 5_000
 
 /**
- * The cache database could not be opened. `nothingCached` is true when storage is not there at all
- * (no IndexedDB, or it refuses to open), so no recording can be kept in it and none needs removing.
- * It is false when the open was blocked or timed out, since a database may exist that cannot be read.
+ * The cache database could not be opened. `nothingCached` is true only when storage is not there at
+ * all (no IndexedDB, or opening it throws), so no recording can be kept in it and none needs removing.
+ * It is false when the open errored, was blocked or timed out, since a database may exist that cannot
+ * be read.
  */
 export class WorkbenchOpenError extends Error {
   readonly nothingCached: boolean
@@ -50,7 +51,7 @@ export function openDatabase(
     request.onblocked = () =>
       fail(new WorkbenchOpenError('Workbench storage is blocked by another tab', false))
     request.onerror = () =>
-      fail(new WorkbenchOpenError(request.error?.message ?? 'Workbench storage failed', true))
+      fail(new WorkbenchOpenError(request.error?.message ?? 'Workbench storage failed', false))
     request.onsuccess = () => {
       if (settled) return request.result.close()
       settled = true

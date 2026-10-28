@@ -4,6 +4,7 @@ import * as api from '../api/client'
 import { ApiRequestError, signInUrl } from '../api/client'
 import { messageOf } from '../api/messageOf'
 import { deleteAccountDetails } from '../worker/deleteAccountDetails'
+import { forgetAccountDetails } from '../worker/forgetAccountDetails'
 
 export type AccountStatus = 'loading' | 'signed-out' | 'signed-in' | 'unavailable'
 
@@ -154,6 +155,8 @@ export function useAccount(): AccountController {
       setStatus('signed-out')
       setSessionExpired(false)
       setError(null)
+      // A shared browser must not keep the signed-out account's detail recordings.
+      await forgetAccountDetails(userId)
     } catch (failure) {
       endingSessionRef.current = false
       setError(messageOf(failure))
