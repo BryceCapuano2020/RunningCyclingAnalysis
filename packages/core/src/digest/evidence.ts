@@ -1,4 +1,4 @@
-import type { Activity, ActivityDigest, DerivedStreams, QualityReport } from '../types'
+import type { Activity, ActivityDigest, PowerSource, QualityReport } from '../types'
 import { activityDistributions } from './distributions'
 import { durabilityPoints } from './durability'
 import { steadyDrift } from './drift'
@@ -19,7 +19,7 @@ export function digestEvidence(
   quality: QualityReport,
   moving: Uint8Array,
   output: OutputStream | null,
-  powerSource: DerivedStreams['powerSource'],
+  powerSource: PowerSource,
 ): Pick<ActivityDigest, 'distributions' | 'durability' | 'drift'> {
   const distributions = activityDistributions(activity, quality, moving, powerSource === 'measured')
   if (output === null) return { distributions, durability: [], drift: null }
