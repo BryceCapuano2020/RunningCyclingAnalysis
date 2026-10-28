@@ -22,6 +22,7 @@ function ride(id: string, heartRate: number, maxHeartRate: number): ActivityDige
     flagCounts: {},
     maxHeartRate,
     curve: [point],
+    hrBlocks: [],
   } as unknown as ActivityDigest
 }
 
@@ -43,5 +44,21 @@ describe('trustedHeartRate', () => {
     const spike = ride('spike', 60, 250)
     const sound = ride('sound', 150, 175)
     expect([...trustedHeartRate([spike, sound], fits, watts).setAside]).toEqual(['spike'])
+  })
+
+  it('sets aside, before any best effort is judged, an activity whose heart rate reads low for its power throughout', () => {
+    const withBlocks = (id: string, watts: number, share: number): ActivityDigest => {
+      const base = ride(id, 150, 175)
+      const hrBlocks = Array.from({ length: 6 }, () => ({
+        heartRate: (60 + 0.35 * watts) * share,
+        value: watts,
+        terms: null,
+      }))
+      return Object.assign({}, base, { movingS: 5400, hrBlocks })
+    }
+    const sound = Array.from({ length: 14 }, (_, i) => withBlocks(`s${i}`, 140 + i * 10, 1))
+    const heart = trustedHeartRate([...sound, withBlocks('locked', 210, 0.6)], fits, watts)
+    expect([...heart.setAside]).toEqual(['locked'])
+    expect(heart.trusted).toHaveLength(14)
   })
 })

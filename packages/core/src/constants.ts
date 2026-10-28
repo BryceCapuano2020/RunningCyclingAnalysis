@@ -254,6 +254,22 @@ export const HR_SKIP_S = 600
 export const HR_SET_ASIDE_MIN_S = 600
 export const HR_SET_ASIDE_FLOOR = 0.7
 
+/**
+ * Heart rate that reads low for the power across a whole activity is set aside too, which the best-effort test
+ * cannot see in an endurance ride whose strap failed from minute 25. An activity of at least minMovingS with at
+ * least minBlocks heart-rate blocks is judged by its median heart rate at its median power against the library's
+ * heart rate at that power for its sport, a robust line fitted over the other activities (at most maxFitPoints of
+ * them, for cost). Under maxShare of that heart rate sets it aside. A sport with fewer than minActivities such
+ * activities is not judged.
+ */
+export const HR_LOW_FOR_POWER = {
+  minMovingS: 1200,
+  minBlocks: 3,
+  minActivities: 12,
+  maxShare: 0.75,
+  maxFitPoints: 150,
+} as const
+
 /** The running races predicted, m: 5 km, 10 km, the half marathon and the marathon. */
 export const RUN_RACE_DISTANCES_M = [5_000, 10_000, HALF_MARATHON_M, MARATHON_M] as const
 

@@ -816,7 +816,13 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   median heart rate at about the same power (within 15%) elsewhere in the same activity, after the 10 min
   warm-up, is flagged and its heart rate is left out (`packages/core/src/quality/lowHeartRate.ts`). A fixed
   bpm floor mistook a fit athlete's easy ride for a fault. A whole activity read low has nothing of its own
-  to fall below, so the set-aside above judges it against the athlete's reference heart rate.
+  to fall below, so the library judges it, in two ways. The best-effort test above sees an effort at threshold.
+  For an endurance ride whose strap failed from minute 25, the other is the whole-activity test
+  (`packages/core/src/hr/lowForPower.ts`, `HR_LOW_FOR_POWER`): an outdoor run, or a ride with a power meter,
+  of 20 min or more moving with at least three 5 min heart-rate blocks, is compared by its median heart rate at
+  its median output with the library's heart rate at that output for its sport, a robust (Theil-Sen) line
+  fitted over the other activities and refitted without the ones it first set aside. Under 75% of that sets it
+  aside. A sport with fewer than 12 such activities has no line, so it gets no verdict.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
   "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes, headings,

@@ -15,8 +15,10 @@ export const HR_IMPLAUSIBLE_FOR_POWER = {
   windowS: HR_BLOCK_S,
   /** Heart rate settles over the warm-up, so nothing before this, s, is judged or used as reference. */
   settleS: HR_SKIP_S,
-  /** The stretches are judged this often, s. */
+  /** The stretches are judged this often, s, or less often where that would be more than maxProbes of them. */
   stepS: 30,
+  /** The most stretches judged in one activity, since each is compared with all the others: a week-long file stays cheap. */
+  maxProbes: 400,
   /** A stretch's comparable power is within this share of its own on either side. */
   powerBand: 0.15,
   /** At least this many comparable stretches, clear of the one judged, make a reference; fewer judge nothing. */
@@ -54,8 +56,10 @@ export function implausiblyLowHeartRate(
   const powerMean = rollingMean(power, t.windowS)
   const hrMean = rollingMean(heartRate, t.windowS)
   const half = Math.floor(t.windowS / 2)
+  const span = n - half - (t.settleS + half)
+  const stepS = Math.max(t.stepS, Math.ceil(span / t.maxProbes))
   const probes: number[] = []
-  for (let i = t.settleS + half; i < n - half; i += t.stepS) {
+  for (let i = t.settleS + half; i < n - half; i += stepS) {
     if (powerMean[i]! >= minPowerW && hrMean[i]! >= minValidBpm) probes.push(i)
   }
 
@@ -68,7 +72,7 @@ export function implausiblyLowHeartRate(
     }
     if (comparable.length < t.minComparable) continue
     if (hrMean[i]! < t.maxShare * quantile(comparable, 0.5)) {
-      low.fill(1, i - t.stepS / 2, i + t.stepS / 2)
+      low.fill(1, i - stepS / 2, i + stepS / 2)
     }
   }
   return runsWhere(n, (i) => low[i] === 1).filter((run) => run.end - run.start >= t.minRunS)
