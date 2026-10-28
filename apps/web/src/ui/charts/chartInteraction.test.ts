@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ChartSize, TooltipContent } from './chartTypes'
-import { endLabelAt, pointBefore, sizedOnce, spreadApart, tooltipAt } from './chartInteraction'
+import {
+  endLabelAt,
+  pointBefore,
+  sizedOnce,
+  spreadApart,
+  spreadWithin,
+  tooltipAt,
+} from './chartInteraction'
 
 const SIZE: ChartSize = {
   width: 400,
@@ -64,6 +71,22 @@ describe('endLabelAt', () => {
     // 100 + 18 = 118 is clear of 130 - 12 = 118, so a point one pixel lower moves the label up.
     expect(endLabelAt(point, null, 130)).toEqual({ x: 92, y: 118 })
     expect(endLabelAt({ x: 100, y: 101 }, null, 130)).toEqual({ x: 92, y: 91 })
+  })
+})
+
+describe('spreadWithin', () => {
+  it('spreads close baselines apart in input order, and leaves distant ones where they are', () => {
+    expect(spreadWithin([104, 100, 200], 14, 0, 300)).toEqual([114, 100, 200])
+  })
+
+  it('packs a run back up from the bottom, so two at the foot keep their gap inside the span', () => {
+    expect(spreadWithin([290, 295], 14, 0, 300)).toEqual([286, 300])
+    expect(spreadWithin([400, 400], 14, 0, 300)).toEqual([286, 300])
+  })
+
+  it('clamps into a span too short for them, and centres them in one too short for any', () => {
+    expect(spreadWithin([10, 12, 14], 14, 0, 20)).toEqual([0, 6, 20])
+    expect(spreadWithin([5], 14, 20, 10)).toEqual([15])
   })
 })
 

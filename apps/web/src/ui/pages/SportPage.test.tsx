@@ -342,7 +342,7 @@ describe('SportPage', () => {
 
     // June is the newest and only activity, but today is 10 June, so the best was set nine days ago.
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '20 min')).getByText('· 9 days ago')).toBeInTheDocument()
+    expect(within(recordNamed(records, '20 min')).getByText('9 days ago')).toBeInTheDocument()
   })
 
   it('counts a record set a fortnight ago in weeks, as quiet text rather than a chip', () => {
@@ -358,7 +358,7 @@ describe('SportPage', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    const tag = within(recordNamed(records, '20 min')).getByText('· 2 weeks ago')
+    const tag = within(recordNamed(records, '20 min')).getByText('2 weeks ago')
     expect(tag).not.toHaveClass('chip')
   })
 
@@ -385,8 +385,8 @@ describe('SportPage', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '20 min')).getByText('· 17 months ago')).toBeInTheDocument()
-    expect(within(recordNamed(records, '5 min')).getByText('· 2 years ago')).toBeInTheDocument()
+    expect(within(recordNamed(records, '20 min')).getByText('17 months ago')).toBeInTheDocument()
+    expect(within(recordNamed(records, '5 min')).getByText('2 years ago')).toBeInTheDocument()
   })
 
   it('says when every record was set in one activity on the shared line, with its count', () => {
@@ -421,7 +421,7 @@ describe('SportPage', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '5 min')).getByText('· today')).toBeInTheDocument()
+    expect(within(recordNamed(records, '5 min')).getByText('today')).toBeInTheDocument()
   })
 
   it('says a record was set today when its activity is from today', () => {
@@ -437,7 +437,7 @@ describe('SportPage', () => {
     )
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '5 min')).getByText('· today')).toBeInTheDocument()
+    expect(within(recordNamed(records, '5 min')).getByText('today')).toBeInTheDocument()
   })
 
   it('reads the clock once when the page opens, so a later render does not move the count', () => {
@@ -478,7 +478,7 @@ describe('SportPage', () => {
     rerender(page())
 
     const records = screen.getByRole('region', { name: 'Best efforts' })
-    expect(within(recordNamed(records, '20 min')).getByText('· 9 days ago')).toBeInTheDocument()
+    expect(within(recordNamed(records, '20 min')).getByText('9 days ago')).toBeInTheDocument()
   })
 
   it('says what the threshold means, about the pace, and names its 3 to 20 min basis', () => {

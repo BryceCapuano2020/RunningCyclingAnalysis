@@ -449,7 +449,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   with no value, and each Sunday has a marker. Past 13 months (400 days) a trend keeps the last week of each month, and its first and last
   week as its ends, so five years are sixty dots, not two hundred and sixty; its note says "Past 13 months, each point is the last week of its
   month." The first date of the axis carries its year, as the month ticks do. A sport's week-by-week chart also names its longest stretch
-  of eight weeks or more with no value inside the trend ("No rides with power of 20 min or longer from 30 Oct 2022 to 24 Sep 2023."), naming the trend's effort length, since a gap at 60 min is not a gap in training. On a wide chart the
+  of eight weeks or more with no value inside the trend ("No rides of 20 min or longer with power from 30 Oct 2022 to 24 Sep 2023."), naming the trend's effort length, since a gap at 60 min is not a gap in training. On a wide chart the
   Balance trend's end labels sit in a gutter right of the plot, level with each line's last point, and the volume strip under it keeps the
   same margin so the two time axes line up; a narrow chart sets them over the plot, clear of both lines. The latest value is labelled with its value alone, and the
   title names its effort and window, so it can differ from a card's best, which covers the whole period.
@@ -746,9 +746,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The balance is stated as a grade gap.** With both grades: "Your running grades 6 points higher
   than your cycling, on your best 20 min in each." When the gap's range spans zero, the best
   estimate is named and the range is given, under the title "Your running and cycling are in balance":
-  "On your best 20 min in each, running's age grade is 4 points higher than cycling's, within −2 to +10
-  points, so the two are level." The range is read from the leading sport's side, so a cycling lead reads "cycling's
-  age grade is 4 points higher than running's, within −2 to +10 points". When the best estimate is level: "On your best 20 min in each, running and cycling have the same age grade, within −2 to +2 points, so the two are level." Never "ahead of". Without an age and
+  "On your best 20 min in each, running's age grade is 4 points higher than cycling's, with a range of −2 to +10
+  points for that lead, so the two are level." The range is read from the leading sport's side, so a cycling lead reads "cycling's
+  age grade is 4 points higher than running's, with a range of −2 to +10 points for that lead". When the best estimate is level: "On your best 20 min in each, running and cycling have the same age grade, within −2 to +2 points, so the two are level." A lopsided range names its side: "within −1 to +3 points (running minus cycling)". Never "ahead of". Without an age and
   sex, the energy ratio stands in, as in "Over 20 min, your running is about 12% higher than your
   cycling, as energy per kilogram." The prompt says that adding them shows the balance in points and
   levels. The energy ratio's 90% range names the sport that leads, with the same figures as the sentence

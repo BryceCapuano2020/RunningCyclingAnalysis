@@ -113,6 +113,21 @@
   min-width: 0;
 }
 
+/* The activity and the dot that ends it are one item, so a wrapped count leaves the dot behind with them. */
+.records__where {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.records__dot {
+  flex: none;
+  margin-left: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .records__source .records__link {
   min-width: 0;
   flex: 0 1 auto;
@@ -128,8 +143,12 @@
  * On the shared line the whole name shows, wrapped if it must, so the date is never cut short. An unbroken
  * name has no space to wrap at, so it breaks anywhere rather than widening the page.
  */
-.records__shared .records__link {
+.records__shared .records__where {
   display: block;
+}
+
+.records__shared .records__link {
+  display: inline;
   white-space: normal;
   overflow: visible;
   overflow-wrap: anywhere;

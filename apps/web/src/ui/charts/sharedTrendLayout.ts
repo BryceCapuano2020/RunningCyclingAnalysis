@@ -1,4 +1,4 @@
-import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore } from './chartInteraction'
+import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore, spreadWithin } from './chartInteraction'
 import { gutterLabels } from './sharedTrendGutter'
 import {
   ASCENT_EM,
@@ -215,27 +215,15 @@ function cartesian<T>(lists: readonly (readonly T[])[]): T[][] {
   )
 }
 
-/**
- * Spreads spots apart, in order of y, so that each sits at least gap below the one above it. A run that
- * would pass the span's bottom is packed back up from it. Where the span cannot hold them all, the packed
- * spots are clamped into it, so they stay inside the plot though they may then overlap. Returns the spots
- * in their input order.
- */
+/** Spreads spots apart and inside the span, as spreadWithin spreads baselines. Returns the spots in their input order. */
 function spreadSpots(spots: readonly Spot[], gap: number, span: Span): Spot[] {
-  const placed = spots.map((spot) => ({ ...spot }))
-  const order = [...placed].sort((a, b) => a.y - b.y)
-  let floor = span.lo
-  for (const spot of order) {
-    spot.y = Math.max(spot.y, floor)
-    floor = spot.y + gap
-  }
-  let ceiling = span.hi
-  for (const spot of [...order].reverse()) {
-    spot.y = Math.min(spot.y, ceiling)
-    ceiling = spot.y - gap
-  }
-  for (const spot of placed) spot.y = clampToSpan(spot.y, span)
-  return placed
+  const ys = spreadWithin(
+    spots.map((spot) => spot.y),
+    gap,
+    span.lo,
+    span.hi,
+  )
+  return spots.map((spot, index) => ({ ...spot, y: ys[index] ?? spot.y }))
 }
 
 /** Whether a spot's box is inside the plot, both ways, and touches neither drawn piece its label keeps clear of. */

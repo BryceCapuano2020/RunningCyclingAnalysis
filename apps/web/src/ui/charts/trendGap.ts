@@ -7,8 +7,9 @@ import { utcDayLocal } from './trendTicks'
 /** The fewest empty weeks in a row that are worth a note: two months. Shorter gaps are seen on the chart. */
 export const GAP_NOTE_MIN_WEEKS = 8
 
-/** What the sport's trend needs to have a value, as the noun after "No". */
-const GAP_NOUN: Record<Sport, string> = { run: 'runs', ride: 'rides with power' }
+/** The activities a sport's trend needs, as the noun after "No", and what it needs of them after their length. */
+const GAP_NOUN: Record<Sport, string> = { run: 'runs', ride: 'rides' }
+const GAP_NEEDS: Record<Sport, string> = { run: '', ride: ' with power' }
 
 interface Gap {
   fromMs: number
@@ -47,11 +48,11 @@ export function longestGap(
 }
 
 /**
- * The note under a trend for its longest gap: "No rides with power of 20 min or longer from 3 Dec 2024 to
+ * The note under a trend for its longest gap: "No rides of 20 min or longer with power from 3 Dec 2024 to
  * 17 Aug 2025." A trend of one effort length has a value only where an activity was that long, so the note
  * names the length: a gap in the 60 min trend is not a gap in training.
  */
 export function gapNote(sport: Sport, gap: Gap, effortS: number): string {
   const span = formatSpan(utcDayLocal(gap.fromMs), utcDayLocal(gap.toMs)).replace(' – ', ' to ')
-  return `No ${GAP_NOUN[sport]} of ${effortLabel(effortS)} or longer from ${span}.`
+  return `No ${GAP_NOUN[sport]} of ${effortLabel(effortS)} or longer${GAP_NEEDS[sport]} from ${span}.`
 }

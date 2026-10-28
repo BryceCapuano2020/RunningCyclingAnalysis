@@ -60,6 +60,25 @@ describe('readingBand', () => {
   })
 })
 
+describe('readingBand at the edges of what a cut can remove', () => {
+  /** n distinct readings, each a little faster than the one before, so every cut is counted exactly. */
+  const distinct = (n: number) => runOf(n, (i) => 1 + i / 128)
+
+  it('cuts the first slow reading at fifty readings, and none at forty-nine', () => {
+    expect(readingBand(distinct(49), 'speed', 0, 49)).toMatchObject({ below: 0 })
+    expect(readingBand(distinct(50), 'speed', 0, 50)).toMatchObject({ below: 1 })
+  })
+
+  it('cuts the first fast reading at two hundred readings, and none at 199', () => {
+    expect(readingBand(distinct(199), 'speed', 0, 199)).toMatchObject({ above: 0 })
+    expect(readingBand(distinct(200), 'speed', 0, 200)).toMatchObject({ above: 1 })
+  })
+
+  it('cuts two percent slow and half a percent fast of a thousand readings', () => {
+    expect(readingBand(distinct(1000), 'speed', 0, 1000)).toMatchObject({ below: 20, above: 5 })
+  })
+})
+
 describe('distributionOf within a band', () => {
   it('spans only the band, so a stray reading leaves no empty bins', () => {
     const item = runOf(500, (i) => (i < 3 ? 0.5 : 2.5 + (i - 3) / 494))

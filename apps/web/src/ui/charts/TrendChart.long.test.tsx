@@ -83,19 +83,19 @@ describe('TrendChart over years', () => {
     expect(from.getUTCFullYear()).toBe(2019)
     expect(
       screen.getByText(
-        /^No rides with power of 20 min or longer from \d+ \w+ 2019 to \d+ \w+ 2020\./,
+        /^No rides of 20 min or longer with power from \d+ \w+ 2019 to \d+ \w+ 2020\./,
       ),
     ).toBeInTheDocument()
   })
 
   it('names the effort length of the trend, so a gap at 60 min is not read as a gap in riding', () => {
     renderRide(rideWeeks(260, [100, 140]), 3600)
-    expect(screen.getByText(/^No rides with power of 60 min or longer from/)).toBeInTheDocument()
+    expect(screen.getByText(/^No rides of 60 min or longer with power from/)).toBeInTheDocument()
   })
 
   it('names no gap when the weeks run without a long break', () => {
     renderRide(rideWeeks(260, [100, 103]))
-    expect(screen.queryByText(/^No rides with power of/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^No rides of /)).not.toBeInTheDocument()
   })
 })
 

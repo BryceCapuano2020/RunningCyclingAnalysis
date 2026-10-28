@@ -32,6 +32,31 @@ function SourceLabel({ activity }: { activity: ActivitySummary }) {
   )
 }
 
+/**
+ * The dot between an activity and how long ago it was set. It ends the activity's part, so when the count
+ * wraps to its own line the dot stays behind with the name and no line starts with it.
+ */
+function Dot() {
+  return (
+    <>
+      {' '}
+      <span className="records__dot" aria-hidden="true">
+        ·
+      </span>
+    </>
+  )
+}
+
+/** How long ago a record was set, after the dot: "5 months ago". */
+function AgoCount({ days }: { days: number }) {
+  return (
+    <>
+      {' '}
+      <span className="records__set">{agoText(days)}</span>
+    </>
+  )
+}
+
 /** The one activity every row was set in, when there are several rows and they all share it. */
 function sharedActivity(rows: RecordRow[]): ActivitySummary | null {
   const first = rows[0]?.activity ?? null
@@ -67,20 +92,18 @@ export function SportRecords({ rows }: SportRecordsProps) {
             {row.change && <span className="records__change">{row.change}</span>}
             {shared === null && row.activity && (
               <span className="records__source">
-                <a
-                  className="records__link"
-                  href={hrefFor({ page: 'activity', id: row.activity.id })}
-                  title={sourceText(row.activity)}
-                  aria-label={`${row.label}, from ${sourceText(row.activity)}`}
-                >
-                  <SourceLabel activity={row.activity} />
-                </a>
-                {row.setDays !== null && (
-                  <>
-                    {' '}
-                    <span className="records__set">{`· ${agoText(row.setDays)}`}</span>
-                  </>
-                )}
+                <span className="records__where">
+                  <a
+                    className="records__link"
+                    href={hrefFor({ page: 'activity', id: row.activity.id })}
+                    title={sourceText(row.activity)}
+                    aria-label={`${row.label}, from ${sourceText(row.activity)}`}
+                  >
+                    <SourceLabel activity={row.activity} />
+                  </a>
+                  {row.setDays !== null && <Dot />}
+                </span>
+                {row.setDays !== null && <AgoCount days={row.setDays} />}
               </span>
             )}
           </li>
@@ -90,19 +113,17 @@ export function SportRecords({ rows }: SportRecordsProps) {
         <p className="records__shared">
           <span>All set on</span>{' '}
           <span className="records__source">
-            <a
-              className="records__link"
-              href={hrefFor({ page: 'activity', id: shared.id })}
-              title={sourceText(shared)}
-            >
-              <SourceLabel activity={shared} />
-            </a>
-            {sharedDays !== null && (
-              <>
-                {' '}
-                <span className="records__set">{`· ${agoText(sharedDays)}`}</span>
-              </>
-            )}
+            <span className="records__where">
+              <a
+                className="records__link"
+                href={hrefFor({ page: 'activity', id: shared.id })}
+                title={sourceText(shared)}
+              >
+                <SourceLabel activity={shared} />
+              </a>
+              {sharedDays !== null && <Dot />}
+            </span>
+            {sharedDays !== null && <AgoCount days={sharedDays} />}
           </span>
         </p>
       )}

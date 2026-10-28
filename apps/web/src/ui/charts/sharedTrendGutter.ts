@@ -1,4 +1,4 @@
-import { LABEL_GAP_X } from './chartInteraction'
+import { LABEL_GAP_X, spreadWithin } from './chartInteraction'
 import { ASCENT_EM, DESCENT_EM } from './chartBoxes'
 import type { ChartSize, Point } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
@@ -53,29 +53,6 @@ export function trendGutter(
 ): (width: number) => number {
   const texts = endLabelTexts(thinToMonths(weeks).weeks, measure, rideKnown)
   return (width) => endLabelGutter(width, texts)
-}
-
-/**
- * Spreads baselines apart, in order, so that each sits at least `gap` below the one above it, and inside
- * [lo, hi]. Each is clamped first, then packed down from lo and back up from hi, so two at the foot keep
- * their gap instead of piling on one another. Returned in the input's order.
- */
-function spreadWithin(ys: readonly number[], gap: number, lo: number, hi: number): number[] {
-  const top = Math.min(lo, hi)
-  const bottom = Math.max(lo, hi)
-  const placed = ys.map((y, index) => ({ y: Math.min(Math.max(y, top), bottom), index }))
-  const order = [...placed].sort((a, b) => a.y - b.y)
-  let floor = top
-  for (const item of order) {
-    item.y = Math.max(item.y, floor)
-    floor = item.y + gap
-  }
-  let ceiling = bottom
-  for (const item of [...order].reverse()) {
-    item.y = Math.min(item.y, ceiling)
-    ceiling = item.y - gap
-  }
-  return placed.map((item) => item.y)
 }
 
 /** The drawn points of a shared trend that the gutter labels read: each sport's line. */

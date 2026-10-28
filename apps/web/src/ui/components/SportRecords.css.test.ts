@@ -10,6 +10,11 @@ describe('SportRecords: a shared activity name on a phone', () => {
 })
 
 describe('SportRecords: a record row’s link on a phone', () => {
+  it('keeps the dot in the activity’s own item, which does not shrink the count away', () => {
+    expect(ruleBody(css, '.records__where')).toContain('display: flex;')
+    expect(ruleBody(css, '.records__dot')).toContain('flex: none;')
+  })
+
   it('wraps the count under the link rather than shrinking the name to make room for it', () => {
     expect(ruleBody(css, '.records__source')).toContain('flex-wrap: wrap;')
   })
