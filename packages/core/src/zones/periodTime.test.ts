@@ -65,7 +65,37 @@ describe('periodTimeInZones', () => {
       periodTimeInZones(digests, withEntries(measurements), null, new Set(['bad'])),
       'run',
     )
-    expect([row.counted, row.noData, row.totalSeconds]).toEqual([1, 1, 600])
+    expect([row.counted, row.setAside, row.noData, row.totalSeconds]).toEqual([1, 1, 0, 600])
+  })
+
+  it('counts a set-aside heart rate apart from one that was never recorded', () => {
+    const measurements: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-01' },
+    ]
+    const digests = [
+      zoneDigest({ id: 'a', sport: 'run', startMs: noon(2026, 1, 10), heartRate: [150, 600] }),
+      zoneDigest({ id: 'bad', sport: 'run', startMs: noon(2026, 1, 11), heartRate: [190, 600] }),
+      zoneDigest({ id: 'none', sport: 'run', startMs: noon(2026, 1, 12) }),
+    ]
+    const row = heartRate(
+      periodTimeInZones(digests, withEntries(measurements), null, new Set(['bad'])),
+      'run',
+    )
+    expect([row.counted, row.setAside, row.noData]).toEqual([1, 1, 1])
+  })
+
+  it('records the references the zones were cut from, so two periods can be told apart', () => {
+    const measurements: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2026-01-01' },
+      { kind: 'maxHeartRate', sport: 'run', value: 180, from: '2026-02-01' },
+    ]
+    const digests = [
+      zoneDigest({ id: 'a', sport: 'run', startMs: noon(2026, 1, 10), heartRate: [150, 600] }),
+      zoneDigest({ id: 'b', sport: 'run', startMs: noon(2026, 1, 20), heartRate: [150, 600] }),
+      zoneDigest({ id: 'c', sport: 'run', startMs: noon(2026, 2, 10), heartRate: [150, 600] }),
+    ]
+    const row = heartRate(periodTimeInZones(digests, withEntries(measurements), null), 'run')
+    expect(row.references).toEqual([180, 200])
   })
 
   it('keeps a sport and a measure apart', () => {
@@ -120,27 +150,60 @@ describe('ZoneTimeCache', () => {
 
   it('answers again from the same inputs without working it out again', () => {
     const cache = new ZoneTimeCache()
-    const first = cache.get(digests, [], settings, analysis)
-    expect(cache.get(digests, [], { ...settings }, analysis)).toBe(first)
+    const first = cache.get(digests, [], settings, analysis, analysis.heartRateSetAside)
+    expect(cache.get(digests, [], { ...settings }, analysis, analysis.heartRateSetAside)).toBe(
+      first,
+    )
   })
 
   it('works it out again when a dated setting, the digests or the analysis change', () => {
     const cache = new ZoneTimeCache()
-    const first = cache.get(digests, [], settings, analysis)
+    const first = cache.get(digests, [], settings, analysis, analysis.heartRateSetAside)
     const entry: Measurement = {
       kind: 'maxHeartRate',
       sport: 'run',
       value: 190,
       from: '2020-01-01',
     }
-    const entered = cache.get(digests, [], withEntries([entry]), analysis)
+    const entered = cache.get(
+      digests,
+      [],
+      withEntries([entry]),
+      analysis,
+      analysis.heartRateSetAside,
+    )
     expect(entered).not.toBe(first)
-    expect(cache.get(digests.slice(1), [], withEntries([entry]), analysis)).not.toBe(entered)
-    expect(cache.get(digests, [], withEntries([entry]), { ...analysis })).not.toBe(entered)
+    expect(
+      cache.get(digests.slice(1), [], withEntries([entry]), analysis, analysis.heartRateSetAside),
+    ).not.toBe(entered)
+    expect(
+      cache.get(digests, [], withEntries([entry]), { ...analysis }, analysis.heartRateSetAside),
+    ).not.toBe(entered)
+  })
+
+  it("judges every period's heart rate by the library's set-aside, not the period on screen's", () => {
+    const entries: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2020-01-01' },
+    ]
+    const current = [
+      zoneDigest({ id: 'now', sport: 'run', startMs: noon(2026, 3, 10), heartRate: [150, 600] }),
+    ]
+    const before = [
+      zoneDigest({ id: 'old', sport: 'run', startMs: noon(2026, 1, 10), heartRate: [150, 600] }),
+      zoneDigest({ id: 'junk', sport: 'run', startMs: noon(2026, 1, 11), heartRate: [195, 600] }),
+    ]
+    // The period on screen has nothing set aside; the judgement over the library, which holds the earlier
+    // period, set 'junk' aside.
+    const times = new ZoneTimeCache().get(current, before, withEntries(entries), analysis, ['junk'])
+    const row = times.previous!.run.find((each) => each.measure === 'heartRate')!
+    expect([row.counted, row.setAside, row.totalSeconds]).toEqual([1, 1, 600])
+    expect(times.heartRateSetAside).toEqual(['junk'])
   })
 
   it('has no previous period for all time', () => {
-    expect(new ZoneTimeCache().get(digests, [], settings, analysis).previous).toBeNull()
+    expect(
+      new ZoneTimeCache().get(digests, [], settings, analysis, analysis.heartRateSetAside).previous,
+    ).toBeNull()
   })
 
   it('cuts the period before by the same estimated zones', () => {
@@ -150,6 +213,7 @@ describe('ZoneTimeCache', () => {
       digests.slice(0, half),
       settings,
       analysis,
+      analysis.heartRateSetAside,
     )
     expect(times.previous).not.toBeNull()
   })
@@ -164,6 +228,16 @@ describe('AnalysisSession time in zones', () => {
       0,
     )
     expect(counted).toBeGreaterThan(0)
+  })
+
+  it("follows the library's set-aside whatever period is on screen", () => {
+    const session = new AnalysisSession()
+    session.loadSample(settings)
+    const all = session.setRange('all', settings)
+    expect(all.timeInZones.heartRateSetAside).toEqual(all.result?.heartRateSetAside)
+    const narrow = session.setRange(30, settings)
+    expect(narrow.timeInZones.previous).not.toBeNull()
+    expect(narrow.timeInZones.heartRateSetAside).toEqual(all.result?.heartRateSetAside)
   })
 
   it('is empty with nothing loaded', () => {

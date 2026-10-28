@@ -1049,31 +1049,43 @@ has readings for, a lede for the first of them in that order ("Most of this run 
 "This run spent the most time in heart rate zone 3 (38%)." when no zone held half), and **View as table** with
 each zone's name, range, time and share. The zones are those in effect on the activity's day (`zonesAt`), so an
 entered setting that changed since is not applied backwards. Each recorded moving second counts once, in the zone
-of its reading. A ride's estimated power zones wait for the body weight, as on Profile, and a heart rate the
-analysis set aside is not read. With no zones the block says what they need and links to Profile.
+of its reading, and a run's slow seconds count in the lowest pace zone, as in the digests behind the sport page, so a
+whole-activity interval matches it. A ride's estimated power zones wait for the body weight, as on Profile, and a heart rate the
+analysis of the whole library set aside is not read, and the block says so ("Heart rate is set aside for this activity, so it
+is left out of zones.") instead of asking for zones. With no zones the block says what they need and links to Profile.
 
 **Sport pages.** A **Time in zones** section, last in each sport's list (`SPORT_SECTIONS`): a stacked horizontal bar for
 each measure with enough time (3 activities and an hour, `MIN_ZONE_ACTIVITIES` and `MIN_ZONE_SECONDS`), under one
 lede. The lede reads the measure with the most time. When a zone's share moved by at least 5 points against the
-period before, it says so ("Heart rate zone 2 took 41% of your running time, up from 28% in the previous 6 weeks."),
-and otherwise it gives the easy and hard shares ("60% of your running time by heart rate was easy (zones 1 and 2),
-and 10% was hard (zones 4 and up)."). Easy is zones 1 and 2 and hard is zone 4 and up for every measure
+period before, it says so ("Heart rate zone 2 took 41% of your running time with heart rate, up from 28% in the previous 6 weeks."),
+and otherwise it gives the easy and hard shares ("60% of your running time with heart rate was easy (zones 1 and 2),
+and 10% was hard (zones 4 and up)."). The shares are of the time with a reading, so the sentence says "with heart rate",
+"with measured power" or "with pace". Easy is zones 1 and 2 and hard is zone 4 and up for every measure
 (`EASY_THROUGH`, `HARD_FROM`). The period before is cut by the same estimated zones as the period on screen, so the two are
-compared in the same zones. Under the bars, a muted line for each measure that left activities out ("2 of 12 runs
-had no heart rate to count.": no distribution in an older digest, no heart rate, no power meter, a heart rate set aside;
-or "had no heart rate zones for their date": data but no reference), and one line on where the zones came from. With too
+compared in the same zones. An entered setting (or a body weight under an estimated ride threshold) that changed between the periods
+means the zones differ, and then no change is claimed: the lede falls back to easy and hard, the previous column is left
+out, and a line says "Heart rate zones changed since the previous period, so the two are not compared." View as table
+adds a column with the previous period's share of each zone, headed by its label, where the periods can be compared.
+Under the bars, a muted line for each measure that left activities out ("2 of 12 runs had no heart rate to count.": no
+distribution in an older digest, no heart rate, no power meter; "had heart rate set aside": the analysis of the whole library
+judged the sensor; or "had no heart rate zones for their date": data but no reference), and one line on where the zones came from.
+A heart rate is set aside by one judgement over every activity (`heartRateSetAsideOf`, the same judgement as the analysis'
+`heartRateSetAside`), so an activity is read the same in every period. With too
 little to describe, the section has no heading and "Time in zones: needs 3 activities with heart rate, or a threshold
 pace entered on Profile, and 1 hour of them." joins the "Not enough yet" list.
 
 **Bars.** `ZoneTimeChart` is a `ChartFrame` with one band for each measure: its label, the bar across the full
 width, and a zone number under each segment at least 20 px wide. A segment is the sport's colour (`--sport-colour`) mixed
-with the page colour in equal steps from about a third for the lowest zone to 100% for the highest, edged in the page colour; the order, the
+with the page colour in equal steps from 80% (`MIN_ZONE_TINT`, the least that keeps 3:1 against the card in both schemes and for
+both sports, pinned by `zoneTint.test.ts`) for the lowest zone to 100% for the highest, edged in the page colour; the order, the
 numbers and the table say which zone is which, so the tint is not the only cue. In forced colours every segment is the
 highlight colour. The figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
 
 **Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
 activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
-body weight that changed an estimated ride threshold). A bin that straddles a zone edge is shared in proportion to
-the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
+body weight that changed an estimated ride threshold). A heart rate or a power is a whole number, so a bin of it is
+shared by its whole numbers: 110 to 114 W cut at 110.55 W puts 110 W below the edge and 111 to 114 W above it, and a
+bin of one beat is never split. A reading is in the zone it is at or above the floor of and below the ceiling of, as on the activity
+page and in the Profile ranges. A speed bin that straddles an edge is shared in proportion to the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
 digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
 (`periodTime.perf.test.ts`).

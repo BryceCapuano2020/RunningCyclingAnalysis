@@ -5,6 +5,7 @@ import {
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
+  sameZoneReferences,
   MIN_ZONE_ACTIVITIES,
   MIN_ZONE_SECONDS,
   zoneShares,
@@ -21,6 +22,8 @@ function time(seconds: number[], extra: Partial<MeasureTime> = {}): MeasureTime 
     noData: 0,
     noZones: 0,
     entered: 0,
+    setAside: 0,
+    references: [],
     ...extra,
   }
 }
@@ -51,6 +54,13 @@ describe('zone shares', () => {
     expect(shift?.before).toBeCloseTo(0.3, 12)
     expect(shift?.after).toBeCloseTo(0.6, 12)
     expect(biggestShift(time([0, 0, 0, 0, 0]), after)).toBeNull()
+  })
+
+  it('tells periods cut by the same zones from those whose zones changed', () => {
+    const a = time([1, 1, 1, 1, 1], { references: [190] })
+    expect(sameZoneReferences(a, time([2, 2, 2, 2, 2], { references: [190] }))).toBe(true)
+    expect(sameZoneReferences(a, time([1, 1, 1, 1, 1], { references: [185] }))).toBe(false)
+    expect(sameZoneReferences(a, time([1, 1, 1, 1, 1], { references: [185, 190] }))).toBe(false)
   })
 
   it('needs activities and time before a measure is described', () => {

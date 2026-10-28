@@ -33,9 +33,22 @@ function twoPartRun(): ActivityTrace {
 const heartRate200 = setOf('run', 'heartRate', 200)
 const pace35 = setOf('run', 'pace', 3.5)
 
-function show(trace: ActivityTrace, sets: ZoneSet[], startS = 0, endS = trace.durationS) {
+function show(
+  trace: ActivityTrace,
+  sets: ZoneSet[],
+  startS = 0,
+  endS = trace.durationS,
+  heartRateSetAside = false,
+) {
   return render(
-    <ActivityZoneTime trace={trace} sets={sets} startS={startS} endS={endS} units="metric" />,
+    <ActivityZoneTime
+      trace={trace}
+      sets={sets}
+      startS={startS}
+      endS={endS}
+      units="metric"
+      heartRateSetAside={heartRateSetAside}
+    />,
   )
 }
 
@@ -122,6 +135,37 @@ describe('ActivityZoneTime', () => {
     paused.fill(1, 0, 30)
     show({ ...steadyTrace(120), paused }, [heartRate200])
     expect(screen.getByRole('cell', { name: '1 min 30 s', hidden: true })).toBeInTheDocument()
+  })
+})
+
+describe('ActivityZoneTime, what it counts and what it says about heart rate', () => {
+  it("counts a run's slow seconds in the lowest pace zone, as the digests do", () => {
+    const base = steadyTrace(120)
+    const speed = new Float32Array(120).fill(3)
+    speed.fill(0.2, 0, 30)
+    show({ ...base, streams: { speed } }, [pace35])
+    expect(screen.getByRole('cell', { name: '30 s', hidden: true })).toBeInTheDocument()
+    expect(screen.getByText('Most of this run was in pace zone 2 (75%).')).toBeInTheDocument()
+    expect(screen.getByRole('img')).toHaveAccessibleName(/Pace: zone 1 25%, zone 2 75%/)
+  })
+
+  it("reads only the zones of the trace's own sport", () => {
+    show(steadyTrace(120), [setOf('ride', 'heartRate', 190)])
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('says heart rate was set aside, not that zones are needed, when it was the only measure', () => {
+    show(steadyTrace(120), [], 0, 120, true)
+    expect(
+      screen.getByText('Heart rate is set aside for this activity, so it is left out of zones.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Profile' })).toBeNull()
+  })
+
+  it('says it beside the zones that remain', () => {
+    show(steadyTrace(120), [pace35], 0, 120, true)
+    expect(screen.getByText('Most of this run was in pace zone 2 (100%).')).toBeInTheDocument()
+    expect(screen.getByText(/Heart rate is set aside for this activity/)).toBeInTheDocument()
   })
 })
 

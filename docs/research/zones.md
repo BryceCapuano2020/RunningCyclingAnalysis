@@ -82,18 +82,29 @@ Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `trace
 `docs/DESIGN.md` under Time in zones.
 
 - **From a digest.** A digest keeps moving seconds in bins (`DISTRIBUTION_BINS`: 1 bpm, 5 W, 0.05 m/s). The zones in effect
-  on the activity's local date cut those bins. A bin that straddles an edge is split in proportion to the width each side,
-  as if its seconds were spread evenly across the bin. The alternative of giving the whole bin to the zone holding its centre
-  moves up to half a bin of time across an edge and makes a zone's time jump as an edge crosses a bin centre. Either keeps
-  every second; the error of a split is under one bin's seconds at each edge.
+  on the activity's local date cut those bins. A reading is in the zone it is at or above the floor of and below the ceiling of.
+  Heart rate and measured power are whole numbers, so a bin of them holds whole numbers (one beat, or five watts) and is shared
+  by them: 110 to 114 W cut at 110.55 W has one watt below the edge and four above, so a fifth and four fifths of its seconds,
+  and a one-beat bin is never split. This agrees with the trace below and with the Profile ranges. Speed is not a whole
+  number, so a bin that straddles an edge is split in proportion to the width each side, as if its seconds were spread evenly
+  across it; the error is under 0.05 m/s of moving time at each edge. Every second is kept either way.
 - **From a trace.** The activity page reads the recorded stream second by second, so there is no bin to split. A reading
   on an edge is in the zone the edge opens (`low <= reading < high`), as in the Profile ranges ("138-187 W", "375 W or more").
+  It reads the trace as recorded, not as the plots read it: a run's seconds slower than 0.5 m/s have no pace in the plots, but
+  the digests count them (they are moving, not paused), in the lowest pace zone, so the trace counts them there too and a
+  whole-activity interval agrees with the sport page.
 - **A period** adds the activities up zone by zone, each cut by its own zones, so zones that changed during the period
   are applied on the dates they were in effect. Zones are summed by level, which every date shares. A period is compared
   with the one before it in the same estimated zones, because the references of an analysis belong to the period on
-  screen; entered settings are dated, so they apply on their own dates in both.
+  screen; entered settings are dated, so they apply on their own dates in both. When an entered setting changed between
+  the periods, or a body weight moved an estimated ride threshold, the periods were cut by different references
+  (`MeasureTime.references`), so a change in shares could be the zones and not the athlete: no change is claimed and the
+  page says the zones changed.
 - **Left out.** An activity is counted for a measure only with a distribution of it (digests from before distributions were
-  kept have none), zones in effect on its date, and, for heart rate, a sensor the analysis did not set aside. Power is
+  kept have none), zones in effect on its date, and, for heart rate, a sensor the analysis did not set aside. The set-aside is
+  one judgement over every visible activity (`heartRateSetAsideOf`, the analysis' own rule without the rest of it), so the period
+  before is read by the same rule as the one on screen and an activity page agrees with the sport page. The page counts
+  a set-aside heart rate apart from one that was never recorded. Power is
   counted from a power meter only, since a digest keeps no distribution for estimated watts. The page says how many
   activities each measure left out.
 - **Easy and hard.** Easy is zones 1 and 2 and hard is zone 4 and up, for every measure: Coggan's active recovery and

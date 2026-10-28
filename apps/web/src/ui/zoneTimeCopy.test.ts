@@ -6,9 +6,10 @@ import {
   periodLede,
   timeInZonesLack,
   zoneSourceNote,
+  zonesChangedNotes,
   zoneTimeText,
 } from './zoneTimeCopy'
-import { measureTime } from './zoneTimeFixtures'
+import { measureTime } from './test/zoneTimeFixtures'
 
 const BANNED = ['limiter', 'weak', 'strength', 'holding you back', 'ahead of', 'grade']
 
@@ -35,7 +36,7 @@ describe('zoneTimeText', () => {
 describe('periodLede', () => {
   it('says how much of the time was easy and how much hard when there is nothing to compare', () => {
     expect(periodLede('run', [easyRun], null, null)).toBe(
-      '60% of your running time by heart rate was easy (zones 1 and 2), and 10% was hard (zones 4 and up).',
+      '60% of your running time with heart rate was easy (zones 1 and 2), and 10% was hard (zones 4 and up).',
     )
   })
 
@@ -43,15 +44,25 @@ describe('periodLede', () => {
     const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0])
     const after = measureTime('run', 'heartRate', [3600, 10_800, 7200, 14_400, 0])
     expect(periodLede('run', [after], [before], 'Previous 6 weeks')).toBe(
-      'Heart rate zone 4 took 40% of your running time, up from 10% in the previous 6 weeks.',
+      'Heart rate zone 4 took 40% of your running time with heart rate, up from 10% in the previous 6 weeks.',
     )
   })
 
   it('says a fall as down', () => {
     const lede = periodLede('run', [easyRun], [hardRun], 'Previous 6 weeks')
     expect(lede).toMatch(
-      /^Heart rate zone \d took \d+% of your running time, down from \d+% in the previous 6 weeks\.$/,
+      /^Heart rate zone \d took \d+% of your running time with heart rate, down from \d+% in the previous 6 weeks\.$/,
     )
+  })
+
+  it('does not call a change when the zones themselves changed between the periods', () => {
+    const before = measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0], {
+      references: [200],
+    })
+    const after = measureTime('run', 'heartRate', [3600, 10_800, 7200, 14_400, 0], {
+      references: [180],
+    })
+    expect(periodLede('run', [after], [before], 'Previous 6 weeks')).toMatch(/was easy/)
   })
 
   it('falls back to easy and hard when no zone moved enough', () => {
@@ -67,7 +78,7 @@ describe('periodLede', () => {
     const power = measureTime('ride', 'power', [3600, 3600, 3600, 3600, 3600, 3600, 3600])
     const hr = measureTime('ride', 'heartRate', [3600, 3600, 3600, 3600, 3600])
     expect(periodLede('ride', [hr, power], null, null)).toMatch(
-      /^\d+% of your riding time by power was easy \(zones 1 and 2\)/,
+      /^\d+% of your riding time with measured power was easy \(zones 1 and 2\)/,
     )
   })
 
@@ -119,6 +130,18 @@ describe('leftOutNotes', () => {
     ])
   })
 
+  it('counts a heart rate set aside apart from one that was not recorded', () => {
+    const row = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], {
+      counted: 8,
+      noData: 1,
+      setAside: 2,
+    })
+    expect(leftOutNotes('run', [row])).toEqual([
+      '2 of 11 runs had heart rate set aside.',
+      '1 of 11 runs had no heart rate to count.',
+    ])
+  })
+
   it('has nothing to say when every activity counted', () => {
     expect(leftOutNotes('ride', [measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1])])).toEqual([])
   })
@@ -126,6 +149,32 @@ describe('leftOutNotes', () => {
   it('names measured power for a ride without a power meter', () => {
     const row = measureTime('ride', 'power', [1, 1, 1, 1, 1, 1, 1], { counted: 4, noData: 6 })
     expect(leftOutNotes('ride', [row])).toEqual(['6 of 10 rides had no measured power to count.'])
+  })
+})
+
+describe('zonesChangedNotes', () => {
+  const now = measureTime('run', 'heartRate', [1, 1, 1, 1, 1], { references: [180] })
+
+  it('names a measure whose zones changed since the period before', () => {
+    const before = measureTime('run', 'heartRate', [3600, 3600, 3600, 3600, 3600], {
+      references: [200],
+    })
+    expect(zonesChangedNotes([now], [before])).toEqual([
+      'Heart rate zones changed since the previous period, so the two are not compared.',
+    ])
+  })
+
+  it('says nothing when the zones match, or the period before has too little to compare', () => {
+    const same = measureTime('run', 'heartRate', [3600, 3600, 3600, 3600, 3600], {
+      references: [180],
+    })
+    const thin = measureTime('run', 'heartRate', [60, 0, 0, 0, 0], {
+      counted: 1,
+      references: [200],
+    })
+    expect(zonesChangedNotes([now], [same])).toEqual([])
+    expect(zonesChangedNotes([now], [thin])).toEqual([])
+    expect(zonesChangedNotes([now], null)).toEqual([])
   })
 })
 

@@ -40,12 +40,12 @@ describe('ZoneTimeChart', () => {
     expect(numbers).toEqual(['2'])
   })
 
-  it('strengthens the tint with the zone, from 20 to 100 percent of the sport colour', () => {
+  it('strengthens the tint with the zone, from the least that keeps contrast to 100 percent of the sport colour', () => {
     const { container } = chart([1, 1, 1, 1, 1])
     const tints = [...container.querySelectorAll<SVGRectElement>('rect')].map((rect) =>
       rect.style.getPropertyValue('--zone-tint'),
     )
-    expect(tints).toEqual(['36%', '52%', '68%', '84%', '100%'])
+    expect(tints).toEqual(['84%', '88%', '92%', '96%', '100%'])
   })
 
   it('names the drawing by every bar read as text, and keeps the table behind a disclosure', () => {

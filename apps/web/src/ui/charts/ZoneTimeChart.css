@@ -1,12 +1,13 @@
 /*
  * A zone's segment, in the sport's colour (set once for each data-sport in tokens.css) at the strength
- * its page sets in --zone-tint. The order, the numbers under the bar and the table say which zone is
+ * its chart sets in --zone-tint, never lighter than MIN_ZONE_TINT, so the lightest keeps 3:1 against the
+ * card. The order, the numbers under the bar and the table say which zone is
  * which, so the tint is never the only cue.
  */
 .zone-time__segment {
   fill: color-mix(in srgb, var(--sport-colour) var(--zone-tint), var(--surface-1));
   stroke: var(--surface-1);
-  stroke-width: 1;
+  stroke-width: 2;
 }
 
 .zone-time__label {

@@ -23,6 +23,8 @@ export interface ActivityWorkbenchProps {
   loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
   /** The zones in effect on the activity's date, for its time in zones. Absent: no zones section. */
   zoneSets?: readonly ZoneSet[]
+  /** Whether the activity's heart rate is set aside, which its zones say instead of reading it. */
+  heartRateSetAside?: boolean
 }
 
 type LoadState =
@@ -84,6 +86,7 @@ export function ActivityWorkbench({
   indoor = false,
   loadTrace,
   zoneSets,
+  heartRateSetAside,
 }: ActivityWorkbenchProps) {
   return (
     <ActivityWorkbenchSession
@@ -93,6 +96,7 @@ export function ActivityWorkbench({
       indoor={indoor}
       loadTrace={loadTrace}
       zoneSets={zoneSets}
+      heartRateSetAside={heartRateSetAside}
     />
   )
 }
@@ -115,7 +119,9 @@ function ActivityWorkbenchSession({
   indoor,
   loadTrace,
   zoneSets,
-}: Required<Omit<ActivityWorkbenchProps, 'zoneSets'>> & Pick<ActivityWorkbenchProps, 'zoneSets'>) {
+  heartRateSetAside,
+}: Required<Omit<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>> &
+  Pick<ActivityWorkbenchProps, 'zoneSets' | 'heartRateSetAside'>) {
   const loaded = useTrace(activityId, loadTrace)
   const { status } = loaded.state
   if (status === 'ready' || status === 'original') {
@@ -126,6 +132,7 @@ function ActivityWorkbenchSession({
         units={units}
         indoor={indoor}
         zoneSets={zoneSets}
+        heartRateSetAside={heartRateSetAside}
         fromOriginal={status === 'original'}
       />
     )
@@ -171,12 +178,14 @@ function ReadyWorkbench({
   units,
   indoor,
   zoneSets,
+  heartRateSetAside,
   fromOriginal,
 }: {
   trace: ActivityTrace
   units: UnitSystem
   indoor: boolean
   zoneSets?: readonly ZoneSet[]
+  heartRateSetAside?: boolean
   fromOriginal: boolean
 }) {
   const available = useMemo(
@@ -247,6 +256,7 @@ function ReadyWorkbench({
         <ActivityZoneTime
           trace={trace}
           sets={zoneSets}
+          heartRateSetAside={heartRateSetAside}
           startS={selection.startS}
           endS={selection.endS}
           units={units}

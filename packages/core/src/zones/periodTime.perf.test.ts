@@ -78,10 +78,10 @@ describe('time in zones performance', () => {
 
   it('does not work it out again for the same inputs', () => {
     const cache = new ZoneTimeCache()
-    const first = cache.get(digests, [], settings, null)
+    const first = cache.get(digests, [], settings, null, [])
     let again: unknown
     const ms = fastestMs(() => {
-      again = cache.get(digests, [], { ...settings }, null)
+      again = cache.get(digests, [], { ...settings }, null, first.heartRateSetAside)
     })
     expect(again).toBe(first)
     // Comparing 2,000 digests by identity is the whole cost.

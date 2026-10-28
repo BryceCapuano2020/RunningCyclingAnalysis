@@ -32,12 +32,19 @@ const NUMBER_BASELINE = 60
 const NUMBER_MIN_WIDTH = 20
 
 /**
- * The tint of a zone: the sport's colour at a strength that rises with the zone, from 20% to 100%. The
- * order of the bar, the numbers under it and the table say which zone is which, so the tint is never
- * the only cue.
+ * The least strength, in percent, of the sport's colour in a segment. At 80% the lightest segment keeps 3:1
+ * against the card in both schemes and both sports (the least that does is 66 to 80%, which
+ * zoneTint.test.ts checks from the tokens), which is what a graphic that carries meaning needs.
+ */
+export const MIN_ZONE_TINT = 80
+
+/**
+ * The tint of a zone: the sport's colour at a strength that rises with the zone, from MIN_ZONE_TINT to
+ * 100%. So close a range cannot tell zones apart on its own: the order of the bar, the numbers under it
+ * and the table say which zone is which, and the segments are edged in the page colour.
  */
 function tint(index: number, count: number): number {
-  return Math.round(20 + (80 * (index + 1)) / count)
+  return Math.round(MIN_ZONE_TINT + ((100 - MIN_ZONE_TINT) * (index + 1)) / count)
 }
 
 function segmentStyle(index: number, count: number): CSSProperties {

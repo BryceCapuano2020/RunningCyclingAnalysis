@@ -9,10 +9,19 @@ export interface PeriodZoneTimes {
   current: TimeInZones
   /** Null for all time, or when the period before holds no activities. */
   previous: TimeInZones | null
+  /**
+   * The activities whose heart rate the library-wide analysis set aside, sorted. One list for every
+   * period, so an activity is read the same whichever period is on screen.
+   */
+  heartRateSetAside: readonly string[]
 }
 
 /** Nothing analysed yet. */
-export const NO_ZONE_TIMES: PeriodZoneTimes = { current: noTimeInZones(), previous: null }
+export const NO_ZONE_TIMES: PeriodZoneTimes = {
+  current: noTimeInZones(),
+  previous: null,
+  heartRateSetAside: [],
+}
 
 /**
  * What the zones depend on in the settings: the body mass and every dated setting. Two settings with
@@ -27,14 +36,15 @@ interface Entry {
   previous: ActivityDigest[]
   settings: string
   analysis: AnalysisResult | null
+  heartRateSetAside: readonly string[]
   times: PeriodZoneTimes
 }
 
 /**
  * The last time in zones, reused while its inputs hold: the activities of the period and the one
  * before, the settings the zones read, and the analysis that supplies estimated references (which is
- * itself kept while the digests and masses are the same, so the object is the key; it also names the
- * heart rates set aside). A session asks on
+ * itself kept while the digests and masses are the same, so the object is the key). The heart rates set aside are given by the caller, judged over every activity (HeartRateJudge) so the
+ * previous period is read by the same rule as the one on screen. A list that is the same object is the same list. A session asks on
  * every state, so a change that moves none of these costs nothing.
  */
 export class ZoneTimeCache {
@@ -45,6 +55,7 @@ export class ZoneTimeCache {
     previous: ActivityDigest[],
     settings: AthleteSettings,
     analysis: AnalysisResult | null,
+    heartRateSetAside: readonly string[],
   ): PeriodZoneTimes {
     const key = settingsKey(settings)
     const hit = this.entry
@@ -52,18 +63,20 @@ export class ZoneTimeCache {
       hit !== null &&
       hit.settings === key &&
       hit.analysis === analysis &&
+      hit.heartRateSetAside === heartRateSetAside &&
       sameDigests(hit.selected, selected) &&
       sameDigests(hit.previous, previous)
     ) {
       return hit.times
     }
-    const setAside = new Set(analysis?.heartRateSetAside ?? [])
+    const setAside = new Set(heartRateSetAside)
     const times: PeriodZoneTimes = {
       current: periodTimeInZones(selected, settings, analysis, setAside),
       previous:
         previous.length === 0 ? null : periodTimeInZones(previous, settings, analysis, setAside),
+      heartRateSetAside,
     }
-    this.entry = { selected, previous, settings: key, analysis, times }
+    this.entry = { selected, previous, settings: key, analysis, heartRateSetAside, times }
     return times
   }
 }

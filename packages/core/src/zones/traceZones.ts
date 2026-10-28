@@ -1,6 +1,7 @@
 import { isTraceObservation } from '../workbench/selection'
 import type { ActivityTrace, TraceMetric } from '../workbench/types'
 import type { ZoneMeasure } from './schemes'
+import { EDGE_EPSILON } from './timeInZones'
 import type { Zone } from './zones'
 
 /** The recorded stream each zone measure reads: a pace's zones are cut in speed. */
@@ -20,7 +21,8 @@ export interface TraceZoneTime {
 
 /**
  * The seconds of an interval of a trace in each zone. Each moving second with a reading is counted
- * once, in the zone that holds its reading, so there is no bin to split. An interval is whole seconds
+ * once, in the zone that holds its reading, so there is no bin to split. A reading counts the same way
+ * as in `secondsByZone`: at or above a zone's floor and below its ceiling. An interval is whole seconds
  * from `startS` up to, not including, `endS`.
  */
 export function traceTimeInZones(
@@ -40,7 +42,7 @@ export function traceTimeInZones(
     if (!isTraceObservation(trace, metric, i)) continue
     const value = stream[i]!
     let zone = 0
-    while (zone < last && value >= zones[zone]!.high!) zone++
+    while (zone < last && value >= zones[zone]!.high! - EDGE_EPSILON) zone++
     seconds[zone]!++
     total++
   }

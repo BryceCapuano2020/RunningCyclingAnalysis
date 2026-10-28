@@ -11,7 +11,7 @@ import type { MeasureTime } from '@rca/core/zones'
 import { makeActivity, makeResult } from '../components/fixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
-import { measureTime } from '../zoneTimeFixtures'
+import { measureTime } from '../test/zoneTimeFixtures'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)

@@ -9,7 +9,6 @@ import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
 import { ROW_LABEL, activityLede, percentText, zoneTimeText } from '../zoneTimeCopy'
 import { barSummary } from '../zoneTimeRows'
-import { readableTrace } from './workbenchData'
 
 /**
  * The measures in the order the page leads with them: power and pace are the effort itself, heart
@@ -28,16 +27,24 @@ function rowsOf(
   startS: number,
   endS: number,
 ): Row[] {
-  const readable = readableTrace(trace)
   return LEAD_ORDER.flatMap((measure) => {
-    const set = sets.find((each) => each.measure === measure)
+    const set = sets.find((each) => each.measure === measure && each.sport === trace.sport)
     if (set === undefined) return []
-    const time = traceTimeInZones(readable, measure, set.zones, startS, endS)
+    // The trace as recorded, not as the plots read it: a run's slow seconds count in the lowest pace zone, as
+    // they do in the digests behind the sport page, so a whole-activity interval matches the page.
+    const time = traceTimeInZones(trace, measure, set.zones, startS, endS)
     return time.total > 0 ? [{ set, time }] : []
   })
 }
 
 const lowerFirst = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`
+
+/** Why heart rate is not read into zones, which the activity's issues explain. */
+function SetAsideNote() {
+  return (
+    <p className="muted">Heart rate is set aside for this activity, so it is left out of zones.</p>
+  )
+}
 
 function ZoneNeed() {
   return (
@@ -61,21 +68,27 @@ export function ActivityZoneTime({
   startS,
   endS,
   units,
+  heartRateSetAside = false,
 }: {
   trace: ActivityTrace
   sets: readonly ZoneSet[]
+  /** Whether the analysis set this activity's heart rate aside, so `sets` leaves heart rate out. */
+  heartRateSetAside?: boolean
   startS: number
   endS: number
   units: UnitSystem
 }) {
   const rows = useMemo(() => rowsOf(trace, sets, startS, endS), [trace, sets, startS, endS])
-  if (sets.length === 0) return <ZoneNeed />
   const [lead] = rows
   if (lead === undefined) {
+    if (sets.length === 0) return heartRateSetAside ? <SetAsideNote /> : <ZoneNeed />
     return (
-      <p className="muted">
-        No heart rate, power or pace readings in this interval to place in zones.
-      </p>
+      <>
+        <p className="muted">
+          No heart rate, power or pace readings in this interval to place in zones.
+        </p>
+        {heartRateSetAside && <SetAsideNote />}
+      </>
     )
   }
   const lede = activityLede(trace.sport, lead.set.measure, {
@@ -111,6 +124,7 @@ export function ActivityZoneTime({
           ),
         }}
       />
+      {heartRateSetAside && <SetAsideNote />}
     </div>
   )
 }

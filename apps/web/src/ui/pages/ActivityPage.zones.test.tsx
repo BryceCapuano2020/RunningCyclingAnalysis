@@ -22,6 +22,7 @@ function show(
   result: AnalysisResult,
   athlete: AthleteSettings | undefined,
   weightKnown = true,
+  heartRateSetAside?: readonly string[],
 ) {
   const trace = { ...steadyTrace(120), activityId: activity.id, sport: activity.sport }
   return render(
@@ -34,6 +35,7 @@ function show(
       massKg={70}
       settings={athlete}
       weightKnown={weightKnown}
+      heartRateSetAside={heartRateSetAside}
       profile={MAN_BORN_1986}
       records={new Map()}
       loadSplits={vi.fn(async () => null)}
@@ -64,6 +66,18 @@ describe('the activity page zones', () => {
       settings(),
     )
     expect(await screen.findByText(/in heart rate zone 3 \(100%\)/)).toBeInTheDocument()
+  })
+
+  it('uses the set-aside of the whole library when the page is given it, for an activity the period does not hold', async () => {
+    const run = makeActivity({ id: 'run-e' })
+    // The period's analysis sets nothing aside; the library's does.
+    show(run, makeResult({ runCp: null, runMaxHeartRate: 200 }), settings(), true, ['run-e'])
+    expect(
+      await screen.findByText(
+        'Heart rate is set aside for this activity, so it is left out of zones.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/heart rate zone/)).toBeNull()
   })
 
   it('leaves out a heart rate the analysis set aside', async () => {

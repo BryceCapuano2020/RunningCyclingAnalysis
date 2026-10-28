@@ -18,12 +18,19 @@ export interface MeasureTime {
   totalSeconds: number
   /** Activities that added to `seconds`. */
   counted: number
-  /** Activities without the measure's data: older digests, no heart rate, no power meter, a heart rate set aside. */
+  /** Activities without the measure's data: older digests, no heart rate, no power meter. */
   noData: number
+  /** Activities whose heart rate the analysis set aside. Heart rate only. */
+  setAside: number
   /** Activities with the data but no zones in effect on their date, for want of a reference. */
   noZones: number
   /** Of the counted activities, how many used zones the athlete entered; the rest used the app's estimate. */
   entered: number
+  /**
+   * The distinct references (watts, bpm or m/s) the counted activities' zones were cut from, lowest first and
+   * rounded to a thousandth. Two periods are in the same zones only when these match.
+   */
+  references: number[]
 }
 
 /** Each sport's measures, in the order ZONE_MEASURES gives. A measure with nothing counted is still there. */
@@ -39,8 +46,10 @@ function emptyMeasure(sport: Sport, measure: ZoneMeasure): MeasureTime {
     totalSeconds: 0,
     counted: 0,
     noData: 0,
+    setAside: 0,
     noZones: 0,
     entered: 0,
+    references: [],
   }
 }
 
@@ -86,8 +95,12 @@ export function periodTimeInZones(
   const out = noTimeInZones()
   const setsOn = zonesByDay(settings, estimates)
   const bySportMeasure = new Map<string, MeasureTime>()
+  const references = new Map<MeasureTime, Set<number>>()
   for (const sport of Object.keys(out) as Sport[]) {
-    for (const row of out[sport]) bySportMeasure.set(`${sport}.${row.measure}`, row)
+    for (const row of out[sport]) {
+      bySportMeasure.set(`${sport}.${row.measure}`, row)
+      references.set(row, new Set())
+    }
   }
   for (const digest of digests) {
     const times = activityTimeInZones(
@@ -100,10 +113,12 @@ export function periodTimeInZones(
       const row = bySportMeasure.get(`${digest.sport}.${measure}`)
       if (time === undefined || row === undefined) continue
       if (time.kind === 'noData') row.noData++
+      else if (time.kind === 'setAside') row.setAside++
       else if (time.kind === 'noZones') row.noZones++
       else {
         row.counted++
         if (time.source === 'entered') row.entered++
+        references.get(row)!.add(Math.round(time.reference * 1000) / 1000)
         time.seconds.forEach((s, level) => {
           row.seconds[level]! += s
           row.totalSeconds += s
@@ -111,5 +126,6 @@ export function periodTimeInZones(
       }
     }
   }
+  for (const [row, set] of references) row.references = [...set].sort((a, b) => a - b)
   return out
 }

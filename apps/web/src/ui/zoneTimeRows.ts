@@ -1,5 +1,5 @@
 import type { MeasureTime } from '@rca/core/zones'
-import { zoneShares } from '@rca/core/zones'
+import { hasEnoughZoneTime, sameZoneReferences, zoneShares } from '@rca/core/zones'
 import type { ChartTableData } from './charts/chartTypes'
 import type { ZoneChartRow } from './charts/ZoneTimeChart'
 import { ROW_LABEL, percentText, zoneTimeText } from './zoneTimeCopy'
@@ -21,14 +21,33 @@ export function periodBars(rows: readonly MeasureTime[]): ZoneChartRow[] {
   }))
 }
 
+/** The previous period's row of a measure, only when it can be compared: enough time, cut by the same zones. */
+function comparableBefore(
+  row: MeasureTime,
+  previous: readonly MeasureTime[] | null,
+): MeasureTime | null {
+  const before = previous?.find((each) => each.measure === row.measure)
+  return before !== undefined && hasEnoughZoneTime(before) && sameZoneReferences(before, row)
+    ? before
+    : null
+}
+
 /**
  * The text twin of a period's bars: every measure's time and share in each zone, and above it each
- * measure's totals, with how many activities it counted and how many it left out.
+ * measure's totals, with how many activities it counted and how many it left out. With a period before
+ * it, the zone table adds that period's share of each zone, where its time is enough and its zones are the
+ * same as these; a measure that cannot be compared shows a dash, and a table with none has no column.
  */
-export function periodTables(rows: readonly MeasureTime[]): {
+export function periodTables(
+  rows: readonly MeasureTime[],
+  previous: readonly MeasureTime[] | null = null,
+  previousLabel: string | null = null,
+): {
   table: ChartTableData
   summary: ChartTableData
 } {
+  const befores = rows.map((row) => comparableBefore(row, previous))
+  const withPrevious = befores.some((before) => before !== null)
   return {
     summary: {
       caption: 'What each measure counted',
@@ -37,22 +56,35 @@ export function periodTables(rows: readonly MeasureTime[]): {
         ROW_LABEL[row.measure],
         String(row.counted),
         zoneTimeText(row.totalSeconds),
-        String(row.noData + row.noZones),
+        String(row.noData + row.setAside + row.noZones),
       ]),
     },
     table: {
       caption: 'Time in each zone over the period',
-      columns: ['Measure', 'Zone', 'Name', 'Time', 'Share'],
+      columns: [
+        'Measure',
+        'Zone',
+        'Name',
+        'Time',
+        'Share',
+        ...(withPrevious ? [previousLabel ?? 'Previous period'] : []),
+      ],
       textColumns: [2],
-      rows: rows.flatMap((row) =>
-        zoneShares(row).map((share, i) => [
-          ROW_LABEL[row.measure],
-          String(i + 1),
-          row.names[i] ?? '',
-          zoneTimeText(row.seconds[i] ?? 0),
-          percentText(share),
-        ]),
-      ),
+      rows: rows.flatMap((row, r) => {
+        const before = befores[r]!
+        const then = before === null ? [] : zoneShares(before)
+        return zoneShares(row).map((share, i) => {
+          const cells = [
+            ROW_LABEL[row.measure],
+            String(i + 1),
+            row.names[i] ?? '',
+            zoneTimeText(row.seconds[i] ?? 0),
+            percentText(share),
+          ]
+          if (withPrevious) cells.push(before === null ? '—' : percentText(then[i] ?? 0))
+          return cells
+        })
+      }),
     },
   }
 }

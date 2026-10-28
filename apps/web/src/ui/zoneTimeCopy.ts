@@ -7,6 +7,7 @@ import {
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
+  sameZoneReferences,
 } from '@rca/core/zones'
 import type { MeasureTime, ZoneMeasure } from '@rca/core/zones'
 import type { Sport } from '@rca/core/types'
@@ -37,6 +38,16 @@ export const ROW_LABEL: Record<ZoneMeasure, string> = {
 
 /** What a sport's time is called in a sentence about its share of it. */
 const TIME_NOUN: Record<Sport, string> = { run: 'running', ride: 'riding' }
+
+/**
+ * The time a measure's shares are of, in a sentence. They are shares of the time with a reading, which
+ * leaves out the activities and seconds that had none, so the sentence says so.
+ */
+const WITH_READING: Record<ZoneMeasure, string> = {
+  heartRate: 'with heart rate',
+  power: 'with measured power',
+  pace: 'with pace',
+}
 
 /** What an activity has to record for a measure to count it. */
 const READING: Record<ZoneMeasure, string> = {
@@ -86,7 +97,10 @@ export function periodLede(
   if (lead === undefined) return null
   const before = previous?.find((row) => row.measure === lead.measure)
   const shift =
-    before !== undefined && hasEnoughZoneTime(before) && previousLabel !== null
+    before !== undefined &&
+    hasEnoughZoneTime(before) &&
+    sameZoneReferences(before, lead) &&
+    previousLabel !== null
       ? biggestShift(before, lead)
       : null
   const name = IN_SENTENCE[lead.measure]
@@ -96,10 +110,10 @@ export function periodLede(
     Math.abs(shift.after - shift.before) >= MIN_SHIFT
   ) {
     const direction = shift.after > shift.before ? 'up' : 'down'
-    return `${upperFirst(name)} zone ${shift.level} took ${percentText(shift.after)} of your ${TIME_NOUN[sport]} time, ${direction} from ${percentText(shift.before)} in the ${lowerFirst(previousLabel)}.`
+    return `${upperFirst(name)} zone ${shift.level} took ${percentText(shift.after)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]}, ${direction} from ${percentText(shift.before)} in the ${lowerFirst(previousLabel)}.`
   }
   const split = effortSplit(lead)
-  return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time by ${name} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (zones ${HARD_FROM[lead.measure]} and up).`
+  return `${percentText(split.easy)} of your ${TIME_NOUN[sport]} time ${WITH_READING[lead.measure]} was easy (${easyZones(lead.measure)}), and ${percentText(split.hard)} was hard (zones ${HARD_FROM[lead.measure]} and up).`
 }
 
 /** The lede of one activity's measure: the zone that held most of the time. Null without time. */
@@ -122,14 +136,34 @@ export function activityLede(
  */
 export function leftOutNotes(sport: Sport, rows: readonly MeasureTime[]): string[] {
   return rows.flatMap((row) => {
-    const total = row.counted + row.noData + row.noZones
+    const total = row.counted + row.noData + row.setAside + row.noZones
     const notes: string[] = []
     const of = (n: number) => `${n} of ${total} ${SPORT_PLURAL[sport]}`
+    if (row.setAside > 0) notes.push(`${of(row.setAside)} had heart rate set aside.`)
     if (row.noData > 0) notes.push(`${of(row.noData)} had no ${READING[row.measure]} to count.`)
     if (row.noZones > 0) {
       notes.push(`${of(row.noZones)} had no ${IN_SENTENCE[row.measure]} zones for their date.`)
     }
     return notes
+  })
+}
+
+/**
+ * A line for each measure whose zones changed between the periods, which is why they are not compared:
+ * a change in shares could be the zones moving, not the athlete. Nothing when the zones match, or when
+ * the period before has too little time to compare at all.
+ */
+export function zonesChangedNotes(
+  rows: readonly MeasureTime[],
+  previous: readonly MeasureTime[] | null,
+): string[] {
+  return rows.flatMap((row) => {
+    const before = previous?.find((each) => each.measure === row.measure)
+    return before !== undefined && hasEnoughZoneTime(before) && !sameZoneReferences(before, row)
+      ? [
+          `${ROW_LABEL[row.measure]} zones changed since the previous period, so the two are not compared.`,
+        ]
+      : []
   })
 }
 

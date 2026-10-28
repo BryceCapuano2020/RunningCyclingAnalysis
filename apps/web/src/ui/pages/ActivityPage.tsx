@@ -44,6 +44,11 @@ export interface ActivityPageProps {
   massKg: number
   /** The settings the analysis runs on, dated ones included, which cut the activity's zones. Absent: no zones section. */
   settings?: AthleteSettings
+  /**
+   * The activities whose heart rate the analysis of the whole library set aside, which holds an activity
+   * the period does not. Absent: the period's own list.
+   */
+  heartRateSetAside?: readonly string[]
   /** False while no body weight is entered: a ride's figures wait for it. */
   weightKnown: boolean
   /** The age and sex the grades are worked out with; null before the athlete gives them. */
@@ -80,9 +85,10 @@ function zoneSetsOf(
   settings: AthleteSettings,
   result: AnalysisResult,
   weightKnown: boolean,
+  setAsideIds: readonly string[],
 ): ZoneSet[] {
   if (activity === null) return []
-  const setAside = result.heartRateSetAside.includes(activity.id)
+  const setAside = setAsideIds.includes(activity.id)
   return zonesAt(activity.startMs, settings, result).filter(
     (set) =>
       set.sport === activity.sport &&
@@ -130,6 +136,7 @@ export function ActivityPage({
   units,
   massKg,
   settings,
+  heartRateSetAside,
   weightKnown,
   profile,
   records,
@@ -146,10 +153,13 @@ export function ActivityPage({
 }: ActivityPageProps) {
   const { view: route, show } = useRouteShape(routeId, loadRoute)
   const removal = useDeleteOutcome(libraryNotice, libraryError)
+  const setAsideIds = heartRateSetAside ?? result.heartRateSetAside
   const zoneSets = useMemo(
     () =>
-      settings === undefined ? undefined : zoneSetsOf(activity, settings, result, weightKnown),
-    [activity, settings, result, weightKnown],
+      settings === undefined
+        ? undefined
+        : zoneSetsOf(activity, settings, result, weightKnown, setAsideIds),
+    [activity, settings, result, weightKnown, setAsideIds],
   )
   // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
   const splitsLoad = useRunSplits(activity?.sport === 'run' ? activity.id : null, loadSplits)
@@ -212,6 +222,7 @@ export function ActivityPage({
           indoor={activity.indoor}
           loadTrace={loadTrace}
           zoneSets={zoneSets}
+          heartRateSetAside={setAsideIds.includes(activity.id)}
         />
       )}
       {activity.powerSource === 'virtual' && (
@@ -253,10 +264,7 @@ export function ActivityPage({
         period={period}
         splitsLoad={splitsLoad}
       />
-      <ActivityIssues
-        activity={activity}
-        heartRateSetAside={result.heartRateSetAside.includes(activity.id)}
-      />
+      <ActivityIssues activity={activity} heartRateSetAside={setAsideIds.includes(activity.id)} />
 
       {routeId !== null && onDelete && (
         <div className="activity-page__remove">

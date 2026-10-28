@@ -27,16 +27,44 @@ describe('secondsByZone', () => {
     ])
   })
 
-  it('splits a bin that straddles an edge by the share of its width each side', () => {
-    // Threshold 201 W: the first edge is 0.55 * 201 = 110.55 W, inside the bin 110 to 115 W.
+  it('shares a power bin by its whole watts: those below the edge go to the zone below', () => {
+    // Threshold 201 W: the first edge is 0.55 * 201 = 110.55 W, inside the bin 110 to 114 W. Only 110 W is
+    // below it, so one of the bin's five watts, a fifth of its seconds, is in the lower zone.
     const zones = zonesFor('power', 201)
     const seconds = secondsByZone(zones, 'power', { offset: 22, counts: [100] })
-    expect(seconds[0]).toBeCloseTo(11, 9)
-    expect(seconds[1]).toBeCloseTo(89, 9)
+    expect(seconds[0]).toBeCloseTo(20, 9)
+    expect(seconds[1]).toBeCloseTo(80, 9)
   })
 
-  it('splits one bin over three zones when the zones are narrower than the bin', () => {
-    // Zones 100 to 102 and 102 to 103 inside a bin of 100 to 105 W.
+  it('holds a whole-watt edge in the zone it opens, so a bin starting on it is wholly above', () => {
+    // Threshold 200 W: the edge is 110 W exactly, and the bin 110 to 114 W is the zone above's.
+    const zones = zonesFor('power', 200)
+    expect(secondsByZone(zones, 'power', { offset: 22, counts: [100] }).slice(0, 2)).toEqual([
+      0, 100,
+    ])
+    expect(secondsByZone(zones, 'power', { offset: 21, counts: [100] }).slice(0, 2)).toEqual([
+      100, 0,
+    ])
+  })
+
+  it('never splits a one-beat bin, whatever fraction the edge is', () => {
+    // Maximum 219 bpm: the first edge is 0.6 * 219 = 131.4 bpm. 131 bpm is below it and 132 bpm above.
+    const zones = zonesFor('heartRate', 219)
+    expect(secondsByZone(zones, 'heartRate', { offset: 131, counts: [10, 10] })).toEqual([
+      10, 10, 0, 0, 0,
+    ])
+  })
+
+  it('splits a speed bin that straddles an edge by the share of its width each side', () => {
+    // Threshold 4 m/s: the first edge is 4 / 1.29 = 3.1008 m/s, in the bin 3.10 to 3.15 m/s.
+    const zones = zonesFor('pace', 4)
+    const seconds = secondsByZone(zones, 'pace', { offset: 62, counts: [1000] })
+    expect(seconds[0]).toBeCloseTo(((4 / 1.29 - 3.1) / 0.05) * 1000, 6)
+    expect(seconds[0]! + seconds[1]!).toBeCloseTo(1000, 9)
+  })
+
+  it('shares one bin over three zones when the zones are narrower than the bin', () => {
+    // Zones 100 to 102 and 102 to 103 W inside a bin of 100 to 104 W: two, one and two whole watts.
     const zones = [
       { level: 1, name: 'a', low: 0, high: 102 },
       { level: 2, name: 'b', low: 102, high: 103 },
@@ -98,6 +126,7 @@ describe('activityTimeInZones', () => {
     expect(time.heartRate).toEqual({
       kind: 'counted',
       source: 'entered',
+      reference: 200,
       seconds: [0, 0, 30, 0, 0],
     })
   })
@@ -116,20 +145,23 @@ describe('activityTimeInZones', () => {
     expect(without.heartRate).toEqual({ kind: 'noZones' })
   })
 
-  it('has no data for a digest from before distributions were kept', () => {
-    expect(activityTimeInZones({ sport: 'run' }, [heartRateSet])).toEqual({
-      heartRate: { kind: 'noData' },
-      pace: { kind: 'noData' },
-    })
-  })
-
-  it('leaves a set-aside heart rate out, whatever the zones', () => {
+  it('tells a heart rate the analysis set aside from one that is missing', () => {
     const time = activityTimeInZones(
       { sport: 'ride', distributions: { heartRate: distribution } },
       [heartRateSet],
       true,
     )
-    expect(time.heartRate).toEqual({ kind: 'noData' })
+    expect(time.heartRate).toEqual({ kind: 'setAside' })
+    expect(activityTimeInZones({ sport: 'ride' }, [heartRateSet], true).heartRate).toEqual({
+      kind: 'noData',
+    })
+  })
+
+  it('has no data for a digest from before distributions were kept', () => {
+    expect(activityTimeInZones({ sport: 'run' }, [heartRateSet])).toEqual({
+      heartRate: { kind: 'noData' },
+      pace: { kind: 'noData' },
+    })
   })
 
   it("takes the zones of the activity's own sport", () => {

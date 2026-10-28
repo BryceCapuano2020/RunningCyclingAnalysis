@@ -206,6 +206,7 @@ export function ResultPage({
           units={units}
           massKg={athleteSettings.massKg}
           settings={athleteSettings}
+          heartRateSetAside={analysis.state.timeInZones.heartRateSetAside}
           weightKnown={weightKnown}
           profile={profile}
           records={analysis.state.records}

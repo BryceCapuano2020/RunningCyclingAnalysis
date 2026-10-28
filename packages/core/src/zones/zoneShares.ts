@@ -80,3 +80,16 @@ export function biggestShift(before: MeasureTime, after: MeasureTime): ZoneShift
   })
   return shift
 }
+
+/**
+ * Whether two periods of a measure were cut by the same zones: the same references. An estimate is the
+ * same in both periods, so they differ only when an entered setting changed between them (or a body
+ * weight moved an estimated ride threshold), and then a change in shares may be the zones moving and
+ * not the athlete.
+ */
+export function sameZoneReferences(a: MeasureTime, b: MeasureTime): boolean {
+  return (
+    a.references.length === b.references.length &&
+    a.references.every((r, i) => r === b.references[i])
+  )
+}

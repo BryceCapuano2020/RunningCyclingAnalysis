@@ -19,6 +19,8 @@ export {
   effortSplit,
   hasEnoughZoneTime,
   mainZone,
+  sameZoneReferences,
   zoneShares,
 } from './zoneShares'
 export type { EffortSplit, ZoneShift } from './zoneShares'
+export { HeartRateJudge } from './heartRateJudge'

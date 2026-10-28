@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { measureTime } from '../zoneTimeFixtures'
+import { measureTime } from '../test/zoneTimeFixtures'
 import { TimeInZonesSection } from './TimeInZonesSection'
 
 afterEach(cleanup)
@@ -74,5 +74,49 @@ describe('TimeInZonesSection', () => {
       'ride',
     )
     expect(screen.getByRole('img')).toHaveAccessibleName(/Measured power: zone 1 14%/)
+  })
+
+  it('adds the previous period to the table, and says when the zones changed instead of comparing', () => {
+    const rows = [{ ...hr, references: [190] }]
+    const same = {
+      ...measureTime('run', 'heartRate', [7200, 14_400, 10_800, 3600, 0]),
+      references: [190],
+    }
+    const { unmount } = render(
+      <TimeInZonesSection
+        sport="run"
+        rows={rows}
+        previous={[same]}
+        previousLabel="Previous 6 weeks"
+      />,
+    )
+    expect(
+      screen.getByRole('columnheader', { name: 'Previous 6 weeks', hidden: true }),
+    ).toBeInTheDocument()
+    unmount()
+    const moved = { ...same, references: [200] }
+    render(
+      <TimeInZonesSection
+        sport="run"
+        rows={rows}
+        previous={[moved]}
+        previousLabel="Previous 6 weeks"
+      />,
+    )
+    expect(
+      screen.getByText(
+        'Heart rate zones changed since the previous period, so the two are not compared.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('columnheader', { name: 'Previous 6 weeks', hidden: true }),
+    ).toBeNull()
+  })
+
+  it('says a heart rate was set aside, apart from one that was not recorded', () => {
+    const row = { ...hr, setAside: 2, noData: 1 }
+    render(<TimeInZonesSection sport="run" rows={[row]} previous={null} previousLabel={null} />)
+    expect(screen.getByText('2 of 11 runs had heart rate set aside.')).toBeInTheDocument()
+    expect(screen.getByText('1 of 11 runs had no heart rate to count.')).toBeInTheDocument()
   })
 })

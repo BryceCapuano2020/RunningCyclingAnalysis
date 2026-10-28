@@ -7,6 +7,7 @@ import {
   leftOutNotes,
   periodLede,
   zoneSourceNote,
+  zonesChangedNotes,
 } from '../zoneTimeCopy'
 import { periodBars, periodTables } from '../zoneTimeRows'
 import './TimeInZonesSection.css'
@@ -36,8 +37,8 @@ export function TimeInZonesSection({
   const shown = describable(rows)
   const lede = periodLede(sport, rows, previous, previousLabel)
   if (lede === null) return null
-  const { table, summary } = periodTables(shown)
-  const notes = leftOutNotes(sport, shown)
+  const { table, summary } = periodTables(shown, previous, previousLabel)
+  const notes = [...leftOutNotes(sport, shown), ...zonesChangedNotes(shown, previous)]
   return (
     <section className="section" data-sport={sport} aria-labelledby={`${sport}-time-in-zones`}>
       <h2 id={`${sport}-time-in-zones`}>{TIME_IN_ZONES_NAME}</h2>

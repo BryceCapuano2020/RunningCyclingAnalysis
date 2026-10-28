@@ -4,6 +4,7 @@ import { sampleDataset } from '../synthetic'
 import type { ActivityDigest, AthleteSettings } from '../types'
 import { combine } from './combine'
 import { digestActivity } from './digestActivity'
+import { heartRateSetAsideOf } from './setAside'
 
 const { athlete, activities } = sampleDataset()
 const settings: AthleteSettings = { massKg: athlete.massKg, bikeMassKg: athlete.bikeMassKg }
@@ -61,5 +62,11 @@ describe('heart rate that cannot be right', () => {
     )
     const check = after.effort.find((e) => e.durationS === HR_SET_ASIDE_MIN_S)
     if (check) expect(check.rideHrFraction).toBeNull()
+  })
+
+  it('is the same judgement heartRateSetAsideOf makes without the rest of the analysis', () => {
+    const library = [...digests, brokenSensorRide()]
+    expect(heartRateSetAsideOf(library, settings, after.bikeModel)).toEqual(after.heartRateSetAside)
+    expect(heartRateSetAsideOf(digests, settings, before.bikeModel)).toEqual([])
   })
 })
