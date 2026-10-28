@@ -41,6 +41,15 @@ describe('leadSentence', () => {
     )
   })
 
+  it('says a lead under half a percent as its value, by the edge rule, never as 0%', () => {
+    expect(leadSentence(energyReading(interval(1.001, 1.003, 1.01)))).toBe(
+      'Running 0.3% higher, as energy per kilogram',
+    )
+    expect(leadSentence(energyReading(interval(0.9, 0.996, 0.999)))).toBe(
+      'Cycling 0.4% higher, as energy per kilogram',
+    )
+  })
+
   it('is the balance sentence without its range, so the card and the page agree', () => {
     const reading = gapReading(gap({ centre: 6, low: 4, high: 8, lean: 'run' }))
     expect(balanceSentence(reading)).toBe(`${leadSentence(reading)} (range ${rangeText(reading)})`)

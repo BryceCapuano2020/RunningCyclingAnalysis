@@ -412,11 +412,11 @@ describe('SharedTrendChart', () => {
     expect(screen.getByText('Age grades cover ages 5 to 100.')).toBeInTheDocument()
   })
 
-  it('explains a low point as one where even the best effort was easy, in one sentence under the chart', () => {
+  it('says the latest point is only the last window, not the card’s period, and explains a low point as one where even the best effort was easy', () => {
     renderChart()
     expect(
       screen.getByText(
-        'Each point is the best 20 min in the 2 weeks to that Sunday. A low point means even the best effort in those weeks was easy.',
+        'Each point is the best 20 min in the 2 weeks to that Sunday. The latest point covers only the last 2 weeks, so it can differ from a card’s best over the period. A low point means even the best effort in those weeks was easy.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText(/easy runs/)).toBeNull()

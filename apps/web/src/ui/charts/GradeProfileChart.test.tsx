@@ -96,7 +96,7 @@ describe('GradeProfileChart', () => {
     expect(y.length).toBeGreaterThan(1)
     expect(y.every((label) => /^\d+%$/.test(label ?? ''))).toBe(true)
     expect(screen.getByText('Age grade')).toBeInTheDocument()
-    expect(screen.getByText('Duration (min)')).toBeInTheDocument()
+    expect(screen.getByText('Duration (min, log scale)')).toBeInTheDocument()
   })
 
   it('draws a run as a solid line with dots, and a ride as a dashed line with rings and a band', () => {

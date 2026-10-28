@@ -67,7 +67,7 @@ const minutesLabel = (durationS: number): string => String(durationS / 60)
 const HEADLINE_TICK = minutesLabel(HEADLINE_DURATION_S)
 
 /** The axis's title, which names the unit the tick labels leave off. */
-export const DURATION_AXIS_TITLE = 'Duration (min)'
+export const DURATION_AXIS_TITLE = 'Duration (min, log scale)'
 
 /** Every percent the rows draw, a range's ends included, so that the axis covers them all. */
 function percentsOf(rows: readonly ProfileRow[]): number[] {

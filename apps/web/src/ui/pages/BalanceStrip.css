@@ -6,7 +6,7 @@
   color: var(--text-secondary);
 }
 
-/* Each sport's grade stays on one line, so a phone breaks the strip only between sports. */
+/* A sport's name, estimate mark and figures stay whole; only its level may wrap, so 320 px never overflows. */
 .balance-strip__sport {
   white-space: nowrap;
 }

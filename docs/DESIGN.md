@@ -274,7 +274,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - Charts get a faint grid, 2.5 px lines with round joins, and an emphasised point: the latest value
   of a trend, or the 20-minute effort of a best-effort curve. The 20-minute effort is labelled with
   its value, such as "250 W". On the Balance trend, each end label names its sport and value at every
-  width, such as "Run 64%", since the title names the effort and window. On a sport trend the latest label
+  width, such as "Run 64%", since the title names the effort and window; the note under the chart says that the latest point covers only the last window, so it can differ from a card's best over the period. On a sport trend the latest label
   is its value alone, such as "5:12 /km", beside its point: below it, above it where the line would run
   under it, or to its right where both of those would cross the line. At every width, a trend's run label keeps clear of the ride band, and 4 px where it can of the run's own
   line and markers, after the band. The band is drawn only where both of
@@ -282,11 +282,11 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ways and 2 px from the band. Its box sits on the left of its point unless that would cross the
   plot's left edge, when it sits on the right. Its spots are the baseline beside its point that the
   line's arrival prefers, the other baseline beside it, and the baselines just above or just below
-  each edge of the band beneath it, each kept inside the plot. The two end labels are placed
+  each edge of the band beneath it, each kept inside the plot and within four label heights of the point (`LABEL_REACH_EM`), since a label further from its point reads as the label of the line beside it. The two end labels are placed
   together. Of the combinations that keep both boxes inside the plot and off the band, the one with
   the fewest labels within 2 px of the band wins, then the one nearest their preferred places. A box
   that would cross the plot's edge moves along it to sit inside, which can bring it over its point.
-  Where no combination keeps the run label off the band, the labels keep their preferred places,
+  Where no combination within that reach keeps the run label off the band, the labels keep their preferred places,
   spread apart and inside the plot, so the run label sits over the band, where its halo keeps it
   readable. Where the plot is too short to hold both labels a gap apart, they stay inside it and may
   overlap one another. Where there is room, the two end labels never overlap one another, and
@@ -457,7 +457,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   no best, or no standard (a run under a mile has none, so the shortest run grades are usually missing), has
   no point for that sport, and the finding counts only the durations both sports are graded at. Drawing follows the age-grade
   trend: a run is a solid line with a dot, a ride is estimated, so it is dashed with a ring and its 90% range
-  is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
+  is a band, and the key says "estimated". The 20 minute marks are larger, since the balance is taken there. The duration axis is titled "Duration (min, log scale)" and has a tick, in minutes alone, at each duration that has a grade. On a narrow chart the ticks are thinned, keeping the first, the last and the 20, so the labels read at 320 px; every duration stays in the tooltip and the table.
   The finding is the chart's lede, a sentence under its title, and the chart supports it. It is read from the
   grades the headline uses: the ride's heart-rate-adjusted equivalence, through the balance's own `balanceGap`,
   so at 20 minutes its lean is the headline's, and the chart never says "within their range" where the headline
@@ -627,7 +627,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   its figures at the body size in each sport's line, so the two never read as two drop targets. The export guides
   are a tile grid that opens one service's panel, not a stack of full-width panels.
 - **The Balance footer is one line** that names the age and the standard, "Graded for a 37-year-old man on the USATF road standards.", adds a sentence on rides only when a ride is graded, and ends "A level, not a ranking." The full credit, with the authors and licence, is on How sure is this?, not on Balance or the sport pages.
-- **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, in one line, "Run 64% Local / Ride 58% Recreational", with each sport's grade kept whole. The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
+- **On a phone, the two grades sit under the meter**, in the meter's own group so they keep its gap, as "Run 64% Local / Ride est. 58% (52–63%) Recreational to Local": a ride is an estimate, so it says "est." and gives its range and levels as its card does. Each sport's name, mark and figures are kept whole and only its level wraps, so the line reads at 320 px. The cards say the same, so the line is hidden from assistive technology, and it is hidden at wider widths, where the cards sit side by side.
 - Phone first: every page is designed at 390 px, with a 16 px gutter and no sideways page scroll.
 - **Tables that cannot fit become lists, without a scroll.** From 480 px a `<table>` with a caption
   and scoped headers. Below 480 px an `<ol>` with one `<dl>` per row, holding the same values. Both
@@ -851,6 +851,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ends "A level, not a ranking.", so the page says what a grade is. A Balance card leaves the standard
   to the source line under the cards, and its footer carries the ranking line. The full credit, with
   the authors, licence and a link, is on How sure is this? alone.
+- **How sure is this? says how Grade by duration is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the
   age they used ("Graded at age 40"), and the Balance source line says the age its cards use, naming
