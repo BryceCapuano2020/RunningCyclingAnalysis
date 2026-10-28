@@ -52,7 +52,7 @@ function renderProfile(
       keepFiles={false}
       fileRetentionAvailable
       onSaveProfile={onSaveProfile}
-      dated={{ entries: [], state: 'ready', elsewhere: 0 }}
+      dated={{ entries: [], state: 'ready', elsewhere: 0, retry: vi.fn() }}
       onAddSetting={async () => {}}
       onRemoveSetting={async () => {}}
       onSignIn={onSignIn}
@@ -681,7 +681,7 @@ describe('ProfilePage questions follow their sections', () => {
         keepFiles={false}
         fileRetentionAvailable
         onSaveProfile={vi.fn(async () => {})}
-        dated={{ entries: [], state: 'ready', elsewhere: 0 }}
+        dated={{ entries: [], state: 'ready', elsewhere: 0, retry: vi.fn() }}
         onAddSetting={async () => {}}
         onRemoveSetting={async () => {}}
         onSignIn={vi.fn()}
@@ -1046,7 +1046,7 @@ describe('ProfilePage zones and dated settings', () => {
     renderProfile(
       {
         athlete: { ...SETTINGS, measurements: entries },
-        dated: { entries, state: 'ready', elsewhere: 0 },
+        dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
       },
       { state: { result: makeResult() } },
     )
@@ -1098,7 +1098,7 @@ describe('ProfilePage zones and dated settings', () => {
     renderProfile(
       {
         athlete: { ...SETTINGS, measurements: entries },
-        dated: { entries, state: 'ready', elsewhere: 0 },
+        dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
       },
       {
         state: {
@@ -1118,7 +1118,7 @@ describe('ProfilePage zones and dated settings', () => {
     renderProfile({
       signedIn: true,
       email: EMAIL,
-      dated: { entries: [], state: 'ready', elsewhere: 2 },
+      dated: { entries: [], state: 'ready', elsewhere: 2, retry: vi.fn() },
     })
     expect(
       screen.getByText(/This browser also holds 2 dated settings from before you signed in/),

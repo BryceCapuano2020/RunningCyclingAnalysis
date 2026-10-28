@@ -3,8 +3,10 @@ import type { FormEvent } from 'react'
 import { isLocalDate, localDateOf, localDayStartMs, measurementKey } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import type { UnitSystem } from '@rca/core/units'
-import { MEASUREMENT_YEARS } from '@rca/contract'
+import { MEASUREMENT_YEARS, isMeasurementYear } from '@rca/contract'
 import { messageOf } from '../../api/messageOf'
+import { SPORT_ACTIVITY } from '../sports'
+import { useNow } from '../useNow'
 import { plural } from './plural'
 import { formatDay } from '../format/date'
 import {
@@ -29,6 +31,8 @@ export interface SettingsOverTimeProps {
   onRemove: (entry: Measurement) => Promise<unknown>
   /** Dated settings this browser holds from before signing in, which the account does not. */
   elsewhere?: number
+  /** Loads the account's settings again, offered as Try again when they could not be loaded. */
+  retry?: () => void
 }
 
 const FIRST_CHOICE = SETTING_CHOICES[0] as SettingChoice
@@ -54,11 +58,15 @@ export function SettingsOverTime({
   onAdd,
   onRemove,
   elsewhere = 0,
+  retry,
 }: SettingsOverTimeProps) {
   const baseId = useId()
   const [choiceId, setChoiceId] = useState(FIRST_CHOICE.id)
   const [text, setText] = useState('')
-  const [from, setFrom] = useState(() => localDateOf(Date.now()))
+  // The date the athlete picked. Until one is picked the form starts from today, and rolls over at midnight.
+  const [picked, setPicked] = useState<string | null>(null)
+  const now = useNow()
+  const from = picked ?? localDateOf(now)
   // Why the value or the date typed cannot be used, each shown beside its own field, and why the
   // entry was refused when both were fine.
   const [valueError, setValueError] = useState<string | null>(null)
@@ -68,10 +76,7 @@ export function SettingsOverTime({
   const [busy, setBusy] = useState(false)
   const choice = SETTING_CHOICES.find((option) => option.id === choiceId) ?? FIRST_CHOICE
   const rows = [...entries].sort(listOrder)
-  const dateOk =
-    isLocalDate(from) &&
-    Number(from.slice(0, 4)) >= MEASUREMENT_YEARS.min &&
-    Number(from.slice(0, 4)) <= MEASUREMENT_YEARS.max
+  const dateOk = isLocalDate(from) && isMeasurementYear(from)
   const unit = settingUnit(choice.kind, units)
 
   function clearErrors() {
@@ -157,9 +162,14 @@ export function SettingsOverTime({
             ))}
           </select>
         </label>
+        {/* Names the setting for the value field, which is labelled by its unit alone. */}
+        <span id={`${baseId}-setting`} className="sr-only">
+          {choice.label}
+        </span>
         <NumberField
           id={`${baseId}-value`}
-          label={`${choice.label}, ${unit}`}
+          label={`Value (${unit})`}
+          aria-describedby={`${baseId}-setting`}
           unit={unit}
           inputMode={choice.kind === 'thresholdPace' ? 'text' : 'decimal'}
           autoComplete="off"
@@ -185,7 +195,7 @@ export function SettingsOverTime({
               aria-describedby={dateError === null ? undefined : `${baseId}-date-error`}
               onChange={(event) => {
                 clearErrors()
-                setFrom(event.target.value)
+                setPicked(event.target.value)
               }}
             />
           </label>
@@ -206,10 +216,16 @@ export function SettingsOverTime({
       )}
       <p role="status" className="settings-over-time__status secondary">
         {state === 'loading' && 'Loading your settings…'}
-        {state === 'failed' &&
-          'Your dated settings could not be loaded. Reload the page to try again.'}
+        {state === 'failed' && 'Your dated settings could not be loaded.'}
         {state === 'ready' && status}
       </p>
+      {state === 'failed' && retry !== undefined && (
+        <div>
+          <button type="button" className="btn" onClick={retry}>
+            Try again
+          </button>
+        </div>
+      )}
       {rows.length > 0 && (
         <div className="table-scroll">
           <table className="settings-over-time__table">
@@ -239,7 +255,7 @@ export function SettingsOverTime({
                         type="button"
                         className="btn settings-over-time__delete"
                         disabled={busy}
-                        aria-label={`Delete ${label.toLowerCase()} from ${dayText(entry.from)}`}
+                        aria-label={`Delete ${displaySetting(entry.kind, entry.value, units)}${entry.sport === undefined ? '' : ` (${SPORT_ACTIVITY[entry.sport]})`} from ${dayText(entry.from)}`}
                         onClick={() => void remove(entry)}
                       >
                         Delete

@@ -41,8 +41,8 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/** The field a setting's value is typed in, named by the setting and its unit: "Body weight, kg". */
-const valueField = () => screen.getByLabelText(/^[A-Z][^,]*, (kg|lb|bpm|W|\/km|\/mi)$/)
+/** The field a setting's value is typed in, named by its unit and described by the setting. */
+const valueField = () => screen.getByLabelText(/^Value \((kg|lb|bpm|W|\/km|\/mi)\)$/)
 
 async function addSetting(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
   await user.selectOptions(screen.getByLabelText('Setting'), label)
@@ -76,6 +76,13 @@ describe('dated settings on Profile, signed in', () => {
       ['Body weight', expect.stringContaining('2020'), '90 kg'],
       ['Max heart rate (run)', expect.stringContaining('2023'), '188 bpm'],
     ])
+  })
+
+  it('leaves the profile weight the only field named body weight, by any partial match', async () => {
+    measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
+    render(<App />)
+    await screen.findByRole('table', { name: 'Your dated settings' })
+    expect(screen.getAllByLabelText(/body weight/i)).toHaveLength(1)
   })
 
   it('keeps a dated weight in the account, and makes it the current weight when it is the latest', async () => {
@@ -143,7 +150,7 @@ describe('dated settings on Profile, signed in', () => {
     render(<App />)
     const table = await screen.findByRole('table', { name: 'Your dated settings' })
     // The latest is first. Deleting it leaves the 90 kg of 2020 in effect today.
-    await user.click(within(table).getAllByRole('button', { name: /^Delete body weight/ })[0]!)
+    await user.click(within(table).getAllByRole('button', { name: /^Delete \d+ kg/ })[0]!)
     await waitFor(() =>
       expect(measurementsApi.deleteMeasurement).toHaveBeenCalledWith(
         { kind: 'massKg', value: 75, from: '2024-05-01' },
@@ -191,30 +198,86 @@ describe('dated settings on Profile, signed in', () => {
     await waitFor(() => expect(screen.getByLabelText('Body weight')).toHaveValue('90'))
   })
 
-  it('does not save a weight while the account’s dated settings are still loading', async () => {
+  it('holds a weight while the account’s dated settings load, then saves it', async () => {
     const user = userEvent.setup()
-    measurementsApi.listMeasurements.mockReturnValue(new Promise(() => undefined))
+    let listed: (entries: Measurement[]) => void = () => undefined
+    measurementsApi.listMeasurements.mockReturnValue(
+      new Promise<Measurement[]>((resolve) => {
+        listed = resolve
+      }),
+    )
     render(<App />)
     const body = screen.getByLabelText('Body weight')
     await user.clear(body)
     await user.type(body, '78{Enter}')
-    expect(await screen.findByText(/dated settings are still loading/)).toBeInTheDocument()
+    await new Promise((resolve) => setTimeout(resolve, 50))
     expect(updateProfile).not.toHaveBeenCalled()
+    listed([OLD_MASS])
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ massKg: 78 }))
+    // The settings had a dated weight, so the new one is dated from today too.
+    await waitFor(() =>
+      expect(measurementsApi.putMeasurement).toHaveBeenCalledWith(
+        { kind: 'massKg', value: 78, from: TODAY },
+        'user-1',
+      ),
+    )
   })
 
-  it('does not save a weight, or let the data be downloaded, when the dated settings did not load', async () => {
-    const user = userEvent.setup()
-    measurementsApi.listMeasurements.mockRejectedValue(new Error('offline'))
-    render(<App />)
-    await screen.findByText(/could not be loaded/)
-    const body = screen.getByLabelText('Body weight')
-    await user.clear(body)
-    await user.type(body, '78{Enter}')
-    expect(await screen.findByText(/Reload the page and try again/)).toBeInTheDocument()
-    expect(updateProfile).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: 'Download my data' }))
-    expect((await screen.findAllByText(/could not be loaded/)).length).toBeGreaterThan(1)
-    expect(app.analysis.exportData).not.toHaveBeenCalled()
+  describe('when the dated settings do not load', () => {
+    const LONG = { timeout: 5000 }
+
+    async function renderFailed() {
+      measurementsApi.listMeasurements.mockRejectedValue(new Error('offline'))
+      render(<App />)
+      // One automatic try follows the first, after a short wait, before it is reported.
+      await screen.findByRole('button', { name: 'Try again' }, LONG)
+    }
+
+    it('tries once more by itself before it says so', async () => {
+      measurementsApi.listMeasurements
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue([OLD_MASS])
+      render(<App />)
+      expect(
+        await screen.findByRole('table', { name: 'Your dated settings' }, LONG),
+      ).toBeInTheDocument()
+      expect(measurementsApi.listMeasurements).toHaveBeenCalledTimes(2)
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    })
+
+    it('does not save a weight or let the data be downloaded, and says how to go on', async () => {
+      const user = userEvent.setup()
+      await renderFailed()
+      const body = screen.getByLabelText('Body weight')
+      await user.clear(body)
+      await user.type(body, '78{Enter}')
+      expect(await screen.findByText(/Use Try again under Settings over time/)).toBeInTheDocument()
+      expect(updateProfile).not.toHaveBeenCalled()
+      await user.click(screen.getByRole('button', { name: 'Download my data' }))
+      expect((await screen.findAllByText(/could not be loaded/)).length).toBeGreaterThan(1)
+      expect(app.analysis.exportData).not.toHaveBeenCalled()
+    })
+
+    it('loads them again on Try again, and then a weight saves and the data downloads', async () => {
+      const user = userEvent.setup()
+      await renderFailed()
+      measurementsApi.listMeasurements.mockResolvedValue([OLD_MASS])
+      await user.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(await screen.findByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+      const body = screen.getByLabelText('Body weight')
+      await user.clear(body)
+      await user.type(body, '78{Enter}')
+      await waitFor(() => expect(updateProfile).toHaveBeenCalledWith({ massKg: 78 }))
+      await user.click(screen.getByRole('button', { name: 'Download my data' }))
+      await waitFor(() => expect(app.analysis.exportData).toHaveBeenCalled())
+    })
+
+    it('offers no form until they load', async () => {
+      await renderFailed()
+      expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
+      expect(screen.getByText('Your dated settings could not be loaded.')).toBeInTheDocument()
+    })
   })
 
   it('holds the download until the dated settings are known', async () => {
@@ -224,6 +287,20 @@ describe('dated settings on Profile, signed in', () => {
     await user.click(screen.getByRole('button', { name: 'Download my data' }))
     expect(await screen.findByText(/dated settings are still loading/)).toBeInTheDocument()
     expect(app.analysis.exportData).not.toHaveBeenCalled()
+  })
+
+  it('says what was kept when a dated weight is saved but the profile weight cannot follow it', async () => {
+    const user = userEvent.setup()
+    updateProfile.mockRejectedValueOnce(new Error('offline'))
+    render(<App />)
+    await screen.findByText(/No dated settings yet/)
+    await addSetting(user, 'Body weight', '82')
+    expect(
+      await screen.findByText(
+        /Your dated settings were saved, but your profile weight was not updated/,
+      ),
+    ).toBeInTheDocument()
+    expect(measurementsApi.putMeasurement).toHaveBeenCalled()
   })
 
   it('says what was saved when the weight is kept but its dated copy is refused', async () => {
@@ -273,13 +350,6 @@ describe('dated settings on Profile, signed in', () => {
     ).toBeInTheDocument()
     // They are not the account's, so they are not listed or used.
     expect(screen.queryByRole('table', { name: 'Your dated settings' })).not.toBeInTheDocument()
-  })
-
-  it('says when the list could not be loaded and offers no form', async () => {
-    measurementsApi.listMeasurements.mockRejectedValue(new Error('offline'))
-    render(<App />)
-    expect(await screen.findByText(/could not be loaded/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled()
   })
 })
 

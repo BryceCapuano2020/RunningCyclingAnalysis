@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { withEntry, withoutEntry, measurementKey } from '@rca/core/athlete'
 import type { Measurement } from '@rca/core/athlete'
 import { deleteMeasurement, listMeasurements, putMeasurement } from '../api/measurements'
@@ -11,8 +11,11 @@ const NO_ENTRIES: readonly Measurement[] = []
 /** Why a weight cannot be saved, or the data downloaded, until the account's dated settings are known. */
 export const SETTINGS_NOT_READY = {
   loading: 'Your dated settings are still loading. Try again in a moment.',
-  failed: 'Your dated settings could not be loaded. Reload the page and try again.',
+  failed: 'Your dated settings could not be loaded. Use Try again under Settings over time.',
 } as const
+
+/** How long the first failed load waits before its one automatic retry. */
+export const AUTO_RETRY_MS = 2000
 
 export interface MeasurementsController {
   /** The dated settings, earliest date first. The same array until a setting changes. */
@@ -21,6 +24,13 @@ export interface MeasurementsController {
   state: 'ready' | 'loading' | 'failed'
   /** Signed in: how many dated settings this browser holds from before, which are not the account's. */
   elsewhere: number
+  /**
+   * Resolves with the dated settings once they are known, waiting while they load, and rejects when
+   * they could not be loaded. A save that depends on them waits here rather than guess.
+   */
+  whenReady: () => Promise<readonly Measurement[]>
+  /** Loads the account's list again after it failed. */
+  retry: () => void
   /** Sets the value in effect from a date, replacing one for the same kind, sport and date. */
   add: (entry: Measurement) => Promise<Measurement[]>
   remove: (entry: Measurement) => Promise<Measurement[]>
@@ -32,6 +42,9 @@ export interface MeasurementsController {
  * out, and while the sign-in is still being looked up, the list kept in this browser is used. A write
  * resolves with the new list once it is stored, and rejects, changing nothing, when it is refused.
  * The browser's own list is left as it was when signed in; it is not merged into the account.
+ *
+ * A load that fails is tried once more after a short wait, and then reported as 'failed' until
+ * `retry` is called.
  */
 export function useMeasurements(
   status: AccountStatus,
@@ -40,25 +53,32 @@ export function useMeasurements(
   const signedIn = status === 'signed-in' && userId !== null
   const [device, setDevice] = useState(loadMeasurements)
   const [account, setAccount] = useState<{ userId: string; entries: Measurement[] } | null>(null)
-  const [failed, setFailed] = useState(false)
+  // The account whose list could not be loaded, so another account does not inherit the failure.
+  const [failedFor, setFailedFor] = useState<string | null>(null)
+  // Which try this is: the first, its automatic retry, then any the athlete asks for.
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (!signedIn) return
     let current = true
+    let timer: ReturnType<typeof setTimeout> | undefined
     listMeasurements(userId).then(
       (items) => {
         if (!current) return
-        setFailed(false)
+        setFailedFor(null)
         setAccount({ userId, entries: sortedMeasurements(items) })
       },
       () => {
-        if (current) setFailed(true)
+        if (!current) return
+        if (attempt === 0) timer = setTimeout(() => setAttempt(1), AUTO_RETRY_MS)
+        else setFailedFor(userId)
       },
     )
     return () => {
       current = false
+      clearTimeout(timer)
     }
-  }, [signedIn, userId])
+  }, [signedIn, userId, attempt])
 
   const accountEntries = account !== null && account.userId === userId ? account.entries : null
   const loaded = signedIn && accountEntries !== null
@@ -66,6 +86,35 @@ export function useMeasurements(
     () => (signedIn ? (accountEntries ?? NO_ENTRIES) : device),
     [signedIn, accountEntries, device],
   )
+
+  let state: MeasurementsController['state'] = 'ready'
+  if (signedIn && !loaded) state = failedFor === userId ? 'failed' : 'loading'
+
+  // The latest list and state, for a save that waited and so was made in an older render.
+  const latest = useRef({ entries, state })
+  const waiting = useRef<
+    { resolve: (e: readonly Measurement[]) => void; reject: (e: Error) => void }[]
+  >([])
+  useLayoutEffect(() => {
+    latest.current = { entries, state }
+    if (state === 'loading') return
+    for (const waiter of waiting.current.splice(0)) {
+      if (state === 'ready') waiter.resolve(entries)
+      else waiter.reject(new Error(SETTINGS_NOT_READY.failed))
+    }
+  }, [entries, state])
+
+  const whenReady = useCallback((): Promise<readonly Measurement[]> => {
+    const { entries: held, state: now } = latest.current
+    if (now === 'ready') return Promise.resolve(held)
+    if (now === 'failed') return Promise.reject(new Error(SETTINGS_NOT_READY.failed))
+    return new Promise((resolve, reject) => waiting.current.push({ resolve, reject }))
+  }, [])
+
+  const retry = useCallback(() => {
+    setFailedFor(null)
+    setAttempt((tries) => tries + 1)
+  }, [])
 
   const commit = useCallback(
     async (next: Measurement[], write: () => Promise<unknown>) => {
@@ -77,6 +126,7 @@ export function useMeasurements(
         if (!storeMeasurements(sorted)) throw new Error(NOT_KEPT)
         setDevice(sorted)
       }
+      latest.current = { ...latest.current, entries: sorted }
       return sorted
     },
     [signedIn, userId],
@@ -84,19 +134,19 @@ export function useMeasurements(
 
   const add = useCallback(
     (entry: Measurement) =>
-      commit(withEntry(entries, entry), () => putMeasurement({ ...entry }, userId ?? undefined)),
-    [commit, entries, userId],
+      commit(withEntry(latest.current.entries, entry), () =>
+        putMeasurement({ ...entry }, userId ?? undefined),
+      ),
+    [commit, userId],
   )
 
   const remove = useCallback(
     (entry: Measurement) =>
-      commit(withoutEntry(entries, measurementKey(entry)), () =>
+      commit(withoutEntry(latest.current.entries, measurementKey(entry)), () =>
         deleteMeasurement(entry, userId ?? undefined),
       ),
-    [commit, entries, userId],
+    [commit, userId],
   )
 
-  let state: MeasurementsController['state'] = 'ready'
-  if (signedIn && !loaded) state = failed ? 'failed' : 'loading'
-  return { entries, state, elsewhere: signedIn ? device.length : 0, add, remove }
+  return { entries, state, elsewhere: signedIn ? device.length : 0, whenReady, retry, add, remove }
 }

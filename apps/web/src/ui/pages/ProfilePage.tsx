@@ -46,7 +46,7 @@ export interface ProfilePageProps {
   /** Resolves when the change is saved. Rejects when it is refused, and the account shows why. */
   onSaveProfile: (next: ProfilePatch) => Promise<void>
   /** The dated settings, and how they load. */
-  dated: Pick<MeasurementsController, 'entries' | 'state' | 'elsewhere'>
+  dated: Pick<MeasurementsController, 'entries' | 'state' | 'elsewhere' | 'retry'>
   /** Keeps a dated setting, and brings the current weight in step with it. Rejects when refused. */
   onAddSetting: (entry: Measurement) => Promise<unknown>
   onRemoveSetting: (entry: Measurement) => Promise<unknown>

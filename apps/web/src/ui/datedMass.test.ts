@@ -8,6 +8,8 @@ import type { ActivityDigest, AthleteSettings } from '@rca/core/types'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeResult } from './components/fixtures'
 import { profileEquivalents } from './gradeProfile'
+import { bestEffortRows } from './pages/bestEffortRows'
+import type { BestEffortInput } from './pages/bestEffortRows'
 import { sportGrade } from './grades'
 import { sportRecords } from './records'
 import { fitRestsOnEstimate } from './thresholdRange'
@@ -104,5 +106,52 @@ describe('profileEquivalents with dated body masses', () => {
     expect(equivalent?.ridePowerW).toBe(250)
     expect(equivalent?.runSpeed.p50).toBeCloseTo(equivalentRunSpeed(250, 90, hr).p50, 9)
     expect(equivalent?.runSpeed.p50).not.toBeCloseTo(equivalentRunSpeed(250, 75, hr).p50, 3)
+  })
+})
+
+describe('best-effort change on the period before, with dated body masses', () => {
+  const heavier = makeActivity({
+    id: 'new',
+    name: 'New ride',
+    sport: 'ride',
+    powerSource: 'measured',
+    massKg: 90,
+  })
+  const lighter = makeActivity({
+    id: 'old',
+    name: 'Old ride',
+    sport: 'ride',
+    powerSource: 'measured',
+    massKg: 80,
+  })
+  const input = (masses: boolean): BestEffortInput => {
+    const [now, before] = masses
+      ? [heavier, lighter]
+      : [
+          { ...heavier, massKg: undefined },
+          { ...lighter, massKg: undefined },
+        ]
+    return {
+      sport: 'ride',
+      result: makeResult({ activities: [now], rideCurve: [curvePoint(1200, 300, 'new')] }),
+      previous: { runCurve: [], rideCurve: [curvePoint(1200, 270, 'old')] },
+      previousLabel: 'Previous 6 weeks',
+      massKg: 90,
+      units: 'metric',
+      profile: null,
+      library: [now, before],
+      openedAt: Date.now(),
+    }
+  }
+  const changeAt20 = (masses: boolean) =>
+    bestEffortRows(input(masses)).rows.find((row) => row.label === '20 min')?.change
+
+  it('compares the two rides at one weight, so a heavier rider’s extra watts are not a gain', () => {
+    // 270 W at 80 kg is 303.75 W at 90 kg, so 300 W at 90 kg is a little less, not 30 W more.
+    expect(changeAt20(true)).toBe('4 W less than previous 6 weeks')
+  })
+
+  it('compares the watts as they are without dated weights', () => {
+    expect(changeAt20(false)).toBe('30 W more than previous 6 weeks')
   })
 })

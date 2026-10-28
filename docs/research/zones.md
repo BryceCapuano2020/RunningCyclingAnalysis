@@ -71,6 +71,6 @@ _The Triathlete's Training Bible_, 4th ed., VeloPress, 2016.
 
 - Maximum heart rate zones move with a reference that is itself an estimate, and with age, heat and
   sleep. The app's reference is the highest sustained heart rate on file, not a lab value.
-- Zones do not grade ability. They do not enter the age grade, the level or the Balance.
+- Zones do not rate ability. They do not enter the age grade, the level or the Balance.
 - A threshold estimated from a different period gives different zones; the Profile page shows the period
   the analysis on screen covers.

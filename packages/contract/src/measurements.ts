@@ -18,7 +18,8 @@ export const MEASUREMENT_LIMITS: Record<MeasurementKind, { min: number; max: num
 /** The earliest and latest year a dated setting may start in. */
 export const MEASUREMENT_YEARS = { min: 1970, max: 2100 } as const
 
-function inYears(date: string): boolean {
+/** Whether a YYYY-MM-DD date starts in a year dated settings accept (MEASUREMENT_YEARS). */
+export function isMeasurementYear(date: string): boolean {
   const year = Number(date.slice(0, 4))
   return year >= MEASUREMENT_YEARS.min && year <= MEASUREMENT_YEARS.max
 }
@@ -35,7 +36,9 @@ export const MeasurementSchema = z
     kind: MeasurementKindSchema,
     sport: z.enum(['run', 'ride']).optional(),
     value: z.number(),
-    from: z.string().refine((date) => isLocalDate(date) && inYears(date), 'Enter a real date'),
+    from: z
+      .string()
+      .refine((date) => isLocalDate(date) && isMeasurementYear(date), 'Enter a real date'),
   })
   .superRefine((entry, ctx) => {
     const sports = MEASUREMENT_SPORTS[entry.kind]

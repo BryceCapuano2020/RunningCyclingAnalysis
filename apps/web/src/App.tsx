@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { currentMass, localDateOf } from '@rca/core/athlete'
-import type { Measurement } from '@rca/core/athlete'
+import { currentMass } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
@@ -24,13 +23,12 @@ import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
-import { messageOf } from './api/messageOf'
+import { datedWeightActions } from './ui/datedWeight'
 import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
 import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
-import { ExplainedError } from './ui/profilePatch'
 import type { AthleteValues, ProfilePatch } from './ui/profilePatch'
 import { weightKnown } from './ui/athlete'
 import { useAnalysisSettings } from './ui/useAnalysisSettings'
@@ -103,36 +101,12 @@ export function App() {
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
   }
 
-  // Once weights are dated, setting the current weight adds one from today, so the two stay one answer.
-  // A signed-in weight waits for the account's dated settings, since without them it could not tell
-  // whether to date the weight. A weight saved to the profile whose dated copy is refused says so.
-  const saveProfile = async (next: ProfilePatch) => {
-    const kg = next.settings?.massKg
-    if (typeof kg === 'number' && measurements.state !== 'ready') {
-      throw new ExplainedError(SETTINGS_NOT_READY[measurements.state])
-    }
-    await saveAnswers(next)
-    const dated = measurements.entries.some((entry) => entry.kind === 'massKg')
-    if (typeof kg !== 'number' || !dated || currentMass(measurements.entries, now) === kg) return
-    try {
-      await measurements.add({ kind: 'massKg', value: kg, from: localDateOf(now) })
-    } catch (failure) {
-      throw new ExplainedError(
-        `Saved as your profile weight, but not as a dated weight, so results still use the weight dated before. ${messageOf(failure)}`,
-      )
-    }
-  }
-
-  // The current weight is the dated weight in effect today, so a change to the dated weights brings
-  // the profile's weight with it.
-  const followDatedWeight = async (entries: Measurement[]) => {
-    const kg = currentMass(entries, now)
-    if (kg !== null && kg !== athleteValues.settings.massKg)
-      await saveAnswers({ settings: { massKg: kg } })
-  }
-  const addSetting = async (entry: Measurement) => followDatedWeight(await measurements.add(entry))
-  const removeSetting = async (entry: Measurement) =>
-    followDatedWeight(await measurements.remove(entry))
+  const { saveProfile, addSetting, removeSetting } = datedWeightActions({
+    measurements,
+    now,
+    profileKg: athleteValues.settings.massKg,
+    saveAnswers,
+  })
 
   // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
   const gradeTrend = ageProfile !== null

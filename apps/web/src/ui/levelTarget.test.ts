@@ -146,7 +146,7 @@ describe('levelTargetText', () => {
       rideCurve: [curvePoint(HEADLINE_DURATION_S, 300, 'ride-1')],
     })
     const line = levelTargetText({ ...base, result: heavier, massKg: 80, lean: 'run' })
-    expect(line).toMatch(/now 240 W\)\.$/)
+    expect(line).toMatch(/now 300 W, 240 W at today’s weight\)\.$/)
   })
 
   it('names no line when the balance is even', () => {
