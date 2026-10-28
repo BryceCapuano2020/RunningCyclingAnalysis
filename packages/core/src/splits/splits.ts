@@ -18,6 +18,8 @@ interface Streams {
   metabolic: Float64Array
   /** The economy scale the metabolic stream was built with, so flat speeds convert back alike. */
   economyScale: number
+  /** 1 for every second where the file's speed and distance disagreed and the metabolic stream was lowered. */
+  covered: Uint8Array
   /**
    * Cumulative climb at each sample boundary, in tenths of a metre, rounded once at the total. A
    * split's climb is the difference of two entries, so the splits of a unit add up to the run's.
@@ -123,6 +125,13 @@ function flatSeconds(s: Streams, from: number, to: number, distanceM: number): n
   return flatSpeed > 0 ? distanceM / flatSpeed : null
 }
 
+/** Whether any second of the split lies in a stretch where the file's streams disagreed. */
+function touchesDisagreement(s: Streams, from: number, to: number): boolean {
+  const [first, end] = sampleRange(from, to, s.activity.n)
+  for (let i = first; i < end; i++) if (overlap(i, from, to) > 0 && s.covered[i] === 1) return true
+  return false
+}
+
 /** Time-weighted mean heart rate over the valid samples of the split, or null without any. */
 function meanHeartRate(s: Streams, from: number, to: number): number | null {
   const [first, end] = sampleRange(from, to, s.activity.n)
@@ -141,10 +150,17 @@ function splitOf(s: Streams, span: Span): DigestSplit {
   const { from, to, distanceM, first, end } = span
   const known = timeKnown(s, from, to, distanceM)
   const flat = known ? flatSeconds(s, from, to, distanceM) : null
+  // The clock time goes by the file's distance, but the cost behind the flat time goes by the lower
+  // of its speed and distance streams. Where the speed was the lower one, the same distance read at
+  // that slower cost gives a flat time longer than the clock, which only the disagreement explains.
+  // A split touching one reads no slower than its clock. Uphill the flat time is already faster,
+  // so the cap acts on flat and downhill splits, where a mild downhill's true slowing is lost.
+  const capped =
+    flat !== null && touchesDisagreement(s, from, to) ? Math.min(flat, to - from) : flat
   return {
     distanceM,
     seconds: known ? roundTo(to - from, 2) : null,
-    gradeAdjustedSeconds: flat === null ? null : roundTo(flat, 2),
+    gradeAdjustedSeconds: capped === null ? null : roundTo(capped, 2),
     elevationGainM: s.activity.hasAltitude
       ? (s.climbTenths[end]! - s.climbTenths[first]!) / 10
       : null,
@@ -186,13 +202,15 @@ function splitsOf(s: Streams, totalM: number, unit: number, limit: number): Dige
 /**
  * Splits of a run at every whole kilometre and mile. `metabolic` is the run's gross metabolic
  * W/kg per sample, the stream the best efforts are built from, so a split's flat time and its
- * best-effort pace agree. A unit with more splits than its limit has none.
+ * best-effort pace agree. `covered` marks the seconds where that stream was lowered because the
+ * file's speed and distance disagreed. A unit with more splits than its limit has none.
  */
 export function runSplits(
   activity: Activity,
   quality: QualityReport,
   metabolic: Float64Array,
   economyScale: number,
+  covered: Uint8Array,
 ): DigestSplits {
   const totalM = maxDistance(activity.distance)
   if (totalM < MIN_PARTIAL_M) return { km: [], mile: [] }
@@ -203,7 +221,7 @@ export function runSplits(
     running += climb[i]!
     climbTenths[i + 1] = Math.round(running * 10)
   }
-  const streams: Streams = { activity, quality, metabolic, economyScale, climbTenths }
+  const streams: Streams = { activity, quality, metabolic, economyScale, covered, climbTenths }
   return {
     km: splitsOf(streams, totalM, METRES_PER_KM, MAX_KM_SPLITS),
     mile: splitsOf(streams, totalM, METRES_PER_MILE, MAX_MILE_SPLITS),

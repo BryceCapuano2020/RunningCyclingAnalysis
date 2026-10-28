@@ -19,6 +19,13 @@ export function and(a: Uint8Array, b: Uint8Array): Uint8Array {
   return out
 }
 
+/** 1 where the mask is 0. */
+export function not(mask: Uint8Array): Uint8Array {
+  const out = new Uint8Array(mask.length)
+  for (let i = 0; i < out.length; i++) out[i] = mask[i] === 1 ? 0 : 1
+  return out
+}
+
 /**
  * 1 for every second the device was recording: neither paused nor in a record gap it did not time.
  * Moving time and the averages over it are counted over these seconds only.

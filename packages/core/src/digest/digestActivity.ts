@@ -20,6 +20,7 @@ import type {
   QualityFlag,
   QualityKind,
   QualityReport,
+  Sport,
 } from '../types'
 import { MODEL_REVISION } from './modelRevision'
 import { climbMask, estimatePower, findSegments, splitSegment } from '../virtualPower'
@@ -28,7 +29,7 @@ import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
 import { digestEvidence } from './evidence'
 import type { OutputStream } from './evidence'
-import { and, countKept, meanWhere, movingMask, recordedSeconds } from './masks'
+import { and, countKept, meanWhere, movingMask, not, recordedSeconds } from './masks'
 import type { SampleTerms } from './terms'
 import { SELECTION_MASS_KG, sampleTerms, termsOver } from './terms'
 
@@ -51,6 +52,9 @@ interface Parts {
   /** The stream the curve is built from; null when it is an estimate (rides without a power meter). */
   output: OutputStream | null
 }
+
+/** Whether a sport's power-meter files keep their own speed under the stream-agreement filter. */
+const POWER_METER_KEEPS_SPEED: Record<Sport, boolean> = { run: false, ride: true }
 
 /** A curve point together with the length of the window its value came from. */
 type WindowedPoint = CurvePoint & { windowS: number }
@@ -121,8 +125,13 @@ function valueBlocks(
   return blocks.map((b) => ({ heartRate: b.heartRate, value: b.means[0]!, terms: null }))
 }
 
+/**
+ * `activity` carries the agreed streams; `recorded` is the file's own distance, which decides
+ * which distances the run covers.
+ */
 function runParts(
   activity: Activity,
+  recorded: Float64Array,
   quality: QualityReport,
   metabolic: Float64Array,
   source: HeartRateSource,
@@ -139,21 +148,27 @@ function runParts(
     distanceBests: distanceBests(
       activity.distance,
       and(quality.validMotion, recordedSeconds(activity)),
+      recorded,
     ),
   }
 }
 
-/** Climb sections of a power-meter ride with measured power at least MIN_MEASURED_W. */
+/**
+ * Climb sections of a power-meter ride with measured power at least MIN_MEASURED_W, over the
+ * seconds in `allowed` only.
+ */
 function climbSectionsOf(
   activity: Activity,
   quality: QualityReport,
   grade: Float64Array,
   terms: SampleTerms,
+  allowed: Uint8Array,
 ): DigestClimbSection[] {
   const { power, speed } = activity
   const scorable = new Uint8Array(activity.n)
   for (let i = 0; i < activity.n; i++) {
     const usable =
+      allowed[i] === 1 &&
       quality.validMotion[i] === 1 &&
       quality.validGrade[i] === 1 &&
       quality.validPower[i] === 1 &&
@@ -172,11 +187,17 @@ function climbSectionsOf(
   return sections
 }
 
+/**
+ * `allowed` is 1 for the seconds that may calibrate or score a bike model. The speed here is the
+ * file's own, paired with measured power, so a second where the file's speed and distance disagree
+ * is left out rather than lowered: the lowering was tuned on runs, and the power does not follow it.
+ */
 function measuredParts(
   activity: Activity,
   quality: QualityReport,
   grade: Float64Array,
   source: HeartRateSource,
+  allowed: Uint8Array,
 ): Parts {
   const parts: Parts = {
     powerSource: 'measured',
@@ -197,9 +218,9 @@ function measuredParts(
       terms,
       activity.speed,
       activity.power,
-      and(quality.validMotion, and(quality.validGrade, quality.validPower)),
+      and(allowed, and(quality.validMotion, and(quality.validGrade, quality.validPower))),
     ),
-    climbSections: climbSectionsOf(activity, quality, grade, terms),
+    climbSections: climbSectionsOf(activity, quality, grade, terms, allowed),
   }
 }
 
@@ -265,16 +286,26 @@ function virtualParts(
  */
 export function digestActivity(activity: Activity): ActivityDigest {
   // Where the file's speed and distance disagree, efforts credit only what both support. The
-  // summary and the splits keep the file's own distance.
+  // summary and the splits keep the file's own distance. A power-meter ride keeps its own speed,
+  // because its measured power does not follow the lowering: its calibration and climb sections
+  // leave out the disagreeing seconds instead.
   const agreed = agreedStreams(activity)
-  const streams: Activity = { ...activity, speed: agreed.speed, distance: agreed.distance }
+  const measured = POWER_METER_KEEPS_SPEED[activity.sport] && activity.hasPower
+  const streams: Activity = measured
+    ? activity
+    : { ...activity, speed: agreed.speed, distance: agreed.distance }
   // Indoor altitude is barometer drift or a simulated course, not a gradient being ridden. Outdoors
   // the grade is over the distance the speed stream implies, because every cost and power below is
   // grade times that speed: so they credit the climb the altitude records, and no more.
   const rawGrade = activity.indoor
     ? new Float64Array(activity.n)
     : smoothGrade(activity.altitude, travelledDistance(streams.speed, streams.distance))
-  const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused, streams.speed)
+  const quality = withKnownGrade(
+    assessQuality(activity, agreed.stretches),
+    rawGrade,
+    activity.paused,
+    streams.speed,
+  )
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.
   const grade = rawGrade.map((g) => (Number.isNaN(g) ? 0 : g))
@@ -287,9 +318,9 @@ export function digestActivity(activity: Activity): ActivityDigest {
       : null
   let parts: Parts
   if (metabolic !== null) {
-    parts = runParts(streams, quality, metabolic, source)
-  } else if (activity.hasPower) {
-    parts = measuredParts(streams, quality, grade, source)
+    parts = runParts(streams, activity.distance, quality, metabolic, source)
+  } else if (measured) {
+    parts = measuredParts(streams, quality, grade, source, not(agreed.covered))
   } else {
     parts = virtualParts(streams, quality, grade, source)
   }
@@ -326,7 +357,15 @@ export function digestActivity(activity: Activity): ActivityDigest {
     ...(parts.distanceBests === undefined ? {} : { distanceBests: parts.distanceBests }),
     ...(metabolic === null
       ? {}
-      : { splits: runSplits(activity, quality, metabolic, PRIORS.runEconomyScale.mean) }),
+      : {
+          splits: runSplits(
+            activity,
+            quality,
+            metabolic,
+            PRIORS.runEconomyScale.mean,
+            agreed.covered,
+          ),
+        }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
     ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
   }

@@ -72,6 +72,40 @@ describe('agreedStreams', () => {
     expect(agreed.speed).toEqual(run.speed)
   })
 
+  it('reports the seconds the lowering covers, not only the centres of the disagreeing windows', () => {
+    const run = runWith(900, 3, (i) => (i >= 400 && i < 520 ? 1 : 3))
+    const agreed = agreedStreams(run)
+    const [stretch] = agreed.stretches
+    expect(agreed.stretches.length).toBe(1)
+    // The stretch is the covered seconds whole, reaching 15 s past the last window centre.
+    expect(agreed.covered.slice(stretch!.start, stretch!.end).every((c) => c === 1)).toBe(true)
+    expect(agreed.covered.reduce((sum, c) => sum + c, 0)).toBe(stretch!.end - stretch!.start)
+    expect(stretch!.start).toBeLessThan(400)
+    expect(stretch!.end).toBeGreaterThan(520)
+    const [flag] = assessQuality(run).flags
+    expect({ start: flag!.start, end: flag!.end }).toEqual(stretch)
+  })
+
+  it('flags what it is given instead of comparing the streams again', () => {
+    const run = runWith(900, 3, (i) => (i >= 400 && i < 520 ? 1 : 3))
+    const { stretches } = agreedStreams(run)
+    expect(assessQuality(run, stretches).flags).toEqual(assessQuality(run).flags)
+    expect(assessQuality(run, []).flags).toEqual([])
+  })
+
+  it('keeps the distance a recording gap held back when a disagreement starts right after it', () => {
+    // 30 s unrecorded from 300: the distance is held, then steps by the 93 m run through the gap.
+    const step = (i: number) => (i >= 300 && i < 330 ? 0 : i === 330 ? 93 : i < 450 ? 1 : 3)
+    const run: Activity = runWith(900, 3, step)
+    run.unrecorded = new Uint8Array(900)
+    run.unrecorded.fill(1, 300, 330)
+    run.speed.fill(NaN, 300, 330)
+    const agreed = agreedStreams(run)
+    expect(agreed.covered[330]).toBe(1)
+    // The step across the gap is the file's own, whole, not the share of it the speed spreads.
+    expect(agreed.distance[330]! - agreed.distance[299]!).toBeCloseTo(93, 9)
+  })
+
   it('does not compare across a pause or a recording gap', () => {
     const run: Activity = runWith(900, 3, (i) => (i >= 400 && i < 520 ? 1 : 3))
     run.paused.fill(1, 380, 540)
@@ -104,6 +138,32 @@ describe('the digest where the streams disagree', () => {
     const run = runWith(900, 3, (i) => (i >= 400 && i < 420 ? 12 : 3))
     const mile = digestActivity(run).distanceBests!.find((b) => b.distanceM === 1609.344)!
     expect(mile.seconds).toBeCloseTo(1609.344 / 3, 0)
+  })
+
+  it('keeps a 5 km best the run covers when the lowering takes its distance under 5 km', () => {
+    // 5.13 km recorded, 20 s of it GPS jumps at 12 m/s against a 3 m/s speed: 4.95 km once agreed.
+    const run = runWith(1650, 3, (i) => (i >= 400 && i < 420 ? 12 : 3))
+    const agreed = agreedStreams(run)
+    expect(run.distance.at(-1)).toBeGreaterThan(5000)
+    expect(agreed.distance.at(-1)).toBeLessThan(5000)
+    const digest = digestActivity(run)
+    expect(digest.distanceM).toBeCloseTo(run.distance.at(-1)!, 9)
+    expect(digest.distanceBests!.map((b) => b.distanceM)).toContain(5000)
+  })
+
+  it('never reads a flat split slower than its clock where the speed was the lower stream', () => {
+    // 20 s of GPS jumps at 12 m/s against a steady 3 m/s: the km holding the jump takes 273 s by
+    // the file's distance, and its cost is that of 3 m/s, which alone gives 333 s on flat ground.
+    const run = runWith(900, 3, (i) => (i >= 400 && i < 420 ? 12 : 3))
+    const km = digestActivity(run).splits!.km
+    expect(km.length).toBe(3)
+    for (const split of km) {
+      expect(split.gradeAdjustedSeconds!).toBeLessThanOrEqual(split.seconds! + 1e-9)
+    }
+    // The split holding the jump has its flat time at its clock; the one before it is not capped.
+    expect(km[1]!.seconds).toBeLessThan(300)
+    expect(km[1]!.gradeAdjustedSeconds).toBe(km[1]!.seconds)
+    expect(km[0]!.gradeAdjustedSeconds).toBeCloseTo(1000 / 3, 0)
   })
 
   it('leaves a genuine fast flat effort alone when both streams agree', () => {

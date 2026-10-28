@@ -63,22 +63,41 @@ function fastestWithin(d: Float64Array, { lo, hi }: Stretch, span: number): numb
   return best
 }
 
+/** The fastest time over `span` metres in any stretch of `distance`, or Infinity when none fits. */
+function fastestOver(distance: Float64Array, stretches: Stretch[], span: number): number {
+  let seconds = Infinity
+  for (const stretch of stretches) {
+    seconds = Math.min(seconds, fastestWithin(distance, stretch, span))
+  }
+  return seconds
+}
+
 /**
  * The fastest elapsed time over each run record distance, from a cumulative distance stream on a
  * 1 Hz grid. Only stretches of consecutive valid samples are searched, so a window never crosses
  * an invalid sample or a distance jump. A distance the run does not cover, or that no valid window
  * covers, is left out.
+ *
+ * `recorded` is the file's own distance, which decides whether the run covers a distance: the
+ * summary and the splits go by it. `distance` may be lower than it where the file's streams
+ * disagree, and then it times the windows. When it falls short of a distance the file covers, no
+ * window of it can time that distance, so the file's own distance does.
  */
-export function distanceBests(distance: Float64Array, valid: Uint8Array): DigestDistanceBest[] {
+export function distanceBests(
+  distance: Float64Array,
+  valid: Uint8Array,
+  recorded: Float64Array = distance,
+): DigestDistanceBest[] {
   let total = 0
-  for (const d of distance) if (Number.isFinite(d) && d > total) total = d
+  for (const d of recorded) if (Number.isFinite(d) && d > total) total = d
   const stretches = validStretches(distance, valid)
+  const recordedStretches = recorded === distance ? stretches : validStretches(recorded, valid)
   const bests: DigestDistanceBest[] = []
   for (const distanceM of RUN_RECORD_DISTANCES_M) {
     if (total < distanceM) continue
-    let seconds = Infinity
-    for (const stretch of stretches) {
-      seconds = Math.min(seconds, fastestWithin(distance, stretch, distanceM))
+    let seconds = fastestOver(distance, stretches, distanceM)
+    if (!Number.isFinite(seconds) && recorded !== distance) {
+      seconds = fastestOver(recorded, recordedStretches, distanceM)
     }
     if (Number.isFinite(seconds)) bests.push({ distanceM, seconds })
   }
