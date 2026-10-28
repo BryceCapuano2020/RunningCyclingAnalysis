@@ -8,6 +8,7 @@ const EDGE_EPSILON = 1e-9
 /** The bin a value falls in, or -1 when it is negative or past the measure's last bin. */
 export function binOf(measure: DistributionMeasure, value: number): number {
   const { width, maxBin } = DISTRIBUTION_BINS[measure]
+  if (!Number.isFinite(value)) return -1
   const bin = Math.floor(value / width + EDGE_EPSILON)
   return bin < 0 || bin > maxBin ? -1 : bin
 }

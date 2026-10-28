@@ -46,20 +46,9 @@ describe('durabilityPoints', () => {
           for (let i = s; i < s + d; i++) sum += values[i]!
           best = Math.max(best, sum / d)
         }
-        // The shorter duration may take the longer window's value.
-        const expected = d === 300 ? Math.max(best, at(points, afterS, 1200) ?? 0) : best
-        expect(at(points, afterS, d)).toBeCloseTo(expected, 9)
+        expect(at(points, afterS, d)).toBeCloseTo(best, 9)
       }
     }
-  })
-
-  it('lets a shorter duration take the better value of the longer window, as the main curve does', () => {
-    const n = 9000
-    // A flat 200 W with a 300 s dip inside a 1200 s window: 300 s of 400 W exist only in the long one.
-    const values = stream(n, 100, [[4000, 5200, 200]])
-    const points = durabilityPoints(values, ones(n), ones(n), 'a')
-    expect(at(points, 3600, 1200)).toBe(200)
-    expect(at(points, 3600, 300)).toBe(200)
   })
 
   it('counts pauses as time but not as moving time, so the late windows start later', () => {

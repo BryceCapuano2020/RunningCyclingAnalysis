@@ -23,6 +23,8 @@ describe('binOf', () => {
     expect(binOf('heartRate', 256)).toBe(-1)
     expect(binOf('heartRate', 255.9)).toBe(255)
     expect(binOf('speed', 13)).toBe(-1)
+    expect(binOf('power', NaN)).toBe(-1)
+    expect(binOf('speed', Infinity)).toBe(-1)
     expect(DISTRIBUTION_BINS.power.maxBin * DISTRIBUTION_BINS.power.width).toBe(2000)
   })
 })

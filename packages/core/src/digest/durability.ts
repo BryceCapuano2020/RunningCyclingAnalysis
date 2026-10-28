@@ -19,9 +19,8 @@ function startAfter(moving: Uint8Array, afterS: number): number {
  * Best output at each of DURABILITY_DURATIONS_S in windows that start after at least afterS seconds
  * of moving time, for each afterS in DURABILITY_AFTER_S: what the athlete can still do late in a long
  * effort. `values` and `valid` are the stream and mask of the activity's main curve, so the windows
- * are scored as that curve scores them, over elapsed seconds with a pause counting as rest. As in
- * the main curve a longer window also holds for a shorter duration, so a duration takes the better of
- * its own best and the longer one's. A point the activity cannot support, or whose best is zero, is left out.
+ * are scored as that curve scores them, over elapsed seconds with a pause counting as rest. A point
+ * the activity cannot support, or whose best is zero, is left out.
  */
 export function durabilityPoints(
   values: Float64Array,
@@ -34,12 +33,12 @@ export function durabilityPoints(
     const start = startAfter(moving, afterS)
     if (start < 0) break
     const windows = meanMaximal(values, valid, DURABILITY_DURATIONS_S, activityId, start)
-    let best = NaN
-    // From the longest duration down, so a shorter one can take the longer one's value.
-    for (let k = windows.length - 1; k >= 0; k--) {
-      const value = windows[k]!.value
-      if (!Number.isNaN(value) && (Number.isNaN(best) || value > best)) best = value
-      if (best > 0) points.push({ afterS, durationS: windows[k]!.durationS, value: best })
+    for (const window of windows) {
+      // A zero best is not an effort. The main curve's envelope is not applied: a 300 s window inside
+      // the best 1200 s window starts under the same rule and has a mean at least as high, so
+      // the shorter duration's own best already is the better.
+      if (window.value > 0)
+        points.push({ afterS, durationS: window.durationS, value: window.value })
     }
   }
   return points.sort((a, b) => a.afterS - b.afterS || a.durationS - b.durationS)

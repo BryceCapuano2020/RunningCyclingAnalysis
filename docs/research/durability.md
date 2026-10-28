@@ -37,8 +37,8 @@ Constants are in `packages/core/src/constants.ts` (`DISTRIBUTION_BINS`, `DURABIL
 - **Durability.** For each start time of 1, 1.5 and 2 hours of moving time, the best output over 5 and
   20 minutes among windows that start at or after the second that moving time is reached. Output is the
   main curve's: gross metabolic W/kg for runs, measured watts for rides, scored over elapsed seconds with
-  the same validity masks, so a pause inside a window counts as rest. As in the main curve a 5 minute
-  value also holds if a 20 minute window is better. A point the activity cannot support is left out.
+  the same validity masks, so a pause inside a window counts as rest. A point the activity
+  cannot support is left out.
   Rides without a power meter keep none: their curve holds climbs only and is priced at combine time with
   a bike model, which is not a measurement of late-ride output. A run point above the world-record ceiling
   is dropped when digests are combined, as in the main curve.

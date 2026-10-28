@@ -328,6 +328,6 @@ export function digestActivity(activity: Activity): ActivityDigest {
       ? {}
       : { splits: runSplits(activity, quality, metabolic, PRIORS.runEconomyScale.mean) }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
-    ...digestEvidence(activity, quality, moving, parts.output, parts.powerSource),
+    ...digestEvidence(streams, quality, moving, parts.output, parts.powerSource),
   }
 }

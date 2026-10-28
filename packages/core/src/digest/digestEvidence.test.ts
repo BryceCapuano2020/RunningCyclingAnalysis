@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { assessQuality } from '../quality'
+import { agreedStreams } from '../quality/agreement'
 import { digestActivity } from './digestActivity'
+import { distributionOf } from './distributions'
+import { movingMask } from './masks'
 import { parseDigest, serializeDigest } from './serialize'
 import { syntheticActivity } from './test/syntheticActivity'
 
@@ -76,5 +80,32 @@ describe('digest evidence', () => {
   it('stays small: the evidence of a two-and-a-half hour activity is under 2 kB', () => {
     const { distributions, durability, drift } = ride
     expect(JSON.stringify({ distributions, durability, drift }).length).toBeLessThan(2000)
+  })
+
+  it('bins the speed a run is credited, not the raw speed, where the file speed and distance disagree', () => {
+    const n = 600
+    const base = syntheticActivity({ n, sport: 'run', speed: new Float64Array(n).fill(7) })
+    // The recorded distance advances 3 m/s while the speed stream reads 7 m/s.
+    const distance = Float64Array.from({ length: n }, (_, i) => 3 * i)
+    const disagreeing = { ...base, distance }
+    const agreed = agreedStreams(disagreeing)
+    expect(agreed.stretches.length).toBeGreaterThan(0)
+    const expected = distributionOf(
+      'speed',
+      agreed.speed,
+      movingMask(disagreeing),
+      assessQuality(disagreeing).validMotion,
+    )
+    const raw = distributionOf(
+      'speed',
+      disagreeing.speed,
+      movingMask(disagreeing),
+      assessQuality(disagreeing).validMotion,
+    )
+    const { speed } = digestActivity(disagreeing).distributions!
+    expect(speed).toEqual(expected)
+    expect(speed).not.toEqual(raw)
+    // Most seconds are at the lower 3 m/s (bin 60), none at the raw 7 m/s (bin 140).
+    expect(speed!.offset).toBeLessThan(140)
   })
 })

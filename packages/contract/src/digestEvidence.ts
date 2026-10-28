@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { DISTRIBUTION_BINS, DURABILITY_AFTER_S, DURABILITY_DURATIONS_S } from '@rca/core/constants'
 import type { DistributionMeasure } from '@rca/core/constants'
-import { evidenceProblem } from '@rca/core/digest/evidence'
-import type { EvidenceFields } from '@rca/core/digest/evidence'
+import { evidenceProblem } from '@rca/core/digest/serializeEvidence'
+import type { EvidenceFields } from '@rca/core/digest/serializeEvidence'
 
 /**
  * The evidence a digest keeps for the zones, durability and drift views. Shapes and bounds are here;
