@@ -4,7 +4,12 @@ import type { ChartSize, PlotBox } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { PLOT_BOTTOM_WITHOUT_X_TITLE, PLOT_MARGIN, plotBoxOf } from './plotBox'
 import { DEFAULT_ROOT_PX, labelSizePx, labelWidthPx } from './rootFont'
-import { BAND_CLEAR_PX, LABEL_REACH_EM, sharedTrendLayout } from './sharedTrendLayout'
+import {
+  BAND_CLEAR_PX,
+  LABEL_REACH_EM,
+  endLabelGutter,
+  sharedTrendLayout,
+} from './sharedTrendLayout'
 import type { EndLabel, SharedLayout } from './sharedTrendLayout'
 
 /** Sunday 12 January 2025, 23:59:59.999 UTC: the end of the first week. */
@@ -455,5 +460,45 @@ describe('sharedTrendLayout end labels', () => {
     expect(
       Math.abs(ride.at.y - (layout.ride.findLast((p) => p !== null)?.y ?? 0)),
     ).toBeLessThanOrEqual(reach)
+  })
+})
+
+describe('sharedTrendLayout end labels in a gutter', () => {
+  const guttered = (width: number): ChartSize => ({
+    ...sizeAt(width),
+    plot: plotBoxOf(width, 320, endLabelGutter(width), PLOT_BOTTOM_WITHOUT_X_TITLE),
+  })
+
+  it('keeps a gutter beside a wide plot and the usual margin beside a narrow one', () => {
+    expect(endLabelGutter(479)).toBe(PLOT_MARGIN.right)
+    expect(endLabelGutter(640)).toBeGreaterThan(labelWidthPx('Ride 100%', DEFAULT_ROOT_PX))
+  })
+
+  it('sets each label right of the plot, level with its line’s last point, so none lies over a marker', () => {
+    const size = guttered(640)
+    const layout = sharedTrendLayout(GRADE_WEEKS, 'grade', size)
+    if (layout === null) throw new Error('The weeks give no layout')
+    for (const kind of ['run', 'ride'] as const) {
+      const label = labelOf(layout, kind)
+      const last = layout[kind].findLast((point) => point !== null)
+      expect(label.anchor).toBe('start')
+      expect(label.at.x).toBeGreaterThan(size.plot.right)
+      expect(Math.abs(label.at.y - (last?.y ?? 0))).toBeLessThan(labelSizePx(DEFAULT_ROOT_PX))
+      expect(boxOf(label).right).toBeLessThanOrEqual(size.width)
+    }
+  })
+
+  it('spreads two labels apart where their last points are close', () => {
+    const layout = sharedTrendLayout(CLOSE_WEEKS, 'grade', guttered(640))
+    if (layout === null) throw new Error('The weeks give no layout')
+    const [run, ride] = [labelOf(layout, 'run'), labelOf(layout, 'ride')]
+    expect(Math.abs(run.at.y - ride.at.y)).toBeGreaterThanOrEqual(labelSizePx(DEFAULT_ROOT_PX))
+  })
+
+  it('sets the labels over the plot when a line ends before its right edge', () => {
+    const layout = sharedTrendLayout(FIRST_WEEK_RUN, 'grade', guttered(640))
+    if (layout === null) throw new Error('The weeks give no layout')
+    const size = guttered(640)
+    expect(labelOf(layout, 'run').at.x).toBeLessThanOrEqual(size.plot.right)
   })
 })

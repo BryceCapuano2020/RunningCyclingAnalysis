@@ -1,4 +1,4 @@
-import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore } from './chartInteraction'
+import { LABEL_GAP_X, endLabelAt, markerRadii, pointBefore, spreadApart } from './chartInteraction'
 import {
   ASCENT_EM,
   DESCENT_EM,
@@ -13,6 +13,8 @@ import type { AxisTick, ChartSize, PlotBox, Point } from './chartTypes'
 import type { SharedWeek } from './gradeTrend'
 import { labelSizePx, labelWidthPx, rootFontPx } from './rootFont'
 import { linearScale, niceDomain, tickDecimals } from './scale'
+import { PLOT_MARGIN } from './plotBox'
+import { NARROW_WIDTH } from './ticks'
 import { formatValue, plotted } from './sharedTrendText'
 import type { SharedMeasure } from './sharedTrendText'
 import { axisTicksOf } from './sharedTrendAxes'
@@ -37,6 +39,19 @@ export interface SharedLayout {
   labels: EndLabel[]
   xTicks: AxisTick[]
   yTicks: AxisTick[]
+}
+
+/** The widest an end label can be, "Ride 100%", which the gutter beside the plot is sized to hold. */
+const WIDEST_LABEL = 'Ride 100%'
+
+/**
+ * The plot's right margin. A wide chart keeps a gutter beside the plot for the end labels, so they name the
+ * lines without lying over their markers; a narrow one has no room to spare and sets them over the plot.
+ * The chart under it, which shares the time axis, takes the same margin so the two line up.
+ */
+export function endLabelGutter(width: number): number {
+  if (width < NARROW_WIDTH) return PLOT_MARGIN.right
+  return Math.ceil(labelWidthPx(WIDEST_LABEL, rootFontPx())) + LABEL_GAP_X + PLOT_MARGIN.right / 4
 }
 
 /** The space a label's box keeps from the drawn band, so that the two do not touch. */
@@ -347,8 +362,8 @@ interface Drawn {
 }
 
 /**
- * The end labels of a shared trend, each at a baseline that keeps it inside the plot and clear of the
- * ride band and the run's own line. A label is named by its sport and value, so the title needs no window.
+ * The end labels of a shared trend, each at a baseline that keeps it inside the plot and clear of both
+ * lines and, for the run's, the ride band. A label is named by its sport and value, so the title needs no window.
  */
 function labelsOf(
   weeks: readonly SharedWeek[],
@@ -361,15 +376,21 @@ function labelsOf(
   const em = labelSizePx(rootPx)
   const span = { lo: plot.top + ASCENT_EM * em, hi: plot.bottom - DESCENT_EM * em }
   const rules: LabelRules = { measure, rootPx, plot, span }
+  const beside = gutterLabels(weeks, drawn, measure, size, span)
+  if (beside !== null) return beside
+  // Each label keeps clear of both lines and their markers, not only its own sport's: a label set over the
+  // other sport's markers reads as that sport's.
+  const markerR = markerRadii(width).active
+  const lines = [...stepBoxes(drawn.run, markerR), ...stepBoxes(drawn.ride, markerR)]
   const runLabel = endLabel('run', weeks, drawn.run, (week) => week.run, {
     ...rules,
     band: bandBoxes(drawn.xs, drawn.rideHigh, drawn.rideLow),
-    line: stepBoxes(drawn.run, markerRadii(width).active),
+    line: lines,
   })
   const rideLabel = endLabel('ride', weeks, drawn.ride, (week) => week.ride, {
     ...rules,
     band: null,
-    line: null,
+    line: lines,
   })
   const plans = [runLabel, rideLabel].flatMap((label) => (label === null ? [] : [label]))
   return placeLabels(plans, plot, span, (ASCENT_EM + DESCENT_EM) * em).map(({ plan, y }) => ({
@@ -377,5 +398,45 @@ function labelsOf(
     text: plan.text,
     anchor: plan.anchor,
     at: { x: plan.x, y },
+  }))
+}
+
+/**
+ * The end labels in the gutter right of a wide plot, each level with its line's last point and spread
+ * apart where the two points are close. Null when the plot leaves no gutter wide enough, or when a line ends before the
+ * plot's right edge, where a label beside its end would lie over the plot: the labels are then placed
+ * over the plot, clear of the lines.
+ */
+function gutterLabels(
+  weeks: readonly SharedWeek[],
+  drawn: Drawn,
+  measure: SharedMeasure,
+  size: ChartSize,
+  span: Span,
+): EndLabel[] | null {
+  const rootPx = rootFontPx()
+  const em = labelSizePx(rootPx)
+  const ends = (['run', 'ride'] as const).flatMap((kind) => {
+    const points = drawn[kind]
+    const latest = points.findLastIndex((point) => point !== null)
+    const point = points[latest] ?? null
+    const value = weeks[latest]?.[kind] ?? null
+    return point === null || value === null ? [] : [{ kind, point, value }]
+  })
+  const texts = ends.map(({ kind, value }) => `${SPORT_LABEL[kind]} ${formatValue(measure, value)}`)
+  const widest = Math.max(0, ...texts.map((text) => labelWidthPx(text, rootPx)))
+  // The gutter must hold the text; a plot with no gutter, as a narrow chart's, sets its labels over itself.
+  if (ends.length === 0 || size.width - size.plot.right < LABEL_GAP_X + widest) return null
+  if (ends.some(({ point }) => point.x < size.plot.right - 1)) return null
+  const level = ((ASCENT_EM - DESCENT_EM) / 2) * em
+  const ys = spreadApart(
+    ends.map(({ point }) => point.y + level),
+    (ASCENT_EM + DESCENT_EM) * em,
+  )
+  return ends.map(({ kind, point }, i) => ({
+    kind,
+    text: texts[i] ?? '',
+    anchor: 'start',
+    at: { x: point.x + LABEL_GAP_X, y: keepBetween(ys[i] ?? point.y, span.lo, span.hi) },
   }))
 }

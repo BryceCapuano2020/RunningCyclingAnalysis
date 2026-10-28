@@ -7,6 +7,7 @@ import type { Period } from '@rca/core/period'
 import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '../charts'
+import { endLabelGutter } from '../charts/sharedTrendLayout'
 import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, pickHeadline } from '../components'
@@ -287,7 +288,11 @@ export function BalancePage({
             />
             {/* The hours behind the trend, on its time axis: where the balance moved because training did. */}
             {volume === null ? null : (
-              <WeeklyVolumeChart weeks={volume} lede={volumeCaption(volume)} />
+              <WeeklyVolumeChart
+                weeks={volume}
+                lede={volumeCaption(volume)}
+                plotRightMargin={endLabelGutter}
+              />
             )}
           </div>
         </section>
