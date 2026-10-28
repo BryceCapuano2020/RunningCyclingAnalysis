@@ -14,7 +14,8 @@ import { stateHashes } from './test/stateHashes'
  * the analysis faster must leave every hash as it is. A change that means to alter the analysis copies
  * the received hashes from this test's failure, and says in its description which field moved and why.
  * Re-pinned for the record-distance tolerance: two of the 24 templates are 9.9 km runs and gain a 10 km
- * best, which moves `library` and `result` (the activity summaries carry distance bests) and no other field.
+ * best, which moves `library` and `result` (the activity summaries carry distance bests) and no other field:
+ * `heartRateJudgement` and `timeInZones` read no distance best and are as on main.
  *
  * Periods and dated body masses are counted in local days, so the state is taken in four settings: one
  * body mass in UTC, then three dated masses (each ride priced at its own weight) in UTC, in Los Angeles
