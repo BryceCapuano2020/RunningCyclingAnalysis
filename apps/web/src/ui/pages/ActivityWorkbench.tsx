@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { LapChoices } from './ActivityWorkbenchLaps'
 import { ActivityWorkbenchPlot } from './ActivityWorkbenchPlot'
+import { RepFadeTable } from './ActivityWorkbenchReps'
 import { SelectionStats } from './ActivityWorkbenchStats'
 import { TimeSelection } from './ActivityWorkbenchTime'
 import { DEFAULT_METRICS, METRIC_ORDER, metricLabel, metricUnit } from './workbenchFormat'
@@ -186,6 +187,7 @@ function ReadyWorkbench({
         onChange={setVisible}
       />
       <LapChoices trace={trace} max={max} selection={selection} onSelect={setChosen} />
+      <RepFadeTable trace={trace} units={units} selection={selection} onSelect={setChosen} />
       {visible.length > 0 ? (
         <div className="activity-workbench__plots">
           {visible.map((metric) => (

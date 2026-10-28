@@ -1,7 +1,8 @@
 # Durability and steady-effort drift
 
 Status: evidence implemented 2026-10-28 in `packages/core/src/digest` (`distributions.ts`,
-`durability.ts`, `drift.ts`), inside model revision 6. No view uses it yet. Both citations below were
+`durability.ts`, `drift.ts`), inside model revision 6. The sport pages show it as "Late in long
+sessions" (docs/DESIGN.md). Both citations below were
 checked against the publisher or Crossref record; the 5% rule of thumb was seen in summaries of Friel's article but
 is a coaching convention, not a measured threshold.
 
