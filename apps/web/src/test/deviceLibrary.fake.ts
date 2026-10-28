@@ -8,11 +8,13 @@ import type { DeviceLibrary } from '../worker/deviceLibrary'
  */
 export function memoryDeviceLibrary(): DeviceLibrary {
   const entries = new Map<string, { digest: ActivityDigest; route: RouteShape | null }>()
+  const all = async () =>
+    [...entries]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([workoutKey, { digest }]) => ({ workoutKey, digest }))
   return {
-    all: async () =>
-      [...entries]
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([workoutKey, { digest }]) => ({ workoutKey, digest })),
+    all,
+    allStrict: all,
     get: async (workoutKey) => entries.get(workoutKey)?.digest ?? null,
     route: async (workoutKey) => entries.get(workoutKey)?.route ?? null,
     put: async (workoutKey, digest, route = null) => {

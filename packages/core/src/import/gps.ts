@@ -147,13 +147,20 @@ export function acceptFixes(
 }
 
 function isValidFix(fix: GpsFix): boolean {
+  return Number.isFinite(fix.t) && isUsableLatLon(fix.lat, fix.lon)
+}
+
+/**
+ * Whether a latitude and longitude locate a point: finite, within range, and not the (0,0) that
+ * a device writes when it has no fix. Parsers use it to decide whether a file has positions.
+ */
+export function isUsableLatLon(lat: number, lon: number): boolean {
   return (
-    Number.isFinite(fix.t) &&
-    Number.isFinite(fix.lat) &&
-    Number.isFinite(fix.lon) &&
-    Math.abs(fix.lat) <= 90 &&
-    Math.abs(fix.lon) <= 180 &&
-    !(fix.lat === 0 && fix.lon === 0)
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lon) <= 180 &&
+    !(lat === 0 && lon === 0)
   )
 }
 

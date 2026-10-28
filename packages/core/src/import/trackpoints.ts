@@ -1,4 +1,4 @@
-import { trackFromFixes } from './gps'
+import { isUsableLatLon, trackFromFixes } from './gps'
 import type { GpsFix, GpsTrack } from './gps'
 import type { RejectCode } from './result'
 
@@ -53,6 +53,11 @@ export function readPosition(lat: string | undefined, lon: string | undefined): 
   if (latitude === undefined || longitude === undefined) return undefined
   if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return undefined
   return { lat: latitude, lon: longitude }
+}
+
+/** Whether a position is present and usable: a (0,0) placeholder does not count. */
+export function hasUsablePosition(position: LatLon | undefined): boolean {
+  return position !== undefined && isUsableLatLon(position.lat, position.lon)
 }
 
 /**

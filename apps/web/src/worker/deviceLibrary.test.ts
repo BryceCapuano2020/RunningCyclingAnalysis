@@ -244,6 +244,27 @@ describe('device library in IndexedDB', () => {
     await expect(library.clear()).rejects.toThrow()
   })
 
+  it('reads strictly as it reads otherwise, and lists nothing for storage that cannot be opened', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb().indexedDB)
+    const library = openDeviceLibrary()
+    await library.put('run-1', MEASURED)
+    await expect(library.allStrict()).resolves.toEqual(await library.all())
+    await expect(library.allStrict()).resolves.toHaveLength(1)
+
+    for (const open of ['throw', 'error'] as const) {
+      vi.stubGlobal('indexedDB', fakeIndexedDb({ open }).indexedDB)
+      await expect(openDeviceLibrary().allStrict()).resolves.toEqual([])
+    }
+  })
+
+  it('rejects a strict read that fails on a database that opened, while the plain read lists nothing', async () => {
+    vi.stubGlobal('indexedDB', fakeIndexedDb({ transaction: true }).indexedDB)
+    const library = openDeviceLibrary()
+
+    await expect(library.all()).resolves.toEqual([])
+    await expect(library.allStrict()).rejects.toThrow('Transactions are refused')
+  })
+
   it('keeps the stored digests when a clear is refused', async () => {
     vi.stubGlobal('indexedDB', fakeIndexedDb({ clear: true }).indexedDB)
     const library = openDeviceLibrary()

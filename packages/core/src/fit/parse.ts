@@ -9,6 +9,7 @@ import type { DecodedEvent, DecodedRecord, DecodedSession } from './protocol/dec
 import type { FitSportName, FitSubSportName } from './protocol/profile'
 import { isFitFile, TRUNCATED_ERROR } from './protocol/reader'
 import type { RawRecord, RawTimerEvent } from './resample'
+import { isUsableLatLon } from '../import/gps'
 import type { GpsFix } from '../import/gps'
 
 const NOT_FIT = 'Not a FIT file'
@@ -120,13 +121,14 @@ function toPipelineUnit(
 ): PipelineUnit {
   const { sport, subSport } = resolveSport(unit.session, sportMesg)
   const mapping = mapSport(sport, subSport, listedEBike)
+  const fixes = fitFixes(unit.records)
   const shared = {
     records: unit.records.map((t) => toRaw(t)),
     timerEvents: unit.events,
     sportLabel: sport ?? 'unknown',
-    hasPosition: unit.records.some((t) => t.record.positionLat !== undefined),
+    hasPosition: fixes.some((f) => isUsableLatLon(f.lat, f.lon)),
     distanceOrigin,
-    fixes: fitFixes(unit.records),
+    fixes,
   }
   if (!mapping.ok) {
     const refusal = {

@@ -2,7 +2,7 @@
 import type { ActivityRecord } from '@rca/contract'
 import { periodChoiceOf } from '@rca/core/period'
 import { AnalysisSession } from '@rca/core/session'
-import type { SyncIssueCode } from '@rca/core/session'
+import type { SyncIssueCode, SyncItem } from '@rca/core/session'
 import type { SessionState } from '@rca/core/session'
 import { ApiRequestError, deleteActivity } from '../api/client'
 import { messageOf } from '../api/messageOf'
@@ -85,13 +85,23 @@ async function addFiles(
   if (sync === null && request.saveToDevice && !device.inSession())
     await device.load(request.settings)
   showingSample = false
+  // Workouts this browser refused to keep, counted once however many copies of one were refused, and
+  // not at all when another copy of it was kept. The results still show; the page is told the count.
+  const refused = new Set<string>()
+  const keptKeys = new Set<string>()
+  const keepOnDevice = async (item: SyncItem) => {
+    const key = activityKey(item.digest)
+    if (await device.save(item)) keptKeys.add(key)
+    else refused.add(key)
+  }
+  const notKept = () => [...refused].filter((key) => !keptKeys.has(key)).length
   let state: SessionState
   try {
     state = await session.addFiles(
       request.files,
       request.settings,
       (count) => reporter.filesReadSoFar(count),
-      save ?? (request.saveToDevice ? device.save : undefined),
+      save ?? (request.saveToDevice ? keepOnDevice : undefined),
       sync?.keepFiles === true,
       ({ added, ...completed }) => {
         outcome = { ...completed, ...summarizeAdded(added) }
@@ -106,6 +116,8 @@ async function addFiles(
     reportLibrary()
   } else if (request.saveToDevice) {
     await device.report()
+    const count = notKept()
+    if (count > 0) post({ type: 'deviceIssue', issue: 'notSaved', count })
   }
   if (stoppedBy !== null) post({ type: 'accountIssue', issue: stoppedBy })
   return { state, outcome, ...(sync ? { saved: reporter.savedCount } : {}) }
@@ -172,8 +184,11 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
       routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
       // The copy kept in this browser goes too, so the activity cannot return after a sign-out. The
-      // account copy is already gone, so a copy that cannot be removed here does not fail the delete.
-      await device.dropKept(activityKey(record.digest)).catch(() => undefined)
+      // account copy is already gone, so a copy that cannot be removed here does not fail the delete;
+      // the page is told, since it could return after a sign-out.
+      await device.dropKept(activityKey(record.digest)).catch(() => {
+        post({ type: 'deviceIssue', issue: 'notForgotten' })
+      })
       reportLibrary()
       post({ type: 'missingOriginals', count: missingOriginals.size })
       return session.removeActivity(record.digest.sport, record.digest.startMs, request.settings)

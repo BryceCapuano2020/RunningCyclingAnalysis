@@ -14,6 +14,12 @@ export interface DeviceLibrary {
    * is skipped and kept, so a tab on an older build never deletes it.
    */
   all(): Promise<DeviceEntry[]>
+  /**
+   * Every readable entry, as `all` lists them, except that a read that fails on a database that did
+   * open rejects instead of listing nothing. Storage that cannot be opened at all lists nothing, since
+   * nothing could have been kept there. For a caller that must tell an empty library from an unread one.
+   */
+  allStrict(): Promise<DeviceEntry[]>
   get(workoutKey: string): Promise<ActivityDigest | null>
   /** The route shape kept with the digest, or null when none was kept or it does not read. */
   route(workoutKey: string): Promise<RouteShape | null>
@@ -114,6 +120,7 @@ export function openDeviceLibrary(): DeviceLibrary {
     mode: IDBTransactionMode,
     work: (store: IDBObjectStore) => Promise<T>,
     empty: T,
+    strict = false,
   ): Promise<T> {
     const db = await database()
     if (db === null) {
@@ -128,7 +135,7 @@ export function openDeviceLibrary(): DeviceLibrary {
       return result
     } catch (error) {
       opened = null
-      if (mode === 'readonly') return empty
+      if (mode === 'readonly' && !strict) return empty
       throw error
     }
   }
@@ -145,20 +152,24 @@ export function openDeviceLibrary(): DeviceLibrary {
       undefined,
     )
 
+  async function entries(strict: boolean): Promise<DeviceEntry[]> {
+    const rows = await withStore(
+      'readonly',
+      async (store) => {
+        const [keys, values] = await Promise.all([done(store.getAllKeys()), done(store.getAll())])
+        return keys.map((key, index) => ({ key, row: readRow(values[index]) }))
+      },
+      [],
+      strict,
+    )
+    return rows.flatMap(({ key, row }) =>
+      typeof key === 'string' && row !== null ? [{ workoutKey: key, digest: row.digest }] : [],
+    )
+  }
+
   return {
-    async all() {
-      const rows = await withStore(
-        'readonly',
-        async (store) => {
-          const [keys, values] = await Promise.all([done(store.getAllKeys()), done(store.getAll())])
-          return keys.map((key, index) => ({ key, row: readRow(values[index]) }))
-        },
-        [],
-      )
-      return rows.flatMap(({ key, row }) =>
-        typeof key === 'string' && row !== null ? [{ workoutKey: key, digest: row.digest }] : [],
-      )
-    },
+    all: () => entries(false),
+    allStrict: () => entries(true),
     get: async (workoutKey) => (await readOne(workoutKey))?.digest ?? null,
     route: async (workoutKey) => (await readOne(workoutKey))?.route ?? null,
     put: (workoutKey, digest, route = null) =>

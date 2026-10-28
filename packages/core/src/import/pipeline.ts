@@ -50,7 +50,10 @@ export interface PipelineUnit {
   distanceOrigin?: number
   /** The source marks this unit indoor, e.g. a FIT treadmill or spin sub-sport. */
   indoor: boolean
-  /** Whether any record has a position. Without one, indoor is inferred from altitude and speed. */
+  /**
+   * Whether any record has a usable position: not a (0,0) placeholder, not out of range.
+   * Without one, indoor is inferred from altitude and speed.
+   */
   hasPosition: boolean
   /** The unit's positions in time order, for its route shape. Absent or empty without GPS. */
   fixes?: GpsFix[]
