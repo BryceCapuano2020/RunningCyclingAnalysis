@@ -162,7 +162,7 @@ function rememberKeptLibrary(
   }
   // A sample on screen says nothing about the library kept in this browser.
   if (message.state.isSample) return
-  if (pending.kind === 'loadServer') setKeptLibraryHinted(message.state.totalActivities > 0)
+  if (pending.kind === 'loadServer') setKeptLibraryHinted(message.state.library.length > 0)
   else if (
     pending.kind === 'loadDevice' ||
     pending.kind === 'deleteDeviceActivity' ||

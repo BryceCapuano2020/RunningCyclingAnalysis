@@ -13,6 +13,7 @@ import {
 } from '@rca/core/units'
 import { materialSkippedCountOf, movingTimeOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
+import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
 import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
 import { hrefFor } from '../route'
@@ -112,7 +113,7 @@ export function ActivityRow({
             </span>
             <span>{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
             {activity.indoor && <span className="chip">Indoor</span>}
-            {activity.walkingPace && <span className="chip">Walking pace</span>}
+            {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
             {skipped > 0 && (
               <span className="chip chip--warning">
                 <WarningIcon />

@@ -1,0 +1,104 @@
+import { HEADLINE_DURATION_S } from './constants'
+import { activitySummaries } from './digest'
+import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
+import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
+import { NO_HEART_RATE_JUDGEMENT } from './digest/setAsideTypes'
+import { NO_TRENDS } from './digest/trendPoints'
+import { hiddenDigests } from './duplicates'
+import { splitPeriods } from './period'
+import type { PeriodCache, PeriodChoice } from './period'
+import type { EarnedRecord } from './records'
+import type { SyncIssue } from './saveFailure'
+import type { RejectedFile, SessionState } from './sessionState'
+import type { RecordsCache } from './sessionRecords'
+import type { ActivityDigest, AthleteSettings } from './types'
+import { NO_ZONE_TIMES } from './zones'
+import type { HeartRateJudge, ZoneTimeCache } from './zones'
+
+/** What a session holds that its state is made from: the library, the choices, the caches and the counts. */
+export interface StateInputs {
+  digests: ActivityDigest[]
+  choice: PeriodChoice
+  gradeTrend: boolean
+  isSample: boolean
+  periods: PeriodCache
+  zoneTimes: ZoneTimeCache
+  judge: HeartRateJudge
+  recordsCache: RecordsCache
+  rejected: RejectedFile[]
+  unsupportedFiles: number
+  outdatedActivities: number
+  incompatibleActivities: number
+  syncIssues: SyncIssue[]
+}
+
+/**
+ * The session's state: the analysis of the chosen period, the trends and evidence over it, and the library
+ * listing. `athlete` is the settings the analysis runs on (the sample's own for the sample), null only after
+ * a clear, when the library is empty and nothing needs analysing.
+ */
+export function buildState(inputs: StateInputs, athlete: AthleteSettings | null): SessionState {
+  const { digests: all, periods, judge, zoneTimes, recordsCache } = inputs
+  // Every change to the library is followed by a state, so the analyses it made stale go here.
+  periods.releaseAbsent(all)
+  judge.release(all)
+  const hidden = hiddenDigests(all)
+  const visible = all.filter((d) => !hidden.has(d))
+  // A run at walking pace stays in the library and is left out of every analysis.
+  const analysed = visible.filter((d) => d.walkingPace !== true)
+  const { period, selected, previous } = splitPeriods(analysed, inputs.choice)
+  // Whose heart rate is set aside is a judgement of the library, so every period and reader takes the one list.
+  const judgement = athlete === null ? NO_HEART_RATE_JUDGEMENT : judge.of(analysed, athlete)
+  const setAside = judgement.setAside
+  // A period with no activities still has a result, so the page can say what is missing from it.
+  const analysis =
+    athlete !== null && visible.length > 0
+      ? periods.analysis(selected, athlete, setAside, judgement.calibration)
+      : null
+  // The selected period's bike model prices the trend and the previous period alike.
+  const bikeModel = analysis?.bikeModel
+  // All time is not clipped at a start, so its trend begins at the first activity.
+  const fromMs = period.days === null ? null : period.startMs
+  // The sample is graded as its own athlete, so its rides carry their equivalents too.
+  const hr = inputs.gradeTrend || inputs.isSample ? judgement.calibration : undefined
+  const efforts =
+    athlete === null
+      ? NO_TRENDS
+      : periods.trends(selected, athlete, period.days, fromMs, bikeModel, hr)
+  const sameHeartRate =
+    analysis === null
+      ? NO_SAME_HEART_RATE
+      : periods.sameHeartRate(selected, analysed, fromMs, setAside)
+  const late = analysis === null ? NO_LATE_EVIDENCE : periods.late(selected, setAside)
+  return {
+    result: analysis,
+    trend: efforts[HEADLINE_DURATION_S],
+    effortTrends: efforts,
+    sameHeartRate,
+    lateEvidence: late,
+    heartRateJudgement: judgement,
+    timeInZones:
+      athlete === null || analysis === null
+        ? NO_ZONE_TIMES
+        : zoneTimes.get(selected, previous, athlete, analysis, setAside),
+    previous:
+      athlete !== null && bikeModel !== undefined && previous.length > 0
+        ? periods.previousCurves(selected, previous, athlete, bikeModel)
+        : null,
+    rejected: inputs.rejected,
+    unsupportedFiles: inputs.unsupportedFiles,
+    isSample: inputs.isSample,
+    totalActivities: analysed.length,
+    outdatedActivities: inputs.outdatedActivities,
+    incompatibleActivities: inputs.incompatibleActivities,
+    hiddenDuplicates: hidden.size,
+    walkingPaceRuns: visible.length - analysed.length,
+    period,
+    library: athlete === null ? [] : activitySummaries(visible, athlete),
+    syncIssues: inputs.syncIssues,
+    records:
+      athlete === null
+        ? new Map<string, EarnedRecord[]>()
+        : recordsCache.holders(analysed, athlete),
+  }
+}

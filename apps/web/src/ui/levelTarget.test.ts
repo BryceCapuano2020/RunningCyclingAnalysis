@@ -3,6 +3,7 @@ import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import { equivalentRunSpeed } from '@rca/core/digest'
 import { ageGradeForEffort } from '@rca/core/grade'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { HrCalibration } from '@rca/core/types'
 import { AnalysisSession } from '@rca/core/session'
 import { gapOfHeadline } from './balanceGap'
 import { curvePoint } from './charts/fixtures'
@@ -15,9 +16,18 @@ import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 /** A 37-year-old man at 75 kg, with the heart-rate cross-check of the fixture result. */
 const MASS_KG = 75
 const PROFILE: AgeProfile = { birthYear: 1988, sex: 'male' }
-const ATHLETE = { age: 37, sex: 'male', massKg: MASS_KG, hr: makeResult().hr } as const
+const ATHLETE = { age: 37, sex: 'male', massKg: MASS_KG, calibration: makeResult().hr } as const
+/** A heart-rate calibration that says riding costs this athlete more than the priors assume. */
+const CALIBRATION = { kappa: 1.25, lnKappaSe: 0.05 }
 /** An activity dated in 2025, when this athlete is 37. */
 const IN_2025 = new Date(2025, 5, 1).getTime()
+
+/** The sample athlete's analysis, with the library calibration its equivalents were priced with. */
+function loadedSample() {
+  const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
+  if (state.result === null) throw new Error('The sample has no result')
+  return { result: state.result, calibration: state.heartRateJudgement.calibration }
+}
 
 /** A graded outcome at a given grade, for a sport at the age the test names. */
 function graded(grade: number, age = 37): GradeOutcome {
@@ -28,13 +38,18 @@ function graded(grade: number, age = 37): GradeOutcome {
  * The grade the page gives a ride whose best effort at the headline duration is these watts: its
  * equivalent is built as the analysis builds it, and the grade is read by sportGrade.
  */
-function pageRideGrade(watts: number, result: AnalysisResult, profile: AgeProfile): number {
+function pageRideGrade(
+  watts: number,
+  result: AnalysisResult,
+  profile: AgeProfile,
+  calibration: HrCalibration | null = result.hr,
+): number {
   const ride = result.activities.find((activity) => activity.sport === 'ride')
   if (ride === undefined) throw new Error('The result has no ride to date the effort by')
   const equivalent = makeEquivalence({
     durationS: HEADLINE_DURATION_S,
     ridePowerW: watts,
-    runSpeed: equivalentRunSpeed(watts, MASS_KG, result.hr),
+    runSpeed: equivalentRunSpeed(watts, MASS_KG, calibration),
   })
   const page: AnalysisResult = {
     ...result,
@@ -58,6 +73,16 @@ describe('nativeAtGrade', () => {
     expect(Math.abs(grade - 0.67)).toBeLessThanOrEqual(0.005)
   })
 
+  it('prices the ride with the library calibration it is given, so the page grades the watts back to the target', () => {
+    const calibrated = { ...ATHLETE, calibration: CALIBRATION }
+    const watts = nativeAtGrade('ride', 0.67, HEADLINE_DURATION_S, calibrated)!
+    // The grade chart prices the same watts through the same calibration (gradeProfile's profileEquivalents).
+    expect(
+      Math.abs(pageRideGrade(watts, RIDE_RESULT, PROFILE, CALIBRATION) - 0.67),
+    ).toBeLessThanOrEqual(0.005)
+    expect(watts).not.toBeCloseTo(nativeAtGrade('ride', 0.67, HEADLINE_DURATION_S, ATHLETE)!, 0)
+  })
+
   it('gives the ride watts that the page grades back to the target, within half a point', () => {
     const watts = nativeAtGrade('ride', 0.67, HEADLINE_DURATION_S, ATHLETE)!
     expect(watts).toBeGreaterThan(0)
@@ -69,7 +94,7 @@ describe('nativeAtGrade', () => {
     // The page's ride range runs from the grade at the 5th percentile speed to the grade at the 95th.
     const gradeAtEnd = (watts: number, end: 'p05' | 'p95') =>
       ageGradeForEffort(
-        equivalentRunSpeed(watts, MASS_KG, ATHLETE.hr)[end],
+        equivalentRunSpeed(watts, MASS_KG, ATHLETE.calibration)[end],
         HEADLINE_DURATION_S,
         ATHLETE.age,
         ATHLETE.sex,
@@ -106,7 +131,14 @@ describe('levelTargetText', () => {
     rideCurve: [curvePoint(HEADLINE_DURATION_S, 230, 'ride-1')],
   })
   const grades = { run: graded(0.67), ride: graded(0.6) }
-  const base = { result, grades, sex: 'male' as const, massKg: MASS_KG, units: 'metric' as const }
+  const base = {
+    result,
+    grades,
+    sex: 'male' as const,
+    massKg: MASS_KG,
+    units: 'metric' as const,
+    calibration: result.hr,
+  }
 
   it('says what a ride would need to grade level with the run, in watts rounded to 5, with the ride now', () => {
     const line = levelTargetText({ ...base, lean: 'run' })
@@ -180,8 +212,7 @@ describe('levelTargetText', () => {
 
 describe('levelTargetText on the sample athlete', () => {
   it('names the ride watts that would grade level with the sample run, as the sample shows them', () => {
-    const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
-    if (result === null) throw new Error('The sample has no result')
+    const { result, calibration } = loadedSample()
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     const gap = gapOfHeadline(grades)
     expect(gap?.lean).toBe('run')
@@ -193,6 +224,7 @@ describe('levelTargetText on the sample athlete', () => {
         sex: SAMPLE_PROFILE.sex,
         massKg: SAMPLE_SETTINGS.massKg,
         units: 'metric',
+        calibration,
       }),
     ).toBe(
       'To grade level with your running at 20 min, your best ride would need about 270 W (roughly 245 to 295 W; now 246 W).',
@@ -200,28 +232,25 @@ describe('levelTargetText on the sample athlete', () => {
   }, 60_000)
 
   it('has watts that the page grades back to the target through the sample heart-rate weights', () => {
-    const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
-    if (result === null) throw new Error('The sample has no result')
-    const athlete = { age: 37, sex: 'male' as const, massKg: SAMPLE_SETTINGS.massKg, hr: result.hr }
+    const { result, calibration } = loadedSample()
+    const athlete = { age: 37, sex: 'male' as const, massKg: SAMPLE_SETTINGS.massKg, calibration }
     const watts = nativeAtGrade('ride', 0.64, HEADLINE_DURATION_S, athlete)!
-    expect(Math.abs(pageRideGrade(watts, result, SAMPLE_PROFILE) - 0.64)).toBeLessThanOrEqual(0.005)
+    expect(
+      Math.abs(pageRideGrade(watts, result, SAMPLE_PROFILE, calibration) - 0.64),
+    ).toBeLessThanOrEqual(0.005)
   }, 60_000)
 })
 
 describe('the levelled target, rounded toward the side that levels', () => {
-  const sampleRide = () => {
-    const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
-    if (result === null) throw new Error('The sample has no result')
-    return result
-  }
+  const sampleRide = loadedSample
 
   it('reaches every whole grade from 50 to 80 for the sample athlete, both sports, as the page grades it', () => {
-    const result = sampleRide()
+    const { result, calibration } = sampleRide()
     const athlete = {
       age: 37,
       sex: 'male' as const,
       massKg: SAMPLE_SETTINGS.massKg,
-      hr: result.hr,
+      calibration,
     }
     for (let whole = 50; whole <= 80; whole++) {
       const grade = whole / 100
@@ -231,6 +260,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
         levelledNative('ride', watts, 'metric'),
         result,
         SAMPLE_PROFILE,
+        calibration,
       )
       expect(wholeGrade(rideGrade), `ride at ${whole}%`).toBeGreaterThanOrEqual(whole)
 
@@ -243,12 +273,12 @@ describe('the levelled target, rounded toward the side that levels', () => {
   }, 120_000)
 
   it('names no line when the ride already shows the levelled watts, and one when it shows one watt less', () => {
-    const result = sampleRide()
+    const { result, calibration } = sampleRide()
     const athlete = {
       age: 37,
       sex: 'male' as const,
       massKg: SAMPLE_SETTINGS.massKg,
-      hr: result.hr,
+      calibration,
     }
     const levelled = levelledNative(
       'ride',
@@ -269,6 +299,7 @@ describe('the levelled target, rounded toward the side that levels', () => {
         sex: SAMPLE_PROFILE.sex,
         massKg: SAMPLE_SETTINGS.massKg,
         units: 'metric',
+        calibration,
       })
     expect(at(levelled)).toBeNull()
     expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)

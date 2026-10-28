@@ -51,6 +51,16 @@ describe('runs at walking pace in a session', () => {
     }
   })
 
+  it('leave a library of nothing else with a result of no activities, and the hikes in the library', () => {
+    const state = new AnalysisSession().loadDigests([walker], SETTINGS)
+    expect(state.walkingPaceRuns).toBe(1)
+    expect(state.totalActivities).toBe(0)
+    expect(state.library.map((a) => a.id)).toEqual(['hike'])
+    expect(state.result?.activities).toEqual([])
+    expect(state.records.size).toBe(0)
+    expect(state.heartRateJudgement.setAside).toEqual([])
+  })
+
   it('count nothing when there are none', () => {
     const state = new AnalysisSession().loadDigests([...digests], SETTINGS)
     expect(state.walkingPaceRuns).toBe(0)

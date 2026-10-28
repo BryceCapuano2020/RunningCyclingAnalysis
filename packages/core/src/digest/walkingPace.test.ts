@@ -53,17 +53,50 @@ describe('a run at walking pace', () => {
     expect(digestActivity(burst).walkingPace).toBe(true)
   })
 
-  it('is told by cadence when the file has it: a runner’s cadence is a run, a walker’s a walk', () => {
-    const cadence = (steps: number) => (a: Activity) => {
-      a.cadence = new Float32Array(a.n).fill(steps)
-    }
+  /** Speed and cadence for the samples from..to, in place. */
+  const segment = (a: Activity, from: number, to: number, speed: number, steps: number) => {
+    a.speed.fill(speed, from, to)
+    a.cadence ??= new Float32Array(a.n)
+    a.cadence.fill(steps, from, to)
+  }
+
+  it('keeps a run whose cadence is a runner’s, and marks a walk whose cadence is a walker’s', () => {
+    const cadence = (steps: number) => (a: Activity) => segment(a, 0, a.n, WALK, steps)
     expect(digestActivity(runAt(WALK, 1800, cadence(165))).walkingPace).toBeUndefined()
-    // A walker with a jog is still a walker when the cadence says so.
-    const walker = (a: Activity) => {
-      cadence(108)(a)
-      a.speed.fill(3, 600, 800)
-    }
-    expect(digestActivity(runAt(WALK, 1800, walker)).walkingPace).toBe(true)
+    expect(digestActivity(runAt(WALK, 1800, cadence(108))).walkingPace).toBe(true)
+  })
+
+  it('keeps a run/walk session with a quarter of it jogged at 165 steps a minute, the rest walked at 115', () => {
+    const session = runAt(WALK, 1800, (a) => {
+      segment(a, 0, 1800, 1.2, 115)
+      for (let start = 0; start < 1800; start += 240) segment(a, start, start + 60, 2.6, 165)
+    })
+    // The median cadence over the whole session is a walker's, but it jogged 25% of the time.
+    expect(digestActivity(session).walkingPace).toBeUndefined()
+  })
+
+  it('keeps a hilly ultra whose median cadence is low because it hikes the climbs', () => {
+    const ultra = runAt(WALK, 3600, (a) => {
+      segment(a, 0, 3600, 1.2, 98)
+      segment(a, 600, 1200, 3, 160)
+    })
+    expect(digestActivity(ultra).walkingPace).toBeUndefined()
+  })
+
+  it('keeps a run whose faster seconds have a runner’s cadence even when too few are fast enough to jog', () => {
+    const shuffle = runAt(WALK, 1800, (a) => {
+      segment(a, 0, 1800, 1.2, 105)
+      segment(a, 600, 750, 2.0, 160)
+    })
+    expect(digestActivity(shuffle).walkingPace).toBeUndefined()
+  })
+
+  it('marks a walk with a short GPS burst and a walker’s cadence', () => {
+    const burst = runAt(WALK, 1800, (a) => {
+      segment(a, 0, 1800, WALK, 108)
+      segment(a, 600, 660, 5, 108)
+    })
+    expect(digestActivity(burst).walkingPace).toBe(true)
   })
 
   it('does not read a cadence of unknown unit as steps', () => {

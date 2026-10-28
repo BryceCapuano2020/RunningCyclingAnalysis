@@ -167,7 +167,7 @@ export function headlineBasis(comparison: Comparison, calibrated: boolean): stri
     return 'The heart-rate check could not support a reliable adjustment; showing the population-based model range.'
   }
   return calibrated
-    ? 'Model range adjusted using your heart-rate data.'
+    ? 'Model range adjusted using the heart-rate data across all your activities.'
     : 'Model range based on population assumptions.'
 }
 

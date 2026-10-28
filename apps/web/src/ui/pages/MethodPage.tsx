@@ -70,6 +70,8 @@ const ENERGY_FALLBACK =
   'When Balance has no age-grade gap to show, it shows the energy ratio instead: running’s energy rate as a percentage of cycling’s. This view is that ratio.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
+/** The energy view when a sport has no 20 min effort or fitted threshold yet: Balance holds its headline too. */
+const HELD_COMPARISON = 'The comparison is held until each sport has a harder 20 min effort.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
 const NEEDS_RIDE = 'Needs a ride to compare with running.'
 /** The energy view with no run to compare a ride with: the run-equivalent of NEEDS_RIDE. */
@@ -262,22 +264,24 @@ export function MethodPage({
             <TopicBody id="unit" />
             <TopicBody id="range" />
           </>
+        ) : pick === null ? (
+          <>
+            <p className="secondary">{HELD_COMPARISON}</p>
+            <TopicBody id="unit" />
+            <TopicBody id="range" />
+          </>
         ) : (
           <>
             <p className="secondary">{gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK}</p>
-            {pick && (
-              <>
-                <p className="secondary">
-                  The 90% range is the spread the model gives for its assumptions. Nine times in
-                  ten, the true value falls inside it if those assumptions hold.
-                </p>
-                <ul className="method__facts">
-                  <li>{headlineText(pick.point).range}</li>
-                  <li>{headlineBasis(result.comparison, pick.calibrated)}</li>
-                  <li>The range does not include every source of error.</li>
-                </ul>
-              </>
-            )}
+            <p className="secondary">
+              The 90% range is the spread the model gives for its assumptions. Nine times in ten,
+              the true value falls inside it if those assumptions hold.
+            </p>
+            <ul className="method__facts">
+              <li>{headlineText(pick.point).range}</li>
+              <li>{headlineBasis(result.comparison, pick.calibrated)}</li>
+              <li>The range does not include every source of error.</li>
+            </ul>
             <TopicBody id="unit" />
             <TopicBody id="range" />
             <EvidenceDisclosure section="the energy view">

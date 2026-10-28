@@ -94,7 +94,9 @@ describe('headlineBasis', () => {
     const accepted = comparison({
       calibration: { effectiveSamples: 900, draws: 4000, accepted: true },
     })
-    expect(headlineBasis(accepted, true)).toBe('Model range adjusted using your heart-rate data.')
+    expect(headlineBasis(accepted, true)).toBe(
+      'Model range adjusted using the heart-rate data across all your activities.',
+    )
   })
 
   it('says the range uses population assumptions otherwise', () => {

@@ -908,12 +908,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **The headline needs evidence on both sides.** Each sport needs a fitted threshold or an effort as long as
   the headline's (20 min). A sport known only from shorter efforts, such as one estimated 5 min ride, is not set
   against the other: the answer reads "Not enough to compare yet" (`headlinePick`), on the page, the share card
-  and the import summary alike.
+  and the import summary alike. How sure is this? holds its energy view the same way: "The comparison is held until each sport has a
+  harder 20 min effort.", with no ratio chart and no energy-ratio copy.
 - **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
   is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
-  cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). It stays in the
-  library with a Walking pace mark, is left out of every run analysis, volume and best, and a line under the
-  import notices counts them.
+  cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). Either signal
+  keeps the run: a runner's median cadence over all its moving seconds or over just those faster than a walk,
+  or the jogging share, so a run/walk session or a hilly ultra with a low median cadence is still a run. It
+  stays in the library with a Walking pace mark on its row and its page, where a line takes the place of its
+  best efforts, is left out of every run analysis, volume and best, and a line under the import notices counts
+  them. Every count and date the pages give of what is analysed leaves them out (a library of hikes alone asks
+  for a run and a ride), while the activity list and the activity pages keep them.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
   and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.
@@ -1127,6 +1132,11 @@ only its own activities), the same-heart-rate and late-effort sections, the zone
 The judgement also carries the library's heart-rate calibration of ride against run efficiency (`calibration`: the
 slope ratio and its error), which every period's running equivalents and comparison read (`combine`'s `calibration`
 option), so one ride is worth the same run pace whichever period is shown; a period's own `hr` stays its own evidence.
+The grade chart's extra durations and the level target use it too, so the ride's grade and the "Ride X W" target
+share one conversion. Because it is the library's, adding files can shift older equivalents (the calibration
+refits over everything), where a period's own check moved only with that period. A ride without a power meter is
+the exception to period independence: its watts come from a bike model fitted over the period's own
+power-meter rides, so those watts, and the pace they are worth, can still differ by period.
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
 activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too

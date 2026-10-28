@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { deviceIssueText, ORIGINALS_UNAVAILABLE } from '../analysis/copy'
+import { walkingPaceText } from '../analysis/walkingPaceCopy'
 import { plural } from './plural'
 import type { AnalysisController } from '../useAnalysis'
 
@@ -16,15 +17,6 @@ function hiddenCopiesText(count: number): string {
   return (
     `${plural(count, 'saved activity', 'saved activities')} ${copies} of the same workout ` +
     `from another file and ${counted} not counted twice.`
-  )
-}
-
-/** Note for saved runs at walking pace: hikes recorded as runs, which stay in the list and out of the analysis. */
-function walkingPaceText(count: number): string {
-  return (
-    `${plural(count, 'saved run is', 'saved runs are')} at walking pace, so ` +
-    `${count === 1 ? 'it stays' : 'they stay'} in your activities and ` +
-    `${count === 1 ? 'is' : 'are'} left out of your run analysis.`
   )
 }
 

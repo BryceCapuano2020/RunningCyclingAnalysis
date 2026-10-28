@@ -20,7 +20,7 @@ import type { AccountStatus } from './useAccount'
 import { useAnalysis } from './useAnalysis'
 import { SyncStatus } from './components/SyncStatus'
 import { formatDay } from './format/date'
-import { makeResult } from './components/fixtures'
+import { makeActivity, makeResult } from './components/fixtures'
 import { EMPTY_PERIOD } from './analysis/model'
 import { PERIOD_KEY } from './periodPreference'
 
@@ -2481,10 +2481,33 @@ describe('a period, a clear, and the restore hint, in round 3', () => {
   it('keeps the restore hint when a signed-in visitor clears the session, since the library is kept', () => {
     localStorage.setItem('rca.kept.v1', '1')
     const { result } = setup(SIGNED_IN_KEEP)
-    act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: {
+          ...STATE,
+          totalActivities: 2,
+          library: [makeActivity(), makeActivity({ id: 'b' })],
+        },
+      }),
+    )
 
     act(() => result.current.clear())
     act(() => worker().reply({ type: 'state', state: STATE }))
+
+    expect(localStorage.getItem('rca.kept.v1')).toBe('1')
+  })
+
+  it('hints that a library is kept when it holds only runs at walking pace, which the analysis counts as none', () => {
+    localStorage.removeItem('rca.kept.v1')
+    setup(SIGNED_IN_KEEP)
+    const hike = makeActivity({ id: 'hike', walkingPace: true })
+    act(() =>
+      worker().reply({
+        type: 'state',
+        state: { ...STATE, totalActivities: 0, walkingPaceRuns: 1, library: [hike] },
+      }),
+    )
 
     expect(localStorage.getItem('rca.kept.v1')).toBe('1')
   })

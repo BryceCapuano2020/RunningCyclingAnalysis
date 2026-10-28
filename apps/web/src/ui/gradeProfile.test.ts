@@ -99,14 +99,14 @@ describe('gradeProfile', () => {
 
   it('grades each sport at the durations from 3 min to 3 h that it has a best, in order', () => {
     const result = makeResult({ activities, runCurve, rideCurve, equivalents })
-    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     expect(profile.run.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
     expect(profile.ride.map((point) => point.durationS)).toEqual([...PROFILE_DURATIONS_S])
   })
 
   it('gives a run a point and a ride its range', () => {
     const result = makeResult({ activities, runCurve, rideCurve, equivalents })
-    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     expect(profile.run.every((point) => point.grade.range === null)).toBe(true)
     expect(profile.ride.every((point) => point.grade.range !== null)).toBe(true)
   })
@@ -118,7 +118,7 @@ describe('gradeProfile', () => {
       rideCurve,
       equivalents,
     })
-    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     expect(profile.run.map((point) => point.durationS)).not.toContain(10 * MIN)
     expect(profile.ride.map((point) => point.durationS)).toContain(10 * MIN)
   })
@@ -131,14 +131,14 @@ describe('gradeProfile', () => {
       rideCurve,
       equivalents: equivalents.filter((equivalence) => equivalence.durationS !== 180),
     })
-    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     expect(profile.run.map((point) => point.durationS)).toEqual([20 * MIN])
     expect(profile.ride.map((point) => point.durationS)).not.toContain(3 * MIN)
   })
 
   it('has no points for a sport with no curve', () => {
     const result = makeResult({ activities, runCurve, rideCurve: [], equivalents })
-    expect(gradeProfile(result, MAN_BORN_1986, MASS_KG).ride).toEqual([])
+    expect(gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr).ride).toEqual([])
   })
 })
 
@@ -148,7 +148,7 @@ describe('the durations a combine leaves out', () => {
   const beyond = (durationS: number) => !EQUIVALENCE_DURATIONS_S.includes(durationS)
 
   it('prices an equivalent at each longer or shorter duration the ride curve has a best at', () => {
-    const extras = profileEquivalents(result, MASS_KG)
+    const extras = profileEquivalents(result, MASS_KG, result.hr)
     const ridden = PROFILE_DURATIONS_S.filter(beyond).filter((durationS) =>
       result.rideCurve.some((p) => p.durationS === durationS && Number.isFinite(p.value)),
     )
@@ -157,23 +157,37 @@ describe('the durations a combine leaves out', () => {
   })
 
   it('prices them as a combine does: the same draws, the result’s heart-rate check, the mass', () => {
-    for (const extra of profileEquivalents(result, MASS_KG)) {
+    for (const extra of profileEquivalents(result, MASS_KG, result.hr)) {
       expect(extra.runSpeed).toEqual(equivalentRunSpeed(extra.ridePowerW, MASS_KG, result.hr))
     }
   })
 
+  it('prices them under the calibration given, the one the result’s own equivalents use, not the period’s check', () => {
+    // The library says riding costs this athlete 30% more than the priors assume; the result's own check is silent.
+    const library = { kappa: 1.3, lnKappaSe: 0.04 }
+    const extras = profileEquivalents(result, MASS_KG, library)
+    expect(extras.length).toBeGreaterThan(0)
+    for (const extra of extras) {
+      expect(extra.runSpeed).toEqual(equivalentRunSpeed(extra.ridePowerW, MASS_KG, library))
+    }
+    const alone = profileEquivalents(result, MASS_KG, null)
+    expect(extras.map((e) => e.runSpeed.p50)).not.toEqual(alone.map((e) => e.runSpeed.p50))
+  })
+
   it('leaves the result’s own equivalents as they were, and prices none a combine already holds', () => {
     const before = structuredClone(result.equivalents)
-    gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     expect(result.equivalents).toEqual(before)
     const held = result.equivalents.map((e) => e.durationS)
-    expect(profileEquivalents(result, MASS_KG).some((e) => held.includes(e.durationS))).toBe(false)
+    expect(
+      profileEquivalents(result, MASS_KG, result.hr).some((e) => held.includes(e.durationS)),
+    ).toBe(false)
   })
 
   it('draws a ride’s grade at those durations, graded as one the combine held would be', () => {
-    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(result, MAN_BORN_1986, MASS_KG, result.hr)
     // A 4 min equivalent runs under a mile, which has no standard, so the first graded one is read.
-    const extra = profileEquivalents(result, MASS_KG).find((e) =>
+    const extra = profileEquivalents(result, MASS_KG, result.hr).find((e) =>
       profile.ride.some((p) => p.durationS === e.durationS),
     )!
     const priced = { ...result, equivalents: [...result.equivalents, extra] }
@@ -185,13 +199,13 @@ describe('the durations a combine leaves out', () => {
   })
 
   it('prices them at the mass given, so the same watts are worth a slower run for a heavier athlete', () => {
-    const light = profileEquivalents(result, 60)[0]!
-    const heavy = profileEquivalents(result, 90)[0]!
+    const light = profileEquivalents(result, 60, result.hr)[0]!
+    const heavy = profileEquivalents(result, 90, result.hr)[0]!
     expect(heavy.runSpeed.p50).toBeLessThan(light.runSpeed.p50)
   })
 
   it('prices nothing when the ride curve has no best beyond the combine’s durations', () => {
-    expect(profileEquivalents({ ...result, rideCurve: [] }, MASS_KG)).toEqual([])
+    expect(profileEquivalents({ ...result, rideCurve: [] }, MASS_KG, result.hr)).toEqual([])
   })
 })
 
@@ -213,7 +227,7 @@ describe('profileLeans and profileSeparated', () => {
   it('reads the lean at 20 min from the grades and the balance rule the headline uses', () => {
     const grades = headlineGrades(sample, MAN_BORN_1986)
     const gap = gapOfHeadline(grades)
-    const profile = gradeProfile(sample, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(sample, MAN_BORN_1986, MASS_KG, sample.hr)
     const at20 = profileLeans(profile).find((lean) => lean.durationS === HEADLINE_DURATION_S)
     expect(gap).not.toBeNull()
     expect(at20?.lean).toBe(gap?.lean)
@@ -222,7 +236,7 @@ describe('profileLeans and profileSeparated', () => {
 
   it('takes the ride’s grade at 20 min from the same equivalence the headline grades', () => {
     const grades = headlineGrades(sample, MAN_BORN_1986)
-    const profile = gradeProfile(sample, MAN_BORN_1986, MASS_KG)
+    const profile = gradeProfile(sample, MAN_BORN_1986, MASS_KG, sample.hr)
     const ride = profile.ride.find((point) => point.durationS === HEADLINE_DURATION_S)
     expect(grades.ride.kind).toBe('graded')
     expect(ride?.grade).toEqual(grades.ride.kind === 'graded' ? grades.ride.grade : null)

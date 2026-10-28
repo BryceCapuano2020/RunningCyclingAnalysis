@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { AnalysisResult } from '@rca/core/pipeline'
+import type { HrCalibration } from '@rca/core/types'
 import { GradeProfileChart } from '../charts'
 import { GRADE_PROFILE_TITLE } from '../charts/gradeProfileText'
 import { gradeProfile, profileFinding, profileSeparated } from '../gradeProfile'
@@ -15,6 +16,8 @@ export interface GradeProfileSectionProps {
   massKg: number
   /** False while no body weight is entered: a ride's grade waits for it, so there is nothing to compare. */
   weightKnown: boolean
+  /** The library's heart-rate calibration, which the ride's equivalents are priced with. */
+  calibration: HrCalibration | null
 }
 
 /**
@@ -50,6 +53,7 @@ export function GradeProfileSection({
   profile,
   massKg,
   weightKnown,
+  calibration,
 }: GradeProfileSectionProps) {
   // Memoised on the two profile values, not the object, which the caller builds afresh on each render.
   const birthYear = profile?.birthYear ?? null
@@ -57,9 +61,9 @@ export function GradeProfileSection({
   const graded = useMemo(
     () =>
       weightKnown && birthYear !== null && sex !== null
-        ? gradeProfile(result, { birthYear, sex }, massKg)
+        ? gradeProfile(result, { birthYear, sex }, massKg, calibration)
         : null,
-    [result, birthYear, sex, massKg, weightKnown],
+    [result, birthYear, sex, massKg, weightKnown, calibration],
   )
   const finding = graded === null ? null : profileFinding(graded)
   if (graded === null || finding === null) return null
