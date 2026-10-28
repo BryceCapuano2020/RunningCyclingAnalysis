@@ -76,7 +76,7 @@ function spyStore() {
     has: vi.fn(async (scope: TraceScope, id: string) => rows.has(scopeKey(scope, id))),
     put: vi.fn(async (scope: TraceScope, trace: ActivityTrace) => {
       rows.set(scopeKey(scope, trace.activityId), trace)
-      return true
+      return 'stored' as const
     }),
     remove: vi.fn(async (scope: TraceScope, id: string) => {
       rows.delete(scopeKey(scope, id))
@@ -157,7 +157,11 @@ describe('where an import keeps recordings', () => {
     await send(signedOutImport(fitFile()))
 
     expect(spy.store.put).toHaveBeenCalledTimes(1)
-    expect(spy.store.put).toHaveBeenCalledWith({ kind: 'device' }, expect.anything())
+    expect(spy.store.put).toHaveBeenCalledWith(
+      { kind: 'device' },
+      expect.anything(),
+      expect.any(Number),
+    )
   })
 
   it('keeps no recording of a copy the library hides', async () => {

@@ -87,7 +87,7 @@ test('sample details are available without persisting sample recordings', async 
   await expect(workbench.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   const saved = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -154,7 +154,7 @@ test('an account original is read only on request, and account deletion removes 
   ).toBeVisible()
   const cache = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })

@@ -142,7 +142,9 @@ async function addFiles(
         const swapped = replacing
         replacing = false
         const had = swapped || (await workbench.holds(traceScope, activity.id))
-        if ((await workbench.capture(activity, traceScope)) !== null && !had)
+        const kept = await workbench.capture(activity, traceScope)
+        // Counted once it is in storage: a recording held in memory alone is gone after a reload.
+        if (kept !== null && !had && workbench.isStored(traceScope, activity.id))
           restored.add(activity.id)
       },
       async (replacedId) => {

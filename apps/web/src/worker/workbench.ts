@@ -3,7 +3,7 @@ import { activityTraceOf } from '@rca/core/workbench'
 import type { Activity } from '@rca/core/types'
 import { openWorkbenchStore } from './workbenchStore'
 import { activityTraceBytes, WORKBENCH_ENTRY_BYTES } from './workbenchStore'
-import type { TraceScope, WorkbenchStore } from './workbenchStore'
+import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
 
 export type ActivityTraceReply =
   | { kind: 'trace'; trace: ActivityTrace }
@@ -60,6 +60,8 @@ interface MemoryEntry {
   scope: TraceScope
   trace: ActivityTrace
   home: TraceHome
+  /** When the activity started, which storage ranks its recording by. Read when a pending one is written. */
+  startMs: number
 }
 
 /** Bounded worker cache and its IndexedDB backing store. Cache failures never affect digest saves. */
@@ -80,8 +82,9 @@ export class Workbench {
   }
 
   /**
-   * Keeps one serialized evidence trace, in storage too when storage takes it. The source Activity is
-   * not retained.
+   * Keeps one serialized evidence trace, in storage too when storage takes it. Storage that is full
+   * of newer activities' recordings leaves this one in memory alone. The source Activity is not
+   * retained.
    */
   async capture(activity: Activity, scope: TraceScope): Promise<ActivityTrace | null> {
     try {
@@ -90,11 +93,20 @@ export class Workbench {
       if (activityTraceBytes(trace) > WORKBENCH_ENTRY_BYTES) return null
       const before = await this.deleted(scope)
       if (before === true) return null
-      const stored = before === false && (await this.store.put(scope, trace).catch(() => false))
-      if (!stored && (await this.deleted(scope)) === true) return null
-      this.remember(scope, trace, stored ? 'stored' : 'pending')
+      const put: PutResult =
+        before === false
+          ? await this.store.put(scope, trace, activity.startMs).catch((): PutResult => 'refused')
+          : 'refused'
+      if (put !== 'stored' && (await this.deleted(scope)) === true) return null
+      this.remember(
+        scope,
+        trace,
+        put === 'stored' ? 'stored' : put === 'outranked' ? 'memory' : 'pending',
+        activity.startMs,
+      )
       // Storage answered, so what it refused or could not be reached for earlier is written now.
-      if (stored) await this.writePending((key) => key !== memoryKey(scope, trace.activityId))
+      if (put === 'stored')
+        await this.writePending((key) => key !== memoryKey(scope, trace.activityId))
       return trace
     } catch {
       // Evidence is optional. A malformed or oversized trace does not interrupt analysis or saving.
@@ -110,7 +122,8 @@ export class Workbench {
     try {
       if (!activityFitsEntry(activity)) return
       const trace = activityTraceOf(activity)
-      if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES) this.remember(scope, trace, 'memory')
+      if (activityTraceBytes(trace) <= WORKBENCH_ENTRY_BYTES)
+        this.remember(scope, trace, 'memory', activity.startMs)
     } catch {
       // Memory evidence is optional too.
     }
@@ -125,6 +138,11 @@ export class Workbench {
     if (cached !== undefined && cached.home !== 'stored') return true
     const stored = await this.store.has(scope, activityId).catch(() => null)
     return cached === undefined ? stored === true : stored !== false
+  }
+
+  /** Whether the activity's recording is in storage, as the last write or read left it, so it survives a reload. */
+  isStored(scope: TraceScope, activityId: string): boolean {
+    return this.traces.get(memoryKey(scope, activityId))?.home === 'stored'
   }
 
   async get(scope: TraceScope, activityId: string): Promise<ActivityTrace | null> {
@@ -152,7 +170,8 @@ export class Workbench {
       }
     }
     const trace = await this.store.get(scope, activityId).catch(() => null)
-    if (trace) this.remember(scope, trace, 'stored')
+    // Read from storage, so it is never written back and its start does not matter.
+    if (trace) this.remember(scope, trace, 'stored', 0)
     return trace
   }
 
@@ -166,11 +185,15 @@ export class Workbench {
       const deleted = await this.deleted(entry.scope)
       if (deleted === true && this.traces.get(key) === entry) this.traces.delete(key)
       if (deleted !== false || this.traces.get(key) !== entry) continue
-      const saved = await this.store.put(entry.scope, entry.trace).catch(() => false)
-      if (!saved) continue
-      if (this.traces.get(key) === entry) entry.home = 'stored'
-      // It was removed while it was being written, so the write must not bring it back.
-      else await this.store.remove(entry.scope, entry.trace.activityId).catch(() => false)
+      const saved = await this.store
+        .put(entry.scope, entry.trace, entry.startMs)
+        .catch((): PutResult => 'refused')
+      if (saved === 'refused') continue
+      if (this.traces.get(key) !== entry) {
+        // It was removed while it was being written, so the write must not bring it back.
+        if (saved === 'stored')
+          await this.store.remove(entry.scope, entry.trace.activityId).catch(() => false)
+      } else entry.home = saved === 'stored' ? 'stored' : 'memory'
     }
   }
 
@@ -207,10 +230,15 @@ export class Workbench {
     return await this.store.deleteScope(scope).catch(() => false)
   }
 
-  private remember(scope: TraceScope, trace: ActivityTrace, home: TraceHome): void {
+  private remember(
+    scope: TraceScope,
+    trace: ActivityTrace,
+    home: TraceHome,
+    startMs: number,
+  ): void {
     const key = memoryKey(scope, trace.activityId)
     this.traces.delete(key)
-    this.traces.set(key, { scope, trace, home })
+    this.traces.set(key, { scope, trace, home, startMs })
     while (this.traces.size > MEMORY_ENTRIES) {
       const oldest = this.traces.keys().next().value as string | undefined
       if (oldest === undefined) break

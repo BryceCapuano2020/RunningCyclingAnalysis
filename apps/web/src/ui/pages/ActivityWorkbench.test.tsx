@@ -312,7 +312,9 @@ describe('ActivityWorkbench', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       "Add this activity's file again to see its detail.",
     )
-    expect(screen.getByRole('status')).toHaveTextContent('the oldest are dropped')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'those of the oldest activities are dropped first',
+    )
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
 
     const failed = vi.fn(async () => ({ kind: 'failed' }) satisfies ActivityTraceReply)

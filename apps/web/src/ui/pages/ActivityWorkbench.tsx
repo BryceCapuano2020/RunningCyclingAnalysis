@@ -115,7 +115,7 @@ function WorkbenchSection({ sport, children }: { sport?: string; children: React
 
 /** What an activity says when this browser holds no recording of it and keeps no original file. */
 const MISSING_DETAIL =
-  "This browser has no detailed readings for this activity, and no original file is saved. Add this activity's file again to see its detail. Recordings are kept in limited browser space, and the oldest are dropped when it is used up."
+  "This browser has no detailed readings for this activity, and no original file is saved. Add this activity's file again to see its detail. Recordings are kept in limited browser space, and those of the oldest activities are dropped first when it is used up."
 
 function ActivityWorkbenchSession({
   activityId,

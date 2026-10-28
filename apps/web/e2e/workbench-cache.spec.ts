@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { activitiesRows, uploadFixtures } from './helpers.js'
 
 test('a refused detail-cache write preserves analysis and the saved activity summary', async ({
@@ -32,7 +33,7 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
   await page.goto('/privacy')
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -63,7 +64,7 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
   await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   const accounting = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -90,20 +91,20 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
   expect(state.bytes).toBeLessThanOrEqual(64 * 1024 * 1024)
 })
 
-test('a full recording cache drops the oldest recordings to take a re-added one', async ({
-  page,
-}) => {
-  const TOTAL = 64 * 1024 * 1024
-  const SEEDED = 8
-  await page.goto('/')
-  await uploadFixtures(page, ['one-run.tcx'])
-  await expect(await activitiesRows(page)).toHaveCount(1)
-  await page.goto('/privacy')
-  // Fills the cache to its byte limit with eight recordings, the first of them the oldest.
+const TOTAL = 64 * 1024 * 1024
+const DAY_MS = 24 * 60 * 60 * 1000
+const JUNE_1 = Date.UTC(2025, 5, 1)
+
+/**
+ * Fills the recording cache to its byte limit with eight made-up recordings, seeded-0 to seeded-7,
+ * started a day apart from `firstStartMs`. The first is saved last, so only the activity start can
+ * tell it is the oldest.
+ */
+async function fillCache(page: Page, firstStartMs: number): Promise<void> {
   await page.evaluate(
-    async ({ total, seeded }) => {
+    async ({ total, day, from }) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('rca-workbench-evidence', 2)
+        const request = indexedDB.open('rca-workbench-evidence', 3)
         request.onsuccess = () => resolve(request.result)
         request.onerror = () => reject(request.error)
       })
@@ -113,57 +114,165 @@ test('a full recording cache drops the oldest recordings to take a re-added one'
           transaction.oncomplete = () => resolve()
           transaction.onabort = () => reject(transaction.error)
           const entries = transaction.objectStore('entries')
-          const kept = transaction.objectStore('entries').getAll()
-          const each = Math.floor(total / seeded)
-          kept.onsuccess = () => {
-            const real = (kept.result as { bytes: number }[]).reduce((sum, e) => sum + e.bytes, 0)
-            for (let i = 0; i < seeded; i++) {
-              const key = JSON.stringify(['device', 'seeded-' + i])
+          const held = entries.getAll()
+          held.onsuccess = () => {
+            const real = (held.result as { bytes: number }[]).reduce((sum, e) => sum + e.bytes, 0)
+            const each = Math.floor(total / 8)
+            for (let i = 0; i < 8; i++) {
               entries.put({
-                key,
+                key: JSON.stringify(['device', 'seeded-' + i]),
                 scopeKey: 'device',
                 activityId: 'seeded-' + i,
-                savedAt: 1 + i,
-                bytes: i === 0 ? total - real - each * (seeded - 1) : each,
+                startMs: from + i * day,
+                savedAt: Date.now() - i,
+                bytes: i === 0 ? total - real - each * 7 : each,
               })
             }
-            transaction.objectStore('state').put({ key: 'total', bytes: total, count: seeded + 1 })
+            const count = 8 + held.result.length
+            transaction.objectStore('state').put({ key: 'total', bytes: total, count })
           }
         })
       } finally {
         db.close()
       }
     },
-    { total: TOTAL, seeded: SEEDED },
+    { total: TOTAL, day: DAY_MS, from: firstStartMs },
   )
-  await page.goto('/')
-  await uploadFixtures(page, ['one-ride.gpx'])
-  await expect(await activitiesRows(page)).toHaveCount(2)
-  await page.goto('/privacy')
-  const left = await page.evaluate(async () => {
+}
+
+async function cacheRows(page: Page) {
+  const [entries, [state]] = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
     try {
       const transaction = db.transaction(['entries', 'state'])
-      const get = (store: string) =>
+      const all = (store: string) =>
         new Promise<unknown[]>((resolve, reject) => {
           const request = transaction.objectStore(store).getAll()
           request.onsuccess = () => resolve(request.result)
           request.onerror = () => reject(request.error)
         })
-      return await Promise.all([get('entries'), get('state')])
+      return await Promise.all([all('entries'), all('state')])
     } finally {
       db.close()
     }
   })
-  const [entries, [state]] = left as [{ activityId: string; bytes: number }[], [{ bytes: number }]]
+  return {
+    entries: entries as { activityId: string; bytes: number }[],
+    state: state as { bytes: number },
+  }
+}
+
+test('a full recording cache drops the oldest activities first, however recently they were saved', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await uploadFixtures(page, ['one-run.tcx'])
+  await expect(await activitiesRows(page)).toHaveCount(1)
+  await page.goto('/privacy')
+  // Eight recordings of activities from 1 to 8 June, which fill the cache. The run is of 13 June.
+  await fillCache(page, JUNE_1)
+  await page.goto('/')
+  await uploadFixtures(page, ['one-ride.gpx'])
+  await expect(await activitiesRows(page)).toHaveCount(2, { timeout: 15_000 })
+  await page.goto('/privacy')
+  const { entries, state } = await cacheRows(page)
   const ids = entries.map((entry) => entry.activityId)
   expect(ids).not.toContain('seeded-0')
+  expect(ids).toContain('seeded-1')
   expect(ids).toContain('seeded-7')
-  expect(entries.length).toBeGreaterThanOrEqual(3)
+  expect(ids).toContain('1749798900000-one-run.tcx')
+  expect(ids).toHaveLength(9)
   expect(state.bytes).toBe(entries.reduce((sum, entry) => sum + entry.bytes, 0))
   expect(state.bytes).toBeLessThanOrEqual(TOTAL)
+})
+
+test('an older activity added to a cache full of newer ones is not stored, and still opens', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await uploadFixtures(page, ['one-ride.gpx'])
+  await expect(await activitiesRows(page)).toHaveCount(1)
+  await page.goto('/privacy')
+  // Eight recordings of activities from 2030, which fill the cache. The ride is of 14 June 2025.
+  await fillCache(page, Date.UTC(2030, 0, 1))
+  await page.goto('/')
+  await uploadFixtures(page, ['one-run.tcx'])
+  const rows = await activitiesRows(page)
+  await expect(rows).toHaveCount(2, { timeout: 15_000 })
+  // The older run is the second row. Its recording lasts for this visit.
+  await rows.nth(1).getByRole('link').click()
+  await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
+
+  await page.goto('/privacy')
+  const { entries, state } = await cacheRows(page)
+  const ids = entries.map((entry) => entry.activityId)
+  expect(ids).not.toContain('1749798900000-one-run.tcx')
+  expect(ids).toContain('seeded-0')
+  expect(ids).toContain('seeded-7')
+  expect(ids.some((id) => id.endsWith('one-ride.gpx'))).toBe(true)
+  expect(ids).toHaveLength(9)
+  expect(state.bytes).toBeLessThanOrEqual(TOTAL)
+
+  await page.goto('/')
+  const reloaded = await activitiesRows(page)
+  await reloaded.nth(1).getByRole('link').click()
+  await expect(page.getByText(/Add this activity's file again/)).toBeVisible()
+})
+
+test('a recording cache from before recordings were ranked is rebuilt and keeps account tombstones', async ({
+  page,
+}) => {
+  await page.goto('/privacy')
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('rca-workbench-evidence', 2)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        db.createObjectStore('traces', { keyPath: 'key' })
+        const entries = db.createObjectStore('entries', { keyPath: 'key' })
+        entries.createIndex('scopeKey', 'scopeKey')
+        entries.createIndex('savedAt', 'savedAt')
+        db.createObjectStore('state', { keyPath: 'key' })
+        db.createObjectStore('owners', { keyPath: 'scopeKey' })
+        const key = JSON.stringify(['device', 'old'])
+        entries.put({ key, scopeKey: 'device', activityId: 'old', savedAt: 1, bytes: 10 })
+        request.transaction!.objectStore('traces').put({ key })
+        request.transaction!.objectStore('state').put({ key: 'total', bytes: 10, count: 1 })
+        request.transaction!.objectStore('owners').put({ scopeKey: 'account:gone', deletedAt: 1 })
+      }
+      request.onsuccess = () => {
+        request.result.close()
+        resolve()
+      }
+      request.onerror = () => reject(request.error)
+    })
+  })
+  await page.goto('/')
+  await uploadFixtures(page, ['one-run.tcx'])
+  await expect(await activitiesRows(page)).toHaveCount(1, { timeout: 15_000 })
+  await page.goto('/privacy')
+  const { entries, state } = await cacheRows(page)
+  expect(entries.map((entry) => entry.activityId)).toEqual(['1749798900000-one-run.tcx'])
+  expect(state.bytes).toBe(entries[0]!.bytes)
+  const owners = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('rca-workbench-evidence', 3)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      return await new Promise<unknown[]>((resolve, reject) => {
+        const request = db.transaction('owners').objectStore('owners').getAll()
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    } finally {
+      db.close()
+    }
+  })
+  expect(owners).toEqual([{ scopeKey: 'account:gone', deletedAt: 1 }])
 })
