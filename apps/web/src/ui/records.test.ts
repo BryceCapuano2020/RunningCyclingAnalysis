@@ -3,6 +3,7 @@ import { fitCriticalPower } from '@rca/core/cp'
 import { FLAT_RUN_COST, HALF_MARATHON_M, PRIORS, RESTING_W_PER_KG } from '@rca/core/constants'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { METRES_PER_KM, METRES_PER_MILE, formatDistance } from '@rca/core/units'
+import { activityMasses } from './activityMasses'
 import { curvePoint } from './charts/fixtures'
 import { makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import { thresholdRange } from './thresholdRange'
@@ -240,6 +241,14 @@ describe('sportRecords', () => {
     const [first] = sportRecords(result, 'ride', 80, 'metric')
     expect(first?.value).toBe('400 W')
     expect(first?.sub).toBe('5.0 W/kg')
+  })
+
+  it('prices a ride at the body mass on its own date when masses are dated', () => {
+    const heavier = makeActivity({ id: 'ride-1', sport: 'ride', massKg: 100 })
+    const dated = makeResult({ activities: [heavier], rideCurve: result.rideCurve })
+    // 400 W at 100 kg is 4.0 W/kg, whatever the current mass.
+    expect(sportRecords(dated, 'ride', 80, 'metric')[0]?.sub).toBe('4.0 W/kg')
+    expect(activityMasses([heavier, ride])).toEqual({ 'ride-1': 100 })
   })
 
   it('shows runs as a pace with no second reading', () => {

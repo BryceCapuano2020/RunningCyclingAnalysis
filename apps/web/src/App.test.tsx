@@ -24,6 +24,7 @@ vi.mock('./ui/useAnalysis', async () => ({
 vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
+vi.mock('./api/measurements', async () => (await import('./test/appMocks')).measurementsApi)
 // The share card is drawn in the browser; the tests count how often its preview is drawn.
 vi.mock('./share/download', () => ({
   canShareImage: vi.fn(() => false),

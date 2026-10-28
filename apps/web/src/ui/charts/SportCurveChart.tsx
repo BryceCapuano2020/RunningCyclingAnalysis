@@ -22,7 +22,7 @@ import {
 } from './chartInteraction'
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
 import { durationRows, MIN_DURATION_S } from './curveRows'
-import { captionOf, columnsOf, tableRow } from './curveTable'
+import { captionOf, columnsOf, tableRow, wkgOf } from './curveTable'
 import type { CurveRow, View } from './curveTable'
 import { areaPath, linePath } from './paths'
 import { labelWidthPx, rootFontPx } from './rootFont'
@@ -57,6 +57,8 @@ export interface SportCurveChartProps {
   units: UnitSystem
   /** Activity id to name. When given, tooltips and the table say which activity each value is from. */
   activityNames?: Record<string, string>
+  /** Activity id to the body mass on its date, kg. When given, its W/kg uses that mass, not massKg. */
+  activityMasses?: Record<string, number>
 }
 
 /** The first duration, s, a sport's chart draws: its curve's start, and never under a minute. */
@@ -164,7 +166,7 @@ function layout(rows: CurveRow[], view: View, size: ChartSize): Layout | null {
 function noteOf(row: CurveRow, view: View): string | undefined {
   const source = sourceNote(row.activityId, view.names)
   if (!SPORT_FORMAT[view.sport].showsWkg) return source
-  const wkg = formatWkg(row.value / view.massKg)
+  const wkg = formatWkg(wkgOf(row, view))
   return source === undefined ? wkg : `${wkg}, ${source}`
 }
 
@@ -205,6 +207,7 @@ export function SportCurveChart({
   massKg,
   units,
   activityNames,
+  activityMasses,
 }: SportCurveChartProps) {
   const rows = buildRows(sport, curve, previous?.curve ?? [])
   // The previous period is drawn, listed and tabled only when it has a value to show.
@@ -214,6 +217,7 @@ export function SportCurveChart({
     sport,
     units,
     massKg,
+    masses: activityMasses,
     previous: shown,
     names: activityNames,
     shared: sharedSourceOf(rows.map((row) => row.activityId)),

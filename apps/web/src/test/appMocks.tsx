@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import type { Me, Profile, ProfileInput } from '@rca/contract'
+import type { Measurement } from '@rca/core/athlete'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { SessionState } from '@rca/core/session'
 import { makeResult } from '../ui/components/fixtures'
@@ -26,6 +27,13 @@ export const updateProfile = vi.fn<(patch: Partial<ProfileInput>) => Promise<Pro
   async (patch) => ({ ...(app.account.me?.profile ?? meFor().profile), ...patch, updatedAt: 2000 }),
 )
 export const setPreferences = vi.fn<(next: Preferences) => void>()
+
+/** The dated-settings API, answering an empty list, for the App tests that save a weight. */
+export const measurementsApi = {
+  listMeasurements: vi.fn(async (): Promise<Measurement[]> => []),
+  putMeasurement: vi.fn(async (entry: Measurement) => entry),
+  deleteMeasurement: vi.fn(async () => undefined),
+}
 
 export interface AccountOptions {
   keepFiles?: boolean
@@ -139,6 +147,9 @@ export function resetAppMocks(): void {
   app.preferences = DEFAULT_PREFERENCES
   updateProfile.mockReset()
   setPreferences.mockReset()
+  measurementsApi.listMeasurements.mockReset().mockResolvedValue([])
+  measurementsApi.putMeasurement.mockReset().mockImplementation(async (entry) => entry)
+  measurementsApi.deleteMeasurement.mockReset().mockResolvedValue(undefined)
   // jsdom does not scroll, and App scrolls to the top whenever the page changes.
   window.scrollTo = () => undefined
   window.location.hash = ''

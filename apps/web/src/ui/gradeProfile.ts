@@ -2,6 +2,7 @@ import { EQUIVALENCE_DURATIONS_S, PROFILE_DURATIONS_S } from '@rca/core/constant
 import { equivalenceFor } from '@rca/core/pipeline'
 import type { AnalysisResult, Equivalence } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
+import { activityMasses } from './activityMasses'
 import { balanceGap } from './balanceGap'
 import { sportGrade } from './grades'
 import type { AgeProfile, SportGrade } from './grades'
@@ -21,24 +22,25 @@ export type GradeProfile = Record<Sport, ProfilePoint[]>
  * The ride's running equivalents at the profile durations that a combine does not price, from the ride
  * curve's best at each. Each costs one pass over the draws, so they are priced here, for the chart that
  * draws them, rather than in every combine. They are priced as a combine prices its own: under the
- * result's heart-rate check, at the athlete's mass, with the draws built once for all of them.
+ * result's heart-rate check, at the body mass the ride was ridden at (massKg without dated masses), with the draws built once for all of them.
  */
 export function profileEquivalents(result: AnalysisResult, massKg: number): Equivalence[] {
   const held = new Set(result.equivalents.map((equivalent) => equivalent.durationS))
+  const masses = activityMasses(result.activities)
   const powers = PROFILE_DURATIONS_S.filter(
     (durationS) => !EQUIVALENCE_DURATIONS_S.includes(durationS) && !held.has(durationS),
   ).flatMap((durationS) => {
     const point = result.rideCurve.find((candidate) => candidate.durationS === durationS)
     return point !== undefined && Number.isFinite(point.value)
-      ? [{ durationS, ridePowerW: point.value }]
+      ? [{ durationS, ridePowerW: point.value, rideKg: masses[point.activityId ?? ''] ?? massKg }]
       : []
   })
   if (powers.length === 0) return []
   const equivalence = equivalenceFor(result.hr)
-  return powers.map(({ durationS, ridePowerW }) => ({
+  return powers.map(({ durationS, ridePowerW, rideKg }) => ({
     durationS,
     ridePowerW,
-    runSpeed: equivalence(ridePowerW, massKg),
+    runSpeed: equivalence(ridePowerW, rideKg),
   }))
 }
 

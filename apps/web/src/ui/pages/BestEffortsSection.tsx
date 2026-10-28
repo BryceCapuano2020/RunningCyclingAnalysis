@@ -5,6 +5,7 @@ import { plural } from '../components/plural'
 import { SportRecords } from '../components/SportRecords'
 import { formatCount } from '../format/count'
 import { DISTANCE_TIMES_NOTE, SPORT_NOTE } from '../grades'
+import { activityMasses } from '../activityMasses'
 import { activityNames } from '../records'
 import { hrefFor } from '../route'
 import { formLine } from '../sportForm'
@@ -69,6 +70,7 @@ export function BestEffortsSection(context: SectionContext) {
         massKg={massKg}
         units={units}
         activityNames={activityNames(result.activities)}
+        activityMasses={activityMasses(result.activities)}
       />
       <StandOutCaption sport={sport} result={result} />
       <a className="link-arrow" href={`#/activities?${queryFromView({ ...DEFAULT_VIEW, sport })}`}>

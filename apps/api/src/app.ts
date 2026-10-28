@@ -8,6 +8,7 @@ import type { AppEnv } from './env.ts'
 import { csrfGuard } from './middleware.ts'
 import { authRoutes } from './routes/auth.ts'
 import { meRoutes } from './routes/me.ts'
+import { measurementRoutes } from './routes/measurements.ts'
 import { activityRoutes } from './routes/activities/index.ts'
 import { publicRateLimit } from './rateLimit.ts'
 import { healthRoutes } from './routes/health.ts'
@@ -76,6 +77,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppEnv> {
   app.route('/api/health', healthRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api', meRoutes)
+  app.route('/api/measurements', measurementRoutes)
   app.route('/api/activities', activityRoutes)
 
   return app

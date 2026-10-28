@@ -39,7 +39,7 @@ describe('Methodology', () => {
     const opened = render(<Methodology open />)
     expect(opened.container.querySelector('details.methodology__disclosure')).toBeNull()
     expect(screen.queryByText('Show the assumptions')).toBeNull()
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(8)
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(9)
   })
 
   it('lists every topic when no list is given, in order', () => {
@@ -54,6 +54,7 @@ describe('Methodology', () => {
       'Best 20 min, week by week',
       'Heart-rate check',
       'Virtual power meter',
+      'Dated settings and zones',
       'Data checks',
       'Where speed comes from',
       'Limits',

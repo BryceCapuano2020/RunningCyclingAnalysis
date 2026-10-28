@@ -152,6 +152,7 @@ export function useLibraryActions({
             userId: signedIn.user.id,
             account: { name: signedIn.user.name, email: signedIn.user.email },
             profile: signedIn.profile,
+            measurements: [...(settingsRef.current.measurements ?? [])],
           },
           undefined,
           (message) => {
@@ -161,7 +162,7 @@ export function useLibraryActions({
           },
         )
       }),
-    [accountRef, send, workerRef],
+    [accountRef, send, settingsRef, workerRef],
   )
 
   /**

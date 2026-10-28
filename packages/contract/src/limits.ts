@@ -32,8 +32,18 @@ export const DAILY_LIMITS = {
   fileUpload: 2000,
   /** Library listings and profile reads. One listing of 5,000 rows is 5,000 D1 rows read. */
   read: 100,
+  /** Dated-settings writes (adds and deletes). Each is one D1 row written. */
+  measurementWrite: 200,
+  /** Dated-settings reads. One read is at most MAX_MEASUREMENTS_PER_USER D1 rows. */
+  measurementRead: 300,
 } as const
 export type DailyLimitAction = keyof typeof DAILY_LIMITS
+
+/**
+ * Most dated settings (mass, maximum heart rate, thresholds) one user may keep. A few a year for
+ * several years is dozens, so this leaves room without letting a read grow without bound.
+ */
+export const MAX_MEASUREMENTS_PER_USER = 200
 
 /** Most original-file uploads one user may have in progress at once. */
 export const MAX_CONCURRENT_UPLOADS_PER_USER = 2

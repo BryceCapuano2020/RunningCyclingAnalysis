@@ -1,26 +1,24 @@
 import { mean } from '../math'
-import type { ActivityDigest, CalibrationSums, VirtualPowerAccuracy } from '../types'
+import type { ActivityDigest, VirtualPowerAccuracy } from '../types'
 import { fitBikeModel } from '../virtualPower'
-import { calibrationStatsAt, subtractCalibrationSums } from './calibration'
+import type { Calibrated } from './calibration'
+import { CalibrationPool } from './calibration'
 import { powerAt } from './terms'
 
-export interface Calibrated {
-  digest: ActivityDigest
-  sums: CalibrationSums
-}
+export type { Calibrated } from './calibration'
 
 /**
  * Leave-one-ride-out accuracy: each ride's climb sections are scored with a bike model fitted on
- * the other rides, then the sections are pooled.
+ * the other rides, then the sections are pooled. Each ride is scored at the total mass it rode at.
  */
 export function leaveOneOutAccuracy(
   calibrated: Calibrated[],
-  totalSums: CalibrationSums,
-  totalMassKg: number,
+  totalMassOf: (digest: ActivityDigest) => number,
 ): VirtualPowerAccuracy | null {
+  const pool = new CalibrationPool(calibrated, totalMassOf)
   const segments = calibrated.flatMap(({ digest, sums }) => {
-    const others = subtractCalibrationSums(totalSums, sums)
-    const model = fitBikeModel(calibrationStatsAt(others, totalMassKg)).model
+    const totalMassKg = totalMassOf(digest)
+    const model = fitBikeModel(pool.stats({ massKg: totalMassKg, sums })).model
     return digest.climbSections.map((section) => ({
       activityId: digest.id,
       start: section.start,

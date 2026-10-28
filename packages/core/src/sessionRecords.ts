@@ -1,3 +1,4 @@
+import { sameMasses } from './athlete/mass'
 import { sameDigests } from './period'
 import { recordHolders } from './records'
 import type { EarnedRecord } from './records'
@@ -11,8 +12,7 @@ export class RecordsCache {
   // The last record holders, with the digests and masses they were computed from.
   private last: {
     digests: ActivityDigest[]
-    massKg: number
-    bikeMassKg: number
+    settings: AthleteSettings
     records: Map<string, EarnedRecord[]>
   } | null = null
 
@@ -20,19 +20,13 @@ export class RecordsCache {
     const cached = this.last
     if (
       cached !== null &&
-      cached.massKg === settings.massKg &&
-      cached.bikeMassKg === settings.bikeMassKg &&
+      sameMasses(cached.settings, settings) &&
       sameDigests(cached.digests, visible)
     ) {
       return cached.records
     }
     const records = recordHolders(visible, settings)
-    this.last = {
-      digests: visible,
-      massKg: settings.massKg,
-      bikeMassKg: settings.bikeMassKg,
-      records,
-    }
+    this.last = { digests: visible, settings, records }
     return records
   }
 }

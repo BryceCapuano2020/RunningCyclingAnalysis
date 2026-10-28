@@ -56,6 +56,11 @@ const removeRoute = await readStylesheet(
   import.meta.url,
   '../../api/src/routes/activities/remove.ts',
 )
+const measurementStore = await readStylesheet(import.meta.url, './ui/measurementStore.ts')
+const measurementRoutes = await readStylesheet(
+  import.meta.url,
+  '../../api/src/routes/measurements.ts',
+)
 const maintenance = await readStylesheet(import.meta.url, '../../api/src/maintenance.ts')
 const readme = await readStylesheet(import.meta.url, '../../../README.md')
 const deployGuide = await readStylesheet(import.meta.url, '../../../docs/DEPLOY.md')
@@ -306,8 +311,18 @@ describe('privacy page describes what is stored as the app stores it', () => {
   })
 
   it('says what is counted each day, and that the counts are kept seven days', () => {
-    expect(text).toMatch(/downloads, saves, deletions, uploads, profile changes and library reads/)
+    expect(text).toMatch(
+      /downloads, saves, deletions, uploads, profile changes, dated-setting changes and library reads/,
+    )
     expect(text).toMatch(/kept about a week, up to eight UTC days/)
+  })
+
+  it('says where dated settings are kept, and how many an account keeps', () => {
+    expect(text).toContain('rca.measurements.v1')
+    expect(measurementStore).toContain("const KEY = 'rca.measurements.v1'")
+    expect(text).toMatch(/At most 200\./)
+    expect(measurementRoutes).toContain('MAX_MEASUREMENTS_PER_USER')
+    expect(apiSchema).toContain("'athlete_measurements'")
   })
 
   it('says when an account was created and when an activity was saved', () => {
@@ -468,6 +483,7 @@ describe('the code behind the page', () => {
       'exportedAt',
       'account',
       'profile',
+      'measurements',
       'activities',
       'unreadable',
       'notes',

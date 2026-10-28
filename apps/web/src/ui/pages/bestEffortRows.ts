@@ -64,10 +64,14 @@ function rowLabel(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
+/** Whether a sport's own number depends on the athlete's weight: a ride's watts do, a run's pace does not. */
+const WEIGHT_MATTERS: Record<Sport, boolean> = { run: false, ride: true }
+
 /**
  * How a record moved on the period before, or null. A change is named only between two demonstrated
  * figures: a ride's estimated watts on either side leave it out, since two estimates moving is not a
- * change in the rider.
+ * change in the rider. With dated weights the two rides were ridden at different weights, so the earlier
+ * figure is first brought to the weight of the newer ride, and the change is one in watts per kilogram.
  */
 function changeOf(
   record: SportRecord,
@@ -83,10 +87,15 @@ function changeOf(
   const earlierActivity =
     earlierId === null ? null : (library.find((activity) => activity.id === earlierId) ?? null)
   if (isEstimatedRecord(sport, earlierActivity)) return null
+  const [newerKg, olderKg] = [record.activity?.massKg, earlierActivity?.massKg]
+  const atNewerWeight =
+    WEIGHT_MATTERS[sport] && newerKg !== undefined && olderKg !== undefined && newerKg !== olderKg
+      ? newerKg / olderKg
+      : 1
   return recordChange(
     sport,
     valueAt(current, record.durationS),
-    valueAt(earlier, record.durationS),
+    valueAt(earlier, record.durationS) * atNewerWeight,
     units,
     previousLabel,
   )

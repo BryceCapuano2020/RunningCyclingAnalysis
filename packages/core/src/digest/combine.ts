@@ -1,53 +1,52 @@
 import { compareSports, weightedQuantiles } from '../compare'
 import { calibrationWeights, drawPriors } from '../compare/sampling'
-import {
-  EQUIVALENCE_DURATIONS_S,
-  FLAT_RUN_COST,
-  HR_BLOCK_S,
-  PRIORS,
-  RESTING_W_PER_KG,
-} from '../constants'
-import { possibleRunWkg } from '../curves'
+import { EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../constants'
 import { criticalPowerOutcome, fitCriticalPowerUnchecked, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
-import type { EffortPoint } from '../effort'
 import { checkEfforts } from '../effort'
 import { crossCheck } from '../hr'
 import { requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
   AthleteSettings,
-  Sport,
-  SportCurves,
   BikeModel,
-  CalibrationSums,
   Comparison,
   CriticalPowerFit,
   CriticalPowerRefusal,
   Curve,
   DigestCurvePoint,
-  DigestHrBlock,
   EffortCheck,
   HrCrossCheck,
   HrPoint,
   Interval,
+  Sport,
   VirtualPowerAccuracy,
 } from '../types'
-import { bestOf, isMeasured, plainCurve } from './bestCurve'
-import { MODEL_REVISION } from './modelRevision'
+import { plainCurve } from './bestCurve'
+import { calibratedOf } from './calibration'
 import { summaryOf, type ActivitySummary } from './summary'
-import { fitBikeModel } from '../virtualPower'
 import type { BikeModelSource } from '../virtualPower'
-import { addCalibrationSums, calibrationStatsAt, emptyCalibrationSums } from './calibration'
 import { leaveOneOutAccuracy } from './accuracy'
-import type { Calibrated } from './accuracy'
-import { powerAt } from './terms'
+import { massesOf } from './masses'
+import { orderedCurrent } from './ordered'
+import {
+  bestCurves,
+  centralWkgFromWatts,
+  fitBikeModelOver,
+  heartRatePoints,
+  measuredRideBest,
+  rideWattsAt,
+  runCentralWkg,
+} from './rideCurves'
 import { trustedHeartRate, withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 
 export interface Equivalence {
   durationS: number
-  /** Best mechanical power held for durationS, W. */
+  /**
+   * Best mechanical power held for durationS, W: the ride's own watts, from the same ride as rideCurve.
+   * With dated body masses that ride is the best power-to-weight one.
+   */
   ridePowerW: number
   /** Flat running speed with the same gross metabolic power, m/s. */
   runSpeed: Interval
@@ -66,7 +65,11 @@ export interface AnalysisResult {
   activities: ActivitySummary[]
   /** Best gross metabolic power while running, W/kg, at the prior-mean economy. */
   runCurve: Curve
-  /** Best mechanical power while riding, W. See the note above on rides without a power meter. */
+  /**
+   * Best mechanical power while riding, W. See the note above on rides without a power meter. With dated
+   * body masses each value is the watts of the best power-to-weight ride at that duration, so it comes
+   * from the same ride as rideMetabolicCurve.
+   */
   rideCurve: Curve
   /** rideCurve expressed as gross metabolic W/kg at the prior-mean efficiency. */
   rideMetabolicCurve: Curve
@@ -164,126 +167,28 @@ export function atOrBelowCriticalPower(points: HrPoint[], cp: CriticalPowerFit |
   return points.filter((p) => p.metabolicPower <= cp.cp)
 }
 
-/** Orders digests by start time, then id, so results do not depend on the order they arrive in. */
-function canonicalOrder(a: ActivityDigest, b: ActivityDigest): number {
-  if (a.startMs !== b.startMs) return a.startMs - b.startMs
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
-}
+export { orderedCurrent } from './ordered'
+export {
+  centralWkgFromWatts,
+  heartRatePoints,
+  rideWattsAt,
+  runCentralWkg,
+  sportCurves,
+} from './rideCurves'
 
 /**
- * The digests of the active model revision, in canonical order. Mixing revisions would combine
- * stale and current assumptions, so the other revisions are left out everywhere.
+ * The activities of a library as summaries, newest first, as the analysis lists them. With dated body
+ * masses each summary also carries the mass in effect on its date, which prices its W/kg.
  */
-export function orderedCurrent(digests: ActivityDigest[]): ActivityDigest[] {
-  return digests.filter((digest) => digest.modelRevision === MODEL_REVISION).sort(canonicalOrder)
-}
-
-/**
- * Gross metabolic W/kg of a run curve point at the prior-mean running economy, or NaN when the point
- * is faster than the world-record ceiling for its duration. Every best built from a digest's run
- * points reads them through here, so an impossible point is left out of all of them.
- */
-export function runCentralWkg(point: DigestCurvePoint): number {
-  return possibleRunWkg(point.durationS, point.value)
-}
-
-/** Mechanical watts of a ride curve point at total mass totalMassKg, with the fitted bike model. */
-export function rideWattsAt(
-  point: DigestCurvePoint,
-  totalMassKg: number,
-  bikeModel: BikeModel,
-): number {
-  return point.terms === null ? point.value : powerAt(point.terms, totalMassKg, bikeModel)
-}
-
-/** Gross metabolic W/kg for riding at mechanical watts, at the prior-mean efficiency. */
-export function centralWkgFromWatts(watts: number, massKg: number): number {
-  return watts / (PRIORS.grossEfficiency.mean * massKg)
-}
-
-/** The calibration sums of every power-meter ride in ordered, added in that order. */
-export function totalCalibration(ordered: ActivityDigest[]): CalibrationSums {
-  return ordered.reduce(
-    (acc, digest) =>
-      digest.calibration === null ? acc : addCalibrationSums(acc, digest.calibration),
-    emptyCalibrationSums(),
-  )
-}
-
-/** The bike model fitted to total calibration sums, priced at totalMassKg. */
-export function fitBikeModelFor(totalSums: CalibrationSums, totalMassKg: number) {
-  return fitBikeModel(calibrationStatsAt(totalSums, totalMassKg))
-}
-
-/** The best run and ride values at each duration. Rides are priced with bikeModel. */
-function bestCurves(
-  ordered: ActivityDigest[],
-  totalMassKg: number,
-  bikeModel: BikeModel,
-): { runBest: EffortPoint[]; rideBest: EffortPoint[] } {
-  const rideWatts = (point: DigestCurvePoint): number => rideWattsAt(point, totalMassKg, bikeModel)
-  return {
-    runBest: bestOf(ordered, 'run', runCentralWkg),
-    rideBest: bestOf(ordered, 'ride', rideWatts),
-  }
-}
-
-/** The best watts at each duration among the rides with a power meter, which need no bike model. */
-function measuredRideBest(ordered: ActivityDigest[]): EffortPoint[] {
-  return bestOf(ordered, 'ride', (point) => point.value, isMeasured)
-}
-
-/**
- * The run and ride curves of a set of digests, without the rest of the analysis. Rides are priced
- * with bikeModel, passed in so that two periods share one model and a change of model cannot read
- * as a change of fitness.
- */
-export function sportCurves(
+export function activitySummaries(
   digests: ActivityDigest[],
-  settings: AthleteSettings,
-  bikeModel: BikeModel,
-): SportCurves {
-  const totalMassKg = settings.massKg + settings.bikeMassKg
-  const { runBest, rideBest } = bestCurves(orderedCurrent(digests), totalMassKg, bikeModel)
-  return { runCurve: plainCurve(runBest), rideCurve: plainCurve(rideBest) }
-}
-
-/** The activities of a library as summaries, newest first, as the analysis lists them. */
-export function activitySummaries(digests: ActivityDigest[]): ActivitySummary[] {
+  settings?: AthleteSettings,
+): ActivitySummary[] {
+  const masses = settings === undefined ? null : massesOf(settings)
+  const dated = masses !== null && masses.dated
   return orderedCurrent(digests)
-    .map(summaryOf)
+    .map((digest) => summaryOf(digest, dated ? masses.bodyKg(digest) : undefined))
     .sort((a, b) => b.startMs - a.startMs)
-}
-
-/**
- * The heart-rate points of the runs and rides in ordered, each at its central metabolic power. A run
- * block faster than the world-record ceiling for its five minutes is not a possible effort, so it is
- * left out, as a curve point is. A block is kept only when its metabolic power is above twice resting.
- * The filter is applied after conversion, so it means the same thing for runs and rides.
- */
-export function heartRatePoints(
-  ordered: ActivityDigest[],
-  totalMassKg: number,
-  massKg: number,
-  bikeModel: BikeModel,
-): { runPoints: HrPoint[]; ridePoints: HrPoint[] } {
-  const blockMetabolic = (digest: ActivityDigest, block: DigestHrBlock): number => {
-    if (digest.sport === 'run') return possibleRunWkg(HR_BLOCK_S, block.value)
-    const watts = block.terms === null ? block.value : powerAt(block.terms, totalMassKg, bikeModel)
-    return centralWkgFromWatts(watts, massKg)
-  }
-  const runPoints: HrPoint[] = []
-  const ridePoints: HrPoint[] = []
-  for (const digest of ordered) {
-    for (const block of digest.hrBlocks) {
-      const metabolicPower = blockMetabolic(digest, block)
-      if (!(metabolicPower >= 2 * RESTING_W_PER_KG)) continue
-      const point: HrPoint = { metabolicPower, heartRate: block.heartRate, activityId: digest.id }
-      if (digest.sport === 'run') runPoints.push(point)
-      else ridePoints.push(point)
-    }
-  }
-  return { runPoints, ridePoints }
 }
 
 /**
@@ -294,38 +199,45 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   requirePositiveFinite('massKg', settings.massKg)
   requirePositiveFinite('bikeMassKg', settings.bikeMassKg)
   const ordered = orderedCurrent(digests)
+  // The mass of today, which the threshold floors and the comparison are expressed at. Each activity
+  // is priced at the body and bike mass in effect on its own date.
   const massKg = settings.massKg
-  const totalMassKg = settings.massKg + settings.bikeMassKg
+  const masses = massesOf(settings)
 
-  const calibrated: Calibrated[] = ordered.flatMap((digest) =>
-    digest.calibration === null ? [] : [{ digest, sums: digest.calibration }],
-  )
-  const totalSums = totalCalibration(ordered)
-  const fittedBike = fitBikeModelFor(totalSums, totalMassKg)
+  const calibrated = calibratedOf(ordered)
+  const fittedBike = fitBikeModelOver(ordered, masses)
   const bikeModel = fittedBike.model
   const virtualAccuracy =
-    calibrated.length > 0 ? leaveOneOutAccuracy(calibrated, totalSums, totalMassKg) : null
+    calibrated.length > 0
+      ? leaveOneOutAccuracy(calibrated, (digest) => masses.totalKg(digest))
+      : null
 
-  const { runBest, rideBest } = bestCurves(ordered, totalMassKg, bikeModel)
+  const { runBest, rideBest, rideMetabolic, rideComparable, bodyKgById } = bestCurves(
+    ordered,
+    masses,
+    bikeModel,
+    massKg,
+  )
   const runCurve = plainCurve(runBest)
   const rideCurve = plainCurve(rideBest)
   const rideMeasuredCurve = plainCurve(measuredRideBest(ordered))
-  const rideMetabolicCurve = rideCurve.map((p) => ({
-    ...p,
-    value: centralWkgFromWatts(p.value, massKg),
-  }))
+  const rideMetabolicCurve = rideMetabolic
 
   const runFit = fitCriticalPowerUnchecked(runCurve)
   const rideFit = fitCriticalPowerUnchecked(rideMetabolicCurve)
   // Each sport's points priced in its fit's unit, so a best effort is judged against its threshold.
-  const fitUnit: Record<Sport, (point: DigestCurvePoint) => number> = {
-    run: runCentralWkg,
-    ride: (point) => centralWkgFromWatts(rideWattsAt(point, totalMassKg, bikeModel), massKg),
+  const fitUnit: Record<Sport, (digest: ActivityDigest, point: DigestCurvePoint) => number> = {
+    run: (_digest, point) => runCentralWkg(point),
+    ride: (digest, point) =>
+      centralWkgFromWatts(
+        rideWattsAt(point, masses.totalKg(digest), bikeModel),
+        masses.bodyKg(digest),
+      ),
   }
   const heart = trustedHeartRate(ordered, { run: runFit, ride: rideFit }, (digest, point) =>
-    fitUnit[digest.sport](point),
+    fitUnit[digest.sport](digest, point),
   )
-  const { runPoints, ridePoints } = heartRatePoints(heart.trusted, totalMassKg, massKg, bikeModel)
+  const { runPoints, ridePoints } = heartRatePoints(heart.trusted, masses, bikeModel)
 
   // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
   // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because
@@ -343,7 +255,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
     atOrBelowCriticalPower(runPoints, runFit),
     atOrBelowCriticalPower(ridePoints, rideFit),
   )
-  const comparison = compareSports(runCurve, rideCurve, massKg, hr, {
+  const comparison = compareSports(runCurve, rideComparable, massKg, hr, {
     draws: DRAWS,
     seed: SEED,
   })
@@ -354,10 +266,12 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   for (const durationS of EQUIVALENCE_DURATIONS_S) {
     const point = rideCurve.find((p) => p.durationS === durationS)
     if (point && Number.isFinite(point.value)) {
+      // The ride's own watts at the body mass it rode at, which is massKg without dated masses.
+      const rideKg = bodyKgById.get(point.activityId ?? '') ?? massKg
       equivalents.push({
         durationS,
         ridePowerW: point.value,
-        runSpeed: equivalence(point.value, massKg),
+        runSpeed: equivalence(point.value, rideKg),
       })
     }
   }
@@ -370,7 +284,7 @@ export function combine(digests: ActivityDigest[], settings: AthleteSettings): A
   )
 
   return {
-    activities: activitySummaries(digests),
+    activities: activitySummaries(digests, settings),
     runCurve,
     rideCurve,
     rideMetabolicCurve,

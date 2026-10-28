@@ -1,4 +1,5 @@
 import { FIRST_GRADED_AGE } from '@rca/core/grade'
+import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import { kgToLb, lbToKg } from '@rca/core/units'
 import type { UnitSystem } from '@rca/core/units'
@@ -41,9 +42,19 @@ export function weightKnown(settings: WeightSettings): boolean {
   return typeof settings.massKg === 'number'
 }
 
-/** The settings the analysis runs on. See PLACEHOLDER_BODY_KG. */
-export function analysisSettings(settings: WeightSettings): AthleteSettings {
-  return { massKg: settings.massKg ?? PLACEHOLDER_BODY_KG, bikeMassKg: settings.bikeMassKg }
+/**
+ * The settings the analysis runs on. See PLACEHOLDER_BODY_KG. Dated settings are carried only when
+ * there are some, so an athlete with none has exactly the two masses.
+ */
+export function analysisSettings(
+  settings: WeightSettings,
+  measurements: readonly Measurement[] = [],
+): AthleteSettings {
+  return {
+    massKg: settings.massKg ?? PLACEHOLDER_BODY_KG,
+    bikeMassKg: settings.bikeMassKg,
+    ...(measurements.length > 0 ? { measurements } : {}),
+  }
 }
 
 export function weightKg(settings: WeightSettings, field: WeightField): number | null {

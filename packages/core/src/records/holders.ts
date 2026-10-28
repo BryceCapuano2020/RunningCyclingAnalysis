@@ -1,17 +1,33 @@
 import { DURATIONS_S, RUN_RECORD_DISTANCES_M } from '../constants'
 import type { RunRecordDistanceM } from '../constants'
+import type { Masses } from '../digest/masses'
+import { massesOf } from '../digest/masses'
+import { orderedCurrent } from '../digest/ordered'
 import {
-  fitBikeModelFor,
-  orderedCurrent,
+  centralWkgFromWatts,
+  fitBikeModelOver,
   rideWattsAt,
   runCentralWkg,
-  totalCalibration,
-} from '../digest/combine'
-import type { ActivityDigest, AthleteSettings, Sport } from '../types'
+} from '../digest/rideCurves'
+import type { ActivityDigest, AthleteSettings, BikeModel, DigestCurvePoint, Sport } from '../types'
 
 /** A best effort an activity holds across a library: a duration best, or a run distance best. */
 export type EarnedRecord =
   { kind: 'duration'; durationS: number } | { kind: 'distance'; distanceM: RunRecordDistanceM }
+
+/**
+ * A ride point's value for comparing rides: its watts, or with dated body masses its watts per kilogram of
+ * the body mass on its day, so the record is held by the same ride the best-effort curve shows.
+ */
+function rideValueAt(
+  point: DigestCurvePoint,
+  digest: ActivityDigest,
+  masses: Masses,
+  bikeModel: BikeModel,
+): number {
+  const watts = rideWattsAt(point, masses.totalKg(digest), bikeModel)
+  return masses.dated ? centralWkgFromWatts(watts, masses.bodyKg(digest)) : watts
+}
 
 /**
  * The best efforts each activity holds across a set of digests, for each sport and each duration,
@@ -24,8 +40,8 @@ export function recordHolders(
   settings: AthleteSettings,
 ): Map<string, EarnedRecord[]> {
   const ordered = orderedCurrent(digests)
-  const totalMassKg = settings.massKg + settings.bikeMassKg
-  const bikeModel = fitBikeModelFor(totalCalibration(ordered), totalMassKg).model
+  const masses = massesOf(settings)
+  const bikeModel = fitBikeModelOver(ordered, masses).model
   const held = new Map<string, EarnedRecord[]>()
   const give = (id: string, record: EarnedRecord) => {
     const list = held.get(id)
@@ -41,7 +57,7 @@ export function recordHolders(
         const point = digest.curve.find((p) => p.durationS === durationS)
         if (!point) continue
         const value =
-          sport === 'run' ? runCentralWkg(point) : rideWattsAt(point, totalMassKg, bikeModel)
+          sport === 'run' ? runCentralWkg(point) : rideValueAt(point, digest, masses, bikeModel)
         if (Number.isFinite(value) && (best === null || value > best.value)) {
           best = { id: digest.id, value }
         }

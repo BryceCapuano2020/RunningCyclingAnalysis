@@ -89,7 +89,7 @@ async function fetchOnce(path: string, init: RequestInit, timeoutMs: number) {
  * Sends a request. A read is tried once more at once, and with `retryBackoffMs` any other request is
  * tried once more after that long, when it fails by a lost connection or a 5xx with no Retry-After.
  */
-async function request(
+export async function request(
   method: Method,
   path: string,
   body?: Body,
@@ -206,7 +206,7 @@ async function readResponseJson(response: Response, maxBytes: number): Promise<u
   }
 }
 
-async function readJson<T>(
+export async function readJson<T>(
   response: Response,
   schema: { parse(value: unknown): T },
   maxBytes = PAGE_BODY_LIMIT,

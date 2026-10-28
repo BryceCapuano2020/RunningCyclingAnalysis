@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { sameMasses } from '@rca/core/athlete'
 import type { PeriodChoice, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type {
@@ -321,14 +322,14 @@ export function useAnalysis(
     loadDeviceOnce,
   })
 
-  const { massKg, bikeMassKg } = settings
   const { send } = transport
+  // The analysis is redone when a mass changes, dated ones included. Other dated settings only ride
+  // along on later requests, since no analysis depends on them.
   useEffect(() => {
-    const changed =
-      settingsRef.current.massKg !== massKg || settingsRef.current.bikeMassKg !== bikeMassKg
-    settingsRef.current = { massKg, bikeMassKg }
-    if (changed) send({ type: 'setSettings', settings: settingsRef.current })
-  }, [massKg, bikeMassKg, send])
+    const changed = !sameMasses(settingsRef.current, settings)
+    settingsRef.current = settings
+    if (changed) send({ type: 'setSettings', settings })
+  }, [settings, send])
 
   useGradeTrendRequest(gradeTrend, settingsRef, send)
   useAccountTransitions({

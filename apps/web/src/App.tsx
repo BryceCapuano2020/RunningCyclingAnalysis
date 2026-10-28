@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { currentMass } from '@rca/core/athlete'
 import './App.css'
 import { AccountMenu, Header, PrivacyNote } from './ui/components'
 import { AddFilesButton } from './ui/components/AddFilesButton'
@@ -22,6 +23,9 @@ import { useAccount } from './ui/useAccount'
 import { useRouteGuard } from './ui/useRouteGuard'
 import { useAnalysis } from './ui/useAnalysis'
 import { useBalanceAfterImport } from './ui/useBalanceAfterImport'
+import { datedWeightActions } from './ui/datedWeight'
+import { SETTINGS_NOT_READY, useMeasurements } from './ui/useMeasurements'
+import { useNow } from './ui/useNow'
 import { usePreferences } from './ui/useSettings'
 import { useSetup } from './ui/useSetup'
 import { applyPatch, athleteValuesOf, profileFields } from './ui/profilePatch'
@@ -66,10 +70,17 @@ export function App() {
         birthYear: preferences.birthYear,
         sex: preferences.sex,
       }
-  const { settings, units } = athleteValues
+  const { units } = athleteValues
+  const measurements = useMeasurements(account.status, account.me?.user.id ?? null)
+  // The weight today is the dated weight in effect today, whatever the saved profile holds, so a weight
+  // dated for a later day takes effect on that day with no edit. Without dated weights it is the profile's.
+  const now = useNow()
+  const datedKg = currentMass(measurements.entries, now)
+  const settings =
+    datedKg === null ? athleteValues.settings : { ...athleteValues.settings, massKg: datedKg }
   // The analysis and the results take a body mass even before one is entered; see analysisSettings.
-  // Memoised on its two values: an equal settings object built anew must not redraw the share preview.
-  const analysisAthlete = useAnalysisSettings(settings)
+  // Memoised on what it reads: an equal settings object built anew must not redraw the share preview.
+  const analysisAthlete = useAnalysisSettings(settings, measurements.entries)
   // The year of birth and sex the grades need, or null while either is missing.
   const ageProfile = ageProfileOf(athleteValues.birthYear, athleteValues.sex)
   const keepFiles = profile?.keepFiles ?? false
@@ -90,9 +101,22 @@ export function App() {
     keepInPreferences(athleteValuesOf(await account.updateProfile(fields)), next.setupDone)
   }
 
+  const { saveProfile, addSetting, removeSetting } = datedWeightActions({
+    measurements,
+    now,
+    profileKg: athleteValues.settings.massKg,
+    saveAnswers,
+  })
+
   // The trend's age grades need a year of birth and a sex; without them it shows energy alone.
   const gradeTrend = ageProfile !== null
   const analysis = useAnalysis(analysisAthlete, account, gradeTrend)
+
+  // The download holds the dated settings, so it waits for them rather than leave them out.
+  const downloadData = async () => {
+    if (measurements.state !== 'ready') throw new Error(SETTINGS_NOT_READY[measurements.state])
+    return analysis.exportData()
+  }
   // Sample data carries its own persona weight, so it is weighted whatever the visitor has entered.
   const weighted = analysis.state.isSample || weightKnown(settings)
   // Called after useAnalysis, so its settings are in place before held files are sent.
@@ -101,7 +125,7 @@ export function App() {
     workerStopped: analysis.workerStopped,
     preferencesDone: preferences.setupDone,
     addFiles: analysis.addFiles,
-    save: saveAnswers,
+    save: saveProfile,
   })
   const hasResult = analysis.state.result !== null
   // What the last import moved in the athlete's numbers, for the summary and the sync status.
@@ -271,6 +295,7 @@ export function App() {
           <ProfilePage
             analysis={analysis}
             settings={settings}
+            athlete={analysisAthlete}
             units={units}
             birthYear={athleteValues.birthYear}
             sex={athleteValues.sex}
@@ -280,9 +305,12 @@ export function App() {
             email={account.me?.user.email ?? null}
             keepFiles={keepFiles}
             fileRetentionAvailable={fileRetentionAvailable}
-            onSaveProfile={saveAnswers}
+            onSaveProfile={saveProfile}
+            dated={measurements}
+            onAddSetting={addSetting}
+            onRemoveSetting={removeSetting}
             onSignIn={account.signIn}
-            onDownloadData={analysis.exportData}
+            onDownloadData={downloadData}
             onDeleteAccount={deleteAccount}
             onRemoveAll={removeAll}
           />

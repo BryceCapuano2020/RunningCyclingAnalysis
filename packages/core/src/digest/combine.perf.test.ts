@@ -54,4 +54,21 @@ describe('combine performance', () => {
     expect(equivalents).toBeGreaterThan(0)
     expect(ms).toBeLessThan(BUDGET_MS)
   })
+
+  it(`combines it in under ${BUDGET_MS} ms with a weight dated every quarter`, () => {
+    // Twenty dated weights over the five years: each activity looks its own up, and its bike fit,
+    // curves and trend are priced at that mass.
+    const measurements = Array.from({ length: 20 }, (_, n) => ({
+      kind: 'massKg' as const,
+      value: 70 + (n % 7),
+      from: new Date(Date.UTC(2021, n * 3, 1)).toISOString().slice(0, 10),
+    }))
+    const digests = library()
+    let equivalents = 0
+    const ms = fastestMs(() => {
+      equivalents = combine(digests, { ...SETTINGS, measurements }).equivalents.length
+    })
+    expect(equivalents).toBeGreaterThan(0)
+    expect(ms).toBeLessThan(BUDGET_MS)
+  })
 })

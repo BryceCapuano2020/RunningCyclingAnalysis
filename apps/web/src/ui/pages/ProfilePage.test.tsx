@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Measurement } from '@rca/core/athlete'
 import type { AthleteSettings } from '@rca/core/types'
 import { analysisStub } from '../../test/analysisStub'
 import type { AnalysisStubOverrides } from '../../test/analysisStub'
@@ -40,6 +41,7 @@ function renderProfile(
     <ProfilePage
       analysis={analysisStub(analysis)}
       settings={SETTINGS}
+      athlete={SETTINGS}
       units="metric"
       birthYear={1990}
       sex="female"
@@ -50,6 +52,9 @@ function renderProfile(
       keepFiles={false}
       fileRetentionAvailable
       onSaveProfile={onSaveProfile}
+      dated={{ entries: [], state: 'ready', elsewhere: 0, retry: vi.fn() }}
+      onAddSetting={async () => {}}
+      onRemoveSetting={async () => {}}
       onSignIn={onSignIn}
       onDownloadData={onDownloadData}
       onDeleteAccount={onDeleteAccount}
@@ -665,6 +670,7 @@ describe('ProfilePage questions follow their sections', () => {
       <ProfilePage
         analysis={analysisStub(analysis)}
         settings={SETTINGS}
+        athlete={SETTINGS}
         units="metric"
         birthYear={1990}
         sex="female"
@@ -675,6 +681,9 @@ describe('ProfilePage questions follow their sections', () => {
         keepFiles={false}
         fileRetentionAvailable
         onSaveProfile={vi.fn(async () => {})}
+        dated={{ entries: [], state: 'ready', elsewhere: 0, retry: vi.fn() }}
+        onAddSetting={async () => {}}
+        onRemoveSetting={async () => {}}
         onSignIn={vi.fn()}
         onDownloadData={vi.fn(async () => new Blob())}
         onDeleteAccount={vi.fn(async () => {})}
@@ -1001,5 +1010,118 @@ describe('ProfilePage see your levels, save by save', () => {
 
     expect(screen.getByText('Sex: Saved.')).toBeInTheDocument()
     expect(screen.queryByRole('link', LEVELS)).not.toBeInTheDocument()
+  })
+})
+
+describe('ProfilePage zones and dated settings', () => {
+  it('says zones appear once there is something to cut them from', () => {
+    renderProfile()
+    expect(screen.getByRole('heading', { level: 2, name: 'Training zones' })).toBeInTheDocument()
+    expect(screen.getByText(/Zones appear once you add files/)).toBeInTheDocument()
+  })
+
+  it('shows a table for each sport and measure the analysis has a reference for', () => {
+    const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
+    renderProfile({}, { state: { result } })
+    for (const name of [
+      /^Run heart rate zones\./,
+      /^Run pace zones\./,
+      /^Ride heart rate zones\./,
+      /^Ride power zones\./,
+    ]) {
+      expect(screen.getByRole('table', { name })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('table', { name: /^Run pace zones\./ })).toHaveAccessibleName(
+      /From your runs: threshold pace/,
+    )
+    expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
+      /From your rides: threshold power/,
+    )
+  })
+
+  it('shows a dated threshold as entered, and cuts its zones from it', () => {
+    const entries: Measurement[] = [
+      { kind: 'thresholdPower', sport: 'ride', value: 250, from: '2020-01-01' },
+    ]
+    renderProfile(
+      {
+        athlete: { ...SETTINGS, measurements: entries },
+        dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
+      },
+      { state: { result: makeResult() } },
+    )
+    const table = screen.getByRole('table', { name: /^Ride power zones\./ })
+    expect(table).toHaveAccessibleName(/You entered: threshold power 250 W/)
+    expect(within(table).getByText('375 W or more')).toBeInTheDocument()
+    expect(within(table).getByText('Lactate threshold')).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Your dated settings' })).toBeInTheDocument()
+  })
+
+  it('names the published scheme under each zone table', () => {
+    renderProfile({}, { state: { result: makeResult({ rideMaxHeartRate: 180 }) } })
+    expect(
+      screen.getByText(/Allen and Coggan, Training and Racing with a Power Meter/),
+    ).toBeVisible()
+    expect(screen.getByText(/Friel, The Triathlete's Training Bible/)).toBeVisible()
+    expect(screen.getByText(/Edwards, The Heart Rate Monitor Book/)).toBeVisible()
+  })
+
+  it('shows no estimated ride power zones, and says a weight is needed, when none is entered', () => {
+    const result = makeResult({ runMaxHeartRate: 190, rideMaxHeartRate: 180 })
+    renderProfile({ settings: { massKg: null, bikeMassKg: 9 } }, { state: { result } })
+    expect(screen.queryByRole('table', { name: /^Ride power zones\./ })).not.toBeInTheDocument()
+    expect(screen.getByText(/Add your body weight to see ride power zones/)).toBeInTheDocument()
+    // The zones that do not need a weight are still there.
+    expect(screen.getByRole('table', { name: /^Run pace zones\./ })).toBeInTheDocument()
+  })
+
+  it('still shows an entered threshold power without a weight', () => {
+    const entries: Measurement[] = [
+      { kind: 'thresholdPower', sport: 'ride', value: 250, from: '2020-01-01' },
+    ]
+    renderProfile(
+      {
+        settings: { massKg: null, bikeMassKg: 9 },
+        athlete: { ...SETTINGS, measurements: entries },
+      },
+      { state: { result: makeResult() } },
+    )
+    expect(screen.getByRole('table', { name: /^Ride power zones\./ })).toHaveAccessibleName(
+      /You entered/,
+    )
+  })
+
+  it('does not mix the sample athlete’s estimates with the visitor’s own dated settings', () => {
+    const entries: Measurement[] = [
+      { kind: 'maxHeartRate', sport: 'run', value: 188, from: '2020-01-01' },
+    ]
+    renderProfile(
+      {
+        athlete: { ...SETTINGS, measurements: entries },
+        dated: { entries, state: 'ready', elsewhere: 0, retry: vi.fn() },
+      },
+      {
+        state: {
+          result: makeResult({ runMaxHeartRate: 170, rideMaxHeartRate: 160 }),
+          isSample: true,
+        },
+      },
+    )
+    // Only what the visitor entered: the sample's heart rates and thresholds supply nothing.
+    expect(screen.getAllByRole('table', { name: /zones\./ })).toHaveLength(1)
+    expect(screen.getByRole('table', { name: /^Run heart rate zones\./ })).toHaveAccessibleName(
+      /You entered: max heart rate 188 bpm/,
+    )
+  })
+
+  it('says when dated settings kept in this browser are not the account’s', () => {
+    renderProfile({
+      signedIn: true,
+      email: EMAIL,
+      dated: { entries: [], state: 'ready', elsewhere: 2, retry: vi.fn() },
+    })
+    expect(
+      screen.getByText(/This browser also holds 2 dated settings from before you signed in/),
+    ).toBeInTheDocument()
   })
 })

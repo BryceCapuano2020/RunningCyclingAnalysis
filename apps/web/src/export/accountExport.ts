@@ -1,8 +1,9 @@
 import type { ActivityRecord, Profile } from '@rca/contract'
+import type { Measurement } from '@rca/core/athlete'
 
 /** Identifies the file, and says which schema describes it. A later schema changes `version`. */
 export const EXPORT_FORMAT = 'rca-export' as const
-export const EXPORT_VERSION = 1 as const
+export const EXPORT_VERSION = 2 as const
 /** Written into every export, so a reader knows what the file leaves out and how values look. */
 export const EXPORT_NOTES = [
   'Original files are not included.',
@@ -31,6 +32,8 @@ export interface AccountExport {
   exportedAt: string
   account: ExportAccount
   profile: Profile
+  /** The dated settings: body mass, max heart rate and thresholds, each from a local date. */
+  measurements: Measurement[]
   activities: ExportActivity[]
   /** Stored activities that could not be read, so they are not in `activities`. */
   unreadable: number
@@ -41,6 +44,8 @@ export interface AccountExportHeaderInput {
   now: Date
   account: ExportAccount
   profile: Profile
+  /** Absent reads as none. */
+  measurements?: readonly Measurement[]
 }
 
 export interface AccountExportInput extends AccountExportHeaderInput {
@@ -65,6 +70,17 @@ function headerFields(input: AccountExportHeaderInput) {
       sex: profile.sex,
       updatedAt: profile.updatedAt,
     },
+    measurements: (input.measurements ?? []).map(measurementEntry),
+  }
+}
+
+/** One dated setting, with its fields in the order the file writes them. */
+function measurementEntry(entry: Measurement): Measurement {
+  return {
+    kind: entry.kind,
+    ...(entry.sport === undefined ? {} : { sport: entry.sport }),
+    value: entry.value,
+    from: entry.from,
   }
 }
 

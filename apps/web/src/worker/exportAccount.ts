@@ -11,7 +11,12 @@ export async function exportAccount(
   request: Extract<WorkerRequest, { type: 'exportData' }>,
 ): Promise<Blob> {
   const parts: BlobPart[] = [
-    exportHeaderJson({ now: new Date(), account: request.account, profile: request.profile }),
+    exportHeaderJson({
+      now: new Date(),
+      account: request.account,
+      profile: request.profile,
+      measurements: request.measurements,
+    }),
   ]
   let unreadable = 0
   let firstPage = true

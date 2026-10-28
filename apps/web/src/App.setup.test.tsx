@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import {
   app,
+  measurementsApi,
   resetAppMocks,
   setAccount,
   setPreferences,
@@ -22,6 +23,7 @@ vi.mock('./ui/useAnalysis', async () => ({
 vi.mock('./ui/useSettings', async () => ({
   usePreferences: (await import('./test/appMocks')).usePreferencesMock,
 }))
+vi.mock('./api/measurements', async () => (await import('./test/appMocks')).measurementsApi)
 vi.mock('./ui/charts', async () => {
   const { heavyChartStubs, trendCharts } = await import('./test/appMocks')
   return { ...heavyChartStubs, ...(await trendCharts()) }
@@ -286,6 +288,43 @@ describe('setup before the first import, signed in', () => {
     view.rerender(<App />)
     expect(dialog()).toBeInTheDocument()
     expect(app.analysis.addFiles).not.toHaveBeenCalled()
+  })
+
+  it('sends answers given while the account loaded once its dated settings have loaded, not before', async () => {
+    const user = userEvent.setup()
+    let listed: (entries: never[]) => void = () => undefined
+    measurementsApi.listMeasurements.mockReturnValue(
+      new Promise<never[]>((resolve) => {
+        listed = resolve
+      }),
+    )
+    setAccount('loading')
+    let view: RenderResult | undefined
+    setPreferences.mockImplementation((next) => {
+      app.preferences = next
+      view?.rerender(<App />)
+    })
+    view = render(<App />)
+    chooseFiles(['run.fit'])
+    const panel = within(dialog() as HTMLElement)
+    const weight = panel.getByLabelText('Body weight')
+    await user.clear(weight)
+    await user.type(weight, '80 kg')
+    await user.click(panel.getByRole('button', { name: 'Analyse my files' }))
+    await waitFor(() => expect(dialog()).not.toBeInTheDocument())
+
+    // The account answers, but its dated settings are still on their way: the weight waits for them.
+    setAccount('signed-in', { units: 'metric' })
+    view.rerender(<App />)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(updateProfile).not.toHaveBeenCalled()
+
+    listed([])
+    await waitFor(() => expect(updateProfile).toHaveBeenCalled())
+    expect(updateProfile.mock.calls[0]?.[0]).toMatchObject({ massKg: 80 })
+    // The answers reached the account, so the questions do not come back.
+    expect(localStorage.getItem(SETUP_KEY)).toBe('1')
+    expect(dialog()).not.toBeInTheDocument()
   })
 
   it('sends a file without asking when the worker has stopped for good', () => {

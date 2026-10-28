@@ -52,6 +52,8 @@ exported as `DAILY_LIMITS` from `@rca/contract`.
 | ---------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------- |
 | File downloads                           | 50                          | Refunded if R2 refuses the read before it starts.                                                         |
 | Profile writes                           | 50                          | Includes keepFiles toggles.                                                                               |
+| Dated-settings writes                    | 200                         | `PUT` and `DELETE /api/measurements`. Refunded when the write is refused (limit reached, entry missing).  |
+| Dated-settings reads                     | 300                         | `GET /api/measurements`: at most 200 small rows a read, so a day reads at most 60,000 rows.               |
 | Activity deletions                       | 50                          |                                                                                                           |
 | Activity creates                         | **5,000**                   | Deliberate deviation, see below. Only inserts count; a retry that returns the existing activity does not. |
 | Original-file uploads                    | **2,000**                   | Deliberate deviation, see below. Refunded when the byte quota or the R2 budget refuses.                   |
@@ -170,13 +172,14 @@ Daily rows older than seven UTC days are pruned by the scheduled job.
 
 ## Other per-user limits
 
-| Limit                       | Value                       | Enforcement                                                                                                                   |
-| --------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Activities stored           | 5,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                   |
-| Digest JSON bytes stored    | 64 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                 |
-| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called. `users.file_bytes` is their sum, kept by triggers on `activities`.          |
-| Concurrent original uploads | 2                           | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job. |
-| Request body                | 256 KiB digest; 50 MiB file | Checked before parsing and while streaming.                                                                                   |
+| Limit                       | Value                       | Enforcement                                                                                                                                            |
+| --------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Activities stored           | 5,000                       | `users.activity_count`, changed in the same D1 transaction that inserts or deletes the row.                                                            |
+| Digest JSON bytes stored    | 64 MiB                      | `users.digest_bytes`, changed in the same statements that insert, replace or delete an activity. See Creates.                                          |
+| Original-file bytes stored  | 1 GiB                       | Reserved in the activity row before R2 is called. `users.file_bytes` is their sum, kept by triggers on `activities`.                                   |
+| Dated settings stored       | 200                         | `PUT /api/measurements`: the count and the insert are one statement, so two requests cannot both take the last place. Replacing a date needs no place. |
+| Concurrent original uploads | 2                           | `upload_slots`. A slot expires after 5 minutes, so a crashed request frees it. Expired slots are pruned by the scheduled job.                          |
+| Request body                | 256 KiB digest; 50 MiB file | Checked before parsing and while streaming.                                                                                                            |
 
 ## Deployment R2 ledger
 
