@@ -1,8 +1,9 @@
 import type { Sport } from '@rca/core/types'
 import { DAY_MS } from '@rca/core/constants'
 import { plural } from './components/plural'
+import { DEFAULT_PERIOD_DAYS } from '@rca/core/period'
 import type { Period } from '@rca/core/period'
-import { SIX_WEEKS_DAYS, periodDates } from './components/rangeOptions'
+import { SIX_WEEKS_DAYS, lengthOf, periodDates } from './components/rangeOptions'
 import type { Span } from './components/rangeOptions'
 import { agoText } from './format/ago'
 import { SPORT_PLURAL } from './sports'
@@ -52,4 +53,17 @@ export function latestActivityText(newestMs: number | null, nowMs = Date.now()):
   const days = Math.floor((nowMs - newestMs) / DAY_MS)
   if (days <= STALE_DAYS) return null
   return `Latest activity ${agoText(days)}`
+}
+
+/**
+ * The mark of a best that is the best of the period, such as "Best in the last 12 months" or "Best
+ * between 12 May and 3 Aug 2025", or "Best on 3 Aug 2025" for one day. Null for all time, whose bests are the all-time records.
+ */
+export function periodBestText(period: Period): string | null {
+  const { choice } = period
+  if (period.days === null || choice === 'all') return null
+  if (typeof choice === 'object') {
+    return period.days === 1 ? `Best on ${periodDates(period)}` : `Best ${betweenClause(period)}`
+  }
+  return `Best in the last ${lengthOf(choice === 'default' ? DEFAULT_PERIOD_DAYS : choice)}`
 }

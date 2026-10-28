@@ -67,7 +67,7 @@ export interface ActivityPageProps {
   routeId: string | null
   /** Reads a saved activity's route. `fromOriginal` reads the kept original file. */
   loadRoute: (id: string, fromOriginal: boolean) => Promise<RouteReply>
-  /** The period the bests are counted over. The record chips below are all-time, whatever it is. */
+  /** The period the page's period bests are counted over. The record chips are all-time, whatever it is. */
   period?: Period
   /** A removal is already running, so Delete waits. */
   busy?: boolean
@@ -211,8 +211,8 @@ export function ActivityPage({
   // The period's result holds only the activities in it, so one outside it is not in the result.
   const inPeriod = result.activities.some((candidate) => candidate.id === activity.id)
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
-  const chips =
-    activity.sport === 'ride' && !weightKnown ? [] : chipLabels(records.get(activity.id) ?? [])
+  const earned = activity.sport === 'ride' && !weightKnown ? [] : (records.get(activity.id) ?? [])
+  const chips = chipLabels(earned)
   return (
     <div className="page-stack">
       <div className="page-title">
@@ -294,6 +294,7 @@ export function ActivityPage({
         profile={profile}
         inPeriod={inPeriod}
         period={period}
+        earned={earned}
         splitsLoad={splitsLoad}
         splitsView={splitsView.view}
       />

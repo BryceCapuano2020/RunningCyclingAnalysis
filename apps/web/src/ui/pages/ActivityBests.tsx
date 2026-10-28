@@ -1,17 +1,27 @@
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { Period } from '@rca/core/period'
+import type { EarnedRecord } from '@rca/core/records'
 import type { UnitSystem } from '@rca/core/units'
 import { GradingLink } from '../components/GradingLink'
 import { SportRecords } from '../components/SportRecords'
 import { WeightNote } from '../components/WeightNote'
 import { recordGradeCell } from '../components/recordGrade'
-import { periodDates } from '../components/rangeOptions'
 import { splitsShowFlatNote, type SplitsLoad, type SplitsViewName } from '../components/splitRows'
 import { FLAT_PACE_NOTE, distanceGrade, listedGradeNotes, sportGrade } from '../grades'
 import type { AgeProfile } from '../grades'
+import { periodBestText } from '../periodCopy'
 import { FLAT_MARK, recordRow, treadmillMarks } from '../recordRow'
 import type { RecordRow } from '../recordRow'
-import { effortLabel, ownDistanceRecords, paceIsTime, sportRecords } from '../records'
+import {
+  chipLabels,
+  distanceRecords,
+  effortLabel,
+  ownDistanceRecords,
+  paceIsTime,
+  sportRecords,
+} from '../records'
+import { SPORT_LABEL } from '../sports'
+import { hrefFor } from '../route'
 
 export interface ActivityBestsProps {
   activity: ActivitySummary
@@ -22,9 +32,12 @@ export interface ActivityBestsProps {
   /** False while no body weight is entered: a ride's bests wait for it, as the cards hold them. */
   weightKnown: boolean
   profile: AgeProfile | null
-  /** Whether the activity is in the period the result covers. Outside it, its bests are not counted. */
+  /** Whether the activity is in the period the result covers. Outside it, there are no period bests to name. */
   inPeriod: boolean
+  /** The period the result covers. Named on the page wherever it is used, never left to be guessed. */
   period?: Period
+  /** The records the activity holds across the whole library, which the record chips above show. */
+  earned: readonly EarnedRecord[]
   /** The run's splits as the page holds them, which say where the flat pace note goes. */
   splitsLoad: SplitsLoad
   /** The view of the splits that is open, which says whether their flat pace column is on the page. */
@@ -56,16 +69,16 @@ function flatNoteHere(
   )
 }
 
-function outsideText(period: Period | undefined): string {
-  return period === undefined
-    ? 'Outside the period you chose, so its best efforts are not counted.'
-    : `Outside ${periodDates(period)}, so its best efforts are not counted.`
-}
+/** The mark an all-time record carries, in the same chip as the marks of the figure. */
+const ALL_TIME_MARK = 'All-time record'
 
 /**
- * The best efforts this activity set, as one records list: the library's bests it holds, then the run
- * distances it has its own time at. Each is graded at its own date and linked to How is this graded?.
- * The list says nothing when it has no best, so an activity without one is not told it has none.
+ * The best efforts this activity set, as one records list: the bests it holds over the period the page
+ * names, then the run distances it has its own time at. A best that is an all-time record says so, and
+ * one that is the best of the period says which period; an activity outside the period has no period
+ * bests, and its all-time records are named even though the period holds no figure for them. Each is
+ * graded at its own date and linked to How is this graded?. The list says nothing when it has no best,
+ * so an activity without one is not told it has none.
  */
 export function ActivityBests({
   activity,
@@ -76,23 +89,30 @@ export function ActivityBests({
   profile,
   inPeriod,
   period,
+  earned,
   splitsLoad,
   splitsView,
 }: ActivityBestsProps) {
   const sport = activity.sport
-  if (!inPeriod) {
-    return (
-      <section className="section" aria-labelledby="activity-bests">
-        <h2 id="activity-bests">Best efforts set here</h2>
-        <p className="secondary">{outsideText(period)}</p>
-      </section>
-    )
-  }
-  const bests = sportRecords(result, sport, massKg, units).filter(
-    (record) => record.activity?.id === activity.id,
-  )
+  const periodMark = period === undefined ? null : periodBestText(period)
+  // A period of all time already holds every record, so the sport page has nothing to switch to.
+  const allTimeShown = period !== undefined && period.days === null
+  const bests = inPeriod
+    ? sportRecords(result, sport, massKg, units).filter(
+        (record) => record.activity?.id === activity.id,
+      )
+    : []
   const distances = ownDistanceRecords(activity, units)
-  if (bests.length === 0 && distances.length === 0) {
+  // The period's distance bests, found over the activities the result holds, when there are times to mark.
+  const periodDistances =
+    inPeriod && distances.length > 0 ? distanceRecords(result.activities, units).records : []
+  // The records the chips name, which are the only ones marked, so the marks and the chips agree.
+  const chipped = new Set(chipLabels(earned))
+  // The all-time records the chips name that the period's curve gives no figure for here.
+  const unfigured = chipLabels(earned.filter((record) => record.kind === 'duration')).filter(
+    (label) => !bests.some((record) => `Best ${effortLabel(record.durationS)}` === label),
+  )
+  if (bests.length === 0 && distances.length === 0 && unfigured.length === 0) {
     // A ride with no measured power has no power curve, and the page says why rather than leaving it out.
     const reason =
       sport === 'ride' && activity.powerSource !== 'measured'
@@ -124,33 +144,54 @@ export function ActivityBests({
   const anyGraded = outcomes.some((outcome) => outcome?.kind === 'graded')
   // The list says a ride's lead and a run's no-standard gap once under it, so each row leaves them off.
   const listNotes = listedGradeNotes(sport, outcomes)
+  // A record of all time says so; else a best of the period says which period. Only one of them shows.
+  const scopeMark = (allTime: boolean, ofPeriod: boolean): string[] => {
+    if (allTime) return [ALL_TIME_MARK]
+    return ofPeriod && periodMark !== null ? [periodMark] : []
+  }
   // The page is the activity, so its rows name no activity of their own.
   const rows: RecordRow[] = [
     ...durationItems.map(({ record, outcome }) => {
       const row = recordRow(sport, record, {
         label: `Best ${effortLabel(record.durationS)}`,
         grade: recordGradeCell(sport, outcome, record.covered, 'row'),
+        tags: scopeMark(chipped.has(`Best ${effortLabel(record.durationS)}`), true),
       })
       row.activity = null
       return row
     }),
-    ...distanceItems.map(({ record, outcome }): RecordRow => ({
-      key: `distance-${record.distanceM}`,
-      label: `Best ${record.label}`,
-      value: record.time,
-      // In miles the mile, and in kilometres the kilometre, is its own time, so it has no pace to show.
-      sub: paceIsTime(record.distanceM, units) ? null : record.pace,
-      grade: recordGradeCell(sport, outcome, null, 'row'),
-      tags: treadmillMarks(sport, activity),
-      change: null,
-      setDays: null,
-      activity: null,
-    })),
+    ...distanceItems.map(({ record, outcome }): RecordRow => {
+      const ofPeriod = periodDistances.some(
+        (best) => best.distanceM === record.distanceM && best.activity.id === activity.id,
+      )
+      return {
+        key: `distance-${record.distanceM}`,
+        label: `Best ${record.label}`,
+        value: record.time,
+        // In miles the mile, and in kilometres the kilometre, is its own time, so it has no pace to show.
+        sub: paceIsTime(record.distanceM, units) ? null : record.pace,
+        grade: recordGradeCell(sport, outcome, null, 'row'),
+        tags: [
+          ...treadmillMarks(sport, activity),
+          ...scopeMark(chipped.has(`Best ${record.label}`), ofPeriod),
+        ],
+        change: null,
+        setDays: null,
+        activity: null,
+      }
+    }),
   ]
   return (
     <section className="section" aria-labelledby="activity-bests">
       <h2 id="activity-bests">Best efforts set here</h2>
-      <SportRecords rows={rows} />
+      {rows.length > 0 && <SportRecords rows={rows} />}
+      {unfigured.length > 0 && (
+        <p className="secondary">
+          {`All-time records here: ${unfigured.join(', ')}. ${allTimeShown ? 'See' : 'Choose All time on'} the `}
+          <a href={hrefFor({ page: sport })}>{`${SPORT_LABEL[sport]} page`}</a>
+          {allTimeShown ? ' for their figures.' : ' to see their figures.'}
+        </p>
+      )}
       {listNotes.map((note) => (
         <p key={note} className="muted">
           {note}

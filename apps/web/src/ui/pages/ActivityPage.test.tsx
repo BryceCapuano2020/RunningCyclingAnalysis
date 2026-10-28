@@ -448,7 +448,7 @@ describe('ActivityPage', () => {
     expect(screen.queryByText(/None of your best efforts/)).not.toBeInTheDocument()
   })
 
-  it('says an activity outside the period is not counted, with the dates of the period', () => {
+  it('names the all-time records of an activity outside the period, and never says they are not counted', () => {
     render(
       <ActivityPage
         signedIn={false}
@@ -460,16 +460,21 @@ describe('ActivityPage', () => {
         weightKnown
         heartRateJudgement={NO_HEART_RATE_JUDGEMENT}
         profile={MAN_BORN_1986}
-        records={new Map()}
+        records={new Map([['activity-1', [{ kind: 'duration', durationS: 300 }]]])}
         loadSplits={vi.fn(async () => null)}
         routeId={null}
         loadRoute={NO_ROUTE.loadRoute}
         period={DATED}
       />,
     )
+    // The chip above and the section agree on the record, whatever period the page last held.
+    const group = screen.getByRole('group', { name: 'All-time records' })
+    expect(within(group).getByText('Best 5 min')).toBeInTheDocument()
     expect(
-      screen.getByText('Outside 12 May – 3 Aug 2025, so its best efforts are not counted.'),
+      within(bestsSection()).getByText(/All-time records here: Best 5 min\./),
     ).toBeInTheDocument()
+    expect(screen.queryByText(/not counted/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Outside/)).not.toBeInTheDocument()
   })
 
   it('groups the skipped readings by kind, one line for each kind, with the times of its readings', () => {
