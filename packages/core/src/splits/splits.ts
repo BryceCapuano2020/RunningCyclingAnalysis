@@ -2,6 +2,7 @@ import { MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
 import { elevationIncrements } from '../digest/elevationGain'
 import { metabolicToFlatSpeed } from '../metabolic'
 import { QUALITY_THRESHOLDS } from '../quality'
+import { restsOf } from './rests'
 import type { Activity, DigestSplit, DigestSplits, QualityReport } from '../types'
 import { METRES_PER_KM, METRES_PER_MILE } from '../units/convert'
 
@@ -20,6 +21,12 @@ interface Streams {
   economyScale: number
   /** 1 for every second where the file's speed and distance disagreed and the metabolic stream was lowered. */
   covered: Uint8Array
+  /** 1 for every second the device was timing the run: neither paused nor in a gap it did not record. */
+  moving: Uint8Array
+  /** 1 for every second of a rest: not timed, and the run stood still across it. */
+  rest: Uint8Array
+  /** Metres the run gained in each rest second, which are in a split's distance but not in its time. */
+  restGain: Float64Array
   /**
    * Cumulative climb at each sample boundary, in tenths of a metre, rounded once at the total. A
    * split's climb is the difference of two entries, so the splits of a unit add up to the run's.
@@ -93,20 +100,55 @@ function boundaryInGap(s: Streams, t: number): boolean {
 }
 
 /**
- * Whether a split's time can be trusted. A split whose boundary falls in a gap cannot, and neither
- * can one whose distance implies a speed no run reaches. A split that merely contains a gap is
- * still right in wall-clock time, because its boundaries lie on the distance either side of it.
+ * The seconds of the split that are not rests, and the metres it gained in its rests. A walk through
+ * a recovery is in the split's distance but not in its time, so the pace takes it out of the
+ * distance too: see timedPace.
  */
-function timeKnown(s: Streams, from: number, to: number, distanceM: number): boolean {
+function timedSeconds(s: Streams, from: number, to: number): { timedS: number; restM: number } {
+  const [first, end] = sampleRange(from, to, s.activity.n)
+  let timedS = to - from
+  let restM = 0
+  for (let i = first; i < end; i++) {
+    if (s.rest[i] !== 1) continue
+    const w = Math.max(0, overlap(i, from, to))
+    timedS -= w
+    restM += w * s.restGain[i]!
+  }
+  return { timedS, restM }
+}
+
+/**
+ * The seconds the split's whole distance would take at the pace it was run in its timed seconds: the
+ * timed seconds, scaled by the distance over the distance less what its rests gained. With no gain in
+ * a rest this is the timed seconds. Null when the rests account for all of the distance.
+ */
+function timedPace(timedS: number, restM: number, distanceM: number): number | null {
+  if (!(timedS > 0)) return null
+  const run = distanceM - restM
+  return run > 0 ? (timedS * distanceM) / run : null
+}
+
+/**
+ * Whether a split's time can be trusted. A split whose boundary falls in a gap cannot, and neither
+ * can one with no timed seconds or whose distance implies a speed no run reaches. The time is the
+ * split's time less its rests, so a pause or a standing gap inside it does not slow its pace.
+ */
+function timeKnown(
+  s: Streams,
+  from: number,
+  to: number,
+  distanceM: number,
+  seconds: number | null,
+) {
   if (boundaryInGap(s, from) || boundaryInGap(s, to)) return false
-  return distanceM / (to - from) <= QUALITY_THRESHOLDS.speedSpike.maxSpeedMs.run
+  return seconds !== null && distanceM / seconds <= QUALITY_THRESHOLDS.speedSpike.maxSpeedMs.run
 }
 
 /**
  * Seconds on flat ground at the same metabolic cost as the split, from the mean cost of its moving
- * and stopped samples, as the best efforts pace is. Null when any moving sample has no known grade.
- * A recording gap inside the split is left out of the mean, which takes its time at the cost of the
- * rest of the split. That is the assumption, and for a steady pace it gives the wall-clock time.
+ * samples, as the best efforts pace is. Null when any moving sample has no known grade. Seconds the
+ * device was not timing, a pause or a recording gap, are left out of the mean, so the flat time is
+ * the distance at the cost of the running done.
  */
 function flatSeconds(s: Streams, from: number, to: number, distanceM: number): number | null {
   const [first, end] = sampleRange(from, to, s.activity.n)
@@ -114,8 +156,7 @@ function flatSeconds(s: Streams, from: number, to: number, distanceM: number): n
   let cost = 0
   for (let i = first; i < end; i++) {
     const w = overlap(i, from, to)
-    // A gap the device did not record has no effort to count, so it takes the rest of the split's.
-    if (w <= 0 || s.quality.validMotion[i] !== 1 || unrecordedAt(s.activity, i)) continue
+    if (w <= 0 || s.quality.validMotion[i] !== 1 || s.moving[i] !== 1) continue
     if (s.quality.validGrade[i] !== 1) return null
     weight += w
     cost += w * s.metabolic[i]!
@@ -148,18 +189,19 @@ function meanHeartRate(s: Streams, from: number, to: number): number | null {
 
 function splitOf(s: Streams, span: Span): DigestSplit {
   const { from, to, distanceM, first, end } = span
-  const known = timeKnown(s, from, to, distanceM)
+  const { timedS, restM } = timedSeconds(s, from, to)
+  const paced = timedPace(timedS, restM, distanceM)
+  const known = timeKnown(s, from, to, distanceM, paced)
   const flat = known ? flatSeconds(s, from, to, distanceM) : null
   // The clock time goes by the file's distance, but the cost behind the flat time goes by the lower
   // of its speed and distance streams. Where the speed was the lower one, the same distance read at
   // that slower cost gives a flat time longer than the clock, which only the disagreement explains.
   // A split touching one reads no slower than its clock. Uphill the flat time is already faster,
   // so the cap acts on flat and downhill splits, where a mild downhill's true slowing is lost.
-  const capped =
-    flat !== null && touchesDisagreement(s, from, to) ? Math.min(flat, to - from) : flat
+  const capped = flat !== null && touchesDisagreement(s, from, to) ? Math.min(flat, paced!) : flat
   return {
     distanceM,
-    seconds: known ? roundTo(to - from, 2) : null,
+    seconds: known ? roundTo(paced!, 2) : null,
     gradeAdjustedSeconds: capped === null ? null : roundTo(capped, 2),
     elevationGainM: s.activity.hasAltitude
       ? (s.climbTenths[end]! - s.climbTenths[first]!) / 10
@@ -203,7 +245,8 @@ function splitsOf(s: Streams, totalM: number, unit: number, limit: number): Dige
  * Splits of a run at every whole kilometre and mile. `metabolic` is the run's gross metabolic
  * W/kg per sample, the stream the best efforts are built from, so a split's flat time and its
  * best-effort pace agree. `covered` marks the seconds where that stream was lowered because the
- * file's speed and distance disagreed. A unit with more splits than its limit has none.
+ * file's speed and distance disagreed. `moving` marks the seconds the device was timing, which every
+ * split's time and flat time are counted over. A unit with more splits than its limit has none.
  */
 export function runSplits(
   activity: Activity,
@@ -211,6 +254,7 @@ export function runSplits(
   metabolic: Float64Array,
   economyScale: number,
   covered: Uint8Array,
+  moving: Uint8Array,
 ): DigestSplits {
   const totalM = maxDistance(activity.distance)
   if (totalM < MIN_PARTIAL_M) return { km: [], mile: [] }
@@ -221,7 +265,18 @@ export function runSplits(
     running += climb[i]!
     climbTenths[i + 1] = Math.round(running * 10)
   }
-  const streams: Streams = { activity, quality, metabolic, economyScale, covered, climbTenths }
+  const { rest, gain } = restsOf(activity.distance, moving)
+  const streams: Streams = {
+    activity,
+    quality,
+    metabolic,
+    economyScale,
+    covered,
+    moving,
+    rest,
+    restGain: gain,
+    climbTenths,
+  }
   return {
     km: splitsOf(streams, totalM, METRES_PER_KM, MAX_KM_SPLITS),
     mile: splitsOf(streams, totalM, METRES_PER_MILE, MAX_MILE_SPLITS),

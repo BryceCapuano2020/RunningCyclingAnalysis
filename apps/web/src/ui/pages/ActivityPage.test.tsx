@@ -193,7 +193,7 @@ describe('ActivityPage', () => {
       makeActivity({ id: 'activity-1', name: 'Heart run', avgHeartRate: 150, maxHeartRate: 171 }),
     )
     expect(within(statFor('Average heart rate')).getByText('150 bpm')).toBeInTheDocument()
-    expect(screen.getByText('Highest 171 bpm')).toBeInTheDocument()
+    expect(screen.getByText('Highest 30 s average 171 bpm')).toBeInTheDocument()
     unmount()
     renderPage(
       makeActivity({

@@ -170,6 +170,7 @@ describe('SplitsTable', () => {
         km: [
           split({ distanceM: 1000, seconds: null, gradeAdjustedSeconds: null }),
           split({ seconds: 300, gradeAdjustedSeconds: 290 }),
+          split({ seconds: 310, gradeAdjustedSeconds: 300 }),
         ],
         mile: [],
       }),

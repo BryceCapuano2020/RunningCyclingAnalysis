@@ -103,3 +103,28 @@
     display: block;
   }
 }
+
+/* The choice between whole units and the device's laps sits above the table. */
+.splits-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+/* The chosen view takes the selected colours and a tick, so it is not told apart by colour alone. */
+.btn.splits-view__choice--active {
+  border-color: var(--selected);
+  background: var(--selected);
+  color: var(--selected-contrast);
+  font-weight: 700;
+}
+
+.btn.splits-view__choice--active:hover {
+  background: var(--selected);
+  border-color: var(--selected);
+}
+
+.btn.splits-view__choice--active::before {
+  content: '✓';
+}

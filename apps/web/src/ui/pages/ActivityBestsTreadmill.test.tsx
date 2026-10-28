@@ -21,6 +21,7 @@ function renderBests(activity: ReturnType<typeof makeActivity>, result: Analysis
       profile={null}
       inPeriod
       splitsLoad={{ status: 'loaded', splits: null }}
+      splitsView="units"
     />,
   )
 }

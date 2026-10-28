@@ -39,6 +39,7 @@
     "./records": "./src/records/index.ts",
     "./route/routeShape": "./src/route/routeShape.ts",
     "./sha256": "./src/sha256.ts",
+    "./splits": "./src/splits/index.ts",
     "./synthetic": "./src/synthetic/index.ts",
     "./synthetic/odd": "./src/synthetic/odd.ts",
     "./tcx": "./src/tcx/index.ts",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
 import type { ActivityTraceReply } from '../../worker/protocol'
@@ -6,6 +6,7 @@ import type { EarnedRecord } from '@rca/core/records'
 import type { Period } from '@rca/core/period'
 import type { HeartRateJudgement } from '@rca/core/digest/setAsideTypes'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
+import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { zonesAt } from '@rca/core/zones'
 import type { ZoneSet } from '@rca/core/zones'
@@ -25,6 +26,7 @@ import type { RouteReply } from '../routeReply'
 import { useDeleteOutcome } from '../useDeleteOutcome'
 import { useRouteShape } from '../useRouteShape'
 import { useRunSplits } from '../useRunSplits'
+import { AWAITED, NO_DETAIL, useSplitsView, type TraceReport } from '../useSplitsView'
 import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
 import { setAsideActivityText } from '../analysis/setAsideCopy'
@@ -164,7 +166,25 @@ export function ActivityPage({
     [activity, settings, result, weightKnown, setAsideIds],
   )
   // Only a run's splits are asked for; the page keeps the answer, so the bests can place the flat pace note.
-  const splitsLoad = useRunSplits(activity?.sport === 'run' ? activity.id : null, loadSplits)
+  const runId = activity?.sport === 'run' ? activity.id : null
+  const splitsLoad = useRunSplits(runId, loadSplits)
+  // The workbench reads the trace; the splits borrow its laps, so the device's own laps can be their view.
+  // The report is the activity's own: this page is reused from one activity to the next, so a report
+  // made for the last one says nothing of this one, and a page with no detail to read has nothing on its way.
+  const activityId = activity?.id ?? null
+  const [report, setReport] = useState<{ id: string | null } & TraceReport>({
+    id: null,
+    trace: null,
+    settled: false,
+  })
+  const onTrace = useCallback(
+    (trace: ActivityTrace | null, settled: boolean) =>
+      setReport({ id: activityId, trace, settled }),
+    [activityId],
+  )
+  const detail = loadTrace === undefined ? NO_DETAIL : report.id === activityId ? report : AWAITED
+  const trace = detail.trace?.activityId === activityId ? detail.trace : null
+  const splitsView = useSplitsView(runId, { trace, settled: detail.settled })
   // Once the library has removed the activity, the list replaces this page in the history, so Back never
   // lands on an activity that is gone. A failed removal stays here, with its reason beside Delete.
   const removed = removal.outcome !== null && !removal.outcome.failed
@@ -225,6 +245,7 @@ export function ActivityPage({
           loadTrace={loadTrace}
           zoneSets={zoneSets}
           heartRateSetAside={setAsideIds.includes(activity.id)}
+          onTrace={onTrace}
         />
       )}
       {activity.powerSource === 'virtual' && (
@@ -253,7 +274,16 @@ export function ActivityPage({
           </div>
         </div>
       )}
-      {isRun && <SplitsTable load={splitsLoad} units={units} distanceM={activity.distanceM} />}
+      {isRun && (
+        <SplitsTable
+          load={splitsLoad}
+          units={units}
+          distanceM={activity.distanceM}
+          trace={trace}
+          view={splitsView.view}
+          onViewChange={splitsView.choose}
+        />
+      )}
 
       <ActivityBests
         activity={activity}
@@ -265,6 +295,7 @@ export function ActivityPage({
         inPeriod={inPeriod}
         period={period}
         splitsLoad={splitsLoad}
+        splitsView={splitsView.view}
       />
       <ActivityIssues
         activity={activity}

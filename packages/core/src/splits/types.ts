@@ -3,9 +3,10 @@ export interface DigestSplit {
   /** The unit's length, or the length of the partial remainder, m. */
   distanceM: number
   /**
-   * Elapsed seconds over the split, including any time stopped in it, rounded to 0.01 s. Null when a
-   * boundary of the split falls inside a gap the device did not record, or when it implies a speed no
-   * run reaches.
+   * Moving seconds over the split, rounded to 0.01 s: the seconds the device was timing, so a rest
+   * paused or unrecorded inside the split is not counted, as the activity's moving time does not
+   * count it. Null when a boundary of the split falls inside a gap the device did not record, when
+   * no second of it was timed, or when it implies a speed no run reaches.
    */
   seconds: number | null
   /** Seconds on flat ground at the same metabolic cost, or null when the time or grade is unknown. */
