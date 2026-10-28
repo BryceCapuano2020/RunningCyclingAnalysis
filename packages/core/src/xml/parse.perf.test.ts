@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { fastestMs } from '../test/timing'
 import { DEFAULT_XML_LIMITS, parseXml } from './parse'
 
 /** The GPX namespace declarations a real Garmin export carries. */
@@ -25,17 +26,18 @@ describe('parseXml performance', () => {
   it('parses 200,000 trackpoints in under 3 s and scales linearly', () => {
     const small = gpxLike(50_000)
     const big = gpxLike(200_000)
-    // The small parse runs cold, which only makes the ratio below more lenient.
-    const smallStart = performance.now()
-    parseXml(small, DEFAULT_XML_LIMITS)
-    const smallMs = performance.now() - smallStart
-
-    const bigStart = performance.now()
-    const doc = parseXml(big, DEFAULT_XML_LIMITS)
-    const bigMs = performance.now() - bigStart
-
     // gpx > trk > trkseg holds the trackpoints.
+    const doc = parseXml(big, DEFAULT_XML_LIMITS)
     expect(doc.children[0]!.children[0]!.children).toHaveLength(200_000)
+
+    // Each size is timed as the fastest of several warm parses. A single parse of each let a garbage
+    // collection or a scheduler pause on a shared CI runner land in one side of the ratio: it reached
+    // 6.1 there, while 20 fresh local runs spread from 2.9 to 4.3. Timed this way the same 20 runs
+    // spread from 3.5 to 4.1. The parse above warms the big document's path.
+    parseXml(small, DEFAULT_XML_LIMITS)
+    const smallMs = fastestMs(() => parseXml(small, DEFAULT_XML_LIMITS), 5)
+    const bigMs = fastestMs(() => parseXml(big, DEFAULT_XML_LIMITS), 3)
+
     expect(bigMs).toBeLessThan(3_000)
     // Linear work gives about 4 for four times the input. Quadratic work gives about 16.
     expect(bigMs / smallMs).toBeLessThan(6)
