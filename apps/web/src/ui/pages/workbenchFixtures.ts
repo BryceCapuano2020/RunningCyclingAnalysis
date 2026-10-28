@@ -36,3 +36,59 @@ export function steadyTrace(seconds: number, speed = 3): ActivityTrace {
     laps: [],
   }
 }
+
+/** A stretch of an activity for repsTrace: its seconds, and the readings held through it. */
+export interface Stretch {
+  seconds: number
+  speed?: number
+  power?: number
+  heartRate?: number
+  /** Metres climbed each second; a stream of altitude is made when any stretch gives it. */
+  climb?: number
+}
+
+/**
+ * An activity made of stretches back to back, every second recorded and moving. A stream is present when
+ * any stretch gives it. `laps` are the device's laps, as [startS, endS] pairs.
+ */
+export function repsTrace(
+  sport: ActivityTrace['sport'],
+  stretches: readonly Stretch[],
+  laps: readonly (readonly [number, number])[] = [],
+): ActivityTrace {
+  const seconds = stretches.reduce((sum, stretch) => sum + stretch.seconds, 0)
+  const stream = (read: (stretch: Stretch) => number | undefined): Float32Array | undefined => {
+    if (stretches.every((stretch) => read(stretch) === undefined)) return undefined
+    return Float32Array.from(
+      stretches.flatMap((stretch) =>
+        Array.from({ length: stretch.seconds }, () => read(stretch) ?? Number.NaN),
+      ),
+    )
+  }
+  const streams: ActivityTrace['streams'] = {}
+  const climbs = stretches.flatMap((stretch) =>
+    Array.from({ length: stretch.seconds }, () => stretch.climb ?? 0),
+  )
+  if (stretches.some((stretch) => stretch.climb !== undefined)) {
+    let height = 100
+    streams.altitude = Float32Array.from(climbs, (climb) => (height += climb))
+  }
+  for (const [metric, values] of [
+    ['speed', stream((s) => s.speed)],
+    ['power', stream((s) => s.power)],
+    ['heartRate', stream((s) => s.heartRate)],
+  ] as const) {
+    if (values !== undefined) streams[metric] = values
+  }
+  return {
+    version: 1,
+    activityId: `${sport}-reps`,
+    sport,
+    durationS: seconds,
+    distance: Float64Array.from({ length: seconds }, (_, i) => i * 3),
+    paused: new Uint8Array(seconds),
+    unrecorded: new Uint8Array(seconds),
+    streams,
+    laps: laps.map(([startS, endS]) => ({ startS, endS })),
+  }
+}

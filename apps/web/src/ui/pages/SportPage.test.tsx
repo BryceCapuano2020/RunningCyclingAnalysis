@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SameHeartRate, SportCurves, TrendPoint } from '@rca/core/digest'
+import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { EFFORT_LENGTHS_S, NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { EffortLengthS } from '@rca/core/digest/trendPoints'
@@ -68,6 +69,7 @@ function renderPage(
       previousLabel={previousLabel}
       trends={trends}
       sameHeartRate={sameHeartRate}
+      lateEvidence={NO_LATE_EVIDENCE[sport]}
       windowDays={14}
       units={units}
       massKg={75}
@@ -143,6 +145,7 @@ describe('SportPage', () => {
         previousLabel={null}
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
+        lateEvidence={NO_LATE_EVIDENCE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -455,6 +458,7 @@ describe('SportPage', () => {
         previousLabel={null}
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
+        lateEvidence={NO_LATE_EVIDENCE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1534,6 +1538,7 @@ describe('SportPage with nothing to show', () => {
         previousLabel={null}
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
+        lateEvidence={NO_LATE_EVIDENCE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1560,6 +1565,7 @@ describe('SportPage with nothing to show', () => {
         previousLabel={null}
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
+        lateEvidence={NO_LATE_EVIDENCE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1600,6 +1606,7 @@ describe('SportPage with nothing to show', () => {
         previousLabel={null}
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
+        lateEvidence={NO_LATE_EVIDENCE.run}
         windowDays={14}
         units="metric"
         massKg={75}
@@ -1630,6 +1637,7 @@ describe('SportPage period focus', () => {
         previousLabel={null}
         trends={NO_TRENDS}
         sameHeartRate={NO_SAME_HEART_RATE.run}
+        lateEvidence={NO_LATE_EVIDENCE.run}
         windowDays={14}
         units="metric"
         massKg={75}

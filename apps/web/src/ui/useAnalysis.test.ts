@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type { Copy } from '@rca/core/session'
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
+import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import { createElement, StrictMode } from 'react'
@@ -161,6 +162,7 @@ const STATE = {
   previous: null,
   effortTrends: NO_TRENDS,
   sameHeartRate: NO_SAME_HEART_RATE,
+  lateEvidence: NO_LATE_EVIDENCE,
   records: new Map(),
 }
 

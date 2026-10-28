@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
@@ -21,6 +22,7 @@ function renderPage(sport: Sport, result: AnalysisResult, weighted = true) {
       previousLabel={null}
       trends={NO_TRENDS}
       sameHeartRate={NO_SAME_HEART_RATE[sport]}
+      lateEvidence={NO_LATE_EVIDENCE[sport]}
       windowDays={14}
       units="metric"
       massKg={75}
@@ -68,7 +70,9 @@ describe('the stand-out finding on a sport page', () => {
       makeResult({ activities: profileActivities('ride', 'measured'), rideCurve: profileCurve() }),
     )
     const list = screen.getByRole('region', { name: 'Not enough yet' })
-    expect(within(list).getByText(/with a power meter\.$/)).toBeInTheDocument()
+    expect(
+      within(list).getByText(/^Where your bests stand out: .*with a power meter\.$/),
+    ).toBeInTheDocument()
   })
 
   it('is left out while a ride waits for the body weight, and for a sport with no activities', () => {

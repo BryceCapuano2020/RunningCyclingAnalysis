@@ -321,3 +321,11 @@ export const DRIFT = {
   maxCv: { run: 0.15, ride: 0.25 },
   maxHalfGap: 0.1,
 } as const
+
+/**
+ * What the durability and drift views need before they show a figure, and the reference they draw.
+ * minActivities is the activities behind a late best, or the steady efforts behind a drift reading.
+ * referenceDecouplingPct is the coaching convention that under 5% reads as well-built endurance
+ * (docs/research/durability.md): a light reference line, not a verdict.
+ */
+export const LATE_IN_EFFORT = { minActivities: 3, referenceDecouplingPct: 5 } as const

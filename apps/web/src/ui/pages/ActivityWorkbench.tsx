@@ -5,6 +5,7 @@ import type { UnitSystem } from '@rca/core/units'
 import type { ActivityTraceReply } from '../../worker/protocol'
 import { LapChoices } from './ActivityWorkbenchLaps'
 import { ActivityWorkbenchPlot } from './ActivityWorkbenchPlot'
+import { RepFadeTable } from './ActivityWorkbenchReps'
 import { SelectionStats } from './ActivityWorkbenchStats'
 import { TimeSelection } from './ActivityWorkbenchTime'
 import { DEFAULT_METRICS, METRIC_ORDER, metricLabel, metricUnit } from './workbenchFormat'
@@ -15,6 +16,8 @@ import './ActivityWorkbench.css'
 export interface ActivityWorkbenchProps {
   activityId: string
   units: UnitSystem
+  /** A trainer ride or a treadmill run: a speed is the athlete's there, so reps are read by it without power. */
+  indoor?: boolean
   loadTrace: (id: string, fromOriginal?: boolean) => Promise<ActivityTraceReply>
 }
 
@@ -71,12 +74,18 @@ function useTrace(activityId: string, loadTrace: ActivityWorkbenchProps['loadTra
 }
 
 /** One activity's recorded signals over a shared elapsed-time axis. */
-export function ActivityWorkbench({ activityId, units, loadTrace }: ActivityWorkbenchProps) {
+export function ActivityWorkbench({
+  activityId,
+  units,
+  indoor = false,
+  loadTrace,
+}: ActivityWorkbenchProps) {
   return (
     <ActivityWorkbenchSession
       key={activityId}
       activityId={activityId}
       units={units}
+      indoor={indoor}
       loadTrace={loadTrace}
     />
   )
@@ -94,7 +103,12 @@ function WorkbenchSection({ sport, children }: { sport?: string; children: React
   )
 }
 
-function ActivityWorkbenchSession({ activityId, units, loadTrace }: ActivityWorkbenchProps) {
+function ActivityWorkbenchSession({
+  activityId,
+  units,
+  indoor,
+  loadTrace,
+}: Required<ActivityWorkbenchProps>) {
   const loaded = useTrace(activityId, loadTrace)
   const { status } = loaded.state
   if (status === 'ready' || status === 'original') {
@@ -103,6 +117,7 @@ function ActivityWorkbenchSession({ activityId, units, loadTrace }: ActivityWork
         key={loaded.requestKey}
         trace={loaded.state.trace}
         units={units}
+        indoor={indoor}
         fromOriginal={status === 'original'}
       />
     )
@@ -146,10 +161,12 @@ function ActivityWorkbenchSession({ activityId, units, loadTrace }: ActivityWork
 function ReadyWorkbench({
   trace,
   units,
+  indoor,
   fromOriginal,
 }: {
   trace: ActivityTrace
   units: UnitSystem
+  indoor: boolean
   fromOriginal: boolean
 }) {
   const available = useMemo(
@@ -186,6 +203,13 @@ function ReadyWorkbench({
         onChange={setVisible}
       />
       <LapChoices trace={trace} max={max} selection={selection} onSelect={setChosen} />
+      <RepFadeTable
+        trace={trace}
+        units={units}
+        indoor={indoor}
+        selection={selection}
+        onSelect={setChosen}
+      />
       {visible.length > 0 ? (
         <div className="activity-workbench__plots">
           {visible.map((metric) => (

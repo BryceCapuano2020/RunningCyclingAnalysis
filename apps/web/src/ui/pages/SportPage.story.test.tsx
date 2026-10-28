@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SameHeartRate } from '@rca/core/digest'
+import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
+import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from '@rca/core/digest/sameHeartRateTypes'
 import { NO_TRENDS } from '@rca/core/digest/trendPoints'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Sport } from '@rca/core/types'
 import { makeActivity, makeResult } from '../components/fixtures'
+import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
 import { SportPage } from './SportPage'
 
@@ -38,7 +40,12 @@ const RUN_SAME_HEART_RATE: SameHeartRate = {
   latestWeekEndMs: week(4, 3.4).endMs,
 }
 
-function renderPage(sport: Sport, result: AnalysisResult, sameHeartRate?: SameHeartRate) {
+function renderPage(
+  sport: Sport,
+  result: AnalysisResult,
+  sameHeartRate?: SameHeartRate,
+  lateEvidence: LateEvidence = NO_LATE_EVIDENCE[sport],
+) {
   return render(
     <SportPage
       sport={sport}
@@ -47,6 +54,7 @@ function renderPage(sport: Sport, result: AnalysisResult, sameHeartRate?: SameHe
       previousLabel={null}
       trends={NO_TRENDS}
       sameHeartRate={sameHeartRate ?? NO_SAME_HEART_RATE[sport]}
+      lateEvidence={lateEvidence}
       windowDays={28}
       units="metric"
       massKg={75}
@@ -93,26 +101,27 @@ function fullRun(): AnalysisResult {
 }
 
 describe('a sport page with everything to show', () => {
-  it('reads answer, best efforts, race predictions, week by week, then the same heart rate', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+  it('reads answer, best efforts, race predictions, week by week, the same heart rate, then late in long sessions', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     expect(headings()).toEqual([
       'Threshold pace, estimated',
       'Best efforts',
       'Race predictions',
       'Week by week',
       'At the same heart rate',
+      'Late in long sessions',
     ])
   })
 
   it('has no heading of its own for the curve or for the stand-out finding', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     expect(screen.queryByRole('heading', { name: 'Pace curve' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Where your bests stand out' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Not enough yet' })).toBeNull()
   })
 
   it('puts the curve under the records list, with the stand-out finding as its caption', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const list = section.querySelector('ul.records')!
     const curve = within(section).getByRole('figure', { name: /^Run flat pace .* by duration$/ })
@@ -122,7 +131,7 @@ describe('a sport page with everything to show', () => {
   })
 
   it('keeps the strip behind a closed disclosure that opens to show each best against the others', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const details = within(section)
       .getByText('Show each best against the others')
@@ -146,7 +155,7 @@ describe('a sport page with everything to show', () => {
   })
 
   it('says under the week-by-week chart that a step down can be a best leaving the window', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     const section = screen.getByRole('region', { name: 'Week by week' })
     const line = within(section).getByText(
       'A step down can be a best leaving the 4-week window, not a change in you.',
@@ -156,7 +165,7 @@ describe('a sport page with everything to show', () => {
   })
 
   it('never uses the words the page has banned', () => {
-    const { container } = renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+    const { container } = renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     const text = (container.textContent ?? '').toLowerCase()
     for (const word of ['limiter', 'weak', 'strength', 'holding you back', 'ahead of']) {
       expect(text).not.toContain(word)
@@ -185,6 +194,7 @@ describe('a sport page with sections that have nothing to show', () => {
       expect.stringMatching(
         /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
       ),
+      'Late in long sessions: add 3 runs longer than an hour. Needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
     ])
     expect(section.querySelector('ul')).toHaveClass('muted')
   })
@@ -205,7 +215,7 @@ describe('a sport page with sections that have nothing to show', () => {
   })
 
   it('shows no list when every section has something to say', () => {
-    renderPage('run', fullRun(), RUN_SAME_HEART_RATE)
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'))
     expect(screen.queryByRole('region', { name: 'Not enough yet' })).toBeNull()
   })
 

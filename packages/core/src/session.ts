@@ -12,6 +12,7 @@ import type { Activity, ActivityDigest, AthleteSettings, DigestSplits, Sport } f
 import { dedupeKey, fileNameOf, heldCopyOf, hiddenDigests, outranksHeld } from './duplicates'
 import { PeriodCache, splitPeriods } from './period'
 import type { PeriodChoice } from './period'
+import { NO_LATE_EVIDENCE } from './digest/lateEvidenceTypes'
 import { NO_SAME_HEART_RATE } from './digest/sameHeartRateTypes'
 import { NO_TRENDS } from './digest/trendPoints'
 import { HEADLINE_DURATION_S } from './constants'
@@ -344,11 +345,14 @@ export class AnalysisSession {
       analysis === null
         ? NO_SAME_HEART_RATE
         : this.periods.sameHeartRate(selected, visible, fromMs, analysis.heartRateSetAside)
+    const late =
+      analysis === null ? NO_LATE_EVIDENCE : this.periods.late(selected, analysis.heartRateSetAside)
     return {
       result: analysis,
       trend: efforts[HEADLINE_DURATION_S],
       effortTrends: efforts,
       sameHeartRate,
+      lateEvidence: late,
       previous:
         athlete !== null && bikeModel !== undefined && previous.length > 0
           ? this.periods.previousCurves(selected, previous, athlete, bikeModel)
