@@ -11,7 +11,10 @@ import './ZoneTables.css'
 export interface ZoneTablesProps {
   /** The settings the analysis runs on, dated ones included. */
   athlete: AthleteSettings
-  /** The analysis on screen, which supplies a reference the athlete has not entered. Null without one. */
+  /**
+   * The analysis on screen, which supplies a reference the athlete has not entered. Null without one,
+   * and while the sample is loaded, since the sample is not the athlete's own activities.
+   */
   result: ZoneEstimates | null
   /** Whether a body weight is entered. Without one a ride's estimated power zones have no watts to show. */
   weightKnown: boolean

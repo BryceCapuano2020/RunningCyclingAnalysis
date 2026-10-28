@@ -292,16 +292,13 @@ export function ProfilePage({
       </div>
 
       <SettingsOverTime
-        entries={dated.entries}
-        state={dated.state}
-        elsewhere={dated.elsewhere}
+        {...dated}
         units={shownUnits}
         onAdd={onAddSetting}
         onRemove={onRemoveSetting}
       />
       <ZoneTables
         athlete={athlete}
-        // The sample is not the athlete's own activities, so it supplies no estimate.
         result={analysis.state.isSample ? null : analysis.state.result}
         weightKnown={weightKnown(settings)}
         units={shownUnits}
