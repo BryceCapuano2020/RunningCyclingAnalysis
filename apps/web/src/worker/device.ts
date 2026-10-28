@@ -14,8 +14,12 @@ export interface DeviceActions {
   inSession(): boolean
   /** The session's library was replaced or emptied, so the kept one must be loaded again. */
   replaced(): void
-  /** Keeps one imported activity, with its route. Best effort: a refused write leaves the visit working. */
-  save(item: SyncItem): Promise<void>
+  /**
+   * Keeps one imported activity, with its route. Best effort: a refused write leaves the visit
+   * working. Resolves false when the write was refused, and true when the activity is kept or the
+   * kept copy is the one to keep.
+   */
+  save(item: SyncItem): Promise<boolean>
   /** The route kept with a workout, or null. Best effort. */
   route(id: string): Promise<RouteShape | null>
   /** Posts the activities kept in this browser, newest first. Best effort. */
@@ -26,7 +30,10 @@ export interface DeviceActions {
    * A signed-in delete uses it, so the copy cannot come back when the visitor signs out.
    */
   dropKept(workoutKey: string): Promise<void>
-  /** Empties the library. Best effort, so starting over always clears the page. */
+  /**
+   * Empties the library. Best effort, so starting over always clears the page. A refused clear posts
+   * the library that remains, with a `notForgotten` issue, and the next call tries the clear again.
+   */
   forget(): Promise<void>
 }
 
@@ -86,8 +93,10 @@ export function deviceActions(
       try {
         const key = workoutKeyOf(digest)
         if (replaces(digest, await device.get(key))) await device.put(key, digest, route)
+        return true
       } catch {
         // Storage can be refused (a private window, a full disk); the results still show.
+        return false
       }
     },
     async route(id) {
@@ -110,16 +119,19 @@ export function deviceActions(
       await device.remove(workoutKey)
     },
     async forget() {
-      let cleared = false
       try {
         await device.clear()
-        cleared = true
       } catch {
-        // The page still starts over; whatever could not be removed reloads next visit.
+        // The page still starts over, but what could not be removed reloads next visit, so the page
+        // shows what remains and says so. The next read loads it into the session.
+        held = false
+        await report()
+        post({ type: 'deviceIssue', issue: 'notForgotten' })
+        return
       }
       post({ type: 'libraryActivities', activities: [] })
-      // Nothing to merge once empty. After a refused clear, the next read loads what remains.
-      held = cleared
+      // Nothing to merge once empty.
+      held = true
     },
   }
 }

@@ -14,6 +14,7 @@ import { ApiRequestError } from '../api/client'
 import { buildAccountExport } from '../export/accountExport'
 import { workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
+import { memoryDeviceLibrary } from '../test/deviceLibrary.fake'
 import * as importSummary from './importSummary'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
@@ -1486,7 +1487,7 @@ describe('device library', () => {
     ])
   })
 
-  it('empties the session on removing all activities even when the device library refuses to clear', async () => {
+  it('empties the session on removing all activities even when the device library refuses to clear, and says what remains', async () => {
     const { send } = await startWorker()
     await send(signedOutImport())
     kept.library = { ...keptDevice(), clear: () => Promise.reject(new Error('refused')) }
@@ -1497,7 +1498,12 @@ describe('device library', () => {
     const messages = await restarted.send({ type: 'clear', forgetDevice: true })
 
     expect(messages).toEqual([
-      { type: 'libraryActivities', activities: [] },
+      // The library that remains, not an empty one, and then why.
+      {
+        type: 'libraryActivities',
+        activities: [expect.objectContaining({ startMs: sampleActivity.startMs })],
+      },
+      { type: 'deviceIssue', issue: 'notForgotten' },
       { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
     ])
     // The kept activity is still there, so the next import is analysed with it, as a reload would.
@@ -1505,6 +1511,58 @@ describe('device library', () => {
     const both = [sampleActivity.startMs, secondSampleActivity.startMs].sort((a, b) => a - b)
     expect(analysedStarts(added)).toEqual(both)
     expect(listedStarts(added)).toEqual(both)
+  })
+
+  it('tries the clear again when removing all activities is asked for again', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport())
+    const device = keptDevice()
+    let attempts = 0
+    kept.library = {
+      ...device,
+      clear: () => (++attempts === 1 ? Promise.reject(new Error('refused')) : device.clear()),
+    }
+    vi.resetModules()
+    const restarted = await startWorker()
+    await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+    await restarted.send({ type: 'clear', forgetDevice: true })
+
+    const messages = await restarted.send({ type: 'clear', forgetDevice: true })
+
+    expect(attempts).toBe(2)
+    expect(messages).toEqual([
+      { type: 'libraryActivities', activities: [] },
+      { type: 'state', state: expect.objectContaining({ totalActivities: 0 }) },
+    ])
+    expect(await device.all()).toEqual([])
+  })
+
+  it('tells the page how many activities this browser could not keep, and still shows the results', async () => {
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      put: () => Promise.reject(new Error('QuotaExceededError')),
+    }
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [fitFile(), fitFile(secondSampleActivity, 'second.fit')],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    expect(messages.at(-2)).toEqual({ type: 'deviceIssue', issue: 'notSaved', count: 2 })
+    expect(messages.at(-1)).toMatchObject({ type: 'state', state: { totalActivities: 2 } })
+    expect(messages.some((message) => message.type === 'error')).toBe(false)
+  })
+
+  it('says nothing about saving when every activity of the import was kept', async () => {
+    const { send } = await startWorker()
+
+    const messages = await send(signedOutImport())
+
+    expect(messages.some((message) => message.type === 'deviceIssue')).toBe(false)
   })
 
   it('empties the kept library when a clear forgets the device', async () => {
@@ -2119,7 +2177,7 @@ describe('deleting a signed-in activity', () => {
 })
 
 describe('a signed-in delete whose device copy cannot be removed', () => {
-  it('still reports the delete as done, since the account copy is gone', async () => {
+  it('still reports the delete as done, since the account copy is gone, and says the copy here stays', async () => {
     mocked.listActivities.mockResolvedValue([recordFor(SAMPLE_DIGEST)])
     mocked.deleteActivity.mockResolvedValue(undefined)
     const { send } = await startWorker()
@@ -2137,6 +2195,8 @@ describe('a signed-in delete whose device copy cannot be removed', () => {
     expect(mocked.deleteActivity).toHaveBeenCalledWith(`rec-${SAMPLE_DIGEST.id}`, USER_ID)
     expect(messages.at(-1)).toEqual(expect.objectContaining({ type: 'state' }))
     expect(messages.some((message) => message.type === 'error')).toBe(false)
+    // The copy here could come back after a sign-out, so the page is told.
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notForgotten' })
   })
 })
 

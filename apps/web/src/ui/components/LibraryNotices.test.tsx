@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { analysisStub } from '../../test/analysisStub'
+import type { AnalysisController } from '../useAnalysis'
 import { LibraryNotices } from './LibraryNotices'
 
 afterEach(() => {
@@ -185,5 +186,67 @@ describe('LibraryNotices: outdated saved activities', () => {
       screen.getByText('1 saved activity needs a quick update before it counts in these results.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Update now' })).toBeInTheDocument()
+  })
+})
+
+describe('LibraryNotices: this browser could not keep or delete activities', () => {
+  function shown(deviceIssue: AnalysisController['deviceIssue'], signedIn = false) {
+    return (
+      <LibraryNotices
+        analysis={analysisStub({ deviceIssue })}
+        signedIn={signedIn}
+        keepFiles={false}
+        fileRetentionAvailable
+        onRetry={vi.fn()}
+      />
+    )
+  }
+
+  it('says a single activity shows but will not be here after a reload', () => {
+    render(shown({ issue: 'notSaved', count: 1 }))
+
+    expect(
+      screen.getByText(
+        '1 activity shows here but could not be kept in this browser. It will not be here after a reload.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says several activities show but will not be here after a reload', () => {
+    render(shown({ issue: 'notSaved', count: 3 }))
+
+    expect(
+      screen.getByText(
+        '3 activities show here but could not be kept in this browser. They will not be here after a reload.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says a signed-out visitor can remove everything again', () => {
+    render(shown({ issue: 'notForgotten' }))
+
+    expect(
+      screen.getByText(
+        'This browser could not delete its kept activities. Use Remove all my activities to try again.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('says a signed-in delete left a copy in this browser', () => {
+    render(shown({ issue: 'notForgotten' }, true))
+
+    expect(
+      screen.getByText(
+        'This browser could not delete its copy of the activity you deleted. It may come back when you sign out.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('shows nothing when this browser refused nothing, and the notice once it did', () => {
+    const { rerender } = render(shown(null))
+    expect(screen.queryByRole('region', { name: 'Kept in this browser' })).not.toBeInTheDocument()
+
+    rerender(shown({ issue: 'notForgotten' }))
+    expect(screen.getByRole('region', { name: 'Kept in this browser' })).toBeInTheDocument()
   })
 })

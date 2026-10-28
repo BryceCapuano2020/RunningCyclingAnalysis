@@ -14,6 +14,12 @@ export interface SavedActivity {
   copy: Copy
 }
 
+/**
+ * What this browser failed to do with the activities it keeps. `notSaved` counts activities of one
+ * import that show but were not kept; `notForgotten` is a delete or removal that left a copy behind.
+ */
+export type DeviceIssue = { issue: 'notSaved'; count: number } | { issue: 'notForgotten' }
+
 export interface ImportOutcome {
   /** The activities the import read, which a file may hold several of. */
   activities: number
@@ -126,6 +132,8 @@ export type WorkerResponse =
   | { type: 'routeShape'; route: RouteShape | null; original: boolean }
   /** Stored activities that could not be read in the last library load, sent when above zero. */
   | { type: 'libraryUnreadable'; count: number }
+  /** The library kept in this browser did not take a save or a removal. Sent before the state that ends the request. */
+  | ({ type: 'deviceIssue' } & DeviceIssue)
   /**
    * The import stopped saving: the account ended or changed, storage is full, or a limit was
    * reached. Sent before its state.

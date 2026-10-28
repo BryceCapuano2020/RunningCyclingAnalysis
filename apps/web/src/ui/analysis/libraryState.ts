@@ -1,8 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { SavedActivity } from '../../worker/protocol'
+import type { DeviceIssue, SavedActivity, WorkerRequest } from '../../worker/protocol'
 import { hasRemovedMark } from '../activitiesView'
 import { keptLibraryHinted } from './keptLibrary'
 import type { LibraryStatus } from './model'
+
+/**
+ * Whether a request tries the library kept in this browser again, so a refusal it reported earlier no
+ * longer stands. The worker reports a new one before the request's reply if the attempt fails too.
+ */
+function retriesDevice(request: WorkerRequest): boolean {
+  return (
+    (request.type === 'addFiles' && request.saveToDevice === true) ||
+    request.type === 'loadDevice' ||
+    request.type === 'deleteDeviceActivity' ||
+    (request.type === 'clear' && request.forgetDevice === true)
+  )
+}
 
 /**
  * The signed-in library: its load status, the imports held while it loads, and the notices the
@@ -21,6 +34,7 @@ export function useLibraryState() {
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [missingOriginals, setMissingOriginals] = useState(0)
   const [libraryUnreadable, setLibraryUnreadable] = useState(0)
+  const [deviceIssue, setDeviceIssue] = useState<DeviceIssue | null>(null)
   const [savedActivities, setSavedActivities] = useState<SavedActivity[]>([])
   const savedActivitiesRef = useRef<SavedActivity[]>([])
 
@@ -46,6 +60,12 @@ export function useLibraryState() {
     setLibraryStatus(next)
   }, [])
 
+  /** Clears what a request replaces: an unreadable count a library load reports afresh, and a refusal it retries. */
+  const resetNoticesFor = useCallback((request: WorkerRequest) => {
+    if (request.type === 'loadServer' || request.type === 'rebuildStale') setLibraryUnreadable(0)
+    if (retriesDevice(request)) setDeviceIssue(null)
+  }, [])
+
   return {
     libraryStatus,
     libraryStatusRef,
@@ -63,6 +83,9 @@ export function useLibraryState() {
     setMissingOriginals,
     libraryUnreadable,
     setLibraryUnreadable,
+    deviceIssue,
+    setDeviceIssue,
+    resetNoticesFor,
     savedActivities,
     savedActivitiesRef,
     setSavedActivities,

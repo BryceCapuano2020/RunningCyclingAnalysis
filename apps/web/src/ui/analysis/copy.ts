@@ -1,6 +1,6 @@
 import { formatCount } from '../format/count'
 import { DAILY_LIMITS } from '@rca/contract'
-import type { SavedActivity, WorkerResponse } from '../../worker/protocol'
+import type { DeviceIssue, SavedActivity, WorkerResponse } from '../../worker/protocol'
 import { limitReached, resetSentence } from '../limitCopy'
 import type { AccountStatus } from '../useAccount'
 import { formatDay, formatDayMonth, formatMonth } from '../format/date'
@@ -180,4 +180,19 @@ export function workerFailureText(
       : 'Analysis stopped unexpectedly. Restart analysis to reload your results kept in this browser; add again any files that were being added.'
   }
   return eventMessage || 'Analysis failed. Add again any files that were being added.'
+}
+
+/**
+ * What this browser could not do with the activities it keeps. A signed-in visitor's deleted
+ * activity is gone from the account, but its copy here could come back once they sign out; a
+ * signed-out visitor can remove everything from Profile and try again.
+ */
+export function deviceIssueText(notice: DeviceIssue, signedIn: boolean): string {
+  if (notice.issue === 'notSaved') {
+    const one = notice.count === 1
+    return `${plural(notice.count, 'activity', 'activities')} ${one ? 'shows' : 'show'} here but could not be kept in this browser. ${one ? 'It' : 'They'} will not be here after a reload.`
+  }
+  return signedIn
+    ? 'This browser could not delete its copy of the activity you deleted. It may come back when you sign out.'
+    : 'This browser could not delete its kept activities. Use Remove all my activities to try again.'
 }

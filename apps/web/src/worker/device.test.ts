@@ -69,14 +69,22 @@ describe('device library actions', () => {
     expect(posted).toEqual([{ type: 'libraryActivities', activities: [listed(FIRST)] }])
   })
 
-  it('save does not throw when storage refuses the write', async () => {
+  it('save does not throw when storage refuses the write, and says it did not keep the activity', async () => {
     const refusing: DeviceLibrary = {
       ...memoryDeviceLibrary(),
       put: () => Promise.reject(new Error('QuotaExceededError')),
     }
     const { actions } = setup(refusing)
 
-    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBeUndefined()
+    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe(false)
+  })
+
+  it('save says it kept the activity, and counts a kept copy it prefers as kept', async () => {
+    const { actions } = setup()
+    const fit = copyFrom(FIRST, 'run.fit')
+
+    await expect(actions.save(itemFor(fit, 'hash-fit'))).resolves.toBe(true)
+    await expect(actions.save(itemFor(copyFrom(FIRST, 'run.gpx'), 'hash-gpx'))).resolves.toBe(true)
   })
 
   it('keeps a richer FIT copy over a GPX copy of the same workout, and a poorer copy does not replace it', async () => {
@@ -148,14 +156,38 @@ describe('device library actions', () => {
     expect(posted).toEqual([{ type: 'libraryActivities', activities: [] }])
   })
 
-  it('forget still posts an empty list when storage refuses the clear', async () => {
+  it('forget posts the library that remains, and says so, when storage refuses the clear', async () => {
     const refusing: DeviceLibrary = {
       ...memoryDeviceLibrary(),
       clear: () => Promise.reject(new Error('Device storage failed')),
     }
-    const { actions, posted } = setup(refusing)
+    const { actions, library, posted } = setup(refusing)
+    await library.put(workoutKeyOf(FIRST), FIRST)
 
     await expect(actions.forget()).resolves.toBeUndefined()
+    expect(posted).toEqual([
+      { type: 'libraryActivities', activities: [listed(FIRST)] },
+      { type: 'deviceIssue', issue: 'notForgotten' },
+    ])
+  })
+
+  it('forget tries the clear again when it is called again', async () => {
+    const memory = memoryDeviceLibrary()
+    let attempts = 0
+    const flaky: DeviceLibrary = {
+      ...memory,
+      clear: () =>
+        ++attempts === 1 ? Promise.reject(new Error('Device storage failed')) : memory.clear(),
+    }
+    const { actions, posted } = setup(flaky)
+    await flaky.put(workoutKeyOf(FIRST), FIRST)
+    await actions.forget()
+    posted.length = 0
+
+    await actions.forget()
+
+    expect(attempts).toBe(2)
+    expect(await flaky.all()).toEqual([])
     expect(posted).toEqual([{ type: 'libraryActivities', activities: [] }])
   })
 

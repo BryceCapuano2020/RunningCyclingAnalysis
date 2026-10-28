@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { PeriodChoice, SessionState, SyncIssueCode } from '@rca/core/session'
 import type { AthleteSettings, DigestSplits } from '@rca/core/types'
 import type {
+  DeviceIssue,
   ImportOutcome,
   SavedActivity,
   WorkerRequest,
@@ -56,6 +57,8 @@ export interface AnalysisController {
   missingOriginals: number
   /** Stored activities that could not be read in the last library load, and so are hidden. */
   libraryUnreadable: number
+  /** What this browser failed to keep or delete, until the next try; null when nothing failed. */
+  deviceIssue: DeviceIssue | null
   importOutcome: ImportOutcome | null
   /** What the last import moved from, while its summary is shown; null otherwise. */
   importChange: ImportChange | null
@@ -131,13 +134,8 @@ export function useAnalysis(
 
   const library = useLibraryState()
   const imports = useImportState()
-  const {
-    setLibraryAction,
-    setLibraryNotice,
-    setLibraryError,
-    setLibraryUnreadable,
-    libraryWaitRef,
-  } = library
+  const { setLibraryAction, setLibraryNotice, setLibraryError, resetNoticesFor, libraryWaitRef } =
+    library
   const {
     setBusy,
     setWaitingReason,
@@ -182,10 +180,7 @@ export function useAnalysis(
         setLibraryNotice(null)
         setLibraryError(null)
       }
-      // A library load or rebuild reports the unreadable count afresh, so an old one is cleared.
-      if (request.type === 'loadServer' || request.type === 'rebuildStale') {
-        setLibraryUnreadable(0)
-      }
+      resetNoticesFor(request)
       // The summary describes the last import only: another import, a clear, the sample or a delete
       // replaces it, since a delete changes the count the summary gave.
       if (
@@ -198,14 +193,7 @@ export function useAnalysis(
         setImportOutcome(null)
       }
     },
-    [
-      refreshBusy,
-      setError,
-      setImportOutcome,
-      setLibraryError,
-      setLibraryNotice,
-      setLibraryUnreadable,
-    ],
+    [refreshBusy, resetNoticesFor, setError, setImportOutcome, setLibraryError, setLibraryNotice],
   )
 
   const transport = useWorkerTransport({ pendingRepliesRef, onSend, setError })
@@ -372,6 +360,7 @@ export function useAnalysis(
     retryLibrary: libraryActions.retryLibrary,
     missingOriginals: library.missingOriginals,
     libraryUnreadable: library.libraryUnreadable,
+    deviceIssue: library.deviceIssue,
     importOutcome: imports.importOutcome,
     // The change belongs to the outcome on screen; a cleared or replaced summary drops it.
     importChange:

@@ -121,6 +121,18 @@ function finishDeviceLoad(state: SessionState = STATE) {
   act(() => worker().reply({ type: 'state', state }))
 }
 
+/** The activities the worker reports as stored in this browser, which the kept-library hint follows. */
+function reportKept(count: number) {
+  const activities = Array.from({ length: count }, (_, index) => ({
+    id: `run-${index}`,
+    name: `Run ${index}`,
+    startMs: Date.UTC(2026, 9, 20 + index),
+    sport: 'run' as const,
+    copy: SAVED_COPY,
+  }))
+  act(() => worker().reply({ type: 'libraryActivities', activities }))
+}
+
 function StrictWrapper({ children }: { children: ReactNode }) {
   return createElement(StrictMode, null, children)
 }
@@ -786,6 +798,7 @@ describe('useAnalysis account handling', () => {
       localStorage.setItem(KEPT_KEY, '1')
       const { result } = setup(SIGNED_OUT)
 
+      reportKept(2)
       finishDeviceLoad(WITH_RESULTS)
 
       expect(result.current.restoring).toBe(false)
@@ -827,17 +840,73 @@ describe('useAnalysis account handling', () => {
       finishDeviceLoad(STATE)
 
       act(() => result.current.addFiles([FILE]))
+      reportKept(2)
       act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBe('1')
     })
 
-    it('forgets the hint when the library is cleared', () => {
+    it('does not set the hint from the session when every save in the import was refused', () => {
+      const { result } = setup(SIGNED_OUT)
+      reportKept(0)
+      finishDeviceLoad(STATE)
+
+      act(() => result.current.addFiles([FILE]))
+      reportKept(0)
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 2 }))
+      act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
+
+      expect(localStorage.getItem(KEPT_KEY)).toBeNull()
+      expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 2 })
+    })
+
+    it('clears the refusal when the next import is sent, and shows it again if that one fails too', () => {
+      const { result } = setup(SIGNED_OUT)
+      finishDeviceLoad(STATE)
+      act(() => result.current.addFiles([FILE]))
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+      act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 1 } }))
+      expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
+
+      act(() => result.current.addFiles([FILE]))
+      expect(result.current.deviceIssue).toBeNull()
+      act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 1 } }))
+      expect(result.current.deviceIssue).toBeNull()
+    })
+
+    it('keeps the hint and says so when a forget could not clear what is kept', () => {
       localStorage.setItem(KEPT_KEY, '1')
       const { result } = setup(SIGNED_OUT)
+      reportKept(2)
       finishDeviceLoad(WITH_RESULTS)
 
       act(() => result.current.clear())
+      reportKept(2)
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      act(() => worker().reply({ type: 'state', state: STATE }))
+
+      expect(localStorage.getItem(KEPT_KEY)).toBe('1')
+      expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
+      expect(result.current.savedActivities).toHaveLength(2)
+
+      // Trying again sends the same clear, and the refusal is gone once it succeeds.
+      act(() => result.current.clear())
+      expect(worker().posted.at(-1)).toEqual({ type: 'clear', forgetDevice: true })
+      expect(result.current.deviceIssue).toBeNull()
+      act(() => worker().reply({ type: 'libraryActivities', activities: [] }))
+      act(() => worker().reply({ type: 'state', state: STATE }))
+      expect(localStorage.getItem(KEPT_KEY)).toBeNull()
+      expect(result.current.deviceIssue).toBeNull()
+    })
+
+    it('forgets the hint when the library is cleared', () => {
+      localStorage.setItem(KEPT_KEY, '1')
+      const { result } = setup(SIGNED_OUT)
+      reportKept(2)
+      finishDeviceLoad(WITH_RESULTS)
+
+      act(() => result.current.clear())
+      act(() => worker().reply({ type: 'libraryActivities', activities: [] }))
       act(() => worker().reply({ type: 'state', state: STATE }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()
@@ -846,9 +915,11 @@ describe('useAnalysis account handling', () => {
     it('forgets the hint when an import leaves the library empty', () => {
       localStorage.setItem(KEPT_KEY, '1')
       const { result } = setup(SIGNED_OUT)
+      reportKept(2)
       finishDeviceLoad(WITH_RESULTS)
 
       act(() => result.current.addFiles([FILE]))
+      act(() => worker().reply({ type: 'libraryActivities', activities: [] }))
       act(() => worker().reply({ type: 'state', state: STATE }))
 
       expect(localStorage.getItem(KEPT_KEY)).toBeNull()

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ORIGINALS_UNAVAILABLE } from '../analysis/copy'
+import { deviceIssueText, ORIGINALS_UNAVAILABLE } from '../analysis/copy'
 import { plural } from './plural'
 import type { AnalysisController } from '../useAnalysis'
 
@@ -98,6 +98,15 @@ export function LibraryNotices({
           </button>
         </section>
       )}
+      {/* Always mounted, so a refusal from this browser's storage is announced when it appears. */}
+      <section
+        className={analysis.deviceIssue ? 'notice' : 'sr-only'}
+        aria-label={analysis.deviceIssue ? 'Kept in this browser' : undefined}
+      >
+        <p role="status">
+          {analysis.deviceIssue ? deviceIssueText(analysis.deviceIssue, signedIn) : ''}
+        </p>
+      </section>
       <section
         className={missingShown ? 'notice' : 'sr-only'}
         aria-label={missingShown ? 'Missing original files' : undefined}
