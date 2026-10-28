@@ -421,7 +421,7 @@ describe('distance bests on the wire', () => {
     expect(() =>
       parseDigest(
         editedRun((o) => {
-          bestsOf(o)[0]!.seconds = run.n + 1
+          bestsOf(o)[0]!.seconds = run.n * 1.01
         }),
       ),
     ).toThrow(/distanceBests\[0\]\.seconds must not exceed durationS/)

@@ -90,6 +90,7 @@ export type QualityKind =
   | 'power-spike'
   | 'power-dropout'
   | 'speed-spike'
+  | 'implausible-speed'
   | 'altitude-jump'
   | 'implausible-climb'
   | 'stream-disagreement'

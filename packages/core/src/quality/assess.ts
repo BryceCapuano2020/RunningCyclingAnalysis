@@ -2,6 +2,7 @@ import { CLIMB_RATE_WINDOW_S, MAX_CLIMB_RATE_MS } from '../constants'
 import { rollingMean } from '../math'
 import type { AgreedStreams } from './agreement'
 import { agreedStreams } from './agreement'
+import { implausibleSpeedStretches } from './sustainedSpeed'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
 
@@ -169,6 +170,10 @@ function motionRules(
       markRange(raw, validMotion, 'speed-spike', around(i, t.speedSpike.marginS, n))
     }
   }
+  // A speed no single sample gives away, held for a window longer than anyone could hold it.
+  for (const stretch of implausibleSpeedStretches(a)) {
+    markRange(raw, validMotion, 'implausible-speed', stretch)
+  }
 
   if (!a.hasAltitude) {
     // Outdoors, grade is unknown, so nothing grade-dependent may be used. Indoors, grade is zero.
@@ -280,6 +285,8 @@ function messageFor(kind: QualityKind, durationS: number): string {
       return `Power meter stopped reporting for ${seconds} while moving`
     case 'speed-spike':
       return 'GPS speed jumped to an impossible value'
+    case 'implausible-speed':
+      return `Speed stayed above what anyone sustains for ${seconds}`
     case 'altitude-jump':
       return `Altitude changed by more than ${t.altitudeJump.maxStepM} m in a single second`
     case 'implausible-climb':

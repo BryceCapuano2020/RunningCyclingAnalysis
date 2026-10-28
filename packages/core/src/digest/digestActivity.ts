@@ -1,4 +1,10 @@
-import { DEFAULT_BIKE_MODEL, DURATIONS_S, PRIORS } from '../constants'
+import {
+  BEST_WINDOW_MIN_MOVING_FRACTION,
+  DEFAULT_BIKE_MODEL,
+  DURATIONS_S,
+  PRIORS,
+} from '../constants'
+import type { Occupancy } from '../curves'
 import { meanMaximal, monotoneEnvelope } from '../curves'
 import type { HeartRateSource } from '../effort'
 import { maxHeartRate, windowHeartRate } from '../effort'
@@ -85,16 +91,18 @@ function withKnownGrade(
 }
 
 /**
- * Best window at every duration, then the monotone envelope. A value copied from a longer window
- * keeps that window's startIndex and windowS, so every field describes the same window.
+ * Best window at every duration, among windows that are mostly moving, then the monotone envelope.
+ * A value copied from a longer window keeps that window's startIndex and windowS, so every field
+ * describes the same window.
  */
 function windowedEnvelope(
   values: Float64Array,
   valid: Uint8Array,
   activityId: string,
+  occupancy: Occupancy,
 ): WindowedPoint[] {
   // meanMaximal returns fresh points, so each one can take the window field in place.
-  const windows = meanMaximal(values, valid, DURATIONS_S, activityId).map((p) =>
+  const windows = meanMaximal(values, valid, DURATIONS_S, activityId, 0, occupancy).map((p) =>
     Object.assign(p, { windowS: p.durationS }),
   )
   return monotoneEnvelope(windows)
@@ -104,8 +112,9 @@ function valueCurve(
   values: Float64Array,
   valid: Uint8Array,
   source: HeartRateSource,
+  occupancy: Occupancy,
 ): DigestCurvePoint[] {
-  return windowedEnvelope(values, valid, source.activity.id).map((w) => ({
+  return windowedEnvelope(values, valid, source.activity.id, occupancy).map((w) => ({
     durationS: w.durationS,
     value: w.value,
     startIndex: w.startIndex,
@@ -135,11 +144,12 @@ function runParts(
   quality: QualityReport,
   metabolic: Float64Array,
   source: HeartRateSource,
+  occupancy: Occupancy,
 ): Parts {
   const valid = and(quality.validMotion, quality.validGrade)
   return {
     powerSource: 'none',
-    curve: valueCurve(metabolic, valid, source),
+    curve: valueCurve(metabolic, valid, source, occupancy),
     hrBlocks: valueBlocks(metabolic, valid, source),
     calibration: null,
     climbSections: [],
@@ -198,10 +208,11 @@ function measuredParts(
   grade: Float64Array,
   source: HeartRateSource,
   allowed: Uint8Array,
+  occupancy: Occupancy,
 ): Parts {
   const parts: Parts = {
     powerSource: 'measured',
-    curve: valueCurve(activity.power, quality.validPower, source),
+    curve: valueCurve(activity.power, quality.validPower, source, occupancy),
     hrBlocks: valueBlocks(activity.power, quality.validPower, source),
     calibration: null,
     climbSections: [],
@@ -234,6 +245,7 @@ function virtualParts(
   quality: QualityReport,
   grade: Float64Array,
   source: HeartRateSource,
+  occupancy: Occupancy,
 ): Parts {
   const outdoorClimbs = activity.hasAltitude && !activity.indoor
   const valid = outdoorClimbs
@@ -246,6 +258,7 @@ function virtualParts(
     estimatePower(activity.speed, grade, SELECTION_MASS_KG, DEFAULT_BIKE_MODEL, density),
     valid,
     activity.id,
+    occupancy,
   )
   const terms = sampleTerms(activity.speed, grade, density)
   // The stored terms are linear, so they omit the clamp at zero that estimatePower applies per
@@ -316,16 +329,17 @@ export function digestActivity(activity: Activity): ActivityDigest {
     activity.sport === 'run'
       ? runMetabolicPower(streams.speed, grade, PRIORS.runEconomyScale.mean)
       : null
+  const moving = movingMask(activity)
+  const occupancy: Occupancy = { moving, minFraction: BEST_WINDOW_MIN_MOVING_FRACTION }
   let parts: Parts
   if (metabolic !== null) {
-    parts = runParts(streams, activity.distance, quality, metabolic, source)
+    parts = runParts(streams, activity.distance, quality, metabolic, source, occupancy)
   } else if (measured) {
-    parts = measuredParts(streams, quality, grade, source, not(agreed.covered))
+    parts = measuredParts(streams, quality, grade, source, not(agreed.covered), occupancy)
   } else {
-    parts = virtualParts(streams, quality, grade, source)
+    parts = virtualParts(streams, quality, grade, source, occupancy)
   }
 
-  const moving = movingMask(activity)
   return {
     version: DIGEST_VERSION,
     modelRevision: MODEL_REVISION,

@@ -504,33 +504,37 @@ describe('assessQuality: power-dropout', () => {
 })
 
 describe('assessQuality: speed-spike', () => {
-  it('fires on a run faster than 12.5 m/s', () => {
-    const a = makeActivity(60, { speed: new Float64Array(60).fill(13) })
-    const report = assessQuality(a)
+  /** 60 samples at a steady speed with one sample set to `peak`: no step is above 5 m/s and no window is sustained. */
+  const withPeak = (sport: 'run' | 'ride', base: number, peak: number) => {
+    const speed = new Float64Array(60).fill(base)
+    speed[30] = peak
+    return makeActivity(60, { sport, speed })
+  }
+
+  it('fires on a run sample faster than 12.5 m/s', () => {
+    const report = assessQuality(withPeak('run', 8, 13))
     expect(report.flags).toEqual([
       {
         kind: 'speed-spike',
-        start: 0,
-        end: 60,
+        start: 27,
+        end: 34,
         message: 'GPS speed jumped to an impossible value',
       },
     ])
-    expect(zeroIndices(report.validMotion)).toEqual(span(0, 60))
+    expect(zeroIndices(report.validMotion)).toEqual(span(27, 34))
   })
 
   it('does not fire at exactly 12.5 m/s on a run', () => {
-    const a = makeActivity(60, { speed: new Float64Array(60).fill(12.5) })
-    const report = assessQuality(a)
+    const report = assessQuality(withPeak('run', 8, 12.5))
     expect(report.flags).toEqual([])
     expect(zeroIndices(report.validMotion)).toEqual([])
   })
 
   it('uses a 30 m/s limit for rides, so 30 m/s is fine and 31 m/s fires', () => {
-    const fine = makeActivity(60, { sport: 'ride', speed: new Float64Array(60).fill(30) })
-    expect(assessQuality(fine).flags).toEqual([])
+    expect(assessQuality(withPeak('ride', 26, 30)).flags).toEqual([])
 
-    const fast = makeActivity(60, { sport: 'ride', speed: new Float64Array(60).fill(31) })
-    expect(assessQuality(fast).flags.map((f) => [f.start, f.end])).toEqual([[0, 60]])
+    const fast = assessQuality(withPeak('ride', 26, 31)).flags
+    expect(fast.map((f) => [f.kind, f.start, f.end])).toEqual([['speed-spike', 27, 34]])
   })
 
   it('fires on a step of more than 5 m/s between samples, masking 3 s either side', () => {

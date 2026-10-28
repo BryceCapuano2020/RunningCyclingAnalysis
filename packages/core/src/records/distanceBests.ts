@@ -1,4 +1,5 @@
-import { RUN_RECORD_DISTANCES_M } from '../constants'
+import { DISTANCE_BEST_TOLERANCE, RUN_RECORD_DISTANCES_M } from '../constants'
+import { runCeilingSpeed } from '../curves'
 import { QUALITY_THRESHOLDS } from '../quality'
 import type { DigestDistanceBest } from '../types'
 
@@ -63,11 +64,34 @@ function fastestWithin(d: Float64Array, { lo, hi }: Stretch, span: number): numb
   return best
 }
 
-/** The fastest time over `span` metres in any stretch of `distance`, or Infinity when none fits. */
-function fastestOver(distance: Float64Array, stretches: Stretch[], span: number): number {
+/** How far a stretch's distance reaches, m. */
+function reachOf(distance: Float64Array, { lo, hi }: Stretch): number {
+  return distance[hi]! - distance[lo]!
+}
+
+/** The fastest time over `target` metres in any stretch that covers it, or Infinity when none does. */
+function fastestOver(distance: Float64Array, stretches: Stretch[], target: number): number {
   let seconds = Infinity
   for (const stretch of stretches) {
-    seconds = Math.min(seconds, fastestWithin(distance, stretch, span))
+    if (reachOf(distance, stretch) >= target) {
+      seconds = Math.min(seconds, fastestWithin(distance, stretch, target))
+    }
+  }
+  return seconds
+}
+
+/**
+ * The time over `target` metres from a stretch that falls short of it by no more than
+ * DISTANCE_BEST_TOLERANCE, or Infinity when none does. The stretch is timed over its whole length and
+ * the time scaled up to the target: a 9.98 km race is a 10 km race.
+ */
+function fastestNear(distance: Float64Array, stretches: Stretch[], target: number): number {
+  let seconds = Infinity
+  for (const stretch of stretches) {
+    const reach = reachOf(distance, stretch)
+    if (reach >= target * (1 - DISTANCE_BEST_TOLERANCE) && reach < target) {
+      seconds = Math.min(seconds, (fastestWithin(distance, stretch, reach) * target) / reach)
+    }
   }
   return seconds
 }
@@ -76,7 +100,7 @@ function fastestOver(distance: Float64Array, stretches: Stretch[], span: number)
  * The fastest elapsed time over each run record distance, from a cumulative distance stream on a
  * 1 Hz grid. Only stretches of consecutive valid samples are searched, so a window never crosses
  * an invalid sample or a distance jump. A distance the run does not cover, or that no valid window
- * covers, is left out.
+ * covers, is left out; one it falls short of by under DISTANCE_BEST_TOLERANCE counts as covered.
  *
  * `recorded` is the file's own distance, which decides whether the run covers a distance: the
  * summary and the splits go by it. `distance` may be lower than it where the file's streams
@@ -94,12 +118,20 @@ export function distanceBests(
   const recordedStretches = recorded === distance ? stretches : validStretches(recorded, valid)
   const bests: DigestDistanceBest[] = []
   for (const distanceM of RUN_RECORD_DISTANCES_M) {
-    if (total < distanceM) continue
+    if (total < distanceM * (1 - DISTANCE_BEST_TOLERANCE)) continue
+    // A run that covers a distance keeps its exact time; the tolerance applies only when none does.
     let seconds = fastestOver(distance, stretches, distanceM)
     if (!Number.isFinite(seconds) && recorded !== distance) {
       seconds = fastestOver(recorded, recordedStretches, distanceM)
     }
-    if (Number.isFinite(seconds)) bests.push({ distanceM, seconds })
+    if (!Number.isFinite(seconds)) seconds = fastestNear(distance, stretches, distanceM)
+    if (!Number.isFinite(seconds) && recorded !== distance) {
+      seconds = fastestNear(recorded, recordedStretches, distanceM)
+    }
+    // Faster than the world record at that distance is a recording fault, not a time.
+    if (Number.isFinite(seconds) && distanceM / seconds <= runCeilingSpeed(seconds)) {
+      bests.push({ distanceM, seconds })
+    }
   }
   return bests
 }

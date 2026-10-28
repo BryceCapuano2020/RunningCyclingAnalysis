@@ -1,4 +1,4 @@
-import { DURATIONS_S, MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
+import { DISTANCE_BEST_TOLERANCE, DURATIONS_S, MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
 import type {
   ActivityDigest,
   CalibrationSums,
@@ -76,6 +76,7 @@ const QUALITY_KIND_SET: Record<QualityKind, true> = {
   'power-spike': true,
   'power-dropout': true,
   'speed-spike': true,
+  'implausible-speed': true,
   'altitude-jump': true,
   'implausible-climb': true,
   'stream-disagreement': true,
@@ -156,7 +157,10 @@ function asDistanceBests(value: unknown, durationS: number): DigestDistanceBest[
     const path = `distanceBests[${i}]`
     const o = asObject(b, path)
     const seconds = asPositive(o.seconds, `${path}.seconds`)
-    if (seconds > durationS) fail(`${path}.seconds`, 'must not exceed durationS')
+    // A time scaled up to its distance may pass the activity by the distance tolerance.
+    if (seconds > durationS * (1 + DISTANCE_BEST_TOLERANCE)) {
+      fail(`${path}.seconds`, 'must not exceed durationS')
+    }
     return { distanceM: asPositive(o.distanceM, `${path}.distanceM`), seconds }
   })
   if (bests.some((b, i) => i > 0 && b.distanceM <= bests[i - 1]!.distanceM)) {

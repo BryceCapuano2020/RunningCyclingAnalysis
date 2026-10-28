@@ -54,6 +54,7 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
   'power-spike': skipped('The power meter reported a sudden spike'),
   'power-dropout': skipped('The power meter stopped reporting while moving'),
   'speed-spike': skipped('GPS speed jumped suddenly'),
+  'implausible-speed': skipped('Speed stayed higher than anyone sustains'),
   'altitude-jump': {
     removesReadings: false,
     listsTimes: true,

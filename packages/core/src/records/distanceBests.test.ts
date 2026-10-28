@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mulberry32 } from '../math'
+import { DISTANCE_BEST_TOLERANCE } from '../constants'
 import { QUALITY_THRESHOLDS } from '../quality'
 import { distanceBests } from './distanceBests'
 
@@ -200,7 +201,9 @@ describe('distanceBests', () => {
         }
         const mine = secondsAt(bests, span)
         if (brute === Infinity) {
-          expect(mine, `seed ${seed}, ${span} m`).toBeNaN()
+          // Only the distance tolerance can time a span that no window covers in full.
+          const reach = distance[n - 1]! >= span * (1 - DISTANCE_BEST_TOLERANCE)
+          expect(Number.isNaN(mine) || reach, `seed ${seed}, ${span} m`).toBe(true)
         } else {
           compared++
           expect(mine, `seed ${seed}, ${span} m`).toBeLessThanOrEqual(brute + 1e-6)
@@ -213,9 +216,9 @@ describe('distanceBests', () => {
   })
 
   it('decides which distances a run covers from its recorded distance, not the lowered one', () => {
-    // 5.02 km recorded, but the lowered stream reaches only 4.98 km: the run still covers 5 km.
+    // 5.02 km recorded, but the lowered stream reaches only 4.85 km: the run still covers 5 km.
     const { distance: recorded } = profile([[1673, 3]])
-    const { distance, valid } = profile([[1673, 2.98]])
+    const { distance, valid } = profile([[1673, 2.9]])
     expect(recorded.at(-1)).toBeGreaterThan(5000)
     expect(distance.at(-1)).toBeLessThan(5000)
     expect(secondsAt(distanceBests(distance, valid, recorded), 5000)).toBeCloseTo(5000 / 3, 6)
@@ -226,6 +229,39 @@ describe('distanceBests', () => {
     const recorded = profile([[1500, 4]]).distance
     const { distance, valid } = profile([[1500, 3]])
     expect(secondsAt(distanceBests(distance, valid, recorded), 1000)).toBeCloseTo(1000 / 3, 6)
+  })
+
+  it('counts a race a little short of a record distance, timed up to the exact distance', () => {
+    // 4 m/s for 2495 s is 9.98 km: within 0.5% of 10 km, so it is a 10 km run at 2500 s.
+    const { distance, valid } = profile([[2495, 4]])
+    expect(distance.at(-1)).toBe(9980)
+    const bests = distanceBests(distance, valid)
+    expect(secondsAt(bests, 10_000)).toBeCloseTo(2500, 6)
+    // The distances it does cover are timed exactly, with no scaling.
+    expect(secondsAt(bests, 5000)).toBeCloseTo(1250, 6)
+  })
+
+  it('does not count a run further short of a record distance than the tolerance', () => {
+    const { distance, valid } = profile([[2480, 4]])
+    expect(distance.at(-1)).toBe(9920)
+    expect(secondsAt(distanceBests(distance, valid), 10_000)).toBeNaN()
+  })
+
+  it('does not scale the time of a run that covers the distance', () => {
+    // A slow finish: the fastest 5 km is the first 5 km, 1000 s, not a scaled shorter stretch.
+    const { distance, valid } = profile([
+      [1000, 5],
+      [200, 2],
+    ])
+    expect(secondsAt(distanceBests(distance, valid), 5000)).toBeCloseTo(1000, 6)
+  })
+
+  it('leaves out a time faster than the world record for the distance', () => {
+    // 1 km in 100 s (10 m/s) cannot be run; the same kilometre in 160 s can.
+    const impossible = profile([[300, 10]])
+    expect(secondsAt(distanceBests(impossible.distance, impossible.valid), 1000)).toBeNaN()
+    const possible = profile([[300, 6.25]])
+    expect(secondsAt(distanceBests(possible.distance, possible.valid), 1000)).toBeCloseTo(160, 6)
   })
 
   it('returns nothing for an empty stream', () => {

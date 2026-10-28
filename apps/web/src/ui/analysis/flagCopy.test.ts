@@ -26,6 +26,12 @@ describe('flagKindSentence: one line for each kind of reading', () => {
     )
   })
 
+  it('says a sustained speed was left out', () => {
+    expect(flagKindSentence('implausible-speed', 2)).toBe(
+      'Speed stayed higher than anyone sustains 2 times. We left those out of your figures.',
+    )
+  })
+
   it('names each kind of sensor problem in plain words', () => {
     expect(flagKindSentence('hr-implausible-for-power', 2)).toContain(
       'Heart rate looked too low for your power 2 times.',
@@ -83,6 +89,7 @@ describe('flagKindSentence: one line for each kind of reading', () => {
       'power-spike',
       'power-dropout',
       'speed-spike',
+      'implausible-speed',
       'altitude-jump',
       'implausible-climb',
       'stream-disagreement',

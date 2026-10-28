@@ -1,6 +1,7 @@
 import './zodConfig.ts'
 import { z } from 'zod'
 import {
+  DISTANCE_BEST_TOLERANCE,
   DURATIONS_S,
   MAX_KM_SPLITS,
   MAX_MILE_SPLITS,
@@ -60,6 +61,7 @@ const qualityKind = z.enum([
   'power-spike',
   'power-dropout',
   'speed-spike',
+  'implausible-speed',
   'altitude-jump',
   'implausible-climb',
   'stream-disagreement',
@@ -147,8 +149,10 @@ interface DistanceBestsFields {
 }
 
 /**
- * Runs only; ascending distances, each covered by the run, each no longer than the activity. The
- * stored schema applies these too: rows written before the field do not exist, so nothing is lost.
+ * Runs only; ascending distances, each covered by the run, each no longer than the activity. A run
+ * covers a distance within DISTANCE_BEST_TOLERANCE of it, and a time scaled up to the distance may
+ * exceed the activity by that much. The stored schema applies these too: rows written before the
+ * field do not exist, so nothing is lost.
  */
 function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): void {
   const bests = digest.distanceBests
@@ -165,9 +169,9 @@ function checkDistanceBests(digest: DistanceBestsFields, ctx: z.RefinementCtx): 
     const path = ['distanceBests', index]
     if (index > 0 && best.distanceM <= bests[index - 1]!.distanceM) {
       ctx.addIssue({ code: 'custom', path, message: 'Distance bests must ascend' })
-    } else if (!(best.distanceM <= digest.distanceM)) {
+    } else if (!(best.distanceM * (1 - DISTANCE_BEST_TOLERANCE) <= digest.distanceM)) {
       ctx.addIssue({ code: 'custom', path, message: 'The run does not cover this distance' })
-    } else if (!(best.seconds <= digest.durationS)) {
+    } else if (!(best.seconds <= digest.durationS * (1 + DISTANCE_BEST_TOLERANCE))) {
       ctx.addIssue({ code: 'custom', path, message: 'Time exceeds the digest duration' })
     }
   })
