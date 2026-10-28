@@ -579,6 +579,23 @@ describe('ActivityPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('names an indoor ride’s speed jump without GPS', () => {
+    renderPage(
+      makeActivity({
+        id: 'activity-1',
+        name: 'Trainer ride',
+        sport: 'ride',
+        indoor: true,
+        flags: [{ kind: 'speed-spike', start: 300, end: 301, message: 'GPS jumped' }],
+        flagCounts: { 'speed-spike': 1 },
+      }),
+    )
+    expect(
+      screen.getByText('Speed jumped suddenly once. We left that out of your figures.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/GPS/)).not.toBeInTheDocument()
+  })
+
   it('shows no skipped readings when the activity has none', () => {
     renderPage(morningRun)
     expect(screen.queryByRole('heading', { name: 'Skipped readings' })).not.toBeInTheDocument()

@@ -35,15 +35,17 @@ interface KindCopy {
   removesReadings: boolean
   /** Whether each occurrence is listed under the kind, with the time it covers. */
   listsTimes: boolean
-  sentence: (count: number) => string
+  /** The line for the kind. An indoor activity has no GPS, so a kind that names its source says so here. */
+  sentence: (count: number, indoor: boolean) => string
 }
 
-/** A kind whose readings were left out of the figures. */
-function skipped(label: string): KindCopy {
+/** A kind whose readings were left out of the figures. The label can depend on whether the activity was indoors. */
+function skipped(label: string | ((indoor: boolean) => string)): KindCopy {
   return {
     removesReadings: true,
     listsTimes: true,
-    sentence: (count) => `${label} ${timesText(count)}. ${leftOut(count)}`,
+    sentence: (count, indoor) =>
+      `${typeof label === 'string' ? label : label(indoor)} ${timesText(count)}. ${leftOut(count)}`,
   }
 }
 
@@ -53,7 +55,9 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
   'hr-spike': skipped('Heart rate jumped suddenly'),
   'power-spike': skipped('The power meter reported a sudden spike'),
   'power-dropout': skipped('The power meter stopped reporting while moving'),
-  'speed-spike': skipped('GPS speed jumped suddenly'),
+  'speed-spike': skipped((indoor) =>
+    indoor ? 'Speed jumped suddenly' : 'GPS speed jumped suddenly',
+  ),
   'implausible-speed': {
     removesReadings: true,
     listsTimes: true,
@@ -106,9 +110,12 @@ export function listsTimesOf(kind: QualityKind): boolean {
   return KIND_COPY[kind].listsTimes
 }
 
-/** One line for a kind, with its count: "Heart rate jumped suddenly 4 times." */
-export function flagKindSentence(kind: QualityKind, count: number): string {
-  return KIND_COPY[kind].sentence(count)
+/**
+ * One line for a kind, with its count: "Heart rate jumped suddenly 4 times." A trainer or treadmill
+ * activity (`indoor`) has no GPS, so its speed is not called GPS speed.
+ */
+export function flagKindSentence(kind: QualityKind, count: number, indoor = false): string {
+  return KIND_COPY[kind].sentence(count, indoor)
 }
 
 /** Where one reading sits, under its kind: "from 37:41 to 40:19, 2 min 38 s", or "at 12:34". */
