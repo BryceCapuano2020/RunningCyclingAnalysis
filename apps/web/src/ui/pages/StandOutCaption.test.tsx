@@ -55,7 +55,7 @@ describe('StandOutCaption', () => {
     })
     render(<StandOutCaption sport="run" result={result} />)
     expect(
-      screen.getByText('Your bests are in line with each other, compared from 5 s to 60 min.'),
+      screen.getByText('Your bests are in line with each other, compared from 3 min to 60 min.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(OPEN_STRIP)).toBeNull()
     expect(screen.queryByRole('figure')).toBeNull()
@@ -63,15 +63,38 @@ describe('StandOutCaption', () => {
 
   it('says why the short end is missing without a best at 15 s or under', () => {
     const result = makeResult({
-      activities: profileActivities('run'),
-      runCurve: profileCurve((_, value) => value, [5, 10, 15]),
+      activities: profileActivities('ride', 'measured'),
+      rideMeasuredCurve: profileCurve((_, value) => value, [5, 10, 15]),
     })
-    render(<StandOutCaption sport="run" result={result} />)
+    render(<StandOutCaption sport="ride" result={result} />)
     expect(
       screen.getByText(
         'Shown from 2 min: there is no best at 15 s or under to anchor the short end.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('gives a run no short-end note and names no duration under 3 minutes, however short its curve goes', () => {
+    const result = makeResult({
+      activities: profileActivities('run'),
+      runCurve: profileCurve((durationS, value) => (durationS <= 120 ? value * 1.4 : value)),
+    })
+    const { container } = render(<StandOutCaption sport="run" result={result} />)
+    expect(screen.queryByText(/Shown from/)).toBeNull()
+    expect(screen.getByText(/compared from 3 min to 60 min/)).toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/\b\d+ s\b|\b[12] min\b/)
+  })
+
+  it('draws a run’s strip from 3 minutes, with nothing shorter', () => {
+    const result = makeResult({
+      activities: profileActivities('run'),
+      runCurve: profileCurve((durationS, value) => (durationS === 1200 ? value * 1.15 : value)),
+    })
+    render(<StandOutCaption sport="run" result={result} />)
+    openStrip()
+    const strip = screen.getByRole('figure')
+    expect(strip.textContent).toMatch(/3 min/)
+    expect(strip.textContent).not.toMatch(/\b(5|10|30) s\b|\b1 min\b/)
   })
 
   it('shows nothing while the bests cannot be compared', () => {
@@ -124,10 +147,7 @@ describe('standOutLack', () => {
   })
 
   it('says a curve could not be fitted, rather than naming something missing, when none fits', () => {
-    const rising = profileCurve(
-      (durationS) => 100 + durationS / 20,
-      [10, 15, 30, 45, 90, 120, 180, 240, 420, 600, 900, 1800, 2700],
-    )
+    const rising = profileCurve((durationS) => 100 + durationS / 20)
     const result = makeResult({ activities: profileActivities('run'), runCurve: rising })
     expect(standOutLack('run', result)).toBe(
       'Where your bests stand out: a curve could not be fitted to your bests, so none is compared.',

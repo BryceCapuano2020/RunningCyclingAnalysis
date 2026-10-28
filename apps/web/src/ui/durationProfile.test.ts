@@ -99,8 +99,9 @@ describe('profileNeedsText', () => {
     expect(profileNeedsText('ride', ['short', 'long'])).toBe(
       'Needs a best at 1 min or under and one at 12 min or more, with a power meter',
     )
+    // A run's profile starts at 3 minutes, so its short end is its first duration.
     expect(profileNeedsText('run', ['short', 'long'])).toBe(
-      'Needs a best at 1 min or under and one at 12 min or more',
+      'Needs a best at 3 min or under and one at 12 min or more',
     )
   })
 })

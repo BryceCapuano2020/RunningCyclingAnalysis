@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { formatDuration } from '../units'
-import { durationProfile, profileNeeds, profileSentence, profileShortNote } from './index'
+import {
+  CURVE_START_S,
+  durationProfile,
+  profileNeeds,
+  profileSentence,
+  profileShortNote,
+} from './index'
 import type { ProfilePoint, ProfileRow, ReadyProfile } from './index'
 
 /** Morton's three-parameter model: the power held for t seconds. */
@@ -188,9 +194,9 @@ describe('profileSentence', () => {
       high: 0.05,
       standsOut: null,
     }))
-    expect(profileSentence({ status: 'ready', anchored: false, rows }, formatDuration)).toBe(
-      'Your bests are in line with each other, compared from 2 min to 45 min.',
-    )
+    expect(
+      profileSentence({ status: 'ready', anchored: false, startS: 5, rows }, formatDuration),
+    ).toBe('Your bests are in line with each other, compared from 2 min to 45 min.')
   })
 
   it('says an above duration with its size', () => {
@@ -226,7 +232,12 @@ describe('profileSentence', () => {
       high: residual + (residual - low),
       standsOut: 'above',
     })
-    const base = (rows: ProfileRow[]): ReadyProfile => ({ status: 'ready', anchored: true, rows })
+    const base = (rows: ProfileRow[]): ReadyProfile => ({
+      status: 'ready',
+      anchored: true,
+      startS: 5,
+      rows,
+    })
     const inLine = (durationS: number): ProfileRow => ({
       durationS,
       residual: 0,
@@ -262,6 +273,7 @@ describe('profileSentence', () => {
     const profile: ReadyProfile = {
       status: 'ready',
       anchored: true,
+      startS: 5,
       rows: [row(10, 0.3), row(60, -0.1), row(300, 0.2), row(1200, 0.12), row(3600, -0.25)],
     }
     const text = profileSentence(profile, formatDuration)
@@ -284,10 +296,76 @@ describe('profileSentence', () => {
     const profile: ReadyProfile = {
       status: 'ready',
       anchored: true,
+      startS: 5,
       rows: [row(60, -0.2), row(120, -0.15)],
     }
     expect(profileSentence(profile, formatDuration)).toBe(
       'Your 1 min best is 20% below what your other bests suggest. Your 2 min best is 15% below. Those below may be relatively low, or untested.',
     )
+  })
+})
+
+describe('a run’s profile, which starts at 3 minutes', () => {
+  const start = CURVE_START_S.run
+  const runReady = (points: ProfilePoint[]) => {
+    const profile = durationProfile(points, start)
+    if (profile.status !== 'ready') throw new Error(`not ready: ${JSON.stringify(profile)}`)
+    return profile
+  }
+
+  it('starts a run at 3 minutes and a ride at 5 seconds', () => {
+    expect(CURVE_START_S).toEqual({ run: 180, ride: 5 })
+  })
+
+  it('reads and returns nothing shorter than 3 minutes, however short the curve goes', () => {
+    const profile = runReady(modelCurve())
+    expect(profile.startS).toBe(180)
+    expect(profile.rows.map((row) => row.durationS)).toEqual(DURATIONS.filter((d) => d >= 180))
+  })
+
+  it('does not let a stand-out short best change what the rows say, since it is not read', () => {
+    const rows = (points: ProfilePoint[]) => runReady(points).rows
+    expect(rows(scaled(60, 1.3))).toEqual(rows(modelCurve()))
+  })
+
+  it('still flags a duration from 3 minutes up that is raised 15%', () => {
+    const rows = runReady(scaled(1200, 1.15)).rows
+    expect(rows.filter((row) => row.standsOut !== null).map((row) => row.durationS)).toEqual([1200])
+  })
+
+  it('never names a duration under 3 minutes in its sentence', () => {
+    const named = (durationS: number) => formatDuration(durationS)
+    for (const points of [modelCurve(), scaled(60, 1.3), scaled(180, 0.8), scaled(300, 1.2)]) {
+      const sentence = profileSentence(runReady(points), named)
+      expect(sentence).not.toMatch(/\b(5|10|15|30|45|60|90|120) s\b|\b[12] min\b/)
+    }
+  })
+
+  it('has no short-end note, since a run is not meant to reach the anchor', () => {
+    expect(profileShortNote(runReady(modelCurve()), formatDuration)).toBeNull()
+  })
+
+  it('needs a best at 3 minutes where a ride needs one at 1 minute, and no more durations than before', () => {
+    const only = (points: ProfilePoint[]) => {
+      const profile = durationProfile(points, start)
+      return profile.status === 'missing' ? profile.missing : []
+    }
+    expect(only(modelCurve().filter((p) => p.durationS > 180))).toEqual(['short'])
+    expect(profileNeeds(['short', 'long'], start)).toBe(
+      'Needs a best at 3 min or under and one at 12 min or more',
+    )
+  })
+
+  it('keeps five durations as the least, so a run with fewer between 3 and 60 min has none', () => {
+    const few = modelCurve().filter((p) => [60, 180, 600, 1200, 3600].includes(p.durationS))
+    const profile = durationProfile(few, start)
+    expect(profile).toEqual({ status: 'missing', missing: ['durations'] })
+  })
+
+  it('compares the 3 to 60 minute bests of a run that has enough of them', () => {
+    const profile = runReady(modelCurve().filter((p) => p.durationS >= 180))
+    expect(profile.anchored).toBe(false)
+    expect(profile.rows).toHaveLength(DURATIONS.filter((d) => d >= 180).length)
+    expect(profile.rows.every((row) => row.standsOut === null)).toBe(true)
   })
 })

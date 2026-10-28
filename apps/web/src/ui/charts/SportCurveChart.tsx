@@ -21,7 +21,7 @@ import {
   tooltipOverlay,
 } from './chartInteraction'
 import type { AxisTick, ChartSize, Point, TooltipContent, TooltipRow } from './chartTypes'
-import { durationRows } from './curveRows'
+import { durationRows, MIN_DURATION_S } from './curveRows'
 import { captionOf, columnsOf, tableRow } from './curveTable'
 import type { CurveRow, View } from './curveTable'
 import { areaPath, linePath } from './paths'
@@ -59,10 +59,15 @@ export interface SportCurveChartProps {
   activityNames?: Record<string, string>
 }
 
+/** The first duration, s, a sport's chart draws: its curve's start, and never under a minute. */
+function chartStartS(sport: Sport): number {
+  return Math.max(CURVE_START_S[sport], MIN_DURATION_S)
+}
+
 /** One row per duration from the sport's curve start with a value in either period. */
 function buildRows(sport: Sport, curve: Curve, before: Curve): CurveRow[] {
   return durationRows([curve, before])
-    .filter(({ durationS }) => durationS >= CURVE_START_S[sport])
+    .filter(({ durationS }) => durationS >= chartStartS(sport))
     .map(({ durationS, points: [current, earlier] }) => ({
       durationS,
       value: usable(current?.value ?? NaN),
@@ -101,7 +106,8 @@ function isRecordDuration(sport: Sport, durationS: number): boolean {
 
 /** The curve's first duration in words: "a minute", or "3 min" from two minutes up. */
 function startText(sport: Sport): string {
-  return CURVE_START_S[sport] === 60 ? 'a minute' : effortLabel(CURVE_START_S[sport])
+  const startS = chartStartS(sport)
+  return startS === MIN_DURATION_S ? 'a minute' : effortLabel(startS)
 }
 
 /** The best 20 minutes when there is one, else the longest effort. Its index in rows, or -1. */

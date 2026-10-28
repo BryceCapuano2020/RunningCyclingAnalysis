@@ -81,11 +81,14 @@ const withBests = makeActivity({
   ],
 })
 
-/** A run athlete with everything to show: a best that stands out, race predictions, a change. */
+/**
+ * A run athlete with everything to show: a best that stands out, race predictions, a change. A run's
+ * profile has no short anchor, so its fit is loose and a best must stand well clear to be named.
+ */
 function fullRun(): AnalysisResult {
   return makeResult({
     activities: [...profileActivities('run'), withBests],
-    runCurve: profileCurve((durationS, value) => (durationS === 60 ? value * 1.15 : value)),
+    runCurve: profileCurve((durationS, value) => (durationS === 300 ? value * 1.3 : value)),
   })
 }
 
@@ -113,7 +116,7 @@ describe('a sport page with everything to show', () => {
     const section = screen.getByRole('region', { name: 'Best efforts' })
     const list = section.querySelector('ul.records')!
     const curve = within(section).getByRole('figure', { name: /^Run flat pace .* by duration$/ })
-    const caption = within(section).getByText(/^Your 1 min best is 1\d% above/)
+    const caption = within(section).getByText(/^Your 5 min best is [23]\d% above/)
     expect(follows(list, curve)).toBe(true)
     expect(follows(curve, caption)).toBe(true)
   })

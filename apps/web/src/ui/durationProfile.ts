@@ -1,4 +1,4 @@
-import { durationProfile, profileNeeds } from '@rca/core/profile'
+import { CURVE_START_S, durationProfile, profileNeeds } from '@rca/core/profile'
 import type { DurationProfile, ProfileGap, ProfilePoint } from '@rca/core/profile'
 import type { AnalysisResult } from '@rca/core/pipeline'
 import type { Curve, Sport } from '@rca/core/types'
@@ -41,12 +41,13 @@ const PROFILES = new WeakMap<AnalysisResult, Map<Sport, DurationProfile>>()
 export function profileOf(result: AnalysisResult, sport: Sport): DurationProfile {
   const known = PROFILES.get(result) ?? new Map<Sport, DurationProfile>()
   PROFILES.set(result, known)
-  const profile = known.get(sport) ?? durationProfile(profilePoints(result, sport))
+  const profile =
+    known.get(sport) ?? durationProfile(profilePoints(result, sport), CURVE_START_S[sport])
   known.set(sport, profile)
   return profile
 }
 
 /** What a sport's profile is missing, in one muted line, such as "Needs a best at 12 min or more". */
 export function profileNeedsText(sport: Sport, missing: readonly ProfileGap[]): string {
-  return `${profileNeeds(missing)}${PROFILE_NEEDS_SUFFIX[sport]}`
+  return `${profileNeeds(missing, CURVE_START_S[sport])}${PROFILE_NEEDS_SUFFIX[sport]}`
 }

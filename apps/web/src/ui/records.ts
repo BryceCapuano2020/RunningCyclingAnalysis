@@ -1,6 +1,5 @@
 import {
   DAY_MS,
-  EQUIVALENCE_MIN_S,
   HALF_MARATHON_M,
   HEADLINE_DURATION_S,
   PRIORS,
@@ -8,6 +7,7 @@ import {
 } from '@rca/core/constants'
 import type { RunRecordDistanceM } from '@rca/core/constants'
 import { startOfLocalDay } from '@rca/core/period'
+export { CURVE_START_S } from '@rca/core/profile'
 import type { EarnedRecord } from '@rca/core/records'
 import { metabolicToFlatSpeed, metabolicToRidePower } from '@rca/core/metabolic'
 import type { SportCurves } from '@rca/core/digest'
@@ -37,12 +37,6 @@ import {
 export const RECORD_DURATIONS_S: Record<Sport, readonly number[]> = {
   run: [300, 1200, 3600],
   ride: [60, 300, 1200, 3600],
-}
-
-/** The shortest duration, s, a sport's best-effort curve is drawn from. A run's starts at 3 minutes. */
-export const CURVE_START_S: Record<Sport, number> = {
-  run: EQUIVALENCE_MIN_S,
-  ride: 60,
 }
 
 /**
