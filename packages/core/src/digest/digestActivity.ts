@@ -255,7 +255,7 @@ export function digestActivity(activity: Activity): ActivityDigest {
   // grade times that speed: so they credit the climb the altitude records, and no more.
   const rawGrade = activity.indoor
     ? new Float64Array(activity.n)
-    : smoothGrade(activity.altitude, travelledDistance(activity.speed))
+    : smoothGrade(activity.altitude, travelledDistance(activity.speed, activity.distance))
   const quality = withKnownGrade(assessQuality(activity), rawGrade, activity.paused, activity.speed)
   // Unknown grade becomes zero here. Where it matters it is masked by validGrade; paused and
   // stationary samples have grade-independent resting cost.

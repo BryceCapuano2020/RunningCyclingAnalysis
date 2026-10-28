@@ -93,9 +93,17 @@ describe('travelledDistance', () => {
     expect(Array.from(d)).toEqual([0, 3, 7, 9])
   })
 
-  it('adds nothing for unknown speed', () => {
-    const d = travelledDistance(Float64Array.from([2, NaN, 2]))
-    expect(Array.from(d)).toEqual([0, 1, 2])
+  it('spreads the recorded distance across a stretch of unknown speed, or adds nothing without it', () => {
+    const speed = Float64Array.from([2, NaN, NaN, 2, 2])
+    // A recording gap: the distance holds, then catches up when the records resume.
+    const recorded = Float64Array.from([0, 0, 0, 9, 11])
+    expect(Array.from(travelledDistance(speed, recorded))).toEqual([0, 3, 6, 9, 11])
+    expect(Array.from(travelledDistance(speed))).toEqual([0, 0, 0, 0, 2])
+  })
+
+  it('takes the recorded gain for a first second of unknown speed', () => {
+    const d = travelledDistance(Float64Array.from([NaN, 2, 2]), Float64Array.from([0, 3, 5]))
+    expect(Array.from(d)).toEqual([0, 3, 5])
   })
 
   it('makes grade times speed the climb rate the altitude records, whatever distance was recorded', () => {

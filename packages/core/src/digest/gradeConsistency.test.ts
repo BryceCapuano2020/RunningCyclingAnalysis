@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_BIKE_MODEL, DURATIONS_S, PRIORS, RESTING_W_PER_KG } from '../constants'
 import { encodeGpx } from '../gpx/encode'
 import { parseGpx } from '../gpx/parse'
-import { runCost, runMetabolicPower, smoothGrade } from '../metabolic'
+import { runCost, runMetabolicPower, smoothGrade, travelledDistance } from '../metabolic'
 import { sampleDataset } from '../synthetic'
 import type { Activity, DigestCurvePoint } from '../types'
 import { digestActivity } from './digestActivity'
@@ -137,5 +137,46 @@ describe('digestActivity: activities whose distance agrees with their speed', ()
     expect(reference.map((p) => p.durationS)).toEqual([...DURATIONS_S])
     for (const p of reference)
       expectWithin(valueAt(curve, p.durationS), p.value, AGREEING_TOLERANCE)
+  })
+})
+
+/**
+ * A 900 s run up a steady 5% climb at 3 m/s, with a 20 s recording gap from 400 s, where speed is
+ * unknown, the distance holds and then catches up, and the altitude is interpolated, as resample
+ * writes one; and a single second of speed over the limit, unknown, at 600 s.
+ */
+function climbWithGaps(): Activity {
+  const n = 900
+  const climb = syntheticActivity({
+    id: 'gaps',
+    n,
+    speed: new Float64Array(n).fill(3),
+    grade: 0.05,
+  })
+  const speed = Float64Array.from(climb.speed)
+  const distance = Float64Array.from(climb.distance)
+  const unrecorded = new Uint8Array(n)
+  speed.fill(NaN, 400, 420)
+  unrecorded.fill(1, 400, 420)
+  distance.fill(distance[399]!, 400, 420)
+  speed[600] = NaN
+  return { ...climb, speed, distance, unrecorded }
+}
+
+describe('digestActivity: grade beside seconds of unknown speed', () => {
+  it('keeps the climb at its own grade beside a recording gap and a dropped speed', () => {
+    const run = climbWithGaps()
+    const d = digestActivity(run)
+    for (const durationS of [30, 60, 300]) {
+      expectWithin(valueAt(d.curve, durationS), steadyCost(3, 0.05), 0.002)
+    }
+  })
+
+  it('would make the grade beside them steeper if their distance were left out', () => {
+    const run = climbWithGaps()
+    const without = smoothGrade(run.altitude, travelledDistance(run.speed))
+    const withRecorded = smoothGrade(run.altitude, travelledDistance(run.speed, run.distance))
+    expect(Math.max(...without.subarray(380, 440))).toBeGreaterThan(0.09)
+    for (const i of [390, 399, 410, 425, 590, 610]) expect(withRecorded[i]).toBeCloseTo(0.05, 6)
   })
 })

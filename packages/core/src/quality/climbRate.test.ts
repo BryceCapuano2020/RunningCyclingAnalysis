@@ -34,21 +34,31 @@ function climbingRun(rateMs: number, durationS: number, extra: Partial<Activity>
 
 const masked = (mask: Uint8Array) => mask.reduce((count, v) => count + (v === 0 ? 1 : 0), 0)
 
+/** The first masked sample and one past the last. */
+function span(mask: Uint8Array): [number, number] {
+  return [mask.indexOf(0), mask.lastIndexOf(0) + 1]
+}
+
 describe('assessQuality: implausible climbs', () => {
   it('flags 60 m in 60 s and leaves out the grade and altitude around it', () => {
     const report = assessQuality(climbingRun(1, 60))
     expect(report.flags.map((f) => f.kind)).toEqual(['implausible-climb'])
     const flag = report.flags[0]!
-    // The rise starts at 240 s and ends at 300 s; the flag covers that ramp.
-    expect(flag.start).toBeLessThanOrEqual(255)
-    expect(flag.end).toBeGreaterThanOrEqual(285)
-    expect(flag.message).toBe(
-      `Altitude rose at ${MAX_CLIMB_RATE_MS} m/s or more for ${flag.end - flag.start} seconds`,
-    )
-    for (let i = flag.start; i < flag.end; i++) expect(report.validAltitude[i]).toBe(0)
-    const graded = report.validGrade
-    for (let i = flag.start - MARGIN; i < flag.end + MARGIN; i++) expect(graded[i]).toBe(0)
-    expect(masked(graded)).toBe(flag.end - flag.start + 2 * MARGIN)
+    // The rise runs from 240 s to 300 s. Every 30 s window centred from 260 s to 280 s, smoothed over
+    // 10 s, lies within it and rises 30 m; the flag is those centres, without the windows' reach.
+    expect(flag).toMatchObject({ start: 260, end: 281 })
+    expect(flag.message).toBe(`Altitude rose at ${MAX_CLIMB_RATE_MS} m/s or more for 21 seconds`)
+    // The altitude is left out over the windows and their smoothing, 20 s either side of the centres.
+    expect(span(report.validAltitude)).toEqual([240, 301])
+    expect(span(report.validGrade)).toEqual([240 - MARGIN, 301 + MARGIN])
+  })
+
+  it('flags a ramp that holds a jump as both a ramp and a jump', () => {
+    // 87 m in 60 s, of which 15 m is a single-second step at 270 s: the other 72 m are a ramp.
+    const run = climbingRun(1.2, 60)
+    for (let i = 270; i < run.n; i++) run.altitude[i]! += 15
+    const kinds = assessQuality(run).flags.map((f) => f.kind)
+    expect(kinds.sort()).toEqual(['altitude-jump', 'implausible-climb'])
   })
 
   it('keeps a steady 0.5 m/s climb', () => {

@@ -2,7 +2,7 @@ import { DURATIONS_S, MAX_KM_SPLITS, MAX_MILE_SPLITS } from '../constants'
 import type {
   ActivityDigest,
   CalibrationSums,
-  DerivedStreams,
+  PowerSource,
   DigestClimbSection,
   DigestCurvePoint,
   DigestDistanceBest,
@@ -257,7 +257,7 @@ function asSplits(value: unknown, path: string): DigestSplits {
 }
 
 const SPORTS: readonly Sport[] = ['run', 'ride']
-const POWER_SOURCES: readonly DerivedStreams['powerSource'][] = ['measured', 'virtual', 'none']
+const POWER_SOURCES: readonly PowerSource[] = ['measured', 'virtual', 'none']
 
 /**
  * Reads a digest written by serializeDigest. Throws an Error naming the offending field when the

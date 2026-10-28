@@ -177,11 +177,11 @@ function motionRules(
   }
   // No steady gate here: a step right after a pause is still a discontinuity in the grade. Only the
   // paused samples themselves are skipped, since their altitude is not being recorded.
-  const stepped = new Uint8Array(n)
+  const steps = new Float64Array(n)
   for (let i = 1; i < n; i++) {
     const jump = Math.abs(altitude[i]! - altitude[i - 1]!) > t.altitudeJump.maxStepM
     if (paused[i] !== 1 && jump) {
-      stepped[i] = 1
+      steps[i] = altitude[i]! - altitude[i - 1]!
       const flagRange = around(i, t.altitudeJump.marginS, n)
       raw.push({ kind: 'altitude-jump', ...flagRange })
       validAltitude.fill(0, flagRange.start, flagRange.end)
@@ -193,19 +193,21 @@ function motionRules(
     }
   }
   // Indoors the grade is zero whatever the altitude says, so a climb there is left alone.
-  if (!a.indoor) climbRule(a, stepped, validGrade, validAltitude, raw)
+  if (!a.indoor) climbRule(a, steps, validGrade, validAltitude, raw)
 }
 
 /**
  * Flags each stretch where smoothed altitude rises faster than anyone climbs, a ramp too gradual
- * for the single-second jump rule. Its altitude is left out, and its grade with the margin a grade
- * spreads over. A stretch holding a jump the jump rule flagged (`stepped`) is that jump, already
- * left out. Only rises are flagged: a fall too fast lowers a run's cost and a ride's power, so it
- * cannot make a best, and a fast descent on a bike is real.
+ * for the single-second jump rule. The steps the jump rule flagged (`steps`, the change at each) are
+ * taken out first, so a lone jump is reported once, as a jump, while a ramp around a jump is still
+ * a ramp. The flag covers the seconds at the centre of a too-fast window; the altitude is left out
+ * over those windows and the smoothing, and the grade with the margin a grade spreads over. Only
+ * rises are flagged: a fall too fast lowers a run's cost and a ride's power, so it cannot make a
+ * best, and a fast descent on a bike is real.
  */
 function climbRule(
   a: Activity,
-  stepped: Uint8Array,
+  steps: Float64Array,
   validGrade: Uint8Array,
   validAltitude: Uint8Array,
   raw: RawFlag[],
@@ -214,19 +216,26 @@ function climbRule(
   const t = QUALITY_THRESHOLDS
   const { maxMs, windowS, smoothS } = t.implausibleClimb
   const half = Math.floor(windowS / 2)
-  const smooth = rollingMean(a.altitude, smoothS)
+  const level = new Float64Array(n)
+  let offset = 0
+  for (let i = 0; i < n; i++) {
+    offset += steps[i]!
+    level[i] = a.altitude[i]! - offset
+  }
+  const smooth = rollingMean(level, smoothS)
   // A stretch with no known altitude smooths to NaN, which makes the comparison false.
   const tooFast = (i: number): boolean =>
     i >= half && i + half < n && smooth[i + half]! - smooth[i - half]! >= maxMs * 2 * half
+  const reach = half + Math.floor(smoothS / 2)
   for (const run of runsWhere(n, tooFast)) {
-    const flagRange = { start: run.start - half, end: run.end + half }
-    if (stepped.subarray(flagRange.start, flagRange.end).includes(1)) continue
-    raw.push({ kind: 'implausible-climb', ...flagRange })
-    validAltitude.fill(0, flagRange.start, flagRange.end)
+    raw.push({ kind: 'implausible-climb', start: run.start, end: run.end })
+    const start = Math.max(0, run.start - reach)
+    const end = Math.min(n, run.end + reach)
+    validAltitude.fill(0, start, end)
     validGrade.fill(
       0,
-      Math.max(0, flagRange.start - t.gradeContaminationMarginS),
-      Math.min(n, flagRange.end + t.gradeContaminationMarginS),
+      Math.max(0, start - t.gradeContaminationMarginS),
+      Math.min(n, end + t.gradeContaminationMarginS),
     )
   }
 }

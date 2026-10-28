@@ -1,3 +1,4 @@
+import { GRADE_HALF_SPAN_S } from './metabolic/grade'
 import { METRES_PER_KM, METRES_PER_MILE } from './units/convert'
 
 /** Binary sizes, for byte limits and for telling people how large a file may be. */
@@ -160,7 +161,7 @@ export const FLAT_RUN_COST = MINETTI_FLAT_COST + RUN_COST_CORRECTION
 export const MAX_CLIMB_RATE_MS = 1.0
 
 /** Seconds over which the climb rate is measured: the span of smoothGrade's rise and run. */
-export const CLIMB_RATE_WINDOW_S = 30
+export const CLIMB_RATE_WINDOW_S = 2 * GRADE_HALF_SPAN_S
 
 /**
  * Population priors: gross efficiency of cycling, and a multiplicative individual running economy
