@@ -122,12 +122,17 @@ export function deviceActions(
       try {
         await device.clear()
       } catch {
-        // The page still starts over, but what could not be removed reloads next visit, so the page
-        // shows what remains and says so. The next read loads it into the session.
-        held = false
-        await report()
-        post({ type: 'deviceIssue', issue: 'notForgotten' })
-        return
+        // A clear is refused too when storage cannot be opened at all, with nothing ever kept. Only
+        // what remains reloads next visit, so the page shows that and says so. The page still starts
+        // over, and the next read loads what remains into the session.
+        const remaining = await device.all().catch(() => null)
+        if (remaining === null || remaining.length > 0) {
+          held = false
+          if (remaining !== null)
+            post({ type: 'libraryActivities', activities: newestFirst(remaining) })
+          post({ type: 'deviceIssue', issue: 'notForgotten' })
+          return
+        }
       }
       post({ type: 'libraryActivities', activities: [] })
       // Nothing to merge once empty.

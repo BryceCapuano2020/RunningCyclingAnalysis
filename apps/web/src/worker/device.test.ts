@@ -171,6 +171,31 @@ describe('device library actions', () => {
     ])
   })
 
+  it('forget counts a refused clear as done when nothing was kept, as when storage cannot be opened', async () => {
+    const unopenable: DeviceLibrary = {
+      ...memoryDeviceLibrary(),
+      clear: () => Promise.reject(new Error('Device storage is unavailable')),
+    }
+    const { actions, posted } = setup(unopenable)
+
+    await actions.forget()
+
+    expect(posted).toEqual([{ type: 'libraryActivities', activities: [] }])
+  })
+
+  it('forget reports a refused clear when the library cannot be read to tell what remains', async () => {
+    const unreadable: DeviceLibrary = {
+      ...memoryDeviceLibrary(),
+      clear: () => Promise.reject(new Error('Device storage failed')),
+      all: () => Promise.reject(new Error('Device storage failed')),
+    }
+    const { actions, posted } = setup(unreadable)
+
+    await actions.forget()
+
+    expect(posted).toEqual([{ type: 'deviceIssue', issue: 'notForgotten' }])
+  })
+
   it('forget tries the clear again when it is called again', async () => {
     const memory = memoryDeviceLibrary()
     let attempts = 0

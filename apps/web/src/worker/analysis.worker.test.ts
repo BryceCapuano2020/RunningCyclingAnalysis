@@ -1557,6 +1557,30 @@ describe('device library', () => {
     expect(messages.some((message) => message.type === 'error')).toBe(false)
   })
 
+  it('counts a workout once when two refused copies of it were imported', async () => {
+    let attempts = 0
+    kept.library = {
+      ...memoryDeviceLibrary(),
+      put: () => {
+        attempts += 1
+        return Promise.reject(new Error('QuotaExceededError'))
+      },
+    }
+    const { send } = await startWorker()
+
+    const messages = await send({
+      type: 'addFiles',
+      files: [gpxFile(), fitFile()],
+      settings: SETTINGS,
+      sync: null,
+      saveToDevice: true,
+    })
+
+    // Both copies were offered to storage and refused, yet it is one workout.
+    expect(attempts).toBe(2)
+    expect(messages).toContainEqual({ type: 'deviceIssue', issue: 'notSaved', count: 1 })
+  })
+
   it('says nothing about saving when every activity of the import was kept', async () => {
     const { send } = await startWorker()
 

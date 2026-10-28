@@ -874,6 +874,21 @@ describe('useAnalysis account handling', () => {
       expect(result.current.deviceIssue).toBeNull()
     })
 
+    it('drops the refusal when the sample is loaded, and when the visitor signs in', () => {
+      const { result, rerender } = setup(SIGNED_OUT)
+      finishDeviceLoad(STATE)
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notSaved', count: 1 }))
+      expect(result.current.deviceIssue).toEqual({ issue: 'notSaved', count: 1 })
+
+      act(() => result.current.loadSample())
+      expect(result.current.deviceIssue).toBeNull()
+
+      act(() => worker().reply({ type: 'deviceIssue', issue: 'notForgotten' }))
+      expect(result.current.deviceIssue).toEqual({ issue: 'notForgotten' })
+      rerender({ account: SIGNED_IN_KEEP, current: SETTINGS })
+      expect(result.current.deviceIssue).toBeNull()
+    })
+
     it('keeps the hint and says so when a forget could not clear what is kept', () => {
       localStorage.setItem(KEPT_KEY, '1')
       const { result } = setup(SIGNED_OUT)
@@ -2532,9 +2547,11 @@ describe('what an import is compared with, and the restore hint, in round 4', ()
   it('forgets the restore hint when the last kept activity is deleted', () => {
     localStorage.setItem('rca.kept.v1', '1')
     const { result } = setup(SIGNED_OUT)
+    reportKept(1)
     finishDeviceLoad({ ...STATE, totalActivities: 1 })
 
-    act(() => result.current.deleteActivity('some-id'))
+    act(() => result.current.deleteActivity('run-0'))
+    act(() => worker().reply({ type: 'libraryActivities', activities: [] }))
     act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 0 } }))
 
     expect(localStorage.getItem('rca.kept.v1')).toBeNull()

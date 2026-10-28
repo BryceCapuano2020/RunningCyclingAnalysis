@@ -5,13 +5,15 @@ import { keptLibraryHinted } from './keptLibrary'
 import type { LibraryStatus } from './model'
 
 /**
- * Whether a request tries the library kept in this browser again, so a refusal it reported earlier no
- * longer stands. The worker reports a new one before the request's reply if the attempt fails too.
+ * Whether a request tries the library kept in this browser again, or puts the sample in place of it,
+ * so a refusal reported earlier no longer stands. The worker reports a new one before the request's
+ * reply if the attempt fails too.
  */
 function retriesDevice(request: WorkerRequest): boolean {
   return (
     (request.type === 'addFiles' && request.saveToDevice === true) ||
     request.type === 'loadDevice' ||
+    request.type === 'loadSample' ||
     request.type === 'deleteDeviceActivity' ||
     (request.type === 'clear' && request.forgetDevice === true)
   )
