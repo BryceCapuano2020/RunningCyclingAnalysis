@@ -2,6 +2,7 @@ import type { ActivityRecord } from '@rca/contract'
 import { digestActivity } from '@rca/core/digest'
 import { encodeFit } from '@rca/core/fit'
 import { encodeGpx } from '@rca/core/gpx/encode'
+import { encodeTcx } from '@rca/core/tcx/encode'
 import { parseActivityFile } from '@rca/core/import'
 import { sampleDataset } from '@rca/core/synthetic'
 import type { ActivityTrace } from '@rca/core/workbench'
@@ -10,7 +11,7 @@ import * as client from '../api/client'
 import { workoutKeyOf } from './device'
 import type { DeviceLibrary } from './deviceLibrary'
 import type { WorkerRequest, WorkerResponse } from './protocol'
-import type { TraceScope, WorkbenchStore } from './workbenchStore'
+import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
@@ -53,6 +54,10 @@ function fitFile(name = 'run.fit'): File {
   return new File([new Uint8Array(encodeFit(run, { gps: true }))], name)
 }
 
+function tcxFile(name = 'run.tcx'): File {
+  return new File([new Uint8Array(encodeTcx(run))], name)
+}
+
 function gpxFile(name = 'run.gpx'): File {
   return new File([new Uint8Array(encodeGpx(run))], name)
 }
@@ -74,9 +79,9 @@ function spyStore() {
   const store = {
     get: vi.fn(async (scope: TraceScope, id: string) => rows.get(scopeKey(scope, id)) ?? null),
     has: vi.fn(async (scope: TraceScope, id: string) => rows.has(scopeKey(scope, id))),
-    put: vi.fn(async (scope: TraceScope, trace: ActivityTrace) => {
+    put: vi.fn(async (scope: TraceScope, trace: ActivityTrace): Promise<PutResult> => {
       rows.set(scopeKey(scope, trace.activityId), trace)
-      return true
+      return 'stored'
     }),
     remove: vi.fn(async (scope: TraceScope, id: string) => {
       rows.delete(scopeKey(scope, id))
@@ -115,11 +120,15 @@ async function startWorker() {
   return { send }
 }
 
-function signedOutImport(file: File): WorkerRequest {
-  return { type: 'addFiles', files: [file], settings: SETTINGS, sync: null, saveToDevice: true }
+function signedOutImport(...files: File[]): WorkerRequest {
+  return { type: 'addFiles', files, settings: SETTINGS, sync: null, saveToDevice: true }
 }
 
 let spy = spyStore()
+
+/** The state reply that says detail was restored, if the import said so. */
+const restoredIn = (messages: WorkerResponse[]) =>
+  messages.find((m) => m.type === 'state' && m.outcome?.detailRestored !== undefined)
 
 beforeEach(() => {
   vi.resetModules()
@@ -157,7 +166,11 @@ describe('where an import keeps recordings', () => {
     await send(signedOutImport(fitFile()))
 
     expect(spy.store.put).toHaveBeenCalledTimes(1)
-    expect(spy.store.put).toHaveBeenCalledWith({ kind: 'device' }, expect.anything())
+    expect(spy.store.put).toHaveBeenCalledWith(
+      { kind: 'device' },
+      expect.anything(),
+      expect.any(Number),
+    )
   })
 
   it('keeps no recording of a copy the library hides', async () => {
@@ -178,6 +191,88 @@ describe('where an import keeps recordings', () => {
     await send(signedOutImport(fitFile()))
 
     expect(spy.rows.size).toBe(1)
+  })
+
+  it('serves a recording kept in this browser after the worker restarts', async () => {
+    const { send } = await startWorker()
+    const file = fitFile()
+    const id = idOf(file, new Uint8Array(await file.arrayBuffer()))
+    await send(signedOutImport(file))
+    vi.resetModules()
+    const restarted = await startWorker()
+    await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+
+    const [reply] = await restarted.send({ type: 'activityTrace', id })
+
+    expect(spy.store.get).toHaveBeenCalledWith({ kind: 'device' }, id)
+    expect(reply).toEqual({
+      type: 'activityTrace',
+      reply: { kind: 'trace', trace: expect.objectContaining({ activityId: id }) },
+    })
+  })
+
+  it('says detail was restored for a held activity added again, and only when it was missing', async () => {
+    const { send } = await startWorker()
+    const first = await send(signedOutImport(fitFile()))
+    expect(restoredIn(first)).toBeUndefined()
+
+    const present = await send(signedOutImport(fitFile()))
+    expect(restoredIn(present)).toBeUndefined()
+
+    spy.rows.clear()
+    const missing = await send(signedOutImport(fitFile()))
+    expect(restoredIn(missing)).toMatchObject({ outcome: { detailRestored: 1 } })
+  })
+
+  it('does not say detail was restored for copies of one workout added in one import', async () => {
+    const { send } = await startWorker()
+    const messages = await send(signedOutImport(gpxFile(), tcxFile()))
+
+    expect(restoredIn(messages)).toBeUndefined()
+  })
+
+  it('does not count the recording of a held copy that a richer copy replaces in the same import', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(gpxFile()))
+    spy.rows.clear()
+
+    const messages = await send(signedOutImport(gpxFile(), tcxFile()))
+
+    expect(restoredIn(messages)).toBeUndefined()
+  })
+
+  it('does not say detail was restored for a near copy a fresh import also keeps', async () => {
+    const { send } = await startWorker()
+    const later = { ...run, startMs: run.startMs + 30_000 }
+    const near = new File([new Uint8Array(encodeFit(later, { gps: true }))], 'near.fit')
+
+    const messages = await send(signedOutImport(fitFile(), near))
+
+    expect(restoredIn(messages)).toBeUndefined()
+    expect(spy.rows.size).toBe(2)
+  })
+
+  it('does not say detail was restored when the cache will not keep the recording', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(fitFile()))
+    spy.rows.clear()
+    vi.mocked(spy.store.put).mockImplementation(async () => 'outranked')
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(restoredIn(messages)).toBeUndefined()
+    expect(spy.rows.size).toBe(0)
+  })
+
+  it('does not call a richer copy that replaces a held one a restored recording', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(gpxFile()))
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(
+      messages.some((m) => m.type === 'state' && m.outcome?.detailRestored !== undefined),
+    ).toBe(false)
   })
 
   it('drops the recording of a copy that a richer copy replaces', async () => {

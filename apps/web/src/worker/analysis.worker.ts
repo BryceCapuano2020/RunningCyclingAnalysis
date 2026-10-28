@@ -80,6 +80,9 @@ async function addFiles(
         : null
   activeScope = traceScope ?? { kind: 'device' }
   let stoppedBy: SyncIssueCode | null = null
+  // Activities the import already held and gave a recording back, which the summary says.
+  const restored = new Set<string>()
+  const addedIds = new Set<string>()
   let outcome: ImportOutcome = {
     activities: 0,
     filesAdded: 0,
@@ -129,13 +132,20 @@ async function addFiles(
       save ?? (request.saveToDevice ? keepOnDevice : undefined),
       sync?.keepFiles === true,
       ({ added, ...completed }) => {
+        for (const digest of added) addedIds.add(digest.id)
         outcome = { ...completed, ...summarizeAdded(added) }
       },
-      async (activity) => {
-        if (traceScope === null) workbench.captureMemory(activity, { kind: 'device' })
-        else await workbench.capture(activity, traceScope)
+      async (activity, { held }) => {
+        if (traceScope === null) return workbench.captureMemory(activity, { kind: 'device' })
+        // Only a workout the library already held can have its recording restored.
+        const had = held && (await workbench.holds(traceScope, activity.id))
+        const kept = await workbench.capture(activity, traceScope)
+        // Counted once it is in storage: a recording held in memory alone is gone after a reload.
+        if (held && !had && kept !== null && workbench.isStored(traceScope, activity.id))
+          restored.add(activity.id)
       },
       async (replacedId) => {
+        restored.delete(replacedId)
         if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
         else await workbench.remove(traceScope, replacedId)
       },
@@ -144,6 +154,8 @@ async function addFiles(
     // On a failure too: the page learns how many were saved before the error reply.
     reporter.end()
   }
+  const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
+  if (detailRestored > 0) outcome = { ...outcome, detailRestored }
   if (sync !== null) {
     post({ type: 'missingOriginals', count: missingOriginals.size })
     reportLibrary()

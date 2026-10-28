@@ -13,6 +13,7 @@ describe('workbench cache accounting validation', () => {
     key: '["device","activity"]',
     scopeKey: 'device',
     activityId: 'activity',
+    startMs: 1_700_000_000_000,
     savedAt: 1,
     bytes: 10,
   }
@@ -21,6 +22,12 @@ describe('workbench cache accounting validation', () => {
     expect(subtractMetadata(state, metadata)).toEqual({ key: 'total', bytes: 20, count: 1 })
     expect(subtractMetadata(state, { ...metadata, bytes: -1 })).toBeNull()
     expect(subtractMetadata(state, { ...metadata, bytes: WORKBENCH_ENTRY_BYTES + 1 })).toBeNull()
+  })
+
+  it('needs the activity start that ranks a recording for eviction', () => {
+    expect(validTraceMetadata(metadata)).toBe(true)
+    expect(validTraceMetadata({ ...metadata, startMs: undefined })).toBe(false)
+    expect(validTraceMetadata({ ...metadata, startMs: Number.NaN })).toBe(false)
   })
 
   it('rejects NaN and non-integer byte counts before they reach ledger arithmetic', () => {

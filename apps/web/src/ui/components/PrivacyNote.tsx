@@ -14,15 +14,15 @@ function privacyText(
   fileRetentionAvailable: boolean,
 ): string {
   if (!signedIn) {
-    return 'Nothing is uploaded; analysis runs in your browser. Summaries and recent detailed recordings are kept in this browser where it allows, so anyone using it can see them. Remove all my activities removes them.'
+    return 'Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser where it allows, so anyone using it can see them. Recordings fit in about 64 MiB, and those of the oldest activities are dropped first. Remove all my activities removes them.'
   }
   if (!fileRetentionAvailable) {
-    return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser, which also keeps recent detailed recordings.'
+    return 'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.'
   }
   if (keepFiles) {
-    return 'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps recent detailed recordings.'
+    return 'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.'
   }
-  return 'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser, which also keeps recent detailed recordings.'
+  return 'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser, which also keeps detailed recordings where it allows, for as many activities as fit in about 64 MiB, keeping the newest first.'
 }
 
 /** The one-line privacy statement that says exactly what is stored for this visitor. */

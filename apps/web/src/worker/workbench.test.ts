@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { digestActivity } from '@rca/core/digest'
 import { matchOriginalActivity } from './originalActivity'
 import { Workbench } from './workbench'
-import type { TraceScope, WorkbenchStore } from './workbenchStore'
+import type { PutResult, TraceScope, WorkbenchStore } from './workbenchStore'
 import { activityTraceBytes, WORKBENCH_ENTRY_BYTES } from './workbenchStore'
 
 function scopeKey(scope: TraceScope, id: string): string {
@@ -21,7 +21,7 @@ function memoryStore(overrides: Partial<WorkbenchStore> = {}) {
     has: vi.fn(async (scope, id) => rows.has(scopeKey(scope, id))),
     put: vi.fn(async (scope, trace) => {
       rows.set(scopeKey(scope, trace.activityId), trace)
-      return true
+      return 'stored' as const
     }),
     remove: vi.fn(async (scope, id) => rows.delete(scopeKey(scope, id)) || true),
     clearScope: vi.fn(async () => true),
@@ -72,7 +72,7 @@ describe('workbench evidence cache', () => {
   })
 
   it('treats a refused evidence write as optional and still keeps an in-memory trace', async () => {
-    const { store } = memoryStore({ put: vi.fn(async () => false) })
+    const { store } = memoryStore({ put: vi.fn(async () => 'refused' as const) })
     const workbench = new Workbench(store)
     const trace = await workbench.capture(first, { kind: 'device' })
     expect(trace?.activityId).toBe(first.id)
@@ -148,6 +148,48 @@ describe('workbench evidence cache', () => {
     )
   })
 
+  it('settles a pending trace by what storage says: stored, left out for newer ones, or still refused', async () => {
+    let down = true
+    const results: Record<string, PutResult> = {}
+    const { rows, store } = memoryStore({
+      put: vi.fn(async (scope, trace) => {
+        const result = results[trace.activityId] ?? 'stored'
+        if (result === 'stored') rows.set(scopeKey(scope, trace.activityId), trace)
+        return result
+      }),
+    })
+    store.isDeleted = vi.fn(async () => {
+      if (down) throw new Error('backing off')
+      return false
+    })
+    const workbench = new Workbench(store)
+    const scope: TraceScope = { kind: 'device' }
+    const [a, b, c, d, e] = activities
+    for (const activity of [a!, b!, c!]) await workbench.capture(activity, scope)
+    expect(store.put).not.toHaveBeenCalled()
+
+    down = false
+    results[a!.id] = 'stored'
+    results[b!.id] = 'outranked'
+    results[c!.id] = 'refused'
+    await workbench.capture(d!, scope)
+
+    expect(workbench.isStored(scope, a!.id)).toBe(true)
+    expect(workbench.isStored(scope, b!.id)).toBe(false)
+    expect(await workbench.holds(scope, b!.id)).toBe(true)
+    expect(workbench.isStored(scope, d!.id)).toBe(true)
+    vi.mocked(store.put).mockClear()
+
+    // The left-out one is not tried again; the refused one is, and storage takes it this time.
+    results[c!.id] = 'stored'
+    await workbench.capture(e!, scope)
+    const tried = vi.mocked(store.put).mock.calls.map(([, trace]) => trace.activityId)
+    expect(tried).toContain(c!.id)
+    expect(tried).not.toContain(b!.id)
+    expect(workbench.isStored(scope, c!.id)).toBe(true)
+    expect(rows.has(scopeKey(scope, b!.id))).toBe(false)
+  })
+
   it('never writes a memory-only trace, and drops a pending one whose account was deleted', async () => {
     let down = true
     const { rows, deleted, store } = memoryStore()
@@ -208,6 +250,49 @@ describe('workbench evidence cache', () => {
     expect(await workbench.get({ kind: 'device' }, first.id)).toBeNull()
   })
 
+  it('knows whether a recording is kept, in storage or in memory alone', async () => {
+    const { store, rows } = memoryStore()
+    const workbench = new Workbench(store)
+    const device: TraceScope = { kind: 'device' }
+    expect(await workbench.holds(device, first.id)).toBe(false)
+
+    await workbench.capture(first, device)
+    expect(await workbench.holds(device, first.id)).toBe(true)
+    // Another tab removed the stored copy, so the memory one no longer counts.
+    rows.clear()
+    expect(await workbench.holds(device, first.id)).toBe(false)
+
+    workbench.captureMemory(first, device)
+    expect(await workbench.holds(device, first.id)).toBe(true)
+  })
+
+  it('ranks a stored recording by the start of its activity', async () => {
+    const { store } = memoryStore()
+    const workbench = new Workbench(store)
+    await workbench.capture(first, { kind: 'device' })
+    expect(store.put).toHaveBeenCalledWith({ kind: 'device' }, expect.anything(), first.startMs)
+  })
+
+  it('keeps a recording in memory alone when the cache is full of newer activities, and never writes it later', async () => {
+    const { rows, store } = memoryStore({ put: vi.fn(async () => 'outranked' as const) })
+    const workbench = new Workbench(store)
+    const scope: TraceScope = { kind: 'device' }
+    const trace = await workbench.capture(first, scope)
+    expect(trace).not.toBeNull()
+    expect(workbench.isStored(scope, first.id)).toBe(false)
+    expect(await workbench.holds(scope, first.id)).toBe(true)
+    expect(await workbench.get(scope, first.id)).toEqual(trace)
+
+    // Storage answering a later capture does not bring the left-out one in.
+    vi.mocked(store.put).mockImplementation(async (s, t) => {
+      rows.set(scopeKey(s, t.activityId), t)
+      return 'stored'
+    })
+    await workbench.capture(activities[1]!, scope)
+    expect(rows.has(scopeKey(scope, first.id))).toBe(false)
+    expect(store.put).toHaveBeenCalledTimes(2)
+  })
+
   it('reports a refused removal and still drops the memory copy', async () => {
     const { store } = memoryStore({ remove: vi.fn(async () => false) })
     const workbench = new Workbench(store)
@@ -238,9 +323,9 @@ describe('workbench evidence cache', () => {
   it('refuses a late write after an account scope is tombstoned', async () => {
     const { rows, deleted, store } = memoryStore({
       put: vi.fn(async (scope, trace) => {
-        if (scope.kind === 'account' && deleted.has(scope.userId)) return false
+        if (scope.kind === 'account' && deleted.has(scope.userId)) return 'refused' as const
         rows.set(scopeKey(scope, trace.activityId), trace)
-        return true
+        return 'stored' as const
       }),
       deleteScope: vi.fn(async (scope) => {
         deleted.add(scope.userId)

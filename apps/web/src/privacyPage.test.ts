@@ -221,6 +221,10 @@ describe('privacy page describes what is stored as the app stores it', () => {
   it('distinguishes compact summaries from local detailed recordings', () => {
     expect(text).toContain('The summary has no per-second data or original file')
     expect(text).toContain('It contains no GPS coordinates or original files and is not uploaded.')
+    expect(text).toContain('Recording data is limited to 64 MiB across this browser’s cache;')
+    expect(text).toContain(
+      'the recordings of the oldest activities are removed first to make room.',
+    )
     expect(text).toContain(
       'Account recordings are kept separately from signed-out recordings and other accounts.',
     )

@@ -9,7 +9,7 @@ export const WORKBENCH_ENTRY_BYTES = 12 * 1024 * 1024
 export const WORKBENCH_MAX_ENTRIES = 10_000
 
 const DB_NAME = 'rca-workbench-evidence'
-const DB_VERSION = 2
+const DB_VERSION = 3
 export const TRACES = 'traces'
 export const ENTRIES = 'entries'
 export const STATE = 'state'
@@ -24,9 +24,18 @@ export interface TraceMetadata {
   key: string
   scopeKey: string
   activityId: string
+  /** When the activity started. The cache drops the oldest activities' recordings first. */
+  startMs: number
+  /** When the recording was stored or last opened. It orders recordings of activities that start together. */
   savedAt: number
   bytes: number
 }
+
+/** What storing a recording came to: kept, left out because the cache is full of newer ones, or refused. */
+export type PutResult = 'stored' | 'outranked' | 'refused'
+
+/** The index that lists recordings from the oldest activity to the newest. */
+export const RANK_INDEX = 'rank'
 
 export interface StoreState {
   key: 'total'
@@ -44,6 +53,7 @@ export function validTraceMetadata(value: unknown): value is TraceMetadata {
     typeof row.activityId === 'string' &&
     row.activityId.length > 0 &&
     row.key === JSON.stringify([row.scopeKey, row.activityId]) &&
+    Number.isFinite(row.startMs) &&
     Number.isFinite(row.savedAt) &&
     (row.savedAt as number) >= 0 &&
     Number.isInteger(row.bytes) &&
@@ -134,69 +144,31 @@ export function activityTraceBytes(trace: ActivityTrace): number {
   )
 }
 
+/**
+ * The recordings are a cache, so a database from before they were ranked by activity start is
+ * emptied and rebuilt rather than migrated. The tombstones of deleted accounts are kept.
+ */
 function upgradeDatabase(request: IDBOpenDBRequest): void {
   const db = request.result
   const transaction = request.transaction!
-  const traces = db.objectStoreNames.contains(TRACES)
-    ? transaction.objectStore(TRACES)
-    : db.createObjectStore(TRACES, { keyPath: 'key' })
-  const entries = db.objectStoreNames.contains(ENTRIES)
-    ? transaction.objectStore(ENTRIES)
-    : db.createObjectStore(ENTRIES, { keyPath: 'key' })
-  if (!entries.indexNames.contains('scopeKey'))
-    entries.createIndex('scopeKey', 'scopeKey', { unique: false })
-  if (!entries.indexNames.contains('savedAt'))
-    entries.createIndex('savedAt', 'savedAt', { unique: false })
-  if (!db.objectStoreNames.contains(STATE)) db.createObjectStore(STATE, { keyPath: 'key' })
-  if (!db.objectStoreNames.contains(OWNERS)) db.createObjectStore(OWNERS, { keyPath: 'scopeKey' })
-
-  // Version 1 stored metadata beside each full trace. Move just its small accounting fields.
-  if (db.version > 1 && transaction.objectStore(TRACES).keyPath === 'key') {
-    const cursorRequest = traces.openCursor()
-    let bytes = 0
-    let count = 0
-    cursorRequest.onsuccess = () => {
-      const cursor = cursorRequest.result
-      if (!cursor) {
-        transaction.objectStore(STATE).put({ key: 'total', bytes, count } satisfies StoreState)
-        return
-      }
-      const row = cursor.value as {
-        key?: unknown
-        scopeKey?: unknown
-        activityId?: unknown
-        savedAt?: unknown
-        bytes?: unknown
-        trace?: unknown
-      }
-      const trace = parseBoundedTrace(row.trace)
-      if (
-        typeof row.key === 'string' &&
-        typeof row.scopeKey === 'string' &&
-        typeof row.activityId === 'string' &&
-        Number.isInteger(row.bytes) &&
-        (row.bytes as number) >= 0 &&
-        (row.bytes as number) <= WORKBENCH_ENTRY_BYTES &&
-        trace !== null &&
-        trace.activityId === row.activityId &&
-        activityTraceBytes(trace) === row.bytes
-      ) {
-        entries.put({
-          key: row.key,
-          scopeKey: row.scopeKey,
-          activityId: row.activityId,
-          savedAt: typeof row.savedAt === 'number' ? row.savedAt : 0,
-          bytes: row.bytes as number,
-        } satisfies TraceMetadata)
-        cursor.update({ key: row.key, trace } satisfies StoredTrace)
-        bytes += row.bytes as number
-        count++
-      } else {
-        cursor.delete()
-      }
-      cursor.continue()
+  const ranked =
+    db.objectStoreNames.contains(ENTRIES) &&
+    transaction.objectStore(ENTRIES).indexNames.contains(RANK_INDEX)
+  if (!ranked) {
+    for (const name of [TRACES, ENTRIES, STATE]) {
+      if (db.objectStoreNames.contains(name)) db.deleteObjectStore(name)
     }
+    db.createObjectStore(TRACES, { keyPath: 'key' })
+    const entries = db.createObjectStore(ENTRIES, { keyPath: 'key' })
+    entries.createIndex('scopeKey', 'scopeKey', { unique: false })
+    entries.createIndex(RANK_INDEX, ['startMs', 'savedAt'], { unique: false })
+    db.createObjectStore(STATE, { keyPath: 'key' }).put({
+      key: 'total',
+      bytes: 0,
+      count: 0,
+    } satisfies StoreState)
   }
+  if (!db.objectStoreNames.contains(OWNERS)) db.createObjectStore(OWNERS, { keyPath: 'scopeKey' })
 }
 
 let opened: Promise<IDBDatabase> | null = null

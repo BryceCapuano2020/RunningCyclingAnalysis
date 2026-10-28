@@ -73,8 +73,9 @@ test('a legacy summary without detail evidence requests reimport and a duplicate
   await removeRecordingCache(page)
   await page.goto('/')
   const workbench = await openFirstActivity(page)
-  await expect(workbench.getByText(/Re-add the source file/)).toBeVisible()
+  await expect(workbench.getByText(/Add this activity's file again/)).toBeVisible()
   await uploadFixtures(page, ['one-run.tcx'])
+  await expect(page.getByText(/Detail restored for 1 activity/).first()).toBeVisible()
   const restored = await openFirstActivity(page)
   await expect(restored.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(1)
@@ -86,7 +87,7 @@ test('sample details are available without persisting sample recordings', async 
   await expect(workbench.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   const saved = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -153,7 +154,7 @@ test('an account original is read only on request, and account deletion removes 
   ).toBeVisible()
   const cache = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -200,6 +201,6 @@ test('a second account cannot read another account’s cached trace for the same
   expect(response.status()).toBe(201)
   await page.goto('/')
   const second = await openFirstActivity(page)
-  await expect(second.getByText(/Re-add the source file/)).toBeVisible()
+  await expect(second.getByText(/Add this activity's file again/)).toBeVisible()
   await expect(second.getByRole('textbox')).toHaveCount(0)
 })

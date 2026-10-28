@@ -43,7 +43,7 @@ export const RETENTION_UNAVAILABLE =
   'Original file storage is unavailable right now. Your saved preference is preserved; new imports save summaries only and original files are not kept. Existing saved originals are not deleted.'
 export const SIGN_IN_TO_EXPORT = 'Sign in to download your data.'
 /** What an import reports for its summary: the files it read and could not use, and what it added. */
-export type ImportCounts = Pick<ImportOutcome, 'activities' | 'rejected'> &
+export type ImportCounts = Pick<ImportOutcome, 'activities' | 'rejected' | 'detailRestored'> &
   ImportSummary & { duplicates?: readonly unknown[] }
 
 /** Said after a summary's sentence when the list under it says what moved in the numbers. */
@@ -129,7 +129,11 @@ export function addedSentence(summary: ImportSummary, nowMs = Date.now()): strin
 
 /** Every import's summary sentence: what it added, or that nothing was new. Shown and announced alike. */
 export function importSentence(summary: ImportCounts, nowMs = Date.now()): string {
-  return addedSentence(summary, nowMs) ?? notAddedSentence(summary.activities)
+  const sentence = addedSentence(summary, nowMs) ?? notAddedSentence(summary.activities)
+  const { detailRestored = 0 } = summary
+  return detailRestored > 0
+    ? `${sentence} Detail restored for ${plural(detailRestored, 'activity', 'activities')}.`
+    : sentence
 }
 
 /**

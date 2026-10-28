@@ -19,7 +19,7 @@ test('a refused detail-cache write preserves analysis and the saved activity sum
   await rows.first().getByRole('link').click()
   await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.getByText(/Re-add the source file/)).toBeVisible()
+  await expect(page.getByText(/Add this activity's file again/)).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(1)
 })
 
@@ -32,7 +32,7 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
   await page.goto('/privacy')
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -56,14 +56,14 @@ test('a corrupt byte ledger is repaired before further detail recordings are sto
   await page.goto('/')
   const rows = await activitiesRows(page)
   await rows.first().getByRole('link').click()
-  await expect(page.getByText(/Re-add the source file/)).toBeVisible()
+  await expect(page.getByText(/Add this activity's file again/)).toBeVisible()
   await uploadFixtures(page, ['one-run.tcx'])
   const restored = await activitiesRows(page)
   await restored.first().getByRole('link').click()
   await expect(page.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   const accounting = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('rca-workbench-evidence', 2)
+      const request = indexedDB.open('rca-workbench-evidence', 3)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
