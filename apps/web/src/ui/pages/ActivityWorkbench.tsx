@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
-import type { ActivityLap, ActivityTrace, TraceMetric } from '@rca/core/workbench'
-import { detectIntervals } from '@rca/core/workbench'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import { formatTotalTime } from '@rca/core/units'
-import type { ActivityTraceReply } from '../../worker/workbench'
+import type { ActivityTraceReply } from '../../worker/protocol'
+import { LapChoices } from './ActivityWorkbenchLaps'
 import { ActivityWorkbenchPlot } from './ActivityWorkbenchPlot'
-import { metricLabel, metricUnit } from './workbenchFormat'
 import { SelectionStats } from './ActivityWorkbenchStats'
+import { TimeSelection } from './ActivityWorkbenchTime'
+import { DEFAULT_METRICS, METRIC_ORDER, metricLabel, metricUnit } from './workbenchFormat'
+import { clampSelection } from './workbenchTime'
+import type { Selection } from './workbenchTime'
 import './ActivityWorkbench.css'
 
 export interface ActivityWorkbenchProps {
@@ -22,15 +25,6 @@ type LoadState =
   | { status: 'missing' }
   | { status: 'original'; trace: ActivityTrace }
   | { status: 'failed' }
-
-const METRIC_ORDER: TraceMetric[] = [
-  'speed',
-  'power',
-  'heartRate',
-  'cadence',
-  'altitude',
-  'temperature',
-]
 
 function channelAvailable(trace: ActivityTrace, metric: TraceMetric): boolean {
   const stream = trace.streams[metric]
@@ -88,60 +82,64 @@ export function ActivityWorkbench({ activityId, units, loadTrace }: ActivityWork
   )
 }
 
+const HEADING_ID = 'activity-workbench-heading'
+
+/** The section every state sits in, named by what the athlete is looking at. */
+function WorkbenchSection({ sport, children }: { sport?: string; children: ReactNode }) {
+  return (
+    <section className="section activity-workbench" data-sport={sport} aria-labelledby={HEADING_ID}>
+      <h2 id={HEADING_ID}>In detail</h2>
+      {children}
+    </section>
+  )
+}
+
 function ActivityWorkbenchSession({ activityId, units, loadTrace }: ActivityWorkbenchProps) {
   const loaded = useTrace(activityId, loadTrace)
-  const trace =
-    loaded.state.status === 'ready' || loaded.state.status === 'original'
-      ? loaded.state.trace
-      : null
-  if (loaded.state.status === 'loading') {
+  const { status } = loaded.state
+  if (status === 'ready' || status === 'original') {
     return (
-      <section className="section activity-workbench" aria-labelledby="activity-workbench-heading">
-        <h2 id="activity-workbench-heading">Activity workbench</h2>
+      <ReadyWorkbench
+        key={loaded.requestKey}
+        trace={loaded.state.trace}
+        units={units}
+        fromOriginal={status === 'original'}
+      />
+    )
+  }
+  if (status === 'loading') {
+    return (
+      <WorkbenchSection>
         <p className="secondary" role="status">
           Loading recorded details.
         </p>
-      </section>
+      </WorkbenchSection>
     )
   }
-  if (!trace) {
-    const failed = loaded.state.status === 'failed'
-    const originalAvailable = loaded.state.status === 'originalAvailable'
-    return (
-      <section className="section activity-workbench" aria-labelledby="activity-workbench-heading">
-        <h2 id="activity-workbench-heading">Activity workbench</h2>
-        <p className="secondary" role={failed ? 'alert' : 'status'}>
-          {failed
-            ? 'The activity details could not be loaded. Try again.'
-            : originalAvailable
-              ? 'Detailed readings are not cached on this device. The saved original can be read on request.'
-              : 'Detailed readings are not cached on this device, and no original file is available. Re-add the source file to rebuild them.'}
-        </p>
-        <p className="muted">Detailed readings stay on this device.</p>
-        <div className="activity-workbench__actions">
-          {failed ? (
-            <button className="btn" type="button" onClick={loaded.retry}>
-              Try again
-            </button>
-          ) : (
-            originalAvailable && (
-              <button className="btn" type="button" onClick={loaded.readOriginal}>
-                Read original file
-              </button>
-            )
-          )}
-        </div>
-      </section>
-    )
-  }
-
   return (
-    <ReadyWorkbench
-      key={loaded.requestKey}
-      trace={trace}
-      units={units}
-      fromOriginal={loaded.state.status === 'original'}
-    />
+    <WorkbenchSection>
+      <p className="secondary" role={status === 'failed' ? 'alert' : 'status'}>
+        {status === 'failed'
+          ? 'The recorded details could not be loaded.'
+          : status === 'originalAvailable'
+            ? 'This browser has no detailed readings for this activity. They can be read from the saved original file.'
+            : 'This browser has no detailed readings for this activity and no original file is saved. Re-add the source file to see them.'}
+      </p>
+      {status === 'failed' && (
+        <div className="activity-workbench__actions">
+          <button className="btn" type="button" onClick={loaded.retry}>
+            Try again
+          </button>
+        </div>
+      )}
+      {status === 'originalAvailable' && (
+        <div className="activity-workbench__actions">
+          <button className="btn" type="button" onClick={loaded.readOriginal}>
+            Read original file
+          </button>
+        </div>
+      )}
+    </WorkbenchSection>
   )
 }
 
@@ -154,27 +152,32 @@ function ReadyWorkbench({
   units: UnitSystem
   fromOriginal: boolean
 }) {
-  const available = METRIC_ORDER.filter((metric) => channelAvailable(trace, metric))
-  const [visible, setVisible] = useState<TraceMetric[]>(available)
-  const [startS, setStartS] = useState(0)
-  const [endS, setEndS] = useState(Math.max(1, trace.durationS))
+  const available = useMemo(
+    () => METRIC_ORDER.filter((metric) => channelAvailable(trace, metric)),
+    [trace],
+  )
+  const max = Math.floor(trace.durationS)
+  const [visible, setVisible] = useState<TraceMetric[]>(() =>
+    available.filter((metric) => DEFAULT_METRICS.includes(metric)),
+  )
+  const [chosen, setChosen] = useState<Selection>({ startS: 0, endS: max })
+
+  // An empty recording has no seconds to select, so none of the selection is drawn.
+  if (max < 1)
+    return (
+      <WorkbenchSection sport={trace.sport}>
+        <p className="secondary">No detailed measures were recorded for this activity.</p>
+      </WorkbenchSection>
+    )
+  const selection = clampSelection(chosen, max)
 
   return (
-    <section
-      className="section activity-workbench"
-      data-sport={trace.sport}
-      aria-labelledby="activity-workbench-heading"
-    >
-      <h2 id="activity-workbench-heading">Activity workbench</h2>
-      <p className="muted">Detailed readings stay on this device.</p>
-      {fromOriginal && <p className="muted">Read from the original file.</p>}
-      <TimeSelection
-        trace={trace}
-        startS={startS}
-        endS={endS}
-        onStart={setStartS}
-        onEnd={setEndS}
-      />
+    <WorkbenchSection sport={trace.sport}>
+      <p className="muted">
+        Detailed readings stay on this device.
+        {fromOriginal && ' Read from the original file.'}
+      </p>
+      <TimeSelection max={max} selection={selection} onChange={setChosen} />
       <MetricControls
         trace={trace}
         units={units}
@@ -182,15 +185,7 @@ function ReadyWorkbench({
         visible={visible}
         onChange={setVisible}
       />
-      <LapChoices
-        trace={trace}
-        startS={startS}
-        endS={endS}
-        onSelect={(lap) => {
-          setStartS(lap.startS)
-          setEndS(lap.endS)
-        }}
-      />
+      <LapChoices trace={trace} max={max} selection={selection} onSelect={setChosen} />
       {visible.length > 0 ? (
         <div className="activity-workbench__plots">
           {visible.map((metric) => (
@@ -199,101 +194,17 @@ function ReadyWorkbench({
               trace={trace}
               metric={metric}
               units={units}
-              startS={startS}
-              endS={endS}
+              startS={selection.startS}
+              endS={selection.endS}
             />
           ))}
         </div>
       ) : (
-        <p className="secondary">Choose a recorded measure to show its timeline.</p>
+        <p className="secondary">Choose a measure to see it over time.</p>
       )}
-      <SelectionStats trace={trace} startS={startS} endS={endS} units={units} />
-      <p className="muted">
-        Times are elapsed seconds from the start. Each measure uses the same selected interval.
-      </p>
-    </section>
+      <SelectionStats trace={trace} startS={selection.startS} endS={selection.endS} units={units} />
+    </WorkbenchSection>
   )
-}
-
-function TimeSelection({
-  trace,
-  startS,
-  endS,
-  onStart,
-  onEnd,
-}: {
-  trace: ActivityTrace
-  startS: number
-  endS: number
-  onStart: (value: number) => void
-  onEnd: (value: number) => void
-}) {
-  const max = Math.max(1, Math.floor(trace.durationS))
-  const start = Math.max(0, Math.min(startS, max - 1))
-  const end = Math.max(start + 1, Math.min(endS, max))
-  const setStart = (value: number) => onStart(integerInBounds(value, 0, end - 1, start))
-  const setEnd = (value: number) => onEnd(integerInBounds(value, start + 1, max, end))
-  return (
-    <fieldset className="activity-workbench__selection">
-      <legend>Selected interval</legend>
-      <div className="activity-workbench__range">
-        <label>
-          Start time
-          <span className="activity-workbench__input-row">
-            <input
-              type="range"
-              min={0}
-              max={max - 1}
-              value={start}
-              aria-label="Selected interval start time"
-              onChange={(event) => setStart(event.currentTarget.valueAsNumber)}
-            />
-            <input
-              type="number"
-              min={0}
-              max={end - 1}
-              step={1}
-              value={start}
-              aria-label="Selected interval start time in seconds"
-              onChange={(event) => setStart(event.currentTarget.valueAsNumber)}
-            />{' '}
-            <span>seconds</span>
-          </span>
-        </label>
-        <label>
-          End time
-          <span className="activity-workbench__input-row">
-            <input
-              type="range"
-              min={start + 1}
-              max={max}
-              value={end}
-              aria-label="Selected interval end time"
-              onChange={(event) => setEnd(event.currentTarget.valueAsNumber)}
-            />
-            <input
-              type="number"
-              min={start + 1}
-              max={max}
-              step={1}
-              value={end}
-              aria-label="Selected interval end time in seconds"
-              onChange={(event) => setEnd(event.currentTarget.valueAsNumber)}
-            />{' '}
-            <span>seconds</span>
-          </span>
-        </label>
-      </div>
-      <p className="muted">
-        {formatTotalTime(start)}–{formatTotalTime(end)} selected
-      </p>
-    </fieldset>
-  )
-}
-
-function integerInBounds(value: number, min: number, max: number, fallback: number): number {
-  if (!Number.isFinite(value)) return fallback
-  return Math.max(min, Math.min(Math.round(value), max))
 }
 
 function MetricControls({
@@ -313,19 +224,18 @@ function MetricControls({
     return <p className="secondary">No detailed measures were recorded for this activity.</p>
   return (
     <fieldset className="activity-workbench__metrics">
-      <legend>Measures to plot</legend>
+      <legend>Measures shown</legend>
       {available.map((metric) => (
         <label key={metric}>
           <input
             type="checkbox"
             checked={visible.includes(metric)}
-            onChange={(event) =>
-              onChange(
-                event.currentTarget.checked
-                  ? [...visible, metric]
-                  : visible.filter((item) => item !== metric),
-              )
-            }
+            onChange={(event) => {
+              const next = new Set(visible)
+              if (event.currentTarget.checked) next.add(metric)
+              else next.delete(metric)
+              onChange(METRIC_ORDER.filter((item) => next.has(item)))
+            }}
           />
           {metricLabel(metric, trace.sport)}{' '}
           <span className="muted">
@@ -333,52 +243,9 @@ function MetricControls({
           </span>
         </label>
       ))}
-      {available.includes('cadence') && trace.cadenceUnit === 'unknown' && (
-        <p className="muted">The source did not identify cadence units.</p>
+      {visible.includes('cadence') && trace.cadenceUnit === 'unknown' && (
+        <p className="muted">This file does not say whether cadence counts steps or revolutions.</p>
       )}
     </fieldset>
-  )
-}
-
-function LapChoices({
-  trace,
-  startS,
-  endS,
-  onSelect,
-}: {
-  trace: ActivityTrace
-  startS: number
-  endS: number
-  onSelect: (lap: ActivityLap) => void
-}) {
-  const laps = trace.laps.length > 0 ? trace.laps : detectIntervals(trace)
-  if (laps.length === 0) return null
-  const recorded = trace.laps.length > 0
-  return (
-    <div className="activity-workbench__laps">
-      <h3>{recorded ? 'Recorded laps' : 'Interval suggestions'}</h3>
-      {!recorded && (
-        <p className="muted">
-          These are time ranges from the recording. They are not workout classifications.
-        </p>
-      )}
-      <div className="activity-workbench__lap-buttons">
-        {laps.map((lap, index) => {
-          const active = startS === lap.startS && endS === lap.endS
-          const label = lap.label ?? `${recorded ? 'Lap' : 'Interval'} ${index + 1}`
-          return (
-            <button
-              key={`${lap.startS}-${lap.endS}-${lap.label ?? label}`}
-              className={active ? 'btn activity-workbench__lap--active' : 'btn'}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onSelect(lap)}
-            >
-              {label} · {formatTotalTime(lap.endS - lap.startS)}
-            </button>
-          )
-        })}
-      </div>
-    </div>
   )
 }

@@ -175,12 +175,7 @@ export function ActivityPage({
 
       <ActivityStats activity={activity} units={units} />
       {loadTrace && (
-        <ActivityWorkbench
-          key={activity.id}
-          activityId={activity.id}
-          units={units}
-          loadTrace={loadTrace}
-        />
+        <ActivityWorkbench activityId={activity.id} units={units} loadTrace={loadTrace} />
       )}
       {activity.powerSource === 'virtual' && (
         <p className="secondary">

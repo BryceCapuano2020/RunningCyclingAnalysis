@@ -1,159 +1,276 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { ActivityTrace } from '@rca/core/workbench'
-import type { ActivityTraceReply } from '../../worker/workbench'
+import type { ActivityTraceReply } from '../../worker/protocol'
 import { ActivityWorkbench } from './ActivityWorkbench'
-import { downsampleActivityTrace } from './workbenchDownsample'
-import { displayValue, metricUnit } from './workbenchFormat'
+import { runTrace, steadyTrace } from './workbenchFixtures'
 
-function trace(): ActivityTrace {
-  return {
-    version: 1,
-    activityId: 'run-1',
-    sport: 'run',
-    durationS: 10,
-    distance: Float64Array.from([0, 3, 6, 9, 12, 15, 18, 21, 24, 27]),
-    paused: Uint8Array.from([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]),
-    unrecorded: Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
-    streams: {
-      speed: Float32Array.from([3, 3, 3.1, 3.2, 3.1, 3, 3.2, 3.3, Number.NaN, 3.1]),
-      heartRate: Float32Array.from([120, 121, 122, 123, 124, 125, 126, 127, 128, 129]),
-      cadence: Float32Array.from([170, 171, 172, 173, 174, 175, 176, 177, 178, 179]),
-    },
-    laps: [{ startS: 2, endS: 6, label: 'Recorded lap' }],
-  }
+function show(trace: ActivityTrace, units: 'metric' | 'imperial' = 'metric') {
+  return render(
+    <ActivityWorkbench
+      activityId={trace.activityId}
+      units={units}
+      loadTrace={async () => ({ kind: 'trace', trace })}
+    />,
+  )
+}
+
+function field(name: string) {
+  return screen.findByRole('textbox', { name })
 }
 
 describe('ActivityWorkbench', () => {
-  it('loads synchronized measures and updates the interval summary from keyboard controls', async () => {
+  it('shows pace, heart rate and power first and keeps the rest to choose', async () => {
     const user = userEvent.setup()
     const loadTrace = vi.fn(
-      async () => ({ kind: 'trace', trace: trace() }) satisfies ActivityTraceReply,
+      async () => ({ kind: 'trace', trace: runTrace() }) satisfies ActivityTraceReply,
     )
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading recorded details.')
-    const recordedLap = await screen.findByRole('button', { name: /Recorded lap/ })
-    expect(
-      await screen.findByRole('img', { name: 'Pace during selected moving time' }),
-    ).toBeInTheDocument()
-    expect(
-      await screen.findByRole('img', { name: 'Heart rate during selected moving time' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('table', { name: /measure statistics during moving time/i }),
-    ).toBeInTheDocument()
-    expect(
-      await screen.findByText(/Observed moving range: 5:03 \/km to 5:33 \/km/),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /Cadence \(steps\/min\)/ })).toBeInTheDocument()
-    expect(screen.getByText('Paused time')).toBeInTheDocument()
-    expect(screen.getByText('Unrecorded time')).toBeInTheDocument()
-    expect(screen.getByText('Paused time').parentElement).toHaveTextContent('1 s')
+    expect(await screen.findByRole('figure', { name: /^Pace/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'In detail' })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /^Heart rate/ })).toBeInTheDocument()
+    expect(screen.queryByRole('figure', { name: /^Cadence/ })).not.toBeInTheDocument()
+    const cadence = screen.getByRole('checkbox', { name: /Cadence \(steps\/min\)/ })
+    expect(cadence).not.toBeChecked()
+
+    await user.click(cadence)
+    expect(screen.getByRole('figure', { name: /^Cadence/ })).toBeInTheDocument()
+    // Choosing a measure back on keeps the list's order, not the order of the clicks.
+    await user.click(screen.getByRole('checkbox', { name: /^Pace/ }))
+    await user.click(screen.getByRole('checkbox', { name: /^Pace/ }))
+    const names = screen.getAllByRole('figure').map((figure) => figure.textContent?.split(' (')[0])
+    expect(names).toEqual(['Pace', 'Heart rate', 'Cadence'])
+  })
+
+  it('names each plot once and labels its value range', async () => {
+    show(runTrace())
+    const figure = await screen.findByRole('figure', { name: /^Pace/ })
+    const plot = within(figure).getByRole('img', { name: /^Pace from 0:00 to 0:10/ })
+    expect(plot).toHaveAccessibleName('Pace from 0:00 to 0:10, between 5:03 /km and 5:33 /km')
+    expect(plot.querySelector('title')).toBeNull()
+    expect(figure).toHaveTextContent('5:03 /km')
+    expect(figure).toHaveTextContent('5:33 /km')
+    expect(within(figure).getByText('View as table')).toBeInTheDocument()
+  })
+
+  it('states paused and unrecorded time only when there is some', async () => {
+    const view = show(runTrace())
+    expect((await screen.findByText('Paused time')).parentElement).toHaveTextContent('1 s')
     expect(screen.getByText('Unrecorded time').parentElement).toHaveTextContent('1 s')
-    await user.click(screen.getByText('Observed moving distribution for pace'))
-    expect(screen.getByRole('row', { name: /No valid value while moving 1/ })).toBeInTheDocument()
+    expect(screen.getByText('Moving time').parentElement).toHaveTextContent('8 s')
+    view.unmount()
 
-    recordedLap.focus()
-    await user.keyboard('{Enter}')
-    await waitFor(() => expect(screen.getByText(/2 s.*6 s selected/)).toBeInTheDocument())
-    expect(recordedLap).toHaveAttribute('aria-pressed', 'true')
+    show(steadyTrace(120))
+    await screen.findByText('Elapsed time')
+    expect(screen.queryByText('Paused time')).not.toBeInTheDocument()
+    expect(screen.queryByText('Unrecorded time')).not.toBeInTheDocument()
+    expect(screen.queryByText('Moving time')).not.toBeInTheDocument()
   })
 
-  it('labels run and ride cadence in their normalized units', () => {
-    expect(metricUnit('cadence', 'run', 'metric')).toBe('steps/min')
-    expect(metricUnit('cadence', 'ride', 'metric')).toBe('rev/min')
-    expect(metricUnit('cadence', 'run', 'metric', 'unknown')).toBe('counts/min')
-    expect(displayValue('cadence', 176.4, 'run', 'metric', 'unknown')).toBe('176 counts/min')
-  })
-
-  it('rounds fractional time bounds and safely ignores non-finite numeric input', async () => {
-    render(
-      <ActivityWorkbench
-        activityId="run-1"
-        units="metric"
-        loadTrace={async () => ({ kind: 'trace', trace: trace() })}
-      />,
-    )
-    const start = await screen.findByRole('spinbutton', {
-      name: 'Selected interval start time in seconds',
+  it('lists measures in plain words, and says None in this interval for one with no reading', async () => {
+    const trace = runTrace()
+    trace.streams.cadence = new Float32Array(10).fill(Number.NaN)
+    show(trace)
+    const table = await screen.findByRole('table', {
+      name: /while moving in the selected interval/i,
     })
-    const end = screen.getByRole('spinbutton', { name: 'Selected interval end time in seconds' })
-    fireEvent.change(start, { target: { value: '1.5' } })
-    expect(await screen.findByText('2 s–10 s selected')).toBeInTheDocument()
-    fireEvent.change(end, { target: { value: '8.5' } })
-    expect(await screen.findByText('2 s–9 s selected')).toBeInTheDocument()
-    fireEvent.change(start, { target: { value: '' } })
-    expect(screen.getByText('2 s–9 s selected')).toBeInTheDocument()
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Measure', 'Average', 'Lowest', 'Highest', 'Seconds'])
+    const cadence = within(table).getByRole('row', { name: /^Cadence/ })
+    expect(cadence).toHaveTextContent('None in this interval')
+    expect(screen.queryByText(/Not recorded/)).not.toBeInTheDocument()
   })
 
-  it('keeps multi-gap buckets disconnected while bounding plotted points', () => {
-    const stream = new Float32Array(10_000).fill(2)
-    const item = trace()
-    item.durationS = stream.length
-    item.distance = new Float64Array(stream.length).fill(1)
-    item.paused = new Uint8Array(stream.length)
-    item.unrecorded = new Uint8Array(stream.length)
-    item.streams.speed = stream
-    // The first ~118-sample bucket contains several short valid runs. It must
-    // collapse to a gap, not connect the observations across missing spans.
-    for (const index of [10, 12, 14, 16, 18, 20]) stream[index] = Number.NaN
-    const points = downsampleActivityTrace(item, 'speed', 0, stream.length, 600)
-    const firstBucket = points.filter((point) => point.timeS < 118)
-    expect(firstBucket).toHaveLength(1)
-    expect(Number.isNaN(firstBucket[0]?.value)).toBe(true)
-    expect(points.length).toBeLessThanOrEqual(600)
-    expect(points.some((point) => point.timeS > 118 && Number.isFinite(point.value))).toBe(true)
+  it('reads a lap as a named, marked selection and moves the interval to it', async () => {
+    const user = userEvent.setup()
+    show(runTrace())
+    const lap = await screen.findByRole('button', { name: 'Lap 1 · from 0:02 · 4 s' })
+    expect(lap).toHaveAttribute('aria-pressed', 'false')
+    await user.click(lap)
+    expect(lap).toHaveAttribute('aria-pressed', 'true')
+    expect(lap).toHaveClass('activity-workbench__lap--active')
+    expect(await field('Start time')).toHaveValue('0:02')
+    expect(await field('End time')).toHaveValue('0:06')
+    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('4 s')
   })
 
-  it('excludes implausible source outliers from plotted observations', () => {
-    const item = trace()
-    item.streams.heartRate = Float32Array.from([120, 121, 122, 123, 999, 125, 126, 127, 128, 129])
-    const points = downsampleActivityTrace(item, 'heartRate', 0, item.durationS, 600)
-    expect(points.some((point) => point.value === 999)).toBe(false)
-    expect(points.some((point) => Number.isNaN(point.value))).toBe(true)
-  })
-
-  it('uses generic cadence units and explains when the source unit is unknown', async () => {
-    const unknown = trace()
-    unknown.cadenceUnit = 'unknown'
-    render(
-      <ActivityWorkbench
-        activityId="run-1"
-        units="metric"
-        loadTrace={async () => ({ kind: 'trace', trace: unknown })}
-      />,
+  it('names suggested intervals by number and start instead of repeating one label', async () => {
+    const trace = steadyTrace(400)
+    trace.streams.power = Float32Array.from({ length: 400 }, (_, index) =>
+      Math.floor(index / 100) % 2 === 1 ? 300 : 100,
     )
+    show(trace)
+    expect(await screen.findByRole('heading', { name: 'Suggested intervals' })).toBeInTheDocument()
+    const buttons = screen.getAllByRole('button', { name: /^Interval \d+ · from / })
+    expect(buttons.length).toBeGreaterThan(1)
+    expect(buttons[0]).toHaveAccessibleName(/^Interval 1 · from \d+:\d{2} · /)
+    expect(buttons[1]).toHaveAccessibleName(/^Interval 2 · from \d+:\d{2} · /)
+    expect(screen.queryByText(/Inferred interval/)).not.toBeInTheDocument()
+  })
+
+  it('does not snap a time while it is typed, and commits it on Enter', async () => {
+    const user = userEvent.setup()
+    show(steadyTrace(610))
+    const end = await field('End time')
+    const start = await field('Start time')
+    await user.clear(start)
+    await user.type(start, '1:00{Enter}')
+    expect(start).toHaveValue('1:00')
+
+    await user.clear(end)
+    await user.type(end, '9')
+    expect(end).toHaveValue('9')
+    await user.type(end, '0')
+    expect(end).toHaveValue('90')
+    await user.keyboard('{Enter}')
+    expect(end).toHaveValue('1:30')
+    expect(screen.getByRole('slider', { name: 'End time slider' })).toHaveAttribute(
+      'aria-valuetext',
+      '1 min 30 s',
+    )
+    expect(screen.getByText('Elapsed time').parentElement).toHaveTextContent('30 s')
+  })
+
+  it('refuses a time outside the interval and restores the last one on leaving', async () => {
+    const user = userEvent.setup()
+    show(steadyTrace(610))
+    const end = await field('End time')
+    await user.clear(end)
+    await user.type(end, '99:00{Enter}')
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a time from 0:01 to 10:10')
+    expect(end).toHaveValue('99:00')
+    await user.tab()
+    expect(end).toHaveValue('10:10')
+    expect(end).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('moves an end with its slider and states the time in words', async () => {
+    show(steadyTrace(610))
+    const slider = await screen.findByRole('slider', { name: 'Start time slider' })
+    fireEvent.change(slider, { target: { value: '700' } })
+    // The start stops one second short of the end, at 10:10.
+    expect(slider).toHaveAttribute('aria-valuetext', '10 min 9 s')
+    expect(await field('Start time')).toHaveValue('10:09')
+  })
+
+  it('shows an empty recording as having no detailed measures instead of failing', async () => {
+    const empty = steadyTrace(0)
+    empty.streams = {}
+    show(empty)
     expect(
-      await screen.findByRole('checkbox', { name: /Cadence \(counts\/min\)/ }),
+      await screen.findByText('No detailed measures were recorded for this activity.'),
     ).toBeInTheDocument()
-    expect(screen.getByText('The source did not identify cadence units.')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('leaves out a run’s standing seconds from its pace and says they had no reading', async () => {
+    const trace = steadyTrace(60, 3)
+    trace.streams.speed!.fill(0.05, 0, 12)
+    trace.streams.speed![30] = 3.3
+    show(trace)
+    const table = await screen.findByRole('table', {
+      name: /while moving in the selected interval/i,
+    })
+    const pace = within(table).getByRole('row', { name: /^Pace/ })
+    expect(pace).toHaveTextContent('5:03 /km')
+    expect(pace).not.toHaveTextContent('—')
+    expect(pace).toHaveTextContent(/48$/)
     expect(
-      await screen.findByRole('img', { name: 'Cadence during selected moving time' }),
+      await screen.findByText('Stopped or no reading for 12 s of moving time.'),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: /^Time at each pace, from 5:03 \/km to 5:33 \/km/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('orders a run’s pace bins from fastest to slowest and a ride’s speed from lowest to highest', async () => {
+    const run = steadyTrace(100, 3)
+    run.streams.speed = Float32Array.from({ length: 100 }, (_, index) => 2.5 + index / 100)
+    const view = show(run)
+    const histogram = await screen.findByRole('img', { name: /^Time at each pace/ })
+    const [fastest, slowest] = [/from (\d+:\d+)/, /to (\d+:\d+)/].map(
+      (pattern) => pattern.exec(histogram.getAttribute('aria-label') ?? '')?.[1],
+    )
+    expect(Number(fastest?.replace(':', ''))).toBeLessThan(Number(slowest?.replace(':', '')))
+    view.unmount()
+
+    const ride = steadyTrace(100, 8)
+    ride.activityId = 'ride-1'
+    ride.sport = 'ride'
+    ride.streams.speed = Float32Array.from({ length: 100 }, (_, index) => 5 + index / 20)
+    show(ride)
+    expect(
+      await screen.findByRole('img', {
+        name: /^Time at each speed, from 18\.0 km\/h to 35\.8 km\/h/,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('draws a distribution only for pace, heart rate, power and cadence', async () => {
+    const user = userEvent.setup()
+    const trace = runTrace()
+    trace.streams.altitude = Float32Array.from({ length: 10 }, (_, index) => 100 + index)
+    show(trace)
+    await user.click(await screen.findByRole('checkbox', { name: /^Elevation/ }))
+    const figure = screen.getByRole('figure', { name: /^Elevation/ })
+    expect(within(figure).queryByRole('img', { name: /^Time at each/ })).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole('figure', { name: /^Heart rate/ })).getByRole('img', {
+        name: /^Time at each heart rate/,
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('says once that readings stay on this device, and keeps the hedging lines out', async () => {
+    show(runTrace())
+    await screen.findByRole('figure', { name: /^Pace/ })
+    expect(screen.getAllByText(/Detailed readings stay on this device/)).toHaveLength(1)
+    expect(screen.queryByText(/classifications/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Times are elapsed seconds/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Observed moving/)).not.toBeInTheDocument()
+  })
+
+  it('states the unknown cadence unit in one line once cadence is shown', async () => {
+    const user = userEvent.setup()
+    const unknown = runTrace()
+    unknown.cadenceUnit = 'unknown'
+    show(unknown)
+    const cadence = await screen.findByRole('checkbox', { name: /Cadence \(counts\/min\)/ })
+    expect(screen.queryByText(/cadence counts steps or revolutions/)).not.toBeInTheDocument()
+    await user.click(cadence)
+    expect(
+      screen.getByText('This file does not say whether cadence counts steps or revolutions.'),
+    ).toBeInTheDocument()
+    expect(await screen.findByRole('figure', { name: /^Cadence/ })).toBeInTheDocument()
   })
 
   it('offers an explicit original read only when the worker reports one is available', async () => {
     const user = userEvent.setup()
     const loadTrace = vi.fn(
       async (_id: string, fromOriginal?: boolean): Promise<ActivityTraceReply> =>
-        fromOriginal ? { kind: 'trace', trace: trace() } : { kind: 'original' },
+        fromOriginal ? { kind: 'trace', trace: runTrace() } : { kind: 'original' },
     )
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
 
-    const read = await screen.findByRole('button', { name: 'Read original file' })
-    await user.click(read)
+    await user.click(await screen.findByRole('button', { name: 'Read original file' }))
     await waitFor(() => expect(loadTrace).toHaveBeenLastCalledWith('run-1', true))
-    expect(await screen.findByText('Read from the original file.')).toBeInTheDocument()
+    expect(await screen.findByText(/Read from the original file/)).toBeInTheDocument()
   })
 
   it('explains when details are unavailable and offers retry after a source failure', async () => {
     const loadTrace = vi.fn(async () => ({ kind: 'missing' }) satisfies ActivityTraceReply)
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
-    expect(await screen.findByText(/no original file is available/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Read original file' })).not.toBeInTheDocument()
+    expect(await screen.findByText(/no original file is saved/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
 
     const failed = vi.fn(async () => ({ kind: 'failed' }) satisfies ActivityTraceReply)
     const view = render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={failed} />)

@@ -1,18 +1,11 @@
-import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
-import { summarizeSelection } from '@rca/core/workbench'
+import type { ActivityTrace } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDistance, formatTotalTime } from '@rca/core/units'
-import { displayValue, metricLabel } from './workbenchFormat'
-import { ScrollableTableRegion } from './ScrollableTableRegion'
+import { ChartTable } from '../charts/ChartTable'
+import { selectionOf } from './workbenchData'
+import { METRIC_ORDER, displayValue, metricLabel, readingRange } from './workbenchFormat'
 
-const METRIC_ORDER: TraceMetric[] = [
-  'speed',
-  'power',
-  'heartRate',
-  'cadence',
-  'altitude',
-  'temperature',
-]
+const NONE = 'None in this interval'
 
 export function SelectionStats({
   trace,
@@ -25,74 +18,56 @@ export function SelectionStats({
   endS: number
   units: UnitSystem
 }) {
-  const summary = summarizeSelection(trace, startS, endS)
-  const distance =
+  const summary = selectionOf(trace, startS, endS)
+  const paused = summary.recordedS - summary.movingS
+  const unrecorded = summary.elapsedS - summary.recordedS
+  const tiles: [label: string, value: string][] = [
+    ['Elapsed time', formatTotalTime(summary.elapsedS)],
+  ]
+  // Moving time is shown only where it differs from elapsed time, and a gap or pause only where there is one.
+  if (paused > 0 || unrecorded > 0) tiles.push(['Moving time', formatTotalTime(summary.movingS)])
+  if (paused > 0) tiles.push(['Paused time', formatTotalTime(paused)])
+  if (unrecorded > 0) tiles.push(['Unrecorded time', formatTotalTime(unrecorded)])
+  tiles.push([
+    'Distance',
     summary.distanceM === null
       ? 'Not available across an unrecorded gap'
-      : formatDistance(summary.distanceM, units)
+      : formatDistance(summary.distanceM, units),
+  ])
+  const rows = METRIC_ORDER.flatMap((metric) => {
+    const stats = summary.metrics[metric]
+    if (!stats) return []
+    const text = (value: number) =>
+      displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
+    if (stats.mean === null || stats.min === null || stats.max === null)
+      return [[metricLabel(metric, trace.sport), NONE, NONE, NONE, '0']]
+    const { lowest, highest } = readingRange(metric, trace.sport, stats.min, stats.max)
+    return [
+      [
+        metricLabel(metric, trace.sport),
+        text(stats.mean),
+        text(lowest),
+        text(highest),
+        `${stats.seconds}`,
+      ],
+    ]
+  })
   return (
     <div className="activity-workbench__stats">
-      <h3>Selected interval summary</h3>
+      <h3>Interval summary</h3>
       <dl className="activity-workbench__summary">
-        <div>
-          <dt>Elapsed time</dt>
-          <dd>{formatTotalTime(summary.elapsedS)}</dd>
-        </div>
-        <div>
-          <dt>Moving time</dt>
-          <dd>{formatTotalTime(summary.movingS)}</dd>
-        </div>
-        <div>
-          <dt>Recorded time</dt>
-          <dd>{formatTotalTime(summary.recordedS)}</dd>
-        </div>
-        <div>
-          <dt>Paused time</dt>
-          <dd>{formatTotalTime(summary.recordedS - summary.movingS)}</dd>
-        </div>
-        <div>
-          <dt>Unrecorded time</dt>
-          <dd>{formatTotalTime(summary.elapsedS - summary.recordedS)}</dd>
-        </div>
-        <div>
-          <dt>Distance</dt>
-          <dd>{distance}</dd>
-        </div>
+        {tiles.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
       </dl>
-      <ScrollableTableRegion label="Selected interval moving measure statistics">
-        <table>
-          <caption>Measure statistics during moving time in the selected interval</caption>
-          <thead>
-            <tr>
-              <th scope="col">Measure</th>
-              <th scope="col">Mean while moving</th>
-              <th scope="col">Minimum while moving</th>
-              <th scope="col">Maximum while moving</th>
-              <th scope="col">Moving seconds with a reading</th>
-            </tr>
-          </thead>
-          <tbody>
-            {METRIC_ORDER.filter((metric) => summary.metrics[metric]).map((metric) => {
-              const stats = summary.metrics[metric]
-              if (!stats) return null
-              const missing = 'Not recorded'
-              const format = (value: number | null) =>
-                value === null
-                  ? missing
-                  : displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
-              return (
-                <tr key={metric}>
-                  <th scope="row">{metricLabel(metric, trace.sport)}</th>
-                  <td>{format(stats.mean)}</td>
-                  <td>{format(stats.min)}</td>
-                  <td>{format(stats.max)}</td>
-                  <td>{stats.seconds}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </ScrollableTableRegion>
+      <ChartTable
+        caption="While moving in the selected interval. Seconds is the time with a reading."
+        columns={['Measure', 'Average', 'Lowest', 'Highest', 'Seconds']}
+        rows={rows}
+      />
     </div>
   )
 }

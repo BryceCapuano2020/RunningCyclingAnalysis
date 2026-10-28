@@ -19,7 +19,7 @@ import {
 async function openFirstActivity(page: Page) {
   const rows = await activitiesRows(page)
   await rows.first().getByRole('link').click()
-  return page.getByRole('region', { name: 'Activity workbench', exact: true })
+  return page.getByRole('region', { name: 'In detail', exact: true })
 }
 
 async function removeRecordingCache(page: Page) {
@@ -40,22 +40,24 @@ test('an imported activity supports keyboard selection and restores its details 
   await page.goto('/')
   await uploadFixtures(page, ['one-run.tcx'])
   const workbench = await openFirstActivity(page)
-  const start = workbench.getByRole('spinbutton', {
-    name: 'Selected interval start time in seconds',
-  })
-  const end = workbench.getByRole('spinbutton', { name: 'Selected interval end time in seconds' })
+  const start = workbench.getByRole('textbox', { name: 'Start time', exact: true })
+  const end = workbench.getByRole('textbox', { name: 'End time', exact: true })
   await expect(start).toBeVisible()
-  await end.fill('30')
-  await start.fill('10')
-  await expect(workbench.getByText('10 s–30 s selected', { exact: true })).toBeVisible()
-  await start.focus()
-  await page.keyboard.press('ArrowUp')
-  await expect(start).toHaveValue('11')
-  await expect(workbench.getByRole('table', { name: /measure statistics/i })).toBeVisible()
+  await end.fill('0:30')
+  await end.press('Enter')
+  await start.fill('0:10')
+  await start.press('Enter')
+  await expect(workbench.getByText('Elapsed time').locator('..')).toContainText('20 s')
+  await workbench.getByRole('slider', { name: 'Start time slider' }).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(start).toHaveValue('0:11')
+  await expect(
+    workbench.getByRole('table', { name: /while moving in the selected interval/i }),
+  ).toBeVisible()
   await expect(workbench.locator('svg').first()).toBeVisible()
 
   await page.reload()
-  await expect(start).toHaveValue('0')
+  await expect(start).toHaveValue('0:00')
   await expect(workbench.locator('svg').first()).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -74,18 +76,14 @@ test('a legacy summary without detail evidence requests reimport and a duplicate
   await expect(workbench.getByText(/Re-add the source file/)).toBeVisible()
   await uploadFixtures(page, ['one-run.tcx'])
   const restored = await openFirstActivity(page)
-  await expect(
-    restored.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
-  ).toBeVisible()
+  await expect(restored.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   await expect(await activitiesRows(page)).toHaveCount(1)
 })
 
 test('sample details are available without persisting sample recordings', async ({ page }) => {
   await openSample(page)
   const workbench = await openFirstActivity(page)
-  await expect(
-    workbench.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
-  ).toBeVisible()
+  await expect(workbench.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   const saved = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('rca-workbench-evidence', 2)
@@ -142,9 +140,7 @@ test('an account original is read only on request, and account deletion removes 
   await expect(workbench.getByRole('button', { name: 'Read original file' })).toBeVisible()
   expect(downloads).toBe(0)
   await workbench.getByRole('button', { name: 'Read original file' }).click()
-  await expect(
-    workbench.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
-  ).toBeVisible()
+  await expect(workbench.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   expect(downloads).toBe(1)
 
   await goTo(page, 'Profile')
@@ -188,9 +184,7 @@ test('a second account cannot read another account’s cached trace for the same
   await expect.poll(async () => (await apiActivities(page.request)).length, SAVED).toBe(1)
   const [record] = await apiActivities(page.request)
   const first = await openFirstActivity(page)
-  await expect(
-    first.getByRole('spinbutton', { name: 'Selected interval start time in seconds' }),
-  ).toBeVisible()
+  await expect(first.getByRole('textbox', { name: 'Start time', exact: true })).toBeVisible()
   await page.goto('/privacy')
   await signInAs(page.request, uniqueEmail(), 'Workbench second')
   const response = await page.request.post('/api/activities', {
@@ -207,5 +201,5 @@ test('a second account cannot read another account’s cached trace for the same
   await page.goto('/')
   const second = await openFirstActivity(page)
   await expect(second.getByText(/Re-add the source file/)).toBeVisible()
-  await expect(second.getByRole('spinbutton')).toHaveCount(0)
+  await expect(second.getByRole('textbox')).toHaveCount(0)
 })

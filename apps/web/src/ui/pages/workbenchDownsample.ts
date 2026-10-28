@@ -1,78 +1,62 @@
 import { isTraceObservation } from '@rca/core/workbench'
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 
-/** Reduce an elapsed-time stream without joining separate recorded segments. */
+/** One unbroken stretch of readings, drawn as one line. */
+export type PlotRun = { timeS: number; value: number }[]
+
+/** The most missing seconds a line is drawn across. A longer stretch with no reading breaks it. */
+const BRIDGED_GAP_S = 4
+
+/** The readings of each stretch with no real gap in it, found over the selected seconds. */
+function runsOf(trace: ActivityTrace, metric: TraceMetric, from: number, to: number): number[][] {
+  const runs: number[][] = []
+  let run: number[] | undefined
+  let last = Number.NEGATIVE_INFINITY
+  for (let i = from; i < to; i += 1) {
+    if (!isTraceObservation(trace, metric, i)) continue
+    if (run === undefined || i - last > BRIDGED_GAP_S + 1) {
+      run = []
+      runs.push(run)
+    }
+    run.push(i)
+    last = i
+  }
+  return runs
+}
+
+/**
+ * Reduce a stream for drawing. Each stretch of readings keeps its lowest and highest reading in every
+ * bucket, in time order, so a short spike survives and no stretch is dropped, even a single reading.
+ * The line breaks only where readings are missing for longer than BRIDGED_GAP_S seconds.
+ */
 export function downsampleActivityTrace(
   trace: ActivityTrace,
   metric: TraceMetric,
   startS: number,
   endS: number,
   limit: number,
-) {
+): PlotRun[] {
   const stream = trace.streams[metric]
   if (!stream) return []
   const from = Math.max(0, Math.floor(startS))
   const to = Math.min(stream.length, Math.ceil(endS))
-  // Each bucket emits at most two contiguous runs plus boundary separators.
-  // A more fragmented bucket is represented by a gap rather than a line that
-  // could imply readings through one or more missing spans.
-  const buckets = Math.max(1, Math.floor(limit / 7))
-  const bucketSize = Math.max(1, Math.ceil((to - from) / buckets))
-  const points: { timeS: number; value: number }[] = []
-  for (let left = from; left < to; left += bucketSize) {
-    const right = Math.min(to, left + bucketSize)
-    const runs: {
-      first: number
-      last: number
-      minIndex: number
-      maxIndex: number
-      min: number
-      max: number
-    }[] = []
-    let run: (typeof runs)[number] | undefined
-    let fragmented = false
-    for (let i = left; i < right; i += 1) {
-      if (!isTraceObservation(trace, metric, i)) {
-        run = undefined
-        continue
+  // A bucket keeps four readings at most: the stretch's edges and its lowest and highest.
+  const bucketSize = Math.max(1, Math.ceil((to - from) / Math.max(1, Math.floor(limit / 4))))
+  return runsOf(trace, metric, from, to).map((indexes) => {
+    const kept = new Set<number>([indexes[0]!, indexes.at(-1)!])
+    for (let at = 0; at < indexes.length;) {
+      const bucket = Math.floor((indexes[at]! - from) / bucketSize)
+      let low = indexes[at]!
+      let high = low
+      while (at < indexes.length && Math.floor((indexes[at]! - from) / bucketSize) === bucket) {
+        const index = indexes[at]!
+        if (stream[index]! < stream[low]!) low = index
+        if (stream[index]! > stream[high]!) high = index
+        at += 1
       }
-      const value = stream[i]!
-      if (!run) {
-        if (runs.length === 2) {
-          fragmented = true
-          continue
-        }
-        run = { first: i, last: i, minIndex: i, maxIndex: i, min: value, max: value }
-        runs.push(run)
-      } else {
-        run.last = i
-        if (value < run.min) {
-          run.min = value
-          run.minIndex = i
-        }
-        if (value > run.max) {
-          run.max = value
-          run.maxIndex = i
-        }
-      }
+      kept.add(low)
+      kept.add(high)
     }
-    if (fragmented || runs.length === 0) {
-      points.push({ timeS: left + Math.floor((right - left) / 2), value: Number.NaN })
-      continue
-    }
-    if (runs[0]!.first > left) points.push({ timeS: left, value: Number.NaN })
-    runs.forEach((segment, index) => {
-      const indexes = [...new Set([segment.minIndex, segment.maxIndex])].sort((a, b) => a - b)
-      for (const sampleIndex of indexes)
-        points.push({ timeS: sampleIndex, value: stream[sampleIndex] ?? Number.NaN })
-      if (index < runs.length - 1) {
-        points.push({
-          timeS: segment.last + Math.floor((runs[index + 1]!.first - segment.last) / 2),
-          value: Number.NaN,
-        })
-      }
-    })
-    if (runs.at(-1)!.last < right - 1) points.push({ timeS: right - 1, value: Number.NaN })
-  }
-  return points.slice(0, limit)
+    return [...kept].sort((a, b) => a - b).map((index) => ({ timeS: index, value: stream[index]! }))
+  })
 }
