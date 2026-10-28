@@ -209,6 +209,14 @@ describe('serializeDigest and parseDigest', () => {
     )
   })
 
+  it('rejects an infinite number, which JSON reads from 1e999', () => {
+    const o = JSON.parse(serializeDigest(digests[0]!)) as Record<string, unknown>
+    // JSON.stringify would write Infinity as null, so the sentinel is swapped for the literal after.
+    const json = JSON.stringify({ ...o, distanceM: 'SENTINEL' }).replace('"SENTINEL"', '1e999')
+    expect(json).toContain('"distanceM":1e999')
+    expect(() => parseDigest(json)).toThrow(/distanceM must be a number or null/)
+  })
+
   it('rejects a bad curve point', () => {
     expect(() =>
       parseDigest(

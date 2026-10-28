@@ -61,10 +61,10 @@ function asFinite(value: unknown, path: string): number {
   return value
 }
 
-/** A number that may be NaN, which is written as null. */
+/** A finite number, or null where the value was NaN. Infinity is rejected. */
 function asNumberOrNaN(value: unknown, path: string): number {
   if (value === null) return NaN
-  if (typeof value !== 'number') fail(path, 'must be a number or null')
+  if (typeof value !== 'number' || !Number.isFinite(value)) fail(path, 'must be a number or null')
   return value
 }
 
