@@ -322,7 +322,7 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   (the same grade line as the card), then the period control, then the sport's sections in the order its list
   gives (`SPORT_SECTIONS` in `apps/web/src/ui/pages/sportSections.tsx`, one list per sport, so a sport adds or
   drops a section there and the page maps it). The run's list is **Best efforts**, **Race predictions**,
-  **Week by week**, **At the same heart rate** and **Late in long sessions**; the ride's is the same without the race predictions.
+  **Week by week**, **At the same heart rate**, **Late in long sessions** and **Time in zones**; the ride's is the same without the race predictions.
   - **Best efforts** holds a line of recent form ("Last run 14 Jan · 9 runs · 42.10 km"), the records, with the
     Flat note under them on a run, and then, directly under the list, the best-effort curve in the sport's unit. It has no
     section heading of its own, because it is the records' chart; the chart's own title ("Run flat pace per
@@ -1036,3 +1036,44 @@ scheme in a muted line under it. Ranges are whole numbers that do not repeat a s
 the section says zones appear once there are files or an entered setting. The schemes are in
 [research/zones.md](research/zones.md). `zonesAt` in `packages/core/src/zones` is the one place they are
 built, and `AnalysisSession.zonesAt(date, settings)` answers from the worker's analysis.
+
+## Time in zones
+
+How the time was spread across the training zones above, in one activity's selected interval and over a
+sport's period. The maths is `packages/core/src/zones` (`timeInZones.ts`, `traceZones.ts`, `periodTime.ts`,
+`zoneShares.ts`); the research notes are in [research/zones.md](research/zones.md#5-time-in-zones).
+
+**Activity page, In detail.** Under the interval summary, a **Time in zones** block follows the interval the
+athlete selects: one stacked bar for each of power (rides with a power meter), pace (runs) and heart rate that the interval
+has readings for, a lede for the first of them in that order ("Most of this run was in pace zone 2 (64%).", or
+"This run spent the most time in heart rate zone 3 (38%)." when no zone held half), and **View as table** with
+each zone's name, range, time and share. The zones are those in effect on the activity's day (`zonesAt`), so an
+entered setting that changed since is not applied backwards. Each recorded moving second counts once, in the zone
+of its reading. A ride's estimated power zones wait for the body weight, as on Profile, and a heart rate the
+analysis set aside is not read. With no zones the block says what they need and links to Profile.
+
+**Sport pages.** A **Time in zones** section, last in each sport's list (`SPORT_SECTIONS`): a stacked horizontal bar for
+each measure with enough time (3 activities and an hour, `MIN_ZONE_ACTIVITIES` and `MIN_ZONE_SECONDS`), under one
+lede. The lede reads the measure with the most time. When a zone's share moved by at least 5 points against the
+period before, it says so ("Heart rate zone 2 took 41% of your running time, up from 28% in the previous 6 weeks."),
+and otherwise it gives the easy and hard shares ("60% of your running time by heart rate was easy (zones 1 and 2),
+and 10% was hard (zones 4 and up)."). Easy is zones 1 and 2 and hard is zone 4 and up for every measure
+(`EASY_THROUGH`, `HARD_FROM`). The period before is cut by the same estimated zones as the period on screen, so the two are
+compared in the same zones. Under the bars, a muted line for each measure that left activities out ("2 of 12 runs
+had no heart rate to count.": no distribution in an older digest, no heart rate, no power meter, a heart rate set aside;
+or "had no heart rate zones for their date": data but no reference), and one line on where the zones came from. With too
+little to describe, the section has no heading and "Time in zones: needs 3 activities with heart rate, or a threshold
+pace entered on Profile, and 1 hour of them." joins the "Not enough yet" list.
+
+**Bars.** `ZoneTimeChart` is a `ChartFrame` with one band for each measure: its label, the bar across the full
+width, and a zone number under each segment at least 20 px wide. A segment is the sport's colour (`--sport-colour`) mixed
+with the page colour in equal steps from about a third for the lowest zone to 100% for the highest, edged in the page colour; the order, the
+numbers and the table say which zone is which, so the tint is not the only cue. In forced colours every segment is the
+highlight colour. The figure is named by every bar read as text ("Heart rate: zone 1 12%, zone 2 64%").
+
+**Period maths.** Each activity's digest distribution (seconds per 1 bpm, 5 W or 0.05 m/s bin) is cut by that
+activity's own zones, so a period can hold activities with different zones (a threshold entered during it, or a
+body weight that changed an estimated ride threshold). A bin that straddles a zone edge is shared in proportion to
+the width each side. The session keeps the period's and the previous period's result (`ZoneTimeCache`) until a
+digest, a dated setting, the masses or the analysis changes, and 2,000 activities take about 12 ms
+(`periodTime.perf.test.ts`).

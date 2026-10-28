@@ -74,3 +74,31 @@ _The Triathlete's Training Bible_, 4th ed., VeloPress, 2016.
 - Zones do not rate ability. They do not enter the age grade, the level or the Balance.
 - A threshold estimated from a different period gives different zones; the Profile page shows the period
   the analysis on screen covers.
+
+## 5. Time in zones
+
+Status: implemented 2026-10-28 (`packages/core/src/zones/timeInZones.ts`, `traceZones.ts`, `periodTime.ts`,
+`zoneShares.ts`). Nothing here enters a digest, so the model revision is unchanged. The page copy is in
+`docs/DESIGN.md` under Time in zones.
+
+- **From a digest.** A digest keeps moving seconds in bins (`DISTRIBUTION_BINS`: 1 bpm, 5 W, 0.05 m/s). The zones in effect
+  on the activity's local date cut those bins. A bin that straddles an edge is split in proportion to the width each side,
+  as if its seconds were spread evenly across the bin. The alternative of giving the whole bin to the zone holding its centre
+  moves up to half a bin of time across an edge and makes a zone's time jump as an edge crosses a bin centre. Either keeps
+  every second; the error of a split is under one bin's seconds at each edge.
+- **From a trace.** The activity page reads the recorded stream second by second, so there is no bin to split. A reading
+  on an edge is in the zone the edge opens (`low <= reading < high`), as in the Profile ranges ("138-187 W", "375 W or more").
+- **A period** adds the activities up zone by zone, each cut by its own zones, so zones that changed during the period
+  are applied on the dates they were in effect. Zones are summed by level, which every date shares. A period is compared
+  with the one before it in the same estimated zones, because the references of an analysis belong to the period on
+  screen; entered settings are dated, so they apply on their own dates in both.
+- **Left out.** An activity is counted for a measure only with a distribution of it (digests from before distributions were
+  kept have none), zones in effect on its date, and, for heart rate, a sensor the analysis did not set aside. Power is
+  counted from a power meter only, since a digest keeps no distribution for estimated watts. The page says how many
+  activities each measure left out.
+- **Easy and hard.** Easy is zones 1 and 2 and hard is zone 4 and up, for every measure: Coggan's active recovery and
+  endurance against lactate threshold and above; Edwards's very light and light against hard and maximum; Friel's recovery and
+  aerobic against sub-threshold and above threshold. These are the app's grouping for one sentence, not a published
+  scheme, so the sentence names the zones.
+- **Limits.** Time in zones inherits the limits of section 4. Estimated zones move with the analysis, so the same
+  activity can sit in a different zone after a period change. It does not grade ability.
