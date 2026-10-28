@@ -60,6 +60,15 @@ describe('flagKindSentence: one line for each kind of reading', () => {
     )
   })
 
+  it('says where speed and distance disagreed, only what both support was counted', () => {
+    expect(flagKindSentence('stream-disagreement', 1)).toBe(
+      'Speed and distance disagreed once. We counted only what both support there.',
+    )
+    expect(flagKindSentence('stream-disagreement', 3)).toBe(
+      'Speed and distance disagreed 3 times. We counted only what both support at those times.',
+    )
+  })
+
   it('says a missing altitude is one note for the whole activity, and that its climb figures are not shown', () => {
     const note = 'No altitude was recorded, so climb and slope-based figures are not shown.'
     expect(flagKindSentence('missing-altitude', 1)).toBe(note)
@@ -76,6 +85,7 @@ describe('flagKindSentence: one line for each kind of reading', () => {
       'speed-spike',
       'altitude-jump',
       'implausible-climb',
+      'stream-disagreement',
       'missing-altitude',
     ] as const
     const all = kinds.map((kind) => flagKindSentence(kind, 2)).join(' ')
@@ -118,7 +128,12 @@ describe('skippedReadings: the readings left out of the figures', () => {
 
   it('counts nothing for an activity with only altitude notes', () => {
     expect(
-      skippedReadings({ 'altitude-jump': 1, 'implausible-climb': 1, 'missing-altitude': 1 }),
+      skippedReadings({
+        'altitude-jump': 1,
+        'implausible-climb': 1,
+        'stream-disagreement': 1,
+        'missing-altitude': 1,
+      }),
     ).toBe(0)
   })
 })

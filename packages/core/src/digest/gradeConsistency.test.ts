@@ -29,13 +29,14 @@ function cumulative(steps: Float64Array): Float64Array {
 
 /**
  * A 900 s run, flat at 3 m/s but for 120 s of stairs from 600 s. On the stairs the speed stream
- * reads 2 m/s while the recorded distance advances 1 m/s, and altitude rises 0.25 m/s: as on a
- * long flight of steps where a watch's speed and its GPS track disagree.
+ * reads 1.8 m/s while the recorded distance advances 1 m/s, and altitude rises 0.25 m/s: as on a
+ * long flight of steps where a watch's speed and its GPS track disagree, though by less than the
+ * agreement rule takes out (quality/agreement.ts).
  */
 function stairsRun(): Activity {
   const n = 900
   const onStairs = (i: number) => i >= 600 && i < 720
-  const speed = Float64Array.from({ length: n }, (_, i) => (onStairs(i) ? 2 : 3))
+  const speed = Float64Array.from({ length: n }, (_, i) => (onStairs(i) ? 1.8 : 3))
   const recordedSteps = Float64Array.from({ length: n }, (_, i) => (onStairs(i) ? 1 : 3))
   let climbed = 0
   const altitude = Float64Array.from({ length: n }, (_, i) => {
@@ -60,19 +61,19 @@ function expectWithin(actual: number, expected: number, tolerance: number): void
 }
 
 describe('digestActivity: grade follows the speed stream', () => {
-  it('credits only the recorded climb when the speed stream reads twice the recorded distance', () => {
+  it('credits only the recorded climb when the speed stream reads 1.8 times the recorded distance', () => {
     const stairs = stairsRun()
     const d = digestActivity(stairs)
-    // Fully on the stairs the grade is the recorded 0.25 m/s rise over the stream's 2 m/s.
-    expectWithin(valueAt(d.curve, 60), steadyCost(2, 0.125), 0.001)
-    // The grade over recorded distance (0.25) times the stream's speed claimed twice the climb.
+    // Fully on the stairs the grade is the recorded 0.25 m/s rise over the stream's 1.8 m/s.
+    expectWithin(valueAt(d.curve, 60), steadyCost(1.8, 0.25 / 1.8), 0.001)
+    // The grade over recorded distance (0.25) times the stream's speed claimed 1.8 times the climb.
     const overRecorded = runMetabolicPower(
       stairs.speed,
       smoothGrade(stairs.altitude, stairs.distance),
       PRIORS.runEconomyScale.mean,
     )
-    expect(Math.max(...overRecorded.subarray(630, 690))).toBeCloseTo(steadyCost(2, 0.25), 6)
-    expect(valueAt(d.curve, 60)).toBeLessThan(0.75 * steadyCost(2, 0.25))
+    expect(Math.max(...overRecorded.subarray(630, 690))).toBeCloseTo(steadyCost(1.8, 0.25), 6)
+    expect(valueAt(d.curve, 60)).toBeLessThan(0.75 * steadyCost(1.8, 0.25))
   })
 
   it('gives the same curves whatever distance the file recorded', () => {

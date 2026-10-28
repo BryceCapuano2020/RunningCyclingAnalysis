@@ -164,6 +164,24 @@ export const MAX_CLIMB_RATE_MS = 1.0
 export const CLIMB_RATE_WINDOW_S = 2 * GRADE_HALF_SPAN_S
 
 /**
+ * Seconds, centred on each second, over which a file's speed and its recorded distance are compared
+ * (quality/agreement.ts): the span a grade is measured over, so a disagreement that could bend a
+ * grade is seen whole.
+ */
+export const AGREEMENT_WINDOW_S = 2 * GRADE_HALF_SPAN_S
+/** Metres both streams must cover over the window, 0.5 m/s: below it the athlete is standing still. */
+export const AGREEMENT_MIN_MOVING_M = 15
+/**
+ * The streams disagree over a window when they differ by at least AGREEMENT_MIN_DIFFERENCE_M, 1 m/s,
+ * and one covers more than AGREEMENT_MAX_RATIO times the other. On a corpus of 1,275 outdoor FIT
+ * runs this flags about one in ten, among them steps where a watch's speed reads twice its GPS
+ * track, and no GPX file, whose two streams are one. A ratio of 1.5 flags twice as many flat runs;
+ * a 60 m difference misses the steps.
+ */
+export const AGREEMENT_MIN_DIFFERENCE_M = 30
+export const AGREEMENT_MAX_RATIO = 2
+
+/**
  * Population priors: gross efficiency of cycling, and a multiplicative individual running economy
  * on the corrected cost. Efficiency sd 0.015 keeps about 95% of draws within 18.5 to 24.5%, which
  * covers the 18 to 23.5% range of measured studies (docs/research/cycling-efficiency.md §5).

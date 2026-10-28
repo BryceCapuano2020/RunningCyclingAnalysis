@@ -66,6 +66,12 @@ const KIND_COPY: Record<QualityKind, KindCopy> = {
     sentence: (count) =>
       `Altitude rose faster than anyone can climb ${timesText(count)}. ${climbLeftOut(count)}`,
   },
+  'stream-disagreement': {
+    removesReadings: false,
+    listsTimes: true,
+    sentence: (count) =>
+      `Speed and distance disagreed ${timesText(count)}. We counted only what both support ${count === 1 ? 'there' : 'at those times'}.`,
+  },
   // The core flags a missing altitude once, for the whole activity, so there is no count to give.
   'missing-altitude': {
     removesReadings: false,

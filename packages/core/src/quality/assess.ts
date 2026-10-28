@@ -1,5 +1,6 @@
 import { CLIMB_RATE_WINDOW_S, MAX_CLIMB_RATE_MS } from '../constants'
 import { rollingMean } from '../math'
+import { agreedStreams } from './agreement'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
 
@@ -282,6 +283,8 @@ function messageFor(kind: QualityKind, durationS: number): string {
       return `Altitude changed by more than ${t.altitudeJump.maxStepM} m in a single second`
     case 'implausible-climb':
       return `Altitude rose at ${t.implausibleClimb.maxMs} m/s or more for ${seconds}`
+    case 'stream-disagreement':
+      return `Speed and distance disagreed for ${seconds}`
     case 'missing-altitude':
       return (
         `No altitude was recorded for ${seconds}, so grade-based running cost, virtual power ` +
@@ -314,6 +317,10 @@ export function assessQuality(activity: Activity): QualityReport {
   if (activity.hasHeartRate) heartRateRules(activity, validHeartRate, raw, steady)
   powerRules(activity, validPower, raw)
   motionRules(activity, validMotion, validGrade, validAltitude, raw, steady)
+  // Nothing is masked: the digest credits only what both streams support there (agreement.ts).
+  for (const stretch of agreedStreams(activity).stretches) {
+    raw.push({ kind: 'stream-disagreement', ...stretch })
+  }
 
   const flags: QualityFlag[] = mergeFlags(raw)
     .sort((a, b) => a.start - b.start || compareKinds(a.kind, b.kind))

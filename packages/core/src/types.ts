@@ -83,6 +83,7 @@ export type QualityKind =
   | 'speed-spike'
   | 'altitude-jump'
   | 'implausible-climb'
+  | 'stream-disagreement'
   | 'missing-altitude'
 
 export interface QualityFlag {

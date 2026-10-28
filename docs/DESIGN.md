@@ -803,7 +803,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   "Readings skipped once" or "Readings skipped N times"; the page gives each kind's count in its own line
   and says no total. An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
   are left out of the figures. So is an implausible climb, altitude rising faster than anyone can climb: its
-  slope-based figures are left out, and its line gives each stretch's times. A missing altitude is one note for the whole activity, so it has no count. Without any
+  slope-based figures are left out, and its line gives each stretch's times. So is a disagreement between a file's
+  speed and its distance: there each second counts only the lower of the two. A missing altitude is one note for the whole activity, so it has no count. Without any
   skipped reading the section reads "Data notes"; with one it reads "Skipped readings". The words are
   `flagKindSentence` and `flagSpanText` on the page, and the row's count is `skippedReadingsText`, all in
   `apps/web/src/ui/analysis/flagCopy.ts`. The activity page uses them, so the core's English is never
