@@ -282,3 +282,42 @@ export const SAME_HEART_RATE = {
   draws: 200,
   seed: 1,
 } as const
+
+/**
+ * The moving-time distributions a digest keeps, one per measure: bin width in the measure's unit
+ * (bpm, W, m/s), and the highest bin index a sample can fall in. A sample past it is not counted.
+ * The quality masks cap each measure: a heart-rate spike is above 230 bpm, a power spike above
+ * 2,000 W and a running speed spike above 12.5 m/s, so no valid sample reaches the limits below.
+ */
+export const DISTRIBUTION_BINS = {
+  heartRate: { width: 1, maxBin: 255 },
+  power: { width: 5, maxBin: 400 },
+  speed: { width: 0.05, maxBin: 250 },
+} as const
+export type DistributionMeasure = keyof typeof DISTRIBUTION_BINS
+
+/**
+ * Durability: the best output at each of DURABILITY_DURATIONS_S, in windows that start after at least
+ * each of DURABILITY_AFTER_S seconds of moving time (1, 1.5 and 2 hours). See docs/research/durability.md.
+ */
+export const DURABILITY_AFTER_S = [3600, 5400, 7200] as const
+export const DURABILITY_DURATIONS_S = [300, 1200] as const
+
+/**
+ * Steady-effort drift: the output per heart-rate ratio of the first half against the second half of
+ * an activity's moving time after the warm-up. It is reported only for a steady effort, which is one
+ * whose 30 s outputs vary little (coefficient of variation at most maxCv for the sport) and whose two
+ * halves hold about the same output (means within maxHalfGap of each other). Half the blocks of each
+ * half must have a valid output and heart rate. See docs/research/durability.md.
+ */
+export const DRIFT = {
+  minMovingS: 3600,
+  warmupS: 600,
+  blockS: 30,
+  /** Fraction of a block's seconds that must have a valid output and heart rate for it to count. */
+  minBlockCoverage: 0.8,
+  /** Fraction of a half's blocks that must count. */
+  minHalfCoverage: 0.8,
+  maxCv: { run: 0.15, ride: 0.25 },
+  maxHalfGap: 0.1,
+} as const

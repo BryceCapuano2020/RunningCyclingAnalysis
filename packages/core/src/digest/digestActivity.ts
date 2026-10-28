@@ -26,6 +26,8 @@ import { climbMask, estimatePower, findSegments, splitSegment } from '../virtual
 import { calibrationSums } from './calibration'
 import { distanceBests } from '../records/distanceBests'
 import { elevationGain } from './elevationGain'
+import { digestEvidence } from './evidence'
+import type { OutputStream } from './evidence'
 import { and, countKept, meanWhere, movingMask, recordedSeconds } from './masks'
 import type { SampleTerms } from './terms'
 import { SELECTION_MASS_KG, sampleTerms, termsOver } from './terms'
@@ -46,6 +48,8 @@ interface Parts {
   climbSections: DigestClimbSection[]
   /** Runs only. */
   distanceBests?: DigestDistanceBest[]
+  /** The stream the curve is built from; null when it is an estimate (rides without a power meter). */
+  output: OutputStream | null
 }
 
 /** A curve point together with the length of the window its value came from. */
@@ -130,6 +134,7 @@ function runParts(
     hrBlocks: valueBlocks(metabolic, valid, source),
     calibration: null,
     climbSections: [],
+    output: { values: metabolic, valid },
     // Only motion and recording decide a distance best: altitude affects grade, not distance or time.
     distanceBests: distanceBests(
       activity.distance,
@@ -179,6 +184,7 @@ function measuredParts(
     hrBlocks: valueBlocks(activity.power, quality.validPower, source),
     calibration: null,
     climbSections: [],
+    output: { values: activity.power, valid: quality.validPower },
   }
   // Indoor power is not a gradient being ridden, so it cannot calibrate or score a bike model.
   if (activity.indoor) return parts
@@ -243,7 +249,14 @@ function virtualParts(
         terms: { gravityAccel: b.means[0]!, rolling: b.means[1]!, aero: b.means[2]! },
       }))
     : []
-  return { powerSource: 'virtual', curve, hrBlocks, calibration: null, climbSections: [] }
+  return {
+    powerSource: 'virtual',
+    curve,
+    hrBlocks,
+    calibration: null,
+    climbSections: [],
+    output: null,
+  }
 }
 
 /**
@@ -315,5 +328,6 @@ export function digestActivity(activity: Activity): ActivityDigest {
       ? {}
       : { splits: runSplits(activity, quality, metabolic, PRIORS.runEconomyScale.mean) }),
     ...(activity.sessionKey === undefined ? {} : { sessionKey: activity.sessionKey }),
+    ...digestEvidence(activity, quality, moving, parts.output, parts.powerSource),
   }
 }

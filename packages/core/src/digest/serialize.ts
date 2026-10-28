@@ -15,86 +15,28 @@ import type {
   Sport,
 } from '../types'
 import { DIGEST_VERSION } from './digestActivity'
-
-type Json = Record<string, unknown>
+import { asDistributions, asDrift, asDurability } from './serializeEvidence'
+import {
+  asArray,
+  asBoolean,
+  asFinite,
+  asFiniteOrNull,
+  asInteger,
+  asNonNegativeInteger,
+  asNumberOrNaN,
+  asObject,
+  asOneOf,
+  asPositive,
+  asString,
+  checkRange,
+  fail,
+} from './parseValue'
 
 /** Writes a digest as JSON. Non-finite numbers become null and are restored by parseDigest. */
 export function serializeDigest(digest: ActivityDigest): string {
   return JSON.stringify(digest, (_key, value: unknown) =>
     typeof value === 'number' && !Number.isFinite(value) ? null : value,
   )
-}
-
-function fail(path: string, problem: string): never {
-  throw new Error(`parseDigest: ${path} ${problem}`)
-}
-
-function asObject(value: unknown, path: string): Json {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    fail(path, 'must be an object')
-  }
-  return value as Json
-}
-
-function asArray(value: unknown, path: string): unknown[] {
-  if (!Array.isArray(value)) fail(path, 'must be an array')
-  return value
-}
-
-function asString(value: unknown, path: string): string {
-  if (typeof value !== 'string') fail(path, 'must be a string')
-  return value
-}
-
-function asBoolean(value: unknown, path: string): boolean {
-  if (typeof value !== 'boolean') fail(path, 'must be a boolean')
-  return value
-}
-
-function asInteger(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isInteger(value)) fail(path, 'must be an integer')
-  return value
-}
-
-function asFinite(value: unknown, path: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) fail(path, 'must be a finite number')
-  return value
-}
-
-/** A finite number, or null where the value was NaN. Infinity is rejected. */
-function asNumberOrNaN(value: unknown, path: string): number {
-  if (value === null) return NaN
-  if (typeof value !== 'number' || !Number.isFinite(value)) fail(path, 'must be a number or null')
-  return value
-}
-
-function asNonNegativeInteger(value: unknown, path: string): number {
-  const n = asInteger(value, path)
-  if (n < 0) fail(path, 'must not be negative')
-  return n
-}
-
-function asPositive(value: unknown, path: string): number {
-  const n = asFinite(value, path)
-  if (!(n > 0)) fail(path, 'must be positive')
-  return n
-}
-
-/** Fails unless 0 <= start < end <= durationS. */
-function checkRange(start: number, end: number, durationS: number, path: string): void {
-  if (!(0 <= start && start < end && end <= durationS)) {
-    fail(path, 'must satisfy 0 <= start < end <= durationS')
-  }
-}
-
-function asFiniteOrNull(value: unknown, path: string): number | null {
-  return value === null ? null : asFinite(value, path)
-}
-
-function asOneOf<T extends string>(value: unknown, options: readonly T[], path: string): T {
-  const found = options.find((option) => option === value)
-  if (found === undefined) fail(path, `must be one of ${options.join(', ')}`)
-  return found
 }
 
 function asTerms(value: unknown, path: string): PowerTerms {
@@ -290,19 +232,23 @@ export function parseDigest(json: string): ActivityDigest {
   if (distanceM < 0) fail('distanceM', 'must not be negative')
   const distanceBests =
     o.distanceBests === undefined ? undefined : asDistanceBests(o.distanceBests, durationS)
+  const sport = asOneOf(o.sport, SPORTS, 'sport')
+  const powerSource = asOneOf(o.powerSource, POWER_SOURCES, 'powerSource')
+  const hasHeartRate = asBoolean(o.hasHeartRate, 'hasHeartRate')
+  const evidence = { sport, durationS, hasHeartRate, measuredPower: powerSource === 'measured' }
   return {
     version: DIGEST_VERSION,
     modelRevision,
     id: asString(o.id, 'id'),
     name: asString(o.name, 'name'),
-    sport: asOneOf(o.sport, SPORTS, 'sport'),
+    sport,
     startMs: asFinite(o.startMs, 'startMs'),
     durationS,
     distanceM,
     elevationGainM: asFinite(o.elevationGainM, 'elevationGainM'),
-    hasHeartRate: asBoolean(o.hasHeartRate, 'hasHeartRate'),
+    hasHeartRate,
     indoor: asBoolean(o.indoor, 'indoor'),
-    powerSource: asOneOf(o.powerSource, POWER_SOURCES, 'powerSource'),
+    powerSource,
     flags: asArray(o.flags, 'flags').map((f, i) => asFlag(f, `flags[${i}]`, durationS)),
     flagCounts: asFlagCounts(o.flagCounts, 'flagCounts'),
     maxHeartRate: asFiniteOrNull(o.maxHeartRate, 'maxHeartRate'),
@@ -320,5 +266,10 @@ export function parseDigest(json: string): ActivityDigest {
       : { avgHeartRate: asFiniteOrNull(o.avgHeartRate, 'avgHeartRate') }),
     ...(o.avgPowerW === undefined ? {} : { avgPowerW: asFiniteOrNull(o.avgPowerW, 'avgPowerW') }),
     ...(o.sessionKey === undefined ? {} : { sessionKey: asString(o.sessionKey, 'sessionKey') }),
+    ...(o.distributions === undefined
+      ? {}
+      : { distributions: asDistributions(o.distributions, evidence) }),
+    ...(o.durability === undefined ? {} : { durability: asDurability(o.durability, evidence) }),
+    ...(o.drift === undefined ? {} : { drift: asDrift(o.drift, evidence) }),
   }
 }

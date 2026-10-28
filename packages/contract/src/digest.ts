@@ -6,6 +6,7 @@ import {
   RUN_RECORD_DISTANCES_M,
 } from '@rca/core/constants'
 import type { ActivityDigest } from '@rca/core/types'
+import { checkEvidence, evidenceFields } from './digestEvidence.ts'
 import { MAX_DIGEST_BYTES } from './limits.ts'
 
 // These contracts run in strict-CSP browsers and Workers, where dynamic code generation is blocked.
@@ -229,6 +230,7 @@ export const ActivityDigestSchema = z
     distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
     splits: digestSplits(1).optional(),
     ...movingAverageFields,
+    ...evidenceFields,
   })
   .superRefine((digest, ctx) => {
     digest.curve.forEach((point, index) => {
@@ -257,6 +259,7 @@ export const ActivityDigestSchema = z
     }
     checkDistanceBests(digest, ctx)
     checkMovingTime(digest, ctx)
+    checkEvidence(digest, ctx)
   })
 
 /**
@@ -293,11 +296,13 @@ const StoredActivityDigestBase = z.object({
   distanceBests: z.array(distanceBest).max(RUN_RECORD_DISTANCES_M.length).optional(),
   splits: digestSplits(STORED_BOUND_FACTOR).optional(),
   ...movingAverageFields,
+  ...evidenceFields,
 })
 
 export const StoredActivityDigestSchema = StoredActivityDigestBase.superRefine((digest, ctx) => {
   checkDistanceBests(digest, ctx)
   checkMovingTime(digest, ctx)
+  checkEvidence(digest, ctx)
 })
 
 export type ActivityDigestJson = z.input<typeof ActivityDigestSchema>
