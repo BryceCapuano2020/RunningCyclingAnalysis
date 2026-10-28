@@ -218,6 +218,21 @@ describe('ActivityList rows', () => {
     expect(screen.getAllByText(/skipped/)).toHaveLength(1)
   })
 
+  it('leaves the chip off a skip too short to move a figure, which the activity page still lists', () => {
+    const blip = { kind: 'hr-spike' as const, start: 600, end: 611, message: 'Heart rate jumped' }
+    renderList([
+      makeActivity({ name: 'Blip ride', durationS: 3600, flags: [blip] }),
+      makeActivity({
+        id: 'long',
+        name: 'Strap ride',
+        durationS: 3600,
+        flags: [{ ...blip, kind: 'hr-dropout', start: 600, end: 900 }],
+      }),
+    ])
+    expect(within(rowFor('Blip ride')).queryByText(/skipped/)).not.toBeInTheDocument()
+    expect(within(rowFor('Strap ride')).getByText('Readings skipped once')).toBeInTheDocument()
+  })
+
   it('leaves altitude notes off the skipped chip, since they remove no reading', () => {
     renderList([
       makeActivity({

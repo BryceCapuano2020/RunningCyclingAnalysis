@@ -8,6 +8,10 @@ import { sampleDigestHashes } from './test/digestHashes'
  * Re-pinned at revision 6: the grade is over the speed stream's distance and too-fast climbs are masked,
  * and the digest keeps distributions, durability and drift; a best window must be mostly moving and a
  * sustained impossible speed is masked, and a run's splits are over its moving time (only the copies with gaps change).
+ * Re-pinned for the athlete-relative heart-rate-for-power rule: only sample-12, the simulated strap failure, moves.
+ * Its stretch read too low for the power is found by comparison with the ride's own heart rate at the same power
+ * and runs 2265 to 2415 s, not 2261 to 2419 s, so the heart rate masked and the figures built on it move with it.
+ * The other 13 activities, and every copy with gaps but sample-12's, are unchanged.
  */
 const PINNED: Record<string, string> = {
   'sample-01': '908687d7d361c8e40dd4c1931404222c6159e03cb1959e303e1655a46cde5138',
@@ -32,8 +36,8 @@ const PINNED: Record<string, string> = {
   'sample-10-gaps': '4dbb7769ef7aa7a0313ae394e661abc314c2d1931f8e24dbe8e933c99b7b0276',
   'sample-11': '5eed8d5dcd1bbe69ecd7dd79066dba66fbd0bea37129e80f58a60b671df4ac99',
   'sample-11-gaps': '145387f3d0a1ae584d6dac1b40c0ace747b17cb88e7291bc461e542f08be85aa',
-  'sample-12': '64f8952f4f0289d03a03ac6dbc3d772c4b61f8e62af3491a3aa8106cb9a966d3',
-  'sample-12-gaps': '8d1d3b733cf667f7995291056cf059137f722e08a89fb6dce58d799bff3f0583',
+  'sample-12': '53c11744f67d939807073f65b7673ae38e33a417faf9ac147823b3f2d975dbf7',
+  'sample-12-gaps': 'c905ab0c40e8dbdc9b0b72f7820123e53fc08073f8d095e18f0c5cbaed9190b1',
   'sample-13': '7ef769871a3154a64e6935d1038a8af716d684e3bd759335c34f2e7d14e3e6cf',
   'sample-13-gaps': 'e49f1150f085ea7f8f1fe892ae68b891354d5b60c7bf616a50d2075f8a621304',
   'sample-14': '2f3679270fdb4e92dde124ad781675b8ca1730aebf4f68f7f29d8ca8e075354a',

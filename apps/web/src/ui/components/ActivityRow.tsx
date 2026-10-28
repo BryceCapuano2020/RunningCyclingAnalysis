@@ -11,7 +11,7 @@ import {
   formatSpeed,
   formatTotalTime,
 } from '@rca/core/units'
-import { movingTimeOf, skippedCountOf, timeLabelOf } from '../activityFigures'
+import { materialSkippedCountOf, movingTimeOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
 import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
@@ -90,7 +90,7 @@ export function ActivityRow({
   signedIn,
   onDelete,
 }: ActivityRowProps) {
-  const skipped = skippedCountOf(activity)
+  const skipped = materialSkippedCountOf(activity)
   const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const chips = activity.sport === 'ride' && !weightKnown ? [] : chipLabels(records)

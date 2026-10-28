@@ -2,6 +2,9 @@ import { CLIMB_RATE_WINDOW_S, MAX_CLIMB_RATE_MS } from '../constants'
 import { rollingMean } from '../math'
 import type { AgreedStreams } from './agreement'
 import { agreedStreams } from './agreement'
+import { HR_IMPLAUSIBLE_FOR_POWER, implausiblyLowHeartRate } from './lowHeartRate'
+import type { Range } from './runs'
+import { runsWhere } from './runs'
 import { implausibleSpeedStretches } from './sustainedSpeed'
 import { GRADE_SMOOTHING_MARGIN_S } from '../metabolic'
 import type { Activity, QualityFlag, QualityKind, QualityReport } from '../types'
@@ -12,7 +15,7 @@ export const QUALITY_THRESHOLDS = {
   minValidBpm: 30,
   hrDropout: { minDurationS: 10, movingSpeedMs: 0.5, movingFraction: 0.5 },
   hrSpike: { maxBpm: 230, maxStepBpm: 15, marginS: 5 },
-  hrImplausibleForPower: { windowS: 300, minPowerW: 200, maxHrBpm: 110 },
+  hrImplausibleForPower: HR_IMPLAUSIBLE_FOR_POWER,
   powerSpike: { maxW: 2000, marginS: 1 },
   powerDropout: { minDurationS: 5, minSpeedMs: 3 },
   speedSpike: { maxSpeedMs: { run: 12.5, ride: 30 }, maxStepMs: 5, marginS: 3 },
@@ -28,29 +31,8 @@ export const QUALITY_THRESHOLDS = {
   flagMergeGapS: 10,
 } as const
 
-interface Range {
-  start: number
-  end: number
-}
-
 interface RawFlag extends Range {
   kind: QualityKind
-}
-
-/** Maximal runs of consecutive indices in [0, n) for which pred holds. */
-function runsWhere(n: number, pred: (i: number) => boolean): Range[] {
-  const runs: Range[] = []
-  let i = 0
-  while (i < n) {
-    if (!pred(i)) {
-      i++
-      continue
-    }
-    const start = i
-    while (i < n && pred(i)) i++
-    runs.push({ start, end: i })
-  }
-  return runs
 }
 
 function count(r: Range, pred: (i: number) => boolean): number {
@@ -93,7 +75,7 @@ function heartRateRules(
   raw: RawFlag[],
   steady: Uint8Array,
 ): void {
-  const { n, speed, heartRate, power, paused } = a
+  const { n, speed, heartRate, paused } = a
   const t = QUALITY_THRESHOLDS
 
   const dropped = (i: number): boolean => {
@@ -120,13 +102,7 @@ function heartRateRules(
   }
 
   if (a.hasPower) {
-    const window = t.hrImplausibleForPower.windowS
-    const powerMean = rollingMean(power, window)
-    const hrMean = rollingMean(heartRate, window)
-    const implausible = (i: number): boolean =>
-      powerMean[i]! >= t.hrImplausibleForPower.minPowerW &&
-      hrMean[i]! < t.hrImplausibleForPower.maxHrBpm
-    for (const run of runsWhere(n, implausible)) {
+    for (const run of implausiblyLowHeartRate(a, t.minValidBpm)) {
       markRange(raw, validHr, 'hr-implausible-for-power', run)
     }
   }

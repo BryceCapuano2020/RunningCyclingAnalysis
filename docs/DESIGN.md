@@ -811,6 +811,12 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   many runs and rides were set aside, and the activity's data notes say why. Estimated watts and treadmill
   pace are never the judge, since they can be what is wrong.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
+- **Heart rate too low for the power is judged against the athlete's own heart rate.** A stretch of at
+  least half the ride's median power, 90 s or more, whose 5 min mean heart rate is under 75% of the athlete's
+  median heart rate at about the same power (within 15%) elsewhere in the same activity, after the 10 min
+  warm-up, is flagged and its heart rate is left out (`packages/core/src/quality/lowHeartRate.ts`). A fixed
+  bpm floor mistook a fit athlete's easy ride for a fault. A whole activity read low has nothing of its own
+  to fall below, so the set-aside above judges it against the athlete's reference heart rate.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
   "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes, headings,
   tooltips, notes and end labels of the energy charts, the energy rate's unit is "metabolic W/kg", never
@@ -855,8 +861,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
   The data notes are grouped by kind, one line for each kind with its true count and the times of the
   readings the digest kept. Only the kinds that remove readings are counted, on the row, as
-  "Readings skipped once" or "Readings skipped N times"; the page gives each kind's count in its own line
-  and says no total. An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
+  "Readings skipped once" or "Readings skipped N times", and only when the readings skipped cover at least
+  1% of the activity's moving time (`SKIPPED_MATERIAL_SHARE`), since a blip of seconds leaves an average
+  where it was; the page lists every kind in its own line, with its count, and says no total. An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
   are left out of the figures. So is an implausible climb, altitude rising faster than anyone can climb: its
   slope-based figures are left out, and its line gives each stretch's times. So is a disagreement between a file's
   speed and its distance: there each second counts only the lower of the two. A missing altitude is one note for the whole activity, so it has no count. Without any
