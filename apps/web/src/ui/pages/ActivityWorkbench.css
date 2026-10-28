@@ -220,6 +220,10 @@
   min-width: 0;
 }
 
+.activity-workbench__distribution-title {
+  color: var(--text-secondary);
+}
+
 .activity-workbench__distribution p {
   margin: 0;
   font-size: var(--text-sm);
@@ -258,11 +262,15 @@
   text-align: left;
 }
 
-/* Five columns have to fit 288 px, so a phone's cells keep a hair of padding and their words wrap. */
+/* Five columns have to fit 288 px, so a phone sets the tables in the small size and wraps their words. */
 @media (max-width: 479px) {
+  .activity-workbench table {
+    font-size: var(--text-xs);
+  }
+
   .activity-workbench td,
   .activity-workbench th {
-    padding: var(--space-2) 0.125rem;
+    padding: var(--space-2) var(--space-1);
     white-space: normal;
   }
 

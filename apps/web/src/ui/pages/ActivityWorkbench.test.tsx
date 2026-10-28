@@ -73,8 +73,12 @@ describe('ActivityWorkbench', () => {
 
   it('lists measures in plain words, and says None in this interval for one with no reading', async () => {
     const trace = runTrace()
-    trace.streams.cadence = new Float32Array(10).fill(Number.NaN)
+    // Cadence is read only in the last seconds, outside the lap.
+    trace.streams.cadence = Float32Array.from({ length: 10 }, (_, i) => (i >= 8 ? 170 : Number.NaN))
     show(trace)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /^Lap 1/ }))
+    await user.click(await screen.findByRole('checkbox', { name: /^Cadence/ }))
     const table = await screen.findByRole('table', {
       name: /while moving in the selected interval/i,
     })
@@ -82,10 +86,33 @@ describe('ActivityWorkbench', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((header) => header.textContent),
-    ).toEqual(['Measure', 'Average', 'Lowest', 'Highest', 'Seconds'])
+    ).toEqual(['Measure', 'Average', 'Lowest', 'Highest', 'Time'])
     const cadence = within(table).getByRole('row', { name: /^Cadence/ })
     expect(cadence).toHaveTextContent('None in this interval')
     expect(screen.queryByText(/Not recorded/)).not.toBeInTheDocument()
+  })
+
+  it('lists only the measures shown, with each one’s time as a duration', async () => {
+    const user = userEvent.setup()
+    show(runTrace())
+    const table = await screen.findByRole('table', {
+      name: /while moving in the selected interval/i,
+    })
+    expect(within(table).queryByRole('row', { name: /^Cadence/ })).not.toBeInTheDocument()
+    expect(within(table).getByRole('row', { name: /^Heart rate/ })).toHaveTextContent(/0:08$/)
+    await user.click(screen.getByRole('checkbox', { name: /^Heart rate/ }))
+    expect(within(table).queryByRole('row', { name: /^Heart rate/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /^Pace/ }))
+    expect(screen.queryByRole('table', { name: /while moving/i })).not.toBeInTheDocument()
+  })
+
+  it('titles each histogram by what it counts', async () => {
+    show(runTrace())
+    const figure = await screen.findByRole('figure', { name: /^Heart rate/ })
+    expect(within(figure).getByText('Time at each heart rate')).toBeInTheDocument()
+    expect(
+      within(await screen.findByRole('figure', { name: /^Pace/ })).getByText('Time at each pace'),
+    ).toBeInTheDocument()
   })
 
   it('reads a lap as a named, marked selection and moves the interval to it', async () => {
@@ -183,7 +210,7 @@ describe('ActivityWorkbench', () => {
     const pace = within(table).getByRole('row', { name: /^Pace/ })
     expect(pace).toHaveTextContent('5:03 /km')
     expect(pace).not.toHaveTextContent('—')
-    expect(pace).toHaveTextContent(/48$/)
+    expect(pace).toHaveTextContent(/0:48$/)
     expect(
       await screen.findByText('Stopped or no reading for 12 s of moving time.'),
     ).toBeInTheDocument()

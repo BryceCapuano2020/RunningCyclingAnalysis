@@ -202,7 +202,13 @@ function ReadyWorkbench({
       ) : (
         <p className="secondary">Choose a measure to see it over time.</p>
       )}
-      <SelectionStats trace={trace} startS={selection.startS} endS={selection.endS} units={units} />
+      <SelectionStats
+        trace={trace}
+        startS={selection.startS}
+        endS={selection.endS}
+        units={units}
+        metrics={visible}
+      />
     </WorkbenchSection>
   )
 }

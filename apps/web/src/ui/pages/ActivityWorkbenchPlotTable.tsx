@@ -4,7 +4,7 @@ import { formatRecordTime } from '@rca/core/units'
 import { ChartTable } from '../charts/ChartTable'
 import { distributionFor, selectionOf } from './workbenchData'
 import { DISTRIBUTION_METRICS, displayValue, metricLabel, readingRange } from './workbenchFormat'
-import { binRange, noReadingLabel } from './workbenchText'
+import { binRange, distributionTitle, noReadingLabel } from './workbenchText'
 
 /** The most sections the interval is cut into for the table. */
 const SECTIONS = 10
@@ -47,9 +47,12 @@ export function PlotTable({
     : []
   const selection = selectionOf(trace, startS, endS)
   const missing = Math.max(0, selection.movingS - (selection.metrics[metric]?.seconds ?? 0))
-  const binRows = bins.map((bin) => [binRange(bin, metric, trace, units), `${bin.seconds}`])
+  const binRows = bins.map((bin) => [
+    binRange(bin, metric, trace, units),
+    formatRecordTime(bin.seconds),
+  ])
   if (bins.length > 0 && missing > 0)
-    binRows.push([noReadingLabel(metric, trace.sport), `${missing}`])
+    binRows.push([noReadingLabel(metric, trace.sport), formatRecordTime(missing)])
   return (
     <details className="activity-workbench__details">
       <summary>View as table</summary>
@@ -60,8 +63,8 @@ export function PlotTable({
       />
       {binRows.length > 0 && (
         <ChartTable
-          caption={`Seconds moving at each ${label.toLowerCase()}`}
-          columns={['Range', 'Seconds']}
+          caption={`${distributionTitle(metric, trace.sport)} while moving`}
+          columns={['Range', 'Time']}
           rows={binRows}
         />
       )}

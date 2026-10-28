@@ -1,8 +1,8 @@
 import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
 import { distributionFor, selectionOf } from './workbenchData'
-import { binRange, noReadingLabel } from './workbenchText'
-import { displayValue, metricLabel, readingRange } from './workbenchFormat'
+import { binRange, distributionTitle, noReadingLabel } from './workbenchText'
+import { displayValue, readingRange } from './workbenchFormat'
 
 /**
  * How the interval's moving time was spread across the measure, as bars from its lowest reading to its
@@ -41,10 +41,13 @@ export function PlotDistribution({
   const text = (value: number) => displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
   return (
     <div className="activity-workbench__distribution">
+      <p className="activity-workbench__distribution-title">
+        {distributionTitle(metric, trace.sport)}
+      </p>
       <div
         className="activity-workbench__histogram"
         role="img"
-        aria-label={`Time at each ${metricLabel(metric, trace.sport).toLowerCase()}, from ${text(lowest)} to ${text(highest)}. Most time at ${binRange(busiest, metric, trace, units)}.`}
+        aria-label={`${distributionTitle(metric, trace.sport)}, from ${text(lowest)} to ${text(highest)}. Most time at ${binRange(busiest, metric, trace, units)}.`}
       >
         {bins.map((bin) => (
           <span

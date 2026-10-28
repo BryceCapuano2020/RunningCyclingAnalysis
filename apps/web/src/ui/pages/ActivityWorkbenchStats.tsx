@@ -1,6 +1,6 @@
-import type { ActivityTrace } from '@rca/core/workbench'
+import type { ActivityTrace, TraceMetric } from '@rca/core/workbench'
 import type { UnitSystem } from '@rca/core/units'
-import { formatDistance, formatTotalTime } from '@rca/core/units'
+import { formatDistance, formatRecordTime, formatTotalTime } from '@rca/core/units'
 import { ChartTable } from '../charts/ChartTable'
 import { selectionOf } from './workbenchData'
 import { METRIC_ORDER, displayValue, metricLabel, readingRange } from './workbenchFormat'
@@ -12,11 +12,14 @@ export function SelectionStats({
   startS,
   endS,
   units,
+  metrics,
 }: {
   trace: ActivityTrace
   startS: number
   endS: number
   units: UnitSystem
+  /** The measures shown, which the table follows. */
+  metrics: readonly TraceMetric[]
 }) {
   const summary = selectionOf(trace, startS, endS)
   const paused = summary.recordedS - summary.movingS
@@ -34,13 +37,13 @@ export function SelectionStats({
       ? 'Not available for this interval'
       : formatDistance(summary.distanceM, units),
   ])
-  const rows = METRIC_ORDER.flatMap((metric) => {
+  const rows = METRIC_ORDER.filter((metric) => metrics.includes(metric)).flatMap((metric) => {
     const stats = summary.metrics[metric]
     if (!stats) return []
     const text = (value: number) =>
       displayValue(metric, value, trace.sport, units, trace.cadenceUnit)
     if (stats.mean === null || stats.min === null || stats.max === null)
-      return [[metricLabel(metric, trace.sport), NONE, NONE, NONE, '0']]
+      return [[metricLabel(metric, trace.sport), NONE, NONE, NONE, formatRecordTime(0)]]
     const { lowest, highest } = readingRange(metric, trace.sport, stats.min, stats.max)
     return [
       [
@@ -48,7 +51,7 @@ export function SelectionStats({
         text(stats.mean),
         text(lowest),
         text(highest),
-        `${stats.seconds}`,
+        formatRecordTime(stats.seconds),
       ],
     ]
   })
@@ -63,11 +66,13 @@ export function SelectionStats({
           </div>
         ))}
       </dl>
-      <ChartTable
-        caption="While moving in the selected interval. Seconds is the time with a reading."
-        columns={['Measure', 'Average', 'Lowest', 'Highest', 'Seconds']}
-        rows={rows}
-      />
+      {rows.length > 0 && (
+        <ChartTable
+          caption="While moving in the selected interval. Time is how long each measure had a reading."
+          columns={['Measure', 'Average', 'Lowest', 'Highest', 'Time']}
+          rows={rows}
+        />
+      )}
     </div>
   )
 }
