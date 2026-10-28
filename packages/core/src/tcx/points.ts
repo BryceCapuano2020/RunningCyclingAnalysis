@@ -14,7 +14,11 @@ export interface Point {
   temperature?: number
 }
 
-/** Stable time ordering with exact duplicates removed. */
+/**
+ * Sorts by time, stably, then drops exact duplicates: same time and same values. Points that share
+ * a time but differ are both kept. Cadence and temperature are not part of the match, so a repeated
+ * point still collapses as it did before they were read.
+ */
 export function sortAndDedupe(points: Point[]): Point[] {
   const sorted = points.sort((a, b) => a.tMs - b.tMs)
   const out: Point[] = []
@@ -33,9 +37,6 @@ export function sortAndDedupe(points: Point[]): Point[] {
       point.heartRate,
       point.power,
       point.speed,
-      point.cadence,
-      point.runCadence,
-      point.temperature,
     ])
     if (seen.has(key)) continue
     seen.add(key)

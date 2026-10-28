@@ -129,6 +129,51 @@ describe('parseFit round trip', () => {
     ])
   })
 
+  it('keeps the final second in a last lap that ends at the last record time', () => {
+    const records = secondly(START_MS, 120, { speed: 4 })
+    records.forEach((record, i) => (record.distance = i * 4))
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'running', startMs: START_MS, durationS: 120, records }],
+          laps: [
+            { startMs: START_MS, endMs: START_MS + 60_000 },
+            { startMs: START_MS + 60_000, endMs: START_MS + 119_000 },
+          ],
+        }),
+        'last-lap.fit',
+      ),
+    )
+    expect(parsed.n).toBe(120)
+    expect(parsed.laps).toEqual([
+      { startS: 0, endS: 60 },
+      { startS: 60, endS: 120 },
+    ])
+  })
+
+  it('ignores timer events outside the only session window, so the last second stays moving', () => {
+    // Real exports end a session window a fraction of a second before the last record, and write the
+    // closing stop at that record. The stop is outside the window, so it must not pause the file.
+    const records = secondly(START_MS, 102, { speed: 4, heartRate: 150, power: 200 })
+    records.forEach((record, i) => (record.distance = i * 4))
+    const parsed = firstActivity(
+      parseFit(
+        buildFit({
+          sessions: [{ sport: 'cycling', startMs: START_MS, durationS: 100.4, records }],
+          timerEvents: [
+            { tMs: START_MS, eventType: 'start' },
+            { tMs: START_MS + 101_000, eventType: 'stopAll' },
+          ],
+        }),
+        'window.fit',
+      ),
+    )
+    expect(parsed.n).toBe(102)
+    expect(parsed.paused.every((flag) => flag === 0)).toBe(true)
+    expect(parsed.speed[101]).toBe(4)
+    expect(parsed.heartRate[101]).toBe(150)
+  })
+
   it('keeps FIT cycling cadence in revolutions per minute', () => {
     const records = secondly(START_MS, 120, { speed: 5, cadence: 88 })
     records.forEach((record, i) => (record.distance = i * 5))

@@ -5,19 +5,21 @@ import type { ParseLimits, ParseOptions, ParseResult, Rejection } from '../impor
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
 import { E_BIKE_REASON, E_BIKE_SKIPPED, isEBikeType } from '../import/sportType'
 import { decodeFit } from './protocol/decode'
-import type { DecodedEvent, DecodedLap, DecodedRecord, DecodedSession } from './protocol/decode'
+import type { DecodedRecord, DecodedSession } from './protocol/decode'
 import type { FitSportName, FitSubSportName } from './protocol/profile'
 import { isFitFile, TRUNCATED_ERROR } from './protocol/reader'
-import type { RawRecord, RawTimerEvent } from './resample'
+import type { RawRecord } from './resample'
 import { isUsableLatLon } from '../import/gps'
 import type { GpsFix } from '../import/gps'
+import { SPORT_TRACE } from '../workbench/sportTrace'
+import { assignUnits, lapBounds } from './units'
+import type { Timed, Unit } from './units'
 
 const NOT_FIT = 'Not a FIT file'
 const DECODE_FAILED = 'Could not decode FIT file'
 const CORRUPT = 'File is corrupt (checksum mismatch)'
 const INCOMPLETE = 'File is incomplete or corrupt'
 const NO_DATE = 'Records have no date, only device time'
-const OVERLAP = 'Sessions overlap; times were adjusted'
 
 const INDOOR_SUB_SPORTS = new Set<string>([
   'treadmill',
@@ -27,21 +29,6 @@ const INDOOR_SUB_SPORTS = new Set<string>([
   'virtualActivity',
 ])
 const E_BIKE_SUB_SPORTS = new Set<string>(['eBikeFitness', 'eBikeMountain', 'eBikeEnduro'])
-
-/** A decoded record with its epoch time. */
-interface Timed {
-  tMs: number
-  record: DecodedRecord
-}
-
-/** The records and timer events that belong to one session, or to the whole file without sessions. */
-interface Unit {
-  session: DecodedSession | undefined
-  /** Sorted by time. */
-  records: Timed[]
-  events: RawTimerEvent[]
-  laps: DecodedLap[]
-}
 
 type DecodedSportMessage = {
   sport: FitSportName | undefined
@@ -127,7 +114,7 @@ function toPipelineUnit(
     records: unit.records.map((t) => toRaw(t, mapping.ok ? mapping.sport : null)),
     laps: lapBounds(unit.laps),
     ...(mapping.ok && unit.records.some(({ record }) => record.cadence !== undefined)
-      ? { cadenceUnit: mapping.sport === 'run' ? ('steps/min' as const) : ('rev/min' as const) }
+      ? { cadenceUnit: SPORT_TRACE[mapping.sport].cadenceUnit }
       : {}),
     timerEvents: unit.events,
     sportLabel: sport ?? 'unknown',
@@ -233,7 +220,10 @@ function toRaw(t: Timed, sport: Sport | null): RawRecord {
     power: r.power,
     // FIT reports running cadence in cycles per minute (two steps); Activity uses steps/min.
     // Field semantics: https://developer.garmin.com/fit/protocol/
-    cadence: cadence === undefined ? undefined : sport === 'run' ? cadence * 2 : cadence,
+    cadence:
+      cadence === undefined
+        ? undefined
+        : cadence * (sport === null ? 1 : SPORT_TRACE[sport].cadenceMultiplier),
     temperature: r.temperature,
   }
 }
@@ -260,139 +250,6 @@ function distanceOrigins(units: Unit[], timed: Timed[]): Map<Unit, number> {
     }
   }
   return origins
-}
-
-/**
- * Splits the file into units. With several sessions each record and timer event goes to exactly
- * one session: the latest-starting window that contains it. Overlapping windows are reported.
- */
-function assignUnits(
-  sessions: DecodedSession[],
-  timed: Timed[],
-  events: DecodedEvent[],
-  laps: DecodedLap[],
-  skipped: string[],
-): Unit[] {
-  const timerEvents = timerEventsOf(events)
-  if (sessions.length === 0) {
-    return [{ session: undefined, records: timed, events: timerEvents, laps }]
-  }
-
-  const units: Unit[] = sessions.map((session) => ({ session, records: [], events: [], laps: [] }))
-  if (sessions.length === 1) {
-    units[0]!.records = timed
-    units[0]!.laps = laps
-    units[0]!.events = timerEvents
-    return units
-  }
-  const windows = sessionWindows(sessions)
-  if (overlaps(windows)) skipped.push(OVERLAP)
-  const owners = ownersOf(
-    windows,
-    timed.map((t) => t.tMs),
-  )
-  timed.forEach((t, k) => {
-    const owner = owners[k]!
-    if (owner >= 0) units[owner]!.records.push(t)
-  })
-  const eventOwners = ownersOf(
-    windows,
-    timerEvents.map((e) => e.tMs),
-  )
-  timerEvents.forEach((event, k) => {
-    const owner = eventOwners[k]!
-    if (owner >= 0) units[owner]!.events.push(event)
-  })
-  const usableLaps = laps.map((lap) => ({ lap, startMs: lap.startTimeMs ?? lap.timestampMs }))
-  const lapOwners = ownersOf(
-    windows,
-    usableLaps.map((item) => item.startMs ?? Number.NEGATIVE_INFINITY),
-  )
-  usableLaps.forEach(({ lap }, k) => {
-    const owner = lapOwners[k]!
-    if (owner >= 0) units[owner]!.laps.push(lap)
-  })
-  return units
-}
-
-function lapBounds(laps: DecodedLap[]): NonNullable<PipelineUnit['laps']> {
-  const out: NonNullable<PipelineUnit['laps']> = []
-  for (const lap of laps) {
-    const endMs = lap.timestampMs
-    const startMs =
-      lap.startTimeMs ??
-      (endMs === undefined || lap.totalElapsedTime === undefined
-        ? undefined
-        : endMs - lap.totalElapsedTime * 1000)
-    const resolvedEnd =
-      endMs ??
-      (startMs === undefined || lap.totalElapsedTime === undefined
-        ? undefined
-        : startMs + lap.totalElapsedTime * 1000)
-    if (startMs === undefined || resolvedEnd === undefined || resolvedEnd <= startMs) continue
-    out.push({ startMs, endMs: resolvedEnd })
-  }
-  return out.sort((a, b) => a.startMs - b.startMs)
-}
-
-function timerEventsOf(events: DecodedEvent[]): RawTimerEvent[] {
-  const out: RawTimerEvent[] = []
-  for (const event of events) {
-    if (
-      event.event === 'timer' &&
-      event.timestampMs !== undefined &&
-      event.eventType !== undefined
-    ) {
-      out.push({ tMs: event.timestampMs, eventType: event.eventType })
-    }
-  }
-  return out.sort((a, b) => a.tMs - b.tMs)
-}
-
-/** A session's window: [start, start + elapsed]. Sessions without a start have none. */
-interface Window {
-  index: number
-  start: number
-  end: number
-}
-
-/** Session windows sorted by start. */
-function sessionWindows(sessions: DecodedSession[]): Window[] {
-  const windows: Window[] = []
-  sessions.forEach((session, index) => {
-    const start = session.startTimeMs
-    if (start === undefined) return
-    windows.push({ index, start, end: start + (session.totalElapsedTime ?? 0) * 1000 })
-  })
-  return windows.sort((a, b) => a.start - b.start)
-}
-
-/**
- * Sorted windows overlap exactly when some window starts before its predecessor ends, so checking
- * neighbours is enough.
- */
-function overlaps(windows: Window[]): boolean {
-  return windows.some((window, k) => k > 0 && window.start < windows[k - 1]!.end)
-}
-
-/**
- * For each time, the session index of the latest-starting window that contains it, or -1. Times
- * are visited in order while the windows open and close, so the cost is O(n log n + windows).
- */
-function ownersOf(windows: Window[], times: number[]): number[] {
-  const owners = new Array<number>(times.length).fill(-1)
-  const order = times.map((_, i) => i).sort((a, b) => times[a]! - times[b]!)
-  // Windows opened so far, in start order. The top is the latest start among those still open.
-  const open: Window[] = []
-  let next = 0
-  for (const i of order) {
-    const t = times[i]!
-    while (next < windows.length && windows[next]!.start <= t) open.push(windows[next++]!)
-    while (open.length > 0 && open[open.length - 1]!.end < t) open.pop()
-    const top = open[open.length - 1]
-    if (top !== undefined) owners[i] = top.index
-  }
-  return owners
 }
 
 function inSet(set: Set<string>, value: unknown): boolean {

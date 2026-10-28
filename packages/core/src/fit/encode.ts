@@ -1,4 +1,5 @@
 import type { Activity } from '../types'
+import { SPORT_TRACE } from '../workbench/sportTrace'
 import {
   ACTIVITY_LAYOUT,
   EVENT_LAYOUT,
@@ -121,7 +122,7 @@ function cadenceForFit(
   sport: Activity['sport'],
 ): { cadence?: number; fractionalCadence?: number } {
   if (value === undefined || !Number.isFinite(value)) return {}
-  const raw = sport === 'run' ? value / 2 : value
+  const raw = value / SPORT_TRACE[sport].cadenceMultiplier
   let cadence = Math.floor(raw)
   let fractionalCadence = Math.round((raw - cadence) * 128)
   if (fractionalCadence === 128) {

@@ -5,18 +5,23 @@ import { MAX_INTERPOLATED_GAP_S, resample, splitAtGaps } from '../fit/resample'
 import type { RawRecord, RawTimerEvent, Resampled } from '../fit/resample'
 import type { GpsFix } from './gps'
 import type { ParseLimits, ParseOptions, ParseResult, RejectCode, Rejection } from './result'
-import type { ActivityLap, CadenceUnit } from '../workbench/types'
+import { SPORT_TRACE } from '../workbench/sportTrace'
+import type { CadenceUnit } from '../workbench/types'
 import { failure, MAX_FILE_SAMPLES, refused } from './result'
 import { nameOfLeg, withStartTimesWhereShared } from './names'
 import { isIndoorWithoutPositions } from './indoor'
 import { cleanRecord } from './cleanRecord'
+import { lapsForSegment } from './laps'
 
 const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
 /** The shortest activity, in seconds: the records must vouch for at least this much. */
 const MIN_SAMPLES = 60
 /** The fastest speed a sample may have, per sport. Faster samples are dropped as impossible. */
-export const MAX_SPEED_MPS: Record<Sport, number> = { ride: 30, run: 12.5 }
+export const MAX_SPEED_MPS: Record<Sport, number> = {
+  ride: SPORT_TRACE.ride.maxSpeedMs,
+  run: SPORT_TRACE.run.maxSpeedMs,
+}
 
 const SHORT_REASON = 'Activity is shorter than one minute'
 const SPARSE_REASON = 'Activity is recorded too sparsely: its points are more than 10 seconds apart'
@@ -317,27 +322,6 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     ...(sessioned ? { sessionKey: context.sessionKey } : {}),
   }
   return { ok: true, activity, dropped }
-}
-
-function lapsForSegment(
-  laps: NonNullable<PipelineUnit['laps']>,
-  startMs: number,
-  n: number,
-): ActivityLap[] {
-  const endMs = startMs + n * 1000
-  const out: ActivityLap[] = []
-  let previousEnd = 0
-  for (const lap of laps) {
-    const from = Math.max(startMs, lap.startMs)
-    const to = Math.min(endMs, lap.endMs)
-    if (!(to > from)) continue
-    const startS = Math.max(previousEnd, Math.max(0, Math.round((from - startMs) / 1000)))
-    const endS = Math.max(0, Math.min(n, Math.round((to - startMs) / 1000)))
-    if (endS <= startS) continue
-    out.push({ startS, endS, ...(lap.label === undefined ? {} : { label: lap.label }) })
-    previousEnd = endS
-  }
-  return out
 }
 
 /**

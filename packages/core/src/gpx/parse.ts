@@ -1,4 +1,5 @@
 import { activitiesFromUnits, MAX_SPEED_MPS } from '../import/pipeline'
+import { SPORT_TRACE } from '../workbench/sportTrace'
 import type { PipelineUnit } from '../import/pipeline'
 import type { ParseLimits, ParseOptions, ParseResult } from '../import/result'
 import { DEFAULT_PARSE_LIMITS, failure, NO_RECORDS } from '../import/result'
@@ -368,7 +369,7 @@ function buildUnit(
   const unit: PipelineUnit = {
     records: motion.records,
     ...(choice.sport !== null && ordered.some((point) => point.cadence !== undefined)
-      ? { cadenceUnit: choice.sport === 'run' ? 'unknown' : 'rev/min' }
+      ? { cadenceUnit: SPORT_TRACE[choice.sport].gpxCadenceUnit }
       : {}),
     timerEvents: [],
     sport: choice.sport,

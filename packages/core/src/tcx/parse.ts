@@ -19,6 +19,7 @@ import type { Point } from './points'
 import { isEBikeType, sportOfType } from '../import/sportType'
 import type { SportChoice } from '../import/sportType'
 import type { Sport } from '../types'
+import { SPORT_TRACE } from '../workbench/sportTrace'
 import { scanXmlBytes } from '../xml/parse'
 import type { XmlHandler } from '../xml/parse'
 import { recordedDistance, speedFromDistance } from './distance'
@@ -53,7 +54,7 @@ const FIELD_PATHS = new Map<string, Field>([
   ['HeartRateBpm/Value', 'heartRate'],
   ['Extensions/TPX/Watts', 'power'],
   ['Extensions/TPX/Speed', 'speed'],
-  // The TCX Cadence element is cycling rpm; RunCadence is already running steps/min.
+  // The TCX Cadence element is cycling rpm; RunCadence is running strides (two steps) per minute.
   ['Cadence', 'cadence'],
   ['Extensions/TPX/RunCadence', 'runCadence'],
   ['Extensions/TPX/Temp', 'temperature'],
@@ -70,17 +71,11 @@ interface OpenActivity extends SportChoice {
 interface OpenLap {
   pointStart: number
   startMs?: number
-  totalTimeS?: number
 }
 
 /** The text of the value element being read, until it closes. */
 interface OpenField {
   field: Field
-  depth: number
-  text: string
-}
-
-interface OpenLapField {
   depth: number
   text: string
 }
@@ -136,7 +131,6 @@ class TcxScanner implements XmlHandler {
   private activity: OpenActivity | undefined
   private trackpoint: RawTrackpoint | undefined
   private field: OpenField | undefined
-  private lapField: OpenLapField | undefined
 
   constructor(units: PipelineUnit[], maxTrackpoints: number, activityType: string | undefined) {
     this.units = units
@@ -158,12 +152,6 @@ class TcxScanner implements XmlHandler {
         ...(typeof startMs === 'number' ? { startMs } : {}),
       }
       this.activity.lapCount++
-    } else if (
-      depth === 5 &&
-      local === 'TotalTimeSeconds' &&
-      this.activity?.openLap !== undefined
-    ) {
-      this.lapField = { depth, text: '' }
     } else if (depth === 6 && local === 'Trackpoint' && this.inTrack()) {
       this.trackpoints++
       if (this.trackpoints > this.maxTrackpoints) {
@@ -183,18 +171,9 @@ class TcxScanner implements XmlHandler {
 
   text(text: string, depth: number): void {
     if (this.field !== undefined && this.field.depth === depth) this.field.text += text
-    else if (this.lapField?.depth === depth) this.lapField.text += text
   }
 
   close(_local: string, _name: string, depth: number): void {
-    const lapField = this.lapField
-    if (lapField !== undefined && lapField.depth === depth) {
-      this.lapField = undefined
-      const duration = readNonNegative(lapField.text)
-      if (duration !== undefined && this.activity?.openLap !== undefined) {
-        this.activity.openLap.totalTimeS = duration
-      }
-    }
     const field = this.field
     if (field !== undefined && field.depth === depth) {
       this.field = undefined
@@ -247,7 +226,13 @@ class TcxScanner implements XmlHandler {
       lastMs = Math.max(lastMs, point.tMs)
     }
     const startMs = lap.startMs ?? firstPointMs
-    const endMs = lap.totalTimeS === undefined ? lastMs + 1000 : startMs + lap.totalTimeS * 1000
+    // TotalTimeSeconds is timer time, which a pause shortens, so it does not bound the lap. A lap
+    // runs to just past its last point, or to where the next lap starts if that is sooner.
+    const endMs = lastMs + 1000
+    const previous = activity.laps.at(-1)
+    if (previous !== undefined && startMs > previous.startMs && startMs < previous.endMs) {
+      previous.endMs = startMs
+    }
     if (endMs > startMs) {
       activity.laps.push({ startMs, endMs, label: `Lap ${activity.lapCount}` })
     }
@@ -317,13 +302,12 @@ function unitOf(activity: OpenActivity): PipelineUnit {
   }
   const points = sortAndDedupe(activity.points)
   const hasPosition = points.some((p) => hasUsablePosition(p.position))
-  const hasCadence = points.some((point) =>
-    sport === 'run' ? point.runCadence !== undefined : point.cadence !== undefined,
-  )
+  const trace = SPORT_TRACE[sport]
+  const hasCadence = points.some((point) => point[trace.tcxCadenceField] !== undefined)
   return {
     records: recordsOf(points, sport),
     laps: activity.laps,
-    ...(hasCadence ? { cadenceUnit: sport === 'run' ? 'steps/min' : 'rev/min' } : {}),
+    ...(hasCadence ? { cadenceUnit: trace.cadenceUnit } : {}),
     timerEvents: [],
     sport,
     sportLabel,
@@ -347,6 +331,7 @@ function recordsOf(points: Point[], sport: Sport): RawRecord[] {
   if (points.some((p) => p.speed !== undefined)) speed = points.map((p) => p.speed)
   else if (distance !== undefined) speed = speedFromDistance(points, distance)
   else speed = fromTrack(points, track, 'speedMs')
+  const { tcxCadenceField, cadenceMultiplier } = SPORT_TRACE[sport]
   return points.map((p, i) => ({
     tMs: p.tMs,
     distance: finalDistance[i],
@@ -354,9 +339,14 @@ function recordsOf(points: Point[], sport: Sport): RawRecord[] {
     altitude: p.altitude,
     heartRate: p.heartRate,
     power: p.power,
-    cadence: sport === 'run' ? p.runCadence : p.cadence,
+    cadence: scaledCadence(p[tcxCadenceField], cadenceMultiplier),
     temperature: p.temperature,
   }))
+}
+
+/** A recorded cadence in the sport's unit, or undefined when the point has none. */
+function scaledCadence(value: number | undefined, multiplier: number): number | undefined {
+  return value === undefined ? undefined : value * multiplier
 }
 
 /** The track's values at each point's time. Points without a fix in the track get undefined. */

@@ -169,7 +169,7 @@ function runPoints(from: number, count: number, withGps: boolean): string[] {
         altitude: 10 + s * 0.1,
         hr: 140 + (s % 10),
         speed: 3.5,
-        runCadence: 170,
+        runCadence: 85,
       }),
     )
   }
@@ -279,12 +279,12 @@ describe('parseTcx round trip', () => {
 })
 
 describe('parseTcx garmin-style documents', () => {
-  it('retains TPX cadence and temperature and captures explicit TCX laps', () => {
+  it('doubles TPX RunCadence, which is strides per minute, to steps per minute', () => {
     const withSensors = (points: string[], cadence: number, temperature: number) =>
       points.map((point) =>
         point
           .replace(
-            '<ns3:RunCadence>170</ns3:RunCadence>',
+            '<ns3:RunCadence>85</ns3:RunCadence>',
             `<ns3:RunCadence>${cadence}</ns3:RunCadence>`,
           )
           .replace(
@@ -293,8 +293,8 @@ describe('parseTcx garmin-style documents', () => {
           ),
       )
     const laps = [
-      lapXml(withSensors(runPoints(0, 60, true), 170, 14)),
-      lapXml(withSensors(runPoints(60, 60, true), 172, 15)),
+      lapXml(withSensors(runPoints(0, 60, true), 85, 14)),
+      lapXml(withSensors(runPoints(60, 60, true), 86, 15)),
     ]
     const a = firstActivity(parseTcx(documentXml([activityXml('Running', laps)]), 'workbench.tcx'))
     expect(a.cadence?.[30]).toBe(170)
@@ -308,7 +308,7 @@ describe('parseTcx garmin-style documents', () => {
     ])
   })
 
-  it('uses explicit TCX lap start and elapsed duration for smart-recorded tracks', () => {
+  it('ends a lap after its last point, whatever its timer time says', () => {
     const points = Array.from({ length: 90 }, (_, index) => {
       const second = 5 + index * 5
       return pointXml({
@@ -326,7 +326,33 @@ describe('parseTcx garmin-style documents', () => {
       parseTcx(documentXml([activityXml('Running', [lap])]), 'smart.tcx'),
     )
     expect(activity.n).toBeGreaterThan(300)
-    expect(activity.laps).toEqual([{ startS: 0, endS: 300, label: 'Lap 1' }])
+    expect(activity.laps).toEqual([{ startS: 0, endS: 446, label: 'Lap 1' }])
+  })
+
+  it('keeps a lap whose timer time is lower than its elapsed time, or zero', () => {
+    // A 60 s pause sits inside the lap, so TotalTimeSeconds (timer time) is 120 for 180 s elapsed.
+    const paused = lapXml([...runPoints(0, 60, true), ...runPoints(120, 60, true)], {
+      startS: 0,
+      totalTimeS: 120,
+    })
+    const a = firstActivity(parseTcx(documentXml([activityXml('Running', [paused])]), 'p.tcx'))
+    expect(a.laps).toEqual([{ startS: 0, endS: 180, label: 'Lap 1' }])
+
+    const zero = lapXml(runPoints(0, 90, true), { startS: 0, totalTimeS: 0 })
+    const b = firstActivity(parseTcx(documentXml([activityXml('Running', [zero])]), 'z.tcx'))
+    expect(b.laps).toEqual([{ startS: 0, endS: 90, label: 'Lap 1' }])
+  })
+
+  it('ends a lap where the next one starts when that is sooner than its last point', () => {
+    const first = lapXml(runPoints(0, 61, true), { startS: 0, totalTimeS: 61 })
+    const second = lapXml(runPoints(61, 59, true), { startS: 60, totalTimeS: 60 })
+    const a = firstActivity(
+      parseTcx(documentXml([activityXml('Running', [first, second])]), 'overlap.tcx'),
+    )
+    expect(a.laps).toEqual([
+      { startS: 0, endS: 60, label: 'Lap 1' },
+      { startS: 60, endS: 120, label: 'Lap 2' },
+    ])
   })
 
   it('keeps standard TCX cycling cadence in revolutions per minute', () => {
