@@ -19,7 +19,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn={false} keepFiles={false} />)
     expect(
       screen.getByText(
-        'Nothing is uploaded; analysis runs in your browser. Summaries and recent detailed recordings are kept in this browser where it allows, so anyone using it can see them. Remove all my activities removes them.',
+        'Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser, so anyone using it can see them. Recordings fit in about 64 MB, and the oldest are dropped first. Remove all my activities removes them.',
       ),
     ).toBeInTheDocument()
   })
@@ -28,7 +28,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn={false} keepFiles />)
     expect(
       screen.getByText(
-        'Nothing is uploaded; analysis runs in your browser. Summaries and recent detailed recordings are kept in this browser where it allows, so anyone using it can see them. Remove all my activities removes them.',
+        'Nothing is uploaded; analysis runs in your browser. Summaries and detailed recordings are kept in this browser, so anyone using it can see them. Recordings fit in about 64 MB, and the oldest are dropped first. Remove all my activities removes them.',
       ),
     ).toBeInTheDocument()
   })
@@ -37,7 +37,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn keepFiles />)
     expect(
       screen.getByText(
-        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps recent detailed recordings.',
+        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps detailed recordings for as many activities as fit in about 64 MB, dropping the oldest first.',
       ),
     ).toBeInTheDocument()
   })
@@ -46,7 +46,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn keepFiles={false} />)
     expect(
       screen.getByText(
-        'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser, which also keeps recent detailed recordings.',
+        'Your activity summaries are stored in your private library; original files are not kept. Analysis runs in your browser, which also keeps detailed recordings for as many activities as fit in about 64 MB, dropping the oldest first.',
       ),
     ).toBeInTheDocument()
   })
@@ -55,7 +55,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn keepFiles fileRetentionAvailable={false} />)
     expect(
       screen.getByText(
-        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser, which also keeps recent detailed recordings.',
+        'Your activity summaries are stored in your private library. Original file storage is unavailable here, so new files are not kept; existing saved originals are not deleted. Analysis runs in your browser, which also keeps detailed recordings for as many activities as fit in about 64 MB, dropping the oldest first.',
       ),
     ).toBeInTheDocument()
   })
@@ -64,7 +64,7 @@ describe('PrivacyNote', () => {
     render(<PrivacyNote signedIn keepFiles />)
     expect(
       screen.getByText(
-        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps recent detailed recordings.',
+        'Your activity summaries and original files are stored in your private library. Analysis runs in your browser, which also keeps detailed recordings for as many activities as fit in about 64 MB, dropping the oldest first.',
       ),
     ).toBeInTheDocument()
   })

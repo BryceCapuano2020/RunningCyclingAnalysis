@@ -309,6 +309,10 @@ describe('ActivityWorkbench', () => {
     const loadTrace = vi.fn(async () => ({ kind: 'missing' }) satisfies ActivityTraceReply)
     render(<ActivityWorkbench activityId="run-1" units="metric" loadTrace={loadTrace} />)
     expect(await screen.findByText(/no original file is saved/i)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      "Add this activity's file again to see its detail.",
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('the oldest are dropped')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
 
     const failed = vi.fn(async () => ({ kind: 'failed' }) satisfies ActivityTraceReply)

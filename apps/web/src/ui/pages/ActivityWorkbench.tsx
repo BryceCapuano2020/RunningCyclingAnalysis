@@ -113,6 +113,10 @@ function WorkbenchSection({ sport, children }: { sport?: string; children: React
   )
 }
 
+/** What an activity says when this browser holds no recording of it and keeps no original file. */
+const MISSING_DETAIL =
+  "This browser has no detailed readings for this activity, and no original file is saved. Add this activity's file again to see its detail. Recordings are kept in limited browser space, and the oldest are dropped when it is used up."
+
 function ActivityWorkbenchSession({
   activityId,
   units,
@@ -153,7 +157,7 @@ function ActivityWorkbenchSession({
           ? 'The recorded details could not be loaded.'
           : status === 'originalAvailable'
             ? 'This browser has no detailed readings for this activity. They can be read from the saved original file.'
-            : 'This browser has no detailed readings for this activity and no original file is saved. Re-add the source file to see them.'}
+            : MISSING_DETAIL}
       </p>
       {status === 'failed' && (
         <div className="activity-workbench__actions">

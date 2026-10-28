@@ -116,6 +116,17 @@ export class Workbench {
     }
   }
 
+  /**
+   * Whether a recording is kept for the activity. A memory copy of a stored one counts only while
+   * storage still has it. Storage that cannot say holds nothing, unless memory has the trace.
+   */
+  async holds(scope: TraceScope, activityId: string): Promise<boolean> {
+    const cached = this.traces.get(memoryKey(scope, activityId))
+    if (cached !== undefined && cached.home !== 'stored') return true
+    const stored = await this.store.has(scope, activityId).catch(() => null)
+    return cached === undefined ? stored === true : stored !== false
+  }
+
   async get(scope: TraceScope, activityId: string): Promise<ActivityTrace | null> {
     const key = memoryKey(scope, activityId)
     if ((await this.deleted(scope)) === true) {

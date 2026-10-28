@@ -47,6 +47,11 @@ export interface ImportOutcome {
   /** The earliest and latest start, in epoch ms, of the activities the import added. */
   firstStartMs?: number
   lastStartMs?: number
+  /**
+   * Activities the library already held whose detailed readings this import brought back, because
+   * their file was added again. Absent when none were. Never counts an activity the import added.
+   */
+  detailRestored?: number
 }
 
 /** Whether imported activities are saved to the signed-in account, and whether their files are kept. */

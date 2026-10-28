@@ -80,6 +80,10 @@ async function addFiles(
         : null
   activeScope = traceScope ?? { kind: 'device' }
   let stoppedBy: SyncIssueCode | null = null
+  // Activities the import already held and gave a recording back, which the summary says.
+  const restored = new Set<string>()
+  const addedIds = new Set<string>()
+  let replacing = false
   let outcome: ImportOutcome = {
     activities: 0,
     filesAdded: 0,
@@ -129,13 +133,20 @@ async function addFiles(
       save ?? (request.saveToDevice ? keepOnDevice : undefined),
       sync?.keepFiles === true,
       ({ added, ...completed }) => {
+        for (const digest of added) addedIds.add(digest.id)
         outcome = { ...completed, ...summarizeAdded(added) }
       },
       async (activity) => {
-        if (traceScope === null) workbench.captureMemory(activity, { kind: 'device' })
-        else await workbench.capture(activity, traceScope)
+        if (traceScope === null) return workbench.captureMemory(activity, { kind: 'device' })
+        // A richer copy that replaces a held one is a new recording, not a restored one.
+        const swapped = replacing
+        replacing = false
+        const had = swapped || (await workbench.holds(traceScope, activity.id))
+        if ((await workbench.capture(activity, traceScope)) !== null && !had)
+          restored.add(activity.id)
       },
       async (replacedId) => {
+        replacing = true
         if (traceScope === null) workbench.dropMemory({ kind: 'device' }, replacedId)
         else await workbench.remove(traceScope, replacedId)
       },
@@ -144,6 +155,8 @@ async function addFiles(
     // On a failure too: the page learns how many were saved before the error reply.
     reporter.end()
   }
+  const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
+  if (detailRestored > 0) outcome = { ...outcome, detailRestored }
   if (sync !== null) {
     post({ type: 'missingOriginals', count: missingOriginals.size })
     reportLibrary()

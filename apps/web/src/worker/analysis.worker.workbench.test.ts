@@ -180,6 +180,50 @@ describe('where an import keeps recordings', () => {
     expect(spy.rows.size).toBe(1)
   })
 
+  it('serves a recording kept in this browser after the worker restarts', async () => {
+    const { send } = await startWorker()
+    const file = fitFile()
+    const id = idOf(file, new Uint8Array(await file.arrayBuffer()))
+    await send(signedOutImport(file))
+    vi.resetModules()
+    const restarted = await startWorker()
+    await restarted.send({ type: 'loadDevice', settings: SETTINGS })
+
+    const [reply] = await restarted.send({ type: 'activityTrace', id })
+
+    expect(spy.store.get).toHaveBeenCalledWith({ kind: 'device' }, id)
+    expect(reply).toEqual({
+      type: 'activityTrace',
+      reply: { kind: 'trace', trace: expect.objectContaining({ activityId: id }) },
+    })
+  })
+
+  it('says detail was restored for a held activity added again, and only when it was missing', async () => {
+    const { send } = await startWorker()
+    const restoredBy = (messages: WorkerResponse[]) =>
+      messages.find((m) => m.type === 'state' && m.outcome?.detailRestored !== undefined)
+    const first = await send(signedOutImport(fitFile()))
+    expect(restoredBy(first)).toBeUndefined()
+
+    const present = await send(signedOutImport(fitFile()))
+    expect(restoredBy(present)).toBeUndefined()
+
+    spy.rows.clear()
+    const missing = await send(signedOutImport(fitFile()))
+    expect(restoredBy(missing)).toMatchObject({ outcome: { detailRestored: 1 } })
+  })
+
+  it('does not call a richer copy that replaces a held one a restored recording', async () => {
+    const { send } = await startWorker()
+    await send(signedOutImport(gpxFile()))
+
+    const messages = await send(signedOutImport(fitFile()))
+
+    expect(
+      messages.some((m) => m.type === 'state' && m.outcome?.detailRestored !== undefined),
+    ).toBe(false)
+  })
+
   it('drops the recording of a copy that a richer copy replaces', async () => {
     const { send } = await startWorker()
     const gpx = gpxFile()

@@ -208,6 +208,22 @@ describe('workbench evidence cache', () => {
     expect(await workbench.get({ kind: 'device' }, first.id)).toBeNull()
   })
 
+  it('knows whether a recording is kept, in storage or in memory alone', async () => {
+    const { store, rows } = memoryStore()
+    const workbench = new Workbench(store)
+    const device: TraceScope = { kind: 'device' }
+    expect(await workbench.holds(device, first.id)).toBe(false)
+
+    await workbench.capture(first, device)
+    expect(await workbench.holds(device, first.id)).toBe(true)
+    // Another tab removed the stored copy, so the memory one no longer counts.
+    rows.clear()
+    expect(await workbench.holds(device, first.id)).toBe(false)
+
+    workbench.captureMemory(first, device)
+    expect(await workbench.holds(device, first.id)).toBe(true)
+  })
+
   it('reports a refused removal and still drops the memory copy', async () => {
     const { store } = memoryStore({ remove: vi.fn(async () => false) })
     const workbench = new Workbench(store)

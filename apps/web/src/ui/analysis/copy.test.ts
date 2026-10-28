@@ -303,6 +303,24 @@ describe('importSentence', () => {
       'Nothing new: 3 activities already in your library.',
     )
   })
+
+  it('says how many already held activities got their detail back', () => {
+    expect(importSentence({ activities: 1, rejected: 0, duplicates: [], detailRestored: 1 })).toBe(
+      'Nothing new: 1 activity already in your library. Detail restored for 1 activity.',
+    )
+    const added = {
+      activities: 5,
+      rejected: 0,
+      runs: 2,
+      rides: 0,
+      firstStartMs: NOW,
+      lastStartMs: NOW,
+      detailRestored: 3,
+    }
+    expect(importSentence(added, NOW)).toBe(
+      `${addedSentence(added, NOW)} Detail restored for 3 activities.`,
+    )
+  })
 })
 
 describe('STOPPED_BY_USER', () => {
