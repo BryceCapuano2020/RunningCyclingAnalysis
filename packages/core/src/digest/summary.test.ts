@@ -48,6 +48,15 @@ describe('summaryOf: one summary for each digest', () => {
     for (const entry of period) expect(library).toContain(entry)
   })
 
+  it('is made again for another body mass, and kept for the same one', () => {
+    const digest = digestActivity(activities[0]!)
+    const heavy = summaryOf(digest, 80)
+    expect(heavy.massKg).toBe(80)
+    expect(summaryOf(digest, 80)).toBe(heavy)
+    expect(summaryOf(digest, 70).massKg).toBe(70)
+    expect(summaryOf(digest)).not.toHaveProperty('massKg')
+  })
+
   it('reads its digest, not a neighbour of the same activity', () => {
     const digest = digestActivity(activities[0]!)
     const renamed = { ...digest, name: 'Renamed' }

@@ -4,7 +4,6 @@ import type { SessionState } from '../session'
 import { sha256Hex } from '../sha256'
 import type { ActivityDigest, AthleteSettings } from '../types'
 
-const SETTINGS: AthleteSettings = { massKg: 75, bikeMassKg: 9 }
 /** Enough of the hash to tell any change of a field. */
 const HASH_CHARS = 16
 
@@ -38,19 +37,20 @@ const FIELDS = [
 
 /**
  * The first characters of the SHA-256 of each field of the state a session gives for a library under
- * each period choice, by `<choice>/<field>`. A change that only makes the analysis faster leaves every
+ * each period choice, by `<choice>/<field>`, for the settings given. A change that only makes the analysis faster leaves every
  * one as it is; one that means to change it says which field moved.
  */
 export async function stateHashes(
   library: ActivityDigest[],
   choices: readonly PeriodChoice[],
+  settings: AthleteSettings,
 ): Promise<Record<string, string>> {
   const encoder = new TextEncoder()
   const hashes: Record<string, string> = {}
   for (const choice of choices) {
     const session = new AnalysisSession()
     session.choosePeriod(choice)
-    const state = session.loadDigests(library, SETTINGS)
+    const state = session.loadDigests(library, settings)
     for (const field of FIELDS) {
       const hash = await sha256Hex(encoder.encode(exactJson(state[field])))
       hashes[`${JSON.stringify(choice)}/${field}`] = hash.slice(0, HASH_CHARS)
