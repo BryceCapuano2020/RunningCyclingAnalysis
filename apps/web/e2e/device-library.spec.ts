@@ -170,7 +170,9 @@ test('deleting one kept activity from the Activities page removes it after a rel
   expect(errors).toEqual([])
 })
 
-test('deleting the last kept activity from the Activities page says so', async ({ page }) => {
+test('deleting the last kept activity from the Activities page leaves nothing kept', async ({
+  page,
+}) => {
   const errors = trackErrors(page)
   await page.goto('/')
   await uploadFixtures(page, ['one-ride.gpx'])
@@ -179,7 +181,10 @@ test('deleting the last kept activity from the Activities page says so', async (
   await page.getByRole('button', { name: /^Delete / }).click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-  await expect(page.getByRole('status').filter({ hasText: 'Deleted' })).toBeVisible()
+  // Nothing is left to analyse, so the page asks for files again, and nothing is kept on Profile.
+  await expect(page.getByText('Add your files to see this page.')).toBeVisible()
+  await goTo(page, 'Profile')
+  await expect(keptList(page)).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
