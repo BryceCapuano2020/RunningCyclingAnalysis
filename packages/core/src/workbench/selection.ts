@@ -96,10 +96,12 @@ export function distributionOf(
 function distanceIn(trace: ActivityTrace, startS: number, endS: number): number | null {
   if (startS === endS) return 0
   // Interior selections have both cumulative boundary samples. The activity's final second has no
-  // closing sample, so a selection that reaches it measures up to the last sample and then adds
-  // that second's own distance, taken as the step the second before it made.
+  // closing sample, so a selection that reaches it measures up to the last sample, which makes a
+  // whole-activity selection equal the activity's own total. A selection that starts at the last
+  // sample would measure nothing for a second it covers, so its distance is unknown.
   const reachesEnd = endS === trace.durationS
   const lastBoundary = reachesEnd ? trace.durationS - 1 : endS
+  if (reachesEnd && startS === lastBoundary) return null
   const first = trace.distance[startS]!
   const last = trace.distance[lastBoundary]!
   if (!Number.isFinite(first) || !Number.isFinite(last) || last < first) return null
@@ -112,17 +114,7 @@ function distanceIn(trace: ActivityTrace, startS: number, endS: number): number 
       if (!Number.isFinite(next) || next < here) return null
     }
   }
-  if (!reachesEnd) return last - first
-  const finalStep = finalSecondDistance(trace)
-  return finalStep === null ? null : last - first + finalStep
-}
-
-/** The metres covered in the activity's last second, or null when the step before it is not known. */
-function finalSecondDistance(trace: ActivityTrace): number | null {
-  const last = trace.durationS - 1
-  if (last < 1 || trace.unrecorded[last - 1] === 1) return null
-  const step = trace.distance[last]! - trace.distance[last - 1]!
-  return Number.isFinite(step) && step >= 0 ? step : null
+  return last - first
 }
 
 /** Whether sample i is a usable observation for the selected activity metric. */

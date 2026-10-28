@@ -137,22 +137,22 @@ describe('selection evidence', () => {
     expect(summarizeSelection(item, 0, 2).distanceM).toBe(20)
   })
 
-  it('uses both distance boundaries for an interior selection and counts the final second', () => {
+  it('uses both distance boundaries for an interior selection and ends at the last sample', () => {
     const item = trace(30)
     expect(summarizeSelection(item, 10, 20).distanceM).toBe(100)
-    // The last sample has no closing boundary, so the final second takes the step before it.
-    expect(summarizeSelection(item, 20, 30).distanceM).toBe(100)
-    expect(summarizeSelection(item, 29, 30).distanceM).toBe(10)
-    expect(summarizeSelection(item, 0, 30).distanceM).toBe(300)
+    // The last sample has no closing boundary, so a tail selection measures up to that sample.
+    expect(summarizeSelection(item, 20, 30).distanceM).toBe(90)
     expect(summarizeSelection(item, 0, 29).distanceM).toBe(290)
   })
 
-  it('has no distance for the final second when the step before it is unknown', () => {
-    const lone = trace(1)
-    expect(summarizeSelection(lone, 0, 1).distanceM).toBeNull()
-    const item = trace(4)
-    item.distance[2] = NaN
-    expect(summarizeSelection(item, 3, 4).distanceM).toBeNull()
+  it('reports the activity total for a whole-activity selection', () => {
+    const item = trace(30)
+    expect(summarizeSelection(item, 0, 30).distanceM).toBe(item.distance[29]! - item.distance[0]!)
+  })
+
+  it('has no distance for a selection that starts at the last sample', () => {
+    expect(summarizeSelection(trace(30), 29, 30).distanceM).toBeNull()
+    expect(summarizeSelection(trace(1), 0, 1).distanceM).toBeNull()
   })
 
   it('rejects a selection whose end boundary is inside an unrecorded gap', () => {
