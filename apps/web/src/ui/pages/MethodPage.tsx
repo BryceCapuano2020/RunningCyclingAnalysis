@@ -32,6 +32,7 @@ import { activityNames } from '../records'
 import { PAGE_HEADING_ID } from './pageHeading'
 import { TwentyMinuteEffort } from './TwentyMinuteEffort'
 import { AgeGradingSection } from './AgeGradingSection'
+import { CalculatedSection } from './CalculatedSection'
 import { EvidenceDisclosure } from './EvidenceDisclosure'
 import { setAsideText } from '../analysis/setAsideCopy'
 import { clearRequestedMethodSection, requestedMethodSection } from '../components/methodSection'
@@ -113,6 +114,7 @@ const SECTION_NAME: Record<keyof typeof SECTION_ID, string> = {
   grades: 'Age grades and levels',
   heart: 'Heart-rate check',
   accuracy: 'Virtual power meter accuracy',
+  calculated: 'What is calculated',
   how: 'How this works and what it assumes',
 }
 
@@ -123,6 +125,7 @@ function contentsOf(hasAccuracy: boolean): ContentsEntry[] {
     { id: SECTION_ID.grades, label: SECTION_NAME.grades },
     { id: SECTION_ID.heart, label: SECTION_NAME.heart },
     ...(hasAccuracy ? [{ id: SECTION_ID.accuracy, label: SECTION_NAME.accuracy }] : []),
+    { id: SECTION_ID.calculated, label: SECTION_NAME.calculated },
     { id: SECTION_ID.how, label: SECTION_NAME.how },
   ]
 }
@@ -387,6 +390,8 @@ export function MethodPage({
             ))}
         </section>
       )}
+
+      <CalculatedSection />
 
       <Methodology topics={HOW_THIS_WORKS} open />
     </div>

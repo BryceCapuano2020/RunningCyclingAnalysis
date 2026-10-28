@@ -1,4 +1,4 @@
-import { HEADLINE_DURATION_S } from '../constants'
+import { DAY_MS, HEADLINE_DURATION_S } from '../constants'
 import type { TrendPoint } from './trend'
 
 /** The trailing window of a trend point over all time, in days. */
@@ -27,6 +27,18 @@ export const NO_TRENDS = Object.freeze(
 export function trendWindowDays(rangeDays: number | null): number {
   if (rangeDays === null) return DEFAULT_WINDOW_DAYS
   return Math.max(MIN_WINDOW_DAYS, Math.min(DEFAULT_WINDOW_DAYS, Math.round(rangeDays / 3)))
+}
+
+/**
+ * The Sunday 23:59:59.999 UTC that ends the calendar week (Monday to Sunday, UTC) of ms. Every weekly
+ * figure in the app is cut at this instant, so the trend and the volume under it share their weeks. Kept
+ * here, apart from trend.ts, so the main thread can use it without loading the analysis.
+ */
+export function weekEndMs(ms: number): number {
+  const date = new Date(ms)
+  const dayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  const daysToSunday = (7 - date.getUTCDay()) % 7
+  return dayStart + (daysToSunday + 1) * DAY_MS - 1
 }
 
 /**

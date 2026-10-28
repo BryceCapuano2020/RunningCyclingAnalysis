@@ -18,7 +18,7 @@ Hash routes, so the static host needs no fallback rules.
 | `#/run`, `#/ride`  | Run, Ride         | Threshold with its level ladder and the age grade of its best 20 min, the best 20 min's heart-rate share, a line of recent form, records in native units with the age grade of each, the distance a run's grade is taken at, how long ago each was set and the change on the period before (runs also at 1 km, 1 mi, 5 km, 10 km and a half marathon), a link to the sport's activities, the best-effort curve in pace or watts under the records (previous period dashed) with where the bests stand out as its caption, race predictions (runs), a weekly trend for 5, 20 or 60 minutes, output at the same heart rate, and one "Not enough yet" list for any section with nothing to show |
 | `#/activities`     | Activities        | Every activity in the library, with its own sport and period filters, a sort (newest, oldest, distance, time or climb), month headings in date order and a count of the activities shown; a row opens its activity page, and a kept activity can be deleted from its row                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `#/activities/:id` | Activity          | Moving time and the figures beside it, route shape, splits (runs), all-time records across the library, best efforts set here, skipped readings, the activities either side, and Delete                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy and how this works                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `#/method`         | How sure is this? | Three-line answer, an on-page contents list, the energy view (a cross-check of the age-grade gap), age grades and levels, heart-rate check with the 20 minute effort under it, virtual-power accuracy, what is calculated and how this works                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `#/profile`        | Profile           | About you (year of birth, sex), body and bike (units, then weights; the two side by side from 900 px), one save status line under them, which offers See your levels after a save once year of birth and sex are known and a result is on screen, and not while a save is pending or one was refused, account (email, download, delete), the export guides, original files (signed in), the saved library (signed in) or the activities kept in this browser (signed out), then Remove activities, which says Clear the analysis when nothing is kept                                                                                                                                        |
 
 Without a result every route except Profile and How sure is this? shows the landing page. How sure is this? shows its method, its age grades and its topics, with one plain line under the energy view, where the charts would be. On a reload of a visit that kept
@@ -387,6 +387,17 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   watts. Tooltips add the cycling W/kg. The Balance trend is the one chart that puts both sports on
   one scale: the age grade in per cent when the age and sex are known, else the energy rate in
   metabolic W/kg.
+- **The weekly volume sits under the Balance trend.** A stacked bar chart, "Training hours per week", with
+  one bar for each week of the trend above it: the moving time of the period's activities, in each sport's
+  colour, stacked in the order of `SPORT_ORDER`. It shares the trend's weeks and x scale (`weekEndMs`, the
+  UTC Sunday that ends each week), so a bar stands under the trend's point for that week; a week with no
+  training is a gap, marked on the axis as the trend marks one. Its one line under the title is chosen in
+  `volumeCaption.ts`: with more than one sport, the sport whose share of the hours moved most between the
+  first and second half of the weeks, when it moved by 15 points or more ("Cycling rose from 22% of your
+  hours in the first half to 82% in the second."), else the share of the sport with most hours; with one
+  sport, how its weekly hours moved between the halves when they changed by a quarter from at least half an hour a week, else what they
+  averaged. The chart has the shared frame's tooltip, arrow-key reading and table (week, hours of each
+  sport, total). It is not shown when fewer than three of the weeks have training.
 - **The default period** is the 84 calendar days (`DEFAULT_PERIOD_WEEKS` of 7) ending on the newest
   activity's day, when they hold a run and a ride. A day is counted in the device's local zone and
   runs from its first millisecond to its last, so an activity at 06:00 and one at 12:00 on the same
@@ -855,6 +866,14 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   ends "A level, not a ranking.", so the page says what a grade is. A Balance card leaves the standard
   to the source line under the cards, and its footer carries the ranking line. The full credit, with
   the authors, licence and a link, is on How sure is this? alone.
+- **How sure is this? lists what is calculated**, in its own section before How this works, in three states
+  (`apps/web/src/ui/components/methodCalculated.ts`): _Calculated by this app_ (from the files: the balance
+  and levels, thresholds and their ranges, best efforts and curves, race predictions, output at the same heart
+  rate, the level target, grade by duration, bests that stand out, virtual power, splits, moving time and
+  climb, the time at each pace in In detail, and the heart-rate set-aside), _Read from your files_ (as the
+  device recorded it: the sport, start time, distance and route, heart rate, power from a meter, and the
+  timelines and laps in In detail) and _Not available from activity files_ (readiness and recovery scores,
+  vendor tests such as 4DP, and lab measures, which need inputs a file does not hold). Each has one plain line.
 - **How sure is this? says how Grade by duration is read**, in one sentence in the age grades section: each sport's best effort at each duration is graded, the ride with its range, and a sport is higher at a duration only where the run's grade leaves the ride's range; inside it the two are level.
 - **Each effort is graded at its own date**: the age on the day of the activity that set it, counted
   from the birth year alone. A ride is dated by its own best ride at that duration. Sport pages say the

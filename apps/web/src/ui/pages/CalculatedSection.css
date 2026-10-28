@@ -1,0 +1,28 @@
+/* The three states, each a short list on the page's reading measure. */
+.calculated__group {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 68ch;
+  margin-top: var(--space-4);
+}
+
+.calculated__items {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.calculated__item {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* The name leads and the line sits under it, so a narrow page never sets them side by side. */
+.calculated__item dt {
+  font-weight: 600;
+}
+
+.calculated__item dd {
+  margin: 0;
+  color: var(--text-secondary);
+}
