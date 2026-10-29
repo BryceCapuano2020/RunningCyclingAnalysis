@@ -69,6 +69,11 @@ export function lengthOf(days: number): string {
   return `${formatCount(days)} days`
 }
 
+/** The period on screen as a name: "12 weeks", "6 weeks", "All time", or a custom range's days. */
+export function periodName(days: number | null): string {
+  return days === null ? 'All time' : lengthOf(days)
+}
+
 /** Why the default shows all time, under the period's dates. */
 export const FALLBACK_NOTE = `Your last ${DEFAULT_PERIOD_WEEKS} weeks don't hold both sports, so this shows all time.`
 

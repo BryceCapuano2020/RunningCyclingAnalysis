@@ -93,6 +93,12 @@ export const THRESHOLD_LABEL: Record<Sport, string> = {
   ride: 'Threshold power, estimated',
 }
 
+/** A sport's threshold as the name over its figure; the chip beside it says whether it is estimated. */
+export const THRESHOLD_HEADING: Record<Sport, string> = {
+  run: 'Threshold pace',
+  ride: 'Threshold power',
+}
+
 /**
  * The label over a threshold the fit refused, when the lowest of the bests it left out is shown in its place.
  * That is a held best and a floor, not an estimate, so it is not called one.

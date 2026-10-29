@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LateEvidence, SameHeartRate } from '@rca/core/digest'
 import { NO_LATE_EVIDENCE } from '@rca/core/digest/lateEvidenceTypes'
@@ -12,6 +12,7 @@ import { makeActivity, makeResult } from '../components/fixtures'
 import { lateEvidenceFor } from '../lateFixtures'
 import { profileActivities, profileCurve } from '../profileFixtures'
 import { measureTime } from '../test/zoneTimeFixtures'
+import { closedRow, openSection } from '../test/openSection'
 import { SportPage } from './SportPage'
 
 afterEach(cleanup)
@@ -28,18 +29,19 @@ const week = (index: number, output: number): SameHeartRate['weeks'][number] => 
 /** A real change in the run's pace at one heart rate, so the section has something to say. */
 const RUN_SAME_HEART_RATE: SameHeartRate = {
   referenceHeartRate: 145,
-  weeks: [0, 1, 2, 3, 4].map((i) => week(i, 3.2 + i * 0.05)),
+  // Eight weeks, from 3.0 to 3.4 m/s: 5:33 to 4:54 a kilometre, a trend the weeks' own ranges leave no doubt of.
+  weeks: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => week(i, 3.0 + i * (0.4 / 7))),
   change: {
-    fromEndMs: week(0, 3.2).endMs,
-    toEndMs: week(4, 3.4).endMs,
-    from: 3.2,
+    fromEndMs: week(0, 3.0).endMs,
+    toEndMs: week(7, 3.4).endMs,
+    from: 3.0,
     to: 3.4,
-    weeksApart: 4,
-    relative: 0.0625,
+    weeksApart: 7,
+    relative: 0.133,
     real: true,
   },
   lacks: null,
-  latestWeekEndMs: week(4, 3.4).endMs,
+  latestWeekEndMs: week(7, 3.4).endMs,
 }
 
 /** Ten hours of a run's heart rate over eight runs, mostly in zone 2, so the section has something to say. */
@@ -83,7 +85,15 @@ function renderPage(
 }
 
 const headings = () =>
-  screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+  screen
+    .getAllByRole('heading', { level: 2 })
+    .map((heading) => heading.getAttribute('aria-label') ?? heading.textContent)
+
+/** The names of the page's named sections, in the order they are read. */
+const regions = () =>
+  screen
+    .getAllByRole('region')
+    .map((region) => region.getAttribute('aria-label') ?? region.getAttribute('aria-labelledby'))
 
 /** Whether b comes after a in the document. */
 const follows = (a: Node, b: Node) =>
@@ -111,58 +121,94 @@ function fullRun(): AnalysisResult {
 }
 
 describe('a sport page with everything to show', () => {
-  it('reads answer, best efforts, race predictions, week by week, the same heart rate, late in long sessions, then time in zones', () => {
+  it('reads answer, best efforts, race predictions, time in zones and week by week open, in that order', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(headings()).toEqual([
       'Threshold pace, estimated',
       'Best efforts',
       'Race predictions',
-      'Week by week',
-      'At the same heart rate',
-      'Late in long sessions',
       'Time in zones',
+      'Week by week',
     ])
   })
 
-  it('has no heading of its own for the curve or for the stand-out finding', () => {
+  it('follows with the same heart rate, late in long sessions, stand-out and the full list, each closed', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    const closed = [
+      'At the same heart rate',
+      'Late in long sessions',
+      'Where your bests stand out',
+      'All best efforts',
+    ]
+    const order = regions().filter((name) => closed.includes(name ?? ''))
+    expect(order).toEqual(closed)
+    for (const name of closed) {
+      const details = screen.getByRole('region', { name }).querySelector('details')!
+      expect(details.open).toBe(false)
+      expect(details.querySelector('.sport-disclosure__body')).toBeEmptyDOMElement()
+    }
+  })
+
+  it('says its finding on every closed row, so closed still tells the athlete something', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    // 3.0 to 3.4 m/s is 5:33 to 4:54 a km, about 39 s faster; the first week's window is in December. The closed
+    // row names the heart rate, so "the same" is a number.
+    expect(closedRow('At the same heart rate')).toMatch(
+      /^At the same heart rateAt the same heart rate you run (3[89]|40) s\/km faster than in December \(145 bpm\)$/,
+    )
+    expect(closedRow('Late in long sessions')).toMatch(
+      /Best 20 min held \d+% after 90 min; output per heartbeat fell 3%/,
+    )
+    expect(closedRow('Where your bests stand out')).toMatch(/Your 5 min best is [23]\d% above/)
+    expect(closedRow('All best efforts')).toMatch(
+      /^All best efforts\d+ best efforts and the activity each was set in$/,
+    )
+  })
+
+  it('has no heading of its own for the curve’s title, the closed sections or the stand-out finding', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     expect(screen.queryByRole('heading', { name: 'Pace curve' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Where your bests stand out' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Not enough yet' })).toBeNull()
   })
 
-  it('puts the curve under the records list, with the stand-out finding as its caption', () => {
+  it('puts the record tiles under the curve, and the stand-out finding in its own closed section, not as a caption', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
     const section = screen.getByRole('region', { name: 'Best efforts' })
-    const list = section.querySelector('ul.records')!
     const curve = within(section).getByRole('figure', { name: /^Run flat pace .* by duration$/ })
-    const caption = within(section).getByText(/^Your 5 min best is [23]\d% above/)
-    expect(follows(list, curve)).toBe(true)
-    expect(follows(curve, caption)).toBe(true)
+    const tiles = within(section).getByRole('list', { name: 'Best efforts' })
+    expect(follows(curve, tiles)).toBe(true)
+    expect(within(section).queryByText(/^Your 5 min best is/)).toBeNull()
+    expect(tiles.querySelector('ul.records')).toBeNull()
   })
 
-  it('keeps the strip behind a closed disclosure that opens to show each best against the others', () => {
+  it('keeps every best effort in a closed section that opens to the full list', () => {
     renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    const section = screen.getByRole('region', { name: 'Best efforts' })
-    const details = within(section)
-      .getByText('Show each best against the others')
-      .closest('details')!
-    expect(details.open).toBe(false)
-    expect(within(details).queryByRole('figure')).toBeNull()
-    details.open = true
-    fireEvent(details, new Event('toggle'))
-    expect(within(details).getByRole('figure')).toBeInTheDocument()
-    expect(within(details).getByText('Hide each best against the others')).toBeInTheDocument()
+    const closed = screen.getByRole('region', { name: 'All best efforts' })
+    expect(closed.querySelector('ul.records')).toBeNull()
+    openSection('All best efforts')
+    expect(closed.querySelector('ul.records')).not.toBeNull()
   })
 
-  it('offers no disclosure when nothing stands out, and says the bests are in line', () => {
+  it('opens the stand-out section to the strip of each best against the others', () => {
+    renderPage('run', fullRun(), RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
+    const region = screen.getByRole('region', { name: 'Where your bests stand out' })
+    expect(within(region).queryByRole('figure')).toBeNull()
+    openSection('Where your bests stand out')
+    expect(within(region).getByRole('figure')).toBeInTheDocument()
+  })
+
+  it('says the bests are in line when nothing stands out, and draws no strip when it opens', () => {
     const result = makeResult({
       activities: [...profileActivities('run'), withBests],
       runCurve: profileCurve(),
     })
     renderPage('run', result, RUN_SAME_HEART_RATE, lateEvidenceFor('run'), RUN_ZONES)
-    expect(screen.queryByText(/each best against the others/)).toBeNull()
-    expect(screen.getByText(/^Your bests are in line with each other/)).toBeInTheDocument()
+    expect(closedRow('Where your bests stand out')).toMatch(
+      /Your bests are in line with each other/,
+    )
+    const region = openSection('Where your bests stand out')
+    expect(within(region).queryByRole('figure')).toBeNull()
   })
 
   it('says under the week-by-week chart that a dip can be a best leaving the window', () => {
@@ -201,18 +247,22 @@ describe('a sport page with sections that have nothing to show', () => {
       'Week by week',
       'Not enough yet',
     ])
+    // Only the sections with something to show have a row.
+    expect(regions()).not.toContain('Late in long sessions')
+    expect(regions()).not.toContain('At the same heart rate')
     const section = screen.getByRole('region', { name: 'Not enough yet' })
     const items = within(section)
       .getAllByRole('listitem')
       .map((item) => item.textContent)
     expect(items).toEqual([
-      expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
       'Race predictions: needs a best of a mile or more, or runs with heart rate.',
+      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
       expect.stringMatching(
         /^At the same heart rate: needs at least \d+ steady 5-minute stretches/,
       ),
-      'Late in long sessions: add 3 runs longer than an hour. Needs 3 steady runs over an hour with heart rate to show how output per heartbeat changes.',
-      'Time in zones: needs 3 activities with heart rate, or a threshold pace entered on Profile, and 1 hour of them.',
+      'Best efforts late in long sessions: add 3 runs longer than an hour.',
+      'Output per heartbeat over an hour: needs 3 steady runs with heart rate.',
+      expect.stringMatching(/^Where your bests stand out: needs bests at 5 or more durations/),
     ])
     expect(section.querySelector('ul')).toHaveClass('muted')
   })
@@ -220,7 +270,7 @@ describe('a sport page with sections that have nothing to show', () => {
   it('puts the list after the sections and before the footnote', () => {
     renderPage('run', newRun())
     const list = screen.getByRole('region', { name: 'Not enough yet' })
-    const last = screen.getByRole('region', { name: 'Week by week' })
+    const last = screen.getByRole('region', { name: 'All best efforts' })
     expect(follows(last, list)).toBe(true)
     expect(follows(list, screen.getByText('Page footnote'))).toBe(true)
   })
@@ -262,8 +312,11 @@ describe('the threshold when only a floor is shown', () => {
       }),
     )
     const section = screen.getByRole('region', { name: 'Threshold power, at least' })
-    expect(within(section).getByText('52 W')).toBeInTheDocument()
-    expect(screen.queryByText('Threshold power, estimated')).toBeNull()
+    expect(section.querySelector('.sport-hero__number')).toHaveTextContent('52')
+    expect(within(section).getByText('At least', { selector: '.stat-tile__basis' })).toHaveClass(
+      'stat-tile__basis--floor',
+    )
+    expect(screen.queryByText('Estimated', { selector: '.stat-tile__basis' })).toBeNull()
   })
 
   it('is labelled "at least" on a run', () => {

@@ -86,7 +86,7 @@ describe('a stretch of the curve that carries a longer effort', () => {
     const labels = [...container.querySelectorAll('.annot--bracket .annot__text')].map(
       (text) => text.textContent,
     )
-    expect(labels).toEqual(['Between 20 and 60 min the line carries your 60 min best.'])
+    expect(labels).toEqual(['No separate 20–60 min effort: this stretch uses your 60 min best'])
   })
 
   it('draws the light stretch from the last measured point to the next, and no further', () => {
@@ -107,8 +107,9 @@ describe('a stretch of the curve that carries a longer effort', () => {
   it('is said in the table’s caption, so the twin says what the drawing does', () => {
     chartWidth(900)
     const { container } = ride(SPARSE)
-    expect(container.querySelector('caption')?.textContent).toContain(
-      'Between 20 and 60 min the line carries your 60 min best.',
+    // The caption ends the sentence once; the label itself carries no full stop to double it.
+    expect(container.querySelector('caption')?.textContent).toMatch(
+      /No separate 20–60 min effort: this stretch uses your 60 min best\.$/,
     )
   })
 
@@ -117,7 +118,7 @@ describe('a stretch of the curve that carries a longer effort', () => {
     const { container } = ride([measured(60, 400), measured(300, 320), measured(1200, 250)])
     expect(container.querySelector('[data-testid="sport-curve-carried"]')).toBeNull()
     expect(container.querySelector('.annot--bracket')).toBeNull()
-    expect(container.querySelector('caption')?.textContent).not.toContain('the line carries')
+    expect(container.querySelector('caption')?.textContent).not.toContain('this stretch uses')
   })
 
   it('treats a point with no window, as in a curve made without digests, as measured', () => {
@@ -234,7 +235,7 @@ describe('a run curve that carries a longer effort', () => {
       'chart-series__line--carried',
     )
     expect(container.querySelector('.annot--bracket .annot__text')?.textContent).toBe(
-      'Between 20 and 60 min the line carries your 60 min best.',
+      'No separate 20–60 min effort: this stretch uses your 60 min best',
     )
   })
 
@@ -427,5 +428,70 @@ describe('the phone readout when the chart is resized', () => {
       '1 min',
     )
     expect(container.querySelector('.chart-frame__overlay [role="status"]')).toBeNull()
+  })
+})
+
+describe('the effort the title cites', () => {
+  /** The earlier period has no 20 minute effort of its own (an hour's is carried down) and none of an hour, so the two compare at 15. */
+  const NOW = [
+    measured(60, 420),
+    measured(300, 330),
+    measured(900, 280),
+    measured(1200, 263),
+    measured(3600, 241),
+  ]
+  const BEFORE = [
+    measured(60, 400),
+    measured(300, 320),
+    measured(900, 216),
+    carried(1200, 214, 3600),
+  ]
+
+  const compare = (curve: CurvePoint[], earlier: CurvePoint[]) =>
+    render(
+      <SportCurveChart
+        sport="ride"
+        curve={curve}
+        previous={{ curve: earlier, label: 'Previous 12 weeks' }}
+        massKg={MASS_KG}
+        units="metric"
+      />,
+    )
+
+  it('is marked on the curve when it is not one the curve calls out, so the title never cites an unlabelled length', () => {
+    chartWidth(900)
+    const { container } = compare(NOW, BEFORE)
+    expect(screen.getByRole('figure')).toHaveAccessibleDescription(
+      '15 min is 64 W higher than the previous 12 weeks',
+    )
+    const mark = container.querySelector('[data-annotation="best-900"]')
+    expect(mark).not.toBeNull()
+    expect(mark?.textContent).toContain('15 min')
+    expect(mark?.textContent).toContain('280')
+  })
+
+  it('is kept on a phone, where a callout the title does not cite gives way', () => {
+    chartWidth(288)
+    const { container } = compare(NOW, BEFORE)
+    expect(container.querySelector('[data-annotation="best-900"]')).not.toBeNull()
+  })
+
+  it('adds nothing when the title cites the 20 minutes, which is always marked', () => {
+    chartWidth(900)
+    const { container } = compare(NOW, [
+      measured(60, 400),
+      measured(300, 320),
+      measured(900, 216),
+      measured(1200, 250),
+      measured(3600, 214),
+    ])
+    expect(container.querySelector('[data-annotation="best-900"]')).toBeNull()
+    expect(container.querySelector('[data-annotation="best-1200"]')).not.toBeNull()
+  })
+
+  it('adds nothing for a title that says no clear change, which cites no effort', () => {
+    chartWidth(900)
+    const { container } = compare(NOW, NOW)
+    expect(container.querySelector('[data-annotation="best-900"]')).toBeNull()
   })
 })

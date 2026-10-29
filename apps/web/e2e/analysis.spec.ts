@@ -28,8 +28,12 @@ const RUN_CURVE = /^Run flat pace per (kilometre|mile) by duration$/
 const RIDE_CURVE = /^Ride power in watts by duration$/
 /** The section that compares each best with the athlete's other bests. */
 const NOT_ENOUGH_YET = 'Not enough yet'
-/** The sport page's sections that need a season of activities, and the line under its best-effort curve. */
-const SPORT_SECTIONS = ['Week by week', 'At the same heart rate', 'Late in long sessions']
+/** The sport page's section that is open and needs a season of activities; the others sit behind closed rows. */
+const OPEN_SEASON_SECTION = 'Week by week'
+/** The closed sections that need a season: each row says its finding, and opens to a chart. */
+const CLOSED_SEASON_SECTIONS = ['At the same heart rate', 'Late in long sessions']
+/** The closed row of the finding that compares each best with the athlete's other bests. */
+const STAND_OUT_SECTION = 'Where your bests stand out'
 const STANDS_OUT_LINE = /^(?:Your bests are in line with each other|.*stand out)/
 const ENERGY_SCALE = /^Run and Ride energy rate \(metabolic W\/kg\) by duration$/
 const RATIO = /^Run compared with Ride by duration$/
@@ -60,9 +64,16 @@ test('a sample athlete shows the balance, its charts, the activities and the sam
     await expect(
       page.getByRole('figure', { name: sport === 'Run' ? RUN_CURVE : RIDE_CURVE }),
     ).toBeVisible()
-    await expect(page.getByText(STANDS_OUT_LINE)).toBeVisible()
-    for (const section of SPORT_SECTIONS) {
-      await expect(page.getByRole('heading', { level: 2, name: section })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 2, name: OPEN_SEASON_SECTION })).toBeVisible()
+    // A closed row says what it found, so closed still tells the athlete something; it opens to its chart.
+    const standOut = page.getByRole('region', { name: STAND_OUT_SECTION })
+    await expect(standOut.locator('.sport-disclosure__finding')).toHaveText(STANDS_OUT_LINE)
+    for (const section of CLOSED_SEASON_SECTIONS) {
+      const region = page.getByRole('region', { name: section })
+      await expect(region.locator('.sport-disclosure__finding')).toBeVisible()
+      await expect(region.locator('.sport-disclosure__finding')).not.toBeEmpty()
+      await region.locator('summary').click()
+      await expect(region.getByRole('figure').first()).toBeVisible()
     }
     await expect(page.getByRole('heading', { level: 2, name: NOT_ENOUGH_YET })).toHaveCount(0)
   }
@@ -203,7 +214,7 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
 
   await page
     .getByRole('region', { name: 'Best efforts' })
-    .locator('a.records__link')
+    .locator('a.record-tiles__link, .record-tiles__shared a')
     .first()
     .click()
 
@@ -214,6 +225,24 @@ test('a record link opened from Run keeps the Run tab lit and offers Back to Run
       .getByRole('link', { name: 'Run', exact: true }),
   ).toHaveClass(/header__tab--current/)
   await expect(page.getByRole('link', { name: 'Back to Run', exact: true })).toBeVisible()
+})
+
+test('the sport page opens a closed section from "On this page", and says what it found when closed', async ({
+  page,
+}) => {
+  await openSample(page)
+  await goTo(page, 'Run')
+  const nav = page.getByRole('navigation', { name: 'On this page' })
+  await expect(nav).toBeVisible()
+  // A closed section says its name and finding on its row, before it is opened.
+  const all = page.getByRole('region', { name: 'All best efforts' })
+  await expect(all.locator('summary')).toContainText(/\d+ best efforts with their levels/)
+  await expect(all.locator('details')).not.toHaveAttribute('open', '')
+  await nav.getByRole('button', { name: 'All best efforts' }).click()
+  await expect(all.locator('details')).toHaveAttribute('open', '')
+  await expect(all.locator('ul.records')).toBeVisible()
+  // The address is the page's own: pressing the row did not move the app's hash route.
+  await expect(page).toHaveURL(/#\/run$/)
 })
 
 /**

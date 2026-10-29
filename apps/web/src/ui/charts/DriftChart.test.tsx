@@ -6,6 +6,7 @@ import { DECOUPLING_REFERENCE, driftDescription } from '../lateInEffort'
 import { DriftChart } from './DriftChart'
 
 const NOTE = 'How a dot is made.'
+const TAKEAWAY = 'Output per heartbeat fell 3% from the first half to the second.'
 const POINTS = driftPoints([1, 2, 3, 6, 4])
 const NAMES = Object.fromEntries(POINTS.map((p, i) => [p.activityId, `Long run ${i + 1}`]))
 
@@ -20,7 +21,16 @@ describe('DriftChart', () => {
   })
 
   const renderChart = (sport: 'run' | 'ride' = 'run') =>
-    render(<DriftChart sport={sport} points={POINTS} names={NAMES} note={NOTE} />)
+    render(
+      <DriftChart
+        sport={sport}
+        points={POINTS}
+        names={NAMES}
+        takeaway={TAKEAWAY}
+        medianPct={3}
+        note={NOTE}
+      />,
+    )
 
   it('is titled for the sport’s steady efforts', () => {
     renderChart()
@@ -53,6 +63,44 @@ describe('DriftChart', () => {
     },
   )
 
+  it('sets the finding as the chart’s headline', () => {
+    renderChart()
+    expect(screen.getByRole('figure')).toHaveAccessibleDescription(TAKEAWAY)
+  })
+
+  it('draws the median as a line across the dots, below zero for a fall, and says it in words', () => {
+    const { container } = renderChart()
+    const median = container.querySelector('[data-testid="drift-median"]')!
+    // The axis has zero above the 5% reference: a 3% fall sits between them.
+    const zero = Number(
+      container.querySelector('[data-testid="drift-reference"]')!.getAttribute('y1'),
+    )
+    const y = Number(median.getAttribute('y1'))
+    expect(y).toBe(Number(median.getAttribute('y2')))
+    expect(y).toBeLessThan(zero)
+    expect(container.querySelector('.drift-chart__median-label')?.textContent).toBe(
+      'Median: fell 3%',
+    )
+  })
+
+  it('keeps the median on the axis when it is the furthest value, and draws no NaN', () => {
+    const { container } = render(
+      <DriftChart
+        sport="run"
+        points={POINTS}
+        names={NAMES}
+        takeaway={TAKEAWAY}
+        medianPct={30}
+        note={NOTE}
+      />,
+    )
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/)
+    const ticks = Array.from(container.querySelectorAll('.chart-y-axis__tick')).map((t) =>
+      Number.parseInt(t.textContent ?? '', 10),
+    )
+    expect(Math.min(...ticks)).toBeLessThanOrEqual(-30)
+  })
+
   it('draws the 5% reference as a dashed line named plainly in the key', () => {
     const { container } = renderChart()
     expect(container.querySelectorAll('[data-testid="drift-reference"]')).toHaveLength(1)
@@ -75,7 +123,16 @@ describe('DriftChart', () => {
 
   it('draws a rise above zero and reads it as a rise', () => {
     const rising = driftPoints([-3, 2, 4])
-    const { container } = render(<DriftChart sport="run" points={rising} names={{}} note={NOTE} />)
+    const { container } = render(
+      <DriftChart
+        sport="run"
+        points={rising}
+        names={{}}
+        takeaway={TAKEAWAY}
+        medianPct={3}
+        note={NOTE}
+      />,
+    )
     const [rise, fall] = Array.from(container.querySelectorAll('[data-testid="drift-dot"]')).map(
       (d) => Number(d.getAttribute('cy')),
     )
@@ -125,14 +182,32 @@ describe('DriftChart', () => {
   })
 
   it('falls back to the date when an activity has no name', () => {
-    render(<DriftChart sport="run" points={POINTS} names={{}} note={NOTE} />)
+    render(
+      <DriftChart
+        sport="run"
+        points={POINTS}
+        names={{}}
+        takeaway={TAKEAWAY}
+        medianPct={3}
+        note={NOTE}
+      />,
+    )
     const first = within(screen.getByRole('table')).getAllByRole('row')[1]!
     expect(first.querySelectorAll('th, td')[1]!.textContent).toBe('Mon 6 Jan 2025')
   })
 
   it('draws on one day without a repeated tick', () => {
     const same = POINTS.map((p) => Object.assign({}, p, { startMs: POINTS[0]!.startMs }))
-    const { container } = render(<DriftChart sport="run" points={same} names={NAMES} note={NOTE} />)
+    const { container } = render(
+      <DriftChart
+        sport="run"
+        points={same}
+        names={NAMES}
+        takeaway={TAKEAWAY}
+        medianPct={3}
+        note={NOTE}
+      />,
+    )
     expect(container.querySelectorAll('.chart-x-axis__tick')).toHaveLength(1)
   })
 })

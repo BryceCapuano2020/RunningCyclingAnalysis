@@ -87,6 +87,18 @@
   fill: var(--previous-mark);
 }
 
+/* A reading that is evidence for a trend, not the trend: a light dot, so the line in front says what the dots add up to. */
+.chart-series__marker--light {
+  fill-opacity: 0.4;
+  stroke-width: 1.5;
+}
+
+/* The band round a fitted trend: a wash of the sport, a little lighter than an area, since it is a range and not a total. */
+.chart-series__area--trend {
+  fill: var(--sport-colour);
+  fill-opacity: 0.14;
+}
+
 /* A week's 90% interval: a thin bar under its marker, in the colour of the sport it names on data-sport. */
 .chart-series__interval {
   stroke: var(--sport-colour);
@@ -144,6 +156,11 @@
   .chart-series__marker {
     fill: CanvasText;
     stroke: Canvas;
+  }
+
+  .chart-series__area--trend {
+    fill: Highlight;
+    fill-opacity: 0.3;
   }
 
   .chart-series__ring--ride {

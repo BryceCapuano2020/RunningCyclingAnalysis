@@ -39,6 +39,30 @@ async function openGradedSample(page: Page): Promise<void> {
   await openSample(page)
 }
 
+/**
+ * Opens a sport page with a year of birth and sex saved, then every closed section, the race predictions'
+ * disclosure and the definition of the assumed spread, so what sits behind them is checked too. Each press
+ * is followed by its content, so nothing is checked before it is drawn.
+ */
+function openEverySection(sport: 'Run' | 'Ride') {
+  return async (page: Page): Promise<void> => {
+    await openGradedSample(page)
+    await goTo(page, sport)
+    const closed = page.locator('.sport-disclosure__summary')
+    const count = await closed.count()
+    expect(count).toBeGreaterThan(0)
+    for (let i = 0; i < count; i += 1) {
+      await closed.nth(i).click()
+      await expect(page.locator('.sport-disclosure__details[open]')).toHaveCount(i + 1)
+    }
+    const about = page.getByText('About these predictions')
+    if ((await about.count()) > 0) {
+      await about.click()
+      await expect(page.getByRole('table', { name: /Race predictions/ })).toBeVisible()
+    }
+  }
+}
+
 const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
   {
     name: 'landing',
@@ -76,6 +100,14 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
       await openGradedSample(page)
       await goTo(page, 'Ride')
     },
+  },
+  {
+    name: 'Run, every section open',
+    open: openEverySection('Run'),
+  },
+  {
+    name: 'Ride, every section open',
+    open: openEverySection('Ride'),
   },
   {
     name: 'setup dialog',

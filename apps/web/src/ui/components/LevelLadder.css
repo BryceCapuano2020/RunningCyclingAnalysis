@@ -1,7 +1,7 @@
 /* The level ladder: labels as text placed by percentage, the bar at a fixed height, the marker in the sport's colour. */
 .level-ladder {
-  --level-track: 1rem;
-  --level-marker: 1.25rem;
+  --level-track: 2rem;
+  --level-marker: 1.5rem;
   --ladder-colour: var(--sport-colour);
 }
 
@@ -85,10 +85,30 @@
   border: 1px solid transparent;
 }
 
-/* The band the grade falls in takes its sport's soft colour and a solid edge in the sport's colour. */
+/* The five bands are the neutral level washes, a deeper step for each level up: a level is not a sport's colour. */
+.level-ladder__band--1 {
+  background: var(--level-1);
+}
+
+.level-ladder__band--2 {
+  background: var(--level-2);
+}
+
+.level-ladder__band--3 {
+  background: var(--level-3);
+}
+
+.level-ladder__band--4 {
+  background: var(--level-4);
+}
+
+.level-ladder__band--5 {
+  background: var(--level-5);
+}
+
+/* The band the grade falls in takes a solid edge in the sport's colour, as well as its bold name. */
 .level-ladder__band--current {
   border: 1px solid var(--ladder-colour);
-  background: var(--ladder-band);
 }
 
 .level-ladder__key {
@@ -177,6 +197,7 @@
 
   .level-ladder__band--current {
     background: Highlight;
+    border-color: CanvasText;
   }
 
   .level-ladder__edge {

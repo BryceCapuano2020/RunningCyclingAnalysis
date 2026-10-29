@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effortCaveat, effortShareLine, hardEffortsOnFile } from './effortCaveat'
+import { effortCaveat, effortShare, effortShareLine, hardEffortsOnFile } from './effortCaveat'
 
 describe('effortCaveat', () => {
   it('gives the card wording and a one-line version when the cycling effort was low', () => {
@@ -145,5 +145,40 @@ describe('the 90% boundary is judged on the percent shown', () => {
     expect(
       effortCaveat({ durationS: 1200, runHrFraction: 0.895, rideHrFraction: 0.8 })?.title,
     ).toBe('Your best ride did not reach a hard heart rate')
+  })
+})
+
+describe('effortShare', () => {
+  it('gives the line, whether the effort was hard, and the share as the whole percent the line shows', () => {
+    const hard = effortShare('run', { durationS: 1200, runHrFraction: 0.974, rideHrFraction: null })
+    expect(hard).toMatchObject({ hard: true, percent: 97 })
+    expect(hard?.line).toContain('reached 97% of your running reference heart rate')
+    expect(
+      effortShare('ride', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.8 }),
+    ).toMatchObject({
+      hard: false,
+      percent: 80,
+    })
+  })
+
+  it('judges a share that rounds to 90% as hard, on the percent it shows', () => {
+    expect(
+      effortShare('run', { durationS: 1200, runHrFraction: 0.896, rideHrFraction: null }),
+    ).toMatchObject({
+      hard: true,
+      percent: 90,
+    })
+  })
+
+  it('is none when heart rate does not say, or there is no check', () => {
+    expect(
+      effortShare('run', { durationS: 1200, runHrFraction: null, rideHrFraction: 0.9 }),
+    ).toBeNull()
+    expect(effortShare('run', null)).toBeNull()
+  })
+
+  it('says the same line as effortShareLine', () => {
+    const effort = { durationS: 1200, runHrFraction: 0.7, rideHrFraction: null }
+    expect(effortShare('run', effort)?.line).toBe(effortShareLine('run', effort))
   })
 })

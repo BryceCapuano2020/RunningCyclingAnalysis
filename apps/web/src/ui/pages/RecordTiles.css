@@ -1,0 +1,111 @@
+/* The records under the curve: two to a row on a phone, four on a desktop, divided by hairlines. */
+.record-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) 0;
+  margin: 0;
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.record-tiles__tile {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-right: var(--space-3);
+}
+
+.record-tiles__tile:nth-child(even) {
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--border);
+}
+
+.record-tiles__label {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.record-tiles__value {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-tiles__sub {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.record-tiles__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* The level as a chip: a quiet neutral wash, the same on both sports. */
+.record-tiles__grade {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--level-3);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.record-tiles__change {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.record-tiles__link {
+  display: flex;
+  /* A grid item will not shrink below its content: the long name is cut short by its ellipsis, not by the page. */
+  justify-self: stretch;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--control-height);
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.record-tiles__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-tiles__date {
+  flex: none;
+  white-space: pre;
+}
+
+.record-tiles__shared {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 761px) {
+  .record-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .record-tiles__tile:nth-child(even) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .record-tiles__tile + .record-tiles__tile {
+    padding-left: var(--space-4);
+    border-left: 1px solid var(--border);
+  }
+}

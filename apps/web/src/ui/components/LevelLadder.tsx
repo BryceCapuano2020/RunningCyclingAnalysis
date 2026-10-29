@@ -154,11 +154,7 @@ function LadderTrack({ sport, grade }: { sport: Sport; grade: SportGrade }) {
         {BANDS.map((band) => (
           <span
             key={band.name}
-            className={
-              current.has(band.name)
-                ? 'level-ladder__band level-ladder__band--current'
-                : 'level-ladder__band'
-            }
+            className={`level-ladder__band level-ladder__band--${BANDS.indexOf(band) + 1}${current.has(band.name) ? ' level-ladder__band--current' : ''}`}
             style={spanStyle(band.low, band.high)}
           />
         ))}
