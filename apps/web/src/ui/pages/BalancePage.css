@@ -18,18 +18,6 @@
   justify-items: start;
 }
 
-/* The level target sits under the meter, below the grades, so the meter stays above the section tabs on a phone. */
-.balance-hero__level {
-  max-width: 62ch;
-}
-
-/* The meter and, on a phone, the grades under it: one group, so the grades take the meter's gap. */
-.balance-hero__meter {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
 /* The headline on its own line; the share button sits under the lede, on the same text column. */
 .balance-hero__head {
   display: block;
@@ -52,16 +40,133 @@
   }
 }
 
-/* The answer and its meter stack with the gap a page's sections have. */
+/* The scoreboard and the level scale under it stack with the gap a page's sections have. */
 .balance-hero__pair {
   display: grid;
-  gap: var(--space-7);
+  gap: var(--space-5);
   min-width: 0;
 }
 
+/* What sits under the scale, such as the share button, keeps its own width. */
+.balance-hero__pair > :not(.balance-scale, .balance-hero, .scale-figure) {
+  justify-self: start;
+}
+
+/* The answer's text column beside the gap's display figure, which sits at the foot of the headline's row. */
+.balance-hero--answer {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2) var(--space-7);
+}
+
+.balance-hero--answer > .balance-hero__text {
+  max-width: none;
+}
+
+.balance-hero__text {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  min-width: 0;
+}
+
+.balance-hero__text > p {
+  max-width: 62ch;
+}
+
+.balance-hero__title {
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: clamp(2.25rem, 5.6vw, 4.25rem);
+  line-height: 0.92;
+  max-width: 21ch;
+}
+
+/* The sport the balance leans toward is underlined in its own colour: a shape, so the text stays ink. */
+.balance-hero__sport {
+  font-style: normal;
+  background: linear-gradient(transparent 82%, var(--sport-colour) 82% 94%, transparent 94%);
+}
+
+.balance-hero__lede {
+  /* The answer's sentence is the lead size, a step above the body. */
+  font-size: var(--text-lead);
+}
+
+/* The gap as a scoreboard figure at display size, with its direction and range under it. */
+.balance-hero__gap {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  text-align: right;
+}
+
+.balance-hero__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.8;
+}
+
+.balance-hero__number {
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: clamp(5.5rem, 12vw, 8.5rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.balance-hero__unit {
+  color: var(--text-muted);
+  /* A display size with no type token; see DESIGN.md, Type. */
+  font-size: 1.5rem;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* The direction and the range are two lines, each held whole, so a wide screen never breaks "range 1 / to 12 points". */
+.balance-hero__note {
+  font-size: var(--text-sm);
+}
+
+.balance-hero__side,
+.balance-hero__range {
+  display: block;
+  white-space: nowrap;
+}
+
+/* The figure drops under the headline on a phone, left-aligned, with its note beside it. */
+@media (max-width: 760px) {
+  .balance-hero--answer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .balance-hero__gap {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .balance-hero__number {
+    font-size: 4.5rem;
+  }
+
+  .balance-hero__lede {
+    font-size: var(--text-md);
+  }
+
+  /* On a phone the note sits beside the figure in what is left of the width, so its lines may wrap. */
+  .balance-hero__side,
+  .balance-hero__range {
+    white-space: normal;
+  }
+}
+
 /*
- * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the answer and its meter sit
- * closer, and the answer's own gaps tighten too, so the meter, key included, is above the section tabs at 320 x 568
+ * On a short phone (SHORT_PHONE_MAX_HEIGHT_PX in ui/layoutBreakpoints.ts) the answer and its scale sit
+ * closer, and the answer's own gaps tighten too, so the scale is on the first screen at 320 x 568
  * and 320 x 640 (the sample notice tightens too, in AppNotices.css). A short desktop window keeps the tall gaps: the query asks for a
  * finger or a phone-width window.
  */
@@ -73,32 +178,21 @@
   .balance-hero__pair {
     gap: var(--space-4);
   }
-}
 
-/* In landscape the answer sits beside its meter, so the meter is on the first screen at 844 x 390 and 667 x 375. */
-@media (orientation: landscape) and (max-height: 700px) and (pointer: coarse),
-  (orientation: landscape) and (max-height: 700px) and (max-width: 760px) {
-  .balance-hero__pair {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+  .balance-hero__number {
+    font-size: 3.5rem;
   }
 }
 
-/* The sport cards share one height, so their "All runs" and "All rides" links sit on one line. */
-.balance__sports,
+/* The tiles' prompt for a sport with nothing in the period fills its slot. */
+.balance-tiles > .empty-sport {
+  align-content: start;
+}
+
+/* The heart-rate evidence sits under the tiles, in the page's own gap. */
 .balance__cards {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-balance)), 1fr));
-}
-
-.balance__sports {
-  align-items: stretch;
-}
-
-/* The evidence cards top-align, so a card stays its own height beside the one that is taller. */
-.balance__cards {
-  align-items: start;
 }
 
 .balance__cards .card {
@@ -119,18 +213,27 @@
   justify-items: start;
 }
 
-/*
- * Where the evidence card and the cross-sport idea sit side by side, the idea is inset past the card's
- * border and padding, so their text lines up. Stacked on a phone, the idea keeps the full width.
- */
-@media (min-width: 45.5rem) {
-  .balance__cards > .card + .cross-sport {
-    padding-inline: calc(var(--space-5) + 1px);
-  }
-}
-
 .balance__cards .chip {
   justify-self: start;
+}
+
+/* A chart that has the page's width to itself, as a card: grade by duration. */
+.balance__panel {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 760px) {
+  .balance__panel {
+    padding: var(--space-4) var(--space-3);
+  }
 }
 
 .balance__trends {

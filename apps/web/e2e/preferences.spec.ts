@@ -34,7 +34,7 @@ test('a visitor’s own ride W/kg follows the body weight they enter on Profile'
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward running/, {
     timeout: 30_000,
   })
-  const ride = page.getByRole('region', { name: 'Ride', exact: true })
+  const ride = page.getByRole('article', { name: 'Ride threshold' })
   await expect(ride).toContainText('W/kg')
   const before = await ride.innerText()
 
@@ -54,7 +54,7 @@ test('the sample keeps its own 75 kg whatever weight the visitor enters, and the
   page,
 }) => {
   await openSample(page)
-  const ride = page.getByRole('region', { name: 'Ride', exact: true })
+  const ride = page.getByRole('article', { name: 'Ride threshold' })
   await expect(ride).toContainText('W/kg')
   const before = await ride.innerText()
 

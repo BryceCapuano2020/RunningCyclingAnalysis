@@ -202,3 +202,27 @@
     --header-height: calc(var(--space-5) + var(--control-height) + var(--space-2) + 1px);
   }
 }
+
+/*
+ * Level bands: five neutral washes, from Recreational to World, that form the canvas under the level
+ * scale. Each is the ink at a rising alpha, so a higher level reads as a deeper step in both schemes
+ * and never as a sport colour. See docs/DESIGN.md, Level bands. They sit in blocks of their own so a
+ * change to the colour table above never touches them.
+ */
+:root {
+  --level-1: #0e111606;
+  --level-2: #0e11160d;
+  --level-3: #0e111614;
+  --level-4: #0e11161d;
+  --level-5: #0e111626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --level-1: #eef0f306;
+    --level-2: #eef0f30d;
+    --level-3: #eef0f314;
+    --level-4: #eef0f31d;
+    --level-5: #eef0f326;
+  }
+}

@@ -28,6 +28,7 @@ import {
   type CardLayout,
 } from './cardLayout'
 import { meterBlock } from './cardMeter'
+import { scaleBlock } from './cardScale'
 import type { ShareCardModel } from './cardModel'
 
 export { loadCardFonts } from './cardCanvas'
@@ -207,7 +208,12 @@ function cardBlocks(
       MAGNITUDE_LINE,
       CARD_COLORS.secondary,
     ),
-    ...(model.meter === null ? [] : [meterBlock(ctx, model.meter, x, contentWidth)]),
+    // The level scale is the card's visual where both sports are graded; otherwise the balance meter.
+    ...(model.scale === null
+      ? model.meter === null
+        ? []
+        : [meterBlock(ctx, model.meter, x, contentWidth)]
+      : [scaleBlock(ctx, model.scale, x, contentWidth)]),
     heroBlock(ctx, model.heroes, figureLayout, contentWidth),
     ...textBlock(
       ctx,

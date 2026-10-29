@@ -75,13 +75,19 @@ function renderChart(overrides: Partial<GradeProfileChartProps> = {}) {
 }
 
 describe('GradeProfileChart', () => {
-  it('is titled Grade by duration, with the finding as its lede', () => {
-    renderChart()
-    expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
-    expect(screen.getByText(FINDING)).toHaveClass('chart-frame__lede')
+  it('is titled by its finding, which is the one sentence it says, and has no lede under it', () => {
+    const { container } = renderChart()
+    expect(screen.getByRole('figure', { name: FINDING })).toBeInTheDocument()
+    expect(screen.getByText(FINDING)).toHaveClass('chart-frame__title')
+    expect(container.querySelector('.chart-frame__lede')).toBeNull()
     expect(screen.getByRole('img', { name: /age grades/i })).toHaveAccessibleName(
       /Duration is on a log scale/,
     )
+  })
+
+  it('is titled Grade by duration without a finding to say', () => {
+    renderChart({ finding: undefined })
+    expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
   })
 
   it('labels the duration axis 3, 5, 10, 20, 30 and 60, in minutes, and the grade axis in per cent', () => {
@@ -99,12 +105,12 @@ describe('GradeProfileChart', () => {
     expect(screen.getByText('Duration (min, log scale)')).toBeInTheDocument()
   })
 
-  it('draws a run as a solid line with dots, and a ride as a dashed line with rings and a band', () => {
+  it('draws a run as a solid line with dots over a ride as a line with rings and a band, never a dashed line', () => {
     const { container } = renderChart()
     const lines = Array.from(container.querySelectorAll('[data-testid="profile-line"]'))
-    expect(lines.map((line) => line.getAttribute('data-sport'))).toEqual(['run', 'ride'])
-    expect(lines[0]).not.toHaveClass('chart-series__line--estimate')
-    expect(lines[1]).toHaveClass('chart-series__line--estimate')
+    // The run is drawn last, so the recorded line is on top of the estimate and its band.
+    expect(lines.map((line) => line.getAttribute('data-sport'))).toEqual(['ride', 'run'])
+    for (const line of lines) expect(line).not.toHaveClass('chart-series__line--estimate')
     expect(
       container.querySelectorAll('[data-testid="profile-marker"][data-sport="run"]'),
     ).toHaveLength(6)
@@ -138,6 +144,20 @@ describe('GradeProfileChart', () => {
     expect(runs[2]).toBe(runs[4])
   })
 
+  it('labels each sport’s grade at 20 min beside its point, with the ride’s range under its label', () => {
+    const { container } = renderChart()
+    const labels = Array.from(container.querySelectorAll('[data-testid="profile-label"]'))
+    const text = (sport: string) =>
+      labels.find((label) => label.getAttribute('data-sport') === sport)?.textContent
+    expect(text('run')).toBe('Run 64%')
+    expect(text('ride')).toMatch(/^Ride \d+%range \d+–\d+%$/)
+    // The run's label is above and to the right of its 20 min point, which is the fourth mark.
+    const marker = container.querySelectorAll('[data-testid="profile-marker"][data-sport="run"]')[3]
+    const label = labels.find((each) => each.getAttribute('data-sport') === 'run')
+    expect(Number(label?.getAttribute('x'))).toBeGreaterThan(Number(marker?.getAttribute('cx')))
+    expect(Number(label?.getAttribute('y'))).toBeLessThan(Number(marker?.getAttribute('cy')))
+  })
+
   it('names both sports in the key, with the ride marked as an estimate', () => {
     renderChart()
     const legend = screen.getByRole('list', { name: 'Legend' })
@@ -155,7 +175,8 @@ describe('GradeProfileChart', () => {
     expect(within(tooltip).getByText('Ride, estimated')).toBeInTheDocument()
     expect(tooltip).toHaveTextContent('60%')
     expect(tooltip).toHaveTextContent('57–63%')
-    expect(tooltip.querySelector('.chart-tooltip__key--dashed-ride')).not.toBeNull()
+    expect(tooltip.querySelector('.chart-tooltip__key--ride')).not.toBeNull()
+    expect(tooltip.querySelector('[class*="dashed"]')).toBeNull()
   })
 
   it('says a sport has no grade at a duration where it has none, and draws no point there', () => {

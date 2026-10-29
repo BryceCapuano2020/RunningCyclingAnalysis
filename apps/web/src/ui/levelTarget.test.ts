@@ -9,7 +9,13 @@ import { gapOfHeadline } from './balanceGap'
 import { curvePoint } from './charts/fixtures'
 import { flatWkg, makeActivity, makeEquivalence, makeResult } from './components/fixtures'
 import { headlineGrades, sportGrade, type AgeProfile, type GradeOutcome } from './grades'
-import { levelTargetText, levelledNative, nativeAtGrade, nativeRangeAtGrade } from './levelTarget'
+import {
+  levelTarget,
+  levelTargetText,
+  levelledNative,
+  nativeAtGrade,
+  nativeRangeAtGrade,
+} from './levelTarget'
 import { wholeGrade } from './gradeFormat'
 import { SAMPLE_PROFILE, SAMPLE_SETTINGS } from './sampleAthlete'
 
@@ -304,4 +310,55 @@ describe('the levelled target, rounded toward the side that levels', () => {
     expect(at(levelled)).toBeNull()
     expect(at(levelled - 1)).toContain(`; now ${levelled - 1} W).`)
   }, 60_000)
+})
+
+describe('levelTarget', () => {
+  const result = makeResult({
+    activities: [
+      makeActivity({ id: 'run-1', sport: 'run' }),
+      makeActivity({ id: 'ride-1', sport: 'ride' }),
+    ],
+    runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(3.9), 'run-1')],
+    rideCurve: [curvePoint(HEADLINE_DURATION_S, 230, 'ride-1')],
+  })
+  const base = {
+    result,
+    grades: { run: graded(0.67), ride: graded(0.6) },
+    sex: 'male' as const,
+    massKg: MASS_KG,
+    units: 'metric' as const,
+    calibration: result.hr,
+  }
+
+  it('gives the pieces of the sentence the page words, so a drawing can use them and the sentence is unchanged', () => {
+    const target = levelTarget({ ...base, lean: 'run' })
+    expect(target).toMatchObject({ higher: 'run', lower: 'ride' })
+    expect(target?.centre).toMatch(/^\d+ W$/)
+    expect(target?.range).toMatch(/^\d+ to \d+ W$/)
+    expect(target?.now).toBe('230 W')
+    expect(target?.sentence).toBe(levelTargetText({ ...base, lean: 'run' }))
+    expect(target?.sentence).toContain(
+      `about ${target?.centre} (roughly ${target?.range?.replace(' to ', ' to ')}; now ${target?.now})`,
+    )
+  })
+
+  it('gives a run as its pace, with no range, since a run’s grade is one recorded effort', () => {
+    const slowRun = makeResult({
+      ...result,
+      runCurve: [curvePoint(HEADLINE_DURATION_S, flatWkg(3.0), 'run-1')],
+      rideCurve: [curvePoint(HEADLINE_DURATION_S, 320, 'ride-1')],
+    })
+    const target = levelTarget({
+      ...base,
+      result: slowRun,
+      lean: 'ride',
+      grades: { run: graded(0.5), ride: graded(0.67) },
+    })
+    expect(target).toMatchObject({ higher: 'ride', lower: 'run', range: null })
+    expect(target?.centre).toMatch(/^\d+:\d{2} \/km$/)
+  })
+
+  it('is null where the sentence is: an even balance, or a target the page already shows', () => {
+    expect(levelTarget({ ...base, lean: 'even' })).toBeNull()
+  })
 })

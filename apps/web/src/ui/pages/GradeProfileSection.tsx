@@ -69,7 +69,7 @@ export function GradeProfileSection({
   if (graded === null || finding === null) return null
   const separated = profileSeparated(graded)
   return (
-    <section className="section grade-profile" aria-labelledby="balance-profile">
+    <section className="balance__panel grade-profile" aria-labelledby="balance-profile">
       {/* The chart's own title, shown once by the chart; the heading names the section the same way. */}
       <h2 id="balance-profile" className="sr-only">
         {GRADE_PROFILE_TITLE}

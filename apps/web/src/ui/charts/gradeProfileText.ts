@@ -23,7 +23,7 @@ export function descriptionOf(profile: GradeProfile): string {
   const sports = drawnSports(profile)
   const how = sports.map((sport) =>
     isRanged(profile, sport)
-      ? `${SPORT_LABEL[sport]} is estimated through its running equivalent, drawn dashed with rings and a band for its range.`
+      ? `${SPORT_LABEL[sport]} is estimated through its running equivalent, drawn with rings and a band for its range.`
       : `${SPORT_LABEL[sport]} is as recorded.`,
   )
   const names = sports.map((sport) => SPORT_LABEL[sport]).join(' and ')
@@ -35,14 +35,14 @@ function nameOf(sport: Sport, ranged: boolean): string {
   return ranged ? `${SPORT_LABEL[sport]}, estimated` : SPORT_LABEL[sport]
 }
 
-/** The key: each drawn sport, a line for a recorded grade and a dashed one for an estimate. */
+/** The key: each drawn sport, a line for a recorded grade and a ring for an estimate. */
 export function legendOf(profile: GradeProfile): ChartLegendEntry[] {
   return drawnSports(profile).map((sport) => {
     const ranged = isRanged(profile, sport)
     return {
       label: ranged ? nameOf(sport, true) : `${SPORT_LABEL[sport]}, as recorded`,
       kind: sport,
-      swatch: ranged ? 'dashed' : 'line',
+      swatch: ranged ? 'ring' : 'line',
     }
   })
 }
@@ -93,7 +93,6 @@ export function tooltipFor(
       kind: sport,
       label,
       value: formatGrade(grade.centre.grade),
-      swatch: grade.range === null ? 'solid' : 'dashed',
       note: grade.range === null ? level : `${level}, range ${gradeRangeText(grade.range)}`,
     }
   })

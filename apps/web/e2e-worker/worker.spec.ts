@@ -31,9 +31,13 @@ test('the Worker serves the app, restrictive headers, worker assets and same-ori
   expect(imgSrc?.split(' ')).toContain('blob:')
   await page.getByRole('button', { name: 'See a sample athlete' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/leans toward|in balance/)
+  // The level scale is named by its figures, and the ride on foot is a tile with its pace and the ride behind it.
   await expect(
-    page.getByRole('heading', { level: 2, name: /^On foot, your ride is worth/ }),
+    page.getByRole('img', { name: /^Age-grade level of your best 20 min\. Run \d+ percent/ }),
   ).toBeVisible()
+  const onFoot = page.getByRole('article', { name: 'Ride on foot' })
+  await expect(onFoot.locator('.stat-tile__number')).toHaveText(/^\d+:\d{2}$/)
+  await expect(onFoot.getByRole('link', { name: /^Set on / })).toBeVisible()
   await page.getByRole('button', { name: 'Share image' }).click()
   const sheet = page.getByRole('dialog', { name: 'Share image' })
   await expect(sheet).toBeVisible()

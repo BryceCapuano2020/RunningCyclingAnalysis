@@ -1,0 +1,61 @@
+/* A defined term reads as text with a dotted underline; its note opens under it. */
+.definition {
+  position: relative;
+  display: inline;
+}
+
+.definition__term {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  background: none;
+  color: inherit;
+  cursor: help;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+/* Shown while data-open: a press, which the keyboard makes with the button, or a pointer resting on the term or the note. */
+.definition__note {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 10;
+  display: none;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - var(--space-5)));
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.4;
+  text-transform: none;
+  transform: translateX(var(--definition-shift, 0px));
+}
+
+.definition[data-open='true'] .definition__note {
+  display: block;
+}
+
+/* The note touches the term's hover area, so a pointer crossing the gap to it never leaves. */
+.definition__note::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--space-1) * -1) 0 auto;
+  height: var(--space-1);
+}
+
+@media (forced-colors: active) {
+  .definition__note {
+    border-color: CanvasText;
+  }
+}

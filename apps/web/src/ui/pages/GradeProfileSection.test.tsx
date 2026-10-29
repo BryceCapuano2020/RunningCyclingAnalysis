@@ -59,12 +59,10 @@ describe('GradeProfileSection', () => {
       />,
     )
     const section = screen.getByRole('region', { name: 'Grade by duration' })
-    expect(within(section).getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
-    expect(
-      within(section).getByText(
-        /^Your running grades about \d+ points higher than your cycling at every duration from 10 to 60 min, /,
-      ),
-    ).toBeInTheDocument()
+    // The finding is the chart's title: the figure is named by it, and no second copy sits above it.
+    const finding = /^Running grades higher at every length$/
+    expect(within(section).getByRole('figure', { name: finding })).toBeInTheDocument()
+    expect(within(section).getAllByText(finding)).toHaveLength(1)
   })
 
   it('keeps its heading for screen readers only, so the chart title is the one visible name', () => {
@@ -166,7 +164,7 @@ describe('GradeProfileSection', () => {
     expect(pipeline.equivalenceFor).not.toHaveBeenCalled()
   })
 
-  it('shows the chart open, with the finding as its lede, when a duration separates the sports', () => {
+  it('shows the chart open, with the finding as its title, when a duration separates the sports', () => {
     const { container } = render(
       <GradeProfileSection
         result={resultAt([600, 1200, 3600])}
@@ -177,8 +175,11 @@ describe('GradeProfileSection', () => {
       />,
     )
     expect(container.querySelector('.grade-profile__details')).toBeNull()
-    expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument()
-    expect(container.querySelector('.chart-frame__lede')).toHaveTextContent(/^Your running grades/)
+    expect(screen.getByRole('figure', { name: /^Running grades higher / })).toBeInTheDocument()
+    expect(container.querySelector('.chart-frame__title')).toHaveTextContent(
+      /^Running grades higher /,
+    )
+    expect(container.querySelector('.chart-frame__lede')).toBeNull()
   })
 
   it('keeps the sentence and folds the chart behind Show by duration when no duration separates them', async () => {
@@ -191,9 +192,7 @@ describe('GradeProfileSection', () => {
         calibration={null}
       />,
     )
-    const sentence = screen.getByText(
-      /^At every duration from .* the range of the gap reaches zero/,
-    )
+    const sentence = screen.getByText(/^Running and cycling grade alike$/)
     expect(sentence).toBeVisible()
     // The chart is not mounted while it is folded, and its lede is not said twice.
     expect(screen.queryByRole('figure')).toBeNull()
@@ -206,7 +205,8 @@ describe('GradeProfileSection', () => {
     await waitFor(() =>
       expect(screen.getByRole('figure', { name: 'Grade by duration' })).toBeInTheDocument(),
     )
-    expect(screen.getAllByText(/the range of the gap reaches zero/)).toHaveLength(1)
+    // The sentence is said once: the open chart does not repeat it as its own title.
+    expect(screen.getAllByText('Running and cycling grade alike')).toHaveLength(1)
     expect(within(details).getByText('Hide by duration')).toBeInTheDocument()
   })
 })

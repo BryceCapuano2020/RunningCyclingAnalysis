@@ -5,15 +5,21 @@ import { contrast } from '../styles/contrastMath'
 
 const tokensCss = await readStylesheet(import.meta.url, '../styles/tokens.css')
 
-/** The custom properties declared in the block that opens with the given selector, by name. */
+/**
+ * The custom properties declared in every top-level block that opens with the given selector, by name: the
+ * colour table's block, and the level tokens' block of its own that follows it.
+ */
 function blockTokens(selector: string): Map<string, string> {
-  const start = tokensCss.indexOf(selector)
-  if (start < 0) throw new Error(`no ${selector} block in tokens.css`)
-  const body = tokensCss.slice(tokensCss.indexOf('{', start) + 1, tokensCss.indexOf('}', start))
   const tokens = new Map<string, string>()
-  for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
-    const [, name, value] = match
-    if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
+  let start = tokensCss.indexOf(selector)
+  if (start < 0) throw new Error(`no ${selector} block in tokens.css`)
+  while (start >= 0) {
+    const body = tokensCss.slice(tokensCss.indexOf('{', start) + 1, tokensCss.indexOf('}', start))
+    for (const match of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
+      const [, name, value] = match
+      if (name !== undefined && value !== undefined) tokens.set(name, value.trim().toLowerCase())
+    }
+    start = tokensCss.indexOf(selector, start + 1)
   }
   return tokens
 }

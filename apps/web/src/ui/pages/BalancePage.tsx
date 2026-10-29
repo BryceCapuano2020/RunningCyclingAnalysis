@@ -13,8 +13,10 @@ import { trendGutter } from '../charts/sharedTrendGutter'
 import { copyOf } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
 import { ShareImageButton, headlinePick } from '../components'
+import { gapReading } from '../components/balanceScale'
+import { previousPeriodLabel } from '../components/rangeOptions'
 import { gapOfHeadline } from '../balanceGap'
-import { levelTargetText } from '../levelTarget'
+import { levelTarget } from '../levelTarget'
 import { withoutWalking } from '../analysis/walkingPaceCopy'
 import { countSport, latestStartOf } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
@@ -33,13 +35,14 @@ import { SPORT_ORDER } from '../sports'
 import type { AnalysisController } from '../useAnalysis'
 import { volumeCaption } from '../volumeCaption'
 import { weeklyVolume } from '../weeklyVolume'
+import { balanceChanges } from './balanceChangeItems'
+import { scaleModel } from './balanceScaleModel'
+import { BalanceChanges } from './BalanceChanges'
 import { BalanceHero } from './BalanceHero'
-import { BalanceStrip } from './BalanceStrip'
-import { CrossSportCard } from './CrossSportCard'
-import { EmptySportCard } from './EmptySportCard'
+import { BalanceScale } from './BalanceScale'
+import { BalanceTiles } from './BalanceTiles'
 import { EvidenceCard } from './EvidenceCard'
 import { GradeProfileSection } from './GradeProfileSection'
-import { SportCard } from './SportCard'
 import './BalancePage.css'
 
 export interface BalancePageProps {
@@ -106,7 +109,14 @@ export function BalancePage({
   onShowAll,
   footnote = null,
 }: BalancePageProps) {
-  const { isSample, period, library: allActivities, trend, heartRateJudgement } = analysis.state
+  const {
+    isSample,
+    period,
+    library: allActivities,
+    trend,
+    previous,
+    heartRateJudgement,
+  } = analysis.state
   // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
   const library = useMemo(() => withoutWalking(allActivities), [allActivities])
   // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
@@ -137,10 +147,10 @@ export function BalancePage({
   )
   // The level target waits for the same things as the balance: both grades, and so the weight. Its ride
   // search runs on each change of these inputs, not on each render, so it is memoised on them.
-  const levelLine = useMemo(
+  const target = useMemo(
     () =>
       gap !== null && sex !== null
-        ? levelTargetText({
+        ? levelTarget({
             lean: gap.lean,
             grades,
             result,
@@ -151,6 +161,65 @@ export function BalancePage({
           })
         : null,
     [gap, grades, result, sex, settings.massKg, units, calibration],
+  )
+  const reading = useMemo(() => (gap === null ? null : gapReading(gap)), [gap])
+  const scale = useMemo(
+    () =>
+      reading === null
+        ? null
+        : scaleModel({ grades, reading, target, result, massKg: settings.massKg, units }),
+    [grades, reading, target, result, settings.massKg, units],
+  )
+  // With one sport in the period, its level is the answer on its own: a lane with no gap and no target.
+  const sportsHere = SPORT_ORDER.filter((sport) => countSport(result.activities, sport) > 0)
+  const aloneScale = useMemo(
+    () =>
+      sportsHere.length === 1
+        ? scaleModel({
+            grades,
+            reading: null,
+            target: null,
+            result,
+            massKg: settings.massKg,
+            units,
+          })
+        : null,
+    [sportsHere.length, grades, result, settings.massKg, units],
+  )
+  // What moved since the previous period, graded as this period is; the previous gap is priced once here.
+  const previousLabel = previousPeriodLabel(period.days)
+  const changes = useMemo(
+    () =>
+      balanceChanges({
+        result,
+        previous,
+        library,
+        previousLabel,
+        units,
+        rideShown: weightKnown,
+        gap,
+        grading:
+          profile === null
+            ? null
+            : {
+                library,
+                profile: { birthYear: profile.birthYear, sex: profile.sex },
+                massKg: settings.massKg,
+                calibration,
+              },
+      }),
+    [
+      result,
+      previous,
+      library,
+      previousLabel,
+      units,
+      weightKnown,
+      gap,
+      profile,
+      settings.massKg,
+      calibration,
+    ],
   )
   // The hours trained in the trend's own weeks, which the strip under the trend draws; null folds it away.
   const volume = useMemo(
@@ -225,8 +294,8 @@ export function BalancePage({
         weightKnown={weightKnown}
         runLevel={gradedLevel(grades.run)}
         rideLevel={gradedLevel(grades.ride)}
-        strip={<BalanceStrip grades={grades} />}
-        levelLine={levelLine}
+        scale={scale === null ? null : <BalanceScale model={scale} />}
+        aloneScale={aloneScale === null ? null : <BalanceScale model={aloneScale} />}
         action={
           <ShareImageButton
             result={result}
@@ -245,39 +314,21 @@ export function BalancePage({
 
       {controls}
 
-      <div className="balance__sports">
-        {SPORT_ORDER.map((sport) =>
-          counts[sport] > 0 ? (
-            <SportCard
-              key={sport}
-              sport={sport}
-              result={result}
-              units={units}
-              massKg={settings.massKg}
-              grade={grades[sport]}
-              weighted={weightKnown}
-            />
-          ) : (
-            <EmptySportCard
-              key={sport}
-              sport={sport}
-              inLibrary={countSport(library, sport)}
-              period={period}
-              onAddFiles={analysis.addFiles}
-            />
-          ),
-        )}
-      </div>
+      <BalanceChanges changes={changes} previousLabel={previousLabel} />
+
+      <BalanceTiles
+        result={result}
+        library={library}
+        units={units}
+        massKg={settings.massKg}
+        grades={grades}
+        weighted={weightKnown}
+        period={period}
+        reading={reading}
+        onAddFiles={analysis.addFiles}
+      />
 
       {sourceLine}
-
-      <GradeProfileSection
-        result={result}
-        profile={profile}
-        massKg={settings.massKg}
-        weightKnown={weightKnown}
-        calibration={calibration}
-      />
 
       {missingAge !== null && (
         <div className="balance__profile">
@@ -291,9 +342,16 @@ export function BalancePage({
       {bothInPeriod && (
         <div className="balance__cards">
           <EvidenceCard effort={effort} noHeartRate={result.maxHeartRate === null} />
-          <CrossSportCard result={result} units={units} weighted={weightKnown} period={period} />
         </div>
       )}
+
+      <GradeProfileSection
+        result={result}
+        profile={profile}
+        massKg={settings.massKg}
+        weightKnown={weightKnown}
+        calibration={calibration}
+      />
 
       {weeksWithValue(trend) >= 1 && (
         <section className="section" aria-labelledby="balance-trend">

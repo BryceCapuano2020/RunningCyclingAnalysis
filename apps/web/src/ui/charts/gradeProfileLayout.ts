@@ -1,8 +1,10 @@
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { Sport } from '@rca/core/types'
 import type { GradeProfile } from '../gradeProfile'
+import { formatGrade } from '../gradeFormat'
+import { gradeRangeText } from '../grades'
 import type { SportGrade } from '../grades'
-import { SPORT_ORDER } from '../sports'
+import { SPORT_LABEL, SPORT_ORDER } from '../sports'
 import type { AxisTick, ChartSize, Point } from './chartTypes'
 import { linearScale, logScale, niceDomain, tickDecimals } from './scale'
 import { plotted } from './sharedTrendText'
@@ -14,7 +16,7 @@ export interface ProfileRow {
   grades: Partial<Record<Sport, SportGrade>>
 }
 
-/** Whether a sport's grades are estimates with a range, as a ride's are: it is drawn dashed, with a band. */
+/** Whether a sport's grades are estimates with a range, as a ride's are: it is drawn with rings, and a band. */
 export function isRanged(profile: GradeProfile, sport: Sport): boolean {
   return profile[sport].some((point) => point.grade.range !== null)
 }
@@ -53,6 +55,8 @@ export interface SportMarks {
 
 export interface ProfileLayout {
   xs: number[]
+  /** The sports' grades named at the headline duration. */
+  labels: DirectLabel[]
   /** Where each row's tooltip is anchored: beside its first mark. */
   ys: (number | null)[]
   marks: SportMarks[]
@@ -132,6 +136,7 @@ export function profileLayout(
   })
   return {
     xs: rows.map((row) => x(row.durationS)),
+    labels: directLabels(rows, marks, plot.right),
     ys: rows.map((_, i) => marks.map((m) => m.centre[i]?.y).find((v) => v !== undefined) ?? null),
     marks,
     xTicks: durationTicksOf(rows, x, width),
@@ -140,4 +145,59 @@ export function profileLayout(
       { axis: 'y', width },
     ),
   }
+}
+
+/** A label set beside a point at the headline duration: the sport and its grade, and an estimate's range under it. */
+export interface DirectLabel {
+  sport: Sport
+  x: number
+  y: number
+  anchor: 'start' | 'end'
+  text: string
+  /** An estimate's range, "range 52–63%", on a line under the label; null for a recorded grade. */
+  range: string | null
+  /** Whether the line under the label is set below the point, rather than above it. */
+  below: boolean
+}
+
+/** How far a label sits from the point it names, and how much room it needs to its right, in px. */
+const LABEL_OFFSET = 10
+const LABEL_ROOM = 96
+
+/**
+ * Direct labels for each sport's grade at the headline duration, the length the balance is taken at. The sport
+ * higher on the plot is labelled above and to the right of its point; the other below and to its left, so the
+ * two labels never meet. A label near the plot's right edge turns to run leftward from its point.
+ */
+export function directLabels(
+  rows: readonly ProfileRow[],
+  marks: readonly SportMarks[],
+  plotRight: number,
+): DirectLabel[] {
+  const index = rows.findIndex((row) => row.durationS === HEADLINE_DURATION_S)
+  const row = rows[index]
+  if (row === undefined) return []
+  const found = marks.flatMap((mark) => {
+    const point = mark.centre[index]
+    const grade = row.grades[mark.sport]
+    return point == null || grade === undefined ? [] : [{ mark, point, grade }]
+  })
+  const highest = found.reduce(
+    (best, item) => (item.point.y < best.point.y ? item : best),
+    found[0]!,
+  )
+  return found.map(({ mark, point, grade }): DirectLabel => {
+    const above = found.length === 1 || highest.mark === mark
+    const turned = point.x + LABEL_OFFSET + LABEL_ROOM > plotRight
+    const towardRight = above && !turned
+    return {
+      sport: mark.sport,
+      x: point.x + (towardRight ? LABEL_OFFSET : -LABEL_OFFSET),
+      y: point.y + (above ? -LABEL_OFFSET : LABEL_OFFSET + 8),
+      anchor: towardRight ? 'start' : 'end',
+      text: `${SPORT_LABEL[mark.sport]} ${formatGrade(grade.centre.grade)}`,
+      range: grade.range === null ? null : `range ${gradeRangeText(grade.range)}`,
+      below: !above,
+    }
+  })
 }
