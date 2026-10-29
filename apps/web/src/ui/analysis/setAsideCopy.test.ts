@@ -9,6 +9,7 @@ const JUDGED: HeartRateJudgement = {
   setAside: ['n1', 'r1', 'r2'],
   referenceHr: { run: 200.4, ride: 194 },
   threshold: { run: 5, ride: 4 },
+  calibration: null,
 }
 
 describe('set-aside heart rate copy', () => {
@@ -31,8 +32,8 @@ describe('set-aside heart rate copy', () => {
     expect(text).toBe(
       'Heart rate from 1 run and 2 rides is left out: on each, through 10 min or more at or above ' +
         'your threshold, its heart rate stayed under 70% of your reference heart rate across all your ' +
-        'activities (200 bpm running, 194 bpm cycling) or read too low for the power, which a working ' +
-        'sensor would not show.',
+        'activities (200 bpm running, 194 bpm cycling) or read too low for the power, through that effort ' +
+        'or across the whole activity, which a working sensor would not show.',
     )
   })
 
@@ -46,8 +47,8 @@ describe('set-aside heart rate copy', () => {
     expect(setAsideActivityText('run', JUDGED)).toBe(
       "We left this activity's heart rate out of the heart-rate check and the effort checks: through 10 " +
         'min or more at or above your threshold, its heart rate stayed under 70% of your reference heart ' +
-        'rate across all your activities (200 bpm running) or read too low for the power, which a working ' +
-        'sensor would not show.',
+        'rate across all your activities (200 bpm running) or read too low for the power, through that ' +
+        'effort or across the whole activity, which a working sensor would not show.',
     )
   })
 

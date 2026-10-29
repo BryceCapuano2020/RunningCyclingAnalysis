@@ -5,13 +5,9 @@ import { HowToGetFilesButton } from '../components/HowToGetFiles'
 import { WeightNote } from '../components/WeightNote'
 import { effortShareLine } from '../effortCaveat'
 import { sportGrade } from '../grades'
-import { headlineEffort, refusalOf, sportRecords, threshold } from '../records'
-import {
-  THRESHOLD_FLOOR_LABEL,
-  THRESHOLD_LABEL,
-  THRESHOLD_MEANING,
-  thresholdNeedsText,
-} from '../sports'
+import { headlineEffort, sportRecords, threshold } from '../records'
+import { thresholdNeedsLine } from '../thresholdNeeds'
+import { THRESHOLD_FLOOR_LABEL, THRESHOLD_LABEL, THRESHOLD_MEANING } from '../sports'
 import { floorThreshold } from '../thresholdFloor'
 import { thresholdRange } from '../thresholdRange'
 import { unevenNote } from '../unevenNote'
@@ -100,7 +96,7 @@ export function SportAnswer(props: SportAnswerProps) {
           {hero.sub && <span className="sport-page__hero-sub secondary">{hero.sub}</span>}
         </p>
       ) : (
-        <p className="secondary">{thresholdNeedsText(refusalOf(result, sport))}</p>
+        <p className="secondary">{thresholdNeedsLine(result, sport)}</p>
       )}
       {hero && range && <p className="muted sport-page__range">{range}</p>}
       {hero && floorNote && <p className="muted">{floorNote}</p>}

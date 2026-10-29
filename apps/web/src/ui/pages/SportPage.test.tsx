@@ -514,6 +514,16 @@ describe('SportPage', () => {
     expect(screen.queryByText(/\/km$/)).not.toBeInTheDocument()
   })
 
+  it('names the longest effort held when none is as long as the threshold needs', () => {
+    const short = [{ durationS: 300, value: 6, activityId: morningRun.id, startIndex: 0 }]
+    renderPage('run', makeResult({ activities: [morningRun], runCp: null, runCurve: short }))
+
+    expect(
+      screen.getByText('Needs an effort of about 20 min. Your longest so far is 5 min.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Needs efforts between/)).not.toBeInTheDocument()
+  })
+
   it('explains that run paces are flat paces', () => {
     renderPage('run', makeResult({ activities: [morningRun] }))
 
@@ -1061,9 +1071,11 @@ describe('SportPage cycling figures without a weight', () => {
       null,
       NO_TRENDS,
       true,
-      <p>Based on 75 kg, age 40, man. Change on Profile</p>,
+      <p>Based on 75 kg, man and your age at each effort. Change on Profile</p>,
     )
-    expect(screen.getByText('Based on 75 kg, age 40, man. Change on Profile')).toBeInTheDocument()
+    expect(
+      screen.getByText('Based on 75 kg, man and your age at each effort. Change on Profile'),
+    ).toBeInTheDocument()
   })
 })
 

@@ -30,6 +30,7 @@ import { AWAITED, NO_DETAIL, useSplitsView, type TraceReport } from '../useSplit
 import { NEEDS_WEIGHT } from '../zoneRows'
 import { ActivityBests } from './ActivityBests'
 import { setAsideActivityText } from '../analysis/setAsideCopy'
+import { WALKING_PACE_CHIP, WALKING_PACE_NOTE } from '../analysis/walkingPaceCopy'
 import { ActivityIssues } from './ActivityIssues'
 import { ActivityNav } from './ActivityNav'
 import { ActivityStats } from './ActivityStats'
@@ -223,6 +224,7 @@ export function ActivityPage({
           <span>{formatDay(activity.startMs)}</span>
           <span>{formatTimeOfDay(activity.startMs)}</span>
           {activity.indoor && <span className="chip">Indoor</span>}
+          {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
         </p>
         <h1 id={PAGE_HEADING_ID} tabIndex={-1} className="activity-page__title">
           {activity.name}
@@ -294,19 +296,24 @@ export function ActivityPage({
         />
       )}
 
-      <ActivityBests
-        activity={activity}
-        result={result}
-        units={units}
-        massKg={massKg}
-        weightKnown={weightKnown}
-        profile={profile}
-        inPeriod={inPeriod}
-        period={period}
-        earned={earned}
-        splitsLoad={splitsLoad}
-        splitsView={splitsView.view}
-      />
+      {/* A run at walking pace is outside the analysis, so there are no bests to give. */}
+      {activity.walkingPace ? (
+        <p className="secondary">{WALKING_PACE_NOTE}</p>
+      ) : (
+        <ActivityBests
+          activity={activity}
+          result={result}
+          units={units}
+          massKg={massKg}
+          weightKnown={weightKnown}
+          profile={profile}
+          inPeriod={inPeriod}
+          period={period}
+          earned={earned}
+          splitsLoad={splitsLoad}
+          splitsView={splitsView.view}
+        />
+      )}
       <ActivityIssues
         activity={activity}
         setAsideNote={

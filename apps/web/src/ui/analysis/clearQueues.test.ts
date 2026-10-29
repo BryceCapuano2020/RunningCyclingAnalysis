@@ -59,6 +59,7 @@ const STATE = {
   outdatedActivities: 0,
   incompatibleActivities: 0,
   hiddenDuplicates: 0,
+  walkingPaceRuns: 0,
   trend: [],
   previous: null,
   effortTrends: NO_TRENDS,

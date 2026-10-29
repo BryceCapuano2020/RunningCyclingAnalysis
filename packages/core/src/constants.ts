@@ -363,3 +363,22 @@ export const DRIFT = {
  * (docs/research/durability.md): a light reference line, not a verdict.
  */
 export const LATE_IN_EFFORT = { minActivities: 3, referenceDecouplingPct: 5 } as const
+
+/**
+ * A run at walking pace is not a run: a hike recorded as one. Its moving speed is under maxMovingSpeedMs
+ * (15:00 a mile) for at least minMovingS. A slow run is told from a walk by either of two signals, and kept when
+ * either says it ran: steps a minute at or over runCadenceStepsPerMin (the median over all its moving seconds, or
+ * over just those faster than a walk, which must be at least minCadenceSamples seconds and minFasterShare of the
+ * moving time), or at least runningShare of its
+ * moving time at or over runningSpeedMs (12:11 a mile). A few seconds of GPS noise is not a run; a genuine slow
+ * trail run, which jogs the flat and descents, or a run/walk session, is kept.
+ */
+export const WALKING_PACE = {
+  maxMovingSpeedMs: 1609.344 / 900,
+  minMovingS: 600,
+  runCadenceStepsPerMin: 130,
+  minCadenceSamples: 60,
+  minFasterShare: 0.05,
+  runningSpeedMs: 2.2,
+  runningShare: 0.1,
+} as const

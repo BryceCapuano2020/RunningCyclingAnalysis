@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { deviceIssueText, ORIGINALS_UNAVAILABLE } from '../analysis/copy'
+import { walkingPaceText } from '../analysis/walkingPaceCopy'
 import { plural } from './plural'
 import type { AnalysisController } from '../useAnalysis'
 
@@ -154,6 +155,9 @@ export function LibraryNotices({
       </section>
       {analysis.state.hiddenDuplicates > 0 && (
         <p className="secondary">{hiddenCopiesText(analysis.state.hiddenDuplicates)}</p>
+      )}
+      {analysis.state.walkingPaceRuns > 0 && (
+        <p className="secondary">{walkingPaceText(analysis.state.walkingPaceRuns)}</p>
       )}
     </>
   )

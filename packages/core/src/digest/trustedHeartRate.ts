@@ -1,6 +1,6 @@
 import type { EffortPoint, MaxHeartRates } from '../effort'
 import { referenceMaxHeartRates } from '../effort'
-import { worstSetAside } from '../hr'
+import { lowForPowerSetAside, worstSetAside } from '../hr'
 import type { ActivityDigest, CriticalPowerFit, DigestCurvePoint, Sport } from '../types'
 
 /** The heart rate an analysis uses, once the activities whose heart rate cannot be right are set aside. */
@@ -55,8 +55,10 @@ export function trustedHeartRate(
     return { setAside, trusted, maxHr: maxHeartRateOf(trusted), ...referencesOf(trusted) }
   }
   const threshold = { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null }
-  const setAside = new Set<string>()
-  let trusted = ordered
+  // Heart rate that reads low for the power across a whole activity is set aside first, so the references and the
+  // thresholds' share are taken without it.
+  const setAside = lowForPowerSetAside(ordered)
+  let trusted = ordered.filter((digest) => !setAside.has(digest.id))
   for (;;) {
     const referenceHr = referencesOf(trusted).reference
     const worst = worstSetAside(trusted, { threshold, referenceHr, valueOf })

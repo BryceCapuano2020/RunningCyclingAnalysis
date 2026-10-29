@@ -35,11 +35,6 @@ export function missingAgeOf(birthYear: number | null, sex: Sex | null): AgeGap 
   return sex === null ? 'sex' : null
 }
 
-/** The athlete's age today, from the year of birth alone; null outside the ages the app can read. */
-export function ageToday(birthYear: number): number | null {
-  return ageAt(birthYear, Date.now())
-}
-
 /** The age on the date of an effort, with the sex it is graded for. */
 export interface AgeAndSex {
   age: number

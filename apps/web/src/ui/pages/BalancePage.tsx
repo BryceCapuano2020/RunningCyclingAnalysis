@@ -10,9 +10,10 @@ import { SharedTrendChart, WeeklyVolumeChart, energyWeeks, gradeWeeks } from '..
 import { trendGutter } from '../charts/sharedTrendGutter'
 import { copyOf, type SharedMeasure } from '../charts/sharedTrendText'
 import { windowPhrase } from '../charts/trendText'
-import { ShareImageButton, pickHeadline } from '../components'
+import { ShareImageButton, headlinePick } from '../components'
 import { gapOfHeadline } from '../balanceGap'
 import { levelTargetText } from '../levelTarget'
+import { withoutWalking } from '../analysis/walkingPaceCopy'
 import { countSport, latestStartOf } from '../records'
 import { ROAD_STANDARDS_SOURCE } from '@rca/core/grade'
 import {
@@ -108,8 +109,12 @@ export function BalancePage({
   onShowAll,
   footnote = null,
 }: BalancePageProps) {
-  const { isSample, period, library, trend } = analysis.state
-  const pick = pickHeadline(result.comparison)
+  const { isSample, period, library: allActivities, trend, heartRateJudgement } = analysis.state
+  // What the analysis rests on: the runs at walking pace are in the lists, not in what this page counts and dates.
+  const library = useMemo(() => withoutWalking(allActivities), [allActivities])
+  // The calibration every period's equivalents were priced with, which the grade chart and the level target use too.
+  const { calibration } = heartRateJudgement
+  const pick = headlinePick(result)
   const effort = result.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   // Each sport's grade is worked out once here, and the cards, the balance and the share card share it.
   // They are memoised on the analysis and the two profile values, not the profile object, which the
@@ -145,9 +150,10 @@ export function BalancePage({
             sex,
             massKg: settings.massKg,
             units,
+            calibration,
           })
         : null,
-    [gap, grades, result, sex, settings.massKg, units],
+    [gap, grades, result, sex, settings.massKg, units, calibration],
   )
   // The hours trained in the trend's own weeks, which the strip under the trend draws; null folds it away.
   const volume = useMemo(
@@ -255,6 +261,7 @@ export function BalancePage({
         profile={profile}
         massKg={settings.massKg}
         weightKnown={weightKnown}
+        calibration={calibration}
       />
 
       {missingAge !== null && (

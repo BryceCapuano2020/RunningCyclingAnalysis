@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { rollingMean } from '../math'
 import type { Activity } from '../types'
 import { assessQuality } from './assess'
 
@@ -126,24 +127,6 @@ describe('assessQuality: pauses, sprints and indoor activities', () => {
     a.heartRate.fill(170, 93)
     const report = assessQuality(a)
     expect(report.flags.map((f) => [f.kind, f.start, f.end])).toEqual([['hr-spike', 88, 99]])
-  })
-
-  it('a ride averaging 322 W with 103 bpm for 10 minutes raises hr-implausible-for-power', () => {
-    const a = makeActivity(600, {
-      sport: 'ride',
-      hasPower: true,
-      power: new Float64Array(600).map((_, i) => (i % 2 === 0 ? 300 : 344)),
-      heartRate: new Float64Array(600).fill(103),
-    })
-    const report = assessQuality(a)
-    expect(report.flags).toEqual([
-      {
-        kind: 'hr-implausible-for-power',
-        start: 0,
-        end: 600,
-        message: 'Heart rate reads too low for the power being produced for 600 seconds',
-      },
-    ])
   })
 
   it('an indoor activity without altitude raises no flag', () => {
@@ -337,45 +320,114 @@ describe('assessQuality: hr-spike', () => {
   })
 })
 
+/** Heart rate takes about 30 s to change, so a step in it is eased over that, as a real change is. */
+const eased = (heartRate: Float64Array): Float64Array => rollingMean(heartRate, 31)
+
+/** A 40-minute ride at 250 W whose heart rate is 150 bpm, with `edit` applied to the heart rate. */
+function ridingAt(edit: (heartRate: Float64Array) => void, power = 250): Activity {
+  const n = 2400
+  const heartRate = new Float64Array(n).fill(150)
+  edit(heartRate)
+  return makeActivity(n, {
+    sport: 'ride',
+    hasPower: true,
+    power: new Float64Array(n).fill(power),
+    heartRate: eased(heartRate),
+  })
+}
+
 describe('assessQuality: hr-implausible-for-power', () => {
-  it('fires on 103 bpm while holding 322 W', () => {
-    const a = makeActivity(600, {
-      hasPower: true,
-      power: new Float64Array(600).fill(322),
-      heartRate: new Float64Array(600).fill(103),
-    })
-    const report = assessQuality(a)
-    expect(report.flags).toEqual([
-      {
-        kind: 'hr-implausible-for-power',
-        start: 0,
-        end: 600,
-        message: 'Heart rate reads too low for the power being produced for 600 seconds',
-      },
-    ])
-    expect(zeroIndices(report.validHeartRate)).toEqual(span(0, 600))
+  it('fires on a strap that drops to 75 bpm in the middle of an effort, and masks that heart rate', () => {
+    const report = assessQuality(ridingAt((hr) => hr.fill(75, 1200, 1700)))
+    const [flag, ...rest] = report.flags
+    expect(rest).toEqual([])
+    expect(flag).toMatchObject({ kind: 'hr-implausible-for-power' })
+    expect(flag!.start).toBeGreaterThan(1100)
+    expect(flag!.end).toBeLessThan(1800)
+    // The stretch is around the dropout's middle, and its heart rate is out of the figures.
+    expect(flag!.start).toBeLessThan(1450)
+    expect(flag!.end).toBeGreaterThan(1450)
+    expect(zeroIndices(report.validHeartRate)).toEqual(span(flag!.start, flag!.end))
   })
 
-  it('does not fire when the mean heart rate is exactly 110 bpm', () => {
-    const a = makeActivity(600, {
-      hasPower: true,
-      power: new Float64Array(600).fill(322),
-      heartRate: new Float64Array(600).fill(110),
-    })
-    const report = assessQuality(a)
+  it('does not fire on a fit athlete whose heart rate is 104 bpm at 207 W when that is their level', () => {
+    const report = assessQuality(ridingAt((hr) => hr.fill(104), 207))
     expect(report.flags).toEqual([])
     expect(zeroIndices(report.validHeartRate)).toEqual([])
   })
 
-  it('does not fire when the mean power is just under 200 W', () => {
-    const a = makeActivity(600, {
-      hasPower: true,
-      power: new Float64Array(600).fill(199),
-      heartRate: new Float64Array(600).fill(103),
-    })
-    const report = assessQuality(a)
+  it('does not fire on an easy 112 bpm at 207 W between harder efforts at 150 bpm', () => {
+    const n = 3000
+    const power = new Float64Array(n).fill(207)
+    power.fill(300, 1500, 2100)
+    const heartRate = new Float64Array(n).fill(112)
+    heartRate.fill(150, 1500, 2100)
+    const report = assessQuality(
+      makeActivity(n, { sport: 'ride', hasPower: true, power, heartRate: eased(heartRate) }),
+    )
     expect(report.flags).toEqual([])
-    expect(zeroIndices(report.validHeartRate)).toEqual([])
+  })
+
+  it.each([40, 60, 90, 105])(
+    'still catches a strap that reads %i bpm for 8 minutes of a 150 bpm effort',
+    (bpm) => {
+      const report = assessQuality(ridingAt((hr) => hr.fill(bpm, 1000, 1480)))
+      const flags = report.flags.filter((f) => f.kind === 'hr-implausible-for-power')
+      expect(flags).toHaveLength(1)
+      // The rolling mean reaches the strap's stretch a little before and after it.
+      expect(flags[0]!.start).toBeGreaterThan(1000 - 150)
+      expect(flags[0]!.end).toBeLessThan(1480 + 150)
+      expect(flags[0]!.start).toBeLessThan(1240)
+      expect(flags[0]!.end).toBeGreaterThan(1240)
+    },
+  )
+
+  it('does not fire on hard intervals whose heart rate lags the power, nor on the easy between them', () => {
+    const n = 3000
+    const power = new Float64Array(n)
+    const heartRate = new Float64Array(n)
+    for (let i = 0; i < n; i++) {
+      const hard = Math.floor(i / 300) % 2 === 1
+      power[i] = hard ? 330 : 140
+      heartRate[i] = hard ? 168 : 118
+    }
+    const report = assessQuality(
+      makeActivity(n, { sport: 'ride', hasPower: true, power, heartRate: eased(heartRate) }),
+    )
+    expect(report.flags).toEqual([])
+  })
+
+  it('does not fire on a stretch shorter than the rolling mean can show', () => {
+    expect(assessQuality(ridingAt((hr) => hr.fill(60, 1000, 1080))).flags).toEqual([])
+  })
+
+  it('does not fire on a warm-up, when heart rate has not settled', () => {
+    expect(assessQuality(ridingAt((hr) => hr.fill(90, 0, 590))).flags).toEqual([])
+  })
+
+  it('does not fire where power is low, as in a recovery', () => {
+    const n = 2400
+    const power = new Float64Array(n).fill(250)
+    power.fill(100, 1200, 1700)
+    const heartRate = new Float64Array(n).fill(150)
+    heartRate.fill(95, 1200, 1700)
+    const report = assessQuality(
+      makeActivity(n, { sport: 'ride', hasPower: true, power, heartRate: eased(heartRate) }),
+    )
+    expect(report.flags).toEqual([])
+  })
+
+  it('does not judge an activity too short to show its own working level', () => {
+    const a = makeActivity(1200, {
+      hasPower: true,
+      power: new Float64Array(1200).fill(250),
+      heartRate: new Float64Array(1200).fill(60),
+    })
+    expect(assessQuality(a).flags).toEqual([])
+  })
+
+  it('leaves an activity read low from start to end to the library, which judges it against the athlete', () => {
+    expect(assessQuality(ridingAt((hr) => hr.fill(103), 322)).flags).toEqual([])
   })
 
   it('does not run without a power meter', () => {
@@ -751,5 +803,33 @@ describe('assessQuality: missing altitude', () => {
   it('indoors, leaves grade valid because the grade is defined as zero there', () => {
     const report = assessQuality(makeActivity(120, { hasAltitude: false, indoor: true }))
     expect(zeroIndices(report.validGrade)).toEqual([])
+  })
+})
+
+describe('assessQuality: hr-implausible-for-power on a very long file', () => {
+  /** A 12 h ride at 220 W whose heart rate is 140 bpm, with `edit` applied to the heart rate. */
+  function longRide(edit: (heartRate: Float64Array) => void): Activity {
+    const n = 12 * 3600
+    const heartRate = new Float64Array(n).fill(140)
+    edit(heartRate)
+    return makeActivity(n, {
+      sport: 'ride',
+      hasPower: true,
+      power: new Float64Array(n).fill(220),
+      heartRate: eased(heartRate),
+    })
+  }
+  const flags = (a: Activity) =>
+    assessQuality(a).flags.filter((f) => f.kind === 'hr-implausible-for-power')
+
+  it('does not let one low probe make a run, where the probes are spaced wider than 30 s', () => {
+    // A 200 s fault: at about 105 s between probes, one or two of them read low.
+    expect(flags(longRide((hr) => hr.fill(35, 20_000, 20_200)))).toEqual([])
+  })
+
+  it('still flags an hour of it', () => {
+    const found = flags(longRide((hr) => hr.fill(35, 20_000, 23_600)))
+    expect(found).toHaveLength(1)
+    expect(found[0]!.end - found[0]!.start).toBeGreaterThan(3000)
   })
 })

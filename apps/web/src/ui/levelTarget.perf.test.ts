@@ -24,7 +24,8 @@ function fastestMs(run: () => void): number {
 
 describe('levelTargetText performance', () => {
   it(`names a ride's level target on the sample, with the ride as the lower sport, in under ${BUDGET_MS} ms`, () => {
-    const result = new AnalysisSession().loadSample(SAMPLE_SETTINGS).result
+    const state = new AnalysisSession().loadSample(SAMPLE_SETTINGS)
+    const { result } = state
     if (result === null) throw new Error('The sample has no result')
     const grades = headlineGrades(result, SAMPLE_PROFILE)
     let line: string | null = null
@@ -36,6 +37,7 @@ describe('levelTargetText performance', () => {
         sex: SAMPLE_PROFILE.sex,
         massKg: SAMPLE_SETTINGS.massKg,
         units: 'metric',
+        calibration: state.heartRateJudgement.calibration,
       })
     })
     // Keeping the line means none of the timed work can be skipped.

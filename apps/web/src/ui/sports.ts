@@ -1,4 +1,4 @@
-import { CP_FIT_MAX_S, CP_FIT_MIN_S } from '@rca/core/constants'
+import { CP_FIT_MAX_S, CP_FIT_MIN_S, CP_FIT_REACH_TOLERANCE } from '@rca/core/constants'
 import type { CriticalPowerRefusal, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPace, formatPower, paceSeconds, PACE_UNIT } from '@rca/core/units'
@@ -107,6 +107,8 @@ const EFFORT_MIN_TEXT = `${CP_FIT_MIN_S / 60}`
 const EFFORT_MAX_TEXT = formatDuration(CP_FIT_MAX_S)
 /** The efforts a threshold is estimated from, as copy: "3 to 20 min", the fit's own window. */
 export const THRESHOLD_EFFORT_TEXT = `${EFFORT_MIN_TEXT} to ${EFFORT_MAX_TEXT}`
+/** The longest effort a fit has to reach, s: its window's end less the tolerance. */
+const THRESHOLD_REACH_S = CP_FIT_MAX_S * (1 - CP_FIT_REACH_TOLERANCE)
 const EFFORT_BETWEEN = `between ${EFFORT_MIN_TEXT} and ${EFFORT_MAX_TEXT}`
 
 /**
@@ -118,9 +120,20 @@ export const THRESHOLD_NEEDS_TEXT: Record<CriticalPowerRefusal, string> = {
   shape: `Needs a harder effort ${EFFORT_BETWEEN}`,
 }
 
-/** The line for a missing threshold, by why its fit is refused. No reason means missing efforts. */
-export function thresholdNeedsText(refusal: CriticalPowerRefusal | null): string {
-  return THRESHOLD_NEEDS_TEXT[refusal ?? 'missing']
+/**
+ * The line for a missing threshold, by why its fit is refused. No reason means missing efforts. The fit has to
+ * reach its longest effort, so when the sport has efforts in the window and none that long, the line asks for
+ * the long one and names the longest held, rather than asking for efforts the card lists.
+ */
+export function thresholdNeedsText(
+  refusal: CriticalPowerRefusal | null,
+  longestHeldS: number | null = null,
+): string {
+  const reason = refusal ?? 'missing'
+  if (reason === 'missing' && longestHeldS !== null && longestHeldS < THRESHOLD_REACH_S) {
+    return `Needs an effort of about ${EFFORT_MAX_TEXT}. Your longest so far is ${formatDuration(longestHeldS)}.`
+  }
+  return THRESHOLD_NEEDS_TEXT[reason]
 }
 
 /**

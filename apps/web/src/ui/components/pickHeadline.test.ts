@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Comparison } from '@rca/core/types'
-import { comparisonPoint, interval } from './fixtures'
-import { pickHeadline } from './pickHeadline'
+import { comparisonPoint, interval, makeResult } from './fixtures'
+import { headlinePick, pickHeadline } from './pickHeadline'
 
 describe('pickHeadline', () => {
   it('returns null when there are no comparison points', () => {
@@ -46,5 +46,33 @@ describe('pickHeadline', () => {
       comparisonPoint({ durationS: 3600 }),
     ]
     expect(pickHeadline({ prior, calibrated: null })?.point.durationS).toBe(900)
+  })
+})
+
+describe('headlinePick', () => {
+  const short = [{ durationS: 300, value: 6, activityId: 'a', startIndex: 0 }]
+  const long = [...short, { durationS: 1200, value: 5, activityId: 'a', startIndex: 0 }]
+  const result = (overrides: Parameters<typeof makeResult>[0]) =>
+    makeResult({ runCp: null, rideCp: null, runCurve: long, rideCurve: long, ...overrides })
+
+  it('picks the headline when each sport has a 20 min effort', () => {
+    expect(headlinePick(result({}))?.point.durationS).toBe(1200)
+  })
+
+  it('picks the headline when a sport has a fitted threshold and no 20 min effort', () => {
+    const fitted = result({ rideCurve: short, rideCp: makeResult().rideCp })
+    expect(headlinePick(fitted)).not.toBeNull()
+  })
+
+  it('is null when one sport is known only from shorter efforts, however the comparison reads', () => {
+    const thin = result({ rideCurve: short })
+    expect(pickHeadline(thin.comparison)).not.toBeNull()
+    expect(headlinePick(thin)).toBeNull()
+    expect(headlinePick(result({ runCurve: short }))).toBeNull()
+  })
+
+  it('does not count an effort with no value as evidence', () => {
+    const blank = [{ durationS: 1200, value: Number.NaN, activityId: null, startIndex: -1 }]
+    expect(headlinePick(result({ rideCurve: blank }))).toBeNull()
   })
 })

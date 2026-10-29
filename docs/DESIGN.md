@@ -577,7 +577,8 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A threshold is checked before it is shown, and a refused one shows no number.** Two reasons, and
   each has its own words in the threshold's place. Missing efforts: fewer than four efforts from 3 to
   20 min, or none that reaches 1140 s (within 5% of 20 minutes); the place reads "Needs efforts between
-  3 and 20 min". No threshold: the efforts are flat, the work capacity is below the least a rider or a
+  3 and 20 min", or, when efforts are held in that range and none reaches 1140 s, "Needs an effort of about
+  20 min. Your longest so far is 5 min.", so the place never asks for efforts the card lists. No threshold: the efforts are flat, the work capacity is below the least a rider or a
   runner has (3 kJ of cycling W′, or 15 m of running D′, which is 58.5 J per kg), or the threshold is
   not below the lowest of the efforts it was fitted to, since a threshold cannot be faster than an effort
   held; the place reads "Needs a harder effort between 3 and 20 min". The floors are far below the
@@ -810,6 +811,19 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   spike never sets aside a sound one. Its watts and pace still count. How sure is this? says how
   many runs and rides were set aside, and the activity's data notes say why. Estimated watts and treadmill
   pace are never the judge, since they can be what is wrong.
+- **Heart rate too low for the power is judged against the athlete's own heart rate.** A stretch of at
+  least half the ride's median power, 90 s or more, whose 5 min mean heart rate is under 75% of the athlete's
+  median heart rate at about the same power (within 15%) elsewhere in the same activity, after the 10 min
+  warm-up, is flagged and its heart rate is left out (`packages/core/src/quality/lowHeartRate.ts`). A fixed
+  bpm floor mistook a fit athlete's easy ride for a fault. A whole activity read low has nothing of its own
+  to fall below, so the library judges it, in two ways. The best-effort test above sees an effort at threshold.
+  For an endurance ride whose strap failed from minute 25, the other is the whole-activity test
+  (`packages/core/src/hr/lowForPower.ts`, `HR_LOW_FOR_POWER`): an outdoor run, or a ride with a power meter,
+  of 20 min or more moving with at least three 5 min heart-rate blocks, is compared by its median heart rate at
+  its median output with the library's heart rate at that output for its sport, a robust (Theil-Sen) line
+  fitted over all of them and refitted without the ones it first set aside, and only an activity whose output lies
+  within the 5th to 95th percentile of the fitted outputs is judged, so the line is never extrapolated. Under 75% of that sets it
+  aside. A sport with fewer than 12 such activities has no line, so it gets no verdict.
 - **Lead with the finding**, in the words an athlete uses: pace, watts, time, distance.
   "Energy rate" and "W/kg" belong on How sure is this?, not on the surface. A plain phrase such as
   "as energy per kilogram" may explain the balance. On How sure is this?, and in the axes, headings,
@@ -855,8 +869,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
   said is How sure is this?: its trend's weeks are UTC weeks (`digest/trend.ts`), so the page says so.
   The data notes are grouped by kind, one line for each kind with its true count and the times of the
   readings the digest kept. Only the kinds that remove readings are counted, on the row, as
-  "Readings skipped once" or "Readings skipped N times"; the page gives each kind's count in its own line
-  and says no total. An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
+  "Readings skipped once" or "Readings skipped N times", and only when the readings skipped cover at least
+  1% of the activity's moving time (`SKIPPED_MATERIAL_SHARE`), since a blip of seconds leaves an average
+  where it was; the page lists every kind in its own line, with its count, and says no total. An altitude jump is a note, not a skipped reading: the climb and the slope-based figures near it
   are left out of the figures. So is an implausible climb, altitude rising faster than anyone can climb: its
   slope-based figures are left out, and its line gives each stretch's times. So is a disagreement between a file's
   speed and its distance: there each second counts only the lower of the two. A missing altitude is one note for the whole activity, so it has no count. Without any
@@ -891,6 +906,20 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **Not enough to compare yet.** When both sports are on file but no efforts of the same length can be
   compared, the answer reads "Not enough to compare yet", with "From 1 run and 2 rides. A hard 20 min run or
   ride would let them be compared." beneath it.
+- **The headline needs evidence on both sides.** Each sport needs a fitted threshold or an effort as long as
+  the headline's (20 min). A sport known only from shorter efforts, such as one estimated 5 min ride, is not set
+  against the other: the answer reads "Not enough to compare yet" (`headlinePick`), on the page, the share card
+  and the import summary alike. How sure is this? holds its energy view the same way: "The comparison is held until there is an effort
+  of 20 min or more in each sport.", with no ratio chart and no energy-ratio copy.
+- **A run at walking pace is not a run.** A run whose moving pace is slower than 15:00 a mile for 10 min or more
+  is a hike recorded as a run, unless its cadence is a runner's (130 steps a minute or more) or, without
+  cadence, a tenth of its moving time was at a jog (`WALKING_PACE`, `digest/walkingPace.ts`). Either signal
+  keeps the run: a runner's median cadence over all its moving seconds or over just those faster than a walk,
+  or the jogging share, so a run/walk session or a hilly ultra with a low median cadence is still a run. It
+  stays in the library with a Walking pace mark on its row and its page, where a line takes the place of its
+  best efforts, is left out of every run analysis, volume and best, and a line under the import notices counts
+  them. Every count and date the pages give of what is analysed leaves them out (a library of hikes alone asks
+  for a run and a ride), while the activity list and the activity pages keep them.
 - **Few efforts are counted under the lede.** When either sport has fewer than three activities in the
   period at least as long as the headline effort (20 min), the answer says so beneath the lede: "From 1 run
   and 1 ride. Add more runs or rides for a steadier answer." It is left off once each sport has three.
@@ -983,8 +1012,9 @@ review. `apps/web/src/styles/tokens.test.ts` checks contrast, not colour vision.
 - **A Skip whose kept answers cannot be stored still goes on.** The dialog closes and every file held
   then is imported, including one dropped while the Skip was saving, with setup not marked done, so the
   questions come back on the next import. Nothing is saved. A second Skip while one is saving does nothing.
-- **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, age 37,
-  man. Change on Profile". It names only the parts the athlete has set, in their units, and it links
+- **Each results page says what it is based on,** at its foot, in one line: "Based on 165 lb, man and your
+  age at each effort. Change on Profile". It gives no age of its own, since each grade states the age on the day
+  of its effort and today's age would seem to contradict it. It names only the parts the athlete has set, in their units, and it links
   to Profile. A ride held for its weight, whose own note already links there, leaves out the link on
   "Your details are not set yet.". It is on the Balance, Run and Ride pages only, and the sample has its
   own persona and no such line. While the one prompt for the year of birth and sex is on the page, the unset
@@ -1100,6 +1130,14 @@ activity, with the bike model fitted over all of them (`judgeHeartRate`, cached 
 `HeartRateJudge`), exposes it as `SessionState.heartRateJudgement` (the sorted ids, and the reference heart rate and
 threshold of each sport it was judged against), and every reader takes that one list: each period's analysis (`combine`'s `heartRateSetAside` option, which lists
 only its own activities), the same-heart-rate and late-effort sections, the zones, the left-out notes and the activity page.
+The judgement also carries the library's heart-rate calibration of ride against run efficiency (`calibration`: the
+slope ratio and its error), which every period's running equivalents and comparison read (`combine`'s `calibration`
+option), so one ride is worth the same run pace whichever period is shown; a period's own `hr` stays its own evidence.
+The grade chart's extra durations and the level target use it too, so the ride's grade and the "Ride X W" target
+share one conversion. Because it is the library's, adding files can shift older equivalents (the calibration
+refits over everything), where a period's own check moved only with that period. A ride without a power meter is
+the exception to period independence: its watts come from a bike model fitted over the period's own
+power-meter rides, so those watts, and the pace they are worth, can still differ by period.
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your
 activities (200 bpm running)", on How sure is this? and on the activity), and cannot seem to contradict the period's. With too

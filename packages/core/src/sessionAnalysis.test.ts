@@ -160,10 +160,39 @@ describe('AnalysisSession analysis cache', () => {
     const session = loadedSession()
     const recent = session.setRange(21, SETTINGS).result
     const newest = Math.max(...SAMPLE_DIGESTS.map((digest) => digest.startMs))
-    const old = { ...SAMPLE_DIGESTS[0]!, id: 'old', startMs: newest - 400 * DAY_MS }
+    // With no heart-rate blocks, so the library's heart-rate calibration, which every period reads, is as it was.
+    const old = {
+      ...SAMPLE_DIGESTS[0]!,
+      id: 'old',
+      startMs: newest - 400 * DAY_MS,
+      hrBlocks: [],
+    }
     const state = session.loadDigests([old, ...SAMPLE_DIGESTS], SETTINGS)
     expect(state.totalActivities).toBe(SAMPLE_DIGESTS.length + 1)
     expect(state.result).toBe(recent)
+    expect(combine).toHaveBeenCalledTimes(1)
+  })
+
+  it('redoes the analysis of a period when an older activity moves the library’s heart-rate calibration', () => {
+    const session = loadedSession()
+    const recent = session.setRange(21, SETTINGS)
+    const newest = Math.max(...SAMPLE_DIGESTS.map((digest) => digest.startMs))
+    // An old ride whose heart rate runs high for its power, which moves the calibration.
+    const ride = SAMPLE_DIGESTS.find(
+      (digest) => digest.sport === 'ride' && digest.hrBlocks.length > 0,
+    )!
+    const old = {
+      ...ride,
+      id: 'old',
+      startMs: newest - 400 * DAY_MS,
+      hrBlocks: ride.hrBlocks.map((block) =>
+        Object.assign({}, block, { heartRate: block.heartRate + 25 }),
+      ),
+    }
+    combine.mockClear()
+    const state = session.loadDigests([old, ...SAMPLE_DIGESTS], SETTINGS)
+    expect(state.heartRateJudgement.calibration).not.toEqual(recent.heartRateJudgement.calibration)
+    expect(state.result).not.toBe(recent.result)
     expect(combine).toHaveBeenCalledTimes(1)
   })
 
@@ -179,8 +208,10 @@ describe('AnalysisSession analysis cache', () => {
     const session = loadedSession()
     session.setRange(21, SETTINGS)
     session.setRange('all', SETTINGS)
-    const cached = session.setRange(21, SETTINGS).result
+    const state = session.setRange(21, SETTINGS)
     const { selected } = splitPeriods(SAMPLE_DIGESTS, 21)
-    expect(cached).toEqual(combineDigests(selected, SETTINGS))
+    // The period is read with the library's calibration, which it has no say in.
+    const { calibration } = state.heartRateJudgement
+    expect(state.result).toEqual(combineDigests(selected, SETTINGS, { calibration }))
   })
 })

@@ -389,6 +389,31 @@ describe('MethodPage energy view', () => {
     expect(container.querySelector('figure')).toBeNull()
   })
 
+  it('holds the comparison when a sport has no 20 min effort or threshold, with no ratio chart or fallback copy', () => {
+    const short = [curvePoint(300, 4, 'run-1')]
+    const { container } = renderPage(
+      makeResult({
+        runCp: null,
+        rideCp: null,
+        runCurve: short,
+        rideCurve: [curvePoint(300, 250, 'ride-1')],
+      }),
+      null,
+      DATED_SIX_WEEKS,
+    )
+
+    const section = screen.getByRole('region', { name: 'The energy view' })
+    expect(
+      within(section).getByText(
+        'The comparison is held until there is an effort of 20 min or more in each sport.',
+      ),
+    ).toBeInTheDocument()
+    expect(section.textContent).not.toMatch(/this view is that ratio|cross-check|90% model range/)
+    expect(screen.queryByText(/^Run against Ride, 90% range/)).not.toBeInTheDocument()
+    expect(section.querySelector('details.method__evidence')).toBeNull()
+    expect(container.querySelector('figure')).toBeNull()
+  })
+
   it('says a ride-only library needs a run to compare, with no ratio, facts or evidence', () => {
     const { container } = renderPage(
       makeResult({ runCurve: [], rideCurve: [curvePoint(HEADLINE_DURATION_S, 250, 'ride-1')] }),
@@ -457,7 +482,9 @@ describe('MethodPage energy view', () => {
     renderPage(makeResult({ ...CONTRIBUTING, comparison: { prior: [point], calibrated: [point] } }))
 
     expect(
-      within(factsOf()).getByText('Model range adjusted using your heart-rate data.'),
+      within(factsOf()).getByText(
+        'Model range adjusted using the heart-rate data across all your activities.',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -648,7 +675,7 @@ describe('MethodPage heart-rate check', () => {
     await openEvidence(disclosureFor('heart-rate check'))
     expect(
       within(section).getByText(
-        'Each dot is a 5 min block of steady effort from your files, taken after the first 10 min of each activity. The two lines show how fast heart rate rises with energy rate in each sport.',
+        'Each dot is a 5 min block of steady effort from this period’s files, taken after the first 10 min of each activity. The two lines show how fast heart rate rises with energy rate in each sport.',
       ),
     ).toBeInTheDocument()
   })

@@ -152,6 +152,20 @@ describe('SportCard threshold', () => {
     expect(within(card).queryByText('Needs efforts between 3 and 20 min')).not.toBeInTheDocument()
   })
 
+  it('names the longest effort held when the efforts are all shorter than the fit needs', () => {
+    const fiveMin = [
+      { durationS: 180, value: 3.4, activityId: rideOnFriday.id, startIndex: 0 },
+      { durationS: 300, value: 3.2, activityId: rideOnFriday.id, startIndex: 0 },
+    ]
+    renderCard('ride', makeResult({ activities: [rideOnFriday], rideCp: null, rideCurve: fiveMin }))
+
+    const card = cardNamed('Ride')
+    expect(
+      within(card).getByText('Needs an effort of about 20 min. Your longest so far is 5 min.'),
+    ).toBeInTheDocument()
+    expect(within(card).queryByText(/Needs efforts between/)).not.toBeInTheDocument()
+  })
+
   it('shows the uneven fit\u2019s floor under the "at least" label when the threshold is refused, as the sport page does', () => {
     const uneven = {
       fit: { cp: 3.6, wPrime: 15, cpSe: 0.04, r2: 0.98, nPoints: 5 },

@@ -14,7 +14,7 @@ export interface SetAsideInput {
  * Whether an activity's effort figures are measured: a ride's estimated watts or a treadmill run's
  * pace can be what is wrong, so heart rate is never judged against them.
  */
-const MEASURED_EFFORT: Record<Sport, (digest: ActivityDigest) => boolean> = {
+export const MEASURED_EFFORT: Record<Sport, (digest: ActivityDigest) => boolean> = {
   run: (digest) => !digest.indoor,
   ride: (digest) => digest.powerSource === 'measured',
 }

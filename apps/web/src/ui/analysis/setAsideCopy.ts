@@ -32,7 +32,7 @@ function rule(sports: readonly Sport[], judgement: HeartRateJudgement): string {
   return (
     `through ${formatDuration(HR_SET_ASIDE_MIN_S)} or more at or above your threshold, its heart rate ` +
     `stayed under ${formatPercent(HR_SET_ASIDE_FLOOR)} of your reference heart rate` +
-    `${libraryReference(sports, judgement)} or read too low for the power, which a working sensor would not show`
+    `${libraryReference(sports, judgement)} or read too low for the power, through that effort or across the whole activity, which a working sensor would not show`
   )
 }
 

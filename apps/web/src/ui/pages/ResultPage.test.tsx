@@ -211,7 +211,9 @@ describe('ResultPage footnote', () => {
     ['ride', { page: 'ride' }],
   ] as const)('says what the %s page is based on, with a link to Profile', (_name, route) => {
     renderFooter(route, false)
-    expect(screen.getByText(/Based on 75 kg, age 40, man\./)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Based on 75 kg, man and your age at each effort\./),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Change on Profile' })).toHaveAttribute(
       'href',
       '#/profile',

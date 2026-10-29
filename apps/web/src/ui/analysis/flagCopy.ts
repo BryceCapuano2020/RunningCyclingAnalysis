@@ -105,6 +105,11 @@ export function skippedReadings(counts: Partial<Record<QualityKind, number>>): n
   )
 }
 
+/** Whether a kind's readings were left out of the figures. */
+export function removesReadingsOf(kind: QualityKind): boolean {
+  return KIND_COPY[kind].removesReadings
+}
+
 /** Whether each occurrence of a kind is listed under it, with its time. */
 export function listsTimesOf(kind: QualityKind): boolean {
   return KIND_COPY[kind].listsTimes

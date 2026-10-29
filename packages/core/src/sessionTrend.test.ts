@@ -101,7 +101,8 @@ describe('AnalysisSession trend', () => {
       trend.fitnessTrend(selected, SETTINGS, {
         windowDays: 14,
         fromMs: cutoff,
-        equivalence: { hr: combine(selected, SETTINGS).hr },
+        // The running equivalents read the library's calibration, not the period's own.
+        equivalence: { hr: combine(digests, SETTINGS).hr },
       }),
     )
   })
@@ -135,7 +136,8 @@ describe('AnalysisSession trend', () => {
     const newest = Math.max(...digests.map((digest) => digest.startMs))
     const cutoff = newest - 42 * DAY_MS
     const selected = digests.filter((digest) => digest.startMs >= cutoff)
-    const { bikeModel, hr } = combine(selected, SETTINGS)
+    const { bikeModel } = combine(selected, SETTINGS)
+    const { hr } = combine(digests, SETTINGS)
     for (const durationS of EFFORT_LENGTHS_S) {
       expect(state.effortTrends[durationS]).toEqual(
         trend.fitnessTrend(selected, SETTINGS, {

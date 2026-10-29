@@ -663,6 +663,16 @@ describe('moving time and averages', () => {
     expect(StoredActivityDigestSchema.parse(wire).avgPowerW).toBeNull()
   })
 
+  it('keeps a run at walking pace on a create and on a stored row, and reads other digests as having none', () => {
+    const wire = atRevision(MODEL_REVISION, { walkingPace: true })
+    expect(ActivityDigestSchema.parse(wire).walkingPace).toBe(true)
+    expect(StoredActivityDigestSchema.parse(wire).walkingPace).toBe(true)
+    expect(StoredActivityDigestSchema.parse(digestWire)).not.toHaveProperty('walkingPace')
+    expect(() =>
+      ActivityDigestSchema.parse(atRevision(MODEL_REVISION, { walkingPace: false })),
+    ).toThrow()
+  })
+
   it('reads a digest without them as having none', () => {
     expect(ActivityDigestSchema.parse(digestWire)).not.toHaveProperty('movingS')
   })

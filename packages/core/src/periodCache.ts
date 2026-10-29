@@ -10,7 +10,13 @@ import { fitnessTrend } from './digest/trend'
 import type { TrendPoint } from './digest/trend'
 import { EFFORT_LENGTHS_S, trendWindowDays } from './digest/trendPoints'
 import type { EffortLengthS } from './digest/trendPoints'
-import type { ActivityDigest, AthleteSettings, BikeModel, HrCrossCheck, SportCurves } from './types'
+import type {
+  ActivityDigest,
+  AthleteSettings,
+  BikeModel,
+  HrCalibration,
+  SportCurves,
+} from './types'
 
 /*
  * The cache behind a session's periods: the analysis, trends and same-heart-rate points of each period, reused
@@ -46,6 +52,12 @@ function setAsideAmong(digests: ActivityDigest[], setAside: readonly string[]): 
     .join(',')
 }
 
+/** A calibration as a key: equal calibrations are the same key; none, and the period's own, are each their own. */
+function calibrationKey(calibration: HrCalibration | null | undefined): string {
+  if (calibration === undefined) return 'own'
+  return calibration === null ? 'none' : `${calibration.kappa}|${calibration.lnKappaSe}`
+}
+
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
 const ANALYSES_KEPT = 4
 
@@ -63,6 +75,7 @@ export class PeriodCache {
       rangeDays: number | null
       startMs: number | null
       equivalence: boolean
+      calibration: string
       points: TrendPoint[]
     }
   >()
@@ -85,7 +98,11 @@ export class PeriodCache {
   }[] = []
   // Newest use first. A digest that is added, replaced or removed is a different object, so the
   // analysis of a changed library has a different key and is never found for the old one.
-  private analysisEntries: (Inputs & { setAside: string; analysis: AnalysisResult })[] = []
+  private analysisEntries: (Inputs & {
+    setAside: string
+    calibration: string
+    analysis: AnalysisResult
+  })[] = []
 
   /**
    * The analysis of the selected digests, reused while they, both masses and the heart rates set aside among
@@ -93,24 +110,39 @@ export class PeriodCache {
    *
    * `setAside` is the library's judgement (`judgeHeartRate`), which the analysis takes as it is rather
    * than judging the period alone. Only the ids in this period's digests can change its analysis, so those
-   * are the key: an activity added outside the period does not redo it.
+   * are the key: an activity added outside the period does not redo it. The library's `calibration` is part of
+   * the key too, since it sets the equivalents, and is read by every period alike.
    */
   analysis(
     selected: ActivityDigest[],
     settings: AthleteSettings,
     setAside: readonly string[],
+    calibration?: HrCalibration | null,
   ): AnalysisResult {
     const key = setAsideAmong(selected, setAside)
+    const calibrationId = calibrationKey(calibration)
     const hit = this.analysisEntries.findIndex(
-      (entry) => entry.setAside === key && sameInputs(entry, selected, settings),
+      (entry) =>
+        entry.setAside === key &&
+        entry.calibration === calibrationId &&
+        sameInputs(entry, selected, settings),
     )
     if (hit >= 0) {
       const [entry] = this.analysisEntries.splice(hit, 1)
       this.analysisEntries.unshift(entry!)
       return entry!.analysis
     }
-    const analysis = combine(selected, settings, { heartRateSetAside: new Set(setAside) })
-    this.analysisEntries.unshift({ selected, settings, setAside: key, analysis })
+    const analysis = combine(selected, settings, {
+      heartRateSetAside: new Set(setAside),
+      calibration,
+    })
+    this.analysisEntries.unshift({
+      selected,
+      settings,
+      setAside: key,
+      calibration: calibrationId,
+      analysis,
+    })
     this.analysisEntries.length = Math.min(this.analysisEntries.length, ANALYSES_KEPT)
     return analysis
   }
@@ -142,7 +174,7 @@ export class PeriodCache {
     rangeDays: number | null,
     startMs: number | null,
     bikeModel: BikeModel | undefined,
-    hr: HrCrossCheck | undefined,
+    hr: HrCalibration | null | undefined,
   ): Record<EffortLengthS, TrendPoint[]> {
     return Object.fromEntries(
       EFFORT_LENGTHS_S.map((durationS) => [
@@ -160,7 +192,7 @@ export class PeriodCache {
     startMs: number | null,
     bikeModel: BikeModel | undefined,
     durationS: EffortLengthS,
-    hr: HrCrossCheck | undefined,
+    hr: HrCalibration | null | undefined,
   ): TrendPoint[] {
     const equivalence = hr !== undefined && durationS === HEADLINE_DURATION_S
     const cached = this.trendEntries.get(durationS)
@@ -169,6 +201,7 @@ export class PeriodCache {
       cached.rangeDays === rangeDays &&
       cached.startMs === startMs &&
       cached.equivalence === equivalence &&
+      cached.calibration === calibrationKey(hr) &&
       sameInputs(cached, selected, settings)
     ) {
       return cached.points
@@ -186,6 +219,7 @@ export class PeriodCache {
       rangeDays,
       startMs,
       equivalence,
+      calibration: calibrationKey(hr),
       points,
     })
     return points

@@ -8,7 +8,7 @@ import type { UnitSystem } from '@rca/core/units'
 import { formatDuration, formatPercent } from '@rca/core/units'
 import { AccuracyScatter, CurveChart, HrScatter, RatioChart } from '../charts'
 import { gapOfHeadline } from '../balanceGap'
-import { pickHeadline } from '../components'
+import { headlinePick } from '../components'
 import { balanceOfPick } from '../components/balanceScale'
 import {
   headlineBasis,
@@ -70,6 +70,9 @@ const ENERGY_FALLBACK =
   'When Balance has no age-grade gap to show, it shows the energy ratio instead: running’s energy rate as a percentage of cycling’s. This view is that ratio.'
 /** The energy view itself, while it waits: the one held line that is not the prompt. */
 const HELD_ENERGY = 'Waits for your weight, as Balance does.'
+/** The energy view when a sport has no 20 min effort or fitted threshold yet: Balance holds its headline too. */
+const HELD_COMPARISON =
+  'The comparison is held until there is an effort of 20 min or more in each sport.'
 /** The energy view with no ride to compare a run with, so a weight would not change what it shows. */
 const NEEDS_RIDE = 'Needs a ride to compare with running.'
 /** The energy view with no run to compare a ride with: the run-equivalent of NEEDS_RIDE. */
@@ -137,7 +140,7 @@ export function MethodPage({
   const noResultLine = restoring ? RESTORING_EVIDENCE : NO_FILES_EVIDENCE
   const runs = result ? contributorsOf(result.runCurve) : 0
   const rides = result ? contributorsOf(result.rideCurve) : 0
-  const pick = result ? pickHeadline(result.comparison) : null
+  const pick = result ? headlinePick(result) : null
   const effort = result?.effort.find((e) => e.durationS === pick?.point.durationS) ?? null
   const reference = result ? referenceText(result) : null
   const setAside = result ? setAsideText(result, heartRateJudgement) : null
@@ -262,22 +265,24 @@ export function MethodPage({
             <TopicBody id="unit" />
             <TopicBody id="range" />
           </>
+        ) : pick === null ? (
+          <>
+            <p className="secondary">{HELD_COMPARISON}</p>
+            <TopicBody id="unit" />
+            <TopicBody id="range" />
+          </>
         ) : (
           <>
             <p className="secondary">{gradeGapShown ? ENERGY_CROSS_CHECK : ENERGY_FALLBACK}</p>
-            {pick && (
-              <>
-                <p className="secondary">
-                  The 90% range is the spread the model gives for its assumptions. Nine times in
-                  ten, the true value falls inside it if those assumptions hold.
-                </p>
-                <ul className="method__facts">
-                  <li>{headlineText(pick.point).range}</li>
-                  <li>{headlineBasis(result.comparison, pick.calibrated)}</li>
-                  <li>The range does not include every source of error.</li>
-                </ul>
-              </>
-            )}
+            <p className="secondary">
+              The 90% range is the spread the model gives for its assumptions. Nine times in ten,
+              the true value falls inside it if those assumptions hold.
+            </p>
+            <ul className="method__facts">
+              <li>{headlineText(pick.point).range}</li>
+              <li>{headlineBasis(result.comparison, pick.calibrated)}</li>
+              <li>The range does not include every source of error.</li>
+            </ul>
             <TopicBody id="unit" />
             <TopicBody id="range" />
             <EvidenceDisclosure section="the energy view">
@@ -327,8 +332,8 @@ export function MethodPage({
             )}
             <EvidenceDisclosure section="the heart-rate check">
               <p className="secondary">
-                Each dot is a {formatDuration(HR_BLOCK_S)} block of steady effort from your files,
-                taken after the first {formatDuration(HR_SKIP_S)} of each activity.{' '}
+                Each dot is a {formatDuration(HR_BLOCK_S)} block of steady effort from this period’s
+                files, taken after the first {formatDuration(HR_SKIP_S)} of each activity.{' '}
                 {weightKnown
                   ? 'The two lines show how fast heart rate rises with energy rate in each sport.'
                   : 'The line shows how fast heart rate rises with energy rate in running.'}

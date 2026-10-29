@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import type { Sex } from '@rca/core/grade'
 import { outranks } from '@rca/core/session'
 import type { ActivitySummary, AnalysisResult } from '@rca/core/pipeline'
@@ -9,6 +9,7 @@ import type { AthleteSettings, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { RangePicker } from '../components'
 import { FALLBACK_NOTE, periodDates, previousPeriodLabel } from '../components/rangeOptions'
+import { withoutWalking } from '../analysis/walkingPaceCopy'
 import { usePeriodChoice } from '../periodPreference'
 import { ageProfileOf, missingAgeOf } from '../grades'
 import { countSport } from '../records'
@@ -71,6 +72,8 @@ export function ResultPage({
   signedIn,
 }: ResultPageProps) {
   const { period, library, totalActivities, isSample } = analysis.state
+  // What the analysis rests on: the library less the runs at walking pace, which only the lists and pages show.
+  const analysed = useMemo(() => withoutWalking(library), [library])
   const setRange = analysis.setRange
   // Each effort is graded at its own date, so the profile carries the year of birth, not an age.
   // The sample athlete has its own age, sex and masses, whatever the visitor has entered.
@@ -113,14 +116,14 @@ export function ResultPage({
     setRange(choice, answered)
   }
   // The newest activity in the library dates the answer: a library last written to long ago says so.
-  const newestMs = library.reduce<number | null>(
+  const newestMs = analysed.reduce<number | null>(
     (newest, activity) =>
       newest === null || activity.startMs > newest ? activity.startMs : newest,
     null,
   )
   const latest = latestActivityText(newestMs)
   // The fallback names both sports, so with one sport in the library there is nothing for it to say.
-  const bothSports = countSport(library, 'run') > 0 && countSport(library, 'ride') > 0
+  const bothSports = countSport(analysed, 'run') > 0 && countSport(analysed, 'ride') > 0
   // The note under the dates says why the default is all time, then how old the newest activity is.
   const control = (
     shown: number,
@@ -165,12 +168,12 @@ export function ResultPage({
           rangeDays={period.days}
           controls={control(
             countSport(result.activities, route.page),
-            countSport(library, route.page),
+            countSport(analysed, route.page),
             route.page,
           )}
-          emptyText={sportEmptyText(route.page, period, countSport(library, route.page))}
-          inLibrary={countSport(library, route.page)}
-          library={library}
+          emptyText={sportEmptyText(route.page, period, countSport(analysed, route.page))}
+          inLibrary={countSport(analysed, route.page)}
+          library={analysed}
           onShowAll={() => pickPeriod('all')}
           onAddFiles={analysis.addFiles}
           footnote={

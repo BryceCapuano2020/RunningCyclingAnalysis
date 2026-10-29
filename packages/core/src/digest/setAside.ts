@@ -12,6 +12,7 @@ import {
   rideWattsAt,
   runCentralWkg,
 } from './rideCurves'
+import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { trustedHeartRate } from './trustedHeartRate'
 
 /**
@@ -48,12 +49,14 @@ export function judgeHeartRate(
         masses.bodyKg(digest),
       ),
   }
-  const { setAside, reference } = trustedHeartRate(ordered, fits, (digest, point) =>
+  const { setAside, reference, trusted } = trustedHeartRate(ordered, fits, (digest, point) =>
     unit[digest.sport](digest, point),
   )
+  const { kappa, lnKappaSe } = heartRateCrossCheck(trusted, masses, bikeModel, fits)
   return {
     setAside: [...setAside].sort(),
     referenceHr: { run: reference.run, ride: reference.ride },
     threshold: { run: fits.run?.cp ?? null, ride: fits.ride?.cp ?? null },
+    calibration: kappa === null ? null : { kappa, lnKappaSe },
   }
 }

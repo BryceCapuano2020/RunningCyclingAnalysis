@@ -55,6 +55,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
+        calibration={null}
       />,
     )
     const section = screen.getByRole('region', { name: 'Grade by duration' })
@@ -73,6 +74,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
+        calibration={null}
       />,
     )
     expect(screen.getByRole('heading', { name: 'Grade by duration' })).toHaveClass('sr-only')
@@ -85,6 +87,7 @@ describe('GradeProfileSection', () => {
         profile={null}
         massKg={75}
         weightKnown
+        calibration={null}
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -97,6 +100,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown={false}
+        calibration={null}
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -109,6 +113,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
+        calibration={null}
       />,
     )
     expect(container).toBeEmptyDOMElement()
@@ -119,7 +124,13 @@ describe('GradeProfileSection', () => {
     const base = resultAt([600, 1200, 3600])
     const result = { ...base, rideCurve: [...base.rideCurve, curvePoint(900, 250, 'ride-1')] }
     vi.mocked(pipeline.equivalenceFor).mockClear()
-    const props = { result, profile: MAN_BORN_1986, massKg: 75, weightKnown: true }
+    const props = {
+      result,
+      profile: MAN_BORN_1986,
+      massKg: 75,
+      weightKnown: true,
+      calibration: null,
+    }
     const { rerender } = render(<GradeProfileSection {...props} />)
     expect(pipeline.equivalenceFor).toHaveBeenCalledTimes(1)
     // A new profile object with the same year and sex, as the page builds on each render.
@@ -133,7 +144,15 @@ describe('GradeProfileSection', () => {
     const base = resultAt([600, 1200, 3600])
     const result = { ...base, rideCurve: [...base.rideCurve, curvePoint(900, 250, 'ride-1')] }
     vi.mocked(pipeline.equivalenceFor).mockClear()
-    render(<GradeProfileSection result={result} profile={null} massKg={75} weightKnown />)
+    render(
+      <GradeProfileSection
+        result={result}
+        profile={null}
+        massKg={75}
+        weightKnown
+        calibration={null}
+      />,
+    )
     cleanup()
     render(
       <GradeProfileSection
@@ -141,6 +160,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown={false}
+        calibration={null}
       />,
     )
     expect(pipeline.equivalenceFor).not.toHaveBeenCalled()
@@ -153,6 +173,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
+        calibration={null}
       />,
     )
     expect(container.querySelector('.grade-profile__details')).toBeNull()
@@ -167,6 +188,7 @@ describe('GradeProfileSection', () => {
         profile={MAN_BORN_1986}
         massKg={75}
         weightKnown
+        calibration={null}
       />,
     )
     const sentence = screen.getByText(/^No duration separates your running and cycling/)

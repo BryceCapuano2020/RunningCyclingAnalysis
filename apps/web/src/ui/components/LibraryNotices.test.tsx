@@ -250,3 +250,36 @@ describe('LibraryNotices: this browser could not keep or delete activities', () 
     expect(screen.getByRole('region', { name: 'Kept in this browser' })).toBeInTheDocument()
   })
 })
+
+describe('LibraryNotices: runs at walking pace', () => {
+  function withWalkingRuns(walkingPaceRuns: number) {
+    return render(
+      <LibraryNotices
+        analysis={analysisStub({ state: { walkingPaceRuns } })}
+        signedIn
+        keepFiles
+        fileRetentionAvailable
+        onRetry={vi.fn()}
+      />,
+    )
+  }
+
+  it('says where they went, and says nothing when there are none', () => {
+    withWalkingRuns(0)
+    expect(screen.queryByText(/walking pace/)).not.toBeInTheDocument()
+    cleanup()
+    withWalkingRuns(1)
+    expect(
+      screen.getByText(
+        '1 saved run is at walking pace, so it stays in your activities and is left out of your run analysis.',
+      ),
+    ).toBeInTheDocument()
+    cleanup()
+    withWalkingRuns(52)
+    expect(
+      screen.getByText(
+        '52 saved runs are at walking pace, so they stay in your activities and are left out of your run analysis.',
+      ),
+    ).toBeInTheDocument()
+  })
+})

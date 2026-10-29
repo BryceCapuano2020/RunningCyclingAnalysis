@@ -4,7 +4,7 @@ import type { Sex } from '@rca/core/grade'
 import { metabolicToFlatSpeed } from '@rca/core/metabolic'
 import { equivalenceFor } from '@rca/core/digest'
 import type { AnalysisResult } from '@rca/core/pipeline'
-import type { Sport } from '@rca/core/types'
+import type { HrCalibration, Sport } from '@rca/core/types'
 import type { UnitSystem } from '@rca/core/units'
 import { PACE_UNIT, formatClock, formatWatts, paceSeconds } from '@rca/core/units'
 import type { Lean } from '../domain/lean'
@@ -16,13 +16,13 @@ import { SPORT_FORMAT, SPORT_NOUN } from './sports'
 
 /**
  * The athlete an inverse is for: the age and sex the lower sport was graded at, the body mass, and the
- * result's heart-rate cross-check, which the page's ride equivalence weighs its draws by.
+ * library's heart-rate calibration, which the page's ride equivalence weighs its draws by.
  */
 export interface TargetAthlete {
   age: number
   sex: Sex
   massKg: number
-  hr: AnalysisResult['hr']
+  calibration: HrCalibration | null
 }
 
 /** Bisection steps over a flat speed, which costs no equivalence: each halves the bracket. */
@@ -138,7 +138,7 @@ function endPower(speedMs: number, at: (watts: number) => number, centre: number
  */
 function wattsRangeAtSpeed(speedMs: number, athlete: TargetAthlete): NativeRange | null {
   // Built once: the draws and the heart-rate weights do not change with the watts searched.
-  const equivalence = equivalenceFor(athlete.hr)
+  const equivalence = equivalenceFor(athlete.calibration)
   const endAt = (end: 'p05' | 'p50' | 'p95') => (watts: number) =>
     equivalence(watts, athlete.massKg)[end]
   const centre = searchPower(speedMs, endAt('p50'))
@@ -279,6 +279,8 @@ export interface LevelTargetInput {
   sex: Sex
   massKg: number
   units: UnitSystem
+  /** The library's heart-rate calibration (`HeartRateJudgement.calibration`), as the page's equivalents use it. */
+  calibration: HrCalibration | null
 }
 
 /**
@@ -288,7 +290,7 @@ export interface LevelTargetInput {
  * on screen, or when the levelled centre is not strictly beyond the figure the page already shows.
  */
 export function levelTargetText(input: LevelTargetInput): string | null {
-  const { lean, grades, result, sex, massKg, units } = input
+  const { lean, grades, result, sex, massKg, units, calibration } = input
   if (lean === 'even') return null
   const higher = lean
   const lower = OTHER_SPORT[higher]
@@ -297,7 +299,7 @@ export function levelTargetText(input: LevelTargetInput): string | null {
   if (!lowerGrade || lowerGrade.kind !== 'graded') return null
   if (!higherGrade || higherGrade.kind !== 'graded') return null
   const target = wholeGrade(higherGrade.grade.centre.grade) / 100
-  const athlete = { age: lowerGrade.age, sex, massKg, hr: result.hr }
+  const athlete = { age: lowerGrade.age, sex, massKg, calibration }
   const needed = nativeRangeAtGrade(lower, target, HEADLINE_DURATION_S, athlete)
   const curve = curveOf(result, lower)
   const shown = OWN_OF_CURVE[lower](valueAt(curve, HEADLINE_DURATION_S))

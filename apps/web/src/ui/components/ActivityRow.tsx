@@ -11,8 +11,9 @@ import {
   formatSpeed,
   formatTotalTime,
 } from '@rca/core/units'
-import { movingTimeOf, skippedCountOf, timeLabelOf } from '../activityFigures'
+import { materialSkippedCountOf, movingTimeOf, timeLabelOf } from '../activityFigures'
 import { skippedReadingsText } from '../analysis/flagCopy'
+import { WALKING_PACE_CHIP } from '../analysis/walkingPaceCopy'
 import { formatDay, formatRowDay, formatTimeOfDay } from '../format/date'
 import { chipLabels, isEstimatedRecord } from '../records'
 import { hrefFor } from '../route'
@@ -90,7 +91,7 @@ export function ActivityRow({
   signedIn,
   onDelete,
 }: ActivityRowProps) {
-  const skipped = skippedCountOf(activity)
+  const skipped = materialSkippedCountOf(activity)
   const day = dateOrder ? formatRowDay(activity.startMs) : formatDay(activity.startMs)
   // A ride's record chips are the library's bests, which use the body mass, so they wait for the weight.
   const chips = activity.sport === 'ride' && !weightKnown ? [] : chipLabels(records)
@@ -112,6 +113,7 @@ export function ActivityRow({
             </span>
             <span>{`${day}, ${formatTimeOfDay(activity.startMs)}`}</span>
             {activity.indoor && <span className="chip">Indoor</span>}
+            {activity.walkingPace && <span className="chip">{WALKING_PACE_CHIP}</span>}
             {skipped > 0 && (
               <span className="chip chip--warning">
                 <WarningIcon />

@@ -1,7 +1,7 @@
 import type { Sex } from '@rca/core/grade'
 import type { UnitSystem } from '@rca/core/units'
 import { displayWeight, weightUnit } from '../athlete'
-import { SEX_NOUN, ageToday } from '../grades'
+import { SEX_NOUN } from '../grades'
 import { hrefFor } from '../route'
 
 export interface ProfileFootnoteProps {
@@ -12,6 +12,12 @@ export interface ProfileFootnoteProps {
   sex: Sex | null
   /** False where the page already links to Profile from a note of its own, so the unset line leaves its link out. */
   unsetLink?: boolean
+}
+
+/** A list in words: "75 kg", "75 kg and man", "75 kg, man and your age at each effort". */
+function listed(parts: string[]): string {
+  const last = parts.at(-1)
+  return parts.length < 2 ? (last ?? '') : `${parts.slice(0, -1).join(', ')} and ${last}`
 }
 
 /**
@@ -25,16 +31,17 @@ export function ProfileFootnote({
   sex,
   unsetLink = true,
 }: ProfileFootnoteProps) {
-  const age = birthYear === null ? null : ageToday(birthYear)
+  // Each grade is at the age on the day of its effort, which its own line states, so today's age is not given
+  // here to disagree with it: the line says only that the year of birth is used.
   const parts = [
     massKg === null ? null : `${displayWeight(massKg, units)} ${weightUnit(units)}`,
-    age === null ? null : `age ${age}`,
     sex === null ? null : SEX_NOUN[sex],
+    birthYear === null ? null : 'your age at each effort',
   ].filter((part): part is string => part !== null)
   const unset = parts.length === 0
   return (
     <p className="muted">
-      {unset ? 'Your details are not set yet.' : `Based on ${parts.join(', ')}.`}
+      {unset ? 'Your details are not set yet.' : `Based on ${listed(parts)}.`}
       {(!unset || unsetLink) && (
         <>
           {' '}

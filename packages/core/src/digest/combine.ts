@@ -4,7 +4,6 @@ import { EQUIVALENCE_DURATIONS_S, FLAT_RUN_COST, RESTING_W_PER_KG } from '../con
 import { criticalPowerOutcome, fitCriticalPowerUnchecked, unevenFit, wPrimeFloor } from '../cp'
 import type { UnevenFit } from '../cp'
 import { checkEfforts } from '../effort'
-import { crossCheck } from '../hr'
 import { requirePositiveFinite } from '../math'
 import type {
   ActivityDigest,
@@ -16,8 +15,8 @@ import type {
   Curve,
   DigestCurvePoint,
   EffortCheck,
+  HrCalibration,
   HrCrossCheck,
-  HrPoint,
   Interval,
   Sport,
   VirtualPowerAccuracy,
@@ -33,11 +32,11 @@ import {
   bestCurves,
   centralWkgFromWatts,
   fitBikeModelOver,
-  heartRatePoints,
   measuredRideBest,
   rideWattsAt,
   runCentralWkg,
 } from './rideCurves'
+import { heartRateCrossCheck } from './heartRateCrossCheck'
 import { trustedHeartRate, withoutSetAside } from './trustedHeartRate'
 import { vo2maxFromHeartRate, type Vo2maxEstimate } from '../predict/vo2max'
 
@@ -86,6 +85,7 @@ export interface AnalysisResult {
   /** The threshold without the uneven bests, which set only a floor on it; null without one. See cp/uneven. */
   runCpUneven: UnevenFit | null
   rideCpUneven: UnevenFit | null
+  /** This period's own heart-rate check. The comparison and the equivalents read the library's (`CombineOptions.calibration`). */
   hr: HrCrossCheck
   comparison: Comparison
   equivalents: Equivalence[]
@@ -125,7 +125,7 @@ const SEED = 1
  * model, so they are built once here, and each power costs one pass over them.
  */
 export function equivalenceFor(
-  hr: HrCrossCheck | null,
+  hr: HrCalibration | null,
   opts: { draws?: number; seed?: number } = {},
 ): (ridePowerW: number, massKg: number) => Interval {
   const draws = opts.draws ?? DRAWS
@@ -152,19 +152,10 @@ export function equivalenceFor(
 export function equivalentRunSpeed(
   ridePowerW: number,
   massKg: number,
-  hr: HrCrossCheck | null,
+  hr: HrCalibration | null,
   opts: { draws?: number; seed?: number } = {},
 ): Interval {
   return equivalenceFor(hr, opts)(ridePowerW, massKg)
-}
-
-/**
- * Heart-rate points at or below critical power. Heart rate is only regressed where it still rises
- * with power. Without a fit, every point is kept.
- */
-export function atOrBelowCriticalPower(points: HrPoint[], cp: CriticalPowerFit | null): HrPoint[] {
-  if (cp === null) return points
-  return points.filter((p) => p.metabolicPower <= cp.cp)
 }
 
 export { orderedCurrent } from './ordered'
@@ -198,6 +189,13 @@ export interface CombineOptions {
    * the digests are judged among themselves, which is the whole library's judgement when they are it.
    */
   heartRateSetAside?: ReadonlySet<string>
+  /**
+   * The athlete's heart-rate calibration of the run-versus-ride efficiency, judged over the whole library
+   * (`judgeHeartRate`). Given, the comparison and the equivalents read it instead of this period's own
+   * check, so one ride is worth the same run pace whichever period is on screen. Absent, they read the check of
+   * these digests, which is the library's when they are it. Null reads no calibration.
+   */
+  calibration?: HrCalibration | null
 }
 
 /**
@@ -253,7 +251,6 @@ export function combine(
     (digest, point) => fitUnit[digest.sport](digest, point),
     opts.heartRateSetAside,
   )
-  const { runPoints, ridePoints } = heartRatePoints(heart.trusted, masses, bikeModel)
 
   // Heart rate tracks metabolic power linearly only while the effort is aerobic; above critical
   // power it flattens toward maximum. Blocks are selected on power, never on heart rate, because
@@ -267,17 +264,16 @@ export function combine(
   const rideCp = rideOutcome.fit
   const runCpUneven = unevenFit(runCurve, wPrimeFloor('run', massKg), runCp)
   const rideCpUneven = unevenFit(rideMetabolicCurve, wPrimeFloor('ride', massKg), rideCp)
-  const hr = crossCheck(
-    atOrBelowCriticalPower(runPoints, runFit),
-    atOrBelowCriticalPower(ridePoints, rideFit),
-  )
-  const comparison = compareSports(runCurve, rideComparable, massKg, hr, {
+  const hr = heartRateCrossCheck(heart.trusted, masses, bikeModel, { run: runFit, ride: rideFit })
+  // The calibration is the athlete's, not the period's: given, it replaces this period's own check below.
+  const calibration = opts.calibration === undefined ? hr : opts.calibration
+  const comparison = compareSports(runCurve, rideComparable, massKg, calibration, {
     draws: DRAWS,
     seed: SEED,
   })
 
   // The draws and their heart-rate weights are the same for every duration, so they are built once.
-  const equivalence = equivalenceFor(hr)
+  const equivalence = equivalenceFor(calibration)
   const equivalents: Equivalence[] = []
   for (const durationS of EQUIVALENCE_DURATIONS_S) {
     const point = rideCurve.find((p) => p.durationS === durationS)
