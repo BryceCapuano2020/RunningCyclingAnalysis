@@ -247,6 +247,37 @@ describe('ZoneTimeCache', () => {
     ).not.toBe(entered)
   })
 
+  it('keeps the last few periods, so going back to one already shown is answered again', () => {
+    const cache = new ZoneTimeCache()
+    const periods = [3, 6, 9, 12].map((count) => digests.slice(0, count))
+    const aside = analysis.heartRateSetAside
+    const first = periods.map((selected) => cache.get(selected, [], settings, analysis, aside))
+    // Switching back and forth between the four costs nothing.
+    for (const index of [0, 2, 1, 3, 0]) {
+      expect(cache.get(periods[index]!, [], settings, analysis, aside)).toBe(first[index])
+    }
+    // A fifth period pushes out the one used longest ago (the third), and no other.
+    const fifth = digests.slice(0, 14)
+    cache.get(fifth, [], settings, analysis, aside)
+    expect(cache.get(periods[0]!, [], settings, analysis, aside)).toBe(first[0])
+    expect(cache.get(periods[1]!, [], settings, analysis, aside)).toBe(first[1])
+    expect(cache.get(periods[2]!, [], settings, analysis, aside)).not.toBe(first[2])
+  })
+
+  it('does not answer one period from another, or from other settings or set-aside', () => {
+    const cache = new ZoneTimeCache()
+    const aside = analysis.heartRateSetAside
+    const a = cache.get(digests.slice(0, 5), [], settings, analysis, aside)
+    const b = cache.get(digests.slice(0, 5), digests.slice(5, 9), settings, analysis, aside)
+    expect(b).not.toBe(a)
+    expect(b.previous).not.toBeNull()
+    expect(cache.get(digests.slice(0, 5), [], settings, analysis, [...aside])).not.toBe(a)
+    expect(
+      cache.get(digests.slice(0, 5), [], { ...settings, massKg: 60 }, analysis, aside),
+    ).not.toBe(a)
+    expect(cache.get(digests.slice(0, 5), [], settings, analysis, aside)).toBe(a)
+  })
+
   it("judges every period's heart rate by the library's set-aside, not the period on screen's", () => {
     const entries: Measurement[] = [
       { kind: 'maxHeartRate', sport: 'run', value: 200, from: '2020-01-01' },

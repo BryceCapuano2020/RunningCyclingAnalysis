@@ -34,16 +34,19 @@ interface Entry {
   times: PeriodZoneTimes
 }
 
+/** How many results are kept: the few periods the control offers, so that switching between them is free. */
+const ZONE_TIMES_KEPT = 4
+
 /**
- * The last time in zones, reused while its inputs hold: the activities of the period and the one before,
+ * The last few times in zones, reused while their inputs hold: the activities of the period and the one before,
  * the settings the zones read, the analysis that supplies estimated references (itself kept while the
  * digests and masses are the same, so the object is the key) and the list of heart rates set aside, which
  * the caller judges over the whole library (HeartRateJudge) so every period is read by the same rule. A list
  * that is the same object is the same list. A session asks on every state, so a change that moves none of
- * these costs nothing.
+ * these costs nothing, and going back to a period already shown costs nothing either. Newest use first.
  */
 export class ZoneTimeCache {
-  private entry: Entry | null = null
+  private entries: Entry[] = []
 
   get(
     selected: ActivityDigest[],
@@ -53,16 +56,18 @@ export class ZoneTimeCache {
     heartRateSetAside: readonly string[],
   ): PeriodZoneTimes {
     const key = settingsKey(settings)
-    const hit = this.entry
-    if (
-      hit !== null &&
-      hit.settings === key &&
-      hit.analysis === analysis &&
-      hit.heartRateSetAside === heartRateSetAside &&
-      sameDigests(hit.selected, selected) &&
-      sameDigests(hit.previous, previous)
-    ) {
-      return hit.times
+    const hit = this.entries.findIndex(
+      (entry) =>
+        entry.settings === key &&
+        entry.analysis === analysis &&
+        entry.heartRateSetAside === heartRateSetAside &&
+        sameDigests(entry.selected, selected) &&
+        sameDigests(entry.previous, previous),
+    )
+    if (hit >= 0) {
+      const [entry] = this.entries.splice(hit, 1)
+      this.entries.unshift(entry!)
+      return entry!.times
     }
     const setAside = new Set(heartRateSetAside)
     const times: PeriodZoneTimes = {
@@ -70,7 +75,8 @@ export class ZoneTimeCache {
       previous:
         previous.length === 0 ? null : periodTimeInZones(previous, settings, analysis, setAside),
     }
-    this.entry = { selected, previous, settings: key, analysis, heartRateSetAside, times }
+    this.entries.unshift({ selected, previous, settings: key, analysis, heartRateSetAside, times })
+    this.entries.length = Math.min(this.entries.length, ZONE_TIMES_KEPT)
     return times
   }
 }
