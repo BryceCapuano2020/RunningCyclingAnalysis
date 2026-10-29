@@ -34,7 +34,7 @@ export interface AccountController {
   error: string | null
 }
 
-/** Waits before each retry of the first account lookup: 1 s, 3 s, then 10 s. */
+/** Waits before each retry of a failed account lookup: 1 s, 3 s, then 10 s. */
 const LOOKUP_RETRY_DELAYS_MS = [1_000, 3_000, 10_000]
 
 function isUnauthenticated(failure: unknown): boolean {
@@ -60,8 +60,10 @@ function mergeProfile(saved: Profile, patch: Partial<ProfileInput>): ProfileInpu
 }
 
 /**
- * The signed-in account. 'unavailable' means the API could not answer after retries (offline, a
- * 404 or a 5xx, as on a static host without the API), so the UI should hide the account features.
+ * The signed-in account. 'unavailable' means the API could not answer (offline, a 404 or a 5xx, as
+ * on a static host without the API), so the UI should hide the account features. It is reported as
+ * soon as the first lookup fails, and the lookup is retried in the background: signed-out use never
+ * waits on the API, and an import started meanwhile is not repeated when the retries give up.
  */
 export function useAccount(): AccountController {
   const [status, setStatus] = useState<AccountStatus>('loading')
@@ -103,24 +105,30 @@ export function useAccount(): AccountController {
     let current = true
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let retries = 0
+    let failed = false
     const lookup = () => {
       api.getMe().then(
         (found) => {
           if (!current) return
           adopt(found)
+          // A retry that got through takes back the account's earlier "unavailable".
+          if (failed) setError(null)
         },
         (failure: unknown) => {
           if (!current) return
-          const delay = LOOKUP_RETRY_DELAYS_MS[retries]
-          if (delay !== undefined) {
-            retries++
-            retryTimer = setTimeout(lookup, delay)
-            return
-          }
+          // Nobody is known to be signed in, so the visitor works as a signed-out one at once: the
+          // browser's own library and files do not wait on the API. The lookup goes on in the
+          // background, and a retry that finds an account signs it in as any later sign-in.
+          failed = true
           meRef.current = null
           setMe(null)
           setStatus('unavailable')
           setError(messageOf(failure))
+          const delay = LOOKUP_RETRY_DELAYS_MS[retries]
+          if (delay !== undefined) {
+            retries++
+            retryTimer = setTimeout(lookup, delay)
+          }
         },
       )
     }

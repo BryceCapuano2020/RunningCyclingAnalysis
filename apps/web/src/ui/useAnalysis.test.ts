@@ -345,6 +345,20 @@ describe('useAnalysis account handling', () => {
     expect(worker().posted).toEqual([DEVICE_LOAD])
   })
 
+  it('does not restart the worker or send anything when sign-in turns unavailable after the kept library loaded', () => {
+    const { rerender } = setup(UNAVAILABLE)
+    const kept = worker()
+    const posted = [...kept.posted]
+
+    // The background retries find nobody signed in, or fail again: nothing changes for the visitor.
+    rerender({ account: SIGNED_OUT, current: SETTINGS })
+    rerender({ account: UNAVAILABLE, current: SETTINGS })
+
+    expect(worker()).toBe(kept)
+    expect(kept.terminated).toBe(false)
+    expect(kept.posted).toEqual(posted)
+  })
+
   it('does not clear the library when the account becomes unavailable', () => {
     const { rerender, result } = setup(SIGNED_IN_KEEP)
     act(() => worker().reply({ type: 'state', state: { ...STATE, totalActivities: 2 } }))
@@ -728,6 +742,20 @@ describe('useAnalysis account handling', () => {
         sync: null,
         saveToDevice: true,
       })
+    })
+
+    it('does not repeat an import that ran while the account was unavailable when the retries end', () => {
+      const { result, rerender } = setup(UNAVAILABLE)
+      finishDeviceLoad()
+      act(() => result.current.addFiles([FILE]))
+      settle()
+      const sent = worker().posted.filter((message) => message.type === 'addFiles')
+      expect(sent).toHaveLength(1)
+
+      rerender({ account: SIGNED_OUT, current: SETTINGS })
+      rerender({ account: UNAVAILABLE, current: SETTINGS })
+
+      expect(worker().posted.filter((message) => message.type === 'addFiles')).toHaveLength(1)
     })
 
     it('saves the files for a visitor whose account is unavailable, as for a signed-out one', () => {

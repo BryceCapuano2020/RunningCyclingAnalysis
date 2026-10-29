@@ -611,7 +611,7 @@ describe('useAccount', () => {
     }
   })
 
-  it('tries the account lookup at 1 s, 3 s and 10 s after the first failure, then reports it unavailable', async () => {
+  it('reports the account unavailable at the first failure, and tries again at 1 s, 3 s and 10 s', async () => {
     vi.useFakeTimers()
     try {
       mocked.getMe.mockReset()
@@ -622,6 +622,8 @@ describe('useAccount', () => {
         await vi.advanceTimersByTimeAsync(999)
       })
       expect(mocked.getMe).toHaveBeenCalledTimes(1)
+      // Signed-out use does not wait for the retries.
+      expect(result.current.status).toBe('unavailable')
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1)
       })
@@ -630,7 +632,7 @@ describe('useAccount', () => {
         await vi.advanceTimersByTimeAsync(3_000)
       })
       expect(mocked.getMe).toHaveBeenCalledTimes(3)
-      expect(result.current.status).toBe('loading')
+      expect(result.current.status).toBe('unavailable')
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10_000)
       })
@@ -641,6 +643,50 @@ describe('useAccount', () => {
         await vi.advanceTimersByTimeAsync(60_000)
       })
       expect(mocked.getMe).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('signs the account in when a retry gets through after the first lookup failed, and drops the error', async () => {
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockReset()
+      mocked.getMe
+        .mockRejectedValueOnce(new ApiRequestError(502, 'http_error', 'Bad Gateway'))
+        .mockResolvedValue(ME)
+      const { result } = renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(result.current.status).toBe('unavailable')
+      expect(result.current.error).toBe('Bad Gateway')
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+      expect(result.current.status).toBe('signed-in')
+      expect(result.current.me).toEqual(ME)
+      expect(result.current.error).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('becomes signed out, not expired, when a retry finds nobody signed in', async () => {
+    vi.useFakeTimers()
+    try {
+      mocked.getMe.mockReset()
+      mocked.getMe
+        .mockRejectedValueOnce(new ApiRequestError(0, 'network_error', 'Offline'))
+        .mockResolvedValue(null)
+      const { result } = renderHook(() => useAccount())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+      expect(result.current.status).toBe('signed-out')
+      expect(result.current.sessionExpired).toBe(false)
+      expect(result.current.error).toBeNull()
     } finally {
       vi.useRealTimers()
     }
