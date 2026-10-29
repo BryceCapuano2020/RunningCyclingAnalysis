@@ -79,17 +79,26 @@ describe('device library actions', () => {
     await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe('refused')
   })
 
-  it('save leaves a stored row it cannot read, as a newer version of the app wrote it', async () => {
+  it('save leaves a stored row that a newer version of the app wrote', async () => {
     const put = vi.fn(() => Promise.resolve())
-    const unreadable: DeviceLibrary = {
+    const newer: DeviceLibrary = { ...memoryDeviceLibrary(), lookup: async () => 'newer', put }
+    const { actions } = setup(newer)
+
+    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe('newer')
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('save writes over a stored row that is damaged or from an older format, so it heals', async () => {
+    const put = vi.fn(() => Promise.resolve())
+    const damaged: DeviceLibrary = {
       ...memoryDeviceLibrary(),
       lookup: async () => 'unreadable',
       put,
     }
-    const { actions } = setup(unreadable)
+    const { actions } = setup(damaged)
 
-    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe('newer')
-    expect(put).not.toHaveBeenCalled()
+    await expect(actions.save(itemFor(FIRST, 'hash-fit'))).resolves.toBe('kept')
+    expect(put).toHaveBeenCalledOnce()
   })
 
   it('save says it kept the activity, and counts a kept copy it prefers as kept', async () => {

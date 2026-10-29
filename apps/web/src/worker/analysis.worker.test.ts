@@ -1563,7 +1563,7 @@ describe('device library', () => {
     const put = vi.fn(() => Promise.resolve())
     kept.library = {
       ...memoryDeviceLibrary(),
-      lookup: async () => 'unreadable',
+      lookup: async () => 'newer',
       put,
     }
     const { send } = await startWorker()

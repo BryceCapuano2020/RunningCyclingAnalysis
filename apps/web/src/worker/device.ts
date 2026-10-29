@@ -100,10 +100,11 @@ export function deviceActions(
       try {
         const key = workoutKeyOf(digest)
         const kept = await device.lookup(key)
-        // A row that exists but does not read is a newer version's. Writing over it would destroy
-        // what that version made, so it stays.
-        if (kept === 'unreadable') return 'newer'
-        if (replaces(digest, kept)) await device.put(key, digest, route)
+        // A row a newer version wrote is left as it is: writing over it would destroy what that
+        // version made. One that is damaged or from an older format is written over, so it heals.
+        if (kept === 'newer') return 'newer'
+        if (replaces(digest, kept === 'unreadable' ? null : kept))
+          await device.put(key, digest, route)
         return 'kept'
       } catch {
         // Storage can be refused (a private window, a full disk); the results still show.
