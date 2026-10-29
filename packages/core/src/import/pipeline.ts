@@ -17,6 +17,8 @@ const EARLIEST_ACTIVITY_MS = Date.UTC(2000, 0, 1)
 const MAX_FUTURE_MS = DAY_MS
 /** The shortest activity, in seconds: the records must vouch for at least this much. */
 const MIN_SAMPLES = 60
+/** The seconds of movement a device can count before its first record and still have that distance kept. */
+const HEAD_START_S = 30
 /** The fastest speed a sample may have, per sport. Faster samples are dropped as impossible. */
 export const MAX_SPEED_MPS: Record<Sport, number> = {
   ride: SPORT_TRACE.ride.maxSpeedMs,
@@ -52,7 +54,8 @@ export interface PipelineUnit {
   /**
    * The device's running distance when this unit began, in metres. Subtracted from the unit's
    * distance, so a session that follows another counts from where that one ended. Undefined
-   * leaves the device's own count, which is the case for a file's first session.
+   * keeps the device's own count unless it starts beyond a plausible head start, which is the
+   * case for a file's first session.
    */
   distanceOrigin?: number
   /** The source marks this unit indoor, e.g. a FIT treadmill or spin sub-sport. */
@@ -284,8 +287,12 @@ function evaluateSegment(segment: RawRecord[], info: SegmentInfo): Outcome {
     return DATE_OUTCOME
   }
   // A part after a gap of over four hours counts from its own first sample, and a unit that follows
-  // another in the same file counts from where the device's running total stood.
-  const origin = part === 0 ? (unit.distanceOrigin ?? 0) : (resampled.distance[0] ?? 0)
+  // another in the same file counts from where the device's running total stood. A first unit keeps
+  // the few metres a device counts before its first record, but a larger first distance is an
+  // earlier count of the file's own, so it counts from its own first sample.
+  const firstDistance = resampled.distance[0] ?? 0
+  const origin =
+    part === 0 ? (unit.distanceOrigin ?? beyondHeadStart(firstDistance, maxSpeed)) : firstDistance
   subtractDistance(resampled.distance, origin)
   const indoor = unit.indoor || (!unit.hasPosition && isIndoorWithoutPositions(resampled, sport))
   // A speed derived from distance can still exceed the sport's limit; such samples are missing.
@@ -355,6 +362,11 @@ function mostlySparse(segment: RawRecord[]): boolean {
 }
 
 /** Subtracts `origin` from every distance. Distances stay non-decreasing. */
+/** The distance to drop from a first unit: its first sample's, unless it is a plausible head start. */
+function beyondHeadStart(firstDistance: number, maxSpeed: number): number {
+  return firstDistance > maxSpeed * HEAD_START_S ? firstDistance : 0
+}
+
 function subtractDistance(distance: Float64Array, origin: number): void {
   if (!Number.isFinite(origin) || origin === 0) return
   for (let i = 0; i < distance.length; i++) distance[i] = distance[i]! - origin
