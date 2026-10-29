@@ -52,9 +52,10 @@ function fitsOf(curves: BestCurves): Record<Sport, CriticalPowerFit | null> {
 /**
  * The best curves and the heart-rate judgement, which depend on each other: whose heart rate is set aside
  * depends on the thresholds, the thresholds on which estimated rides count, and that on the heart rate of the
- * measured rides that is trusted. Judged among the digests, the first gate trusts every ride but those whose
- * heart rate reads low across the whole activity; the judgement is made against it, and the curves are taken
- * again with the gate it leaves if the judgement set more aside. Given the library's, both are used as they are.
+ * measured rides that is trusted. Judged among the digests, the first gate is fitted without the rides whose heart
+ * rate reads low across the whole activity; the judgement is made against it, and if it sets more aside the gate
+ * and the curves are taken once more without them. That is one rebuild, not a fixed point: the second gate is not
+ * judged again, so a second round of set-aside is not looked for. Given the library's, both are used as they are.
  */
 export function judgedCurves(
   ordered: ActivityDigest[],

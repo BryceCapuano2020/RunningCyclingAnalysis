@@ -1183,9 +1183,17 @@ point counts at all is the library's call (`HeartRateJudgement.rideGate`, built 
 `digest/estimatedRide.ts`): for each curve duration a robust line (Theil-Sen, refitted without the points under
 the tolerance, never read beyond the fitted watts) of the heart rate of the trusted power-meter rides on their
 watts, and an estimated window counts toward the bests, curves, thresholds, records and trends only if its mean
-heart rate is at least `ESTIMATED_RIDE.minShare` (90%) of the line at its watts. A window with no trusted heart rate,
-or at a duration with no line, counts only where the set holds no measured point at that duration. Fewer than 6 power-meter rides with heart rate
-give no gate and nothing changes. It is a combine-time rule on the digest's `terms`, so `MODEL_REVISION` is
+heart rate is at least `ESTIMATED_RIDE.minShare` (90%) of the line at its watts. A window with no heart rate, or
+at a duration with no line, is unbacked: it never outranks a measurement, so it holds only at a duration longer
+than any the library has measured (a measured point makes every shorter duration measured, since the envelope
+copies it down), and then only at or under the best measured watts at the longest measured duration, which the
+envelope would otherwise copy down over the measured bests. Fewer than 6 power-meter rides with heart rate give no
+gate and nothing changes. The line is in absolute watts, so a change in mass moves a virtual ride's watts against
+it slightly. A virtual ride's own heart rate is taken as recorded: neither set-aside path judges a ride whose watts
+are the estimate in doubt. Only measured rides' set-aside heart rate is left out of the line. The judgement and
+`combine` fit the gate once, without the rides whose heart rate reads low across the whole activity, judge against
+it, and rebuild it once more (and the curves) if that set more aside: one rebuild, not a fixed point, and the gate
+is null if too few rides are left. It is a combine-time rule on the digest's `terms`, so `MODEL_REVISION` is
 unchanged. Periods, trends, the previous period and records all take the library's gate, so they agree.
 Changing the period does not judge again. The reference it was judged against is the library's, which can differ from a
 period's own figure, so the notes on a set-aside heart rate cite it ("under 70% of your reference heart rate across all your

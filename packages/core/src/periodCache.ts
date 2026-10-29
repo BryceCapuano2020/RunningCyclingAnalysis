@@ -3,6 +3,7 @@ import { sameMasses } from './athlete/mass'
 import { combine, sportCurves } from './digest/combine'
 import type { CombineOptions } from './digest/combine'
 import type { AnalysisResult } from './digest/combine'
+import { rideGateKey } from './digest/estimatedRide'
 import type { EstimatedRideGate } from './digest/estimatedRide'
 import { lateEvidence } from './digest/lateEvidence'
 import type { LateEvidenceBySport } from './digest/lateEvidenceTypes'
@@ -58,16 +59,6 @@ function setAsideAmong(digests: ActivityDigest[], setAside: readonly string[]): 
 function calibrationKey(calibration: HrCalibration | null | undefined): string {
   if (calibration === undefined) return 'own'
   return calibration === null ? 'none' : `${calibration.kappa}|${calibration.lnKappaSe}`
-}
-
-/**
- * A ride gate as a key: gates with the same lines are the same key, so an activity that leaves the lines as they are
- * does not redo a period; none, and the period's own, are each their own. Whose heart rate is trusted is in the
- * set-aside key, so it is not repeated.
- */
-function gateKey(gate: EstimatedRideGate | null | undefined): string {
-  if (gate === undefined) return 'own'
-  return gate === null ? 'none' : JSON.stringify([...gate.lines])
 }
 
 /** How many analyses are kept: the few periods the control offers, so that switching between them is free. */
@@ -141,7 +132,7 @@ export class PeriodCache {
     const key = setAsideAmong(selected, setAside)
     const calibrationId = calibrationKey(calibration)
     const referencesId = JSON.stringify(references ?? null)
-    const gateId = gateKey(rideGate)
+    const gateId = rideGateKey(rideGate)
     const hit = this.analysisEntries.findIndex(
       (entry) =>
         entry.setAside === key &&
@@ -231,7 +222,7 @@ export class PeriodCache {
       cached.startMs === startMs &&
       cached.equivalence === equivalence &&
       cached.calibration === calibrationKey(hr) &&
-      cached.gate === gateKey(rideGate) &&
+      cached.gate === rideGateKey(rideGate) &&
       sameInputs(cached, selected, settings)
     ) {
       return cached.points
@@ -251,7 +242,7 @@ export class PeriodCache {
       startMs,
       equivalence,
       calibration: calibrationKey(hr),
-      gate: gateKey(rideGate),
+      gate: rideGateKey(rideGate),
       points,
     })
     return points
@@ -316,7 +307,7 @@ export class PeriodCache {
     rideGate?: EstimatedRideGate | null,
   ): SportCurves {
     const cached = this.previousEntry
-    const gate = gateKey(rideGate)
+    const gate = rideGateKey(rideGate)
     if (
       cached !== null &&
       cached.gate === gate &&

@@ -63,7 +63,7 @@ export function heldRideWatts(
   holds: EstimatedHolds,
 ): number {
   const watts = rideWattsAt(point, masses.totalKg(digest), model)
-  return holds(digest, point, watts) ? watts : Number.NaN
+  return holds(point, watts) ? watts : Number.NaN
 }
 
 /** The run and ride curves a combine works from, with the ride in each unit it needs. */
@@ -101,7 +101,7 @@ export function bestCurves(
 ): BestCurves {
   const ordered = all.filter(effortsCount)
   const runBest = bestOf(ordered, 'run', runCentralWkg)
-  const holds = estimatedHolds(gate, ordered)
+  const holds = estimatedHolds(gate)
   if (!masses.dated) {
     const rideBest = bestOfEach(
       ordered,

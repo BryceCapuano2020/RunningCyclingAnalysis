@@ -70,18 +70,23 @@ describe('an estimated ride against the measured ones', () => {
     expect(best(library, 60).activityId).toBe('backed')
   })
 
-  it('counts a window at the heart rate of its watts below the top of the fitted range', () => {
+  it('holds a window at the heart rate of its watts inside the fitted range', () => {
     const inside = estimated('inside', { 300: { watts: 250, heartRate: hr5(250, 0) } })
-    expect(best([...LIBRARY, inside], 300).activityId).toBe('measured-13')
-    // It is the heart rate of a 250 W window, so it holds, though it is no best.
-    const held = estimatedHolds(rideGateOf(orderedCurrent(LIBRARY), new Set()), [...LIBRARY])
-    expect(
-      held(
-        inside,
-        inside.curve.find((p) => p.durationS === 300)!,
-        250,
-      ),
-    ).toBe(true)
+    const gate = rideGateOf(orderedCurrent(LIBRARY), new Set())
+    const point = { ...inside.curve.find((p) => p.durationS === 300)!, heartRate: hr5(250, 0) }
+    expect(estimatedHolds(gate)(point, 250)).toBe(true)
+    // The same window 20% under the line does not.
+    expect(estimatedHolds(gate)({ ...point, heartRate: 0.8 * hr5(250, 0) }, 250)).toBe(false)
+  })
+
+  it('compares a window above the fitted range with the top of the range', () => {
+    const gate = rideGateOf(orderedCurrent(LIBRARY), new Set())!
+    const top = hr5(BEST_5, 0)
+    const point = estimated('high', { 300: { watts: 900, heartRate: null } }).curve.find(
+      (p) => p.durationS === 300,
+    )!
+    expect(estimatedHolds(gate)({ ...point, heartRate: 0.95 * top }, 900)).toBe(true)
+    expect(estimatedHolds(gate)({ ...point, heartRate: 0.8 * top }, 900)).toBe(false)
   })
 
   it('does not let an estimate with no heart rate outrank a measurement, but lets it stand alone', () => {
@@ -118,17 +123,45 @@ describe('an estimated ride against the measured ones', () => {
     expect(best(withDrafted, 30).value).toBe(600 + 130)
     // Without a gate it wins, and where nothing was measured at 30 s it stands.
     expect(best(withDrafted, 30, { rideGate: null }).activityId).toBe('drafted-30')
-    const alone = [...LIBRARY, drafted]
-    expect(best(alone, 30).activityId).toBe('drafted-30')
   })
 
-  it('reads heart rate that is set aside as no heart rate', () => {
-    const backed = estimated('backed', { 300: { watts: 420, heartRate: hr5(BEST_5, 0) } })
-    const library = [...LIBRARY, backed]
-    expect(best(library, 300).activityId).toBe('backed')
-    expect(best(library, 300, { heartRateSetAside: new Set(['backed']) }).activityId).toBe(
-      'measured-13',
-    )
+  it('does not let an estimate stand above the measured bests it would be copied down over', () => {
+    // No measured ride has an hour, so a 3 h estimate with no heart rate has no measured point at its duration. The
+    // envelope would copy a 400 W one down over every measured best, which top out at BEST_5, so it does not stand.
+    const high = estimated('high-3h', { 10800: { watts: 400, heartRate: null } })
+    const low = estimated('low-3h', { 10800: { watts: 150, heartRate: null } })
+    const gate = rideGateOf(orderedCurrent(LIBRARY), new Set())!
+    expect(gate.measuredDurations.has(300)).toBe(true)
+    expect(gate.measuredDurations.has(10800)).toBe(false)
+    expect(gate.measuredCeilingW).toBe(BEST_5)
+    const withHigh = combine([...LIBRARY, high], SETTINGS).rideCurve
+    expect(withHigh.find((p) => p.durationS === 300)!.activityId).toBe('measured-13')
+    expect(withHigh.find((p) => p.durationS === 10800)!.activityId).toBeNull()
+    const ungated = combine([...LIBRARY, high], SETTINGS, { rideGate: null }).rideCurve
+    expect(ungated.find((p) => p.durationS === 300)!.value).toBeCloseTo(400, 6)
+    // One at or under the ceiling copies down over nothing: it stands at its own duration.
+    expect(
+      combine([...LIBRARY, low], SETTINGS).rideCurve.find((p) => p.durationS === 10800)!.activityId,
+    ).toBe('low-3h')
+  })
+
+  it('judges a period by the library: a duration the period never measured is still a measured one', () => {
+    // 14 rides, the first 8 with a 20 min window. A 12-week period holds the rest and an estimate with no heart rate.
+    const rides = Array.from({ length: 14 }, (_, i) => {
+      const five = 200 + 10 * i
+      const windows: Record<number, Window> = { 300: { watts: five, heartRate: hr5(five, i) } }
+      if (i < 8)
+        windows[1200] = { watts: 150 + 8 * i, heartRate: Math.round(80 + 0.4 * (150 + 8 * i)) }
+      return ride(`long-${i}`, i, 'measured', windows)
+    })
+    const unbacked = estimated('unbacked-20', { 1200: { watts: 120, heartRate: null } })
+    const period = [...rides.slice(8), unbacked]
+    const gate = rideGateOf(orderedCurrent([...rides, unbacked]), new Set())
+    expect(gate!.measuredDurations.has(1200)).toBe(true)
+    const at20 = (over = {}) => best(period, 1200, over).activityId
+    // Alone the period has nothing measured at 20 min, so the estimate would stand.
+    expect(at20()).toBe('unbacked-20')
+    expect(at20({ rideGate: gate })).toBeNull()
   })
 
   it('fits only measured rides whose heart rate is trusted', () => {
@@ -138,15 +171,15 @@ describe('an estimated ride against the measured ones', () => {
     expect(line.slope).toBeGreaterThan(0)
     expect(line.from).toBe(200)
     expect(line.to).toBe(BEST_5)
-    // Rides set aside are not fitted: down to minActivities left there is a gate, one fewer and there is none.
+    // Rides set aside are not fitted: down to minRides left there is a gate, one fewer and there is none.
     const names = LIBRARY.map((d) => d.id)
-    const spare = LIBRARY.length - ESTIMATED_RIDE.minActivities
+    const spare = LIBRARY.length - ESTIMATED_RIDE.minRides
     expect(rideGateOf(orderedCurrent(LIBRARY), new Set(names.slice(0, spare)))).not.toBeNull()
     expect(rideGateOf(orderedCurrent(LIBRARY), new Set(names.slice(0, spare + 1)))).toBeNull()
   })
 
   it('is as it was with too few measured rides to fit', () => {
-    const few = [...measuredRides(ESTIMATED_RIDE.minActivities - 1), DRAFTED]
+    const few = [...measuredRides(ESTIMATED_RIDE.minRides - 1), DRAFTED]
     expect(ownRideGate(orderedCurrent(few))).toBeNull()
     expect(best(few, 300).activityId).toBe('drafted')
     expect(combine(few, SETTINGS)).toEqual(combine(few, SETTINGS, { rideGate: null }))
@@ -205,7 +238,7 @@ describe('the share of the measured heart rate an estimated window must show', (
       })
     })
     const ordered = orderedCurrent(rides)
-    return { watts, ordered, holds: estimatedHolds(rideGateOf(ordered, new Set()), ordered) }
+    return { watts, ordered, holds: estimatedHolds(rideGateOf(ordered, new Set())) }
   }
 
   it('keeps nearly all honest windows, and drops the overstated and the easy-heart-rate ones', () => {
@@ -223,12 +256,12 @@ describe('the share of the measured heart rate an estimated window must show', (
       const heartRate = line + 6 * normal(random)
       const honest = window(heartRate)
       // An honest estimate has a 12% error; an exact one has none, and so is the case of a measured window.
-      if (holds(honest, point(honest), w * (1 + 0.12 * normal(random)))) kept.honest++
-      if (holds(honest, point(honest), w)) kept.exact++
+      if (holds(point(honest), w * (1 + 0.12 * normal(random)))) kept.honest++
+      if (holds(point(honest), w)) kept.exact++
       // A drafted window is priced 30% over its watts and shows the heart rate of the watts it was.
-      if (holds(honest, point(honest), w * 1.3)) kept.overstated++
+      if (holds(point(honest), w * 1.3)) kept.overstated++
       const easy = window(0.7 * line)
-      if (holds(easy, point(easy), w)) kept.easy++
+      if (holds(point(easy), w)) kept.easy++
     }
     expect(kept.exact / draws).toBeGreaterThan(0.97)
     expect(kept.honest / draws).toBeGreaterThan(0.93)

@@ -236,6 +236,9 @@ export const DEFAULT_BIKE_MODEL = { cda: 0.32, crr: 0.005 } as const
  */
 export const ESTIMATED_RIDE_MIN_SHARE = 0.9
 
+/** The measured rides with heart rate it takes to judge an estimated ride's heart rate (see ESTIMATED_RIDE). */
+export const ESTIMATED_RIDE_MIN_RIDES = 6
+
 /** Virtual power is trusted only where gravity dominates aero drag. */
 export const MIN_CLIMB_GRADE = 0.03
 

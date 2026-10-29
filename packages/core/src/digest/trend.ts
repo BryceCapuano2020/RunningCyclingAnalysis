@@ -153,10 +153,7 @@ export function fitnessTrend(
 
   const masses = massesOf(settings)
   const bikeModel = opts.bikeModel ?? fitBikeModelOver(ordered, masses).model
-  const holds = estimatedHolds(
-    opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate,
-    ordered,
-  )
+  const holds = estimatedHolds(opts.rideGate === undefined ? ownRideGate(ordered) : opts.rideGate)
   const readings: Reading[] = []
   for (const digest of ordered) {
     // A treadmill run's pace is not an effort the trend can show (see effortsCount).

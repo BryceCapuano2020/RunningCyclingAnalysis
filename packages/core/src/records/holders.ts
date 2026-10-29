@@ -52,7 +52,7 @@ export function recordHolders(
   const bikeModel = fitBikeModelOver(ordered, masses).model
   // A treadmill run holds no record (see effortsCount), though its own times still show on its page.
   const eligible = ordered.filter(effortsCount)
-  const holds = estimatedHolds(gate === undefined ? ownRideGate(ordered) : gate, eligible)
+  const holds = estimatedHolds(gate === undefined ? ownRideGate(ordered) : gate)
   const held = new Map<string, EarnedRecord[]>()
   const give = (id: string, record: EarnedRecord) => {
     const list = held.get(id)
