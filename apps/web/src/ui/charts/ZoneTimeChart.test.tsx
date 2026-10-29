@@ -3,49 +3,137 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readStylesheet } from '../components/stylesheet'
 import { ZoneTimeChart } from './ZoneTimeChart'
+import type { ZoneChartRow } from './ZoneTimeChart'
 import { FALLBACK_WIDTH } from './useSize'
+import { percentFits, segmentsOf, takeawayText } from './zoneBars'
 
 afterEach(cleanup)
 
 const css = await readStylesheet(import.meta.url, './ZoneTimeChart.css')
 
 const table = { columns: ['Zone', 'Time'], rows: [['1', '10 s']] }
+const NAMES = ['Recovery', 'Endurance', 'Tempo', 'Threshold', 'Maximum']
 
-function chart(seconds: number[], label = 'Heart rate') {
+function chart(seconds: number[], extra: Partial<ZoneChartRow> = {}, label = 'Heart rate') {
   return render(
     <ZoneTimeChart
       title="Share of time in each zone"
       lede="Most of the time was easy."
-      rows={[{ label, seconds, summary: 'zone 1 50%, zone 2 50%' }]}
+      rows={[{ label, seconds, summary: 'zone 1 50%, zone 2 50%', ...extra }]}
       table={table}
     />,
   )
 }
 
+const segments = (container: HTMLElement) => [
+  ...container.querySelectorAll<SVGRectElement>('rect.zone-time__segment'),
+]
+
+describe('segmentsOf', () => {
+  it('lays the zones across the width in proportion, in order, and leaves out an empty zone', () => {
+    const found = segmentsOf([25, 50, 0, 25, 0], 400)
+    expect(found.map((s) => s.level)).toEqual([1, 2, 4])
+    expect(found.map((s) => s.left)).toEqual([0, 100, 300])
+    expect(found.map((s) => s.width)).toEqual([100, 200, 100])
+    expect(found.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1, 9)
+  })
+
+  it('gives nothing for a bar with no time, not a divide by zero', () => {
+    expect(segmentsOf([0, 0, 0, 0, 0], 400)).toEqual([])
+  })
+})
+
 describe('ZoneTimeChart', () => {
-  it('draws a segment for each zone that held time, across the whole width in proportion', () => {
+  it('draws a segment for each zone that held time, across the whole width, with a 2 px gap between them', () => {
     const { container } = chart([25, 50, 0, 25, 0])
-    const rects = [...container.querySelectorAll('rect')]
+    const rects = segments(container)
     expect(rects).toHaveLength(3)
-    const widths = rects.map((rect) => Number(rect.getAttribute('width')))
-    expect(widths[0]).toBeCloseTo(FALLBACK_WIDTH * 0.25, 6)
-    expect(widths[1]).toBeCloseTo(FALLBACK_WIDTH * 0.5, 6)
-    expect(widths.reduce((a, b) => a + b, 0)).toBeCloseTo(FALLBACK_WIDTH, 6)
-    expect(Number(rects[1]!.getAttribute('x'))).toBeCloseTo(FALLBACK_WIDTH * 0.25, 6)
+    const edges = rects.map((rect) => [
+      Number(rect.getAttribute('x')),
+      Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')),
+    ])
+    const edge = (segment: number, side: 0 | 1) => edges[segment]?.[side] ?? Number.NaN
+    expect(edge(0, 0)).toBe(0)
+    expect(edge(2, 1)).toBeCloseTo(FALLBACK_WIDTH, 6)
+    // Each neighbouring pair is 2 px apart, so the gap is the same wherever the zones meet.
+    expect(edge(1, 0) - edge(0, 1)).toBeCloseTo(2, 6)
+    expect(edge(2, 0) - edge(1, 1)).toBeCloseTo(2, 6)
   })
 
-  it('numbers a zone under its segment only where the segment is wide enough', () => {
-    const { container } = chart([1, 98, 1, 0, 0])
-    const numbers = [...container.querySelectorAll('.zone-time__number')].map((n) => n.textContent)
-    expect(numbers).toEqual(['2'])
-  })
-
-  it('strengthens the tint with the zone, from the least that keeps contrast to 100 percent of the sport colour', () => {
+  it('marks each segment with its zone, which the stylesheet colours from the ramp', () => {
     const { container } = chart([1, 1, 1, 1, 1])
-    const tints = [...container.querySelectorAll<SVGRectElement>('rect')].map((rect) =>
-      rect.style.getPropertyValue('--zone-tint'),
+    expect(segments(container).map((rect) => rect.getAttribute('data-zone'))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+    ])
+  })
+
+  it('writes the percent inside a segment that is wide enough, and leaves a sliver bare', () => {
+    const { container } = chart([1, 98, 1, 0, 0])
+    const percents = [...container.querySelectorAll('.zone-time__percent[data-zone]')]
+      .filter((text) => !text.classList.contains('zone-time__percent--key'))
+      .map((text) => text.textContent)
+    expect(percents).toEqual(['98%'])
+  })
+
+  it('names a zone under its segment where the segment can hold the name, and numbers it where it cannot', () => {
+    const { container } = chart([1, 60, 24, 14, 1], { names: NAMES })
+    const under = [...container.querySelectorAll('.zone-time__number')]
+      .map((text) => text.textContent)
+      .filter((text) => text !== 'Easy' && text !== 'Hard')
+    // 60% and 24% hold their names; 14% holds only its number; 1% is too narrow for either.
+    expect(under).toEqual(['2 Endurance', '3 Tempo', '4'])
+  })
+
+  it('numbers every zone that is wide enough when the row has no names', () => {
+    const { container } = chart([40, 40, 20, 0, 0])
+    const under = [...container.querySelectorAll('.zone-time__number')]
+      .map((text) => text.textContent)
+      .filter((text) => text !== 'Easy' && text !== 'Hard')
+    expect(under).toEqual(['1', '2', '3'])
+  })
+
+  it('writes the easy and hard shares above the bar as its takeaway', () => {
+    const { container } = chart([31, 0, 41, 11, 17], { easyHard: { easy: 0.31, hard: 0.28 } })
+    expect(container.querySelector('.zone-time__takeaway')?.textContent).toBe('31% easy · 28% hard')
+  })
+
+  it('has no takeaway line for a row that gives no split', () => {
+    const { container } = chart([1, 1, 0, 0, 0])
+    expect(container.querySelector('.zone-time__takeaway')).toBeNull()
+  })
+
+  it('ends with a key from easy to hard, each step in its own ramp colour', () => {
+    const { container } = chart([1, 1, 1, 1, 1])
+    const chips = [...container.querySelectorAll('.zone-time__chip')]
+    expect(chips.map((chip) => chip.getAttribute('data-zone'))).toEqual(['1', '2', '3', '4', '5'])
+    const words = [...container.querySelectorAll('.zone-time__key .zone-time__number')].map(
+      (text) => text.textContent,
     )
-    expect(tints).toEqual(['84%', '88%', '92%', '96%', '100%'])
+    expect(words).toEqual(['Easy', 'Hard'])
+  })
+
+  it('stacks one band for each measure above the key', () => {
+    const { container } = render(
+      <ZoneTimeChart
+        title="Share of time in each zone"
+        lede=""
+        rows={[
+          { label: 'Heart rate', seconds: [1, 1, 1, 1, 1], summary: 'x' },
+          { label: 'Pace', seconds: [1, 1, 1, 1, 1], summary: 'y' },
+        ]}
+        table={table}
+      />,
+    )
+    const labels = [...container.querySelectorAll('.zone-time__label')].map(
+      (text) => text.textContent,
+    )
+    expect(labels).toEqual(['Heart rate', 'Pace'])
+    const [first, second] = [...container.querySelectorAll('.zone-time__label')]
+    expect(Number(second!.getAttribute('y'))).toBeGreaterThan(Number(first!.getAttribute('y')) + 60)
   })
 
   it('names the drawing by every bar read as text, and keeps the table behind a disclosure', () => {
@@ -58,22 +146,55 @@ describe('ZoneTimeChart', () => {
     expect(screen.getByText('View as table')).toBeInTheDocument()
   })
 
-  it('draws a bar with no time as nothing, not as a divide by zero', () => {
+  it('draws a bar with no time as nothing', () => {
     const { container } = chart([0, 0, 0, 0, 0])
-    expect(container.querySelectorAll('rect')).toHaveLength(0)
+    expect(segments(container)).toHaveLength(0)
+  })
+})
+
+describe('percentFits', () => {
+  it('needs room for the text at display size and a little over, and more at a larger root font', () => {
+    expect(percentFits('41%', 60, 16)).toBe(true)
+    expect(percentFits('41%', 40, 16)).toBe(false)
+    expect(percentFits('41%', 60, 32)).toBe(false)
+    expect(percentFits('<1%', 20, 16)).toBe(false)
+  })
+})
+
+describe('takeawayText', () => {
+  it('reads the easy and hard shares as whole percents', () => {
+    expect(takeawayText({ easy: 0.314, hard: 0.2791 })).toBe('31% easy · 28% hard')
+    expect(takeawayText({ easy: 0, hard: 0.001 })).toBe('0% easy · <1% hard')
   })
 })
 
 describe('ZoneTimeChart styles', () => {
-  it('tints a segment from the sport colour and the page colour, never a literal colour', () => {
-    expect(css).toContain('var(--sport-colour) var(--zone-tint)')
+  it.each([1, 2, 3, 4, 5])(
+    'colours zone %i from the sport ramp, and its percent from that step’s ink',
+    (zone) => {
+      expect(css).toMatch(
+        new RegExp(
+          `\\.zone-time__segment\\[data-zone='${zone}'\\][^{]*\\{[^}]*fill: var\\(--zone-${zone}\\)`,
+        ),
+      )
+      expect(css).toMatch(
+        new RegExp(
+          `\\.zone-time__percent\\[data-zone='${zone}'\\] \\{[^}]*fill: var\\(--zone-ink-${zone}\\)`,
+        ),
+      )
+    },
+  )
+
+  it('never uses a literal colour, a tint of the sport colour or the old tint variable', () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+    expect(css).not.toContain('--zone-tint')
+    expect(css).not.toContain('--sport-colour')
   })
 
-  it('keeps the segments apart in forced colours, with system colours', () => {
+  it('falls back in forced colours to the highlight with its own text colour, and system text elsewhere', () => {
     const forced = css.slice(css.indexOf('@media (forced-colors: active)'))
-    expect(forced).toContain('fill: Highlight')
-    expect(forced).toContain('stroke: Canvas')
+    expect(forced).toMatch(/\.zone-time__segment\[data-zone\],[^{]*\{[^}]*fill: Highlight/)
+    expect(forced).toMatch(/\.zone-time__percent\[data-zone\] \{[^}]*fill: HighlightText/)
     expect(forced).toContain('CanvasText')
   })
 })

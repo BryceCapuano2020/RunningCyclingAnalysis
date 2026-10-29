@@ -1,18 +1,76 @@
 /*
- * A zone's segment, in the sport's colour (set once for each data-sport in tokens.css) at the strength
- * its chart sets in --zone-tint, never lighter than MIN_ZONE_TINT, so the lightest keeps 3:1 against the
- * card. The order, the numbers under the bar and the table say which zone is
- * which, so the tint is never the only cue.
+ * A zone's colours: the sport's five-step ramp (--zone-1 to --zone-5, which tokens.css sets for each data-sport)
+ * and the ink that keeps 4.5:1 on each step. The steps differ in lightness as well as in tint, and the
+ * percent, the number under the bar and the table say which zone is which, so colour is never the only cue.
  */
-.zone-time__segment {
-  fill: color-mix(in srgb, var(--sport-colour) var(--zone-tint), var(--surface-1));
-  stroke: var(--surface-1);
-  stroke-width: 2;
+.zone-time__segment[data-zone='1'],
+.zone-time__chip[data-zone='1'] {
+  fill: var(--zone-1);
+}
+
+.zone-time__segment[data-zone='2'],
+.zone-time__chip[data-zone='2'] {
+  fill: var(--zone-2);
+}
+
+.zone-time__segment[data-zone='3'],
+.zone-time__chip[data-zone='3'] {
+  fill: var(--zone-3);
+}
+
+.zone-time__segment[data-zone='4'],
+.zone-time__chip[data-zone='4'] {
+  fill: var(--zone-4);
+}
+
+.zone-time__segment[data-zone='5'],
+.zone-time__chip[data-zone='5'] {
+  fill: var(--zone-5);
+}
+
+.zone-time__percent[data-zone='1'] {
+  fill: var(--zone-ink-1);
+}
+
+.zone-time__percent[data-zone='2'] {
+  fill: var(--zone-ink-2);
+}
+
+.zone-time__percent[data-zone='3'] {
+  fill: var(--zone-ink-3);
+}
+
+.zone-time__percent[data-zone='4'] {
+  fill: var(--zone-ink-4);
+}
+
+.zone-time__percent[data-zone='5'] {
+  fill: var(--zone-ink-5);
+}
+
+/* The share inside a segment: the display face, as the page's other figures. */
+.zone-time__percent {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-time__percent--key {
+  font-size: var(--text-sm);
 }
 
 .zone-time__label {
+  fill: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.zone-time__takeaway {
   fill: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
 .zone-time__number {
@@ -21,14 +79,22 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* In forced colours the tints go: each segment is the highlight, edged in the page colour. */
+/*
+ * In forced colours the ramp goes: each segment is the highlight, with its percent in the highlight's own text
+ * colour, and the gap between two segments shows the page. The numbers under the bar and the table tell the zones apart.
+ */
 @media (forced-colors: active) {
-  .zone-time__segment {
+  .zone-time__segment[data-zone],
+  .zone-time__chip[data-zone] {
     fill: Highlight;
-    stroke: Canvas;
+  }
+
+  .zone-time__percent[data-zone] {
+    fill: HighlightText;
   }
 
   .zone-time__label,
+  .zone-time__takeaway,
   .zone-time__number {
     fill: CanvasText;
   }

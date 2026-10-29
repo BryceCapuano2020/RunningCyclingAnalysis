@@ -9,7 +9,7 @@ import { ZoneTimeChart } from '../charts/ZoneTimeChart'
 import { hrefFor } from '../route'
 import { sourceText, zoneRange } from '../zoneRows'
 import { ROW_LABEL, activityLede, percentText, zoneTimeText } from '../zoneTimeCopy'
-import { barSummary } from '../zoneTimeRows'
+import { zoneBar } from '../zoneTimeRows'
 
 /**
  * The measures in the order the page leads with them: power and pace are the effort itself, heart
@@ -128,11 +128,13 @@ export function ActivityZoneTime({
       <ZoneTimeChart
         title="Share of the interval in each zone"
         lede={lede ?? ''}
-        rows={rows.map(({ set, time }) => ({
-          label: ROW_LABEL[set.measure],
-          seconds: time.seconds,
-          summary: barSummary({ seconds: time.seconds, totalSeconds: time.total }),
-        }))}
+        rows={rows.map(({ set, time }) =>
+          zoneBar(
+            set.measure,
+            { seconds: time.seconds, totalSeconds: time.total },
+            set.zones.map((zone) => zone.name),
+          ),
+        )}
         table={{
           caption: `Moving time in each zone in the selected interval. ${rows
             .map(({ set }) => `${ROW_LABEL[set.measure]} zones: ${lowerFirst(sourceText(set))}.`)
