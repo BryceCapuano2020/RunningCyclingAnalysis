@@ -292,8 +292,8 @@ describe('analysis worker', () => {
 
         expect(messages.at(-1)).toEqual({ type: 'error', message: 'The summary failed' })
         // The failed import still tells the page which originals are missing.
-        expect(messages.at(-2)).toEqual({ type: 'missingOriginals', count: FILES })
-        expect(messages.at(-3)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
+        expect(messages.at(-2)).toEqual({ type: 'progress', filesRead: FILES, uploaded: FILES })
+        expect(messages).toContainEqual({ type: 'missingOriginals', count: FILES })
 
         // The throttled message would have gone out one interval after the first.
         await new Promise((resolve) => setTimeout(resolve, 400))
@@ -653,7 +653,6 @@ describe('analysis worker', () => {
     )
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
-      { type: 'missingOriginals', count: 0 },
       {
         type: 'rebuildComplete',
         rebuilt: 1,
@@ -724,7 +723,6 @@ describe('analysis worker', () => {
     expect(mocked.createActivity).not.toHaveBeenCalled()
     expect(messages).toEqual([
       expect.objectContaining({ type: 'libraryActivities' }),
-      { type: 'missingOriginals', count: 0 },
       {
         type: 'rebuildComplete',
         rebuilt: 0,
@@ -1258,7 +1256,32 @@ describe('analysis worker', () => {
       })
       // Update now would only report the same file missing again, so none is offered.
       expect(ending(rebuilt)).not.toHaveProperty('outdatedWithOriginal')
-      expect(rebuilt).toContainEqual({ type: 'missingOriginals', count: 1 })
+      // The file is still stored, so nothing is reported missing: adding it again updates the activity.
+      expect(rebuilt.some((message) => message.type === 'missingOriginals')).toBe(false)
+    })
+
+    it('offers a deleted activity again when a record with its id comes back', async () => {
+      const library = () => [recordFor(stale, true)]
+      mocked.listActivities.mockImplementation(async () => library())
+      const { send } = await startWorker()
+      await send({ type: 'loadServer', settings: SETTINGS, userId: USER_ID })
+      mocked.createActivity.mockRejectedValueOnce(
+        new ApiRequestError(404, 'not_found', 'Activity not found'),
+      )
+      await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      await send({
+        type: 'deleteActivity',
+        id: `rec-${stale.id}`,
+        userId: USER_ID,
+        settings: SETTINGS,
+      })
+
+      // A rebuild that stops at a limit leaves the record neither updated nor unmatched.
+      mocked.downloadActivityFile.mockRejectedValueOnce(
+        new ApiRequestError(429, 'daily_limit', 'Daily download limit reached'),
+      )
+      const limited = await send({ type: 'rebuildStale', settings: SETTINGS, userId: USER_ID })
+      expect(ending(limited)).toMatchObject({ limited: 1, outdatedWithOriginal: 1 })
     })
 
     it('forgets the unmatched activities when the library loads again', async () => {

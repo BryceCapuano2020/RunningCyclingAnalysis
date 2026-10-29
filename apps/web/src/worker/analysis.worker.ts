@@ -172,14 +172,14 @@ async function addFiles(
       },
     )
   } finally {
+    // First, so a failure below cannot skip it: the page does not keep the count from before.
+    if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
     // On a failure too: what was read is stored, and the page learns how many were saved.
     // A provisional import's recordings wait for keepProvisional, or for the account.
     const stored = traceScope === null ? new Set<string>() : await workbench.storeDeferred()
     // Counted once it is in storage: a recording held in memory alone is gone after a reload.
     for (const id of restoreCandidates) if (stored.has(id)) restored.add(id)
     reporter.end()
-    // On a failure too, so the page does not keep the count from before the import.
-    if (sync !== null) post({ type: 'missingOriginals', count: missingOriginals.size })
   }
   const detailRestored = [...restored].filter((id) => !addedIds.has(id)).length
   if (detailRestored > 0) outcome = { ...outcome, detailRestored }
@@ -283,6 +283,7 @@ async function handle(request: Exclude<WorkerRequest, RouteMemoryRequest>): Prom
         if (!(error instanceof ApiRequestError && error.status === 404)) throw error
       }
       savedRecords.delete(record.id)
+      unmatchedOriginals.delete(record.id)
       routes.forget(record.id)
       missingOriginals.delete(activityKey(record.digest))
       const traceCleared = await workbench.remove(

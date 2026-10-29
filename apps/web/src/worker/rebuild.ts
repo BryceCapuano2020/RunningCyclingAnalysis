@@ -26,7 +26,7 @@ export interface LibraryContext {
   device: Pick<DeviceActions, 'replaced'>
   savedRecords: Map<string, ActivityRecord>
   missingOriginals: Set<string>
-  /** Ids of saved records whose stored original a rebuild could not match; they need their file added again. */
+  /** Ids of saved records whose stored original a rebuild could not match, so it cannot update them. */
   unmatchedOriginals: Set<string>
   post: (message: WorkerResponse) => void
   reportLibrary: () => void
@@ -149,16 +149,13 @@ export async function rebuildStale(ctx: LibraryContext, settings: AthleteSetting
   )
   ctx.savedRecords.clear()
   for (const record of refreshed) ctx.savedRecords.set(record.id, record)
-  // Asking for the same file again would find it missing again, so these count with the missing
-  // originals, and Update now leaves them out. One deleted in another tab is no longer listed.
+  // Rebuilding them again would find the same mismatch, so Update now leaves them out; adding
+  // their files again still updates them. One deleted in another tab is no longer listed.
   for (const record of unmatched) {
-    if (!ctx.savedRecords.has(record.id)) continue
-    ctx.unmatchedOriginals.add(record.id)
-    ctx.missingOriginals.add(workoutKeyOf(record.digest))
+    if (ctx.savedRecords.has(record.id)) ctx.unmatchedOriginals.add(record.id)
   }
   ctx.reportLibrary()
   ctx.reportUnreadable(unreadable)
-  ctx.post({ type: 'missingOriginals', count: ctx.missingOriginals.size })
   // The 429 sends Retry-After: 60, the limiter's window, so a rate limit clears in that long.
   const limitResetsAtMs =
     limitKind === 'daily'
