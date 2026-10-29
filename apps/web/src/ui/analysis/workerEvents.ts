@@ -14,6 +14,7 @@ import type { ErrorReply } from './copy'
 import { setKeptLibraryHinted } from './keptLibrary'
 import { baselineOf } from './importState'
 import { mergeOutcomes } from './mergeOutcomes'
+import { isOvertaken, isStaleDeviceList } from './staleReplies'
 import type { ImportState } from './importState'
 import type { LibraryState } from './libraryState'
 import { drainBatches, EMPTY_SESSION, isDeletion } from './model'
@@ -95,7 +96,7 @@ export function useWorkerEvents(deps: WorkerEventDeps): void {
         return
       }
       if (message.type === 'libraryActivities') {
-        if (isStaleDeviceList(current)) return
+        if (isStaleDeviceList(current.transport, current.accountRef)) return
         // Also read at once by rememberKeptLibrary, ahead of the render that sets the state.
         current.library.savedActivitiesRef.current = message.activities
         current.library.setSavedActivities(message.activities)
@@ -179,27 +180,6 @@ function rememberKeptLibrary(
   }
 }
 
-/** The requests whose answer lists the library kept in this browser. */
-const DEVICE_LIST_KINDS = new Set<Pending['kind']>([
-  'loadDevice',
-  'keepProvisional',
-  'deleteDeviceActivity',
-])
-
-/**
- * Whether the list of activities kept in this browser, posted ahead of the reply to the oldest request
- * waiting, should be dropped: that request was overtaken by a Start over or a sign-in, or the page is
- * signed in, where the browser's own library is never listed.
- */
-function isStaleDeviceList(deps: WorkerEventDeps): boolean {
-  const front = deps.transport.pendingRepliesRef.current[0]
-  if (front === undefined) return false
-  return (
-    isOvertaken(deps.transport, front) ||
-    (DEVICE_LIST_KINDS.has(front.kind) && deps.accountRef.current.status === 'signed-in')
-  )
-}
-
 /**
  * Adds the imports that waited for a library to load, in the order they were made. Each is compared
  * with the library this reply leaves, the result the page shows once it renders, and keeps that
@@ -209,17 +189,6 @@ function addWaiting(deps: WorkerEventDeps, state: SessionState): void {
   const { library, addFiles, refreshBusy } = deps
   for (const files of drainBatches(library.libraryWaitRef)) addFiles(files, baselineOf(state))
   refreshBusy()
-}
-
-/**
- * A library read sent before the last Start over. The clear that followed it empties the page, so
- * its state is not shown and it sets no hint.
- */
-function isOvertaken(transport: WorkerTransport, pending: Pending): boolean {
-  return (
-    (pending.kind === 'loadServer' || pending.kind === 'loadDevice') &&
-    pending.session !== transport.sessionEpochRef.current
-  )
 }
 
 /**
