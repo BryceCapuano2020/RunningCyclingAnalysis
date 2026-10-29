@@ -134,6 +134,9 @@ function endCandidates(e: EndLabel, space: AnnotationSpace): Candidate[] {
   })
 }
 
+/** How far, px, a reference label with no margin to sit in may stand off its rule, nearest first. */
+const LABEL_AWAY = [0, 10, 22]
+
 function referenceCandidates(r: ReferenceLine, space: AnnotationSpace): Candidate[] {
   const { plot, rootPx, width } = space
   const px = REFERENCE_VALUE_PX * scaleOf(rootPx)
@@ -176,22 +179,25 @@ function referenceCandidates(r: ReferenceLine, space: AnnotationSpace): Candidat
   // No margin to hold it: one line along the rule, above it and then below it, at the plot's right end.
   const text = r.value === undefined ? r.label : `${r.label} ${r.value}`
   const tw = smallWidth(text, rootPx)
-  for (const end of ['right', 'left'] as const) {
-    for (const side of ['above', 'below'] as const) {
-      const left = end === 'right' ? plot.right - 4 - tw : plot.left + 4
-      const top = side === 'above' ? r.y - line - 2 : r.y + 3
-      out.push({
-        box: { left, right: left + tw, top, bottom: top + line },
-        texts: [
-          {
-            role: 'label',
-            text,
-            x: end === 'right' ? left + tw : left,
-            y: top + line - 3,
-            anchor: end === 'right' ? 'end' : 'start',
-          },
-        ],
-      })
+  // Nearest the rule first, then a little further from it on either side, where the data's line crosses the nearest.
+  for (const away of LABEL_AWAY) {
+    for (const end of ['right', 'left'] as const) {
+      for (const side of ['above', 'below'] as const) {
+        const left = end === 'right' ? plot.right - 4 - tw : plot.left + 4
+        const top = side === 'above' ? r.y - line - 2 - away : r.y + 3 + away
+        out.push({
+          box: { left, right: left + tw, top, bottom: top + line },
+          texts: [
+            {
+              role: 'label',
+              text,
+              x: end === 'right' ? left + tw : left,
+              y: top + line - 3,
+              anchor: end === 'right' ? 'end' : 'start',
+            },
+          ],
+        })
+      }
     }
   }
   return out

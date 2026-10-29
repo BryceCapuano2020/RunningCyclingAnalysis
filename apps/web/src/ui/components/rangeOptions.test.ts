@@ -33,6 +33,7 @@ describe('RANGE_OPTIONS', () => {
     expect(RANGE_OPTIONS.find((option) => option.choice === 'default')).toEqual({
       value: 'default',
       label: '12 weeks',
+      short: '12 wk',
       choice: 'default',
     })
   })

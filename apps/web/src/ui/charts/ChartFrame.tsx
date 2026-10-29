@@ -75,7 +75,8 @@ function showLegend(legend: ChartLegendEntry[] | undefined): boolean {
   )
 }
 
-const DEFAULT_HEIGHT = 320
+/** The height of a chart that does not set its own, px, from a phone's width up. */
+export const DEFAULT_HEIGHT = 320
 /** Shown on a chart that can be read by keyboard, over the plot's top corner. The CSS reveals it while the plot has focus. */
 const READING_HINT = 'Left and right arrows read values'
 /** What a phone's readout row says with no point selected and no idleReadout from the chart. */

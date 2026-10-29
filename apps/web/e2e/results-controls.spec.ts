@@ -142,7 +142,12 @@ test('the period control offers 6 weeks, 12 weeks, 12 months, All time and Custo
   await page.setViewportSize({ width: 390, height: 844 })
   await openSample(page)
   const options = page.getByRole('group', { name: 'Period' }).locator('.segmented-control__option')
-  await expect(options).toHaveText(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
+  // Each segment's full name; the short label a narrow phone shows sits beside it.
+  expect(
+    await options.evaluateAll((elements) =>
+      elements.map((el) => (el.querySelector('.segmented-control__full') ?? el).textContent),
+    ),
+  ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
   // Five segments wrap onto a second row at 390 px rather than overflow the page.
   const edges = await options.evaluateAll((elements) =>
     elements.map((element) => {
@@ -156,14 +161,48 @@ test('the period control offers 6 weeks, 12 weeks, 12 months, All time and Custo
   }
 })
 
+test('at 320 px the five periods are short labels on one row, still named in full, with no sideways scroll', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await openSample(page)
+  const period = page.getByRole('group', { name: 'Period' })
+  const options = period.locator('.segmented-control__option')
+  await expect(options.locator('[aria-hidden="true"]:visible')).toHaveText([
+    '6 wk',
+    '12 wk',
+    '12 mo',
+    'All',
+  ])
+  await expect(options.last()).toHaveText('Custom')
+  for (const name of ['6 weeks', '12 weeks', '12 months', 'All time', 'Custom']) {
+    await expect(period.getByRole('radio', { name, exact: true })).toHaveCount(1)
+  }
+  const boxes = await options.evaluateAll((elements) =>
+    elements.map((element) => {
+      const box = element.getBoundingClientRect()
+      return { top: Math.round(box.top), left: box.left, right: box.right }
+    }),
+  )
+  expect(new Set(boxes.map((box) => box.top)).size).toBe(1)
+  for (const box of boxes) {
+    expect(box.left).toBeGreaterThanOrEqual(0)
+    expect(box.right).toBeLessThanOrEqual(320)
+  }
+  const scroll = await period
+    .locator('.segmented-control__options')
+    .evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(scroll).toBeLessThanOrEqual(0)
+})
+
 test('period labels remain clickable at a narrow viewport with enlarged text', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 })
   await openSample(page)
   await page.addStyleTag({ content: ':root { font-size: 20px; }' })
   const period = page.getByRole('group', { name: 'Period' })
-  await period.getByText('6 weeks', { exact: true }).click()
+  await period.getByText('6 wk', { exact: true }).click()
   await expect(page.getByText(/^\d+ of \d+ activities$/)).toBeVisible()
-  await period.getByText('All time', { exact: true }).click()
+  await period.getByText('All', { exact: true }).click()
   // The count leaves the caption once the pick is answered; a slow runner can still be applying it.
   await expect(page.getByText(/^\d+ of \d+ activities$/)).toHaveCount(0)
   await expect(await activitiesRows(page)).toHaveCount(LIST_PAGE_SIZE)

@@ -26,7 +26,7 @@ const BAND_END = 78
  * A range as a shape before it is digits: a track, a translucent band between two bracket ticks, and a
  * ring where the estimate sits. The ends are printed under it. The shape is drawn in the tile's own sport
  * colour (data-sport), or in ink where the figure is not a sport's, and is hidden from assistive technology:
- * the printed ends say the same.
+ * the printed ends are read as one phrase, "90% range 6 to 16", rather than as three loose figures.
  */
 export function RangeTrack({ ends, at, label, spread = false }: RangeTrackProps) {
   const style = {
@@ -43,9 +43,12 @@ export function RangeTrack({ ends, at, label, spread = false }: RangeTrackProps)
         <span className="range-track__ring" />
       </div>
       <p className="range-track__ends">
-        <span>{ends[0]}</span>
-        <span className="range-track__label">{label}</span>
-        <span>{ends[1]}</span>
+        <span aria-hidden="true">{ends[0]}</span>
+        <span className="range-track__label" aria-hidden="true">
+          {label}
+        </span>
+        <span aria-hidden="true">{ends[1]}</span>
+        <span className="sr-only">{`${label} ${ends[0]} to ${ends[1]}`}</span>
       </p>
     </div>
   )

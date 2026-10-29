@@ -145,7 +145,7 @@ export function RangePicker({
       <SegmentedControl
         legend="Period"
         legendHidden={compact}
-        options={offered.map(({ value, label }) => ({ value, label }))}
+        options={offered.map(({ value, label, short }) => ({ value, label, short }))}
         selected={customOpen ? CUSTOM_OPTION.value : optionValue(checked)}
         onSelect={(value) => {
           if (value === CUSTOM_OPTION.value) {

@@ -4,6 +4,7 @@ import { effortLabel } from '../records'
 import { SPORT_FORMAT } from '../sports'
 import { lineObstacles, markerObstacle } from './annotations'
 import type { Annotation } from './annotations'
+import { insideTickBoxes } from './directLabelFit'
 import { spanLabel, widestSpan } from './carriedStretches'
 import type { Box } from './chartBoxes'
 import type { ChartSize } from './chartTypes'
@@ -13,6 +14,7 @@ import { citedDurationS } from './sportCurveTakeaway'
 import { isRecordDuration } from './sportCurveModel'
 import type { Layout, ThresholdLine } from './sportCurveModel'
 import { formatNative, nativeLabel } from './sportAxis'
+import { rootFontPx } from './rootFont'
 import { NARROW_WIDTH } from './ticks'
 
 /** The efforts a curve calls out with their value: the 5, 20 and 60 minute bests. */
@@ -144,9 +146,12 @@ export function curveMarks(
       ? [markerObstacle(point, MARKER_OBSTACLE_R)]
       : [],
   )
+  // A phone sets its y tick labels inside the plot (see ChartYAxis), so text keeps off them too.
+  const ticks = insideTickBoxes(m.yTicks, size.plot, rootFontPx())
   return {
     annotations,
     obstacles: [
+      ...ticks,
       ...lineObstacles(m.points, LINE_CLEARANCE_PX),
       ...lineObstacles(m.earlier, 3),
       ...markers,
