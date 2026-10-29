@@ -4,6 +4,8 @@ import './SegmentedControl.css'
 export interface SegmentedControlOption<T extends string> {
   value: T
   label: string
+  /** A shorter label a stylesheet may show in its place; `label` stays the accessible name. */
+  short?: string
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -52,7 +54,16 @@ export function SegmentedControl<T extends string>({
                 checked={isSelected}
                 onChange={() => onSelect(option.value)}
               />
-              <span>{option.label}</span>
+              {option.short === undefined ? (
+                <span>{option.label}</span>
+              ) : (
+                <span>
+                  <span className="segmented-control__full">{option.label}</span>
+                  <span className="segmented-control__short" aria-hidden="true">
+                    {option.short}
+                  </span>
+                </span>
+              )}
             </label>
           )
         })}

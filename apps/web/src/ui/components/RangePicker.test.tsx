@@ -14,6 +14,12 @@ function picker(props: Partial<RangePickerProps> = {}) {
   return <RangePicker choice="default" onChange={vi.fn()} shown={5} total={5} {...props} />
 }
 
+/** A segment's full name: its text without the short label a narrow phone shows in its place. */
+function fullName(radio: HTMLElement): string | null | undefined {
+  const label = radio.closest('label')
+  return (label?.querySelector('.segmented-control__full') ?? label)?.textContent
+}
+
 describe('RangePicker', () => {
   it('offers 6 weeks, 12 weeks, 12 months and all time, in a group named Period, in that order', () => {
     render(picker())
@@ -21,8 +27,17 @@ describe('RangePicker', () => {
     expect(
       within(group)
         .getAllByRole('radio')
-        .map((radio) => radio.closest('label')?.textContent),
+        .map((radio) => fullName(radio)),
     ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time'])
+  })
+
+  it('carries a short label for a narrow phone beside each full name, hidden from assistive technology', () => {
+    render(picker())
+    const group = screen.getByRole('group', { name: 'Period' })
+    const shorts = Array.from(group.querySelectorAll('.segmented-control__short'))
+    expect(shorts.map((short) => short.textContent)).toEqual(['6 wk', '12 wk', '12 mo', 'All'])
+    for (const short of shorts) expect(short).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('radio', { name: 'All time' })).toBeInTheDocument()
   })
 
   it('checks the segment for the choice on screen', () => {
@@ -285,7 +300,7 @@ describe('RangePicker custom range', () => {
     expect(
       within(screen.getByRole('group', { name: 'Period' }))
         .getAllByRole('radio')
-        .map((radio) => radio.closest('label')?.textContent),
+        .map((radio) => fullName(radio)),
     ).toEqual(['6 weeks', '12 weeks', '12 months', 'All time', 'Custom'])
     unmount()
     render(picker())

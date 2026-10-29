@@ -145,6 +145,7 @@ describe('GradeProfileChart', () => {
   })
 
   it('labels each sport’s grade at 20 min beside its point, with the ride’s range under its label', () => {
+    chartWidth(520)
     const { container } = renderChart()
     const labels = Array.from(container.querySelectorAll('[data-testid="profile-label"]'))
     const text = (sport: string) =>
@@ -156,6 +157,30 @@ describe('GradeProfileChart', () => {
     const marker = container.querySelectorAll('[data-testid="profile-marker"][data-sport="run"]')[3]
     const label = labels.find((each) => each.getAttribute('data-sport') === 'run')
     expect(Number(label?.getAttribute('y'))).toBeLessThan(Number(marker?.getAttribute('cy')))
+  })
+
+  it('names each sport where its line ends, in a gutter, where the 20 min labels cannot be placed on a wide chart', () => {
+    chartWidth(900)
+    const { container } = renderChart()
+    // The ride's wide band sits under its 20 min point, so neither label is set beside a 20 min point.
+    expect(container.querySelectorAll('[data-testid="profile-label"]')).toHaveLength(0)
+    const run = container.querySelector('[data-annotation="end-run"]')
+    const ride = container.querySelector('[data-annotation="end-ride"]')
+    expect(run?.textContent).toBe('Run 66%')
+    expect(ride?.textContent).toMatch(/^Ride 53%range \d+–\d+%$/)
+    // The gutter is right of the plot: the label starts past the last mark.
+    const last = Array.from(
+      container.querySelectorAll('[data-testid="profile-ring"][data-sport="ride"]'),
+    ).at(-1)
+    const x = Number(ride?.querySelector('text')?.getAttribute('x'))
+    expect(x).toBeGreaterThan(Number(last?.getAttribute('cx')))
+  })
+
+  it('leaves out the ride’s label where it cannot be placed on a phone, and uses no end labels', () => {
+    chartWidth(320)
+    const { container } = renderChart()
+    expect(container.querySelector('[data-testid="profile-label"][data-sport="ride"]')).toBeNull()
+    expect(container.querySelectorAll('[data-annotation]')).toHaveLength(0)
   })
 
   it('keeps the ride’s label where it is clear of the band and the lines, dropping the range line first', () => {
@@ -170,6 +195,7 @@ describe('GradeProfileChart', () => {
         grade: narrow(point.grade.centre.grade - 0.1),
       })),
     }
+    chartWidth(520)
     const { container } = renderChart({ profile })
     const label = container.querySelector('[data-testid="profile-label"][data-sport="ride"]')
     expect(label?.textContent).toMatch(/^Ride \d+%/)

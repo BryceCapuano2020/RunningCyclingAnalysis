@@ -14,6 +14,8 @@ export interface RangeOption {
   value: string
   /** Button text in the period control. */
   label: string
+  /** The text a narrow phone shows instead; `label` stays the accessible name. */
+  short: string
   choice: PeriodChoice
 }
 
@@ -28,10 +30,10 @@ const ONE_YEAR_LABEL = '12 months'
 
 /** The periods the control offers, shortest first. Every period counts back from the newest activity. */
 export const RANGE_OPTIONS: RangeOption[] = [
-  { value: String(SIX_WEEKS_DAYS), label: SIX_WEEKS_LABEL, choice: SIX_WEEKS_DAYS },
-  { value: 'default', label: DEFAULT_LABEL, choice: 'default' },
-  { value: String(ONE_YEAR_DAYS), label: ONE_YEAR_LABEL, choice: ONE_YEAR_DAYS },
-  { value: 'all', label: 'All time', choice: 'all' },
+  { value: String(SIX_WEEKS_DAYS), label: SIX_WEEKS_LABEL, short: '6 wk', choice: SIX_WEEKS_DAYS },
+  { value: 'default', label: DEFAULT_LABEL, short: '12 wk', choice: 'default' },
+  { value: String(ONE_YEAR_DAYS), label: ONE_YEAR_LABEL, short: '12 mo', choice: ONE_YEAR_DAYS },
+  { value: 'all', label: 'All time', short: 'All', choice: 'all' },
 ]
 
 /** The periods the activity list offers. It shows the whole library until one is picked. */
@@ -41,7 +43,7 @@ export const LIBRARY_RANGE_OPTIONS = RANGE_OPTIONS.filter((option) => option.cho
  * The Custom segment. It picks a range the athlete enters rather than a fixed period, so it has no
  * choice of its own: a custom range's value is this one too.
  */
-export const CUSTOM_OPTION: Pick<RangeOption, 'value' | 'label'> = {
+export const CUSTOM_OPTION: Pick<RangeOption, 'value' | 'label'> & { short?: undefined } = {
   value: 'custom',
   label: 'Custom',
 }

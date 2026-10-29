@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HEADLINE_DURATION_S } from '@rca/core/constants'
 import type { GradeProfile } from '../gradeProfile'
 import { ChartFrame } from './ChartFrame'
@@ -8,7 +8,9 @@ import { Crosshair } from './Crosshair'
 import { SportLabels } from './GradeProfileLabels'
 import { markerRadii, plotSurface, sizedOnce, tooltipAt, tooltipOverlay } from './chartInteraction'
 import type { ChartSize } from './chartTypes'
-import { DURATION_AXIS_TITLE, profileLayout, rowsOf } from './gradeProfileLayout'
+import { ChartAnnotations } from './ChartAnnotations'
+import { endGutter, profileView } from './gradeProfileEnds'
+import { DURATION_AXIS_TITLE, rowsOf } from './gradeProfileLayout'
 import type { SportMarks } from './gradeProfileLayout'
 import {
   GRADE_PROFILE_EMPTY,
@@ -36,10 +38,13 @@ export interface GradeProfileChartProps {
  * mark, and is labelled directly.
  */
 export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) {
-  const rows = rowsOf(profile)
+  const rows = useMemo(() => rowsOf(profile), [profile])
+  // The gutter for the end labels is worked out once for each width, not on every render.
+  const gutter = useMemo(() => cachedByWidth(endGutter(rows, profile)), [rows, profile])
   const hasData = rows.length >= 2
   const [active, setActive] = useState<number | null>(null)
-  const layoutOf = sizedOnce((size: ChartSize) => profileLayout(rows, profile, size))
+  const viewOf = sizedOnce((size: ChartSize) => profileView(rows, profile, size))
+  const layoutOf = (size: ChartSize) => viewOf(size)?.layout ?? null
   const anyRange = rows.some((row) =>
     Object.values(row.grades).some((grade) => grade.range !== null),
   )
@@ -52,6 +57,7 @@ export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) 
       note={hasData && anyRange ? GRADE_PROFILE_NOTE : undefined}
       table={tableOf(rows, profile)}
       empty={hasData ? undefined : GRADE_PROFILE_EMPTY}
+      plotRightMargin={gutter}
       surface={(size) => plotSurface(size, layoutOf(size)?.xs ?? null, active, setActive)}
       overlay={(size) =>
         tooltipOverlay(
@@ -70,8 +76,9 @@ export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) 
       }
     >
       {(size) => {
-        const m = layoutOf(size)
-        if (m === null) return null
+        const view = viewOf(size)
+        if (view === null) return null
+        const m = view.layout
         const { marker, active: activeR } = markerRadii(size.width)
         const activeX = active === null ? undefined : m.xs[active]
         const radiusAt = (index: number) =>
@@ -107,6 +114,7 @@ export function GradeProfileChart({ profile, finding }: GradeProfileChartProps) 
               <SportLayer key={marks.sport} marks={marks} radiusAt={radiusAt} />
             ))}
             <SportLabels labels={m.labels} />
+            <ChartAnnotations annotations={view.ends} size={size} obstacles={view.obstacles} />
           </>
         )
       }}
@@ -149,4 +157,13 @@ function SportLayer({ marks, radiusAt }: SportLayerProps) {
       )}
     </>
   )
+}
+
+/** A margin function that remembers its answer for each width. */
+function cachedByWidth(margin: (width: number) => number | undefined) {
+  const known = new Map<number, number | undefined>()
+  return (width: number): number | undefined => {
+    if (!known.has(width)) known.set(width, margin(width))
+    return known.get(width)
+  }
 }

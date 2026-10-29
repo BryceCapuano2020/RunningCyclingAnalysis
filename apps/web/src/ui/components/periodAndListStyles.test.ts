@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   COMPACT_PHONE_MAX_WIDTH_PX,
   PERIOD_FULL_WIDTH_MAX_WIDTH_PX,
-  PERIOD_GRID_MAX_WIDTH_PX,
+  PERIOD_SHORT_LABEL_MAX_WIDTH_PX,
   PHONE_MAX_WIDTH_PX,
   SPLIT_FILTERS_MIN_WIDTH_PX,
 } from '../layoutBreakpoints'
@@ -40,7 +40,7 @@ function mediaOf(css: string, query: string): string {
   return ''
 }
 
-const SMALL_PHONE = '(max-width: 359px)'
+const SMALL_PHONE = '(max-width: 360px)'
 const PHONE_480 = '(max-width: 479px)'
 const NARROW_PHONE = '(max-width: 560px)'
 const PHONE_760 = '(max-width: 760px)'
@@ -55,11 +55,15 @@ describe('the period control', () => {
     expect(rulesWith(rangePicker, '.range-picker')).toMatch(/justify-items:\s*start/)
   })
 
-  it('lays four periods in a 2 by 2 grid below 360 px, and only four', () => {
+  it('shows short labels at 360 px and below, keeping the full name in the page', () => {
     const small = mediaOf(rangePicker, SMALL_PHONE)
-    expect(
-      rulesWith(small, '.range-picker .segmented-control__options:has(> :nth-child(4))'),
-    ).toMatch(/grid-template-columns:\s*1fr 1fr/)
+    expect(rulesWith(small, '.range-picker .segmented-control__short')).toMatch(/display:\s*inline/)
+    expect(rulesWith(small, '.range-picker .segmented-control__full')).toMatch(
+      /clip-path:\s*inset\(50%\)/,
+    )
+    expect(rulesWith(rangePicker, '.range-picker .segmented-control__short')).toMatch(
+      /display:\s*none/,
+    )
   })
 
   it('fills the content width below 480 px, so the control meets the gutter on a phone', () => {
@@ -188,7 +192,7 @@ describe('breakpoints named in layoutBreakpoints.ts', () => {
     expect(pager).toContain(`@media (max-width: ${COMPACT_PHONE_MAX_WIDTH_PX}px)`)
     expect(activitiesPage).toContain(`@media (min-width: ${SPLIT_FILTERS_MIN_WIDTH_PX}px)`)
     expect(rangePicker).toContain(`@media (max-width: ${PERIOD_FULL_WIDTH_MAX_WIDTH_PX}px)`)
-    expect(rangePicker).toContain(`@media (max-width: ${PERIOD_GRID_MAX_WIDTH_PX}px)`)
+    expect(rangePicker).toContain(`@media (max-width: ${PERIOD_SHORT_LABEL_MAX_WIDTH_PX}px)`)
   })
 
   it('names layoutBreakpoints.ts in a comment beside each of them', () => {

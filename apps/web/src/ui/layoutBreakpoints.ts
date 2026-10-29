@@ -39,8 +39,11 @@ export const PROFILE_PAIR_MIN_WIDTH_PX = 900
 /** At or below this width the period control fills the content width, so it meets the gutter on a phone. */
 export const PERIOD_FULL_WIDTH_MAX_WIDTH_PX = 479
 
-/** At or below this width the four periods take a 2 by 2 grid; from 360 px they fit one row. */
-export const PERIOD_GRID_MAX_WIDTH_PX = 359
+/**
+ * At or below this width the period control shows short labels ("6 wk", "All"), so all of its segments fit one row
+ * on a 320 px phone. The full names stay as the segments' accessible names.
+ */
+export const PERIOD_SHORT_LABEL_MAX_WIDTH_PX = 360
 
 /**
  * At or below this width the equivalence list sets its values a step smaller, with narrower columns,
