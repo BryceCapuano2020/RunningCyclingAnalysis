@@ -14,6 +14,7 @@ import type {
   SameHeartRateChange,
   SameHeartRateWeek,
 } from './sameHeartRateTypes'
+import { effortsCount } from './effortTrust'
 import { firstStartingAfter } from './startOrder'
 import { weekEndMs } from './trend'
 
@@ -30,7 +31,7 @@ interface Reading {
 
 const READING: Record<Sport, Reading> = {
   run: {
-    usable: (digest) => !digest.indoor,
+    usable: effortsCount,
     output: (block) => {
       const wkg = possibleRunWkg(HR_BLOCK_S, block.value)
       return wkg >= 2 * RESTING_W_PER_KG

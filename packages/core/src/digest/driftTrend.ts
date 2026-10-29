@@ -1,4 +1,5 @@
 import type { ActivityDigest, Sport } from '../types'
+import { effortsCount } from './effortTrust'
 
 /** One steady effort's drift: how far output per heart rate fell between its halves. */
 export interface DriftPoint {
@@ -17,7 +18,8 @@ export function driftTrend(digests: ActivityDigest[], sport: Sport): DriftPoint[
   const points: DriftPoint[] = []
   for (const digest of digests) {
     const { drift } = digest
-    if (digest.sport !== sport || drift === undefined || drift === null) continue
+    if (digest.sport !== sport || !effortsCount(digest)) continue
+    if (drift === undefined || drift === null) continue
     points.push({
       activityId: digest.id,
       startMs: digest.startMs,

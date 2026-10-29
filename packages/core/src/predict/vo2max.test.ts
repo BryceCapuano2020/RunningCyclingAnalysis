@@ -85,4 +85,15 @@ describe('vo2maxFromHeartRate', () => {
     ).toBeCloseTo(1609.344 / 400, 9)
     expect(fastestMileSpeed([run('a', {})])).toBe(Infinity)
   })
+
+  it('does not let an indoor run’s faster mile lift the cap', () => {
+    const outdoor = run('a', {}, { distanceBests: [{ distanceM: 1609.344, seconds: 400 }] })
+    const indoor = run(
+      'b',
+      {},
+      { indoor: true, distanceBests: [{ distanceM: 1609.344, seconds: 300 }] },
+    )
+    expect(fastestMileSpeed([outdoor, indoor])).toBeCloseTo(1609.344 / 400, 9)
+    expect(fastestMileSpeed([indoor])).toBe(Infinity)
+  })
 })

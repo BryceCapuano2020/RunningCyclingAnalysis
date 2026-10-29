@@ -1,4 +1,5 @@
 import { HR_SET_ASIDE_FLOOR, HR_SET_ASIDE_MIN_S } from '../constants'
+import { effortsCount } from '../digest/effortTrust'
 import type { ActivityDigest, DigestCurvePoint, Sport } from '../types'
 
 export interface SetAsideInput {
@@ -15,7 +16,7 @@ export interface SetAsideInput {
  * pace can be what is wrong, so heart rate is never judged against them.
  */
 export const MEASURED_EFFORT: Record<Sport, (digest: ActivityDigest) => boolean> = {
-  run: (digest) => !digest.indoor,
+  run: effortsCount,
   ride: (digest) => digest.powerSource === 'measured',
 }
 
