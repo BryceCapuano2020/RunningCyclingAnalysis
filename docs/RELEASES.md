@@ -46,6 +46,7 @@ floor here.
 
 | Date        | Main sha | Worker version | Migrations   | Rollback floor    | Notes                                                                                                                                                                         |
 | ----------- | -------- | -------------- | ------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 29 Oct 2026 | 89a82201 | c9d9cb9b       | none         | 3e17b541          | Stage B: chart system, Balance level scale, Activity page charts, Run and Ride redesign, first impression. No digest or storage change.                                       |
 | 28 Oct 2026 | bd8aaf7a | 3e17b541       | 0009         | 3e17b541          | Stage A, model revision 6. Older Workers cannot parse revision-6 digests, and the browser recording cache upgrade (v3) is one-way.                                            |
 | 27 Oct 2026 | 28889c4  | 5c3b50c5       | not recorded | at least 94c32a59 | Features wave: race predictor, custom period, grade by duration. The date is approximate and the migrations were not written down; the floor is no lower than the 26 Oct one. |
 | 26 Oct 2026 | 8dd5f0b  | 7da17d77       | 0008         | 94c32a59          | Adds `users.file_bytes` with triggers and a backfill.                                                                                                                         |
