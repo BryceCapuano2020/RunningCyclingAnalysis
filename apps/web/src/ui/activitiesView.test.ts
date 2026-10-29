@@ -68,4 +68,10 @@ describe('queryFromView', () => {
     }
     expect(viewFromQuery(query(queryFromView(view)))).toEqual(view)
   })
+
+  it('writes a quarter, and reads it back', () => {
+    const view = { ...DEFAULT_VIEW, bucket: 'q:2025-1' }
+    expect(queryFromView(view)).toBe('bucket=q%3A2025-1')
+    expect(viewFromQuery(query(queryFromView(view)))).toEqual(view)
+  })
 })

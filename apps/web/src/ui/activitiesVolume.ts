@@ -205,7 +205,10 @@ export function bucketSpan(key: string): Pick<VolumeBucket, 'kind' | 'startMs' |
 }
 
 /** The items that started in the span a bucket key names; all of them for no key or one that is not valid. */
-export function inBucket<T extends { startMs: number }>(items: T[], key: string | null): T[] {
+export function inBucket<T extends { startMs: number }>(
+  items: readonly T[],
+  key: string | null,
+): readonly T[] {
   const span = key === null ? null : bucketSpan(key)
   if (span === null) return items
   return items.filter((item) => item.startMs >= span.startMs && item.startMs < span.endMs)

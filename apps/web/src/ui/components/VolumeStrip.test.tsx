@@ -21,8 +21,8 @@ const WEEKS: ActivitySummary[] = [
   makeActivity({ id: 'c', sport: 'run', startMs: at(2025, 5, 23), durationS: 1800 }),
 ]
 
-function Harness({ activities = WEEKS, onSelect = vi.fn() }) {
-  const [selected, setSelected] = useState<string | null>(null)
+function Harness({ activities = WEEKS, onSelect = vi.fn(), initial = null as string | null }) {
+  const [selected, setSelected] = useState<string | null>(initial)
   return (
     <VolumeStrip
       activities={activities}
@@ -183,6 +183,42 @@ describe('VolumeStrip', () => {
     expect(onSelect).toHaveBeenLastCalledWith('w:2025-5-23')
   })
 
+  it('picks nothing for a tap more than about 24 px from any column with training, or on a skipped stretch', () => {
+    const onSelect = vi.fn()
+    render(<Harness onSelect={onSelect} />)
+    const group = screen.getByRole('group', { name: /Hours trained each week/ })
+    lay(group, [10, 10, 10, 10])
+    fireEvent.pointerUp(group, { clientX: 70 })
+    expect(onSelect).not.toHaveBeenCalled()
+    fireEvent.pointerUp(group, { clientX: 20 })
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('picks nothing for a tap on the skip mark, though a column is next to it', () => {
+    const onSelect = vi.fn()
+    render(
+      <Harness
+        onSelect={onSelect}
+        activities={[
+          makeActivity({ id: 'a', startMs: at(2019, 2, 4) }),
+          makeActivity({ id: 'd', startMs: at(2025, 5, 2) }),
+        ]}
+      />,
+    )
+    const group = screen.getByRole('group', { name: /Hours trained each month/ })
+    const kinds = [...group.children].map((child) => child.classList.contains('volume-strip__gap'))
+    lay(
+      group,
+      kinds.map((isGap) => (isGap ? 28 : 10)),
+    )
+    const gapAt = [...group.children].findIndex((child) =>
+      child.classList.contains('volume-strip__gap'),
+    )
+    const gapBox = group.children[gapAt]!.getBoundingClientRect()
+    fireEvent.pointerUp(group, { clientX: (gapBox.left + gapBox.right) / 2 })
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
   it('does not pick by position when a button took the click', async () => {
     const user = userEvent.setup()
     const onSelect = vi.fn()
@@ -210,6 +246,20 @@ describe('VolumeStrip', () => {
     const columns = screen.getByRole('group', { name: /Hours trained each month/ }).children
     expect(columns.length).toBeLessThan(25)
     expect(screen.getAllByRole('button')).toHaveLength(4)
+  })
+
+  it('counts a picked bucket of another grain from the activities, a quarter on a month strip', () => {
+    render(
+      <Harness
+        initial="q:2024-2"
+        activities={[
+          makeActivity({ id: 'old', startMs: at(2024, 8, 10) }),
+          makeActivity({ id: 'old2', startMs: at(2024, 7, 10) }),
+          makeActivity({ id: 'new', startMs: at(2025, 5, 10) }),
+        ]}
+      />,
+    )
+    expect(screen.getByText('Showing Jul to Sep 2024: 2 activities')).toBeInTheDocument()
   })
 
   it('draws a long stretch by the quarter on a phone, so a column is not a few pixels wide', async () => {

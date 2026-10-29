@@ -11,6 +11,7 @@ import {
   countsText,
   emptyTotals,
   formatHoursText,
+  inBucket,
   secondsOf,
   volumeBuckets,
   volumeColumns,
@@ -51,14 +52,22 @@ function columnAt(group: Element, clientX: number): number {
   })
 }
 
-/** The key of the column with training nearest a screen x, or null when the strip has none. */
+/** How far a tap may land from a column with training and still pick it, in px: about a fingertip's slop. */
+const TAP_REACH_PX = 24
+
+/**
+ * The key of the column with training nearest a screen x, within TAP_REACH_PX of its edge; null beyond that, or
+ * when the tap is on a skipped stretch's mark, which stands for nothing to pick.
+ */
 function nearestTrained(group: Element, columns: readonly VolumeColumn[], clientX: number) {
+  if (columns[columnAt(group, clientX)]?.kind === 'gap') return null
   let best: { key: string; distance: number } | null = null
   columns.forEach((column, index) => {
     if (column.kind !== 'bucket' || countOf(column.bucket.totals) === 0) return
     const box = group.children[index]?.getBoundingClientRect()
     if (box === undefined) return
-    const distance = Math.abs(clientX - (box.left + box.right) / 2)
+    const distance = Math.max(box.left - clientX, clientX - box.right, 0)
+    if (distance > TAP_REACH_PX) return
     if (best === null || distance < best.distance) best = { key: column.bucket.key, distance }
   })
   return (best as { key: string } | null)?.key ?? null
@@ -116,6 +125,11 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
   const stop = trained.find((bucket) => bucket.key === selected) ?? trained.at(-1)
   const pickedSpan = selected === null ? null : bucketSpan(selected)
   const pickedBucket = buckets.find((bucket) => bucket.key === selected)
+  // The picked bucket may be of another grain than the strip draws (a quarter from a phone, on a desktop), so
+  // its count is taken from the activities themselves.
+  const pickedCount = pickedBucket
+    ? countOf(pickedBucket.totals)
+    : inBucket(activities, selected).length
 
   const move = (event: KeyboardEvent, from: VolumeBucket) => {
     const at = trained.indexOf(from)
@@ -219,7 +233,7 @@ export function VolumeStrip({ activities, periodText, selected, onSelect }: Volu
         <span aria-hidden="true">{edgeLabel(first)}</span>
         {pickedSpan !== null && (pointed === null || pointed === selected) ? (
           <p className="volume-strip__chip">
-            <span>{`Showing ${bucketLabel(pickedSpan)}${pickedBucket ? `: ${plural(countOf(pickedBucket.totals), 'activity', 'activities')}` : ''}`}</span>
+            <span>{`Showing ${bucketLabel(pickedSpan)}${selected === null ? '' : `: ${plural(pickedCount, 'activity', 'activities')}`}`}</span>
             <button type="button" className="volume-strip__clear" onClick={() => onSelect(null)}>
               Clear
             </button>

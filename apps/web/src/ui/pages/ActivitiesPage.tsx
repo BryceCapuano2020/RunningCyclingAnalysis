@@ -91,7 +91,10 @@ export function ActivitiesPage({
 
   // The view follows the address, so a link to the list, which changes only the hash, resets it.
   useEffect(() => {
-    const follow = () => setView(viewFromQuery(hashQuery(window.location.hash)))
+    const follow = () => {
+      removedRef.current = false
+      setView(viewFromQuery(hashQuery(window.location.hash)))
+    }
     window.addEventListener('hashchange', follow)
     return () => window.removeEventListener('hashchange', follow)
   }, [])
@@ -129,9 +132,14 @@ export function ActivitiesPage({
     setView((current) => ({ ...current, ...patch, page: 0 }))
   }
   useEffect(() => {
-    if (shown.length > 0 || !removedRef.current) return
+    if (shown.length > 0 || !removedRef.current) {
+      // A list that still has rows, after a removal, kept its focus where it was; the flag is spent.
+      if (shown.length > 0) removedRef.current = false
+      return
+    }
     removedRef.current = false
-    emptyRef.current?.focus()
+    // The last activity gone leaves no empty state to focus, so focus goes to the page heading.
+    ;(emptyRef.current ?? document.getElementById(PAGE_HEADING_ID))?.focus()
   }, [shown.length])
   const span = bucket === null ? null : bucketSpan(bucket)
   // A week or month with nothing in it, beside a period that has something: the bucket is why the list is empty.

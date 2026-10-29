@@ -206,6 +206,53 @@ describe('a week or month with nothing in it', () => {
     expect(empty).toHaveFocus()
   })
 
+  it('moves focus to the page heading when the very last activity is removed', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '#/activities')
+    const one = [SET[0]!]
+    function Host() {
+      const [activities, setActivities] = useState(one)
+      return (
+        <ActivitiesPage
+          signedIn={false}
+          activities={activities}
+          units="metric"
+          records={new Map()}
+          keptIds={new Map([['a', 'saved-a']])}
+          onDelete={() => setActivities([])}
+        />
+      )
+    }
+    render(<Host />)
+    await user.click(screen.getByRole('button', { name: 'Delete Alpha run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Activities' })).toHaveFocus()
+  })
+
+  it('does not take focus for a list that has rows left, nor after the address changes', async () => {
+    const user = userEvent.setup()
+    window.history.replaceState(null, '', '#/activities?sport=run')
+    function Host() {
+      const [activities, setActivities] = useState(SET)
+      return (
+        <ActivitiesPage
+          signedIn={false}
+          activities={activities}
+          units="metric"
+          records={new Map()}
+          keptIds={new Map(SET.map((a) => [a.id, `saved-${a.id}`]))}
+          onDelete={(id) => setActivities((now) => now.filter((a) => `saved-${a.id}` !== id))}
+        />
+      )
+    }
+    render(<Host />)
+    await user.click(screen.getByRole('button', { name: 'Delete Alpha run' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(names()).toHaveLength(2)
+    expect(document.querySelector('.activities__empty')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: 'Activities' })).not.toHaveFocus()
+  })
+
   it('leaves the period message alone when the period itself is empty', () => {
     window.history.replaceState(null, '', '#/activities?period=1&sport=ride&bucket=w:2025-5-2')
     page()
