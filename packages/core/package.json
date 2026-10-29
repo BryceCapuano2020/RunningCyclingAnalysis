@@ -29,6 +29,7 @@
     "./cp": "./src/cp/index.ts",
     "./curves": "./src/curves/index.ts",
     "./effort": "./src/effort/index.ts",
+    "./findings": "./src/findings/index.ts",
     "./fit": "./src/fit/index.ts",
     "./gpx": "./src/gpx/index.ts",
     "./gpx/encode": "./src/gpx/encode.ts",
@@ -53,6 +54,7 @@
   "scripts": {
     "test": "vitest run",
     "test:perf": "vitest run --config vitest.perf.config.ts",
+    "test:sim": "vitest run --config vitest.sim.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.corpus.json --noEmit"
   },
   "dependencies": {

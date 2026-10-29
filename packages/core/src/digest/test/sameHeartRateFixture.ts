@@ -68,7 +68,7 @@ export const BASE: Record<Sport, (heartRate: number) => number> = {
 }
 
 /** The days of the week (0 is Monday) that `perWeek` activities a week are on. */
-const DAYS: Record<number, number[]> = {
+export const DAYS: Record<number, number[]> = {
   1: [0],
   2: [0, 3],
   3: [0, 2, 5],

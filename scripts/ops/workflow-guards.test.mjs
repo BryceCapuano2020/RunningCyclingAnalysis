@@ -156,6 +156,22 @@ test('wall-clock budgets run in their own job, retried once, and never inside th
   assert.match(perf, /if ! npm run test:perf; then/)
 })
 
+test('statistical simulations run in their own job, without coverage, and never inside the unit-test job', async () => {
+  const blocks = jobBlocks(await workflow('ci'))
+  const verify = blocks.get('verify').join('\n')
+  const sim = blocks.get('sim').join('\n')
+  assert.doesNotMatch(verify, /test:sim/)
+  assert.match(sim, /^ {4}name: Statistical simulations$/m)
+  assert.match(sim, /^ {6}- run: npm run test:sim$/m)
+  assert.doesNotMatch(sim, /coverage/)
+  const pkg = JSON.parse(await readFile(new URL('package.json', root), 'utf8'))
+  assert.match(
+    pkg.scripts.check,
+    /npm run test:sim/,
+    'check runs the simulations the unit run skips',
+  )
+})
+
 test('a deploy records the commit on the Worker version and the live /api/health must report it', async () => {
   const deploy = await workflow('deploy')
   assert.match(deploy, /--define "__BUILD_SHA__:\\"\$\{GITHUB_SHA::8\}\\""/)

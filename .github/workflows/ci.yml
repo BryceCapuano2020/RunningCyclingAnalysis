@@ -20,7 +20,8 @@ jobs:
   verify:
     name: Lint, typecheck, unit tests, build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Guards against a hang; it is not a speed budget (the job takes 8 to 9 minutes on a normal run).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,6 +74,25 @@ jobs:
             echo "::warning title=Performance budgets::The budgets failed once; running them again. A second failure fails the job."
             npm run test:perf
           fi
+
+  # The statistical simulations (*.sim.test.ts) replay many seeded libraries to measure a detector's
+  # hit rate and its silence on nulls. They take minutes under coverage, so they are their own job,
+  # run without coverage and in parallel with the unit tests. They are deterministic (seeded), so a
+  # failure is a real change in a rate and the job does not retry.
+  sim:
+    name: Statistical simulations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit
+      - run: npm run test:sim
 
   e2e:
     name: End-to-end (Playwright)
